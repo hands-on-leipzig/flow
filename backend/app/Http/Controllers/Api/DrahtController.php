@@ -48,6 +48,7 @@ class DrahtController extends Controller
                 $mergedData['programs'][] = [
                     'first_program' => $row->first_program,
                     'name' => $row->name,
+                    'sequence' => $row->sequence,
                     'draht_id' => null,
                     'scheduledata' => null,
                     'teams' => [],
@@ -68,6 +69,7 @@ class DrahtController extends Controller
             $mergedData['programs'][] = [
                 'first_program' => $row->first_program,
                 'name' => $row->name,
+                'sequence' => $row->sequence,
                 'draht_id' => $row->draht_id,
                 'scheduledata' => $payload,
                 'teams' => is_array($payload) ? ($payload['teams'] ?? []) : [],

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {computed} from 'vue'
-import {getProgramTheme, type ProgramKey} from '@/utils/programTheme'
+import {getProgramTheme} from '@/utils/programTheme'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
 const props = withDefaults(
     defineProps<{
-      program: ProgramKey
+      program: string
       /** When false, section stays visible but visually muted (program off). */
       active?: boolean
       showLogo?: boolean

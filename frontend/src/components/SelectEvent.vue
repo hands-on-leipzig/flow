@@ -7,6 +7,7 @@ import {useAuth} from '@/composables/useAuth'
 import dayjs from "dayjs";
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import { eventPrograms } from '@/utils/eventPrograms'
 import {showGlassToast} from '@/composables/useGlassToast'
 
 
@@ -172,7 +173,7 @@ async function createEvent() {
             <!-- Rechter Bereich: Bilder nebeneinander, bedingt sichtbar -->
             <div class="flex ml-4 space-x-2">
               <img
-                v-for="program in (event.programs || [])"
+                v-for="program in eventPrograms(event)"
                 :key="program.first_program"
                 :src="programLogoSrc(program.first_program)"
                 :alt="programLogoAlt(program.name || program.first_program)"

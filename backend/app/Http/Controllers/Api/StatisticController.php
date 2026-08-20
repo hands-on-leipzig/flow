@@ -86,6 +86,7 @@ class StatisticController extends Controller
         $programsByEvent = DB::table('event_program')
             ->leftJoin('m_first_program', 'm_first_program.id', '=', 'event_program.first_program')
             ->whereIn('event_program.event', $eventIds)
+            ->orderBy('m_first_program.sequence')
             ->orderBy('event_program.first_program')
             ->get([
                 'event_program.event',

@@ -9,7 +9,7 @@ import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBo
 import EventMap from '@/components/molecules/EventMap.vue'
 import {imageUrl, programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
-import {programDisplayName} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName} from '@/utils/eventPrograms'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
 
 defineOptions({name: 'HomeOverview'})
@@ -134,7 +134,7 @@ async function loadOverviewData() {
       event.value.contact = data.contact
       event.value.information = data.information
       const programs = Array.isArray(data.programs) ? data.programs : []
-      teamStats.value = programs.map((p: any) => ({
+      teamStats.value = eventPrograms({ programs }).map((p: any) => ({
         first_program: p.first_program ?? p.name,
         name: programDisplayName(p.name),
         capacity: Number(p.capacity || 0),

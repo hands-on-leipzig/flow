@@ -4,6 +4,7 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {eventPrograms} from '@/utils/eventPrograms'
 
 defineOptions({name: 'EventDayControl'})
 
@@ -55,7 +56,7 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
         </div>
         <div class="flex items-center gap-2" v-if="event">
           <img
-              v-for="program in (event.programs || [])"
+              v-for="program in eventPrograms(event)"
               :key="program.first_program"
               :src="programLogoSrc(program.first_program)"
               :alt="programLogoAlt(program.name || program.first_program)"

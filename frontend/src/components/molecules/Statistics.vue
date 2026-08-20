@@ -4,6 +4,7 @@ import axios from 'axios'
 
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import { eventPrograms } from '@/utils/eventPrograms'
 
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
@@ -410,7 +411,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_name: event.event_name,
           event_date: event.event_date,
           event_link: event.event_link ?? null,
-          programs: event.programs || [],
+          programs: eventPrograms(event),
           event_needs_attention: event.event_needs_attention ?? false,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
@@ -434,7 +435,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_name: event.event_name,
           event_date: event.event_date,
           event_link: event.event_link ?? null,
-          programs: event.programs || [],
+          programs: eventPrograms(event),
           event_needs_attention: event.event_needs_attention ?? false,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
@@ -1159,7 +1160,7 @@ function exportToCSV() {
                 v-if="(row.programs || []).length"
                 class="inline-flex items-center ml-2 whitespace-nowrap"
               >
-                <template v-for="program in row.programs" :key="program.first_program">
+                <template v-for="program in eventPrograms(row)" :key="program.first_program">
                   <img
                     :src="programLogoSrc(program.first_program ?? program.name)"
                     :alt="programLogoAlt(program.first_program ?? program.name)"

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use App\Support\ProgramCatalog;
 
 class Event extends Model
 {
@@ -48,7 +49,10 @@ class Event extends Model
 
     public function programs()
     {
-        return $this->hasMany(EventProgram::class, 'event')->orderBy('first_program');
+        return $this->hasMany(EventProgram::class, 'event')
+            // Catalog order lives on m_first_program.sequence, not event_program.first_program.
+            ->orderByRaw(ProgramCatalog::sequenceOrderSql('event_program.first_program'))
+            ->orderBy('first_program');
     }
 
     public function logos()

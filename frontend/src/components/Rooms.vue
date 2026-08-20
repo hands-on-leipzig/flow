@@ -133,12 +133,10 @@ onMounted(async () => {
     return {teams: data?.teams || [], metadata: data?.metadata || {}}
   }
 
-  try {
-    const attached = eventPrograms(event.value)
-    const toFetch = attached.length
-        ? attached
-        : [{first_program: 2, name: 'EXPLORE'}, {first_program: 3, name: 'CHALLENGE'}]
+  const attached = eventPrograms(event.value)
+  const toFetch = attached
 
+  try {
     const results = await Promise.all(toFetch.map(async (program) => {
       try {
         const res = await axios.get(`/events/${eventId.value}/teams`, {
@@ -205,29 +203,34 @@ onMounted(async () => {
     extraProgramTeams.value = []
   }
 
-  // --- Zusammenführen in gemeinsame Struktur ---
+  // --- Zusammenführen in gemeinsame Struktur (catalog sequence) ---
   const teamGroups = []
 
-  if (showExploreTeams.value) {
-    if (hasTwoExploreGroups.value) {
+  for (const program of toFetch) {
+    const name = String(program.name || '').toUpperCase()
+    const id = Number(program.first_program)
+    if (name === 'EXPLORE' || id === 2) {
+      if (!showExploreTeams.value) continue
+      if (hasTwoExploreGroups.value) {
+        teamGroups.push(
+            {id: 'explore-morning', name: 'Explore Vormittag', first_program: 2, items: exploreTeamsMorning.value},
+            {id: 'explore-afternoon', name: 'Explore Nachmittag', first_program: 2, items: exploreTeamsAfternoon.value}
+        )
+      } else {
+        teamGroups.push(
+            {id: 'explore', name: 'Explore', first_program: 2, items: exploreTeams.value}
+        )
+      }
+    } else if (name === 'CHALLENGE' || id === 3) {
+      if (!showChallengeTeams.value) continue
       teamGroups.push(
-          {id: 'explore-morning', name: 'Explore Vormittag', first_program: 2, items: exploreTeamsMorning.value},
-          {id: 'explore-afternoon', name: 'Explore Nachmittag', first_program: 2, items: exploreTeamsAfternoon.value}
+          {id: 'challenge', name: 'Challenge', first_program: 3, items: challengeTeams.value}
       )
     } else {
-      teamGroups.push(
-          {id: 'explore', name: 'Explore', first_program: 2, items: exploreTeams.value}
-      )
+      const extra = extraProgramTeams.value.find(g => Number(g.first_program) === id)
+      if (extra) teamGroups.push(extra)
     }
   }
-
-  if (showChallengeTeams.value) {
-    teamGroups.push(
-        {id: 'challenge', name: 'Challenge', first_program: 3, items: challengeTeams.value}
-    )
-  }
-
-  extraProgramTeams.value.forEach(group => teamGroups.push(group))
 
   assignables.value = [
     {
@@ -297,7 +300,7 @@ onMounted(async () => {
 
   const fetchPeopleData = async () => {
     const promises = []
-    for (const program of event.value?.programs || []) {
+    for (const program of eventPrograms(event.value)) {
       if (!program.draht_id) continue
       promises.push(
           axios.get(`/draht/people/${program.draht_id}`)

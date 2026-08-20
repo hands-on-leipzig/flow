@@ -75,8 +75,8 @@ const teamNavChildren = computed<NavChild[]>(() => {
   const programs = eventPrograms(eventStore.selectedEvent)
   if (!programs.length) {
     return [
-      {name: 'Explore', path: '/plan/teams/explore', icon: 'bi-compass'},
       {name: 'Challenge', path: '/plan/teams/challenge', icon: 'bi-trophy'},
+      {name: 'Explore', path: '/plan/teams/explore', icon: 'bi-compass'},
     ]
   }
   return programs.map((program) => ({

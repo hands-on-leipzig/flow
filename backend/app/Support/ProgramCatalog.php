@@ -26,6 +26,15 @@ class ProgramCatalog
     }
 
     /**
+     * SQL fragment: catalog sequence for a first_program id column.
+     * $column must be a trusted identifier (not user input).
+     */
+    public static function sequenceOrderSql(string $column = 'first_program'): string
+    {
+        return '(SELECT sequence FROM m_first_program WHERE m_first_program.id = '.$column.')';
+    }
+
+    /**
      * Programs that can be attached to an event (Discover is history-only).
      */
     public static function attachable(): Collection

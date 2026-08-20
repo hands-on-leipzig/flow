@@ -1,5 +1,5 @@
 import {Slideshow} from "./slideshow";
-import type {EventProgramRef} from "@/utils/eventPrograms";
+import {eventPrograms, type EventProgramRef} from "@/utils/eventPrograms";
 
 export default class FllEvent {
     id: number
@@ -34,7 +34,7 @@ export default class FllEvent {
 
     constructor(data: any) {
         Object.assign(this, data)
-        this.programs = Array.isArray(data.programs) ? data.programs : []
+        this.programs = eventPrograms(data)
         this.drahtTeamsExplore = data.drahtTeamsExplore || 0
         this.drahtTeamsChallenge = data.drahtTeamsChallenge || 0
         this.hasTeamDiscrepancy = data.hasTeamDiscrepancy || false

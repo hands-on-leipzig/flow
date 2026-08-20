@@ -8,7 +8,7 @@ import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
-import {hasChallenge} from '@/utils/eventPrograms'
+import {hasChallenge, eventPrograms, programId, programDisplayName, type EventProgramRef} from '@/utils/eventPrograms'
 
 
 type TabKey = 'public' | 'organisation' | 'aufkleber'
@@ -36,9 +36,14 @@ interface Role {
 const availableRoles = ref<Role[]>([])
 const selectedRoleIds = ref<Set<number>>(new Set())
 
-// Computed: split roles by program (Explore = 2, Challenge = 3)
-const exploreRoles = computed(() => availableRoles.value.filter(r => r.first_program === 2))
-const challengeRoles = computed(() => availableRoles.value.filter(r => r.first_program === 3))
+const roleProgramGroups = computed(() =>
+  eventPrograms(event.value)
+    .map((program) => ({
+      program,
+      roles: availableRoles.value.filter((role) => role.first_program === programId(program)),
+    }))
+    .filter((group) => group.roles.length > 0)
+)
 
 // Fetch available roles from backend
 async function fetchAvailableRoles() {
@@ -68,26 +73,22 @@ function toggleRole(roleId: number) {
 const hasSelectedRoles = computed(() => selectedRoleIds.value.size > 0)
 
 // --- Available Team Programs ---
-interface Program {
-  id: number
-  name: string
-}
-
-const availableTeamPrograms = ref<Program[]>([])
+const availableTeamPrograms = ref<EventProgramRef[]>([])
 const selectedProgramIds = ref<Set<number>>(new Set())
 
-// Computed: split programs (Explore = 2, Challenge = 3)
-const hasExploreTeams = computed(() => availableTeamPrograms.value.some(p => p.id === 2))
-const hasChallengeTeams = computed(() => availableTeamPrograms.value.some(p => p.id === 3))
+const hasChallengeTeams = computed(() => availableTeamPrograms.value.some(p => programId(p) === 3))
 
-// Fetch available programs for teams from backend
 async function fetchAvailableTeamPrograms() {
   if (!eventId.value) return
   try {
     const { data } = await axios.get(`/export/available-team-programs/${eventId.value}`)
-    availableTeamPrograms.value = data.programs || []
-    // Select all by default
-    selectedProgramIds.value = new Set(availableTeamPrograms.value.map(p => p.id))
+    availableTeamPrograms.value = eventPrograms({
+      programs: (data.programs || []).map((program: { id: number; name: string; sequence?: number }) => ({
+        ...program,
+        first_program: program.id,
+      })),
+    })
+    selectedProgramIds.value = new Set(availableTeamPrograms.value.map((program) => programId(program)))
   } catch (error) {
     console.error('Failed to fetch available team programs:', error)
     availableTeamPrograms.value = []
@@ -848,48 +849,24 @@ const currentTabLabel = computed(() =>
       <div 
         v-else
         class="mt-4 grid gap-4 grid-cols-1"
-        :class="{ 'lg:grid-cols-2': exploreRoles.length > 0 && challengeRoles.length > 0 }"
+        :class="{ 'lg:grid-cols-2': roleProgramGroups.length > 1 }"
       >
-        <!-- Explore Roles -->
-        <div v-if="exploreRoles.length > 0" class="bg-[var(--color-bg-muted)] rounded p-3">
+        <div
+            v-for="group in roleProgramGroups"
+            :key="programId(group.program)"
+            class="bg-[var(--color-bg-muted)] rounded p-3"
+        >
           <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
             <img 
-              :src="programLogoSrc('E')" 
-              :alt="programLogoAlt('E')"
+              :src="programLogoSrc(group.program.first_program)" 
+              :alt="programLogoAlt(group.program.first_program)"
               class="w-6 h-6 flex-shrink-0"
             />
-            <span>FIRST LEGO League Explore</span>
+            <span>FIRST LEGO League {{ programDisplayName(group.program.name) }}</span>
           </h5>
           <div class="space-y-0.5">
             <label 
-              v-for="role in exploreRoles" 
-              :key="role.id"
-              class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
-            >
-              <input 
-                type="checkbox" 
-                :checked="selectedRoleIds.has(role.id)"
-                @change="toggleRole(role.id)"
-                class="accent-blue-600"
-              />
-              <span class="text-sm">{{ role.name }}</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Challenge Roles -->
-        <div v-if="challengeRoles.length > 0" class="bg-[var(--color-bg-muted)] rounded p-3">
-          <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-            <img 
-              :src="programLogoSrc('C')" 
-              :alt="programLogoAlt('C')"
-              class="w-6 h-6 flex-shrink-0"
-            />
-            <span>FIRST LEGO League Challenge</span>
-          </h5>
-          <div class="space-y-0.5">
-            <label 
-              v-for="role in challengeRoles" 
+              v-for="role in group.roles" 
               :key="role.id"
               class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
             >
@@ -965,17 +942,20 @@ const currentTabLabel = computed(() =>
       <div 
         v-else
         class="mt-4 grid gap-4 grid-cols-1"
-        :class="{ 'lg:grid-cols-2': hasExploreTeams && hasChallengeTeams }"
+        :class="{ 'lg:grid-cols-2': availableTeamPrograms.length > 1 }"
       >
-        <!-- Explore Teams -->
-        <div v-if="hasExploreTeams" class="bg-[var(--color-bg-muted)] rounded p-3">
+        <div
+            v-for="program in availableTeamPrograms"
+            :key="program.id"
+            class="bg-[var(--color-bg-muted)] rounded p-3"
+        >
           <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
             <img 
-              :src="programLogoSrc('E')" 
-              :alt="programLogoAlt('E')"
+              :src="programLogoSrc(program.id)" 
+              :alt="programLogoAlt(program.id)"
               class="w-6 h-6 flex-shrink-0"
             />
-            <span>FIRST LEGO League Explore</span>
+            <span>FIRST LEGO League {{ programDisplayName(program.name) }}</span>
           </h5>
           <div class="space-y-0.5">
             <label 
@@ -983,33 +963,8 @@ const currentTabLabel = computed(() =>
             >
               <input 
                 type="checkbox" 
-                :checked="selectedProgramIds.has(2)"
-                @change="toggleTeamProgram(2)"
-                class="accent-blue-600"
-              />
-              <span class="text-sm">Alle Teams</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Challenge Teams -->
-        <div v-if="hasChallengeTeams" class="bg-[var(--color-bg-muted)] rounded p-3">
-          <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-            <img 
-              :src="programLogoSrc('C')" 
-              :alt="programLogoAlt('C')"
-              class="w-6 h-6 flex-shrink-0"
-            />
-            <span>FIRST LEGO League Challenge</span>
-          </h5>
-          <div class="space-y-0.5">
-            <label 
-              class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
-            >
-              <input 
-                type="checkbox" 
-                :checked="selectedProgramIds.has(3)"
-                @change="toggleTeamProgram(3)"
+                :checked="selectedProgramIds.has(program.id)"
+                @change="toggleTeamProgram(program.id)"
                 class="accent-blue-600"
               />
               <span class="text-sm">Alle Teams</span>
@@ -1219,24 +1174,27 @@ const currentTabLabel = computed(() =>
           <div 
             v-if="availableTeamPrograms.length > 0"
             class="mb-4 grid gap-4 grid-cols-1"
-            :class="{ 'lg:grid-cols-2': hasExploreTeams && hasChallengeTeams }"
+            :class="{ 'lg:grid-cols-2': availableTeamPrograms.length > 1 }"
           >
-            <!-- Explore -->
-            <div v-if="hasExploreTeams" class="bg-[var(--color-bg-muted)] rounded p-3">
+            <div
+                v-for="program in availableTeamPrograms"
+                :key="program.id"
+                class="bg-[var(--color-bg-muted)] rounded p-3"
+            >
               <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
                 <img 
-                  :src="programLogoSrc('E')" 
-                  :alt="programLogoAlt('E')"
+                  :src="programLogoSrc(program.id)" 
+                  :alt="programLogoAlt(program.id)"
                   class="w-6 h-6 flex-shrink-0"
                 />
-                <span>FIRST LEGO League Explore</span>
+                <span>FIRST LEGO League {{ programDisplayName(program.name) }}</span>
               </h5>
               <div class="space-y-0.5">
                 <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
                   <input 
                     type="checkbox" 
-                    :checked="teamLabelFilters[2]?.players ?? true"
-                    @change="toggleTeamLabelPersonType(2, 'players')"
+                    :checked="teamLabelFilters[program.id]?.players ?? true"
+                    @change="toggleTeamLabelPersonType(program.id, 'players')"
                     class="accent-blue-600"
                   />
                   <span class="text-sm">Teammitglieder</span>
@@ -1244,40 +1202,8 @@ const currentTabLabel = computed(() =>
                 <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
                   <input 
                     type="checkbox" 
-                    :checked="teamLabelFilters[2]?.coaches ?? true"
-                    @change="toggleTeamLabelPersonType(2, 'coaches')"
-                    class="accent-blue-600"
-                  />
-                  <span class="text-sm">Coach:innen</span>
-                </label>
-              </div>
-            </div>
-            
-            <!-- Challenge -->
-            <div v-if="hasChallengeTeams" class="bg-[var(--color-bg-muted)] rounded p-3">
-              <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-                <img 
-                  :src="programLogoSrc('C')" 
-                  :alt="programLogoAlt('C')"
-                  class="w-6 h-6 flex-shrink-0"
-                />
-                <span>FIRST LEGO League Challenge</span>
-              </h5>
-              <div class="space-y-0.5">
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
-                  <input 
-                    type="checkbox" 
-                    :checked="teamLabelFilters[3]?.players ?? true"
-                    @change="toggleTeamLabelPersonType(3, 'players')"
-                    class="accent-blue-600"
-                  />
-                  <span class="text-sm">Teammitglieder</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
-                  <input 
-                    type="checkbox" 
-                    :checked="teamLabelFilters[3]?.coaches ?? true"
-                    @change="toggleTeamLabelPersonType(3, 'coaches')"
+                    :checked="teamLabelFilters[program.id]?.coaches ?? true"
+                    @change="toggleTeamLabelPersonType(program.id, 'coaches')"
                     class="accent-blue-600"
                   />
                   <span class="text-sm">Coach:innen</span>

@@ -633,6 +633,17 @@ class PlanExportController extends Controller
             ];
         }
 
+        $sequence = DB::table('m_first_program')->pluck('sequence', 'id');
+        usort(
+            $programs,
+            fn (array $a, array $b) => ((int) ($sequence[$a['id']] ?? 999)) <=> ((int) ($sequence[$b['id']] ?? 999))
+        );
+
+        foreach ($programs as &$program) {
+            $program['sequence'] = (int) ($sequence[$program['id']] ?? 999);
+        }
+        unset($program);
+
         return $programs;
     }
 

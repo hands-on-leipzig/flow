@@ -8,6 +8,7 @@ import {useAuth} from '@/composables/useAuth'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {getAbbreviatedCompetitionType, cleanEventName} from '@/utils/eventTitle'
+import {eventPrograms} from '@/utils/eventPrograms'
 
 const props = defineProps<{
   open: boolean
@@ -341,7 +342,7 @@ onBeforeUnmount(() => {
               <div class="event-modal__item-aside">
                 <div class="event-modal__programs">
                   <img
-                      v-for="program in (ev.programs || [])"
+                      v-for="program in eventPrograms(ev)"
                       :key="program.first_program"
                       :src="programLogoSrc(program.first_program)"
                       :alt="programLogoAlt(program.name || program.first_program)"

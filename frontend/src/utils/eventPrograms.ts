@@ -15,12 +15,24 @@ export type EventWithPrograms = {
   name?: string | null
 }
 
-export function eventPrograms(event: EventWithPrograms | null | undefined): EventProgramRef[] {
-  return Array.isArray(event?.programs) ? event.programs : []
-}
-
 export function programId(row: EventProgramRef): number {
   return Number(row.first_program ?? row.id ?? 0)
+}
+
+function compareByProgramSequence(a: EventProgramRef, b: EventProgramRef): number {
+  const seqA = a.sequence ?? Number.POSITIVE_INFINITY
+  const seqB = b.sequence ?? Number.POSITIVE_INFINITY
+  if (seqA !== seqB) return seqA - seqB
+  return programId(a) - programId(b)
+}
+
+/**
+ * Event programs in m_first_program.sequence order.
+ * This is the only frontend sort — map/v-for the result, do not sort again.
+ */
+export function eventPrograms(event: EventWithPrograms | null | undefined): EventProgramRef[] {
+  const rows = Array.isArray(event?.programs) ? event.programs : []
+  return [...rows].sort(compareByProgramSequence)
 }
 
 export function hasProgramName(event: EventWithPrograms | null | undefined, name: string): boolean {

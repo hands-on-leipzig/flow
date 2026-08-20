@@ -3,6 +3,7 @@ import ExploreSettings from '@/components/molecules/ExploreSettings.vue'
 import ChallengeSettings from '@/components/molecules/ChallengeSettings.vue'
 import TimeSettings from '@/components/molecules/TimeSettings.vue'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
+import { programId, type EventProgramRef } from '@/utils/eventPrograms'
 
 defineOptions({ name: 'ScheduleGeneral' })
 
@@ -10,6 +11,7 @@ const {
   parameters,
   showExplore,
   showChallenge,
+  attachedPrograms,
   lanesIndex,
   supportedPlanData,
   visibilityMap,
@@ -23,27 +25,39 @@ function setShowExplore(v: boolean) {
 function setShowChallenge(v: boolean) {
   showChallenge.value = v
 }
+
+function isExplore(program: EventProgramRef): boolean {
+  return String(program.name || '').toUpperCase() === 'EXPLORE'
+}
+
+function isChallenge(program: EventProgramRef): boolean {
+  return String(program.name || '').toUpperCase() === 'CHALLENGE'
+}
 </script>
 
 <template>
   <div class="schedule-general flex flex-col pb-2">
-    <ExploreSettings
-        :parameters="parameters"
-        :show-explore="showExplore"
-        :show-challenge="showChallenge"
-        :lanes-index="lanesIndex"
-        :supported-plan-data="supportedPlanData"
-        @toggle-show="setShowExplore"
-        @update-param="handleParamUpdate"
-    />
-    <ChallengeSettings
-        :parameters="parameters"
-        :show-challenge="showChallenge"
-        :lanes-index="lanesIndex"
-        :supported-plan-data="supportedPlanData"
-        @toggle-show="setShowChallenge"
-        @update-param="handleParamUpdate"
-    />
+    <template v-for="program in attachedPrograms" :key="programId(program)">
+      <ExploreSettings
+          v-if="isExplore(program)"
+          :parameters="parameters"
+          :show-explore="showExplore"
+          :show-challenge="showChallenge"
+          :lanes-index="lanesIndex"
+          :supported-plan-data="supportedPlanData"
+          @toggle-show="setShowExplore"
+          @update-param="handleParamUpdate"
+      />
+      <ChallengeSettings
+          v-else-if="isChallenge(program)"
+          :parameters="parameters"
+          :show-challenge="showChallenge"
+          :lanes-index="lanesIndex"
+          :supported-plan-data="supportedPlanData"
+          @toggle-show="setShowChallenge"
+          @update-param="handleParamUpdate"
+      />
+    </template>
     <TimeSettings
         :parameters="parameters"
         :visibility-map="visibilityMap"

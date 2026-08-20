@@ -65,6 +65,6 @@ export function getProgramTheme(program: string): ProgramTheme {
 }
 
 export function listProgramKeys(includeShared = false): ProgramKey[] {
-  const keys: ProgramKey[] = ['explore', 'challenge', 'future5', 'future8']
+  const keys: ProgramKey[] = ['challenge', 'explore', 'future5', 'future8']
   return includeShared ? [...keys, 'shared'] : keys
 }
