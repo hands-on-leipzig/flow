@@ -23,6 +23,8 @@ const handlePct = computed(() => {
   return (props.planTeams / props.capacity) * 100
 })
 
+const labelOnLeft = computed(() => handlePct.value > 50)
+
 function clampPlan(value: number): number {
   return Math.min(props.maxTeams, Math.max(props.minTeams, Math.round(value)))
 }
@@ -67,19 +69,19 @@ function onPointerUp() {
         aria-hidden="true"
     >
       <div class="plan-bar__fill" :style="{ width: fillPct + '%' }"/>
-      <span class="plan-bar__end plan-bar__end--min">1</span>
-      <span class="plan-bar__end plan-bar__end--max">{{ capacity }}</span>
+      <span class="plan-bar__end plan-bar__end--min">Angemeldet {{ registeredTeams }}</span>
+      <span class="plan-bar__end plan-bar__end--max">Kapazität {{ capacity }}</span>
     </div>
     <div
         class="plan-bar__handle"
-        :class="{ 'is-dragging': dragging }"
+        :class="{ 'is-dragging': dragging, 'is-flipped': labelOnLeft }"
         :style="{ left: handlePct + '%' }"
         role="slider"
         tabindex="0"
         :aria-valuemin="minTeams"
         :aria-valuemax="maxTeams"
         :aria-valuenow="planTeams"
-        aria-label="Plan für Teams"
+        :aria-label="`Plan für ${planTeams} Teams`"
         @pointerdown="onPointerDown"
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"
@@ -89,7 +91,7 @@ function onPointerUp() {
         <span class="plan-bar__triangle"/>
         <span class="plan-bar__line"/>
       </div>
-      <span class="plan-bar__value">{{ planTeams }}</span>
+      <span class="plan-bar__value">Plan für {{ planTeams }} Teams</span>
     </div>
   </div>
 </template>
@@ -142,9 +144,7 @@ function onPointerUp() {
   position: absolute;
   top: 0;
   bottom: 0;
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+  width: 0;
   z-index: 2;
   cursor: grab;
   touch-action: none;
@@ -167,7 +167,7 @@ function onPointerUp() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  align-self: stretch;
+  height: 100%;
   width: 12px;
   margin-left: -6px;
 }
@@ -188,7 +188,9 @@ function onPointerUp() {
 }
 
 .plan-bar__value {
-  margin-left: 0.2rem;
+  position: absolute;
+  top: 0;
+  left: 0.45rem;
   padding-top: 0.05rem;
   font-size: 0.82rem;
   font-weight: 750;
@@ -196,5 +198,10 @@ function onPointerUp() {
   line-height: 1;
   color: var(--color-text);
   white-space: nowrap;
+}
+
+.plan-bar__handle.is-flipped .plan-bar__value {
+  left: auto;
+  right: 0.45rem;
 }
 </style>

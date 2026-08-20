@@ -3,7 +3,6 @@ import {computed, UnwrapRef, watch, watchEffect} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
-import TeamSelectionCard from "@/components/molecules/TeamSelectionCard.vue";
 import TeamPlanBar from "@/components/molecules/TeamPlanBar.vue";
 import {useEventStore} from '@/stores/event'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
@@ -245,24 +244,14 @@ const teamsPerJuryHint = computed(() => {
 
 <template>
   <ProgramSection program="challenge">
-    <div class="challenge-teams">
-      <TeamPlanBar
-          :plan-teams="planTeams"
-          :registered-teams="registeredTeams"
-          :capacity="capacity"
-          :min-teams="challengeTeamLimits.min"
-          :max-teams="challengeTeamLimits.max"
-          :on-update="(value) => updateByName('c_teams', value)"
-      />
-      <TeamSelectionCard
-          :plan-teams="planTeams"
-          :registered-teams="registeredTeams"
-          :capacity="capacity"
-          :min-teams="challengeTeamLimits.min"
-          :max-teams="challengeTeamLimits.max"
-          :on-update="(value) => updateByName('c_teams', value)"
-      />
-    </div>
+    <TeamPlanBar
+        :plan-teams="planTeams"
+        :registered-teams="registeredTeams"
+        :capacity="capacity"
+        :min-teams="challengeTeamLimits.min"
+        :max-teams="challengeTeamLimits.max"
+        :on-update="(value) => updateByName('c_teams', value)"
+    />
 
       <!-- Jury lanes -->
       <div>
@@ -292,7 +281,7 @@ const teamsPerJuryHint = computed(() => {
             </RadioGroupOption>
           </RadioGroup>
 
-          <span class="glass-settings-label whitespace-nowrap">Jurygruppe(n)</span>
+          <span class="glass-settings-label whitespace-nowrap">{{ paramMapByName['j_lanes']?.ui_label }}</span>
           <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
           <span class="glass-settings-hint break-words">
             {{ teamsPerJuryHint }}
@@ -330,7 +319,7 @@ const teamsPerJuryHint = computed(() => {
             </button>
           </RadioGroupOption>
         </RadioGroup>
-        <span class="glass-settings-label whitespace-nowrap">Robot-Game Tische</span>
+        <span class="glass-settings-label whitespace-nowrap">{{ paramMapByName['r_tables']?.ui_label }}</span>
         <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
       </div>
 
@@ -355,12 +344,6 @@ const teamsPerJuryHint = computed(() => {
 </template>
 
 <style scoped>
-.challenge-teams {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
 .program-note {
   display: flex;
   align-items: flex-start;
