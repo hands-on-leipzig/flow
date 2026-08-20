@@ -69,6 +69,7 @@ const teamNavChildren = computed<NavChild[]>(() => {
   return eventPrograms(eventStore.selectedEvent).map((program) => ({
     name: programDisplayName(program),
     path: teamPathFor(program),
+    icon: 'bi-people',
     iconSrc: programLogoSrc(program.name),
   }))
 })
