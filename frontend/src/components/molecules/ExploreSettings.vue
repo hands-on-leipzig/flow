@@ -54,42 +54,118 @@ watch(eTeams, (total) => {
   setSplit(e1Teams.value)
 }, {immediate: true})
 
-const allowedLanes = computed<number[]>(() => {
-  const t = eTeams.value
-  if (!t) return [1, 2, 3, 4, 5]
-  return (exploreIndex.value[`${t}`] || []).slice().sort((a: number, b: number) => a - b)
-})
+function allowedLanesFor(teams: number): number[] {
+  if (!teams) return [1, 2, 3, 4, 5]
+  return (exploreIndex.value[`${teams}`] || []).slice().sort((a: number, b: number) => a - b)
+}
 
-const e1LanesProxy = computed<number>({
-  get: () => Number(paramMapByName.value['e1_lanes']?.value || paramMapByName.value['e2_lanes']?.value || 0),
-  set: (val) => updateByName('e1_lanes', val),
-})
-
-watch(allowedLanes, (opts) => {
-  if (!eTeams.value || !opts.length) return
-  const e1 = Number(paramMapByName.value['e1_lanes']?.value || 0)
-  if (!e1) return
-  if (!opts.includes(e1)) updateByName('e1_lanes', opts[0])
-})
-
-const isLaneAllowed = (n: number) => allowedLanes.value.includes(n)
-
-const lanePalette = computed(() => {
-  const max = Math.max(5, ...allowedLanes.value)
+function lanePaletteFor(allowed: number[]): number[] {
+  const max = Math.max(5, ...allowed)
   return Array.from({length: Math.min(7, max)}, (_, i) => i + 1)
-})
+}
 
-const matchingPlan = computed(() => {
-  if (!props.supportedPlanData || !eTeams.value || !e1LanesProxy.value) return
+function teamsPerGroupHint(teams: number, lanes: number): string {
+  const n = lanes || 1
+  const lo = Math.floor(teams / n)
+  const hi = Math.ceil(teams / n)
+  return lo === hi
+      ? `${lo} Teams pro Gruppe`
+      : `${lo} bis ${hi} Teams pro Gruppe`
+}
+
+function matchingPlanFor(teams: number, lanes: number) {
+  if (!props.supportedPlanData || !teams || !lanes) return
   return props.supportedPlanData.find((plan: any) =>
       plan.first_program === PROGRAM_ID &&
-      plan.teams === eTeams.value &&
-      plan.lanes === e1LanesProxy.value
+      plan.teams === teams &&
+      plan.lanes === lanes
   )
-})
+}
 
-const currentLaneNote = computed<string | undefined>(() => matchingPlan.value?.note)
-const currentConfigAlertLevel = computed<number>(() => matchingPlan.value?.alert_level || 0)
+function snapLanes(param: 'e1_lanes' | 'e2_lanes', teams: number) {
+  if (!teams) return
+  const allowed = allowedLanesFor(teams)
+  if (!allowed.length) return
+  const cur = Number(paramMapByName.value[param]?.value || 0)
+  if (!allowed.includes(cur)) updateByName(param, allowed[0])
+}
+
+watch(
+    [e1Teams, e2Teams, exploreIndex],
+    () => {
+      if (e1Teams.value > 0) {
+        snapLanes('e1_lanes', e1Teams.value)
+      } else if (Number(paramMapByName.value['e1_lanes']?.value || 0) !== 0) {
+        updateByName('e1_lanes', 0)
+      }
+
+      if (e2Teams.value > 0) {
+        snapLanes('e2_lanes', e2Teams.value)
+      } else if (Number(paramMapByName.value['e2_lanes']?.value || 0) !== 0) {
+        updateByName('e2_lanes', 0)
+      }
+    },
+    {immediate: true}
+)
+
+const laneGroups = computed(() => {
+  const both = e1Teams.value > 0 && e2Teams.value > 0
+  const groups: Array<{
+    key: string
+    param: 'e1_lanes' | 'e2_lanes'
+    teams: number
+    label: string
+    description: string | undefined
+    value: number
+    allowed: number[]
+    palette: number[]
+    hint: string
+    note: string | undefined
+    alertLevel: number
+  }> = []
+
+  if (e1Teams.value > 0) {
+    const allowed = allowedLanesFor(e1Teams.value)
+    const value = Number(paramMapByName.value['e1_lanes']?.value || 0)
+    const plan = matchingPlanFor(e1Teams.value, value)
+    const base = paramMapByName.value['e1_lanes']?.ui_label || ''
+    groups.push({
+      key: 'am',
+      param: 'e1_lanes',
+      teams: e1Teams.value,
+      label: both ? `${base} - Vormittag` : base,
+      description: paramMapByName.value['e1_lanes']?.ui_description,
+      value,
+      allowed,
+      palette: lanePaletteFor(allowed),
+      hint: teamsPerGroupHint(e1Teams.value, value),
+      note: plan?.note,
+      alertLevel: plan?.alert_level || 0,
+    })
+  }
+
+  if (e2Teams.value > 0) {
+    const allowed = allowedLanesFor(e2Teams.value)
+    const value = Number(paramMapByName.value['e2_lanes']?.value || 0)
+    const plan = matchingPlanFor(e2Teams.value, value)
+    const base = paramMapByName.value['e2_lanes']?.ui_label || paramMapByName.value['e1_lanes']?.ui_label || ''
+    groups.push({
+      key: 'pm',
+      param: 'e2_lanes',
+      teams: e2Teams.value,
+      label: both ? `${base} - Nachmittag` : base,
+      description: paramMapByName.value['e2_lanes']?.ui_description,
+      value,
+      allowed,
+      palette: lanePaletteFor(allowed),
+      hint: teamsPerGroupHint(e2Teams.value, value),
+      note: plan?.note,
+      alertLevel: plan?.alert_level || 0,
+    })
+  }
+
+  return groups
+})
 
 const teamLimits = computed(() => {
   const param = paramMapByName.value['e_teams']
@@ -125,21 +201,79 @@ const planTeams = computed(() => Number(paramMapByName.value['e_teams']?.value |
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsExplore || 0))
 const capacity = computed(() => Number(event.value?.drahtCapacityExplore || 0))
 
-const teamsPerJuryHint = computed(() => {
-  const teams = Number(paramMapByName.value['e_teams']?.value ?? 0)
-  const lanes = e1LanesProxy.value || 1
-  const lo = Math.floor(teams / lanes)
-  const hi = Math.ceil(teams / lanes)
-  return lo === hi
-      ? `${lo} Teams pro Gruppe`
-      : `${lo} bis ${hi} Teams pro Gruppe`
-})
-
 const hasOtherPrograms = computed(() =>
     eventPrograms(event.value).some((program) => programId(program) !== PROGRAM_ID)
 )
 
-const dummyConnection = ref('integrated')
+/** Mirrors backend App\Enums\ExploreMode. */
+const ExploreMode = {
+  NONE: 0,
+  INTEGRATED_MORNING: 1,
+  INTEGRATED_AFTERNOON: 2,
+  DECOUPLED_MORNING: 3,
+  DECOUPLED_AFTERNOON: 4,
+  DECOUPLED_BOTH: 5,
+  HYBRID_MORNING: 6,
+  HYBRID_AFTERNOON: 7,
+  HYBRID_BOTH: 8,
+} as const
+
+function connectionFromMode(mode: number): 'integrated' | 'independent' {
+  if (
+      mode === ExploreMode.DECOUPLED_MORNING
+      || mode === ExploreMode.DECOUPLED_AFTERNOON
+      || mode === ExploreMode.DECOUPLED_BOTH
+  ) {
+    return 'independent'
+  }
+  return 'integrated'
+}
+
+const connection = ref<'integrated' | 'independent' | null>(null)
+
+const connectionProxy = computed<'integrated' | 'independent'>({
+  get: () => connection.value
+      ?? connectionFromMode(Number(paramMapByName.value['e_mode']?.value || 0)),
+  set: (val) => {
+    connection.value = val
+  },
+})
+
+function computeEMode(): number {
+  const e1 = e1Teams.value
+  const e2 = e2Teams.value
+  if (eTeams.value <= 0 || (e1 <= 0 && e2 <= 0)) return ExploreMode.NONE
+
+  const both = e1 > 0 && e2 > 0
+  const morning = e1 > 0 && e2 <= 0
+  const integrated = hasOtherPrograms.value && connectionProxy.value === 'integrated'
+
+  if (integrated) {
+    if (both) return ExploreMode.HYBRID_BOTH
+    if (morning) return ExploreMode.INTEGRATED_MORNING
+    return ExploreMode.INTEGRATED_AFTERNOON
+  }
+
+  if (both) return ExploreMode.DECOUPLED_BOTH
+  if (morning) return ExploreMode.DECOUPLED_MORNING
+  return ExploreMode.DECOUPLED_AFTERNOON
+}
+
+watch(
+    [eTeams, e1Teams, e2Teams, hasOtherPrograms, connectionProxy],
+    () => {
+      if (!paramMapByName.value['e_mode']) return
+      const next = computeEMode()
+      if (next !== Number(paramMapByName.value['e_mode']?.value || 0)) {
+        updateByName('e_mode', next)
+      }
+    },
+    {immediate: true}
+)
+
+const e1Lanes = computed(() => Number(paramMapByName.value['e1_lanes']?.value || 0))
+const e2Lanes = computed(() => Number(paramMapByName.value['e2_lanes']?.value || 0))
+const eMode = computed(() => Number(paramMapByName.value['e_mode']?.value || 0))
 </script>
 
 <template>
@@ -159,18 +293,18 @@ const dummyConnection = ref('integrated')
         :on-update="setSplit"
     />
 
-    <div class="flex flex-col gap-1.5">
+    <div v-for="group in laneGroups" :key="group.key" class="flex flex-col gap-1.5">
       <div class="flex items-center gap-1 min-w-0">
-        <span class="glass-settings-label">{{ paramMapByName['e1_lanes']?.ui_label }}</span>
-        <InfoPopover :text="paramMapByName['e1_lanes']?.ui_description"/>
+        <span class="glass-settings-label">{{ group.label }}</span>
+        <InfoPopover :text="group.description"/>
       </div>
       <div class="glass-settings-row">
-        <RadioGroup v-model="e1LanesProxy" class="flex gap-1.5 flex-wrap shrink-0">
+        <RadioGroup :model-value="group.value" class="flex gap-1.5 flex-wrap shrink-0">
           <RadioGroupOption
-              v-for="n in lanePalette"
-              :key="'e1_lane_' + n"
+              v-for="n in group.palette"
+              :key="group.key + '_lane_' + n"
               v-slot="{ checked, disabled }"
-              :disabled="!isLaneAllowed(n)"
+              :disabled="!group.allowed.includes(n)"
               :value="n"
               as="template"
           >
@@ -178,46 +312,45 @@ const dummyConnection = ref('integrated')
                 :aria-disabled="disabled"
                 :class="[
                   'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
-                  checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
+                  checked ? (getAlertLevelStyle(group.alertLevel) || 'glass-choice--active') : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : '',
                 ]"
                 type="button"
-                @click="!disabled && updateByName('e1_lanes', n)"
+                @click="!disabled && updateByName(group.param, n)"
             >
               {{ n }}
             </button>
           </RadioGroupOption>
         </RadioGroup>
         <span class="glass-settings-hint whitespace-nowrap">
-          {{ teamsPerJuryHint }}
+          {{ group.hint }}
         </span>
       </div>
-      <p v-if="eTeams && allowedLanes.length === 0" class="glass-settings-hint mt-1.5 !not-italic">
+      <p v-if="group.teams && group.allowed.length === 0" class="glass-settings-hint mt-1.5 !not-italic">
         Keine gültigen Spurenzahlen für die aktuelle Teamanzahl.
       </p>
-    </div>
-
-    <div
-        v-if="currentLaneNote && currentConfigAlertLevel >= 1"
-        class="program-note"
-        :class="{
-          'program-note--ok': currentConfigAlertLevel === 1,
-          'program-note--warn': currentConfigAlertLevel === 2,
-          'program-note--error': currentConfigAlertLevel === 3,
-        }"
-    >
-      <i
-          class="bi"
-          :class="currentConfigAlertLevel === 1 ? 'bi-check-circle' : 'bi-exclamation-triangle'"
-          aria-hidden="true"
-      />
-      <span>{{ currentLaneNote }}</span>
+      <div
+          v-if="group.note && group.alertLevel >= 1"
+          class="program-note"
+          :class="{
+            'program-note--ok': group.alertLevel === 1,
+            'program-note--warn': group.alertLevel === 2,
+            'program-note--error': group.alertLevel === 3,
+          }"
+      >
+        <i
+            class="bi"
+            :class="group.alertLevel === 1 ? 'bi-check-circle' : 'bi-exclamation-triangle'"
+            aria-hidden="true"
+        />
+        <span>{{ group.note }}</span>
+      </div>
     </div>
 
     <div v-if="hasOtherPrograms" class="flex flex-col gap-1.5">
       <span class="glass-settings-label">Verbindung mit anderen Programmen</span>
       <div class="glass-settings-row">
-        <RadioGroup v-model="dummyConnection" class="flex gap-1.5 flex-wrap">
+        <RadioGroup v-model="connectionProxy" class="flex gap-1.5 flex-wrap">
           <RadioGroupOption
               v-for="opt in [{value: 'integrated', label: 'Integriert'}, {value: 'independent', label: 'unabhängig'}]"
               :key="'explore_connection_' + opt.value"
@@ -229,7 +362,7 @@ const dummyConnection = ref('integrated')
                 :class="checked ? 'glass-choice--active' : ''"
                 class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
                 type="button"
-                @click="dummyConnection = opt.value"
+                @click="connectionProxy = opt.value"
             >
               {{ opt.label }}
             </button>
@@ -237,6 +370,14 @@ const dummyConnection = ref('integrated')
         </RadioGroup>
       </div>
     </div>
+
+    <pre class="explore-debug">e_teams {{ eTeams }}
+e_mode {{ eMode }}
+
+e1_teams {{ e1Teams }}
+e1_lanes {{ e1Lanes }}
+e2_teams {{ e2Teams }}
+e2_lanes {{ e2Lanes }}</pre>
   </ProgramSection>
 </template>
 
@@ -274,5 +415,17 @@ const dummyConnection = ref('integrated')
   color: #991b1b;
   background: color-mix(in srgb, #ef4444 12%, transparent);
   border: 1px solid color-mix(in srgb, #ef4444 28%, transparent);
+}
+
+.explore-debug {
+  margin: 0.25rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  color: var(--color-text-subtle);
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  white-space: pre-wrap;
 }
 </style>
