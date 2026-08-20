@@ -65,7 +65,7 @@ function onPointerUp() {
   <div class="plan-bar">
     <div
         ref="trackRef"
-        class="plan-bar__track"
+        class="plan-bar__track liquid-surface-inner"
         aria-hidden="true"
     >
       <div class="plan-bar__fill" :style="{ width: fillPct + '%' }"/>
@@ -91,7 +91,7 @@ function onPointerUp() {
         <span class="plan-bar__triangle"/>
         <span class="plan-bar__line"/>
       </div>
-      <span class="plan-bar__value">Plan für {{ planTeams }} Teams</span>
+      <span class="plan-bar__value glass-chip liquid-surface-inner">Plan für {{ planTeams }} Teams</span>
     </div>
   </div>
 </template>
@@ -99,23 +99,20 @@ function onPointerUp() {
 <style scoped>
 .plan-bar {
   position: relative;
-  padding-top: 1.15rem;
+  padding-top: 1.35rem;
   overflow: visible;
 }
 
 .plan-bar__track {
   position: relative;
   height: 2.15rem;
-  border-radius: 8px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 38%, transparent);
-  background: color-mix(in srgb, var(--color-bg-muted, #f4f6f8) 55%, #fff);
 }
 
 .plan-bar__fill {
   position: absolute;
   inset: 0 auto 0 0;
-  background: #dbeafe;
+  background: color-mix(in srgb, #3b82f6 18%, transparent);
   pointer-events: none;
 }
 
@@ -124,8 +121,8 @@ function onPointerUp() {
   top: 50%;
   z-index: 1;
   transform: translateY(-50%);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.8125rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--color-text);
@@ -191,11 +188,11 @@ function onPointerUp() {
   position: absolute;
   top: 0;
   left: 0.45rem;
-  padding-top: 0.05rem;
-  font-size: 0.82rem;
-  font-weight: 750;
+  padding: 0.12rem 0.45rem !important;
+  font-size: 0.75rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 1;
+  line-height: 1.2;
   color: var(--color-text);
   white-space: nowrap;
 }
