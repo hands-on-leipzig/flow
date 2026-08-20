@@ -13,15 +13,12 @@ const event = computed(() => eventStore.selectedEvent)
 
 const props = defineProps<{
   parameters: any[]
-  showExplore: boolean
-  showChallenge?: boolean
   lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
   supportedPlanData?: any[] | null
 }>()
 
 const emit = defineEmits<{
   (e: 'update-param', param: any): void
-  (e: 'toggle-show', value: boolean): void
 }>()
 
 // No need to expose anything - parent handles all batching
@@ -33,33 +30,6 @@ const paramMapByName = computed<Record<string, any>>(
 // Simple parameter update - emit immediately to parent for batching
 function updateByName(name: string, value: any) {
   emit('update-param', {name, value})
-}
-
-function handleToggleChange(target: HTMLInputElement) {
-  const isChecked = target.checked
-  emit('toggle-show', isChecked)
-
-  // Update explore mode based on toggle state
-  if (isChecked) {
-    // Turn on explore - default to appropriate mode based on challenge availability
-    if (eMode.value === 0) {
-      // Default to integrated AM if challenge is enabled, otherwise separate AM
-      setMode(isChallengeEnabled.value ? 1 : 3)
-    }
-
-    // Use DRAHT team count as default if available, otherwise use min
-
-    const drahtTeams = eventStore.selectedEvent?.drahtTeamsExplore || 0
-    const minTeams = paramMapByName.value['e_teams']?.min || 1
-    const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
-
-    if (eTeams.value === 0) {
-      updateByName('e_teams', defaultTeams)
-    }
-  } else {
-    // Turn off explore - set to mode 0 and clear team counts
-    setMode(0)
-  }
 }
 
 /** Core derived state **/
@@ -84,7 +54,6 @@ const isSeparateSplit = computed(() => eMode.value === 5 || eMode.value === 8)
 
 const isIntegrated = computed(() => eMode.value === 1 || eMode.value === 2 || eMode.value === 6 || eMode.value === 7)
 const isIndependent = computed(() => eMode.value === 3 || eMode.value === 4 || eMode.value === 5 || eMode.value === 8)
-const hasExplore = computed(() => props.showExplore)
 
 // New UI: Timing options (radio buttons)
 const timingOptions = [
@@ -519,10 +488,6 @@ const planTeams = computed(() => Number(paramMapByName.value['e_teams']?.value |
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsExplore || 0))
 const capacity = computed(() => Number(event.value?.drahtCapacityExplore || 0))
 
-const showWarningOnSwitch = computed(() => {
-  return !props.showExplore && registeredTeams.value > 0
-})
-
 const teamsPerJuryHint1 = computed(() => {
   const teams = Number(paramMapByName.value['e1_teams']?.value ?? 0)
   const lanes = Number(paramMapByName.value['e1_lanes']?.value ?? 1) // garantiert >0
@@ -564,38 +529,18 @@ const teamsPerJuryHint2 = computed(() => {
 </script>
 
 <template>
-  <ProgramSection program="explore" :active="showExplore">
-    <template #actions>
-      <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-        <input
-            :checked="showExplore"
-            class="sr-only peer"
-            type="checkbox"
-            @change="handleToggleChange($event.target as HTMLInputElement)"
-        >
-        <div
-            class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-[var(--program-accent)] transition-colors"
-        />
-        <div
-            class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
-        />
-        <span v-if="showWarningOnSwitch" class="ml-2 w-2 h-2 bg-red-500 rounded-full"></span>
-      </label>
-    </template>
-
-    <div v-if="hasExplore">
-      <TeamSelectionCard
-          :plan-teams="planTeams"
-          :registered-teams="registeredTeams"
-          :capacity="capacity"
-          :min-teams="exploreTeamLimits.min"
-          :max-teams="exploreTeamLimits.max"
-          :on-update="(value) => updateByName('e_teams', value)"
-      />
-    </div>
+  <ProgramSection program="explore">
+    <TeamSelectionCard
+        :plan-teams="planTeams"
+        :registered-teams="registeredTeams"
+        :capacity="capacity"
+        :min-teams="exploreTeamLimits.min"
+        :max-teams="exploreTeamLimits.max"
+        :on-update="(value) => updateByName('e_teams', value)"
+    />
 
     <!-- New UI: Two-row approach -->
-    <div v-if="hasExplore" class="glass-settings-block">
+    <div class="glass-settings-block">
         <!-- First row: Timing (Radio buttons) -->
         <div class="glass-settings-row">
           <span class="glass-settings-label whitespace-nowrap">Explore im</span>
@@ -650,14 +595,10 @@ const teamsPerJuryHint2 = computed(() => {
         </div>
     </div>
 
-    <p v-else class="program-empty">
-      Ausgeschaltet — Schalter oben rechts zum Konfigurieren.
-    </p>
-
     <!-- Gutachter:innen-Gruppen selection - Based on timing mode only -->
 
     <!-- AM timing: Show AM lanes selection -->
-    <div v-if="hasExplore && timingMode === 'morning'" class="glass-settings-row items-start">
+    <div v-if="timingMode === 'morning'" class="glass-settings-row items-start">
       <RadioGroup v-model="eLanesAMProxy" class="flex gap-1.5 flex-wrap">
         <RadioGroupOption
             v-for="n in allLaneOptions"
@@ -688,7 +629,7 @@ const teamsPerJuryHint2 = computed(() => {
     </div>
 
     <!-- PM timing: Show PM lanes selection -->
-    <div v-if="hasExplore && timingMode === 'afternoon'" class="glass-settings-row items-start">
+    <div v-if="timingMode === 'afternoon'" class="glass-settings-row items-start">
       <RadioGroup v-model="eLanesPMProxy" class="flex gap-1.5 flex-wrap">
         <RadioGroupOption
             v-for="n in allLaneOptions"
@@ -719,7 +660,7 @@ const teamsPerJuryHint2 = computed(() => {
     </div>
 
     <!-- Both timing: Show splitter and both AM/PM lanes -->
-    <template v-if="hasExplore && timingMode === 'both'">
+    <template v-if="timingMode === 'both'">
       <!-- Splitter -->
       <div v-if="paramMapByName['e_teams']?.value" class="mt-4">
         <SplitBar

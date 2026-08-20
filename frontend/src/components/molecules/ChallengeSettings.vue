@@ -12,14 +12,12 @@ const event = computed(() => eventStore.selectedEvent)
 
 const props = defineProps<{
   parameters: any[]
-  showChallenge: boolean
   lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
   supportedPlanData?: any[] | null
 }>()
 
 const emit = defineEmits<{
   (e: 'update-param', param: any): void
-  (e: 'toggle-show', value: boolean): void
 }>()
 
 // No need to expose anything - parent handles all batching
@@ -31,48 +29,6 @@ const paramMapByName = computed<Record<string, any>>(
 // Simple parameter update - emit immediately to parent for batching
 function updateByName(name: string, value: any) {
   emit('update-param', {name, value})
-}
-
-function handleToggleChange(target: HTMLInputElement) {
-  const isChecked = target.checked
-  emit('toggle-show', isChecked)
-
-  // Update c_mode based on toggle state
-  updateByName('c_mode', isChecked ? 1 : 0)
-
-  // Update challenge parameters based on toggle state
-  if (isChecked) {
-    // Use DRAHT team count as default if available, otherwise use min
-    const drahtTeams = eventStore.selectedEvent?.drahtTeamsChallenge || 0
-    const minTeams = paramMapByName.value['c_teams']?.min || 1
-    const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
-
-    if (cTeams.value === 0) {
-      updateByName('c_teams', defaultTeams)
-    }
-
-    // Auto-select robot game table
-    const currentTables = rTables.value
-    if (currentTables === 0) {
-      // Check which table options are available for the team count
-      const variants = tableVariantsForTeams.value
-      if (variants.length === 1) {
-        // Only one option available, select it
-        updateByName('r_tables', variants[0])
-      } else if (variants.length > 1) {
-        // Multiple options available, choose 2 (as requested)
-        updateByName('r_tables', 2)
-      }
-    }
-
-    // Ensure jury lanes are set — empty/null lanes yield empty plans
-    ensureJuryLanesForSelection()
-  } else {
-    // Turn off challenge - clear team count and related parameters
-    updateByName('c_teams', 0)
-    updateByName('r_tables', 0)
-    updateByName('j_lanes', 0)
-  }
 }
 
 // Inputs
@@ -272,10 +228,6 @@ const planTeams = computed(() => Number(paramMapByName.value['c_teams']?.value |
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsChallenge || 0))
 const capacity = computed(() => Number(event.value?.drahtCapacityChallenge || 0))
 
-const showWarningOnSwitch = computed(() => {
-  return !props.showChallenge && registeredTeams.value > 0
-})
-
 const teamsPerJuryHint = computed(() => {
   const teams = Number(paramMapByName.value['c_teams']?.value ?? 0)
   const lanes = Number(paramMapByName.value['j_lanes']?.value ?? 1) // garantiert >0
@@ -291,34 +243,15 @@ const teamsPerJuryHint = computed(() => {
 </script>
 
 <template>
-  <ProgramSection program="challenge" :active="showChallenge">
-    <template #actions>
-      <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-        <input
-            :checked="showChallenge"
-            class="sr-only peer"
-            type="checkbox"
-            @change="handleToggleChange($event.target as HTMLInputElement)"
-        >
-        <div
-            class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-[var(--program-accent)] transition-colors"
-        />
-        <div
-            class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
-        />
-        <span v-if="showWarningOnSwitch" class="ml-2 w-2 h-2 bg-red-500 rounded-full"></span>
-      </label>
-    </template>
-
-    <template v-if="showChallenge">
-      <TeamSelectionCard
-          :plan-teams="planTeams"
-          :registered-teams="registeredTeams"
-          :capacity="capacity"
-          :min-teams="challengeTeamLimits.min"
-          :max-teams="challengeTeamLimits.max"
-          :on-update="(value) => updateByName('c_teams', value)"
-      />
+  <ProgramSection program="challenge">
+    <TeamSelectionCard
+        :plan-teams="planTeams"
+        :registered-teams="registeredTeams"
+        :capacity="capacity"
+        :min-teams="challengeTeamLimits.min"
+        :max-teams="challengeTeamLimits.max"
+        :on-update="(value) => updateByName('c_teams', value)"
+    />
 
       <!-- Jury lanes -->
       <div>
@@ -407,12 +340,6 @@ const teamsPerJuryHint = computed(() => {
         />
         <span>{{ currentLaneNote }}</span>
       </div>
-
-    </template>
-
-    <p v-else class="program-empty">
-      Ausgeschaltet — Schalter oben rechts zum Konfigurieren.
-    </p>
   </ProgramSection>
 </template>
 
