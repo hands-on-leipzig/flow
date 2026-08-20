@@ -9,6 +9,7 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {programNameForId} from '@/utils/eventPrograms'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {notifyPlanPreviewReload} from '@/utils/planPreviewSync'
 
@@ -148,8 +149,8 @@ async function applySlotsToPlan() {
 }
 
 function programIcon(fp: number): { src: string; alt: string } {
-  if (fp === 3) return {src: programLogoSrc('C'), alt: programLogoAlt('C')}
-  return {src: programLogoSrc('E'), alt: programLogoAlt('E')}
+  const name = programNameForId(event.value, fp)
+  return {src: programLogoSrc(name), alt: programLogoAlt(name)}
 }
 
 const editingTeamId = ref<string | null>(null)
@@ -756,15 +757,15 @@ const inputTitle =
                 </label>
                 <div class="slots-block__programs">
                   <img
-                      :src="programLogoSrc('E')"
-                      :alt="programLogoAlt('E')"
+                      :src="programLogoSrc('EXPLORE')"
+                      :alt="programLogoAlt('EXPLORE')"
                       :class="programLogoClass(block, 2)"
                       title="Explore"
                       @click.stop="toggleProgramBlock(block, 2)"
                   />
                   <img
-                      :src="programLogoSrc('C')"
-                      :alt="programLogoAlt('C')"
+                      :src="programLogoSrc('CHALLENGE')"
+                      :alt="programLogoAlt('CHALLENGE')"
                       :class="programLogoClass(block, 3)"
                       title="Challenge"
                       @click.stop="toggleProgramBlock(block, 3)"
@@ -823,8 +824,8 @@ const inputTitle =
                   </label>
                   <div class="slots-block__programs">
                     <img
-                        :src="programLogoSrc('E')"
-                        :alt="programLogoAlt('E')"
+                        :src="programLogoSrc('EXPLORE')"
+                        :alt="programLogoAlt('EXPLORE')"
                         :class="[
                           'slots-block__logo',
                           newFirstProgram === 2 || newFirstProgram === 0 ? 'is-on' : 'is-off',
@@ -833,8 +834,8 @@ const inputTitle =
                         @click="toggleProgramNew(2)"
                     />
                     <img
-                        :src="programLogoSrc('C')"
-                        :alt="programLogoAlt('C')"
+                        :src="programLogoSrc('CHALLENGE')"
+                        :alt="programLogoAlt('CHALLENGE')"
                         :class="[
                           'slots-block__logo',
                           newFirstProgram === 3 || newFirstProgram === 0 ? 'is-on' : 'is-off',

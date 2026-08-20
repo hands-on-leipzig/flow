@@ -3,6 +3,7 @@ import axios from "axios"
 import FllEvent  from "@/models/FllEvent"
 import {DrahtService} from "@/services/drahtService"
 import {usePlanCacheStore} from '@/stores/planCache'
+import {setEventProgramLogos} from '@/utils/images'
 
 interface EventStoreState {
   selectedEvent: FllEvent | null
@@ -29,6 +30,7 @@ export const useEventStore = defineStore('event', {
             this.selectedEvent = null
             this.selectedEventId = undefined
             this.readiness = null
+            setEventProgramLogos([])
         },
 
         async fetchCurrentSeasonId(): Promise<number | null> {
@@ -92,6 +94,7 @@ export const useEventStore = defineStore('event', {
                 }
 
                 this.selectedEvent = event
+                setEventProgramLogos(event.programs)
                 this.staleSeasonCleared = false
             } catch (error) {
                 console.error('Failed to fetch selected event', error)
@@ -112,6 +115,7 @@ export const useEventStore = defineStore('event', {
                 await this.loadDrahtTeamData(event)
                 
                 this.selectedEvent = event
+                setEventProgramLogos(event.programs)
             } catch (error) {
                 console.error('Failed to update selected event', error)
             }

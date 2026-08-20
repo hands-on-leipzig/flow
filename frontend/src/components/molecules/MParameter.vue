@@ -10,6 +10,7 @@ type CatalogProgram = {
   id: number
   name: string
   sequence?: number | null
+  logo?: string | null
 }
 
 // Daten
@@ -34,12 +35,16 @@ const formatProgramLabel = (label: string) => {
   return label.replace(/FIRST/g, '<span class="italic">FIRST</span>')
 }
 
+function logoForProgramId(id: number) {
+    return catalogPrograms.value.find(p => p.id === id) || { first_program: id }
+}
+
 const programFilterOptions = computed(() => [
   {value: 0, label: 'gemeinsam', icon: null as string | null},
   ...catalogPrograms.value.map((program) => ({
     value: program.id,
     label: `FIRST LEGO League ${programDisplayName(program.name)}`,
-    icon: String(program.id),
+    icon: program.name,
   })),
 ])
 
@@ -271,8 +276,8 @@ const contextBarClass = (ctx: string | null | undefined) => {
                         <!-- Programm-Icon (optional, kein Text) -->
                         <img 
                             v-if="item.first_program"
-                            :src="programLogoSrc(item.first_program)"
-                            :alt="programLogoAlt(item.first_program)"
+                            :src="programLogoSrc(logoForProgramId(item.first_program))"
+                            :alt="programLogoAlt(logoForProgramId(item.first_program))"
                             class="ml-2 w-5 h-5 flex-shrink-0"
                         />
                         </div>

@@ -5,6 +5,7 @@ export type EventProgramRef = {
   draht_id?: number | null
   contao_id?: number | null
   color_hex?: string | null
+  logo?: string | null
   logo_white?: string | null
   sequence?: number | null
 }
@@ -71,12 +72,22 @@ export function programMatchesSlug(name: string | null | undefined, slug: string
 
 export function programDisplayName(name: string | null | undefined): string {
   const n = String(name || '').toUpperCase()
-  if (n === 'EXPLORE') return 'Explore'
-  if (n === 'CHALLENGE') return 'Challenge'
+  if (n === 'EXPLORE' || n === 'E') return 'Explore'
+  if (n === 'CHALLENGE' || n === 'C') return 'Challenge'
   if (n === 'FUTURE_5') return 'Future 5+'
   if (n === 'FUTURE_8') return 'Future 8+'
   if (n === 'DISCOVER') return 'Discover'
   return String(name || '')
+}
+
+/** Map volunteer/label codes (E/C) to catalog names for programLogoSrc. */
+export function catalogNameFromCode(code: string | null | undefined): string {
+  const c = String(code || '').trim().toUpperCase()
+  if (c === 'E') return 'EXPLORE'
+  if (c === 'C') return 'CHALLENGE'
+  if (c === 'F8') return 'FUTURE_8'
+  if (c === 'F5') return 'FUTURE_5'
+  return c
 }
 
 export function findProgram(

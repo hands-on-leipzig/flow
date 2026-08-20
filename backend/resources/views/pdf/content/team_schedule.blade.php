@@ -14,12 +14,15 @@
     };
 
     if (str_contains($team, 'FLL Explore')) {
-        $icon = $toDataUri(public_path('flow/fll_explore_h.png'));
+        $programName = \App\Support\ProgramCatalog::EXPLORE;
         $cleanTitle = trim(str_replace('FLL Explore', '', $team));
     } elseif (str_contains($team, 'FLL Challenge')) {
-        $icon = $toDataUri(public_path('flow/fll_challenge_h.png'));
+        $programName = \App\Support\ProgramCatalog::CHALLENGE;
         $cleanTitle = trim(str_replace('FLL Challenge', '', $team));
+    } else {
+        $programName = $program_name ?? null;
     }
+    $icon = $toDataUri(\App\Support\ProgramCatalog::logoPath($programName, 'h'));
     $hourglassIcon = $toDataUri(public_path('flow/hourglass.png'));
 
     // Group rows by day (same approach as room/role PDFs)

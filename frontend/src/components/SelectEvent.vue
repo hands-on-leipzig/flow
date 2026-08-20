@@ -175,8 +175,8 @@ async function createEvent() {
               <img
                 v-for="program in eventPrograms(event)"
                 :key="program.first_program"
-                :src="programLogoSrc(program.first_program)"
-                :alt="programLogoAlt(program.name || program.first_program)"
+                :src="programLogoSrc(program)"
+                :alt="programLogoAlt(program.name || program)"
                 class="w-20 h-20 flex-shrink-0"
               />
             </div>
@@ -274,7 +274,7 @@ async function createEvent() {
                 class="w-4 h-4 text-blue-600 bg-[var(--color-bg-muted)] border-[var(--color-border)] rounded focus:ring-blue-500 focus:ring-2"
               />
               <label :for="'program_' + program.id" class="text-sm text-[var(--color-text-muted)] flex items-center">
-                <img :src="programLogoSrc(program.id)" :alt="programLogoAlt(program.name)" class="w-5 h-5 mr-2" />
+                <img :src="programLogoSrc(program)" :alt="programLogoAlt(program.name)" class="w-5 h-5 mr-2" />
                 <span>{{ program.name }}</span>
               </label>
             </div>

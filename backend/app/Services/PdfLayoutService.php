@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\ProgramCatalog;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
@@ -82,12 +83,7 @@ class PdfLayoutService
             ? $event
             : \App\Models\Event::find($event->id ?? null);
         foreach ($eventModel?->programs ?? [] as $program) {
-            $file = match (strtoupper((string) $program->name)) {
-                'EXPLORE' => public_path('flow/fll_explore_hs.png'),
-                'CHALLENGE' => public_path('flow/fll_challenge_hs.png'),
-                'FUTURE_8' => public_path('flow/fll_future8_hs.png'),
-                default => public_path('flow/first+fll_h.png'),
-            };
+            $file = ProgramCatalog::logoPath($program->name, 'hs');
             if ($file && file_exists($file)) {
                 $leftLogos[] = $this->toDataUri($file);
             }

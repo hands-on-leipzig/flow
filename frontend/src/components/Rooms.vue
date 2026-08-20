@@ -43,10 +43,14 @@ const itemProgramName = (item) => {
   return programNameForId(event.value, item?.first_program)
 }
 
-const itemLogoKey = (item) => itemProgramName(item) || item?.first_program
-
-const itemLogoSrc = (item) => programLogoSrc(itemLogoKey(item))
-const itemLogoAlt = (item) => programLogoAlt(itemLogoKey(item))
+const itemLogoSrc = (item) => programLogoSrc({
+  name: itemProgramName(item),
+  first_program: item?.first_program,
+})
+const itemLogoAlt = (item) => programLogoAlt({
+  name: itemProgramName(item),
+  first_program: item?.first_program,
+})
 
 const getProgramColor = (item) => {
   const programs = eventPrograms(event.value)

@@ -818,8 +818,8 @@ onMounted(async () => {
     <div class="team-list__main glass-card liquid-surface-inner">
       <div class="flex items-start sm:items-center gap-2 mb-2">
         <img
-            :alt="programLogoAlt(programTheme.logoKey || program)"
-            :src="programLogoSrc(programTheme.logoKey || program)"
+            :alt="programLogoAlt(program)"
+            :src="programLogoSrc(program)"
             class="w-10 h-10 flex-shrink-0"
         />
         <div>

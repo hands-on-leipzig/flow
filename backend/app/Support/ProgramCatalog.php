@@ -15,6 +15,8 @@ class ProgramCatalog
 
     public const CHALLENGE = 'CHALLENGE';
 
+    public const FALLBACK_LOGO_STEM = 'first+fll';
+
     public static function isFuture(?string $name): bool
     {
         return is_string($name) && str_starts_with(strtoupper($name), 'FUTURE_');
@@ -207,5 +209,79 @@ class ProgramCatalog
     public static function colorCss(?string $name, string $fallback = '888888'): string
     {
         return '#'.self::colorHex($name, $fallback);
+    }
+
+    /**
+     * Filename stem for public/flow/{stem}_{v|h|hs}.png (no orientation, no extension).
+     * Missing / unknown programs fall back to first+fll.
+     */
+    public static function logoStem(int|string|null $name): string
+    {
+        if (is_string($name)) {
+            $trimmed = trim($name);
+            if ($trimmed !== '' && (str_starts_with($trimmed, 'fll_') || str_starts_with($trimmed, 'first+'))) {
+                return $trimmed;
+            }
+        }
+
+        $program = self::resolve($name);
+        $stem = $program?->logo;
+        if (is_string($stem) && $stem !== '') {
+            return $stem;
+        }
+
+        return self::FALLBACK_LOGO_STEM;
+    }
+
+    /**
+     * Absolute path to a program mark in public/flow.
+     * Missing files fall back to first+fll_{orientation}, then first+fll_h / first+fll_v.
+     */
+    public static function logoPath(int|string|null $name, string $orientation = 'v'): string
+    {
+        $orientation = in_array($orientation, ['v', 'h', 'hs'], true) ? $orientation : 'v';
+        $stem = self::logoStem($name);
+        $candidates = [
+            public_path('flow/'.$stem.'_'.$orientation.'.png'),
+            public_path('flow/'.self::FALLBACK_LOGO_STEM.'_'.$orientation.'.png'),
+            public_path('flow/'.self::FALLBACK_LOGO_STEM.'_h.png'),
+            public_path('flow/'.self::FALLBACK_LOGO_STEM.'_v.png'),
+        ];
+
+        foreach (array_unique($candidates) as $path) {
+            if (is_file($path)) {
+                return $path;
+            }
+        }
+
+        return $candidates[0];
+    }
+
+    /**
+     * Catalog names whose logos should appear for this first_program id.
+     * Joint (0) uses every program attached to the event.
+     *
+     * @return list<string>
+     */
+    public static function logoNamesForId(?int $firstProgramId, ?Event $event = null): array
+    {
+        $id = (int) $firstProgramId;
+        if ($id === 0) {
+            $event?->loadMissing('programs.firstProgram');
+            if (! $event) {
+                return [];
+            }
+
+            return $event->programs
+                ->pluck('name')
+                ->filter()
+                ->map(fn ($n) => (string) $n)
+                ->values()
+                ->all();
+        }
+
+        $program = FirstProgram::find($id);
+
+        return $program?->name ? [(string) $program->name] : [];
     }
 }

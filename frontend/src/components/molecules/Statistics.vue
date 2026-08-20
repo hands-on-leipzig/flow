@@ -1162,8 +1162,8 @@ function exportToCSV() {
               >
                 <template v-for="program in eventPrograms(row)" :key="program.first_program">
                   <img
-                    :src="programLogoSrc(program.first_program ?? program.name)"
-                    :alt="programLogoAlt(program.first_program ?? program.name)"
+                    :src="programLogoSrc(program)"
+                    :alt="programLogoAlt(program)"
                     class="w-5 h-5 inline-block align-middle ml-2 first:ml-0"
                   />
                   <span class="text-xs text-[var(--color-text-muted)] ml-1">

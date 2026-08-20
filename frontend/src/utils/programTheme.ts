@@ -11,8 +11,8 @@ export type ProgramTheme = {
   /** Full product line after italic FIRST */
   productName: string
   accent: string
-  /** Logo key for programLogoSrc */
-  logoKey: string
+  /** Catalog name for programLogoSrc (EXPLORE, CHALLENGE, …) */
+  catalogName: string | null
 }
 
 /** Live m_first_program.color_hex. FUTURE_5 has no catalog color. */
@@ -29,35 +29,35 @@ const THEMES: Record<ProgramKey, ProgramTheme> = {
     shortName: 'Explore',
     productName: 'LEGO League',
     accent: PROGRAM_COLOR_HEX.EXPLORE,
-    logoKey: 'E',
+    catalogName: 'EXPLORE',
   },
   challenge: {
     key: 'challenge',
     shortName: 'Challenge',
     productName: 'LEGO League',
     accent: PROGRAM_COLOR_HEX.CHALLENGE,
-    logoKey: 'C',
+    catalogName: 'CHALLENGE',
   },
   future5: {
     key: 'future5',
     shortName: 'Future 5+',
     productName: 'LEGO League',
     accent: '#888888',
-    logoKey: 'F5',
+    catalogName: 'FUTURE_5',
   },
   future8: {
     key: 'future8',
     shortName: 'Future 8+',
     productName: 'LEGO League',
     accent: PROGRAM_COLOR_HEX.FUTURE_8,
-    logoKey: 'F8',
+    catalogName: 'FUTURE_8',
   },
   shared: {
     key: 'shared',
     shortName: 'Gemeinsam',
     productName: 'LEGO League',
     accent: 'var(--color-accent, #F78B1F)',
-    logoKey: '',
+    catalogName: null,
   },
 }
 
@@ -73,7 +73,7 @@ export function getProgramTheme(program: string): ProgramTheme {
       shortName: 'Discover',
       productName: 'LEGO League',
       accent: PROGRAM_COLOR_HEX.DISCOVER,
-      logoKey: '',
+      catalogName: null,
     }
   }
   return THEMES[program as ProgramKey] ?? THEMES.shared

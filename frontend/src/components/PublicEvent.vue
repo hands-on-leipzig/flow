@@ -269,8 +269,8 @@ onMounted(async () => {
           <code class="pe-slug__value">{{ route.params.slug || 'N/A' }}</code>
         </div>
         <div class="pe-error-logos">
-          <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="pe-error-logos__img"/>
-          <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="pe-error-logos__img"/>
+          <img :alt="programLogoAlt('EXPLORE')" :src="programLogoSrc('EXPLORE')" class="pe-error-logos__img"/>
+          <img :alt="programLogoAlt('CHALLENGE')" :src="programLogoSrc('CHALLENGE')" class="pe-error-logos__img"/>
         </div>
       </div>
     </div>
@@ -306,7 +306,7 @@ onMounted(async () => {
                 :style="{ '--pe-program': exploreColor }"
             >
               <h3 class="pe-program__title">
-                <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="pe-program__logo"/>
+                <img :alt="programLogoAlt('EXPLORE')" :src="programLogoSrc('EXPLORE')" class="pe-program__logo"/>
                 <span><em>FIRST</em> LEGO League Explore · Vormittag</span>
               </h3>
               <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
@@ -334,7 +334,7 @@ onMounted(async () => {
                 :style="{ '--pe-program': exploreColor }"
             >
               <h3 class="pe-program__title">
-                <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="pe-program__logo"/>
+                <img :alt="programLogoAlt('EXPLORE')" :src="programLogoSrc('EXPLORE')" class="pe-program__logo"/>
                 <span><em>FIRST</em> LEGO League Explore · Nachmittag</span>
               </h3>
               <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
@@ -362,7 +362,7 @@ onMounted(async () => {
                 :style="{ '--pe-program': exploreColor }"
             >
               <h3 class="pe-program__title">
-                <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="pe-program__logo"/>
+                <img :alt="programLogoAlt('EXPLORE')" :src="programLogoSrc('EXPLORE')" class="pe-program__logo"/>
                 <span><em>FIRST</em> LEGO League Explore</span>
               </h3>
               <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
@@ -391,7 +391,7 @@ onMounted(async () => {
               :style="{ '--pe-program': challengeColor, minHeight: combinedExploreHeight }"
           >
             <h3 class="pe-program__title">
-              <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="pe-program__logo"/>
+              <img :alt="programLogoAlt('CHALLENGE')" :src="programLogoSrc('CHALLENGE')" class="pe-program__logo"/>
               <span><em>FIRST</em> LEGO League Challenge</span>
             </h3>
             <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
@@ -492,8 +492,8 @@ onMounted(async () => {
               <tr>
                 <th colspan="4">
                   <img
-                      :alt="programLogoAlt('E')"
-                      :src="imageUrl('/flow/fll_explore_h.png')"
+                      :alt="programLogoAlt('EXPLORE')"
+                      :src="programLogoSrc('EXPLORE', 'h')"
                       class="pe-teams-table__brand"
                   />
                 </th>
@@ -529,8 +529,8 @@ onMounted(async () => {
           </div>
           <div v-else class="pe-teams-count glass-chip liquid-surface-inner">
             <img
-                :alt="programLogoAlt('E')"
-                :src="imageUrl('/flow/fll_explore_h.png')"
+                :alt="programLogoAlt('EXPLORE')"
+                :src="programLogoSrc('EXPLORE', 'h')"
                 class="pe-teams-count__logo"
             />
             <span>{{ scheduleInfo.teams.explore.registered }} Team(s) angemeldet</span>
@@ -554,8 +554,8 @@ onMounted(async () => {
               <tr>
                 <th colspan="4">
                   <img
-                      :alt="programLogoAlt('C')"
-                      :src="imageUrl('/flow/fll_challenge_h.png')"
+                      :alt="programLogoAlt('CHALLENGE')"
+                      :src="programLogoSrc('CHALLENGE', 'h')"
                       class="pe-teams-table__brand"
                   />
                 </th>
@@ -591,8 +591,8 @@ onMounted(async () => {
           </div>
           <div v-else class="pe-teams-count glass-chip liquid-surface-inner">
             <img
-                :alt="programLogoAlt('C')"
-                :src="imageUrl('/flow/fll_challenge_h.png')"
+                :alt="programLogoAlt('CHALLENGE')"
+                :src="programLogoSrc('CHALLENGE', 'h')"
                 class="pe-teams-count__logo"
             />
             <span>{{ scheduleInfo.teams.challenge.registered }} Team(s) angemeldet</span>

@@ -15,6 +15,7 @@ class ProgramController extends Controller
             'name' => $program->name,
             'sequence' => $program->sequence,
             'color_hex' => $program->color_hex,
+            'logo' => $program->logo,
             'logo_white' => $program->logo_white,
         ])->values();
 

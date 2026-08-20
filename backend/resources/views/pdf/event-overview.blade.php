@@ -133,8 +133,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
             return 'data:' . $mime . ';base64,' . base64_encode($data);
         };
         $hotHeaderLogo = $toDataUri(public_path('flow/hot.png'));
-        $exploreHeaderLogo = $toDataUri(public_path('flow/fll_explore_h.png'));
-        $challengeHeaderLogo = $toDataUri(public_path('flow/fll_challenge_h.png'));
+        $exploreHeaderLogo = $toDataUri(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'h'));
+        $challengeHeaderLogo = $toDataUri(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'h'));
         
         
         // Check if columns exist to determine merge behavior

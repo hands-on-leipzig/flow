@@ -13,8 +13,8 @@ class FirstProgram extends Model
         'name',
         'sequence',
         'color_hex',
-        'logo_white'
-
+        'logo',
+        'logo_white',
     ];
 
     public $timestamps = false;

@@ -58,8 +58,8 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
           <img
               v-for="program in eventPrograms(event)"
               :key="program.first_program"
-              :src="programLogoSrc(program.first_program)"
-              :alt="programLogoAlt(program.name || program.first_program)"
+              :src="programLogoSrc(program)"
+              :alt="programLogoAlt(program.name || program)"
               class="w-8 h-8 flex-shrink-0"
           />
         </div>

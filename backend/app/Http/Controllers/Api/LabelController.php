@@ -9,6 +9,7 @@ use App\Models\MSeason;
 use App\Services\PdfLayoutService;
 use App\Services\LabelPdfService;
 use App\Services\EventTitleService;
+use App\Support\ProgramCatalog;
 use App\Http\Controllers\Api\DrahtController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -469,35 +470,13 @@ class LabelController extends Controller
     }
 
     /**
-     * Get program logo as data URI
-     * Returns Explore, Challenge, or default FLL logo if no program specified
+     * Get program logo as data URI from the catalog stem (hs, with first+fll fallback).
      */
     private function getProgramLogo(?string $program): ?string
     {
-        if ($program === 'explore') {
-            $logoPath = public_path('flow/fll_explore_hs.png');
-        } elseif ($program === 'challenge') {
-            $logoPath = public_path('flow/fll_challenge_hs.png');
-        } else {
-            // Default FLL logo when no specific program is chosen
-            // Try horizontal small version first, fallback to vertical
-            $defaultPaths = [
-                public_path('flow/first+fll_hs.png'),
-                public_path('flow/first+fll_h.png'),
-                public_path('flow/first+fll_v.png'),
-            ];
-            
-            $logoPath = null;
-            foreach ($defaultPaths as $path) {
-                if (file_exists($path)) {
-                    $logoPath = $path;
-                    break;
-                }
-            }
-            
-            if (!$logoPath) {
-                return null;
-            }
+        $logoPath = ProgramCatalog::logoPath($program, 'hs');
+        if (! is_file($logoPath)) {
+            return null;
         }
 
         return $this->pdfLayoutService->toDataUri($logoPath);

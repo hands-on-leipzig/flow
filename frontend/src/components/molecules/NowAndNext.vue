@@ -280,15 +280,9 @@ function openPreview(id: string | number) {
             <div class="flex items-start gap-2">
               <!-- Program Icon -->
               <img
-                v-if="g.group_meta?.first_program_id === 2"
-                :src="programLogoSrc('E')"
-                :alt="programLogoAlt('E')"
-                class="w-6 h-6 flex-shrink-0"
-              />
-              <img
-                v-else-if="g.group_meta?.first_program_id === 3"
-                :src="programLogoSrc('C')"
-                :alt="programLogoAlt('C')"
+                v-if="g.group_meta?.first_program_name || g.group_meta?.first_program_id"
+                :src="programLogoSrc(g.group_meta?.first_program_name || { first_program: g.group_meta?.first_program_id })"
+                :alt="programLogoAlt(g.group_meta?.first_program_name || { first_program: g.group_meta?.first_program_id })"
                 class="w-6 h-6 flex-shrink-0"
               />
 

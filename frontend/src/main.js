@@ -39,6 +39,7 @@ import PublicScores from "@/components/PublicScores.vue";
 import Profile from "@/components/Profile.vue";
 import AccessManagement from "@/components/AccessManagement.vue";
 import {useEventStore} from "@/stores/event";
+import {useProgramsStore} from "@/stores/programs";
 import {firstTeamsPath} from "@/utils/eventPrograms";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
@@ -161,6 +162,8 @@ function isTodayWithinEvent(event) {
 }
 
 router.beforeEach(async (to, from, next) => {
+    await useProgramsStore().ensureLoaded()
+
     // Allow public routes (including unauthorized page)
     if (to.meta?.public || to.path === '/unauthorized') {
         next();

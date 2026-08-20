@@ -8,7 +8,7 @@ import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
-import {hasChallenge, eventPrograms, programId, programDisplayName, type EventProgramRef} from '@/utils/eventPrograms'
+import {hasChallenge, eventPrograms, programId, programDisplayName, catalogNameFromCode, type EventProgramRef} from '@/utils/eventPrograms'
 
 
 type TabKey = 'public' | 'organisation' | 'aufkleber'
@@ -858,8 +858,8 @@ const currentTabLabel = computed(() =>
         >
           <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
             <img 
-              :src="programLogoSrc(group.program.first_program)" 
-              :alt="programLogoAlt(group.program.first_program)"
+              :src="programLogoSrc(group.program)" 
+              :alt="programLogoAlt(group.program)"
               class="w-6 h-6 flex-shrink-0"
             />
             <span>FIRST LEGO League {{ programDisplayName(group.program.name) }}</span>
@@ -951,8 +951,8 @@ const currentTabLabel = computed(() =>
         >
           <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
             <img 
-              :src="programLogoSrc(program.id)" 
-              :alt="programLogoAlt(program.id)"
+              :src="programLogoSrc(program)" 
+              :alt="programLogoAlt(program)"
               class="w-6 h-6 flex-shrink-0"
             />
             <span>FIRST LEGO League {{ programDisplayName(program.name) }}</span>
@@ -1183,8 +1183,8 @@ const currentTabLabel = computed(() =>
             >
               <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
                 <img 
-                  :src="programLogoSrc(program.id)" 
-                  :alt="programLogoAlt(program.id)"
+                  :src="programLogoSrc(program)" 
+                  :alt="programLogoAlt(program)"
                   class="w-6 h-6 flex-shrink-0"
                 />
                 <span>FIRST LEGO League {{ programDisplayName(program.name) }}</span>
@@ -1286,8 +1286,8 @@ const currentTabLabel = computed(() =>
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
                         <img 
-                          :src="programLogoSrc(vol.program || '')" 
-                          :alt="programLogoAlt(vol.program || '')" 
+                          :src="programLogoSrc(catalogNameFromCode(vol.program))" 
+                          :alt="programLogoAlt(catalogNameFromCode(vol.program))" 
                           class="w-5 h-5 inline-block"
                         />
                       </td>
@@ -1298,8 +1298,8 @@ const currentTabLabel = computed(() =>
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
                         <img 
-                          :src="programLogoSrc(vol.program || '')" 
-                          :alt="programLogoAlt(vol.program || '')" 
+                          :src="programLogoSrc(catalogNameFromCode(vol.program))" 
+                          :alt="programLogoAlt(catalogNameFromCode(vol.program))" 
                           class="w-5 h-5 inline-block"
                         />
                       </td>

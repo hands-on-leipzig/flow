@@ -23,6 +23,7 @@ const showEventModal = ref(false)
 const teamStats = ref<Array<{
   first_program: number | string
   name: string
+  programName: string
   capacity: number
   registered: number
 }>>([])
@@ -137,6 +138,7 @@ async function loadOverviewData() {
       teamStats.value = eventPrograms({ programs }).map((p: any) => ({
         first_program: p.first_program ?? p.name,
         name: programDisplayName(p.name),
+        programName: p.name,
         capacity: Number(p.capacity || 0),
         registered: p.teams ? Object.keys(p.teams).length : 0,
       }))
@@ -256,7 +258,7 @@ watch(
                 :key="stat.first_program"
                 class="flex items-start gap-2"
             >
-              <img :alt="programLogoAlt(stat.first_program)" :src="programLogoSrc(stat.first_program)" class="w-9 h-9 flex-shrink-0"/>
+              <img :alt="programLogoAlt(stat.programName)" :src="programLogoSrc(stat.programName)" class="w-9 h-9 flex-shrink-0"/>
               <div>
                 <span class="font-medium block">
                   {{ stat.registered }} von {{ stat.capacity }} Teams

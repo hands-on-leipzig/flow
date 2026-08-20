@@ -344,8 +344,8 @@ onBeforeUnmount(() => {
                   <img
                       v-for="program in eventPrograms(ev)"
                       :key="program.first_program"
-                      :src="programLogoSrc(program.first_program)"
-                      :alt="programLogoAlt(program.name || program.first_program)"
+                      :src="programLogoSrc(program)"
+                      :alt="programLogoAlt(program.name || program)"
                       class="event-modal__program"
                       :title="program.name"
                   />

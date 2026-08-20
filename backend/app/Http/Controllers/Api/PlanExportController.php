@@ -11,6 +11,7 @@ use App\Models\Plan;
 use App\Services\ActivityFetcherService;
 use App\Services\EventTitleService;
 use App\Services\PdfLayoutService;
+use App\Support\ProgramCatalog;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -1943,6 +1944,7 @@ class PlanExportController extends Controller
             ->where('plan.id', $planId)
             ->select('event.*')
             ->first();
+        $eventModel = Event::find($event->id ?? null);
         $isMultidayEvent = (int) ($event->days ?? 1) > 1;
 
         // Räume nach room.sequence sortieren (Fallback: Name)
@@ -2125,9 +2127,10 @@ class PlanExportController extends Controller
                     'is_free' => $this->isFreeBlock($a),
                     'activity' => $this->formatActivityLabel($a),
                     'team' => $teamParts, // Array of team parts with name and is_noshow
-                    // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
-                    'is_explore' => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
-                    'is_challenge' => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::CHALLENGE->value]),
+                    'program_names' => ProgramCatalog::logoNamesForId(
+                        (int) ($a->activity_first_program_id ?? 0),
+                        $eventModel
+                    ),
                     // Add date information for day grouping
                     'start_date' => \Carbon\Carbon::parse($a->start_time),
                 ];
@@ -2207,10 +2210,12 @@ class PlanExportController extends Controller
                         );
                     })
                     ->values()
-                    ->map(function ($t) {
+                    ->map(function ($t) use ($eventModel) {
                         return [
-                            'is_explore' => in_array($t->program, [0, 2]),
-                            'is_challenge' => in_array($t->program, [0, 3]),
+                            'program_names' => ProgramCatalog::logoNamesForId(
+                                (int) ($t->program ?? 0),
+                                $eventModel
+                            ),
                             'team_display' => trim($t->team_name.' ('.$t->team_number_hot.')'),
                             'team_is_noshow' => (bool) ($t->noshow ?? false),
                         ];

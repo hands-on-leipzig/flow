@@ -10,8 +10,10 @@
         }
         return 'data:' . $mime . ';base64,' . base64_encode($data);
     };
-    $exploreIcon = $toDataUri(public_path('flow/fll_explore_v.png'));
-    $challengeIcon = $toDataUri(public_path('flow/fll_challenge_v.png'));
+    $programIcons = [];
+    foreach (collect($rows)->pluck('program_names')->flatten()->unique()->filter() as $name) {
+        $programIcons[$name] = $toDataUri(\App\Support\ProgramCatalog::logoPath($name, 'v'));
+    }
 @endphp
 <h2 style="margin-bottom: 15px; font-size: 22px; font-weight: bold;">
     {{ $room }}
@@ -40,8 +42,7 @@
                             <table style="width:100%; border-collapse:collapse; font-size:13px;">
                                 <thead>
                                     <tr style="background-color:#f5f5f5;">
-                                        <th style="text-align:center; padding:6px 4px; width:8%;"></th>
-                                        <th style="text-align:center; padding:6px 4px; width:8%;"></th>
+                                        <th style="text-align:center; padding:6px 4px; width:12%;"></th>
                                         <th style="text-align:left; padding:6px 8px;">Team</th>
                                     </tr>
                                 </thead>
@@ -51,15 +52,12 @@
                                             $bgColor = $i % 2 === 0 ? '#ffffff' : '#f9f9f9';
                                         @endphp
                                         <tr bgcolor="{{ $bgColor }}">
-                                            <td style="text-align:center; padding:4px;">
-                                                @if($row['is_explore'] && !empty($exploreIcon))
-                                                    <img src="{{ $exploreIcon }}" alt="Explore" style="height:16px;">
-                                                @endif
-                                            </td>
-                                            <td style="text-align:center; padding:4px;">
-                                                @if($row['is_challenge'] && !empty($challengeIcon))
-                                                    <img src="{{ $challengeIcon }}" alt="Challenge" style="height:16px;">
-                                                @endif
+                                            <td style="text-align:center; padding:4px; white-space:nowrap;">
+                                                @foreach(($row['program_names'] ?? []) as $name)
+                                                    @if(!empty($programIcons[$name]))
+                                                        <img src="{{ $programIcons[$name] }}" alt="{{ $name }}" style="height:16px; margin-right:2px;">
+                                                    @endif
+                                                @endforeach
                                             </td>
                                             <td style="padding:5px 8px;">{!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['team_display'] ?? '–', $row['team_is_noshow'] ?? false) !!}</td>
                                         </tr>
@@ -71,8 +69,7 @@
                             <table style="width:100%; border-collapse:collapse; font-size:13px;">
                                 <thead>
                                     <tr style="background-color:#f5f5f5;">
-                                        <th style="text-align:center; padding:6px 4px; width:8%;"></th>
-                                        <th style="text-align:center; padding:6px 4px; width:8%;"></th>
+                                        <th style="text-align:center; padding:6px 4px; width:12%;"></th>
                                         <th style="text-align:left; padding:6px 8px;">Team</th>
                                     </tr>
                                 </thead>
@@ -82,15 +79,12 @@
                                             $bgColor = $i % 2 === 0 ? '#ffffff' : '#f9f9f9';
                                         @endphp
                                         <tr bgcolor="{{ $bgColor }}">
-                                            <td style="text-align:center; padding:4px;">
-                                                @if($row['is_explore'] && !empty($exploreIcon))
-                                                    <img src="{{ $exploreIcon }}" alt="Explore" style="height:16px;">
-                                                @endif
-                                            </td>
-                                            <td style="text-align:center; padding:4px;">
-                                                @if($row['is_challenge'] && !empty($challengeIcon))
-                                                    <img src="{{ $challengeIcon }}" alt="Challenge" style="height:16px;">
-                                                @endif
+                                            <td style="text-align:center; padding:4px; white-space:nowrap;">
+                                                @foreach(($row['program_names'] ?? []) as $name)
+                                                    @if(!empty($programIcons[$name]))
+                                                        <img src="{{ $programIcons[$name] }}" alt="{{ $name }}" style="height:16px; margin-right:2px;">
+                                                    @endif
+                                                @endforeach
                                             </td>
                                             <td style="padding:5px 8px;">{!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['team_display'] ?? '–', $row['team_is_noshow'] ?? false) !!}</td>
                                         </tr>
@@ -104,8 +98,7 @@
                 <table style="width:100%; border-collapse:collapse; font-size:13px;">
                     <thead>
                         <tr style="background-color:#f5f5f5;">
-                            <th style="text-align:center; padding:6px 4px; width:5%;"></th>
-                            <th style="text-align:center; padding:6px 4px; width:5%;"></th>
+                            <th style="text-align:center; padding:6px 4px; width:8%;"></th>
                             <th style="text-align:left; padding:6px 8px;">Team</th>
                         </tr>
                     </thead>
@@ -115,21 +108,13 @@
                                 $bgColor = $i % 2 === 0 ? '#ffffff' : '#f9f9f9';
                             @endphp
                             <tr bgcolor="{{ $bgColor }}">
-                                {{-- Explore Icon --}}
-                                <td style="text-align:center; padding:4px;">
-                                    @if($row['is_explore'] && !empty($exploreIcon))
-                                        <img src="{{ $exploreIcon }}" alt="Explore" style="height:16px;">
-                                    @endif
+                                <td style="text-align:center; padding:4px; white-space:nowrap;">
+                                    @foreach(($row['program_names'] ?? []) as $name)
+                                        @if(!empty($programIcons[$name]))
+                                            <img src="{{ $programIcons[$name] }}" alt="{{ $name }}" style="height:16px; margin-right:2px;">
+                                        @endif
+                                    @endforeach
                                 </td>
-
-                                {{-- Challenge Icon --}}
-                                <td style="text-align:center; padding:4px;">
-                                    @if($row['is_challenge'] && !empty($challengeIcon))
-                                        <img src="{{ $challengeIcon }}" alt="Challenge" style="height:16px;">
-                                    @endif
-                                </td>
-
-                                {{-- Teamname --}}
                                 <td style="padding:5px 8px;">{!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['team_display'] ?? '–', $row['team_is_noshow'] ?? false) !!}</td>
                             </tr>
                         @endforeach

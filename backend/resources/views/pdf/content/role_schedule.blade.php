@@ -13,13 +13,15 @@
         return 'data:' . $mime . ';base64,' . base64_encode($data);
     };
 
+    $programName = $program_name ?? null;
     if (str_contains($title, 'FLL Explore')) {
-        $icon = $toDataUri(public_path('flow/fll_explore_h.png'));
+        $programName = \App\Support\ProgramCatalog::EXPLORE;
         $cleanTitle = trim(str_replace('FLL Explore', '', $title));
     } elseif (str_contains($title, 'FLL Challenge')) {
-        $icon = $toDataUri(public_path('flow/fll_challenge_h.png'));
+        $programName = \App\Support\ProgramCatalog::CHALLENGE;
         $cleanTitle = trim(str_replace('FLL Challenge', '', $title));
     }
+    $icon = $toDataUri(\App\Support\ProgramCatalog::logoPath($programName, 'h'));
     $hourglassIcon = $toDataUri(public_path('flow/hourglass.png'));
 
     // Group rows by day

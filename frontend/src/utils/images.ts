@@ -1,4 +1,67 @@
+import {programCompact, programDisplayName, programId, type EventProgramRef} from '@/utils/eventPrograms'
 
+const FALLBACK_STEM = 'first+fll'
+
+export type ProgramLogoRef = string | number | EventProgramRef | null | undefined
+export type ProgramLogoOrientation = 'v' | 'h' | 'hs'
+
+let catalogCache: EventProgramRef[] = []
+let eventProgramCache: EventProgramRef[] = []
+
+export function setProgramLogoCatalog(rows: EventProgramRef[]) {
+  catalogCache = Array.isArray(rows) ? rows : []
+}
+
+export function setEventProgramLogos(rows: EventProgramRef[]) {
+  eventProgramCache = Array.isArray(rows) ? rows : []
+}
+
+function logoRows(): EventProgramRef[] {
+  return [...eventProgramCache, ...catalogCache]
+}
+
+function isStem(value: string): boolean {
+  return value.startsWith('fll_') || value.startsWith('first+')
+}
+
+function rowMatches(row: EventProgramRef, raw: string, compactKey: string): boolean {
+  if (row.logo && (row.logo === raw || programCompact(row.logo) === compactKey)) return true
+  if (row.name && (row.name === raw || programCompact(row.name) === compactKey)) return true
+  const id = programId(row)
+  return id > 0 && String(id) === raw
+}
+
+function resolveLogoStem(program: ProgramLogoRef): string {
+  if (program && typeof program === 'object') {
+    if (program.logo) return program.logo
+    const fromName = resolveLogoStem(program.name ?? null)
+    if (fromName !== FALLBACK_STEM) return fromName
+    const id = programId(program)
+    return id ? resolveLogoStem(id) : FALLBACK_STEM
+  }
+
+  const raw = String(program ?? '').trim()
+  if (!raw) return FALLBACK_STEM
+  if (isStem(raw)) return raw
+
+  const compactKey = programCompact(raw)
+  const match = logoRows().find((row) => rowMatches(row, raw, compactKey))
+  return match?.logo || FALLBACK_STEM
+}
+
+function catalogNameFor(program: ProgramLogoRef): string | null {
+  if (program && typeof program === 'object') {
+    return program.name || catalogNameFor(programId(program) || program.logo || null)
+  }
+  const raw = String(program ?? '').trim()
+  if (!raw || isStem(raw)) {
+    const match = logoRows().find((row) => row.logo === raw)
+    return match?.name ?? null
+  }
+  const compactKey = programCompact(raw)
+  const match = logoRows().find((row) => rowMatches(row, raw, compactKey))
+  return match?.name ?? raw
+}
 
 // Bilder aus dem Backend laden
 export function imageUrl(path: string) {
@@ -8,34 +71,17 @@ export function imageUrl(path: string) {
   return '/' + encodedParts.join('/');
 }
 
-// FIRST program Logo als img-Tag zurückgeben
-export function programLogoSrc(first_program: string | number, orientation: 'v' | 'h' = 'v') {
-  const compact = String(first_program || '').toLowerCase().replace(/[_-\s]/g, '')
-
-  if (['2', 'e', 'explore'].includes(compact)) {
-    return imageUrl(`/flow/fll_explore_${orientation}.png`)
-  }
-  if (['3', 'c', 'challenge'].includes(compact)) {
-    return imageUrl(`/flow/fll_challenge_${orientation}.png`)
-  }
-  if (['8', 'f8', 'future8'].includes(compact)) {
-    return imageUrl(`/flow/fll_future8_${orientation}.png`)
-  }
-  return imageUrl(`/flow/first+fll_${orientation}.png`)
+export function programLogoSrc(program: ProgramLogoRef, orientation: ProgramLogoOrientation = 'v') {
+  const stem = resolveLogoStem(program)
+  return imageUrl(`/flow/${stem}_${orientation}.png`)
 }
 
-export function programLogoAlt(first_program: string | number) {
-  const compact = String(first_program || '').toLowerCase().replace(/[_-\s]/g, '')
-
-  if (['2', 'e', 'explore'].includes(compact)) return 'FIRST LEGO League Explore Logo'
-  if (['3', 'c', 'challenge'].includes(compact)) return 'FIRST LEGO League Challenge Logo'
-  if (['8', 'f8', 'future8'].includes(compact)) {
-    return 'FIRST LEGO League Future 8+ Logo'
-  }
-  if (['7', 'f5', 'future5'].includes(compact)) {
-    return 'FIRST LEGO League Future 5+ Logo'
-  }
-  return 'FIRST LEGO League Logo'
+export function programLogoAlt(program: ProgramLogoRef) {
+  const name = catalogNameFor(program)
+  if (!name) return 'FIRST LEGO League Logo'
+  const display = programDisplayName(name)
+  if (!display) return 'FIRST LEGO League Logo'
+  return `FIRST LEGO League ${display} Logo`
 }
 
 /** Season challenge logo, e.g. BIOGLOW → /flow/season_bioglow_v.png */

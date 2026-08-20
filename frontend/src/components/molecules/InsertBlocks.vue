@@ -334,8 +334,8 @@ defineExpose({
   <div class="min-w-0">
     <div class="flex items-center gap-2 mb-2">
           <img
-          :src="programLogoSrc('C')"
-          :alt="programLogoAlt('C')"
+          :src="programLogoSrc('CHALLENGE')"
+          :alt="programLogoAlt('CHALLENGE')"
           class="w-10 h-10 flex-shrink-0"
         />
       <h3 class="text-lg font-semibold capitalize">
@@ -368,8 +368,8 @@ defineExpose({
               </span>
             </label>
             <img
-                :src="programLogoSrc(p.first_program)"
-                :alt="programLogoAlt(p.first_program)"
+                :src="programLogoSrc({ first_program: p.first_program })"
+                :alt="programLogoAlt({ first_program: p.first_program })"
                 class="w-6 h-6 flex-shrink-0"
             />
           </div>
