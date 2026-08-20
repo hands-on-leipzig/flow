@@ -74,7 +74,7 @@ const subtitleText = computed(() => {
   --program-accent-soft: color-mix(in srgb, var(--program-accent) 14%, transparent);
   position: relative;
   min-width: 0;
-  padding: 1rem 1.1rem 1.05rem;
+  padding: 0.7rem 1.1rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 42%, transparent);
   border-radius: 14px;
   background: transparent;
@@ -115,8 +115,8 @@ const subtitleText = computed(() => {
   justify-content: space-between;
   gap: 0.85rem 1rem;
   flex-wrap: wrap;
-  padding: 0 0 0.85rem;
-  margin-bottom: 0.15rem;
+  padding: 0 0 0.4rem;
+  margin-bottom: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 22%, transparent);
 }
 
@@ -171,7 +171,7 @@ const subtitleText = computed(() => {
 }
 
 .program-section__body {
-  padding: 0.95rem 0 0.1rem;
+  padding: 0.5rem 0 0.1rem;
 }
 
 .program-section__body :slotted(.program-empty) {
@@ -197,7 +197,7 @@ const subtitleText = computed(() => {
 
 @media (min-width: 768px) {
   .program-section {
-    padding: 1.1rem 1.25rem 1.15rem;
+    padding: 0.8rem 1.25rem 0.85rem;
   }
 
   .program-section__title {

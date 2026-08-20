@@ -115,7 +115,7 @@ function onPointerUp() {
 .plan-bar__fill {
   position: absolute;
   inset: 0 auto 0 0;
-  background: #dcfce7;
+  background: #dbeafe;
   pointer-events: none;
 }
 

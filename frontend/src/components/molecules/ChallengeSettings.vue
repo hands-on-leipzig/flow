@@ -150,22 +150,6 @@ const rTablesProxy = computed<number>({
   set: (val) => updateByName('r_tables', val)
 })
 
-// Key helpers for challenge (teams|tables)
-const cKey = computed(() => {
-  const t = cTeams.value
-  const tb = rTables.value || 0
-  return t ? `${t}|${tb}` : ''
-})
-
-// Is a lane recommended for the current selection?
-const isLaneRecommended = (lane: number) => {
-  if (!props.lanesIndex || !cKey.value) return false
-  // if tables not chosen yet (tb=0), recommendation is ambiguous; treat as false
-  if (!rTables.value) return false
-  const meta = props.lanesIndex.metaChallenge[cKey.value]
-  return !!meta?.[lane]?.recommended
-}
-
 // Note for the current EXACT combo from database data
 const currentLaneNote = computed<string | undefined>(() => {
   if (!props.supportedPlanData || !cTeams.value || !rTables.value || !jLanesProxy.value) return
@@ -272,10 +256,9 @@ const teamsPerJuryHint = computed(() => {
               <button
                   :aria-disabled="disabled"
                   :class="[
-                    'glass-choice relative whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                    'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
                     checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
                     disabled ? 'opacity-40 cursor-not-allowed' : '',
-                    (!disabled && isLaneRecommended(n)) ? 'choice-recommended' : ''
                   ]"
                   type="button"
                   @click="!disabled && updateByName('j_lanes', n)"
@@ -382,26 +365,5 @@ const teamsPerJuryHint = computed(() => {
   color: #991b1b;
   background: color-mix(in srgb, #ef4444 12%, transparent);
   border: 1px solid color-mix(in srgb, #ef4444 28%, transparent);
-}
-
-.choice-recommended {
-  position: relative;
-}
-
-.choice-recommended::after {
-  content: 'Empfohlen';
-  position: absolute;
-  top: -0.55rem;
-  right: -0.35rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #166534;
-  background: #dcfce7;
-  border: 1px solid color-mix(in srgb, #22c55e 35%, transparent);
-  pointer-events: none;
-  white-space: nowrap;
 }
 </style>
