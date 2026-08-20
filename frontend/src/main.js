@@ -76,9 +76,7 @@ const routes = [
                 component: Teams,
                 redirect: '/plan/teams/explore',
                 children: [
-                    {path: 'explore', name: 'teams-explore', component: TeamsProgram, meta: {program: 'explore'}},
-                    {path: 'challenge', name: 'teams-challenge', component: TeamsProgram, meta: {program: 'challenge'}},
-                    {path: 'future8', name: 'teams-future8', component: TeamsProgram, meta: {program: 'future8'}},
+                    {path: ':program', name: 'teams-program', component: TeamsProgram},
                 ],
             },
             {path: 'logos', redirect: '/plan/publish/logos'},

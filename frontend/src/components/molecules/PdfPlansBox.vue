@@ -8,6 +8,7 @@ import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
+import {hasChallenge} from '@/utils/eventPrograms'
 
 
 type TabKey = 'public' | 'organisation' | 'aufkleber'
@@ -1109,7 +1110,7 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- 4. Match-Plan für SCORE -->
-      <div v-if="hasChallengeTeams || event?.event_challenge" class="border-b border-[var(--color-border)] pb-3 mb-3">
+      <div v-if="hasChallengeTeams || hasChallenge(event)" class="border-b border-[var(--color-border)] pb-3 mb-3">
         <div class="mb-2">
           <h4 class="text-base font-semibold text-[var(--color-text)]">Match-Plan für SCORE</h4>
           <p class="text-sm text-[var(--color-text-muted)]">Vorrunden-Matches zum Übernehmen in die Auswertesoftware 

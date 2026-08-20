@@ -1,25 +1,23 @@
 /**
  * Event type with required properties for title generation
  */
-type EventForTitle = {
-  event_explore?: number | null
-  event_challenge?: number | null
-  level?: number | null
-  name?: string | null
-}
+import {
+  hasChallenge,
+  hasExplore,
+  hasFuture,
+  type EventWithPrograms,
+} from '@/utils/eventPrograms'
 
-/**
- * Get competition type text based on event configuration
- * Returns: "Ausstellung und Regionalwettbewerb", "Ausstellung", "Regionalwettbewerb", etc.
- */
+type EventForTitle = EventWithPrograms
+
 function getCompetitionTypeText(event: EventForTitle | null): string {
   if (!event) return 'Wettbewerb'
 
-  const hasExplore = !!(event.event_explore)
-  const hasChallenge = !!(event.event_challenge)
+  const explore = hasExplore(event)
+  const challenge = hasChallenge(event)
+  const future = hasFuture(event)
   const level = event.level ?? 0
 
-  // First check level - level 2 and 3 take precedence regardless of E/C
   if (level === 2) {
     return 'Qualifikationswettbewerb'
   }
@@ -28,20 +26,25 @@ function getCompetitionTypeText(event: EventForTitle | null): string {
     return 'Finale'
   }
 
-  // For level 1, check E/C combinations
+  if (future && !explore && !challenge) {
+    return 'Future Wettbewerb'
+  }
+  if (future && (explore || challenge)) {
+    return 'Mixed Wettbewerb'
+  }
+
   if (level === 1) {
-    if (hasExplore && hasChallenge) {
+    if (explore && challenge) {
       return 'Ausstellung und Regionalwettbewerb'
     }
-    if (hasExplore && !hasChallenge) {
+    if (explore && !challenge) {
       return 'Ausstellung'
     }
-    if (hasChallenge && !hasExplore) {
+    if (challenge && !explore) {
       return 'Regionalwettbewerb'
     }
   }
 
-  // Fallback
   return 'Wettbewerb'
 }
 
@@ -87,7 +90,7 @@ export function cleanEventName(event: EventForTitle | null): string {
  * Returns: "FIRST LEGO League Ausstellung und Regionalwettbewerb Aachen"
  * Note: Caller should wrap "FIRST" in <em> tags for UI
  * 
- * @param event Event object with event_explore, event_challenge, level, and name properties
+ * @param event Event with programs, level, and name
  * @returns Complete event title in long format
  */
 export function getEventTitleLong(event: EventForTitle | null): string {
@@ -103,7 +106,7 @@ export function getEventTitleLong(event: EventForTitle | null): string {
  * Get short format event title
  * Returns: "Ausstellung und Regio Aachen"
  * 
- * @param event Event object with event_explore, event_challenge, level, and name properties
+ * @param event Event with programs, level, and name
  * @returns Complete event title in short format
  */
 export function getEventTitleShort(event: EventForTitle | null): string {

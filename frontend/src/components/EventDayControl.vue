@@ -55,15 +55,10 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
         </div>
         <div class="flex items-center gap-2" v-if="event">
           <img
-              v-if="event.event_explore !== null"
-              :src="programLogoSrc('E')"
-              :alt="programLogoAlt('E')"
-              class="w-8 h-8 flex-shrink-0"
-          />
-          <img
-              v-if="event.event_challenge !== null"
-              :src="programLogoSrc('C')"
-              :alt="programLogoAlt('C')"
+              v-for="program in (event.programs || [])"
+              :key="program.first_program"
+              :src="programLogoSrc(program.first_program)"
+              :alt="programLogoAlt(program.name || program.first_program)"
               class="w-8 h-8 flex-shrink-0"
           />
         </div>

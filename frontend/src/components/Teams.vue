@@ -12,7 +12,7 @@ defineOptions({name: 'Teams'})
         <component
             :is="Component"
             v-if="Component"
-            :key="String(paneRoute.meta.program ?? paneRoute.name ?? paneRoute.path)"
+            :key="String(paneRoute.params.program ?? paneRoute.path)"
         />
       </keep-alive>
     </router-view>

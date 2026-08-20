@@ -9,8 +9,9 @@ import {usePlanCacheStore} from '@/stores/planCache'
 import TeamList from '@/components/molecules/TeamList.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
-import {getProgramTheme, type ProgramKey} from '@/utils/programTheme'
+import {getProgramTheme} from '@/utils/programTheme'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {findProgram} from '@/utils/eventPrograms'
 
 defineOptions({name: 'TeamsProgram'})
 
@@ -19,17 +20,14 @@ const eventStore = useEventStore()
 const planCache = usePlanCacheStore()
 const event = computed(() => eventStore.selectedEvent)
 
-const program = computed<ProgramKey>(() => {
-  const raw = String(route.meta.program || 'explore')
-  if (raw === 'challenge' || raw === 'future8' || raw === 'explore') return raw
-  return 'explore'
-})
+const program = computed(() => String(route.params.program || 'explore'))
 
 const theme = computed(() => getProgramTheme(program.value))
 const remoteTeams = ref<any[]>([])
 const loading = ref(true)
 
-const isSupported = computed(() => program.value === 'explore' || program.value === 'challenge')
+const attachedProgram = computed(() => findProgram(event.value, program.value))
+const isSupported = computed(() => !!attachedProgram.value)
 
 function normalizeTeams(teams: any): any[] {
   if (!teams) return []
@@ -47,14 +45,18 @@ async function loadRemoteTeams() {
   loading.value = true
   try {
     if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
-    if (!event.value?.id || !isSupported.value) {
+    const current = findProgram(event.value, program.value)
+    if (!event.value?.id || !current) {
       remoteTeams.value = []
       return
     }
     const drahtData = await planCache.getDrahtData(event.value.id)
-    remoteTeams.value = normalizeTeams(
-      program.value === 'explore' ? drahtData.teams_explore : drahtData.teams_challenge
+    const programs = Array.isArray(drahtData.programs) ? drahtData.programs : []
+    const match = programs.find((p: any) =>
+      Number(p.first_program) === Number(current.first_program)
+      || String(p.name || '').toUpperCase() === String(current.name || '').toUpperCase()
     )
+    remoteTeams.value = normalizeTeams(match?.teams)
   } finally {
     loading.value = false
   }

@@ -78,11 +78,20 @@ class PdfLayoutService
         }
 
         $leftLogos = [];
-        if (!empty($event->event_explore)) {
-            $leftLogos[] = $this->toDataUri(public_path('flow/fll_explore_hs.png'));
-        }
-        if (!empty($event->event_challenge)) {
-            $leftLogos[] = $this->toDataUri(public_path('flow/fll_challenge_hs.png'));
+        $eventModel = $event instanceof \App\Models\Event
+            ? $event
+            : \App\Models\Event::find($event->id ?? null);
+        foreach ($eventModel?->programs ?? [] as $program) {
+            $file = match (strtoupper((string) $program->name)) {
+                'EXPLORE' => public_path('flow/fll_explore_hs.png'),
+                'CHALLENGE' => public_path('flow/fll_challenge_hs.png'),
+                default => $program->logo_white
+                    ? public_path('flow/' . ltrim($program->logo_white, '/'))
+                    : null,
+            };
+            if ($file && file_exists($file)) {
+                $leftLogos[] = $this->toDataUri($file);
+            }
         }
         $leftLogos = array_values(array_filter($leftLogos));
 

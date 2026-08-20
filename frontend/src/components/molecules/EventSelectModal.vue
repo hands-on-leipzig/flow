@@ -26,8 +26,7 @@ type SelectableEvent = {
   id: number
   name: string
   date: string
-  event_explore?: number | null
-  event_challenge?: number | null
+  programs?: Array<{ first_program?: number; name?: string | null }>
   level?: number | {id?: number; name?: string} | null
   regional_partner_id: number
   regional_partner_name: string
@@ -342,18 +341,12 @@ onBeforeUnmount(() => {
               <div class="event-modal__item-aside">
                 <div class="event-modal__programs">
                   <img
-                      v-if="ev.event_explore"
-                      :src="programLogoSrc('E')"
-                      :alt="programLogoAlt('E')"
+                      v-for="program in (ev.programs || [])"
+                      :key="program.first_program"
+                      :src="programLogoSrc(program.first_program)"
+                      :alt="programLogoAlt(program.name || program.first_program)"
                       class="event-modal__program"
-                      title="Explore"
-                  />
-                  <img
-                      v-if="ev.event_challenge"
-                      :src="programLogoSrc('C')"
-                      :alt="programLogoAlt('C')"
-                      class="event-modal__program"
-                      title="Challenge"
+                      :title="program.name"
                   />
                 </div>
                 <span v-if="isSelected(ev)" class="event-modal__check" title="Aktuell ausgewählt">

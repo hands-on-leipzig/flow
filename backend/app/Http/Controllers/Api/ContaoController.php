@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,7 +27,7 @@ class ContaoController extends Controller
             $tournamentId = $this->getTournamentId($eventId);
 
             if (!$tournamentId) {
-                return response()->json(['error' => "No Contao ID found for event {$eventId}. Please set contao_id_challenge or contao_id_explore."], 404);
+                return response()->json(['error' => "No Contao ID found for event {$eventId}."], 404);
             }
 
             // Test: does the contao tournament exist?
@@ -313,7 +314,7 @@ class ContaoController extends Controller
     {
         $tournamentId = $this->getTournamentId($eventId);
         if (!$tournamentId) {
-            return response()->json(['error' => "No Contao ID found for event {$eventId}. Please set contao_id_challenge or contao_id_explore."], 404);
+            return response()->json(['error' => "No Contao ID found for event {$eventId}."], 404);
         }
         $roundsToShow = $this->getRoundsToShow($eventId, $tournamentId);
         return response()->json($roundsToShow);
@@ -492,23 +493,13 @@ class ContaoController extends Controller
     private function getTournamentId($eventId)
     {
         // Get the event and check for Contao IDs
-        $event = DB::table('event')->where('id', $eventId)->first();
+        $event = Event::find($eventId);
 
-        if (!$event) {
+        if (! $event) {
             return null;
         }
 
-        // Use contao_id_challenge if available, otherwise fall back to contao_id_explore
-        if ($event->contao_id_challenge) {
-            return $event->contao_id_challenge;
-        }
-
-        if ($event->contao_id_explore) {
-            return $event->contao_id_explore;
-        }
-
-        // Fallback: return the event_id as tournament_id (for backward compatibility)
-        return $eventId;
+        return \App\Support\ProgramCatalog::contaoId($event) ?: $eventId;
     }
 
     /**

@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\PlanGeneratorController;
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
+use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
@@ -53,6 +54,7 @@ Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); /
 Route::get('/events/public/{id}', [EventController::class, 'getPublicEventById']); // Public event lookup by id
 Route::get('/events/{event}/team-coordinates', [DrahtController::class, 'getTeamsCoordinates']);
 Route::get('/events', [EventController::class, 'index']); // Get list of current events
+Route::get('/programs', [ProgramController::class, 'index']); // Catalog from m_first_program (attachable)
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event

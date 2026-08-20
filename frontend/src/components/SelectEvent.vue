@@ -29,10 +29,7 @@ const createForm = ref({
   level: '',
   date: '',
   days: 1,
-  event_explore: null,
-  event_challenge: null,
-  explore_enabled: false,
-  challenge_enabled: false
+  programIds: []
 })
 
 const createEventData = ref({
@@ -90,8 +87,7 @@ async function createEvent() {
       level: createForm.value.level,
       date: createForm.value.date,
       days: createForm.value.days,
-      event_explore: createForm.value.explore_enabled ? 1 : null,
-      event_challenge: createForm.value.challenge_enabled ? 1 : null
+      programs: createForm.value.programIds.map((id) => ({ first_program: id }))
     }
     
     const { data } = await axios.post('/events', eventData)
@@ -103,10 +99,7 @@ async function createEvent() {
       level: '',
       date: '',
       days: 1,
-      event_explore: null,
-      event_challenge: null,
-      explore_enabled: false,
-      challenge_enabled: false
+      programIds: []
     }
     
     showCreateModal.value = false
@@ -179,15 +172,10 @@ async function createEvent() {
             <!-- Rechter Bereich: Bilder nebeneinander, bedingt sichtbar -->
             <div class="flex ml-4 space-x-2">
               <img
-                v-if="event.event_explore !== null"
-                  :src="programLogoSrc('E')"
-                  :alt="programLogoAlt('E')"
-                class="w-20 h-20 flex-shrink-0"
-              />
-              <img
-                v-if="event.event_challenge !== null"
-                  :src="programLogoSrc('C')"
-                  :alt="programLogoAlt('C')"
+                v-for="program in (event.programs || [])"
+                :key="program.first_program"
+                :src="programLogoSrc(program.first_program)"
+                :alt="programLogoAlt(program.name || program.first_program)"
                 class="w-20 h-20 flex-shrink-0"
               />
             </div>
@@ -270,33 +258,23 @@ async function createEvent() {
             />
           </div>
 
-          <!-- Program Checkboxes -->
           <div class="space-y-3">
             <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-2">Programme</label>
-            
-            <div class="flex items-center space-x-2">
+            <div
+              v-for="program in (createEventData.programs || [])"
+              :key="program.id"
+              class="flex items-center space-x-2"
+            >
               <input
-                v-model="createForm.explore_enabled"
                 type="checkbox"
-                id="explore_enabled"
+                :id="'program_' + program.id"
+                :value="program.id"
+                v-model="createForm.programIds"
                 class="w-4 h-4 text-blue-600 bg-[var(--color-bg-muted)] border-[var(--color-border)] rounded focus:ring-blue-500 focus:ring-2"
               />
-              <label for="explore_enabled" class="text-sm text-[var(--color-text-muted)] flex items-center">
-                <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5 mr-2" />
-                <span><span class="italic">FIRST</span> LEGO League Explore</span>
-              </label>
-            </div>
-
-            <div class="flex items-center space-x-2">
-              <input
-                v-model="createForm.challenge_enabled"
-                type="checkbox"
-                id="challenge_enabled"
-                class="w-4 h-4 text-blue-600 bg-[var(--color-bg-muted)] border-[var(--color-border)] rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <label for="challenge_enabled" class="text-sm text-[var(--color-text-muted)] flex items-center">
-                <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5 mr-2" />
-                <span><span class="italic">FIRST</span> LEGO League Challenge</span>
+              <label :for="'program_' + program.id" class="text-sm text-[var(--color-text-muted)] flex items-center">
+                <img :src="programLogoSrc(program.id)" :alt="programLogoAlt(program.name)" class="w-5 h-5 mr-2" />
+                <span>{{ program.name }}</span>
               </label>
             </div>
           </div>

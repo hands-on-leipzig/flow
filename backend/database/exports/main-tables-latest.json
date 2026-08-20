@@ -831,6 +831,20 @@
       "sequence": 1,
       "color_hex": "ED1C24",
       "logo_white": "FLL_Challenge_column_heading.png"
+    },
+    {
+      "id": 7,
+      "name": "FUTURE_5",
+      "sequence": 4,
+      "color_hex": null,
+      "logo_white": null
+    },
+    {
+      "id": 8,
+      "name": "FUTURE_8",
+      "sequence": 5,
+      "color_hex": "5CD4C2",
+      "logo_white": "Bioglow_Future_column.png"
     }
   ],
   "m_insert_point": [

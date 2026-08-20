@@ -7,6 +7,7 @@ use App\Models\FirstProgram;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
+use App\Support\ProgramCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
@@ -106,39 +107,27 @@ class EventAttentionService
             $drahtData = $response->getData(true);
 
             $teamController = app(TeamController::class);
+            $event->loadMissing('programs');
 
-            // Check Explore teams (only if event_explore exists)
-            if ($event->event_explore) {
-                $requestExplore = new Request();
-                $requestExplore->query->set('program', 'explore');
-                $exploreResponse = $teamController->index($requestExplore, $event);
-                $exploreData = $exploreResponse->getData(true);
-                $localExplore = is_array($exploreData) && !isset($exploreData['teams'])
-                    ? $exploreData
-                    : ($exploreData['teams'] ?? []);
-                
-                $drahtExplore = $this->normalizeTeamList($drahtData['teams_explore'] ?? []);
-                $localExplore = $this->normalizeTeamList($localExplore);
-                
-                if ($this->hasDiscrepancy($localExplore, $drahtExplore)) {
-                    return true;
+            foreach ($event->programs as $program) {
+                if (! $program->draht_id) {
+                    continue;
                 }
-            }
 
-            // Check Challenge teams (only if event_challenge exists)
-            if ($event->event_challenge) {
-                $requestChallenge = new Request();
-                $requestChallenge->query->set('program', 'challenge');
-                $challengeResponse = $teamController->index($requestChallenge, $event);
-                $challengeData = $challengeResponse->getData(true);
-                $localChallenge = is_array($challengeData) && !isset($challengeData['teams'])
-                    ? $challengeData
-                    : ($challengeData['teams'] ?? []);
-                
-                $drahtChallenge = $this->normalizeTeamList($drahtData['teams_challenge'] ?? []);
-                $localChallenge = $this->normalizeTeamList($localChallenge);
-                
-                if ($this->hasDiscrepancy($localChallenge, $drahtChallenge)) {
+                $request = new Request();
+                $request->query->set('program', (string) $program->first_program);
+                $localResponse = $teamController->index($request, $event);
+                $localData = $localResponse->getData(true);
+                $localTeams = is_array($localData) && ! isset($localData['teams'])
+                    ? $localData
+                    : ($localData['teams'] ?? []);
+
+                $drahtProgram = collect($drahtData['programs'] ?? [])
+                    ->firstWhere('first_program', $program->first_program);
+                $drahtTeams = $this->normalizeTeamList($drahtProgram['teams'] ?? []);
+                $localTeams = $this->normalizeTeamList($localTeams);
+
+                if ($this->hasDiscrepancy($localTeams, $drahtTeams)) {
                     return true;
                 }
             }
@@ -252,23 +241,25 @@ class EventAttentionService
             $response = $drahtController->show($event);
             $drahtData = $response->getData(true);
 
-            $registeredChallengeTeams = isset($drahtData['teams_challenge'])
-                ? count($drahtData['teams_challenge'])
-                : 0;
+            $drahtPrograms = collect($drahtData['programs'] ?? []);
+            $countFor = function (string $name) use ($drahtPrograms): int {
+                $row = $drahtPrograms->first(fn ($p) => strcasecmp((string) ($p['name'] ?? ''), $name) === 0);
+                $teams = $row['teams'] ?? [];
 
-            $registeredExploreTeams = isset($drahtData['teams_explore'])
-                ? count($drahtData['teams_explore'])
-                : 0;
+                return is_array($teams) ? count($teams) : 0;
+            };
 
-            // Only check if the event has the corresponding DRAHT event ID
+            $registeredChallengeTeams = $countFor('CHALLENGE');
+            $registeredExploreTeams = $countFor('EXPLORE');
+
             $exploreTeamsOk = true;
             $challengeTeamsOk = true;
 
-            if ($event->event_explore) {
+            if (ProgramCatalog::hasExplore($event)) {
                 $exploreTeamsOk = ($plannedExploreTeams === $registeredExploreTeams);
             }
 
-            if ($event->event_challenge) {
+            if (ProgramCatalog::hasChallenge($event)) {
                 $challengeTeamsOk = ($plannedChallengeTeams === $registeredChallengeTeams);
             }
 
@@ -296,33 +287,19 @@ class EventAttentionService
             $teamController = app(TeamController::class);
             
             $allTeamsHaveRooms = true;
+            $event->loadMissing('programs');
 
-            // Check Explore teams (only if event_explore exists)
-            if ($event->event_explore) {
-                $requestExplore = new Request();
-                $requestExplore->query->set('program', 'explore');
-                $exploreResponse = $teamController->index($requestExplore, $event);
-                $exploreData = $exploreResponse->getData(true);
-                $exploreTeams = is_array($exploreData) && !isset($exploreData['teams'])
-                    ? collect($exploreData)
-                    : collect($exploreData['teams'] ?? []);
-                
-                $exploreWithoutRoom = $exploreTeams->whereNull('room')->count();
-                $allExploreRoomsOk = $exploreTeams->isEmpty() || $exploreWithoutRoom === 0;
-                $allTeamsHaveRooms = $allTeamsHaveRooms && $allExploreRoomsOk;
-            }
+            foreach ($event->programs as $program) {
+                $request = new Request();
+                $request->query->set('program', (string) $program->first_program);
+                $response = $teamController->index($request, $event);
+                $data = $response->getData(true);
+                $teams = is_array($data) && ! isset($data['teams'])
+                    ? collect($data)
+                    : collect($data['teams'] ?? []);
 
-            // Check Challenge teams (only if event_challenge exists)
-            if ($event->event_challenge) {
-                $requestChallenge = new Request();
-                $requestChallenge->query->set('program', 'challenge');
-                $challengeResponse = $teamController->index($requestChallenge, $event);
-                $challengeData = $challengeResponse->getData(true);
-                $challengeTeams = is_array($challengeData) ? collect($challengeData) : collect($challengeData['teams'] ?? []);
-                
-                $challengeWithoutRoom = $challengeTeams->whereNull('room')->count();
-                $allChallengeRoomsOk = $challengeTeams->isEmpty() || $challengeWithoutRoom === 0;
-                $allTeamsHaveRooms = $allTeamsHaveRooms && $allChallengeRoomsOk;
+                $withoutRoom = $teams->whereNull('room')->count();
+                $allTeamsHaveRooms = $allTeamsHaveRooms && ($teams->isEmpty() || $withoutRoom === 0);
             }
 
             return $hasUnmappedRooms || !$allTeamsHaveRooms;

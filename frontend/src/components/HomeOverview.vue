@@ -9,6 +9,7 @@ import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBo
 import EventMap from '@/components/molecules/EventMap.vue'
 import {imageUrl, programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
+import {programDisplayName} from '@/utils/eventPrograms'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
 
 defineOptions({name: 'HomeOverview'})
@@ -19,10 +20,12 @@ const router = useRouter()
 const event = computed(() => eventStore.selectedEvent)
 const showEventModal = ref(false)
 
-const teamStats = ref({
-  explore: {capacity: 0, registered: 0},
-  challenge: {capacity: 0, registered: 0},
-})
+const teamStats = ref<Array<{
+  first_program: number | string
+  name: string
+  capacity: number
+  registered: number
+}>>([])
 const hasPlan = ref(false)
 const publicationLevel = ref<number | null>(null)
 const loading = ref(true)
@@ -130,16 +133,13 @@ async function loadOverviewData() {
       event.value.address = data.address
       event.value.contact = data.contact
       event.value.information = data.information
-      teamStats.value = {
-        explore: {
-          capacity: data.capacity_explore || 0,
-          registered: data.teams_explore ? Object.keys(data.teams_explore).length : 0,
-        },
-        challenge: {
-          capacity: data.capacity_challenge || 0,
-          registered: data.teams_challenge ? Object.keys(data.teams_challenge).length : 0,
-        },
-      }
+      const programs = Array.isArray(data.programs) ? data.programs : []
+      teamStats.value = programs.map((p: any) => ({
+        first_program: p.first_program ?? p.name,
+        name: programDisplayName(p.name),
+        capacity: Number(p.capacity || 0),
+        registered: p.teams ? Object.keys(p.teams).length : 0,
+      }))
     }
 
     hasPlan.value = planRes.status === 'fulfilled' && !!planRes.value?.id
@@ -252,38 +252,21 @@ watch(
 
           <div class="space-y-3">
             <div
-                v-if="teamStats.explore.capacity > 0 || teamStats.explore.registered > 0"
+                v-for="stat in teamStats"
+                :key="stat.first_program"
                 class="flex items-start gap-2"
             >
-              <img :alt="programLogoAlt('E')" :src="programLogoSrc('E')" class="w-9 h-9 flex-shrink-0"/>
+              <img :alt="programLogoAlt(stat.first_program)" :src="programLogoSrc(stat.first_program)" class="w-9 h-9 flex-shrink-0"/>
               <div>
                 <span class="font-medium block">
-                  {{ teamStats.explore.registered }} von {{ teamStats.explore.capacity }} Teams
+                  {{ stat.registered }} von {{ stat.capacity }} Teams
                 </span>
-                <span class="text-sm text-[var(--color-text-muted)]">Explore angemeldet</span>
-              </div>
-            </div>
-
-            <div
-                v-if="teamStats.challenge.capacity > 0 || teamStats.challenge.registered > 0"
-                class="flex items-start gap-2"
-            >
-              <img :alt="programLogoAlt('C')" :src="programLogoSrc('C')" class="w-9 h-9 flex-shrink-0"/>
-              <div>
-                <span class="font-medium block">
-                  {{ teamStats.challenge.registered }} von {{ teamStats.challenge.capacity }} Teams
-                </span>
-                <span class="text-sm text-[var(--color-text-muted)]">Challenge angemeldet</span>
+                <span class="text-sm text-[var(--color-text-muted)]">{{ stat.name }} angemeldet</span>
               </div>
             </div>
 
             <p
-                v-if="
-                  teamStats.explore.capacity === 0 &&
-                  teamStats.explore.registered === 0 &&
-                  teamStats.challenge.capacity === 0 &&
-                  teamStats.challenge.registered === 0
-                "
+                v-if="teamStats.length === 0"
                 class="text-sm text-[var(--color-text-subtle)]"
             >
               {{ loading ? 'Lade Teamdaten…' : 'Keine Team-Daten verfügbar' }}

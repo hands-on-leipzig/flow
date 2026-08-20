@@ -83,11 +83,12 @@ class PublishController extends Controller
                     ->count();
 
                 if ($eventCount > 1) {
-                    if (!is_null($event->event_challenge)) {
-                        $link .= "-challenge";
-                    }
-                    if (!is_null($event->event_explore)) {
-                        $link .= "-explore";
+                    $eventModel = Event::find($event->id);
+                    foreach ($eventModel?->programs ?? [] as $program) {
+                        $suffix = strtolower(str_replace('_', '-', (string) $program->name));
+                        if ($suffix !== '') {
+                            $link .= '-' . $suffix;
+                        }
                     }
                 }
                 break;
@@ -160,14 +161,11 @@ class PublishController extends Controller
             try {
                 $drahtController = app(\App\Http\Controllers\Api\DrahtController::class);
 
-                // Update link for challenge event if it exists
-                if (!empty($event->event_challenge)) {
-                    $drahtController->updateEventLink($event->event_challenge, $displayLink);
-                }
-
-                // Update link for explore event if it exists
-                if (!empty($event->event_explore)) {
-                    $drahtController->updateEventLink($event->event_explore, $displayLink);
+                $eventModel = Event::find($event->id);
+                foreach ($eventModel?->programs ?? [] as $program) {
+                    if (! empty($program->draht_id)) {
+                        $drahtController->updateEventLink((int) $program->draht_id, $displayLink);
+                    }
                 }
             } catch (\Exception $e) {
                 // Log error but don't fail the link generation

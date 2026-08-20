@@ -1,11 +1,11 @@
 import {Slideshow} from "./slideshow";
+import type {EventProgramRef} from "@/utils/eventPrograms";
 
 export default class FllEvent {
     id: number
     name: string | null
     slug: string | null
-    event_explore: number | null
-    event_challenge: number | null
+    programs: EventProgramRef[]
     regional_partner: number
     level: number
     season: number
@@ -34,7 +34,7 @@ export default class FllEvent {
 
     constructor(data: any) {
         Object.assign(this, data)
-        // Initialize DRAHT team counts if not provided
+        this.programs = Array.isArray(data.programs) ? data.programs : []
         this.drahtTeamsExplore = data.drahtTeamsExplore || 0
         this.drahtTeamsChallenge = data.drahtTeamsChallenge || 0
         this.hasTeamDiscrepancy = data.hasTeamDiscrepancy || false

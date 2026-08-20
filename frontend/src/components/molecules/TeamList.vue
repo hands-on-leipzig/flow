@@ -8,6 +8,7 @@ import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import {getProgramTheme} from '@/utils/programTheme'
 import SavingToast from "@/components/atoms/SavingToast.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
+import {drahtIdFor} from '@/utils/eventPrograms'
 
 
 const props = defineProps({
@@ -775,9 +776,7 @@ onMounted(async () => {
     teamsDiffer.value = JSON.stringify(localTeams.value) !== JSON.stringify(props.remoteTeams)
 
     // Fetch people data from DRAHT API
-    const drahtEventId = props.program === 'explore'
-        ? event.value?.event_explore
-        : event.value?.event_challenge
+    const drahtEventId = drahtIdFor(event.value, props.program)
 
     if (drahtEventId) {
       try {

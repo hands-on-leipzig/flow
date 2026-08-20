@@ -407,15 +407,7 @@ class LabelController extends Controller
             return null;
         }
 
-        // Map to lowercase program name
-        $programLower = strtolower($program);
-        if ($programLower === 'explore') {
-            return 'explore';
-        } elseif ($programLower === 'challenge') {
-            return 'challenge';
-        }
-
-        return null;
+        return strtolower((string) $program);
     }
 
     /**
@@ -423,13 +415,16 @@ class LabelController extends Controller
      */
     private function getDrahtEventId(Event $event, ?string $program): ?int
     {
-        if ($program === 'explore' && $event->event_explore) {
-            return $event->event_explore;
-        } elseif ($program === 'challenge' && $event->event_challenge) {
-            return $event->event_challenge;
+        if (! $program) {
+            return null;
         }
 
-        return null;
+        $event->loadMissing('programs');
+        $row = $event->programs->first(
+            fn ($p) => strcasecmp((string) $p->name, $program) === 0
+        );
+
+        return $row?->draht_id ? (int) $row->draht_id : null;
     }
 
     /**

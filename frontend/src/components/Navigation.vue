@@ -5,6 +5,7 @@ import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import {useAuth} from '@/composables/useAuth'
 import {imageUrl} from '@/utils/images'
+import {eventPrograms, programDisplayName, teamPathFor} from '@/utils/eventPrograms'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, setTheme} from '@hands-on/glass/theme'
@@ -63,6 +64,28 @@ type NavEntry = {
   children?: NavChild[]
 }
 
+function programNavIcon(name: string | null | undefined): string {
+  const n = String(name || '').toUpperCase()
+  if (n === 'EXPLORE') return 'bi-compass'
+  if (n === 'CHALLENGE') return 'bi-trophy'
+  return 'bi-stars'
+}
+
+const teamNavChildren = computed<NavChild[]>(() => {
+  const programs = eventPrograms(eventStore.selectedEvent)
+  if (!programs.length) {
+    return [
+      {name: 'Explore', path: '/plan/teams/explore', icon: 'bi-compass'},
+      {name: 'Challenge', path: '/plan/teams/challenge', icon: 'bi-trophy'},
+    ]
+  }
+  return programs.map((program) => ({
+    name: programDisplayName(program.name),
+    path: teamPathFor(program),
+    icon: programNavIcon(program.name),
+  }))
+})
+
 const navEntries = computed<NavEntry[]>(() => [
   {name: 'Übersicht', path: '/plan/overview', icon: 'bi-house-door'},
   {
@@ -86,13 +109,9 @@ const navEntries = computed<NavEntry[]>(() => [
   },
   {
     name: 'Teams',
-    path: '/plan/teams/explore',
+    path: teamNavChildren.value[0]?.path || '/plan/teams/explore',
     icon: 'bi-people',
-    children: [
-      {name: 'Explore', path: '/plan/teams/explore', icon: 'bi-compass'},
-      {name: 'Challenge', path: '/plan/teams/challenge', icon: 'bi-trophy'},
-      {name: 'Future 8+', path: '/plan/teams/future8', icon: 'bi-stars'},
-    ],
+    children: teamNavChildren.value,
   },
   {name: 'Räume', path: '/plan/rooms', icon: 'bi-door-open'},
   {
@@ -177,12 +196,13 @@ function hasWarning(tabPath: string): boolean {
   if (!readiness.value) return false
   const path = normalizePlanPath(tabPath)
 
+  if (path.startsWith('/plan/teams')) {
+    return !!eventStore.selectedEvent?.hasTeamDiscrepancy
+      || !readiness.value.explore_teams_ok
+      || !readiness.value.challenge_teams_ok
+  }
+
   switch (path) {
-    case '/plan/teams':
-    case '/plan/teams/explore':
-      return !!eventStore.selectedEvent?.hasTeamDiscrepancy || !readiness.value.explore_teams_ok
-    case '/plan/teams/challenge':
-      return !!eventStore.selectedEvent?.hasTeamDiscrepancy || !readiness.value.challenge_teams_ok
     case '/plan/schedule':
     case '/plan/schedule/expert':
       return !readiness.value.explore_teams_ok || !readiness.value.challenge_teams_ok

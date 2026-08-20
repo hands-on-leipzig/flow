@@ -11,6 +11,7 @@ use App\Models\TableEvent;
 use App\Models\User;
 use App\Services\SeasonService;
 use App\Services\EventAttentionService;
+use App\Support\ProgramCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -69,8 +70,7 @@ class EventController extends Controller
             'slug' => $event->slug,
             'date' => $event->date,
             'days' => $event->days,
-            'event_explore' => $event->event_explore,
-            'event_challenge' => $event->event_challenge,
+            'programs' => $event->programs,
             'link' => $event->link,
             'qrcode' => $event->qrcode ? 'data:image/png;base64,' . $event->qrcode : null,
             'season' => $event->season,
@@ -197,8 +197,7 @@ class EventController extends Controller
                                 'id' => $event->levelRel?->id,
                                 'name' => $event->levelRel?->name,
                             ],
-                            'event_explore' => $event->event_explore,
-                            'event_challenge' => $event->event_challenge,
+                            'programs' => $event->programs,
                         ];
                     })->values(),
                 ];
@@ -230,7 +229,14 @@ class EventController extends Controller
 
         return response()->json([
             'regional_partners' => $regionalPartners,
-            'levels' => $levels
+            'levels' => $levels,
+            'programs' => ProgramCatalog::attachable()->map(fn ($program) => [
+                'id' => $program->id,
+                'name' => $program->name,
+                'sequence' => $program->sequence,
+                'color_hex' => $program->color_hex,
+                'logo_white' => $program->logo_white,
+            ])->values(),
         ]);
     }
 
@@ -242,8 +248,10 @@ class EventController extends Controller
             'level' => 'required|integer|exists:m_level,id',
             'date' => 'required|date',
             'days' => 'integer|min:1|max:10',
-            'event_explore' => 'nullable|integer',
-            'event_challenge' => 'nullable|integer',
+            'programs' => 'nullable|array',
+            'programs.*.first_program' => 'required_with:programs|integer|exists:m_first_program,id',
+            'programs.*.draht_id' => 'nullable|integer',
+            'programs.*.contao_id' => 'nullable|integer',
         ]);
 
         // Get the latest season
@@ -259,9 +267,11 @@ class EventController extends Controller
             'level' => $validated['level'],
             'date' => $validated['date'],
             'days' => $validated['days'] ?? 1,
-            'event_explore' => $validated['event_explore'] ?? null,
-            'event_challenge' => $validated['event_challenge'] ?? null,
         ]);
+
+        if (! empty($validated['programs'])) {
+            ProgramCatalog::sync($event, $validated['programs']);
+        }
 
         // Automatically generate link and QR code for new events
         try {
@@ -277,7 +287,7 @@ class EventController extends Controller
 
         return response()->json([
             'message' => 'Event created successfully',
-            'event' => $event->load(['seasonRel', 'levelRel'])
+            'event' => $event->load(['seasonRel', 'levelRel', 'programs'])
         ], 201);
     }
 

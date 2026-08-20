@@ -30,25 +30,26 @@ export class DrahtService {
     try {
       // Share one draht-data response with HomeOverview / Teams / planCache
       const data = await usePlanCacheStore().getDrahtData(eventId)
+      const programs = Array.isArray(data.programs) ? data.programs : []
+      const byName = (name: string) =>
+        programs.find((p: any) => String(p.name || '').toUpperCase() === name) || {}
 
-      const teamsExplore = Object.entries(data.teams_explore || {}).map(([id, team]: [string, any]) => ({
-        id: Number(id),
-        number: team.ref || id,
-        name: team.name
-      }))
+      const mapTeams = (teams: any) =>
+        Object.entries(teams || {}).map(([id, team]: [string, any]) => ({
+          id: Number(id),
+          number: team.ref || id,
+          name: team.name
+        }))
 
-      const teamsChallenge = Object.entries(data.teams_challenge || {}).map(([id, team]: [string, any]) => ({
-        id: Number(id),
-        number: team.ref || id,
-        name: team.name
-      }))
+      const explore = byName('EXPLORE')
+      const challenge = byName('CHALLENGE')
 
       return {
-        teamsExplore,
-        teamsChallenge,
+        teamsExplore: mapTeams(explore.teams),
+        teamsChallenge: mapTeams(challenge.teams),
         hasDiscrepancy: false,
-        capacityExplore: data.capacity_explore || 0,
-        capacityChallenge: data.capacity_challenge || 0
+        capacityExplore: explore.capacity || 0,
+        capacityChallenge: challenge.capacity || 0
       }
     } catch (error) {
       console.error('Failed to fetch DRAHT team data:', error)

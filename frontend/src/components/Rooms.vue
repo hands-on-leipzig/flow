@@ -5,6 +5,7 @@ import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import draggable from 'vuedraggable'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {eventPrograms, hasExplore, hasChallenge, programDisplayName} from '@/utils/eventPrograms'
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import LoaderText from "@/components/atoms/LoaderText.vue";
 import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
@@ -28,8 +29,7 @@ const typeGroups = ref([])
 const exploreTeams = ref([])
 const exploreTeamsMorning = ref([]) // Explore Vormittag teams
 const exploreTeamsAfternoon = ref([]) // Explore Nachmittag teams
-const challengeTeams = ref([])
-const e1Teams = ref(0) // Threshold for morning vs afternoon split
+const extraProgramTeams = ref([]) // Other attached programs (e.g. Future)
 const hasTwoExploreGroups = ref(false) // Whether there are 2 Explore groups
 
 // People data from DRAHT API
@@ -42,13 +42,15 @@ const previewedTypeId = ref(null)
 
 // --- Farbzuweisung ---
 const getProgramColor = (item) => {
+  const hex = event.value?.programs?.find(p => Number(p.first_program) === Number(item.first_program))?.color_hex
+  if (hex) return hex.startsWith('#') ? hex : `#${hex}`
   switch (item.first_program) {
     case 2:
-      return '#10B981' // Grün (Explore)
+      return '#10B981'
     case 3:
-      return '#EF4444' // Rot (Challenge)
+      return '#EF4444'
     default:
-      return '#9CA3AF' // Grau (Neutral)
+      return '#9CA3AF'
   }
 }
 
@@ -114,81 +116,84 @@ onMounted(async () => {
   )
 
   // --- Teams laden über neue API ---
+  const mapTeam = (t, firstProgram, groupId, groupName) => ({
+    id: t.id,
+    key: `team-${t.id}`,
+    number: t.team_number_hot,
+    name: t.name ?? 'Unbenannt',
+    type: 'team',
+    first_program: firstProgram,
+    room: t.room ?? null,
+    team_number_plan: t.team_number_plan,
+    group: {id: groupId, name: groupName}
+  })
+
+  const teamsFromResponse = (data) => {
+    if (Array.isArray(data)) return {teams: data, metadata: {}}
+    return {teams: data?.teams || [], metadata: data?.metadata || {}}
+  }
+
   try {
-    const [exploreResponse, challengeResponse] = await Promise.all([
-      axios.get(`/events/${eventId.value}/teams`, {params: {program: 'explore', sort: 'name'}}),
-      axios.get(`/events/${eventId.value}/teams`, {params: {program: 'challenge', sort: 'name'}})
-    ])
+    const attached = eventPrograms(event.value)
+    const toFetch = attached.length
+        ? attached
+        : [{first_program: 2, name: 'EXPLORE'}, {first_program: 3, name: 'CHALLENGE'}]
 
-    // Handle Explore teams - response may be object with metadata or array (backward compatible)
-    const exploreData = exploreResponse.data
-    let exploreTeamsArray = Array.isArray(exploreData) ? exploreData : exploreData.teams || []
-    const exploreMetadata = exploreData.metadata || {}
-
-    // Check if there are 2 Explore groups (e_mode = 8 for HYBRID_BOTH or 5 for DECOUPLED_BOTH)
-    const eMode = exploreMetadata.e_mode || 0
-    hasTwoExploreGroups.value = (eMode === 8 || eMode === 5)
-    e1Teams.value = exploreMetadata.e1_teams || 0
-
-    // Split Explore teams into morning and afternoon based on team_number_plan
-    if (hasTwoExploreGroups.value && e1Teams.value > 0) {
-      exploreTeamsMorning.value = exploreTeamsArray
-          .filter(t => (t.team_number_plan || 0) <= e1Teams.value)
-          .map(t => ({
-            id: t.id,
-            key: `team-${t.id}`,
-            number: t.team_number_hot,
-            name: t.name ?? 'Unbenannt',
-            type: 'team',
-            first_program: 2,
-            room: t.room ?? null,
-            team_number_plan: t.team_number_plan,
-            group: {id: 'explore-morning', name: 'Explore Vormittag'}
-          }))
-
-      exploreTeamsAfternoon.value = exploreTeamsArray
-          .filter(t => (t.team_number_plan || 0) > e1Teams.value)
-          .map(t => ({
-            id: t.id,
-            key: `team-${t.id}`,
-            number: t.team_number_hot,
-            name: t.name ?? 'Unbenannt',
-            type: 'team',
-            first_program: 2,
-            room: t.room ?? null,
-            team_number_plan: t.team_number_plan,
-            group: {id: 'explore-afternoon', name: 'Explore Nachmittag'}
-          }))
-
-      // Keep exploreTeams for backward compatibility (all teams combined)
-      exploreTeams.value = [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
-    } else {
-      // Single Explore group - use existing logic
-      exploreTeams.value = exploreTeamsArray.map(t => ({
-        id: t.id,
-        key: `team-${t.id}`,
-        number: t.team_number_hot,
-        name: t.name ?? 'Unbenannt',
-        type: 'team',
-        first_program: 2,
-        room: t.room ?? null,
-        team_number_plan: t.team_number_plan,
-        group: {id: 'explore', name: 'Explore'}
-      }))
-      exploreTeamsMorning.value = []
-      exploreTeamsAfternoon.value = []
-    }
-
-    challengeTeams.value = challengeResponse.data.map(t => ({
-      id: t.id,
-      key: `team-${t.id}`,
-      number: t.team_number_hot,
-      name: t.name ?? 'Unbenannt',
-      type: 'team',
-      first_program: 3,
-      room: t.room ?? null,
-      group: {id: 'challenge', name: 'Challenge'}
+    const results = await Promise.all(toFetch.map(async (program) => {
+      try {
+        const res = await axios.get(`/events/${eventId.value}/teams`, {
+          params: {program: program.first_program || program.name, sort: 'name'}
+        })
+        return {program, ...teamsFromResponse(res.data)}
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error('Fehler beim Laden der Teams:', err)
+        }
+        return {program, teams: [], metadata: {}}
+      }
     }))
+
+    exploreTeams.value = []
+    exploreTeamsMorning.value = []
+    exploreTeamsAfternoon.value = []
+    challengeTeams.value = []
+    extraProgramTeams.value = []
+    hasTwoExploreGroups.value = false
+    e1Teams.value = 0
+
+    for (const {program, teams, metadata} of results) {
+      const name = String(program.name || '').toUpperCase()
+      const id = Number(program.first_program)
+      if (name === 'EXPLORE' || id === 2) {
+        const eMode = metadata.e_mode || 0
+        hasTwoExploreGroups.value = (eMode === 8 || eMode === 5)
+        e1Teams.value = metadata.e1_teams || 0
+        if (hasTwoExploreGroups.value && e1Teams.value > 0) {
+          exploreTeamsMorning.value = teams
+              .filter(t => (t.team_number_plan || 0) <= e1Teams.value)
+              .map(t => mapTeam(t, 2, 'explore-morning', 'Explore Vormittag'))
+          exploreTeamsAfternoon.value = teams
+              .filter(t => (t.team_number_plan || 0) > e1Teams.value)
+              .map(t => mapTeam(t, 2, 'explore-afternoon', 'Explore Nachmittag'))
+          exploreTeams.value = [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
+        } else {
+          exploreTeams.value = teams.map(t => mapTeam(t, 2, 'explore', 'Explore'))
+          exploreTeamsMorning.value = []
+          exploreTeamsAfternoon.value = []
+        }
+      } else if (name === 'CHALLENGE' || id === 3) {
+        challengeTeams.value = teams.map(t => mapTeam(t, 3, 'challenge', 'Challenge'))
+      } else {
+        const groupId = `program-${id}`
+        const groupName = programDisplayName(program.name)
+        extraProgramTeams.value.push({
+          id: groupId,
+          name: groupName,
+          first_program: id,
+          items: teams.map(t => mapTeam(t, id, groupId, groupName))
+        })
+      }
+    }
   } catch (err) {
     if (import.meta.env.DEV) {
       console.error('Fehler beim Laden der Teams:', err)
@@ -197,31 +202,32 @@ onMounted(async () => {
     exploreTeamsMorning.value = []
     exploreTeamsAfternoon.value = []
     challengeTeams.value = []
+    extraProgramTeams.value = []
   }
 
   // --- Zusammenführen in gemeinsame Struktur ---
-  // Build team groups based on whether there are 2 Explore groups
   const teamGroups = []
 
-  if (hasTwoExploreGroups.value) {
-    // Two Explore groups: Vormittag and Nachmittag
+  if (showExploreTeams.value) {
+    if (hasTwoExploreGroups.value) {
+      teamGroups.push(
+          {id: 'explore-morning', name: 'Explore Vormittag', first_program: 2, items: exploreTeamsMorning.value},
+          {id: 'explore-afternoon', name: 'Explore Nachmittag', first_program: 2, items: exploreTeamsAfternoon.value}
+      )
+    } else {
+      teamGroups.push(
+          {id: 'explore', name: 'Explore', first_program: 2, items: exploreTeams.value}
+      )
+    }
+  }
+
+  if (showChallengeTeams.value) {
     teamGroups.push(
-        {id: 'explore-morning', name: 'Explore Vormittag', items: exploreTeamsMorning.value},
-        {id: 'explore-afternoon', name: 'Explore Nachmittag', items: exploreTeamsAfternoon.value}
-    )
-  } else {
-    // Single Explore group
-    teamGroups.push(
-        {id: 'explore', name: 'Explore', items: exploreTeams.value}
+        {id: 'challenge', name: 'Challenge', first_program: 3, items: challengeTeams.value}
     )
   }
 
-  // Add Challenge group
-  if (showChallengeTeams.value) {
-    teamGroups.push(
-        {id: 'challenge', name: 'Challenge', items: challengeTeams.value}
-    )
-  }
+  extraProgramTeams.value.forEach(group => teamGroups.push(group))
 
   assignables.value = [
     {
@@ -270,7 +276,7 @@ onMounted(async () => {
   const exploreTeamsForAssignment = hasTwoExploreGroups.value
       ? [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
       : exploreTeams.value
-  ;[...exploreTeamsForAssignment, ...challengeTeams.value].forEach(team => {
+  ;[...exploreTeamsForAssignment, ...challengeTeams.value, ...extraProgramTeams.value.flatMap(g => g.items)].forEach(team => {
     if (team.room !== null && team.room !== undefined) {
       result[`team-${team.id}`] = team.room
     }
@@ -289,13 +295,12 @@ onMounted(async () => {
   //   teams: Object.keys(result).filter(k => k.startsWith('team-')).length
   // })
 
-  // Fetch people data from DRAHT API for both programs
   const fetchPeopleData = async () => {
     const promises = []
-
-    if (event.value?.event_explore) {
+    for (const program of event.value?.programs || []) {
+      if (!program.draht_id) continue
       promises.push(
-          axios.get(`/draht/people/${event.value.event_explore}`)
+          axios.get(`/draht/people/${program.draht_id}`)
               .then(res => {
                 if (res.data) {
                   const {total_players, total_coaches, ...teamsData} = res.data
@@ -304,29 +309,11 @@ onMounted(async () => {
               })
               .catch(err => {
                 if (import.meta.env.DEV) {
-                  console.error('Failed to fetch Explore people data', err)
+                  console.error('Failed to fetch people data', err)
                 }
               })
       )
     }
-
-    if (event.value?.event_challenge) {
-      promises.push(
-          axios.get(`/draht/people/${event.value.event_challenge}`)
-              .then(res => {
-                if (res.data) {
-                  const {total_players, total_coaches, ...teamsData} = res.data
-                  Object.assign(peopleData.value, teamsData)
-                }
-              })
-              .catch(err => {
-                if (import.meta.env.DEV) {
-                  console.error('Failed to fetch Challenge people data', err)
-                }
-              })
-      )
-    }
-
     await Promise.all(promises)
   }
 
@@ -1072,11 +1059,13 @@ const hasWarning = (tab) => {
 
 // --- Visibility based on capacity ---
 const showExploreTeams = computed(() => {
+  if (hasExplore(event.value)) return true
   const capacity = Number(event.value?.drahtCapacityExplore || 0)
   return capacity > 0
 })
 
 const showChallengeTeams = computed(() => {
+  if (hasChallenge(event.value)) return true
   const capacity = Number(event.value?.drahtCapacityChallenge || 0)
   return capacity > 0
 })
@@ -1455,27 +1444,22 @@ const showChallengeTeams = computed(() => {
                   (group.id === 'explore' && showExploreTeams && !hasTwoExploreGroups) || 
                   (group.id === 'explore-morning' && showExploreTeams && hasTwoExploreGroups) ||
                   (group.id === 'explore-afternoon' && showExploreTeams && hasTwoExploreGroups) ||
-                  (group.id === 'challenge' && showChallengeTeams)"
+                  (group.id === 'challenge' && showChallengeTeams) ||
+                  String(group.id || '').startsWith('program-')"
                 class="mb-3 md:mb-4 liquid-surface-inner rounded-[var(--radius)] p-3"
             >
               <div class="glass-card__heading !mb-2 md:!mb-3 !text-sm md:!text-base flex items-center gap-2">
                 <img
-                    v-if="group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
-                    :alt="programLogoAlt('E')"
-                    :src="programLogoSrc('E')"
-                    class="w-6 h-6 flex-shrink-0"
-                />
-                <img
-                    v-if="group.id === 'challenge' || /FLL Challenge|FIRST LEGO League Challenge/i.test(group.name)"
-                    :alt="programLogoAlt('C')"
-                    :src="programLogoSrc('C')"
+                    v-if="group.first_program || group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon' || group.id === 'challenge'"
+                    :alt="programLogoAlt(group.first_program || (String(group.id).includes('explore') ? 'E' : 'C'))"
+                    :src="programLogoSrc(group.first_program || (String(group.id).includes('explore') ? 'E' : 'C'))"
                     class="w-6 h-6 flex-shrink-0"
                 />
                 <span v-html="formatProgramName(group.name)"></span>
               </div>
 
               <!-- Bulk mode checkbox for teams -->
-              <div v-if="category.type === 'team'" class="mb-2">
+              <div v-if="category.type === 'team' && !String(group.id || '').startsWith('program-')" class="mb-2">
                 <label class="flex items-center gap-2 text-xs md:text-sm text-[var(--color-text-muted)] cursor-pointer">
                   <input
                       :checked="group.id === 'explore-morning' ? bulkModeExploreMorning :
