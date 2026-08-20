@@ -4,6 +4,7 @@ import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import TeamSelectionCard from "@/components/molecules/TeamSelectionCard.vue";
+import TeamPlanBar from "@/components/molecules/TeamPlanBar.vue";
 import {useEventStore} from '@/stores/event'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 
@@ -244,14 +245,24 @@ const teamsPerJuryHint = computed(() => {
 
 <template>
   <ProgramSection program="challenge">
-    <TeamSelectionCard
-        :plan-teams="planTeams"
-        :registered-teams="registeredTeams"
-        :capacity="capacity"
-        :min-teams="challengeTeamLimits.min"
-        :max-teams="challengeTeamLimits.max"
-        :on-update="(value) => updateByName('c_teams', value)"
-    />
+    <div class="challenge-teams">
+      <TeamPlanBar
+          :plan-teams="planTeams"
+          :registered-teams="registeredTeams"
+          :capacity="capacity"
+          :min-teams="challengeTeamLimits.min"
+          :max-teams="challengeTeamLimits.max"
+          :on-update="(value) => updateByName('c_teams', value)"
+      />
+      <TeamSelectionCard
+          :plan-teams="planTeams"
+          :registered-teams="registeredTeams"
+          :capacity="capacity"
+          :min-teams="challengeTeamLimits.min"
+          :max-teams="challengeTeamLimits.max"
+          :on-update="(value) => updateByName('c_teams', value)"
+      />
+    </div>
 
       <!-- Jury lanes -->
       <div>
@@ -344,6 +355,12 @@ const teamsPerJuryHint = computed(() => {
 </template>
 
 <style scoped>
+.challenge-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
 .program-note {
   display: flex;
   align-items: flex-start;
