@@ -137,7 +137,7 @@ async function loadOverviewData() {
       const programs = Array.isArray(data.programs) ? data.programs : []
       teamStats.value = eventPrograms({ programs }).map((p: any) => ({
         first_program: p.first_program ?? p.name,
-        name: programDisplayName(p.name),
+        name: programDisplayName(p),
         programName: p.name,
         capacity: Number(p.capacity || 0),
         registered: p.teams ? Object.keys(p.teams).length : 0,

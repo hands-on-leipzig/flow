@@ -862,7 +862,7 @@ const currentTabLabel = computed(() =>
               :alt="programLogoAlt(group.program)"
               class="w-6 h-6 flex-shrink-0"
             />
-            <span>FIRST LEGO League {{ programDisplayName(group.program.name) }}</span>
+            <span>FIRST LEGO League {{ programDisplayName(group.program) }}</span>
           </h5>
           <div class="space-y-0.5">
             <label 
@@ -955,7 +955,7 @@ const currentTabLabel = computed(() =>
               :alt="programLogoAlt(program)"
               class="w-6 h-6 flex-shrink-0"
             />
-            <span>FIRST LEGO League {{ programDisplayName(program.name) }}</span>
+            <span>FIRST LEGO League {{ programDisplayName(program) }}</span>
           </h5>
           <div class="space-y-0.5">
             <label 
@@ -1187,7 +1187,7 @@ const currentTabLabel = computed(() =>
                   :alt="programLogoAlt(program)"
                   class="w-6 h-6 flex-shrink-0"
                 />
-                <span>FIRST LEGO League {{ programDisplayName(program.name) }}</span>
+                <span>FIRST LEGO League {{ programDisplayName(program) }}</span>
               </h5>
               <div class="space-y-0.5">
                 <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">

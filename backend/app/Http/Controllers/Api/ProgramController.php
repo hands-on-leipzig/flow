@@ -13,6 +13,9 @@ class ProgramController extends Controller
         $programs = ProgramCatalog::attachable()->map(fn ($program) => [
             'id' => $program->id,
             'name' => $program->name,
+            'display_name' => $program->display_name,
+            'letter' => $program->letter,
+            'family' => $program->family,
             'sequence' => $program->sequence,
             'color_hex' => $program->color_hex,
             'logo_stem' => $program->logo_stem,

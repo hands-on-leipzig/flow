@@ -67,7 +67,7 @@ type NavEntry = {
 
 const teamNavChildren = computed<NavChild[]>(() => {
   return eventPrograms(eventStore.selectedEvent).map((program) => ({
-    name: programDisplayName(program.name),
+    name: programDisplayName(program),
     path: teamPathFor(program),
     iconSrc: programLogoSrc(program.name),
   }))

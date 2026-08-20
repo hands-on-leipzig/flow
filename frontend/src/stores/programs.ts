@@ -1,6 +1,7 @@
 import {defineStore} from 'pinia'
 import axios from 'axios'
 import type {EventProgramRef} from '@/utils/eventPrograms'
+import {setProgramIdentityCatalog} from '@/utils/eventPrograms'
 import {setProgramLogoCatalog} from '@/utils/images'
 
 interface ProgramsStoreState {
@@ -38,11 +39,15 @@ export const useProgramsStore = defineStore('programs', {
           id: program.id,
           first_program: program.id,
           name: program.name,
+          display_name: program.display_name ?? null,
+          letter: program.letter ?? null,
+          family: program.family ?? null,
           sequence: program.sequence ?? null,
           color_hex: program.color_hex ?? null,
           logo_stem: program.logo_stem ?? null,
           logo_white: program.logo_white ?? null,
         }))
+        setProgramIdentityCatalog(this.catalog)
         setProgramLogoCatalog(this.catalog)
         this.loaded = true
       } catch (error) {

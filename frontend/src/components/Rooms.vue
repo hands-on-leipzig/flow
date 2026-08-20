@@ -176,7 +176,7 @@ onMounted(async () => {
     for (const program of toFetch) {
       const id = Number(program.first_program)
       const loaded = teamsByProgram.get(id) || {program, teams: [], metadata: {}}
-      const label = programDisplayName(program.name)
+      const label = programDisplayName(program)
       const slug = programSlug(program.name)
 
       if (programMatchesSlug(program.name, 'explore')) {

@@ -79,7 +79,7 @@ export function programLogoSrc(program: ProgramLogoRef, orientation: ProgramLogo
 export function programLogoAlt(program: ProgramLogoRef) {
   const name = catalogNameFor(program)
   if (!name) return 'FIRST LEGO League Logo'
-  const display = programDisplayName(name)
+  const display = programDisplayName(program && typeof program === 'object' ? program : name)
   if (!display) return 'FIRST LEGO League Logo'
   return `FIRST LEGO League ${display} Logo`
 }

@@ -43,7 +43,7 @@ const programFilterOptions = computed(() => [
   {value: 0, label: 'gemeinsam', icon: null as string | null},
   ...catalogPrograms.value.map((program) => ({
     value: program.id,
-    label: `FIRST LEGO League ${programDisplayName(program.name)}`,
+    label: `FIRST LEGO League ${programDisplayName(program)}`,
     icon: program.name,
   })),
 ])
@@ -349,7 +349,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
                                         v-for="program in catalogPrograms"
                                         :key="program.id"
                                         :value="program.id"
-                                    >FIRST LEGO League {{ programDisplayName(program.name) }}</option>
+                                    >FIRST LEGO League {{ programDisplayName(program) }}</option>
                                 </select>
                                 </div>
 

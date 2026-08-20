@@ -11,6 +11,9 @@ class FirstProgram extends Model
     protected $fillable = [
         'id',
         'name',
+        'display_name',
+        'letter',
+        'family',
         'sequence',
         'color_hex',
         'logo_stem',

@@ -2,7 +2,9 @@
  * Visual identity for FIRST programs in settings / schedule UI.
  * Accents are m_first_program.color_hex (FUTURE_5 is null in the catalog).
  */
-export type ProgramKey = 'explore' | 'challenge' | 'future5' | 'future8' | 'shared'
+import {findCatalogRow} from '@/utils/eventPrograms'
+
+export type ProgramKey = 'explore' | 'challenge' | 'future5' | 'future8' | 'discover' | 'shared'
 
 export type ProgramTheme = {
   key: ProgramKey
@@ -52,6 +54,13 @@ const THEMES: Record<ProgramKey, ProgramTheme> = {
     accent: PROGRAM_COLOR_HEX.FUTURE_8,
     catalogName: 'FUTURE_8',
   },
+  discover: {
+    key: 'discover',
+    shortName: 'Discover',
+    productName: 'LEGO League',
+    accent: PROGRAM_COLOR_HEX.DISCOVER,
+    catalogName: 'DISCOVER',
+  },
   shared: {
     key: 'shared',
     shortName: 'Gemeinsam',
@@ -61,22 +70,26 @@ const THEMES: Record<ProgramKey, ProgramTheme> = {
   },
 }
 
+function withCatalog(theme: ProgramTheme): ProgramTheme {
+  const row = findCatalogRow(theme.catalogName)
+  if (!row) return theme
+  return {
+    ...theme,
+    shortName: row.display_name || theme.shortName,
+    accent: row.color_hex || theme.accent,
+    catalogName: row.name || theme.catalogName,
+  }
+}
+
 export function getProgramTheme(program: string): ProgramTheme {
   const compact = String(program || '').toLowerCase().replace(/[_-]/g, '')
-  if (compact === 'explore' || compact === 'e' || compact === '2') return THEMES.explore
-  if (compact === 'challenge' || compact === 'c' || compact === '3') return THEMES.challenge
-  if (compact === 'future5' || compact === 'f5' || compact === '7') return THEMES.future5
-  if (compact === 'future8' || compact === 'f8' || compact === '8') return THEMES.future8
-  if (compact === 'discover' || compact === 'd' || compact === '1') {
-    return {
-      key: 'shared',
-      shortName: 'Discover',
-      productName: 'LEGO League',
-      accent: PROGRAM_COLOR_HEX.DISCOVER,
-      catalogName: null,
-    }
-  }
-  return THEMES[program as ProgramKey] ?? THEMES.shared
+  if (compact === 'explore' || compact === 'e' || compact === '2') return withCatalog(THEMES.explore)
+  if (compact === 'challenge' || compact === 'c' || compact === '3') return withCatalog(THEMES.challenge)
+  if (compact === 'future5' || compact === 'f5' || compact === '7') return withCatalog(THEMES.future5)
+  if (compact === 'future8' || compact === 'f8' || compact === '8') return withCatalog(THEMES.future8)
+  if (compact === 'discover' || compact === 'd' || compact === '1') return withCatalog(THEMES.discover)
+  const keyed = THEMES[program as ProgramKey]
+  return keyed ? withCatalog(keyed) : THEMES.shared
 }
 
 export function listProgramKeys(includeShared = false): ProgramKey[] {

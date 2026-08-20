@@ -37,12 +37,11 @@ class ProgramCatalog
     }
 
     /**
-     * Programs that can be attached to an event (Discover is history-only).
+     * Catalog programs that can be attached to an event.
      */
     public static function attachable(): Collection
     {
         return FirstProgram::query()
-            ->where('name', '!=', self::DISCOVER)
             ->orderBy('sequence')
             ->orderBy('id')
             ->get();
@@ -135,7 +134,7 @@ class ProgramCatalog
             }
 
             $program = FirstProgram::find($programId);
-            if (! $program || self::isDiscover($program->name)) {
+            if (! $program) {
                 continue;
             }
 
@@ -194,6 +193,29 @@ class ProgramCatalog
         }
 
         return $map;
+    }
+
+    public static function displayName(int|string|null $name, string $fallback = ''): string
+    {
+        $program = self::resolve($name);
+        $display = $program?->display_name;
+        if (is_string($display) && $display !== '') {
+            return $display;
+        }
+
+        if ($fallback !== '') {
+            return $fallback;
+        }
+
+        return (string) ($program?->name ?? $name ?? '');
+    }
+
+    public static function letter(int|string|null $name): ?string
+    {
+        $program = self::resolve($name);
+        $letter = $program?->letter;
+
+        return is_string($letter) && $letter !== '' ? $letter : null;
     }
 
     /** Catalog color without #, e.g. ED1C24. */

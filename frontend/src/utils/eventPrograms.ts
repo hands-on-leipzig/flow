@@ -2,12 +2,58 @@ export type EventProgramRef = {
   first_program?: number
   id?: number
   name?: string | null
+  display_name?: string | null
+  letter?: string | null
+  family?: string | null
   draht_id?: number | null
   contao_id?: number | null
   color_hex?: string | null
   logo_stem?: string | null
   logo_white?: string | null
   sequence?: number | null
+}
+
+export type ProgramIdentityRef = EventProgramRef | string | number | null | undefined
+
+let identityCatalog: EventProgramRef[] = []
+
+export function setProgramIdentityCatalog(rows: EventProgramRef[]) {
+  identityCatalog = Array.isArray(rows) ? rows : []
+}
+
+export function findCatalogRow(program: ProgramIdentityRef): EventProgramRef | undefined {
+  if (program == null || program === '') return undefined
+
+  if (typeof program === 'object') {
+    const id = programId(program)
+    if (id > 0) {
+      const byId = identityCatalog.find((row) => programId(row) === id)
+      if (byId) return {...byId, ...program}
+    }
+    if (program.name) {
+      const byName = findCatalogRow(program.name)
+      if (byName) return {...byName, ...program}
+    }
+    if (program.letter) {
+      const byLetter = identityCatalog.find(
+        (row) => String(row.letter || '').toUpperCase() === String(program.letter).toUpperCase()
+      )
+      if (byLetter) return {...byLetter, ...program}
+    }
+    return program
+  }
+
+  const raw = String(program).trim()
+  if (!raw) return undefined
+  const compactKey = programCompact(raw)
+  const upper = raw.toUpperCase()
+
+  return identityCatalog.find((row) => {
+    if (programId(row) > 0 && String(programId(row)) === raw) return true
+    if (row.name && (row.name === raw || programCompact(row.name) === compactKey)) return true
+    if (row.letter && String(row.letter).toUpperCase() === upper) return true
+    return false
+  })
 }
 
 export type EventWithPrograms = {
@@ -70,23 +116,29 @@ export function programMatchesSlug(name: string | null | undefined, slug: string
   return programCompact(name) === programCompact(slug)
 }
 
-export function programDisplayName(name: string | null | undefined): string {
-  const n = String(name || '').toUpperCase()
-  if (n === 'EXPLORE' || n === 'E') return 'Explore'
-  if (n === 'CHALLENGE' || n === 'C') return 'Challenge'
-  if (n === 'FUTURE_5') return 'Future 5+'
-  if (n === 'FUTURE_8') return 'Future 8+'
-  if (n === 'DISCOVER') return 'Discover'
-  return String(name || '')
+export function programDisplayName(program: ProgramIdentityRef): string {
+  if (program && typeof program === 'object' && program.display_name) {
+    return program.display_name
+  }
+  const row = findCatalogRow(program)
+  if (row?.display_name) return row.display_name
+  if (program && typeof program === 'object') return String(program.name || '')
+  return String(program ?? '')
 }
 
-/** Map volunteer/label codes (E/C) to catalog names for programLogoSrc. */
+/** Map volunteer/label codes (E/C/D) to catalog names for programLogoSrc. */
 export function catalogNameFromCode(code: string | null | undefined): string {
   const c = String(code || '').trim().toUpperCase()
-  if (c === 'E') return 'EXPLORE'
-  if (c === 'C') return 'CHALLENGE'
-  if (c === 'F8') return 'FUTURE_8'
-  if (c === 'F5') return 'FUTURE_5'
+  if (!c) return c
+  const byLetter = identityCatalog.find(
+    (row) => String(row.letter || '').toUpperCase() === c
+  )
+  if (byLetter?.name) return String(byLetter.name)
+  const compact = c.replace(/[_-]/g, '')
+  const byName = identityCatalog.find((row) => programCompact(row.name) === compact.toLowerCase())
+  if (byName?.name) return String(byName.name)
+  if (c === 'F8' || compact === 'F8') return 'FUTURE_8'
+  if (c === 'F5' || compact === 'F5') return 'FUTURE_5'
   return c
 }
 
