@@ -2,44 +2,38 @@
 import {computed, ref} from 'vue'
 
 const props = defineProps<{
-  planTeams: number
-  registeredTeams: number
-  capacity: number
-  minTeams: number
-  maxTeams: number
-  onUpdate: (value: number) => void
+  total: number
+  leftTeams: number
+  onUpdate: (leftTeams: number) => void
 }>()
 
 const trackRef = ref<HTMLElement | null>(null)
 const dragging = ref(false)
 
-const fillPct = computed(() => {
-  if (props.capacity <= 0) return 0
-  return (props.registeredTeams / props.capacity) * 100
-})
+const rightTeams = computed(() => Math.max(0, props.total - props.leftTeams))
 
 const handlePct = computed(() => {
-  if (props.capacity <= 0) return 0
-  return (props.planTeams / props.capacity) * 100
+  if (props.total <= 0) return 0
+  return (props.leftTeams / props.total) * 100
 })
 
 const labelOnLeft = computed(() => handlePct.value > 50)
 
-function clampPlan(value: number): number {
-  return Math.min(props.maxTeams, Math.max(props.minTeams, Math.round(value)))
+function clampLeft(value: number): number {
+  return Math.min(props.total, Math.max(0, Math.round(value)))
 }
 
 function valueFromClientX(clientX: number): number {
   const track = trackRef.value
-  if (!track || props.capacity <= 0) return props.planTeams
+  if (!track || props.total <= 0) return props.leftTeams
   const rect = track.getBoundingClientRect()
-  if (rect.width <= 0) return props.planTeams
+  if (rect.width <= 0) return props.leftTeams
   const ratio = (clientX - rect.left) / rect.width
-  return clampPlan(ratio * props.capacity)
+  return clampLeft(ratio * props.total)
 }
 
 function commit(value: number) {
-  if (value === props.planTeams) return
+  if (value === props.leftTeams) return
   props.onUpdate(value)
 }
 
@@ -67,11 +61,15 @@ function onPointerUp() {
         ref="trackRef"
         class="plan-bar__track liquid-surface-inner"
         aria-hidden="true"
+        @pointerdown="onPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
     >
-      <div class="plan-bar__plan" :style="{ width: handlePct + '%' }"/>
-      <div class="plan-bar__fill" :style="{ width: fillPct + '%' }"/>
-      <span class="plan-bar__end plan-bar__end--min">Angemeldet {{ registeredTeams }}</span>
-      <span class="plan-bar__end plan-bar__end--max">Kapazität {{ capacity }}</span>
+      <div class="plan-bar__fill plan-bar__fill--left" :style="{ width: handlePct + '%' }"/>
+      <div class="plan-bar__fill plan-bar__fill--right" :style="{ width: (100 - handlePct) + '%' }"/>
+      <span class="plan-bar__end plan-bar__end--min">Vormittag {{ leftTeams }}</span>
+      <span class="plan-bar__end plan-bar__end--max">Nachmittag {{ rightTeams }}</span>
     </div>
     <div
         class="plan-bar__handle"
@@ -79,10 +77,10 @@ function onPointerUp() {
         :style="{ left: handlePct + '%' }"
         role="slider"
         tabindex="0"
-        :aria-valuemin="minTeams"
-        :aria-valuemax="maxTeams"
-        :aria-valuenow="planTeams"
-        :aria-label="`Plan für ${planTeams} Teams`"
+        :aria-valuemin="0"
+        :aria-valuemax="total"
+        :aria-valuenow="leftTeams"
+        aria-label="Teamverteilung"
         @pointerdown="onPointerDown"
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"
@@ -92,7 +90,7 @@ function onPointerUp() {
         <span class="plan-bar__triangle"/>
         <span class="plan-bar__line"/>
       </div>
-      <span class="plan-bar__value glass-chip liquid-surface-inner">Plan für {{ planTeams }} Teams</span>
+      <span class="plan-bar__value glass-chip liquid-surface-inner">Teamverteilung</span>
     </div>
   </div>
 </template>
@@ -108,27 +106,30 @@ function onPointerUp() {
   position: relative;
   height: 2.15rem;
   overflow: hidden;
-}
-
-.plan-bar__plan {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: color-mix(in srgb, var(--color-text) 12%, transparent);
-  pointer-events: none;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
 }
 
 .plan-bar__fill {
   position: absolute;
-  inset: 0 auto 0 0;
-  z-index: 1;
-  background: color-mix(in srgb, #3b82f6 18%, transparent);
   pointer-events: none;
+}
+
+.plan-bar__fill--left {
+  inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--color-text) 12%, transparent);
+}
+
+.plan-bar__fill--right {
+  inset: 0 0 0 auto;
+  background: color-mix(in srgb, var(--color-text) 22%, transparent);
 }
 
 .plan-bar__end {
   position: absolute;
   top: 50%;
-  z-index: 2;
+  z-index: 1;
   transform: translateY(-50%);
   font-size: 0.8125rem;
   font-weight: 600;

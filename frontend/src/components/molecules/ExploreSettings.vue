@@ -4,6 +4,7 @@ import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import TeamPlanBar from '@/components/molecules/TeamPlanBar.vue'
+import TeamSplitBar from '@/components/molecules/TeamSplitBar.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import {useEventStore} from '@/stores/event'
 import {eventPrograms, programId} from '@/utils/eventPrograms'
@@ -32,7 +33,26 @@ function updateByName(name: string, value: any) {
 }
 
 const eTeams = computed(() => Number(paramMapByName.value['e_teams']?.value || 0))
+const e1Teams = computed(() => Number(paramMapByName.value['e1_teams']?.value || 0))
+const e2Teams = computed(() => Number(paramMapByName.value['e2_teams']?.value || 0))
 const exploreIndex = computed(() => props.lanesIndex?.explore ?? {})
+
+function setSplit(nextE1: number) {
+  const total = eTeams.value
+  const left = Math.min(total, Math.max(0, Math.round(nextE1)))
+  const right = total - left
+  if (left !== e1Teams.value) updateByName('e1_teams', left)
+  if (right !== e2Teams.value) updateByName('e2_teams', right)
+}
+
+watch(eTeams, (total) => {
+  if (e1Teams.value + e2Teams.value === total) return
+  if (e1Teams.value + e2Teams.value === 0 && total > 0) {
+    setSplit(Math.floor(total / 2))
+    return
+  }
+  setSplit(e1Teams.value)
+}, {immediate: true})
 
 const allowedLanes = computed<number[]>(() => {
   const t = eTeams.value
@@ -115,65 +135,15 @@ const teamsPerJuryHint = computed(() => {
       : `${lo} bis ${hi} Teams pro Gruppe`
 })
 
-function timingFromMode(mode: number): string {
-  if (mode === 5 || mode === 8) return 'both'
-  if (mode === 1 || mode === 3 || mode === 6) return 'morning'
-  if (mode === 2 || mode === 4 || mode === 7) return 'afternoon'
-  return 'morning'
-}
-
 const hasOtherPrograms = computed(() =>
     eventPrograms(event.value).some((program) => programId(program) !== PROGRAM_ID)
 )
 
-const dummyTiming = ref<string | null>(null)
 const dummyConnection = ref('integrated')
-
-const storedMode = computed(() => Number(paramMapByName.value['e_mode']?.value || 0))
-
-const dummyTimingProxy = computed<string>({
-  get: () => dummyTiming.value ?? timingFromMode(storedMode.value),
-  set: (val) => {
-    dummyTiming.value = val
-  },
-})
-
-const timingOptions = [
-  {value: 'morning', label: 'Vormittag'},
-  {value: 'afternoon', label: 'Nachmittag'},
-  {value: 'both', label: 'beides'},
-]
 </script>
 
 <template>
   <ProgramSection program="explore">
-    <div class="flex flex-col gap-1.5">
-      <div class="flex items-center gap-1 min-w-0">
-        <span class="glass-settings-label">Explore im</span>
-        <InfoPopover :text="paramMapByName['e_mode']?.ui_description"/>
-      </div>
-      <div class="glass-settings-row">
-        <RadioGroup v-model="dummyTimingProxy" class="flex gap-1.5 flex-wrap">
-          <RadioGroupOption
-              v-for="option in timingOptions"
-              :key="option.value"
-              v-slot="{ checked }"
-              :value="option.value"
-              as="template"
-          >
-            <button
-                :class="checked ? 'glass-choice--active' : ''"
-                class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                type="button"
-                @click="dummyTimingProxy = option.value"
-            >
-              {{ option.label }}
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
-      </div>
-    </div>
-
     <TeamPlanBar
         :plan-teams="planTeams"
         :registered-teams="registeredTeams"
@@ -181,6 +151,12 @@ const timingOptions = [
         :min-teams="teamLimits.min"
         :max-teams="teamLimits.max"
         :on-update="(value) => updateByName('e_teams', value)"
+    />
+
+    <TeamSplitBar
+        :total="eTeams"
+        :left-teams="e1Teams"
+        :on-update="setSplit"
     />
 
     <div class="flex flex-col gap-1.5">
