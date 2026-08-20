@@ -27,6 +27,10 @@ const loading = ref(true)
 
 const attachedProgram = computed(() => findProgram(event.value, program.value))
 
+function isOnTeamsRoute(): boolean {
+  return route.path.includes('/plan/teams')
+}
+
 function normalizeTeams(teams: any): any[] {
   if (!teams) return []
   const list = Array.isArray(teams) ? teams : Object.values(teams)
@@ -40,9 +44,11 @@ function normalizeTeams(teams: any): any[] {
 }
 
 async function loadRemoteTeams() {
+  if (!isOnTeamsRoute()) return
   loading.value = true
   try {
     if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
+    if (!isOnTeamsRoute()) return
     const current = findProgram(event.value, program.value)
     if (!event.value?.id) {
       remoteTeams.value = []
@@ -53,7 +59,7 @@ async function loadRemoteTeams() {
       remoteTeams.value = []
       remoteCapacity.value = 0
       const next = firstTeamsPath(event.value)
-      if (route.path !== next) {
+      if (isOnTeamsRoute() && route.path !== next) {
         await router.replace(next)
       }
       return
