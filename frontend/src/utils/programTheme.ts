@@ -43,7 +43,7 @@ const THEMES: Record<ProgramKey, ProgramTheme> = {
     shortName: 'Future 8+',
     productName: 'LEGO League',
     // Placeholder until brand assets/colors are finalized
-    accent: '#0077C8',
+    accent: '#F78B1F',
     logoKey: 'F8',
   },
   shared: {

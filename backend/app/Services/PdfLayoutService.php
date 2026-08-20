@@ -85,9 +85,8 @@ class PdfLayoutService
             $file = match (strtoupper((string) $program->name)) {
                 'EXPLORE' => public_path('flow/fll_explore_hs.png'),
                 'CHALLENGE' => public_path('flow/fll_challenge_hs.png'),
-                default => $program->logo_white
-                    ? public_path('flow/' . ltrim($program->logo_white, '/'))
-                    : null,
+                'FUTURE_8' => public_path('flow/fll_future8_hs.png'),
+                default => public_path('flow/first+fll_h.png'),
             };
             if ($file && file_exists($file)) {
                 $leftLogos[] = $this->toDataUri($file);
