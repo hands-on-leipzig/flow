@@ -4,7 +4,6 @@ export type EventProgramRef = {
   name?: string | null
   display_name?: string | null
   letter?: string | null
-  family?: string | null
   draht_id?: number | null
   contao_id?: number | null
   color_hex?: string | null

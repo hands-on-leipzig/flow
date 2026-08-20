@@ -23,7 +23,6 @@ class EventProgram extends Model
         'name',
         'display_name',
         'letter',
-        'family',
         'sequence',
         'color_hex',
         'logo_stem',
@@ -57,11 +56,6 @@ class EventProgram extends Model
     public function getLetterAttribute(): ?string
     {
         return $this->firstProgram?->letter;
-    }
-
-    public function getFamilyAttribute(): ?string
-    {
-        return $this->firstProgram?->family;
     }
 
     public function getSequenceAttribute(): ?int
