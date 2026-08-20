@@ -4,8 +4,8 @@ import {useRoute, useRouter} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import {useAuth} from '@/composables/useAuth'
-import {imageUrl} from '@/utils/images'
-import {eventPrograms, programDisplayName, teamPathFor} from '@/utils/eventPrograms'
+import {imageUrl, programLogoSrc} from '@/utils/images'
+import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programMatchesSlug, programCompact} from '@/utils/eventPrograms'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, setTheme} from '@hands-on/glass/theme'
@@ -55,6 +55,7 @@ type NavChild = {
   name: string
   path: string
   icon?: string
+  iconSrc?: string
 }
 
 type NavEntry = {
@@ -64,25 +65,11 @@ type NavEntry = {
   children?: NavChild[]
 }
 
-function programNavIcon(name: string | null | undefined): string {
-  const n = String(name || '').toUpperCase()
-  if (n === 'EXPLORE') return 'bi-compass'
-  if (n === 'CHALLENGE') return 'bi-trophy'
-  return 'bi-stars'
-}
-
 const teamNavChildren = computed<NavChild[]>(() => {
-  const programs = eventPrograms(eventStore.selectedEvent)
-  if (!programs.length) {
-    return [
-      {name: 'Challenge', path: '/plan/teams/challenge', icon: 'bi-trophy'},
-      {name: 'Explore', path: '/plan/teams/explore', icon: 'bi-compass'},
-    ]
-  }
-  return programs.map((program) => ({
+  return eventPrograms(eventStore.selectedEvent).map((program) => ({
     name: programDisplayName(program.name),
     path: teamPathFor(program),
-    icon: programNavIcon(program.name),
+    iconSrc: programLogoSrc(program.name),
   }))
 })
 
@@ -109,7 +96,7 @@ const navEntries = computed<NavEntry[]>(() => [
   },
   {
     name: 'Teams',
-    path: teamNavChildren.value[0]?.path || '/plan/teams/explore',
+    path: firstTeamsPath(eventStore.selectedEvent),
     icon: 'bi-people',
     children: teamNavChildren.value,
   },
@@ -151,6 +138,7 @@ function childNavProps(child: NavChild) {
     id: child.path,
     label: child.name,
     icon: child.icon,
+    iconSrc: child.iconSrc,
     path: child.path,
     active: isActive(child.path),
     warning: hasWarning(child.path),
@@ -197,9 +185,20 @@ function hasWarning(tabPath: string): boolean {
   const path = normalizePlanPath(tabPath)
 
   if (path.startsWith('/plan/teams')) {
-    return !!eventStore.selectedEvent?.hasTeamDiscrepancy
-      || !readiness.value.explore_teams_ok
-      || !readiness.value.challenge_teams_ok
+    const slug = path.replace(/^\/plan\/teams\/?/, '')
+    if (!slug) {
+      return eventPrograms(eventStore.selectedEvent).some((program) =>
+        hasWarning(teamPathFor(program))
+      )
+    }
+    const discrepancy = !!eventStore.selectedEvent?.discrepancyByProgram?.[programCompact(slug)]
+    if (programMatchesSlug(slug, 'explore')) {
+      return !readiness.value.explore_teams_ok || discrepancy
+    }
+    if (programMatchesSlug(slug, 'challenge')) {
+      return !readiness.value.challenge_teams_ok || discrepancy
+    }
+    return discrepancy
   }
 
   switch (path) {

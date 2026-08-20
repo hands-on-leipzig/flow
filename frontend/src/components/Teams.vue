@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Teams shell: Explore / Challenge / Future 8+ as nested routes.
+ * Teams shell: one TeamsProgram child per attached first program.
  */
 defineOptions({name: 'Teams'})
 </script>

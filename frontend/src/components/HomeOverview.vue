@@ -9,7 +9,7 @@ import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBo
 import EventMap from '@/components/molecules/EventMap.vue'
 import {imageUrl, programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
-import {eventPrograms, programDisplayName} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, firstTeamsPath} from '@/utils/eventPrograms'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
 
 defineOptions({name: 'HomeOverview'})
@@ -80,7 +80,7 @@ const checklist = computed(() => {
       label: 'Team-Anmeldung geprüft',
       ok: !hasTeamDiscrepancy.value,
       warnText: 'DRAHT und FLOW weichen voneinander ab',
-      path: '/plan/teams/explore',
+      path: firstTeamsPath(event.value),
     },
     {
       key: 'schedule',

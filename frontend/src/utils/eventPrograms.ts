@@ -96,3 +96,8 @@ export function drahtIdFor(
 export function teamPathFor(row: EventProgramRef): string {
   return `/plan/teams/${programSlug(row.name)}`
 }
+
+export function firstTeamsPath(event: EventWithPrograms | null | undefined): string {
+  const first = eventPrograms(event)[0]
+  return first ? teamPathFor(first) : '/plan/overview'
+}

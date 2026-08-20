@@ -124,6 +124,7 @@ export const useEventStore = defineStore('event', {
                 event.drahtTeamsExplore = teamCounts.exploreCount
                 event.drahtTeamsChallenge = teamCounts.challengeCount
                 event.hasTeamDiscrepancy = teamCounts.hasDiscrepancy
+                event.discrepancyByProgram = teamCounts.discrepancyByProgram
                 event.drahtCapacityExplore = teamCounts.exploreCapacity
                 event.drahtCapacityChallenge = teamCounts.challengeCapacity
 
@@ -134,6 +135,7 @@ export const useEventStore = defineStore('event', {
                             drahtTeamsExplore: teamCounts.exploreCount,
                             drahtTeamsChallenge: teamCounts.challengeCount,
                             hasTeamDiscrepancy: teamCounts.hasDiscrepancy,
+                            discrepancyByProgram: teamCounts.discrepancyByProgram,
                             drahtCapacityExplore: teamCounts.exploreCapacity,
                             drahtCapacityChallenge: teamCounts.challengeCapacity
                         }
@@ -144,6 +146,7 @@ export const useEventStore = defineStore('event', {
                 event.drahtTeamsExplore = 0
                 event.drahtTeamsChallenge = 0
                 event.hasTeamDiscrepancy = false
+                event.discrepancyByProgram = {}
                 event.drahtCapacityExplore = 0
                 event.drahtCapacityChallenge = 0
 
@@ -154,6 +157,7 @@ export const useEventStore = defineStore('event', {
                             drahtTeamsExplore: 0,
                             drahtTeamsChallenge: 0,
                             hasTeamDiscrepancy: false,
+                            discrepancyByProgram: {},
                             drahtCapacityExplore: 0,
                             drahtCapacityChallenge: 0
                         }

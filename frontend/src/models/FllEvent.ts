@@ -23,6 +23,7 @@ export default class FllEvent {
     drahtTeamsExplore: number
     drahtTeamsChallenge: number
     hasTeamDiscrepancy: boolean
+    discrepancyByProgram: Record<string, boolean>
 
     // DRAHT team capacity
     drahtCapacityExplore: number
@@ -38,6 +39,7 @@ export default class FllEvent {
         this.drahtTeamsExplore = data.drahtTeamsExplore || 0
         this.drahtTeamsChallenge = data.drahtTeamsChallenge || 0
         this.hasTeamDiscrepancy = data.hasTeamDiscrepancy || false
+        this.discrepancyByProgram = data.discrepancyByProgram || {}
         this.drahtCapacityExplore = data.drahtCapacityExplore || 0
         this.drahtCapacityChallenge = data.drahtCapacityChallenge || 0
     }

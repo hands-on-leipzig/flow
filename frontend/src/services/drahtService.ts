@@ -1,5 +1,6 @@
 import axios from 'axios'
 import {usePlanCacheStore} from '@/stores/planCache'
+import {programCompact, programSlug} from '@/utils/eventPrograms'
 
 export interface DrahtTeamData {
   teamsExplore: Array<{id: number, number: string, name: string}>
@@ -16,37 +17,42 @@ export interface TeamDiscrepancy {
   drahtName?: string
 }
 
-/** In-flight / short-lived dedupe for discrepancy checks (same event, same SPA tick). */
-const teamCountsInflight = new Map<number, Promise<{
+export interface TeamCounts {
   exploreCount: number
   challengeCount: number
   hasDiscrepancy: boolean
   exploreCapacity: number
   challengeCapacity: number
-}>>()
+  discrepancyByProgram: Record<string, boolean>
+}
+
+type DrahtTeamRow = {id: number, number: string, name: string}
+
+/** In-flight / short-lived dedupe for discrepancy checks (same event, same SPA tick). */
+const teamCountsInflight = new Map<number, Promise<TeamCounts>>()
+
+function mapDrahtTeams(teams: any): DrahtTeamRow[] {
+  return Object.entries(teams || {}).map(([id, team]: [string, any]) => ({
+    id: Number(id),
+    number: team.ref || id,
+    name: team.name
+  }))
+}
 
 export class DrahtService {
   static async fetchTeamData(eventId: number): Promise<DrahtTeamData> {
     try {
-      // Share one draht-data response with HomeOverview / Teams / planCache
       const data = await usePlanCacheStore().getDrahtData(eventId)
       const programs = Array.isArray(data.programs) ? data.programs : []
       const byName = (name: string) =>
         programs.find((p: any) => String(p.name || '').toUpperCase() === name) || {}
 
-      const mapTeams = (teams: any) =>
-        Object.entries(teams || {}).map(([id, team]: [string, any]) => ({
-          id: Number(id),
-          number: team.ref || id,
-          name: team.name
-        }))
-
       const explore = byName('EXPLORE')
       const challenge = byName('CHALLENGE')
 
       return {
-        teamsExplore: mapTeams(explore.teams),
-        teamsChallenge: mapTeams(challenge.teams),
+        teamsExplore: mapDrahtTeams(explore.teams),
+        teamsChallenge: mapDrahtTeams(challenge.teams),
         hasDiscrepancy: false,
         capacityExplore: explore.capacity || 0,
         capacityChallenge: challenge.capacity || 0
@@ -63,13 +69,13 @@ export class DrahtService {
     }
   }
 
-  static async fetchLocalTeams(eventId: number, program: 'explore' | 'challenge'): Promise<Array<{id: number, team_number_hot: number, name: string}>> {
+  static async fetchLocalTeams(eventId: number, slug: string): Promise<Array<{id: number, team_number_hot: number, name: string}>> {
     try {
-      const response = await axios.get(`/events/${eventId}/teams?program=${program}`)
+      const response = await axios.get(`/events/${eventId}/teams?program=${slug}`)
       const teamsArray = Array.isArray(response.data) ? response.data : (response.data.teams || [])
       return teamsArray
     } catch (error) {
-      console.error(`Failed to fetch local ${program} teams:`, error)
+      console.error(`Failed to fetch local ${slug} teams:`, error)
       return []
     }
   }
@@ -122,37 +128,70 @@ export class DrahtService {
     }
   }
 
-  static async getTeamCounts(eventId: number): Promise<{
-    exploreCount: number
-    challengeCount: number
-    hasDiscrepancy: boolean
-    exploreCapacity: number
-    challengeCapacity: number
-  }> {
+  static async getTeamCounts(eventId: number): Promise<TeamCounts> {
     const existing = teamCountsInflight.get(eventId)
     if (existing) return existing
 
-    const promise = (async () => {
-      const [drahtData, localExplore, localChallenge] = await Promise.all([
-        this.fetchTeamData(eventId),
-        this.fetchLocalTeams(eventId, 'explore'),
-        this.fetchLocalTeams(eventId, 'challenge')
-      ])
+    const empty: TeamCounts = {
+      exploreCount: 0,
+      challengeCount: 0,
+      hasDiscrepancy: false,
+      exploreCapacity: 0,
+      challengeCapacity: 0,
+      discrepancyByProgram: {},
+    }
 
-      const exploreDiscrepancy = this.checkDiscrepancy(localExplore, drahtData.teamsExplore)
-      const challengeDiscrepancy = this.checkDiscrepancy(localChallenge, drahtData.teamsChallenge)
+    const promise = (async () => {
+      const data = await usePlanCacheStore().getDrahtData(eventId)
+      const programs = Array.isArray(data.programs) ? data.programs : []
+
+      const perProgram = await Promise.all(programs.map(async (program: any) => {
+        const slug = programSlug(program.name)
+        const key = programCompact(program.name)
+        const drahtTeams = mapDrahtTeams(program.teams)
+        const localTeams = await this.fetchLocalTeams(eventId, slug)
+        const discrepancy = this.checkDiscrepancy(localTeams, drahtTeams)
+        return {
+          key,
+          slug,
+          count: drahtTeams.length,
+          capacity: Number(program.capacity || 0),
+          hasDiscrepancy: discrepancy.hasDiscrepancy,
+        }
+      }))
+
+      const discrepancyByProgram: Record<string, boolean> = {}
+      let exploreCount = 0
+      let challengeCount = 0
+      let exploreCapacity = 0
+      let challengeCapacity = 0
+
+      for (const row of perProgram) {
+        discrepancyByProgram[row.key] = row.hasDiscrepancy
+        if (row.key === 'explore') {
+          exploreCount = row.count
+          exploreCapacity = row.capacity
+        }
+        if (row.key === 'challenge') {
+          challengeCount = row.count
+          challengeCapacity = row.capacity
+        }
+      }
 
       return {
-        exploreCount: drahtData.teamsExplore.length,
-        challengeCount: drahtData.teamsChallenge.length,
-        hasDiscrepancy: exploreDiscrepancy.hasDiscrepancy || challengeDiscrepancy.hasDiscrepancy,
-        exploreCapacity: drahtData.capacityExplore,
-        challengeCapacity: drahtData.capacityChallenge
+        exploreCount,
+        challengeCount,
+        hasDiscrepancy: perProgram.some((row) => row.hasDiscrepancy),
+        exploreCapacity,
+        challengeCapacity,
+        discrepancyByProgram,
       }
-    })()
+    })().catch((error) => {
+      console.error('Failed to fetch DRAHT team data:', error)
+      return empty
+    })
 
     teamCountsInflight.set(eventId, promise)
-    // Keep briefly so sequential callers (fetchSelectedEvent → overview) share one result
     void promise.finally(() => {
       setTimeout(() => {
         if (teamCountsInflight.get(eventId) === promise) {
