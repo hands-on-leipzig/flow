@@ -16,6 +16,10 @@ const {
 
 <template>
   <div class="schedule-times flex flex-col pb-2">
+    <p class="glass-alert-warning shrink-0 flex items-start gap-2">
+      <i class="bi bi-info-circle mt-0.5 shrink-0" aria-hidden="true"/>
+      <span>Alle anderen Startzeiten werden automatisch bestimmt. Viele Dauern können über die Expertenparameter verändert werden.</span>
+    </p>
     <TimeSettings
         :parameters="parameters"
         :visibility-map="visibilityMap"

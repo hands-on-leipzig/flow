@@ -22,7 +22,11 @@ const props = defineProps({
   compact: {
     type: Boolean,
     default: false,
-  }
+  },
+  showInfo: {
+    type: Boolean,
+    default: true,
+  },
 })
 const emit = defineEmits(['update'])
 const validationError = ref('')
@@ -190,8 +194,8 @@ const controlClass = computed(() => {
 
 <template>
   <div
-      class="param-field min-w-0 w-full"
-      :class="compact ? '' : 'flex flex-col gap-1.5'"
+      class="param-field min-w-0"
+      :class="compact ? '' : 'flex flex-col gap-1.5 w-full'"
   >
     <div v-if="withLabel && !compact" class="flex items-center gap-1 min-w-0">
       <span class="glass-settings-label min-w-0 break-words">{{ param.ui_label }}</span>
@@ -249,7 +253,7 @@ const controlClass = computed(() => {
         />
       </div>
 
-      <div v-else-if="param.type === 'time'" class="flex items-center gap-2 flex-wrap">
+      <div v-else-if="param.type === 'time'" class="flex items-center gap-2" :class="compact ? '' : 'flex-wrap'">
         <TimePicker
             :model-value="localValue"
             :disabled="disabled"
@@ -275,7 +279,7 @@ const controlClass = computed(() => {
         />
       </div>
 
-      <InfoPopover v-if="compact" :text="param.ui_description"/>
+      <InfoPopover v-if="compact && showInfo" :text="param.ui_description"/>
     </div>
 
     <p v-if="validationError" class="glass-settings-hint !not-italic text-red-600">
