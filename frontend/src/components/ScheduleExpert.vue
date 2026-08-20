@@ -25,41 +25,40 @@ function isChallenge(program: EventProgramRef): boolean {
 }
 
 function expertParamsFor(program: EventProgramRef): Parameter[] {
-  return expertParamsByProgramId.value[programId(program)] || []
+  return (expertParamsByProgramId.value[programId(program)] || []).filter((param) => visibilityMap.value[param.id])
+}
+
+function visibleParams(params: Parameter[]): Parameter[] {
+  return params.filter((param) => visibilityMap.value[param.id])
 }
 </script>
 
 <template>
-  <div class="schedule-expert flex flex-col gap-4 pb-2">
+  <div class="schedule-expert flex flex-col pb-2">
     <ProgramSection
         v-for="program in attachedPrograms"
         :key="programId(program)"
         :program="program.name || 'shared'"
     >
-      <template v-for="param in expertParamsFor(program)" :key="param.id">
-        <ParameterField
-            v-if="visibilityMap[param.id]"
-            :param="param"
-            :disabled="disabledMap[param.id]"
-            :with-label="true"
-            :horizontal="true"
-            @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
-        />
-      </template>
+      <ParameterField
+          v-for="param in expertParamsFor(program)"
+          :key="param.id"
+          :param="param"
+          :disabled="disabledMap[param.id]"
+          :with-label="true"
+          @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
+      />
 
-      <div v-if="isChallenge(program)" class="mt-3 md:mt-4 w-full max-w-lg">
-        <div class="flex items-center mb-2 md:mb-3">
-          <span class="text-sm md:text-base font-medium text-[var(--color-text)]">
-            Bezeichnung der Robot-Game-Tische<br>(ersetzt nur die Nummer)
-          </span>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
-          <div v-for="(name, i) in tableNames" :key="i">
-            <label class="block text-xs text-[var(--color-text-muted)] mb-1">Tisch {{ i + 1 }}</label>
+      <div v-if="isChallenge(program)" class="flex flex-col gap-1.5 min-w-0">
+        <span class="glass-settings-label">Bezeichnung der Robot-Game-Tische</span>
+        <span class="glass-settings-hint">ersetzt nur die Nummer</span>
+        <div class="grid grid-cols-1 min-[420px]:grid-cols-2 gap-x-4 gap-y-2">
+          <div v-for="(name, i) in tableNames" :key="i" class="flex flex-col gap-1 min-w-0">
+            <label class="glass-settings-hint !not-italic">Tisch {{ i + 1 }}</label>
             <input
                 v-model="tableNames[i]"
-                class="w-full border px-3 py-1 rounded text-sm"
-                :placeholder="`z.B. Alpha (leer lassen für >>Tisch ${i + 1}<<)`"
+                class="glass-input glass-input--sm liquid-surface-control w-full min-w-0 text-sm"
+                :placeholder="`z.B. Alpha`"
                 type="text"
                 @blur="updateTableName"
             />
@@ -76,32 +75,28 @@ function expertParamsFor(program: EventProgramRef): Parameter[] {
         subtitle="Parameter nur für Finalveranstaltungen"
         :show-logo="false"
     >
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-        <div>
-          <template v-for="param in finaleInputParams" :key="param.id">
-            <ParameterField
-                v-if="visibilityMap[param.id]"
-                :param="param"
-                :disabled="disabledMap[param.id]"
-                :with-label="true"
-                :horizontal="true"
-                @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
-            />
-          </template>
-        </div>
-        <div>
-          <template v-for="param in finaleExpertParams" :key="param.id">
-            <ParameterField
-                v-if="visibilityMap[param.id]"
-                :param="param"
-                :disabled="disabledMap[param.id]"
-                :with-label="true"
-                :horizontal="true"
-                @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
-            />
-          </template>
-        </div>
-      </div>
+      <ParameterField
+          v-for="param in visibleParams(finaleInputParams)"
+          :key="'in_' + param.id"
+          :param="param"
+          :disabled="disabledMap[param.id]"
+          :with-label="true"
+          @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
+      />
+      <ParameterField
+          v-for="param in visibleParams(finaleExpertParams)"
+          :key="'ex_' + param.id"
+          :param="param"
+          :disabled="disabledMap[param.id]"
+          :with-label="true"
+          @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
+      />
     </ProgramSection>
   </div>
 </template>
+
+<style scoped>
+.schedule-expert {
+  gap: 1.15rem;
+}
+</style>

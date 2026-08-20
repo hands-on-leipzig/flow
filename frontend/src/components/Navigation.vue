@@ -82,6 +82,7 @@ const navEntries = computed<NavEntry[]>(() => [
     icon: 'bi-list-check',
     children: [
       {name: 'Allgemein', path: '/plan/schedule', icon: 'bi-sliders2-vertical'},
+      {name: 'Zeiten', path: '/plan/schedule/times', icon: 'bi-clock'},
       {name: 'Expertenparameter', path: '/plan/schedule/expert', icon: 'bi-gear-wide-connected'},
     ],
   },

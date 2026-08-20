@@ -2,8 +2,9 @@
 import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import ParameterField from '@/components/molecules/ParameterField.vue'
-import ProgramSection from '@/components/atoms/ProgramSection.vue'
-import {programLogoSrc, imageUrl} from '@/utils/images'
+import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import {eventPrograms} from '@/utils/eventPrograms'
+import {useEventStore} from '@/stores/event'
 
 const props = defineProps<{
   parameters: any[]
@@ -17,121 +18,105 @@ const emit = defineEmits<{
   (e: 'update-param', param: any): void
 }>()
 
-// Visibility matrix from API
-const visibilityMatrix = ref<Record<string, any>>({})
+type Prefix = 'g' | 'e1' | 'e2' | 'c'
+type TimeKey = 'start_opening' | 'duration_opening' | 'duration_awards'
+type Logo = { src: string; alt: string }
 
-// Build quick lookup by name
+const eventStore = useEventStore()
+const visibilityMatrix = ref<Record<string, any>>({})
+const overrideEMode = ref<number | null>(null)
+const overrideCMode = ref<number | null>(null)
+
 const byName = computed<Record<string, any>>(
     () => Object.fromEntries(props.parameters.map((p: any) => [p.name, p]))
 )
 
-// Current modes
-const eMode = computed(() => Number(byName.value['e_mode']?.value || 0))
-const cMode = computed(() => Number(byName.value['c_mode']?.value || 1)) // Default to 1 (challenge enabled)
+const eMode = computed({
+  get: () => overrideEMode.value ?? Number(byName.value['e_mode']?.value ?? 0),
+  set: (value) => {
+    overrideEMode.value = Number(value)
+  },
+})
 
-// Get current visibility state from matrix
+const cMode = computed({
+  get: () => overrideCMode.value ?? Number(byName.value['c_mode']?.value ?? 0),
+  set: (value) => {
+    overrideCMode.value = Number(value)
+  },
+})
+
 const currentVisibility = computed(() => {
   const key = `e${eMode.value}_c${cMode.value}`
   return visibilityMatrix.value[key]?.fields || {}
 })
 
-// Get current columns layout from matrix
-const currentColumns = computed(() => {
-  const key = `e${eMode.value}_c${cMode.value}`
-  return visibilityMatrix.value[key]?.columns || []
+const columnLabels: Record<Prefix, string> = {
+  g: 'Gemeinsam',
+  e1: 'Explore Vormittag',
+  e2: 'Explore Nachmittag',
+  c: 'Challenge',
+}
+
+const columnIcons: Record<Exclude<Prefix, 'g'>, string> = {
+  e1: programLogoSrc('EXPLORE'),
+  e2: programLogoSrc('EXPLORE'),
+  c: programLogoSrc('CHALLENGE'),
+}
+
+const gemeinsamLogos = computed<Logo[]>(() => {
+  const programs = eventPrograms(eventStore.selectedEvent)
+  const explore = programs.find((program) => String(program.name || '').toUpperCase() === 'EXPLORE')
+  const others = programs.filter((program) => String(program.name || '').toUpperCase() !== 'EXPLORE')
+  return [explore ?? {name: 'EXPLORE'}, ...others].map((program) => ({
+    src: programLogoSrc(program),
+    alt: programLogoAlt(program),
+  }))
 })
 
-// Column labels mapping
-const columnLabels: Record<string, string> = {
-  'g': 'Gemeinsam',
-  'e1': 'Explore Vormittag',
-  'e2': 'Explore Nachmittag',
-  'c': 'Challenge'
+function logosFor(prefix: Prefix): Logo[] {
+  if (prefix === 'g') return gemeinsamLogos.value
+  return [{src: columnIcons[prefix], alt: columnLabels[prefix]}]
 }
 
-// Column icons mapping
-const columnIcons: Record<string, string> = {
-  'g': imageUrl('/flow/first_v.png'),
-  'e1': programLogoSrc('EXPLORE'),
-  'e2': programLogoSrc('EXPLORE'),
-  'c': programLogoSrc('CHALLENGE')
-}
+const allPrefixes: Prefix[] = ['g', 'e1', 'e2', 'c']
 
-// Helper to check if a column should be visible
-function isColumnVisible(column: string): boolean {
-  // First check if column is in backend matrix
-  if (!currentColumns.value.includes(column)) return false
-  
-  // Then check program toggles
-  if (column === 'c' && props.showChallenge === false) return false // Challenge disabled
-  if ((column === 'e1' || column === 'e2') && props.showExplore === false) return false // Explore disabled
-  
-  return true
-}
-
-// Fixed column order: g, e1, e2, c
-const allColumns = ['g', 'e1', 'e2', 'c']
-
-// Computed: visible columns in order
-const visibleColumns = computed(() => {
-  return allColumns.filter(col => isColumnVisible(col))
-})
-
-// Computed: column widths - label column gets 25%, data columns share the rest
-const labelColumnWidth = computed(() => '25%')
-const dataColumnWidth = computed(() => {
-  return visibleColumns.value.length > 0 ? `${75 / visibleColumns.value.length}%` : '0%'
-})
-
-// Helper to get field prefix from column name
-function getFieldPrefix(column: string): 'g' | 'c' | 'e1' | 'e2' {
-  return column as 'g' | 'c' | 'e1' | 'e2'
-}
-
-// Helper: safely get a param by name
 function getParam(name: string) {
   return byName.value[name] ?? null
 }
 
-// Cell renderer
-function cellParam(prefix: 'g' | 'c' | 'e1' | 'e2', key: 'start_opening' | 'duration_opening' | 'duration_awards') {
-  const name = `${prefix}_${key}`
-  return getParam(name)
+function cellParam(prefix: Prefix, key: TimeKey) {
+  return getParam(`${prefix}_${key}`)
 }
 
-// Check if a field should be editable
-function isFieldEditable(prefix: 'g' | 'c' | 'e1' | 'e2', key: 'start_opening' | 'duration_opening' | 'duration_awards'): boolean {
-  // First check toggle state
-  if (prefix === 'c' && props.showChallenge === false) return false // Challenge disabled
-  if ((prefix === 'e1' || prefix === 'e2') && props.showExplore === false) return false // Explore disabled
+function isFieldEditable(prefix: Prefix, key: TimeKey): boolean {
+  if (prefix === 'c' && cMode.value === 0) return false
+  if ((prefix === 'e1' || prefix === 'e2') && eMode.value === 0) return false
 
-  // Then check visibility matrix
   const fieldName = `${prefix}_${key}`
   return currentVisibility.value[fieldName]?.editable || false
 }
 
-// Forward updates
+function showCell(prefix: Prefix, key: TimeKey): boolean {
+  const param = cellParam(prefix, key)
+  return !!(isFieldEditable(prefix, key) && param && props.visibilityMap[param.id])
+}
+
+function prefixesFor(key: TimeKey): Prefix[] {
+  return allPrefixes.filter((prefix) => showCell(prefix, key))
+}
+
+const openingPrefixes = computed(() =>
+    allPrefixes.filter((prefix) => showCell(prefix, 'start_opening') || showCell(prefix, 'duration_opening'))
+)
+const awardsDurationPrefixes = computed(() => prefixesFor('duration_awards'))
+
+const showOpening = computed(() => openingPrefixes.value.length > 0)
+const showAwards = computed(() => awardsDurationPrefixes.value.length > 0)
+
 function updateParam(p: any) {
   emit('update-param', p)
 }
 
-// Helper functions to check if any fields of each type are available
-function hasAnyStartField(): boolean {
-  return isFieldEditable('e1', 'start_opening') || isFieldEditable('e2', 'start_opening') ||
-      isFieldEditable('c', 'start_opening') || isFieldEditable('g', 'start_opening')
-}
-
-function hasAnyDurationField(): boolean {
-  return isFieldEditable('e1', 'duration_opening') || isFieldEditable('e2', 'duration_opening') ||
-      isFieldEditable('c', 'duration_opening') || isFieldEditable('g', 'duration_opening')
-}
-
-function hasAnyAwardsField(): boolean {
-  return isFieldEditable('e1', 'duration_awards') || isFieldEditable('e2', 'duration_awards') ||
-      isFieldEditable('c', 'duration_awards') || isFieldEditable('g', 'duration_awards')
-}
-
-// Fetch visibility matrix
 onMounted(async () => {
   try {
     const response = await axios.get('/parameters/visibility')
@@ -143,156 +128,103 @@ onMounted(async () => {
 </script>
 
 <template>
-  <ProgramSection
-      program="shared"
-      title="Zeiten"
-      subtitle="Beginn und Dauer der gemeinsamen Blöcke"
-      :show-logo="false"
-  >
-    <!-- Mobile: stack all time fields vertically -->
-    <div class="md:hidden space-y-3">
-      <div
-          v-for="col in visibleColumns"
-          :key="`mobile_${col}`"
-          class="border rounded-lg p-3"
-      >
-        <div class="flex items-center gap-2 mb-3">
-          <img :src="columnIcons[col]" :alt="columnLabels[col]" class="w-8 h-8 flex-shrink-0 object-contain">
-          <span class="text-sm font-medium text-[var(--color-text-muted)]">{{ columnLabels[col] }}</span>
-        </div>
+  <div class="flex flex-col gap-[1.15rem]">
+    <div class="glass-settings-row">
+      <label class="inline-flex items-center gap-2">
+        <span class="glass-settings-hint !not-italic">e_mode</span>
+        <input
+            v-model.number="eMode"
+            class="glass-input glass-input--sm liquid-surface-control w-16 text-sm"
+            min="0"
+            type="number"
+        >
+      </label>
+      <label class="inline-flex items-center gap-2">
+        <span class="glass-settings-hint !not-italic">c_mode</span>
+        <input
+            v-model.number="cMode"
+            class="glass-input glass-input--sm liquid-surface-control w-16 text-sm"
+            min="0"
+            type="number"
+        >
+      </label>
+    </div>
 
-        <div class="space-y-2">
-          <div v-if="isFieldEditable(getFieldPrefix(col), 'start_opening') && cellParam(getFieldPrefix(col), 'start_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'start_opening').id]">
-            <div class="text-xs font-medium text-[var(--color-text-subtle)] mb-1">Beginn Eröffnung</div>
-            <ParameterField
-                :disabled="disabledMap[cellParam(getFieldPrefix(col), 'start_opening').id]"
-                :horizontal="false"
-                :with-label="false"
-                :compact="true"
-                :param="cellParam(getFieldPrefix(col), 'start_opening')"
-                @update="updateParam"
-            />
+    <section v-if="showOpening" class="times-card glass-card liquid-surface-inner">
+      <h2 class="glass-card__title">Eröffnung - Start und Dauer</h2>
+      <div class="flex flex-col gap-3">
+        <div
+            v-for="prefix in openingPrefixes"
+            :key="`opening_${prefix}`"
+            class="glass-settings-row flex-nowrap"
+        >
+          <div class="inline-flex items-center gap-2 min-w-[11rem] shrink-0">
+            <img
+                v-for="logo in logosFor(prefix)"
+                :key="logo.src"
+                :src="logo.src"
+                :alt="logo.alt"
+                class="w-8 h-8 flex-shrink-0 object-contain"
+            >
+            <span class="text-sm font-medium text-[var(--color-text-muted)]">{{ columnLabels[prefix] }}</span>
           </div>
-
-          <div v-if="isFieldEditable(getFieldPrefix(col), 'duration_opening') && cellParam(getFieldPrefix(col), 'duration_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_opening').id]">
-            <div class="text-xs font-medium text-[var(--color-text-subtle)] mb-1">Dauer Eröffnung</div>
-            <ParameterField
-                :disabled="disabledMap[cellParam(getFieldPrefix(col), 'duration_opening').id]"
-                :horizontal="false"
-                :with-label="false"
-                :compact="true"
-                :param="cellParam(getFieldPrefix(col), 'duration_opening')"
-                @update="updateParam"
-            />
-          </div>
-
-          <div v-if="isFieldEditable(getFieldPrefix(col), 'duration_awards') && cellParam(getFieldPrefix(col), 'duration_awards') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_awards').id]">
-            <div class="text-xs font-medium text-[var(--color-text-subtle)] mb-1">Dauer Preisverleihung</div>
-            <ParameterField
-                :disabled="disabledMap[cellParam(getFieldPrefix(col), 'duration_awards').id]"
-                :horizontal="false"
-                :with-label="false"
-                :compact="true"
-                :param="cellParam(getFieldPrefix(col), 'duration_awards')"
-                @update="updateParam"
-            />
-          </div>
+          <ParameterField
+              v-if="showCell(prefix, 'start_opening')"
+              :disabled="disabledMap[cellParam(prefix, 'start_opening').id]"
+              :horizontal="false"
+              :with-label="false"
+              :compact="true"
+              :show-info="false"
+              :param="cellParam(prefix, 'start_opening')"
+              @update="updateParam"
+          />
+          <ParameterField
+              v-if="showCell(prefix, 'duration_opening')"
+              :disabled="disabledMap[cellParam(prefix, 'duration_opening').id]"
+              :horizontal="false"
+              :with-label="false"
+              :compact="true"
+              :param="cellParam(prefix, 'duration_opening')"
+              @update="updateParam"
+          />
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Desktop/tablet: existing table layout -->
-    <div class="hidden md:block">
-      <table class="text-sm w-full border-separate [border-spacing:0.5rem_0.75rem]" style="table-layout: fixed">
-        <thead>
-          <tr>
-            <th class="text-right text-sm font-semibold text-[var(--color-text-muted)] pr-4 pb-2" :style="`width: ${labelColumnWidth}`"></th>
-            <th 
-                v-for="col in visibleColumns" 
-                :key="col"
-                class="text-center text-sm font-semibold text-[var(--color-text-muted)] px-2 pb-2 whitespace-normal break-words"
-                :style="`width: ${dataColumnWidth}`"
+    <section v-if="showAwards" class="times-card glass-card liquid-surface-inner">
+      <h2 class="glass-card__title">Preisverleihung - Dauer</h2>
+      <div class="flex flex-col gap-3">
+        <div
+            v-for="prefix in awardsDurationPrefixes"
+            :key="`awards_${prefix}`"
+            class="glass-settings-row"
+        >
+          <div class="inline-flex items-center gap-2 min-w-[11rem]">
+            <img
+                v-for="logo in logosFor(prefix)"
+                :key="logo.src"
+                :src="logo.src"
+                :alt="logo.alt"
+                class="w-8 h-8 flex-shrink-0 object-contain"
             >
-              <div class="inline-flex items-center gap-1.5 justify-center">
-                <img :src="columnIcons[col]" :alt="columnLabels[col]" class="w-8 h-8 flex-shrink-0 object-contain">
-              </div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Row 1: Start Times -->
-          <tr v-if="hasAnyStartField()">
-            <td class="text-right text-sm font-medium text-[var(--color-text-muted)] pr-4 align-middle" :style="`width: ${labelColumnWidth}`">
-              Beginn Eröffnung
-            </td>
-            <td 
-                v-for="col in visibleColumns" 
-                :key="`start_${col}`"
-                class="text-center px-2 align-middle"
-                :style="`width: ${dataColumnWidth}`"
-            >
-              <ParameterField
-                  v-if="isFieldEditable(getFieldPrefix(col), 'start_opening') && cellParam(getFieldPrefix(col), 'start_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'start_opening').id]"
-                  :disabled="disabledMap[cellParam(getFieldPrefix(col), 'start_opening').id]"
-                  :horizontal="false"
-                  :with-label="true"
-                  :compact="true"
-                  :param="cellParam(getFieldPrefix(col), 'start_opening')"
-                  @update="updateParam"
-              />
-              <div v-else class="text-[var(--color-text-subtle)]">-</div>
-            </td>
-          </tr>
-
-          <!-- Row 2: Duration Opening -->
-          <tr v-if="hasAnyDurationField()">
-            <td class="text-right text-sm font-medium text-[var(--color-text-muted)] pr-4 align-middle" :style="`width: ${labelColumnWidth}`">
-              Dauer Eröffnung
-            </td>
-            <td 
-                v-for="col in visibleColumns" 
-                :key="`duration_${col}`"
-                class="text-center px-2 align-middle"
-                :style="`width: ${dataColumnWidth}`"
-            >
-              <ParameterField
-                  v-if="isFieldEditable(getFieldPrefix(col), 'duration_opening') && cellParam(getFieldPrefix(col), 'duration_opening') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_opening').id]"
-                  :disabled="disabledMap[cellParam(getFieldPrefix(col), 'duration_opening').id]"
-                  :horizontal="false"
-                  :with-label="true"
-                  :compact="true"
-                  :param="cellParam(getFieldPrefix(col), 'duration_opening')"
-                  @update="updateParam"
-              />
-              <div v-else class="text-[var(--color-text-subtle)]">-</div>
-            </td>
-          </tr>
-
-          <!-- Row 3: Duration Awards -->
-          <tr v-if="hasAnyAwardsField()">
-            <td class="text-right text-sm font-medium text-[var(--color-text-muted)] pr-4 align-middle" :style="`width: ${labelColumnWidth}`">
-              Dauer Preisverleihung
-            </td>
-            <td 
-                v-for="col in visibleColumns" 
-                :key="`awards_${col}`"
-                class="text-center px-2 align-middle"
-                :style="`width: ${dataColumnWidth}`"
-            >
-              <ParameterField
-                  v-if="isFieldEditable(getFieldPrefix(col), 'duration_awards') && cellParam(getFieldPrefix(col), 'duration_awards') && visibilityMap[cellParam(getFieldPrefix(col), 'duration_awards').id]"
-                  :disabled="disabledMap[cellParam(getFieldPrefix(col), 'duration_awards').id]"
-                  :horizontal="false"
-                  :with-label="true"
-                  :compact="true"
-                  :param="cellParam(getFieldPrefix(col), 'duration_awards')"
-                  @update="updateParam"
-              />
-              <div v-else class="text-[var(--color-text-subtle)]">-</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </ProgramSection>
+            <span class="text-sm font-medium text-[var(--color-text-muted)]">{{ columnLabels[prefix] }}</span>
+          </div>
+          <ParameterField
+              :disabled="disabledMap[cellParam(prefix, 'duration_awards').id]"
+              :horizontal="false"
+              :with-label="true"
+              :compact="true"
+              :param="cellParam(prefix, 'duration_awards')"
+              @update="updateParam"
+          />
+        </div>
+      </div>
+    </section>
+  </div>
 </template>
+
+<style scoped>
+.times-card {
+  overflow: visible;
+}
+</style>

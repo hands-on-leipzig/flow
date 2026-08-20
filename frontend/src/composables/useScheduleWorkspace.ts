@@ -17,6 +17,7 @@ import { eventPrograms, programId } from '@/utils/eventPrograms'
 const SPECIAL_KEYS = new Set([
   'e1_teams', 'e2_teams',
   'c_teams', 'c_tables', 'j_lanes',
+  'f8_teams', 'f8_lanes', 'f8_fields', 'f8_extra_rounds',
   'e_mode',
   'e1_lanes', 'e2_lanes',
 ])

@@ -22,6 +22,7 @@ const props = defineProps({
 
 const isExplore = computed(() => programMatchesSlug(props.program, 'explore'))
 const isChallenge = computed(() => programMatchesSlug(props.program, 'challenge'))
+const isFuture8 = computed(() => programMatchesSlug(props.program, 'future_8'))
 
 const programTheme = computed(() => getProgramTheme(props.program))
 const programLabel = computed(() => programTheme.value.shortName)
@@ -49,7 +50,8 @@ const planParams = ref({
   c_teams: 0,
   e_teams: 0,
   e1_teams: 0,
-  e_mode: 0
+  e_mode: 0,
+  f8_teams: 0,
 })
 
 watch(() => props.teams, (newVal) => {
@@ -379,6 +381,7 @@ const diffCount = computed(() =>
 const planCapacity = computed(() => {
   if (isExplore.value) return planParams.value.e_teams
   if (isChallenge.value) return planParams.value.c_teams
+  if (isFuture8.value) return planParams.value.f8_teams
   return props.remoteTeams.length
 })
 
@@ -756,7 +759,8 @@ onMounted(async () => {
           c_teams: Number(params.find(p => p.name === 'c_teams')?.value || 0),
           e_teams: Number(params.find(p => p.name === 'e_teams')?.value || 0),
           e1_teams: Number(params.find(p => p.name === 'e1_teams')?.value || 0),
-          e_mode: Number(params.find(p => p.name === 'e_mode')?.value || 0)
+          e_mode: Number(params.find(p => p.name === 'e_mode')?.value || 0),
+          f8_teams: Number(params.find(p => p.name === 'f8_teams')?.value || 0),
         }
       }
     } catch (paramErr) {

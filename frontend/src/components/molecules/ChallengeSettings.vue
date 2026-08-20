@@ -3,7 +3,7 @@ import {computed, UnwrapRef, watch, watchEffect} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
-import TeamSelectionCard from "@/components/molecules/TeamSelectionCard.vue";
+import TeamPlanBar from "@/components/molecules/TeamPlanBar.vue";
 import {useEventStore} from '@/stores/event'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 
@@ -12,14 +12,12 @@ const event = computed(() => eventStore.selectedEvent)
 
 const props = defineProps<{
   parameters: any[]
-  showChallenge: boolean
   lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
   supportedPlanData?: any[] | null
 }>()
 
 const emit = defineEmits<{
   (e: 'update-param', param: any): void
-  (e: 'toggle-show', value: boolean): void
 }>()
 
 // No need to expose anything - parent handles all batching
@@ -31,48 +29,6 @@ const paramMapByName = computed<Record<string, any>>(
 // Simple parameter update - emit immediately to parent for batching
 function updateByName(name: string, value: any) {
   emit('update-param', {name, value})
-}
-
-function handleToggleChange(target: HTMLInputElement) {
-  const isChecked = target.checked
-  emit('toggle-show', isChecked)
-
-  // Update c_mode based on toggle state
-  updateByName('c_mode', isChecked ? 1 : 0)
-
-  // Update challenge parameters based on toggle state
-  if (isChecked) {
-    // Use DRAHT team count as default if available, otherwise use min
-    const drahtTeams = eventStore.selectedEvent?.drahtTeamsChallenge || 0
-    const minTeams = paramMapByName.value['c_teams']?.min || 1
-    const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
-
-    if (cTeams.value === 0) {
-      updateByName('c_teams', defaultTeams)
-    }
-
-    // Auto-select robot game table
-    const currentTables = rTables.value
-    if (currentTables === 0) {
-      // Check which table options are available for the team count
-      const variants = tableVariantsForTeams.value
-      if (variants.length === 1) {
-        // Only one option available, select it
-        updateByName('r_tables', variants[0])
-      } else if (variants.length > 1) {
-        // Multiple options available, choose 2 (as requested)
-        updateByName('r_tables', 2)
-      }
-    }
-
-    // Ensure jury lanes are set — empty/null lanes yield empty plans
-    ensureJuryLanesForSelection()
-  } else {
-    // Turn off challenge - clear team count and related parameters
-    updateByName('c_teams', 0)
-    updateByName('r_tables', 0)
-    updateByName('j_lanes', 0)
-  }
 }
 
 // Inputs
@@ -194,21 +150,14 @@ const rTablesProxy = computed<number>({
   set: (val) => updateByName('r_tables', val)
 })
 
-// Key helpers for challenge (teams|tables)
-const cKey = computed(() => {
-  const t = cTeams.value
-  const tb = rTables.value || 0
-  return t ? `${t}|${tb}` : ''
-})
-
-// Is a lane recommended for the current selection?
-const isLaneRecommended = (lane: number) => {
-  if (!props.lanesIndex || !cKey.value) return false
-  // if tables not chosen yet (tb=0), recommendation is ambiguous; treat as false
-  if (!rTables.value) return false
-  const meta = props.lanesIndex.metaChallenge[cKey.value]
-  return !!meta?.[lane]?.recommended
+function isParamTrue(val: unknown): boolean {
+  return val === 1 || val === true || val === '1'
 }
+
+const rFinal8Proxy = computed<string>({
+  get: () => isParamTrue(paramMapByName.value['r_final_8']?.value) ? 'yes' : 'no',
+  set: (val) => updateByName('r_final_8', val === 'yes' ? 1 : 0)
+})
 
 // Note for the current EXACT combo from database data
 const currentLaneNote = computed<string | undefined>(() => {
@@ -272,10 +221,6 @@ const planTeams = computed(() => Number(paramMapByName.value['c_teams']?.value |
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsChallenge || 0))
 const capacity = computed(() => Number(event.value?.drahtCapacityChallenge || 0))
 
-const showWarningOnSwitch = computed(() => {
-  return !props.showChallenge && registeredTeams.value > 0
-})
-
 const teamsPerJuryHint = computed(() => {
   const teams = Number(paramMapByName.value['c_teams']?.value ?? 0)
   const lanes = Number(paramMapByName.value['j_lanes']?.value ?? 1) // garantiert >0
@@ -291,39 +236,24 @@ const teamsPerJuryHint = computed(() => {
 </script>
 
 <template>
-  <ProgramSection program="challenge" :active="showChallenge">
-    <template #actions>
-      <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-        <input
-            :checked="showChallenge"
-            class="sr-only peer"
-            type="checkbox"
-            @change="handleToggleChange($event.target as HTMLInputElement)"
-        >
-        <div
-            class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-[var(--program-accent)] transition-colors"
-        />
-        <div
-            class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"
-        />
-        <span v-if="showWarningOnSwitch" class="ml-2 w-2 h-2 bg-red-500 rounded-full"></span>
-      </label>
-    </template>
-
-    <template v-if="showChallenge">
-      <TeamSelectionCard
-          :plan-teams="planTeams"
-          :registered-teams="registeredTeams"
-          :capacity="capacity"
-          :min-teams="challengeTeamLimits.min"
-          :max-teams="challengeTeamLimits.max"
-          :on-update="(value) => updateByName('c_teams', value)"
-      />
+  <ProgramSection program="challenge">
+    <TeamPlanBar
+        :plan-teams="planTeams"
+        :registered-teams="registeredTeams"
+        :capacity="capacity"
+        :min-teams="challengeTeamLimits.min"
+        :max-teams="challengeTeamLimits.max"
+        :on-update="(value) => updateByName('c_teams', value)"
+    />
 
       <!-- Jury lanes -->
-      <div>
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center gap-1 min-w-0">
+          <span class="glass-settings-label">{{ paramMapByName['j_lanes']?.ui_label }}</span>
+          <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
+        </div>
         <div class="glass-settings-row">
-          <RadioGroup v-model="jLanesProxy" class="flex gap-1.5 flex-wrap">
+          <RadioGroup v-model="jLanesProxy" class="flex gap-1.5 flex-wrap shrink-0">
             <RadioGroupOption
                 v-for="n in lanePalette"
                 :key="'j_lane_' + n"
@@ -335,10 +265,9 @@ const teamsPerJuryHint = computed(() => {
               <button
                   :aria-disabled="disabled"
                   :class="[
-                    'glass-choice relative whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                    'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
                     checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
                     disabled ? 'opacity-40 cursor-not-allowed' : '',
-                    (!disabled && isLaneRecommended(n)) ? 'choice-recommended' : ''
                   ]"
                   type="button"
                   @click="!disabled && updateByName('j_lanes', n)"
@@ -347,10 +276,7 @@ const teamsPerJuryHint = computed(() => {
               </button>
             </RadioGroupOption>
           </RadioGroup>
-
-          <span class="glass-settings-label whitespace-nowrap">Jurygruppe(n)</span>
-          <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
-          <span class="glass-settings-hint break-words">
+          <span class="glass-settings-hint whitespace-nowrap">
             {{ teamsPerJuryHint }}
           </span>
         </div>
@@ -361,33 +287,68 @@ const teamsPerJuryHint = computed(() => {
       </div>
 
 
-      <!-- Robot game tables -->
-      <div class="glass-settings-row">
-        <RadioGroup v-model="rTablesProxy" class="flex gap-1.5 flex-wrap">
-          <RadioGroupOption
-              v-for="tb in [2,4]"
-              :key="'tables_' + tb"
-              v-slot="{ checked, disabled }"
-              :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
-              :value="tb"
-              as="template"
-          >
-            <button
-                :aria-disabled="disabled"
-                :class="[
-                  'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
-                  checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
-                  disabled ? 'opacity-40 cursor-not-allowed' : '',
-                ]"
-                type="button"
-                @click="!disabled && selectTables(tb)"
-            >
-              {{ tb }}
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
-        <span class="glass-settings-label whitespace-nowrap">Robot-Game Tische</span>
-        <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
+      <!-- Robot game tables + quarter-final -->
+      <div class="flex flex-wrap items-start gap-x-8 gap-y-3">
+        <div class="flex flex-col gap-1.5">
+          <div class="flex items-center gap-1 min-w-0">
+            <span class="glass-settings-label">{{ paramMapByName['r_tables']?.ui_label }}</span>
+            <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
+          </div>
+          <div class="glass-settings-row">
+            <RadioGroup v-model="rTablesProxy" class="flex gap-1.5 flex-wrap">
+              <RadioGroupOption
+                  v-for="tb in [2,4]"
+                  :key="'tables_' + tb"
+                  v-slot="{ checked, disabled }"
+                  :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
+                  :value="tb"
+                  as="template"
+              >
+                <button
+                    :aria-disabled="disabled"
+                    :class="[
+                      'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                      checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
+                      disabled ? 'opacity-40 cursor-not-allowed' : '',
+                    ]"
+                    type="button"
+                    @click="!disabled && selectTables(tb)"
+                >
+                  {{ tb }}
+                </button>
+              </RadioGroupOption>
+            </RadioGroup>
+          </div>
+        </div>
+
+        <div v-if="paramMapByName['r_final_8']" class="flex flex-col gap-1.5">
+          <div class="flex items-center gap-1 min-w-0">
+            <span class="glass-settings-label">{{ paramMapByName['r_final_8']?.ui_label }}</span>
+            <InfoPopover :text="paramMapByName['r_final_8']?.ui_description"/>
+          </div>
+          <div class="glass-settings-row">
+            <RadioGroup v-model="rFinal8Proxy" class="flex gap-1.5 flex-wrap">
+              <RadioGroupOption
+                  v-for="opt in [{value: 'yes', label: 'ja'}, {value: 'no', label: 'nein'}]"
+                  :key="'r_final_8_' + opt.value"
+                  v-slot="{ checked }"
+                  :value="opt.value"
+                  as="template"
+              >
+                <button
+                    :class="[
+                      'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                      checked ? 'glass-choice--active' : '',
+                    ]"
+                    type="button"
+                    @click="rFinal8Proxy = opt.value"
+                >
+                  {{ opt.label }}
+                </button>
+              </RadioGroupOption>
+            </RadioGroup>
+          </div>
+        </div>
       </div>
 
       <!-- Alert message banner -->
@@ -407,12 +368,6 @@ const teamsPerJuryHint = computed(() => {
         />
         <span>{{ currentLaneNote }}</span>
       </div>
-
-    </template>
-
-    <p v-else class="program-empty">
-      Ausgeschaltet — Schalter oben rechts zum Konfigurieren.
-    </p>
   </ProgramSection>
 </template>
 
@@ -450,26 +405,5 @@ const teamsPerJuryHint = computed(() => {
   color: #991b1b;
   background: color-mix(in srgb, #ef4444 12%, transparent);
   border: 1px solid color-mix(in srgb, #ef4444 28%, transparent);
-}
-
-.choice-recommended {
-  position: relative;
-}
-
-.choice-recommended::after {
-  content: 'Empfohlen';
-  position: absolute;
-  top: -0.55rem;
-  right: -0.35rem;
-  padding: 0.1rem 0.4rem;
-  border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #166534;
-  background: #dcfce7;
-  border: 1px solid color-mix(in srgb, #22c55e 35%, transparent);
-  pointer-events: none;
-  white-space: nowrap;
 }
 </style>

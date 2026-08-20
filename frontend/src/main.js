@@ -7,6 +7,7 @@ import './assets/glass-layout.css'
 import keycloak from "@/keycloak.js";
 import Schedule from "@/components/Schedule.vue";
 import ScheduleGeneral from "@/components/ScheduleGeneral.vue";
+import ScheduleTimes from "@/components/ScheduleTimes.vue";
 import ScheduleExpert from "@/components/ScheduleExpert.vue";
 import ScheduleBlocks from "@/components/ScheduleBlocks.vue";
 import ScheduleFreeActivities from "@/components/ScheduleFreeActivities.vue";
@@ -67,6 +68,7 @@ const routes = [
                 component: Schedule,
                 children: [
                     {path: '', name: 'schedule-general', component: ScheduleGeneral},
+                    {path: 'times', name: 'schedule-times', component: ScheduleTimes},
                     {path: 'expert', name: 'schedule-expert', component: ScheduleExpert},
                     {path: 'blocks', name: 'schedule-blocks', component: ScheduleBlocks},
                     {path: 'free', name: 'schedule-free', component: ScheduleFreeActivities},
@@ -111,6 +113,7 @@ const routes = [
     {path: '/event', redirect: '/plan/overview'},
     {path: '/schedule', redirect: '/plan/schedule'},
     {path: '/schedule/blocks', redirect: '/plan/schedule/blocks'},
+    {path: '/schedule/times', redirect: '/plan/schedule/times'},
     {path: '/schedule/expert', redirect: '/plan/schedule/expert'},
     {path: '/schedule/free', redirect: '/plan/schedule/free'},
     {path: '/slots', redirect: '/plan/schedule/slots'},

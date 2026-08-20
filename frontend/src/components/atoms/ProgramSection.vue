@@ -34,22 +34,21 @@ const subtitleText = computed(() => {
 
 <template>
   <section
-      class="program-section"
+      class="program-section glass-card liquid-surface-inner"
       :class="{ 'program-section--inactive': !active }"
       :style="{ '--program-accent': theme.accent }"
       :data-program="program"
   >
     <header class="program-section__header">
       <div class="program-section__identity">
-        <div v-if="showLogoImg" class="program-section__logo-wrap" aria-hidden="true">
-          <img
-              :alt="programLogoAlt(theme.catalogName)"
-              :src="programLogoSrc(theme.catalogName)"
-              class="program-section__logo"
-          />
-        </div>
+        <img
+            v-if="showLogoImg"
+            :alt="programLogoAlt(theme.catalogName)"
+            :src="programLogoSrc(theme.catalogName)"
+            class="program-section__logo"
+        />
         <div class="min-w-0">
-          <h3 class="program-section__title">{{ heading }}</h3>
+          <h3 class="program-section__title glass-card__title !mb-0">{{ heading }}</h3>
           <p v-if="subtitleText" class="program-section__subtitle">
             <template v-if="!subtitle && !title">
               <span class="italic">FIRST</span> LEGO League
@@ -74,10 +73,8 @@ const subtitleText = computed(() => {
   --program-accent-soft: color-mix(in srgb, var(--program-accent) 14%, transparent);
   position: relative;
   min-width: 0;
-  padding: 1rem 1.1rem 1.05rem;
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 42%, transparent);
-  border-radius: 14px;
-  background: transparent;
+  overflow: visible;
+  padding: 0.7rem 1.1rem 0.75rem;
   transition:
     opacity 0.18s ease,
     border-color 0.18s ease,
@@ -104,7 +101,7 @@ const subtitleText = computed(() => {
   opacity: 0.35;
 }
 
-.program-section--inactive .program-section__logo-wrap {
+.program-section--inactive .program-section__logo {
   filter: grayscale(0.35);
   opacity: 0.75;
 }
@@ -115,42 +112,29 @@ const subtitleText = computed(() => {
   justify-content: space-between;
   gap: 0.85rem 1rem;
   flex-wrap: wrap;
-  padding: 0 0 0.85rem;
-  margin-bottom: 0.15rem;
+  padding: 0 0 0.4rem;
+  margin-bottom: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 22%, transparent);
 }
 
 .program-section__identity {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 0.5rem;
   min-width: 0;
   flex: 1 1 auto;
 }
 
-.program-section__logo-wrap {
-  display: grid;
-  place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  flex-shrink: 0;
-  border-radius: 12px;
-  background: var(--program-accent-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--program-accent) 18%, transparent);
-}
-
 .program-section__logo {
-  width: 1.85rem;
-  height: 1.85rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
   object-fit: contain;
 }
 
 .program-section__title {
   margin: 0;
-  font-size: 1.125rem;
-  font-weight: 750;
   letter-spacing: -0.03em;
-  color: var(--color-text);
   line-height: 1.2;
 }
 
@@ -171,7 +155,7 @@ const subtitleText = computed(() => {
 }
 
 .program-section__body {
-  padding: 0.95rem 0 0.1rem;
+  padding: 0.5rem 0 0.1rem;
 }
 
 .program-section__body :slotted(.program-empty) {
@@ -197,21 +181,7 @@ const subtitleText = computed(() => {
 
 @media (min-width: 768px) {
   .program-section {
-    padding: 1.1rem 1.25rem 1.15rem;
-  }
-
-  .program-section__title {
-    font-size: 1.2rem;
-  }
-
-  .program-section__logo-wrap {
-    width: 3rem;
-    height: 3rem;
-  }
-
-  .program-section__logo {
-    width: 2rem;
-    height: 2rem;
+    padding: 0.8rem 1.25rem 0.85rem;
   }
 }
 </style>

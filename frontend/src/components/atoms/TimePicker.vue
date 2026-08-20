@@ -313,7 +313,7 @@ onUnmounted(() => {
       type="button"
       @click="openDropdown"
       :disabled="disabled"
-      class="px-3 py-1.5 text-sm font-semibold border border-[var(--color-border)] rounded-md bg-white hover:bg-[var(--color-bg-hover)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[80px] text-center"
+      class="glass-input glass-input--sm liquid-surface-control min-w-[4.75rem] text-center text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {{ displayTime }}
     </button>
