@@ -51,6 +51,14 @@ watch(eTeams, (total) => {
     setSplit(Math.floor(total / 2))
     return
   }
+  if (e1Teams.value === 0) {
+    setSplit(0)
+    return
+  }
+  if (e2Teams.value === 0) {
+    setSplit(total)
+    return
+  }
   setSplit(e1Teams.value)
 }, {immediate: true})
 
@@ -270,10 +278,6 @@ watch(
     },
     {immediate: true}
 )
-
-const e1Lanes = computed(() => Number(paramMapByName.value['e1_lanes']?.value || 0))
-const e2Lanes = computed(() => Number(paramMapByName.value['e2_lanes']?.value || 0))
-const eMode = computed(() => Number(paramMapByName.value['e_mode']?.value || 0))
 </script>
 
 <template>
@@ -370,14 +374,6 @@ const eMode = computed(() => Number(paramMapByName.value['e_mode']?.value || 0))
         </RadioGroup>
       </div>
     </div>
-
-    <pre class="explore-debug">e_teams {{ eTeams }}
-e_mode {{ eMode }}
-
-e1_teams {{ e1Teams }}
-e1_lanes {{ e1Lanes }}
-e2_teams {{ e2Teams }}
-e2_lanes {{ e2Lanes }}</pre>
   </ProgramSection>
 </template>
 
@@ -415,17 +411,5 @@ e2_lanes {{ e2Lanes }}</pre>
   color: #991b1b;
   background: color-mix(in srgb, #ef4444 12%, transparent);
   border: 1px solid color-mix(in srgb, #ef4444 28%, transparent);
-}
-
-.explore-debug {
-  margin: 0.25rem 0 0;
-  padding: 0.55rem 0.7rem;
-  border-radius: 8px;
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.45;
-  color: var(--color-text-subtle);
-  background: color-mix(in srgb, var(--color-text) 6%, transparent);
-  white-space: pre-wrap;
 }
 </style>
