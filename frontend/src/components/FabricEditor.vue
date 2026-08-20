@@ -54,10 +54,14 @@ const standardImages = [
   {title: 'FIRST', url: imageUrl('flow/first_h.png')},
   {title: 'FIRST', url: imageUrl('flow/first_v.png')},
   {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_h.png')},
+  {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_hs.png')},
   {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_v.png')},
   {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_h.png')},
   {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_hs.png')},
   {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_v.png')},
+  {title: 'FIRST LEGO League Future 8+', url: imageUrl('flow/fll_future8_h.png')},
+  {title: 'FIRST LEGO League Future 8+', url: imageUrl('flow/fll_future8_hs.png')},
+  {title: 'FIRST LEGO League Future 8+', url: imageUrl('flow/fll_future8_v.png')},
 ];
 const availableImages = ref(standardImages);
 const availableQrCodes = ref([]);

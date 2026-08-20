@@ -11,10 +11,12 @@ class FirstProgram extends Model
     protected $fillable = [
         'id',
         'name',
+        'display_name',
+        'letter',
         'sequence',
         'color_hex',
-        'logo_white'
-
+        'logo_stem',
+        'logo_white',
     ];
 
     public $timestamps = false;

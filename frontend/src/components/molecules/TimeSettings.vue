@@ -52,9 +52,9 @@ const columnLabels: Record<string, string> = {
 // Column icons mapping
 const columnIcons: Record<string, string> = {
   'g': imageUrl('/flow/first_v.png'),
-  'e1': programLogoSrc('explore'),
-  'e2': programLogoSrc('explore'),
-  'c': programLogoSrc('challenge')
+  'e1': programLogoSrc('EXPLORE'),
+  'e2': programLogoSrc('EXPLORE'),
+  'c': programLogoSrc('CHALLENGE')
 }
 
 // Helper to check if a column should be visible

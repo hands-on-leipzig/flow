@@ -4,6 +4,7 @@ import axios from 'axios'
 
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import { eventPrograms } from '@/utils/eventPrograms'
 
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
@@ -28,8 +29,7 @@ type FlattenedRow = {
   event_name: string | null
   event_date: string | null
   event_link: string | null
-  event_explore: number | null
-  event_challenge: number | null
+  programs: Array<{ first_program?: number; name?: string; draht_id?: number | null; teams?: number }>
   event_needs_attention?: boolean
   event_teams_explore: number
   event_teams_challenge: number
@@ -48,6 +48,16 @@ type FlattenedRow = {
   access_count?: number
   has_warning?: boolean
   has_table_names?: boolean
+}
+
+function programDraht(programs: FlattenedRow['programs'] | undefined, name: string): number | null {
+  const row = (programs || []).find((p) => String(p.name || '').toUpperCase() === name.toUpperCase())
+  return row?.draht_id ?? null
+}
+
+function programTeams(programs: FlattenedRow['programs'] | undefined, name: string, fallback = 0): number {
+  const row = (programs || []).find((p) => String(p.name || '').toUpperCase() === name.toUpperCase())
+  return Number(row?.teams ?? fallback)
 }
 
 const data = ref<any>(null)
@@ -151,7 +161,7 @@ async function startDrahtChecks() {
   const eventsToCheck: number[] = []
   for (const partner of season.partners) {
     for (const event of partner.events || []) {
-      if (event.event_id && (event.event_explore || event.event_challenge)) {
+      if (event.event_id && (event.programs || []).some((p: any) => p.draht_id)) {
         eventsToCheck.push(event.event_id)
       }
     }
@@ -376,8 +386,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_name: null,
           event_date: null,
           event_link: null,
-          event_explore: null,
-          event_challenge: null,
+          programs: [],
           event_teams_explore: 0,
           event_teams_challenge: 0,
           draht_issue: false,
@@ -402,8 +411,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_name: event.event_name,
           event_date: event.event_date,
           event_link: event.event_link ?? null,
-          event_explore: event.event_explore,
-          event_challenge: event.event_challenge,
+          programs: eventPrograms(event),
           event_needs_attention: event.event_needs_attention ?? false,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
@@ -427,8 +435,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           event_name: event.event_name,
           event_date: event.event_date,
           event_link: event.event_link ?? null,
-          event_explore: event.event_explore,
-          event_challenge: event.event_challenge,
+          programs: eventPrograms(event),
           event_needs_attention: event.event_needs_attention ?? false,
           event_teams_explore: teamsExplore,
           event_teams_challenge: teamsChallenge,
@@ -785,11 +792,11 @@ function exportToCSV() {
         escapeCSV(row.event_name),
         escapeCSV(row.event_date ? formatDateOnly(row.event_date) : ''),
         escapeCSV(row.event_link),
-        escapeCSV(row.event_explore),
-        escapeCSV(row.event_challenge),
+        escapeCSV(programDraht(row.programs, 'EXPLORE')),
+        escapeCSV(programDraht(row.programs, 'CHALLENGE')),
         escapeCSV(row.event_needs_attention ? 'Yes' : 'No'),
-        escapeCSV(row.event_teams_explore),
-        escapeCSV(row.event_teams_challenge),
+        escapeCSV(programTeams(row.programs, 'EXPLORE', row.event_teams_explore)),
+        escapeCSV(programTeams(row.programs, 'CHALLENGE', row.event_teams_challenge)),
         escapeCSV(row.draht_issue ? 'Yes' : 'No'),
         escapeCSV(row.plan_id),
         escapeCSV(row.e_mode ?? 0),
@@ -1150,27 +1157,17 @@ function exportToCSV() {
                 title="Event benötigt Aufmerksamkeit: Ablauf, Teams oder Räume haben Probleme"
               ></span>
               <span
-                v-if="row.event_explore || row.event_challenge"
+                v-if="(row.programs || []).length"
                 class="inline-flex items-center ml-2 whitespace-nowrap"
               >
-                <template v-if="row.event_explore">
+                <template v-for="program in eventPrograms(row)" :key="program.first_program">
                   <img
-                    :src="programLogoSrc('E')"
-                    :alt="programLogoAlt('E')"
-                    class="w-5 h-5 inline-block align-middle"
+                    :src="programLogoSrc(program)"
+                    :alt="programLogoAlt(program)"
+                    class="w-5 h-5 inline-block align-middle ml-2 first:ml-0"
                   />
                   <span class="text-xs text-[var(--color-text-muted)] ml-1">
-                    {{ row.event_teams_explore ?? 0 }}
-                  </span>
-                </template>
-                <template v-if="row.event_challenge">
-                  <img
-                    :src="programLogoSrc('C')"
-                    :alt="programLogoAlt('C')"
-                    class="w-5 h-5 inline-block align-middle ml-2"
-                  />
-                  <span class="text-xs text-[var(--color-text-muted)] ml-1">
-                    {{ row.event_teams_challenge ?? 0 }}
+                    {{ program.teams ?? 0 }}
                   </span>
                 </template>
               </span>

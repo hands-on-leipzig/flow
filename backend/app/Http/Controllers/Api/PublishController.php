@@ -9,6 +9,7 @@ use App\Models\OneLinkAccess;
 use App\Services\ActivityFetcherService;
 use App\Services\PdfLayoutService;
 use App\Support\PlanParameter;
+use App\Support\ProgramCatalog;
 use App\Enums\ExploreMode;
 
 use App\Services\SeasonService;
@@ -83,11 +84,12 @@ class PublishController extends Controller
                     ->count();
 
                 if ($eventCount > 1) {
-                    if (!is_null($event->event_challenge)) {
-                        $link .= "-challenge";
-                    }
-                    if (!is_null($event->event_explore)) {
-                        $link .= "-explore";
+                    $eventModel = Event::find($event->id);
+                    foreach ($eventModel?->programs ?? [] as $program) {
+                        $suffix = strtolower(str_replace('_', '-', (string) $program->name));
+                        if ($suffix !== '') {
+                            $link .= '-' . $suffix;
+                        }
                     }
                 }
                 break;
@@ -160,14 +162,11 @@ class PublishController extends Controller
             try {
                 $drahtController = app(\App\Http\Controllers\Api\DrahtController::class);
 
-                // Update link for challenge event if it exists
-                if (!empty($event->event_challenge)) {
-                    $drahtController->updateEventLink($event->event_challenge, $displayLink);
-                }
-
-                // Update link for explore event if it exists
-                if (!empty($event->event_explore)) {
-                    $drahtController->updateEventLink($event->event_explore, $displayLink);
+                $eventModel = Event::find($event->id);
+                foreach ($eventModel?->programs ?? [] as $program) {
+                    if (! empty($program->draht_id)) {
+                        $drahtController->updateEventLink((int) $program->draht_id, $displayLink);
+                    }
                 }
             } catch (\Exception $e) {
                 // Log error but don't fail the link generation
@@ -339,14 +338,8 @@ class PublishController extends Controller
         $drahtCtrl = app(\App\Http\Controllers\Api\DrahtController::class);
         $drahtData = $drahtCtrl->show($event)->getData(true);
 
-        // Get color information from m_first_program table
-        $exploreColor = DB::table('m_first_program')
-            ->where('name', 'EXPLORE')
-            ->value('color_hex') ?? '00A651'; // Default green if not found
-
-        $challengeColor = DB::table('m_first_program')
-            ->where('name', 'CHALLENGE')
-            ->value('color_hex') ?? 'ED1C24'; // Default red if not found
+        $exploreColor = ProgramCatalog::colorHex('EXPLORE', '00A651');
+        $challengeColor = ProgramCatalog::colorHex('CHALLENGE', 'ED1C24');
 
         // JSON bauen
         $data = [

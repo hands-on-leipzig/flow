@@ -728,7 +728,7 @@ const hasBlocksOutsideEventDates = computed(() => {
                     :disabled="!b.id"
                 />
                 <div class="flex gap-2">
-                  <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
+                  <img :src="programLogoSrc('EXPLORE')" :alt="programLogoAlt('EXPLORE')"
                        :class="[
                          'w-8 h-8 transition-all duration-200',
                          b.active === false
@@ -738,7 +738,7 @@ const hasBlocksOutsideEventDates = computed(() => {
                               : 'opacity-30 grayscale cursor-pointer')
                        ]"
                        @click="b.active !== false && toggleProgram(b, 2)" title="FIRST LEGO League Explore"/>
-                  <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
+                  <img :src="programLogoSrc('CHALLENGE')" :alt="programLogoAlt('CHALLENGE')"
                        :class="[
                          'w-8 h-8 transition-all duration-200',
                          b.active === false
@@ -864,7 +864,7 @@ const hasBlocksOutsideEventDates = computed(() => {
 
             <td class="px-3 py-4 align-top text-center">
               <div class="flex justify-center gap-2 pt-1">
-                <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
+                <img :src="programLogoSrc('EXPLORE')" :alt="programLogoAlt('EXPLORE')"
                      :class="[
                        'w-8 h-8 transition-all duration-200',
                        b.active === false
@@ -874,7 +874,7 @@ const hasBlocksOutsideEventDates = computed(() => {
                             : 'opacity-30 grayscale cursor-pointer hover:scale-110')
                      ]"
                      @click="b.active !== false && toggleProgram(b, 2)" title="FIRST LEGO League Explore"/>
-                <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
+                <img :src="programLogoSrc('CHALLENGE')" :alt="programLogoAlt('CHALLENGE')"
                      :class="[
                        'w-8 h-8 transition-all duration-200',
                        b.active === false

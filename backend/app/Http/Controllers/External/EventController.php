@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\External;
 
 use App\Models\Event;
+use App\Support\ProgramCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -17,7 +18,7 @@ class EventController extends BaseController
             $this->requireScope($request, 'events:read');
             
             $events = Event::query()
-                ->with(['regionalPartner', 'levelRel', 'seasonRel'])
+                ->with(['regionalPartner', 'levelRel', 'seasonRel', 'programs'])
                 ->paginate(20);
             
             return $this->success($events);
@@ -39,7 +40,7 @@ class EventController extends BaseController
         try {
             $this->requireScope($request, 'events:read');
             
-            $event = Event::with(['regionalPartner', 'levelRel', 'seasonRel'])
+            $event = Event::with(['regionalPartner', 'levelRel', 'seasonRel', 'programs'])
                 ->findOrFail($id);
             
             return $this->success($event);
@@ -64,7 +65,7 @@ class EventController extends BaseController
         try {
             $this->requireScope($request, 'events:read');
             
-            $event = Event::with(['regionalPartner', 'levelRel', 'seasonRel'])
+            $event = Event::with(['regionalPartner', 'levelRel', 'seasonRel', 'programs'])
                 ->where('slug', $slug)
                 ->firstOrFail();
             
@@ -84,17 +85,17 @@ class EventController extends BaseController
 
     /**
      * Update event by dolibarr/draht ID
-     * Finds event by event_explore or event_challenge and updates it
+     * Finds event by DRAHT id on event_program and updates it
      */
     public function updateByDrahtId(Request $request, $drahtId)
     {
         try {
             $this->requireScope($request, 'events:write');
             
-            // Find event by event_explore or event_challenge
-            $event = Event::where('event_explore', $drahtId)
-                ->orWhere('event_challenge', $drahtId)
-                ->first();
+            // Find event by any DRAHT id on event_program
+            $event = Event::whereHas('programs', function ($query) use ($drahtId) {
+                $query->where('draht_id', $drahtId);
+            })->first();
             
             if (!$event) {
                 return $this->error('Event not found with the provided draht ID', null, 404);
@@ -110,20 +111,26 @@ class EventController extends BaseController
                 'regional_partner' => 'sometimes|integer|exists:regional_partner,id',
                 'level' => 'sometimes|integer|exists:m_level,id',
                 'season' => 'sometimes|integer|exists:m_season,id',
-                'event_explore' => 'sometimes|nullable|integer',
-                'event_challenge' => 'sometimes|nullable|integer',
-                'contao_id_explore' => 'sometimes|nullable|integer',
-                'contao_id_challenge' => 'sometimes|nullable|integer',
+                'programs' => 'sometimes|array',
+                'programs.*.first_program' => 'required_with:programs|integer|exists:m_first_program,id',
+                'programs.*.draht_id' => 'nullable|integer',
+                'programs.*.contao_id' => 'nullable|integer',
                 'wifi_ssid' => 'sometimes|nullable|string|max:255',
                 'wifi_password' => 'sometimes|nullable|string',
                 'wifi_instruction' => 'sometimes|nullable|string',
             ]);
             
-            // Update the event
+            $programs = $validated['programs'] ?? null;
+            unset($validated['programs']);
+
             $event->update($validated);
-            
+
+            if (is_array($programs)) {
+                ProgramCatalog::sync($event, $programs);
+            }
+
             // Reload with relationships
-            $event->load(['regionalPartner', 'levelRel', 'seasonRel']);
+            $event->load(['regionalPartner', 'levelRel', 'seasonRel', 'programs']);
             
             Log::info('External API - Event updated by draht ID', [
                 'draht_id' => $drahtId,

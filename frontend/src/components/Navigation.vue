@@ -4,7 +4,8 @@ import {useRoute, useRouter} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import {useAuth} from '@/composables/useAuth'
-import {imageUrl} from '@/utils/images'
+import {imageUrl, programLogoSrc} from '@/utils/images'
+import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programMatchesSlug, programCompact} from '@/utils/eventPrograms'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, setTheme} from '@hands-on/glass/theme'
@@ -54,6 +55,7 @@ type NavChild = {
   name: string
   path: string
   icon?: string
+  iconSrc?: string
 }
 
 type NavEntry = {
@@ -62,6 +64,14 @@ type NavEntry = {
   icon: string
   children?: NavChild[]
 }
+
+const teamNavChildren = computed<NavChild[]>(() => {
+  return eventPrograms(eventStore.selectedEvent).map((program) => ({
+    name: programDisplayName(program),
+    path: teamPathFor(program),
+    iconSrc: programLogoSrc(program.name),
+  }))
+})
 
 const navEntries = computed<NavEntry[]>(() => [
   {name: 'Übersicht', path: '/plan/overview', icon: 'bi-house-door'},
@@ -86,13 +96,9 @@ const navEntries = computed<NavEntry[]>(() => [
   },
   {
     name: 'Teams',
-    path: '/plan/teams/explore',
+    path: firstTeamsPath(eventStore.selectedEvent),
     icon: 'bi-people',
-    children: [
-      {name: 'Explore', path: '/plan/teams/explore', icon: 'bi-compass'},
-      {name: 'Challenge', path: '/plan/teams/challenge', icon: 'bi-trophy'},
-      {name: 'Future 8+', path: '/plan/teams/future8', icon: 'bi-stars'},
-    ],
+    children: teamNavChildren.value,
   },
   {name: 'Räume', path: '/plan/rooms', icon: 'bi-door-open'},
   {
@@ -132,6 +138,7 @@ function childNavProps(child: NavChild) {
     id: child.path,
     label: child.name,
     icon: child.icon,
+    iconSrc: child.iconSrc,
     path: child.path,
     active: isActive(child.path),
     warning: hasWarning(child.path),
@@ -177,12 +184,24 @@ function hasWarning(tabPath: string): boolean {
   if (!readiness.value) return false
   const path = normalizePlanPath(tabPath)
 
+  if (path.startsWith('/plan/teams')) {
+    const slug = path.replace(/^\/plan\/teams\/?/, '')
+    if (!slug) {
+      return eventPrograms(eventStore.selectedEvent).some((program) =>
+        hasWarning(teamPathFor(program))
+      )
+    }
+    const discrepancy = !!eventStore.selectedEvent?.discrepancyByProgram?.[programCompact(slug)]
+    if (programMatchesSlug(slug, 'explore')) {
+      return !readiness.value.explore_teams_ok || discrepancy
+    }
+    if (programMatchesSlug(slug, 'challenge')) {
+      return !readiness.value.challenge_teams_ok || discrepancy
+    }
+    return discrepancy
+  }
+
   switch (path) {
-    case '/plan/teams':
-    case '/plan/teams/explore':
-      return !!eventStore.selectedEvent?.hasTeamDiscrepancy || !readiness.value.explore_teams_ok
-    case '/plan/teams/challenge':
-      return !!eventStore.selectedEvent?.hasTeamDiscrepancy || !readiness.value.challenge_teams_ok
     case '/plan/schedule':
     case '/plan/schedule/expert':
       return !readiness.value.explore_teams_ok || !readiness.value.challenge_teams_ok

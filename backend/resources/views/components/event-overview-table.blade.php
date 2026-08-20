@@ -1,4 +1,7 @@
 @php
+$exploreColor = \App\Support\ProgramCatalog::colorCss('EXPLORE', '00A651');
+$challengeColor = \App\Support\ProgramCatalog::colorCss('CHALLENGE', 'ED1C24');
+
 // Calculate global time range for all days
 $globalEarliestHour = null;
 $globalLatestHour = null;
@@ -91,7 +94,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if($hasExplore)
                                         <th colspan="{{ $exploreColumns }}" class="column-header merged-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
                                                 <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Explore</span>
                                             </div>
                                         </th>
@@ -102,7 +105,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if(!$hasAllgemein2)
                                         <th class="column-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
                                                 <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Explore</span>
                                             </div>
                                         </th>
@@ -111,7 +114,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if($challengeColumns > 1)
                                         <th colspan="{{ $challengeColumns }}" class="column-header merged-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
                                                 <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Challenge</span>
                                             </div>
                                         </th>
@@ -122,7 +125,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if(!$hasAllgemein3 && !$hasRobotGame && !$hasLiveChallenge)
                                         <th class="column-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
                                                 <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Challenge</span>
                                             </div>
                                         </th>
@@ -216,8 +219,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                             }
                                             
                                             $columnColors = [
-                                                'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
-                                                'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
+                                                'Explore' => ['bg' => '#e6f7ee', 'border' => $exploreColor],
+                                                'Challenge' => ['bg' => '#fde8e9', 'border' => $challengeColor],
                                                 'Live Challenge' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
                                                 'Robot-Game' => ['bg' => '#fef5e7', 'border' => '#f39c12'],
                                                 'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']

@@ -5,6 +5,8 @@ import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import draggable from 'vuedraggable'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {eventPrograms, programDisplayName, programMatchesSlug, programSlug, programNameForId} from '@/utils/eventPrograms'
+import {getProgramTheme} from '@/utils/programTheme'
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import LoaderText from "@/components/atoms/LoaderText.vue";
 import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
@@ -25,12 +27,7 @@ const assignables = ref([]) // ← gemeinsame Ebene 1 (type = 'activity' | 'team
 // --- Hilfslisten ---
 const roomTypes = ref([])
 const typeGroups = ref([])
-const exploreTeams = ref([])
-const exploreTeamsMorning = ref([]) // Explore Vormittag teams
-const exploreTeamsAfternoon = ref([]) // Explore Nachmittag teams
-const challengeTeams = ref([])
-const e1Teams = ref(0) // Threshold for morning vs afternoon split
-const hasTwoExploreGroups = ref(false) // Whether there are 2 Explore groups
+const hasTwoExploreGroups = ref(false)
 
 // People data from DRAHT API
 const peopleData = ref({})
@@ -41,15 +38,31 @@ const isDraggingRoom = ref(false)
 const previewedTypeId = ref(null)
 
 // --- Farbzuweisung ---
+const itemProgramName = (item) => {
+  if (item?.program_name) return item.program_name
+  return programNameForId(event.value, item?.first_program)
+}
+
+const itemLogoSrc = (item) => programLogoSrc({
+  name: itemProgramName(item),
+  first_program: item?.first_program,
+})
+const itemLogoAlt = (item) => programLogoAlt({
+  name: itemProgramName(item),
+  first_program: item?.first_program,
+})
+
 const getProgramColor = (item) => {
-  switch (item.first_program) {
-    case 2:
-      return '#10B981' // Grün (Explore)
-    case 3:
-      return '#EF4444' // Rot (Challenge)
-    default:
-      return '#9CA3AF' // Grau (Neutral)
-  }
+  const programs = eventPrograms(event.value)
+  const row = programs.find((p) =>
+      Number(p.first_program) === Number(item?.first_program)
+      || programMatchesSlug(p.name, item?.program_name)
+  )
+  const hex = row?.color_hex
+  if (hex) return hex.startsWith('#') ? hex : `#${hex}`
+  const theme = getProgramTheme(itemProgramName(item) || String(item?.first_program || ''))
+  if (theme.key !== 'shared') return theme.accent
+  return '#9CA3AF'
 }
 
 // --- Format program name with italic FIRST ---
@@ -96,6 +109,7 @@ onMounted(async () => {
     if (import.meta.env.DEV) {
       console.debug('Kein Plan für Event gefunden')
     }
+    loading.value = false
     return
   }
 
@@ -105,122 +119,115 @@ onMounted(async () => {
   roomTypes.value = roomTypeGroups.flatMap(group =>
       group.room_types.map(rt => ({
         id: rt.type_id,
-        key: `activity-${rt.type_id}`,   // 👈 HIER NEU
+        key: `activity-${rt.type_id}`,
         name: rt.type_name,
         first_program: rt.first_program,
+        program_name: programNameForId(event.value, rt.first_program),
         type: 'activity',
         group: {id: group.id, name: group.name}
       }))
   )
 
   // --- Teams laden über neue API ---
+  const mapTeam = (t, program, groupId, groupName) => ({
+    id: t.id,
+    key: `team-${t.id}`,
+    number: t.team_number_hot,
+    name: t.name ?? 'Unbenannt',
+    type: 'team',
+    first_program: Number(program.first_program),
+    program_name: program.name,
+    room: t.room ?? null,
+    team_number_plan: t.team_number_plan,
+    group: {id: groupId, name: groupName}
+  })
+
+  const teamsFromResponse = (data) => {
+    if (Array.isArray(data)) return {teams: data, metadata: {}}
+    return {teams: data?.teams || [], metadata: data?.metadata || {}}
+  }
+
+  const attached = eventPrograms(event.value)
+  const toFetch = attached
+  let teamGroups = []
+
   try {
-    const [exploreResponse, challengeResponse] = await Promise.all([
-      axios.get(`/events/${eventId.value}/teams`, {params: {program: 'explore', sort: 'name'}}),
-      axios.get(`/events/${eventId.value}/teams`, {params: {program: 'challenge', sort: 'name'}})
-    ])
+    const results = await Promise.all(toFetch.map(async (program) => {
+      try {
+        const res = await axios.get(`/events/${eventId.value}/teams`, {
+          params: {program: program.first_program || program.name, sort: 'name'}
+        })
+        return {program, ...teamsFromResponse(res.data)}
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error('Fehler beim Laden der Teams:', err)
+        }
+        return {program, teams: [], metadata: {}}
+      }
+    }))
 
-    // Handle Explore teams - response may be object with metadata or array (backward compatible)
-    const exploreData = exploreResponse.data
-    let exploreTeamsArray = Array.isArray(exploreData) ? exploreData : exploreData.teams || []
-    const exploreMetadata = exploreData.metadata || {}
+    hasTwoExploreGroups.value = false
 
-    // Check if there are 2 Explore groups (e_mode = 8 for HYBRID_BOTH or 5 for DECOUPLED_BOTH)
-    const eMode = exploreMetadata.e_mode || 0
-    hasTwoExploreGroups.value = (eMode === 8 || eMode === 5)
-    e1Teams.value = exploreMetadata.e1_teams || 0
-
-    // Split Explore teams into morning and afternoon based on team_number_plan
-    if (hasTwoExploreGroups.value && e1Teams.value > 0) {
-      exploreTeamsMorning.value = exploreTeamsArray
-          .filter(t => (t.team_number_plan || 0) <= e1Teams.value)
-          .map(t => ({
-            id: t.id,
-            key: `team-${t.id}`,
-            number: t.team_number_hot,
-            name: t.name ?? 'Unbenannt',
-            type: 'team',
-            first_program: 2,
-            room: t.room ?? null,
-            team_number_plan: t.team_number_plan,
-            group: {id: 'explore-morning', name: 'Explore Vormittag'}
-          }))
-
-      exploreTeamsAfternoon.value = exploreTeamsArray
-          .filter(t => (t.team_number_plan || 0) > e1Teams.value)
-          .map(t => ({
-            id: t.id,
-            key: `team-${t.id}`,
-            number: t.team_number_hot,
-            name: t.name ?? 'Unbenannt',
-            type: 'team',
-            first_program: 2,
-            room: t.room ?? null,
-            team_number_plan: t.team_number_plan,
-            group: {id: 'explore-afternoon', name: 'Explore Nachmittag'}
-          }))
-
-      // Keep exploreTeams for backward compatibility (all teams combined)
-      exploreTeams.value = [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
-    } else {
-      // Single Explore group - use existing logic
-      exploreTeams.value = exploreTeamsArray.map(t => ({
-        id: t.id,
-        key: `team-${t.id}`,
-        number: t.team_number_hot,
-        name: t.name ?? 'Unbenannt',
-        type: 'team',
-        first_program: 2,
-        room: t.room ?? null,
-        team_number_plan: t.team_number_plan,
-        group: {id: 'explore', name: 'Explore'}
-      }))
-      exploreTeamsMorning.value = []
-      exploreTeamsAfternoon.value = []
+    const teamsByProgram = new Map()
+    for (const {program, teams, metadata} of results) {
+      teamsByProgram.set(Number(program.first_program), {program, teams, metadata})
     }
 
-    challengeTeams.value = challengeResponse.data.map(t => ({
-      id: t.id,
-      key: `team-${t.id}`,
-      number: t.team_number_hot,
-      name: t.name ?? 'Unbenannt',
-      type: 'team',
-      first_program: 3,
-      room: t.room ?? null,
-      group: {id: 'challenge', name: 'Challenge'}
-    }))
+    for (const program of toFetch) {
+      const id = Number(program.first_program)
+      const loaded = teamsByProgram.get(id) || {program, teams: [], metadata: {}}
+      const label = programDisplayName(program)
+      const slug = programSlug(program.name)
+
+      if (programMatchesSlug(program.name, 'explore')) {
+        const eMode = loaded.metadata.e_mode || 0
+        const e1Teams = loaded.metadata.e1_teams || 0
+        hasTwoExploreGroups.value = (eMode === 8 || eMode === 5) && e1Teams > 0
+        if (hasTwoExploreGroups.value) {
+          teamGroups.push(
+              {
+                id: 'explore-morning',
+                name: 'Explore Vormittag',
+                first_program: id,
+                program_name: program.name,
+                items: loaded.teams
+                    .filter(t => (t.team_number_plan || 0) <= e1Teams)
+                    .map(t => mapTeam(t, program, 'explore-morning', 'Explore Vormittag')),
+              },
+              {
+                id: 'explore-afternoon',
+                name: 'Explore Nachmittag',
+                first_program: id,
+                program_name: program.name,
+                items: loaded.teams
+                    .filter(t => (t.team_number_plan || 0) > e1Teams)
+                    .map(t => mapTeam(t, program, 'explore-afternoon', 'Explore Nachmittag')),
+              },
+          )
+        } else {
+          teamGroups.push({
+            id: slug,
+            name: label,
+            first_program: id,
+            program_name: program.name,
+            items: loaded.teams.map(t => mapTeam(t, program, slug, label)),
+          })
+        }
+      } else {
+        teamGroups.push({
+          id: slug,
+          name: label,
+          first_program: id,
+          program_name: program.name,
+          items: loaded.teams.map(t => mapTeam(t, program, slug, label)),
+        })
+      }
+    }
   } catch (err) {
     if (import.meta.env.DEV) {
       console.error('Fehler beim Laden der Teams:', err)
     }
-    exploreTeams.value = []
-    exploreTeamsMorning.value = []
-    exploreTeamsAfternoon.value = []
-    challengeTeams.value = []
-  }
-
-  // --- Zusammenführen in gemeinsame Struktur ---
-  // Build team groups based on whether there are 2 Explore groups
-  const teamGroups = []
-
-  if (hasTwoExploreGroups.value) {
-    // Two Explore groups: Vormittag and Nachmittag
-    teamGroups.push(
-        {id: 'explore-morning', name: 'Explore Vormittag', items: exploreTeamsMorning.value},
-        {id: 'explore-afternoon', name: 'Explore Nachmittag', items: exploreTeamsAfternoon.value}
-    )
-  } else {
-    // Single Explore group
-    teamGroups.push(
-        {id: 'explore', name: 'Explore', items: exploreTeams.value}
-    )
-  }
-
-  // Add Challenge group
-  if (showChallengeTeams.value) {
-    teamGroups.push(
-        {id: 'challenge', name: 'Challenge', items: challengeTeams.value}
-    )
+    teamGroups = []
   }
 
   assignables.value = [
@@ -232,13 +239,13 @@ onMounted(async () => {
         name: g.name,
         items: g.room_types.map(rt => ({
           id: rt.type_id,
-          // Use item_type from backend to create unique keys (prevents collision between room_type.id=5 and extra_block.id=5)
           key: rt.item_type === 'extra_block' ? `activity-eb-${rt.type_id}` : `activity-rt-${rt.type_id}`,
           name: rt.type_name,
           first_program: rt.first_program,
+          program_name: programNameForId(event.value, rt.first_program),
           type: 'activity',
           group: {id: g.id, name: g.name},
-          item_type: rt.item_type || 'room_type' // Store for reference
+          item_type: rt.item_type || 'room_type'
         }))
       }))
     },
@@ -249,28 +256,18 @@ onMounted(async () => {
     }
   ]
 
-
-  // --- Bestehende Zuordnungen übernehmen (Activities + Teams, typisierte Keys) ---
   const result = {}
 
-  // 1) Activities (RoomTypes + Extra Blocks)
   roomsData.rooms.forEach(room => {
     (room.room_types ?? []).forEach(rt => {
-      // Use rt prefix for room types
       result[`activity-rt-${rt.id}`] = room.id
     })
     ;(room.extra_blocks ?? []).forEach(eb => {
-      // Use eb prefix for extra blocks
       result[`activity-eb-${eb.id}`] = room.id
     })
   })
 
-  // 2) Teams (Explore + Challenge) – nur wenn backend room mitliefert
-  // Use split teams if available, otherwise use combined exploreTeams
-  const exploreTeamsForAssignment = hasTwoExploreGroups.value
-      ? [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
-      : exploreTeams.value
-  ;[...exploreTeamsForAssignment, ...challengeTeams.value].forEach(team => {
+  teamGroups.flatMap(g => g.items).forEach(team => {
     if (team.room !== null && team.room !== undefined) {
       result[`team-${team.id}`] = team.room
     }
@@ -289,13 +286,12 @@ onMounted(async () => {
   //   teams: Object.keys(result).filter(k => k.startsWith('team-')).length
   // })
 
-  // Fetch people data from DRAHT API for both programs
   const fetchPeopleData = async () => {
     const promises = []
-
-    if (event.value?.event_explore) {
+    for (const program of eventPrograms(event.value)) {
+      if (!program.draht_id) continue
       promises.push(
-          axios.get(`/draht/people/${event.value.event_explore}`)
+          axios.get(`/draht/people/${program.draht_id}`)
               .then(res => {
                 if (res.data) {
                   const {total_players, total_coaches, ...teamsData} = res.data
@@ -304,29 +300,11 @@ onMounted(async () => {
               })
               .catch(err => {
                 if (import.meta.env.DEV) {
-                  console.error('Failed to fetch Explore people data', err)
+                  console.error('Failed to fetch people data', err)
                 }
               })
       )
     }
-
-    if (event.value?.event_challenge) {
-      promises.push(
-          axios.get(`/draht/people/${event.value.event_challenge}`)
-              .then(res => {
-                if (res.data) {
-                  const {total_players, total_coaches, ...teamsData} = res.data
-                  Object.assign(peopleData.value, teamsData)
-                }
-              })
-              .catch(err => {
-                if (import.meta.env.DEV) {
-                  console.error('Failed to fetch Challenge people data', err)
-                }
-              })
-      )
-    }
-
     await Promise.all(promises)
   }
 
@@ -352,9 +330,7 @@ const toggleAccessibility = async (room) => {
 
 // --- Gemeinsame Zuordnung Raum <-> Item ---
 const assignItemToRoom = async (itemKey, roomId) => {
-  // Handle proxy items
-  if (itemKey === PROXY_EXPLORE_KEY || itemKey === PROXY_EXPLORE_MORNING_KEY ||
-      itemKey === PROXY_EXPLORE_AFTERNOON_KEY || itemKey === PROXY_CHALLENGE_KEY) {
+  if (String(itemKey).startsWith('proxy-')) {
     await handleProxyAssignment(itemKey, roomId)
     return
   }
@@ -453,9 +429,7 @@ const findItemById = (idOrKey) => {
 
 // --- Unassign ---
 const unassignItemFromRoom = async (itemKey) => {
-  // Handle proxy items
-  if (itemKey === PROXY_EXPLORE_KEY || itemKey === PROXY_EXPLORE_MORNING_KEY ||
-      itemKey === PROXY_EXPLORE_AFTERNOON_KEY || itemKey === PROXY_CHALLENGE_KEY) {
+  if (String(itemKey).startsWith('proxy-')) {
     await handleProxyAssignment(itemKey, null)
     return
   }
@@ -617,28 +591,30 @@ const activeTab = ref('activities')
 const showAssignModal = ref(false)
 const selectedAssignable = ref(null)
 
-const isBulkModeEnabled = (groupId) => {
-  if (groupId === 'explore-morning') return bulkModeExploreMorning.value
-  if (groupId === 'explore-afternoon') return bulkModeExploreAfternoon.value
-  if (groupId === 'explore') return bulkModeExplore.value
-  if (groupId === 'challenge') return bulkModeChallenge.value
-  return false
+const bulkModeByGroup = ref({})
+
+const isBulkModeEnabled = (groupId) => !!bulkModeByGroup.value[groupId]
+
+const proxyKeyForGroup = (groupId) => `proxy-${groupId}`
+
+const groupIdFromProxyKey = (proxyKey) => String(proxyKey || '').replace(/^proxy-/, '')
+
+const findTeamGroup = (groupId) => {
+  const teamsCat = assignables.value.find(c => c.id === 'teams')
+  return teamsCat?.groups.find(g => g.id === groupId) || null
 }
 
 const buildProxyItem = (groupId) => {
-  if (groupId === 'explore-morning') {
-    return {key: PROXY_EXPLORE_MORNING_KEY, type: 'team-proxy', name: 'Alle Explore Vormittag Teams', first_program: 2, program: groupId}
+  const group = findTeamGroup(groupId)
+  if (!group) return null
+  return {
+    key: proxyKeyForGroup(groupId),
+    type: 'team-proxy',
+    name: `Alle ${group.name} Teams`,
+    first_program: group.first_program,
+    program_name: group.program_name,
+    program: groupId,
   }
-  if (groupId === 'explore-afternoon') {
-    return {key: PROXY_EXPLORE_AFTERNOON_KEY, type: 'team-proxy', name: 'Alle Explore Nachmittag Teams', first_program: 2, program: groupId}
-  }
-  if (groupId === 'explore') {
-    return {key: PROXY_EXPLORE_KEY, type: 'team-proxy', name: 'Alle Explore Teams', first_program: 2, program: groupId}
-  }
-  if (groupId === 'challenge') {
-    return {key: PROXY_CHALLENGE_KEY, type: 'team-proxy', name: 'Alle Challenge Teams', first_program: 3, program: groupId}
-  }
-  return null
 }
 
 const getUnassignedItems = (category, group) => {
@@ -666,24 +642,11 @@ const assignSelectedToRoom = async (roomId) => {
 }
 
 // --- Bulk Team Assignment Feature ---
-const bulkModeExplore = ref(false)
-const bulkModeExploreMorning = ref(false) // Bulk mode for Explore Vormittag
-const bulkModeExploreAfternoon = ref(false) // Bulk mode for Explore Nachmittag
-const bulkModeChallenge = ref(false)
-
-// Proxy keys for bulk assignment (constants for internal use)
-const PROXY_EXPLORE_KEY = 'proxy-explore'
-const PROXY_EXPLORE_MORNING_KEY = 'proxy-explore-morning'
-const PROXY_EXPLORE_AFTERNOON_KEY = 'proxy-explore-afternoon'
-const PROXY_CHALLENGE_KEY = 'proxy-challenge'
-
-// --- Persistence: localStorage with event scope ---
 const getStorageKey = () => {
   if (!eventId.value) return null
   return `rooms-bulk-mode-${eventId.value}`
 }
 
-// Load saved bulk mode preferences for current event
 const loadBulkModePreferences = () => {
   const key = getStorageKey()
   if (!key) return
@@ -692,17 +655,12 @@ const loadBulkModePreferences = () => {
     const saved = localStorage.getItem(key)
     if (saved) {
       const prefs = JSON.parse(saved)
-      // Handle old format (backward compatible)
-      if (prefs.explore !== undefined) {
-        bulkModeExplore.value = prefs.explore ?? false
-      }
-      // Handle new format with separate morning/afternoon
-      bulkModeExploreMorning.value = prefs.exploreMorning ?? false
-      bulkModeExploreAfternoon.value = prefs.exploreAfternoon ?? false
-      bulkModeChallenge.value = prefs.challenge ?? false
-
-      // Restore proxy assignments if bulk mode is enabled and teams are assigned
-      // We need to check after assignments are loaded, so we'll call restoreProxyAssignments separately
+      const groups = {...(prefs.groups || {})}
+      if (prefs.explore) groups.explore = prefs.explore
+      if (prefs.exploreMorning) groups['explore-morning'] = prefs.exploreMorning
+      if (prefs.exploreAfternoon) groups['explore-afternoon'] = prefs.exploreAfternoon
+      if (prefs.challenge) groups.challenge = prefs.challenge
+      bulkModeByGroup.value = groups
       nextTick(() => {
         restoreProxyAssignments()
       })
@@ -714,143 +672,54 @@ const loadBulkModePreferences = () => {
   }
 }
 
-// Restore proxy assignments based on actual team assignments
 const restoreProxyAssignments = () => {
-  // Check Explore Morning teams
-  if (bulkModeExploreMorning.value && exploreTeamsMorning.value.length > 0) {
-    const teamsWithAssignments = exploreTeamsMorning.value
+  const teamsCat = assignables.value.find(c => c.id === 'teams')
+  for (const group of teamsCat?.groups || []) {
+    if (!isBulkModeEnabled(group.id) || !group.items.length) continue
+    const teamsWithAssignments = group.items
         .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
         .filter(t => t.room !== null && t.room !== undefined)
-
-    if (teamsWithAssignments.length === exploreTeamsMorning.value.length) {
-      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
-      if (roomIds.length === 1) {
-        assignments.value[PROXY_EXPLORE_MORNING_KEY] = roomIds[0]
-      }
-    }
-  }
-
-  // Check Explore Afternoon teams
-  if (bulkModeExploreAfternoon.value && exploreTeamsAfternoon.value.length > 0) {
-    const teamsWithAssignments = exploreTeamsAfternoon.value
-        .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
-        .filter(t => t.room !== null && t.room !== undefined)
-
-    if (teamsWithAssignments.length === exploreTeamsAfternoon.value.length) {
-      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
-      if (roomIds.length === 1) {
-        assignments.value[PROXY_EXPLORE_AFTERNOON_KEY] = roomIds[0]
-      }
-    }
-  }
-
-  // Check single Explore group (backward compatibility)
-  if (bulkModeExplore.value && !hasTwoExploreGroups.value && exploreTeams.value.length > 0) {
-    const teamsWithAssignments = exploreTeams.value
-        .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
-        .filter(t => t.room !== null && t.room !== undefined)
-
-    if (teamsWithAssignments.length === exploreTeams.value.length) {
-      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
-      if (roomIds.length === 1) {
-        assignments.value[PROXY_EXPLORE_KEY] = roomIds[0]
-      }
-    }
-  }
-
-  // Check Challenge teams
-  if (bulkModeChallenge.value && challengeTeams.value.length > 0) {
-    const teamsWithAssignments = challengeTeams.value
-        .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
-        .filter(t => t.room !== null && t.room !== undefined)
-
-    if (teamsWithAssignments.length === challengeTeams.value.length) {
-      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
-      if (roomIds.length === 1) {
-        assignments.value[PROXY_CHALLENGE_KEY] = roomIds[0]
-      }
+    if (teamsWithAssignments.length !== group.items.length) continue
+    const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
+    if (roomIds.length === 1) {
+      assignments.value[proxyKeyForGroup(group.id)] = roomIds[0]
     }
   }
 }
 
-// Save bulk mode preferences when they change
-watch([bulkModeExplore, bulkModeExploreMorning, bulkModeExploreAfternoon, bulkModeChallenge],
-    ([explore, exploreMorning, exploreAfternoon, challenge]) => {
-      const key = getStorageKey()
-      if (!key) return
-
-      try {
-        localStorage.setItem(key, JSON.stringify({
-          explore,
-          exploreMorning,
-          exploreAfternoon,
-          challenge
-        }))
-      } catch (e) {
-        if (import.meta.env.DEV) {
-          console.debug('Failed to save bulk mode preferences', e)
-        }
-      }
+watch(bulkModeByGroup, (groups) => {
+  const key = getStorageKey()
+  if (!key) return
+  try {
+    localStorage.setItem(key, JSON.stringify({groups}))
+  } catch (e) {
+    if (import.meta.env.DEV) {
+      console.debug('Failed to save bulk mode preferences', e)
     }
-)
+  }
+}, {deep: true})
 
-// Reload preferences when event changes
 watch(eventId, () => {
   loadBulkModePreferences()
 })
 
-// Find proxy assignment room ID (returns null if not assigned)
 const getProxyRoomId = (proxyKey) => {
   return assignments.value[proxyKey] || null
 }
 
-// Get all teams for a program/group
 const getTeamsForProgram = (programOrGroupId) => {
-  if (programOrGroupId === 'explore') return exploreTeams.value
-  if (programOrGroupId === 'explore-morning') return exploreTeamsMorning.value
-  if (programOrGroupId === 'explore-afternoon') return exploreTeamsAfternoon.value
-  if (programOrGroupId === 'challenge') return challengeTeams.value
-  return []
+  return findTeamGroup(programOrGroupId)?.items || []
 }
 
-// Checkbox toggle handler - unassign all teams when enabling bulk mode
-const toggleBulkMode = async (groupId) => {
-  // Determine which bulk mode to toggle based on group ID
-  let currentMode
-  let setBulkMode
-  let proxyKey
+const setBulkMode = (groupId, value) => {
+  bulkModeByGroup.value = {...bulkModeByGroup.value, [groupId]: value}
+}
 
-  if (groupId === 'explore-morning') {
-    currentMode = bulkModeExploreMorning.value
-    setBulkMode = (val) => {
-      bulkModeExploreMorning.value = val
-    }
-    proxyKey = PROXY_EXPLORE_MORNING_KEY
-  } else if (groupId === 'explore-afternoon') {
-    currentMode = bulkModeExploreAfternoon.value
-    setBulkMode = (val) => {
-      bulkModeExploreAfternoon.value = val
-    }
-    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-  } else if (groupId === 'explore') {
-    // Single Explore group (backward compatibility)
-    currentMode = bulkModeExplore.value
-    setBulkMode = (val) => {
-      bulkModeExplore.value = val
-    }
-    proxyKey = PROXY_EXPLORE_KEY
-  } else if (groupId === 'challenge') {
-    currentMode = bulkModeChallenge.value
-    setBulkMode = (val) => {
-      bulkModeChallenge.value = val
-    }
-    proxyKey = PROXY_CHALLENGE_KEY
-  } else {
-    return
-  }
+const toggleBulkMode = async (groupId) => {
+  const proxyKey = proxyKeyForGroup(groupId)
+  const currentMode = isBulkModeEnabled(groupId)
 
   if (!currentMode) {
-    // Enabling bulk mode: unassign all teams of this group
     const teams = getTeamsForProgram(groupId)
     for (const team of teams) {
       const key = `team-${team.id}`
@@ -858,16 +727,11 @@ const toggleBulkMode = async (groupId) => {
         await unassignItemFromRoom(key)
       }
     }
-    // Set bulk mode after unassigning
-    setBulkMode(true)
+    setBulkMode(groupId, true)
   } else {
-    // Disabling bulk mode: if proxy is assigned, keep assignments, otherwise clear
     const proxyRoomId = getProxyRoomId(proxyKey)
-
     if (proxyRoomId) {
-      // Proxy is assigned: all teams should appear individually in that room
       const teams = getTeamsForProgram(groupId)
-      // First, assign all teams to backend
       for (const team of teams) {
         const key = `team-${team.id}`
         assignments.value[key] = proxyRoomId
@@ -877,57 +741,32 @@ const toggleBulkMode = async (groupId) => {
           event: eventStore.selectedEvent?.id
         })
       }
-      // Remove proxy assignment
       assignments.value[proxyKey] = null
     }
-
-    setBulkMode(false)
+    setBulkMode(groupId, false)
   }
 
-  // Refresh readiness after mode change
   if (eventStore.selectedEvent?.id) {
     await eventStore.refreshReadiness(eventStore.selectedEvent.id)
   }
 }
 
-// Bulk assign all teams of a group to a room
 const bulkAssignTeams = async (groupId, roomId) => {
   const teams = getTeamsForProgram(groupId)
-
-  // Assign all teams to the room
   for (const team of teams) {
     const key = `team-${team.id}`
     assignments.value[key] = roomId
-
     await axios.put(`/rooms/assign-teams`, {
       team_id: team.id,
       room_id: roomId,
       event: eventStore.selectedEvent?.id
     })
   }
-
-  // Also set proxy assignment based on group ID
-  let proxyKey
-  if (groupId === 'explore-morning') {
-    proxyKey = PROXY_EXPLORE_MORNING_KEY
-  } else if (groupId === 'explore-afternoon') {
-    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-  } else if (groupId === 'explore') {
-    proxyKey = PROXY_EXPLORE_KEY
-  } else if (groupId === 'challenge') {
-    proxyKey = PROXY_CHALLENGE_KEY
-  }
-
-  if (proxyKey) {
-    assignments.value[proxyKey] = roomId
-  }
+  assignments.value[proxyKeyForGroup(groupId)] = roomId
 }
 
-// Bulk unassign all teams of a group
 const bulkUnassignTeams = async (groupId) => {
   const teams = getTeamsForProgram(groupId)
-
-  // Unassign all teams
   for (const team of teams) {
     const key = `team-${team.id}`
     if (assignments.value[key]) {
@@ -939,107 +778,42 @@ const bulkUnassignTeams = async (groupId) => {
       })
     }
   }
-
-  // Remove proxy assignment based on group ID
-  let proxyKey
-  if (groupId === 'explore-morning') {
-    proxyKey = PROXY_EXPLORE_MORNING_KEY
-  } else if (groupId === 'explore-afternoon') {
-    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-  } else if (groupId === 'explore') {
-    proxyKey = PROXY_EXPLORE_KEY
-  } else if (groupId === 'challenge') {
-    proxyKey = PROXY_CHALLENGE_KEY
-  }
-
-  if (proxyKey) {
-    assignments.value[proxyKey] = null
-  }
+  assignments.value[proxyKeyForGroup(groupId)] = null
 }
 
-// Handle proxy item assignment/unassignment
 const handleProxyAssignment = async (proxyKey, roomId) => {
-  // Determine group ID from proxy key
-  let groupId
-  if (proxyKey === PROXY_EXPLORE_MORNING_KEY) {
-    groupId = 'explore-morning'
-  } else if (proxyKey === PROXY_EXPLORE_AFTERNOON_KEY) {
-    groupId = 'explore-afternoon'
-  } else if (proxyKey === PROXY_EXPLORE_KEY) {
-    groupId = 'explore'
-  } else if (proxyKey === PROXY_CHALLENGE_KEY) {
-    groupId = 'challenge'
-  } else {
-    return
-  }
-
+  const groupId = groupIdFromProxyKey(proxyKey)
+  if (!groupId) return
   if (roomId) {
     await bulkAssignTeams(groupId, roomId)
   } else {
     await bulkUnassignTeams(groupId)
   }
-
-  // Refresh readiness
   if (eventStore.selectedEvent?.id) {
     await eventStore.refreshReadiness(eventStore.selectedEvent.id)
   }
 }
 
-// Hilfsfunktion für Template (typisierte IDs)
 const getItemsInRoom = (roomId) => {
   const all = []
-
-  // Handle regular items
   for (const category of assignables.value) {
     for (const group of category.groups) {
       if (category.type === 'team') {
-        // For teams: check bulk mode and show proxy or individual teams
-        let bulkMode = false
-        let proxyKey = null
-        let proxyName = ''
-
-        if (group.id === 'explore-morning') {
-          bulkMode = bulkModeExploreMorning.value
-          proxyKey = PROXY_EXPLORE_MORNING_KEY
-          proxyName = 'Alle Explore Vormittag Teams'
-        } else if (group.id === 'explore-afternoon') {
-          bulkMode = bulkModeExploreAfternoon.value
-          proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-          proxyName = 'Alle Explore Nachmittag Teams'
-        } else if (group.id === 'explore') {
-          bulkMode = bulkModeExplore.value
-          proxyKey = PROXY_EXPLORE_KEY
-          proxyName = 'Alle Explore Teams'
-        } else if (group.id === 'challenge') {
-          bulkMode = bulkModeChallenge.value
-          proxyKey = PROXY_CHALLENGE_KEY
-          proxyName = 'Alle Challenge Teams'
-        }
-
-        if (bulkMode && proxyKey) {
-          // Bulk mode: check if proxy is assigned to this room
-          if (assignments.value[proxyKey] === roomId) {
-            all.push({
-              key: proxyKey,
-              type: 'team-proxy',
-              name: proxyName,
-              first_program: (group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon') ? 2 : 3,
-              program: group.id
-            })
+        if (isBulkModeEnabled(group.id)) {
+          const proxy = buildProxyItem(group.id)
+          if (proxy && assignments.value[proxy.key] === roomId) {
+            all.push(proxy)
           }
         } else {
-          // Individual mode: show individual teams assigned to this room
           all.push(...group.items.filter(i => assignments.value[i.key] === roomId))
         }
       } else {
-        // Activities: use the item's key property (which has rt/eb prefix)
         all.push(...group.items.filter(i => assignments.value[i.key] === roomId))
       }
     }
   }
   return all
 }
-
 
 // --- Data Readiness: direkt aus Store ---
 
@@ -1069,17 +843,6 @@ const hasWarning = (tab) => {
   if (tab === 'teams') return details.teams_ok === false
   return false
 }
-
-// --- Visibility based on capacity ---
-const showExploreTeams = computed(() => {
-  const capacity = Number(event.value?.drahtCapacityExplore || 0)
-  return capacity > 0
-})
-
-const showChallengeTeams = computed(() => {
-  const capacity = Number(event.value?.drahtCapacityChallenge || 0)
-  return capacity > 0
-})
 
 </script>
 
@@ -1151,7 +914,7 @@ const showChallengeTeams = computed(() => {
                       :style="{ borderColor: getProgramColor(element) }"
                       class="glass-program-pill text-[11px]"
                   >
-                    <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
+                    <img v-if="itemLogoSrc(element)" :alt="itemLogoAlt(element)" :src="itemLogoSrc(element)" class="w-3 h-3 flex-shrink-0"/>
                     {{ element.name }}
                     <button class="ml-0.5 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)]" @click.stop="unassignItemFromRoom(element.key)">✖</button>
                   </span>
@@ -1161,7 +924,7 @@ const showChallengeTeams = computed(() => {
                   >
                     <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
                     <span class="px-2 py-1 flex items-center gap-1">
-                      <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
+                      <img v-if="itemLogoSrc(element)" :alt="itemLogoAlt(element)" :src="itemLogoSrc(element)" class="w-3 h-3 flex-shrink-0"/>
                       {{ element.number ? `${element.number} | ` : '' }}{{ element.name }}
                     </span>
                     <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
@@ -1298,9 +1061,9 @@ const showChallengeTeams = computed(() => {
                             class="glass-program-pill glass-program-pill--interactive text-[11px] md:text-xs"
                         >
                           <img
-                              v-if="programLogoSrc(element.first_program)"
-                              :alt="programLogoAlt(element.first_program)"
-                              :src="programLogoSrc(element.first_program)"
+                              v-if="itemLogoSrc(element)"
+                              :alt="itemLogoAlt(element)"
+                              :src="itemLogoSrc(element)"
                               class="w-3 h-3 flex-shrink-0"
                           />
                           {{ element.name }}
@@ -1323,9 +1086,9 @@ const showChallengeTeams = computed(() => {
                           ></span>
                           <span class="px-2 py-1 flex items-center gap-1">
                             <img
-                                v-if="programLogoSrc(element.first_program)"
-                                :alt="programLogoAlt(element.first_program)"
-                                :src="programLogoSrc(element.first_program)"
+                                v-if="itemLogoSrc(element)"
+                                :alt="itemLogoAlt(element)"
+                                :src="itemLogoSrc(element)"
                                 class="w-3 h-3 flex-shrink-0"
                             />
                             {{ element.name }}
@@ -1349,9 +1112,9 @@ const showChallengeTeams = computed(() => {
                           ></span>
                           <span class="px-2 py-1 flex items-center gap-1.5">
                             <img
-                                v-if="programLogoSrc(element.first_program)"
-                                :alt="programLogoAlt(element.first_program)"
-                                :src="programLogoSrc(element.first_program)"
+                                v-if="itemLogoSrc(element)"
+                                :alt="itemLogoAlt(element)"
+                                :src="itemLogoSrc(element)"
                                 class="w-3 h-3 flex-shrink-0"
                             />
                             <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>
@@ -1451,24 +1214,13 @@ const showChallengeTeams = computed(() => {
               :key="group.id"
           >
             <div
-                v-if="category.type !== 'team' ||
-                  (group.id === 'explore' && showExploreTeams && !hasTwoExploreGroups) || 
-                  (group.id === 'explore-morning' && showExploreTeams && hasTwoExploreGroups) ||
-                  (group.id === 'explore-afternoon' && showExploreTeams && hasTwoExploreGroups) ||
-                  (group.id === 'challenge' && showChallengeTeams)"
                 class="mb-3 md:mb-4 liquid-surface-inner rounded-[var(--radius)] p-3"
             >
               <div class="glass-card__heading !mb-2 md:!mb-3 !text-sm md:!text-base flex items-center gap-2">
                 <img
-                    v-if="group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
-                    :alt="programLogoAlt('E')"
-                    :src="programLogoSrc('E')"
-                    class="w-6 h-6 flex-shrink-0"
-                />
-                <img
-                    v-if="group.id === 'challenge' || /FLL Challenge|FIRST LEGO League Challenge/i.test(group.name)"
-                    :alt="programLogoAlt('C')"
-                    :src="programLogoSrc('C')"
+                    v-if="category.type === 'team'"
+                    :alt="itemLogoAlt(group)"
+                    :src="itemLogoSrc(group)"
                     class="w-6 h-6 flex-shrink-0"
                 />
                 <span v-html="formatProgramName(group.name)"></span>
@@ -1478,10 +1230,7 @@ const showChallengeTeams = computed(() => {
               <div v-if="category.type === 'team'" class="mb-2">
                 <label class="flex items-center gap-2 text-xs md:text-sm text-[var(--color-text-muted)] cursor-pointer">
                   <input
-                      :checked="group.id === 'explore-morning' ? bulkModeExploreMorning :
-                          group.id === 'explore-afternoon' ? bulkModeExploreAfternoon :
-                          group.id === 'explore' ? bulkModeExplore :
-                          group.id === 'challenge' ? bulkModeChallenge : false"
+                      :checked="isBulkModeEnabled(group.id)"
                       class="cursor-pointer accent-[var(--color-accent)]"
                       type="checkbox"
                       @change="toggleBulkMode(group.id)"
@@ -1501,9 +1250,9 @@ const showChallengeTeams = computed(() => {
                       @click="openAssignModal(element)"
                   >
                     <img
-                        v-if="programLogoSrc(element.first_program)"
-                        :alt="programLogoAlt(element.first_program)"
-                        :src="programLogoSrc(element.first_program)"
+                        v-if="itemLogoSrc(element)"
+                        :alt="itemLogoAlt(element)"
+                        :src="itemLogoSrc(element)"
                         class="w-3 h-3 flex-shrink-0"
                     />
                     {{ element.name }}
@@ -1517,9 +1266,9 @@ const showChallengeTeams = computed(() => {
                     <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
                     <span class="px-2 py-1 flex items-center gap-1.5">
                       <img
-                          v-if="programLogoSrc(element.first_program)"
-                          :alt="programLogoAlt(element.first_program)"
-                          :src="programLogoSrc(element.first_program)"
+                          v-if="itemLogoSrc(element)"
+                          :alt="itemLogoAlt(element)"
+                          :src="itemLogoSrc(element)"
                           class="w-3 h-3 flex-shrink-0"
                       />
                       <span class="text-[var(--color-text-muted)]">{{ element.number ? `${element.number} | ` : '' }}{{ element.name }}</span>
@@ -1531,40 +1280,7 @@ const showChallengeTeams = computed(() => {
               <!-- Desktop: drag/drop chips -->
               <draggable
                   class="hidden md:flex flex-wrap gap-1.5 md:gap-2"
-                  :list="category.type === 'team' && (
-                    (group.id === 'explore-morning' && bulkModeExploreMorning) ||
-                    (group.id === 'explore-afternoon' && bulkModeExploreAfternoon) ||
-                    (group.id === 'explore' && bulkModeExplore) ||
-                    (group.id === 'challenge' && bulkModeChallenge)
-                  )
-              ? (() => {
-                  let proxyKey, proxyName, firstProgram
-                  if (group.id === 'explore-morning') {
-                    proxyKey = PROXY_EXPLORE_MORNING_KEY
-                    proxyName = 'Alle Explore Vormittag Teams'
-                    firstProgram = 2
-                  } else if (group.id === 'explore-afternoon') {
-                    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-                    proxyName = 'Alle Explore Nachmittag Teams'
-                    firstProgram = 2
-                  } else if (group.id === 'explore') {
-                    proxyKey = PROXY_EXPLORE_KEY
-                    proxyName = 'Alle Explore Teams'
-                    firstProgram = 2
-                  } else {
-                    proxyKey = PROXY_CHALLENGE_KEY
-                    proxyName = 'Alle Challenge Teams'
-                    firstProgram = 3
-                  }
-                  return [{
-                    key: proxyKey,
-                    type: 'team-proxy',
-                    name: proxyName,
-                    first_program: firstProgram,
-                    program: group.id
-                  }].filter(p => !assignments[p.key])
-                })()
-              : group.items.filter(i => !assignments[i.key])"
+                  :list="getUnassignedItems(category, group)"
                   group="assignables"
                   item-key="key"
                   @end="isDragging = false"
@@ -1579,9 +1295,9 @@ const showChallengeTeams = computed(() => {
                       class="glass-program-pill glass-program-pill--interactive text-[11px] md:text-xs"
                   >
                     <img
-                        v-if="programLogoSrc(element.first_program)"
-                        :alt="programLogoAlt(element.first_program)"
-                        :src="programLogoSrc(element.first_program)"
+                        v-if="itemLogoSrc(element)"
+                        :alt="itemLogoAlt(element)"
+                        :src="itemLogoSrc(element)"
                         class="w-3 h-3 flex-shrink-0"
                     />
                     {{ element.name }}
@@ -1597,9 +1313,9 @@ const showChallengeTeams = computed(() => {
                     ></span>
                     <span class="px-2 py-1 flex items-center gap-1">
                       <img
-                          v-if="programLogoSrc(element.first_program)"
-                          :alt="programLogoAlt(element.first_program)"
-                          :src="programLogoSrc(element.first_program)"
+                          v-if="itemLogoSrc(element)"
+                          :alt="itemLogoAlt(element)"
+                          :src="itemLogoSrc(element)"
                           class="w-3 h-3 flex-shrink-0"
                       />
                       {{ element.name }}
@@ -1616,9 +1332,9 @@ const showChallengeTeams = computed(() => {
                     ></span>
                     <span class="px-2 py-1 flex items-center gap-1.5">
                       <img
-                          v-if="programLogoSrc(element.first_program)"
-                          :alt="programLogoAlt(element.first_program)"
-                          :src="programLogoSrc(element.first_program)"
+                          v-if="itemLogoSrc(element)"
+                          :alt="itemLogoAlt(element)"
+                          :src="itemLogoSrc(element)"
                           class="w-3 h-3 flex-shrink-0"
                       />
                       <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>

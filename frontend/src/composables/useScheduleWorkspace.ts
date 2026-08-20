@@ -12,6 +12,7 @@ import {
   subscribePlanPreviewMessages,
   PLAN_PREVIEW_CHANNEL,
 } from '@/utils/planPreviewSync'
+import { eventPrograms, programId } from '@/utils/eventPrograms'
 
 const SPECIAL_KEYS = new Set([
   'e1_teams', 'e2_teams',
@@ -41,6 +42,12 @@ const bootstrapped = ref(false)
 
 const showExplore = ref(true)
 const showChallenge = ref(true)
+
+const attachedPrograms = computed(() => eventPrograms(selectedEvent.value))
+
+const attachedProgramIds = computed(() =>
+  new Set(attachedPrograms.value.map(programId).filter((id) => id > 0))
+)
 
 const isGenerating = ref(false)
 const generatorError = ref<string | null>(null)
@@ -150,17 +157,27 @@ const disabledMap = computed<Record<number, boolean>>(() => {
   return map
 })
 
-const expertParams = computed(() =>
-  parameters.value
-    .filter((p: Parameter) => {
-      if (p.context !== 'expert') return false
-      if (p.level === 3) return false
-      if (p.first_program === 2 && !showExplore.value) return false
-      if (p.first_program === 3 && !showChallenge.value) return false
-      return true
-    })
-    .sort((a: Parameter, b: Parameter) => (a.first_program || 0) - (b.first_program || 0))
-)
+function isAttachedProgramParam(param: Parameter): boolean {
+  const id = Number(param.first_program || 0)
+  if (id <= 0) return true
+  return attachedProgramIds.value.has(id)
+}
+
+const expertParamsByProgramId = computed(() => {
+  const ids = attachedProgramIds.value
+  const map: Record<number, Parameter[]> = {}
+  for (const param of parameters.value) {
+    if (param.context !== 'expert' || param.level === 3) continue
+    const id = Number(param.first_program || 0)
+    if (!ids.has(id)) continue
+    if (!map[id]) map[id] = []
+    map[id].push(param)
+  }
+  for (const list of Object.values(map)) {
+    list.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+  }
+  return map
+})
 
 function isTimeParam(param: Parameter) {
   return (
@@ -175,9 +192,7 @@ const finaleInputParams = computed(() =>
       p.level === 3 &&
       p.context === 'input' &&
       !isSpecial(p) &&
-      ((p.first_program === 2 && showExplore.value) ||
-        (p.first_program === 3 && showChallenge.value) ||
-        (p.first_program !== 2 && p.first_program !== 3))
+      isAttachedProgramParam(p)
     )
     .sort((a: Parameter, b: Parameter) => (a.sequence || 0) - (b.sequence || 0))
 )
@@ -189,22 +204,9 @@ const finaleExpertParams = computed(() =>
       p.context === 'expert' &&
       !isTimeParam(p) &&
       !isSpecial(p) &&
-      ((p.first_program === 2 && showExplore.value) ||
-        (p.first_program === 3 && showChallenge.value) ||
-        (p.first_program !== 2 && p.first_program !== 3))
+      isAttachedProgramParam(p)
     )
     .sort((a: Parameter, b: Parameter) => (a.sequence || 0) - (b.sequence || 0))
-)
-
-const expertParamsGrouped = computed(() =>
-  expertParams.value
-    .sort((a: Parameter, b: Parameter) => (a.sequence ?? 0) - (b.sequence ?? 0))
-    .reduce((acc: Record<string, Parameter[]>, param: Parameter) => {
-      const key = param.program_name || 'Unassigned'
-      if (!acc[key]) acc[key] = []
-      acc[key].push(param)
-      return acc
-    }, {} as Record<string, Parameter[]>)
 )
 
 let saveApi: ReturnType<typeof useDebouncedSave> | null = null
@@ -532,6 +534,7 @@ export function useScheduleWorkspace() {
     loading,
     showExplore,
     showChallenge,
+    attachedPrograms,
     isGenerating,
     generatorError,
     errorDetails,
@@ -543,7 +546,7 @@ export function useScheduleWorkspace() {
     tableNames,
     visibilityMap,
     disabledMap,
-    expertParamsGrouped,
+    expertParamsByProgramId,
     finaleInputParams,
     finaleExpertParams,
     PLAN_PREVIEW_CHANNEL,

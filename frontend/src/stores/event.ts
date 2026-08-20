@@ -3,6 +3,7 @@ import axios from "axios"
 import FllEvent  from "@/models/FllEvent"
 import {DrahtService} from "@/services/drahtService"
 import {usePlanCacheStore} from '@/stores/planCache'
+import {setEventProgramLogos} from '@/utils/images'
 
 interface EventStoreState {
   selectedEvent: FllEvent | null
@@ -29,6 +30,7 @@ export const useEventStore = defineStore('event', {
             this.selectedEvent = null
             this.selectedEventId = undefined
             this.readiness = null
+            setEventProgramLogos([])
         },
 
         async fetchCurrentSeasonId(): Promise<number | null> {
@@ -92,6 +94,7 @@ export const useEventStore = defineStore('event', {
                 }
 
                 this.selectedEvent = event
+                setEventProgramLogos(event.programs)
                 this.staleSeasonCleared = false
             } catch (error) {
                 console.error('Failed to fetch selected event', error)
@@ -112,6 +115,7 @@ export const useEventStore = defineStore('event', {
                 await this.loadDrahtTeamData(event)
                 
                 this.selectedEvent = event
+                setEventProgramLogos(event.programs)
             } catch (error) {
                 console.error('Failed to update selected event', error)
             }
@@ -124,6 +128,7 @@ export const useEventStore = defineStore('event', {
                 event.drahtTeamsExplore = teamCounts.exploreCount
                 event.drahtTeamsChallenge = teamCounts.challengeCount
                 event.hasTeamDiscrepancy = teamCounts.hasDiscrepancy
+                event.discrepancyByProgram = teamCounts.discrepancyByProgram
                 event.drahtCapacityExplore = teamCounts.exploreCapacity
                 event.drahtCapacityChallenge = teamCounts.challengeCapacity
 
@@ -134,6 +139,7 @@ export const useEventStore = defineStore('event', {
                             drahtTeamsExplore: teamCounts.exploreCount,
                             drahtTeamsChallenge: teamCounts.challengeCount,
                             hasTeamDiscrepancy: teamCounts.hasDiscrepancy,
+                            discrepancyByProgram: teamCounts.discrepancyByProgram,
                             drahtCapacityExplore: teamCounts.exploreCapacity,
                             drahtCapacityChallenge: teamCounts.challengeCapacity
                         }
@@ -144,6 +150,7 @@ export const useEventStore = defineStore('event', {
                 event.drahtTeamsExplore = 0
                 event.drahtTeamsChallenge = 0
                 event.hasTeamDiscrepancy = false
+                event.discrepancyByProgram = {}
                 event.drahtCapacityExplore = 0
                 event.drahtCapacityChallenge = 0
 
@@ -154,6 +161,7 @@ export const useEventStore = defineStore('event', {
                             drahtTeamsExplore: 0,
                             drahtTeamsChallenge: 0,
                             hasTeamDiscrepancy: false,
+                            discrepancyByProgram: {},
                             drahtCapacityExplore: 0,
                             drahtCapacityChallenge: 0
                         }

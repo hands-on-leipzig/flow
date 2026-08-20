@@ -233,41 +233,49 @@ class KeycloakJwtMiddleware
                 'dolibarr_id' => 2002
             ]);
 
-            // Create test events
-            $eventIds = DB::table('event')->insertGetId([
-                [
-                    'name' => 'Test Explore Event - Test Regional Partner A',
-                    'regional_partner' => $rpAId,
-                    'season' => $latestSeason->id,
-                    'level' => $level->id,
-                    'date' => now()->addDays(30),
-                    'days' => 1,
-                    'slug' => 'test-explore-event-a',
-                    'event_explore' => 1001,
-                    'event_challenge' => null
-                ],
-                [
-                    'name' => 'Test Challenge Event - Test Regional Partner A',
-                    'regional_partner' => $rpAId,
-                    'season' => $latestSeason->id,
-                    'level' => $level->id,
-                    'date' => now()->addDays(45),
-                    'days' => 1,
-                    'slug' => 'test-challenge-event-a',
-                    'event_explore' => null,
-                    'event_challenge' => 1002
-                ],
-                [
-                    'name' => 'Test Combined Event - Test Regional Partner B',
-                    'regional_partner' => $rpBId,
-                    'season' => $latestSeason->id,
-                    'level' => $level->id,
-                    'date' => now()->addDays(60),
-                    'days' => 1,
-                    'slug' => 'test-combined-event-b',
-                    'event_explore' => 1003,
-                    'event_challenge' => 1004
-                ]
+            // Create test events, then attach programs (post event_program migration)
+            $exploreEventId = DB::table('event')->insertGetId([
+                'name' => 'Test Explore Event - Test Regional Partner A',
+                'regional_partner' => $rpAId,
+                'season' => $latestSeason->id,
+                'level' => $level->id,
+                'date' => now()->addDays(30),
+                'days' => 1,
+                'slug' => 'test-explore-event-a',
+            ]);
+            DB::table('event_program')->insert([
+                'event' => $exploreEventId,
+                'first_program' => 2,
+                'draht_id' => 1001,
+            ]);
+
+            $challengeEventId = DB::table('event')->insertGetId([
+                'name' => 'Test Challenge Event - Test Regional Partner A',
+                'regional_partner' => $rpAId,
+                'season' => $latestSeason->id,
+                'level' => $level->id,
+                'date' => now()->addDays(45),
+                'days' => 1,
+                'slug' => 'test-challenge-event-a',
+            ]);
+            DB::table('event_program')->insert([
+                'event' => $challengeEventId,
+                'first_program' => 3,
+                'draht_id' => 1002,
+            ]);
+
+            $combinedEventId = DB::table('event')->insertGetId([
+                'name' => 'Test Combined Event - Test Regional Partner B',
+                'regional_partner' => $rpBId,
+                'season' => $latestSeason->id,
+                'level' => $level->id,
+                'date' => now()->addDays(60),
+                'days' => 1,
+                'slug' => 'test-combined-event-b',
+            ]);
+            DB::table('event_program')->insert([
+                ['event' => $combinedEventId, 'first_program' => 2, 'draht_id' => 1003],
+                ['event' => $combinedEventId, 'first_program' => 3, 'draht_id' => 1004],
             ]);
 
             Log::info("Created test regional partners and events", [

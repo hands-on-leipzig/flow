@@ -8,14 +8,20 @@ import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import {getProgramTheme} from '@/utils/programTheme'
 import SavingToast from "@/components/atoms/SavingToast.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
+import {drahtIdFor, programMatchesSlug} from '@/utils/eventPrograms'
 
 
 const props = defineProps({
-  program: {type: String, required: true}, // 'explore' | 'challenge' | 'future8'
+  program: {type: String, required: true},
   remoteTeams: {type: Array, default: () => []},
+  /** DRAHT venue capacity for this program (optional). */
+  remoteCapacity: {type: Number, default: 0},
   /** List left (2/3) + export/tools right (1/3) */
   split: {type: Boolean, default: false},
 })
+
+const isExplore = computed(() => programMatchesSlug(props.program, 'explore'))
+const isChallenge = computed(() => programMatchesSlug(props.program, 'challenge'))
 
 const programTheme = computed(() => getProgramTheme(props.program))
 const programLabel = computed(() => programTheme.value.shortName)
@@ -371,15 +377,15 @@ const diffCount = computed(() =>
 
 // Computed: Get plan capacity for current program
 const planCapacity = computed(() => {
-  return props.program === 'explore' ? planParams.value.e_teams : planParams.value.c_teams
+  if (isExplore.value) return planParams.value.e_teams
+  if (isChallenge.value) return planParams.value.c_teams
+  return props.remoteTeams.length
 })
 
 // Computed: Get enrolled count for current program
-const enrolledCount = computed(() => {
-  return props.program === 'explore'
-      ? (event.value?.drahtTeamsExplore || 0)
-      : (event.value?.drahtTeamsChallenge || 0)
-})
+const enrolledCount = computed(() => props.remoteTeams.length)
+
+const venueCapacity = computed(() => Number(props.remoteCapacity || 0))
 
 // Computed: Get placeholder rows if plan > enrolled
 const placeholderRows = computed(() => {
@@ -407,7 +413,7 @@ const teamsBeyondCapacity = computed(() => {
 
 // Computed: Check if we have 2x Explore groups (e_mode = 5 DECOUPLED_BOTH or 8 HYBRID_BOTH)
 const hasTwoExploreGroups = computed(() => {
-  return props.program === 'explore' && (planParams.value.e_mode === 5 || planParams.value.e_mode === 8)
+  return isExplore.value && (planParams.value.e_mode === 5 || planParams.value.e_mode === 8)
 })
 
 // Function: Determine if a team belongs to morning or afternoon group
@@ -775,9 +781,7 @@ onMounted(async () => {
     teamsDiffer.value = JSON.stringify(localTeams.value) !== JSON.stringify(props.remoteTeams)
 
     // Fetch people data from DRAHT API
-    const drahtEventId = props.program === 'explore'
-        ? event.value?.event_explore
-        : event.value?.event_challenge
+    const drahtEventId = drahtIdFor(event.value, props.program)
 
     if (drahtEventId) {
       try {
@@ -814,8 +818,8 @@ onMounted(async () => {
     <div class="team-list__main glass-card liquid-surface-inner">
       <div class="flex items-start sm:items-center gap-2 mb-2">
         <img
-            :alt="programLogoAlt(programTheme.logoKey || program)"
-            :src="programLogoSrc(programTheme.logoKey || program)"
+            :alt="programLogoAlt(program)"
+            :src="programLogoSrc(program)"
             class="w-10 h-10 flex-shrink-0"
         />
         <div>
@@ -825,13 +829,11 @@ onMounted(async () => {
           <div class="text-sm text-[var(--color-text-subtle)] flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <span>
               <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">Plan für: {{
-                  program === 'explore' ? planParams.e_teams : planParams.c_teams
+                  planCapacity
                 }}</span>, <span
                 :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">Angemeldet: {{
-                program === 'explore' ? event?.drahtTeamsExplore || 0 : event?.drahtTeamsChallenge || 0
-              }}</span>, Kapazität: {{
-                program === 'explore' ? event?.drahtCapacityExplore || 0 : event?.drahtCapacityChallenge || 0
-              }}
+                enrolledCount
+              }}</span>, Kapazität: {{ venueCapacity }}
             </span>
             <!-- Color code indicators for 2x Explore -->
             <template v-if="hasTwoExploreGroups">

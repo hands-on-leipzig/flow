@@ -39,6 +39,8 @@ import PublicScores from "@/components/PublicScores.vue";
 import Profile from "@/components/Profile.vue";
 import AccessManagement from "@/components/AccessManagement.vue";
 import {useEventStore} from "@/stores/event";
+import {useProgramsStore} from "@/stores/programs";
+import {firstTeamsPath} from "@/utils/eventPrograms";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
 import '@hands-on/glass/styles.css'
@@ -74,11 +76,9 @@ const routes = [
             {
                 path: 'teams',
                 component: Teams,
-                redirect: '/plan/teams/explore',
+                redirect: () => firstTeamsPath(useEventStore().selectedEvent),
                 children: [
-                    {path: 'explore', name: 'teams-explore', component: TeamsProgram, meta: {program: 'explore'}},
-                    {path: 'challenge', name: 'teams-challenge', component: TeamsProgram, meta: {program: 'challenge'}},
-                    {path: 'future8', name: 'teams-future8', component: TeamsProgram, meta: {program: 'future8'}},
+                    {path: ':program', name: 'teams-program', component: TeamsProgram},
                 ],
             },
             {path: 'logos', redirect: '/plan/publish/logos'},
@@ -115,10 +115,10 @@ const routes = [
     {path: '/schedule/free', redirect: '/plan/schedule/free'},
     {path: '/slots', redirect: '/plan/schedule/slots'},
     {path: '/schedule/slots', redirect: '/plan/schedule/slots'},
-    {path: '/teams', redirect: '/plan/teams/explore'},
+    {path: '/teams', redirect: '/plan/teams'},
     {path: '/teams/explore', redirect: '/plan/teams/explore'},
     {path: '/teams/challenge', redirect: '/plan/teams/challenge'},
-    {path: '/teams/future8', redirect: '/plan/teams/future8'},
+    {path: '/teams/future8', redirect: '/plan/teams/future_8'},
     {path: '/logos', redirect: '/plan/publish/logos'},
     {path: '/events', redirect: '/plan/events'},
     {path: '/rooms', redirect: '/plan/rooms'},
@@ -162,6 +162,8 @@ function isTodayWithinEvent(event) {
 }
 
 router.beforeEach(async (to, from, next) => {
+    await useProgramsStore().ensureLoaded()
+
     // Allow public routes (including unauthorized page)
     if (to.meta?.public || to.path === '/unauthorized') {
         next();

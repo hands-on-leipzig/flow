@@ -7,7 +7,8 @@ import {
   parseBerlinWallTime,
   projectClockOntoBerlinDay,
 } from '@/utils/dateTimeFormat'
-import {imageUrl, programLogoAlt, programLogoSrc} from '@/utils/images'
+import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import {PROGRAM_COLOR_HEX} from '@/utils/programTheme'
 
 const props = defineProps<{
   planId: number | string
@@ -25,7 +26,9 @@ type Role = {
   id: number
   name: string
   first_program: number | null
+  first_program_name?: string | null
   color_hex: string
+  logo_stem?: string | null
   logo_white: string
   differentiation_parameter: string | null
   options: RoleOption[]
@@ -160,8 +163,8 @@ type RoleSection = {
 /** Sections for the flat role picker (Challenge → Explore → Allgemein) */
 const roleSections = computed((): RoleSection[] => {
   const buckets: Record<RoleSection['key'], RoleSection> = {
-    challenge: {key: 'challenge', label: 'Challenge', accent: '#ED1C24', roles: []},
-    explore: {key: 'explore', label: 'Explore', accent: '#00A651', roles: []},
+    challenge: {key: 'challenge', label: 'Challenge', accent: PROGRAM_COLOR_HEX.CHALLENGE, roles: []},
+    explore: {key: 'explore', label: 'Explore', accent: PROGRAM_COLOR_HEX.EXPLORE, roles: []},
     general: {key: 'general', label: 'Allgemein', accent: '#6b7280', roles: []},
   }
 
@@ -218,10 +221,8 @@ function clockLabel(ms: number = nowMs.value) {
   return formatBerlinTimeOnly(ms)
 }
 
-function programLogo(firstProgram: number | null | undefined) {
-  if (firstProgram === 2) return programLogoSrc('E')
-  if (firstProgram === 3) return programLogoSrc('C')
-  return imageUrl('/flow/first+fll_v.png')
+function programLogo(role: Role | null | undefined) {
+  return programLogoSrc(role)
 }
 
 function durationLabel(minutes: number): string {
@@ -1108,8 +1109,8 @@ watch(
             >
               <img
                   v-if="selectedRoleMeta"
-                  :src="programLogo(selectedRoleMeta.first_program)"
-                  :alt="programLogoAlt(selectedRoleMeta.first_program || '')"
+                  :src="programLogo(selectedRoleMeta)"
+                  :alt="programLogoAlt(selectedRoleMeta)"
                   class="public-schedule__role-chip-logo"
               />
               <i
@@ -1375,8 +1376,8 @@ watch(
                         aria-hidden="true"
                     />
                     <img
-                        :src="programLogo(role.first_program)"
-                        :alt="programLogoAlt(role.first_program || '')"
+                        :src="programLogo(role)"
+                        :alt="programLogoAlt(role)"
                         class="public-schedule__role-logo"
                     />
                     <span class="public-schedule__role-name">{{ role.name }}</span>

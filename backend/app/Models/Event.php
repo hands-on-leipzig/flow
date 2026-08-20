@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use App\Support\ProgramCatalog;
 
 class Event extends Model
 {
@@ -14,10 +15,6 @@ class Event extends Model
         'id',
         'name',
         'slug',
-        'event_explore',
-        'event_challenge',
-        'contao_id_explore',
-        'contao_id_challenge',
         'regional_partner',
         'level',
         'season',
@@ -33,6 +30,8 @@ class Event extends Model
         'needs_attention_checked_at'
     ];
 
+    protected $with = ['programs'];
+
     public function regionalPartner()
     {
         return $this->belongsTo(RegionalPartner::class, 'regional_partner');
@@ -46,6 +45,14 @@ class Event extends Model
     public function levelRel()
     {
         return $this->belongsTo(MLevel::class, 'level');
+    }
+
+    public function programs()
+    {
+        return $this->hasMany(EventProgram::class, 'event')
+            // Catalog order lives on m_first_program.sequence, not event_program.first_program.
+            ->orderByRaw(ProgramCatalog::sequenceOrderSql('event_program.first_program'))
+            ->orderBy('first_program');
     }
 
     public function logos()

@@ -89,9 +89,12 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     <th style="width: 10%; background-color: #f8f9fa; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold;">Zeit</th>';
         
         // Dynamic column headers with merged cells
+        $exploreColor = \App\Support\ProgramCatalog::colorCss('EXPLORE', '00A651');
+        $challengeColor = \App\Support\ProgramCatalog::colorCss('CHALLENGE', 'ED1C24');
+
         $columnColors = [
-            'Explore' => '#27ae60',
-            'Challenge' => '#e74c3c', 
+            'Explore' => $exploreColor,
+            'Challenge' => $challengeColor, 
             'Live Challenge' => '#8e44ad',
             'Robot-Game' => '#f39c12',
             'Allgemein' => '#95a5a6'
@@ -130,8 +133,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
             return 'data:' . $mime . ';base64,' . base64_encode($data);
         };
         $hotHeaderLogo = $toDataUri(public_path('flow/hot.png'));
-        $exploreHeaderLogo = $toDataUri(public_path('flow/fll_explore_h.png'));
-        $challengeHeaderLogo = $toDataUri(public_path('flow/fll_challenge_h.png'));
+        $exploreHeaderLogo = $toDataUri(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'h'));
+        $challengeHeaderLogo = $toDataUri(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'h'));
         
         
         // Check if columns exist to determine merge behavior
@@ -314,8 +317,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 // Get color based on the event's actual overview_plan_column, not the column name
                 $eventColumn = $event['group_overview_plan_column'] ?? 'Allgemein';
                 $columnColors = [
-                    'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
-                    'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
+                    'Explore' => ['bg' => '#e6f7ee', 'border' => $exploreColor],
+                    'Challenge' => ['bg' => '#fde8e9', 'border' => $challengeColor],
                     'Live Challenge' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
                     'Robot-Game' => ['bg' => '#fef5e7', 'border' => '#f39c12'],
                     'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']

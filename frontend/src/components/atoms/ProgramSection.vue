@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {computed} from 'vue'
-import {getProgramTheme, type ProgramKey} from '@/utils/programTheme'
+import {getProgramTheme} from '@/utils/programTheme'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
 const props = withDefaults(
     defineProps<{
-      program: ProgramKey
+      program: string
       /** When false, section stays visible but visually muted (program off). */
       active?: boolean
       showLogo?: boolean
@@ -24,7 +24,7 @@ const props = withDefaults(
 
 const theme = computed(() => getProgramTheme(props.program))
 const heading = computed(() => props.title || props.shortName || theme.value.shortName)
-const showLogoImg = computed(() => props.showLogo && !!theme.value.logoKey)
+const showLogoImg = computed(() => props.showLogo && !!theme.value.catalogName)
 const subtitleText = computed(() => {
   if (props.subtitle) return props.subtitle
   if (props.title) return null
@@ -43,8 +43,8 @@ const subtitleText = computed(() => {
       <div class="program-section__identity">
         <div v-if="showLogoImg" class="program-section__logo-wrap" aria-hidden="true">
           <img
-              :alt="programLogoAlt(theme.logoKey)"
-              :src="programLogoSrc(theme.logoKey)"
+              :alt="programLogoAlt(theme.catalogName)"
+              :src="programLogoSrc(theme.catalogName)"
               class="program-section__logo"
           />
         </div>
