@@ -3259,51 +3259,33 @@ class PlanExportController extends Controller
         // Wenn kein RoomType ohne Mapping gefunden → alles gut
         $hasUnmappedRooms = ! empty($unmappedList);
 
-        // Check if all teams have a room assigned
-
-        // --- Team-Mapping prüfen ---
+        // --- Team-Mapping prüfen (every attached program) ---
         $teamController = app(TeamController::class);
-
         $event = Event::find($eventId);
+        $event?->loadMissing('programs');
 
-        // Explore Teams
-        $requestExplore = new \Illuminate\Http\Request;
-        $requestExplore->query->set('program', 'explore');
-        $exploreResponse = $teamController->index($requestExplore, $event);
-        $exploreData = $exploreResponse->getData(true);
-        // Handle both array format (challenge) and object format (explore with metadata)
-        $exploreTeamsArray = is_array($exploreData) && ! isset($exploreData['teams'])
-            ? $exploreData
-            : ($exploreData['teams'] ?? []);
-        $exploreTeams = collect($exploreTeamsArray);
+        $allTeamsHaveRooms = true;
+        foreach ($event?->programs ?? [] as $program) {
+            $request = new Request;
+            $request->query->set('program', (string) $program->first_program);
+            $response = $teamController->index($request, $event);
+            $data = $response->getData(true);
+            $teams = is_array($data) && ! isset($data['teams'])
+                ? collect($data)
+                : collect($data['teams'] ?? []);
 
-        // Log::debug('Explore Teams:', $exploreTeams->toArray());
-
-        // Challenge Teams
-        $requestChallenge = new \Illuminate\Http\Request;
-        $requestChallenge->query->set('program', 'challenge');
-        $challengeResponse = $teamController->index($requestChallenge, $event);
-        $challengeData = $challengeResponse->getData(true);
-        // Challenge teams are returned as direct array
-        $challengeTeams = collect($challengeData);
-
-        // Log::debug('Challenge Teams:', $challengeTeams->toArray());
-
-        // Prüfen, ob alle Teams einen Raum haben
-        $exploreWithoutRoom = $exploreTeams->whereNull('room')->count();
-        $challengeWithoutRoom = $challengeTeams->whereNull('room')->count();
-
-        $allExploreRoomsOk = $exploreTeams->isEmpty() || $exploreWithoutRoom === 0;
-        $allChallengeRoomsOk = $challengeTeams->isEmpty() || $challengeWithoutRoom === 0;
+            $withoutRoom = $teams->whereNull('room')->count();
+            $allTeamsHaveRooms = $allTeamsHaveRooms && ($teams->isEmpty() || $withoutRoom === 0);
+        }
 
         // --- Ergebnis zusammensetzen ---
         $result = [
             'explore_teams_ok' => ($plannedExploreTeams === $registeredExploreTeams),
             'challenge_teams_ok' => ($plannedChallengeTeams === $registeredChallengeTeams),
-            'room_mapping_ok' => ! $hasUnmappedRooms && $allExploreRoomsOk && $allChallengeRoomsOk,
+            'room_mapping_ok' => ! $hasUnmappedRooms && $allTeamsHaveRooms,
             'room_mapping_details' => [
                 'activities_ok' => ! $hasUnmappedRooms,
-                'teams_ok' => $allExploreRoomsOk && $allChallengeRoomsOk,
+                'teams_ok' => $allTeamsHaveRooms,
             ],
         ];
 

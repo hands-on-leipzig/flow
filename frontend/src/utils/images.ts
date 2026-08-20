@@ -10,29 +10,29 @@ export function imageUrl(path: string) {
 
 // FIRST program Logo als img-Tag zurückgeben
 export function programLogoSrc(first_program: string | number, orientation: 'v' | 'h' = 'v') {
-  const key = String(first_program || '').toLowerCase()
+  const compact = String(first_program || '').toLowerCase().replace(/[_-\s]/g, '')
 
-  if (['2', 'e', 'explore'].includes(key)) {
+  if (['2', 'e', 'explore'].includes(compact)) {
     return imageUrl(`/flow/fll_explore_${orientation}.png`)
   }
-  if (['3', 'c', 'challenge'].includes(key)) {
+  if (['3', 'c', 'challenge'].includes(compact)) {
     return imageUrl(`/flow/fll_challenge_${orientation}.png`)
   }
-  if (['8', 'f8', 'future8', 'future_8', 'future-8'].includes(key)) {
+  if (['8', 'f8', 'future8'].includes(compact)) {
     return imageUrl(`/flow/fll_future8_${orientation}.png`)
   }
   return imageUrl(`/flow/first+fll_${orientation}.png`)
 }
 
 export function programLogoAlt(first_program: string | number) {
-  const key = String(first_program || '').toLowerCase()
+  const compact = String(first_program || '').toLowerCase().replace(/[_-\s]/g, '')
 
-  if (['2', 'e', 'explore'].includes(key)) return 'FIRST LEGO League Explore Logo'
-  if (['3', 'c', 'challenge'].includes(key)) return 'FIRST LEGO League Challenge Logo'
-  if (['8', 'f8', 'future8', 'future_8', 'future-8'].includes(key)) {
+  if (['2', 'e', 'explore'].includes(compact)) return 'FIRST LEGO League Explore Logo'
+  if (['3', 'c', 'challenge'].includes(compact)) return 'FIRST LEGO League Challenge Logo'
+  if (['8', 'f8', 'future8'].includes(compact)) {
     return 'FIRST LEGO League Future 8+ Logo'
   }
-  if (['7', 'f5', 'future5', 'future_5', 'future-5'].includes(key)) {
+  if (['7', 'f5', 'future5'].includes(compact)) {
     return 'FIRST LEGO League Future 5+ Logo'
   }
   return 'FIRST LEGO League Logo'

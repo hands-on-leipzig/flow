@@ -86,6 +86,15 @@ export function findProgram(
   return eventPrograms(event).find((row) => programMatchesSlug(row.name, slugOrName))
 }
 
+export function programNameForId(
+  event: EventWithPrograms | null | undefined,
+  firstProgramId: number | string | null | undefined
+): string | null {
+  const id = Number(firstProgramId)
+  if (!id) return null
+  return eventPrograms(event).find((row) => Number(row.first_program) === id)?.name ?? null
+}
+
 export function drahtIdFor(
   event: EventWithPrograms | null | undefined,
   name: string
