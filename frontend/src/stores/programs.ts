@@ -6,6 +6,7 @@ import {setProgramLogoCatalog} from '@/utils/images'
 
 interface ProgramsStoreState {
   catalog: EventProgramRef[]
+  afternoonFirstPrograms: number[]
   loaded: boolean
   loading: Promise<void> | null
 }
@@ -13,6 +14,7 @@ interface ProgramsStoreState {
 export const useProgramsStore = defineStore('programs', {
   state: (): ProgramsStoreState => ({
     catalog: [],
+    afternoonFirstPrograms: [],
     loaded: false,
     loading: null,
   }),
@@ -34,8 +36,11 @@ export const useProgramsStore = defineStore('programs', {
 
     async fetch(): Promise<void> {
       try {
-        const {data} = await axios.get<any[]>('/programs')
-        this.catalog = (Array.isArray(data) ? data : []).map((program) => ({
+        const [{data: programData}, {data: afternoonData}] = await Promise.all([
+          axios.get<any[]>('/programs'),
+          axios.get<{first_programs?: number[]}>('/parameter/afternoon-programs'),
+        ])
+        this.catalog = (Array.isArray(programData) ? programData : []).map((program) => ({
           id: program.id,
           first_program: program.id,
           name: program.name,
@@ -46,6 +51,9 @@ export const useProgramsStore = defineStore('programs', {
           logo_stem: program.logo_stem ?? null,
           logo_white: program.logo_white ?? null,
         }))
+        this.afternoonFirstPrograms = Array.isArray(afternoonData?.first_programs)
+          ? afternoonData.first_programs.map(Number).filter((id) => id > 0)
+          : []
         setProgramIdentityCatalog(this.catalog)
         setProgramLogoCatalog(this.catalog)
         this.loaded = true

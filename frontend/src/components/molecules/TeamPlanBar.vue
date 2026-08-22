@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 
 const props = defineProps<{
   planTeams: number
@@ -13,6 +13,11 @@ const props = defineProps<{
 const trackRef = ref<HTMLElement | null>(null)
 const dragging = ref(false)
 
+const maxPlan = computed(() => {
+  if (props.capacity > 0) return Math.min(props.maxTeams, props.capacity)
+  return props.maxTeams
+})
+
 const fillPct = computed(() => {
   if (props.capacity <= 0) return 0
   return (props.registeredTeams / props.capacity) * 100
@@ -20,13 +25,15 @@ const fillPct = computed(() => {
 
 const handlePct = computed(() => {
   if (props.capacity <= 0) return 0
-  return (props.planTeams / props.capacity) * 100
+  return Math.min(100, (props.planTeams / props.capacity) * 100)
 })
 
 const labelOnLeft = computed(() => handlePct.value > 50)
 
+const overEnrolled = computed(() => props.registeredTeams > props.planTeams)
+
 function clampPlan(value: number): number {
-  return Math.min(props.maxTeams, Math.max(props.minTeams, Math.round(value)))
+  return Math.min(maxPlan.value, Math.max(props.minTeams, Math.round(value)))
 }
 
 function valueFromClientX(clientX: number): number {
@@ -34,7 +41,7 @@ function valueFromClientX(clientX: number): number {
   if (!track || props.capacity <= 0) return props.planTeams
   const rect = track.getBoundingClientRect()
   if (rect.width <= 0) return props.planTeams
-  const ratio = (clientX - rect.left) / rect.width
+  const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
   return clampPlan(ratio * props.capacity)
 }
 
@@ -42,6 +49,16 @@ function commit(value: number) {
   if (value === props.planTeams) return
   props.onUpdate(value)
 }
+
+watch(
+    () => [props.planTeams, props.capacity, props.minTeams, props.maxTeams] as const,
+    () => {
+      if (props.capacity <= 0) return
+      if (props.planTeams <= props.capacity) return
+      commit(clampPlan(props.planTeams))
+    },
+    {immediate: true}
+)
 
 function onPointerDown(event: PointerEvent) {
   if (event.button !== 0) return
@@ -69,7 +86,11 @@ function onPointerUp() {
         aria-hidden="true"
     >
       <div class="plan-bar__plan" :style="{ width: handlePct + '%' }"/>
-      <div class="plan-bar__fill" :style="{ width: fillPct + '%' }"/>
+      <div
+          class="plan-bar__fill"
+          :class="{ 'plan-bar__fill--over': overEnrolled }"
+          :style="{ width: fillPct + '%' }"
+      />
       <span class="plan-bar__end plan-bar__end--min">Angemeldet {{ registeredTeams }}</span>
       <span class="plan-bar__end plan-bar__end--max">Kapazität {{ capacity }}</span>
     </div>
@@ -80,7 +101,7 @@ function onPointerUp() {
         role="slider"
         tabindex="0"
         :aria-valuemin="minTeams"
-        :aria-valuemax="maxTeams"
+        :aria-valuemax="maxPlan"
         :aria-valuenow="planTeams"
         :aria-label="`Plan für ${planTeams} Teams`"
         @pointerdown="onPointerDown"
@@ -121,8 +142,12 @@ function onPointerUp() {
   position: absolute;
   inset: 0 auto 0 0;
   z-index: 1;
-  background: color-mix(in srgb, #3b82f6 18%, transparent);
+  background: #fef5e7;
   pointer-events: none;
+}
+
+.plan-bar__fill--over {
+  background: color-mix(in srgb, #dc2626 16%, transparent);
 }
 
 .plan-bar__end {

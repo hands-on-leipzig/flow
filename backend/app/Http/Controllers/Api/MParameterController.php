@@ -35,7 +35,7 @@ class MParameterController extends Controller
             'name'           => 'nullable|string|max:255',
             'ui_label'       => 'nullable|string|max:255',
             'ui_description' => 'nullable|string',
-            'context'        => 'nullable|in:input,expert,protected,finale',
+            'context'        => 'nullable|in:input,expert,protected,finale,afternoon',
             'level'          => 'required|integer',
             'type'           => 'nullable|in:integer,decimal,time,date,boolean',
             'first_program'  => 'nullable|integer',

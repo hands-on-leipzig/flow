@@ -547,6 +547,7 @@ export function useScheduleWorkspace() {
     tableNames,
     visibilityMap,
     disabledMap,
+    paramMap,
     expertParamsByProgramId,
     finaleInputParams,
     finaleExpertParams,

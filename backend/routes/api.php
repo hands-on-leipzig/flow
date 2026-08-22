@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AfternoonController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
@@ -278,11 +279,14 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/', [ParameterController::class, 'index']);
         Route::get('/condition', [ParameterController::class, 'listConditions']);
         Route::get('/lanes-options', [ParameterController::class, 'listLanesOptions']);
+        Route::get('/afternoon-programs', [ParameterController::class, 'afternoonPrograms']);
         Route::post('/condition', [ParameterController::class, 'addCondition']);
         Route::put('/condition/{id}', [ParameterController::class, 'updateCondition']);
         Route::delete('/condition/{id}', [ParameterController::class, 'deleteCondition']);
     });
     Route::get('/parameters/visibility', [ParameterController::class, 'visibility']);
+    Route::get('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'blocks']);
+    Route::put('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'updateOrder']);
 
     Route::prefix('mparams')->group(function () {
         Route::get('/', [MParameterController::class, 'listMparameter']);

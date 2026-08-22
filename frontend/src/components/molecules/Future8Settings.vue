@@ -52,8 +52,6 @@ const hasFuture8Plans = computed(() =>
 
 const fieldChoices = computed(() => intChoices(paramMapByName.value['f8_fields']))
 
-const extraRoundChoices = computed(() => intChoices(paramMapByName.value['f8_extra_rounds']))
-
 const fieldVariantsForTeams = computed<number[]>(() => {
   if (!hasFuture8Plans.value) return fieldChoices.value
   const idx = future8Index.value
@@ -132,11 +130,6 @@ const lanePalette = computed(() => {
 const f8FieldsProxy = computed<number>({
   get: () => Number(paramMapByName.value['f8_fields']?.value || 0),
   set: (val) => updateByName('f8_fields', val),
-})
-
-const f8ExtraRoundsProxy = computed<number>({
-  get: () => Number(paramMapByName.value['f8_extra_rounds']?.value ?? 0),
-  set: (val) => updateByName('f8_extra_rounds', val),
 })
 
 const matchingPlan = computed(() => {
@@ -280,66 +273,35 @@ const teamsPerJuryHint = computed(() => {
       </p>
     </div>
 
-    <div class="flex flex-wrap items-start gap-x-8 gap-y-3">
-      <div class="flex flex-col gap-1.5">
-        <div class="flex items-center gap-1 min-w-0">
-          <span class="glass-settings-label">{{ paramMapByName['f8_fields']?.ui_label }}</span>
-          <InfoPopover :text="paramMapByName['f8_fields']?.ui_description"/>
-        </div>
-        <div class="glass-settings-row">
-          <RadioGroup v-model="f8FieldsProxy" class="flex gap-1.5 flex-wrap">
-            <RadioGroupOption
-                v-for="n in fieldChoices"
-                :key="'f8_fields_' + n"
-                v-slot="{ checked, disabled }"
-                :disabled="fieldVariantsForTeams.length > 0 && !fieldVariantsForTeams.includes(n)"
-                :value="n"
-                as="template"
-            >
-              <button
-                  :aria-disabled="disabled"
-                  :class="[
-                    'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
-                    checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
-                    disabled ? 'opacity-40 cursor-not-allowed' : '',
-                  ]"
-                  type="button"
-                  @click="!disabled && selectFields(n)"
-              >
-                {{ n }}
-              </button>
-            </RadioGroupOption>
-          </RadioGroup>
-        </div>
+    <div class="flex flex-col gap-1.5">
+      <div class="flex items-center gap-1 min-w-0">
+        <span class="glass-settings-label">{{ paramMapByName['f8_fields']?.ui_label }}</span>
+        <InfoPopover :text="paramMapByName['f8_fields']?.ui_description"/>
       </div>
-
-      <div v-if="paramMapByName['f8_extra_rounds']" class="flex flex-col gap-1.5">
-        <div class="flex items-center gap-1 min-w-0">
-          <span class="glass-settings-label">{{ paramMapByName['f8_extra_rounds']?.ui_label }}</span>
-          <InfoPopover :text="paramMapByName['f8_extra_rounds']?.ui_description"/>
-        </div>
-        <div class="glass-settings-row">
-          <RadioGroup v-model="f8ExtraRoundsProxy" class="flex gap-1.5 flex-wrap">
-            <RadioGroupOption
-                v-for="n in extraRoundChoices"
-                :key="'f8_extra_rounds_' + n"
-                v-slot="{ checked }"
-                :value="n"
-                as="template"
+      <div class="glass-settings-row">
+        <RadioGroup v-model="f8FieldsProxy" class="flex gap-1.5 flex-wrap">
+          <RadioGroupOption
+              v-for="n in fieldChoices"
+              :key="'f8_fields_' + n"
+              v-slot="{ checked, disabled }"
+              :disabled="fieldVariantsForTeams.length > 0 && !fieldVariantsForTeams.includes(n)"
+              :value="n"
+              as="template"
+          >
+            <button
+                :aria-disabled="disabled"
+                :class="[
+                  'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                  checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
+                  disabled ? 'opacity-40 cursor-not-allowed' : '',
+                ]"
+                type="button"
+                @click="!disabled && selectFields(n)"
             >
-              <button
-                  :class="[
-                    'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
-                    checked ? 'glass-choice--active' : '',
-                  ]"
-                  type="button"
-                  @click="updateByName('f8_extra_rounds', n)"
-              >
-                {{ n }}
-              </button>
-            </RadioGroupOption>
-          </RadioGroup>
-        </div>
+              {{ n }}
+            </button>
+          </RadioGroupOption>
+        </RadioGroup>
       </div>
     </div>
 

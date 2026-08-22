@@ -49,7 +49,7 @@ const programFilterOptions = computed(() => [
 ])
 
 // Hilfs-Optionen
-const contexts = ['protected', 'input', 'expert']
+const contexts = ['protected', 'input', 'expert', 'afternoon']
 const types    = ['integer', 'decimal', 'time', 'date', 'boolean']
 
 // Backend laden
@@ -191,6 +191,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
     case 'input':     return 'bg-white border border-[var(--color-border)]';
     case 'expert':    return 'bg-blue-500';
     case 'protected': return 'bg-black';
+    case 'afternoon': return 'bg-amber-500';
     default:          return 'bg-gray-200';
   }
 }
@@ -206,7 +207,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
     <div class="glass-row-item inline-flex gap-3 px-3 py-2 whitespace-nowrap">
         <div class="text-sm font-medium text-[var(--color-text-muted)]">Context:</div>
         <div class="flex items-center gap-3">
-        <label v-for="ctx in ['protected', 'input','expert',]" :key="ctx" class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
+        <label v-for="ctx in contexts" :key="ctx" class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
             <input type="checkbox" v-model="filterContexts" :value="ctx" class="accent-gray-600" />
             {{ ctx }}
         </label>

@@ -832,12 +832,12 @@ onMounted(async () => {
           </h3>
           <div class="text-sm text-[var(--color-text-subtle)] flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             <span>
-              <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">Plan für: {{
-                  planCapacity
-                }}</span>, <span
-                :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">Angemeldet: {{
+              <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">Angemeldet: {{
                 enrolledCount
-              }}</span>, Kapazität: {{ venueCapacity }}
+              }}</span>, <span
+                :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">Plan für: {{
+                  planCapacity
+                }}</span>, Kapazität: {{ venueCapacity }}
             </span>
             <!-- Color code indicators for 2x Explore -->
             <template v-if="hasTwoExploreGroups">

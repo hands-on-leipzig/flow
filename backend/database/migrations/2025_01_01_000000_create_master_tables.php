@@ -96,7 +96,7 @@ return new class extends Migration {
         Schema::create('m_parameter', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 255)->nullable()->unique();
-            $table->enum('context', ['input', 'expert', 'protected', 'finale'])->nullable();
+            $table->enum('context', ['input', 'expert', 'protected', 'finale', 'afternoon'])->nullable();
             $table->unsignedInteger('level');
             $table->enum('type', ['integer', 'decimal', 'time', 'date', 'boolean'])->nullable();
             $table->string('value', 255)->nullable();

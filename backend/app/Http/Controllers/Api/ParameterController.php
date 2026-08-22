@@ -7,6 +7,8 @@ use App\Models\MParameter;
 use App\Models\MParameterCondition;
 use App\Models\SupportedPlan;
 use App\Enums\ExploreMode;
+use App\Support\ProgramCatalog;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -70,6 +72,13 @@ class ParameterController extends Controller
         });
         
         return response()->json($mappedOptions);
+    }
+
+    public function afternoonPrograms(): JsonResponse
+    {
+        return response()->json([
+            'first_programs' => ProgramCatalog::afternoonFirstProgramIds(),
+        ]);
     }
 
 

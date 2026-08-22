@@ -99,6 +99,15 @@ export function hasChallenge(event: EventWithPrograms | null | undefined): boole
   return hasProgramName(event, 'CHALLENGE')
 }
 
+export function hasAfternoon(
+  event: EventWithPrograms | null | undefined,
+  afternoonFirstPrograms: Iterable<number>
+): boolean {
+  const ids = new Set(Array.from(afternoonFirstPrograms, Number).filter((id) => id > 0))
+  if (ids.size === 0) return false
+  return eventPrograms(event).some((row) => ids.has(programId(row)))
+}
+
 export function hasFuture(event: EventWithPrograms | null | undefined): boolean {
   return eventPrograms(event).some((row) => isFutureName(row.name))
 }

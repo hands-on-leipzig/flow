@@ -44,5 +44,10 @@ class Plan extends Model
     {
         return $this->hasMany(ExtraBlock::class, 'plan');
     }
+
+    public function afternoonBlockOrders()
+    {
+        return $this->hasMany(AfternoonBlockOrder::class, 'plan');
+    }
 }
 

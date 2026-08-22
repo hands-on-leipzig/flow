@@ -118,12 +118,12 @@ function onPointerUp() {
 
 .plan-bar__fill--left {
   inset: 0 auto 0 0;
-  background: color-mix(in srgb, var(--color-text) 12%, transparent);
+  background: color-mix(in srgb, #1e40af 22%, transparent);
 }
 
 .plan-bar__fill--right {
   inset: 0 0 0 auto;
-  background: color-mix(in srgb, var(--color-text) 22%, transparent);
+  background: color-mix(in srgb, #93c5fd 55%, transparent);
 }
 
 .plan-bar__end {

@@ -5,6 +5,7 @@ namespace App\Support;
 use App\Models\Event;
 use App\Models\EventProgram;
 use App\Models\FirstProgram;
+use App\Models\MParameter;
 use Illuminate\Support\Collection;
 
 class ProgramCatalog
@@ -73,6 +74,36 @@ class ProgramCatalog
     public static function hasChallenge(Event $event): bool
     {
         return self::hasName($event, self::CHALLENGE);
+    }
+
+    /**
+     * Catalog program ids that have at least one m_parameter with context=afternoon.
+     *
+     * @return list<int>
+     */
+    public static function afternoonFirstProgramIds(): array
+    {
+        return MParameter::query()
+            ->where('context', 'afternoon')
+            ->whereNotNull('first_program')
+            ->where('first_program', '>', 0)
+            ->distinct()
+            ->orderBy('first_program')
+            ->pluck('first_program')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    public static function hasAfternoon(Event $event): bool
+    {
+        $event->loadMissing('programs');
+        $eventIds = $event->programs
+            ->pluck('first_program')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return count(array_intersect($eventIds, self::afternoonFirstProgramIds())) > 0;
     }
 
     /**
