@@ -71,6 +71,18 @@ function embeddedParams(block: AfternoonBlock): Parameter[] {
   return param ? [param] : []
 }
 
+function isOff(block: AfternoonBlock): boolean {
+  const param = embeddedParam(block)
+  if (!param) return false
+  if (param.type === 'boolean') {
+    return !(param.value === 1 || param.value === true || param.value === '1')
+  }
+  if (param.type === 'integer') {
+    return Number(param.value) === 0
+  }
+  return false
+}
+
 async function loadBlocks() {
   const planId = selectedPlanId.value
   if (!planId) {
@@ -128,7 +140,10 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
         @end="saveOrder"
     >
       <template #item="{ element }">
-        <div class="afternoon-block glass-card liquid-surface-inner">
+        <div
+            class="afternoon-block glass-card liquid-surface-inner"
+            :class="{ 'afternoon-block--off': isOff(element) }"
+        >
           <div class="afternoon-block__header">
             <span class="drag-handle" aria-label="Reihenfolge ändern">
               <IconDraggable/>
@@ -237,6 +252,22 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
 .afternoon-block__param :deep(.glass-settings-row) {
   flex-wrap: nowrap;
   justify-content: flex-end;
+}
+
+.afternoon-block--off {
+  border-style: dashed;
+  border-width: 2px;
+  background: color-mix(in srgb, var(--color-bg-muted) 72%, transparent);
+  box-shadow: none;
+}
+
+.afternoon-block--off .afternoon-block__logo {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.afternoon-block--off .afternoon-block__label {
+  color: var(--color-text-muted);
 }
 
 .drag-ghost {
