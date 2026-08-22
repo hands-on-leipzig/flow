@@ -279,6 +279,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/', [ParameterController::class, 'index']);
         Route::get('/condition', [ParameterController::class, 'listConditions']);
         Route::get('/lanes-options', [ParameterController::class, 'listLanesOptions']);
+        Route::get('/afternoon-programs', [ParameterController::class, 'afternoonPrograms']);
         Route::post('/condition', [ParameterController::class, 'addCondition']);
         Route::put('/condition/{id}', [ParameterController::class, 'updateCondition']);
         Route::delete('/condition/{id}', [ParameterController::class, 'deleteCondition']);

@@ -3,9 +3,10 @@ import {onMounted, ref, computed, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
+import {useProgramsStore} from '@/stores/programs'
 import {useAuth} from '@/composables/useAuth'
 import {imageUrl, programLogoSrc} from '@/utils/images'
-import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programMatchesSlug, programCompact, hasChallenge, hasExplore} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programMatchesSlug, programCompact, hasAfternoon} from '@/utils/eventPrograms'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, setTheme} from '@hands-on/glass/theme'
@@ -14,6 +15,7 @@ import SidebarFooter from '@hands-on/glass/sidebar-footer'
 import SidebarNavItem from '@hands-on/glass/sidebar-nav-item'
 
 const eventStore = useEventStore()
+const programsStore = useProgramsStore()
 const planCache = usePlanCacheStore()
 const {isAdmin, initializeUserRoles} = useAuth()
 const router = useRouter()
@@ -83,7 +85,7 @@ const navEntries = computed<NavEntry[]>(() => [
     children: [
       {name: 'Allgemein', path: '/plan/schedule', icon: 'bi-sliders2-vertical'},
       {name: 'Zeiten', path: '/plan/schedule/times', icon: 'bi-clock'},
-      ...(hasChallenge(eventStore.selectedEvent) || hasExplore(eventStore.selectedEvent)
+      ...(hasAfternoon(eventStore.selectedEvent, programsStore.afternoonFirstPrograms)
         ? [{name: 'Nachmittag', path: '/plan/schedule/afternoon', icon: 'bi-sunset'}]
         : []),
       {name: 'Expertenparameter', path: '/plan/schedule/expert', icon: 'bi-gear-wide-connected'},
