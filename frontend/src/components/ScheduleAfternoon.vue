@@ -146,7 +146,8 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
               class="afternoon-block__param"
               :param="param"
               :disabled="disabledMap[param.id]"
-              :with-label="true"
+              :with-label="false"
+              :compact="true"
               @pointerdown.stop
               @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
           />
@@ -185,9 +186,10 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
 
 .afternoon-block {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 0.55rem;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
   padding: 0.7rem 0.9rem;
 }
 
@@ -195,6 +197,8 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
   display: flex;
   align-items: center;
   gap: 0.65rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .drag-handle {
@@ -221,10 +225,18 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
   font-weight: 600;
   color: var(--color-text);
   line-height: 1.3;
+  min-width: 0;
 }
 
 .afternoon-block__param {
   min-width: 0;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.afternoon-block__param :deep(.glass-settings-row) {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
 }
 
 .drag-ghost {
