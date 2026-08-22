@@ -27,8 +27,8 @@ const blocks = ref<AfternoonBlock[]>([
 
 <template>
   <div class="schedule-afternoon flex flex-col pb-2">
-    <section class="glass-card liquid-surface-inner">
-      <h2 class="glass-card__title !mb-0">Vorrunde</h2>
+    <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+      <h2 class="afternoon-anchor__title">Vorrunden</h2>
     </section>
 
     <draggable
@@ -56,8 +56,8 @@ const blocks = ref<AfternoonBlock[]>([
       </template>
     </draggable>
 
-    <section class="glass-card liquid-surface-inner">
-      <h2 class="glass-card__title !mb-0">Preisverleihung</h2>
+    <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+      <h2 class="afternoon-anchor__title">Preisverleihung</h2>
     </section>
   </div>
 </template>
@@ -71,6 +71,18 @@ const blocks = ref<AfternoonBlock[]>([
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+}
+
+.afternoon-anchor {
+  padding: 0.7rem 0.9rem;
+}
+
+.afternoon-anchor__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  line-height: 1.3;
 }
 
 .afternoon-block {
