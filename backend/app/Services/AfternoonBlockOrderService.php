@@ -15,10 +15,22 @@ class AfternoonBlockOrderService
 
         return DB::table('m_activity_type_detail as d')
             ->leftJoin('m_first_program as p', 'd.first_program', '=', 'p.id')
-            ->join('m_parameter as mp', 'd.afternoon_parameter', '=', 'mp.id')
+            ->join('m_activity_type as t', 'd.activity_type', '=', 't.id')
+            ->leftJoin('m_parameter as mp', 'd.afternoon_parameter', '=', 'mp.id')
             ->whereNotNull('d.afternoon_chain')
-            ->where('mp.context', 'afternoon')
-            ->where('mp.level', '<=', $eventLevel)
+            ->whereIn('t.first_program', function ($query) use ($planId) {
+                $query->select('event_program.first_program')
+                    ->from('event_program')
+                    ->join('plan', 'plan.event', '=', 'event_program.event')
+                    ->where('plan.id', $planId);
+            })
+            ->where(function ($query) use ($eventLevel) {
+                $query->whereNull('d.afternoon_parameter')
+                    ->orWhere(function ($query) use ($eventLevel) {
+                        $query->where('mp.context', 'afternoon')
+                            ->where('mp.level', '<=', $eventLevel);
+                    });
+            })
             ->orderBy('d.afternoon_default')
             ->orderBy('d.id')
             ->get([
