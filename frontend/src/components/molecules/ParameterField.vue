@@ -27,6 +27,14 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  offDisabled: {
+    type: Boolean,
+    default: false,
+  },
+  onDisabled: {
+    type: Boolean,
+    default: false,
+  },
 })
 const emit = defineEmits(['update'])
 const validationError = ref('')
@@ -177,6 +185,8 @@ function emitChange() {
 
 function setBoolean(value) {
   if (props.disabled || localValue.value === value) return
+  if (value && props.onDisabled) return
+  if (!value && props.offDisabled) return
   localValue.value = value
   emitChange()
 }
@@ -226,7 +236,7 @@ const controlClass = computed(() => {
             type="button"
             class="glass-choice whitespace-nowrap"
             :class="localValue ? 'glass-choice--active' : ''"
-            :disabled="disabled"
+            :disabled="disabled || onDisabled"
             @click="setBoolean(true)"
         >
           ja
@@ -235,7 +245,7 @@ const controlClass = computed(() => {
             type="button"
             class="glass-choice whitespace-nowrap"
             :class="!localValue ? 'glass-choice--active' : ''"
-            :disabled="disabled"
+            :disabled="disabled || offDisabled"
             @click="setBoolean(false)"
         >
           nein

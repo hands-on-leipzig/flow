@@ -83,6 +83,46 @@ function isOff(block: AfternoonBlock): boolean {
   return false
 }
 
+function successorBlock(block: AfternoonBlock): AfternoonBlock | undefined {
+  return blocks.value.find((candidate) => Number(candidate.afternoon_chain) === Number(block.id))
+}
+
+function predecessorBlock(block: AfternoonBlock): AfternoonBlock | undefined {
+  const previousId = Number(block.afternoon_chain)
+  if (!previousId) return undefined
+  return blocks.value.find((candidate) => Number(candidate.id) === previousId)
+}
+
+function successorIsOn(block: AfternoonBlock): boolean {
+  const next = successorBlock(block)
+  if (!next || !embeddedParam(next)) return false
+  return !isOff(next)
+}
+
+function predecessorIsOff(block: AfternoonBlock): boolean {
+  const previous = predecessorBlock(block)
+  if (!previous || !embeddedParam(previous)) return false
+  return isOff(previous)
+}
+
+function booleanOffBlocked(block: AfternoonBlock, param: Parameter): boolean {
+  return param.type === 'boolean' && successorIsOn(block)
+}
+
+function booleanOnBlocked(block: AfternoonBlock, param: Parameter): boolean {
+  return param.type === 'boolean' && predecessorIsOff(block)
+}
+
+function isParamOn(value: Parameter['value']): boolean {
+  return value === 1 || value === true || value === '1'
+}
+
+function onParamUpdate(block: AfternoonBlock, param: Parameter) {
+  if (booleanOffBlocked(block, param) && !isParamOn(param.value)) return
+  if (booleanOnBlocked(block, param) && isParamOn(param.value)) return
+  handleParamUpdate({name: param.name, value: param.value})
+}
+
 async function loadBlocks() {
   const planId = selectedPlanId.value
   if (!planId) {
@@ -159,10 +199,12 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
               class="afternoon-block__param"
               :param="param"
               :disabled="disabledMap[param.id]"
+              :off-disabled="booleanOffBlocked(element, param)"
+              :on-disabled="booleanOnBlocked(element, param)"
               :with-label="false"
               :compact="true"
               @pointerdown.stop
-              @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
+              @update="(p: Parameter) => onParamUpdate(element, p)"
           />
         </div>
       </template>
