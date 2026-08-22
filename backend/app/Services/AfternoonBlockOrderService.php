@@ -13,23 +13,25 @@ class AfternoonBlockOrderService
     {
         return DB::table('m_activity_type_detail as d')
             ->leftJoin('m_first_program as p', 'd.first_program', '=', 'p.id')
-            ->whereNotNull('d.chain')
-            ->orderBy('d.sequence')
+            ->whereNotNull('d.afternoon_chain')
+            ->orderBy('d.afternoon_default')
             ->orderBy('d.id')
             ->get([
                 'd.id',
                 'd.code',
                 'd.name',
                 'd.name_preview',
-                'd.chain',
-                'd.sequence',
+                'd.afternoon_chain',
+                'd.afternoon_default',
                 'd.first_program',
                 'p.name as program',
             ])
             ->map(function ($block) {
                 $block->id = (int) $block->id;
-                $block->chain = (int) $block->chain;
-                $block->sequence = (int) $block->sequence;
+                $block->afternoon_chain = (int) $block->afternoon_chain;
+                $block->afternoon_default = $block->afternoon_default !== null
+                    ? (int) $block->afternoon_default
+                    : null;
                 $block->first_program = $block->first_program !== null ? (int) $block->first_program : null;
                 return $block;
             });
@@ -86,7 +88,7 @@ class AfternoonBlockOrderService
 
     /**
      * Keep saved ids that still exist in catalog, then append new catalog blocks
-     * in master sequence. Repair chain inversions afterwards.
+     * in afternoon_default order. Repair afternoon_chain inversions afterwards.
      *
      * @param  list<int>  $savedIds
      */
@@ -127,7 +129,7 @@ class AfternoonBlockOrderService
 
             $moved = false;
             foreach ($list as $i => $block) {
-                $previousId = (int) $block->chain;
+                $previousId = (int) $block->afternoon_chain;
                 if ($previousId === 0 || ! isset($indexById[$previousId])) {
                     continue;
                 }

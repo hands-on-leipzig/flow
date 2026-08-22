@@ -13,8 +13,8 @@ type AfternoonBlock = {
   code: string
   name: string
   name_preview: string | null
-  chain: number
-  sequence: number
+  afternoon_chain: number
+  afternoon_default: number | null
   first_program: number | null
   program: string | null
 }
@@ -29,7 +29,7 @@ function orderRespectsChains(order: AfternoonBlock[]): boolean {
     indexById.set(Number(order[i].id), i)
   }
   for (const block of order) {
-    const previousId = Number(block.chain)
+    const previousId = Number(block.afternoon_chain)
     if (!previousId) continue
     const previousIndex = indexById.get(previousId)
     if (previousIndex === undefined) continue
