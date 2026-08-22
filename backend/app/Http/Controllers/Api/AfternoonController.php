@@ -3,29 +3,35 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Plan;
+use App\Services\AfternoonBlockOrderService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
 class AfternoonController extends Controller
 {
-    public function blocks(): JsonResponse
+    public function __construct(private AfternoonBlockOrderService $afternoonBlocks)
     {
-        $blocks = DB::table('m_activity_type_detail as d')
-            ->leftJoin('m_first_program as p', 'd.first_program', '=', 'p.id')
-            ->whereNotNull('d.chain')
-            ->orderBy('d.sequence')
-            ->orderBy('d.id')
-            ->get([
-                'd.id',
-                'd.code',
-                'd.name',
-                'd.name_preview',
-                'd.chain',
-                'd.sequence',
-                'd.first_program',
-                'p.name as program',
-            ]);
+    }
 
-        return response()->json(['blocks' => $blocks]);
+    public function blocks(int $planId): JsonResponse
+    {
+        Plan::findOrFail($planId);
+
+        return response()->json([
+            'blocks' => $this->afternoonBlocks->resolvedBlocks($planId)->values(),
+        ]);
+    }
+
+    public function updateOrder(Request $request, int $planId): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'integer',
+        ]);
+
+        $blocks = $this->afternoonBlocks->saveOrder($planId, $data['ids']);
+
+        return response()->json(['blocks' => $blocks->values()]);
     }
 }

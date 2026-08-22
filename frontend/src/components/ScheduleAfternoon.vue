@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import {onMounted, ref} from 'vue'
+import {ref, watch} from 'vue'
 import axios from 'axios'
 import draggable from 'vuedraggable'
 import IconDraggable from '@/components/icons/IconDraggable.vue'
+import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
 defineOptions({ name: 'ScheduleAfternoon' })
@@ -18,7 +19,9 @@ type AfternoonBlock = {
   program: string | null
 }
 
+const {selectedPlanId} = useScheduleWorkspace()
 const blocks = ref<AfternoonBlock[]>([])
+const loading = ref(false)
 
 function orderRespectsChains(order: AfternoonBlock[]): boolean {
   const indexById = new Map<number, number>()
@@ -46,14 +49,40 @@ function allowMove(event: {draggedContext: {index: number; futureIndex: number}}
   return orderRespectsChains(next)
 }
 
-onMounted(async () => {
+async function loadBlocks() {
+  const planId = selectedPlanId.value
+  if (!planId) {
+    blocks.value = []
+    return
+  }
+  loading.value = true
   try {
-    const response = await axios.get('/afternoon/blocks')
+    const response = await axios.get(`/plans/${planId}/afternoon/blocks`)
     blocks.value = response.data.blocks || []
   } catch (error) {
     console.error('Failed to fetch afternoon blocks:', error)
+    blocks.value = []
+  } finally {
+    loading.value = false
   }
-})
+}
+
+async function saveOrder() {
+  const planId = selectedPlanId.value
+  if (!planId || loading.value) return
+  try {
+    const response = await axios.put(`/plans/${planId}/afternoon/blocks`, {
+      ids: blocks.value.map((block) => Number(block.id)),
+    })
+    if (response.data.blocks) {
+      blocks.value = response.data.blocks
+    }
+  } catch (error) {
+    console.error('Failed to save afternoon block order:', error)
+  }
+}
+
+watch(selectedPlanId, loadBlocks, {immediate: true})
 </script>
 
 <template>
@@ -72,6 +101,7 @@ onMounted(async () => {
         handle=".drag-handle"
         item-key="id"
         :move="allowMove"
+        @end="saveOrder"
     >
       <template #item="{ element }">
         <div class="afternoon-block glass-card liquid-surface-inner">

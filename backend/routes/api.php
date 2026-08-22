@@ -284,7 +284,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::delete('/condition/{id}', [ParameterController::class, 'deleteCondition']);
     });
     Route::get('/parameters/visibility', [ParameterController::class, 'visibility']);
-    Route::get('/afternoon/blocks', [AfternoonController::class, 'blocks']);
+    Route::get('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'blocks']);
+    Route::put('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'updateOrder']);
 
     Route::prefix('mparams')->group(function () {
         Route::get('/', [MParameterController::class, 'listMparameter']);
