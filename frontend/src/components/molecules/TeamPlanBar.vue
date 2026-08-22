@@ -30,6 +30,8 @@ const handlePct = computed(() => {
 
 const labelOnLeft = computed(() => handlePct.value > 50)
 
+const overEnrolled = computed(() => props.registeredTeams > props.planTeams)
+
 function clampPlan(value: number): number {
   return Math.min(maxPlan.value, Math.max(props.minTeams, Math.round(value)))
 }
@@ -84,7 +86,11 @@ function onPointerUp() {
         aria-hidden="true"
     >
       <div class="plan-bar__plan" :style="{ width: handlePct + '%' }"/>
-      <div class="plan-bar__fill" :style="{ width: fillPct + '%' }"/>
+      <div
+          class="plan-bar__fill"
+          :class="{ 'plan-bar__fill--over': overEnrolled }"
+          :style="{ width: fillPct + '%' }"
+      />
       <span class="plan-bar__end plan-bar__end--min">Angemeldet {{ registeredTeams }}</span>
       <span class="plan-bar__end plan-bar__end--max">Kapazität {{ capacity }}</span>
     </div>
@@ -136,8 +142,12 @@ function onPointerUp() {
   position: absolute;
   inset: 0 auto 0 0;
   z-index: 1;
-  background: color-mix(in srgb, #3b82f6 18%, transparent);
+  background: #fef5e7;
   pointer-events: none;
+}
+
+.plan-bar__fill--over {
+  background: color-mix(in srgb, #dc2626 16%, transparent);
 }
 
 .plan-bar__end {
