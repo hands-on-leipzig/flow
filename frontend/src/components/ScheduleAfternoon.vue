@@ -1,28 +1,33 @@
 <script setup lang="ts">
-import {ref} from 'vue'
+import {onMounted, ref} from 'vue'
+import axios from 'axios'
 import draggable from 'vuedraggable'
 import IconDraggable from '@/components/icons/IconDraggable.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
 defineOptions({ name: 'ScheduleAfternoon' })
 
-type AfternoonProgram = 'CHALLENGE' | 'FUTURE_8'
-
 type AfternoonBlock = {
-  id: string
-  label: string
-  program: AfternoonProgram
+  id: number
+  code: string
+  name: string
+  name_preview: string | null
+  chain: number
+  sequence: number
+  first_program: number | null
+  program: string | null
 }
 
-const blocks = ref<AfternoonBlock[]>([
-  {id: 'c_research', label: 'Challenge Forschung', program: 'CHALLENGE'},
-  {id: 'c_quarter', label: 'Challenge Viertelfinale', program: 'CHALLENGE'},
-  {id: 'c_semi', label: 'Challenge Halbfinale', program: 'CHALLENGE'},
-  {id: 'c_final', label: 'Challenge Finale', program: 'CHALLENGE'},
-  {id: 'f8_round4', label: 'Future Runde 4', program: 'FUTURE_8'},
-  {id: 'f8_round5', label: 'Future Runde 5', program: 'FUTURE_8'},
-  {id: 'f8_research', label: 'Future Forschung', program: 'FUTURE_8'},
-])
+const blocks = ref<AfternoonBlock[]>([])
+
+onMounted(async () => {
+  try {
+    const response = await axios.get('/afternoon/blocks')
+    blocks.value = response.data.blocks || []
+  } catch (error) {
+    console.error('Failed to fetch afternoon blocks:', error)
+  }
+})
 </script>
 
 <template>
@@ -47,11 +52,11 @@ const blocks = ref<AfternoonBlock[]>([
             <IconDraggable/>
           </span>
           <img
-              :alt="programLogoAlt(element.program)"
-              :src="programLogoSrc(element.program)"
+              :alt="programLogoAlt(element.program || element.first_program)"
+              :src="programLogoSrc(element.program || element.first_program)"
               class="afternoon-block__logo"
           >
-          <span class="afternoon-block__label">{{ element.label }}</span>
+          <span class="afternoon-block__label">{{ element.name }}</span>
         </div>
       </template>
     </draggable>

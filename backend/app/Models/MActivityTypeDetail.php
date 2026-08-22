@@ -22,6 +22,7 @@ class MActivityTypeDetail extends Model
         'name_preview',
         'sequence',
         'first_program',
+        'chain',
         'description',
         'link',
         'link_text',

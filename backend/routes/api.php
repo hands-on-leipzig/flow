@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AfternoonController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
@@ -283,6 +284,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::delete('/condition/{id}', [ParameterController::class, 'deleteCondition']);
     });
     Route::get('/parameters/visibility', [ParameterController::class, 'visibility']);
+    Route::get('/afternoon/blocks', [AfternoonController::class, 'blocks']);
 
     Route::prefix('mparams')->group(function () {
         Route::get('/', [MParameterController::class, 'listMparameter']);
