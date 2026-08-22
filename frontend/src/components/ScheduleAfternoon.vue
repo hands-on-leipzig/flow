@@ -133,8 +133,6 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
         drag-class="drag-dragging"
         ghost-class="drag-ghost"
         handle=".drag-handle"
-        filter=".afternoon-block__param"
-        :prevent-on-filter="true"
         item-key="id"
         :move="allowMove"
         @end="saveOrder"
