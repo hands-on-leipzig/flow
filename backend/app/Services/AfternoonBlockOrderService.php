@@ -9,11 +9,16 @@ use Illuminate\Support\Facades\DB;
 
 class AfternoonBlockOrderService
 {
-    public function catalogBlocks(): Collection
+    public function catalogBlocks(int $planId): Collection
     {
+        $eventLevel = $this->eventLevel($planId);
+
         return DB::table('m_activity_type_detail as d')
             ->leftJoin('m_first_program as p', 'd.first_program', '=', 'p.id')
+            ->join('m_parameter as mp', 'd.afternoon_parameter', '=', 'mp.id')
             ->whereNotNull('d.afternoon_chain')
+            ->where('mp.context', 'afternoon')
+            ->where('mp.level', '<=', $eventLevel)
             ->orderBy('d.afternoon_default')
             ->orderBy('d.id')
             ->get([
@@ -43,7 +48,7 @@ class AfternoonBlockOrderService
 
     public function resolvedBlocks(int $planId): Collection
     {
-        $catalog = $this->catalogBlocks();
+        $catalog = $this->catalogBlocks($planId);
         $savedIds = AfternoonBlockOrder::query()
             ->where('plan', $planId)
             ->orderBy('sequence')
@@ -63,7 +68,7 @@ class AfternoonBlockOrderService
     {
         Plan::findOrFail($planId);
 
-        $catalog = $this->catalogBlocks();
+        $catalog = $this->catalogBlocks($planId);
         $resolved = $this->mergeSavedOrder($catalog, array_map('intval', $ids));
 
         $catalogIds = $catalog->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
@@ -155,5 +160,15 @@ class AfternoonBlockOrderService
         }
 
         return collect($list)->values();
+    }
+
+    private function eventLevel(int $planId): int
+    {
+        $level = Plan::query()
+            ->where('plan.id', $planId)
+            ->join('event', 'plan.event', '=', 'event.id')
+            ->value('event.level');
+
+        return (int) $level;
     }
 }
