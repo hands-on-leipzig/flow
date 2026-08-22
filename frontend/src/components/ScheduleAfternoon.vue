@@ -20,6 +20,32 @@ type AfternoonBlock = {
 
 const blocks = ref<AfternoonBlock[]>([])
 
+function orderRespectsChains(order: AfternoonBlock[]): boolean {
+  const indexById = new Map<number, number>()
+  for (let i = 0; i < order.length; i++) {
+    indexById.set(Number(order[i].id), i)
+  }
+  for (const block of order) {
+    const previousId = Number(block.chain)
+    if (!previousId) continue
+    const previousIndex = indexById.get(previousId)
+    if (previousIndex === undefined) continue
+    const index = indexById.get(Number(block.id))
+    if (index === undefined || index <= previousIndex) return false
+  }
+  return true
+}
+
+function allowMove(event: {draggedContext: {index: number; futureIndex: number}}): boolean {
+  const from = event.draggedContext.index
+  const to = event.draggedContext.futureIndex
+  if (from === to || to == null) return true
+  const next = blocks.value.slice()
+  const [moved] = next.splice(from, 1)
+  next.splice(to, 0, moved)
+  return orderRespectsChains(next)
+}
+
 onMounted(async () => {
   try {
     const response = await axios.get('/afternoon/blocks')
@@ -45,6 +71,7 @@ onMounted(async () => {
         ghost-class="drag-ghost"
         handle=".drag-handle"
         item-key="id"
+        :move="allowMove"
     >
       <template #item="{ element }">
         <div class="afternoon-block glass-card liquid-surface-inner">
