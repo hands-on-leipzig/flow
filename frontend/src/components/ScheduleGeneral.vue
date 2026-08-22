@@ -32,7 +32,7 @@ function isFuture8(program: EventProgramRef): boolean {
   <div class="schedule-general flex flex-col pb-2">
     <p class="glass-alert-warning shrink-0 flex items-start gap-2">
       <i class="bi bi-info-circle mt-0.5 shrink-0" aria-hidden="true"/>
-      <span>Für Anpassungen an den Kapazitäten pro Programm, bitte in der Geschäftstelle melden.</span>
+      <span>Für Anpassungen der Kapazitäten pro Programm, bitte in der Geschäftstelle melden.</span>
     </p>
     <template v-for="program in attachedPrograms" :key="programId(program)">
       <ExploreSettings
