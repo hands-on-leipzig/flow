@@ -24,6 +24,7 @@ class MActivityTypeDetail extends Model
         'first_program',
         'afternoon_chain',
         'afternoon_default',
+        'afternoon_parameter',
         'description',
         'link',
         'link_text',

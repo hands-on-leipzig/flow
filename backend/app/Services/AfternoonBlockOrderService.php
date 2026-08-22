@@ -23,6 +23,7 @@ class AfternoonBlockOrderService
                 'd.name_preview',
                 'd.afternoon_chain',
                 'd.afternoon_default',
+                'd.afternoon_parameter',
                 'd.first_program',
                 'p.name as program',
             ])
@@ -31,6 +32,9 @@ class AfternoonBlockOrderService
                 $block->afternoon_chain = (int) $block->afternoon_chain;
                 $block->afternoon_default = $block->afternoon_default !== null
                     ? (int) $block->afternoon_default
+                    : null;
+                $block->afternoon_parameter = $block->afternoon_parameter !== null
+                    ? (int) $block->afternoon_parameter
                     : null;
                 $block->first_program = $block->first_program !== null ? (int) $block->first_program : null;
                 return $block;

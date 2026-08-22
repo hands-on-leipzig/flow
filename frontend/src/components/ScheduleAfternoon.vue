@@ -3,7 +3,9 @@ import {ref, watch} from 'vue'
 import axios from 'axios'
 import draggable from 'vuedraggable'
 import IconDraggable from '@/components/icons/IconDraggable.vue'
+import ParameterField from '@/components/molecules/ParameterField.vue'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
+import type {Parameter} from '@/models/Parameter'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
 defineOptions({ name: 'ScheduleAfternoon' })
@@ -15,11 +17,18 @@ type AfternoonBlock = {
   name_preview: string | null
   afternoon_chain: number
   afternoon_default: number | null
+  afternoon_parameter: number | null
   first_program: number | null
   program: string | null
 }
 
-const {selectedPlanId} = useScheduleWorkspace()
+const {
+  selectedPlanId,
+  paramMap,
+  visibilityMap,
+  disabledMap,
+  handleParamUpdate,
+} = useScheduleWorkspace()
 const blocks = ref<AfternoonBlock[]>([])
 const loading = ref(false)
 
@@ -47,6 +56,19 @@ function allowMove(event: {draggedContext: {index: number; futureIndex: number}}
   const [moved] = next.splice(from, 1)
   next.splice(to, 0, moved)
   return orderRespectsChains(next)
+}
+
+function embeddedParam(block: AfternoonBlock): Parameter | undefined {
+  const id = Number(block.afternoon_parameter)
+  if (!id) return undefined
+  const param = paramMap.value[id]
+  if (!param || visibilityMap.value[param.id] === false) return undefined
+  return param
+}
+
+function embeddedParams(block: AfternoonBlock): Parameter[] {
+  const param = embeddedParam(block)
+  return param ? [param] : []
 }
 
 async function loadBlocks() {
@@ -99,21 +121,35 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
         drag-class="drag-dragging"
         ghost-class="drag-ghost"
         handle=".drag-handle"
+        filter=".afternoon-block__param"
+        :prevent-on-filter="true"
         item-key="id"
         :move="allowMove"
         @end="saveOrder"
     >
       <template #item="{ element }">
         <div class="afternoon-block glass-card liquid-surface-inner">
-          <span class="drag-handle" aria-label="Reihenfolge ändern">
-            <IconDraggable/>
-          </span>
-          <img
-              :alt="programLogoAlt(element.program || element.first_program)"
-              :src="programLogoSrc(element.program || element.first_program)"
-              class="afternoon-block__logo"
-          >
-          <span class="afternoon-block__label">{{ element.name }}</span>
+          <div class="afternoon-block__header">
+            <span class="drag-handle" aria-label="Reihenfolge ändern">
+              <IconDraggable/>
+            </span>
+            <img
+                :alt="programLogoAlt(element.program || element.first_program)"
+                :src="programLogoSrc(element.program || element.first_program)"
+                class="afternoon-block__logo"
+            >
+            <span class="afternoon-block__label">{{ element.name }}</span>
+          </div>
+          <ParameterField
+              v-for="param in embeddedParams(element)"
+              :key="param.id"
+              class="afternoon-block__param"
+              :param="param"
+              :disabled="disabledMap[param.id]"
+              :with-label="true"
+              @pointerdown.stop
+              @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
+          />
         </div>
       </template>
     </draggable>
@@ -149,9 +185,16 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
 
 .afternoon-block {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.afternoon-block__header {
+  display: flex;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.7rem 0.9rem;
 }
 
 .drag-handle {
@@ -178,6 +221,10 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
   font-weight: 600;
   color: var(--color-text);
   line-height: 1.3;
+}
+
+.afternoon-block__param {
+  min-width: 0;
 }
 
 .drag-ghost {
