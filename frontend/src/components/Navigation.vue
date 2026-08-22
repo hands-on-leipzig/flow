@@ -5,7 +5,7 @@ import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import {useAuth} from '@/composables/useAuth'
 import {imageUrl, programLogoSrc} from '@/utils/images'
-import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programMatchesSlug, programCompact} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programMatchesSlug, programCompact, hasChallenge, hasExplore} from '@/utils/eventPrograms'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, setTheme} from '@hands-on/glass/theme'
@@ -83,6 +83,9 @@ const navEntries = computed<NavEntry[]>(() => [
     children: [
       {name: 'Allgemein', path: '/plan/schedule', icon: 'bi-sliders2-vertical'},
       {name: 'Zeiten', path: '/plan/schedule/times', icon: 'bi-clock'},
+      ...(hasChallenge(eventStore.selectedEvent) || hasExplore(eventStore.selectedEvent)
+        ? [{name: 'Nachmittag', path: '/plan/schedule/afternoon', icon: 'bi-sunset'}]
+        : []),
       {name: 'Expertenparameter', path: '/plan/schedule/expert', icon: 'bi-gear-wide-connected'},
     ],
   },
