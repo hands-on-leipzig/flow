@@ -76,7 +76,7 @@ class PlanController extends Controller
                 $plannedExplore = $data['capacity_explore'] ?? null;
 
                 if ($enrolledExplore > 0) {
-                    $e_teams = $enrolledExplore;
+                    $e_teams = max($e_teams, $enrolledExplore);
                 } elseif (!is_null($plannedExplore)) {
                     $e_teams = (int)$plannedExplore;
                 }
@@ -95,7 +95,7 @@ class PlanController extends Controller
                 $plannedChallenge = $data['capacity_challenge'] ?? null;
 
                 if ($enrolledChallenge > 0) {
-                    $c_teams = $enrolledChallenge;
+                    $c_teams = max($c_teams, $enrolledChallenge);
                 } elseif (!is_null($plannedChallenge)) {
                     $c_teams = (int)$plannedChallenge;
                 }
