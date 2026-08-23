@@ -236,8 +236,7 @@ class RobotGameGenerator
                 break;
 
             case 3:
-                // After RG3 is handled in ChallengeGenerator::afternoon()
-                // to support flexible presentation scheduling
+                // After RG3 is handled in PlanGeneratorCore::afternoon()
                 break;
         }
 

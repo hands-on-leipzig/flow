@@ -7,8 +7,6 @@ use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use App\Support\IntegratedExploreState;
 use App\Enums\ExploreMode;
-use App\Enums\FirstProgram;
-use App\Services\AfternoonBlockOrderService;
 
 
 class ChallengeGenerator
@@ -597,75 +595,14 @@ class ChallengeGenerator
     }
 
 
-    public function afternoon(): void
+    /** After RG3: results pause, then Core walks the Nachmittag list. */
+    public function beginAfternoon(): void
     {
-        Log::info('ChallengeGenerator::afternoon', [
-            'plan_id' => $this->pp('g_plan'),
-            'c_teams' => $this->pp('c_teams'),
-        ]);
-        
-        try {
-            // After RG3 the Nachmittag list is the sequence (presentations, finals).
-            // Awards stay in the Core recipes.
-            $this->rTime->set($this->cTime->current());
-            $this->rTime->addMinutes($this->pp('r_duration_results'));
-
-            $blocks = app(AfternoonBlockOrderService::class)
-                ->resolvedBlocks((int) $this->pp('g_plan'));
-
-            foreach ($blocks as $block) {
-                if (!$this->afternoonBlockShouldEmit($block)) {
-                    continue;
-                }
-
-                match ((string) $block->code) {
-                    'c_presentations' => $this->presentations(),
-                    'r_final_16' => $this->insertOrderedFinalRound(16),
-                    'r_final_8' => $this->insertOrderedFinalRound(8),
-                    'r_final_4' => $this->insertOrderedFinalRound(4),
-                    'r_final_2' => $this->insertOrderedFinalRound(2),
-                    default => null,
-                };
-            }
-
-            $this->rTime->addMinutes($this->pp('c_ready_awards'));
-            $this->cTime->set($this->rTime->current());
-
-            if ($this->jTime->current()->getTimestamp() > $this->cTime->current()->getTimestamp()) {
-                $this->cTime->set($this->jTime->current());
-            }
-
-        } catch (\Throwable $e) {
-            Log::error('ChallengeGenerator: Error in afternoon', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw new \RuntimeException("Fehler beim Generieren des Nachmittags: {$e->getMessage()}", 0, $e);
-        }
+        $this->rTime->set($this->cTime->current());
+        $this->rTime->addMinutes($this->pp('r_duration_results'));
     }
 
-    private function afternoonBlockShouldEmit(object $block): bool
-    {
-        $code = (string) $block->code;
-
-        if ((int) ($block->first_program ?? 0) === FirstProgram::FUTURE_8->value) {
-            return false;
-        }
-
-        if ($code === 'r_final_16' && ! $this->pp('g_finale')) {
-            return false;
-        }
-
-        if ($block->afternoon_parameter === null) {
-            return true;
-        }
-
-        $value = $this->pp($code);
-
-        return $value !== 0 && $value !== '0' && $value !== false && $value !== null;
-    }
-
-    private function insertOrderedFinalRound(int $teamCount): void
+    public function insertFinalRound(int $teamCount): void
     {
         $this->robotGame->insertFinalRound($teamCount, true);
         if ($teamCount !== 2) {
@@ -673,7 +610,7 @@ class ChallengeGenerator
         }
     }
 
-    private function presentations(): void
+    public function presentations(): void
     {
         $this->rTime->addMinutes($this->pp('c_ready_presentations'));
 
@@ -685,6 +622,17 @@ class ChallengeGenerator
 
         $this->rTime->addMinutes($duration);
         $this->rTime->addMinutes($this->pp('c_ready_presentations'));
+    }
+
+    /** Ready-for-awards pause; ceremony clock follows robot game, then judging if later. */
+    public function endAfternoon(): void
+    {
+        $this->rTime->addMinutes($this->pp('c_ready_awards'));
+        $this->cTime->set($this->rTime->current());
+
+        if ($this->jTime->current()->getTimestamp() > $this->cTime->current()->getTimestamp()) {
+            $this->cTime->set($this->jTime->current());
+        }
     }
 
 
