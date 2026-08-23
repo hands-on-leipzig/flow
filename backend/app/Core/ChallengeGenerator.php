@@ -17,7 +17,7 @@ class ChallengeGenerator
     private TimeCursor $rTime;
     private TimeCursor $jTime;
     private TimeCursor $cTime;
-    private RobotGameGenerator $matchPlan;
+    private RobotGameGenerator $robotGame;
 
     // Shared state for integrated Explore mode
     private IntegratedExploreState $integratedExplore;
@@ -246,17 +246,15 @@ class ChallengeGenerator
         ]);
 
         try {
-            // Instantiate match plan for Challenge domain (needs rTime to be initialized)
-            $this->matchPlan = new RobotGameGenerator(
-                $this->writer, 
-                $this->params, 
+            // Match list (who vs whom) is Challenge-owned; the writer only places it on rTime.
+            $matchPlan = (new ChallengeMatchPlanBuilder($this->params))->build();
+            $this->robotGame = new RobotGameGenerator(
+                $this->writer,
+                $this->params,
                 $this->rTime,
-                $this->integratedExplore
+                $this->integratedExplore,
+                $matchPlan
             );
-            $this->matchPlan->createMatchPlan();
-            
-            // Apply match rotation to improve Q2 (table diversity) and Q3 (opponent diversity)
-            $this->matchPlan->applyMatchRotation();
 
             // -----------------------------------------------------------------------------------
             // FLL Challenge: Put the judging / robot game schedule together
@@ -462,16 +460,16 @@ class ChallengeGenerator
             // Finale Day 2: TR already on Day 1, start with regular rounds
             switch ($cBlock) {
                 case 1:
-                    $this->matchPlan->insertOneRound(1);  // R1
+                    $this->robotGame->insertOneRound(1);  // R1
                     break;
                 case 2:
                     // No robot game
                     break;
                 case 3:
-                    $this->matchPlan->insertOneRound(2);  // R2
+                    $this->robotGame->insertOneRound(2);  // R2
                     break;
                 case 4:
-                    $this->matchPlan->insertOneRound(3);  // R3
+                    $this->robotGame->insertOneRound(3);  // R3
                     break;
                 case 5:
                     // No robot game (Finals or Awards will be added separately)
@@ -487,31 +485,31 @@ class ChallengeGenerator
         switch ($cBlock) {
             case 1:
                 // First judging round runs parallel to RG test round, regardless of j_rounds
-                $this->matchPlan->insertOneRound(0);
+                $this->robotGame->insertOneRound(0);
                 break;
             case 2:
                 if ($this->pp('j_rounds') == 4) {
-                    $this->matchPlan->insertOneRound(1);
+                    $this->robotGame->insertOneRound(1);
                     $insertedRg1 = true;
                 }
                 break;
             case 3:
                 if ($this->pp('j_rounds') == 4) {
-                    $this->matchPlan->insertOneRound(2);
+                    $this->robotGame->insertOneRound(2);
                 } else {
-                    $this->matchPlan->insertOneRound(1);
+                    $this->robotGame->insertOneRound(1);
                     $insertedRg1 = true;
                 }
                 break;
             case 4:
                 if ($this->pp('j_rounds') == 4) {
-                    $this->matchPlan->insertOneRound(3);
+                    $this->robotGame->insertOneRound(3);
                 } else {
-                    $this->matchPlan->insertOneRound(2);
+                    $this->robotGame->insertOneRound(2);
                 }
                 break;
             case 5:
-                $this->matchPlan->insertOneRound(3);
+                $this->robotGame->insertOneRound(3);
                 break;
             case 6:
                 // No robot game left
@@ -641,23 +639,23 @@ class ChallengeGenerator
 
             // Round of best 16 (optional, only for finale events)
             if ($this->pp('g_finale') && $this->pp('r_final_16')) {
-                $this->matchPlan->insertFinalRound(16);
+                $this->robotGame->insertFinalRound(16);
                 // Note: No timing point after 16, it's handled by the 8-team round
             }
 
             // Round of best 8 (optional, auto-enabled if r_final_16 is active)
             if ($this->pp('r_final_8') || $this->pp('r_final_16')) {
-                $this->matchPlan->insertFinalRound(8, true); // Skip pause, handle in handleTimingPoint
+                $this->robotGame->insertFinalRound(8, true); // Skip pause, handle in handleTimingPoint
             }
             // Handle timing point after QF (even if QF doesn't exist, if presentations are scheduled there)
             $this->handleTimingPoint(2, 'r_duration_results');
 
             // Semi finale is a must
-            $this->matchPlan->insertFinalRound(4, true); // Skip pause, handle in handleTimingPoint
+            $this->robotGame->insertFinalRound(4, true); // Skip pause, handle in handleTimingPoint
             $this->handleTimingPoint(3, 'r_duration_results');
 
             // Final matches
-            $this->matchPlan->insertFinalRound(2, true); // Skip pause, handle in handleTimingPoint
+            $this->robotGame->insertFinalRound(2, true); // Skip pause, handle in handleTimingPoint
             $this->handleTimingPoint(4, 'c_ready_awards');
 
             // back to only one action a time
