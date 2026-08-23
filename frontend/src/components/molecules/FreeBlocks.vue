@@ -289,6 +289,7 @@ async function flushUpdates(updates: Record<string, any>) {
       // No regeneration needed, ensure generating state is off
       isGenerating.value = false
     }
+    emit('changed')
   } catch (error: any) {
     console.error('Error flushing updates:', error)
     isGenerating.value = false
@@ -454,6 +455,7 @@ async function createCustom() {
   if (!name) return
 
   isCreating.value = true
+  isGenerating.value = true
   const dateStr = newBlockDate.value || defaultBlockDate()
   const start = combineDateTime(dateStr, newBlockStart.value || '06:00') || `${dateStr} 06:00:00`
   const end = combineDateTime(dateStr, newBlockEnd.value || '07:00') || `${dateStr} 07:00:00`
@@ -468,17 +470,18 @@ async function createCustom() {
       active: true,
       start,
       end,
-      skip_regeneration: true,
     })
 
     if (response.data?.error) {
       generatorError.value = response.data.error
       errorDetails.value = response.data.details || null
+      isGenerating.value = false
       return
     }
 
     resetComposer()
     await loadBlocks()
+    await pollUntilReady(props.planId)
     emit('changed')
     await nextTick()
     composerRef.value?.focusTitle?.()
@@ -486,6 +489,7 @@ async function createCustom() {
     console.error('Failed to create block:', error)
     generatorError.value = 'Fehler beim Erstellen des Blocks'
     errorDetails.value = error.message || 'Unbekannter Fehler'
+    isGenerating.value = false
   } finally {
     isCreating.value = false
   }
@@ -719,6 +723,84 @@ const hasBlocksOutsideEventDates = computed(() => {
       </div>
 
       <div class="free-blocks__list">
+        <ItemComposer
+            ref="composerRef"
+            v-model:title="newBlockName"
+            :disabled="isCreating || !planId"
+            title-placeholder="Neuer Block z. B. Mittagessen"
+            empty-hint="Eigener Eintrag im Plan, ohne den generierten Ablauf zu ändern."
+            @commit="createCustom"
+        >
+          <div class="free-block__when">
+            <input
+                v-model="newBlockDate"
+                :disabled="isCreating || !planId"
+                class="glass-input glass-input--sm liquid-surface-control free-block__date"
+                type="date"
+            />
+            <input
+                v-model="newBlockStart"
+                :disabled="isCreating || !planId"
+                class="glass-input glass-input--sm liquid-surface-control free-block__time"
+                type="time"
+                min="00:05"
+                max="23:55"
+                step="300"
+                aria-label="Startzeit"
+            />
+            <input
+                v-model="newBlockEnd"
+                :disabled="isCreating || !planId"
+                class="glass-input glass-input--sm liquid-surface-control free-block__time"
+                type="time"
+                min="00:05"
+                max="23:55"
+                step="300"
+                aria-label="Endzeit"
+            />
+            <div class="free-block__programs">
+              <img
+                  :src="programLogoSrc('EXPLORE')"
+                  :alt="programLogoAlt('EXPLORE')"
+                  class="free-block__logo"
+                  :class="{
+                    'free-block__logo--off': !(newFirstProgram === 2 || newFirstProgram === 0),
+                  }"
+                  title="FIRST LEGO League Explore"
+                  @click="toggleComposerProgram(2)"
+              />
+              <img
+                  :src="programLogoSrc('CHALLENGE')"
+                  :alt="programLogoAlt('CHALLENGE')"
+                  class="free-block__logo"
+                  :class="{
+                    'free-block__logo--off': !(newFirstProgram === 3 || newFirstProgram === 0),
+                  }"
+                  title="FIRST LEGO League Challenge"
+                  @click="toggleComposerProgram(3)"
+              />
+            </div>
+          </div>
+          <transition name="fade">
+            <div v-if="newBlockName.trim().length > 0" class="free-block__composer-extra">
+              <input
+                  v-model="newBlockDescription"
+                  :disabled="isCreating || !planId"
+                  class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                  type="text"
+                  placeholder="Beschreibung"
+              />
+              <input
+                  v-model="newBlockLink"
+                  :disabled="isCreating || !planId"
+                  class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                  type="url"
+                  placeholder="https://example.com"
+              />
+            </div>
+          </transition>
+        </ItemComposer>
+
         <ItemCard
             v-for="b in visibleCustomBlocks"
             :key="b.id ?? JSON.stringify(b)"
@@ -830,84 +912,6 @@ const hasBlocksOutsideEventDates = computed(() => {
               @blur="saveBlock(b)"
           />
         </ItemCard>
-
-        <ItemComposer
-            ref="composerRef"
-            v-model:title="newBlockName"
-            :disabled="isCreating || !planId"
-            title-placeholder="Neuer Block z. B. Mittagessen"
-            empty-hint="Eigener Eintrag im Plan, ohne den generierten Ablauf zu ändern."
-            @commit="createCustom"
-        >
-          <div class="free-block__when">
-            <input
-                v-model="newBlockDate"
-                :disabled="isCreating || !planId"
-                class="glass-input glass-input--sm liquid-surface-control free-block__date"
-                type="date"
-            />
-            <input
-                v-model="newBlockStart"
-                :disabled="isCreating || !planId"
-                class="glass-input glass-input--sm liquid-surface-control free-block__time"
-                type="time"
-                min="00:05"
-                max="23:55"
-                step="300"
-                aria-label="Startzeit"
-            />
-            <input
-                v-model="newBlockEnd"
-                :disabled="isCreating || !planId"
-                class="glass-input glass-input--sm liquid-surface-control free-block__time"
-                type="time"
-                min="00:05"
-                max="23:55"
-                step="300"
-                aria-label="Endzeit"
-            />
-            <div class="free-block__programs">
-              <img
-                  :src="programLogoSrc('EXPLORE')"
-                  :alt="programLogoAlt('EXPLORE')"
-                  class="free-block__logo"
-                  :class="{
-                    'free-block__logo--off': !(newFirstProgram === 2 || newFirstProgram === 0),
-                  }"
-                  title="FIRST LEGO League Explore"
-                  @click="toggleComposerProgram(2)"
-              />
-              <img
-                  :src="programLogoSrc('CHALLENGE')"
-                  :alt="programLogoAlt('CHALLENGE')"
-                  class="free-block__logo"
-                  :class="{
-                    'free-block__logo--off': !(newFirstProgram === 3 || newFirstProgram === 0),
-                  }"
-                  title="FIRST LEGO League Challenge"
-                  @click="toggleComposerProgram(3)"
-              />
-            </div>
-          </div>
-          <transition name="fade">
-            <div v-if="newBlockName.trim().length > 0" class="free-block__composer-extra">
-              <input
-                  v-model="newBlockDescription"
-                  :disabled="isCreating || !planId"
-                  class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
-                  type="text"
-                  placeholder="Beschreibung"
-              />
-              <input
-                  v-model="newBlockLink"
-                  :disabled="isCreating || !planId"
-                  class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
-                  type="url"
-                  placeholder="https://example.com"
-              />
-            </div>
-          </transition>
-        </ItemComposer>
       </div>
     </div>
 
