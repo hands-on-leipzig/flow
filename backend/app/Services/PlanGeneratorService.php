@@ -262,8 +262,8 @@ class PlanGeneratorService
             }
 
             // Schritt 3: Neue FreeActivities einsetzen
-            $writer = new \App\Core\ActivityWriter($planId);
             $params = \App\Support\PlanParameter::load($planId);
+            $writer = new \App\Core\ActivityWriter($planId, $params);
             (new \App\Core\FreeBlockGenerator($writer, $params))->insertFreeActivities();
 
             // Set generator status to DONE
