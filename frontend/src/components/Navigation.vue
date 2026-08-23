@@ -68,6 +68,7 @@ type NavEntry = {
   path?: string
   icon: string
   disabled?: boolean
+  title?: string
   children?: NavChild[]
 }
 
@@ -133,11 +134,17 @@ const showBackToOverview = computed(() => isLiveTabActive.value || isAdminMode.v
 const adminNavEntries = computed<NavEntry[]>(() =>
   ADMIN_SECTIONS.map((item) => {
     const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
+    const suffix = !available && item.devSuffix ? ` ${item.devSuffix}` : ''
     return {
-      name: available ? item.label : `${item.label} ${item.devSuffix}`,
+      name: `${item.label}${suffix}`,
       path: item.path,
       icon: item.icon,
       disabled: !available,
+      title: available
+        ? undefined
+        : item.devOrLocalOnly
+          ? `${item.label} ist nur auf Dev oder lokal verfügbar`
+          : `${item.label} ist nur auf Dev verfügbar`,
     }
   })
 )
@@ -183,6 +190,10 @@ onMounted(async () => {
 watch(isAdmin, (admin) => {
   if (admin) void ensureAdminEnvironment()
 }, {immediate: true})
+
+watch(isAdminMode, (adminMode) => {
+  if (adminMode) void ensureAdminEnvironment()
+})
 
 watch(
     () => eventStore.readiness,
@@ -331,6 +342,7 @@ function logout() {
           :active="entryActive(entry)"
           :warning="entryWarning(entry)"
           :disabled="!!entry.disabled"
+          :title="entry.title"
           :children="entry.children?.map(childNavProps)"
           @select="onNavSelect(entry)"
           @select-child="onNavChildSelect"
