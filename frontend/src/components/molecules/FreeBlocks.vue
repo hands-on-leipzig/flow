@@ -694,8 +694,7 @@ const hasBlocksOutsideEventDates = computed(() => {
 
     <!-- CUSTOM BLOCKS -->
     <div class="relative">
-      <div class="glass-panel-header">
-        <span class="text-sm text-[var(--color-text-muted)] min-w-0">Diese Blöcke werden direkt in den generierten Plan kopiert.</span>
+      <div class="glass-panel-header justify-end">
         <button
             class="glass-btn-accent shrink-0 w-full sm:w-auto"
             :disabled="!planId"
