@@ -73,7 +73,21 @@ const {scheduleUpdate, flush, immediateFlush} = useDebouncedSave({
 // --- Batch save system (save on countdown) ---
 // Note: Block changes trigger debounce immediately, blocks are saved to DB when countdown reaches 0 or is clicked
 
-// --- Computed ---
+function compareDateTime(a: Maybe<string>, b: Maybe<string>): number {
+  const left = a ? a.replace('T', ' ') : ''
+  const right = b ? b.replace('T', ' ') : ''
+  if (!left && !right) return 0
+  if (!left) return 1
+  if (!right) return -1
+  return left.localeCompare(right)
+}
+
+function compareBlocks(a: ExtraBlock, b: ExtraBlock): number {
+  const byStart = compareDateTime(a.start, b.start)
+  if (byStart !== 0) return byStart
+  return compareDateTime(a.end, b.end)
+}
+
 const customBlocks = computed(() => blocks.value)
 
 const visibleCustomBlocks = computed(() => {
@@ -82,7 +96,7 @@ const visibleCustomBlocks = computed(() => {
     if (props.showExplore === false && (block.first_program === 2 || block.first_program === 0)) return false
     if (props.showChallenge === false && (block.first_program === 3 || block.first_program === 0)) return false
     return true
-  })
+  }).slice().sort(compareBlocks)
 })
 
 // --- Lifecycle ---
@@ -102,32 +116,7 @@ async function loadBlocks() {
   const {data} = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`, {
     params: {type: 'free'},
   })
-  const loadedBlocks = Array.isArray(data) ? data : []
-
-  // Sort by date first, then start time (ascending - earliest first)
-  blocks.value = loadedBlocks.sort((a, b) => {
-    // Extract dates for comparison
-    const dateA = extractDate(a.start || a.end || '')
-    const dateB = extractDate(b.start || b.end || '')
-
-    // Compare dates first
-    if (dateA && dateB) {
-      const dateCompare = dateA.localeCompare(dateB)
-      if (dateCompare !== 0) return dateCompare
-    } else if (dateA) return -1 // A has date, B doesn't - A comes first
-    else if (dateB) return 1 // B has date, A doesn't - B comes first
-
-    // If dates are equal or both missing, compare start times
-    const timeA = extractTime(a.start || '')
-    const timeB = extractTime(b.start || '')
-
-    if (timeA && timeB) {
-      return timeA.localeCompare(timeB)
-    } else if (timeA) return -1
-    else if (timeB) return 1
-
-    return 0 // Both missing, keep order
-  })
+  blocks.value = Array.isArray(data) ? data : []
 }
 
 // Save all enabled blocks to DB (called when countdown triggers)
@@ -680,7 +669,6 @@ function isBlockOutsideEventDates(block: ExtraBlock): boolean {
   return blockDate.isBefore(eventStartDate, 'day') || blockDate.isAfter(eventEndDate, 'day')
 }
 
-// Check if any blocks are outside event dates (for showing explanation)
 const hasBlocksOutsideEventDates = computed(() => {
   return visibleCustomBlocks.value.some(block => isBlockOutsideEventDates(block))
 })
