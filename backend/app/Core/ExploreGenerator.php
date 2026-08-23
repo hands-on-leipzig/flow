@@ -23,11 +23,6 @@ class ExploreGenerator
     use UsesPlanParameter;
 
 
-    public function setMode(int $eMode): void
-    {
-        $this->eMode = $eMode;
-    }
-
     public function __construct(
         ActivityWriter $writer,
         PlanParameter $params,
