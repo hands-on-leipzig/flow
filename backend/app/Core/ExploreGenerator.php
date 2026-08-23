@@ -2,7 +2,6 @@
 
 namespace App\Core;
 
-use DateTime;
 use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
@@ -271,44 +270,6 @@ class ExploreGenerator
                 'trace' => $e->getTraceAsString()
             ]);
             throw new \RuntimeException("Fehler beim Generieren der Explore-Preisverleihung (Gruppe {$group}, eMode: {$this->eMode}, Challenge: " . ($challenge ? 'ja' : 'nein') . "): {$e->getMessage()}", 0, $e);
-        }
-    }
-
-    /**
-     * Write the Explore piece that sits in the after-RG1 hole (or the hybrid-both post-awards opening).
-     * Group 1: awards. Group 2: opening.
-     *
-     * @param DateTime|null $start Explicit start (mode 1). Otherwise uses handshake startTime.
-     */
-    public function integratedActivity(int $group, ?DateTime $start = null): void
-    {
-        $startTime = $start ?? $this->integratedExplore->startTime;
-        if ($startTime === null) {
-            return;
-        }
-
-        try {
-            $this->eTime->set($startTime);
-
-            if ($group == 1) {
-                $this->awards($group);
-            } elseif ($group == 2) {
-                if ($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
-                    // Handshake is RG1 end; opening starts after ready buffer.
-                    $this->eTime->addMinutes($this->pp("e_ready_opening"));
-                }
-
-                $this->openingsAndBriefings($group);
-            }
-        } catch (\Throwable $e) {
-            $startLabel = $startTime->format('H:i');
-            Log::error('ExploreGenerator: Error in integrated activity', [
-                'eMode' => $this->eMode,
-                'startTime' => $startLabel,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw new \RuntimeException("Fehler beim Generieren der integrierten Explore-Aktivität (eMode: {$this->eMode}, Startzeit: {$startLabel}): {$e->getMessage()}", 0, $e);
         }
     }
 

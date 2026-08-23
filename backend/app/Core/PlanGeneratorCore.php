@@ -177,7 +177,8 @@ class PlanGeneratorCore
                 $earliestStart = $deliberationsEnd;
             }
 
-            $this->explore->integratedActivity(1, $earliestStart);
+            $this->eTime->set($earliestStart);
+            $this->explore->awards(1);
 
             $exploreEnd = $this->eTime->current();
             $exploreEnd->modify('+'.((int) $this->pp('e_ready_awards')).' minutes');
@@ -204,7 +205,12 @@ class PlanGeneratorCore
 
         $this->challenge->openingsAndBriefings();
         $this->challenge->main(true);
-        $this->explore->integratedActivity(2);
+        $start = $this->integratedExplore->startTime;
+        if ($start !== null) {
+            $this->eTime->set($start);
+            $this->eTime->addMinutes((int) $this->pp('e_ready_opening'));
+            $this->explore->openingsAndBriefings(2);
+        }
         $this->explore->judgingAndDeliberations(2);
         $this->challenge->robotGameFinals();
         $this->challenge->awards(true);
@@ -232,7 +238,11 @@ class PlanGeneratorCore
         $this->challenge->robotGameFinals();
         $this->challenge->awards(true);
 
-        $this->explore->integratedActivity(2);
+        $start = $this->integratedExplore->startTime;
+        if ($start !== null) {
+            $this->eTime->set($start);
+            $this->explore->openingsAndBriefings(2);
+        }
         $this->explore->judgingAndDeliberations(2);
     }
 
