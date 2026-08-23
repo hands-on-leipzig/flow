@@ -1,9 +1,12 @@
 <script lang="ts" setup>
-import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
+import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
+import ItemCard from '@/components/molecules/ItemCard.vue'
+import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import {useDebouncedSave} from "@/composables/useDebouncedSave";
 import {TIMING_FIELDS, DEBOUNCE_DELAY} from "@/constants/extraBlocks";
@@ -399,48 +402,92 @@ function combineDateTime(date: string, time: string): string | null {
   return `${date} ${time}:00`
 }
 
-// --- Actions ---
-async function addCustom() {
-  if (!props.planId) return
-  const baseDate = props.eventDate ? new Date(props.eventDate) : new Date()
-  // Format as YYYY-MM-DD
-  const dateStr = baseDate.toISOString().slice(0, 10)
+const newBlockName = ref('')
+const newBlockDescription = ref('')
+const newBlockLink = ref('')
+const newBlockDate = ref('')
+const newBlockStart = ref('06:00')
+const newBlockEnd = ref('07:00')
+const newFirstProgram = ref(0)
+const composerRef = ref<{ focusTitle?: () => void } | null>(null)
+const isCreating = ref(false)
 
-  const draft: ExtraBlock = {
-    plan: props.planId!,
-    first_program: 0, // Start with both icons on (joint)
-    name: '',
-    description: '',
-    link: null,
-    active: true,
-    start: combineDateTime(dateStr, '06:00') || `${dateStr} 06:00:00`,
-    end: combineDateTime(dateStr, '07:00') || `${dateStr} 07:00:00`
+function defaultBlockDate(): string {
+  if (props.eventDate) return dayjs(props.eventDate).format('YYYY-MM-DD')
+  return dayjs().format('YYYY-MM-DD')
+}
+
+function resetComposer() {
+  newBlockName.value = ''
+  newBlockDescription.value = ''
+  newBlockLink.value = ''
+  newBlockDate.value = defaultBlockDate()
+  newBlockStart.value = '06:00'
+  newBlockEnd.value = '07:00'
+  newFirstProgram.value = 0
+}
+
+watch(() => props.eventDate, () => {
+  if (!newBlockName.value.trim()) {
+    newBlockDate.value = defaultBlockDate()
   }
+}, {immediate: true})
+
+function cycleFirstProgram(current: number | null | undefined, program: 2 | 3): number {
+  const value = current ?? 0
+  if (program === 2) {
+    if (value === 2) return 3
+    if (value === 3) return 0
+    if (value === 0) return 3
+    return 2
+  }
+  if (value === 3) return 2
+  if (value === 2) return 0
+  if (value === 0) return 2
+  return 3
+}
+
+// --- Actions ---
+async function createCustom() {
+  if (isCreating.value || !props.planId) return
+  const name = newBlockName.value.trim()
+  if (!name) return
+
+  isCreating.value = true
+  const dateStr = newBlockDate.value || defaultBlockDate()
+  const start = combineDateTime(dateStr, newBlockStart.value || '06:00') || `${dateStr} 06:00:00`
+  const end = combineDateTime(dateStr, newBlockEnd.value || '07:00') || `${dateStr} 07:00:00`
 
   try {
-    // Save immediately with default timing but empty content
-    // This gives the block an ID so it behaves like any other block
     const response = await axios.post(`/plans/${props.planId}/extra-blocks`, {
-      ...draft,
-      skip_regeneration: true // Don't regenerate for empty block
+      plan: props.planId,
+      first_program: newFirstProgram.value,
+      name,
+      description: newBlockDescription.value,
+      link: newBlockLink.value.trim() || null,
+      active: true,
+      start,
+      end,
+      skip_regeneration: true,
     })
 
-    // Check for errors
     if (response.data?.error) {
       generatorError.value = response.data.error
       errorDetails.value = response.data.details || null
       return
     }
 
-    // Reload blocks to get the new block with its ID
+    resetComposer()
     await loadBlocks()
-
-    // Emit changed event
     emit('changed')
+    await nextTick()
+    composerRef.value?.focusTitle?.()
   } catch (error: any) {
     console.error('Failed to create block:', error)
     generatorError.value = 'Fehler beim Erstellen des Blocks'
     errorDetails.value = error.message || 'Unbekannter Fehler'
+  } finally {
+    isCreating.value = false
   }
 }
 
@@ -483,40 +530,12 @@ function toggleActive(block: ExtraBlock, active: boolean) {
 }
 
 function toggleProgram(block: ExtraBlock, program: 2 | 3) {
-  // Logic: 0 = joint (both), 2 = Explore only, 3 = Challenge only
-  // At least one icon must always be on
-  if (program === 2) {
-    // Clicking Explore icon
-    if (block.first_program === 2) {
-      // Explore only -> switch to Challenge only
-      block.first_program = 3
-    } else if (block.first_program === 3) {
-      // Challenge only -> switch to both (joint)
-      block.first_program = 0
-    } else if (block.first_program === 0) {
-      // Both on -> switch to Challenge only (other icon off)
-      block.first_program = 3
-    } else {
-      // null or other -> default to Explore only
-      block.first_program = 2
-    }
-  } else {
-    // Clicking Challenge icon (program === 3)
-    if (block.first_program === 3) {
-      // Challenge only -> switch to Explore only
-      block.first_program = 2
-    } else if (block.first_program === 2) {
-      // Explore only -> switch to both (joint)
-      block.first_program = 0
-    } else if (block.first_program === 0) {
-      // Both on -> switch to Explore only (other icon off)
-      block.first_program = 2
-    } else {
-      // null or other -> default to Challenge only
-      block.first_program = 3
-    }
-  }
+  block.first_program = cycleFirstProgram(block.first_program, program)
   saveBlock(block)
+}
+
+function toggleComposerProgram(program: 2 | 3) {
+  newFirstProgram.value = cycleFirstProgram(newFirstProgram.value, program)
 }
 
 // Handle date change (updates both start and end with the same date)
@@ -637,7 +656,8 @@ function handleEndTimeChange(block: ExtraBlock, time: string) {
 
 const deleteMessage = computed(() => {
   if (!blockToDelete.value) return ''
-  return `Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+  const name = (blockToDelete.value.name || '').trim() || 'Unbenannt'
+  return `„${name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
 
 // Check if a block is outside the event date range
@@ -694,69 +714,44 @@ const hasBlocksOutsideEventDates = computed(() => {
 
     <!-- CUSTOM BLOCKS -->
     <div class="free-blocks">
-      <div class="glass-panel-header justify-end">
-        <button
-            class="glass-btn-accent shrink-0 w-full sm:w-auto"
-            :disabled="!planId"
-            @click="addCustom">
-          + Block hinzufügen
-        </button>
-      </div>
-
       <div v-if="hasBlocksOutsideEventDates" class="glass-alert-warning">
         Freie Blöcke an Tagen außerhalb der Veranstaltung werden in den Plänen nicht angezeigt.
       </div>
 
-      <div v-if="visibleCustomBlocks.length" class="free-blocks__list">
-        <div
+      <div class="free-blocks__list">
+        <ItemCard
             v-for="b in visibleCustomBlocks"
             :key="b.id ?? JSON.stringify(b)"
-            class="free-block glass-card liquid-surface-inner"
+            :inactive="b.active === false"
             :class="{
-              'free-block--off': b.active === false,
               'free-block--warning': b.active !== false && isBlockOutsideEventDates(b),
             }"
         >
-          <div class="free-block__toolbar">
+          <template #leading>
             <ToggleSwitch
                 :model-value="b.active !== false"
-                @update:modelValue="toggleActive(b, $event)"
                 :disabled="!b.id"
+                @update:modelValue="toggleActive(b, $event)"
             />
-            <div class="free-block__programs">
-              <img
-                  :src="programLogoSrc('EXPLORE')"
-                  :alt="programLogoAlt('EXPLORE')"
-                  class="free-block__logo"
-                  :class="{
-                    'free-block__logo--off': b.active === false || !(b.first_program === 2 || b.first_program === 0),
-                    'free-block__logo--disabled': b.active === false,
-                  }"
-                  title="FIRST LEGO League Explore"
-                  @click="b.active !== false && toggleProgram(b, 2)"
-              />
-              <img
-                  :src="programLogoSrc('CHALLENGE')"
-                  :alt="programLogoAlt('CHALLENGE')"
-                  class="free-block__logo"
-                  :class="{
-                    'free-block__logo--off': b.active === false || !(b.first_program === 3 || b.first_program === 0),
-                    'free-block__logo--disabled': b.active === false,
-                  }"
-                  title="FIRST LEGO League Challenge"
-                  @click="b.active !== false && toggleProgram(b, 3)"
-              />
-            </div>
-            <button
+          </template>
+          <template #title>
+            <input
+                :value="b.name"
+                :disabled="b.active === false"
+                class="item-card__title glass-input glass-input--sm liquid-surface-control"
+                type="text"
+                placeholder="Titel"
+                @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
+                @blur="saveBlock(b)"
+            />
+          </template>
+          <template #trailing>
+            <IconDangerButton
                 v-if="b.id"
-                type="button"
-                class="free-block__trash no-touch-min"
-                title="Block löschen"
+                label="Block löschen"
                 @click="confirmDeleteBlock(b)"
-            >
-              <i class="bi bi-trash-fill" aria-hidden="true"/>
-            </button>
-          </div>
+            />
+          </template>
 
           <div class="free-block__when">
             <input
@@ -790,17 +785,32 @@ const hasBlocksOutsideEventDates = computed(() => {
                 @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
                 @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
             />
+            <div class="free-block__programs">
+              <img
+                  :src="programLogoSrc('EXPLORE')"
+                  :alt="programLogoAlt('EXPLORE')"
+                  class="free-block__logo"
+                  :class="{
+                    'free-block__logo--off': b.active === false || !(b.first_program === 2 || b.first_program === 0),
+                    'free-block__logo--disabled': b.active === false,
+                  }"
+                  title="FIRST LEGO League Explore"
+                  @click="b.active !== false && toggleProgram(b, 2)"
+              />
+              <img
+                  :src="programLogoSrc('CHALLENGE')"
+                  :alt="programLogoAlt('CHALLENGE')"
+                  class="free-block__logo"
+                  :class="{
+                    'free-block__logo--off': b.active === false || !(b.first_program === 3 || b.first_program === 0),
+                    'free-block__logo--disabled': b.active === false,
+                  }"
+                  title="FIRST LEGO League Challenge"
+                  @click="b.active !== false && toggleProgram(b, 3)"
+              />
+            </div>
           </div>
 
-          <input
-              :value="b.name"
-              :disabled="b.active === false"
-              class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
-              type="text"
-              placeholder="Titel"
-              @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
-              @blur="saveBlock(b)"
-          />
           <input
               :value="b.description"
               :disabled="b.active === false"
@@ -819,10 +829,85 @@ const hasBlocksOutsideEventDates = computed(() => {
               @input="(e) => { b.link = (e.target as HTMLInputElement).value }"
               @blur="saveBlock(b)"
           />
-        </div>
-      </div>
-      <div v-else class="free-blocks__empty">
-        Noch keine freien Zusatzblöcke. Füge oben welche hinzu.
+        </ItemCard>
+
+        <ItemComposer
+            ref="composerRef"
+            v-model:title="newBlockName"
+            :disabled="isCreating || !planId"
+            title-placeholder="Neuer Block z. B. Mittagessen"
+            empty-hint="Eigener Eintrag im Plan, ohne den generierten Ablauf zu ändern."
+            @commit="createCustom"
+        >
+          <div class="free-block__when">
+            <input
+                v-model="newBlockDate"
+                :disabled="isCreating || !planId"
+                class="glass-input glass-input--sm liquid-surface-control free-block__date"
+                type="date"
+            />
+            <input
+                v-model="newBlockStart"
+                :disabled="isCreating || !planId"
+                class="glass-input glass-input--sm liquid-surface-control free-block__time"
+                type="time"
+                min="00:05"
+                max="23:55"
+                step="300"
+                aria-label="Startzeit"
+            />
+            <input
+                v-model="newBlockEnd"
+                :disabled="isCreating || !planId"
+                class="glass-input glass-input--sm liquid-surface-control free-block__time"
+                type="time"
+                min="00:05"
+                max="23:55"
+                step="300"
+                aria-label="Endzeit"
+            />
+            <div class="free-block__programs">
+              <img
+                  :src="programLogoSrc('EXPLORE')"
+                  :alt="programLogoAlt('EXPLORE')"
+                  class="free-block__logo"
+                  :class="{
+                    'free-block__logo--off': !(newFirstProgram === 2 || newFirstProgram === 0),
+                  }"
+                  title="FIRST LEGO League Explore"
+                  @click="toggleComposerProgram(2)"
+              />
+              <img
+                  :src="programLogoSrc('CHALLENGE')"
+                  :alt="programLogoAlt('CHALLENGE')"
+                  class="free-block__logo"
+                  :class="{
+                    'free-block__logo--off': !(newFirstProgram === 3 || newFirstProgram === 0),
+                  }"
+                  title="FIRST LEGO League Challenge"
+                  @click="toggleComposerProgram(3)"
+              />
+            </div>
+          </div>
+          <transition name="fade">
+            <div v-if="newBlockName.trim().length > 0" class="free-block__composer-extra">
+              <input
+                  v-model="newBlockDescription"
+                  :disabled="isCreating || !planId"
+                  class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                  type="text"
+                  placeholder="Beschreibung"
+              />
+              <input
+                  v-model="newBlockLink"
+                  :disabled="isCreating || !planId"
+                  class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                  type="url"
+                  placeholder="https://example.com"
+              />
+            </div>
+          </transition>
+        </ItemComposer>
       </div>
     </div>
 
@@ -854,42 +939,17 @@ const hasBlocksOutsideEventDates = computed(() => {
   gap: 0.75rem;
 }
 
-.free-blocks :deep(.glass-panel-header) {
-  margin-bottom: 0;
-  padding-bottom: 0;
-  border-bottom: none;
-}
-
 .free-blocks__list {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
 }
 
-.free-blocks__empty {
-  padding: 1.5rem 0.25rem;
-  text-align: center;
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-}
-
-.free-block {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.7rem 0.9rem;
-}
-
-.free-block__toolbar {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
-
 .free-block__programs {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-left: auto;
 }
 
 .free-block__logo {
@@ -912,18 +972,6 @@ const hasBlocksOutsideEventDates = computed(() => {
 
 .free-block__logo--disabled {
   cursor: not-allowed;
-}
-
-.free-block__trash {
-  margin-left: auto;
-  padding: 0.15rem;
-  font-size: 1.125rem;
-  line-height: 1;
-  color: var(--color-text-muted);
-}
-
-.free-block__trash:hover {
-  color: #b91c1c;
 }
 
 .free-block__when {
@@ -949,14 +997,23 @@ const hasBlocksOutsideEventDates = computed(() => {
   width: 7.25rem;
 }
 
-.free-block--off {
-  border-style: dashed;
-  border-width: 2px;
-  background: color-mix(in srgb, var(--color-bg-muted) 72%, transparent);
-  box-shadow: none;
+.free-block__composer-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .free-block--warning {
   background: color-mix(in srgb, #b45309 14%, var(--color-bg-muted));
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

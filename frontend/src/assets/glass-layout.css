@@ -514,6 +514,7 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  gap: 0.5rem;
 }
 
 .item-card__title-wrap {
@@ -556,10 +557,14 @@
   border-radius: var(--radius);
   background: transparent;
   color: var(--color-text-muted);
-  font-size: 1.125rem;
-  line-height: 1;
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease;
+}
+
+.icon-danger-btn .bi {
+  font-size: 1.15rem;
+  line-height: 1;
+  display: block;
 }
 
 .icon-danger-btn:hover:not(:disabled) {

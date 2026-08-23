@@ -28,7 +28,7 @@ function toggle() {
       :disabled="disabled"
       @click="toggle"
       class="no-touch-min relative inline-flex h-6 w-11 min-h-6 flex-shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent p-0.5 transition-colors duration-200 ease-in-out disabled:cursor-not-allowed disabled:opacity-50"
-      :class="checked ? 'bg-blue-600' : 'bg-gray-300'"
+      :class="checked ? 'bg-[var(--color-accent)]' : 'bg-[color-mix(in_srgb,var(--color-text-subtle)_45%,transparent)]'"
   >
     <span
         class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"

@@ -13,6 +13,6 @@ defineProps<{
       :title="label"
       :disabled="disabled"
   >
-    <i class="bi bi-trash-fill" aria-hidden="true"/>
+    <i class="bi bi-trash3" aria-hidden="true"/>
   </button>
 </template>
