@@ -1,5 +1,5 @@
 <script setup>
-import {ref, onMounted, onUnmounted, computed, nextTick, watch} from 'vue'
+import {ref, onMounted, computed, nextTick, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
@@ -9,7 +9,10 @@ import {eventPrograms, programDisplayName, programMatchesSlug, programSlug, prog
 import {getProgramTheme} from '@/utils/programTheme'
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import LoaderText from "@/components/atoms/LoaderText.vue";
+import IconDangerButton from "@/components/atoms/IconDangerButton.vue";
 import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
+import ItemCard from "@/components/molecules/ItemCard.vue";
+import ItemComposer from "@/components/molecules/ItemComposer.vue";
 
 defineOptions({name: 'Rooms'})
 
@@ -468,15 +471,20 @@ const unassignItemFromRoom = async (itemKey) => {
 // --- Raum erstellen ---
 const newRoomName = ref('')
 const newRoomNote = ref('')
-const newRoomInput = ref(null)
-const newRoomNoteInput = ref(null)
 const isSaving = ref(false)
 const isCreatingRoom = ref(false)
-const newRoomCardRef = ref(null)
+const mobileComposerRef = ref(null)
+const desktopComposerRef = ref(null)
+
+const focusNewRoomComposer = () => {
+  const desktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  const composer = desktop ? desktopComposerRef.value : mobileComposerRef.value
+  composer?.focusTitle()
+}
 
 const createRoom = async () => {
   if (isCreatingRoom.value) return
-  if (!newRoomName.value.trim() && !newRoomNote.value.trim()) return
+  if (!newRoomName.value.trim()) return
 
   isCreatingRoom.value = true
   isSaving.value = true
@@ -490,7 +498,7 @@ const createRoom = async () => {
     newRoomName.value = ''
     newRoomNote.value = ''
     await nextTick()
-    newRoomInput.value?.focus()
+    focusNewRoomComposer()
   } finally {
     isSaving.value = false
     isCreatingRoom.value = false
@@ -572,18 +580,9 @@ const cancelDeleteRoom = () => {
 
 const deleteRoomMessage = computed(() => {
   if (!roomToDelete.value) return ''
-  return `Raum "${roomToDelete.value.name || 'Unbekannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+  const name = roomToDelete.value.name || 'Unbekannt'
+  return `„${name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
-
-// --- Klick außerhalb Eingabefelds ---
-const handleClickOutside = (event) => {
-  if (newRoomCardRef.value && !newRoomCardRef.value.contains(event.target)) {
-    if (newRoomName.value.trim() || newRoomNote.value.trim()) createRoom()
-  }
-}
-
-onMounted(() => document.addEventListener('click', handleClickOutside))
-onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 const activeTab = ref('activities')
 
@@ -858,26 +857,20 @@ const hasWarning = (tab) => {
         <h2 class="glass-card__heading !text-lg md:!text-xl !mb-3 md:!mb-4">Räume</h2>
         <!-- Mobile: tap-first room list (no drag/drop) -->
         <div class="md:hidden space-y-3">
-          <div
+          <ItemCard
               v-for="room in rooms"
               :key="`mobile-room-${room.id}`"
-              class="glass-stack-card"
           >
-            <div class="flex items-center gap-2">
+            <template #title>
               <input
                   v-model="room.name"
-                  class="glass-input glass-input--sm liquid-surface-control flex-1 min-w-0 !font-semibold"
+                  class="item-card__title glass-input glass-input--sm liquid-surface-control"
                   @blur="updateRoom(room)"
               />
-              <button
-                  class="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-[var(--radius)] text-[var(--color-text-muted)] hover:text-red-700 hover:bg-[color-mix(in_srgb,#dc2626_10%,transparent)] transition-colors"
-                  title="Raum löschen"
-                  type="button"
-                  @click="askDeleteRoom(room)"
-              >
-                <i class="bi bi-trash-fill text-lg"></i>
-              </button>
-            </div>
+            </template>
+            <template #trailing>
+              <IconDangerButton label="Raum löschen" @click="askDeleteRoom(room)"/>
+            </template>
 
             <div class="flex items-center gap-2">
               <input
@@ -932,38 +925,27 @@ const hasWarning = (tab) => {
                 </div>
               </div>
             </div>
-          </div>
+          </ItemCard>
 
-          <div
-              ref="newRoomCardRef"
-              class="glass-stack-card glass-stack-card--dashed"
+          <ItemComposer
+              ref="mobileComposerRef"
+              v-model:title="newRoomName"
+              :disabled="isSaving"
+              title-placeholder="Neuer Raum z. B. A2.03"
+              empty-hint="Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert."
+              @commit="createRoom"
           >
-            <div>
-              <input
-                  ref="newRoomInput"
-                  v-model="newRoomName"
-                  :disabled="isSaving"
-                  class="glass-input glass-input--sm liquid-surface-control w-full !font-semibold"
-                  placeholder="Neuer Raum z.B. A2.03"
-                  @keyup.enter="createRoom"
-              />
-              <p v-if="!newRoomName.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1.5">
-                Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert.
-              </p>
-            </div>
             <transition name="fade">
               <div v-if="newRoomName.trim().length > 0">
                 <input
-                    ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
                     class="glass-input glass-input--sm liquid-surface-control w-full !text-xs text-[var(--color-text-muted)]"
                     placeholder="Navigationshinweis"
-                    @keyup.enter="createRoom"
                 />
               </div>
             </transition>
-          </div>
+          </ItemComposer>
         </div>
 
         <!-- Desktop: drag/drop rooms -->
@@ -977,28 +959,25 @@ const hasWarning = (tab) => {
               @start="isDraggingRoom = true"
           >
             <template #item="{ element: room }">
-              <div
+              <ItemCard
                   :key="room.id"
+                  interactive
+                  class="cursor-move"
                   :class="{ 'opacity-55 scale-[1.01]': isDraggingRoom }"
-                  class="glass-stack-card glass-stack-card--interactive cursor-move"
               >
-                <!-- Line 1: Drag handle, Room name, Delete icon -->
-                <div class="flex items-center gap-2">
-                  <div class="shrink-0 text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5" aria-hidden="true">⋮⋮</div>
+                <template #leading>
+                  <div class="text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5" aria-hidden="true">⋮⋮</div>
+                </template>
+                <template #title>
                   <input
                       v-model="room.name"
-                      class="glass-input glass-input--sm liquid-surface-control flex-1 min-w-0 !font-semibold"
+                      class="item-card__title glass-input glass-input--sm liquid-surface-control"
                       @blur="updateRoom(room)"
                   />
-                  <button
-                      class="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-[var(--radius)] text-[var(--color-text-muted)] hover:text-red-700 hover:bg-[color-mix(in_srgb,#dc2626_10%,transparent)] transition-colors"
-                      title="Raum löschen"
-                      type="button"
-                      @click="askDeleteRoom(room)"
-                  >
-                    <i class="bi bi-trash-fill text-lg"></i>
-                  </button>
-                </div>
+                </template>
+                <template #trailing>
+                  <IconDangerButton label="Raum löschen" @click.stop="askDeleteRoom(room)"/>
+                </template>
 
                 <!-- Line 2: Navigation instruction full width with accessibility icon at end -->
                 <div class="flex items-center gap-2">
@@ -1135,44 +1114,33 @@ const hasWarning = (tab) => {
 
                   </draggable>
                 </div>
-              </div>
+              </ItemCard>
             </template>
           </draggable>
 
           <!-- Neuer Raum (always visible, outside draggable) -->
-          <div
-              ref="newRoomCardRef"
-              class="glass-stack-card glass-stack-card--dashed"
+          <ItemComposer
+              ref="desktopComposerRef"
+              v-model:title="newRoomName"
+              :disabled="isSaving"
+              title-placeholder="Neuer Raum z. B. A2.03"
+              empty-hint="Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert."
+              @commit="createRoom"
           >
-            <div>
-              <input
-                  ref="newRoomInput"
-                  v-model="newRoomName"
-                  :disabled="isSaving"
-                  class="glass-input glass-input--sm liquid-surface-control w-full !font-semibold"
-                  placeholder="Neuer Raum z.B. A2.03"
-                  @keyup.enter="createRoom"
-              />
-              <p v-if="!newRoomName.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1.5">
-                Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert.
-              </p>
-            </div>
             <transition name="fade">
               <div v-if="newRoomName.trim().length > 0">
                 <input
-                    ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
                     class="glass-input glass-input--sm liquid-surface-control w-full !text-xs md:!text-sm text-[var(--color-text-muted)]"
                     placeholder="Navigationshinweis"
-                    @keyup.enter="createRoom"
                 />
-                <p v-if="!newRoomNote.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1.5">
+                <p v-if="!newRoomNote.trim()" class="item-card__hint">
                   Falls der Raum schwer zu finden ist, hier bitte einen Hinweis eintragen.
                 </p>
               </div>
             </transition>
-          </div>
+          </ItemComposer>
         </div>
       </div>
 
