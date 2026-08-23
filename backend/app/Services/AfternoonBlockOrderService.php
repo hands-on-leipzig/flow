@@ -29,6 +29,9 @@ class AfternoonBlockOrderService
                     ->orWhere(function ($query) use ($eventLevel) {
                         $query->where('mp.context', 'afternoon')
                             ->where('mp.level', '<=', $eventLevel);
+                    })
+                    ->when($eventLevel === 3, function ($query) {
+                        $query->orWhere('d.code', 'r_final_16');
                     });
             })
             ->orderBy('d.afternoon_default')

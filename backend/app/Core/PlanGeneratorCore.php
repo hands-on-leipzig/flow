@@ -144,7 +144,7 @@ class PlanGeneratorCore
     {
         $this->challenge->openingsAndBriefings();
         $this->challenge->main();
-        $this->challenge->robotGameFinals();
+        $this->challenge->afternoon();
         $this->challenge->awards();
     }
 
@@ -177,7 +177,7 @@ class PlanGeneratorCore
 
         $this->challenge->main(true, $afterRG1Callback);
 
-        $this->challenge->robotGameFinals();
+        $this->challenge->afternoon();
         $this->challenge->awards();
     }
 
@@ -197,7 +197,7 @@ class PlanGeneratorCore
             $this->explore->openingsAndBriefings(2);
         }
         $this->explore->judgingAndDeliberations(2);
-        $this->challenge->robotGameFinals();
+        $this->challenge->afternoon();
         $this->challenge->awards(true);
     }
 
@@ -215,7 +215,7 @@ class PlanGeneratorCore
         $this->explore->judgingAndDeliberations(1);
         $this->explore->awards(1);
 
-        $this->challenge->robotGameFinals();
+        $this->challenge->afternoon();
         $this->challenge->awards(true);
 
         $start = $this->integratedExplore->startTime;
@@ -233,7 +233,7 @@ class PlanGeneratorCore
 
         $this->challenge->openingsAndBriefings();
         $this->challenge->main();
-        $this->challenge->robotGameFinals();
+        $this->challenge->afternoon();
         $this->challenge->awards();
 
         if ($eMode === ExploreMode::DECOUPLED_MORNING->value || $eMode === ExploreMode::DECOUPLED_BOTH->value) {

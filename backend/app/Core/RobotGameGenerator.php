@@ -236,7 +236,7 @@ class RobotGameGenerator
                 break;
 
             case 3:
-                // Insert point after RG3 is now handled in ChallengeGenerator::robotGameFinals()
+                // After RG3 is handled in ChallengeGenerator::afternoon()
                 // to support flexible presentation scheduling
                 break;
         }

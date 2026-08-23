@@ -597,44 +597,35 @@ class ChallengeGenerator
     }
 
 
-    public function robotGameFinals(): void
+    public function afternoon(): void
     {
-        Log::info('ChallengeGenerator::robotGameFinals', [
+        Log::info('ChallengeGenerator::afternoon', [
             'plan_id' => $this->pp('g_plan'),
             'c_teams' => $this->pp('c_teams'),
         ]);
         
         try {
             // After RG3 the Nachmittag list is the sequence (presentations, finals).
-            // Awards stay in the Core recipes. Round of 16 is finale-only and not a box.
+            // Awards stay in the Core recipes.
             $this->rTime->set($this->cTime->current());
-            $this->rTime->addMinutes($this->pp('r_duration_results'));
 
             $blocks = app(AfternoonBlockOrderService::class)
                 ->resolvedBlocks((int) $this->pp('g_plan'));
-
-            $roundOf16Inserted = false;
 
             foreach ($blocks as $block) {
                 if (!$this->afternoonBlockShouldEmit($block)) {
                     continue;
                 }
 
-                $code = (string) $block->code;
-                if (in_array($code, ['r_final_8', 'r_final_4', 'r_final_2'], true)) {
-                    $roundOf16Inserted = $this->insertRoundOf16IfNeeded($roundOf16Inserted);
-                }
-
-                match ($code) {
-                    'c_presentations' => $this->insertPresentations(),
+                match ((string) $block->code) {
+                    'c_presentations' => $this->presentations(),
+                    'r_final_16' => $this->insertOrderedFinalRound(16),
                     'r_final_8' => $this->insertOrderedFinalRound(8),
                     'r_final_4' => $this->insertOrderedFinalRound(4),
                     'r_final_2' => $this->insertOrderedFinalRound(2),
                     default => null,
                 };
             }
-
-            $this->insertRoundOf16IfNeeded($roundOf16Inserted);
 
             $this->rTime->addMinutes($this->pp('c_ready_awards'));
             $this->cTime->set($this->rTime->current());
@@ -644,17 +635,23 @@ class ChallengeGenerator
             }
 
         } catch (\Throwable $e) {
-            Log::error('ChallengeGenerator: Error in robot game finals', [
+            Log::error('ChallengeGenerator: Error in afternoon', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Fehler beim Generieren der Robot-Game-Finals: {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren des Nachmittags: {$e->getMessage()}", 0, $e);
         }
     }
 
     private function afternoonBlockShouldEmit(object $block): bool
     {
+        $code = (string) $block->code;
+
         if ((int) ($block->first_program ?? 0) === FirstProgram::FUTURE_8->value) {
+            return false;
+        }
+
+        if ($code === 'r_final_16' && ! $this->pp('g_finale')) {
             return false;
         }
 
@@ -662,42 +659,21 @@ class ChallengeGenerator
             return true;
         }
 
-        $value = $this->pp((string) $block->code);
+        $value = $this->pp($code);
 
         return $value !== 0 && $value !== '0' && $value !== false && $value !== null;
     }
 
-    private function insertRoundOf16IfNeeded(bool $alreadyInserted): bool
-    {
-        if ($alreadyInserted) {
-            return true;
-        }
-
-        if ($this->pp('g_finale') && $this->pp('r_final_16')) {
-            $this->robotGame->insertFinalRound(16);
-
-            return true;
-        }
-
-        return false;
-    }
-
     private function insertOrderedFinalRound(int $teamCount): void
     {
+        $this->rTime->addMinutes($this->pp('r_duration_results'));
         $this->robotGame->insertFinalRound($teamCount, true);
-        if ($teamCount !== 2) {
-            $this->rTime->addMinutes($this->pp('r_duration_results'));
-        }
     }
 
-    private function insertPresentations(): void
+    private function presentations(): void
     {
         $this->rTime->addMinutes($this->pp('c_ready_presentations'));
-        $this->presentations();
-    }
-    
-    public function presentations(): void
-    {
+
         $duration = $this->pp('c_presentations') * $this->pp('c_duration_presentation') + 5;
 
         $this->writer->withGroup('c_presentations', function () use ($duration) {
