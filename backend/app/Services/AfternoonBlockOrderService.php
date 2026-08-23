@@ -61,6 +61,35 @@ class AfternoonBlockOrderService
             });
     }
 
+    /**
+     * Write catalog Nachmittag order (afternoon_default) onto a new plan.
+     * saveOrder() skips a catalog-matching list; first-use still needs the rows.
+     */
+    public function writeDefaultOrder(int $planId): void
+    {
+        $catalogIds = $this->catalogBlocks($planId)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        AfternoonBlockOrder::query()->where('plan', $planId)->delete();
+
+        if ($catalogIds === []) {
+            return;
+        }
+
+        $rows = [];
+        foreach ($catalogIds as $sequence => $detailId) {
+            $rows[] = [
+                'plan' => $planId,
+                'activity_type_detail' => $detailId,
+                'sequence' => $sequence,
+            ];
+        }
+        AfternoonBlockOrder::query()->insert($rows);
+    }
+
     public function resolvedBlocks(int $planId): Collection
     {
         $catalog = $this->catalogBlocks($planId);

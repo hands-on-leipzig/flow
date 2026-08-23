@@ -9,6 +9,7 @@ use App\Models\PlanParamValue;
 use App\Models\Team;
 use App\Models\TeamPlan;
 use App\Enums\FirstProgram;
+use App\Services\AfternoonBlockOrderService;
 use App\Services\EventAttentionService;
 
 use Illuminate\Http\JsonResponse;
@@ -187,6 +188,7 @@ class PlanController extends Controller
             ['plan' => $newId, 'parameter' => 24],
             ['set_value' => $r_tables]);
 
+        app(AfternoonBlockOrderService::class)->writeDefaultOrder($newId);
 
         // Populate team_plan table with all teams for this event
         Log::info("Creating plan $newId for event $eventId - calling populateTeamPlanForNewPlan");
