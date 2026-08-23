@@ -924,6 +924,7 @@ const hasBlocksOutsideEventDates = computed(() => {
 
     <ScheduleToast
         ref="savingToast"
+        action="update"
         :is-generating="isGenerating"
         :countdown="countdownSeconds"
         :on-immediate-save="immediateFlush"
