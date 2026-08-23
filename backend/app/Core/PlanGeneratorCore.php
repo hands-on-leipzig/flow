@@ -75,159 +75,174 @@ class PlanGeneratorCore
     /**
      * Generate a standard one-day event
      * This method can be called by both normal events and Finale Day 2
+     *
+     * Ceremony recipes (Challenge leads; Explore is a wrapper). Same call order as before.
+     * HYBRID_MORNING / HYBRID_AFTERNOON: still no generation path (Challenge/Explore may be constructed, nothing run).
      */
     public function generateOneDayEvent(): void
     {
-        $cMode = $this->pp('c_mode');
-        $eMode = $this->pp('e_mode');
+        $cMode = (int) $this->pp('c_mode');
+        $eMode = (int) $this->pp('e_mode');
 
-        // Log::debug("PlanGeneratorCore: generateOneDayEvent", ['cMode' => $cMode, 'eMode' => $eMode]);
-
-        if ($cMode == 1) {
-            // Challenge present - instantiate ChallengeGenerator
+        if ($cMode === 1) {
             $this->challenge = new ChallengeGenerator(
                 $this->writer,
                 $this->params,
                 $this->integratedExplore
             );
 
-            if ($eMode == ExploreMode::NONE->value) {
-                // Challenge only
-                $this->challenge->openingsAndBriefings();
-                $this->challenge->main();
-                $this->challenge->robotGameFinals();
-                $this->challenge->awards();
-
-            } elseif ($eMode == ExploreMode::INTEGRATED_MORNING->value) {
-                // Challenge + Explore integrated morning
-                $this->explore = new ExploreGenerator(
-                    $this->writer,
-                    $this->params,
-                    $this->integratedExplore
-                );
-
-                $this->challenge->openingsAndBriefings(true);
-                $this->explore->openingsAndBriefings(1);
-                $this->explore->judgingAndDeliberations(1);
-
-                // Define callback to insert awards and adjust rTime after RG1, before RG2
-                $afterRG1Callback = function (TimeCursor $rTime) {
-                    // Insert Explore awards at the synchronized start time
-                    $awardsEndTime = $this->explore->integratedActivity(1, $rTime);
-
-                    if ($awardsEndTime !== null) {
-                        // Set rTime to awards end time + e_ready_awards buffer
-                        // This ensures RG2 starts after awards are complete
-                        $rTime->setTime($awardsEndTime);
-                        $rTime->addMinutes($this->pp('e_ready_awards'));
-                    }
-                };
-
-                $this->challenge->main(true, $afterRG1Callback);
-
-                $this->challenge->robotGameFinals();
-                $this->challenge->awards();
-
-            } elseif ($eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
-                // Challenge + Explore integrated afternoon
-                $this->explore = new ExploreGenerator(
-                    $this->writer,
-                    $this->params,
-                    $this->integratedExplore
-                );
-
-                $this->challenge->openingsAndBriefings();
-                $this->challenge->main(true);
-                $this->explore->integratedActivity(2);
-                $this->explore->judgingAndDeliberations(2);
-                $this->challenge->robotGameFinals();
-                $this->challenge->awards(true);
-
-            } elseif ($eMode == ExploreMode::HYBRID_BOTH->value) {
-                // Challenge + 2x Explore join opening and awards
-                $this->explore = new ExploreGenerator(
-                    $this->writer,
-                    $this->params,
-                    $this->integratedExplore
-                );
-
-                $this->challenge->openingsAndBriefings(true);
-                $this->challenge->main();
-
-                $this->explore->openingsAndBriefings(1);
-                $this->explore->judgingAndDeliberations(1);
-                $this->explore->awards(1); // awards
-
-                $this->challenge->robotGameFinals();
-                $this->challenge->awards(true);
-
-                $this->explore->integratedActivity(2); // openings and briefings
-                $this->explore->judgingAndDeliberations(2);
-
-            } elseif (in_array($eMode, [
+            match ($eMode) {
+                ExploreMode::NONE->value => $this->recipeChallengeOnly(),
+                ExploreMode::INTEGRATED_MORNING->value => $this->recipeIntegratedMorning(),
+                ExploreMode::INTEGRATED_AFTERNOON->value => $this->recipeIntegratedAfternoon(),
+                ExploreMode::HYBRID_BOTH->value => $this->recipeHybridBoth(),
                 ExploreMode::DECOUPLED_MORNING->value,
                 ExploreMode::DECOUPLED_AFTERNOON->value,
-                ExploreMode::DECOUPLED_BOTH->value,
-            ])) {
-                // Challenge + Explore decoupled
+                ExploreMode::DECOUPLED_BOTH->value => $this->recipeDecoupled($eMode),
+                default => null,
+            };
 
-                $this->explore = new ExploreGenerator(
-                    $this->writer,
-                    $this->params,
-                    $this->integratedExplore
-                );
+            return;
+        }
 
-                $this->challenge->openingsAndBriefings();
-                $this->challenge->main();
-                $this->challenge->robotGameFinals();
-                $this->challenge->awards();
+        if ($eMode === ExploreMode::NONE->value) {
+            Log::warning('PlanGeneratorCore: Both programs disabled (e_mode=0, c_mode=0) - generating empty plan');
 
-                if ($eMode == ExploreMode::DECOUPLED_MORNING->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
+            return;
+        }
 
-                    $this->explore->openingsAndBriefings(1);
-                    $this->explore->judgingAndDeliberations(1);
-                    $this->explore->awards(1);
-                }
+        $this->explore = new ExploreGenerator(
+            $this->writer,
+            $this->params,
+            $this->integratedExplore
+        );
 
-                if ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
+        $this->recipeExploreOnly($eMode);
+    }
 
-                    $this->explore->openingsAndBriefings(2);
-                    $this->explore->judgingAndDeliberations(2);
-                    $this->explore->awards(2);
-                }
+    /** Challenge only: opening → main (judging ∥ RG) → finals → awards. */
+    private function recipeChallengeOnly(): void
+    {
+        $this->challenge->openingsAndBriefings();
+        $this->challenge->main();
+        $this->challenge->robotGameFinals();
+        $this->challenge->awards();
+    }
 
+    /**
+     * Joint opening. Explore morning judging. After RG1, Explore awards (handoff). Challenge awards alone.
+     */
+    private function recipeIntegratedMorning(): void
+    {
+        $this->explore = new ExploreGenerator(
+            $this->writer,
+            $this->params,
+            $this->integratedExplore
+        );
+
+        $this->challenge->openingsAndBriefings(true);
+        $this->explore->openingsAndBriefings(1);
+        $this->explore->judgingAndDeliberations(1);
+
+        $afterRG1Callback = function (TimeCursor $rTime) {
+            $awardsEndTime = $this->explore->integratedActivity(1, $rTime);
+
+            if ($awardsEndTime !== null) {
+                $rTime->setTime($awardsEndTime);
+                $rTime->addMinutes($this->pp('e_ready_awards'));
             }
+        };
 
-        } else {
-            // No Challenge - check if Explore is enabled
-            if ($eMode == ExploreMode::NONE->value) {
-                // Both programs disabled - nothing to generate
-                Log::warning('PlanGeneratorCore: Both programs disabled (e_mode=0, c_mode=0) - generating empty plan');
+        $this->challenge->main(true, $afterRG1Callback);
 
-                return;
-            }
+        $this->challenge->robotGameFinals();
+        $this->challenge->awards();
+    }
 
-            // Explore only
-            $this->explore = new ExploreGenerator(
-                $this->writer,
-                $this->params,
-                $this->integratedExplore
-            );
+    /**
+     * Challenge opening. After RG1, Explore afternoon opening (handoff). Joint awards.
+     */
+    private function recipeIntegratedAfternoon(): void
+    {
+        $this->explore = new ExploreGenerator(
+            $this->writer,
+            $this->params,
+            $this->integratedExplore
+        );
 
-            // Handle different Explore modes
-            if ($eMode == ExploreMode::DECOUPLED_MORNING->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
-                // Morning session (group 1)
-                $this->explore->openingsAndBriefings(1);
-                $this->explore->judgingAndDeliberations(1);
-                $this->explore->awards(1);
-            }
+        $this->challenge->openingsAndBriefings();
+        $this->challenge->main(true);
+        $this->explore->integratedActivity(2);
+        $this->explore->judgingAndDeliberations(2);
+        $this->challenge->robotGameFinals();
+        $this->challenge->awards(true);
+    }
 
-            if ($eMode == ExploreMode::DECOUPLED_AFTERNOON->value || $eMode == ExploreMode::DECOUPLED_BOTH->value) {
-                // Afternoon session (group 2)
-                $this->explore->openingsAndBriefings(2);
-                $this->explore->judgingAndDeliberations(2);
-                $this->explore->awards(2);
-            }
+    /**
+     * Joint opening. Explore morning full day (own awards). Joint Challenge awards. Explore afternoon opening after RG1, then judging (no Explore afternoon awards).
+     */
+    private function recipeHybridBoth(): void
+    {
+        $this->explore = new ExploreGenerator(
+            $this->writer,
+            $this->params,
+            $this->integratedExplore
+        );
+
+        $this->challenge->openingsAndBriefings(true);
+        $this->challenge->main();
+
+        $this->explore->openingsAndBriefings(1);
+        $this->explore->judgingAndDeliberations(1);
+        $this->explore->awards(1);
+
+        $this->challenge->robotGameFinals();
+        $this->challenge->awards(true);
+
+        $this->explore->integratedActivity(2);
+        $this->explore->judgingAndDeliberations(2);
+    }
+
+    /** Full Challenge day, then Explore group(s) fully decoupled (own opening, judging, awards). */
+    private function recipeDecoupled(int $eMode): void
+    {
+        $this->explore = new ExploreGenerator(
+            $this->writer,
+            $this->params,
+            $this->integratedExplore
+        );
+
+        $this->challenge->openingsAndBriefings();
+        $this->challenge->main();
+        $this->challenge->robotGameFinals();
+        $this->challenge->awards();
+
+        if ($eMode === ExploreMode::DECOUPLED_MORNING->value || $eMode === ExploreMode::DECOUPLED_BOTH->value) {
+            $this->explore->openingsAndBriefings(1);
+            $this->explore->judgingAndDeliberations(1);
+            $this->explore->awards(1);
+        }
+
+        if ($eMode === ExploreMode::DECOUPLED_AFTERNOON->value || $eMode === ExploreMode::DECOUPLED_BOTH->value) {
+            $this->explore->openingsAndBriefings(2);
+            $this->explore->judgingAndDeliberations(2);
+            $this->explore->awards(2);
+        }
+    }
+
+    /** Explore only: decoupled morning and/or afternoon. Other e_mode values construct Explore and generate nothing. */
+    private function recipeExploreOnly(int $eMode): void
+    {
+        if ($eMode === ExploreMode::DECOUPLED_MORNING->value || $eMode === ExploreMode::DECOUPLED_BOTH->value) {
+            $this->explore->openingsAndBriefings(1);
+            $this->explore->judgingAndDeliberations(1);
+            $this->explore->awards(1);
+        }
+
+        if ($eMode === ExploreMode::DECOUPLED_AFTERNOON->value || $eMode === ExploreMode::DECOUPLED_BOTH->value) {
+            $this->explore->openingsAndBriefings(2);
+            $this->explore->judgingAndDeliberations(2);
+            $this->explore->awards(2);
         }
     }
 }
