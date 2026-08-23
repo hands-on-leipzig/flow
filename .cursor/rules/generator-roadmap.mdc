@@ -33,7 +33,7 @@ Constraints: Challenge judging ∥ robot game (do not generate them as two days)
 
 Agreed sequence — do not start the next item until the user has reviewed:
 
-1. **Ceremony recipes in Core** (current) — same call order as the old `e_mode` ladder; HYBRID_MORNING/AFTERNOON still unused.
+1. **Ceremony recipes in Core** — same call order as the old `e_mode` ladder. `e_mode` 6/7 unused (documented below).
 2. Challenge-owned clocks; Explore gets a start from opening/closing/handoff; handoff as datetime not `H:i`.
 3. Named pieces inside Challenge `main()`, formulas unchanged; judging and RG stay in one loop.
 4. Robot game: match list vs write to `rTime`; write stays in the loop.
@@ -53,3 +53,20 @@ Agreed sequence — do not start the next item until the user has reviewed:
 - Do this only after phases 1–2, because Future 8+ will change who shares that part of the day.
 
 When unsure which phase a change belongs to, ask before implementing.
+
+## Explore `e_mode` (generated)
+
+| Value | Enum | Meaning |
+|---:|---|---|
+| 0 | `NONE` | No Explore |
+| 1 | `INTEGRATED_MORNING` | Joint opening; Explore 1 judging; Explore 1 awards after RG1; Challenge awards alone |
+| 2 | `INTEGRATED_AFTERNOON` | Challenge opening; Explore 2 opening after RG1; Explore 2 judging; joint awards |
+| 3 | `DECOUPLED_MORNING` | Full Challenge, then Explore 1 with own ceremonies |
+| 4 | `DECOUPLED_AFTERNOON` | Full Challenge, then Explore 2 with own ceremonies |
+| 5 | `DECOUPLED_BOTH` | Full Challenge, then Explore 1 and 2 with own ceremonies |
+| 8 | `HYBRID_BOTH` | Joint opening; Explore 1 with own awards; joint awards; Explore 2 opening after that + judging (no Explore 2 awards) |
+
+UI never writes 6 or 7 (morning+integrated → 1, afternoon+integrated → 2). Enum has no cases for them. Integers 6 and 7 stay reserved and unimplemented:
+
+- **6** would be hybrid morning (half of 8 vs 1): joint opening like 8; Explore 1 judging; Explore 1 **awards independent of Challenge** (not after RG1); Challenge awards alone.
+- **7** would be hybrid afternoon (half of 8 vs 2): Challenge opening; Explore 2 **opening independent of Challenge** (not after RG1); Explore 2 judging; joint awards.

@@ -73,11 +73,31 @@ class PlanGeneratorCore
     }
 
     /**
-     * Generate a standard one-day event
-     * This method can be called by both normal events and Finale Day 2
+     * Generate a standard one-day event.
+     * Called for normal events and Finale Day 2.
      *
      * Ceremony recipes (Challenge leads; Explore is a wrapper). Same call order as before.
-     * HYBRID_MORNING / HYBRID_AFTERNOON: still no generation path (Challenge/Explore may be constructed, nothing run).
+     *
+     * Explore e_mode (generated):
+     *
+     *   0 NONE                 No Explore
+     *   1 INTEGRATED_MORNING   Joint opening; Explore 1 judging; Explore 1 awards after RG1;
+     *                          Challenge awards alone
+     *   2 INTEGRATED_AFTERNOON Challenge opening; Explore 2 opening after RG1; Explore 2 judging;
+     *                          joint awards
+     *   3 DECOUPLED_MORNING    Full Challenge, then Explore 1 with own ceremonies
+     *   4 DECOUPLED_AFTERNOON  Full Challenge, then Explore 2 with own ceremonies
+     *   5 DECOUPLED_BOTH       Full Challenge, then Explore 1 and 2 with own ceremonies
+     *   8 HYBRID_BOTH          Joint opening; Explore 1 with own awards; joint awards;
+     *                          Explore 2 opening after that + judging (no Explore 2 awards)
+     *
+     * UI never writes 6 or 7 (morning+integrated → 1, afternoon+integrated → 2).
+     * Enum has no cases for them. Integers 6 and 7 stay reserved and unimplemented:
+     *
+     *   6 would be hybrid morning (half of 8 vs 1): joint opening like 8; Explore 1 judging;
+     *     Explore 1 awards independent of Challenge (not after RG1); Challenge awards alone.
+     *   7 would be hybrid afternoon (half of 8 vs 2): Challenge opening; Explore 2 opening
+     *     independent of Challenge (not after RG1); Explore 2 judging; joint awards.
      */
     public function generateOneDayEvent(): void
     {
