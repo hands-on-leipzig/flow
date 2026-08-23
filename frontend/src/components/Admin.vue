@@ -14,28 +14,47 @@ import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
 import '@vueform/multiselect/themes/default.css'
 import {showGlassToast} from '@/composables/useGlassToast'
-import {ADMIN_DEFAULT_SECTION, isAdminSection} from '@/constants/adminNav'
+import {ADMIN_DEFAULT_SECTION, ADMIN_SECTIONS, isAdminSection, isAdminSectionAvailable} from '@/constants/adminNav'
+import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 
 defineOptions({name: 'Admin'})
 
 const route = useRoute()
 const router = useRouter()
+const {isDevEnvironment, isLocal, ensureLoaded: ensureAdminEnvironment} = useAdminEnvironment()
 
 const activeTab = computed(() => {
   const section = String(route.params.section || '')
   return isAdminSection(section) ? section : ADMIN_DEFAULT_SECTION
 })
 
+const sectionAllowed = computed(() => {
+  const item = ADMIN_SECTIONS.find((entry) => entry.key === activeTab.value)
+  if (!item) return true
+  return isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
+})
+
+function redirectIfSectionBlocked(section) {
+  const key = String(section || '')
+  if (!isAdminSection(key)) {
+    void router.replace(`/plan/admin/${ADMIN_DEFAULT_SECTION}`)
+    return
+  }
+  const item = ADMIN_SECTIONS.find((entry) => entry.key === key)
+  if (item && !isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)) {
+    void router.replace(`/plan/admin/${ADMIN_DEFAULT_SECTION}`)
+  }
+}
+
 watch(
   () => route.params.section,
-  (section) => {
-    const key = String(section || '')
-    if (!isAdminSection(key)) {
-      void router.replace(`/plan/admin/${ADMIN_DEFAULT_SECTION}`)
-    }
-  },
+  (section) => redirectIfSectionBlocked(section),
   {immediate: true}
 )
+
+watch(isDevEnvironment, () => {
+  redirectIfSectionBlocked(route.params.section)
+})
 
 const parameters = ref([])
 const conditions = ref([])
@@ -53,6 +72,7 @@ const updatingMatchSchedule = ref(false)
 const statisticsTableOnly = ref(false)
 
 onMounted(async () => {
+  void ensureAdminEnvironment()
   try {
     const seasonsResponse = await axios.get('/seasons')
     // Ensure we have an array (axios wraps responses, but this endpoint returns array directly)
@@ -341,13 +361,13 @@ fetchConditions()
           </div>
         </div>
 
-        <div v-if="activeTab === 'quality'">
+        <div v-if="activeTab === 'quality' && sectionAllowed">
           <h2 class="text-xl font-bold mb-4">Massentest</h2>
           <quality/>
         </div>
 
 
-        <div v-if="activeTab === 'main-tables'">
+        <div v-if="activeTab === 'main-tables' && sectionAllowed">
           <MainTablesAdmin/>
         </div>
 

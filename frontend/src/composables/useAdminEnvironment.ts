@@ -17,13 +17,12 @@ async function ensureLoaded(): Promise<void> {
     .get('/environment')
     .then((response) => {
       isDevEnvironment.value = response.data.is_dev || false
+      loaded.value = true
     })
     .catch((error) => {
       console.error('Failed to fetch environment:', error)
       isDevEnvironment.value = false
-    })
-    .finally(() => {
-      loaded.value = true
+      loadPromise = null
     })
 
   return loadPromise

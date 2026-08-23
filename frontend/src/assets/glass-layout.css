@@ -608,6 +608,17 @@
   background: var(--color-accent-muted);
 }
 
+/* Dev-only admin items — FLOW-side so the muted state is visible even if glass CSS is cached. */
+.glass-sidebar__item:disabled,
+.glass-sidebar__item--disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
 .glass-input-inline {
   border-radius: var(--radius);
   padding: 0.375rem 0.5rem;
