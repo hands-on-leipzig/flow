@@ -7,6 +7,8 @@ use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use App\Support\IntegratedExploreState;
 use App\Enums\ExploreMode;
+use App\Enums\FirstProgram;
+use App\Services\AfternoonBlockOrderService;
 
 
 class ChallengeGenerator
@@ -603,58 +605,40 @@ class ChallengeGenerator
         ]);
         
         try {
-            // -----------------------------------------------------------------------------------
-            // FLL Challenge: Everything after judging / robot game rounds
-            // -----------------------------------------------------------------------------------
-            //  
-            // 1 Selected research on main stage
-            // 2 followed by robot game finals
-            // 3 awards
-            //
-            // Presentations can be inserted at various points:
-            // - After round 3 (normal robot game rounds)
-            // - After quarter final (8 teams)
-            // - After semi final (4 teams)
-            // - After final (2 teams)
-
-            // As of now nothing runs in parallel to robot game, but we use r_time anyway to be more open for future changes
+            // After RG3 the Nachmittag list is the sequence (presentations, finals).
+            // Awards stay in the Core recipes. Round of 16 is finale-only and not a box.
             $this->rTime->set($this->cTime->current());
+            $this->rTime->addMinutes($this->pp('r_duration_results'));
 
-            // -----------------------------------------------------------------------------------
-            // After round 3 (before finals start)
-            // -----------------------------------------------------------------------------------
-            $this->handleTimingPoint(1, 'r_duration_results');
+            $blocks = app(AfternoonBlockOrderService::class)
+                ->resolvedBlocks((int) $this->pp('g_plan'));
 
-            // -----------------------------------------------------------------------------------
-            /// Robot-game final rounds
-            // -----------------------------------------------------------------------------------
+            $roundOf16Inserted = false;
 
-            // Round of best 16 (optional, only for finale events)
-            if ($this->pp('g_finale') && $this->pp('r_final_16')) {
-                $this->robotGame->insertFinalRound(16);
-                // Note: No timing point after 16, it's handled by the 8-team round
+            foreach ($blocks as $block) {
+                if (!$this->afternoonBlockShouldEmit($block)) {
+                    continue;
+                }
+
+                $code = (string) $block->code;
+                if (in_array($code, ['r_final_8', 'r_final_4', 'r_final_2'], true)) {
+                    $roundOf16Inserted = $this->insertRoundOf16IfNeeded($roundOf16Inserted);
+                }
+
+                match ($code) {
+                    'c_presentations' => $this->insertPresentations(),
+                    'r_final_8' => $this->insertOrderedFinalRound(8),
+                    'r_final_4' => $this->insertOrderedFinalRound(4),
+                    'r_final_2' => $this->insertOrderedFinalRound(2),
+                    default => null,
+                };
             }
 
-            // Round of best 8 (optional, auto-enabled if r_final_16 is active)
-            if ($this->pp('r_final_8') || $this->pp('r_final_16')) {
-                $this->robotGame->insertFinalRound(8, true); // Skip pause, handle in handleTimingPoint
-            }
-            // Handle timing point after QF (even if QF doesn't exist, if presentations are scheduled there)
-            $this->handleTimingPoint(2, 'r_duration_results');
+            $this->insertRoundOf16IfNeeded($roundOf16Inserted);
 
-            // Semi finale is a must
-            $this->robotGame->insertFinalRound(4, true); // Skip pause, handle in handleTimingPoint
-            $this->handleTimingPoint(3, 'r_duration_results');
-
-            // Final matches
-            $this->robotGame->insertFinalRound(2, true); // Skip pause, handle in handleTimingPoint
-            $this->handleTimingPoint(4, 'c_ready_awards');
-
-            // back to only one action a time
+            $this->rTime->addMinutes($this->pp('c_ready_awards'));
             $this->cTime->set($this->rTime->current());
 
-            // FLL Challenge
-            // Deliberations might have taken longer, which is unlikely
             if ($this->jTime->current()->getTimestamp() > $this->cTime->current()->getTimestamp()) {
                 $this->cTime->set($this->jTime->current());
             }
@@ -668,23 +652,48 @@ class ChallengeGenerator
         }
     }
 
-    /**
-     * Pause (and optional presentations) after a robot-game round or final.
-     *
-     * @param int $when Timing point (1=after round 3, 2=after QF, 3=after SF, 4=after F)
-     * @param string $durationParam Parameter name for the pause duration
-     */
-    private function handleTimingPoint(int $when, string $durationParam): void
+    private function afternoonBlockShouldEmit(object $block): bool
     {
-        $this->rTime->addMinutes($this->pp($durationParam));
-
-        $presentationWhen = (int) $this->pp('c_presentations_when');
-        $presentationsCount = (int) $this->pp('c_presentations');
-
-        if ($presentationsCount > 0 && $presentationWhen === $when) {
-            $this->rTime->addMinutes($this->pp('c_ready_presentations'));
-            $this->presentations();
+        if ((int) ($block->first_program ?? 0) === FirstProgram::FUTURE_8->value) {
+            return false;
         }
+
+        if ($block->afternoon_parameter === null) {
+            return true;
+        }
+
+        $value = $this->pp((string) $block->code);
+
+        return $value !== 0 && $value !== '0' && $value !== false && $value !== null;
+    }
+
+    private function insertRoundOf16IfNeeded(bool $alreadyInserted): bool
+    {
+        if ($alreadyInserted) {
+            return true;
+        }
+
+        if ($this->pp('g_finale') && $this->pp('r_final_16')) {
+            $this->robotGame->insertFinalRound(16);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private function insertOrderedFinalRound(int $teamCount): void
+    {
+        $this->robotGame->insertFinalRound($teamCount, true);
+        if ($teamCount !== 2) {
+            $this->rTime->addMinutes($this->pp('r_duration_results'));
+        }
+    }
+
+    private function insertPresentations(): void
+    {
+        $this->rTime->addMinutes($this->pp('c_ready_presentations'));
+        $this->presentations();
     }
     
     public function presentations(): void
@@ -696,13 +705,7 @@ class ChallengeGenerator
         });
 
         $this->rTime->addMinutes($duration);
-
-        $presentationWhen = (int) $this->pp('c_presentations_when');
-        $pauseAfter = ($presentationWhen === 4)
-            ? $this->pp('c_ready_awards')
-            : $this->pp('c_ready_presentations');
-
-        $this->rTime->addMinutes($pauseAfter);
+        $this->rTime->addMinutes($this->pp('c_ready_presentations'));
     }
 
 
