@@ -121,7 +121,7 @@ watch(
             <div class="schedule-workspace__settings">
               <router-view v-slot="{ Component, route: paneRoute }">
                 <keep-alive
-                    include="ScheduleGeneral,ScheduleTimes,ScheduleAfternoon,ScheduleExpert,ScheduleBlocks,ScheduleFreeActivities,Slots"
+                    include="ScheduleGeneral,ScheduleTimes,ScheduleAfternoon,ScheduleExpert,ScheduleFreeActivities,Slots"
                 >
                   <component
                       :is="Component"

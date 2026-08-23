@@ -581,7 +581,7 @@ class ChallengeGenerator
             // -----------------------------------------------------------------------------------
             // After round 3 (before finals start)
             // -----------------------------------------------------------------------------------
-            $this->handleTimingPoint(1, 'c_after_rg_3', 'r_duration_results');
+            $this->handleTimingPoint(1, 'r_duration_results');
 
             // -----------------------------------------------------------------------------------
             /// Robot-game final rounds
@@ -595,18 +595,18 @@ class ChallengeGenerator
 
             // Round of best 8 (optional, auto-enabled if r_final_16 is active)
             if ($this->pp('r_final_8') || $this->pp('r_final_16')) {
-                $this->matchPlan->insertFinalRound(8, true); // Skip insertPoint, handle in handleTimingPoint
+                $this->matchPlan->insertFinalRound(8, true); // Skip pause, handle in handleTimingPoint
             }
             // Handle timing point after QF (even if QF doesn't exist, if presentations are scheduled there)
-            $this->handleTimingPoint(2, 'c_after_final_8', 'r_duration_results');
+            $this->handleTimingPoint(2, 'r_duration_results');
 
             // Semi finale is a must
-            $this->matchPlan->insertFinalRound(4, true); // Skip insertPoint, handle in handleTimingPoint
-            $this->handleTimingPoint(3, 'c_after_final_4', 'r_duration_results');
+            $this->matchPlan->insertFinalRound(4, true); // Skip pause, handle in handleTimingPoint
+            $this->handleTimingPoint(3, 'r_duration_results');
 
             // Final matches
-            $this->matchPlan->insertFinalRound(2, true); // Skip insertPoint, handle in handleTimingPoint
-            $this->handleTimingPoint(4, 'c_after_final_2', 'c_ready_awards');
+            $this->matchPlan->insertFinalRound(2, true); // Skip pause, handle in handleTimingPoint
+            $this->handleTimingPoint(4, 'c_ready_awards');
 
             // back to only one action a time
             $this->cTime->set($this->rTime->current());
@@ -627,26 +627,21 @@ class ChallengeGenerator
     }
 
     /**
-     * Handle timing point logic: insert point first, then presentations if scheduled
-     * 
+     * Pause (and optional presentations) after a robot-game round or final.
+     *
      * @param int $when Timing point (1=after round 3, 2=after QF, 3=after SF, 4=after F)
-     * @param string $insertPointCode Code for the insert point (for extra_block lookup)
-     * @param string $durationParam Parameter name for default duration (break)
+     * @param string $durationParam Parameter name for the pause duration
      */
-    private function handleTimingPoint(int $when, string $insertPointCode, string $durationParam): void
+    private function handleTimingPoint(int $when, string $durationParam): void
     {
-        // Always check insert point first (extra_block OR break)
-        $this->writer->insertPoint($insertPointCode, $this->pp($durationParam), $this->rTime);
+        $this->rTime->addMinutes($this->pp($durationParam));
 
-        // Then check if presentations are scheduled for this timing point
         $presentationWhen = (int) $this->pp('c_presentations_when');
         $presentationsCount = (int) $this->pp('c_presentations');
 
         if ($presentationsCount > 0 && $presentationWhen === $when) {
-            // Insert presentations after the insert point
             $this->rTime->addMinutes($this->pp('c_ready_presentations'));
             $this->presentations();
-            // presentations() already handles time advancement
         }
     }
     
@@ -660,13 +655,12 @@ class ChallengeGenerator
 
         $this->rTime->addMinutes($duration);
 
-        // Insert point after presentations - use appropriate duration based on when they occur
         $presentationWhen = (int) $this->pp('c_presentations_when');
-        $insertPointDuration = ($presentationWhen === 4) 
-            ? $this->pp('c_ready_awards') 
+        $pauseAfter = ($presentationWhen === 4)
+            ? $this->pp('c_ready_awards')
             : $this->pp('c_ready_presentations');
 
-        $this->writer->insertPoint('c_after_presentations', $insertPointDuration, $this->rTime);
+        $this->rTime->addMinutes($pauseAfter);
     }
 
 

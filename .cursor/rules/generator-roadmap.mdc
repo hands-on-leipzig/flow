@@ -1,0 +1,41 @@
+---
+description: Phased plan for the core schedule generator — do not skip ahead
+alwaysApply: true
+---
+
+# Core generator roadmap
+
+Work on `backend/app/Core/` (and its immediate callers) in this order. Do not start a later phase until the user says to.
+
+## 1. Revisit, clean up, stabilize (current)
+
+- Understand and tidy the existing generator: `PlanGeneratorCore`, Challenge, Explore, robot game, finale, activity writer, time cursor, parameters.
+- Prefer small, behavior-preserving changes. No new programs. No afternoon redesign.
+- Fix inconsistency, dead paths, naming, and fragile timing — only with tests or a clear before/after.
+
+### Current architecture (read-only map)
+
+Entry: `PlanGeneratorController` → `PlanGeneratorService` (`isSupported`, `prepare`, `run` / `GeneratePlanJob`) → `PlanGeneratorCore::generate`.
+
+`PlanGeneratorCore` loads `PlanParameter` (`m_parameter` + `plan_param_value`, plus `g_*` from the event). If `g_finale` (event level 3) → `FinaleGenerator` (Day 2 first, then Day 1). Else `generateOneDayEvent()` from `c_mode` + `e_mode` (`ExploreMode`).
+
+Clocks: `TimeCursor` (`jTime` judging, `rTime` robot game, `cTime` ceremony, `eTime` Explore). Shared hook: `IntegratedExploreState`. Writer: `ActivityWriter` → `activity_group` + `activity`. After generate: `FreeBlockGenerator`, then `SlotBlockPlanSyncService`.
+
+Challenge `main()` aligns judging rounds with RG (test round 0, then 1–3). Explore groups 1 = morning, 2 = afternoon. Pauses after TR/RG1/RG2/RG3/finals are **duration-only** (`addMinutes`). Inserted extra-blocks are removed; free + slot extra-blocks stay.
+
+### First cleanup (done in code)
+
+Inserted extra-block **content** is gone; **pauses** stay (`addMinutes`). Call-site order is unchanged. The drop migration is in the tree; do not run it on live until asked. Next in this phase: structural Core cleanup — not Future 8+, not afternoon reorder.
+
+## 2. Later: Future 8+ as a first-class program
+
+- Add **Future 8+** beside Explore and Challenge in the **generator**, not only catalog/UI.
+- Catalog already has `FirstProgram::FUTURE_8` (id 8, display “Future 8+”) and team/settings UI. Generation still assumes Explore + Challenge.
+- Treat this as a new program in `e_mode`/`c_mode`-style orchestration, not a bolt-on to Challenge.
+
+## 3. Then: rework the afternoon
+
+- “Afternoon” = everything **after robot game round three** (finals, awards, joint ceremonies, integrated Explore hooks, lunch-adjacent sequencing as it sits after RG3).
+- Do this only after phases 1–2, because Future 8+ will change who shares that part of the day.
+
+When unsure which phase a change belongs to, ask before implementing.

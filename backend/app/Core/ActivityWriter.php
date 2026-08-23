@@ -6,8 +6,6 @@ use App\Models\Activity;
 use App\Models\ActivityGroup;
 use App\Models\MActivityTypeDetail;
 use App\Models\MRoomType;
-use App\Models\ExtraBlock;
-use App\Models\MInsertPoint;
 use App\Enums\FirstProgram;
 use App\Enums\ExploreMode;
 use App\Support\PlanParameter;
@@ -15,7 +13,6 @@ use App\Support\UsesPlanParameter;
 
 use App\Core\TimeCursor;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 
 class ActivityWriter
 {
@@ -256,63 +253,6 @@ class ActivityWriter
         // Check if e_mode indicates two Explore groups
         return ($eMode === ExploreMode::HYBRID_BOTH->value || 
                 $eMode === ExploreMode::DECOUPLED_BOTH->value);
-    }
-
-
-
-    public function insertPoint(string $insertPointCode, int $duration, TimeCursor $time): void
-    {
-        // Query insert point by code from database
-        $insertPoint = MInsertPoint::where('code', $insertPointCode)->first();
-        
-        if (!$insertPoint) {
-            throw new \RuntimeException("Einfügepunkt-Code '{$insertPointCode}' nicht in der Datenbank gefunden. Bitte überprüfe den Code in der Tabelle m_insert_point.");
-        }
-
-        // Get event level to check if insert point is applicable
-        $eventLevel = (int) DB::table('plan')
-            ->join('event', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $this->planId)
-            ->value('event.level');
-
-        // Only process insert point if event level >= insert point level
-        if ($eventLevel < $insertPoint->level) {
-            // Insert point not applicable for this event level, just advance time
-            $time->addMinutes($duration);
-            return;
-        }
-
-        // passenden ExtraBlock suchen
-        $extraBlock = ExtraBlock::where('plan', $this->planId)
-            ->where('insert_point', $insertPoint->id)
-            ->where('active', true)
-            ->first();
-
-        if ($extraBlock) {
-            // Determine activity type code based on first_program
-            $activityCode = match ($insertPoint->first_program) {
-                FirstProgram::EXPLORE->value => 'e_inserted_block',
-                FirstProgram::CHALLENGE->value => 'c_inserted_block',
-                FirstProgram::JOINT->value => 'g_inserted_block',
-                default => 'g_inserted_block',  // Fallback for unknown
-            };
-
-            $this->withGroup($activityCode, function () use ($extraBlock, $activityCode, $time) {
-                $time->addMinutes((int) $extraBlock->buffer_before);
-                $this->insertActivity(
-                    $activityCode, 
-                    $time, 
-                    (int) $extraBlock->duration,
-                    null, null, null, null, null, null,
-                    $extraBlock->id  // Pass extra_block ID
-                );
-                $time->addMinutes((int) $extraBlock->duration + (int) $extraBlock->buffer_after);
-            });
-
-            // Log::debug("Block inserted at '{$insertPointCode}' using activity type '{$activityCode}'.");
-        } else {
-            $time->addMinutes($duration);
-        }    
     }
 
 }

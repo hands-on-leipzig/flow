@@ -260,7 +260,6 @@ const availableTables = ref([
   { name: 'm_activity_type', displayName: 'Activity Types', recordCount: 0 },
   { name: 'm_activity_type_detail', displayName: 'Activity Type Details', recordCount: 0 },
   { name: 'm_first_program', displayName: 'First Programs', recordCount: 0 },
-  { name: 'm_insert_point', displayName: 'Insert Points', recordCount: 0 },
   { name: 'm_level', displayName: 'Levels', recordCount: 0 },
   // m_news removed - news is now a regular table, managed separately in System News component
   { name: 'm_parameter', displayName: 'Parameters', recordCount: 0 },

@@ -1173,7 +1173,7 @@ class PlanExportController extends Controller
 
             $activitiesCollection = collect($activities);
             $freeBlocks = $activitiesCollection->filter(function ($a) {
-                return ! is_null($a->extra_block_id) && is_null($a->extra_block_insert_point);
+                return ! is_null($a->extra_block_id) && ($a->extra_block_type ?? null) === 'free';
             });
 
             $allFreeBlocks = $allFreeBlocks->concat($freeBlocks);
@@ -1206,7 +1206,7 @@ class PlanExportController extends Controller
             // Filter to only regular activities (not free blocks)
             $activitiesCollection = collect($activities);
             $regularActivities = $activitiesCollection->filter(function ($a) {
-                return is_null($a->extra_block_id) || ! is_null($a->extra_block_insert_point);
+                return is_null($a->extra_block_id) || ($a->extra_block_type ?? null) !== 'free';
             });
 
             // Process regular activities under their program name
@@ -3353,13 +3353,11 @@ class PlanExportController extends Controller
 
         // Manual assignment of free blocks to program-specific columns
         // Logic: 0 = joint (Allgemein), 2 = Explore, 3 = Challenge
-        // Detect free blocks by checking if any activity in the group has extra_block_id and no insert_point
         foreach ($eventOverview as &$event) {
-            // Check if this group contains free blocks (extra_block_id not null and insert_point is null)
             $hasFreeBlock = $activities->where('activity_group_id', $event['group_id'])
                 ->contains(function ($a) {
                     return isset($a->extra_block_id) && $a->extra_block_id !== null &&
-                           (! isset($a->extra_block_insert_point) || $a->extra_block_insert_point === null);
+                           (($a->extra_block_type ?? null) === 'free');
                 });
 
             if ($hasFreeBlock && ($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null)) {

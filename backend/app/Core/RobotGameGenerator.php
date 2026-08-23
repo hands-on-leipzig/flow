@@ -555,23 +555,23 @@ class RobotGameGenerator
             $this->rTime->addMinutes($delta);
         }
 
-        // 7) Inserted blocks / breaks for NEXT round
+        // 7) Breaks before the next round
         switch ($round) {
             case 0:
                 // Test round: Handle early lunch break if enabled
                 if ($this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') == 0) {
                     // Early lunch: use lunch duration instead of regular break
-                    $this->writer->insertPoint('c_after_tr', $this->pp("r_duration_lunch"), $this->rTime);
+                    $this->rTime->addMinutes($this->pp("r_duration_lunch"));
                 } else {
                     // Normal: regular break after test round
-                    $this->writer->insertPoint('c_after_tr', $this->pp("r_duration_break"), $this->rTime);
+                    $this->rTime->addMinutes($this->pp("r_duration_break"));
                 }
                 break;
 
             case 1:
                 if ($this->pp('g_finale')) {
                     // Finale: Simple break after RG1
-                    $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_break"), $this->rTime);
+                    $this->rTime->addMinutes($this->pp("r_duration_break"));
                 } else {
                     // Normal events: Handle Explore integration and lunch break
                     if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
@@ -610,9 +610,9 @@ class RobotGameGenerator
                         }
                         
                     } else {
-                        // Skip lunch insert point if early lunch is enabled (lunch already handled at test round)
+                        // Skip lunch pause if early lunch is enabled (lunch already handled at test round)
                         if (!$this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') === 0) {
-                            $this->writer->insertPoint('c_after_rg_1', $this->pp("r_duration_lunch"), $this->rTime);
+                            $this->rTime->addMinutes($this->pp("r_duration_lunch"));
                         }
                     }
                 }
@@ -627,14 +627,14 @@ class RobotGameGenerator
                         $this->integratedExplore->startTime = $this->rTime->format('H:i');
                         $this->rTime->addMinutes($this->integratedExplore->duration);
                     } else {
-                        // Skip lunch insert point if early lunch is enabled (lunch already handled at test round)
+                        // Skip lunch pause if early lunch is enabled (lunch already handled at test round)
                         if (!$this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') === 0) {
-                            $this->writer->insertPoint('c_after_rg_2', $this->pp("r_duration_lunch"), $this->rTime);
+                            $this->rTime->addMinutes($this->pp("r_duration_lunch"));
                         }
                     }
                 } else {
                     // Normal events: Regular break after RG2 (lunch was already handled at test round if early)
-                    $this->writer->insertPoint('c_after_rg_2', $this->pp("r_duration_break"), $this->rTime);
+                    $this->rTime->addMinutes($this->pp("r_duration_break"));
                 }
                 break;
 
@@ -700,11 +700,11 @@ class RobotGameGenerator
         }
     }
     
-    public function insertFinalRound(int $teamCount, bool $skipInsertPoint = false): void
+    public function insertFinalRound(int $teamCount, bool $skipPause = false): void
     {
         switch ($teamCount) {
             case 16:
-                $this->writer->withGroup('r_final_16', function () use ($skipInsertPoint) {
+                $this->writer->withGroup('r_final_16', function () use ($skipPause) {
                     // 4 tables alternating
                     for ($i = 0; $i < 4; $i++) {
                         $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_16"));
@@ -718,14 +718,14 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    if (!$skipInsertPoint) {
-                        $this->writer->insertPoint('c_after_final_16', $this->pp("r_duration_results"), $this->rTime);
+                    if (!$skipPause) {
+                        $this->rTime->addMinutes($this->pp("r_duration_results"));
                     }
                 });
                 break;
 
             case 8:
-                $this->writer->withGroup('r_final_8', function () use ($skipInsertPoint) {
+                $this->writer->withGroup('r_final_8', function () use ($skipPause) {
                     if ($this->pp("r_tables") == 2) {
                         for ($i = 0; $i < 4; $i++) {
                             $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_8"));
@@ -745,15 +745,15 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    if (!$skipInsertPoint) {
-                        $this->writer->insertPoint('c_after_final_8', $this->pp("r_duration_results"), $this->rTime);
+                    if (!$skipPause) {
+                        $this->rTime->addMinutes($this->pp("r_duration_results"));
                     }
                     
                 });
                 break;
 
             case 4:
-                $this->writer->withGroup('r_final_4', function () use ($skipInsertPoint) {
+                $this->writer->withGroup('r_final_4', function () use ($skipPause) {
                     if ($this->pp("r_final_8")) {
                         // TODO texts: QF1..QF4
                         if ($this->pp("r_tables") == 2) {
@@ -788,14 +788,14 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
                     }
 
-                    if (!$skipInsertPoint) {
-                        $this->writer->insertPoint('c_after_final_4', $this->pp("r_duration_results"), $this->rTime);
+                    if (!$skipPause) {
+                        $this->rTime->addMinutes($this->pp("r_duration_results"));
                     }
                 });
                 break;
 
             case 2:
-                $this->writer->withGroup('r_final_2', function () use ($skipInsertPoint) {
+                $this->writer->withGroup('r_final_2', function () use ($skipPause) {
                     $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, $this->pp("r_robot_check_2"));
                     $this->rTime->addMinutes($this->pp("r_duration_match"));
 
@@ -806,8 +806,8 @@ class RobotGameGenerator
                     $this->insertOneMatch($this->rTime, $this->pp("r_duration_match"), 1, 0, 2, 0, false);
                     $this->rTime->addMinutes($this->pp("r_duration_match"));
 
-                    if (!$skipInsertPoint) {
-                        $this->writer->insertPoint('c_after_final_2', $this->pp("c_ready_awards"), $this->rTime);
+                    if (!$skipPause) {
+                        $this->rTime->addMinutes($this->pp("c_ready_awards"));
                     }
                 });
                 break;
