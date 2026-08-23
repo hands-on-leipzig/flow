@@ -698,7 +698,7 @@ class ChallengeGenerator
                 $exploreStartTime->subMinutes($this->pp('e2_duration_opening'));
                 
                 // Write start time for ExploreGenerator to pick up
-                $this->integratedExplore->startTime = $exploreStartTime->format('H:i');
+                $this->integratedExplore->startTime = $exploreStartTime->current();
 
                 // log::info('ChallengeGenerator: Explore group 2 start time: ' . $this->integratedExplore->startTime);
 

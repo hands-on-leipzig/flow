@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\DB;
 use App\Models\MatchEntry;
 use App\Enums\ExploreMode;
 use App\Services\MatchRotationService;
-use DateTime;
 
 class RobotGameGenerator
 {
@@ -573,47 +572,19 @@ class RobotGameGenerator
                     // Finale: Simple break after RG1
                     $this->rTime->addMinutes($this->pp("r_duration_break"));
                 } else {
-                    // Normal events: Handle Explore integration and lunch break
-                    if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
-                        $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
-                        // Integrated Explore mode: coordinate with ExploreGenerator
-                        
-                        if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value) {
-                            // Store RG1 end time
-                            $this->integratedExplore->rg1EndTime = $this->rTime->format('H:i');
-                            
-                            // Compare with deliberation end time and use the later one
-                            $deliberationEnd = $this->integratedExplore->deliberationEndTime;
-                            if ($deliberationEnd !== null) {
-                                // Convert both to DateTime for comparison
-                                $baseDate = $this->rTime->current()->format('Y-m-d');
-                                $rg1Time = new \DateTime($baseDate . ' ' . $this->integratedExplore->rg1EndTime);
-                                $delibTime = new \DateTime($baseDate . ' ' . $deliberationEnd);
-                                
-                                // Use the later time
-                                $this->integratedExplore->startTime = ($rg1Time > $delibTime) 
-                                    ? $this->integratedExplore->rg1EndTime 
-                                    : $deliberationEnd;
-                            } else {
-                                // Fallback: use RG1 time if deliberation time not set
-                                $this->integratedExplore->startTime = $this->integratedExplore->rg1EndTime;
-                            }
-                            
-                            // For INTEGRATED_MORNING: Do NOT advance rTime here
-                            // rTime will be adjusted in PlanGeneratorCore after awards are inserted
-                            // based on the actual awards end time
-                            
-                        } else {
-                            // INTEGRATED_AFTERNOON: use RG1 time directly and advance by duration
-                            $this->integratedExplore->startTime = $this->rTime->format('H:i');
-                            $this->rTime->addMinutes($this->integratedExplore->duration);
-                        }
-                        
-                    } else {
-                        // Skip lunch pause if early lunch is enabled (lunch already handled at test round)
-                        if (!$this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') === 0) {
-                            $this->rTime->addMinutes($this->pp("r_duration_lunch"));
-                        }
+                    // Challenge break is the floor for RG2. Explore may only push rTime later.
+                    $rg1End = $this->rTime->current();
+                    $this->integratedExplore->rg1End = $rg1End;
+
+                    if (!$this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') === 0) {
+                        $this->rTime->addMinutes($this->pp("r_duration_lunch"));
+                    }
+
+                    if ($this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                        $this->integratedExplore->startTime = clone $rg1End;
+                        $exploreHoleEnd = new TimeCursor($rg1End);
+                        $exploreHoleEnd->addMinutes($this->integratedExplore->duration);
+                        $this->rTime->advanceToLater($exploreHoleEnd->current());
                     }
                 }
                 break;
@@ -624,7 +595,7 @@ class RobotGameGenerator
                     if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
                         $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
                         // Integrated Explore mode: coordinate with ExploreGenerator
-                        $this->integratedExplore->startTime = $this->rTime->format('H:i');
+                        $this->integratedExplore->startTime = $this->rTime->current();
                         $this->rTime->addMinutes($this->integratedExplore->duration);
                     } else {
                         // Skip lunch pause if early lunch is enabled (lunch already handled at test round)

@@ -19,6 +19,8 @@ class PlanGeneratorCore
     // Shared state for integrated Explore mode
     private IntegratedExploreState $integratedExplore;
 
+    private TimeCursor $eTime;
+
     use UsesPlanParameter;
 
     public function __construct(int $planId, PlanParameter $params)
@@ -26,6 +28,7 @@ class PlanGeneratorCore
         $this->writer = new ActivityWriter($planId, $params);
         $this->params = $params;
         $this->integratedExplore = new IntegratedExploreState;
+        $this->eTime = new TimeCursor(clone $params->get('g_date'));
     }
 
     public static function generate(int $planId): void
@@ -134,7 +137,8 @@ class PlanGeneratorCore
         $this->explore = new ExploreGenerator(
             $this->writer,
             $this->params,
-            $this->integratedExplore
+            $this->integratedExplore,
+            $this->eTime
         );
 
         $this->recipeExploreOnly($eMode);
@@ -157,7 +161,8 @@ class PlanGeneratorCore
         $this->explore = new ExploreGenerator(
             $this->writer,
             $this->params,
-            $this->integratedExplore
+            $this->integratedExplore,
+            $this->eTime
         );
 
         $this->challenge->openingsAndBriefings(true);
@@ -165,12 +170,18 @@ class PlanGeneratorCore
         $this->explore->judgingAndDeliberations(1);
 
         $afterRG1Callback = function (TimeCursor $rTime) {
-            $awardsEndTime = $this->explore->integratedActivity(1, $rTime);
-
-            if ($awardsEndTime !== null) {
-                $rTime->setTime($awardsEndTime);
-                $rTime->addMinutes($this->pp('e_ready_awards'));
+            $rg1End = $this->integratedExplore->rg1End ?? $rTime->current();
+            $deliberationsEnd = $this->integratedExplore->deliberationsEnd;
+            $earliestStart = $rg1End;
+            if ($deliberationsEnd !== null && $deliberationsEnd > $earliestStart) {
+                $earliestStart = $deliberationsEnd;
             }
+
+            $this->explore->integratedActivity(1, $earliestStart);
+
+            $exploreEnd = $this->eTime->current();
+            $exploreEnd->modify('+'.((int) $this->pp('e_ready_awards')).' minutes');
+            $rTime->advanceToLater($exploreEnd);
         };
 
         $this->challenge->main(true, $afterRG1Callback);
@@ -187,7 +198,8 @@ class PlanGeneratorCore
         $this->explore = new ExploreGenerator(
             $this->writer,
             $this->params,
-            $this->integratedExplore
+            $this->integratedExplore,
+            $this->eTime
         );
 
         $this->challenge->openingsAndBriefings();
@@ -206,7 +218,8 @@ class PlanGeneratorCore
         $this->explore = new ExploreGenerator(
             $this->writer,
             $this->params,
-            $this->integratedExplore
+            $this->integratedExplore,
+            $this->eTime
         );
 
         $this->challenge->openingsAndBriefings(true);
@@ -229,7 +242,8 @@ class PlanGeneratorCore
         $this->explore = new ExploreGenerator(
             $this->writer,
             $this->params,
-            $this->integratedExplore
+            $this->integratedExplore,
+            $this->eTime
         );
 
         $this->challenge->openingsAndBriefings();

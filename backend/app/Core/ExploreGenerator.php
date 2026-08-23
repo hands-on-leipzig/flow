@@ -29,18 +29,16 @@ class ExploreGenerator
     }
 
     public function __construct(
-        ActivityWriter $writer, 
+        ActivityWriter $writer,
         PlanParameter $params,
-        IntegratedExploreState $integratedExplore
+        IntegratedExploreState $integratedExplore,
+        TimeCursor $eTime
     ) {
         $this->writer = $writer;
         $this->params = $params;
         $this->integratedExplore = $integratedExplore;
-        
-        // Create time cursors from base date
-        $baseDate = $params->get('g_date');
-        $this->eTime = new TimeCursor(clone $baseDate);
-        
+        $this->eTime = $eTime;
+
         // Initialize eMode
         $this->eMode = (int) $params->get('e_mode');
 
@@ -221,7 +219,7 @@ class ExploreGenerator
             // This is when Explore awards can start (after buffer period)
             if ($group == 1 && $this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
                 $this->eTime->addMinutes($this->pp('e_ready_awards'));
-                $this->integratedExplore->deliberationEndTime = $this->eTime->format('H:i');
+                $this->integratedExplore->deliberationsEnd = $this->eTime->current();
                 $this->eTime->subMinutes($this->pp('e_ready_awards')); // Restore for exhibition calculation
             }
             
@@ -282,60 +280,40 @@ class ExploreGenerator
     }
 
     /**
-     * Handle integrated Explore activity inserted during Challenge robot game
-     * For INTEGRATED_MORNING: inserts awards
-     * For INTEGRATED_AFTERNOON: inserts opening
-     * 
-     * @param int $group Explore group (1 or 2)
-     * @param TimeCursor|null $rTime Robot game time cursor (for INTEGRATED_MORNING to return awards end time)
-     * @return string|null Awards end time (H:i format) for INTEGRATED_MORNING group 1, null otherwise
+     * Write the Explore piece that sits in the after-RG1 hole (or the hybrid-both post-awards opening).
+     * Group 1: awards. Group 2: opening.
+     *
+     * @param DateTime|null $start Explicit start (mode 1). Otherwise uses handshake startTime.
      */
-    public function integratedActivity(int $group, ?TimeCursor $rTime = null): ?string
+    public function integratedActivity(int $group, ?DateTime $start = null): void
     {
-        // Check if start time was written by ChallengeGenerator
-        if ($this->integratedExplore->startTime === null) {
-            // Log::debug("No integratedExploreStart set, skipping integrated activity");
-            return null;
+        $startTime = $start ?? $this->integratedExplore->startTime;
+        if ($startTime === null) {
+            return;
         }
 
         try {
-            // Set cursor to start time provided by ChallengeGenerator
-            $this->eTime->setTime($this->integratedExplore->startTime);
+            $this->eTime->set($startTime);
 
             if ($group == 1) {
-                // Insert awards
                 $this->awards($group);
-                // Log::info("ExploreGenerator: Integrated awards inserted at {$this->integratedExplore->startTime}");
-                
-                // Return awards end time for INTEGRATED_MORNING mode
-                if ($this->eMode == ExploreMode::INTEGRATED_MORNING->value) {
-                    return $this->eTime->format('H:i');
-                }
-                
             } elseif ($group == 2) {
-                // Insert opening
-
-                if($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
-                
-                    // time handed over is end of last robot game match. Need to add buffer to start of opening
+                if ($this->eMode == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                    // Handshake is RG1 end; opening starts after ready buffer.
                     $this->eTime->addMinutes($this->pp("e_ready_opening"));
-                } 
-               
-                $this->openingsAndBriefings($group);                
-                // Log::info("ExploreGenerator: Integrated opening inserted at {$this->integratedExplore->startTime}");
-            
+                }
+
+                $this->openingsAndBriefings($group);
             }
-
-            return null;
-
         } catch (\Throwable $e) {
+            $startLabel = $startTime->format('H:i');
             Log::error('ExploreGenerator: Error in integrated activity', [
                 'eMode' => $this->eMode,
-                'startTime' => $this->integratedExplore->startTime ?? 'null',
+                'startTime' => $startLabel,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            throw new \RuntimeException("Fehler beim Generieren der integrierten Explore-Aktivität (eMode: {$this->eMode}, Startzeit: " . ($this->integratedExplore->startTime ?? 'nicht gesetzt') . "): {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der integrierten Explore-Aktivität (eMode: {$this->eMode}, Startzeit: {$startLabel}): {$e->getMessage()}", 0, $e);
         }
     }
 
