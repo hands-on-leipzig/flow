@@ -6,8 +6,6 @@ use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use App\Support\IntegratedExploreState;
-use App\Core\RobotGameGenerator;
-use App\Core\TimeCursor;
 use App\Enums\ExploreMode;
 
 
@@ -135,8 +133,6 @@ class ChallengeGenerator
 
     public function openingsAndBriefings(bool $explore = false): void
     {
-        // Log::info('ChallengeGenerator: Starting openings and briefings', ['explore' => $explore]);
-
         try {
             
             if ($explore) {
@@ -152,8 +148,6 @@ class ChallengeGenerator
                 $this->jTime->addMinutes($this->pp('g_duration_opening'));
                 $this->rTime->addMinutes($this->pp('g_duration_opening'));
 
-                // Log::info('Explore integrated morning: teams=' . $this->pp('e1_teams') . ', lanes=' . $this->pp('e1_lanes') . ', rounds=' . $this->pp('e1_rounds'));
-
             } else {
 
                 $this->cTime->setTime($this->pp('c_start_opening'));
@@ -166,8 +160,6 @@ class ChallengeGenerator
 
                 $this->jTime->addMinutes($this->pp('c_duration_opening'));
                 $this->rTime->addMinutes($this->pp('c_duration_opening'));
-
-                // Log::debug('Explore no integrated morning batch');
             }
 
             $this->briefings($this->cTime->current());
@@ -318,7 +310,7 @@ class ChallengeGenerator
      */
     private function alignJudgingWithRobotGame(int $cBlock, TimeCursor &$jTimeEarliest, mixed $jT4J): void
     {
-        log::debug("Before: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
+        Log::debug("Before: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
 
         // -----------------------------------------------------------------------------------
         // Adjust timing between judging and robot game
@@ -446,7 +438,7 @@ class ChallengeGenerator
             $jTimeEarliest->addMinutes($rA4J);
         }
 
-        log::debug("After: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
+        Log::debug("After: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
     }
 
     /**
@@ -716,12 +708,8 @@ class ChallengeGenerator
 
     public function awards( bool $explore = false): void
     {
-        // Log::info('ChallengeGenerator: Starting awards', ['explore' => $explore]);
-
         try {
             if ($explore) {
-
-            // Log::debug('Awards joint');
 
             if ($this->pp('e_mode') == ExploreMode::HYBRID_BOTH->value) {
                 // Calculate backwards from c_time to determine when Explore group 2 should start
@@ -750,8 +738,6 @@ class ChallengeGenerator
                 // Write start time for ExploreGenerator to pick up
                 $this->integratedExplore->startTime = $exploreStartTime->current();
 
-                // log::info('ChallengeGenerator: Explore group 2 start time: ' . $this->integratedExplore->startTime);
-
             } elseif ($this->pp('e_mode') == ExploreMode::INTEGRATED_AFTERNOON->value) {
                 // For INTEGRATED_AFTERNOON: Ensure awards don't start before Explore is complete
                 // Compare cTime (Challenge end) with exploreEndTime (Explore end) and use the later one
@@ -775,8 +761,6 @@ class ChallengeGenerator
             $this->cTime->addMinutes($this->pp('g_duration_awards'));
 
         } else {
-
-            // Log::debug('Awards Challenge only');
 
             $this->writer->withGroup('c_awards', function () {
                 $this->writer->insertActivity('c_awards', $this->cTime, $this->pp('c_duration_awards'));

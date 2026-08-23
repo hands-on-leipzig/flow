@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Core;
-use App\Core\TimeCursor;
 
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;

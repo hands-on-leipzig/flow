@@ -134,12 +134,7 @@ class PlanGeneratorCore
             return;
         }
 
-        $this->explore = new ExploreGenerator(
-            $this->writer,
-            $this->params,
-            $this->integratedExplore,
-            $this->eTime
-        );
+        $this->makeExplore();
 
         $this->recipeExploreOnly($eMode);
     }
@@ -158,12 +153,7 @@ class PlanGeneratorCore
      */
     private function recipeIntegratedMorning(): void
     {
-        $this->explore = new ExploreGenerator(
-            $this->writer,
-            $this->params,
-            $this->integratedExplore,
-            $this->eTime
-        );
+        $this->makeExplore();
 
         $this->challenge->openingsAndBriefings(true);
         $this->explore->openingsAndBriefings(1);
@@ -196,12 +186,7 @@ class PlanGeneratorCore
      */
     private function recipeIntegratedAfternoon(): void
     {
-        $this->explore = new ExploreGenerator(
-            $this->writer,
-            $this->params,
-            $this->integratedExplore,
-            $this->eTime
-        );
+        $this->makeExplore();
 
         $this->challenge->openingsAndBriefings();
         $this->challenge->main(true);
@@ -221,12 +206,7 @@ class PlanGeneratorCore
      */
     private function recipeHybridBoth(): void
     {
-        $this->explore = new ExploreGenerator(
-            $this->writer,
-            $this->params,
-            $this->integratedExplore,
-            $this->eTime
-        );
+        $this->makeExplore();
 
         $this->challenge->openingsAndBriefings(true);
         $this->challenge->main();
@@ -249,12 +229,7 @@ class PlanGeneratorCore
     /** Full Challenge day, then Explore group(s) fully decoupled (own opening, judging, awards). */
     private function recipeDecoupled(int $eMode): void
     {
-        $this->explore = new ExploreGenerator(
-            $this->writer,
-            $this->params,
-            $this->integratedExplore,
-            $this->eTime
-        );
+        $this->makeExplore();
 
         $this->challenge->openingsAndBriefings();
         $this->challenge->main();
@@ -272,6 +247,16 @@ class PlanGeneratorCore
             $this->explore->judgingAndDeliberations(2);
             $this->explore->awards(2);
         }
+    }
+
+    private function makeExplore(): void
+    {
+        $this->explore = new ExploreGenerator(
+            $this->writer,
+            $this->params,
+            $this->integratedExplore,
+            $this->eTime
+        );
     }
 
     /** Explore only: decoupled morning and/or afternoon. Other e_mode values construct Explore and generate nothing. */

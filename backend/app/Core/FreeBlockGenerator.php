@@ -52,13 +52,11 @@ class FreeBlockGenerator
 
                 // Skip Explore blocks if Explore is disabled (e_mode = 0)
                 if ($blockProgram === FirstProgram::EXPLORE->value && $eMode == 0) {
-                    // Log::info("FreeBlockGenerator: Skipping Explore block {$block->id} (Explore disabled in plan)");
                     continue;
                 }
 
                 // Skip Challenge blocks if Challenge is disabled (c_mode = 0)
                 if ($blockProgram === FirstProgram::CHALLENGE->value && $cMode == 0) {
-                    // Log::info("FreeBlockGenerator: Skipping Challenge block {$block->id} (Challenge disabled in plan)");
                     continue;
                 }
 

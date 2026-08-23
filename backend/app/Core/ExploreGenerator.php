@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use App\Support\IntegratedExploreState;
-use App\Core\TimeCursor;
 use App\Enums\ExploreMode;
 
 
@@ -251,7 +250,7 @@ class ExploreGenerator
         }
     }
 
-    public function awards(int $group, bool $challenge = false): void   
+    public function awards(int $group): void
     {
         try {
 
@@ -259,17 +258,16 @@ class ExploreGenerator
             $this->writer->withGroup('e_awards', function () use ($group) {
                 $this->writer->insertActivity('e_awards', $this->eTime, $this->pp("e{$group}_duration_awards"));
             }, $group);
-            $this->eTime->addMinutes($this->pp("e{$group}_duration_awards"));        
+            $this->eTime->addMinutes($this->pp("e{$group}_duration_awards"));
 
         } catch (\Throwable $e) {
             Log::error('ExploreGenerator: Error in awards', [
                 'eMode' => $this->eMode,
                 'group' => $group,
-                'challenge' => $challenge,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Fehler beim Generieren der Explore-Preisverleihung (Gruppe {$group}, eMode: {$this->eMode}, Challenge: " . ($challenge ? 'ja' : 'nein') . "): {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Explore-Preisverleihung (Gruppe {$group}, eMode: {$this->eMode}): {$e->getMessage()}", 0, $e);
         }
     }
 
