@@ -14,6 +14,7 @@ const cachedPages = [
   'Rooms',
   'PublishControl',
   'EventDayControl',
+  'Admin',
 ]
 
 const eventId = computed(() => eventStore.selectedEvent?.id ?? 0)
@@ -24,6 +25,7 @@ const pageKey = computed(() => {
   if (path.includes('/plan/schedule')) return `${eventId.value}:schedule`
   if (path.includes('/plan/publish')) return `${eventId.value}:publish`
   if (path.includes('/plan/teams')) return `${eventId.value}:teams`
+  if (path.includes('/plan/admin')) return `${eventId.value}:admin`
   return `${eventId.value}:${path}`
 })
 </script>

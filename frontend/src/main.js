@@ -101,9 +101,9 @@ const routes = [
             {path: 'slots', redirect: '/plan/schedule/slots'},
             {path: 'profile', component: Profile},
             {path: 'access', component: AccessManagement},
-            // Lazy-load Admin component - only loads when route is accessed
-            // This significantly reduces initial bundle size since most users are not admins
-            {path: 'admin', component: () => import('@/components/Admin.vue')},
+            // Lazy-load Admin — one component for all sections so tab state stays mounted
+            {path: 'admin', redirect: '/plan/admin/statistics'},
+            {path: 'admin/:section', component: () => import('@/components/Admin.vue')},
             {path: 'presentation', redirect: '/plan/publish/digital'},
             {path: 'preview/:planId', component: Preview, props: true},
             {path: 'editSlide/:slideId', component: EditSlide, props: true},

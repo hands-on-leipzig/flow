@@ -7,6 +7,8 @@ import {useProgramsStore} from '@/stores/programs'
 import {useAuth} from '@/composables/useAuth'
 import {imageUrl, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programMatchesSlug, programCompact, hasAfternoon} from '@/utils/eventPrograms'
+import {ADMIN_SECTIONS, ADMIN_DEFAULT_SECTION, adminSectionPath, isAdminSectionAvailable} from '@/constants/adminNav'
+import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, setTheme} from '@hands-on/glass/theme'
@@ -18,6 +20,7 @@ const eventStore = useEventStore()
 const programsStore = useProgramsStore()
 const planCache = usePlanCacheStore()
 const {isAdmin, initializeUserRoles} = useAuth()
+const {isDevEnvironment, isLocal, ensureLoaded: ensureAdminEnvironment} = useAdminEnvironment()
 const router = useRouter()
 const route = useRoute()
 
@@ -64,6 +67,7 @@ type NavEntry = {
   name: string
   path?: string
   icon: string
+  disabled?: boolean
   children?: NavChild[]
 }
 
@@ -123,6 +127,22 @@ const navEntries = computed<NavEntry[]>(() => [
 
 const liveTabPath = '/plan/live'
 const isLiveTabActive = computed(() => isActive(liveTabPath))
+const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
+const showBackToOverview = computed(() => isLiveTabActive.value || isAdminMode.value)
+
+const adminNavEntries = computed<NavEntry[]>(() =>
+  ADMIN_SECTIONS.map((item) => {
+    const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
+    return {
+      name: available ? item.label : `${item.label} ${item.devSuffix}`,
+      path: item.path,
+      icon: item.icon,
+      disabled: !available,
+    }
+  })
+)
+
+const currentNavEntries = computed(() => (isAdminMode.value ? adminNavEntries.value : navEntries.value))
 
 function entryWarning(entry: NavEntry): boolean {
   if (entry.children?.length) {
@@ -159,6 +179,10 @@ onMounted(async () => {
   // Sidebar warnings only — keep this light so Übersicht/SharePoint stay first
   await checkDataReadiness()
 })
+
+watch(isAdmin, (admin) => {
+  if (admin) void ensureAdminEnvironment()
+}, {immediate: true})
 
 watch(
     () => eventStore.readiness,
@@ -252,7 +276,8 @@ function goToPath(path: string) {
 }
 
 function onNavSelect(entry: NavEntry) {
-  if (entry.path) goToPath(entry.path)
+  if (entry.disabled || !entry.path) return
+  goToPath(entry.path)
 }
 
 function onNavChildSelect(child: { path?: string; label?: string }) {
@@ -291,19 +316,20 @@ function logout() {
 
     <template #nav>
       <SidebarNavItem
-          v-if="isLiveTabActive"
+          v-if="showBackToOverview"
           label="Zurück zur Übersicht"
           icon="bi-arrow-left"
           @select="goToPath('/plan/overview')"
         />
 
       <SidebarNavItem
-          v-for="entry in navEntries"
+          v-for="entry in currentNavEntries"
           :key="entry.path ?? entry.name"
           :label="entry.name"
           :icon="entry.icon"
           :active="entryActive(entry)"
           :warning="entryWarning(entry)"
+          :disabled="!!entry.disabled"
           :children="entry.children?.map(childNavProps)"
           @select="onNavSelect(entry)"
           @select-child="onNavChildSelect"
@@ -378,11 +404,11 @@ function logout() {
             </div>
           </div>
           <button
-              v-if="isAdmin"
+              v-if="isAdmin && !isAdminMode"
               type="button"
               class="glass-sidebar-footer__menu-item"
               role="menuitem"
-              @click="goToPath('/plan/admin'); close()"
+              @click="goToPath(adminSectionPath(ADMIN_DEFAULT_SECTION)); close()"
           >
             <i class="bi bi-shield-lock" aria-hidden="true"/>
             <span>Admin</span>

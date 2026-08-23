@@ -1,6 +1,6 @@
 <script setup>
 import {ref, watch, onMounted, computed} from 'vue'
-import {Menu, MenuButton, MenuItems, MenuItem} from '@headlessui/vue'
+import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import Multiselect from '@vueform/multiselect'
 import Quality from '@/components/molecules/Quality.vue'
@@ -14,41 +14,31 @@ import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
 import '@vueform/multiselect/themes/default.css'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {ADMIN_DEFAULT_SECTION, isAdminSection} from '@/constants/adminNav'
 
+defineOptions({name: 'Admin'})
 
-const activeTab = ref('statistics')
+const route = useRoute()
+const router = useRouter()
 
-// Admin menu entries (shared by sidebar and mobile dropdown)
-const adminMenuItems = [
-  {key: 'statistics', label: 'Statistiken', icon: '📊', devOnly: false},
-  {key: 'main-tables', label: 'Main Tables', icon: '📝', devOnly: true, devSuffix: '(nur Dev)'},
-  {key: 'system-news', label: 'System News', icon: '📰', devOnly: false},
-  {key: 'nowandnext', label: 'Now and Next', icon: '⏰', devOnly: false},
-  {key: 'quality', label: 'Massentest', icon: '🧪', devOrLocalOnly: true, devSuffix: '(Dev oder lokal)'},
-  {key: 'conditions', label: 'Parameter-Anzeige', icon: '📄', devOnly: false},
-  {key: 'user-regional-partners', label: 'User ↔ Regionen (Zugang)', icon: '👥', devOnly: false},
-  {key: 'sync', label: 'Draht Sync', icon: '🔁', devOnly: false},
-  {key: 'external-api', label: 'External API', icon: '🔑', devOnly: false},
-  {key: 'sharepoint', label: 'SharePoint', icon: '📂', devOnly: false},
-  {key: 'hilfsfunktionen', label: 'Hilfsfunktionen', icon: '🔧', devOnly: false},
-]
-
-const currentMenuLabel = computed(() => {
-  const item = adminMenuItems.find(i => i.key === activeTab.value)
-  return item ? `${item.icon} ${item.label}` : 'Admin'
+const activeTab = computed(() => {
+  const section = String(route.params.section || '')
+  return isAdminSection(section) ? section : ADMIN_DEFAULT_SECTION
 })
 
-// Tab available: devOrLocalOnly => Dev or local; devOnly => Dev only; else always
-const isTabAvailable = (item) => {
-  if (item.devOrLocalOnly) return isDevEnvironment.value || isLocal
-  if (item.devOnly) return isDevEnvironment.value
-  return true
-}
+watch(
+  () => route.params.section,
+  (section) => {
+    const key = String(section || '')
+    if (!isAdminSection(key)) {
+      void router.replace(`/plan/admin/${ADMIN_DEFAULT_SECTION}`)
+    }
+  },
+  {immediate: true}
+)
 
 const parameters = ref([])
 const conditions = ref([])
-const isDevEnvironment = ref(false)
-const isLocal = typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1')
 const seasons = ref([])
 const selectedSeason = ref(null)
 const regeneratingLinks = ref(false)
@@ -62,18 +52,7 @@ const updatingMatchSchedule = ref(false)
 // Toggle for "Nur Tabelle" mode in Statistics
 const statisticsTableOnly = ref(false)
 
-// Check environment on mount
 onMounted(async () => {
-  try {
-    const response = await axios.get('/environment')
-    isDevEnvironment.value = response.data.is_dev || false
-  } catch (error) {
-    console.error('Failed to fetch environment:', error)
-    // Default to false (not dev) if check fails
-    isDevEnvironment.value = false
-  }
-
-  // Fetch seasons
   try {
     const seasonsResponse = await axios.get('/seasons')
     // Ensure we have an array (axios wraps responses, but this endpoint returns array directly)
@@ -234,84 +213,7 @@ fetchConditions()
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row min-h-0">
-    <!-- Desktop sidebar (lg and up) -->
-    <aside
-        v-if="!(activeTab === 'statistics' && statisticsTableOnly)"
-        class="hidden lg:block glass-sidebar-panel liquid-surface-inner border-r border-[var(--color-sidebar-border)] space-y-1"
-    >
-      <button
-          v-for="item in adminMenuItems"
-          :key="item.key"
-          type="button"
-          class="glass-nav-link nav-link w-full"
-          :class="{
-          'glass-nav-link--active': activeTab === item.key,
-          'opacity-50 cursor-not-allowed': (item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item),
-        }"
-          :disabled="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)"
-          :title="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item) ? `${item.label} ist nur auf Dev oder lokal verfügbar` : ''"
-          @click="isTabAvailable(item) && (activeTab = item.key)"
-      >
-        {{ item.icon }} {{ item.label }}
-        <span v-if="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)" class="ml-2 text-xs text-[var(--color-text-subtle)]">{{
-            item.devSuffix
-          }}</span>
-      </button>
-    </aside>
-
-    <!-- Mobile: dropdown bar (below main nav) + content -->
-    <div class="flex-1 flex flex-col min-w-0">
-      <!-- Mobile admin menu dropdown (below nav bar) -->
-      <div
-          class="lg:hidden sticky z-40 bg-[var(--color-bg-muted)] border-b border-[var(--color-border)] shadow-sm top-0"
-      >
-        <Menu as="div" class="relative">
-          <MenuButton
-              class="flex items-center justify-between w-full px-4 py-3 text-left text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]/80 transition-colors"
-          >
-            <span>{{ currentMenuLabel }}</span>
-            <svg class="w-5 h-5 text-[var(--color-text-subtle)] flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd"
-                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                    clip-rule="evenodd"/>
-            </svg>
-          </MenuButton>
-          <MenuItems
-              class="absolute left-0 right-0 z-50 mt-0 max-h-[min(70vh,400px)] overflow-y-auto glass-dropdown focus:outline-none"
-          >
-            <div class="py-1">
-              <MenuItem
-                  v-for="item in adminMenuItems"
-                  :key="item.key"
-                  v-slot="{ active }"
-              >
-                <button
-                    type="button"
-                    :disabled="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)"
-                    :class="[
-                    'w-full text-left px-4 py-3 text-sm flex items-center gap-2',
-                    active ? 'bg-blue-50' : '',
-                    activeTab === item.key ? 'font-semibold bg-[var(--color-bg-muted)]' : '',
-                    (item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item) ? 'opacity-50 cursor-not-allowed' : ''
-                  ]"
-                    @click="isTabAvailable(item) && (activeTab = item.key)"
-                >
-                  <span>{{ item.icon }} {{ item.label }}</span>
-                  <span v-if="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)"
-                        class="text-xs text-[var(--color-text-subtle)]">{{ item.devSuffix }}</span>
-                  <span v-if="activeTab === item.key" class="ml-auto text-blue-600">✓</span>
-                </button>
-              </MenuItem>
-            </div>
-          </MenuItems>
-        </Menu>
-      </div>
-
-      <!-- Content -->
-      <div class="flex-1 p-4 lg:p-6 overflow-auto">
-
-
+  <div class="h-full min-h-0 overflow-auto p-4 lg:p-6">
         <div v-if="activeTab === 'conditions'">
           <h2 class="text-xl font-bold mb-4">Parameter-Anzeige-Bedingungen</h2>
           <div
@@ -545,9 +447,6 @@ fetchConditions()
             </div>
           </div>
         </div>
-
-      </div>
-    </div>
   </div>
 </template>
 
