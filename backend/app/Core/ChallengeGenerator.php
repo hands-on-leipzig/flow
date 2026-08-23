@@ -608,6 +608,7 @@ class ChallengeGenerator
             // After RG3 the Nachmittag list is the sequence (presentations, finals).
             // Awards stay in the Core recipes.
             $this->rTime->set($this->cTime->current());
+            $this->rTime->addMinutes($this->pp('r_duration_results'));
 
             $blocks = app(AfternoonBlockOrderService::class)
                 ->resolvedBlocks((int) $this->pp('g_plan'));
@@ -666,8 +667,10 @@ class ChallengeGenerator
 
     private function insertOrderedFinalRound(int $teamCount): void
     {
-        $this->rTime->addMinutes($this->pp('r_duration_results'));
         $this->robotGame->insertFinalRound($teamCount, true);
+        if ($teamCount !== 2) {
+            $this->rTime->addMinutes($this->pp('r_duration_results'));
+        }
     }
 
     private function presentations(): void
