@@ -41,7 +41,7 @@ type FlattenedRow = {
   generator_stats: number | null
   e_mode?: number
   expert_param_changes?: { input: number; expert: number }
-  extra_blocks?: { free: number; inserted: number }
+  extra_blocks?: { free: number }
   publication_level?: number | null
   publication_date?: string | null
   publication_last_change?: string | null
@@ -446,7 +446,7 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
           plan_last_change: plan.plan_last_change,
           generator_stats: plan.generator_stats ?? null,
           expert_param_changes: plan.expert_param_changes ?? { input: 0, expert: 0 },
-          extra_blocks: plan.extra_blocks ?? { free: 0, inserted: 0 },
+          extra_blocks: plan.extra_blocks ?? { free: 0 },
           publication_level: plan.publication_level ?? null,
           publication_date: plan.publication_date ?? null,
           publication_last_change: plan.publication_last_change ?? null,
@@ -764,7 +764,6 @@ function exportToCSV() {
     'Expert Parameter Changes (Expert)',
     'Table Names',
     'Extra Blocks (Free)',
-    'Extra Blocks (Inserted)',
     'Publication Level',
     'Publication Last Change',
     'Access Count'
@@ -807,7 +806,6 @@ function exportToCSV() {
         escapeCSV(row.expert_param_changes?.expert ?? 0),
         escapeCSV(row.has_table_names ? 'Yes' : 'No'),
         escapeCSV(row.extra_blocks?.free ?? 0),
-        escapeCSV(row.extra_blocks?.inserted ?? 0),
         escapeCSV(row.publication_level ?? ''),
         escapeCSV(row.publication_last_change ? formatDateTime(row.publication_last_change) : ''),
         escapeCSV(row.access_count ?? '')
@@ -1259,10 +1257,10 @@ function exportToCSV() {
             <template v-if="row.plan_id">
               <div class="flex flex-col items-center">
                 <span v-if="row.extra_blocks">
-                  {{ row.extra_blocks.free }} + {{ row.extra_blocks.inserted }}
+                  {{ row.extra_blocks.free }}
                 </span>
-                <span v-else>0 + 0</span>
-                <template v-if="row.extra_blocks && (row.extra_blocks.free > 0 || row.extra_blocks.inserted > 0)">
+                <span v-else>0</span>
+                <template v-if="row.extra_blocks && row.extra_blocks.free > 0">
                   <a
                     href="#"
                     class="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer mt-1"

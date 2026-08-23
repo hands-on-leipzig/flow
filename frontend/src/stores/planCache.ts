@@ -15,7 +15,6 @@ export const usePlanCacheStore = defineStore('planCache', {
     lanesOptions: null as any | null,
     logos: null as any[] | null,
     tableNames: null as any | null,
-    insertPointsByLevel: {} as Record<string, any>,
     prefetchStatus: 'idle' as PrefetchStatus,
     drahtPromise: null as Promise<any> | null,
     planPromise: null as Promise<any> | null,
@@ -127,15 +126,6 @@ export const usePlanCacheStore = defineStore('planCache', {
 
       const {data} = await axios.get(`/table-names/${eventId}`)
       this.tableNames = data
-      return data
-    },
-
-    async getInsertPoints(level: string | number) {
-      const key = String(level)
-      if (this.insertPointsByLevel[key]) return this.insertPointsByLevel[key]
-
-      const {data} = await axios.get('/insert-points', {params: {level}})
-      this.insertPointsByLevel[key] = data
       return data
     },
 

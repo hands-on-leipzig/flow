@@ -20,10 +20,7 @@ class ExtraBlock extends Model
         'name',
         'description',
         'link',
-        'insert_point',
-        'buffer_before',
         'duration',
-        'buffer_after',
         'start',
         'end',
         'room',
@@ -32,9 +29,7 @@ class ExtraBlock extends Model
     ];
 
     protected $casts = [
-        'buffer_before' => 'integer',
         'duration' => 'integer',
-        'buffer_after' => 'integer',
         'start' => 'datetime',
         'end' => 'datetime',
         'active' => 'boolean',
@@ -43,11 +38,6 @@ class ExtraBlock extends Model
     public function plan()
     {
         return $this->belongsTo(Plan::class, 'plan');
-    }
-
-    public function insertPoint()
-    {
-        return $this->belongsTo(MInsertPoint::class, 'insert_point');
     }
 
     /**

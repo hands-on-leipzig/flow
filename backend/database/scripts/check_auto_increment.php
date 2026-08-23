@@ -24,7 +24,7 @@ function checkAutoIncrement()
         // m_ tables
         'm_season', 'm_level', 'm_news', 'm_room_type_group', 'm_room_type',
         'm_first_program', 'm_parameter', 'm_parameter_condition', 'm_activity_type',
-        'm_activity_type_detail', 'm_insert_point', 'm_role', 'm_visibility', 'm_supported_plan',
+        'm_activity_type_detail', 'm_role', 'm_visibility', 'm_supported_plan',
         // Regular tables
         'regional_partner', 'event', 'slideshow', 'slide', 'publication',
         'user', 'news_user', 'user_regional_partner', 'room', 'room_type_room',

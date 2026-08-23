@@ -5,10 +5,7 @@
 export const TIMING_FIELDS = [
   'start',
   'end',
-  'buffer_before',
   'duration',
-  'buffer_after',
-  'insert_point',
   'first_program'
 ] as const
 

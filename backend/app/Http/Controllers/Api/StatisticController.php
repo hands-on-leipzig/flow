@@ -216,25 +216,10 @@ class StatisticController extends Controller
             $paramStats[$stat->plan][$stat->context] = $stat->count;
         }
 
-        // Extra-Block-Stats abrufen (separate free and inserted blocks)
-        // Free blocks: type = free
         $freeBlockStatsRaw = DB::table('extra_block')
             ->whereIn('plan', $planIds)
             ->where('active', 1)
             ->where('type', 'free')
-            ->select(
-                'plan',
-                DB::raw('COUNT(*) as count')
-            )
-            ->groupBy('plan')
-            ->get()
-            ->keyBy('plan');
-
-        // Inserted blocks: type = inserted
-        $insertedBlockStatsRaw = DB::table('extra_block')
-            ->whereIn('plan', $planIds)
-            ->where('active', 1)
-            ->where('type', 'inserted')
             ->select(
                 'plan',
                 DB::raw('COUNT(*) as count')
@@ -356,7 +341,6 @@ class StatisticController extends Controller
                     'expert_param_changes' => $paramStats[$row->plan_id] ?? ['input' => 0, 'expert' => 0], 
                     'extra_blocks' => [
                         'free' => $freeBlockStatsRaw[$row->plan_id]->count ?? 0,
-                        'inserted' => $insertedBlockStatsRaw[$row->plan_id]->count ?? 0,
                     ], 
                     'publication_level' => $row->publication_level,
                     'publication_date' => $row->publication_date,
@@ -1221,7 +1205,7 @@ class StatisticController extends Controller
 
     /**
      * Get detailed extra blocks data for a plan (for statistics modal)
-     * Returns free blocks and inserted blocks separately
+     * Returns free extra blocks for a plan.
      */
     public function getExtraBlocksDetails(int $planId): JsonResponse
     {
@@ -1259,34 +1243,11 @@ class StatisticController extends Controller
                 ];
             });
 
-        // Inserted blocks: type = inserted
-        $insertedBlocks = DB::table('extra_block as eb')
-            ->join('m_insert_point as mip', 'eb.insert_point', '=', 'mip.id')
-            ->where('eb.plan', $planId)
-            ->where('eb.active', 1)
-            ->where('eb.type', 'inserted')
-            ->select(
-                'eb.id',
-                'eb.name',
-                'mip.ui_label as insert_point_name'
-            )
-            ->orderBy('mip.sequence')
-            ->orderBy('eb.name')
-            ->get()
-            ->map(function ($block) {
-                return [
-                    'id' => $block->id,
-                    'name' => $block->name,
-                    'insert_point_name' => $block->insert_point_name,
-                ];
-            });
-
         return response()->json([
             'event_id' => $eventInfo->event_id ?? null,
             'event_name' => $eventInfo->event_name ?? null,
             'event_date' => $eventInfo->event_date ? \Carbon\Carbon::parse($eventInfo->event_date)->format('d.m.Y') : null,
             'free_blocks' => $freeBlocks,
-            'inserted_blocks' => $insertedBlocks,
         ]);
     }
 }

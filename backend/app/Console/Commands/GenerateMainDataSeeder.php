@@ -92,7 +92,6 @@ class GenerateMainDataSeeder extends Command
             'm_parameter' => 6,
             'm_activity_type' => 7,
             'm_activity_type_detail' => 8,
-            'm_insert_point' => 9,
             'm_role' => 10,
             'm_visibility' => 11,
             'm_supported_plan' => 12,

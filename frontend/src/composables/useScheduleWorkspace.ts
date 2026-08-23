@@ -22,10 +22,6 @@ const SPECIAL_KEYS = new Set([
   'e1_lanes', 'e2_lanes',
 ])
 
-type InsertBlocksApi = {
-  saveAllEnabledBlocks: () => Promise<void>
-}
-
 function eventStore() {
   return useEventStore()
 }
@@ -103,8 +99,6 @@ function ensurePopoutPresenceListener() {
 const lanesIndex = ref<LanesIndex | null>(null)
 const supportedPlanData = ref<any[] | null>(null)
 const tableNames = ref(['', '', '', ''])
-
-const insertBlocksApi = ref<InsertBlocksApi | null>(null)
 
 const isSpecial = (p: Parameter) => SPECIAL_KEYS.has((p.name || '').toLowerCase())
 
@@ -340,8 +334,7 @@ async function updateParams(params: Array<{ name: string; value: any }>, afterUp
       paramUpdates.forEach(({ name, value }) => getSaveApi().setOriginal(name, value))
     }
 
-    if (blockGeneratorTriggers.length > 0 && insertBlocksApi.value) {
-      await insertBlocksApi.value.saveAllEnabledBlocks()
+    if (blockGeneratorTriggers.length > 0) {
       needsRegeneration = true
     }
   } catch (error) {
@@ -468,10 +461,6 @@ function handleBlockUpdates(updates: Array<{ name: string; value: any; triggerGe
   })
 }
 
-function registerInsertBlocks(api: InsertBlocksApi | null) {
-  insertBlocksApi.value = api
-}
-
 function openPlanPopout() {
   if (!selectedPlanId.value) return
   ensurePopoutPresenceListener()
@@ -556,7 +545,6 @@ export function useScheduleWorkspace() {
     reloadForEventChange,
     handleParamUpdate,
     handleBlockUpdates,
-    registerInsertBlocks,
     updateTableName,
     immediateFlush: api.immediateFlush,
     openPlanPopout,

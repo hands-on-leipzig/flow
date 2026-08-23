@@ -8,7 +8,6 @@ use App\Http\Requests\StoreSlotExtraBlockRequest;
 use App\Http\Requests\UpdateSlotExtraBlockRequest;
 use App\Http\Requests\UpdateSlotTeamStartRequest;
 use App\Models\ExtraBlock;
-use App\Models\MInsertPoint;
 use App\Models\Plan;
 use App\Models\SlotBlockTeam;
 use App\Services\EventAttentionService;
@@ -28,21 +27,8 @@ class ExtraBlockController extends Controller
         private SlotBlockPlanSyncService $slotBlockPlanSync,
     ) {}
 
-    public function getInsertPoints(Request $request)
-    {
-        $eventLevel = $request->query('level');
-
-        if ($eventLevel !== null) {
-            $insert_points = MInsertPoint::where('level', '<=', $eventLevel)->get();
-        } else {
-            $insert_points = MInsertPoint::all();
-        }
-
-        return response()->json($insert_points);
-    }
-
     /**
-     * List extra blocks. Use ?type=inserted|free|slot to narrow; omit for legacy inserted+free (excludes slot).
+     * List extra blocks. Use ?type=free|slot to narrow; omit for free only (excludes slot).
      */
     public function getBlocksForPlan(Request $request, int $planId): JsonResponse
     {
@@ -54,30 +40,16 @@ class ExtraBlockController extends Controller
 
         $q = ExtraBlock::query()->where('plan', $planId);
 
-        if ($type === 'inserted') {
-            $q->where('type', 'inserted');
-        } elseif ($type === 'free') {
+        if ($type === 'free') {
             $q->where('type', 'free');
         } else {
             if ($type !== null && $type !== '') {
-                abort(400, 'type must be inserted, free, slot, or omitted');
+                abort(400, 'type must be free, slot, or omitted');
             }
-            $q->whereIn('type', ['inserted', 'free']);
+            $q->where('type', 'free');
         }
 
-        $blocks = $q->orderBy('insert_point')->orderBy('start')->get();
-
-        return response()->json($blocks);
-    }
-
-    public function getBlocksForPlanWithRoomTypes(int $planId)
-    {
-        $blocks = ExtraBlock::query()
-            ->with(['insertPoint.roomType'])
-            ->where('plan', $planId)
-            ->orderBy('insert_point')
-            ->orderBy('start')
-            ->get();
+        $blocks = $q->orderBy('start')->get();
 
         return response()->json($blocks);
     }
@@ -97,15 +69,12 @@ class ExtraBlockController extends Controller
             'name' => 'nullable|string|max:255',
             'description' => 'nullable|string',
             'link' => 'nullable|string|max:255',
-            'insert_point' => 'nullable|integer|exists:m_insert_point,id',
-            'buffer_before' => 'nullable|integer|min:0',
             'duration' => 'nullable|integer|min:0',
-            'buffer_after' => 'nullable|integer|min:0',
             'start' => 'nullable|date',
             'end' => 'nullable|date|after_or_equal:start',
             'room' => 'nullable|integer|exists:room,id',
             'active' => 'nullable|boolean',
-            'type' => 'nullable|string|in:inserted,free,slot',
+            'type' => 'nullable|string|in:free,slot',
             'skip_regeneration' => 'nullable|boolean',
         ]);
 
@@ -123,9 +92,7 @@ class ExtraBlockController extends Controller
         $validated['plan'] = $planId;
 
         if (! isset($validated['type']) || $validated['type'] === '') {
-            $validated['type'] = isset($validated['insert_point']) && $validated['insert_point'] !== null
-                ? 'inserted'
-                : 'free';
+            $validated['type'] = 'free';
         }
 
         $skipRegeneration = $validated['skip_regeneration'] ?? false;
@@ -305,7 +272,6 @@ class ExtraBlockController extends Controller
             'description' => $validated['description'] ?? null,
             'link' => $validated['link'] ?? null,
             'duration' => $validated['duration'],
-            'insert_point' => null,
             'start' => null,
             'end' => null,
             'active' => array_key_exists('active', $validated) ? (bool) $validated['active'] : true,
