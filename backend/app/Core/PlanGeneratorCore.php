@@ -3,6 +3,8 @@
 namespace App\Core;
 
 use App\Enums\ExploreMode;
+use App\Enums\FirstProgram;
+use App\Services\AfternoonBlockOrderService;
 use App\Support\IntegratedExploreState;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
@@ -139,12 +141,12 @@ class PlanGeneratorCore
         $this->recipeExploreOnly($eMode);
     }
 
-    /** Challenge only: opening → main (judging ∥ RG) → finals → awards. */
+    /** Challenge only: opening → main (judging ∥ RG) → afternoon → awards. */
     private function recipeChallengeOnly(): void
     {
         $this->challenge->openingsAndBriefings();
         $this->challenge->main();
-        $this->challenge->robotGameFinals();
+        $this->afternoon();
         $this->challenge->awards();
     }
 
@@ -177,7 +179,7 @@ class PlanGeneratorCore
 
         $this->challenge->main(true, $afterRG1Callback);
 
-        $this->challenge->robotGameFinals();
+        $this->afternoon();
         $this->challenge->awards();
     }
 
@@ -197,7 +199,7 @@ class PlanGeneratorCore
             $this->explore->openingsAndBriefings(2);
         }
         $this->explore->judgingAndDeliberations(2);
-        $this->challenge->robotGameFinals();
+        $this->afternoon();
         $this->challenge->awards(true);
     }
 
@@ -215,7 +217,7 @@ class PlanGeneratorCore
         $this->explore->judgingAndDeliberations(1);
         $this->explore->awards(1);
 
-        $this->challenge->robotGameFinals();
+        $this->afternoon();
         $this->challenge->awards(true);
 
         $start = $this->integratedExplore->startTime;
@@ -233,7 +235,7 @@ class PlanGeneratorCore
 
         $this->challenge->openingsAndBriefings();
         $this->challenge->main();
-        $this->challenge->robotGameFinals();
+        $this->afternoon();
         $this->challenge->awards();
 
         if ($eMode === ExploreMode::DECOUPLED_MORNING->value || $eMode === ExploreMode::DECOUPLED_BOTH->value) {
@@ -273,5 +275,68 @@ class PlanGeneratorCore
             $this->explore->judgingAndDeliberations(2);
             $this->explore->awards(2);
         }
+    }
+
+    /**
+     * Walk the Nachmittag list (presentations, finals). Awards stay in the recipes after this.
+     * Challenge writes Challenge pieces; Future 8+ will hook the same walk later.
+     */
+    private function afternoon(): void
+    {
+        Log::info('PlanGeneratorCore::afternoon', [
+            'plan_id' => $this->pp('g_plan'),
+            'c_teams' => $this->pp('c_teams'),
+        ]);
+
+        try {
+            $this->challenge->beginAfternoon();
+
+            $blocks = app(AfternoonBlockOrderService::class)
+                ->resolvedBlocks((int) $this->pp('g_plan'));
+
+            foreach ($blocks as $block) {
+                if (! $this->afternoonBlockShouldEmit($block)) {
+                    continue;
+                }
+
+                match ((string) $block->code) {
+                    'c_presentations' => $this->challenge->presentations(),
+                    'r_final_16' => $this->challenge->insertFinalRound(16),
+                    'r_final_8' => $this->challenge->insertFinalRound(8),
+                    'r_final_4' => $this->challenge->insertFinalRound(4),
+                    'r_final_2' => $this->challenge->insertFinalRound(2),
+                    default => null,
+                };
+            }
+
+            $this->challenge->endAfternoon();
+        } catch (\Throwable $e) {
+            Log::error('PlanGeneratorCore: Error in afternoon', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw new \RuntimeException("Fehler beim Generieren des Nachmittags: {$e->getMessage()}", 0, $e);
+        }
+    }
+
+    private function afternoonBlockShouldEmit(object $block): bool
+    {
+        $code = (string) $block->code;
+
+        if ((int) ($block->first_program ?? 0) === FirstProgram::FUTURE_8->value) {
+            return false;
+        }
+
+        if ($code === 'r_final_16' && ! $this->pp('g_finale')) {
+            return false;
+        }
+
+        if ($block->afternoon_parameter === null) {
+            return true;
+        }
+
+        $value = $this->pp($code);
+
+        return $value !== 0 && $value !== '0' && $value !== false && $value !== null;
     }
 }

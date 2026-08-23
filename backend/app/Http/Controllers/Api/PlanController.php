@@ -9,6 +9,7 @@ use App\Models\PlanParamValue;
 use App\Models\Team;
 use App\Models\TeamPlan;
 use App\Enums\FirstProgram;
+use App\Services\AfternoonBlockOrderService;
 use App\Services\EventAttentionService;
 
 use Illuminate\Http\JsonResponse;
@@ -75,7 +76,7 @@ class PlanController extends Controller
                 $plannedExplore = $data['capacity_explore'] ?? null;
 
                 if ($enrolledExplore > 0) {
-                    $e_teams = $enrolledExplore;
+                    $e_teams = max($e_teams, $enrolledExplore);
                 } elseif (!is_null($plannedExplore)) {
                     $e_teams = (int)$plannedExplore;
                 }
@@ -94,7 +95,7 @@ class PlanController extends Controller
                 $plannedChallenge = $data['capacity_challenge'] ?? null;
 
                 if ($enrolledChallenge > 0) {
-                    $c_teams = $enrolledChallenge;
+                    $c_teams = max($c_teams, $enrolledChallenge);
                 } elseif (!is_null($plannedChallenge)) {
                     $c_teams = (int)$plannedChallenge;
                 }
@@ -187,6 +188,7 @@ class PlanController extends Controller
             ['plan' => $newId, 'parameter' => 24],
             ['set_value' => $r_tables]);
 
+        app(AfternoonBlockOrderService::class)->writeDefaultOrder($newId);
 
         // Populate team_plan table with all teams for this event
         Log::info("Creating plan $newId for event $eventId - calling populateTeamPlanForNewPlan");

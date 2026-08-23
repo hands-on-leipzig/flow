@@ -28,9 +28,19 @@ const {
   visibilityMap,
   disabledMap,
   handleParamUpdate,
+  handleBlockUpdates,
 } = useScheduleWorkspace()
 const blocks = ref<AfternoonBlock[]>([])
+const lastSavedIds = ref<number[]>([])
 const loading = ref(false)
+
+function blockIds(order: AfternoonBlock[]): number[] {
+  return order.map((block) => Number(block.id))
+}
+
+function sameIds(left: number[], right: number[]): boolean {
+  return left.length === right.length && left.every((id, i) => id === right[i])
+}
 
 function orderRespectsChains(order: AfternoonBlock[]): boolean {
   const indexById = new Map<number, number>()
@@ -127,15 +137,18 @@ async function loadBlocks() {
   const planId = selectedPlanId.value
   if (!planId) {
     blocks.value = []
+    lastSavedIds.value = []
     return
   }
   loading.value = true
   try {
     const response = await axios.get(`/plans/${planId}/afternoon/blocks`)
     blocks.value = response.data.blocks || []
+    lastSavedIds.value = blockIds(blocks.value)
   } catch (error) {
     console.error('Failed to fetch afternoon blocks:', error)
     blocks.value = []
+    lastSavedIds.value = []
   } finally {
     loading.value = false
   }
@@ -143,14 +156,17 @@ async function loadBlocks() {
 
 async function saveOrder() {
   const planId = selectedPlanId.value
-  if (!planId || loading.value) return
+  const ids = blockIds(blocks.value)
+  if (!planId || loading.value || sameIds(ids, lastSavedIds.value)) return
   try {
     const response = await axios.put(`/plans/${planId}/afternoon/blocks`, {
-      ids: blocks.value.map((block) => Number(block.id)),
+      ids,
     })
     if (response.data.blocks) {
       blocks.value = response.data.blocks
     }
+    lastSavedIds.value = blockIds(blocks.value)
+    handleBlockUpdates([{name: 'afternoon_order', value: lastSavedIds.value.join(',')}])
   } catch (error) {
     console.error('Failed to save afternoon block order:', error)
   }
