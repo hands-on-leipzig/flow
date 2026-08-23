@@ -163,6 +163,7 @@ watch(
                   </div>
                   <Preview
                       v-else-if="selectedPlanId"
+                      :key="`${selectedPlanId}-${previewReload}`"
                       class="w-full h-full min-h-0"
                       :plan-id="selectedPlanId as number"
                       :reload="previewReload"

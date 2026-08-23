@@ -996,6 +996,7 @@ const inputTitle =
 
     <ScheduleToast
         ref="applyToast"
+        action="update"
         :is-generating="applying"
         :countdown="null"
         message="Plan wird aktualisiert"

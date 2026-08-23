@@ -22,10 +22,6 @@ function onFreeBlocksChanged() {
 
 <template>
   <div class="schedule-free flex flex-col min-w-0 pb-2">
-    <p class="glass-alert-warning shrink-0 flex items-start gap-2">
-      <i class="bi bi-info-circle mt-0.5 shrink-0" aria-hidden="true"/>
-      <span>Freie Blöcke erscheinen in Plänen und Ausgaben, ändern aber den generierten Ablauf nicht.</span>
-    </p>
     <FreeBlocks
         v-if="selectedPlanId"
         :plan-id="selectedPlanId"

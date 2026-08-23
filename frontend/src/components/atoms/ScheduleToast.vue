@@ -6,12 +6,18 @@ const props = withDefaults(defineProps<{
   countdown?: number | null,
   isGenerating?: boolean,
   onImmediateSave?: (() => void) | undefined,
+  /** Ablauf regenerates the plan; extra activities only refresh it. */
+  action?: 'generate' | 'update',
 }>(), {
   message: "Änderungen werden gespeichert...",
   countdown: null,
   isGenerating: false,
   onImmediateSave: undefined,
+  action: 'generate',
 });
+
+const actionLabel = computed(() => props.action === 'update' ? 'Aktualisieren' : 'Generieren')
+const busyLabel = computed(() => props.action === 'update' ? 'Plan wird aktualisiert' : 'Plan wird generiert')
 
 const displayCountdownText = computed(() => {
   const seconds = props.countdown;
@@ -55,11 +61,11 @@ function handleClick() {
     >
       <div v-if="isGenerating" class="flex items-center gap-2">
         <div class="w-3 h-3 bg-gray-600 rounded-full animate-pulse"></div>
-        <span>Plan wird generiert</span>
+        <span>{{ busyLabel }}</span>
       </div>
       <template v-else-if="displayCountdownText !== null">
         <span class="text-2xl font-bold font-mono">{{ displayCountdownText }}</span>
-        <span>Generieren</span>
+        <span>{{ actionLabel }}</span>
       </template>
       <template v-else>
         <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
