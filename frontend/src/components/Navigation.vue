@@ -314,14 +314,15 @@ function logout() {
       </RouterLink>
     </template>
 
-    <template #nav>
+    <template v-if="showBackToOverview" #nav-pinned>
       <SidebarNavItem
-          v-if="showBackToOverview"
           label="Zurück zur Übersicht"
           icon="bi-arrow-left"
           @select="goToPath('/plan/overview')"
         />
+    </template>
 
+    <template #nav>
       <SidebarNavItem
           v-for="entry in currentNavEntries"
           :key="entry.path ?? entry.name"
