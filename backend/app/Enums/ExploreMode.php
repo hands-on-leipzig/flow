@@ -10,8 +10,7 @@ enum ExploreMode: int
     case DECOUPLED_MORNING = 3;
     case DECOUPLED_AFTERNOON = 4;
     case DECOUPLED_BOTH = 5;
-    case HYBRID_MORNING = 6;
-    case HYBRID_AFTERNOON = 7;
+    // Integers 6 and 7 are unused (reserved; see generator-roadmap).
     case HYBRID_BOTH = 8;
 }
 

@@ -2,12 +2,22 @@
 
 namespace App\Support;
 
+use DateTime;
+
 class IntegratedExploreState
 {
+    /** Precomputed Explore hole (finale RG2 path still uses this). */
     public int $duration = 0;
-    public ?string $startTime = null;
-    public ?string $deliberationEndTime = null;  // When Explore deliberations end (after e_ready_awards buffer) - for INTEGRATED_MORNING
-    public ?string $rg1EndTime = null;            // When Robot Game Round 1 ends
-    public ?string $exploreEndTime = null;        // When Explore activities end (for INTEGRATED_AFTERNOON joint awards)
-}
 
+    /** Challenge-led start for an Explore ceremony (datetime, not clock-only). */
+    public ?DateTime $startTime = null;
+
+    /** End of Explore morning deliberations (plus ready-for-awards peek). */
+    public ?DateTime $deliberationsEnd = null;
+
+    /** Instant RG1 ended, before the post-RG1 break. */
+    public ?DateTime $rg1End = null;
+
+    /** Explore afternoon judging end (H:i still; end-of-day joint awards). */
+    public ?string $exploreEndTime = null;
+}

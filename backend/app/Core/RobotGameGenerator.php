@@ -1,19 +1,19 @@
 <?php
 
 namespace App\Core;
-use App\Core\TimeCursor;
 
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use App\Support\IntegratedExploreState;
-use Illuminate\Support\Facades\DB;
-use App\Models\MatchEntry;
+use App\Support\MatchPlan;
 use App\Enums\ExploreMode;
-use App\Services\MatchRotationService;
-use DateTime;
 
+/**
+ * Writes Challenge robot-game activities onto rTime.
+ *
+ * Who plays whom lives in MatchPlan (built by ChallengeMatchPlanBuilder).
+ * This class only places those matches on the clock, plus finals (no stored opponents).
+ */
 class RobotGameGenerator
 {
     use UsesPlanParameter;
@@ -24,396 +24,22 @@ class RobotGameGenerator
     // Shared state for integrated Explore mode
     private IntegratedExploreState $integratedExplore;
 
-    private array $entries = [];
+    private MatchPlan $matchPlan;
 
     public function __construct(
-        ActivityWriter $writer, 
-        PlanParameter $params, 
+        ActivityWriter $writer,
+        PlanParameter $params,
         TimeCursor $rTime,
-        IntegratedExploreState $integratedExplore
+        IntegratedExploreState $integratedExplore,
+        MatchPlan $matchPlan
     ) {
         $this->writer = $writer;
         $this->params = $params;  // Required for trait
         $this->rTime = $rTime;
         $this->integratedExplore = $integratedExplore;
+        $this->matchPlan = $matchPlan;
     }
 
-    // Create the robot game match plan regardless of the number of tables and timing
-
-    public function createMatchPlan(): void
-    {
-        $this->entries = [];
-
-        // Generate rounds 1 to 3 matching the judging round
-        // Then build the test round from round 1
-        // - preserve the table assignments
-        // - shift matches "backwards" to fit judging round 1
-
-        for ($round = 0; $round <= 3; $round++) {
-
-            if ($round == 0) {
-                // TR is easy: Teams starting with judging are last in TR
-                $team = $this->pp("j_lanes");
-            } else {
-                if ($this->pp('g_finale')) {
-                    // Finale Day 2: Different team starting positions (no TR on Day 2)
-                    switch ($round) {
-                        case 1:
-                            $team = $this->pp("j_lanes") * 1;  // 1 * 5 = 5
-                            break;
-                        case 2:
-                            $team = $this->pp("j_lanes") * 3;  // 3 * 5 = 15
-                            break;
-                        case 3:
-                            $team = $this->pp("j_lanes") * 4;  // 4 * 5 = 20
-                            break;
-                    }
-                } else {
-                    // Normal event team starting positions
-                    switch ($this->pp("j_rounds")) {
-                        case 4:
-                            if ($round < 3) {
-                                $team = $this->pp("j_lanes") * ($round + 1);
-                            } else {
-                                $team = $this->pp("c_teams");
-                            }
-                            break;
-
-                        case 5:
-                            if ($round < 3) {
-                                $team = $this->pp("j_lanes") * ($round + 2);
-                            } else {
-                                $team = $this->pp("c_teams");
-                            }
-                            break;
-
-                        case 6:
-                            $team = $this->pp("j_lanes") * ($round + 2);
-                            break;
-
-                            // Not all lanes may be filled in last judging round, 
-                            // but that does not matter with six rounds, because robot game is aligned with judging 5
-                    }
-
-                    // If we have an odd number of teams, start with volunteer
-                    if ($team == $this->pp("c_teams") && $this->pp("r_need_volunteer")) {
-                        $team = $this->pp("c_teams") + 1;
-                    }
-                }
-            }
-
-            // Fill the match plan for the round starting with the last match, then going backwards
-            // Start with just 2 tables. Distribution to 4 tables is done afterwards.
-
-            for ($match = $this->pp("r_matches_per_round"); $match >= 1; $match--) {
-                $team_2 = $team;
-                $this->getNextTeam($team);
-                $team_1 = $team;
-                $this->getNextTeam($team);
-
-                $this->entries[] = [
-                    'round'   => $round,
-                    'match'   => $match,
-                    'table_1' => 1,
-                    'table_2' => 2,
-                    'team_1'  => ($team_1 > $this->pp("c_teams")) ? 0 : $team_1,   // Change volunteer from $this->pp("c_teams")
-                    'team_2'  => ($team_2 > $this->pp("c_teams")) ? 0 : $team_2,   // Change volunteer from $this->pp("c_teams")
-                ];
-            }
-
-            // With four tables move every second line to the other pair.
-            if ($this->pp("r_tables") == 4) {
-                foreach ($this->entries as &$entry) {
-                    if ($entry['match'] % 2 == 0) {
-                        // Move table assignments from 1-2 to 3-4
-                        $entry['table_1'] = 3;
-                        $entry['table_2'] = 4;
-                    }
-                }
-                unset($entry);
-            }
-        }
-
-        // Now, ensure that matches in TR are on the same tables as in RG1  
-        // This is quality measure Q2
-
-        // Sequence of matches in TR is already correct, but the table assigment must be copied from RG1 to TR
-
-        
-        if ( ($this->pp("j_lanes") % 2 === 1) && $this->pp("r_tables") == 4  && $this->pp("j_rounds") == 4 )  {
-    
-            // Special case where lanes are (1,3,5), 4 tables and 4 judging rounds
-            // Q2 not met, but match plan for TR works! 
-            // Hits 8 configuations as of Sep 3, 2025
-            // TODO
-
-        } else {
-        
-            for ($match0 = 1; $match0 <= $this->pp("r_matches_per_round"); $match0++) {
-                foreach ($this->entries as &$match) {
-                    if ($match['round'] === 0 && $match['match'] === $match0) {
-                        $team1 = $match['team_1'];
-                        $team2 = $match['team_2'];
-
-                        // Search for Team 1 in Round 1
-                        $m1 = collect($this->entries)->first(fn($m) =>
-                            $m['round'] === 1 && ($m['team_1'] === $team1 || $m['team_2'] === $team1)
-                        );
-                        if ($m1) {
-                            $match['table_1'] = ($m1['team_1'] === $team1) ? $m1['table_1'] : $m1['table_2'];
-                        }
-
-                        // Search for Team 2 in Round 1
-                        $m2 = collect($this->entries)->first(fn($m) =>
-                            $m['round'] === 1 && ($m['team_1'] === $team2 || $m['team_2'] === $team2)
-                        );
-                        if ($m2) {
-                            $match['table_2'] = ($m2['team_1'] === $team2) ? $m2['table_1'] : $m2['table_2'];
-                        }
-
-                        break;
-                    }
-                }
-            }
-            unset($match);
-        }
-
-        // Special handling for asymmetric robot games
-        if ($this->pp('r_asym') && $this->pp("j_rounds") != 4) {
-
-            // For four tables with asymmetric robot games, we need to do more to prevent the same pair of tables being used twice
-            //
-            // The issue only happens if r_asym is true
-            // This means c_teams = 10, 14, 18, 22 or 26 teams (or one team less)
-
-            // Solution is to add an empty match at tables 3+4 after j_lanes matches
-            // This increases the duration of TR by 10 minutes. This is handled when creating the full-day plan
-            
-            $newList = [];
-            $emptyMatchInserted = false;
-            
-            foreach ($this->entries as $entry) {
-
-                // For TR matches after j_lanes: increment match number to make room for empty match
-                if ($entry['round'] === 0 && $entry['match'] > $this->pp("j_lanes")) {
-                    $entry['match'] += 1;
-                }
-
-                // Copy all modified or unmodified entries
-                $newList[] = $entry;
-                
-                // Insert empty match right after the last j_lanes match in TR
-                if (!$emptyMatchInserted && $entry['round'] === 0 && $entry['match'] === $this->pp("j_lanes")) {
-                    $newList[] = [
-                        'round'   => 0,
-                        'match'   => $this->pp("j_lanes") + 1,
-                        'table_1' => 3,
-                        'table_2' => 4,
-                        'team_1'  => 0,
-                        'team_2'  => 0,
-                    ];
-                    $emptyMatchInserted = true;
-                }
-            }
-
-            $this->entries = $newList;
-        }
-
-        // Save match entries to database
-        $this->saveMatchEntries();
-    }
-
-    /**
-     * Apply match rotation service to improve Q2 (table diversity) and Q3 (opponent diversity)
-     * for rounds 2 and 3.
-     */
-    public function applyMatchRotation(): void
-    {
-        $planId = $this->pp('g_plan');
-        
-        // Extract team sequences from current match plan
-        $round1Seq = $this->extractRoundSequence(1);
-        $round2Seq = $this->extractRoundSequence(2);
-        $round3Seq = $this->extractRoundSequence(3);
-
-        // Log::info("RobotGameGenerator: Match rotation starting", [
-        //     'plan_id' => $planId,
-        //     'c_teams' => $this->pp('c_teams'),
-        //     'r_tables' => $this->pp('r_tables'),
-        //     'j_lanes' => $this->pp('j_lanes'),
-        //     'round1_seq' => $round1Seq,
-        //     'round2_seq_before' => $round2Seq,
-        //     'round3_seq_before' => $round3Seq,
-        // ]);
-
-        // Split rounds 2 and 3 into blocks (First, Middle, Last)
-        $round2Blocks = $this->splitIntoBlocks($round2Seq);
-        $round3Blocks = $this->splitIntoBlocks($round3Seq);
-
-        // Log::info("RobotGameGenerator: Blocks split", [
-        //     'plan_id' => $planId,
-        //     'round2_blocks' => $round2Blocks,
-        //     'round3_blocks' => $round3Blocks,
-        // ]);
-
-        // Apply rotation algorithm
-        $rotationService = new MatchRotationService();
-        $optimized = $rotationService->plan(
-            $this->pp('r_tables'),
-            $round1Seq,
-            $round2Blocks,
-            $round3Blocks
-        );
-
-        // Log::info("RobotGameGenerator: Rotation completed", [
-        //     'plan_id' => $planId,
-        //     'round2_seq_after' => $optimized['round2']['seq'],
-        //     'round3_seq_after' => $optimized['round3']['seq'],
-        //     'round2_pairs' => $optimized['round2']['pairs'],
-        //     'round3_pairs' => $optimized['round3']['pairs'],
-        // ]);
-
-        // Update entries for rounds 2 and 3 with optimized sequences
-        $this->applyOptimizedSequence(2, $optimized['round2']);
-        $this->applyOptimizedSequence(3, $optimized['round3']);
-
-        // Save the updated entries to database
-        $this->saveMatchEntries();
-
-        // Log::info("RobotGameGenerator: Match rotation applied and saved for rounds 2 and 3", [
-        //     'plan_id' => $planId,
-        // ]);
-    }
-
-    /**
-     * Extract team sequence from a round in the current match plan.
-     * Returns teams in match order (team_1, team_2, team_1, team_2, ...)
-     *
-     * @param int $round Round number (1, 2, or 3)
-     * @return int[] Array of team IDs in sequence
-     */
-    private function extractRoundSequence(int $round): array
-    {
-        // Filter entries for this round
-        $roundEntries = array_filter($this->entries, fn($e) => $e['round'] === $round);
-        
-        // Sort by match number
-        usort($roundEntries, fn($a, $b) => $a['match'] <=> $b['match']);
-        
-        // Extract team sequence
-        $sequence = [];
-        foreach ($roundEntries as $entry) {
-            $sequence[] = $entry['team_1'];
-            $sequence[] = $entry['team_2'];
-        }
-        
-        return $sequence;
-    }
-
-    /**
-     * Split a team sequence into First, Middle, Last blocks based on j_lanes.
-     * - First: first j_lanes teams
-     * - Last: last j_lanes teams
-     * - Middle: remaining teams
-     *
-     * @param int[] $sequence Team sequence
-     * @return array{first: int[], middle: int[], last: int[]}
-     */
-    private function splitIntoBlocks(array $sequence): array
-    {
-        $jLanes = $this->pp('j_lanes');
-        $total = count($sequence);
-        
-        // First j_lanes teams
-        $first = array_slice($sequence, 0, $jLanes);
-        
-        // Last j_lanes teams
-        $last = array_slice($sequence, $total - $jLanes, $jLanes);
-        
-        // Middle: everything between
-        $middle = array_slice($sequence, $jLanes, $total - 2 * $jLanes);
-        
-        return [
-            'first' => $first,
-            'middle' => $middle,
-            'last' => $last,
-        ];
-    }
-
-    /**
-     * Apply an optimized sequence to a round, updating entries.
-     *
-     * @param int $round Round number (2 or 3)
-     * @param array{seq: int[], pairs: array<array{0:int,1:int}>, tables: array<int,int>} $optimized
-     */
-    private function applyOptimizedSequence(int $round, array $optimized): void
-    {
-        // Find all entries for this round
-        $roundEntries = [];
-        foreach ($this->entries as $idx => $entry) {
-            if ($entry['round'] === $round) {
-                $roundEntries[$idx] = $entry;
-            }
-        }
-        
-        // Sort by match number to get correct order
-        uasort($roundEntries, fn($a, $b) => $a['match'] <=> $b['match']);
-        
-        // Apply optimized pairs to entries
-        $pairIndex = 0;
-        foreach ($roundEntries as $idx => $entry) {
-            if ($pairIndex < count($optimized['pairs'])) {
-                $pair = $optimized['pairs'][$pairIndex];
-                $this->entries[$idx]['team_1'] = $pair[0];
-                $this->entries[$idx]['team_2'] = $pair[1];
-                $pairIndex++;
-            }
-        }
-    }
-
-    private function saveMatchEntries(): void
-    {
-        $planId = $this->pp('g_plan');
-        
-        // Clear existing match entries for this plan
-        MatchEntry::where('plan', $planId)->delete();
-
-        // Prepare data for bulk insert
-        $data = array_map(function($entry) use ($planId) {
-            return [
-                'plan' => $planId,
-                'round' => $entry['round'],
-                'match_no' => $entry['match'],
-                'table_1' => $entry['table_1'],
-                'table_2' => $entry['table_2'],
-                'table_1_team' => $entry['team_1'],
-                'table_2_team' => $entry['team_2'],
-            ];
-        }, $this->entries);
-
-        // Bulk insert all match entries in a single query
-        if (!empty($data)) {
-            MatchEntry::insert($data);
-        }
-    }
-
-    private function getNextTeam(&$team) {
-
-        // Get the next team with lower number
-        // When 0 is reached cycle to max number
-        // Include volunteer team if needed
-
-        $team--;
-
-        if ($team == 0) {
-            if ($this->pp("r_need_volunteer")) {
-                $team = $this->pp("c_teams") + 1; // Volunteer team
-            } else {
-                $team = $this->pp("c_teams");
-            }
-        }
-    } 
-    
     private function insertOneMatch(
         TimeCursor $rTime,
         int $duration,
@@ -489,8 +115,7 @@ class RobotGameGenerator
         }
 
         // 2) Filter and sort matches for this round
-        $filtered = array_filter($this->entries, fn ($m) => $m['round'] === $round);
-        usort($filtered, fn ($a, $b) => $a['match'] <=> $b['match']);
+        $filtered = $this->matchPlan->entriesForRound($round);
 
         // 3) Prepare activities for bulk insert
         $activities = [];
@@ -573,47 +198,19 @@ class RobotGameGenerator
                     // Finale: Simple break after RG1
                     $this->rTime->addMinutes($this->pp("r_duration_break"));
                 } else {
-                    // Normal events: Handle Explore integration and lunch break
-                    if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
-                        $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
-                        // Integrated Explore mode: coordinate with ExploreGenerator
-                        
-                        if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value) {
-                            // Store RG1 end time
-                            $this->integratedExplore->rg1EndTime = $this->rTime->format('H:i');
-                            
-                            // Compare with deliberation end time and use the later one
-                            $deliberationEnd = $this->integratedExplore->deliberationEndTime;
-                            if ($deliberationEnd !== null) {
-                                // Convert both to DateTime for comparison
-                                $baseDate = $this->rTime->current()->format('Y-m-d');
-                                $rg1Time = new \DateTime($baseDate . ' ' . $this->integratedExplore->rg1EndTime);
-                                $delibTime = new \DateTime($baseDate . ' ' . $deliberationEnd);
-                                
-                                // Use the later time
-                                $this->integratedExplore->startTime = ($rg1Time > $delibTime) 
-                                    ? $this->integratedExplore->rg1EndTime 
-                                    : $deliberationEnd;
-                            } else {
-                                // Fallback: use RG1 time if deliberation time not set
-                                $this->integratedExplore->startTime = $this->integratedExplore->rg1EndTime;
-                            }
-                            
-                            // For INTEGRATED_MORNING: Do NOT advance rTime here
-                            // rTime will be adjusted in PlanGeneratorCore after awards are inserted
-                            // based on the actual awards end time
-                            
-                        } else {
-                            // INTEGRATED_AFTERNOON: use RG1 time directly and advance by duration
-                            $this->integratedExplore->startTime = $this->rTime->format('H:i');
-                            $this->rTime->addMinutes($this->integratedExplore->duration);
-                        }
-                        
-                    } else {
-                        // Skip lunch pause if early lunch is enabled (lunch already handled at test round)
-                        if (!$this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') === 0) {
-                            $this->rTime->addMinutes($this->pp("r_duration_lunch"));
-                        }
+                    // Challenge break is the floor for RG2. Explore may only push rTime later.
+                    $rg1End = $this->rTime->current();
+                    $this->integratedExplore->rg1End = $rg1End;
+
+                    if (!$this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') === 0) {
+                        $this->rTime->addMinutes($this->pp("r_duration_lunch"));
+                    }
+
+                    if ($this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                        $this->integratedExplore->startTime = clone $rg1End;
+                        $exploreHoleEnd = new TimeCursor($rg1End);
+                        $exploreHoleEnd->addMinutes($this->integratedExplore->duration);
+                        $this->rTime->advanceToLater($exploreHoleEnd->current());
                     }
                 }
                 break;
@@ -624,7 +221,7 @@ class RobotGameGenerator
                     if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
                         $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
                         // Integrated Explore mode: coordinate with ExploreGenerator
-                        $this->integratedExplore->startTime = $this->rTime->format('H:i');
+                        $this->integratedExplore->startTime = $this->rTime->current();
                         $this->rTime->addMinutes($this->integratedExplore->duration);
                     } else {
                         // Skip lunch pause if early lunch is enabled (lunch already handled at test round)

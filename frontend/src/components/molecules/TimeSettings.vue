@@ -24,26 +24,13 @@ type Logo = { src: string; alt: string }
 
 const eventStore = useEventStore()
 const visibilityMatrix = ref<Record<string, any>>({})
-const overrideEMode = ref<number | null>(null)
-const overrideCMode = ref<number | null>(null)
 
 const byName = computed<Record<string, any>>(
     () => Object.fromEntries(props.parameters.map((p: any) => [p.name, p]))
 )
 
-const eMode = computed({
-  get: () => overrideEMode.value ?? Number(byName.value['e_mode']?.value ?? 0),
-  set: (value) => {
-    overrideEMode.value = Number(value)
-  },
-})
-
-const cMode = computed({
-  get: () => overrideCMode.value ?? Number(byName.value['c_mode']?.value ?? 0),
-  set: (value) => {
-    overrideCMode.value = Number(value)
-  },
-})
+const eMode = computed(() => Number(byName.value['e_mode']?.value ?? 0))
+const cMode = computed(() => Number(byName.value['c_mode']?.value ?? 0))
 
 const currentVisibility = computed(() => {
   const key = `e${eMode.value}_c${cMode.value}`
@@ -129,27 +116,6 @@ onMounted(async () => {
 
 <template>
   <div class="flex flex-col gap-[1.15rem]">
-    <div class="glass-settings-row">
-      <label class="inline-flex items-center gap-2">
-        <span class="glass-settings-hint !not-italic">e_mode</span>
-        <input
-            v-model.number="eMode"
-            class="glass-input glass-input--sm liquid-surface-control w-16 text-sm"
-            min="0"
-            type="number"
-        >
-      </label>
-      <label class="inline-flex items-center gap-2">
-        <span class="glass-settings-hint !not-italic">c_mode</span>
-        <input
-            v-model.number="cMode"
-            class="glass-input glass-input--sm liquid-surface-control w-16 text-sm"
-            min="0"
-            type="number"
-        >
-      </label>
-    </div>
-
     <section v-if="showOpening" class="times-card glass-card liquid-surface-inner">
       <h2 class="glass-card__title">Eröffnung - Start und Dauer</h2>
       <div class="flex flex-col gap-3">

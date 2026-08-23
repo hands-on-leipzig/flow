@@ -23,9 +23,23 @@ Clocks: `TimeCursor` (`jTime` judging, `rTime` robot game, `cTime` ceremony, `eT
 
 Challenge `main()` aligns judging rounds with RG (test round 0, then 1–3). Explore groups 1 = morning, 2 = afternoon. Pauses after TR/RG1/RG2/RG3/finals are **duration-only** (`addMinutes`). Inserted extra-blocks are removed; free + slot extra-blocks stay.
 
-### First cleanup (done in code)
+### First cleanup (done)
 
-Inserted extra-block **content** is gone; **pauses** stay (`addMinutes`). Call-site order is unchanged. The drop migration is in the tree; do not run it on live until asked. Next in this phase: structural Core cleanup — not Future 8+, not afternoon reorder.
+Inserted extra-block **content** is gone; **pauses** stay (`addMinutes`). Live DB migrated (no `m_insert_point`, no buffers, `extra_block.type` is `free`/`slot`).
+
+### Structural cleanup (phase 1, current)
+
+Constraints: Challenge judging ∥ robot game (do not generate them as two days). Explore is judging-only. Challenge leads; only joint opening/closing (plus today’s after-RG1 handoff) couple the programs. Finale stays a separate two-day tweak. No Future 8+. No after-RG3 redesign.
+
+Agreed sequence — do not start the next item until the user has reviewed:
+
+1. **Ceremony recipes in Core** — same call order as the old `e_mode` ladder. `e_mode` 6/7 unused (documented below).
+2. Challenge-owned clocks; Explore gets a start from opening/closing/handoff; handoff as datetime not `H:i`.
+3. Named pieces inside Challenge `main()`, formulas unchanged; judging and RG stay in one loop.
+4. Robot game: match list vs write to `rTime`; write stays in the loop.
+5. Explore as a sequence; drop unused `setMode`.
+6. Finale: skip (leave as-is).
+7. Writer/log/constructor hygiene as we go.
 
 ## 2. Later: Future 8+ as a first-class program
 
@@ -39,3 +53,20 @@ Inserted extra-block **content** is gone; **pauses** stay (`addMinutes`). Call-s
 - Do this only after phases 1–2, because Future 8+ will change who shares that part of the day.
 
 When unsure which phase a change belongs to, ask before implementing.
+
+## Explore `e_mode` (generated)
+
+| Value | Enum | Meaning |
+|---:|---|---|
+| 0 | `NONE` | No Explore |
+| 1 | `INTEGRATED_MORNING` | Joint opening; Explore 1 judging; Explore 1 awards after RG1; Challenge awards alone |
+| 2 | `INTEGRATED_AFTERNOON` | Challenge opening; Explore 2 opening after RG1; Explore 2 judging; joint awards |
+| 3 | `DECOUPLED_MORNING` | Full Challenge, then Explore 1 with own ceremonies |
+| 4 | `DECOUPLED_AFTERNOON` | Full Challenge, then Explore 2 with own ceremonies |
+| 5 | `DECOUPLED_BOTH` | Full Challenge, then Explore 1 and 2 with own ceremonies |
+| 8 | `HYBRID_BOTH` | Joint opening; Explore 1 with own awards; joint awards; Explore 2 opening after that + judging (no Explore 2 awards) |
+
+UI never writes 6 or 7 (morning+integrated → 1, afternoon+integrated → 2). Enum has no cases for them. Integers 6 and 7 stay reserved and unimplemented:
+
+- **6** would be hybrid morning (half of 8 vs 1): joint opening like 8; Explore 1 judging; Explore 1 **awards independent of Challenge** (not after RG1); Challenge awards alone.
+- **7** would be hybrid afternoon (half of 8 vs 2): Challenge opening; Explore 2 **opening independent of Challenge** (not after RG1); Explore 2 judging; joint awards.

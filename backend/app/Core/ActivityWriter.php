@@ -11,9 +11,6 @@ use App\Enums\ExploreMode;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 
-use App\Core\TimeCursor;
-use Illuminate\Support\Facades\Log;
-
 class ActivityWriter
 {
     use UsesPlanParameter;
@@ -27,32 +24,29 @@ class ActivityWriter
     /** @var array<string,int> */
     private array $roomTypeMap = [];
 
-    /** @var array<int,int> Cache for activity_type_detail id to first_program mapping */
+    /** @var array<int,?int> */
     private array $activityTypeDetailFirstProgramMap = [];
 
-    public function __construct(int $planId, ?PlanParameter $params = null)
+    public function __construct(int $planId, PlanParameter $params)
     {
         $this->planId = $planId;
-        
-        // Set params if provided (for accessing plan parameters via pp())
-        if ($params !== null) {
-            $this->params = $params;
-        }
+        $this->params = $params;
 
-        $this->activityTypeDetailMap = MActivityTypeDetail::all()
+        $details = MActivityTypeDetail::all();
+
+        $this->activityTypeDetailMap = $details
             ->pluck('id', 'code')
             ->mapWithKeys(fn($id, $code) => [strtolower($code) => (int) $id])
+            ->toArray();
+
+        $this->activityTypeDetailFirstProgramMap = $details
+            ->pluck('first_program', 'id')
+            ->map(fn($fp) => $fp ? (int) $fp : null)
             ->toArray();
 
         $this->roomTypeMap = MRoomType::all()
             ->pluck('id', 'code')
             ->mapWithKeys(fn($id, $code) => [strtolower($code) => (int) $id])
-            ->toArray();
-
-        // Cache activity_type_detail id to first_program mapping
-        $this->activityTypeDetailFirstProgramMap = MActivityTypeDetail::all()
-            ->pluck('first_program', 'id')
-            ->map(fn($fp) => $fp ? (int) $fp : null)
             ->toArray();
     }
 
@@ -86,7 +80,7 @@ class ActivityWriter
         ?int $exploreGroup = null
     ): int {
         if (!$this->currentGroup) {
-            throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Einfügen der Aktivität '{$activityTypeCode}'. Bitte setze zunächst eine Aktivitätsgruppe mit setGroup().");
+            throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Einfügen der Aktivität '{$activityTypeCode}'. Bitte setze zunächst eine Aktivitätsgruppe mit withGroup().");
         }
 
         $start = $time->current()->format('Y-m-d H:i:s');
@@ -143,7 +137,7 @@ class ActivityWriter
     public function insertActivitiesBulk(array $activities): void
     {
         if (!$this->currentGroup) {
-            throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Bulk-Einfügen von Aktivitäten. Bitte setze zunächst eine Aktivitätsgruppe mit setGroup().");
+            throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Bulk-Einfügen von Aktivitäten. Bitte setze zunächst eine Aktivitätsgruppe mit withGroup().");
         }
 
         if (empty($activities)) {
@@ -188,14 +182,7 @@ class ActivityWriter
 
     private function activityTypeDetailIdFromCode(string $code): ?int
     {
-        static $cache = [];
-
-        $key = strtolower($code);
-        if (!isset($cache[$key])) {
-            $cache[$key] = $this->activityTypeDetailMap[$key] ?? null;
-        }
-
-        return $cache[$key];
+        return $this->activityTypeDetailMap[strtolower($code)] ?? null;
     }
 
     private function resolveRoomType(int $activityTypeDetailId, ?int $juryLane, ?int $exploreGroup = null): ?int

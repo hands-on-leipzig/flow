@@ -31,6 +31,16 @@ class TimeCursor
     }
 
     /**
+     * Move this cursor forward if $other is later. Does not move backward.
+     */
+    public function advanceToLater(DateTime $other): void
+    {
+        if ($other > $this->time) {
+            $this->time = clone $other;
+        }
+    }
+
+    /**
      * Setzt die Zeit des Tages ohne das Datum zu ändern.
      */
     public function setTime(string $timeString): void
