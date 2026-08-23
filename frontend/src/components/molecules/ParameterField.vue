@@ -53,10 +53,13 @@ watch(() => props.param.value, val => {
       : val
 })
 
+const hasDefaultValue = (param) =>
+    param.default_value !== null && param.default_value !== undefined && param.default_value !== ''
+
 const showDefaultValue = (param) => {
   switch (param.type) {
     case 'boolean':
-      return normalizeBoolean(param.default_value) ? 'an' : 'aus'
+      return normalizeBoolean(param.default_value) ? 'ja' : 'nein'
     case 'time':
       return normalizeTimeFormat(param.default_value)
     default:
@@ -226,30 +229,43 @@ const controlClass = computed(() => {
             @change="emitChange"
             @input="validateValue(localValue, param)"
         />
-        <span v-if="showDefaultValue(param) && !validationError" class="glass-settings-hint">
+        <span
+            v-if="hasDefaultValue(param) && !validationError"
+            class="glass-settings-hint"
+            :class="{ 'param-field__default--changed': param.type === 'integer' && isChangedFromDefault(param) }"
+        >
           {{ showDefaultValue(param) }}
         </span>
       </div>
 
-      <div v-else-if="param.type === 'boolean'" class="flex gap-1.5">
-        <button
-            type="button"
-            class="glass-choice whitespace-nowrap"
-            :class="localValue ? 'glass-choice--active' : ''"
-            :disabled="disabled || onDisabled"
-            @click="setBoolean(true)"
+      <div v-else-if="param.type === 'boolean'" class="flex items-center gap-2">
+        <div class="flex gap-1.5">
+          <button
+              type="button"
+              class="glass-choice whitespace-nowrap"
+              :class="localValue ? 'glass-choice--active' : ''"
+              :disabled="disabled || onDisabled"
+              @click="setBoolean(true)"
+          >
+            ja
+          </button>
+          <button
+              type="button"
+              class="glass-choice whitespace-nowrap"
+              :class="!localValue ? 'glass-choice--active' : ''"
+              :disabled="disabled || offDisabled"
+              @click="setBoolean(false)"
+          >
+            nein
+          </button>
+        </div>
+        <span
+            v-if="hasDefaultValue(param)"
+            class="glass-settings-hint"
+            :class="{ 'param-field__default--changed': isChangedFromDefault(param) }"
         >
-          ja
-        </button>
-        <button
-            type="button"
-            class="glass-choice whitespace-nowrap"
-            :class="!localValue ? 'glass-choice--active' : ''"
-            :disabled="disabled || offDisabled"
-            @click="setBoolean(false)"
-        >
-          nein
-        </button>
+          {{ showDefaultValue(param) }}
+        </span>
       </div>
 
       <div v-else-if="param.type === 'date'">
@@ -306,6 +322,15 @@ const controlClass = computed(() => {
 .param-field__control--changed {
   border-color: color-mix(in srgb, #b45309 45%, var(--color-border));
   background: color-mix(in srgb, #b45309 10%, transparent);
+}
+
+.param-field__default--changed {
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, #b45309 35%, var(--color-border));
+  background: color-mix(in srgb, #b45309 12%, var(--color-bg-muted));
+  color: var(--color-text);
+  font-style: normal;
 }
 
 .param-field__control--invalid {
