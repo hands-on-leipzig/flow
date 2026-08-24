@@ -3,7 +3,7 @@ import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import ParameterField from '@/components/molecules/ParameterField.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {eventPrograms, programDisplayName} from '@/utils/eventPrograms'
+import {eventPrograms, hasFuture, programDisplayName} from '@/utils/eventPrograms'
 import {useEventStore} from '@/stores/event'
 
 const props = defineProps<{
@@ -31,12 +31,20 @@ const byName = computed<Record<string, any>>(
 
 const eMode = computed(() => Number(byName.value['e_mode']?.value ?? 0))
 const cMode = computed(() => Number(byName.value['c_mode']?.value ?? 0))
-const f8Mode = computed(() => Number(byName.value['f8_mode']?.value ?? 0))
+const f8Mode = computed(() => {
+  if (Number(byName.value['f8_mode']?.value ?? 0) === 1) return 1
+  const teams = Number(byName.value['f8_teams']?.value ?? 0)
+  return hasFuture(eventStore.selectedEvent) && teams > 0 ? 1 : 0
+})
 
 const currentVisibility = computed(() => {
   const key = `e${eMode.value}_c${cMode.value}_f8${f8Mode.value}`
-  const fallback = `e${eMode.value}_c${cMode.value}`
-  return visibilityMatrix.value[key]?.fields || visibilityMatrix.value[fallback]?.fields || {}
+  const fields = visibilityMatrix.value[key]?.fields
+  if (fields) return fields
+  if (f8Mode.value === 0) {
+    return visibilityMatrix.value[`e${eMode.value}_c${cMode.value}`]?.fields || {}
+  }
+  return {}
 })
 
 const columnLabels = computed<Record<Prefix, string>>(() => ({
