@@ -3370,7 +3370,7 @@
             "context": "input",
             "level": 1,
             "type": "integer",
-            "value": "1",
+            "value": "0",
             "min": "0",
             "max": "1",
             "step": "1",

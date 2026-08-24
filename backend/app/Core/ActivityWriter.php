@@ -198,6 +198,9 @@ class ActivityWriter
             if (in_array($code, ['j_with_team', 'j_scoring'])) {
                 return $this->roomTypeMap['j_lane_' . $juryLane] ?? null;
             }
+            if (in_array($code, ['f8_j_with_team', 'f8_j_scoring'])) {
+                return $this->roomTypeMap['f8_j_lane_' . $juryLane] ?? null;
+            }
             if (in_array($code, ['e_with_team', 'e_scoring'])) {
                 return $this->roomTypeMap['e_lane_' . $juryLane] ?? null;
             }

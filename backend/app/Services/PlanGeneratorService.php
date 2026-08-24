@@ -147,6 +147,54 @@ class PlanGeneratorService
             }
         }
 
+        // --- Future 8+ prüfen ---
+        $futureAttached = DB::table('plan')
+            ->join('event_program', 'event_program.event', '=', 'plan.event')
+            ->where('plan.id', $planId)
+            ->where('event_program.first_program', FirstProgram::FUTURE_8->value)
+            ->exists();
+
+        $futureOn = ((int) ($params->get('f8_mode') ?? 0) === 1 || $futureAttached)
+            && (int) ($params->get('f8_teams') ?? 0) > 0;
+
+        if ($futureOn) {
+            $f8Teams = (int) ($params->get('f8_teams') ?? 0);
+            $f8Lanes = $params->get('f8_lanes');
+            $f8Fields = $params->get('f8_fields');
+
+            if ($f8Lanes === null || $f8Lanes === '') {
+                return [
+                    'supported' => false,
+                    'error' => 'Future 8+-Konfiguration unvollständig',
+                    'details' => 'Jury-Spuren (f8_lanes) sind nicht gesetzt. Bitte wähle eine gültige Spuranzahl.',
+                ];
+            }
+
+            $f8Lanes = (int) $f8Lanes;
+            $f8Fields = $f8Fields === null || $f8Fields === '' ? null : (int) $f8Fields;
+
+            $ok = $this->checkSupportedPlan(
+                FirstProgram::FUTURE_8->value,
+                $f8Teams,
+                $f8Lanes,
+                $f8Fields
+            );
+
+            if (! $ok) {
+                Log::warning('Unsupported Future 8+ plan', [
+                    'plan_id' => $planId,
+                    'teams' => $f8Teams,
+                    'lanes' => $f8Lanes,
+                    'fields' => $f8Fields,
+                ]);
+
+                return [
+                    'supported' => false,
+                    'error' => 'Future 8+-Konfiguration wird nicht unterstützt',
+                    'details' => 'Die Kombination aus Future 8+-Teams ('.$f8Teams.'), Spuren ('.$f8Lanes.') und Feldern ('.($f8Fields ?? '–').') wird nicht unterstützt. Bitte überprüfe diese Parameter.',
+                ];
+            }
+        }
 
         return ['supported' => true];
     }

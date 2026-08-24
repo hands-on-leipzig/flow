@@ -9,10 +9,10 @@ use App\Support\MatchPlan;
 use App\Enums\ExploreMode;
 
 /**
- * Writes Challenge robot-game activities onto rTime.
+ * Writes field-game activities onto rTime (Challenge robot game, or Future 8+ game).
  *
- * Who plays whom lives in MatchPlan (built by ChallengeMatchPlanBuilder).
- * This class only places those matches on the clock, plus finals (no stored opponents).
+ * Who plays whom lives in MatchPlan. This class places those matches on the clock.
+ * Challenge finals stay Challenge-coded (no stored opponents).
  */
 class RobotGameGenerator
 {
@@ -26,18 +26,43 @@ class RobotGameGenerator
 
     private MatchPlan $matchPlan;
 
+    private RobotGameWriteConfig $write;
+
     public function __construct(
         ActivityWriter $writer,
         PlanParameter $params,
         TimeCursor $rTime,
         IntegratedExploreState $integratedExplore,
-        MatchPlan $matchPlan
+        MatchPlan $matchPlan,
+        ?RobotGameWriteConfig $write = null
     ) {
         $this->writer = $writer;
         $this->params = $params;  // Required for trait
         $this->rTime = $rTime;
         $this->integratedExplore = $integratedExplore;
         $this->matchPlan = $matchPlan;
+        $this->write = $write ?? RobotGameWriteConfig::challenge();
+    }
+
+    private function robotCheckEnabled(): bool
+    {
+        $param = $this->write->robotCheckParam;
+
+        return $param !== null && (bool) $this->pp($param);
+    }
+
+    private function lunchBreakEarly(): bool
+    {
+        $param = $this->write->lunchBreakEarlyParam;
+
+        return $param !== null && (bool) $this->pp($param);
+    }
+
+    private function hardLunchDuration(): mixed
+    {
+        $param = $this->write->hardLunchDurationParam;
+
+        return $param === null ? 0 : $this->pp($param);
     }
 
     private function insertOneMatch(
@@ -98,21 +123,11 @@ class RobotGameGenerator
 
     public function insertOneRound(int $round)
     {
-        // 1) Set activity group based on round
-        switch ($round) {
-            case 0:
-                $this->writer->insertActivityGroup('r_test_round');
-                break;
-            case 1:
-                $this->writer->insertActivityGroup('r_round_1');
-                break;
-            case 2:
-                $this->writer->insertActivityGroup('r_round_2');
-                break;
-            case 3:
-                $this->writer->insertActivityGroup('r_round_3');
-                break;
+        $groupCode = $this->write->roundGroupCodes[$round] ?? null;
+        if ($groupCode === null) {
+            throw new \InvalidArgumentException("No activity group code configured for game round {$round}");
         }
+        $this->writer->insertActivityGroup($groupCode);
 
         // 2) Filter and sort matches for this round
         $filtered = $this->matchPlan->entriesForRound($round);
@@ -123,8 +138,8 @@ class RobotGameGenerator
         foreach ($filtered as $match) {
             // Determine duration (TR vs RG)
             $duration = ($round === 0)
-                ? $this->pp("r_duration_test_match")
-                : $this->pp("r_duration_match");
+                ? $this->pp($this->write->durationTestMatch)
+                : $this->pp($this->write->durationMatch);
 
             // Exotic case: skip empty TR match
             if ($match['team_1'] === 0 && $match['team_2'] === 0) {
@@ -137,9 +152,9 @@ class RobotGameGenerator
             $time = $this->rTime->copy();
 
             // Add robot check activity if needed
-            if ($this->pp("r_robot_check")) {
+            if ($this->robotCheckEnabled() && $this->write->checkCode !== null) {
                 $activities[] = $this->prepareActivity(
-                    'r_check',
+                    $this->write->checkCode,
                     $time,
                     $this->pp('r_duration_robot_check'),
                     null, null,
@@ -152,7 +167,7 @@ class RobotGameGenerator
 
             // Add match activity
             $activities[] = $this->prepareActivity(
-                'r_match',
+                $this->write->matchCode,
                 $time,
                 $duration,
                 null, null,
@@ -170,13 +185,13 @@ class RobotGameGenerator
         }
 
         // 5) Robot check adds additional time at the end of the round
-        if ($this->pp("r_robot_check")) {
+        if ($this->robotCheckEnabled()) {
             $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
         }
 
         // 6) Fix for 4 tables: when last match is over, correct total duration
-        if ($this->pp("r_tables") === 4) {
-            $delta = $this->pp("r_duration_match") - $this->pp("r_duration_next_start");
+        if ($this->pp($this->write->tablesParam) === 4) {
+            $delta = $this->pp($this->write->durationMatch) - $this->pp($this->write->durationNextStart);
             $this->rTime->addMinutes($delta);
         }
 
@@ -184,26 +199,26 @@ class RobotGameGenerator
         switch ($round) {
             case 0:
                 // Test round: Handle early lunch break if enabled
-                if ($this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') == 0) {
+                if ($this->lunchBreakEarly() && $this->hardLunchDuration() == 0) {
                     // Early lunch: use lunch duration instead of regular break
-                    $this->rTime->addMinutes($this->pp("r_duration_lunch"));
+                    $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                 } else {
                     // Normal: regular break after test round
-                    $this->rTime->addMinutes($this->pp("r_duration_break"));
+                    $this->rTime->addMinutes($this->pp($this->write->durationBreak));
                 }
                 break;
 
             case 1:
                 if ($this->pp('g_finale')) {
                     // Finale: Simple break after RG1
-                    $this->rTime->addMinutes($this->pp("r_duration_break"));
+                    $this->rTime->addMinutes($this->pp($this->write->durationBreak));
                 } else {
                     // Challenge break is the floor for RG2. Explore may only push rTime later.
                     $rg1End = $this->rTime->current();
                     $this->integratedExplore->rg1End = $rg1End;
 
-                    if (!$this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') === 0) {
-                        $this->rTime->addMinutes($this->pp("r_duration_lunch"));
+                    if (!$this->lunchBreakEarly() && $this->hardLunchDuration() === 0) {
+                        $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                     }
 
                     if ($this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
@@ -225,13 +240,13 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->integratedExplore->duration);
                     } else {
                         // Skip lunch pause if early lunch is enabled (lunch already handled at test round)
-                        if (!$this->pp('c_lunch_break_early') && $this->pp('c_duration_lunch_break') === 0) {
-                            $this->rTime->addMinutes($this->pp("r_duration_lunch"));
+                        if (!$this->lunchBreakEarly() && $this->hardLunchDuration() === 0) {
+                            $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                         }
                     }
                 } else {
                     // Normal events: Regular break after RG2 (lunch was already handled at test round if early)
-                    $this->rTime->addMinutes($this->pp("r_duration_break"));
+                    $this->rTime->addMinutes($this->pp($this->write->durationBreak));
                 }
                 break;
 
@@ -276,7 +291,7 @@ class RobotGameGenerator
      */
     private function advanceTimeForMatch(int $round, array $match, int $duration): void
     {
-        if ($this->pp("r_tables") === 2) {
+        if ($this->pp($this->write->tablesParam) === 2) {
             // 2 tables: Next match waits until this one is finished
             $this->rTime->addMinutes($duration);
         } else {
@@ -284,14 +299,14 @@ class RobotGameGenerator
             if ($round === 0) {
                 // TR: Start times alternate between next_start and (match - next_start)
                 if (($match['match']) % 2 === 1) {
-                    $this->rTime->addMinutes($this->pp("r_duration_next_start"));
+                    $this->rTime->addMinutes($this->pp($this->write->durationNextStart));
                 } else {
-                    $delta = $duration - $this->pp("r_duration_next_start");
+                    $delta = $duration - $this->pp($this->write->durationNextStart);
                     $this->rTime->addMinutes($delta);
                 }
             } else {
                 // RG1–3: Overlap — next start every r_duration_next_start
-                $this->rTime->addMinutes($this->pp("r_duration_next_start"));
+                $this->rTime->addMinutes($this->pp($this->write->durationNextStart));
             }
         }
     }

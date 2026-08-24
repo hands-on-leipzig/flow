@@ -9,7 +9,7 @@ use App\Support\IntegratedExploreState;
 use App\Enums\ExploreMode;
 
 
-class ChallengeGenerator
+class ChallengeGenerator implements ChallengeShapedLead
 {
     private ActivityWriter $writer;
     private TimeCursor $rTime;
@@ -226,7 +226,7 @@ class ChallengeGenerator
 
 
 
-    public function main(bool $explore = false, ?callable $afterRG1Callback = null)
+    public function main(bool $explore = false, ?callable $afterRG1Callback = null): void
     {
         Log::info('ChallengeGenerator::main', [
             'plan_id' => $this->pp('g_plan'),
