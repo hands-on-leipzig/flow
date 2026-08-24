@@ -235,6 +235,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/slideshow/{event}', [CarouselController::class, 'getAllSlideshows']);
     Route::put('/slideshow/{slideshow}/updateOrder', [CarouselController::class, 'updateSlideshowOrder']);
     Route::put('/slideshow/{slideshow}', [CarouselController::class, 'updateSlideshow']);
+    Route::delete('/slideshow/{slideshow}', [CarouselController::class, 'deleteSlideshow']);
     Route::put('/slideshow/{slideshow}/add', [CarouselController::class, 'addSlide']);
     Route::post('/slideshow/{event}', [CarouselController::class, 'generateSlideshow']);
 

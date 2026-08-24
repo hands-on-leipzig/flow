@@ -134,6 +134,17 @@ class CarouselController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function deleteSlideshow($slideshowId)
+    {
+        $slideshow = SlideShow::findOrFail($slideshowId);
+        $this->hasEventAccessOrThrow($slideshow->event);
+
+        $slideshow->slides()->delete();
+        $slideshow->delete();
+
+        return response()->json(['success' => true]);
+    }
+
     public function deleteSlide(Request $request, $slideId)
     {
         $slide = Slide::find($slideId);
@@ -234,7 +245,7 @@ class CarouselController extends Controller
         try {
             $slideshow = SlideShow::create([
                 'event' => $eventId,
-                'name' => 'Standard-Slideshow',
+                'name' => $this->slideshowNameFromRequest($request),
                 'transition_time' => 5,
             ]);
 
@@ -250,5 +261,11 @@ class CarouselController extends Controller
         } catch (Exception $e) {
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    private function slideshowNameFromRequest(Request $request): string
+    {
+        $name = trim((string) $request->input('name', ''));
+        return $name !== '' ? $name : 'Standard-Slideshow';
     }
 }

@@ -4,13 +4,15 @@ import draggable from "vuedraggable";
 import SlideThumb from "@/components/SlideThumb.vue";
 import {useEventStore} from "@/stores/event";
 import {computed, nextTick, onMounted, ref} from "vue";
-import SvgIcon from '@jamescoyle/vue-icon';
-import {mdiContentCopy} from '@mdi/js';
 import {Slideshow} from "@/models/slideshow";
 import axios from "axios";
 import {Slide} from "@/models/slide";
 import SavingToast from "@/components/atoms/SavingToast.vue";
-import AccordionArrow from "@/components/icons/IconAccordionArrow.vue";
+import ItemCard from "@/components/molecules/ItemCard.vue";
+import ItemComposer from "@/components/molecules/ItemComposer.vue";
+import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
+import IconDangerButton from "@/components/atoms/IconDangerButton.vue";
+import PanelSplitter from "@/components/atoms/PanelSplitter.vue";
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
@@ -19,10 +21,35 @@ const loading = ref(true);
 const planId = ref<number | null>(null);
 const slideshows = ref<Slideshow[]>([]);
 const savingToast = ref(null);
+const selectedSlideshowId = ref<number | null>(null);
+const leftWidth = ref(28);
 
-const carouselLink = computed(() => {
-  return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
+const selectedSlideshow = computed(() =>
+    slideshows.value.find((s) => s.id === selectedSlideshowId.value) ?? null
+);
+
+const newSlideshowName = ref('');
+const isCreating = ref(false);
+const slideshowToDelete = ref<Slideshow | null>(null);
+const composerRef = ref<{focusTitle?: () => void} | null>(null);
+
+const canAddSlideshow = computed(() =>
+    !loading.value
+    && !isCreating.value
+    && !!planId.value
+    && !!event.value?.id
+    && slideshows.value.length < 1
+);
+
+const deleteSlideshowMessage = computed(() => {
+  if (!slideshowToDelete.value) return '';
+  const name = (slideshowToDelete.value.name || '').trim() || 'Unbenannt';
+  return `„${name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`;
 });
+
+function selectSlideshow(slideshow: Slideshow) {
+  selectedSlideshowId.value = slideshow.id;
+}
 
 function getSlideshowLink(slideshow: Slideshow) {
   // For now, use event-based link. In the future, this will be per-slideshow
@@ -53,12 +80,7 @@ const slidesKey = ref(1);
 const slideType = ref("");
 const showSlideTypeModal = ref(false);
 const currentSlideshow = ref<Slideshow | null>(null);
-const editingSlideshowId = ref<number | null>(null);
-const editingSlideshowName = ref<string>("");
-// Array da in v-for
-const slideshowNameInput = ref<HTMLInputElement[] | null>(null);
 const creatingSlideType = ref<string | null>(null);
-const expandedSlideshows = ref<Set<number>>(new Set());
 const copiedSlideshowId = ref<number | null>(null);
 const isDragging = ref(false);
 const draggedSlideId = ref<number | null>(null);
@@ -89,19 +111,18 @@ async function loadSlideshows() {
   if (!event.value?.id) return;
   const response = await axios.get(`/slideshow/${event.value?.id}`);
   if (response && response.data) {
-    slideshows.value = response.data;
-    // Expand all slideshows by default
-    expandedSlideshows.value = new Set(slideshows.value.map(s => s.id));
+    slideshows.value = (response.data as Slideshow[]).map((s) => ({
+      ...s,
+      slides: s.slides ?? [],
+    }));
+    if (
+        selectedSlideshowId.value == null
+        || !slideshows.value.some((s) => s.id === selectedSlideshowId.value)
+    ) {
+      selectedSlideshowId.value = slideshows.value[0]?.id ?? null;
+    }
   }
   loading.value = false;
-}
-
-function toggleSlideshow(slideshowId: number) {
-  if (expandedSlideshows.value.has(slideshowId)) {
-    expandedSlideshows.value.delete(slideshowId);
-  } else {
-    expandedSlideshows.value.add(slideshowId);
-  }
 }
 
 async function fetchPlanId() {
@@ -162,15 +183,50 @@ function deleteSlide(slideshow: Slideshow, slideId: number) {
 }
 
 async function addSlideshow() {
-  loading.value = true;
-  const response = await axios.post(`/slideshow/${event.value?.id}`, {
-    planId: planId.value
-  });
+  const name = newSlideshowName.value.trim();
+  if (!name || !canAddSlideshow.value) return;
+  isCreating.value = true;
+  try {
+    const response = await axios.post(`/slideshow/${event.value?.id}`, {
+      planId: planId.value,
+      name,
+    });
 
-  const slideshow = response.data.slideshow;
-  slideshows.value.push(slideshow);
-  expandedSlideshows.value.add(slideshow.id)
-  loading.value = false;
+    const slideshow = response.data.slideshow;
+    slideshow.slides = slideshow.slides ?? [];
+    slideshows.value.push(slideshow);
+    selectedSlideshowId.value = slideshow.id;
+    newSlideshowName.value = '';
+  } catch (e) {
+    console.error(e);
+  } finally {
+    isCreating.value = false;
+  }
+}
+
+function askDeleteSlideshow(slideshow: Slideshow) {
+  slideshowToDelete.value = slideshow;
+}
+
+function cancelDeleteSlideshow() {
+  slideshowToDelete.value = null;
+}
+
+async function confirmDeleteSlideshow() {
+  const slideshow = slideshowToDelete.value;
+  if (!slideshow) return;
+  try {
+    await axios.delete(`/slideshow/${slideshow.id}`);
+    slideshows.value = slideshows.value.filter((s) => s.id !== slideshow.id);
+    if (selectedSlideshowId.value === slideshow.id) {
+      selectedSlideshowId.value = slideshows.value[0]?.id ?? null;
+    }
+    slideshowToDelete.value = null;
+    await nextTick();
+    composerRef.value?.focusTitle?.();
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 async function updateTransitionTime(slideshow: Slideshow) {
@@ -184,51 +240,15 @@ async function updateTransitionTime(slideshow: Slideshow) {
   }
 }
 
-async function startEditingSlideshowName(slideshow: Slideshow) {
-  editingSlideshowId.value = slideshow.id;
-  editingSlideshowName.value = slideshow.name;
-  // Focus the input after Vue updates the DOM
-  await nextTick()
-  if (slideshowNameInput.value?.length == 1) {
-    slideshowNameInput.value[0]?.focus();
-    slideshowNameInput.value[0]?.select();
-  }
-}
-
-function cancelEditingSlideshowName() {
-  editingSlideshowId.value = null;
-  editingSlideshowName.value = "";
-}
-
-async function saveSlideshowName(slideshow: Slideshow) {
-  if (editingSlideshowName.value.trim() === "") {
-    cancelEditingSlideshowName();
-    return;
-  }
-
-  const originalName = slideshow.name;
-  slideshow.name = editingSlideshowName.value.trim();
-
+async function persistSlideshowName(slideshow: Slideshow) {
+  const name = slideshow.name?.trim();
+  if (!name) return;
+  slideshow.name = name;
   savingToast?.value?.show();
   try {
-    await axios.put(`/slideshow/${slideshow.id}`, {
-      name: slideshow.name
-    });
-    cancelEditingSlideshowName();
+    await axios.put(`/slideshow/${slideshow.id}`, {name});
   } catch (e) {
     console.error(e);
-    slideshow.name = originalName;
-    cancelEditingSlideshowName();
-  }
-}
-
-function handleSlideshowNameKeydown(event: KeyboardEvent, slideshow: Slideshow) {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    saveSlideshowName(slideshow);
-  } else if (event.key === 'Escape') {
-    event.preventDefault();
-    cancelEditingSlideshowName();
   }
 }
 
@@ -285,101 +305,103 @@ function copyUrl(url) {
 </script>
 
 <template>
-  <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
+  <div class="digital-workspace">
+    <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
+    <div class="digital-workspace__split">
+      <section class="digital-workspace__left" :style="{ flex: `0 0 ${leftWidth}%` }">
+        <div class="digital-workspace__pane">
+          <header class="digital-workspace__head">
+            <h1 class="digital-workspace__title">Digital</h1>
+            <p class="digital-workspace__lede">Slideshows fürs Karussell</p>
+          </header>
 
-  <div class="rounded-xl shadow-lg bg-white p-6 flex flex-col gap-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between border-b pb-4">
-      <div class="flex items-center gap-3">
-        <i class="bi bi-slides text-2xl text-blue-600"></i>
-        <h2 class="text-xl font-bold text-[var(--color-text)]">Slideshow-Editor</h2>
-      </div>
-      <button
-          class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-          :disabled="loading || !planId || !event?.id || slideshows.length >= 1"
-          @click="addSlideshow">
-        <i class="bi bi-plus-circle"></i>
-        <span>Slideshow erstellen</span>
-      </button>
-    </div>
+          <div class="space-y-2">
+            <ItemComposer
+                ref="composerRef"
+                v-model:title="newSlideshowName"
+                :disabled="!canAddSlideshow"
+                title-placeholder="Neue Slideshow"
+                empty-hint="Name eintragen. Es werden Standardfolien angelegt."
+                @commit="addSlideshow"
+            />
 
-    <!-- Slideshows -->
-    <div class="space-y-4" v-if="slideshows.length > 0">
-      <div v-for="(slideshow, index) in slideshows" :key="slideshow.id"
-           class="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-[var(--color-border)] shadow-sm overflow-hidden">
+            <ItemCard
+                v-for="slideshow in slideshows"
+                :key="slideshow.id"
+                interactive
+                :selected="selectedSlideshowId === slideshow.id"
+                @click="selectSlideshow(slideshow)"
+            >
+              <template #title>
+                <input
+                    v-model="slideshow.name"
+                    type="text"
+                    class="item-card__title glass-input glass-input--sm liquid-surface-control"
+                    @click.stop
+                    @blur="persistSlideshowName(slideshow)"
+                    @keydown.enter.prevent="persistSlideshowName(slideshow)"
+                />
+              </template>
+              <template #trailing>
+                <IconDangerButton label="Slideshow löschen" @click.stop="askDeleteSlideshow(slideshow)"/>
+              </template>
+              <p class="item-card__hint">
+                {{ slideshow.slides?.length ?? 0 }}
+                Folie{{ (slideshow.slides?.length ?? 0) !== 1 ? 'n' : '' }}
+              </p>
+            </ItemCard>
+          </div>
+        </div>
+      </section>
 
-        <!-- Slideshow Header -->
-        <button
-            @click="toggleSlideshow(slideshow.id)"
-            class="w-full flex items-center justify-between p-5 hover:bg-[var(--color-bg-hover)] transition-colors text-left"
-        >
-          <div class="flex items-center gap-3 flex-1">
-            <i class="bi bi-collection-play text-xl text-[var(--color-text-muted)]"></i>
+      <PanelSplitter
+          v-model="leftWidth"
+          class="hidden md:flex digital-workspace__splitter"
+          :min="22"
+          :max="46"
+          storage-key="flow-digital-split"
+      />
 
-            <div v-if="editingSlideshowId === slideshow.id" class="flex items-center gap-2" @click.stop>
-              <input
-                  type="text"
-                  v-model="editingSlideshowName"
-                  @blur="saveSlideshowName(slideshow)"
-                  @keydown="handleSlideshowNameKeydown($event, slideshow)"
-                  class="text-lg font-bold text-[var(--color-text)] px-2 py-1 border border-blue-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  ref="slideshowNameInput"
-                  autofocus
-              />
-            </div>
-            <div v-else class="flex items-center gap-2" @click.stop>
-              <h3 class="text-lg font-bold text-[var(--color-text)]">{{ slideshow.name }}</h3>
-              <button
-                  @click.stop="startEditingSlideshowName(slideshow)"
-                  class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors"
-                  title="Slideshow umbenennen"
-              >
-                <i class="bi bi-pencil text-sm"></i>
-              </button>
-            </div>
-
-            <span class="text-sm text-[var(--color-text-subtle)]">({{
-                slideshow.slides.length
-              }} Folie{{ slideshow.slides.length !== 1 ? 'n' : '' }})</span>
-
-            <!-- Slideshow Actions -->
-            <div class="flex items-center gap-2 ml-2" @click.stop>
-              <button
-                  @click.stop="openSlideshowInNewWindow(slideshow)"
-                  class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--color-text-muted)] bg-white border border-[var(--color-border)] rounded-md hover:bg-[var(--color-bg-hover)] transition-colors"
-                  title="Slideshow in neuem Fenster öffnen"
-              >
-                <i class="bi bi-box-arrow-up-right text-xs"></i>
-                <span>Öffnen</span>
-              </button>
-              <button
-                  @click.stop="copySlideshowLink(slideshow)"
-                  :class="[
-                    'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
-                    copiedSlideshowId === slideshow.id
-                      ? 'bg-green-100 border border-green-300 text-green-700'
-                      : 'bg-white border border-[var(--color-border)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]'
-                  ]"
-                  :title="copiedSlideshowId === slideshow.id ? 'Link kopiert!' : 'Link kopieren'"
-              >
-                <i :class="copiedSlideshowId === slideshow.id ? 'bi bi-check' : 'bi bi-clipboard'" class="text-xs"></i>
-                <span>{{ copiedSlideshowId === slideshow.id ? 'Kopiert!' : 'Link kopieren' }}</span>
-              </button>
-            </div>
+      <section class="digital-workspace__right">
+        <div class="digital-workspace__pane digital-workspace__pane--editor">
+          <div v-if="loading" class="digital-workspace__empty">
+            <svg class="animate-spin h-10 w-10 text-[var(--color-accent)] mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+                 viewBox="0 0 24 24" aria-hidden="true">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+            </svg>
+            <p class="text-[var(--color-text-muted)] font-medium">Lädt...</p>
           </div>
 
-          <!-- Arrow Icon on the right -->
-          <i
-              :class="[
-                'bi text-[var(--color-text-subtle)] transition-transform flex-shrink-0',
-                expandedSlideshows.has(slideshow.id) ? 'bi-chevron-up' : 'bi-chevron-down'
-              ]"
-          ></i>
-        </button>
+          <template v-else-if="selectedSlideshow">
+            <div class="digital-workspace__editor-bar">
+              <h2 class="digital-workspace__editor-title">{{ selectedSlideshow.name }}</h2>
+              <div class="digital-workspace__editor-actions">
+                <button
+                    type="button"
+                    class="digital-workspace__editor-btn"
+                    title="Slideshow in neuem Fenster öffnen"
+                    @click="openSlideshowInNewWindow(selectedSlideshow)"
+                >
+                  <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
+                  <span>Öffnen</span>
+                </button>
+                <button
+                    type="button"
+                    class="digital-workspace__editor-btn"
+                    :title="copiedSlideshowId === selectedSlideshow.id ? 'Link kopiert!' : 'Link kopieren'"
+                    @click="copySlideshowLink(selectedSlideshow)"
+                >
+                  <i
+                      :class="copiedSlideshowId === selectedSlideshow.id ? 'bi bi-check' : 'bi bi-clipboard'"
+                      aria-hidden="true"
+                  />
+                  <span>{{ copiedSlideshowId === selectedSlideshow.id ? 'Kopiert!' : 'Link kopieren' }}</span>
+                </button>
+              </div>
+            </div>
 
-        <!-- Collapsible Content -->
-        <transition name="fade">
-          <div v-if="expandedSlideshows.has(slideshow.id)" class="px-5 pb-5">
+            <div class="digital-workspace__editor-body">
             <!-- Settings Row -->
             <div class="bg-white rounded-lg p-4 mb-4 border border-[var(--color-border)]">
               <div class="grid grid-cols-1 gap-4 items-end">
@@ -394,9 +416,9 @@ function copyUrl(url) {
                           type="number"
                           :min="1"
                           :max="60"
-                          v-model.number="slideshow.transition_time"
-                          @change="updateTransitionTime(slideshow)"
-                          @blur="updateTransitionTime(slideshow)"
+                          v-model.number="selectedSlideshow.transition_time"
+                          @change="updateTransitionTime(selectedSlideshow)"
+                          @blur="updateTransitionTime(selectedSlideshow)"
                           class="w-20 px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           aria-label="Transition time in seconds"
                       />
@@ -406,10 +428,10 @@ function copyUrl(url) {
                       <button
                           v-for="preset in [5, 10, 15, 30, 60]"
                           :key="preset"
-                          @click="slideshow.transition_time = preset; updateTransitionTime(slideshow)"
+                          @click="selectedSlideshow.transition_time = preset; updateTransitionTime(selectedSlideshow)"
                           :class="[
                         'px-3 py-1 text-xs font-medium rounded-md transition-colors',
-                        slideshow.transition_time === preset
+                        selectedSlideshow.transition_time === preset
                           ? 'bg-blue-600 text-white'
                           : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]'
                       ]"
@@ -428,23 +450,23 @@ function copyUrl(url) {
                 <!-- New Slide Button -->
                 <button
                     class="flex flex-col items-center justify-center w-56 h-52 m-2 border-2 border-dashed border-gray-500 rounded-xl hover:border-green-500 hover:bg-gray-700 transition-all cursor-pointer group flex-shrink-0"
-                    @click="openSlideTypeModal(slideshow)">
+                    @click="openSlideTypeModal(selectedSlideshow)">
                   <i class="bi bi-plus-circle text-4xl text-[var(--color-text-subtle)] group-hover:text-green-500 mb-2 transition-colors"></i>
                   <span
                       class="text-sm font-medium text-[var(--color-text-subtle)] group-hover:text-green-500 text-center">Neue Folie</span>
                 </button>
 
                 <!-- Empty State (only shown when no slides) -->
-                <div v-if="slideshow.slides.length === 0"
+                <div v-if="!selectedSlideshow.slides?.length"
                      class="flex flex-col items-center justify-center py-12 text-[var(--color-text-subtle)] flex-1 min-w-[200px]">
                   <i class="bi bi-inbox text-4xl mb-3"></i>
                   <p class="text-sm">Noch keine Folien vorhanden</p>
                 </div>
 
                 <!-- Slides (draggable) - using contents to make items direct children of flex container -->
-                <template v-if="slideshow.slides.length > 0">
+                <template v-if="selectedSlideshow.slides?.length">
                   <draggable
-                      v-model="slideshow.slides"
+                      v-model="selectedSlideshow.slides"
                       :key="slidesKey"
                       class="contents"
                       group="slides"
@@ -455,44 +477,41 @@ function copyUrl(url) {
                       drag-class="drag-dragging"
                       animation="200"
                       @start="onDragStart"
-                      @end="onDragEnd(slideshow)">
+                      @end="onDragEnd(selectedSlideshow)">
                     <template #item="{ element }">
                       <SlideThumb
                           :slide="element"
                           :class="{ 'opacity-0': draggedSlideId === element.id && isDragging }"
-                          @deleteSlide="deleteSlide(slideshow, element.id)"/>
+                          @deleteSlide="deleteSlide(selectedSlideshow, element.id)"/>
                     </template>
                   </draggable>
                 </template>
               </div>
             </div>
+            </div>
+          </template>
+
+          <div v-else class="digital-workspace__empty">
+            <i class="bi bi-slides text-4xl text-[var(--color-text-subtle)] mb-3" aria-hidden="true"></i>
+            <p class="text-[var(--color-text-muted)] font-medium">Noch keine Slideshow vorhanden</p>
+            <p class="text-sm text-[var(--color-text-subtle)] mt-1">
+              Erstelle links eine Slideshow, um Folien zu bearbeiten.
+            </p>
           </div>
-        </transition>
-      </div>
+        </div>
+      </section>
     </div>
 
-    <!-- Empty State -->
-    <div v-else-if="!loading" class="text-center py-12 bg-[var(--color-bg-muted)] rounded-xl border-2 border-dashed border-[var(--color-border)]">
-      <i class="bi bi-slides text-5xl text-[var(--color-text-subtle)] mb-4"></i>
-      <p class="text-[var(--color-text-muted)] font-medium mb-2">Noch keine Slideshow vorhanden</p>
-      <button
-          class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-          :disabled="loading || !planId || !event?.id"
-          @click="addSlideshow">
-        <i class="bi bi-plus-circle"></i>
-        <span>Slideshow erstellen</span>
-      </button>
-    </div>
-
-    <!-- Loading State -->
-    <div v-else class="text-center py-12 bg-[var(--color-bg-muted)] rounded-xl border-2 border-dashed border-[var(--color-border)]">
-      <svg class="animate-spin h-10 w-10 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
-           viewBox="0 0 24 24" aria-hidden="true">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-      </svg>
-      <p class="text-[var(--color-text-muted)] font-medium">Lädt...</p>
-    </div>
+    <ConfirmationModal
+        :show="!!slideshowToDelete"
+        title="Slideshow löschen"
+        :message="deleteSlideshowMessage"
+        type="danger"
+        confirm-text="Löschen"
+        cancel-text="Abbrechen"
+        @confirm="confirmDeleteSlideshow"
+        @cancel="cancelDeleteSlideshow"
+    />
 
     <!-- Slide Type Selection Modal -->
     <div
@@ -565,6 +584,152 @@ function copyUrl(url) {
 </template>
 
 <style scoped>
+.digital-workspace {
+  display: flex;
+  flex-direction: column;
+  min-height: min(72vh, 48rem);
+  height: 100%;
+  min-width: 0;
+}
+
+.digital-workspace__split {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .digital-workspace__split {
+    flex-direction: row;
+    gap: 0.55rem;
+    align-items: stretch;
+  }
+}
+
+.digital-workspace__left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.digital-workspace__right {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 16rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.digital-workspace__pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 1.1rem 1.15rem 1.25rem;
+  background: var(--glass-tab-surface, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, transparent);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.07),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.digital-workspace__pane--editor {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.digital-workspace__editor-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  margin-bottom: 0.65rem;
+}
+
+.digital-workspace__editor-title {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.digital-workspace__editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.digital-workspace__editor-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.digital-workspace__editor-btn:hover {
+  background: var(--color-bg-hover);
+}
+
+.digital-workspace__editor-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.digital-workspace__head {
+  margin-bottom: 0.85rem;
+}
+
+.digital-workspace__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+}
+
+.digital-workspace__lede {
+  margin: 0.2rem 0 0;
+  font-size: 0.84rem;
+  color: var(--color-text-muted);
+}
+
+.digital-workspace__empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem 1rem;
+}
+
+@media (min-width: 768px) {
+  .digital-workspace__right {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .digital-workspace__left {
+    flex: 1 1 auto !important;
+    max-height: 42vh;
+  }
+}
 
 .drag-ghost {
   opacity: 0.8 !important;
@@ -592,14 +757,4 @@ function copyUrl(url) {
 .drag-chosen {
   transition: none !important;
 }
-
-.fade-enter-active, .fade-leave-active {
-  transition: all 0.2s ease;
-}
-
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-  transform: translateY(-0.5rem);
-}
-
 </style>

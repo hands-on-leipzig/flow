@@ -23,6 +23,9 @@ defineOptions({name: 'PublishControl'})
 <style scoped>
 .publish-shell {
   min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 </style>
