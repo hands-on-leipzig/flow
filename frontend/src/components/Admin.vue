@@ -12,6 +12,7 @@ import MainTablesAdmin from '@/components/molecules/MainTablesAdmin.vue'
 import SystemNews from '@/components/molecules/SystemNews.vue'
 import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
+import CalendarFeedsAdmin from '@/components/molecules/CalendarFeedsAdmin.vue'
 import '@vueform/multiselect/themes/default.css'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {ADMIN_DEFAULT_SECTION, ADMIN_SECTIONS, isAdminSection, isAdminSectionAvailable} from '@/constants/adminNav'
@@ -62,6 +63,7 @@ const seasons = ref([])
 const selectedSeason = ref(null)
 const regeneratingLinks = ref(false)
 const cleaningLogos = ref(false)
+const rebuildingCalendar = ref(false)
 
 // New refs for Contao update parameters and loading state
 const contaoEventId = ref(null)
@@ -210,6 +212,32 @@ const cleanupOrphanedLogos = async () => {
     showGlassToast('Fehler bei der Logo-Bereinigung: ' + (error.response?.data?.message || error.message), 'error')
   } finally {
     cleaningLogos.value = false
+  }
+}
+
+const rebuildCalendarFeeds = async () => {
+  if (!confirm('Möchtest du wirklich alle Kalender-Einträge im Feed-Fenster neu aufbauen?\n\nDas schreibt event_calendar für veröffentlichte Events (Zukunft plus 90 Tage zurück) neu und entfernt Einträge außerhalb dieses Fensters. DRAHT wird je Event aufgerufen. Das kann einige Minuten dauern.')) {
+    return
+  }
+
+  rebuildingCalendar.value = true
+  try {
+    const response = await axios.post('/admin/calendar/rebuild', null, {timeout: 600000})
+    const data = response.data
+    if (data.success) {
+      const message = `Kalender aktualisiert.\n\nNeu gebaut: ${data.rebuilt}\nBehalten (DRAHT fehlgeschlagen): ${data.kept}\nÜbersprungen: ${data.skipped}\nEntfernt: ${data.removed}\nFehlgeschlagen: ${data.failed}\nGesamt im Fenster: ${data.total}`
+      if (data.errors && data.errors.length > 0) {
+        showGlassToast(message + `\n\nFehler:\n${data.errors.join('\n')}`, 'error')
+      } else {
+        showGlassToast(message, 'success')
+      }
+    } else {
+      showGlassToast('Fehler: ' + (data.message || data.error || 'Unbekannter Fehler'), 'error')
+    }
+  } catch (error) {
+    showGlassToast('Fehler beim Aktualisieren der Kalender-Einträge: ' + (error.response?.data?.message || error.message), 'error')
+  } finally {
+    rebuildingCalendar.value = false
   }
 }
 
@@ -385,6 +413,10 @@ fetchConditions()
           <NowAndNext/>
         </div>
 
+        <div v-if="activeTab === 'calendar'">
+          <CalendarFeedsAdmin/>
+        </div>
+
         <div v-if="activeTab === 'statistics'">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-bold">Statistiken</h2>
@@ -463,6 +495,24 @@ fetchConditions()
                   :disabled="cleaningLogos"
               >
                 {{ cleaningLogos ? '⏳ Bereinige...' : '🧹 Logo-Bereinigung durchführen' }}
+              </button>
+            </div>
+
+            <!-- Calendar rebuild -->
+            <div class="glass-surface-lg border border-[var(--color-border)]">
+              <h3 class="text-lg font-semibold mb-2">Kalender-Einträge aktualisieren</h3>
+              <p class="text-[var(--color-text-muted)] mb-4">
+                Schreibt die gespeicherten iCalendar-Einträge für alle veröffentlichten
+                Events im Feed-Fenster neu: zukünftige Termine und bis 90 Tage zurück.
+                Dafür wird DRAHT je Event aufgerufen. Einträge außerhalb des Fensters werden entfernt.
+                Die Vorschau unter Kalender-Feeds zeigt das Ergebnis sofort; Kalender-Apps holen den Feed später.
+              </p>
+              <button
+                  class="px-6 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click="rebuildCalendarFeeds"
+                  :disabled="rebuildingCalendar"
+              >
+                {{ rebuildingCalendar ? '⏳ Aktualisiere...' : '📅 Kalender aktualisieren' }}
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AfternoonController;
+use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
@@ -61,6 +62,9 @@ Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanFo
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
 Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']); // Public one-link access logging
+Route::get('/calendar.ics', [CalendarFeedController::class, 'all']); // Public ICS subscription (all events in window)
+Route::get('/calendar/{postfix}.ics', [CalendarFeedController::class, 'postfix'])
+    ->where('postfix', '[A-Za-z0-9_]+');
 
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);
@@ -331,6 +335,13 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/draht/events/{eventId}', [DrahtController::class, 'show']);
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
+
+    Route::prefix('admin/calendar')->group(function () {
+        Route::get('/feeds', [CalendarFeedController::class, 'feeds']);
+        Route::post('/rebuild', [CalendarFeedController::class, 'rebuildWindow']);
+        Route::get('/feeds/{key}', [CalendarFeedController::class, 'preview'])
+            ->where('key', '[A-Za-z0-9_]+');
+    });
 
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
