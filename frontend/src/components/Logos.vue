@@ -1,9 +1,12 @@
 <script setup>
-import {ref, onMounted, computed, watch} from 'vue'
+import {ref, onMounted, computed} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
+import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
+import ItemCard from '@/components/molecules/ItemCard.vue'
+import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 
 defineOptions({name: 'Logos'})
@@ -44,7 +47,7 @@ const uploadLogo = async () => {
     return
   }
 
-  if (!uploadFile.value.type.startsWith('image/')) {
+  if (!uploadFile.value.type.startsWith('image/') && !/\.svg$/i.test(uploadFile.value.name)) {
     showGlassToast('Datei muss ein Bild sein', 'error')
     return
   }
@@ -141,8 +144,29 @@ const cancelDeleteLogo = () => {
 
 const deleteLogoMessage = computed(() => {
   if (!logoToDelete.value) return ''
-  return `Logo "${logoToDelete.value.title || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+  const name = (logoToDelete.value.title || '').trim() || 'Unbenannt'
+  return `„${name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
+
+const currentEventId = computed(() => selectedEvent.value?.id || eventStore.selectedEvent?.id || null)
+
+function isLogoOnEvent(logo) {
+  const eventId = currentEventId.value
+  if (!eventId) return false
+  return (logo.events || []).some(e => e.id === eventId)
+}
+
+async function commitUpload(file) {
+  if (!file || isUploading.value) return
+  uploadFile.value = file
+  await uploadLogo()
+  if (fileInput.value) fileInput.value.value = ''
+}
+
+function openComposerPicker() {
+  if (isUploading.value) return
+  fileInput.value?.click()
+}
 
 const deleteLogo = async () => {
   if (!logoToDelete.value) return
@@ -316,9 +340,14 @@ const handleDrop = async (event, targetLogo) => {
 
 const handleFileChange = (e) => {
   const file = e.target.files?.[0]
-  if (file) {
-    uploadFile.value = file
-  }
+  if (file) void commitUpload(file)
+}
+
+const handleComposerDrop = (e) => {
+  e.preventDefault()
+  if (isUploading.value) return
+  const file = e.dataTransfer?.files?.[0]
+  if (file) void commitUpload(file)
 }
 
 const openLogoPreview = (logo) => {
@@ -421,123 +450,103 @@ onMounted(async () => {
     </div>
 
     <template v-else>
-      <!-- Upload -->
-      <div class="glass-card liquid-surface-inner">
-        <h2 class="glass-card__heading !mb-3">Logo hochladen</h2>
-        <div class="flex flex-wrap items-center gap-3">
-          <label class="glass-btn-secondary !px-3 !py-2 !text-sm cursor-pointer inline-flex items-center gap-2">
-            <i class="bi bi-image" aria-hidden="true"></i>
-            <span class="truncate max-w-[14rem]">
-              {{ uploadFile ? uploadFile.name : 'Datei wählen' }}
-            </span>
-            <input
-                ref="fileInput"
-                type="file"
-                accept="image/*"
-                class="sr-only"
-                :disabled="isUploading"
-                @change="handleFileChange"
-            />
-          </label>
-          <button
-              type="button"
-              class="glass-btn-accent !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-              :disabled="!uploadFile || isUploading"
-              @click="uploadLogo"
-          >
-            <svg v-if="isUploading" class="animate-spin h-4 w-4" viewBox="0 0 24 24" aria-hidden="true">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
-            <i v-else class="bi bi-upload" aria-hidden="true"></i>
-            <span>{{ isUploading ? 'Lade hoch…' : 'Hochladen' }}</span>
-          </button>
-          <span class="text-xs text-[var(--color-text-subtle)]">PNG, JPG oder SVG · max. 2&nbsp;MB</span>
-        </div>
-      </div>
-
       <!-- Split Layout: Left (List) and Right (Sortable) -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <!-- Left Side: All Logos List -->
         <div class="glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Logos verwalten</h2>
-          <p class="glass-settings-hint !mb-4">
-            Aktivierte Logos erscheinen im öffentlichen Plan.
-          </p>
 
           <div class="space-y-2">
             <div
+                class="logo-composer"
+                data-logo-composer
+                @click="openComposerPicker"
+                @dragover.prevent
+                @drop="handleComposerDrop"
+            >
+              <ItemCard dashed>
+                <template #title>
+                  <span class="logo-composer__title">
+                    {{ isUploading ? 'Lade hoch…' : 'Neues Logo' }}
+                  </span>
+                </template>
+                <p class="item-card__hint">
+                  PNG, JPG oder SVG · max. 2&nbsp;MB. Datei wählen oder hierher ziehen.
+                </p>
+                <input
+                    ref="fileInput"
+                    type="file"
+                    accept="image/*,.svg"
+                    class="sr-only"
+                    :disabled="isUploading"
+                    @click.stop
+                    @change="handleFileChange"
+                />
+              </ItemCard>
+            </div>
+
+            <ItemCard
                 v-for="logo in logos"
                 :key="logo.id"
-                class="liquid-surface-inner flex items-center gap-3 p-2.5 rounded-[var(--radius)]"
+                :inactive="!isLogoOnEvent(logo)"
             >
-              <button
-                  type="button"
-                  class="h-12 w-12 shrink-0 rounded-[calc(var(--radius)-2px)] bg-[var(--color-bg-muted)] flex items-center justify-center overflow-hidden hover:opacity-85 transition-opacity"
-                  title="Vorschau"
-                  @click="openLogoPreview(logo)"
-              >
-                <img :src="logo.url" alt="" class="h-full w-full object-contain p-1"/>
-              </button>
-
-              <div class="flex-1 min-w-0 space-y-1.5">
+              <template #leading>
+                <ToggleSwitch
+                    :model-value="isLogoOnEvent(logo)"
+                    :disabled="!currentEventId"
+                    @update:modelValue="toggleEventLogo(logo)"
+                />
+              </template>
+              <template #title>
                 <input
                     v-model="logo.title"
                     type="text"
                     placeholder="Titel"
-                    class="glass-input glass-input--sm liquid-surface-control w-full"
+                    class="item-card__title glass-input glass-input--sm liquid-surface-control"
                     @change="updateLogo(logo)"
                 />
+              </template>
+              <template #trailing>
+                <IconDangerButton label="Logo löschen" @click="confirmDeleteLogo(logo)"/>
+              </template>
+
+              <div class="logo-card__body">
+                <button
+                    type="button"
+                    class="logo-card__thumb"
+                    title="Vorschau"
+                    @click="openLogoPreview(logo)"
+                >
+                  <img :src="logo.url" alt="" class="h-full w-full object-contain p-1"/>
+                </button>
                 <input
                     v-model="logo.link"
                     type="url"
                     placeholder="https://domain.tld"
-                    class="glass-input glass-input--sm liquid-surface-control w-full"
+                    class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
                     @change="updateLogo(logo)"
                 />
               </div>
-
-              <div class="flex items-center gap-2 shrink-0">
-                <label class="flex items-center" :title="'Für dieses Event aktivieren'">
-                  <input
-                      type="checkbox"
-                      class="logo-toggle"
-                      :checked="logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))"
-                      @change="toggleEventLogo(logo)"
-                  />
-                </label>
-                <button
-                    type="button"
-                    class="w-9 h-9 inline-flex items-center justify-center rounded-[var(--radius)] text-[var(--color-text-muted)] hover:text-red-700 hover:bg-[color-mix(in_srgb,#dc2626_10%,transparent)] transition-colors"
-                    title="Löschen"
-                    @click="confirmDeleteLogo(logo)"
-                >
-                  <i class="bi bi-trash-fill" aria-hidden="true"></i>
-                </button>
-              </div>
-            </div>
+            </ItemCard>
           </div>
-
-          <p v-if="logos.length === 0" class="text-sm text-[var(--color-text-subtle)] italic mt-3">
-            Noch keine Logos hochgeladen.
-          </p>
         </div>
 
         <!-- Right Side: Assigned Logos (Sortable) -->
         <div class="glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Logos in Verwendung</h2>
           <p class="glass-settings-hint !mb-1">
-            Ziehe Logos, um die Reihenfolge im öffentlichen Plan zu ändern.
+            Logos werden in dieser Reihenfolge angezeigt.
           </p>
           <p class="glass-settings-hint !mb-4">
             Das erste Logo wird für die Namensaufkleber verwendet.
           </p>
 
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            <div
+            <ItemCard
                 v-for="logo in logosWithSpaceMaking.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id)))"
                 :key="logo.id"
-                class="liquid-surface-inner p-3 transition-all duration-300 ease-out relative rounded-[var(--radius)]"
+                interactive
+                class="relative transition-all duration-300 ease-out"
                 :class="{
                   'opacity-50 scale-105 rotate-2': draggedLogo?.id === logo.id,
                   'ring-2 ring-[var(--color-accent)] bg-[var(--color-accent-muted)]': draggedOverLogo?.id === logo.id,
@@ -553,12 +562,20 @@ onMounted(async () => {
                 @dragleave="handleDragLeave($event)"
                 @drop.prevent="handleDrop($event, logo)"
             >
-              <div
-                  class="absolute top-2 right-2 text-[var(--color-text-subtle)] text-xs cursor-move select-none leading-none"
-                  title="Ziehen zum Sortieren"
-              >
-                ⋮⋮
-              </div>
+              <template #leading>
+                <div
+                    class="text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5"
+                    title="Ziehen zum Sortieren"
+                    aria-hidden="true"
+                >
+                  ⋮⋮
+                </div>
+              </template>
+              <template #title>
+                <span class="item-card__title font-semibold truncate flex items-center min-h-[var(--field-min-height-sm)]">
+                  {{ logo.title || 'Ohne Titel' }}
+                </span>
+              </template>
 
               <div
                   v-if="isDragging && draggedOverLogo?.id === logo.id"
@@ -575,40 +592,28 @@ onMounted(async () => {
 
               <button
                   type="button"
-                  class="block w-full mb-2"
+                  class="logo-card__thumb mx-auto"
                   title="Vorschau"
                   @click.stop="openLogoPreview(logo)"
               >
                 <img
                     :src="logo.url"
                     alt=""
-                    class="h-14 mx-auto object-contain hover:opacity-80 transition-opacity"
+                    class="h-full w-full object-contain p-1"
                     draggable="false"
                     @mousedown.stop
                     @dragstart.stop
                 />
               </button>
 
-              <div class="space-y-0.5 text-center min-w-0">
-                <div v-if="logo.title" class="text-sm font-medium text-[var(--color-text)] truncate">
-                  {{ logo.title }}
-                </div>
-                <div
-                    v-if="logo.link"
-                    class="text-xs text-[var(--color-accent)] truncate"
-                    :title="logo.link"
-                >
-                  {{ logo.link }}
-                </div>
-                <div v-if="!logo.title && !logo.link" class="text-xs text-[var(--color-text-subtle)] italic">
-                  Kein Titel/Link
-                </div>
+              <div
+                  v-if="logo.link"
+                  class="text-xs text-[var(--color-accent)] truncate text-center"
+                  :title="logo.link"
+              >
+                {{ logo.link }}
               </div>
-
-              <div class="flex items-center justify-center pt-2">
-                <span class="text-xs font-semibold text-[var(--color-accent)]">Aktiv</span>
-              </div>
-            </div>
+            </ItemCard>
           </div>
 
           <p
@@ -677,38 +682,37 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.logo-toggle {
-  appearance: none;
-  width: 2.5rem;
-  height: 1.35rem;
-  background: color-mix(in srgb, var(--color-text-muted) 28%, var(--color-bg-muted));
-  border: 1px solid var(--color-border);
-  border-radius: 9999px;
-  position: relative;
+.logo-composer {
   cursor: pointer;
-  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
-.logo-toggle:checked {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+.logo-composer__title {
+  display: block;
+  width: 100%;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.logo-toggle::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 1rem;
-  height: 1rem;
-  background: #fff;
-  border-radius: 9999px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  transition: transform 0.2s ease;
+.logo-card__body {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.logo-toggle:checked::after {
-  transform: translateX(1.05rem);
+.logo-card__thumb {
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--color-bg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.logo-card__thumb:hover {
+  opacity: 0.85;
 }
 
 .logo-drop-pulse {

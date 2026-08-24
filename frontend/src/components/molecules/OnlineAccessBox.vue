@@ -9,7 +9,7 @@ import {showGlassToast} from '@/composables/useGlassToast'
 
 withDefaults(
     defineProps<{
-      /** embed: parent owns link chrome (Verteilung). */
+      /** embed: parent owns link chrome (Veröffentlichung). */
       embed?: boolean
       /** Hide the visibility matrix / times peek. */
       hidePreview?: boolean

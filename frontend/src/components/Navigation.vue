@@ -117,10 +117,10 @@ const navEntries = computed<NavEntry[]>(() => [
     path: '/plan/publish',
     icon: 'bi-broadcast',
     children: [
-      {name: 'Verteilung', path: '/plan/publish', icon: 'bi-link-45deg'},
+      {name: 'Logos', path: '/plan/publish/logos', icon: 'bi-images'},
+      {name: 'Veröffentlichung', path: '/plan/publish', icon: 'bi-link-45deg'},
       {name: 'Digital', path: '/plan/publish/digital', icon: 'bi-display'},
       {name: 'Analog', path: '/plan/publish/analog', icon: 'bi-printer'},
-      {name: 'Logos', path: '/plan/publish/logos', icon: 'bi-images'},
     ],
   },
   {name: 'am Tag', path: '/plan/live', icon: 'bi-play-circle'},
