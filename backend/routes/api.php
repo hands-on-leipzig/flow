@@ -63,6 +63,8 @@ Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']);
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
 Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']); // Public one-link access logging
 Route::get('/calendar.ics', [CalendarFeedController::class, 'all']); // Public ICS subscription (all events in window)
+Route::get('/calendar/{postfix}.ics', [CalendarFeedController::class, 'postfix'])
+    ->where('postfix', '[A-Za-z0-9_]+');
 
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);

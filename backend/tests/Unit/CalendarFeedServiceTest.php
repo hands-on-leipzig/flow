@@ -221,6 +221,58 @@ class CalendarFeedServiceTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_feed_by_postfix_program_filter_country_empty_unknown_null(): void
+    {
+        Carbon::setTestNow('2026-08-24');
+        $this->mock(DrahtController::class, function ($mock) {
+            $mock->shouldReceive('fetchScheduleData')->never();
+        });
+
+        DB::table('m_first_program')->insert([
+            ['id' => 2, 'name' => 'EXPLORE', 'display_name' => 'Explore', 'letter' => 'E', 'ics_postfix' => 'explore', 'sequence' => 1],
+            ['id' => 3, 'name' => 'CHALLENGE', 'display_name' => 'Challenge', 'letter' => 'C', 'ics_postfix' => 'challenge', 'sequence' => 2],
+        ]);
+
+        $this->insertEvent(['id' => 1, 'slug' => 'explore-only', 'date' => '2026-08-24']);
+        $this->insertCalendar(1, '2026-08-24', "BEGIN:VEVENT\r\nUID:explore-only\r\nEND:VEVENT");
+        DB::table('event_program')->insert(['event' => 1, 'first_program' => 2]);
+
+        $this->insertEvent(['id' => 2, 'slug' => 'challenge-only', 'date' => '2026-08-24']);
+        $this->insertCalendar(2, '2026-08-24', "BEGIN:VEVENT\r\nUID:challenge-only\r\nEND:VEVENT");
+        DB::table('event_program')->insert(['event' => 2, 'first_program' => 3]);
+
+        $this->insertEvent(['id' => 3, 'slug' => 'combined', 'date' => '2026-08-24']);
+        $this->insertCalendar(3, '2026-08-24', "BEGIN:VEVENT\r\nUID:combined\r\nEND:VEVENT");
+        DB::table('event_program')->insert([
+            ['event' => 3, 'first_program' => 2],
+            ['event' => 3, 'first_program' => 3],
+        ]);
+
+        $explore = app(CalendarFeedService::class)->feedByPostfix('Explore');
+        $this->assertNotNull($explore);
+        $this->assertStringContainsString('X-WR-CALNAME:HANDS on TECHNOLOGY Veranstaltungen — Explore', $explore['body']);
+        $this->assertStringContainsString('UID:explore-only', $explore['body']);
+        $this->assertStringContainsString('UID:combined', $explore['body']);
+        $this->assertStringNotContainsString('UID:challenge-only', $explore['body']);
+
+        $challenge = app(CalendarFeedService::class)->feedByPostfix('challenge');
+        $this->assertNotNull($challenge);
+        $this->assertStringContainsString('X-WR-CALNAME:HANDS on TECHNOLOGY Veranstaltungen — Challenge', $challenge['body']);
+        $this->assertStringContainsString('UID:challenge-only', $challenge['body']);
+        $this->assertStringContainsString('UID:combined', $challenge['body']);
+        $this->assertStringNotContainsString('UID:explore-only', $challenge['body']);
+
+        $de = app(CalendarFeedService::class)->feedByPostfix('de');
+        $this->assertNotNull($de);
+        $this->assertStringContainsString('X-WR-CALNAME:HANDS on TECHNOLOGY Veranstaltungen — DE', $de['body']);
+        $this->assertStringNotContainsString('BEGIN:VEVENT', $de['body']);
+        $this->assertNull($de['lastModified']);
+
+        $this->assertNull(app(CalendarFeedService::class)->feedByPostfix('unknown'));
+
+        Carbon::setTestNow();
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */
@@ -277,6 +329,7 @@ class CalendarFeedServiceTest extends TestCase
             $table->string('name');
             $table->string('display_name')->nullable();
             $table->string('letter')->nullable();
+            $table->string('ics_postfix')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
         });
 
@@ -293,7 +346,7 @@ class CalendarFeedServiceTest extends TestCase
         });
 
         Schema::create('event_program', function (Blueprint $table) {
-            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('id')->autoIncrement();
             $table->unsignedInteger('event');
             $table->unsignedInteger('first_program');
             $table->unsignedInteger('draht_id')->nullable();

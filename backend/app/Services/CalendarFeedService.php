@@ -23,6 +23,13 @@ class CalendarFeedService
 
     public const WINDOW_DAYS = 90;
 
+    /** @var array<string, string> */
+    public const COUNTRY_POSTFIXES = [
+        'de' => 'DE',
+        'at' => 'AT',
+        'ch' => 'CH',
+    ];
+
     public function __construct(
         private DrahtController $draht,
         private EventTitleService $titles,
@@ -133,20 +140,81 @@ class CalendarFeedService
      */
     public function feedAll(): array
     {
+        return $this->feedFromQuery(IcsText::CALNAME_ALL);
+    }
+
+    /**
+     * Program postfix (m_first_program.ics_postfix) wins; else de/at/ch (empty until country exists).
+     * Unknown postfix → null (HTTP 404).
+     *
+     * @return array{body: string, lastModified: Carbon|null}|null
+     */
+    public function feedByPostfix(string $postfix): ?array
+    {
+        $postfix = strtolower(trim($postfix));
+        if ($postfix === '') {
+            return null;
+        }
+
+        $program = DB::table('m_first_program')->where('ics_postfix', $postfix)->first();
+        if ($program) {
+            $display = trim((string) ($program->display_name ?: $program->name));
+            $calName = IcsText::CALNAME_ALL.' — '.$display;
+
+            return $this->feedFromQuery($calName, function ($query) use ($program) {
+                $query->join('event_program', 'event_program.event', '=', 'event.id')
+                    ->where('event_program.first_program', $program->id);
+            });
+        }
+
+        if (isset(self::COUNTRY_POSTFIXES[$postfix])) {
+            $calName = IcsText::CALNAME_ALL.' — '.self::COUNTRY_POSTFIXES[$postfix];
+
+            return $this->feedFromQuery($calName, function ($query) {
+                $query->whereRaw('0 = 1');
+            });
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  callable(\Illuminate\Database\Query\Builder): mixed|null  $constrain
+     * @return array{body: string, lastModified: Carbon|null}
+     */
+    private function feedFromQuery(string $calName, ?callable $constrain = null): array
+    {
         $start = Carbon::today()->subDays(self::WINDOW_DAYS)->toDateString();
 
-        $rows = DB::table('event_calendar')
+        $query = DB::table('event_calendar')
             ->join('event', 'event.id', '=', 'event_calendar.event')
             ->whereNotNull('event.slug')
             ->where('event.slug', '!=', '')
-            ->where('event_calendar.date', '>=', $start)
+            ->where('event_calendar.date', '>=', $start);
+
+        if ($constrain !== null) {
+            $constrain($query);
+        }
+
+        $rows = $query
             ->orderBy('event_calendar.date')
             ->orderBy('event_calendar.event')
-            ->get(['event_calendar.vevent', 'event_calendar.built_at']);
+            ->get([
+                'event_calendar.vevent',
+                'event_calendar.built_at',
+                'event_calendar.event',
+                'event_calendar.date',
+            ]);
 
         $vevents = [];
         $lastModified = null;
+        $seen = [];
         foreach ($rows as $row) {
+            $eventId = (int) $row->event;
+            if (isset($seen[$eventId])) {
+                continue;
+            }
+            $seen[$eventId] = true;
             $vevent = trim((string) $row->vevent);
             if ($vevent !== '') {
                 $vevents[] = $vevent;
@@ -160,7 +228,7 @@ class CalendarFeedService
         }
 
         return [
-            'body' => IcsText::calendar(IcsText::CALNAME_ALL, $vevents, self::environmentLabel()),
+            'body' => IcsText::calendar($calName, $vevents, self::environmentLabel()),
             'lastModified' => $lastModified,
         ];
     }

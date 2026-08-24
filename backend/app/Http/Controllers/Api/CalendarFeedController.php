@@ -20,6 +20,16 @@ class CalendarFeedController extends Controller
         return $this->icsResponse($request, $feed['body'], $feed['lastModified']);
     }
 
+    public function postfix(Request $request, string $postfix): Response
+    {
+        $feed = $this->calendar->feedByPostfix($postfix);
+        if ($feed === null) {
+            return new Response('', 404);
+        }
+
+        return $this->icsResponse($request, $feed['body'], $feed['lastModified']);
+    }
+
     protected function icsResponse(Request $request, string $body, ?DateTimeInterface $lastModified): Response
     {
         $response = new Response($body, 200, [
