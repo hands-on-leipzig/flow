@@ -55,6 +55,7 @@ class PlanController extends Controller
 
         $e_teams = 0;
         $c_teams = 0;
+        $f8_teams = 0;
 
         if ($event) {
             $enrolledExplore = 0;
@@ -92,6 +93,9 @@ class PlanController extends Controller
             if (ProgramCatalog::hasChallenge($event)) {
                 $c_teams = max(8, $enrolledChallenge);
             }
+            if (ProgramCatalog::hasFuture($event)) {
+                $f8_teams = 8;
+            }
         }
 
         // Max one explore group
@@ -101,11 +105,11 @@ class PlanController extends Controller
 
         if ($e_teams > 0) {
 
-            if ($c_teams == 0) {
-                // e_mode standlone morning
+            if ($c_teams == 0 && $f8_teams == 0) {
+                // e_mode standalone morning
                 $e_mode = 3;
             } else {
-                // e_mode integrated morning
+                // e_mode integrated morning (Challenge or Future 8+ is the lead)
                 $e_mode = 1;
             }
 
@@ -138,6 +142,16 @@ class PlanController extends Controller
             $j_lanes = 0;
             $r_tables = 0;
 
+        }
+
+        $f8_mode = 0;
+        $f8_lanes = 0;
+        $f8_fields = 0;
+        if ($f8_teams > 0) {
+            $f8_mode = 1;
+            $f8Plan = MSupportedPlan::where('first_program', FirstProgram::FUTURE_8->value)->where('teams', $f8_teams)->first();
+            $f8_lanes = (int) ($f8Plan->lanes ?? 0);
+            $f8_fields = (int) ($f8Plan->tables ?? 0);
         }
 
         PlanParamValue::updateOrCreate(
@@ -180,6 +194,11 @@ class PlanController extends Controller
             ['plan' => $newId, 'parameter' => 24],
             ['set_value' => $r_tables]);
 
+        $this->setPlanParamByName($newId, 'f8_mode', $f8_mode);
+        $this->setPlanParamByName($newId, 'f8_teams', $f8_teams);
+        $this->setPlanParamByName($newId, 'f8_lanes', $f8_lanes);
+        $this->setPlanParamByName($newId, 'f8_fields', $f8_fields);
+
         app(AfternoonBlockOrderService::class)->writeDefaultOrder($newId);
 
         // Populate team_plan table with all teams for this event
@@ -219,8 +238,9 @@ class PlanController extends Controller
         // Group teams by program and assign order
         $exploreTeams = $teams->where('first_program', FirstProgram::EXPLORE->value)->values();
         $challengeTeams = $teams->where('first_program', FirstProgram::CHALLENGE->value)->values();
+        $futureTeams = $teams->where('first_program', FirstProgram::FUTURE_8->value)->values();
 
-        Log::info("Explore teams: " . $exploreTeams->count() . ", Challenge teams: " . $challengeTeams->count());
+        Log::info("Explore teams: " . $exploreTeams->count() . ", Challenge teams: " . $challengeTeams->count() . ", Future 8+ teams: " . $futureTeams->count());
 
         $teamPlanEntries = [];
 
@@ -236,6 +256,15 @@ class PlanController extends Controller
 
         // Add challenge teams with order (also starting from 1, independently)
         foreach ($challengeTeams as $index => $team) {
+            $teamPlanEntries[] = [
+                'team' => $team->id,
+                'plan' => $planId,
+                'team_number_plan' => $index + 1,
+                'room' => null
+            ];
+        }
+
+        foreach ($futureTeams as $index => $team) {
             $teamPlanEntries[] = [
                 'team' => $team->id,
                 'plan' => $planId,
@@ -313,6 +342,7 @@ class PlanController extends Controller
         // Group missing teams by program
         $missingExploreTeams = $missingTeams->where('first_program', FirstProgram::EXPLORE->value)->values();
         $missingChallengeTeams = $missingTeams->where('first_program', FirstProgram::CHALLENGE->value)->values();
+        $missingFutureTeams = $missingTeams->where('first_program', FirstProgram::FUTURE_8->value)->values();
 
         // Get max team_number_plan per program for this plan
         $existingExploreMax = TeamPlan::where('plan', $planId)
@@ -325,7 +355,12 @@ class PlanController extends Controller
             ->where('team.first_program', FirstProgram::CHALLENGE->value)
             ->max('team_plan.team_number_plan') ?? 0;
 
-        Log::info("Max team_number_plan for explore: $existingExploreMax, challenge: $existingChallengeMax");
+        $existingFutureMax = TeamPlan::where('plan', $planId)
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team.first_program', FirstProgram::FUTURE_8->value)
+            ->max('team_plan.team_number_plan') ?? 0;
+
+        Log::info("Max team_number_plan for explore: $existingExploreMax, challenge: $existingChallengeMax, future: $existingFutureMax");
 
         // Add missing teams with sequential order per program (starting from max+1 for each program)
         $teamPlanEntries = [];
@@ -344,6 +379,15 @@ class PlanController extends Controller
                 'team' => $team->id,
                 'plan' => $planId,
                 'team_number_plan' => $existingChallengeMax + $index + 1,
+                'room' => null
+            ];
+        }
+
+        foreach ($missingFutureTeams as $index => $team) {
+            $teamPlanEntries[] = [
+                'team' => $team->id,
+                'plan' => $planId,
+                'team_number_plan' => $existingFutureMax + $index + 1,
                 'room' => null
             ];
         }
@@ -487,6 +531,23 @@ class PlanController extends Controller
             'success' => true,
             'message' => 'Plan deleted successfully',
         ]);
+    }
+
+    private function setPlanParamByName(int $planId, string $name, mixed $value): void
+    {
+        $parameterId = DB::table('m_parameter')->where('name', $name)->value('id');
+        if (! $parameterId) {
+            Log::warning("PlanController: unknown parameter {$name}, skip write", [
+                'plan_id' => $planId,
+            ]);
+
+            return;
+        }
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $planId, 'parameter' => $parameterId],
+            ['set_value' => $value]
+        );
     }
 
 }

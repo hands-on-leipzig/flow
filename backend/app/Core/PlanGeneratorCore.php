@@ -8,13 +8,14 @@ use App\Services\AfternoonBlockOrderService;
 use App\Support\IntegratedExploreState;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PlanGeneratorCore
 {
     private ActivityWriter $writer;
 
-    private ChallengeGenerator $challenge;
+    private ChallengeShapedLead $lead;
 
     private ExploreGenerator $explore;
 
@@ -81,7 +82,8 @@ class PlanGeneratorCore
      * Generate a standard one-day event.
      * Called for normal events and Finale Day 2.
      *
-     * Ceremony recipes (Challenge leads; Explore is a wrapper). Same call order as before.
+     * Ceremony recipes (Challenge-shaped lead; Explore is a wrapper). Same call order as before.
+     * Lead is Challenge when c_mode is on; Future 8+ when f8_mode is on and Challenge is off.
      *
      * Explore e_mode (generated):
      *
@@ -107,31 +109,39 @@ class PlanGeneratorCore
     public function generateOneDayEvent(): void
     {
         $cMode = (int) $this->pp('c_mode');
+        $f8On = $this->futureLeadRequested();
         $eMode = (int) $this->pp('e_mode');
 
+        if ($cMode === 1 && $f8On) {
+            Log::warning('PlanGeneratorCore: Challenge and Future 8+ both on; Future is skipped until C+F coordination exists', [
+                'plan_id' => $this->pp('g_plan'),
+            ]);
+        }
+
         if ($cMode === 1) {
-            $this->challenge = new ChallengeGenerator(
+            $this->lead = new ChallengeGenerator(
                 $this->writer,
                 $this->params,
                 $this->integratedExplore
             );
+            $this->runLeadRecipes($eMode);
 
-            match ($eMode) {
-                ExploreMode::NONE->value => $this->recipeChallengeOnly(),
-                ExploreMode::INTEGRATED_MORNING->value => $this->recipeIntegratedMorning(),
-                ExploreMode::INTEGRATED_AFTERNOON->value => $this->recipeIntegratedAfternoon(),
-                ExploreMode::HYBRID_BOTH->value => $this->recipeHybridBoth(),
-                ExploreMode::DECOUPLED_MORNING->value,
-                ExploreMode::DECOUPLED_AFTERNOON->value,
-                ExploreMode::DECOUPLED_BOTH->value => $this->recipeDecoupled($eMode),
-                default => null,
-            };
+            return;
+        }
+
+        if ($f8On) {
+            $this->lead = new Future8Generator(
+                $this->writer,
+                $this->params,
+                $this->integratedExplore
+            );
+            $this->runLeadRecipes($eMode);
 
             return;
         }
 
         if ($eMode === ExploreMode::NONE->value) {
-            Log::warning('PlanGeneratorCore: Both programs disabled (e_mode=0, c_mode=0) - generating empty plan');
+            Log::warning('PlanGeneratorCore: All programs disabled (e_mode=0, c_mode=0, Future off) - generating empty plan');
 
             return;
         }
@@ -141,13 +151,46 @@ class PlanGeneratorCore
         $this->recipeExploreOnly($eMode);
     }
 
-    /** Challenge only: opening → main (judging ∥ RG) → afternoon → awards. */
-    private function recipeChallengeOnly(): void
+    private function futureLeadRequested(): bool
     {
-        $this->challenge->openingsAndBriefings();
-        $this->challenge->main();
+        if ((int) $this->pp('f8_mode') === 1 && (int) $this->pp('f8_teams') > 0) {
+            return true;
+        }
+
+        $eventId = DB::table('plan')->where('id', $this->pp('g_plan'))->value('event');
+        if (! $eventId) {
+            return false;
+        }
+
+        $attached = DB::table('event_program')
+            ->where('event', $eventId)
+            ->where('first_program', FirstProgram::FUTURE_8->value)
+            ->exists();
+
+        return $attached && (int) $this->pp('f8_teams') > 0;
+    }
+
+    private function runLeadRecipes(int $eMode): void
+    {
+        match ($eMode) {
+            ExploreMode::NONE->value => $this->recipeLeadOnly(),
+            ExploreMode::INTEGRATED_MORNING->value => $this->recipeIntegratedMorning(),
+            ExploreMode::INTEGRATED_AFTERNOON->value => $this->recipeIntegratedAfternoon(),
+            ExploreMode::HYBRID_BOTH->value => $this->recipeHybridBoth(),
+            ExploreMode::DECOUPLED_MORNING->value,
+            ExploreMode::DECOUPLED_AFTERNOON->value,
+            ExploreMode::DECOUPLED_BOTH->value => $this->recipeDecoupled($eMode),
+            default => null,
+        };
+    }
+
+    /** Challenge-shaped lead only: opening → main (judging ∥ games) → afternoon → awards. */
+    private function recipeLeadOnly(): void
+    {
+        $this->lead->openingsAndBriefings();
+        $this->lead->main();
         $this->afternoon();
-        $this->challenge->awards();
+        $this->lead->awards();
     }
 
     /**
@@ -157,7 +200,7 @@ class PlanGeneratorCore
     {
         $this->makeExplore();
 
-        $this->challenge->openingsAndBriefings(true);
+        $this->lead->openingsAndBriefings(true);
         $this->explore->openingsAndBriefings(1);
         $this->explore->judgingAndDeliberations(1);
 
@@ -177,10 +220,10 @@ class PlanGeneratorCore
             $rTime->advanceToLater($exploreEnd);
         };
 
-        $this->challenge->main(true, $afterRG1Callback);
+        $this->lead->main(true, $afterRG1Callback);
 
         $this->afternoon();
-        $this->challenge->awards();
+        $this->lead->awards();
     }
 
     /**
@@ -190,8 +233,8 @@ class PlanGeneratorCore
     {
         $this->makeExplore();
 
-        $this->challenge->openingsAndBriefings();
-        $this->challenge->main(true);
+        $this->lead->openingsAndBriefings();
+        $this->lead->main(true);
         $start = $this->integratedExplore->startTime;
         if ($start !== null) {
             $this->eTime->set($start);
@@ -200,7 +243,7 @@ class PlanGeneratorCore
         }
         $this->explore->judgingAndDeliberations(2);
         $this->afternoon();
-        $this->challenge->awards(true);
+        $this->lead->awards(true);
     }
 
     /**
@@ -210,15 +253,15 @@ class PlanGeneratorCore
     {
         $this->makeExplore();
 
-        $this->challenge->openingsAndBriefings(true);
-        $this->challenge->main();
+        $this->lead->openingsAndBriefings(true);
+        $this->lead->main();
 
         $this->explore->openingsAndBriefings(1);
         $this->explore->judgingAndDeliberations(1);
         $this->explore->awards(1);
 
         $this->afternoon();
-        $this->challenge->awards(true);
+        $this->lead->awards(true);
 
         $start = $this->integratedExplore->startTime;
         if ($start !== null) {
@@ -233,10 +276,10 @@ class PlanGeneratorCore
     {
         $this->makeExplore();
 
-        $this->challenge->openingsAndBriefings();
-        $this->challenge->main();
+        $this->lead->openingsAndBriefings();
+        $this->lead->main();
         $this->afternoon();
-        $this->challenge->awards();
+        $this->lead->awards();
 
         if ($eMode === ExploreMode::DECOUPLED_MORNING->value || $eMode === ExploreMode::DECOUPLED_BOTH->value) {
             $this->explore->openingsAndBriefings(1);
@@ -278,18 +321,18 @@ class PlanGeneratorCore
     }
 
     /**
-     * Walk the Nachmittag list (presentations, finals). Awards stay in the recipes after this.
-     * Challenge writes Challenge pieces; Future 8+ will hook the same walk later.
+     * Walk the Nachmittag list (presentations, finals / Future extra rounds). Awards stay in the recipes after this.
      */
     private function afternoon(): void
     {
         Log::info('PlanGeneratorCore::afternoon', [
             'plan_id' => $this->pp('g_plan'),
             'c_teams' => $this->pp('c_teams'),
+            'f8_teams' => $this->pp('f8_teams'),
         ]);
 
         try {
-            $this->challenge->beginAfternoon();
+            $this->lead->beginAfternoon();
 
             $blocks = app(AfternoonBlockOrderService::class)
                 ->resolvedBlocks((int) $this->pp('g_plan'));
@@ -300,16 +343,18 @@ class PlanGeneratorCore
                 }
 
                 match ((string) $block->code) {
-                    'c_presentations' => $this->challenge->presentations(),
-                    'r_final_16' => $this->challenge->insertFinalRound(16),
-                    'r_final_8' => $this->challenge->insertFinalRound(8),
-                    'r_final_4' => $this->challenge->insertFinalRound(4),
-                    'r_final_2' => $this->challenge->insertFinalRound(2),
+                    'c_presentations', 'f8_presentations' => $this->lead->presentations(),
+                    'r_final_16' => $this->insertChallengeFinalRound(16),
+                    'r_final_8' => $this->insertChallengeFinalRound(8),
+                    'r_final_4' => $this->insertChallengeFinalRound(4),
+                    'r_final_2' => $this->insertChallengeFinalRound(2),
+                    'f8_round_4' => $this->insertFutureEmptyRound(4),
+                    'f8_round_5' => $this->insertFutureEmptyRound(5),
                     default => null,
                 };
             }
 
-            $this->challenge->endAfternoon();
+            $this->lead->endAfternoon();
         } catch (\Throwable $e) {
             Log::error('PlanGeneratorCore: Error in afternoon', [
                 'error' => $e->getMessage(),
@@ -319,13 +364,23 @@ class PlanGeneratorCore
         }
     }
 
+    private function insertChallengeFinalRound(int $teamCount): void
+    {
+        if ($this->lead instanceof ChallengeGenerator) {
+            $this->lead->insertFinalRound($teamCount);
+        }
+    }
+
+    private function insertFutureEmptyRound(int $round): void
+    {
+        if ($this->lead instanceof Future8Generator) {
+            $this->lead->insertEmptyGameRound($round);
+        }
+    }
+
     private function afternoonBlockShouldEmit(object $block): bool
     {
         $code = (string) $block->code;
-
-        if ((int) ($block->first_program ?? 0) === FirstProgram::FUTURE_8->value) {
-            return false;
-        }
 
         if ($code === 'r_final_16' && ! $this->pp('g_finale')) {
             return false;

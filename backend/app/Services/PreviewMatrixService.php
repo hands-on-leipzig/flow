@@ -23,8 +23,17 @@ class PreviewMatrixService
         }
 
         // --- Ableitungen aus echten Activities
-        $exLaneMax = (int)($activities->where('program_name', 'EXPLORE')->pluck('lane')->filter()->max() ?? 0);
-        $chLaneMax = (int)($activities->where('program_name', 'CHALLENGE')->pluck('lane')->filter()->max() ?? 0);
+        $laneMaxByLetter = [];
+        foreach ($activities as $a) {
+            $letter = $this->programLetterFromName($a->program_name);
+            if ($letter === null) {
+                continue;
+            }
+            $lane = (int) ($a->lane ?? 0);
+            if ($lane > 0) {
+                $laneMaxByLetter[$letter] = max($laneMaxByLetter[$letter] ?? 0, $lane);
+            }
+        }
 
         // verwendete Tische (1..4), nur die, die tatsächlich vorkommen
         $tablesUsed = collect([1,2,3,4])->filter(function ($t) use ($activities) {
@@ -50,10 +59,10 @@ class PreviewMatrixService
         // Wir erwarten hier NUR lane/table-Rollen (Controller filtert bereits so),
         // bauen aber robust dennoch nach differentiation_parameter.
         $laneRoles        = [];              // [[$progLetter, $role, $shortKey], ...]
-        $tableRolesByProg = ['E' => [], 'C' => []]; // z.B. ['RC' => $roleObj, 'RG' => $roleObj, ...]
+        $tableRolesByProg = []; // letter => [shortKey => role]
 
         foreach ($roles as $role) {
-            $progLetter = ((int)$role->first_program === FirstProgram::EXPLORE->value) ? 'E' : 'C';
+            $progLetter = $this->programLetterFromId($role->first_program);
             $baseShort  = (string)($role->name_short ?: $role->name);
             $shortKey   = strtoupper(substr($baseShort, 0, 2));
 
@@ -66,11 +75,11 @@ class PreviewMatrixService
 
         // --- RC-Erkennung nur bei echten Robot-Check-Activities
         $rcAtdId = (int) MActivityTypeDetail::where('code', 'r_check')->value('id');
-        $rcTablesByProg = ['E' => [], 'C' => []];
+        $rcTablesByProg = [];
 
         foreach ($activities as $a) {
             if ((int)$a->activity_type_detail_id !== $rcAtdId) continue;
-            $p = strtoupper((string)$a->program_name) === 'EXPLORE' ? 'E' : 'C';
+            $p = $this->programLetterFromName($a->program_name) ?? 'C';
             foreach ([1, 2] as $ti) {
                 $t = (int) ($a->{'table_'.$ti} ?? 0);
                 if ($t > 0) $rcTablesByProg[$p][$t] = true;
@@ -81,22 +90,22 @@ class PreviewMatrixService
         $lcAtdIds = MActivityTypeDetail::where('code', 'like', 'lc_%')
             ->pluck('id')
             ->all();
-        $hasLcActivitiesByProg = ['E' => false, 'C' => false];
+        $hasLcActivitiesByProg = [];
 
         foreach ($activities as $a) {
             if (!in_array((int)$a->activity_type_detail_id, $lcAtdIds)) continue;
-            $p = strtoupper((string)$a->program_name) === 'EXPLORE' ? 'E' : 'C';
+            $p = $this->programLetterFromName($a->program_name) ?? 'C';
             $hasLcActivitiesByProg[$p] = true;
         }
 
         // --- 1) Lane/Judging-Spalten (E links, C rechts), je Programm 1..laneMax
         foreach ($laneRoles as [$progLetter, $role, $shortKey]) {
             $titleBase = (string)($role->name_short ?: $role->name);
-            $laneMax   = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
+            $laneMax   = $laneMaxByLetter[$progLetter] ?? 0;
 
             // LC: Nur anzeigen, wenn mindestens eine LC-Activity existiert
             if ($shortKey === 'LC') {
-                if (!$hasLcActivitiesByProg[$progLetter]) {
+                if (empty($hasLcActivitiesByProg[$progLetter])) {
                     continue; // Keine LC-Activities für dieses Programm → Spalten überspringen
                 }
             }
@@ -110,7 +119,7 @@ class PreviewMatrixService
         }
 
         // --- 2) Table-Spalten in 2er-Blöcken: RC (nur wenn vorhanden) → RG (immer)
-        foreach (['E', 'C'] as $progLetter) {
+        foreach (array_keys($tableRolesByProg) as $progLetter) {
             if (empty($tablesUsed)) continue;
 
             $rcRole = $tableRolesByProg[$progLetter]['RC'] ?? null;
@@ -176,8 +185,7 @@ class PreviewMatrixService
             // Basistext inkl. Spezialfall "Mit Team"
             $baseText = (string) $a->activity_name;
             if (stripos($baseText, 'mit team') !== false) {
-                $progName = strtoupper((string)$a->program_name);
-                $baseText = $progName === 'EXPLORE' ? 'Begutachtung' : ($progName === 'CHALLENGE' ? 'Jury' : $baseText);
+                $baseText = $this->previewJudgingLabel($a->program_name, $baseText);
             }
 
             foreach ($visible as $vr) {
@@ -185,7 +193,7 @@ class PreviewMatrixService
                 $role = $roles->firstWhere('id', $vr->role);
                 if (!$role) continue;
 
-                $progLetter = ((int)$role->first_program === FirstProgram::EXPLORE->value) ? 'E' : 'C';
+                $progLetter = $this->programLetterFromId($role->first_program);
                 $baseShort  = (string)($role->name_short ?: $role->name);
                 $shortKey   = strtoupper(substr($baseShort, 0, 2));
 
@@ -199,7 +207,7 @@ class PreviewMatrixService
                         $this->push($bucket, $key, $start, $end, $text);
                     } else {
                         // Kein Lane gesetzt → in alle vorhandenen Lanes des Programms duplizieren
-                        $laneMax = ($progLetter === 'E') ? $exLaneMax : $chLaneMax;
+                        $laneMax = $laneMaxByLetter[$progLetter] ?? 0;
                         for ($i = 1; $i <= $laneMax; $i++) {
                             $key = strtolower($progLetter) . '_' . $shortKey . $i;
                             $this->push($bucket, $key, $start, $end, $text);
@@ -384,6 +392,7 @@ class PreviewMatrixService
             ->where('preview_matrix', 1)
             ->where('differentiation_parameter', 'team')
             ->select('first_program','name_short')
+            ->orderBy('first_program')
             ->get();
 
         if ($activities->isEmpty() || $teamRoles->isEmpty()) {
@@ -394,91 +403,93 @@ class PreviewMatrixService
         }
 
         // Teams sammeln
-        $collectTeams = function(string $program) use ($activities) {
+        $collectTeams = function (string $program) use ($activities) {
             return $activities
-                ->filter(fn($a) => strtoupper((string)$a->program_name) === $program)
-                ->flatMap(fn($a) => [
-                    (int)($a->team ?? 0),
-                    (int)($a->table_1_team ?? 0),
-                    (int)($a->table_2_team ?? 0),
+                ->filter(fn ($a) => strtoupper((string) $a->program_name) === $program)
+                ->flatMap(fn ($a) => [
+                    (int) ($a->team ?? 0),
+                    (int) ($a->table_1_team ?? 0),
+                    (int) ($a->table_2_team ?? 0),
                 ])
-                ->filter(fn($n) => $n > 0)
+                ->filter(fn ($n) => $n > 0)
                 ->unique()
                 ->sort()
                 ->values()
                 ->all();
         };
 
-        $exTeams = $collectTeams('EXPLORE');
-        $chTeams = $collectTeams('CHALLENGE');
-
-        // Header bauen
-        $nameShortE = (string)($teamRoles->firstWhere('first_program', FirstProgram::EXPLORE->value)->name_short ?? 'Team E');
-        $nameShortC = (string)($teamRoles->firstWhere('first_program', FirstProgram::CHALLENGE->value)->name_short ?? 'Team C');
-
         $headers = [['key' => 'time', 'title' => 'Zeit']];
-        foreach ($exTeams as $n) {
-            $headers[] = [
-                'key'   => 'ex_t'.str_pad((string)$n, 2, '0', STR_PAD_LEFT),
-                'title' => $nameShortE . str_pad((string)$n, 2, '0', STR_PAD_LEFT),
-            ];
-        }
-        foreach ($chTeams as $n) {
-            $headers[] = [
-                'key'   => 'ch_t'.str_pad((string)$n, 2, '0', STR_PAD_LEFT),
-                'title' => $nameShortC . str_pad((string)$n, 2, '0', STR_PAD_LEFT),
-            ];
+        $teamsByProgram = [];
+        $prefixByProgram = [];
+
+        foreach ($teamRoles as $role) {
+            $fp = FirstProgram::tryFrom((int) $role->first_program);
+            if ($fp === null || $fp === FirstProgram::JOINT) {
+                continue;
+            }
+            $programName = $fp->name;
+            $prefix = $this->teamColumnPrefix($fp);
+            $teams = $collectTeams($programName);
+            $teamsByProgram[$programName] = $teams;
+            $prefixByProgram[$programName] = $prefix;
+            $nameShort = (string) ($role->name_short ?? ('Team '.$fp->getLetter()));
+
+            foreach ($teams as $n) {
+                $headers[] = [
+                    'key' => $prefix.str_pad((string) $n, 2, '0', STR_PAD_LEFT),
+                    'title' => $nameShort.str_pad((string) $n, 2, '0', STR_PAD_LEFT),
+                ];
+            }
         }
 
-        // Schlüssel-Auflösung inkl. Jxx / Txx
-        $resolveKey = function($a, string $base) use ($exTeams, $chTeams) {
-            $prog = strtoupper((string)$a->program_name);
-            if ($prog !== 'EXPLORE' && $prog !== 'CHALLENGE') return [];
+        $resolveKey = function ($a, string $base) use ($teamsByProgram, $prefixByProgram) {
+            $prog = strtoupper((string) $a->program_name);
+            if (! isset($teamsByProgram[$prog], $prefixByProgram[$prog])) {
+                return [];
+            }
 
-            $colPrefix = $prog === 'EXPLORE' ? 'ex_t' : 'ch_t';
-            $teamsAll  = $prog === 'EXPLORE' ? $exTeams : $chTeams;
+            $colPrefix = $prefixByProgram[$prog];
+            $teamsAll = $teamsByProgram[$prog];
 
             $teamsInActivity = collect([
-                (int)($a->team ?? 0),
-                (int)($a->table_1_team ?? 0),
-                (int)($a->table_2_team ?? 0),
-            ])->filter(fn($n)=>$n>0)->unique()->all();
+                (int) ($a->team ?? 0),
+                (int) ($a->table_1_team ?? 0),
+                (int) ($a->table_2_team ?? 0),
+            ])->filter(fn ($n) => $n > 0)->unique()->all();
 
-            $baseText = (string)$a->activity_name;
+            $baseText = (string) $a->activity_name;
 
             $result = [];
             foreach ($teamsInActivity as $tn) {
-                if (!in_array($tn, $teamsAll, true)) continue;
+                if (! in_array($tn, $teamsAll, true)) {
+                    continue;
+                }
 
                 $suffix = '';
                 if (stripos($baseText, 'mit team') !== false) {
-                    $juryNo = (int)($a->lane ?? 0);
+                    $juryNo = (int) ($a->lane ?? 0);
                     if ($juryNo > 0) {
-                        // Programm unterscheiden: EXPLORE = G, CHALLENGE = J
-                        $progLetter = strtoupper((string)$a->program_name);
-                        $juryPrefix = $progLetter === 'EXPLORE' ? 'G' : 'J';
-                        $suffix = ' ' . $juryPrefix . $juryNo;
+                        $juryPrefix = $prog === 'EXPLORE' ? 'G' : 'J';
+                        $suffix = ' '.$juryPrefix.$juryNo;
                     }
                 } elseif (stripos($baseText, 'check') !== false || stripos($baseText, 'match') !== false) {
-                    // Welcher Tisch gehört zu diesem Team?
-                    if ((int)$a->table_1_team === $tn && (int)$a->table_1 > 0) {
-                        $suffix = ' T' . (int)$a->table_1;
-                    } elseif ((int)$a->table_2_team === $tn && (int)$a->table_2 > 0) {
-                        $suffix = ' T' . (int)$a->table_2;
+                    if ((int) $a->table_1_team === $tn && (int) $a->table_1 > 0) {
+                        $suffix = ' T'.(int) $a->table_1;
+                    } elseif ((int) $a->table_2_team === $tn && (int) $a->table_2 > 0) {
+                        $suffix = ' T'.(int) $a->table_2;
                     }
                 }
 
                 $result[] = [
-                    'key'  => $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT),
-                    'text' => $baseText . $suffix,
+                    'key' => $colPrefix.str_pad((string) $tn, 2, '0', STR_PAD_LEFT),
+                    'text' => $baseText.$suffix,
                 ];
             }
 
-            // Falls keine Teams eingetragen → auf alle Teams ausrollen
             if (empty($result)) {
                 foreach ($teamsAll as $tn) {
                     $result[] = [
-                        'key'  => $colPrefix . str_pad((string)$tn, 2, '0', STR_PAD_LEFT),
+                        'key' => $colPrefix.str_pad((string) $tn, 2, '0', STR_PAD_LEFT),
                         'text' => $baseText,
                     ];
                 }
@@ -593,5 +604,48 @@ class PreviewMatrixService
         return ['headers'=>$headers, 'rows'=>$rows];
     }
 
+    private function programLetterFromId(mixed $firstProgram): string
+    {
+        $fp = FirstProgram::tryFrom((int) $firstProgram);
+
+        return $fp?->getLetter() ?? 'C';
+    }
+
+    private function programLetterFromName(mixed $programName): ?string
+    {
+        $name = strtoupper((string) $programName);
+        if ($name === '') {
+            return null;
+        }
+
+        foreach (FirstProgram::cases() as $fp) {
+            if ($fp->name === $name) {
+                return $fp->getLetter();
+            }
+        }
+
+        return null;
+    }
+
+    private function teamColumnPrefix(FirstProgram $fp): string
+    {
+        return match ($fp) {
+            FirstProgram::EXPLORE => 'ex_t',
+            FirstProgram::CHALLENGE => 'ch_t',
+            FirstProgram::FUTURE_8 => 'f8_t',
+            default => strtolower($fp->getLetter()).'_t',
+        };
+    }
+
+    private function previewJudgingLabel(mixed $programName, string $baseText): string
+    {
+        $prog = strtoupper((string) $programName);
+
+        return match ($prog) {
+            'EXPLORE' => 'Begutachtung',
+            'CHALLENGE', 'FUTURE_8' => 'Jury',
+            default => $baseText,
+        };
+    }
 
 }

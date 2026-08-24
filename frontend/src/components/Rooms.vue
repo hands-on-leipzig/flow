@@ -69,7 +69,7 @@ const getProgramColor = (item) => {
 }
 
 // --- Format program name with italic FIRST ---
-// Handles both normalized names (FIRST LEGO League) and DB names (FLL Explore/Challenge)
+// Handles both normalized names (FIRST LEGO League) and DB names (FLL Explore/Challenge/Future 8+)
 const formatProgramName = (name) => {
   if (!name) return ''
 
@@ -77,6 +77,7 @@ const formatProgramName = (name) => {
   let normalized = name
       .replace(/^FLL Explore$/i, 'FIRST LEGO League Explore')
       .replace(/^FLL Challenge$/i, 'FIRST LEGO League Challenge')
+      .replace(/^FLL Future 8\+$/i, 'FIRST LEGO League Future 8+')
       .replace(/FLL /g, 'FIRST LEGO League ')
 
   // Then apply italic styling to FIRST
