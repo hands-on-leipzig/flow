@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Http\Controllers\Api\DrahtController;
-use App\Http\Controllers\Api\PublishController;
 use App\Models\Event;
 use App\Models\EventCalendar;
 use App\Support\IcsDescription;
@@ -33,7 +32,6 @@ class CalendarFeedService
     public function __construct(
         private DrahtController $draht,
         private EventTitleService $titles,
-        private PublishController $publish,
     ) {}
 
     /**
@@ -83,21 +81,13 @@ class CalendarFeedService
         }
 
         $drahtData = is_array($fetched['data'] ?? null) ? $fetched['data'] : self::emptyDrahtData();
-        $level = $this->publicationLevel($eventId);
-        $plan = null;
-        if ($level >= 3) {
-            try {
-                $plan = $this->publish->importantTimesPayload($eventId);
-            } catch (\Throwable $e) {
-                Log::warning('ICS rebuild: importantTimes failed', [
-                    'event_id' => $eventId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-
-        $payload = PublicSchedulePayload::from($event, $drahtData, $level, $plan);
-        $description = IcsDescription::fromPublicPayload($payload, $this->string($event->link));
+        $level = min(2, $this->publicationLevel($eventId));
+        $payload = PublicSchedulePayload::from($event, $drahtData, $level, null);
+        $description = IcsDescription::fromPublicPayload(
+            $payload,
+            $this->string($event->link),
+            $this->programDisplayNames($event)
+        );
         $cancelled = false;
         $sequence = $existing ? ((int) $existing->sequence + 1) : 0;
         $stamp = Carbon::now('UTC');
@@ -413,6 +403,23 @@ class CalendarFeedService
             'contact' => [],
             'information' => null,
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function programDisplayNames(Event $event): array
+    {
+        $event->loadMissing('programs.firstProgram');
+        $names = [];
+        foreach ($event->programs as $program) {
+            $label = trim((string) ($program->display_name ?: $program->name));
+            if ($label !== '') {
+                $names[] = $label;
+            }
+        }
+
+        return $names;
     }
 
     private function publicationLevel(int $eventId): int

@@ -3,7 +3,6 @@
 namespace Tests\Unit;
 
 use App\Http\Controllers\Api\DrahtController;
-use App\Http\Controllers\Api\PublishController;
 use App\Models\EventCalendar;
 use App\Services\CalendarFeedService;
 use Carbon\Carbon;
@@ -163,29 +162,53 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertSame(1, (int) EventCalendar::query()->where('event', 1)->value('sequence'));
     }
 
-    public function test_level_3_description_includes_plan_times(): void
+    public function test_level_above_2_does_not_include_plan_times(): void
     {
         $this->insertEvent();
         DB::table('publication')->insert([
             'id' => 1,
             'event' => 1,
-            'level' => 3,
+            'level' => 4,
             'last_change' => '2026-03-01 00:00:00',
         ]);
         $this->mockDraht(ok: true, data: CalendarFeedService::emptyDrahtData());
-        $this->mock(PublishController::class, function ($mock) {
-            $mock->shouldReceive('importantTimesPayload')->once()->andReturn([
-                'challenge' => [
-                    ['label' => 'Eröffnung', 'value' => '2026-03-15 09:30:00'],
-                ],
-            ]);
-        });
 
         app(CalendarFeedService::class)->rebuild(1);
         $vevent = EventCalendar::query()->where('event', 1)->value('vevent');
 
-        $this->assertStringContainsString('Zeitplan', $vevent);
-        $this->assertStringContainsString('09:30 Eröffnung', $vevent);
+        $this->assertStringContainsString('Zeitplan: https://flow.hands-on-technology.org/aachen', $vevent);
+        $this->assertStringNotContainsString('Eröffnung', $vevent);
+        $this->assertStringNotContainsString('09:30', $vevent);
+    }
+
+    public function test_description_lists_program_display_names_in_catalog_order(): void
+    {
+        DB::table('m_first_program')->insert([
+            ['id' => 3, 'name' => 'CHALLENGE', 'display_name' => 'Challenge', 'letter' => 'C', 'ics_postfix' => 'challenge', 'sequence' => 2],
+            ['id' => 2, 'name' => 'EXPLORE', 'display_name' => 'Explore', 'letter' => 'E', 'ics_postfix' => 'explore', 'sequence' => 1],
+        ]);
+        $this->insertEvent();
+        DB::table('event_program')->insert([
+            ['event' => 1, 'first_program' => 3],
+            ['event' => 1, 'first_program' => 2],
+        ]);
+        $this->mockDraht(ok: true, data: [
+            'programs' => [],
+            'address' => null,
+            'contact' => [
+                ['contact' => 'Ada'],
+                ['contact' => 'Grace'],
+            ],
+            'information' => null,
+        ]);
+
+        app(CalendarFeedService::class)->rebuild(1);
+        $vevent = EventCalendar::query()->where('event', 1)->value('vevent');
+
+        $this->assertStringContainsString('Programme: Explore\\, Challenge', $vevent);
+        $this->assertStringContainsString('Kontakt: Ada', $vevent);
+        $this->assertStringNotContainsString('Grace', $vevent);
+        $this->assertStringContainsString('Zeitplan: https', $vevent);
     }
 
     public function test_feed_all_skips_draht_and_applies_window_and_slug(): void

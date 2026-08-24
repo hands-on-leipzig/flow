@@ -22,9 +22,54 @@ class IcsDescriptionTest extends TestCase
         ]);
 
         $this->assertSame(
-            "Kontakt\nAda Lovelace, ada@example.org, RP West",
+            'Kontakt: Ada Lovelace, ada@example.org, RP West',
             $text
         );
+    }
+
+    public function test_first_contact_only_on_one_line(): void
+    {
+        $text = IcsDescription::fromPublicPayload([
+            'contact' => [
+                [
+                    'contact' => "Ada\nLovelace",
+                    'contact_email' => 'ada@example.org',
+                    'contact_infos' => 'RP  West',
+                ],
+                [
+                    'contact' => 'Grace Hopper',
+                    'contact_email' => 'grace@example.org',
+                ],
+            ],
+        ]);
+
+        $this->assertSame('Kontakt: Ada Lovelace, ada@example.org, RP West', $text);
+        $this->assertStringNotContainsString('Grace', $text);
+        $this->assertStringNotContainsString("\nAda", $text);
+    }
+
+    public function test_programmes_then_contact_then_zeitplan_url(): void
+    {
+        $text = IcsDescription::fromPublicPayload(
+            [
+                'level' => 4,
+                'contact' => [['contact' => 'Ada']],
+                'plan' => [
+                    'challenge' => [
+                        ['label' => 'Eröffnung', 'value' => '2026-03-15 09:00:00'],
+                    ],
+                ],
+            ],
+            'https://flow.hands-on-technology.org/aachen',
+            ['Explore', 'Challenge']
+        );
+
+        $this->assertSame(
+            "Programme: Explore, Challenge\nKontakt: Ada\n\nZeitplan: https://flow.hands-on-technology.org/aachen",
+            $text
+        );
+        $this->assertStringNotContainsString('Eröffnung', $text);
+        $this->assertStringNotContainsString('Vollständiger Zeitplan', $text);
     }
 
     public function test_teams_follow_payload_keys_including_unknown_programs(): void
@@ -55,84 +100,29 @@ class IcsDescriptionTest extends TestCase
         $this->assertStringStartsWith('Angemeldete Teams', $text);
     }
 
-    public function test_plan_times_when_present_without_rechecking_level(): void
-    {
-        $text = IcsDescription::fromPublicPayload([
-            'level' => 3,
-            'contact' => [],
-            'plan' => [
-                'explore' => [
-                    ['label' => 'Eröffnung', 'value' => '2026-03-15 09:00:00'],
-                    ['label' => 'Ende ca.', 'value' => '2026-03-15 12:30:00'],
-                ],
-                'challenge' => [
-                    ['label' => 'Eröffnung', 'value' => '2026-03-15 09:30:00'],
-                ],
-            ],
-        ]);
-
-        $this->assertStringContainsString("Zeitplan\nExplore\n09:00 Eröffnung\n12:30 Ende ca.", $text);
-        $this->assertStringContainsString("Challenge\n09:30 Eröffnung", $text);
-        $this->assertStringNotContainsString('Mo,', $text);
-    }
-
-    public function test_plan_shows_weekday_when_times_span_days(): void
-    {
-        $text = IcsDescription::fromPublicPayload([
-            'level' => 3,
-            'plan' => [
-                'challenge' => [
-                    ['label' => 'Tag 1', 'value' => '2026-06-06 10:00:00'],
-                    ['label' => 'Tag 2', 'value' => '2026-06-07 10:00:00'],
-                ],
-            ],
-        ]);
-
-        $this->assertStringContainsString('Sa, 10:00 Tag 1', $text);
-        $this->assertStringContainsString('So, 10:00 Tag 2', $text);
-    }
-
-    public function test_level_4_appends_plan_url(): void
-    {
-        $text = IcsDescription::fromPublicPayload(
-            [
-                'level' => 4,
-                'contact' => [['contact' => 'Ada']],
-                'plan' => [
-                    'challenge' => [
-                        ['label' => 'Eröffnung', 'value' => '2026-03-15 09:00:00'],
-                    ],
-                ],
-            ],
-            'https://flow.hands-on-technology.org/aachen'
-        );
-
-        $this->assertStringContainsString('Kontakt', $text);
-        $this->assertStringContainsString('Zeitplan', $text);
-        $this->assertStringEndsWith(
-            'Vollständiger Zeitplan: https://flow.hands-on-technology.org/aachen',
-            $text
-        );
-    }
-
-    public function test_level_below_4_does_not_append_url(): void
-    {
-        $text = IcsDescription::fromPublicPayload(
-            ['level' => 3, 'contact' => [['contact' => 'Ada']]],
-            'https://flow.hands-on-technology.org/aachen'
-        );
-
-        $this->assertStringNotContainsString('Vollständiger Zeitplan', $text);
-    }
-
-    public function test_plan_error_payload_is_ignored(): void
+    public function test_plan_in_payload_is_ignored(): void
     {
         $text = IcsDescription::fromPublicPayload([
             'level' => 3,
             'contact' => [['contact' => 'Ada']],
-            'plan' => ['error' => 'Kein Plan für dieses Event gefunden'],
+            'plan' => [
+                'explore' => [
+                    ['label' => 'Eröffnung', 'value' => '2026-03-15 09:00:00'],
+                ],
+            ],
         ]);
 
-        $this->assertSame("Kontakt\nAda", $text);
+        $this->assertSame('Kontakt: Ada', $text);
+    }
+
+    public function test_empty_url_omits_zeitplan_line(): void
+    {
+        $text = IcsDescription::fromPublicPayload(
+            ['level' => 4, 'contact' => [['contact' => 'Ada']]],
+            ''
+        );
+
+        $this->assertSame('Kontakt: Ada', $text);
+        $this->assertStringNotContainsString('Zeitplan', $text);
     }
 }

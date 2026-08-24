@@ -2,11 +2,9 @@
 
 namespace App\Support;
 
-use DateTimeImmutable;
-
 /**
  * Plain-text ICS DESCRIPTION from the public scheduleInformation JSON.
- * Does not decide publication level: whatever the payload already contains is formatted.
+ * ICS never uses more than publication level 2 (contact + teams). Plan times stay off.
  */
 final class IcsDescription
 {
@@ -18,27 +16,27 @@ final class IcsDescription
         'challenge' => 'Challenge',
     ];
 
-    /** @var array<string, string> */
-    private const WEEKDAYS_DE = [
-        'Mon' => 'Mo',
-        'Tue' => 'Di',
-        'Wed' => 'Mi',
-        'Thu' => 'Do',
-        'Fri' => 'Fr',
-        'Sat' => 'Sa',
-        'Sun' => 'So',
-    ];
-
     /**
      * @param  array<string, mixed>  $payload  scheduleInformation JSON
+     * @param  list<string>  $programNames  m_first_program.display_name at the event, catalog order
      */
-    public static function fromPublicPayload(array $payload, ?string $planUrl = null): string
+    public static function fromPublicPayload(array $payload, ?string $planUrl = null, array $programNames = []): string
     {
-        $blocks = [];
+        $header = [];
+
+        $programs = self::formatProgramNames($programNames);
+        if ($programs !== '') {
+            $header[] = 'Programme: '.$programs;
+        }
 
         $contact = self::formatContacts($payload['contact'] ?? null);
         if ($contact !== '') {
-            $blocks[] = "Kontakt\n".$contact;
+            $header[] = 'Kontakt: '.$contact;
+        }
+
+        $blocks = [];
+        if ($header !== []) {
+            $blocks[] = implode("\n", $header);
         }
 
         $teams = self::formatTeams($payload['teams'] ?? null);
@@ -46,20 +44,27 @@ final class IcsDescription
             $blocks[] = "Angemeldete Teams\n".$teams;
         }
 
-        $plan = $payload['plan'] ?? null;
-        if (is_array($plan) && ! isset($plan['error'])) {
-            $times = self::formatPlan($plan);
-            if ($times !== '') {
-                $blocks[] = "Zeitplan\n".$times;
-            }
-        }
-
-        $level = (int) ($payload['level'] ?? 0);
-        if ($level >= 4 && is_string($planUrl) && $planUrl !== '') {
-            $blocks[] = 'Vollständiger Zeitplan: '.$planUrl;
+        if (is_string($planUrl) && $planUrl !== '') {
+            $blocks[] = 'Zeitplan: '.$planUrl;
         }
 
         return implode("\n\n", $blocks);
+    }
+
+    /**
+     * @param  list<mixed>  $names
+     */
+    private static function formatProgramNames(array $names): string
+    {
+        $clean = [];
+        foreach ($names as $name) {
+            $label = self::oneLine($name);
+            if ($label !== '') {
+                $clean[] = $label;
+            }
+        }
+
+        return implode(', ', $clean);
     }
 
     private static function formatContacts(mixed $contacts): string
@@ -68,22 +73,21 @@ final class IcsDescription
             return '';
         }
 
-        $lines = [];
         foreach ($contacts as $row) {
             if (! is_array($row)) {
                 continue;
             }
             $parts = array_filter([
-                self::string($row['contact'] ?? null),
-                self::string($row['contact_email'] ?? $row['email'] ?? $row['mail'] ?? null),
-                self::string($row['contact_infos'] ?? null),
+                self::oneLine($row['contact'] ?? null),
+                self::oneLine($row['contact_email'] ?? $row['email'] ?? $row['mail'] ?? null),
+                self::oneLine($row['contact_infos'] ?? null),
             ], fn ($p) => $p !== '');
             if ($parts !== []) {
-                $lines[] = implode(', ', $parts);
+                return implode(', ', $parts);
             }
         }
 
-        return implode("\n", $lines);
+        return '';
     }
 
     private static function formatTeams(mixed $teams): string
@@ -134,120 +138,21 @@ final class IcsDescription
         return implode(' · ', $parts);
     }
 
-    /**
-     * @param  array<string, mixed>  $plan
-     */
-    private static function formatPlan(array $plan): string
-    {
-        $showWeekday = self::planSpansMultipleDays($plan);
-        $sections = [];
-
-        foreach (self::PLAN_HEADINGS as $key => $heading) {
-            if (! isset($plan[$key]) || ! is_array($plan[$key])) {
-                continue;
-            }
-            $lines = self::formatTimeline($plan[$key], $showWeekday);
-            if ($lines !== '') {
-                $sections[] = $heading."\n".$lines;
-            }
-        }
-
-        foreach ($plan as $key => $items) {
-            if (isset(self::PLAN_HEADINGS[$key]) || ! is_array($items) || $items === []) {
-                continue;
-            }
-            if (! array_is_list($items) || ! isset($items[0]) || ! is_array($items[0])) {
-                continue;
-            }
-            $lines = self::formatTimeline($items, $showWeekday);
-            if ($lines !== '') {
-                $sections[] = self::headingFromKey((string) $key)."\n".$lines;
-            }
-        }
-
-        return implode("\n\n", $sections);
-    }
-
-    /**
-     * @param  list<mixed>  $items
-     */
-    private static function formatTimeline(array $items, bool $showWeekday): string
-    {
-        $rows = [];
-        foreach ($items as $item) {
-            if (! is_array($item) || empty($item['value'])) {
-                continue;
-            }
-            $time = self::formatTime((string) $item['value'], $showWeekday);
-            $label = self::string($item['label'] ?? null);
-            $line = trim($time.' '.$label);
-            $desc = self::string($item['description'] ?? null);
-            if ($desc !== '') {
-                $line .= ' — '.$desc;
-            }
-            if ($line !== '') {
-                $rows[] = ['ts' => strtotime((string) $item['value']) ?: 0, 'line' => $line];
-            }
-        }
-
-        usort($rows, fn ($a, $b) => $a['ts'] <=> $b['ts']);
-
-        return implode("\n", array_column($rows, 'line'));
-    }
-
-    /**
-     * @param  array<string, mixed>  $plan
-     */
-    private static function planSpansMultipleDays(array $plan): bool
-    {
-        $dates = [];
-        foreach ($plan as $items) {
-            if (! is_array($items)) {
-                continue;
-            }
-            foreach ($items as $item) {
-                if (! is_array($item) || empty($item['value'])) {
-                    continue;
-                }
-                $dt = self::parseDate((string) $item['value']);
-                if ($dt !== null) {
-                    $dates[$dt->format('Y-m-d')] = true;
-                }
-            }
-        }
-
-        return count($dates) > 1;
-    }
-
-    private static function formatTime(string $value, bool $showWeekday): string
-    {
-        $dt = self::parseDate($value);
-        if ($dt === null) {
-            return '';
-        }
-        $time = $dt->format('H:i');
-        if (! $showWeekday) {
-            return $time;
-        }
-        $wd = self::WEEKDAYS_DE[$dt->format('D')] ?? $dt->format('D');
-
-        return $wd.', '.$time;
-    }
-
-    private static function parseDate(string $value): ?DateTimeImmutable
-    {
-        try {
-            return new DateTimeImmutable($value);
-        } catch (\Exception) {
-            return null;
-        }
-    }
-
     private static function headingFromKey(string $key): string
     {
         $key = str_replace('_', ' ', $key);
 
         return $key === '' ? 'Programm' : ucwords($key);
+    }
+
+    private static function oneLine(mixed $value): string
+    {
+        $text = self::string($value);
+        if ($text === '') {
+            return '';
+        }
+
+        return trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
     }
 
     private static function string(mixed $value): string
