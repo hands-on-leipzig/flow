@@ -21,6 +21,8 @@ class CalendarFeedService
 
     public const RESULT_BUILT = 'built';
 
+    public const WINDOW_DAYS = 90;
+
     public function __construct(
         private DrahtController $draht,
         private EventTitleService $titles,
@@ -122,6 +124,45 @@ class CalendarFeedService
         );
 
         return self::RESULT_BUILT;
+    }
+
+    /**
+     * Public all-events ICS from stored rows. Does not call DRAHT or rebuild.
+     *
+     * @return array{body: string, lastModified: Carbon|null}
+     */
+    public function feedAll(): array
+    {
+        $start = Carbon::today()->subDays(self::WINDOW_DAYS)->toDateString();
+
+        $rows = DB::table('event_calendar')
+            ->join('event', 'event.id', '=', 'event_calendar.event')
+            ->whereNotNull('event.slug')
+            ->where('event.slug', '!=', '')
+            ->where('event_calendar.date', '>=', $start)
+            ->orderBy('event_calendar.date')
+            ->orderBy('event_calendar.event')
+            ->get(['event_calendar.vevent', 'event_calendar.built_at']);
+
+        $vevents = [];
+        $lastModified = null;
+        foreach ($rows as $row) {
+            $vevent = trim((string) $row->vevent);
+            if ($vevent !== '') {
+                $vevents[] = $vevent;
+            }
+            if ($row->built_at) {
+                $at = Carbon::parse($row->built_at);
+                if ($lastModified === null || $at->gt($lastModified)) {
+                    $lastModified = $at;
+                }
+            }
+        }
+
+        return [
+            'body' => IcsText::calendar(IcsText::CALNAME_ALL, $vevents, self::environmentLabel()),
+            'lastModified' => $lastModified,
+        ];
     }
 
     public static function environmentLabel(): ?string

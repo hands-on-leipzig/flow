@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\PublishController;
 use App\Models\EventCalendar;
 use App\Services\CalendarFeedService;
+use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -27,6 +28,12 @@ class CalendarFeedServiceTest extends TestCase
         ]);
 
         $this->createSchema();
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+        parent::tearDown();
     }
 
     public function test_environment_label_from_env_and_host(): void
@@ -181,6 +188,39 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertStringContainsString('09:30 Eröffnung', $vevent);
     }
 
+    public function test_feed_all_skips_draht_and_applies_window_and_slug(): void
+    {
+        Carbon::setTestNow('2026-08-24');
+        $this->mock(DrahtController::class, function ($mock) {
+            $mock->shouldReceive('fetchScheduleData')->never();
+        });
+
+        $this->insertEvent(['id' => 1, 'slug' => 'aachen', 'date' => '2026-08-24']);
+        $this->insertCalendar(1, '2026-08-24', "BEGIN:VEVENT\r\nUID:in-window\r\nEND:VEVENT");
+
+        $this->insertEvent(['id' => 2, 'slug' => 'koeln', 'date' => '2026-05-25']);
+        $this->insertCalendar(2, '2026-05-25', "BEGIN:VEVENT\r\nUID:too-old\r\nEND:VEVENT");
+
+        $this->insertEvent(['id' => 3, 'slug' => null, 'date' => '2026-08-20']);
+        $this->insertCalendar(3, '2026-08-20', "BEGIN:VEVENT\r\nUID:no-slug\r\nEND:VEVENT");
+
+        $this->insertEvent(['id' => 4, 'slug' => 'berlin', 'date' => '2026-05-26']);
+        $this->insertCalendar(4, '2026-05-26', "BEGIN:VEVENT\r\nUID:edge-90\r\nEND:VEVENT");
+
+        $feed = app(CalendarFeedService::class)->feedAll();
+
+        $this->assertStringContainsString('BEGIN:VCALENDAR', $feed['body']);
+        $this->assertStringContainsString('METHOD:PUBLISH', $feed['body']);
+        $this->assertStringContainsString('X-WR-CALNAME:HANDS on TECHNOLOGY Veranstaltungen', $feed['body']);
+        $this->assertStringContainsString('UID:in-window', $feed['body']);
+        $this->assertStringContainsString('UID:edge-90', $feed['body']);
+        $this->assertStringNotContainsString('UID:too-old', $feed['body']);
+        $this->assertStringNotContainsString('UID:no-slug', $feed['body']);
+        $this->assertNotNull($feed['lastModified']);
+
+        Carbon::setTestNow();
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */
@@ -197,6 +237,18 @@ class CalendarFeedServiceTest extends TestCase
             'days' => 1,
             'link' => 'https://flow.hands-on-technology.org/aachen',
         ], $overrides));
+    }
+
+    private function insertCalendar(int $eventId, string $date, string $vevent): void
+    {
+        DB::table('event_calendar')->insert([
+            'event' => $eventId,
+            'date' => $date,
+            'uid' => 'event-'.$eventId.'@flow.hands-on-technology.org',
+            'sequence' => 0,
+            'vevent' => $vevent,
+            'built_at' => '2026-08-01 12:00:00',
+        ]);
     }
 
     /**

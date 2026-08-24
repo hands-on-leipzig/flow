@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AfternoonController;
+use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
@@ -61,6 +62,7 @@ Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanFo
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
 Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']); // Public one-link access logging
+Route::get('/calendar.ics', [CalendarFeedController::class, 'all']); // Public ICS subscription (all events in window)
 
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);
