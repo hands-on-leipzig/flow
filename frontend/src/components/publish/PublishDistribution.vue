@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Ausgabe → Verteilung
+ * Ausgabe → Veröffentlichung
  * Controls left · live iframe of the public page right
  */
 import {computed, onMounted, ref, watch} from 'vue'
@@ -146,7 +146,7 @@ onMounted(async () => {
     <div class="pub__shell">
       <aside class="pub__controls">
         <header class="pub__controls-head">
-          <h1 class="pub__title">Verteilung</h1>
+          <h1 class="pub__title">Veröffentlichung</h1>
           <p class="pub__lede">Link freigeben · Sichtbarkeit steuern</p>
         </header>
 

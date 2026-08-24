@@ -455,9 +455,6 @@ onMounted(async () => {
         <!-- Left Side: All Logos List -->
         <div class="glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Logos verwalten</h2>
-          <p class="glass-settings-hint !mb-4">
-            Aktivierte Logos erscheinen im öffentlichen Plan.
-          </p>
 
           <div class="space-y-2">
             <div
@@ -538,17 +535,18 @@ onMounted(async () => {
         <div class="glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Logos in Verwendung</h2>
           <p class="glass-settings-hint !mb-1">
-            Ziehe Logos, um die Reihenfolge im öffentlichen Plan zu ändern.
+            Logos werden in dieser Reihenfolge angezeigt.
           </p>
           <p class="glass-settings-hint !mb-4">
             Das erste Logo wird für die Namensaufkleber verwendet.
           </p>
 
           <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            <div
+            <ItemCard
                 v-for="logo in logosWithSpaceMaking.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id)))"
                 :key="logo.id"
-                class="liquid-surface-inner p-3 transition-all duration-300 ease-out relative rounded-[var(--radius)]"
+                interactive
+                class="relative transition-all duration-300 ease-out"
                 :class="{
                   'opacity-50 scale-105 rotate-2': draggedLogo?.id === logo.id,
                   'ring-2 ring-[var(--color-accent)] bg-[var(--color-accent-muted)]': draggedOverLogo?.id === logo.id,
@@ -564,12 +562,20 @@ onMounted(async () => {
                 @dragleave="handleDragLeave($event)"
                 @drop.prevent="handleDrop($event, logo)"
             >
-              <div
-                  class="absolute top-2 right-2 text-[var(--color-text-subtle)] text-xs cursor-move select-none leading-none"
-                  title="Ziehen zum Sortieren"
-              >
-                ⋮⋮
-              </div>
+              <template #leading>
+                <div
+                    class="text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5"
+                    title="Ziehen zum Sortieren"
+                    aria-hidden="true"
+                >
+                  ⋮⋮
+                </div>
+              </template>
+              <template #title>
+                <span class="item-card__title font-semibold truncate flex items-center min-h-[var(--field-min-height-sm)]">
+                  {{ logo.title || 'Ohne Titel' }}
+                </span>
+              </template>
 
               <div
                   v-if="isDragging && draggedOverLogo?.id === logo.id"
@@ -586,40 +592,28 @@ onMounted(async () => {
 
               <button
                   type="button"
-                  class="block w-full mb-2"
+                  class="logo-card__thumb mx-auto"
                   title="Vorschau"
                   @click.stop="openLogoPreview(logo)"
               >
                 <img
                     :src="logo.url"
                     alt=""
-                    class="h-14 mx-auto object-contain hover:opacity-80 transition-opacity"
+                    class="h-full w-full object-contain p-1"
                     draggable="false"
                     @mousedown.stop
                     @dragstart.stop
                 />
               </button>
 
-              <div class="space-y-0.5 text-center min-w-0">
-                <div v-if="logo.title" class="text-sm font-medium text-[var(--color-text)] truncate">
-                  {{ logo.title }}
-                </div>
-                <div
-                    v-if="logo.link"
-                    class="text-xs text-[var(--color-accent)] truncate"
-                    :title="logo.link"
-                >
-                  {{ logo.link }}
-                </div>
-                <div v-if="!logo.title && !logo.link" class="text-xs text-[var(--color-text-subtle)] italic">
-                  Kein Titel/Link
-                </div>
+              <div
+                  v-if="logo.link"
+                  class="text-xs text-[var(--color-accent)] truncate text-center"
+                  :title="logo.link"
+              >
+                {{ logo.link }}
               </div>
-
-              <div class="flex items-center justify-center pt-2">
-                <span class="text-xs font-semibold text-[var(--color-accent)]">Aktiv</span>
-              </div>
-            </div>
+            </ItemCard>
           </div>
 
           <p

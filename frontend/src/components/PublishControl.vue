@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Ausgabe shell: Verteilung / Digital / Analog as nested routes.
+ * Ausgabe shell: Veröffentlichung / Digital / Analog as nested routes.
  * Route-keyed keep-alive — same pattern as Schedule nested panes.
  */
 defineOptions({name: 'PublishControl'})
