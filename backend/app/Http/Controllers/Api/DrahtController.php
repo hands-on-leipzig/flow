@@ -34,6 +34,17 @@ class DrahtController extends Controller
 
     public function show(Event $event)
     {
+        return response()->json($this->fetchScheduleData($event)['data']);
+    }
+
+    /**
+     * Same payload as show(), plus whether any DRAHT scheduledata HTTP call succeeded.
+     * ok is true when the event has no draht_id (nothing to fetch) or at least one call returned JSON.
+     *
+     * @return array{ok: bool, data: array<string, mixed>}
+     */
+    public function fetchScheduleData(Event $event): array
+    {
         $event->loadMissing('programs.firstProgram');
 
         $mergedData = [
@@ -42,6 +53,9 @@ class DrahtController extends Controller
             'contact' => null,
             'information' => null,
         ];
+
+        $attempted = 0;
+        $succeeded = 0;
 
         foreach ($event->programs as $row) {
             if (! $row->draht_id) {
@@ -57,10 +71,21 @@ class DrahtController extends Controller
                 continue;
             }
 
-            $res = $this->makeDrahtCall("/handson/events/{$row->draht_id}/scheduledata");
-            $payload = $res->ok() ? $res->json() : null;
+            $attempted++;
+            $payload = null;
+            try {
+                $res = $this->makeDrahtCall("/handson/events/{$row->draht_id}/scheduledata");
+                $payload = $res->ok() ? $res->json() : null;
+            } catch (\Throwable $e) {
+                Log::warning('DRAHT scheduledata failed', [
+                    'event_id' => $event->id,
+                    'draht_id' => $row->draht_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
 
             if (is_array($payload)) {
+                $succeeded++;
                 $mergedData['address'] ??= $payload['address'] ?? null;
                 $mergedData['contact'] ??= $this->formatContactData($payload['contact'] ?? null);
                 $mergedData['information'] ??= $payload['information'] ?? null;
@@ -71,13 +96,16 @@ class DrahtController extends Controller
                 'name' => $row->name,
                 'sequence' => $row->sequence,
                 'draht_id' => $row->draht_id,
-                'scheduledata' => $payload,
+                'scheduledata' => is_array($payload) ? $payload : null,
                 'teams' => is_array($payload) ? ($payload['teams'] ?? []) : [],
                 'capacity' => is_array($payload) ? ($payload['capacity_teams'] ?? 0) : 0,
             ];
         }
 
-        return response()->json($mergedData);
+        return [
+            'ok' => $attempted === 0 || $succeeded > 0,
+            'data' => $mergedData,
+        ];
     }
 
     public function getAllRegions()

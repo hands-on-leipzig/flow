@@ -9,7 +9,6 @@ use App\Models\OneLinkAccess;
 use App\Services\ActivityFetcherService;
 use App\Services\PdfLayoutService;
 use App\Support\PlanParameter;
-use App\Support\ProgramCatalog;
 use App\Enums\ExploreMode;
 
 use App\Services\SeasonService;
@@ -338,60 +337,22 @@ class PublishController extends Controller
         $drahtCtrl = app(\App\Http\Controllers\Api\DrahtController::class);
         $drahtData = $drahtCtrl->show($event)->getData(true);
 
-        $exploreColor = ProgramCatalog::colorHex('EXPLORE', '00A651');
-        $challengeColor = ProgramCatalog::colorHex('CHALLENGE', 'ED1C24');
-
-        // JSON bauen
-        $data = [
-            'event_id' => $eventId,
-            'level' => $level,
-            'date' => $event->date,
-            'days' => $event->days,
-            'enddate' => $event->enddate,
-            'address' => $drahtData['address'] ?? null,
-            // hier direkt durchreichen:
-            'contact' => $drahtData['contact'] ?? [],
-            'teams' => [
-                'explore' => [
-                    'capacity' => $drahtData['capacity_explore'] ?? 0,
-                    'registered' => count($drahtData['teams_explore'] ?? []),
-                    'color_hex' => $exploreColor,
-                    'list' => $level >= 1 ? array_map(function ($team) {
-                        return [
-                            'team_number_hot' => $team['ref'] ?? null,
-                            'name' => $team['name'] ?? '',
-                            'organization' => $team['organization'] ?? '',
-                            'location' => $team['location'] ?? ''
-                        ];
-                    }, array_values($drahtData['teams_explore'] ?? [])) : [],
-                ],
-                'challenge' => [
-                    'capacity' => $drahtData['capacity_challenge'] ?? 0,
-                    'registered' => count($drahtData['teams_challenge'] ?? []),
-                    'color_hex' => $challengeColor,
-                    'list' => $level >= 1 ? array_map(function ($team) {
-                        return [
-                            'team_number_hot' => $team['ref'] ?? null,
-                            'name' => $team['name'] ?? '',
-                            'organization' => $team['organization'] ?? '',
-                            'location' => $team['location'] ?? ''
-                        ];
-                    }, array_values($drahtData['teams_challenge'] ?? [])) : [],
-                ],
-            ],
-        ];
-
+        $plan = null;
         if ($level >= 3) {
-
-
-            $importantTimesResponse = $this->importantTimes($eventId);
-            $importantTimes = $importantTimesResponse->getData(true); // JSON -> Array
-
-            // Schedule ins Haupt-JSON einhängen
-            $data['plan'] = $importantTimes;
+            $plan = $this->importantTimesPayload($eventId);
         }
 
-        return response()->json($data);
+        return response()->json(\App\Support\PublicSchedulePayload::from($event, $drahtData, $level, $plan));
+    }
+
+    /**
+     * importantTimes JSON as an array (same body as the private HTTP helper).
+     *
+     * @return array<string, mixed>
+     */
+    public function importantTimesPayload(int $eventId): array
+    {
+        return $this->importantTimes($eventId)->getData(true);
     }
 
 
