@@ -11,6 +11,7 @@ use App\Models\TeamPlan;
 use App\Enums\FirstProgram;
 use App\Services\AfternoonBlockOrderService;
 use App\Services\EventAttentionService;
+use App\Support\ProgramCatalog;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -52,17 +53,18 @@ class PlanController extends Controller
         // Get DRAHT team counts for this event
         $event = \App\Models\Event::find($eventId);
 
-        $e_teams = 6; // Default
-        $c_teams = 8; // Default
+        $e_teams = 0;
+        $c_teams = 0;
 
         if ($event) {
+            $enrolledExplore = 0;
+            $enrolledChallenge = 0;
+
             $drahtController = new \App\Http\Controllers\Api\DrahtController();
             $drahtData = $drahtController->show($event);
             $data = $drahtData->getData(true);
 
-
             if ($data) {
-                $enrolledExplore = 0;
                 if (array_key_exists('teams_explore_count', $data)) {
                     $enrolledExplore = (int)$data['teams_explore_count'];
                 } elseif (isset($data['teams_explore'])) {
@@ -73,15 +75,6 @@ class PlanController extends Controller
                     }
                 }
 
-                $plannedExplore = $data['capacity_explore'] ?? null;
-
-                if ($enrolledExplore > 0) {
-                    $e_teams = max($e_teams, $enrolledExplore);
-                } elseif (!is_null($plannedExplore)) {
-                    $e_teams = (int)$plannedExplore;
-                }
-
-                $enrolledChallenge = 0;
                 if (array_key_exists('teams_challenge_count', $data)) {
                     $enrolledChallenge = (int)$data['teams_challenge_count'];
                 } elseif (isset($data['teams_challenge'])) {
@@ -91,14 +84,13 @@ class PlanController extends Controller
                         $enrolledChallenge = (int)$data['teams_challenge'];
                     }
                 }
+            }
 
-                $plannedChallenge = $data['capacity_challenge'] ?? null;
-
-                if ($enrolledChallenge > 0) {
-                    $c_teams = max($c_teams, $enrolledChallenge);
-                } elseif (!is_null($plannedChallenge)) {
-                    $c_teams = (int)$plannedChallenge;
-                }
+            if (ProgramCatalog::hasExplore($event)) {
+                $e_teams = max(6, $enrolledExplore);
+            }
+            if (ProgramCatalog::hasChallenge($event)) {
+                $c_teams = max(8, $enrolledChallenge);
             }
         }
 
