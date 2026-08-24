@@ -9,6 +9,9 @@ import axios from "axios";
 import {Slide} from "@/models/slide";
 import SavingToast from "@/components/atoms/SavingToast.vue";
 import ItemCard from "@/components/molecules/ItemCard.vue";
+import ItemComposer from "@/components/molecules/ItemComposer.vue";
+import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
+import IconDangerButton from "@/components/atoms/IconDangerButton.vue";
 import PanelSplitter from "@/components/atoms/PanelSplitter.vue";
 
 const eventStore = useEventStore();
@@ -25,9 +28,24 @@ const selectedSlideshow = computed(() =>
     slideshows.value.find((s) => s.id === selectedSlideshowId.value) ?? null
 );
 
+const newSlideshowName = ref('');
+const isCreating = ref(false);
+const slideshowToDelete = ref<Slideshow | null>(null);
+const composerRef = ref<{focusTitle?: () => void} | null>(null);
+
 const canAddSlideshow = computed(() =>
-    !loading.value && !!planId.value && !!event.value?.id && slideshows.value.length < 1
+    !loading.value
+    && !isCreating.value
+    && !!planId.value
+    && !!event.value?.id
+    && slideshows.value.length < 1
 );
+
+const deleteSlideshowMessage = computed(() => {
+  if (!slideshowToDelete.value) return '';
+  const name = (slideshowToDelete.value.name || '').trim() || 'Unbenannt';
+  return `„${name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`;
+});
 
 function selectSlideshow(slideshow: Slideshow) {
   selectedSlideshowId.value = slideshow.id;
@@ -165,21 +183,49 @@ function deleteSlide(slideshow: Slideshow, slideId: number) {
 }
 
 async function addSlideshow() {
-  if (!canAddSlideshow.value) return;
-  loading.value = true;
+  const name = newSlideshowName.value.trim();
+  if (!name || !canAddSlideshow.value) return;
+  isCreating.value = true;
   try {
     const response = await axios.post(`/slideshow/${event.value?.id}`, {
-      planId: planId.value
+      planId: planId.value,
+      name,
     });
 
     const slideshow = response.data.slideshow;
     slideshow.slides = slideshow.slides ?? [];
     slideshows.value.push(slideshow);
     selectedSlideshowId.value = slideshow.id;
+    newSlideshowName.value = '';
   } catch (e) {
     console.error(e);
   } finally {
-    loading.value = false;
+    isCreating.value = false;
+  }
+}
+
+function askDeleteSlideshow(slideshow: Slideshow) {
+  slideshowToDelete.value = slideshow;
+}
+
+function cancelDeleteSlideshow() {
+  slideshowToDelete.value = null;
+}
+
+async function confirmDeleteSlideshow() {
+  const slideshow = slideshowToDelete.value;
+  if (!slideshow) return;
+  try {
+    await axios.delete(`/slideshow/${slideshow.id}`);
+    slideshows.value = slideshows.value.filter((s) => s.id !== slideshow.id);
+    if (selectedSlideshowId.value === slideshow.id) {
+      selectedSlideshowId.value = slideshows.value[0]?.id ?? null;
+    }
+    slideshowToDelete.value = null;
+    await nextTick();
+    composerRef.value?.focusTitle?.();
+  } catch (e) {
+    console.error(e);
   }
 }
 
@@ -269,20 +315,16 @@ function copyUrl(url) {
             <p class="digital-workspace__lede">Slideshows fürs Karussell</p>
           </header>
 
-          <div v-if="canAddSlideshow" class="space-y-2">
-            <div class="slideshow-composer" @click="addSlideshow">
-              <ItemCard dashed>
-                <template #title>
-                  <span class="slideshow-composer__title">Neue Slideshow</span>
-                </template>
-                <p class="item-card__hint">
-                  Erstellt eine Slideshow mit Standardfolien.
-                </p>
-              </ItemCard>
-            </div>
-          </div>
+          <div class="space-y-2">
+            <ItemComposer
+                ref="composerRef"
+                v-model:title="newSlideshowName"
+                :disabled="!canAddSlideshow"
+                title-placeholder="Neue Slideshow"
+                empty-hint="Name eintragen. Es werden Standardfolien angelegt."
+                @commit="addSlideshow"
+            />
 
-          <div class="space-y-2 mt-2">
             <ItemCard
                 v-for="slideshow in slideshows"
                 :key="slideshow.id"
@@ -301,25 +343,7 @@ function copyUrl(url) {
                 />
               </template>
               <template #trailing>
-                <button
-                    type="button"
-                    class="digital-icon-btn"
-                    title="Slideshow in neuem Fenster öffnen"
-                    @click.stop="openSlideshowInNewWindow(slideshow)"
-                >
-                  <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
-                </button>
-                <button
-                    type="button"
-                    class="digital-icon-btn"
-                    :title="copiedSlideshowId === slideshow.id ? 'Link kopiert!' : 'Link kopieren'"
-                    @click.stop="copySlideshowLink(slideshow)"
-                >
-                  <i
-                      :class="copiedSlideshowId === slideshow.id ? 'bi bi-check' : 'bi bi-clipboard'"
-                      aria-hidden="true"
-                  />
-                </button>
+                <IconDangerButton label="Slideshow löschen" @click.stop="askDeleteSlideshow(slideshow)"/>
               </template>
               <p class="item-card__hint">
                 {{ slideshow.slides?.length ?? 0 }}
@@ -350,6 +374,34 @@ function copyUrl(url) {
           </div>
 
           <template v-else-if="selectedSlideshow">
+            <div class="digital-workspace__editor-bar">
+              <h2 class="digital-workspace__editor-title">{{ selectedSlideshow.name }}</h2>
+              <div class="digital-workspace__editor-actions">
+                <button
+                    type="button"
+                    class="digital-workspace__editor-btn"
+                    title="Slideshow in neuem Fenster öffnen"
+                    @click="openSlideshowInNewWindow(selectedSlideshow)"
+                >
+                  <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
+                  <span>Öffnen</span>
+                </button>
+                <button
+                    type="button"
+                    class="digital-workspace__editor-btn"
+                    :title="copiedSlideshowId === selectedSlideshow.id ? 'Link kopiert!' : 'Link kopieren'"
+                    @click="copySlideshowLink(selectedSlideshow)"
+                >
+                  <i
+                      :class="copiedSlideshowId === selectedSlideshow.id ? 'bi bi-check' : 'bi bi-clipboard'"
+                      aria-hidden="true"
+                  />
+                  <span>{{ copiedSlideshowId === selectedSlideshow.id ? 'Kopiert!' : 'Link kopieren' }}</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="digital-workspace__editor-body">
             <!-- Settings Row -->
             <div class="bg-white rounded-lg p-4 mb-4 border border-[var(--color-border)]">
               <div class="grid grid-cols-1 gap-4 items-end">
@@ -436,6 +488,7 @@ function copyUrl(url) {
                 </template>
               </div>
             </div>
+            </div>
           </template>
 
           <div v-else class="digital-workspace__empty">
@@ -448,6 +501,17 @@ function copyUrl(url) {
         </div>
       </section>
     </div>
+
+    <ConfirmationModal
+        :show="!!slideshowToDelete"
+        title="Slideshow löschen"
+        :message="deleteSlideshowMessage"
+        type="danger"
+        confirm-text="Löschen"
+        cancel-text="Abbrechen"
+        @confirm="confirmDeleteSlideshow"
+        @cancel="cancelDeleteSlideshow"
+    />
 
     <!-- Slide Type Selection Modal -->
     <div
@@ -576,6 +640,55 @@ function copyUrl(url) {
 .digital-workspace__pane--editor {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.digital-workspace__editor-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  margin-bottom: 0.65rem;
+}
+
+.digital-workspace__editor-title {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text);
+}
+
+.digital-workspace__editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.digital-workspace__editor-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.8125rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.digital-workspace__editor-btn:hover {
+  background: var(--color-bg-hover);
+}
+
+.digital-workspace__editor-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .digital-workspace__head {
@@ -603,34 +716,6 @@ function copyUrl(url) {
   justify-content: center;
   text-align: center;
   padding: 2rem 1rem;
-}
-
-.slideshow-composer {
-  cursor: pointer;
-}
-
-.slideshow-composer__title {
-  display: block;
-  width: 100%;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.digital-icon-btn {
-  width: 2.25rem;
-  height: 2.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--color-text-muted);
-}
-
-.digital-icon-btn:hover {
-  color: var(--color-accent);
-  background: var(--color-bg-hover);
 }
 
 @media (min-width: 768px) {
