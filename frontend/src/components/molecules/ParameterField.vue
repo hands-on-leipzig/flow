@@ -1,7 +1,6 @@
 <script setup>
 import {ref, watch, computed} from 'vue'
 import InfoPopover from '@/components/atoms/InfoPopover.vue'
-import TimePicker from '@/components/atoms/TimePicker.vue'
 
 const props = defineProps({
   param: {
@@ -44,13 +43,21 @@ const normalizeBoolean = (val) => val === 1 || val === true || val === '1'
 const localValue = ref(
     props.param.type === 'boolean'
         ? normalizeBoolean(props.param.value)
-        : props.param.value
+        : props.param.type === 'time'
+            ? (normalizeTimeFormat(props.param.value) || props.param.value)
+            : props.param.value
 )
 
 watch(() => props.param.value, val => {
-  localValue.value = props.param.type === 'boolean'
-      ? normalizeBoolean(val)
-      : val
+  if (props.param.type === 'boolean') {
+    localValue.value = normalizeBoolean(val)
+    return
+  }
+  if (props.param.type === 'time') {
+    localValue.value = normalizeTimeFormat(val) || val
+    return
+  }
+  localValue.value = val
 })
 
 const hasDefaultValue = (param) =>
@@ -203,6 +210,11 @@ const controlClass = computed(() => {
     changed ? 'param-field__control--changed' : '',
   ]
 })
+
+const timeStepSeconds = computed(() => {
+  const minutes = Number(props.param?.step)
+  return (Number.isFinite(minutes) && minutes > 0 ? minutes : 5) * 60
+})
 </script>
 
 <template>
@@ -280,14 +292,17 @@ const controlClass = computed(() => {
       </div>
 
       <div v-else-if="param.type === 'time'" class="flex items-center gap-2" :class="compact ? '' : 'flex-wrap'">
-        <TimePicker
-            :model-value="localValue"
+        <input
+            v-model="localValue"
             :disabled="disabled"
-            :min="param.min || undefined"
-            :max="param.max || undefined"
-            :step="Number(param.step) || 5"
-            @update:model-value="localValue = $event; validateValue(localValue, param); emitChange()"
-            @change="validateValue(localValue, param); emitChange()"
+            :max="param.max || '23:55'"
+            :min="param.min || '00:05'"
+            :step="timeStepSeconds"
+            class="param-field__time"
+            :class="controlClass"
+            type="time"
+            @change="emitChange"
+            @input="validateValue(localValue, param)"
         />
         <span v-if="showDefaultValue(param) && !validationError" class="glass-settings-hint">
           {{ showDefaultValue(param) }}
@@ -317,6 +332,10 @@ const controlClass = computed(() => {
 <style scoped>
 .param-field__number {
   padding-right: 1.65rem;
+}
+
+.param-field__time {
+  width: 7.25rem;
 }
 
 .param-field__control--changed {
