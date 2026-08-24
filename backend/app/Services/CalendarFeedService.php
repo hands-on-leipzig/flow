@@ -124,6 +124,81 @@ class CalendarFeedService
     }
 
     /**
+     * Rebuild every published event in the ICS window. Drops stored rows outside it.
+     *
+     * @return array{
+     *     success: bool,
+     *     rebuilt: int,
+     *     kept: int,
+     *     skipped: int,
+     *     failed: int,
+     *     removed: int,
+     *     total: int,
+     *     errors: list<string>
+     * }
+     */
+    public function rebuildWindow(): array
+    {
+        $ids = DB::table('event')
+            ->whereNotNull('slug')
+            ->where('slug', '!=', '')
+            ->where('date', '>=', $this->windowStartDate())
+            ->orderBy('date')
+            ->orderBy('id')
+            ->pluck('id');
+
+        $idList = $ids->map(fn ($id) => (int) $id)->all();
+        $eventCount = count($idList);
+        $estimatedTime = max(60, min(600, $eventCount * 10));
+        set_time_limit($estimatedTime);
+        ini_set('max_execution_time', (string) $estimatedTime);
+
+        $removedQuery = DB::table('event_calendar');
+        if ($idList === []) {
+            $removed = $removedQuery->delete();
+        } else {
+            $removed = $removedQuery->whereNotIn('event', $idList)->delete();
+        }
+
+        $rebuilt = 0;
+        $kept = 0;
+        $skipped = 0;
+        $failed = 0;
+        $errors = [];
+
+        foreach ($idList as $eventId) {
+            try {
+                $result = $this->rebuild($eventId);
+                if ($result === self::RESULT_BUILT) {
+                    $rebuilt++;
+                } elseif ($result === self::RESULT_KEPT) {
+                    $kept++;
+                } else {
+                    $skipped++;
+                }
+            } catch (\Throwable $e) {
+                $failed++;
+                $errors[] = 'Event '.$eventId.': '.$e->getMessage();
+                Log::error('ICS window rebuild failed', [
+                    'event_id' => $eventId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return [
+            'success' => true,
+            'rebuilt' => $rebuilt,
+            'kept' => $kept,
+            'skipped' => $skipped,
+            'failed' => $failed,
+            'removed' => (int) $removed,
+            'total' => $eventCount,
+            'errors' => $errors,
+        ];
+    }
+
+    /**
      * Admin dropdown: all + each program postfix + de/at/ch. Read catalog only.
      *
      * @return list<array{key: string, postfix: ?string, label: string, url: string}>
@@ -295,13 +370,11 @@ class CalendarFeedService
      */
     private function windowRows(?callable $constrain = null)
     {
-        $start = Carbon::today()->subDays(self::WINDOW_DAYS)->toDateString();
-
         $query = DB::table('event_calendar')
             ->join('event', 'event.id', '=', 'event_calendar.event')
             ->whereNotNull('event.slug')
             ->where('event.slug', '!=', '')
-            ->where('event_calendar.date', '>=', $start);
+            ->where('event_calendar.date', '>=', $this->windowStartDate());
 
         if ($constrain !== null) {
             $constrain($query);
@@ -403,6 +476,11 @@ class CalendarFeedService
             'contact' => [],
             'information' => null,
         ];
+    }
+
+    private function windowStartDate(): string
+    {
+        return Carbon::today()->subDays(self::WINDOW_DAYS)->toDateString();
     }
 
     /**

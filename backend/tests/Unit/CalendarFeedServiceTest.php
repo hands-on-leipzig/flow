@@ -211,6 +211,30 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertStringContainsString('Zeitplan: https', $vevent);
     }
 
+    public function test_rebuild_window_builds_in_window_and_drops_outside(): void
+    {
+        Carbon::setTestNow('2026-08-24');
+        $this->mockDraht(ok: true, data: CalendarFeedService::emptyDrahtData());
+
+        $this->insertEvent(['id' => 1, 'slug' => 'aachen', 'date' => '2026-08-24']);
+        $this->insertEvent(['id' => 2, 'slug' => 'old', 'date' => '2026-05-01', 'link' => 'https://flow.hands-on-technology.org/old']);
+        $this->insertCalendar(2, '2026-05-01', "BEGIN:VEVENT\r\nSUMMARY:OLD\r\nEND:VEVENT");
+        $this->insertEvent(['id' => 3, 'slug' => null, 'date' => '2026-08-20', 'link' => null]);
+
+        $result = app(CalendarFeedService::class)->rebuildWindow();
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(1, $result['rebuilt']);
+        $this->assertSame(1, $result['total']);
+        $this->assertSame(1, $result['removed']);
+        $this->assertSame(0, $result['failed']);
+        $this->assertNotNull(EventCalendar::query()->where('event', 1)->first());
+        $this->assertNull(EventCalendar::query()->where('event', 2)->first());
+        $this->assertNull(EventCalendar::query()->where('event', 3)->first());
+
+        Carbon::setTestNow();
+    }
+
     public function test_feed_all_skips_draht_and_applies_window_and_slug(): void
     {
         Carbon::setTestNow('2026-08-24');

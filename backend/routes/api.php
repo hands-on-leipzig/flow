@@ -338,6 +338,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::prefix('admin/calendar')->group(function () {
         Route::get('/feeds', [CalendarFeedController::class, 'feeds']);
+        Route::post('/rebuild', [CalendarFeedController::class, 'rebuildWindow']);
         Route::get('/feeds/{key}', [CalendarFeedController::class, 'preview'])
             ->where('key', '[A-Za-z0-9_]+');
     });

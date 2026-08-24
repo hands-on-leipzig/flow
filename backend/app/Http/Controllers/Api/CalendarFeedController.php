@@ -46,6 +46,11 @@ class CalendarFeedController extends Controller
         return response()->json($preview);
     }
 
+    public function rebuildWindow(): JsonResponse
+    {
+        return response()->json($this->calendar->rebuildWindow());
+    }
+
     private function publicBaseUrl(Request $request): string
     {
         return rtrim($request->getSchemeAndHttpHost(), '/');
