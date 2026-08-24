@@ -292,6 +292,7 @@ class CalendarFeedService
                 'status' => $parsed['status'],
                 'sequence' => $row->sequence !== null ? (int) $row->sequence : $parsed['sequence'],
                 'built_at' => $builtAt,
+                'vevent' => trim((string) $row->vevent),
             ];
         }
 

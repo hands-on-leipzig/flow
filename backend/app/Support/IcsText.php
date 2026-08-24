@@ -226,7 +226,7 @@ final class IcsText
             'sequence' => null,
         ];
 
-        $unfolded = preg_replace("/\r\n[ \t]/", '', str_replace(["\r\n", "\r"], "\n", $vevent)) ?? $vevent;
+        $unfolded = self::unfold($vevent);
         $hasLocation = false;
 
         foreach (explode("\n", $unfolded) as $line) {
@@ -276,6 +276,13 @@ final class IcsText
         }
 
         return $parsed;
+    }
+
+    private static function unfold(string $ics): string
+    {
+        $normalized = str_replace(["\r\n", "\r"], "\n", $ics);
+
+        return preg_replace("/\n[ \t]/", '', $normalized) ?? $normalized;
     }
 
     public static function unescapeText(string $text): string

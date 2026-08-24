@@ -73,44 +73,50 @@ const openIcs = () => {
   if (url) window.open(url, '_blank', 'noopener')
 }
 
+const ICS_PRODID = '-//HANDS on TECHNOLOGY//FLOW//DE'
+
+const toCrlf = (text) => String(text).replace(/\r\n/g, '\n').replace(/\n/g, '\r\n')
+
+const wrapOneEventIcs = (calName, vevent) => {
+  const block = toCrlf(String(vevent).trim())
+  const name = String(calName || 'HANDS on TECHNOLOGY Veranstaltungen')
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    `PRODID:${ICS_PRODID}`,
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    `X-WR-CALNAME:${name}`,
+    block,
+    'END:VCALENDAR',
+  ].join('\r\n') + '\r\n'
+}
+
+const openEventIcs = (event) => {
+  const vevent = event?.vevent
+  if (!vevent) {
+    showGlassToast('Kein ICS-Eintrag vorhanden', 'info')
+    return
+  }
+  const ics = wrapOneEventIcs(preview.value?.label, vevent)
+  const blob = new Blob([ics], {type: 'text/calendar;charset=utf-8'})
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `event-${event.event_id || 'event'}.ics`
+  link.rel = 'noopener'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 const isCancelled = (event) => String(event?.status || '').toUpperCase() === 'CANCELLED'
 
-const formatIsoDate = (iso) => {
-  if (!iso) return ''
-  const parsed = dayjs(iso)
-  return parsed.isValid() ? parsed.format('DD.MM.YYYY') : iso
-}
-
-const inclusiveEnd = (start, end) => {
-  if (!start) return ''
-  if (!end) return start
-  const last = dayjs(end).subtract(1, 'day')
-  if (!last.isValid() || last.isBefore(dayjs(start), 'day')) return start
-  return last.format('YYYY-MM-DD')
-}
-
-const dateRangeLabel = (event) => {
-  const start = event?.dtstart
-  if (!start) return '—'
-  const last = inclusiveEnd(start, event?.dtend)
-  if (!last || last === start) return formatIsoDate(start)
-  return `${formatIsoDate(start)} – ${formatIsoDate(last)}`
-}
-
-const weekdayShort = (iso) => {
-  const parsed = dayjs(iso)
-  return parsed.isValid() ? parsed.format('dd') : ''
-}
-
-const dayNumber = (iso) => {
-  const parsed = dayjs(iso)
-  return parsed.isValid() ? parsed.format('D') : ''
-}
-
-const monthShort = (iso) => {
-  const parsed = dayjs(iso)
-  return parsed.isValid() ? parsed.format('MMM') : ''
-}
+const hasLocationProperty = (event) => event?.location !== null && event?.location !== undefined
 
 const formatBuiltAt = (iso) => {
   if (!iso) return ''
@@ -208,63 +214,64 @@ onMounted(() => {
       <article
           v-for="event in preview.events"
           :key="event.uid || event.event_id"
-          class="glass-card liquid-surface-inner flex gap-4"
+          class="glass-card liquid-surface-inner"
           :class="isCancelled(event) ? 'border-l-4 border-l-red-500' : ''"
       >
-        <div class="shrink-0 w-16 text-center rounded-lg border border-[var(--color-border)] py-2 px-1 bg-[var(--color-bg-muted)]">
-          <div class="text-xs uppercase tracking-wide text-[var(--color-text-subtle)]">
-            {{ weekdayShort(event.dtstart) }}
-          </div>
-          <div class="text-2xl font-semibold leading-none my-1">
-            {{ dayNumber(event.dtstart) }}
-          </div>
-          <div class="text-xs text-[var(--color-text-muted)]">
-            {{ monthShort(event.dtstart) }}
-          </div>
+        <div class="flex flex-wrap items-start justify-between gap-2 mb-3">
+          <p v-if="isCancelled(event)" class="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-red-100 text-red-800">
+            STATUS: CANCELLED
+          </p>
+          <button
+              type="button"
+              class="shrink-0 ml-auto px-3 py-1.5 rounded border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="!event.vevent"
+              title="Einen .ics für diesen Eintrag herunterladen und in der Kalender-App öffnen"
+              @click="openEventIcs(event)"
+          >
+            <i class="bi bi-calendar-plus mr-1" aria-hidden="true"/>
+            In Kalender öffnen
+          </button>
         </div>
 
-        <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-2 mb-1">
-            <span
-                v-if="isCancelled(event)"
-                class="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded bg-red-100 text-red-800"
-            >
-              Abgesagt
-            </span>
-            <h3 class="text-base font-semibold text-[var(--color-text)]">
-              {{ event.summary || 'Ohne Titel' }}
-            </h3>
+        <dl class="grid gap-3 text-sm">
+          <div>
+            <dt class="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">SUMMARY</dt>
+            <dd class="whitespace-pre-wrap break-words">{{ event.summary || '' }}</dd>
           </div>
-          <p class="text-sm text-[var(--color-text-muted)] mb-1">
-            {{ dateRangeLabel(event) }}
-          </p>
-          <p
-              v-if="event.location !== null && event.location !== undefined"
-              class="text-sm text-[var(--color-text-muted)]"
-          >
-            <i class="bi bi-geo-alt mr-1" aria-hidden="true"/>
-            {{ event.location || '—' }}
-          </p>
-          <p
-              v-if="event.description"
-              class="text-sm text-[var(--color-text)] whitespace-pre-wrap mt-2 max-h-40 overflow-y-auto"
-          >
-            {{ event.description }}
-          </p>
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-[var(--color-text-subtle)]">
-            <a
-                v-if="event.url"
-                :href="event.url"
-                target="_blank"
-                rel="noopener"
-                class="text-blue-600 hover:underline"
-            >
-              Öffentliche Seite
-            </a>
-            <span v-if="event.sequence != null">Sequenz {{ event.sequence }}</span>
-            <span v-if="event.built_at">Stand {{ formatBuiltAt(event.built_at) }}</span>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <dt class="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">DTSTART</dt>
+              <dd class="break-all">{{ event.dtstart || '' }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">DTEND</dt>
+              <dd class="break-all">{{ event.dtend || '' }}</dd>
+            </div>
           </div>
-        </div>
+          <div v-if="hasLocationProperty(event)">
+            <dt class="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">LOCATION</dt>
+            <dd class="whitespace-pre-wrap break-words">{{ event.location }}</dd>
+          </div>
+          <div v-if="event.url">
+            <dt class="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">URL</dt>
+            <dd class="break-all">{{ event.url }}</dd>
+          </div>
+          <div v-if="event.description">
+            <dt class="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">DESCRIPTION</dt>
+            <dd class="whitespace-pre-wrap break-words">{{ event.description }}</dd>
+          </div>
+          <div v-if="event.uid">
+            <dt class="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">UID</dt>
+            <dd class="break-all">{{ event.uid }}</dd>
+          </div>
+          <div v-if="event.sequence != null">
+            <dt class="text-xs font-medium uppercase tracking-wide text-[var(--color-text-subtle)]">SEQUENCE</dt>
+            <dd>{{ event.sequence }}</dd>
+          </div>
+        </dl>
+        <p v-if="event.built_at" class="mt-3 text-xs text-[var(--color-text-subtle)]">
+          event_calendar.built_at {{ formatBuiltAt(event.built_at) }}
+        </p>
       </article>
     </div>
   </div>

@@ -185,6 +185,37 @@ class IcsTextTest extends TestCase
         $this->assertSame(3, $parsed['sequence']);
     }
 
+    public function test_parse_vevent_unfolds_folded_summary_and_description(): void
+    {
+        $start = new DateTimeImmutable('2026-03-15', new DateTimeZone('UTC'));
+        $stamp = new DateTimeImmutable('2026-03-01 12:00:00', new DateTimeZone('UTC'));
+        $title = '[LOCAL] FIRST LEGO League Regionalwettbewerb Darmstadt im Bürgerhaus Nord';
+        $description = "Programme: Explore, Challenge\nKontakt: Ada Lovelace, ada@example.org, Regionalpartner West\n\nZeitplan: https://flow.hands-on-technology.org/aachen";
+        $vevent = IcsText::vevent([
+            'eventId' => 7,
+            'host' => 'flow.hands-on-technology.org',
+            'title' => $title,
+            'start' => $start,
+            'days' => 1,
+            'stamp' => $stamp,
+            'sequence' => 3,
+            'description' => $description,
+            'location' => "Bürgerhaus Nord\nDarmstadt",
+            'url' => 'https://flow.hands-on-technology.org/aachen',
+            'cancelled' => false,
+            'environmentLabel' => null,
+        ]);
+
+        $this->assertStringContainsString("\r\n ", $vevent);
+
+        $parsed = IcsText::parseVevent($vevent);
+
+        $this->assertSame($title, $parsed['summary']);
+        $this->assertSame($description, $parsed['description']);
+        $this->assertSame("Bürgerhaus Nord\nDarmstadt", $parsed['location']);
+        $this->assertSame('https://flow.hands-on-technology.org/aachen', $parsed['url']);
+    }
+
     public function test_parse_cancelled_omits_location(): void
     {
         $start = new DateTimeImmutable('2026-03-15', new DateTimeZone('UTC'));

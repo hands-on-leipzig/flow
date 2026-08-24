@@ -363,6 +363,7 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertSame("Kontakt\nAda", $preview['events'][0]['description']);
         $this->assertSame(4, $preview['events'][0]['sequence']);
         $this->assertNotNull($preview['events'][0]['built_at']);
+        $this->assertStringContainsString('BEGIN:VEVENT', $preview['events'][0]['vevent']);
 
         $de = app(CalendarFeedService::class)->previewFeed('de', 'https://flow.hands-on-technology.org');
         $this->assertSame([], $de['events']);
