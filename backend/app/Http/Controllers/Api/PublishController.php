@@ -178,6 +178,8 @@ class PublishController extends Controller
             Log::info("Skipping DRAHT link update for event {$event->id} (environment: " . app()->environment() . ")");
         }
 
+        app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $event->id);
+
         // In Response Prefix hinzufügen
         return response()->json([
             'link' => $link,
@@ -404,6 +406,7 @@ class PublishController extends Controller
                 'level' => $level,
                 'last_change' => Carbon::now(),
             ]);
+            app(\App\Services\CalendarFeedService::class)->rebuildSafely($eventId);
         }
 
         return response()->json([

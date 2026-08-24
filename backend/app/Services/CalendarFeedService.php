@@ -28,6 +28,21 @@ class CalendarFeedService
     ) {}
 
     /**
+     * Rebuild for a write-path hook. Never throws — ICS must not fail slug, plan, or DRAHT sync.
+     */
+    public function rebuildSafely(int $eventId): void
+    {
+        try {
+            $this->rebuild($eventId);
+        } catch (\Throwable $e) {
+            Log::error('ICS rebuild failed', [
+                'event_id' => $eventId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
      * Rebuild one event_calendar row. Does not register routes.
      * Open point 7: cancelled is always false until FLOW has a cancel flag.
      */

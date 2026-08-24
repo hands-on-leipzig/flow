@@ -60,6 +60,7 @@ class PlanGeneratorController extends Controller
                     $eventId = DB::table('plan')->where('id', $planId)->value('event');
                     if ($eventId) {
                         app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+                        app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
                     }
                 } catch (\Throwable $attentionError) {
                     Log::warning('Attention update after generation failed', [
@@ -129,6 +130,7 @@ class PlanGeneratorController extends Controller
             $eventId = DB::table('plan')->where('id', $planId)->value('event');
             if ($eventId) {
                 app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+                app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
             }
 
             return response()->json([

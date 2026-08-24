@@ -129,6 +129,11 @@ class EventController extends BaseController
                 ProgramCatalog::sync($event, $programs);
             }
 
+            $icsFields = ['name', 'slug', 'date', 'days', 'link', 'level', 'regional_partner'];
+            if (is_array($programs) || array_intersect(array_keys($validated), $icsFields) !== []) {
+                app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $event->id);
+            }
+
             // Reload with relationships
             $event->load(['regionalPartner', 'levelRel', 'seasonRel', 'programs']);
             

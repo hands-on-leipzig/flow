@@ -44,6 +44,12 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertSame('LOCAL', CalendarFeedService::environmentLabel());
     }
 
+    public function test_rebuild_safely_does_not_throw_when_event_is_missing(): void
+    {
+        app(CalendarFeedService::class)->rebuildSafely(999999);
+        $this->assertSame(0, EventCalendar::query()->count());
+    }
+
     public function test_skips_event_without_slug_and_does_not_call_draht(): void
     {
         $this->insertEvent(['slug' => null, 'link' => null]);

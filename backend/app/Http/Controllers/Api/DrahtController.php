@@ -220,7 +220,8 @@ class DrahtController extends Controller
                 ], 500);
             }
 
-            DB::transaction(function () use ($seasonId, $eventsData) {
+            $icsEventIds = [];
+            DB::transaction(function () use ($seasonId, $eventsData, &$icsEventIds) {
                 // Track which events we've processed to identify events that should be deleted
                 $processedEventIds = [];
                 $processedDrahtIds = [];
@@ -293,6 +294,7 @@ class DrahtController extends Controller
 
                         $processedEventIds[] = $event->id;
                         $processedDrahtIds[] = $eventData['id'];
+                        $icsEventIds[] = $event->id;
                         if (isset($eventData['teams']) && is_array($eventData['teams'])) {
                             $existingTeams = Team::where('event', $event->id)
                                 ->get()
@@ -365,6 +367,10 @@ class DrahtController extends Controller
                     }
                 }
             });
+
+            foreach (array_unique($icsEventIds) as $eventId) {
+                app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+            }
 
             return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
