@@ -273,6 +273,57 @@ class CalendarFeedServiceTest extends TestCase
         Carbon::setTestNow();
     }
 
+    public function test_list_feeds_and_preview_from_stored_vevent(): void
+    {
+        Carbon::setTestNow('2026-08-24');
+        $this->mock(DrahtController::class, function ($mock) {
+            $mock->shouldReceive('fetchScheduleData')->never();
+        });
+
+        DB::table('m_first_program')->insert([
+            ['id' => 2, 'name' => 'EXPLORE', 'display_name' => 'Explore', 'letter' => 'E', 'ics_postfix' => 'explore', 'sequence' => 1],
+            ['id' => 3, 'name' => 'CHALLENGE', 'display_name' => 'Challenge', 'letter' => 'C', 'ics_postfix' => 'challenge', 'sequence' => 2],
+        ]);
+
+        $this->insertEvent(['id' => 1, 'slug' => 'aachen', 'date' => '2026-08-24']);
+        $this->insertCalendar(
+            1,
+            '2026-08-24',
+            "BEGIN:VEVENT\r\nUID:event-1@flow.hands-on-technology.org\r\nSEQUENCE:4\r\nDTSTART;VALUE=DATE:20260824\r\nDTEND;VALUE=DATE:20260825\r\nSUMMARY:Aachen\r\nDESCRIPTION:Kontakt\\nAda\r\nLOCATION:Halle\r\nURL:https://example.org/aachen\r\nEND:VEVENT",
+            4
+        );
+
+        $feeds = app(CalendarFeedService::class)->listFeeds('https://flow.hands-on-technology.org');
+        $keys = array_column($feeds, 'key');
+        $this->assertSame('all', $keys[0]);
+        $this->assertContains('explore', $keys);
+        $this->assertContains('challenge', $keys);
+        $this->assertContains('de', $keys);
+        $this->assertSame(
+            'https://flow.hands-on-technology.org/api/calendar.ics',
+            $feeds[0]['url']
+        );
+
+        $preview = app(CalendarFeedService::class)->previewFeed('all', 'https://flow.hands-on-technology.org');
+        $this->assertNotNull($preview);
+        $this->assertSame('all', $preview['key']);
+        $this->assertCount(1, $preview['events']);
+        $this->assertSame(1, $preview['events'][0]['event_id']);
+        $this->assertSame('Aachen', $preview['events'][0]['summary']);
+        $this->assertSame('2026-08-24', $preview['events'][0]['dtstart']);
+        $this->assertSame('2026-08-25', $preview['events'][0]['dtend']);
+        $this->assertSame('Halle', $preview['events'][0]['location']);
+        $this->assertSame("Kontakt\nAda", $preview['events'][0]['description']);
+        $this->assertSame(4, $preview['events'][0]['sequence']);
+        $this->assertNotNull($preview['events'][0]['built_at']);
+
+        $de = app(CalendarFeedService::class)->previewFeed('de', 'https://flow.hands-on-technology.org');
+        $this->assertSame([], $de['events']);
+        $this->assertNull(app(CalendarFeedService::class)->previewFeed('unknown', 'https://example.org'));
+
+        Carbon::setTestNow();
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      */
@@ -291,13 +342,13 @@ class CalendarFeedServiceTest extends TestCase
         ], $overrides));
     }
 
-    private function insertCalendar(int $eventId, string $date, string $vevent): void
+    private function insertCalendar(int $eventId, string $date, string $vevent, int $sequence = 0): void
     {
         DB::table('event_calendar')->insert([
             'event' => $eventId,
             'date' => $date,
             'uid' => 'event-'.$eventId.'@flow.hands-on-technology.org',
-            'sequence' => 0,
+            'sequence' => $sequence,
             'vevent' => $vevent,
             'built_at' => '2026-08-01 12:00:00',
         ]);

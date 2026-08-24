@@ -152,4 +152,61 @@ class IcsTextTest extends TestCase
         $this->assertStringContainsString("\r\n", $ics);
         $this->assertStringNotContainsString("\n\n", str_replace("\r\n", '', $ics));
     }
+
+    public function test_parse_vevent_unescapes_and_unfolds(): void
+    {
+        $start = new DateTimeImmutable('2026-03-15', new DateTimeZone('UTC'));
+        $stamp = new DateTimeImmutable('2026-03-01 12:00:00', new DateTimeZone('UTC'));
+        $vevent = IcsText::vevent([
+            'eventId' => 7,
+            'host' => 'flow.hands-on-technology.org',
+            'title' => 'FIRST LEGO League Ausstellung Aachen',
+            'start' => $start,
+            'days' => 1,
+            'stamp' => $stamp,
+            'sequence' => 3,
+            'description' => "Kontakt: Ada\nTeams: Alpha",
+            'location' => null,
+            'url' => 'https://flow.hands-on-technology.org/aachen',
+            'cancelled' => false,
+            'environmentLabel' => null,
+        ]);
+
+        $parsed = IcsText::parseVevent($vevent);
+
+        $this->assertSame('event-7@flow.hands-on-technology.org', $parsed['uid']);
+        $this->assertSame('FIRST LEGO League Ausstellung Aachen', $parsed['summary']);
+        $this->assertSame('2026-03-15', $parsed['dtstart']);
+        $this->assertSame('2026-03-16', $parsed['dtend']);
+        $this->assertSame('', $parsed['location']);
+        $this->assertSame("Kontakt: Ada\nTeams: Alpha", $parsed['description']);
+        $this->assertSame('https://flow.hands-on-technology.org/aachen', $parsed['url']);
+        $this->assertNull($parsed['status']);
+        $this->assertSame(3, $parsed['sequence']);
+    }
+
+    public function test_parse_cancelled_omits_location(): void
+    {
+        $start = new DateTimeImmutable('2026-03-15', new DateTimeZone('UTC'));
+        $stamp = new DateTimeImmutable('2026-03-01 12:00:00', new DateTimeZone('UTC'));
+        $parsed = IcsText::parseVevent(IcsText::vevent([
+            'eventId' => 9,
+            'host' => 'test.flow.hands-on-technology.org',
+            'title' => 'FIRST LEGO League Regio Aachen',
+            'start' => $start,
+            'days' => 1,
+            'stamp' => $stamp,
+            'sequence' => 1,
+            'description' => 'Ada',
+            'location' => 'No',
+            'url' => 'https://example.org/no',
+            'cancelled' => true,
+            'environmentLabel' => 'TEST',
+        ]));
+
+        $this->assertSame('CANCELLED', $parsed['status']);
+        $this->assertNull($parsed['location']);
+        $this->assertNull($parsed['url']);
+        $this->assertStringContainsString('ABGESAGT', $parsed['summary']);
+    }
 }

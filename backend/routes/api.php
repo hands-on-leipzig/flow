@@ -336,6 +336,12 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
 
+    Route::prefix('admin/calendar')->group(function () {
+        Route::get('/feeds', [CalendarFeedController::class, 'feeds']);
+        Route::get('/feeds/{key}', [CalendarFeedController::class, 'preview'])
+            ->where('key', '[A-Za-z0-9_]+');
+    });
+
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
         Route::post('/regenerate/{eventId}', [PublishController::class, 'regenerateLinkAndQRcode']); // Link und QR-Code neu generieren (Admin)

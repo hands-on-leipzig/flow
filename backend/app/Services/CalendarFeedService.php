@@ -134,6 +134,133 @@ class CalendarFeedService
     }
 
     /**
+     * Admin dropdown: all + each program postfix + de/at/ch. Read catalog only.
+     *
+     * @return list<array{key: string, postfix: ?string, label: string, url: string}>
+     */
+    public function listFeeds(string $publicBaseUrl): array
+    {
+        $base = rtrim($publicBaseUrl, '/');
+        $env = self::environmentLabel();
+        $feeds = [[
+            'key' => 'all',
+            'postfix' => null,
+            'label' => IcsText::withEnvironmentPrefix($env, IcsText::CALNAME_ALL),
+            'url' => $base.'/api/calendar.ics',
+        ]];
+
+        $programs = DB::table('m_first_program')
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get(['ics_postfix', 'display_name', 'name']);
+
+        foreach ($programs as $program) {
+            $postfix = strtolower(trim((string) ($program->ics_postfix ?? '')));
+            if ($postfix === '' || isset(self::COUNTRY_POSTFIXES[$postfix])) {
+                continue;
+            }
+            $display = trim((string) ($program->display_name ?: $program->name));
+            $calName = IcsText::CALNAME_ALL.' — '.$display;
+            $feeds[] = [
+                'key' => $postfix,
+                'postfix' => $postfix,
+                'label' => IcsText::withEnvironmentPrefix($env, $calName),
+                'url' => $base.'/api/calendar/'.$postfix.'.ics',
+            ];
+        }
+
+        foreach (self::COUNTRY_POSTFIXES as $postfix => $code) {
+            $calName = IcsText::CALNAME_ALL.' — '.$code;
+            $feeds[] = [
+                'key' => $postfix,
+                'postfix' => $postfix,
+                'label' => IcsText::withEnvironmentPrefix($env, $calName),
+                'url' => $base.'/api/calendar/'.$postfix.'.ics',
+            ];
+        }
+
+        return $feeds;
+    }
+
+    /**
+     * Admin preview JSON from stored vevent rows. Does not call DRAHT or rebuild.
+     *
+     * @return array{key: string, postfix: ?string, label: string, url: string, events: list<array<string, mixed>>}|null
+     */
+    public function previewFeed(string $key, string $publicBaseUrl): ?array
+    {
+        $key = strtolower(trim($key));
+        $feeds = $this->listFeeds($publicBaseUrl);
+        $meta = null;
+        foreach ($feeds as $feed) {
+            if ($feed['key'] === $key) {
+                $meta = $feed;
+                break;
+            }
+        }
+        if ($meta === null) {
+            return null;
+        }
+
+        $constrain = null;
+        if ($key !== 'all') {
+            $resolved = $this->constrainForPostfix($key);
+            if ($resolved === null) {
+                return null;
+            }
+            $constrain = $resolved;
+        }
+
+        $events = [];
+        foreach ($this->windowRows($constrain) as $row) {
+            $parsed = IcsText::parseVevent((string) $row->vevent);
+            $builtAt = $row->built_at ? Carbon::parse($row->built_at)->utc()->toIso8601String() : null;
+            $events[] = [
+                'event_id' => (int) $row->event,
+                'uid' => $parsed['uid'] ?? $row->uid,
+                'summary' => $parsed['summary'],
+                'dtstart' => $parsed['dtstart'] ?? (string) $row->date,
+                'dtend' => $parsed['dtend'],
+                'location' => $parsed['location'],
+                'description' => $parsed['description'],
+                'url' => $parsed['url'],
+                'status' => $parsed['status'],
+                'sequence' => $row->sequence !== null ? (int) $row->sequence : $parsed['sequence'],
+                'built_at' => $builtAt,
+            ];
+        }
+
+        return [
+            'key' => $meta['key'],
+            'postfix' => $meta['postfix'],
+            'label' => $meta['label'],
+            'url' => $meta['url'],
+            'events' => $events,
+        ];
+    }
+
+    /**
+     * @return callable(\Illuminate\Database\Query\Builder): mixed|null
+     */
+    private function constrainForPostfix(string $postfix): ?callable
+    {
+        $program = DB::table('m_first_program')->where('ics_postfix', $postfix)->first();
+        if ($program) {
+            return function ($query) use ($program) {
+                $query->join('event_program', 'event_program.event', '=', 'event.id')
+                    ->where('event_program.first_program', $program->id);
+            };
+        }
+        if (isset(self::COUNTRY_POSTFIXES[$postfix])) {
+            return function ($query) {
+                $query->whereRaw('0 = 1');
+            };
+        }
+
+        return null;
+    }
+
+    /**
      * Public all-events ICS from stored rows. Does not call DRAHT or rebuild.
      *
      * @return array{body: string, lastModified: Carbon|null}
@@ -156,33 +283,27 @@ class CalendarFeedService
             return null;
         }
 
+        $constrain = $this->constrainForPostfix($postfix);
+        if ($constrain === null) {
+            return null;
+        }
+
         $program = DB::table('m_first_program')->where('ics_postfix', $postfix)->first();
         if ($program) {
             $display = trim((string) ($program->display_name ?: $program->name));
             $calName = IcsText::CALNAME_ALL.' — '.$display;
-
-            return $this->feedFromQuery($calName, function ($query) use ($program) {
-                $query->join('event_program', 'event_program.event', '=', 'event.id')
-                    ->where('event_program.first_program', $program->id);
-            });
-        }
-
-        if (isset(self::COUNTRY_POSTFIXES[$postfix])) {
+        } else {
             $calName = IcsText::CALNAME_ALL.' — '.self::COUNTRY_POSTFIXES[$postfix];
-
-            return $this->feedFromQuery($calName, function ($query) {
-                $query->whereRaw('0 = 1');
-            });
         }
 
-        return null;
+        return $this->feedFromQuery($calName, $constrain);
     }
 
     /**
      * @param  callable(\Illuminate\Database\Query\Builder): mixed|null  $constrain
-     * @return array{body: string, lastModified: Carbon|null}
+     * @return \Illuminate\Support\Collection<int, object>
      */
-    private function feedFromQuery(string $calName, ?callable $constrain = null): array
+    private function windowRows(?callable $constrain = null)
     {
         $start = Carbon::today()->subDays(self::WINDOW_DAYS)->toDateString();
 
@@ -204,17 +325,33 @@ class CalendarFeedService
                 'event_calendar.built_at',
                 'event_calendar.event',
                 'event_calendar.date',
+                'event_calendar.uid',
+                'event_calendar.sequence',
             ]);
 
-        $vevents = [];
-        $lastModified = null;
         $seen = [];
+        $unique = collect();
         foreach ($rows as $row) {
             $eventId = (int) $row->event;
             if (isset($seen[$eventId])) {
                 continue;
             }
             $seen[$eventId] = true;
+            $unique->push($row);
+        }
+
+        return $unique;
+    }
+
+    /**
+     * @param  callable(\Illuminate\Database\Query\Builder): mixed|null  $constrain
+     * @return array{body: string, lastModified: Carbon|null}
+     */
+    private function feedFromQuery(string $calName, ?callable $constrain = null): array
+    {
+        $vevents = [];
+        $lastModified = null;
+        foreach ($this->windowRows($constrain) as $row) {
             $vevent = trim((string) $row->vevent);
             if ($vevent !== '') {
                 $vevents[] = $vevent;

@@ -198,4 +198,116 @@ final class IcsText
 
         return $ics;
     }
+
+    /**
+     * @return array{
+     *     uid: ?string,
+     *     summary: string,
+     *     dtstart: ?string,
+     *     dtend: ?string,
+     *     location: ?string,
+     *     description: string,
+     *     url: ?string,
+     *     status: ?string,
+     *     sequence: ?int
+     * }
+     */
+    public static function parseVevent(string $vevent): array
+    {
+        $parsed = [
+            'uid' => null,
+            'summary' => '',
+            'dtstart' => null,
+            'dtend' => null,
+            'location' => null,
+            'description' => '',
+            'url' => null,
+            'status' => null,
+            'sequence' => null,
+        ];
+
+        $unfolded = preg_replace("/\r\n[ \t]/", '', str_replace(["\r\n", "\r"], "\n", $vevent)) ?? $vevent;
+        $hasLocation = false;
+
+        foreach (explode("\n", $unfolded) as $line) {
+            $line = trim($line);
+            if ($line === '' || ! str_contains($line, ':')) {
+                continue;
+            }
+            $colon = strpos($line, ':');
+            $namePart = substr($line, 0, $colon);
+            $value = substr($line, $colon + 1);
+            $name = strtoupper(explode(';', $namePart, 2)[0]);
+
+            switch ($name) {
+                case 'UID':
+                    $parsed['uid'] = $value;
+                    break;
+                case 'SUMMARY':
+                    $parsed['summary'] = self::unescapeText($value);
+                    break;
+                case 'DESCRIPTION':
+                    $parsed['description'] = self::unescapeText($value);
+                    break;
+                case 'LOCATION':
+                    $hasLocation = true;
+                    $parsed['location'] = self::unescapeText($value);
+                    break;
+                case 'URL':
+                    $parsed['url'] = self::unescapeText($value);
+                    break;
+                case 'STATUS':
+                    $parsed['status'] = strtoupper($value);
+                    break;
+                case 'SEQUENCE':
+                    $parsed['sequence'] = (int) $value;
+                    break;
+                case 'DTSTART':
+                    $parsed['dtstart'] = self::parseIcsDate($value);
+                    break;
+                case 'DTEND':
+                    $parsed['dtend'] = self::parseIcsDate($value);
+                    break;
+            }
+        }
+
+        if (! $hasLocation) {
+            $parsed['location'] = null;
+        }
+
+        return $parsed;
+    }
+
+    public static function unescapeText(string $text): string
+    {
+        $out = '';
+        $len = strlen($text);
+        for ($i = 0; $i < $len; $i++) {
+            if ($text[$i] === '\\' && $i + 1 < $len) {
+                $next = $text[$i + 1];
+                $out .= match ($next) {
+                    'n', 'N' => "\n",
+                    ',', ';' => $next,
+                    '\\' => '\\',
+                    default => $next,
+                };
+                $i++;
+
+                continue;
+            }
+            $out .= $text[$i];
+        }
+
+        return $out;
+    }
+
+    private static function parseIcsDate(string $value): ?string
+    {
+        $value = trim($value);
+        if (preg_match('/^(\d{4})(\d{2})(\d{2})/', $value, $m)) {
+            return $m[1].'-'.$m[2].'-'.$m[3];
+        }
+
+        return $value !== '' ? $value : null;
+    }
 }

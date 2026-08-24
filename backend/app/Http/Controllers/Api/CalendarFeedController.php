@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\CalendarFeedService;
 use Carbon\Carbon;
 use DateTimeInterface;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
@@ -28,6 +29,26 @@ class CalendarFeedController extends Controller
         }
 
         return $this->icsResponse($request, $feed['body'], $feed['lastModified']);
+    }
+
+    public function feeds(Request $request): JsonResponse
+    {
+        return response()->json($this->calendar->listFeeds($this->publicBaseUrl($request)));
+    }
+
+    public function preview(Request $request, string $key): JsonResponse
+    {
+        $preview = $this->calendar->previewFeed($key, $this->publicBaseUrl($request));
+        if ($preview === null) {
+            return response()->json(['error' => 'Unknown calendar feed'], 404);
+        }
+
+        return response()->json($preview);
+    }
+
+    private function publicBaseUrl(Request $request): string
+    {
+        return rtrim($request->getSchemeAndHttpHost(), '/');
     }
 
     protected function icsResponse(Request $request, string $body, ?DateTimeInterface $lastModified): Response
