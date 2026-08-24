@@ -75,4 +75,9 @@ class Event extends Model
         return $this->hasMany(SlideShow::class, 'event');
     }
 
+    public function calendar()
+    {
+        return $this->hasOne(EventCalendar::class, 'event');
+    }
+
 }

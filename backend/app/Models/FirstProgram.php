@@ -13,6 +13,7 @@ class FirstProgram extends Model
         'name',
         'display_name',
         'letter',
+        'ics_postfix',
         'sequence',
         'color_hex',
         'logo_stem',
