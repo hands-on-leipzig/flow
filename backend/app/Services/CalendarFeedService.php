@@ -81,8 +81,7 @@ class CalendarFeedService
         }
 
         $drahtData = is_array($fetched['data'] ?? null) ? $fetched['data'] : self::emptyDrahtData();
-        $level = min(2, $this->publicationLevel($eventId));
-        $payload = PublicSchedulePayload::from($event, $drahtData, $level, null);
+        $payload = PublicSchedulePayload::from($event, $drahtData, 1, null);
         $description = IcsDescription::fromPublicPayload(
             $payload,
             $this->string($event->link),
@@ -499,18 +498,6 @@ class CalendarFeedService
         }
 
         return $names;
-    }
-
-    private function publicationLevel(int $eventId): int
-    {
-        $publication = DB::table('publication')
-            ->where('event', $eventId)
-            ->orderBy('last_change', 'desc')
-            ->orderBy('id', 'desc')
-            ->select('level')
-            ->first();
-
-        return (int) ($publication?->level ?? 1);
     }
 
     private function slug(Event $event): string

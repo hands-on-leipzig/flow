@@ -162,7 +162,7 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertSame(1, (int) EventCalendar::query()->where('event', 1)->value('sequence'));
     }
 
-    public function test_level_above_2_does_not_include_plan_times(): void
+    public function test_publication_level_does_not_change_description(): void
     {
         $this->insertEvent();
         DB::table('publication')->insert([

@@ -3,8 +3,8 @@
 namespace App\Support;
 
 /**
- * Plain-text ICS DESCRIPTION from the public scheduleInformation JSON.
- * ICS never uses more than publication level 2 (contact + teams). Plan times stay off.
+ * Plain-text ICS DESCRIPTION. Always the public basis block; publication
+ * level is ignored. Times and the interactive plan stay behind Zeitplan: URL.
  */
 final class IcsDescription
 {
