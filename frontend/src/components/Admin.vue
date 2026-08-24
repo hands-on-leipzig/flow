@@ -12,6 +12,7 @@ import MainTablesAdmin from '@/components/molecules/MainTablesAdmin.vue'
 import SystemNews from '@/components/molecules/SystemNews.vue'
 import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
+import CalendarFeedsAdmin from '@/components/molecules/CalendarFeedsAdmin.vue'
 import '@vueform/multiselect/themes/default.css'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {ADMIN_DEFAULT_SECTION, ADMIN_SECTIONS, isAdminSection, isAdminSectionAvailable} from '@/constants/adminNav'
@@ -383,6 +384,10 @@ fetchConditions()
         <div v-if="activeTab === 'nowandnext'">
           <h2 class="text-xl font-bold mb-4">Was passiert gerade? Und was als nächstes?</h2>
           <NowAndNext/>
+        </div>
+
+        <div v-if="activeTab === 'calendar'">
+          <CalendarFeedsAdmin/>
         </div>
 
         <div v-if="activeTab === 'statistics'">

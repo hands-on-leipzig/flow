@@ -27,6 +27,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {key: 'main-tables', label: 'Main Tables', icon: 'bi-table', devOnly: true, devSuffix: '(nur Dev)'},
   {key: 'system-news', label: 'System News', icon: 'bi-newspaper'},
   {key: 'nowandnext', label: 'Now and Next', icon: 'bi-clock-history'},
+  {key: 'calendar', label: 'Kalender-Feeds', icon: 'bi-calendar3'},
   {key: 'quality', label: 'Massentest', icon: 'bi-flask', devOrLocalOnly: true, devSuffix: '(Dev oder lokal)'},
   {key: 'conditions', label: 'Parameter-Anzeige', icon: 'bi-sliders'},
   {key: 'user-regional-partners', label: 'User ↔ Regionen (Zugang)', icon: 'bi-people'},
