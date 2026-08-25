@@ -1,10 +1,17 @@
 <script setup>
 import { computed } from 'vue'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import { getProgramTheme } from '@/utils/programTheme'
 
 const FIRST_PROGRAM = {
   CHALLENGE: 3,
   FUTURE_8: 8,
 }
+
+const PROGRAM_OPTIONS = [
+  { id: FIRST_PROGRAM.CHALLENGE, key: 'challenge' },
+  { id: FIRST_PROGRAM.FUTURE_8, key: 'future8' },
+]
 
 const props = defineProps({
   firstProgram: Number,
@@ -35,33 +42,41 @@ const emit = defineEmits([
 
 const isFuture8 = computed(() => props.firstProgram === FIRST_PROGRAM.FUTURE_8)
 const tablesLabel = computed(() => (isFuture8.value ? 'RG-Felder' : 'RG-Tische'))
+
+function themeFor(key) {
+  return getProgramTheme(key)
+}
+
+function selectProgram(id) {
+  emit('update:firstProgram', id)
+}
 </script>
 
 <template>
   <div class="sticky top-0 bg-white border-b p-4 z-10">
     <div class="flex flex-wrap items-end gap-6">
-      <!-- Program -->
+      <!-- Program (Ablauf / ProgramSection identity) -->
       <div>
         <label class="block font-semibold mb-1">Programm</label>
-        <div class="flex gap-4">
-          <label class="flex items-center gap-1">
-            <input
-              type="radio"
-              name="qrun_first_program"
-              :checked="firstProgram === FIRST_PROGRAM.CHALLENGE"
-              @change="emit('update:firstProgram', FIRST_PROGRAM.CHALLENGE)"
+        <div class="flex items-center gap-2">
+          <button
+            v-for="option in PROGRAM_OPTIONS"
+            :key="option.id"
+            type="button"
+            class="qrun-program-choice"
+            :class="{ 'qrun-program-choice--active': firstProgram === option.id }"
+            :style="{ '--program-accent': themeFor(option.key).accent }"
+            :title="themeFor(option.key).shortName"
+            @click="selectProgram(option.id)"
+          >
+            <img
+              v-if="themeFor(option.key).catalogName"
+              :src="programLogoSrc(themeFor(option.key).catalogName)"
+              :alt="programLogoAlt(themeFor(option.key).catalogName)"
+              class="qrun-program-choice__logo"
             />
-            Challenge
-          </label>
-          <label class="flex items-center gap-1">
-            <input
-              type="radio"
-              name="qrun_first_program"
-              :checked="firstProgram === FIRST_PROGRAM.FUTURE_8"
-              @change="emit('update:firstProgram', FIRST_PROGRAM.FUTURE_8)"
-            />
-            Future 8+
-          </label>
+            <span class="qrun-program-choice__label">{{ themeFor(option.key).shortName }}</span>
+          </button>
         </div>
       </div>
 
@@ -241,3 +256,49 @@ const tablesLabel = computed(() => (isFuture8.value ? 'RG-Felder' : 'RG-Tische')
     </div>
   </div>
 </template>
+
+<style scoped>
+.qrun-program-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.65rem 0.35rem 0.4rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.qrun-program-choice:hover {
+  border-color: color-mix(in srgb, var(--program-accent) 40%, var(--color-border));
+}
+
+.qrun-program-choice--active {
+  border-color: color-mix(in srgb, var(--program-accent) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--program-accent) 10%, #fff);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--program-accent) 16%, transparent);
+}
+
+.qrun-program-choice:not(.qrun-program-choice--active) {
+  opacity: 0.72;
+}
+
+.qrun-program-choice__logo {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.qrun-program-choice__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+
+.qrun-program-choice--active .qrun-program-choice__label {
+  color: color-mix(in srgb, var(--program-accent) 72%, #111);
+}
+</style>

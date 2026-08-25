@@ -6,6 +6,8 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 
 import { formatDateTime } from '@/utils/dateTimeFormat'
 import {showGlassToast} from '@/composables/useGlassToast'
+import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import { getProgramTheme } from '@/utils/programTheme'
 
 
 const props = defineProps({
@@ -91,14 +93,8 @@ function isFuture8(qrun) {
   return resolveFirstProgram(qrun) === 8
 }
 
-function programLabel(qrun) {
-  return isFuture8(qrun) ? 'F8' : 'C'
-}
-
-function programBadgeClass(qrun) {
-  return isFuture8(qrun)
-    ? 'bg-indigo-100 text-indigo-800'
-    : 'bg-emerald-100 text-emerald-800'
+function programTheme(qrun) {
+  return getProgramTheme(isFuture8(qrun) ? 'future8' : 'challenge')
 }
 
 </script>
@@ -120,14 +116,15 @@ function programBadgeClass(qrun) {
         >
           <!-- Spalte 1: Name + Kommentar -->
           <div class="basis-[35%] flex-shrink-0">
-            <div class="font-bold text-lg">
-              {{ qrun.id }} {{ qrun.name }}
-              <span
-                class="ml-2 text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded"
-                :class="programBadgeClass(qrun)"
-              >
-                {{ programLabel(qrun) }}
-              </span>
+            <div class="font-bold text-lg flex items-center gap-2">
+              <img
+                v-if="programTheme(qrun).catalogName"
+                :src="programLogoSrc(programTheme(qrun).catalogName)"
+                :alt="programLogoAlt(programTheme(qrun).catalogName)"
+                :title="programTheme(qrun).shortName"
+                class="w-8 h-8 flex-shrink-0 object-contain"
+              />
+              <span>{{ qrun.id }} {{ qrun.name }}</span>
             </div>
             <div class="text-xs text-[var(--color-text-subtle)] italic"> {{ qrun.host || 'unknown' }} </div>
             <div class="text-sm text-[var(--color-text-muted)] whitespace-pre-line">{{ qrun.comment || '—' }}</div>
