@@ -122,6 +122,7 @@ const navEntries = computed<NavEntry[]>(() => [
       {name: 'WLAN vor Ort', path: '/plan/publish/wlan', icon: 'bi-wifi'},
       {name: 'Digital', path: '/plan/publish/digital', icon: 'bi-display'},
       {name: 'Drucksachen', path: '/plan/publish/analog', icon: 'bi-printer'},
+      {name: 'Namensschilder', path: '/plan/publish/namensschilder', icon: 'bi-person-badge'},
     ],
   },
   {name: 'am Tag', path: '/plan/live', icon: 'bi-play-circle'},

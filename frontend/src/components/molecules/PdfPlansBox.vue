@@ -10,13 +10,18 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import {hasChallenge, eventPrograms, programId, programDisplayName, catalogNameFromCode, type EventProgramRef} from '@/utils/eventPrograms'
 
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
-    /** Hide inner title when the page already says „Drucksachen“. */
+    /** Hide inner title when the page already provides one. */
     hideHeading?: boolean
+    /** Which panels to show (Ausgabe splits plans vs name tags). */
+    section?: 'plans' | 'labels' | 'all'
   }>(),
-  {hideHeading: false}
+  {hideHeading: false, section: 'all'}
 )
+
+const showPlans = computed(() => props.section === 'plans' || props.section === 'all')
+const showLabels = computed(() => props.section === 'labels' || props.section === 'all')
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -683,7 +688,7 @@ const eventTitleNormalized = computed(() => {
 
 <template>
   <div class="pdf-plans">
-    <section class="glass-card liquid-surface-inner pdf-plans__panel">
+    <section v-if="showPlans" class="glass-card liquid-surface-inner pdf-plans__panel">
       <h3 v-if="!hideHeading" class="glass-card__heading">Drucksachen</h3>
 
       <p class="pdf-plans__group-label">
@@ -1073,8 +1078,8 @@ const eventTitleNormalized = computed(() => {
       </div>
     </section>
 
-    <section class="glass-card liquid-surface-inner pdf-plans__panel">
-      <h3 class="glass-card__heading">Aufkleber</h3>
+    <section v-if="showLabels" class="glass-card liquid-surface-inner pdf-plans__panel">
+      <h3 v-if="!hideHeading" class="glass-card__heading">Namensschilder</h3>
       <p class="glass-settings-hint !not-italic mb-4">
         Namensaufkleber zum Drucken auf A4-Papier
       </p>

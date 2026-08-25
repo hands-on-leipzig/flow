@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Ausgabe shell: nested publish panes (Veröffentlichung, WLAN, Digital, Drucksachen, Logos).
+ * Ausgabe shell: nested publish panes (Veröffentlichung, WLAN, Digital, Drucksachen, Namensschilder, Logos).
  * Route-keyed keep-alive — same pattern as Schedule nested panes.
  */
 defineOptions({name: 'PublishControl'})
@@ -9,7 +9,7 @@ defineOptions({name: 'PublishControl'})
 <template>
   <div class="publish-shell">
     <router-view v-slot="{ Component, route: paneRoute }">
-      <keep-alive include="PublishDistribution,PublishWlan,PublishDigital,PublishAnalog,Logos">
+      <keep-alive include="PublishDistribution,PublishWlan,PublishDigital,PublishAnalog,PublishNameTags,Logos">
         <component
             :is="Component"
             v-if="Component"

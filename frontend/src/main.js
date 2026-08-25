@@ -23,6 +23,7 @@ import PublishDistribution from "@/components/publish/PublishDistribution.vue";
 import PublishWlan from "@/components/publish/PublishWlan.vue";
 import PublishDigital from "@/components/publish/PublishDigital.vue";
 import PublishAnalog from "@/components/publish/PublishAnalog.vue";
+import PublishNameTags from "@/components/publish/PublishNameTags.vue";
 import EventDayControl from "@/components/EventDayControl.vue";
 // Admin is lazy-loaded - only loads when /admin route is accessed
 // This reduces initial bundle size since most users are not admins
@@ -96,6 +97,7 @@ const routes = [
                     {path: 'wlan', name: 'publish-wlan', component: PublishWlan},
                     {path: 'digital', name: 'publish-digital', component: PublishDigital},
                     {path: 'analog', name: 'publish-analog', component: PublishAnalog},
+                    {path: 'namensschilder', name: 'publish-namensschilder', component: PublishNameTags},
                     {path: 'logos', name: 'publish-logos', component: Logos},
                 ],
             },
@@ -133,6 +135,7 @@ const routes = [
     {path: '/publish/wlan', redirect: '/plan/publish/wlan'},
     {path: '/publish/digital', redirect: '/plan/publish/digital'},
     {path: '/publish/analog', redirect: '/plan/publish/analog'},
+    {path: '/publish/namensschilder', redirect: '/plan/publish/namensschilder'},
     {path: '/publish/logos', redirect: '/plan/publish/logos'},
     {path: '/event-day', redirect: '/plan/live'},
     {path: '/live', redirect: '/plan/live'},
