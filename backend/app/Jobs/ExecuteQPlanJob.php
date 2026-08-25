@@ -2,16 +2,20 @@
 
 namespace App\Jobs;
 
+use App\Models\QPlan;
+use App\Models\QRun;
+use App\Support\ChallengeShapedParamMap;
+use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
+use App\Services\PlanGeneratorService;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\QPlan;
-use App\Models\QRun;
-use App\Services\PlanGeneratorService;
-use Carbon\Carbon;
 
 class ExecuteQPlanJob implements ShouldQueue
 {
@@ -47,7 +51,7 @@ class ExecuteQPlanJob implements ShouldQueue
             return;
         }
 
-        $planId = $qPlan->plan;
+        $planId = (int) $qPlan->plan;
         Log::info("ExecuteQPlanJob: Processing qPlan {$qPlan->id}", [
             'q_run' => $this->runId,
             'plan_id' => $planId,
@@ -60,6 +64,8 @@ class ExecuteQPlanJob implements ShouldQueue
         $generator = new PlanGeneratorService();
 
         try {
+            $this->assertProgramReady($qPlan);
+
             $support = $generator->isSupported($planId);
             if (! ($support['supported'] ?? false)) {
                 Log::warning('ExecuteQPlanJob: plan not supported, skipping generate', [
@@ -70,8 +76,14 @@ class ExecuteQPlanJob implements ShouldQueue
                 ]);
             } else {
                 $generator->prepare($planId, 'job', null);
-                // Run synchronously so evaluation sees matches before we mark calculated.
                 $generator->run($planId, true);
+
+                $activityGroups = DB::table('activity_group')->where('plan', $planId)->count();
+                if ($activityGroups < 1) {
+                    throw new \RuntimeException(
+                        "Generate finished with 0 activity_group rows for plan {$planId} (likely mode off / stale worker)."
+                    );
+                }
             }
         } catch (\Throwable $e) {
             Log::error('ExecuteQPlanJob: generate/evaluate failed', [
@@ -85,5 +97,30 @@ class ExecuteQPlanJob implements ShouldQueue
         QRun::where('id', $this->runId)->increment('qplans_calculated');
 
         ExecuteQPlanJob::dispatch($this->runId);
+    }
+
+    /**
+     * Quality plans must have the selected Challenge-shaped program on
+     * (attached + mode=1 + teams>0) before we call the generator.
+     */
+    private function assertProgramReady(QPlan $qPlan): void
+    {
+        $planId = (int) $qPlan->plan;
+        $firstProgram = (int) ($qPlan->first_program ?? 0);
+        if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
+            throw new \RuntimeException("q_plan {$qPlan->id}: first_program {$firstProgram} is not C/F8");
+        }
+
+        $map = ChallengeShapedParamMap::from($firstProgram);
+        $params = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $params);
+
+        if (! $presence->challengeShapedOn($firstProgram)) {
+            throw new \RuntimeException(
+                "q_plan {$qPlan->id}: program {$firstProgram} is not on "
+                ."(need event_program + {$map->mode()}=1 + {$map->teams()}>0). "
+                .'Restart queue:work if create still writes plans without mode.'
+            );
+        }
     }
 }
