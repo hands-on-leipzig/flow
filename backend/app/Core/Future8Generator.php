@@ -343,7 +343,7 @@ class Future8Generator implements ChallengeShapedLead
 
     private function maybeRunAfterRG1Handoff(?callable $afterRG1Callback): void
     {
-        if ($afterRG1Callback !== null && $this->pp('e_mode') == ExploreMode::INTEGRATED_MORNING->value) {
+        if ($afterRG1Callback !== null && $this->exploreMode() == ExploreMode::INTEGRATED_MORNING->value) {
             $afterRG1Callback($this->rTime);
         }
     }
@@ -480,7 +480,7 @@ class Future8Generator implements ChallengeShapedLead
     {
         try {
             if ($explore) {
-                if ($this->pp('e_mode') == ExploreMode::HYBRID_BOTH->value) {
+                if ($this->exploreMode() == ExploreMode::HYBRID_BOTH->value) {
                     $exploreStartTime = clone $this->cTime;
 
                     $exploreStartTime->subMinutes($this->pp('e_ready_awards'));
@@ -498,7 +498,7 @@ class Future8Generator implements ChallengeShapedLead
                     $exploreStartTime->subMinutes($this->pp('e2_duration_opening'));
 
                     $this->integratedExplore->startTime = $exploreStartTime->current();
-                } elseif ($this->pp('e_mode') == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                } elseif ($this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
                     $exploreEnd = $this->integratedExplore->exploreEndTime;
                     if ($exploreEnd !== null) {
                         $baseDate = $this->cTime->current()->format('Y-m-d');

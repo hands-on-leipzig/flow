@@ -189,7 +189,7 @@ class PlanGeneratorCore
             $this->explore->awards(1);
 
             $exploreEnd = $this->eTime->current();
-            $exploreEnd->modify('+'.((int) $this->pp('e_ready_awards')).' minutes');
+            $exploreEnd->modify('+'.((int) $this->pp('e_ready_awards', 0)).' minutes');
             $rTime->advanceToLater($exploreEnd);
         };
 
@@ -211,7 +211,7 @@ class PlanGeneratorCore
         $start = $this->integratedExplore->startTime;
         if ($start !== null) {
             $this->eTime->set($start);
-            $this->eTime->addMinutes((int) $this->pp('e_ready_opening'));
+            $this->eTime->addMinutes((int) $this->pp('e_ready_opening', 0));
             $this->explore->openingsAndBriefings(2);
         }
         $this->explore->judgingAndDeliberations(2);
@@ -300,8 +300,8 @@ class PlanGeneratorCore
     {
         Log::info('PlanGeneratorCore::afternoon', [
             'plan_id' => $this->pp('g_plan'),
-            'c_teams' => $this->pp('c_teams'),
-            'f8_teams' => $this->pp('f8_teams'),
+            'c_teams' => $this->ppLoaded('c_teams'),
+            'f8_teams' => $this->ppLoaded('f8_teams'),
         ]);
 
         try {
@@ -361,6 +361,10 @@ class PlanGeneratorCore
 
         if ($block->afternoon_parameter === null) {
             return true;
+        }
+
+        if (! $this->params->has($code)) {
+            return false;
         }
 
         $value = $this->pp($code);

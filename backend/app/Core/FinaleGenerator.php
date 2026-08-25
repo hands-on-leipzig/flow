@@ -35,7 +35,7 @@ class FinaleGenerator
     {
         Log::info("FinaleGenerator: Start generation", [
             'plan_id' => $this->pp('g_plan'),
-            'e_mode' => $this->pp('e_mode'),
+            'e_mode' => $this->exploreMode(),
         ]);
 
         // Store original date (Day 1)
@@ -516,7 +516,7 @@ class FinaleGenerator
     {
         Log::info("FinaleGenerator: Generating Day 2", [
             'plan_id' => $this->pp('g_plan'),
-            'e_mode' => $this->pp('e_mode'),
+            'e_mode' => $this->exploreMode(),
         ]);
 
         // Day 2 is a standard one-day event - reuse the existing logic with our params

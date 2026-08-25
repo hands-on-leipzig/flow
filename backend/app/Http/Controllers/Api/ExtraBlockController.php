@@ -696,25 +696,25 @@ class ExtraBlockController extends Controller
         if ($fp === FirstProgram::JOINT->value) {
             $ranges = [];
             if ($presence->exploreOn()) {
-                $ranges[] = ['program' => FirstProgram::EXPLORE->value, 'team_count' => max(0, (int) $params->get('e_teams'))];
+                $ranges[] = ['program' => FirstProgram::EXPLORE->value, 'team_count' => max(0, (int) $params->get('e_teams', 0))];
             }
             if ($presence->challengeShapedOn(FirstProgram::CHALLENGE->value)) {
-                $ranges[] = ['program' => FirstProgram::CHALLENGE->value, 'team_count' => max(0, (int) $params->get('c_teams'))];
+                $ranges[] = ['program' => FirstProgram::CHALLENGE->value, 'team_count' => max(0, (int) $params->get('c_teams', 0))];
             }
             if ($presence->challengeShapedOn(FirstProgram::FUTURE_8->value)) {
-                $ranges[] = ['program' => FirstProgram::FUTURE_8->value, 'team_count' => max(0, (int) $params->get('f8_teams'))];
+                $ranges[] = ['program' => FirstProgram::FUTURE_8->value, 'team_count' => max(0, (int) $params->get('f8_teams', 0))];
             }
 
             return $ranges;
         }
         if ($fp === FirstProgram::EXPLORE->value) {
-            return [['program' => FirstProgram::EXPLORE->value, 'team_count' => max(0, (int) $params->get('e_teams'))]];
+            return [['program' => FirstProgram::EXPLORE->value, 'team_count' => max(0, (int) $params->get('e_teams', 0))]];
         }
         if ($fp === FirstProgram::CHALLENGE->value) {
-            return [['program' => FirstProgram::CHALLENGE->value, 'team_count' => max(0, (int) $params->get('c_teams'))]];
+            return [['program' => FirstProgram::CHALLENGE->value, 'team_count' => max(0, (int) $params->get('c_teams', 0))]];
         }
         if ($fp === FirstProgram::FUTURE_8->value) {
-            return [['program' => FirstProgram::FUTURE_8->value, 'team_count' => max(0, (int) $params->get('f8_teams'))]];
+            return [['program' => FirstProgram::FUTURE_8->value, 'team_count' => max(0, (int) $params->get('f8_teams', 0))]];
         }
 
         return [];
@@ -723,9 +723,9 @@ class ExtraBlockController extends Controller
     private function maxTeamsForProgram(int $programId, PlanParameter $params): int
     {
         return match ($programId) {
-            FirstProgram::CHALLENGE->value => (int) $params->get('c_teams'),
-            FirstProgram::FUTURE_8->value => (int) $params->get('f8_teams'),
-            default => (int) $params->get('e_teams'),
+            FirstProgram::CHALLENGE->value => (int) $params->get('c_teams', 0),
+            FirstProgram::FUTURE_8->value => (int) $params->get('f8_teams', 0),
+            default => (int) $params->get('e_teams', 0),
         };
     }
 

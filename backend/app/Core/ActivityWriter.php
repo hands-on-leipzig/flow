@@ -238,7 +238,7 @@ class ActivityWriter
      */
     private function hasTwoExploreGroups(): bool
     {
-        $eMode = (int) $this->pp('e_mode');
+        $eMode = $this->exploreMode();
 
         // Check if e_mode indicates two Explore groups
         return ($eMode === ExploreMode::HYBRID_BOTH->value || 
