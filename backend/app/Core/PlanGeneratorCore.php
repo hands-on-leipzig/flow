@@ -3,12 +3,11 @@
 namespace App\Core;
 
 use App\Enums\ExploreMode;
-use App\Enums\FirstProgram;
 use App\Services\AfternoonBlockOrderService;
 use App\Support\IntegratedExploreState;
 use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
 use App\Support\UsesPlanParameter;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class PlanGeneratorCore
@@ -108,29 +107,22 @@ class PlanGeneratorCore
      */
     public function generateOneDayEvent(): void
     {
-        $cMode = (int) $this->pp('c_mode');
-        $f8On = $this->futureLeadRequested();
-        $eMode = (int) $this->pp('e_mode');
+        $planId = (int) $this->pp('g_plan');
+        $presence = ProgramPresence::forPlan($planId, $this->params);
+        $eMode = $presence->exploreMode();
+        $leadId = $presence->leadProgramId();
 
-        if ($cMode === 1 && $f8On) {
-            Log::warning('PlanGeneratorCore: Challenge and Future 8+ both on; Future is skipped until C+F coordination exists', [
-                'plan_id' => $this->pp('g_plan'),
+        foreach ($presence->skippedLeadProgramIds() as $skippedProgramId) {
+            Log::warning('PlanGeneratorCore: Challenge-shaped program on but not lead; skipped until multi-lead work', [
+                'plan_id' => $planId,
+                'program_id' => $skippedProgramId,
+                'lead_program_id' => $leadId,
             ]);
         }
 
-        if ($cMode === 1) {
-            $this->lead = new ChallengeGenerator(
-                $this->writer,
-                $this->params,
-                $this->integratedExplore
-            );
-            $this->runLeadRecipes($eMode);
-
-            return;
-        }
-
-        if ($f8On) {
-            $this->lead = new Future8Generator(
+        if ($leadId !== null) {
+            $generatorClass = $presence->leadGeneratorClass();
+            $this->lead = new $generatorClass(
                 $this->writer,
                 $this->params,
                 $this->integratedExplore
@@ -141,7 +133,7 @@ class PlanGeneratorCore
         }
 
         if ($eMode === ExploreMode::NONE->value) {
-            Log::warning('PlanGeneratorCore: All programs disabled (e_mode=0, c_mode=0, Future off) - generating empty plan');
+            Log::warning('PlanGeneratorCore: All programs disabled - generating empty plan');
 
             return;
         }
@@ -149,25 +141,6 @@ class PlanGeneratorCore
         $this->makeExplore();
 
         $this->recipeExploreOnly($eMode);
-    }
-
-    private function futureLeadRequested(): bool
-    {
-        if ((int) $this->pp('f8_mode') === 1 && (int) $this->pp('f8_teams') > 0) {
-            return true;
-        }
-
-        $eventId = DB::table('plan')->where('id', $this->pp('g_plan'))->value('event');
-        if (! $eventId) {
-            return false;
-        }
-
-        $attached = DB::table('event_program')
-            ->where('event', $eventId)
-            ->where('first_program', FirstProgram::FUTURE_8->value)
-            ->exists();
-
-        return $attached && (int) $this->pp('f8_teams') > 0;
     }
 
     private function runLeadRecipes(int $eMode): void

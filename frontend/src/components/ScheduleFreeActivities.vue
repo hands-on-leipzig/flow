@@ -10,6 +10,7 @@ const {
   selectedPlanId,
   showExplore,
   showChallenge,
+  showFuture,
   previewReload,
 } = useScheduleWorkspace()
 
@@ -29,6 +30,7 @@ function onFreeBlocksChanged() {
         :event-days="selectedEvent?.days"
         :show-explore="showExplore"
         :show-challenge="showChallenge"
+        :show-future="showFuture"
         @changed="onFreeBlocksChanged"
     />
   </div>

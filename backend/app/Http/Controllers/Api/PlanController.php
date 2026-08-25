@@ -154,50 +154,60 @@ class PlanController extends Controller
             $f8_fields = (int) ($f8Plan->tables ?? 0);
         }
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 7],
-            ['set_value' => $e_mode]);
+        $hasExplore = $event && ProgramCatalog::hasExplore($event);
+        $hasChallenge = $event && ProgramCatalog::hasChallenge($event);
+        $hasFuture = $event && ProgramCatalog::hasFuture($event);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 6],
-            ['set_value' => $e_teams]);
+        if ($hasExplore) {
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 7],
+                ['set_value' => $e_mode]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 111],
-            ['set_value' => $e1_teams]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 6],
+                ['set_value' => $e_teams]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 81],
-            ['set_value' => $e1_lanes]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 111],
+                ['set_value' => $e1_teams]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 112],
-            ['set_value' => $e2_teams]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 81],
+                ['set_value' => $e1_lanes]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 117],
-            ['set_value' => $e2_lanes]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 112],
+                ['set_value' => $e2_teams]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 122],
-            ['set_value' => $c_mode]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 117],
+                ['set_value' => $e2_lanes]);
+        }
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 22],
-            ['set_value' => $c_teams]);
+        if ($hasChallenge) {
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 122],
+                ['set_value' => $c_mode]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 23],
-            ['set_value' => $j_lanes]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 22],
+                ['set_value' => $c_teams]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 24],
-            ['set_value' => $r_tables]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 23],
+                ['set_value' => $j_lanes]);
 
-        $this->setPlanParamByName($newId, 'f8_mode', $f8_mode);
-        $this->setPlanParamByName($newId, 'f8_teams', $f8_teams);
-        $this->setPlanParamByName($newId, 'f8_lanes', $f8_lanes);
-        $this->setPlanParamByName($newId, 'f8_fields', $f8_fields);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 24],
+                ['set_value' => $r_tables]);
+        }
+
+        if ($hasFuture) {
+            $this->setPlanParamByName($newId, 'f8_mode', $f8_mode);
+            $this->setPlanParamByName($newId, 'f8_teams', $f8_teams);
+            $this->setPlanParamByName($newId, 'f8_lanes', $f8_lanes);
+            $this->setPlanParamByName($newId, 'f8_fields', $f8_fields);
+        }
 
         app(AfternoonBlockOrderService::class)->writeDefaultOrder($newId);
 

@@ -33,7 +33,7 @@ class ExploreGenerator
         $this->eTime = $eTime;
 
         // Initialize eMode
-        $this->eMode = (int) $params->get('e_mode');
+        $this->eMode = (int) $params->get('e_mode', 0);
 
         // Derived parameters formerly computed in Core::initialize for Explore
         $e1Teams = (int) ($params->get('e1_teams') ?? 0);

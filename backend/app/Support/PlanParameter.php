@@ -29,12 +29,22 @@ class PlanParameter
         return new self($planId);
     }
 
+    public function has(string $key): bool
+    {
+        return array_key_exists($key, $this->params);
+    }
+
     /**
      * Returns the value of a parameter.
+     * Pass a second argument when the key is absent (off-event programs are not loaded).
      */
-    public function get(string $key): mixed
+    public function get(string $key, mixed $default = null): mixed
     {
-        if (!array_key_exists($key, $this->params)) {
+        if (! array_key_exists($key, $this->params)) {
+            if (func_num_args() >= 2) {
+                return $default;
+            }
+
             throw new RuntimeException("Parameter '{$key}' nicht gefunden.");
         }
 
@@ -81,9 +91,13 @@ class PlanParameter
         $this->add('g_days', $event->days, 'integer');
         $this->add('g_finale', ((int)$event->level === 3), 'boolean');
 
-        // Base parameters from m_parameter
+        ProgramPresence::purgeParametersOutsideEvent($this->planId);
+
+        $attachedProgramIds = ProgramPresence::attachedProgramIds((int) $eventId);
+
+        // Base parameters: joint / unscoped, plus programs attached to this event
         $base = DB::table('m_parameter')
-            ->select('id', 'name', 'type', 'value', 'min', 'max', 'step')
+            ->select('id', 'name', 'type', 'value', 'min', 'max', 'step', 'first_program')
             ->get()
             ->keyBy('id');
 
@@ -95,6 +109,11 @@ class PlanParameter
             ->keyBy('parameter');
 
         foreach ($base as $id => $row) {
+            $programId = (int) ($row->first_program ?? 0);
+            if ($programId > 0 && ! in_array($programId, $attachedProgramIds, true)) {
+                continue;
+            }
+
             $raw = $overrides->has($id)
                 ? $overrides[$id]->set_value
                 : $row->value;

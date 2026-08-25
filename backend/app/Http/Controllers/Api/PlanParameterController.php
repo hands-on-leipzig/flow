@@ -8,6 +8,7 @@ use App\Models\MParameter;
 use App\Models\Plan;
 use App\Models\PlanParamValue;
 use App\Services\EventAttentionService;
+use App\Support\ProgramPresence;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -105,6 +106,8 @@ class PlanParameterController extends Controller
 
             // Update all parameters in the database using Eloquent
             foreach ($validated['parameters'] as $param) {
+                $this->assertParameterAllowedForPlan((int) $planId, (int) $param['id']);
+
                 PlanParamValue::updateOrCreate(
                     [
                         'plan' => $planId,
@@ -121,6 +124,8 @@ class PlanParameterController extends Controller
                 'id' => 'required|integer|exists:m_parameter,id',
                 'value' => 'nullable|string',
             ]);
+
+            $this->assertParameterAllowedForPlan((int) $planId, (int) $validated['id']);
 
             PlanParamValue::updateOrCreate(
                 [
@@ -237,7 +242,20 @@ class PlanParameterController extends Controller
         ]);
     }
 
-    
+    private function assertParameterAllowedForPlan(int $planId, int $parameterId): void
+    {
+        $programId = (int) (DB::table('m_parameter')->where('id', $parameterId)->value('first_program') ?? 0);
+        if ($programId <= 0) {
+            return;
+        }
 
+        $attached = ProgramPresence::attachedProgramIdsForPlan($planId);
+        if (! in_array($programId, $attached, true)) {
+            abort(response()->json([
+                'error' => 'Parameter gehört zu einem Programm, das nicht an diesem Event hängt.',
+                'details' => "Programm {$programId} ist nicht in event_program für diesen Plan.",
+            ], 422));
+        }
+    }
 }
 

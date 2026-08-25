@@ -12,8 +12,10 @@ trait UsesPlanParameter
 {
     protected PlanParameter $params;
 
-    protected function pp(string $key): mixed
+    protected function pp(string $key, mixed $default = null): mixed
     {
-        return $this->params->get($key);
+        return func_num_args() >= 2
+            ? $this->params->get($key, $default)
+            : $this->params->get($key);
     }
 }

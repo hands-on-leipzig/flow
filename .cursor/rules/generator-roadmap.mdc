@@ -10,14 +10,16 @@ Work on `backend/app/Core/` (and its immediate callers) in this order. Do not st
 ## 1. Revisit, clean up, stabilize (current)
 
 - Understand and tidy the existing generator: `PlanGeneratorCore`, Challenge, Explore, robot game, finale, activity writer, time cursor, parameters.
-- Prefer small, behavior-preserving changes. No new programs. No afternoon redesign.
+- Prefer small, behavior-preserving changes. No afternoon redesign.
 - Fix inconsistency, dead paths, naming, and fragile timing — only with tests or a clear before/after.
 
 ### Current architecture (read-only map)
 
 Entry: `PlanGeneratorController` → `PlanGeneratorService` (`isSupported`, `prepare`, `run` / `GeneratePlanJob`) → `PlanGeneratorCore::generate`.
 
-`PlanGeneratorCore` loads `PlanParameter` (`m_parameter` + `plan_param_value`, plus `g_*` from the event). If `g_finale` (event level 3) → `FinaleGenerator` (Day 2 first, then Day 1). Else `generateOneDayEvent()` from `c_mode` + `e_mode` (`ExploreMode`).
+`PlanParameter` purges off-event overrides, then loads joint + attached program catalog rows only. `ProgramPresence` resolves which programs are on and which Challenge-shaped program leads (by `m_first_program.sequence`).
+
+`PlanGeneratorCore` loads params. If `g_finale` (event level 3) → `FinaleGenerator` (Day 2 first, then Day 1). Else `generateOneDayEvent()` from `ProgramPresence` + `e_mode` ceremony recipes.
 
 Clocks: `TimeCursor` (`jTime` judging, `rTime` robot game, `cTime` ceremony, `eTime` Explore). Shared hook: `IntegratedExploreState`. Writer: `ActivityWriter` → `activity_group` + `activity`. After generate: `FreeBlockGenerator`, then `SlotBlockPlanSyncService`.
 
@@ -27,9 +29,16 @@ Challenge `main()` aligns judging rounds with RG (test round 0, then 1–3). Exp
 
 Inserted extra-block **content** is gone; **pauses** stay (`addMinutes`). Live DB migrated (no `m_insert_point`, no buffers, `extra_block.type` is `free`/`slot`).
 
+### Open program combinations (done)
+
+- Catalog `*_mode` defaults are **0** (off).
+- Bootstrap writes params only for attached programs; modes turn on from `event_program`.
+- `ProgramPresence`: attached + mode + teams; one Challenge-shaped lead by sequence; no Future attachment bypass.
+- Generator, free blocks, time matrix, workspace flags, and slot paths use presence — not hard-coded E+C.
+
 ### Structural cleanup (phase 1, current)
 
-Constraints: Challenge judging ∥ robot game (do not generate them as two days). Explore is judging-only. Challenge leads; only joint opening/closing (plus today’s after-RG1 handoff) couple the programs. Finale stays a separate two-day tweak. No Future 8+. No after-RG3 redesign.
+Constraints: Challenge-shaped judging ∥ games (do not generate as two days). Explore is judging-only. Exactly one Challenge-shaped lead until multi-lead work. Only joint opening/closing (plus after-RG1 handoff) couple programs. Finale stays a separate two-day tweak. No after-RG3 redesign.
 
 Agreed sequence — do not start the next item until the user has reviewed:
 
@@ -41,16 +50,16 @@ Agreed sequence — do not start the next item until the user has reviewed:
 6. Finale: skip (leave as-is).
 7. Writer/log/constructor hygiene as we go.
 
-## 2. Later: Future 8+ as a first-class program
+## 2. Later: multi Challenge-shaped on one day
 
-- Add **Future 8+** beside Explore and Challenge in the **generator**, not only catalog/UI.
-- Catalog already has `FirstProgram::FUTURE_8` (id 8, display “Future 8+”) and team/settings UI. Generation still assumes Explore + Challenge.
-- Treat this as a new program in `e_mode`/`c_mode`-style orchestration, not a bolt-on to Challenge.
+- **Policy A then B** interleave when Challenge + Future 8+ (or more Challenge-shaped programs) are both on.
+- Until then, `ProgramPresence` picks one lead; others on are logged and skipped.
+- Future 8+ is already a first-class generator program beside Explore and Challenge.
 
 ## 3. Then: rework the afternoon
 
 - “Afternoon” = everything **after robot game round three** (finals, awards, joint ceremonies, integrated Explore hooks, lunch-adjacent sequencing as it sits after RG3).
-- Do this only after phases 1–2, because Future 8+ will change who shares that part of the day.
+- Do this only after §2 multi-lead work, because who shares that part of the day depends on which Challenge-shaped programs run.
 
 When unsure which phase a change belongs to, ask before implementing.
 
