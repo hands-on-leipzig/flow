@@ -221,7 +221,7 @@ class RobotGameGenerator
                         $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                     }
 
-                    if ($this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                    if ($this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
                         $this->integratedExplore->startTime = clone $rg1End;
                         $exploreHoleEnd = new TimeCursor($rg1End);
                         $exploreHoleEnd->addMinutes($this->integratedExplore->duration);
@@ -233,8 +233,8 @@ class RobotGameGenerator
             case 2:
                 if ($this->pp('g_finale')) {
                     // Finale: Everything that was in case 1 for normal events
-                    if ($this->pp("e_mode") == ExploreMode::INTEGRATED_MORNING->value || 
-                        $this->pp("e_mode") == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                    if ($this->exploreMode() == ExploreMode::INTEGRATED_MORNING->value ||
+                        $this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
                         // Integrated Explore mode: coordinate with ExploreGenerator
                         $this->integratedExplore->startTime = $this->rTime->current();
                         $this->rTime->addMinutes($this->integratedExplore->duration);

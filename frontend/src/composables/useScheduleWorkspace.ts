@@ -39,6 +39,7 @@ const bootstrapped = ref(false)
 
 const showExplore = ref(true)
 const showChallenge = ref(true)
+const showFuture = ref(true)
 
 const attachedPrograms = computed(() => eventPrograms(selectedEvent.value))
 
@@ -365,6 +366,9 @@ async function fetchParams(planId: number) {
     getSaveApi().setOriginals(Object.fromEntries(parameters.value.map(p => [p.name, p.value])))
     showExplore.value = Number(paramMapByName.value['e_mode']?.value || 0) > 0
     showChallenge.value = Number(paramMapByName.value['c_mode']?.value || 0) > 0
+    showFuture.value = attachedPrograms.value.some(
+      (p) => String(p.name || '').toUpperCase() === 'FUTURE_8',
+    ) && Number(paramMapByName.value['f8_mode']?.value || 0) === 1
   } catch (err) {
     console.error('Failed to fetch params or conditions:', err)
     parameters.value = []
@@ -524,6 +528,7 @@ export function useScheduleWorkspace() {
     loading,
     showExplore,
     showChallenge,
+    showFuture,
     attachedPrograms,
     isGenerating,
     generatorError,

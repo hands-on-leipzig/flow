@@ -448,7 +448,7 @@ class PublishController extends Controller
 
         // Check if there are 2x Explore groups
         $planParams = new PlanParameter($plan->id);
-        $eMode = (int)$planParams->get('e_mode');
+        $eMode = (int) $planParams->get('e_mode', 0);
         $hasTwoExploreGroups = ($eMode === ExploreMode::HYBRID_BOTH->value || $eMode === ExploreMode::DECOUPLED_BOTH->value);
 
         // Activity Type Details by code (cached lookup with name and sequence)

@@ -3,7 +3,7 @@ import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import ParameterField from '@/components/molecules/ParameterField.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {eventPrograms, hasFuture, programDisplayName} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName} from '@/utils/eventPrograms'
 import {useEventStore} from '@/stores/event'
 
 const props = defineProps<{
@@ -31,11 +31,7 @@ const byName = computed<Record<string, any>>(
 
 const eMode = computed(() => Number(byName.value['e_mode']?.value ?? 0))
 const cMode = computed(() => Number(byName.value['c_mode']?.value ?? 0))
-const f8Mode = computed(() => {
-  if (Number(byName.value['f8_mode']?.value ?? 0) === 1) return 1
-  const teams = Number(byName.value['f8_teams']?.value ?? 0)
-  return hasFuture(eventStore.selectedEvent) && teams > 0 ? 1 : 0
-})
+const f8Mode = computed(() => Number(byName.value['f8_mode']?.value ?? 0))
 
 const currentVisibility = computed(() => {
   const key = `e${eMode.value}_c${cMode.value}_f8${f8Mode.value}`

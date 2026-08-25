@@ -14,6 +14,7 @@ use App\Services\EventAttentionService;
 use App\Services\ExtraBlockCleanupService;
 use App\Services\SlotBlockPlanSyncService;
 use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -61,6 +62,7 @@ class ExtraBlockController extends Controller
             FirstProgram::DISCOVER->value,
             FirstProgram::EXPLORE->value,
             FirstProgram::CHALLENGE->value,
+            FirstProgram::FUTURE_8->value,
         ]);
 
         $validated = $request->validate([
@@ -362,9 +364,11 @@ class ExtraBlockController extends Controller
             ->get()
             ->groupBy(function ($row) {
                 $fp = (int) $row->first_program;
-                $program = $fp === FirstProgram::CHALLENGE->value
-                    ? FirstProgram::CHALLENGE->value
-                    : FirstProgram::EXPLORE->value;
+                $program = match ($fp) {
+                    FirstProgram::CHALLENGE->value => FirstProgram::CHALLENGE->value,
+                    FirstProgram::FUTURE_8->value => FirstProgram::FUTURE_8->value,
+                    default => FirstProgram::EXPLORE->value,
+                };
 
                 return $program.':'.((int) $row->team_number_plan);
             })
@@ -455,7 +459,7 @@ class ExtraBlockController extends Controller
         $this->assertSlotBlock($block, $planId);
 
         $validated = $request->validated();
-        if (! in_array($programId, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value], true)) {
+        if (! in_array($programId, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value], true)) {
             abort(422, 'Invalid program for slot assignment');
         }
 
@@ -464,9 +468,7 @@ class ExtraBlockController extends Controller
         if (! $isAllowedProgram) {
             abort(422, 'Program not applicable for this slot block');
         }
-        $maxTeams = $programId === FirstProgram::CHALLENGE->value
-            ? (int) $params->get('c_teams')
-            : (int) $params->get('e_teams');
+        $maxTeams = $this->maxTeamsForProgram($programId, $params);
         if ($teamNumberPlan < 1 || $teamNumberPlan > $maxTeams) {
             abort(422, 'Team number out of configured plan range');
         }
@@ -537,7 +539,7 @@ class ExtraBlockController extends Controller
         $block = ExtraBlock::where('plan', $planId)->findOrFail($extraBlock);
         $this->assertSlotBlock($block, $planId);
 
-        if (! in_array($programId, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value], true)) {
+        if (! in_array($programId, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value], true)) {
             abort(422, 'Invalid program for slot assignment');
         }
         if (! $this->blockAllowsProgram((int) $block->first_program, $programId)) {
@@ -545,9 +547,7 @@ class ExtraBlockController extends Controller
         }
 
         $params = PlanParameter::load($planId);
-        $maxTeams = $programId === FirstProgram::CHALLENGE->value
-            ? (int) $params->get('c_teams')
-            : (int) $params->get('e_teams');
+        $maxTeams = $this->maxTeamsForProgram($programId, $params);
         if ($teamNumberPlan < 1 || $teamNumberPlan > $maxTeams) {
             abort(422, 'Team number out of configured plan range');
         }
@@ -666,13 +666,20 @@ class ExtraBlockController extends Controller
     private function blockAllowsProgram(int $blockFirstProgram, int $programId): bool
     {
         if ($blockFirstProgram === FirstProgram::JOINT->value) {
-            return in_array($programId, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value], true);
+            return in_array($programId, [
+                FirstProgram::EXPLORE->value,
+                FirstProgram::CHALLENGE->value,
+                FirstProgram::FUTURE_8->value,
+            ], true);
         }
         if ($blockFirstProgram === FirstProgram::EXPLORE->value) {
             return $programId === FirstProgram::EXPLORE->value;
         }
         if ($blockFirstProgram === FirstProgram::CHALLENGE->value) {
             return $programId === FirstProgram::CHALLENGE->value;
+        }
+        if ($blockFirstProgram === FirstProgram::FUTURE_8->value) {
+            return $programId === FirstProgram::FUTURE_8->value;
         }
 
         return false;
@@ -683,24 +690,43 @@ class ExtraBlockController extends Controller
      */
     private function assignmentRangesForBlock(ExtraBlock $block, PlanParameter $params): array
     {
+        $presence = ProgramPresence::forPlan((int) $block->plan, $params);
         $fp = (int) $block->first_program;
-        $eTeams = max(0, (int) $params->get('e_teams'));
-        $cTeams = max(0, (int) $params->get('c_teams'));
 
         if ($fp === FirstProgram::JOINT->value) {
-            return [
-                ['program' => FirstProgram::EXPLORE->value, 'team_count' => $eTeams],
-                ['program' => FirstProgram::CHALLENGE->value, 'team_count' => $cTeams],
-            ];
+            $ranges = [];
+            if ($presence->exploreOn()) {
+                $ranges[] = ['program' => FirstProgram::EXPLORE->value, 'team_count' => max(0, (int) $params->get('e_teams', 0))];
+            }
+            if ($presence->challengeShapedOn(FirstProgram::CHALLENGE->value)) {
+                $ranges[] = ['program' => FirstProgram::CHALLENGE->value, 'team_count' => max(0, (int) $params->get('c_teams', 0))];
+            }
+            if ($presence->challengeShapedOn(FirstProgram::FUTURE_8->value)) {
+                $ranges[] = ['program' => FirstProgram::FUTURE_8->value, 'team_count' => max(0, (int) $params->get('f8_teams', 0))];
+            }
+
+            return $ranges;
         }
         if ($fp === FirstProgram::EXPLORE->value) {
-            return [['program' => FirstProgram::EXPLORE->value, 'team_count' => $eTeams]];
+            return [['program' => FirstProgram::EXPLORE->value, 'team_count' => max(0, (int) $params->get('e_teams', 0))]];
         }
         if ($fp === FirstProgram::CHALLENGE->value) {
-            return [['program' => FirstProgram::CHALLENGE->value, 'team_count' => $cTeams]];
+            return [['program' => FirstProgram::CHALLENGE->value, 'team_count' => max(0, (int) $params->get('c_teams', 0))]];
+        }
+        if ($fp === FirstProgram::FUTURE_8->value) {
+            return [['program' => FirstProgram::FUTURE_8->value, 'team_count' => max(0, (int) $params->get('f8_teams', 0))]];
         }
 
         return [];
+    }
+
+    private function maxTeamsForProgram(int $programId, PlanParameter $params): int
+    {
+        return match ($programId) {
+            FirstProgram::CHALLENGE->value => (int) $params->get('c_teams', 0),
+            FirstProgram::FUTURE_8->value => (int) $params->get('f8_teams', 0),
+            default => (int) $params->get('e_teams', 0),
+        };
     }
 
     /**

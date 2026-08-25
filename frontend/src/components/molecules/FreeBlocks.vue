@@ -31,6 +31,7 @@ const props = defineProps<{
   planId: number | null
   showExplore?: boolean
   showChallenge?: boolean
+  showFuture?: boolean
   eventDate?: string
   eventDays?: number
 }>()
@@ -92,9 +93,11 @@ const customBlocks = computed(() => blocks.value)
 
 const visibleCustomBlocks = computed(() => {
   return customBlocks.value.filter(block => {
-    if (props.showExplore === false && props.showChallenge === false) return true
+    const allOff = props.showExplore === false && props.showChallenge === false && props.showFuture === false
+    if (allOff) return true
     if (props.showExplore === false && (block.first_program === 2 || block.first_program === 0)) return false
     if (props.showChallenge === false && (block.first_program === 3 || block.first_program === 0)) return false
+    if (props.showFuture === false && (block.first_program === 8 || block.first_program === 0)) return false
     return true
   }).slice().sort(compareBlocks)
 })

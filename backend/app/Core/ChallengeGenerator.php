@@ -516,7 +516,7 @@ class ChallengeGenerator implements ChallengeShapedLead
     private function maybeRunAfterRG1Handoff(?callable $afterRG1Callback): void
     {
         // For INTEGRATED_MORNING: insert awards and adjust rTime after RG1, before RG2
-        if ($afterRG1Callback !== null && $this->pp('e_mode') == ExploreMode::INTEGRATED_MORNING->value) {
+        if ($afterRG1Callback !== null && $this->exploreMode() == ExploreMode::INTEGRATED_MORNING->value) {
             $afterRG1Callback($this->rTime);
         }
     }
@@ -641,7 +641,7 @@ class ChallengeGenerator implements ChallengeShapedLead
         try {
             if ($explore) {
 
-            if ($this->pp('e_mode') == ExploreMode::HYBRID_BOTH->value) {
+            if ($this->exploreMode() == ExploreMode::HYBRID_BOTH->value) {
                 // Calculate backwards from c_time to determine when Explore group 2 should start
                 // Formula: c_time - e_ready_awards - e_ready_deliberations - e2_duration_deliberations
                 //          - (e2_rounds * (e_duration_with_team + e_duration_scoring)) - ((e2_rounds - 1) * e_duration_break)
@@ -668,7 +668,7 @@ class ChallengeGenerator implements ChallengeShapedLead
                 // Write start time for ExploreGenerator to pick up
                 $this->integratedExplore->startTime = $exploreStartTime->current();
 
-            } elseif ($this->pp('e_mode') == ExploreMode::INTEGRATED_AFTERNOON->value) {
+            } elseif ($this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
                 // For INTEGRATED_AFTERNOON: Ensure awards don't start before Explore is complete
                 // Compare cTime (Challenge end) with exploreEndTime (Explore end) and use the later one
                 $exploreEnd = $this->integratedExplore->exploreEndTime;
