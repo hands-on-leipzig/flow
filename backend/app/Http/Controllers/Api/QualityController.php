@@ -117,11 +117,23 @@ class QualityController extends Controller
     public function startQRun(Request $request)
     {
         try {
+            // Validate every selection key we persist — Laravel's validated()
+            // payload only keeps nested keys that have rules (not the whole array).
             $payload = $request->validate([
                 'name' => 'required|string|max:100',
                 'comment' => 'nullable|string',
                 'selection' => 'required|array',
                 'selection.first_program' => 'required|integer|in:3,8',
+                'selection.min_teams' => 'required|integer|min:4|max:25',
+                'selection.max_teams' => 'required|integer|min:4|max:25|gte:selection.min_teams',
+                'selection.jury_lanes' => 'required|array|min:1',
+                'selection.jury_lanes.*' => 'integer|min:1|max:5',
+                'selection.tables' => 'required|array|min:1',
+                'selection.tables.*' => 'integer|in:2,4',
+                'selection.jury_rounds' => 'required|array|min:1',
+                'selection.jury_rounds.*' => 'integer|min:3|max:6',
+                'selection.robot_check' => 'required|array|min:1',
+                'selection.robot_check.*' => 'string|in:on,off',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             error_log('Validation failed: ' . json_encode($e->errors()));
@@ -129,13 +141,14 @@ class QualityController extends Controller
         }
 
         $host = gethostname();
-        $firstProgram = (int) $payload['selection']['first_program'];
+        $selection = $payload['selection'];
+        $firstProgram = (int) $selection['first_program'];
 
         $qRunId = DB::table('q_run')->insertGetId([
             'name' => $payload['name'],
             'first_program' => $firstProgram,
             'comment' => $payload['comment'] ?? null,
-            'selection' => json_encode($payload['selection']),
+            'selection' => json_encode($selection),
             'started_at' => Carbon::now(),
             'status' => 'pending',
             'host' => $host,
@@ -147,6 +160,7 @@ class QualityController extends Controller
             'q_run' => $qRunId,
             'name' => $payload['name'],
             'first_program' => $firstProgram,
+            'selection' => $selection,
         ]);
 
         return response()->json([
