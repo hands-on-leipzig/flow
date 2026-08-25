@@ -761,472 +761,381 @@ const currentTabLabel = computed(() =>
     </p>
 
     <!-- Tab Content: Öffentlich -->
-    <div v-show="activeTab === 'public'" class="pdf-plans__list">
-      <!-- Online-Plan Aushang (PDF only) -->
-      <div class="pdf-plans__row">
-        <div class="flex items-center justify-between gap-3">
-          <div class="min-w-0">
-            <h4 class="pdf-plans__row-title">Online-Plan</h4>
-            <p class="pdf-plans__row-sub">
-              Aushang mit QR zum öffentlichen Plan-Link.
-            </p>
-          </div>
-          <div class="flex items-center gap-3 flex-shrink-0">
+    <div v-show="activeTab === 'public'" class="pdf-plans__grid">
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Online-Plan</h4>
+          <p class="pdf-plans__tile-sub">Aushang mit QR zum öffentlichen Plan-Link.</p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <img
+            v-if="previewPlan"
+            :src="previewPlan"
+            alt="Vorschau Online-Plan PDF"
+            class="pdf-plans__preview"
+          />
+        </div>
+        <footer class="pdf-plans__tile-actions">
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="isDownloading.plan ? '!opacity-50' : ''"
+            :disabled="isDownloading.plan || !eventId"
+            @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, 'Plan.pdf')"
+          >
+            <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.plan ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </footer>
+      </article>
+
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">WLAN-Zugang</h4>
+          <p class="pdf-plans__tile-sub">Druckposter mit Netzwerkdaten — Zugang unter WLAN vor Ort pflegen.</p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <template v-if="hasWifiSsid">
             <img
-              v-if="previewPlan"
-              :src="previewPlan"
-              alt="Vorschau Online-Plan PDF"
+              v-if="previewPlanWifi"
+              :src="previewPlanWifi"
+              alt="Vorschau WLAN-PDF"
               class="pdf-plans__preview"
             />
-            <button
-              type="button"
-              class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-              :class="isDownloading.plan ? '!opacity-50' : ''"
-              :disabled="isDownloading.plan || !eventId"
-              @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, 'Plan.pdf')"
-            >
-              <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-              </svg>
-              <span>{{ isDownloading.plan ? 'Erzeuge…' : 'PDF' }}</span>
-            </button>
-          </div>
+          </template>
+          <p v-else class="pdf-plans__tile-note">SSID fehlt — unter WLAN vor Ort eintragen.</p>
         </div>
-      </div>
-
-      <!-- WLAN-Zugang Aushang -->
-      <div class="pdf-plans__row">
-        <div class="flex items-center justify-between gap-3">
-          <div class="min-w-0">
-            <h4 class="pdf-plans__row-title">WLAN-Zugang</h4>
-            <p class="pdf-plans__row-sub">
-              Druckposter mit Netzwerkdaten — Zugang unter WLAN vor Ort pflegen.
-            </p>
-          </div>
-          <div class="flex items-center gap-3 flex-shrink-0">
-            <template v-if="hasWifiSsid">
-              <img
-                v-if="previewPlanWifi"
-                :src="previewPlanWifi"
-                alt="Vorschau WLAN-PDF"
-                class="pdf-plans__preview"
-              />
-              <button
-                type="button"
-                class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-                :class="isDownloading.plan_wifi ? '!opacity-50' : ''"
-                :disabled="isDownloading.plan_wifi || !eventId"
-                @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, 'Plan_WLAN.pdf')"
-              >
-                <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                  <path class="opacity-75" fill="currentColor"
-                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                </svg>
-                <span>{{ isDownloading.plan_wifi ? 'Erzeuge…' : 'PDF' }}</span>
-              </button>
-            </template>
-            <span v-else class="text-sm text-[var(--color-text-muted)]">SSID fehlt</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Übersichtsplan -->
-      <div class="pdf-plans__row">
-        <div class="flex items-center justify-between gap-3">
-          <div class="min-w-0">
-            <h4 class="pdf-plans__row-title">Übersichtsplan für das Publikum</h4>
-            <p class="pdf-plans__row-sub">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
-          </div>
+        <footer class="pdf-plans__tile-actions">
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="isDownloading.plan_wifi || !hasWifiSsid ? '!opacity-50' : ''"
+            :disabled="isDownloading.plan_wifi || !eventId || !hasWifiSsid"
+            @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, 'Plan_WLAN.pdf')"
+          >
+            <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.plan_wifi ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </footer>
+      </article>
+
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Übersichtsplan</h4>
+          <p class="pdf-plans__tile-sub">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
+        </header>
+        <div class="pdf-plans__tile-body"></div>
+        <footer class="pdf-plans__tile-actions">
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading.overview ? '!opacity-50' : ''"
             :disabled="isDownloading.overview"
             @click="downloadEventOverviewPdf()"
           >
             <svg v-if="isDownloading.overview" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading.overview ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
+        </footer>
+      </article>
+
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Räume</h4>
+          <p class="pdf-plans__tile-sub">Eine Seite pro Raum mit allen Aktivitäten.</p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <p v-if="hasRoomIssues" class="pdf-plans__tile-warn">
+            Noch nicht alle Aktivitäten und Teams auf Räume verteilt.
+          </p>
         </div>
-      </div>
+        <footer class="pdf-plans__tile-actions">
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="isDownloadingCsv ? '!opacity-50' : ''"
+            :disabled="isDownloadingCsv"
+            @click="downloadRoomUtilizationCsv"
+          >
+            <svg v-if="isDownloadingCsv" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloadingCsv ? 'Erzeuge…' : 'CSV' }}</span>
+          </button>
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="isDownloading.rooms ? '!opacity-50' : ''"
+            :disabled="isDownloading.rooms"
+            @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, 'Räume.pdf')"
+          >
+            <svg v-if="isDownloading.rooms" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.rooms ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </footer>
+      </article>
 
-    <!-- Räume -->
-    <div class="pdf-plans__row">
-      <div class="mb-2">
-        <h4 class="pdf-plans__row-title">Räume</h4>
-        <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Raum mit allen Aktivitäten.</p>
-      </div>
-
-      <!-- Warning box -->
-      <div
-        v-if="hasRoomIssues"
-        class="glass-alert-warning mt-3 flex items-start"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
-             fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
-        </svg>
-        <span class="text-sm">
-          Achtung: Es wurden noch nicht alle Aktivitäten und Teams auf die Räume verteilt.<br>
-          Das PDF sollte so nicht gedruckt werden.
-        </span>
-      </div>
-
-      <!-- Buttons -->
-      <div class="mt-4 flex justify-between">
-        <!-- Raumnutzung CSV Button -->
-        <button
-          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-          :class="isDownloadingCsv ? '!opacity-50' : ''"
-          :disabled="isDownloadingCsv"
-          @click="downloadRoomUtilizationCsv"
-        >
-          <svg v-if="isDownloadingCsv" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloadingCsv ? 'Erzeuge…' : 'Raumnutzung' }}</span>
-        </button>
-
-        <!-- PDF Button -->
-        <button
-          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-          :class="isDownloading.rooms ? '!opacity-50' : ''"
-          :disabled="isDownloading.rooms"
-          @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, 'Räume.pdf')"
-        >
-          <svg v-if="isDownloading.rooms" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading.rooms ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Rollen -->
-    <div class="pdf-plans__row">
-      <div class="mb-2">
-        <h4 class="pdf-plans__row-title">Rollen</h4>
-        <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Rolle mit allen Aktivitäten.</p>
-      </div>
-
-      <!-- Warning box -->
-      <div
-        v-if="hasTeamIssues"
-        class="glass-alert-warning mt-3 flex items-start"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
-             fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
-        </svg>
-        <span class="text-sm">
-          Achtung: Die Anzahl der angemeldeten Teams stimmt nicht mit der Anzahl im Plan überein.<br>
-          Das PDF sollte so nicht gedruckt werden.
-        </span>
-      </div>
-
-      <!-- No roles available message -->
-      <div v-if="availableRoles.length === 0" class="mt-4 p-4 bg-[var(--color-bg-muted)] rounded text-center text-sm text-[var(--color-text-muted)]">
-        Keine Rollen mit Aktivitäten im Plan vorhanden.
-      </div>
-
-      <!-- Role Selector: stacked on mobile, side-by-side on desktop when both programs -->
-      <div 
-        v-else
-        class="mt-4 grid gap-4 grid-cols-1"
-        :class="{ 'lg:grid-cols-2': roleProgramGroups.length > 1 }"
-      >
-        <div
-            v-for="group in roleProgramGroups"
-            :key="programId(group.program)"
-            class="bg-[var(--color-bg-muted)] rounded p-3"
-        >
-          <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-            <img 
-              :src="programLogoSrc(group.program)" 
-              :alt="programLogoAlt(group.program)"
-              class="w-6 h-6 flex-shrink-0"
-            />
-            <span>FIRST LEGO League {{ programDisplayName(group.program) }}</span>
-          </h5>
-          <div class="space-y-0.5">
-            <label 
-              v-for="role in group.roles" 
-              :key="role.id"
-              class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Rollen</h4>
+          <p class="pdf-plans__tile-sub">Eine Seite pro Rolle mit allen Aktivitäten.</p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <p v-if="hasTeamIssues" class="pdf-plans__tile-warn">Teamanzahl weicht vom Plan ab.</p>
+          <p v-if="availableRoles.length === 0" class="pdf-plans__tile-note">Keine Rollen mit Aktivitäten im Plan.</p>
+          <div v-else class="pdf-plans__tile-scroll">
+            <div
+              v-for="group in roleProgramGroups"
+              :key="programId(group.program)"
+              class="pdf-plans__option-group"
             >
-              <input 
-                type="checkbox" 
-                :checked="selectedRoleIds.has(role.id)"
-                @change="toggleRole(role.id)"
-                class="accent-blue-600"
-              />
-              <span class="text-sm">{{ role.name }}</span>
-            </label>
+              <h5 class="pdf-plans__option-heading">
+                <img
+                  :src="programLogoSrc(group.program)"
+                  :alt="programLogoAlt(group.program)"
+                  class="w-5 h-5 flex-shrink-0"
+                />
+                <span>{{ programDisplayName(group.program) }}</span>
+              </h5>
+              <label
+                v-for="role in group.roles"
+                :key="role.id"
+                class="pdf-plans__option"
+              >
+                <input
+                  type="checkbox"
+                  :checked="selectedRoleIds.has(role.id)"
+                  class="accent-[var(--color-accent)]"
+                  @change="toggleRole(role.id)"
+                />
+                <span>{{ role.name }}</span>
+              </label>
+            </div>
           </div>
         </div>
-      </div>
+        <footer class="pdf-plans__tile-actions">
+          <button type="button" class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm" @click="showWorkerShiftsModal">
+            HERO Schichten
+          </button>
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="!(hasSelectedRoles && !isDownloading.roles) ? '!opacity-50' : ''"
+            :disabled="!hasSelectedRoles || isDownloading.roles"
+            @click="downloadRolesPdf"
+          >
+            <svg v-if="isDownloading.roles" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.roles ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </footer>
+      </article>
 
-      <!-- Buttons -->
-      <div class="mt-4 flex justify-between">
-        <!-- HERO Schichten Button -->
-        <button
-          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-          @click="showWorkerShiftsModal"
-        >
-          <span>HERO Schichten</span>
-        </button>
-        
-        <!-- PDF Button -->
-        <button
-          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-          :class="!(hasSelectedRoles && !isDownloading.roles) ? '!opacity-50' : ''"
-          :disabled="!hasSelectedRoles || isDownloading.roles"
-          @click="downloadRolesPdf"
-        >
-          <svg v-if="isDownloading.roles" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading.roles ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Teams -->
-    <div class="pdf-plans__row">
-      <div class="mb-2">
-        <h4 class="pdf-plans__row-title">Teams</h4>
-        <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Team mit allen Aktivitäten.</p>
-      </div>
-
-      <!-- Warning box -->
-      <div
-        v-if="hasTeamIssues"
-        class="glass-alert-warning mt-3 flex items-start"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
-             fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
-        </svg>
-        <span class="text-sm">
-          Achtung: Die Anzahl der angemeldeten Teams stimmt nicht mit der Anzahl im Plan überein.<br>
-          Das PDF sollte so nicht gedruckt werden.
-        </span>
-      </div>
-
-      <!-- No teams available message -->
-      <div v-if="availableTeamPrograms.length === 0" class="mt-4 p-4 bg-[var(--color-bg-muted)] rounded text-center text-sm text-[var(--color-text-muted)]">
-        Keine Teams im Plan vorhanden.
-      </div>
-
-      <!-- Program Selector: stacked on mobile, side-by-side on desktop when both programs -->
-      <div 
-        v-else
-        class="mt-4 grid gap-4 grid-cols-1"
-        :class="{ 'lg:grid-cols-2': availableTeamPrograms.length > 1 }"
-      >
-        <div
-            v-for="program in availableTeamPrograms"
-            :key="program.id"
-            class="bg-[var(--color-bg-muted)] rounded p-3"
-        >
-          <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-            <img 
-              :src="programLogoSrc(program)" 
-              :alt="programLogoAlt(program)"
-              class="w-6 h-6 flex-shrink-0"
-            />
-            <span>FIRST LEGO League {{ programDisplayName(program) }}</span>
-          </h5>
-          <div class="space-y-0.5">
-            <label 
-              class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Teams</h4>
+          <p class="pdf-plans__tile-sub">Eine Seite pro Team mit allen Aktivitäten.</p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <p v-if="hasTeamIssues" class="pdf-plans__tile-warn">Teamanzahl weicht vom Plan ab.</p>
+          <p v-if="availableTeamPrograms.length === 0" class="pdf-plans__tile-note">Keine Teams im Plan.</p>
+          <div v-else class="pdf-plans__tile-scroll">
+            <div
+              v-for="program in availableTeamPrograms"
+              :key="program.id"
+              class="pdf-plans__option-group"
             >
-              <input 
-                type="checkbox" 
-                :checked="selectedProgramIds.has(program.id)"
-                @change="toggleTeamProgram(program.id)"
-                class="accent-blue-600"
-              />
-              <span class="text-sm">Alle Teams</span>
-            </label>
+              <h5 class="pdf-plans__option-heading">
+                <img
+                  :src="programLogoSrc(program)"
+                  :alt="programLogoAlt(program)"
+                  class="w-5 h-5 flex-shrink-0"
+                />
+                <span>{{ programDisplayName(program) }}</span>
+              </h5>
+              <label class="pdf-plans__option">
+                <input
+                  type="checkbox"
+                  :checked="selectedProgramIds.has(program.id)"
+                  class="accent-[var(--color-accent)]"
+                  @change="toggleTeamProgram(program.id)"
+                />
+                <span>Alle Teams</span>
+              </label>
+            </div>
           </div>
         </div>
-      </div>
-
-      <!-- PDF Button -->
-      <div class="mt-4 flex justify-end">
-        <button
-          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-          :class="!(hasSelectedPrograms && !isDownloading.teams) ? '!opacity-50' : ''"
-          :disabled="!hasSelectedPrograms || isDownloading.teams"
-          @click="downloadTeamsPdf"
-        >
-          <svg v-if="isDownloading.teams" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading.teams ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
-      </div>
-    </div>
+        <footer class="pdf-plans__tile-actions">
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="!(hasSelectedPrograms && !isDownloading.teams) ? '!opacity-50' : ''"
+            :disabled="!hasSelectedPrograms || isDownloading.teams"
+            @click="downloadTeamsPdf"
+          >
+            <svg v-if="isDownloading.teams" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.teams ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </footer>
+      </article>
     </div>
 
     <!-- Tab Content: Organisation -->
-    <div v-show="activeTab === 'organisation'" class="pdf-plans__list">
-      <!-- 1. Teamliste -->
-      <div class="pdf-plans__row">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="pdf-plans__row-title">Teamliste</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">Alle Teams mit Teamräume und Zuordnung zu Guterachter:innen- bzw. Jury Gruppen.</p>
-            <p class="text-sm text-[var(--color-text-muted)] mt-2">Diese Liste hilft beim Check-In und bei den Briefings und Beratungen.</p>
-          </div>
+    <div v-show="activeTab === 'organisation'" class="pdf-plans__grid">
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Teamliste</h4>
+          <p class="pdf-plans__tile-sub">
+            Teams mit Räumen und Gutachter-/Jury-Gruppen — für Check-In und Briefings.
+          </p>
+        </header>
+        <div class="pdf-plans__tile-body"></div>
+        <footer class="pdf-plans__tile-actions">
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading['team-list'] ? '!opacity-50' : ''"
             :disabled="isDownloading['team-list']"
             @click="downloadTeamListPdf"
           >
             <svg v-if="isDownloading['team-list']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading['team-list'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
-        </div>
-      </div>
+        </footer>
+      </article>
 
-      <!-- 2. Moderation -->
-      <div class="pdf-plans__row">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="pdf-plans__row-title">Moderation</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">Zeiten für alle Aktivitäten mit Moderation und kompletter Robot-Game-Matchplan</p>
-          </div>
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Moderation</h4>
+          <p class="pdf-plans__tile-sub">
+            Moderierte Aktivitäten und vollständiger Robot-Game-Matchplan.
+          </p>
+        </header>
+        <div class="pdf-plans__tile-body"></div>
+        <footer class="pdf-plans__tile-actions">
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading['moderator-match-plan'] ? '!opacity-50' : ''"
             :disabled="isDownloading['moderator-match-plan']"
             @click="downloadModeratorMatchPlanPdf"
           >
             <svg v-if="isDownloading['moderator-match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading['moderator-match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
-        </div>
-      </div>
+        </footer>
+      </article>
 
-      <!-- 3. Slot-Zuordnung -->
-      <div class="pdf-plans__row">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="pdf-plans__row-title">Slot-Zuordnung</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.</p>
-          </div>
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Slot-Zuordnung</h4>
+          <p class="pdf-plans__tile-sub">
+            Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.
+          </p>
+        </header>
+        <div class="pdf-plans__tile-body"></div>
+        <footer class="pdf-plans__tile-actions">
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading['slot-assignments'] ? '!opacity-50' : ''"
             :disabled="isDownloading['slot-assignments']"
             @click="downloadSlotAssignmentsPdf"
           >
             <svg v-if="isDownloading['slot-assignments']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading['slot-assignments'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
-        </div>
-      </div>
+        </footer>
+      </article>
 
-      <!-- 4. Match-Plan für SCORE -->
-      <div v-if="hasChallengeTeams || hasChallenge(event)" class="pdf-plans__row">
-        <div class="mb-2">
-          <h4 class="pdf-plans__row-title">Match-Plan für SCORE</h4>
-          <p class="text-sm text-[var(--color-text-muted)]">Vorrunden-Matches zum Übernehmen in die Auswertesoftware 
-            <a 
-              href="https://evaluation.hands-on-technology.org/" 
-              target="_blank" 
+      <article
+        v-if="hasChallengeTeams || hasChallenge(event)"
+        class="pdf-plans__tile liquid-surface-inner"
+      >
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Match-Plan SCORE</h4>
+          <p class="pdf-plans__tile-sub">
+            Vorrunden-Matches zum Übernehmen in
+            <a
+              href="https://evaluation.hands-on-technology.org/"
+              target="_blank"
               rel="noopener noreferrer"
               class="text-[var(--color-accent)] underline hover:opacity-80"
-            >
-              SCORE
-            </a>.
+            >SCORE</a>.
           </p>
-          <p class="text-sm text-[var(--color-text-muted)] mt-2">
-            Damit die Schiedsrichter:innen die Matches in der Reihenfolge angezeigt bekommen, wie in den den Plänen aus FLOW, müssen in SCORE die Matches exakt so angepasst werden, wie hier gezeigt.
-          </p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <p class="pdf-plans__tile-note">Reihenfolge in SCORE an FLOW anpassen.</p>
         </div>
-
-        <!-- Buttons -->
-        <div class="mt-4 flex justify-between">
-          <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-            @click="openMatchPlanModal"
-          >
-            <span>Online anzeigen</span>
+        <footer class="pdf-plans__tile-actions">
+          <button type="button" class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm" @click="openMatchPlanModal">
+            Online
           </button>
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading['match-plan'] ? '!opacity-50' : ''"
             :disabled="isDownloading['match-plan']"
             @click="downloadMatchPlanPdf"
           >
             <svg v-if="isDownloading['match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading['match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
-        </div>
-      </div>
+        </footer>
+      </article>
 
-      <!-- 5. Gesamtplan -->
-      <div class="pdf-plans__row">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="pdf-plans__row-title">Gesamtplan</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">Volle Details, aber in einfacher Formatierung.</p>
-          </div>
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Gesamtplan</h4>
+          <p class="pdf-plans__tile-sub">Volle Details in einfacher Formatierung.</p>
+        </header>
+        <div class="pdf-plans__tile-body"></div>
+        <footer class="pdf-plans__tile-actions">
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading.full ? '!opacity-50' : ''"
             :disabled="isDownloading.full"
             @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
           >
             <svg v-if="isDownloading.full" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
-        </div>
-      </div>
+        </footer>
+      </article>
     </div>
 
     <!-- Tab Content: Aufkleber -->
@@ -1640,6 +1549,139 @@ const currentTabLabel = computed(() =>
   -webkit-backdrop-filter: none;
 }
 
+.pdf-plans__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16.5rem, 1fr));
+  gap: 0.85rem;
+  align-items: stretch;
+}
+
+.pdf-plans__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  min-height: 13.75rem;
+  height: 100%;
+  padding: 1rem 1.05rem 1.05rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 38%, var(--liquid-border-soft));
+  background: color-mix(in srgb, #ffffff 90%, var(--liquid-tile-bg-inner));
+  box-shadow:
+    0 8px 20px rgba(15, 23, 42, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.pdf-plans__tile-head {
+  min-height: 3.6rem;
+}
+
+.pdf-plans__tile-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+
+.pdf-plans__tile-sub {
+  margin: 0.28rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pdf-plans__tile-body {
+  flex: 1 1 auto;
+  min-height: 3.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.pdf-plans__tile-scroll {
+  max-height: 5.75rem;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.pdf-plans__tile-actions {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.pdf-plans__tile-note,
+.pdf-plans__tile-warn {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.pdf-plans__tile-note {
+  color: var(--color-text-muted);
+}
+
+.pdf-plans__tile-warn {
+  color: color-mix(in srgb, #b45309 75%, var(--color-text));
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 28%, transparent);
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+}
+
+.pdf-plans__option-group + .pdf-plans__option-group {
+  margin-top: 0.2rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 22%, transparent);
+}
+
+.pdf-plans__option-heading {
+  margin: 0 0 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+}
+
+.pdf-plans__option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.2rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.pdf-plans__option:hover {
+  background: var(--color-bg-hover);
+}
+
+.pdf-plans__preview {
+  height: 3.25rem;
+  width: auto;
+  max-width: 5.5rem;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
+  background: #fff;
+}
+
+/* Aufkleber keeps stacked list layout */
 .pdf-plans__list {
   display: flex;
   flex-direction: column;
@@ -1671,16 +1713,6 @@ const currentTabLabel = computed(() =>
   line-height: 1.4;
 }
 
-.pdf-plans__preview {
-  height: 3rem;
-  width: auto;
-  max-width: 5.5rem;
-  object-fit: contain;
-  border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
-  background: #fff;
-}
-
 .fade-enter-active, .fade-leave-active {
   transition: all 0.2s ease;
 }
@@ -1688,5 +1720,11 @@ const currentTabLabel = computed(() =>
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
   transform: translateY(-0.5rem);
+}
+
+@media (max-width: 640px) {
+  .pdf-plans__grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
