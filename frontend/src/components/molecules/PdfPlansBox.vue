@@ -1078,59 +1078,54 @@ const eventTitleNormalized = computed(() => {
       </div>
     </section>
 
-    <section v-if="showLabels" class="glass-card liquid-surface-inner pdf-plans__panel">
-      <h3 v-if="!hideHeading" class="glass-card__heading">Namensschilder</h3>
-      <p class="glass-settings-hint !not-italic mb-4">
-        Namensaufkleber zum Drucken auf A4-Papier
-      </p>
-      <p class="text-sm text-[var(--color-text-muted)] mb-3">
-        Die PDF-Dateien sind passend zum  
-        <a 
-          href="https://www.avery-zweckform.com/vorlage-l4785" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          class="text-[var(--color-accent)] underline hover:opacity-80"
-        >
-          Format Avery L4785</a> formatiert.
-      </p>
-      <p class="text-sm text-[var(--color-text-muted)] mb-4">
-        Jeder Aufkleber enthält den Namen der Person, den Team-Namen bzw. die Rolle sowie die Logos (Programm, Saison, Veranstalter).
-      </p>
-      <p class="text-sm text-[var(--color-text-muted)] mb-4">
-        Als Veranstalter-Logo wird das erste aktive aus dem
-        <a
-          href="/plan/publish/logos"
-          class="text-[var(--color-accent)] underline hover:opacity-80"
-        >
-          View Logos</a>
-        verwendet.
-      </p>
-      <p class="text-sm text-[var(--color-text-muted)] mb-4">
-        Mit "Überspringen" können die ersten Aufkleber auf dem ersten Blatt übersprungen werden, um teilweise bereits verwendete Blätter weiter zu nutzen und Material zu sparen.
-      </p>
- 
-      
-      <!-- Namensaufkleber für Teams -->
-      <div class="pdf-plans__row">
-        <div>
-          <h4 class="pdf-plans__row-title mb-2">Namensaufkleber für Teams</h4>
-          <p class="text-sm text-[var(--color-text-muted)] mb-4">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
-          <p class="text-sm text-[var(--color-text-muted)] mb-4">"No-Show" Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.</p>
-          
-          <!-- Filters: stacked on mobile, side-by-side on desktop when both programs -->
-          <div 
+    <template v-if="showLabels">
+      <section class="glass-card liquid-surface-inner pdf-plans__panel">
+        <h3 v-if="!hideHeading" class="glass-card__heading">Namensschilder</h3>
+        <p class="glass-settings-hint !not-italic mb-3">
+          Namensaufkleber zum Drucken auf A4-Papier
+        </p>
+        <p class="text-sm text-[var(--color-text-muted)] mb-3">
+          Die PDF-Dateien sind passend zum
+          <a
+            href="https://www.avery-zweckform.com/vorlage-l4785"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--color-accent)] underline hover:opacity-80"
+          >Format Avery L4785</a>
+          formatiert.
+          Jeder Aufkleber enthält den Namen der Person, den Team-Namen bzw. die Rolle sowie die Logos (Programm, Saison, Veranstalter).
+          Als Veranstalter-Logo wird das erste aktive aus dem
+          <a
+            href="/plan/publish/logos"
+            class="text-[var(--color-accent)] underline hover:opacity-80"
+          >View Logos</a>
+          verwendet.
+        </p>
+        <p class="text-sm text-[var(--color-text-muted)] mb-0">
+          Mit „Überspringen“ können die ersten Aufkleber auf dem ersten Blatt übersprungen werden, um teilweise bereits verwendete Blätter weiter zu nutzen und Material zu sparen.
+        </p>
+      </section>
+
+      <div class="pdf-plans__labels-cols">
+        <section class="glass-card liquid-surface-inner pdf-plans__panel">
+          <h4 class="pdf-plans__row-title mb-2">Für Teams</h4>
+          <p class="text-sm text-[var(--color-text-muted)] mb-4">
+            Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.
+            „No-Show“-Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.
+          </p>
+
+          <div
             v-if="availableTeamPrograms.length > 0"
-            class="mb-4 grid gap-4 grid-cols-1"
-            :class="{ 'lg:grid-cols-2': availableTeamPrograms.length > 1 }"
+            class="mb-4 grid gap-3 grid-cols-1"
           >
             <div
-                v-for="program in availableTeamPrograms"
-                :key="program.id"
-                class="bg-[var(--color-bg-muted)] rounded p-3"
+              v-for="program in availableTeamPrograms"
+              :key="program.id"
+              class="bg-[var(--color-bg-muted)] rounded p-3"
             >
               <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-                <img 
-                  :src="programLogoSrc(program)" 
+                <img
+                  :src="programLogoSrc(program)"
                   :alt="programLogoAlt(program)"
                   class="w-6 h-6 flex-shrink-0"
                 />
@@ -1138,8 +1133,8 @@ const eventTitleNormalized = computed(() => {
               </h5>
               <div class="space-y-0.5">
                 <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     :checked="teamLabelFilters[program.id]?.players ?? true"
                     @change="toggleTeamLabelPersonType(program.id, 'players')"
                     class="accent-blue-600"
@@ -1147,8 +1142,8 @@ const eventTitleNormalized = computed(() => {
                   <span class="text-sm">Teammitglieder</span>
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     :checked="teamLabelFilters[program.id]?.coaches ?? true"
                     @change="toggleTeamLabelPersonType(program.id, 'coaches')"
                     class="accent-blue-600"
@@ -1158,8 +1153,7 @@ const eventTitleNormalized = computed(() => {
               </div>
             </div>
           </div>
-          
-          <!-- PDF Button -->
+
           <div class="flex items-center justify-end gap-2">
             <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
               <span class="text-xs">Überspringen:</span>
@@ -1185,22 +1179,18 @@ const eventTitleNormalized = computed(() => {
               <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
             </button>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <!-- Namensaufkleber für Volunteer -->
-      <div class="pdf-plans__row">
-        <div>
-          <h4 class="pdf-plans__row-title mb-2">Namensaufkleber für Volunteers</h4>
+        <section class="glass-card liquid-surface-inner pdf-plans__panel">
+          <h4 class="pdf-plans__row-title mb-2">Für Volunteers</h4>
           <p class="text-sm text-[var(--color-text-muted)] mb-3">
             Hier kann eine einfache Liste von Rollen und Namen hochgeladen werden, aus der dann ein PDF erzeugt wird.
           </p>
           <p class="text-xs text-[var(--color-text-subtle)] mb-4">
-            Format: Name, Rolle, Programm (E für Explore, C für Challenge, leer für kein Logo). 
+            Format: Name, Rolle, Programm (E für Explore, C für Challenge, leer für kein Logo).
             Spalten können durch Tab oder Komma getrennt sein.
           </p>
-          
-          <!-- Input Textarea -->
+
           <div class="mb-4">
             <textarea
               v-model="volunteerInputText"
@@ -1210,8 +1200,7 @@ const eventTitleNormalized = computed(() => {
               rows="6"
             ></textarea>
           </div>
-          
-          <!-- Preview Grid -->
+
           <div v-if="volunteerPreview.length > 0 || submittedVolunteers.length > 0" class="mb-4">
             <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-2">
               Vorschau ({{ (volunteerPreview.length + submittedVolunteers.length) }} Einträge):
@@ -1227,26 +1216,24 @@ const eventTitleNormalized = computed(() => {
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <!-- Submitted volunteers (persistent) -->
                     <tr v-for="(vol, idx) in submittedVolunteers" :key="'submitted-' + idx" class="bg-green-50">
                       <td class="px-3 py-2">{{ vol.name }}</td>
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
-                        <img 
-                          :src="programLogoSrc(catalogNameFromCode(vol.program))" 
-                          :alt="programLogoAlt(catalogNameFromCode(vol.program))" 
+                        <img
+                          :src="programLogoSrc(catalogNameFromCode(vol.program))"
+                          :alt="programLogoAlt(catalogNameFromCode(vol.program))"
                           class="w-5 h-5 inline-block"
                         />
                       </td>
                     </tr>
-                    <!-- Preview volunteers (pending) -->
                     <tr v-for="(vol, idx) in volunteerPreview" :key="'preview-' + idx">
                       <td class="px-3 py-2">{{ vol.name }}</td>
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
-                        <img 
-                          :src="programLogoSrc(catalogNameFromCode(vol.program))" 
-                          :alt="programLogoAlt(catalogNameFromCode(vol.program))" 
+                        <img
+                          :src="programLogoSrc(catalogNameFromCode(vol.program))"
+                          :alt="programLogoAlt(catalogNameFromCode(vol.program))"
                           class="w-5 h-5 inline-block"
                         />
                       </td>
@@ -1256,8 +1243,7 @@ const eventTitleNormalized = computed(() => {
               </div>
             </div>
           </div>
-          
-          <!-- Action Buttons -->
+
           <div class="flex gap-2 flex-wrap justify-between items-center">
             <div class="flex gap-2">
               <button
@@ -1292,18 +1278,18 @@ const eventTitleNormalized = computed(() => {
                 :class="!(hasSubmittedVolunteers && !isDownloading['volunteer-labels']) ? '!opacity-50' : ''"
                 :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
               >
-              <svg v-if="isDownloading['volunteer-labels']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-              </svg>
-              <span>{{ isDownloading['volunteer-labels'] ? 'Erzeuge…' : 'PDF' }}</span>
+                <svg v-if="isDownloading['volunteer-labels']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+                <span>{{ isDownloading['volunteer-labels'] ? 'Erzeuge…' : 'PDF' }}</span>
               </button>
             </div>
           </div>
-        </div>
+        </section>
       </div>
-    </section>
+    </template>
 
     <!-- Match Plan Modal -->
     <div
@@ -1488,6 +1474,19 @@ const eventTitleNormalized = computed(() => {
 
 .pdf-plans__panel {
   min-width: 0;
+}
+
+.pdf-plans__labels-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .pdf-plans__labels-cols {
+    grid-template-columns: 1fr;
+  }
 }
 
 .pdf-plans__group-label {
