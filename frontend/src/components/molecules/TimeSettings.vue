@@ -3,7 +3,7 @@ import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import ParameterField from '@/components/molecules/ParameterField.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {eventPrograms} from '@/utils/eventPrograms'
+import {eventPrograms, hasFuture, programDisplayName} from '@/utils/eventPrograms'
 import {useEventStore} from '@/stores/event'
 
 const props = defineProps<{
@@ -18,7 +18,7 @@ const emit = defineEmits<{
   (e: 'update-param', param: any): void
 }>()
 
-type Prefix = 'g' | 'e1' | 'e2' | 'c'
+type Prefix = 'g' | 'e1' | 'e2' | 'c' | 'f8'
 type TimeKey = 'start_opening' | 'duration_opening' | 'duration_awards'
 type Logo = { src: string; alt: string }
 
@@ -31,30 +31,39 @@ const byName = computed<Record<string, any>>(
 
 const eMode = computed(() => Number(byName.value['e_mode']?.value ?? 0))
 const cMode = computed(() => Number(byName.value['c_mode']?.value ?? 0))
-
-const currentVisibility = computed(() => {
-  const key = `e${eMode.value}_c${cMode.value}`
-  return visibilityMatrix.value[key]?.fields || {}
+const f8Mode = computed(() => {
+  if (Number(byName.value['f8_mode']?.value ?? 0) === 1) return 1
+  const teams = Number(byName.value['f8_teams']?.value ?? 0)
+  return hasFuture(eventStore.selectedEvent) && teams > 0 ? 1 : 0
 })
 
-const columnLabels: Record<Prefix, string> = {
+const currentVisibility = computed(() => {
+  const key = `e${eMode.value}_c${cMode.value}_f8${f8Mode.value}`
+  const fields = visibilityMatrix.value[key]?.fields
+  if (fields) return fields
+  if (f8Mode.value === 0) {
+    return visibilityMatrix.value[`e${eMode.value}_c${cMode.value}`]?.fields || {}
+  }
+  return {}
+})
+
+const columnLabels = computed<Record<Prefix, string>>(() => ({
   g: 'Gemeinsam',
   e1: 'Explore Vormittag',
   e2: 'Explore Nachmittag',
-  c: 'Challenge',
-}
+  c: programDisplayName('CHALLENGE') || 'Challenge',
+  f8: programDisplayName('FUTURE_8') || 'Future 8+',
+}))
 
-const columnIcons: Record<Exclude<Prefix, 'g'>, string> = {
+const columnIcons = computed<Record<Exclude<Prefix, 'g'>, string>>(() => ({
   e1: programLogoSrc('EXPLORE'),
   e2: programLogoSrc('EXPLORE'),
   c: programLogoSrc('CHALLENGE'),
-}
+  f8: programLogoSrc('FUTURE_8'),
+}))
 
 const gemeinsamLogos = computed<Logo[]>(() => {
-  const programs = eventPrograms(eventStore.selectedEvent)
-  const explore = programs.find((program) => String(program.name || '').toUpperCase() === 'EXPLORE')
-  const others = programs.filter((program) => String(program.name || '').toUpperCase() !== 'EXPLORE')
-  return [explore ?? {name: 'EXPLORE'}, ...others].map((program) => ({
+  return eventPrograms(eventStore.selectedEvent).map((program) => ({
     src: programLogoSrc(program),
     alt: programLogoAlt(program),
   }))
@@ -62,10 +71,10 @@ const gemeinsamLogos = computed<Logo[]>(() => {
 
 function logosFor(prefix: Prefix): Logo[] {
   if (prefix === 'g') return gemeinsamLogos.value
-  return [{src: columnIcons[prefix], alt: columnLabels[prefix]}]
+  return [{src: columnIcons.value[prefix], alt: columnLabels.value[prefix]}]
 }
 
-const allPrefixes: Prefix[] = ['g', 'e1', 'e2', 'c']
+const allPrefixes: Prefix[] = ['g', 'e1', 'e2', 'c', 'f8']
 
 function getParam(name: string) {
   return byName.value[name] ?? null
@@ -77,6 +86,7 @@ function cellParam(prefix: Prefix, key: TimeKey) {
 
 function isFieldEditable(prefix: Prefix, key: TimeKey): boolean {
   if (prefix === 'c' && cMode.value === 0) return false
+  if (prefix === 'f8' && f8Mode.value === 0) return false
   if ((prefix === 'e1' || prefix === 'e2') && eMode.value === 0) return false
 
   const fieldName = `${prefix}_${key}`

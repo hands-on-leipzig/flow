@@ -84,131 +84,147 @@ class ParameterController extends Controller
 
     public function visibility(): \Illuminate\Http\JsonResponse
     {
-        // Alle 12 Felder
         $fields = [
             'c_start_opening', 'c_duration_opening', 'c_duration_awards',
+            'f8_start_opening', 'f8_duration_opening', 'f8_duration_awards',
             'g_start_opening', 'g_duration_opening', 'g_duration_awards',
             'e1_start_opening', 'e1_duration_opening', 'e1_duration_awards',
             'e2_start_opening', 'e2_duration_opening', 'e2_duration_awards',
+        ];
+
+        $exploreIntegratedOrOff = [
+            ExploreMode::NONE->value,
+            ExploreMode::INTEGRATED_MORNING->value,
+            ExploreMode::INTEGRATED_AFTERNOON->value,
         ];
 
         $matrix = [];
 
         for ($e = 0; $e <= 8; $e++) {
             for ($c = 0; $c <= 1; $c++) {
-                $key = "e{$e}_c{$c}";
+                for ($f8 = 0; $f8 <= 1; $f8++) {
+                    $entry = array_fill_keys($fields, ['editable' => false]);
+                    $invalidLead = in_array($e, $exploreIntegratedOrOff, true) && $c === 0 && $f8 === 0;
 
-                // Standard: alles false
-                $entry = array_fill_keys($fields, ['editable' => false]);
+                    if (! $invalidLead) {
+                        if ($c === 1) {
+                            $this->enableLeadTimes($entry, $e, 'c');
+                        }
+                        if ($f8 === 1) {
+                            $this->enableLeadTimes($entry, $e, 'f8');
+                        }
+                        $this->enableExploreTimes($entry, $e);
+                    }
 
-                // Ungültige Kombinationen → alles false, fertig
-                if (in_array($e, [ExploreMode::NONE->value, ExploreMode::INTEGRATED_MORNING->value, ExploreMode::INTEGRATED_AFTERNOON->value]) && $c === 0) {
-                    $matrix[$key] = [
+                    $payload = [
                         'e_mode' => $e,
                         'c_mode' => $c,
+                        'f8_mode' => $f8,
                         'fields' => $entry,
+                        'columns' => $this->timeColumns($entry),
                     ];
-                    continue;
-                }
 
-                if ( $c === 1) {
-               
-                    switch ($e) {
-                        case ExploreMode::NONE->value:
-                        case ExploreMode::DECOUPLED_MORNING->value:
-                        case ExploreMode::DECOUPLED_AFTERNOON->value:
-                        case ExploreMode::DECOUPLED_BOTH->value:
-
-                            foreach (['c_start_opening','c_duration_opening','c_duration_awards'] as $f) {
-                                $entry[$f]['editable'] = true;  
-                            }
-                            break;
-
-                        case ExploreMode::INTEGRATED_MORNING->value:
-                            foreach (['g_start_opening','g_duration_opening','c_duration_awards', 'e1_duration_awards'] as $f) {
-                                $entry[$f]['editable'] = true;  
-                            }
-                            break;
-
-
-                        case ExploreMode::INTEGRATED_AFTERNOON->value:
-                            foreach (['c_start_opening','c_duration_opening','g_duration_awards', 'e2_duration_opening'] as $f) {
-                                $entry[$f]['editable'] = true;  
-                            }
-                            break;
-
-                        case ExploreMode::HYBRID_BOTH->value:
-                            foreach (['g_start_opening','g_duration_opening','e1_duration_awards',
-                                        'e2_duration_opening','g_duration_awards'] as $f) {
-                                $entry[$f]['editable'] = true;  
-                            }
-                            break;
-
-
+                    $matrix["e{$e}_c{$c}_f8{$f8}"] = $payload;
+                    if ($f8 === 0) {
+                        $matrix["e{$e}_c{$c}"] = $payload;
                     }
-                }    
-
-                switch ($e) {
-                    case ExploreMode::DECOUPLED_MORNING->value:
-                        foreach (['e1_start_opening','e1_duration_opening','e1_duration_awards'] as $f) {
-                            $entry[$f]['editable'] = true;  
-                        }
-                        break;
-
-                    case ExploreMode::DECOUPLED_AFTERNOON->value:
-                        foreach (['e2_start_opening','e2_duration_opening','e2_duration_awards'] as $f) {
-                            $entry[$f]['editable'] = true;  
-                        }
-                        break;
-
-                    case ExploreMode::DECOUPLED_BOTH->value:
-                        foreach (['e1_start_opening','e1_duration_opening','e1_duration_awards',
-                                  'e2_start_opening','e2_duration_opening','e2_duration_awards'] as $f) {
-                            $entry[$f]['editable'] = true;  
-                        }
-                        break;
-
                 }
-
-                // Determine which columns to show based on editable fields
-                // Columns left to right: Gemeinsam (g), Explore Vormittag (e1), Explore Nachmittag (e2), Challenge (c)
-                $columns = [];
-                
-                // Check each column if it has any editable fields
-                if ($entry['g_start_opening']['editable'] || 
-                    $entry['g_duration_opening']['editable'] || 
-                    $entry['g_duration_awards']['editable']) {
-                    $columns[] = 'g';
-                }
-                
-                if ($entry['e1_start_opening']['editable'] || 
-                    $entry['e1_duration_opening']['editable'] || 
-                    $entry['e1_duration_awards']['editable']) {
-                    $columns[] = 'e1';
-                }
-                
-                if ($entry['e2_start_opening']['editable'] || 
-                    $entry['e2_duration_opening']['editable'] || 
-                    $entry['e2_duration_awards']['editable']) {
-                    $columns[] = 'e2';
-                }
-                
-                if ($entry['c_start_opening']['editable'] || 
-                    $entry['c_duration_opening']['editable'] || 
-                    $entry['c_duration_awards']['editable']) {
-                    $columns[] = 'c';
-                }
-                
-                $matrix[$key] = [
-                    'e_mode' => $e,
-                    'c_mode' => $c,
-                    'fields' => $entry,
-                    'columns' => $columns,
-                ];
             }
         }
 
         return response()->json(['matrix' => $matrix]);
+    }
+
+    /**
+     * Challenge-shaped opening/awards for prefix c or f8, matching Explore mode.
+     *
+     * @param  array<string, array{editable: bool}>  $entry
+     */
+    private function enableLeadTimes(array &$entry, int $e, string $prefix): void
+    {
+        $own = [
+            "{$prefix}_start_opening",
+            "{$prefix}_duration_opening",
+            "{$prefix}_duration_awards",
+        ];
+
+        switch ($e) {
+            case ExploreMode::NONE->value:
+            case ExploreMode::DECOUPLED_MORNING->value:
+            case ExploreMode::DECOUPLED_AFTERNOON->value:
+            case ExploreMode::DECOUPLED_BOTH->value:
+                foreach ($own as $field) {
+                    $entry[$field]['editable'] = true;
+                }
+                break;
+
+            case ExploreMode::INTEGRATED_MORNING->value:
+                foreach (['g_start_opening', 'g_duration_opening', "{$prefix}_duration_awards", 'e1_duration_awards'] as $field) {
+                    $entry[$field]['editable'] = true;
+                }
+                break;
+
+            case ExploreMode::INTEGRATED_AFTERNOON->value:
+                foreach (["{$prefix}_start_opening", "{$prefix}_duration_opening", 'g_duration_awards', 'e2_duration_opening'] as $field) {
+                    $entry[$field]['editable'] = true;
+                }
+                break;
+
+            case ExploreMode::HYBRID_BOTH->value:
+                foreach (['g_start_opening', 'g_duration_opening', 'e1_duration_awards', 'e2_duration_opening', 'g_duration_awards'] as $field) {
+                    $entry[$field]['editable'] = true;
+                }
+                break;
+        }
+    }
+
+    /**
+     * @param  array<string, array{editable: bool}>  $entry
+     */
+    private function enableExploreTimes(array &$entry, int $e): void
+    {
+        switch ($e) {
+            case ExploreMode::DECOUPLED_MORNING->value:
+                foreach (['e1_start_opening', 'e1_duration_opening', 'e1_duration_awards'] as $field) {
+                    $entry[$field]['editable'] = true;
+                }
+                break;
+
+            case ExploreMode::DECOUPLED_AFTERNOON->value:
+                foreach (['e2_start_opening', 'e2_duration_opening', 'e2_duration_awards'] as $field) {
+                    $entry[$field]['editable'] = true;
+                }
+                break;
+
+            case ExploreMode::DECOUPLED_BOTH->value:
+                foreach ([
+                    'e1_start_opening', 'e1_duration_opening', 'e1_duration_awards',
+                    'e2_start_opening', 'e2_duration_opening', 'e2_duration_awards',
+                ] as $field) {
+                    $entry[$field]['editable'] = true;
+                }
+                break;
+        }
+    }
+
+    /**
+     * @param  array<string, array{editable: bool}>  $entry
+     * @return list<string>
+     */
+    private function timeColumns(array $entry): array
+    {
+        $columns = [];
+        foreach (['g', 'e1', 'e2', 'c', 'f8'] as $prefix) {
+            if (
+                ($entry["{$prefix}_start_opening"]['editable'] ?? false)
+                || ($entry["{$prefix}_duration_opening"]['editable'] ?? false)
+                || ($entry["{$prefix}_duration_awards"]['editable'] ?? false)
+            ) {
+                $columns[] = $prefix;
+            }
+        }
+
+        return $columns;
     }
 
 }
