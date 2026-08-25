@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Ausgabe → Analog: Online-Plan-QR und PDF-Pläne zum Drucken.
+ * Ausgabe → Analog: QR/PDF-Aushänge und PDF-Pläne zum Drucken.
  */
 import QrWifiBox from '@/components/molecules/QrWifiBox.vue'
 import PdfPlansBox from '@/components/molecules/PdfPlansBox.vue'
@@ -13,20 +13,20 @@ defineOptions({name: 'PublishAnalog'})
     <header class="analog__intro">
       <h1 class="analog__title">Analog</h1>
       <p class="analog__sub">
-        Druckbarer Online-Plan-QR und PDF-Pläne für vor Ort.
+        Druckbare QR-Codes, WLAN-Poster und PDF-Pläne für vor Ort.
       </p>
     </header>
 
     <section class="analog__panel" aria-labelledby="analog-qr-heading">
       <header class="analog__panel-head">
         <div>
-          <h2 id="analog-qr-heading" class="analog__panel-title">Online-Plan QR</h2>
+          <h2 id="analog-qr-heading" class="analog__panel-title">QR &amp; Aushänge</h2>
           <p class="analog__panel-sub">
-            Zum Ausdrucken und Aufhängen — öffentlicher Plan-Link.
+            Online-Plan und WLAN-Poster zum Ausdrucken und Aufhängen.
           </p>
         </div>
       </header>
-      <QrWifiBox embed section="plan"/>
+      <QrWifiBox embed section="print"/>
     </section>
 
     <section class="analog__panel" aria-labelledby="analog-pdf-heading">

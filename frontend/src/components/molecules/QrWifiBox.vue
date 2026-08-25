@@ -10,15 +10,27 @@ const props = withDefaults(
   defineProps<{
     /** Skip outer card chrome when parent provides the panel. */
     embed?: boolean
-    /** Which columns to show (default both — e.g. DuringEventBox). */
-    section?: 'all' | 'plan' | 'wifi'
+    /**
+     * all — both columns (DuringEventBox)
+     * plan — Online-Plan QR/PDF only
+     * wifi — credentials + QR (WLAN page; no PDF)
+     * print — Online-Plan + WLAN PDF posters (Analog)
+     */
+    section?: 'all' | 'plan' | 'wifi' | 'print'
   }>(),
   {embed: false, section: 'all'}
 )
 
-const showPlan = computed(() => props.section === 'all' || props.section === 'plan')
-const showWifi = computed(() => props.section === 'all' || props.section === 'wifi')
-const singleSection = computed(() => props.section !== 'all')
+const showPlan = computed(
+  () => props.section === 'all' || props.section === 'plan' || props.section === 'print'
+)
+const showWifiForm = computed(() => props.section === 'all' || props.section === 'wifi')
+const showWifiQr = computed(() => props.section === 'all' || props.section === 'wifi')
+const showWifiPdf = computed(() => props.section === 'all' || props.section === 'print')
+const showWifi = computed(() => showWifiForm.value || showWifiQr.value || showWifiPdf.value)
+const singleSection = computed(() => props.section === 'plan' || props.section === 'wifi')
+/** Page already provides chrome + title — no nested card/headers. */
+const flat = computed(() => props.embed && singleSection.value)
 
 // === Store & Basis ===
 const eventStore = useEventStore()
@@ -27,162 +39,6 @@ const eventId = computed(() => event.value?.id)
 const loadingWifiQr = ref(false)
 /** Client-side fallback when the API event has SSID but no stored wifi_qrcode yet. */
 const localWifiQr = ref('')
-
-// === Password Management ===
-const showPassword = ref(false)
-const passwordInput = ref<string>('')
-const originalPassword = ref<string>('')
-
-// Watch for event changes to update password value
-watch(() => event.value?.wifi_password, (newPassword) => {
-  if (newPassword !== undefined && newPassword !== null && newPassword !== '') {
-    // Backend should always return decrypted password, but if we see encrypted format, fetch fresh
-    // Laravel encrypted strings start with "eyJ" (base64 JSON)
-    if (newPassword.startsWith('eyJ') && eventId.value) {
-      // Password appears encrypted, fetch decrypted version
-      axios.get(`/events/${eventId.value}`).then(({data}) => {
-        if (data.wifi_password && !data.wifi_password.startsWith('eyJ')) {
-          originalPassword.value = data.wifi_password
-          if (showPassword.value) {
-            passwordInput.value = data.wifi_password
-          }
-        }
-      }).catch(() => {
-        // Fallback to what we have
-        originalPassword.value = newPassword
-      })
-    } else {
-      // Already decrypted
-      originalPassword.value = newPassword
-    }
-
-    // If password exists, show asterisks by default (hidden)
-    if (!showPassword.value) {
-      passwordInput.value = '*****'
-    } else {
-      passwordInput.value = originalPassword.value
-    }
-  } else {
-    originalPassword.value = ''
-    passwordInput.value = ''
-  }
-}, {immediate: true})
-
-const hasPassword = computed(() => {
-  return !!originalPassword.value && originalPassword.value !== ''
-})
-
-// Computed for password display
-const displayPassword = computed(() => {
-  if (!hasPassword.value) {
-    return passwordInput.value
-  }
-  if (showPassword.value) {
-    // Show the decrypted password from originalPassword
-    // If user is editing (passwordInput is not asterisks and not original), use their input
-    if (passwordInput.value !== '*****' && passwordInput.value !== originalPassword.value) {
-      return passwordInput.value
-    }
-    // Otherwise show the original decrypted password
-    return originalPassword.value
-  }
-  // Show asterisks if password exists but is hidden
-  return '*****'
-})
-
-// Toggle password visibility
-async function togglePasswordVisibility() {
-  if (!showPassword.value) {
-    // When showing password, ensure we have the decrypted version
-    // Fetch fresh from backend to guarantee decrypted password
-    if (eventId.value && hasPassword.value) {
-      try {
-        const {data} = await axios.get(`/events/${eventId.value}`)
-        if (data.wifi_password) {
-          originalPassword.value = data.wifi_password
-          passwordInput.value = data.wifi_password
-        }
-      } catch (e) {
-        console.error('Failed to fetch decrypted password:', e)
-        // Fallback to stored value
-        passwordInput.value = originalPassword.value
-      }
-    } else {
-      passwordInput.value = originalPassword.value
-    }
-  } else {
-    // Hide password with asterisks
-    passwordInput.value = '*****'
-  }
-  showPassword.value = !showPassword.value
-}
-
-// Handle password input
-function onPasswordInput(value: string) {
-  // If user is typing and password is hidden (showing asterisks), reveal it
-  if (!showPassword.value && hasPassword.value) {
-    if (value === '*****') {
-      // User hasn't changed anything yet, keep asterisks
-      passwordInput.value = '*****'
-      return
-    }
-    // User is typing, show the actual password and use their input
-    showPassword.value = true
-    // Remove any leading asterisks from the input
-    passwordInput.value = value.replace(/^\*+/, '')
-    return
-  }
-
-  // Normal input when password is visible
-  passwordInput.value = value
-}
-
-// Handle password focus - if showing asterisks, select all so user can easily replace
-function onPasswordFocus(e: FocusEvent) {
-  if (!showPassword.value && hasPassword.value && passwordInput.value === '*****') {
-    // Select all asterisks so user can easily type to replace
-    ;(e.target as HTMLInputElement).select()
-  }
-}
-
-// Handle password blur - save if changed
-async function onPasswordBlur() {
-  if (!eventId.value) return
-
-  // If password is the asterisk placeholder, don't save
-  if (passwordInput.value === '*****' && hasPassword.value) {
-    return
-  }
-
-  // If password is empty, save empty string
-  if (!passwordInput.value || passwordInput.value.trim() === '') {
-    await updateEventField('wifi_password', '')
-    originalPassword.value = ''
-    passwordInput.value = ''
-    showPassword.value = false
-    return
-  }
-
-  // If password hasn't changed from original, don't save
-  if (passwordInput.value === originalPassword.value) {
-    // Hide password again
-    if (showPassword.value && hasPassword.value) {
-      showPassword.value = false
-      passwordInput.value = '*****'
-    }
-    return
-  }
-
-  // Save the new password
-  await updateEventField('wifi_password', passwordInput.value)
-  // After save, update original password
-  originalPassword.value = passwordInput.value
-  // Hide password again if it was shown
-  if (showPassword.value && passwordInput.value) {
-    showPassword.value = false
-    passwordInput.value = '*****'
-  }
-}
 
 // === PDF Download (neu über Composable) ===
 const {isDownloading, anyDownloading, downloadPdf} = usePdfExport()
@@ -209,7 +65,7 @@ async function ensureLocalWifiQr() {
     return
   }
   try {
-    const password = originalPassword.value || ''
+    const password = event.value?.wifi_password || ''
     const content = password
       ? `WIFI:T:WPA;S:${ssid};P:${password};;`
       : `WIFI:T:nopass;S:${ssid};;`
@@ -263,7 +119,7 @@ async function updateEventField(field: string, value: string) {
     await ensureLocalWifiQr()
 
     // Wenn WLAN-Daten geändert wurden → Preview neu laden
-    if (['wifi_ssid', 'wifi_password', 'wifi_instruction'].includes(field)) {
+    if (showWifiPdf.value && ['wifi_ssid', 'wifi_password', 'wifi_instruction'].includes(field)) {
       await loadPreview('plan_wifi')
     }
   } catch (e) {
@@ -284,7 +140,7 @@ async function downloadPng(dataUrl: string, filename: string) {
 async function boot() {
   await refreshEventFromApi()
   if (showPlan.value) void loadPreview('plan')
-  if (showWifi.value) void loadPreview('plan_wifi')
+  if (showWifiPdf.value) void loadPreview('plan_wifi')
 }
 
 onMounted(() => {
@@ -297,7 +153,7 @@ onActivated(() => {
 })
 
 watch(
-  () => [event.value?.wifi_ssid, event.value?.wifi_qrcode, originalPassword.value] as const,
+  () => [event.value?.wifi_ssid, event.value?.wifi_qrcode, event.value?.wifi_password] as const,
   () => {
     void ensureLocalWifiQr()
   }
@@ -308,8 +164,8 @@ watch(
   <div :class="embed ? 'qr-wifi qr-wifi--embed' : 'glass-card liquid-surface-inner p-3 qr-wifi'">
     <div :class="['qr-wifi__grid', singleSection && 'qr-wifi__grid--single']">
       <!-- Plan QR -->
-      <section v-if="showPlan" class="qr-wifi__col">
-        <header class="qr-wifi__col-head">
+      <section v-if="showPlan" :class="flat ? 'qr-wifi__flat' : 'qr-wifi__col'">
+        <header v-if="!flat" class="qr-wifi__col-head">
           <h3 class="qr-wifi__col-title">
             <i class="bi bi-qr-code" aria-hidden="true"/>
             Online-Plan
@@ -363,20 +219,26 @@ watch(
       </section>
 
       <!-- WLAN -->
-      <section v-if="showWifi" class="qr-wifi__col">
-        <header class="qr-wifi__col-head">
+      <section v-if="showWifi" :class="flat ? 'qr-wifi__flat' : 'qr-wifi__col'">
+        <header v-if="!flat" class="qr-wifi__col-head">
           <h3 class="qr-wifi__col-title">
             <i class="bi bi-wifi" aria-hidden="true"/>
             WLAN-Zugang
           </h3>
-          <p class="qr-wifi__col-sub">
+          <p v-if="showWifiForm" class="qr-wifi__col-sub">
             Netzwerke mit Schlüssel. Bei Web-Login nur SSID setzen — Rest in den Hinweisen.
+          </p>
+          <p v-else class="qr-wifi__col-sub">
+            Druckposter mit Netzwerkdaten — Zugang unter WLAN vor Ort pflegen.
           </p>
         </header>
 
-        <!-- QR first so it isn’t buried under the form -->
-        <div class="qr-wifi__exports qr-wifi__exports--first">
-          <div class="qr-wifi__export">
+        <!-- Compact exports first when not on the dedicated WLAN page -->
+        <div
+            v-if="!flat && (showWifiQr || showWifiPdf)"
+            :class="['qr-wifi__exports', showWifiForm && 'qr-wifi__exports--first']"
+        >
+          <div v-if="showWifiQr" class="qr-wifi__export">
             <template v-if="!event?.wifi_ssid">
               <div class="qr-wifi__placeholder">SSID fehlt</div>
             </template>
@@ -398,7 +260,7 @@ watch(
             </template>
           </div>
 
-          <div class="qr-wifi__export">
+          <div v-if="showWifiPdf" class="qr-wifi__export">
             <template v-if="!event?.wifi_ssid">
               <div class="qr-wifi__placeholder">SSID fehlt</div>
             </template>
@@ -431,54 +293,70 @@ watch(
           </div>
         </div>
 
-        <div v-if="event" class="qr-wifi__fields">
+        <div
+            v-if="event && showWifiForm"
+            class="qr-wifi__fields"
+            :class="flat && 'qr-wifi__fields--flat'"
+        >
           <div class="qr-wifi__field">
             <label class="qr-wifi__label" for="wifi-ssid">SSID</label>
             <input
                 id="wifi-ssid"
                 v-model="event.wifi_ssid"
-                class="qr-wifi__input"
+                class="glass-input glass-input--sm liquid-surface-control w-full"
                 placeholder="z. B. TH_EVENT_WLAN"
                 type="text"
                 @blur="updateEventField('wifi_ssid', event.wifi_ssid || '')"
             />
           </div>
+          <p class="qr-wifi__pw-hint">
+            Bei Web-Login Passwort leer lassen — Anleitung in die Hinweise.
+          </p>
           <div class="qr-wifi__field">
             <label class="qr-wifi__label" for="wifi-password">Passwort</label>
-            <div class="qr-wifi__password">
-              <input
-                  id="wifi-password"
-                  :placeholder="hasPassword ? '*****' : 'z. B. $N#Uh)eA~ado]tyMXTkG'"
-                  :value="displayPassword"
-                  class="qr-wifi__input qr-wifi__input--password"
-                  type="text"
-                  @blur="onPasswordBlur"
-                  @focus="onPasswordFocus"
-                  @input="(e) => onPasswordInput((e.target as HTMLInputElement).value)"
-              />
-              <button
-                  v-if="hasPassword"
-                  class="qr-wifi__eye"
-                  tabindex="-1"
-                  type="button"
-                  :title="showPassword ? 'Passwort verbergen' : 'Passwort zeigen'"
-                  @click="togglePasswordVisibility"
-              >
-                <i class="bi" :class="showPassword ? 'bi-eye-slash' : 'bi-eye'" aria-hidden="true"/>
-              </button>
-            </div>
+            <input
+                id="wifi-password"
+                v-model="event.wifi_password"
+                class="glass-input glass-input--sm liquid-surface-control w-full"
+                placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
+                type="text"
+                @blur="updateEventField('wifi_password', event.wifi_password || '')"
+            />
           </div>
           <div class="qr-wifi__field qr-wifi__field--top">
             <label class="qr-wifi__label" for="wifi-hint">Hinweise</label>
             <textarea
                 id="wifi-hint"
                 v-model="event.wifi_instruction"
-                class="qr-wifi__input"
+                class="glass-input glass-input--sm liquid-surface-control w-full"
                 placeholder="z. B. Code 'FLL' eingeben und Nutzungsbedingungen akzeptieren."
                 rows="2"
                 @blur="updateEventField('wifi_instruction', event.wifi_instruction || '')"
             />
           </div>
+        </div>
+
+        <!-- Flat WLAN page: large centered QR -->
+        <div v-if="flat && showWifiQr" class="qr-wifi__hero">
+          <template v-if="!event?.wifi_ssid">
+            <div class="qr-wifi__placeholder qr-wifi__placeholder--lg">SSID fehlt</div>
+          </template>
+          <template v-else-if="loadingWifiQr">
+            <div class="qr-wifi__placeholder qr-wifi__placeholder--lg">…</div>
+          </template>
+          <template v-else-if="qrWifiUrl">
+            <img :src="qrWifiUrl" alt="QR Wifi" class="qr-wifi__hero-qr"/>
+            <button
+                type="button"
+                class="glass-btn-secondary !px-3 !py-1 !text-sm"
+                @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
+            >
+              PNG
+            </button>
+          </template>
+          <template v-else>
+            <div class="qr-wifi__placeholder qr-wifi__placeholder--lg">Kein QR</div>
+          </template>
         </div>
       </section>
     </div>
@@ -524,6 +402,13 @@ watch(
   background: color-mix(in srgb, var(--color-bg-muted) 28%, #fff);
 }
 
+.qr-wifi__flat {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
 .qr-wifi:not(.qr-wifi--embed) .qr-wifi__col {
   background: #fff;
 }
@@ -560,6 +445,23 @@ watch(
   margin-bottom: 0;
 }
 
+.qr-wifi__fields--flat {
+  gap: 0.7rem;
+}
+
+.qr-wifi__pw-hint {
+  margin: 0;
+  grid-column: 1 / -1;
+  padding: 0.15rem 0 0.15rem 4.5rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
+.qr-wifi__fields--flat .qr-wifi__pw-hint {
+  padding-left: 4.5rem;
+}
+
 .qr-wifi__field {
   display: grid;
   grid-template-columns: 4.5rem 1fr;
@@ -578,41 +480,18 @@ watch(
   padding-top: 0.35rem;
 }
 
-.qr-wifi__input {
-  width: 100%;
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
-  border-radius: 8px;
-  padding: 0.4rem 0.65rem;
-  font-size: 0.85rem;
-  background: #fff;
-  color: var(--color-text);
+.qr-wifi__hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.35rem;
 }
 
-.qr-wifi__input:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
-}
-
-.qr-wifi__password {
-  position: relative;
-}
-
-.qr-wifi__input--password {
-  padding-right: 2.25rem;
-}
-
-.qr-wifi__eye {
-  position: absolute;
-  right: 0.45rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-subtle);
-  padding: 0.15rem;
-}
-
-.qr-wifi__eye:hover {
-  color: var(--color-text-muted);
+.qr-wifi__hero-qr {
+  width: 13rem;
+  height: 13rem;
+  object-fit: contain;
 }
 
 .qr-wifi__exports {
@@ -664,5 +543,11 @@ watch(
   font-size: 0.72rem;
   text-align: center;
   padding: 0.35rem;
+}
+
+.qr-wifi__placeholder--lg {
+  width: 13rem;
+  height: 13rem;
+  font-size: 0.85rem;
 }
 </style>
