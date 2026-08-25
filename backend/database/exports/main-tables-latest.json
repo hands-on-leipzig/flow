@@ -1079,7 +1079,7 @@
             "name": "Er\u00f6ffnung Future 8+",
             "code": "f8_opening",
             "presence": "window",
-            "name_preview": "Er\u00f6ffnung F",
+            "name_preview": "Er\u00f6ffnung F8+",
             "sequence": 10,
             "first_program": 8,
             "afternoon_chain": null,
@@ -1175,7 +1175,7 @@
             "name": "Preisverleihung Future 8+",
             "code": "f8_awards",
             "presence": "info",
-            "name_preview": "Preise F",
+            "name_preview": "Preise F8+",
             "sequence": 75,
             "first_program": 8,
             "afternoon_chain": null,
@@ -1319,7 +1319,7 @@
             "letter": "F8",
             "ics_postfix": "future_8",
             "sequence": 5,
-            "color_hex": "5CD4C2",
+            "color_hex": "F78B1F",
             "logo_stem": "fll_future8",
             "logo_white": "Bioglow_Future_column.png"
         }
@@ -3145,7 +3145,7 @@
             "context": "protected",
             "level": 1,
             "type": "integer",
-            "value": "35",
+            "value": "25",
             "min": "",
             "max": "",
             "step": "",
@@ -3160,7 +3160,7 @@
             "context": "protected",
             "level": 1,
             "type": "integer",
-            "value": "15",
+            "value": "10",
             "min": "10",
             "max": "15",
             "step": "5",
@@ -3205,7 +3205,7 @@
             "context": "protected",
             "level": 1,
             "type": "integer",
-            "value": "10",
+            "value": "15",
             "min": "",
             "max": "",
             "step": "",
@@ -8869,7 +8869,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-08-24T14:56:11.954444Z",
+        "exported_at": "2026-08-25T13:52:44.770103Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
