@@ -2,20 +2,29 @@
 
 namespace App\Models;
 
+use App\Enums\FirstProgram;
+use App\Support\ChallengeShapedParamMap;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * One generated plan inside a quality mass-test run.
+ *
+ * first_program is the program under test (Challenge or Future 8+).
+ * Columns c_teams / j_lanes / r_tables store that program's grid dimensions
+ * (teams / lanes / tables-or-fields); live plan_param_value names come from
+ * ChallengeShapedParamMap.
+ */
 class QPlan extends Model
 {
-    // Database table
     protected $table = 'q_plan';
 
-    // No timestamps (created_at, updated_at)
     public $timestamps = false;
 
-    // Mass assignable fields
     protected $fillable = [
         'plan',
         'q_run',
+        'first_program',
         'name',
         'last_change',
         'c_teams',
@@ -44,10 +53,10 @@ class QPlan extends Model
         'calculated',
     ];
 
-    // Type casting for proper data types
     protected $casts = [
         'plan' => 'integer',
         'q_run' => 'integer',
+        'first_program' => 'integer',
         'last_change' => 'datetime',
         'c_teams' => 'integer',
         'r_tables' => 'integer',
@@ -74,35 +83,45 @@ class QPlan extends Model
         'calculated' => 'boolean',
     ];
 
-    /**
-     * Returns the related plan (technical plan data)
-     */
     public function plan()
     {
         return $this->belongsTo(Plan::class, 'plan');
     }
 
-    /**
-     * Returns the run that triggered this quality evaluation
-     */
     public function run()
     {
         return $this->belongsTo(QRun::class, 'q_run');
     }
 
-    /**
-     * Returns all Q entries per team (optional, use if needed)
-     */
     public function qTeams()
     {
         return $this->hasMany(QPlanTeam::class, 'q_plan');
     }
 
     /**
-     * Returns all matches with team/table layout (for UI rendering)
+     * All match rows for the linked plan (may include multiple programs).
+     * Prefer matchesForProgram() when evaluating this q_plan.
      */
-    public function matches()
+    public function matches(): HasMany
     {
-        return $this->hasMany(\App\Models\MatchEntry::class, 'plan', 'plan');
+        return $this->hasMany(MatchEntry::class, 'plan', 'plan');
+    }
+
+    /**
+     * Match rows scoped to this q_plan's first_program.
+     */
+    public function matchesForProgram(): HasMany
+    {
+        return $this->matches()->where('match.first_program', $this->first_program);
+    }
+
+    public function program(): FirstProgram
+    {
+        return FirstProgram::from((int) $this->first_program);
+    }
+
+    public function paramMap(): ChallengeShapedParamMap
+    {
+        return ChallengeShapedParamMap::from((int) $this->first_program);
     }
 }
