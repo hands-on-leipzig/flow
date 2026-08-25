@@ -8,6 +8,7 @@ import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
 import {hasChallenge, eventPrograms, programId, programDisplayName, catalogNameFromCode, type EventProgramRef} from '@/utils/eventPrograms'
+import {flowFilename} from '@/utils/flowFilename'
 
 
 const props = withDefaults(
@@ -144,6 +145,8 @@ const hasWifiSsid = computed(() => !!event.value?.wifi_ssid?.trim())
 // --- PDF Download (Composable) ---
 const { isDownloading, anyDownloading, downloadPdf } = usePdfExport()
 
+const flowHint = (name: string, ext = 'pdf') => flowFilename(name, ext, event.value?.date)
+
 // --- Aushang-Poster (Online-Plan / WLAN) ---
 const previewPlan = ref<string | null>(null)
 const previewPlanWifi = ref<string | null>(null)
@@ -180,8 +183,7 @@ async function downloadRoomUtilizationCsv() {
     const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
-    const dateStr = new Date().toISOString().split('T')[0]
-    link.download = `FLOW_Raumnutzung_(${dateStr}).csv`
+    link.download = response.headers['x-filename'] || flowHint('Raumnutzung', 'csv')
     link.click()
     window.URL.revokeObjectURL(link.href)
   } catch (error) {
@@ -209,7 +211,7 @@ async function downloadRolesPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Rollen.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Rollen')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -235,7 +237,7 @@ async function downloadTeamsPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Teams.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Teams')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -264,7 +266,7 @@ async function downloadEventOverviewPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Übersichtsplan.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Übersichtsplan')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -293,7 +295,7 @@ async function downloadModeratorMatchPlanPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Robot-Game_kompakt.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Moderation')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -321,7 +323,7 @@ async function downloadSlotAssignmentsPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Slot-Zuordnung.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Slot-Zuordnung')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -350,7 +352,7 @@ async function downloadTeamListPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Teamliste.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Teamliste')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -428,7 +430,7 @@ async function downloadNameTagsPdf() {
       { responseType: 'blob' }
     )
     
-    const filename = response.headers['x-filename'] || 'FLOW_Aufkleber_Teams.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Aufkleber_Teams')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -526,7 +528,7 @@ async function downloadVolunteerLabelsPdf() {
       { responseType: 'blob' }
     )
     
-    const filename = response.headers['x-filename'] || `FLOW_Aufkleber_Volunteers.pdf`
+    const filename = response.headers['x-filename'] || flowHint('Aufkleber_Volunteers')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -675,7 +677,7 @@ async function downloadMatchPlanPdf() {
   const planId = planResponse.data.id
   if (!planId) return
   
-  await downloadPdf('match-plan', `/export/match-plan/${planId}`, 'Match-Plan.pdf')
+  await downloadPdf('match-plan', `/export/match-plan/${planId}`, flowHint('Match-Plan'))
 }
 
 // Computed: normalized event title for modal header
@@ -716,7 +718,7 @@ const eventTitleNormalized = computed(() => {
             class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading.plan ? '!opacity-50' : ''"
             :disabled="isDownloading.plan || !eventId"
-            @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, 'Plan.pdf')"
+            @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, flowHint('Plan'))"
           >
             <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -749,7 +751,7 @@ const eventTitleNormalized = computed(() => {
             class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading.plan_wifi || !hasWifiSsid ? '!opacity-50' : ''"
             :disabled="isDownloading.plan_wifi || !eventId || !hasWifiSsid"
-            @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, 'Plan_WLAN.pdf')"
+            @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, flowHint('Plan_mit_WLAN'))"
           >
             <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -812,7 +814,7 @@ const eventTitleNormalized = computed(() => {
             class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading.rooms ? '!opacity-50' : ''"
             :disabled="isDownloading.rooms"
-            @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, 'Räume.pdf')"
+            @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, flowHint('Räume'))"
           >
             <svg v-if="isDownloading.rooms" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -1065,7 +1067,7 @@ const eventTitleNormalized = computed(() => {
             class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading.full ? '!opacity-50' : ''"
             :disabled="isDownloading.full"
-            @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
+            @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, flowHint('Gesamtplan'))"
           >
             <svg v-if="isDownloading.full" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>

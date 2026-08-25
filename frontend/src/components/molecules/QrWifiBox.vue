@@ -4,6 +4,7 @@ import axios from 'axios'
 import QRCode from 'qrcode'
 import {useEventStore} from '@/stores/event'
 import {usePdfExport} from '@/composables/usePdfExport'
+import {flowFilename} from '@/utils/flowFilename'
 import FllEvent from '@/models/FllEvent'
 
 const props = withDefaults(
@@ -33,6 +34,8 @@ const flat = computed(() => props.embed && singleSection.value)
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
+const qrWifiFilename = computed(() => flowFilename('QR_Code_WLAN', 'png', event.value?.date))
+const flowHint = (name: string) => flowFilename(name, 'pdf', event.value?.date)
 const loadingWifiQr = ref(false)
 /** Live preview from current SSID/password (always preferred over stored QR). */
 const localWifiQr = ref('')
@@ -240,7 +243,7 @@ watch(
                 type="button"
                 :disabled="isDownloading.plan"
                 class="glass-btn-secondary !px-3 !py-1 !text-sm inline-flex items-center gap-2"
-                @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, 'Plan.pdf')"
+                @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, flowHint('Plan'))"
             >
               <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -284,7 +287,7 @@ watch(
               <button
                   type="button"
                   class="glass-btn-secondary !px-3 !py-1 !text-sm"
-                  @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
+                  @click="downloadPng(qrWifiUrl, qrWifiFilename)"
               >
                 PNG
               </button>
@@ -316,7 +319,7 @@ watch(
                 type="button"
                 :disabled="isDownloading.plan_wifi"
                 class="glass-btn-secondary !px-3 !py-1 !text-sm inline-flex items-center gap-2"
-                @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, 'Plan_WLAN.pdf')"
+                @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, flowHint('Plan_mit_WLAN'))"
             >
               <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -386,7 +389,7 @@ watch(
             <button
                 type="button"
                 class="glass-btn-secondary !px-3 !py-1 !text-sm"
-                @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
+                @click="downloadPng(qrWifiUrl, qrWifiFilename)"
             >
               PNG
             </button>

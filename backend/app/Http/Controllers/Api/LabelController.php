@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Helpers\FlowFilename;
 use App\Models\Event;
 use App\Models\Team;
 use App\Models\MSeason;
@@ -360,12 +361,7 @@ class LabelController extends Controller
                     throw new \Exception('PDF generation failed: output is empty or invalid');
                 }
                 
-                // Format date for filename
-                $formattedDate = $event->date 
-                    ? \Carbon\Carbon::parse($event->date)->format('d.m.y')
-                    : date('d.m.y');
-                
-                $filename = "FLOW_Aufkleber_Teams_({$formattedDate}).pdf";
+                $filename = FlowFilename::make('Aufkleber_Teams', 'pdf', $event->date);
 
                 // Return PDF with headers
                 return response($pdfData, 200)
@@ -663,12 +659,7 @@ class LabelController extends Controller
                     throw new \Exception('PDF generation failed: output is empty or invalid');
                 }
                 
-                // Format date for filename
-                $formattedDate = $event->date 
-                    ? \Carbon\Carbon::parse($event->date)->format('d.m.y')
-                    : date('d.m.y');
-                
-                $filename = "FLOW_Aufkleber_Volunteers_({$formattedDate}).pdf";
+                $filename = FlowFilename::make('Aufkleber_Volunteers', 'pdf', $event->date);
 
                 // Return PDF with headers
                 return response($pdfData, 200)
