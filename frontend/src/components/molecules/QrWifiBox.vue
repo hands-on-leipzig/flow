@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {computed, onActivated, onMounted, ref, watch} from 'vue'
+import {computed, onActivated, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import QRCode from 'qrcode'
 import {useEventStore} from '@/stores/event'
@@ -37,8 +37,15 @@ const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
 const loadingWifiQr = ref(false)
-/** Client-side fallback when the API event has SSID but no stored wifi_qrcode yet. */
+/** Live preview from current SSID/password (always preferred over stored QR). */
 const localWifiQr = ref('')
+const lastSavedWifi = ref({
+  wifi_ssid: '' as string,
+  wifi_password: '' as string,
+  wifi_instruction: '' as string,
+})
+let wifiSaveTimer: ReturnType<typeof setTimeout> | null = null
+const WIFI_SAVE_DEBOUNCE_MS = 450
 
 // === PDF Download (neu über Composable) ===
 const {isDownloading, anyDownloading, downloadPdf} = usePdfExport()
@@ -49,18 +56,20 @@ function toDataUrl(raw: string | null | undefined): string {
   return raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`
 }
 
-const qrWifiUrl = computed(() => {
-  const fromEvent = toDataUrl(event.value?.wifi_qrcode)
-  return fromEvent || localWifiQr.value
-})
+const qrWifiUrl = computed(() => localWifiQr.value || toDataUrl(event.value?.wifi_qrcode))
 
-async function ensureLocalWifiQr() {
+function syncLastSavedFromEvent() {
+  lastSavedWifi.value = {
+    wifi_ssid: event.value?.wifi_ssid || '',
+    wifi_password: event.value?.wifi_password || '',
+    wifi_instruction: event.value?.wifi_instruction || '',
+  }
+}
+
+/** Rebuild preview QR from the form values (SSID / password). */
+async function regenerateWifiQr() {
   const ssid = event.value?.wifi_ssid?.trim()
   if (!ssid) {
-    localWifiQr.value = ''
-    return
-  }
-  if (event.value?.wifi_qrcode) {
     localWifiQr.value = ''
     return
   }
@@ -85,10 +94,11 @@ async function refreshEventFromApi() {
   try {
     const {data} = await axios.get(`/events/${eventId.value}`)
     eventStore.selectedEvent = new FllEvent(data)
+    syncLastSavedFromEvent()
   } catch (e) {
     console.error('Event für QR/WLAN konnte nicht geladen werden:', e)
   }
-  await ensureLocalWifiQr()
+  await regenerateWifiQr()
 }
 
 // === Preview-URLs ===
@@ -108,18 +118,43 @@ async function loadPreview(type: 'plan' | 'plan_wifi') {
   }
 }
 
-// === WLAN-Daten speichern + Preview neu laden ===
-async function updateEventField(field: string, value: string) {
-  if (!eventId.value) return
+function wifiFieldValue(field: keyof typeof lastSavedWifi.value): string {
+  return event.value?.[field] || ''
+}
+
+function pendingWifiUpdates(): Record<string, string> {
+  const payload: Record<string, string> = {}
+  ;(['wifi_ssid', 'wifi_password', 'wifi_instruction'] as const).forEach((field) => {
+    const next = wifiFieldValue(field)
+    if (next !== lastSavedWifi.value[field]) {
+      payload[field] = next
+    }
+  })
+  return payload
+}
+
+/** Persist all dirty WLAN fields; regenerates server QR when SSID/password changed. */
+async function flushWifiSave() {
+  if (wifiSaveTimer) {
+    clearTimeout(wifiSaveTimer)
+    wifiSaveTimer = null
+  }
+  if (!eventId.value || !event.value) return
+
+  const payload = pendingWifiUpdates()
+  if (Object.keys(payload).length === 0) return
+
+  const touchedCredentials = 'wifi_ssid' in payload || 'wifi_password' in payload
+
   try {
-    loadingWifiQr.value = true
-    await axios.put(`/events/${eventId.value}`, {[field]: value})
+    if (touchedCredentials) loadingWifiQr.value = true
+    await axios.put(`/events/${eventId.value}`, payload)
     const {data} = await axios.get(`/events/${eventId.value}`)
     eventStore.selectedEvent = new FllEvent(data)
-    await ensureLocalWifiQr()
+    syncLastSavedFromEvent()
+    await regenerateWifiQr()
 
-    // Wenn WLAN-Daten geändert wurden → Preview neu laden
-    if (showWifiPdf.value && ['wifi_ssid', 'wifi_password', 'wifi_instruction'].includes(field)) {
+    if (showWifiPdf.value) {
       await loadPreview('plan_wifi')
     }
   } catch (e) {
@@ -127,6 +162,22 @@ async function updateEventField(field: string, value: string) {
   } finally {
     loadingWifiQr.value = false
   }
+}
+
+function scheduleWifiSave() {
+  if (wifiSaveTimer) clearTimeout(wifiSaveTimer)
+  wifiSaveTimer = setTimeout(() => {
+    void flushWifiSave()
+  }, WIFI_SAVE_DEBOUNCE_MS)
+}
+
+function onWifiCredentialsInput() {
+  void regenerateWifiQr()
+  scheduleWifiSave()
+}
+
+function onWifiInstructionInput() {
+  scheduleWifiSave()
 }
 
 // === PNG-Download für QR ===
@@ -152,10 +203,14 @@ onActivated(() => {
   void boot()
 })
 
+onBeforeUnmount(() => {
+  void flushWifiSave()
+})
+
 watch(
-  () => [event.value?.wifi_ssid, event.value?.wifi_qrcode, event.value?.wifi_password] as const,
+  () => [event.value?.wifi_ssid, event.value?.wifi_password] as const,
   () => {
-    void ensureLocalWifiQr()
+    void regenerateWifiQr()
   }
 )
 </script>
@@ -306,7 +361,8 @@ watch(
                 class="glass-input glass-input--sm liquid-surface-control w-full"
                 placeholder="z. B. TH_EVENT_WLAN"
                 type="text"
-                @blur="updateEventField('wifi_ssid', event.wifi_ssid || '')"
+                @input="onWifiCredentialsInput"
+                @blur="flushWifiSave"
             />
           </div>
           <p class="qr-wifi__pw-hint">
@@ -320,7 +376,8 @@ watch(
                 class="glass-input glass-input--sm liquid-surface-control w-full"
                 placeholder="z. B. $N#Uh)eA~ado]tyMXTkG"
                 type="text"
-                @blur="updateEventField('wifi_password', event.wifi_password || '')"
+                @input="onWifiCredentialsInput"
+                @blur="flushWifiSave"
             />
           </div>
           <div class="qr-wifi__field qr-wifi__field--top">
@@ -331,7 +388,8 @@ watch(
                 class="glass-input glass-input--sm liquid-surface-control w-full"
                 placeholder="z. B. Code 'FLL' eingeben und Nutzungsbedingungen akzeptieren."
                 rows="2"
-                @blur="updateEventField('wifi_instruction', event.wifi_instruction || '')"
+                @input="onWifiInstructionInput"
+                @blur="flushWifiSave"
             />
           </div>
         </div>
