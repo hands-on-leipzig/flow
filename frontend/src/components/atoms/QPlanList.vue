@@ -2,6 +2,8 @@
 import { ref, watch, computed } from 'vue'
 import axios from 'axios'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const props = defineProps({
   qrun: {
@@ -14,6 +16,14 @@ const plansRaw = ref([])
 const loading = ref(true)
 const error = ref(null)
 const expandedPlanId = ref(null)
+
+const runFirstProgram = computed(() => {
+  const first = plansRaw.value[0]
+  return Number(first?.first_program ?? 3)
+})
+
+const isFuture8 = computed(() => runFirstProgram.value === 8)
+const tablesHeader = computed(() => (isFuture8.value ? 'RG-Felder' : 'RG-Tische'))
 
 const filterQ = {
   1: ref(false),
@@ -226,7 +236,7 @@ async function startRerun() {
     // Optional: Erfolgsmeldung, Redirect etc.
   } catch (err) {
     console.error('Fehler beim ReRun:', err)
-    alert('Fehler beim Starten des ReRuns.')
+    showGlassToast('Fehler beim Starten des ReRuns.', 'error')
   }
 }
 
@@ -234,9 +244,9 @@ async function startRerun() {
 </script>
 
 <template>
-  <div class="ml-4 mt-2 border-l-2 border-gray-300 pl-4">
+  <div class="ml-4 mt-2 border-l-2 border-[var(--color-border)] pl-4">
 
-    <div v-if="loading" class="text-gray-500 text-sm">Lade QPläne …</div>
+    <div v-if="loading" class="text-[var(--color-text-subtle)] text-sm">Lade QPläne …</div>
     <div v-else-if="error" class="text-red-500 text-sm">{{ error }}</div>
     <div v-else>
       
@@ -247,20 +257,20 @@ async function startRerun() {
         <div class="flex flex-wrap gap-2">
 
           <!-- Filter-Kiste: Team-Anzahl (Gerade/Ungerade) -->
-          <div class="border border-gray-300 rounded-md px-2 py-2 bg-white shadow-sm flex justify-between items-center">
+          <div class="glass-row-item px-2 py-2 flex justify-between items-center">
             
             <!-- Label-Teil -->
-            <div class="text-sm font-medium text-gray-700">
+            <div class="text-sm font-medium text-[var(--color-text-muted)]">
               Anzahl:
             </div>
 
             <!-- Checkboxen -->
             <div class="flex items-center gap-2 ml-3">
-              <label class="flex items-center gap-1 text-sm text-gray-600">
+              <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
                 <input type="checkbox" v-model="filterTeamCount.even.value" class="accent-gray-600" />
                 Gerade
               </label>
-              <label class="flex items-center gap-1 text-sm text-gray-600">
+              <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
                 <input type="checkbox" v-model="filterTeamCount.odd.value" class="accent-gray-600" />
                 Ungerade
               </label>
@@ -269,10 +279,10 @@ async function startRerun() {
           </div>
 
           <!-- Filter-Kiste: Jury-Spuren -->
-          <div class="border border-gray-300 rounded-md px-2 py-2 bg-white shadow-sm flex justify-between items-center">
+          <div class="glass-row-item px-2 py-2 flex justify-between items-center">
             
             <!-- Label-Teil -->
-            <div class="text-sm font-medium text-gray-700">
+            <div class="text-sm font-medium text-[var(--color-text-muted)]">
               Spuren:
             </div>
 
@@ -281,7 +291,7 @@ async function startRerun() {
               <label
                 v-for="lane in [1,2,3,4,5]"
                 :key="lane"
-                class="flex items-center gap-1 text-sm text-gray-600"
+                class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]"
               >
                 <input
                   type="checkbox"
@@ -294,12 +304,12 @@ async function startRerun() {
 
           </div>
 
-          <!-- Filter-Kiste: RG-Tische -->
-          <div class="border border-gray-300 rounded-md px-2 py-2 bg-white shadow-sm flex justify-between items-center">
+          <!-- Filter-Kiste: RG-Tische / Felder -->
+          <div class="glass-row-item px-2 py-2 flex justify-between items-center">
             
             <!-- Label-Teil -->
-            <div class="text-sm font-medium text-gray-700">
-              Tische:
+            <div class="text-sm font-medium text-[var(--color-text-muted)]">
+              {{ isFuture8 ? 'Felder' : 'Tische' }}:
             </div>
 
             <!-- Checkboxen -->
@@ -307,7 +317,7 @@ async function startRerun() {
               <label
                 v-for="t in [2, 4]"
                 :key="t"
-                class="flex items-center gap-1 text-sm text-gray-600"
+                class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]"
               >
                 <input
                   type="checkbox"
@@ -320,10 +330,10 @@ async function startRerun() {
           </div>
 
           <!-- Filter-Kiste: Jury-Runden -->
-          <div class="border border-gray-300 rounded-md px-2 py-2 bg-white shadow-sm flex justify-between items-center">
+          <div class="glass-row-item px-2 py-2 flex justify-between items-center">
             
             <!-- Label-Teil -->
-            <div class="text-sm font-medium text-gray-700">
+            <div class="text-sm font-medium text-[var(--color-text-muted)]">
               Runden:
             </div>
 
@@ -332,7 +342,7 @@ async function startRerun() {
               <label
                 v-for="round in [3,4,5,6]"
                 :key="round"
-                class="flex items-center gap-1 text-sm text-gray-600"
+                class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]"
               >
                 <input
                   type="checkbox"
@@ -346,14 +356,14 @@ async function startRerun() {
           </div>
 
           <!-- Filter-Kiste: RG asym -->
-          <div class="border border-gray-300 rounded-md px-2 py-2 bg-white shadow-sm flex justify-between items-center">
-            <div class="text-sm font-medium text-gray-700">RG asym:</div>
+          <div class="glass-row-item px-2 py-2 flex justify-between items-center">
+            <div class="text-sm font-medium text-[var(--color-text-muted)]">RG asym:</div>
             <div class="flex items-center gap-2 ml-3">
-              <label class="flex items-center gap-1 text-sm text-gray-600">
+              <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
                 <input type="checkbox" v-model="filterAsym[1].value" class="accent-gray-600" />
                 Ja
               </label>
-              <label class="flex items-center gap-1 text-sm text-gray-600">
+              <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
                 <input type="checkbox" v-model="filterAsym[0].value" class="accent-gray-600" />
                 Nein
               </label>
@@ -361,20 +371,23 @@ async function startRerun() {
           </div>
 
           <!-- Filter-Kiste: Robot-Check -->
-          <div class="border border-gray-300 rounded-md px-2 py-2 bg-white shadow-sm flex justify-between items-center">
+          <div
+            v-if="!isFuture8"
+            class="glass-row-item px-2 py-2 flex justify-between items-center"
+          >
             
             <!-- Label-Teil -->
-            <div class="text-sm font-medium text-gray-700">
+            <div class="text-sm font-medium text-[var(--color-text-muted)]">
               Check:
             </div>
 
             <!-- Checkboxen -->
             <div class="flex items-center gap-2 ml-3">
-              <label class="flex items-center gap-1 text-sm text-gray-600">
+              <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
                 <input type="checkbox" v-model="filterRobotCheck[0].value" class="accent-gray-600" />
                 Aus
               </label>
-              <label class="flex items-center gap-1 text-sm text-gray-600">
+              <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
                 <input type="checkbox" v-model="filterRobotCheck[1].value" class="accent-gray-600" />
                 An
               </label>
@@ -398,14 +411,14 @@ async function startRerun() {
 
       </div>
       <!-- Tabellenkopf -->
-      <div class="grid grid-cols-13 text-xs font-semibold text-gray-700 uppercase tracking-wider py-1 border-b border-gray-300">
+      <div class="grid grid-cols-13 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider py-1 border-b border-[var(--color-border)]">
         <div>Plan</div>
         <div>Teams</div>
         <div>Spuren</div>
-        <div>RG-Tische</div>
+        <div>{{ tablesHeader }}</div>
         <div>Runden</div>
         <div>RG asym</div>
-        <div>Robot check</div>
+        <div>{{ isFuture8 ? '—' : 'Robot check' }}</div>
         <div>Dauer</div>
         <div class="flex items-center gap-1">
           <input
@@ -447,16 +460,16 @@ async function startRerun() {
       </div>
 
       <!-- Kein Plan -->
-      <div v-if="plans.length === 0" class="text-gray-400 text-sm">Keine passende QPläne gefunden.</div>  
+      <div v-if="plans.length === 0" class="text-[var(--color-text-subtle)] text-sm">Keine passende QPläne gefunden.</div>  
     
       <!-- QPlan-Zeilen -->
       <div
         v-for="qplan in plans"
         :key="qplan.id"
-        class="border-b border-gray-100"
+        class="border-b border-[var(--color-border)]"
       >
         <div
-          class="grid grid-cols-13 text-sm py-1 hover:bg-gray-50 cursor-pointer items-center"
+          class="grid grid-cols-13 text-sm py-1 hover:bg-[var(--color-bg-hover)] cursor-pointer items-center"
           @click="toggleExpanded(qplan.id)"
         >
           <div class="flex items-center gap-2">
@@ -479,7 +492,7 @@ async function startRerun() {
           <div>{{ qplan.r_tables }}</div>
           <div>{{ qplan.j_rounds }}</div>
           <div>{{ qplan.r_asym ? 'Ja' : 'Nein' }}</div>
-          <div>{{ qplan.r_robot_check ? 'An' : 'Aus' }}</div>
+          <div>{{ isFuture8 ? '—' : (qplan.r_robot_check ? 'An' : 'Aus') }}</div>
           
           <!-- Q6: Dauer -->
           <div>{{ formatDuration(qplan.q6_duration) }}</div>
@@ -517,7 +530,7 @@ async function startRerun() {
         </div>
 
         <!-- Akkordeon für Details -->
-        <div v-if="expandedPlanId === qplan.id" class="bg-gray-50 px-2 py-1 border-t border-gray-200">
+        <div v-if="expandedPlanId === qplan.id" class="bg-[var(--color-bg-muted)] px-2 py-1 border-t border-[var(--color-border)]">
           <QPlanDetails :planId="qplan.plan || 0" />
         </div>
       </div>

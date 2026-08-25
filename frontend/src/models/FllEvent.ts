@@ -1,11 +1,11 @@
 import {Slideshow} from "./slideshow";
+import {eventPrograms, type EventProgramRef} from "@/utils/eventPrograms";
 
 export default class FllEvent {
     id: number
     name: string | null
     slug: string | null
-    event_explore: number | null
-    event_challenge: number | null
+    programs: EventProgramRef[]
     regional_partner: number
     level: number
     season: number
@@ -15,12 +15,15 @@ export default class FllEvent {
     qrcode: string | null
     wifi_ssid: string | null
     wifi_password: string | null
+    wifi_instruction: string | null
+    wifi_qrcode: string | null
     slideshows: Slideshow[] | null
 
     // DRAHT team counts
     drahtTeamsExplore: number
     drahtTeamsChallenge: number
     hasTeamDiscrepancy: boolean
+    discrepancyByProgram: Record<string, boolean>
 
     // DRAHT team capacity
     drahtCapacityExplore: number
@@ -32,10 +35,11 @@ export default class FllEvent {
 
     constructor(data: any) {
         Object.assign(this, data)
-        // Initialize DRAHT team counts if not provided
+        this.programs = eventPrograms(data)
         this.drahtTeamsExplore = data.drahtTeamsExplore || 0
         this.drahtTeamsChallenge = data.drahtTeamsChallenge || 0
         this.hasTeamDiscrepancy = data.hasTeamDiscrepancy || false
+        this.discrepancyByProgram = data.discrepancyByProgram || {}
         this.drahtCapacityExplore = data.drahtCapacityExplore || 0
         this.drahtCapacityChallenge = data.drahtCapacityChallenge || 0
     }

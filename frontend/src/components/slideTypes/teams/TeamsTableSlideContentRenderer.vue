@@ -129,8 +129,8 @@ defineExpose({handleArrow});
             <td class="program-cell">
               <div class="program-icon-box">
                 <img
-                  :src="programLogoSrc(team.category === 'Explore' ? 'E' : 'C', 'h')"
-                  :alt="programLogoAlt(team.category === 'Explore' ? 'E' : 'C')"
+                  :src="programLogoSrc(team.category === 'Explore' ? 'EXPLORE' : 'CHALLENGE', 'h')"
+                  :alt="programLogoAlt(team.category === 'Explore' ? 'EXPLORE' : 'CHALLENGE')"
                   class="audience-program-icon"
                 />
               </div>

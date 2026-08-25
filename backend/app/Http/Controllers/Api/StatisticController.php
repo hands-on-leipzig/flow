@@ -59,8 +59,6 @@ class StatisticController extends Controller
                 'event.date as event_date',
                 'event.link as event_link',
                 'event.season as event_season_id',
-                'event.event_explore as event_explore', 
-                'event.event_challenge as event_challenge',
                 'event.needs_attention as event_needs_attention',
                 'event.needs_attention_checked_at as event_needs_attention_checked_at',
 
@@ -84,6 +82,24 @@ class StatisticController extends Controller
 
         // Plan-IDs sammeln
         $planIds = $records->pluck('plan_id')->filter()->unique();
+        $eventIds = $records->pluck('event_id')->filter()->unique();
+        $programsByEvent = DB::table('event_program')
+            ->leftJoin('m_first_program', 'm_first_program.id', '=', 'event_program.first_program')
+            ->whereIn('event_program.event', $eventIds)
+            ->orderBy('m_first_program.sequence')
+            ->orderBy('event_program.first_program')
+            ->get([
+                'event_program.event',
+                'event_program.first_program',
+                'event_program.draht_id',
+                'event_program.contao_id',
+                'm_first_program.name',
+                'm_first_program.sequence',
+                'm_first_program.color_hex',
+                'm_first_program.logo_stem',
+                'm_first_program.logo_white',
+            ])
+            ->groupBy('event');
 
         // Team-Zahlen pro Event abrufen
         $teamCountsByEvent = DB::table('team')
@@ -116,23 +132,22 @@ class StatisticController extends Controller
                 try {
                     $response = $drahtController->show($event);
                     $payload = $response->getData(true);
-                    $drahtTeamCounts[$event->id] = [
-                        'explore' => isset($payload['teams_explore']) && is_array($payload['teams_explore'])
-                            ? count($payload['teams_explore'])
-                            : 0,
-                        'challenge' => isset($payload['teams_challenge']) && is_array($payload['teams_challenge'])
-                            ? count($payload['teams_challenge'])
-                            : 0,
-                    ];
+                    $counts = [];
+                    foreach ($payload['programs'] ?? [] as $program) {
+                        $programId = (int) ($program['first_program'] ?? 0);
+                        if ($programId < 1) {
+                            continue;
+                        }
+                        $teams = $program['teams'] ?? [];
+                        $counts[$programId] = is_array($teams) ? count($teams) : 0;
+                    }
+                    $drahtTeamCounts[$event->id] = $counts;
                 } catch (\Throwable $e) {
                     Log::warning('StatisticController: Failed to fetch DRAHT team counts', [
                         'event_id' => $event->id,
                         'message' => $e->getMessage(),
                     ]);
-                    $drahtTeamCounts[$event->id] = [
-                        'explore' => 0,
-                        'challenge' => 0,
-                    ];
+                    $drahtTeamCounts[$event->id] = [];
                     $drahtIssues[$event->id] = true;
                 }
             }
@@ -201,25 +216,10 @@ class StatisticController extends Controller
             $paramStats[$stat->plan][$stat->context] = $stat->count;
         }
 
-        // Extra-Block-Stats abrufen (separate free and inserted blocks)
-        // Free blocks: type = free
         $freeBlockStatsRaw = DB::table('extra_block')
             ->whereIn('plan', $planIds)
             ->where('active', 1)
             ->where('type', 'free')
-            ->select(
-                'plan',
-                DB::raw('COUNT(*) as count')
-            )
-            ->groupBy('plan')
-            ->get()
-            ->keyBy('plan');
-
-        // Inserted blocks: type = inserted
-        $insertedBlockStatsRaw = DB::table('extra_block')
-            ->whereIn('plan', $planIds)
-            ->where('active', 1)
-            ->where('type', 'inserted')
             ->select(
                 'plan',
                 DB::raw('COUNT(*) as count')
@@ -305,23 +305,22 @@ class StatisticController extends Controller
                     $row->event_needs_attention = $updatedEvent->needs_attention ?? false;
                 }
                 
-                $counts = $teamCountsByEvent->get($row->event_id);
-                if (!empty($counts)) {
-                    $exploreCount = ($counts[FirstProgram::EXPLORE->value] ?? 0) + ($counts[FirstProgram::DISCOVER->value] ?? 0);
-                    $challengeCount = $counts[FirstProgram::CHALLENGE->value] ?? 0;
-                } else {
-                    $fallback = $drahtTeamCounts[$row->event_id] ?? ['explore' => 0, 'challenge' => 0];
-                    $exploreCount = $fallback['explore'];
-                    $challengeCount = $fallback['challenge'];
-                }
+                $localCounts = $teamCountsByEvent->get($row->event_id);
+                $counts = !empty($localCounts) ? $localCounts : ($drahtTeamCounts[$row->event_id] ?? []);
+                $exploreCount = ($counts[FirstProgram::EXPLORE->value] ?? 0) + ($counts[FirstProgram::DISCOVER->value] ?? 0);
+                $challengeCount = $counts[FirstProgram::CHALLENGE->value] ?? 0;
+
+                $programs = ($programsByEvent->get($row->event_id) ?? collect())->map(function ($program) use ($counts) {
+                    $program->teams = $counts[(int) $program->first_program] ?? 0;
+                    return $program;
+                })->values();
 
                 $groupedSeasons[$seasonKey]['partners'][$partnerKey]['events'][$eventKey] = [
                     'event_id' => $row->event_id,
                     'event_name' => $row->event_name,
                     'event_date' => $row->event_date,
                     'event_link' => $row->event_link,
-                    'event_explore' => $row->event_explore,
-                    'event_challenge' => $row->event_challenge,
+                    'programs' => $programs,
                     'event_needs_attention' => $row->event_needs_attention ?? false,
                     'teams_explore' => $exploreCount,
                     'teams_challenge' => $challengeCount,
@@ -342,7 +341,6 @@ class StatisticController extends Controller
                     'expert_param_changes' => $paramStats[$row->plan_id] ?? ['input' => 0, 'expert' => 0], 
                     'extra_blocks' => [
                         'free' => $freeBlockStatsRaw[$row->plan_id]->count ?? 0,
-                        'inserted' => $insertedBlockStatsRaw[$row->plan_id]->count ?? 0,
                     ], 
                     'publication_level' => $row->publication_level,
                     'publication_date' => $row->publication_date,
@@ -1045,8 +1043,7 @@ class StatisticController extends Controller
             $planWarnings[$plan->id] = $hasWarning;
         }
 
-        // Only check if event has DRAHT IDs
-        if (!$event->event_explore && !$event->event_challenge) {
+        if ($event->programs->where('draht_id', '!=', null)->isEmpty()) {
             return response()->json([
                 'event_id' => $eventId,
                 'has_issue' => false,
@@ -1061,25 +1058,17 @@ class StatisticController extends Controller
             $response = $drahtController->show($event);
             $payload = $response->getData(true);
 
-            // Check if scheduledata endpoint returned data successfully
-            $hasExploreIssue = false;
-            $hasChallengeIssue = false;
-
-            if ($event->event_explore) {
-                // If explore ID exists but no data returned, it's an issue
-                if (!isset($payload['event_explore']) || $payload['event_explore'] === null) {
-                    $hasExploreIssue = true;
+            $hasIssue = false;
+            foreach ($event->programs as $program) {
+                if (! $program->draht_id) {
+                    continue;
+                }
+                $match = collect($payload['programs'] ?? [])->firstWhere('first_program', $program->first_program);
+                if (! $match || empty($match['scheduledata'])) {
+                    $hasIssue = true;
+                    break;
                 }
             }
-
-            if ($event->event_challenge) {
-                // If challenge ID exists but no data returned, it's an issue
-                if (!isset($payload['event_challenge']) || $payload['event_challenge'] === null) {
-                    $hasChallengeIssue = true;
-                }
-            }
-
-            $hasIssue = $hasExploreIssue || $hasChallengeIssue;
 
             // Extract email from contact data (first contact only)
             $contact = $payload['contact'] ?? null;
@@ -1216,7 +1205,7 @@ class StatisticController extends Controller
 
     /**
      * Get detailed extra blocks data for a plan (for statistics modal)
-     * Returns free blocks and inserted blocks separately
+     * Returns free extra blocks for a plan.
      */
     public function getExtraBlocksDetails(int $planId): JsonResponse
     {
@@ -1254,34 +1243,11 @@ class StatisticController extends Controller
                 ];
             });
 
-        // Inserted blocks: type = inserted
-        $insertedBlocks = DB::table('extra_block as eb')
-            ->join('m_insert_point as mip', 'eb.insert_point', '=', 'mip.id')
-            ->where('eb.plan', $planId)
-            ->where('eb.active', 1)
-            ->where('eb.type', 'inserted')
-            ->select(
-                'eb.id',
-                'eb.name',
-                'mip.ui_label as insert_point_name'
-            )
-            ->orderBy('mip.sequence')
-            ->orderBy('eb.name')
-            ->get()
-            ->map(function ($block) {
-                return [
-                    'id' => $block->id,
-                    'name' => $block->name,
-                    'insert_point_name' => $block->insert_point_name,
-                ];
-            });
-
         return response()->json([
             'event_id' => $eventInfo->event_id ?? null,
             'event_name' => $eventInfo->event_name ?? null,
             'event_date' => $eventInfo->event_date ? \Carbon\Carbon::parse($eventInfo->event_date)->format('d.m.Y') : null,
             'free_blocks' => $freeBlocks,
-            'inserted_blocks' => $insertedBlocks,
         ]);
     }
 }

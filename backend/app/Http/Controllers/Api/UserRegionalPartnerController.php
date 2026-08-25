@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\RegionalPartner;
+use App\Support\FlowAccess;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -23,6 +25,9 @@ class UserRegionalPartnerController extends Controller
                 ->select(
                     'urp.user as user_id',
                     'urp.regional_partner as regional_partner_id',
+                    'urp.source',
+                    'urp.granted_at',
+                    'urp.granted_by',
                     'u.subject as user_subject',
                     'u.name as user_name',
                     'u.email as user_email',
@@ -34,7 +39,6 @@ class UserRegionalPartnerController extends Controller
                 ->orderBy('rp.name')
                 ->get();
 
-            // Group by user for better display
             $groupedRelations = $relations->groupBy('user_id')->map(function ($userRelations) {
                 $firstRelation = $userRelations->first();
                 return [
@@ -47,7 +51,10 @@ class UserRegionalPartnerController extends Controller
                             'id' => $relation->regional_partner_id,
                             'name' => $relation->regional_partner_name,
                             'region' => $relation->regional_partner_region,
-                            'dolibarr_id' => $relation->regional_partner_dolibarr_id
+                            'dolibarr_id' => $relation->regional_partner_dolibarr_id,
+                            'source' => $relation->source ?? FlowAccess::SOURCE_DRAHT,
+                            'granted_at' => $relation->granted_at,
+                            'granted_by' => $relation->granted_by,
                         ];
                     })->toArray()
                 ];
@@ -92,11 +99,11 @@ class UserRegionalPartnerController extends Controller
                     if ($user->subject) {
                         $displayParts[] = "[{$user->subject}]";
                     }
-                    
-                    $displayName = !empty($displayParts) 
+
+                    $displayName = !empty($displayParts)
                         ? implode(' ', $displayParts)
                         : "User {$user->id}";
-                    
+
                     return [
                         'id' => $user->id,
                         'subject' => $user->subject,
@@ -152,6 +159,12 @@ class UserRegionalPartnerController extends Controller
                 'users_without_regional_partners' => User::count() - DB::table('user_regional_partner')
                     ->distinct('user')
                     ->count(),
+                'manual_grants' => DB::table('user_regional_partner')
+                    ->where('source', FlowAccess::SOURCE_MANUAL)
+                    ->count(),
+                'draht_grants' => DB::table('user_regional_partner')
+                    ->where('source', FlowAccess::SOURCE_DRAHT)
+                    ->count(),
                 'average_regional_partners_per_user' => DB::table('user_regional_partner')
                     ->selectRaw('AVG(partner_count) as avg_partners')
                     ->fromSub(
@@ -186,7 +199,8 @@ class UserRegionalPartnerController extends Controller
     }
 
     /**
-     * Add a user-regional partner relation
+     * Add a manual user-regional partner grant (FLOW admin).
+     * Draht-sourced links are created by login sync only.
      */
     public function store(): JsonResponse
     {
@@ -196,30 +210,35 @@ class UserRegionalPartnerController extends Controller
                 'regional_partner_id' => 'required|integer|exists:regional_partner,id'
             ]);
 
-            // Check if relation already exists
             $existingRelation = DB::table('user_regional_partner')
                 ->where('user', $validated['user_id'])
                 ->where('regional_partner', $validated['regional_partner_id'])
-                ->exists();
+                ->first();
 
             if ($existingRelation) {
                 return response()->json([
-                    'error' => 'Relation already exists'
+                    'error' => 'Relation already exists',
+                    'source' => $existingRelation->source ?? FlowAccess::SOURCE_DRAHT,
                 ], 409);
             }
 
             DB::table('user_regional_partner')->insert([
                 'user' => $validated['user_id'],
-                'regional_partner' => $validated['regional_partner_id']
+                'regional_partner' => $validated['regional_partner_id'],
+                'source' => FlowAccess::SOURCE_MANUAL,
+                'granted_at' => now(),
+                'granted_by' => Auth::id(),
             ]);
 
-            Log::info('User-regional partner relation created', [
+            Log::info('Manual user-regional partner grant created', [
                 'user_id' => $validated['user_id'],
-                'regional_partner_id' => $validated['regional_partner_id']
+                'regional_partner_id' => $validated['regional_partner_id'],
+                'granted_by' => Auth::id(),
             ]);
 
             return response()->json([
-                'message' => 'Relation created successfully'
+                'message' => 'Manual grant created successfully',
+                'source' => FlowAccess::SOURCE_MANUAL,
             ], 201);
 
         } catch (\Exception $e) {
@@ -236,7 +255,7 @@ class UserRegionalPartnerController extends Controller
     }
 
     /**
-     * Remove a user-regional partner relation
+     * Remove a manual grant only. Draht links are managed by Draht sync.
      */
     public function destroy(): JsonResponse
     {
@@ -246,24 +265,37 @@ class UserRegionalPartnerController extends Controller
                 'regional_partner_id' => 'required|integer|exists:regional_partner,id'
             ]);
 
-            $deleted = DB::table('user_regional_partner')
+            $relation = DB::table('user_regional_partner')
                 ->where('user', $validated['user_id'])
                 ->where('regional_partner', $validated['regional_partner_id'])
-                ->delete();
+                ->first();
 
-            if ($deleted === 0) {
+            if (!$relation) {
                 return response()->json([
                     'error' => 'Relation not found'
                 ], 404);
             }
 
-            Log::info('User-regional partner relation deleted', [
+            if (($relation->source ?? FlowAccess::SOURCE_DRAHT) === FlowAccess::SOURCE_DRAHT) {
+                return response()->json([
+                    'error' => 'Draht-sourced relations cannot be removed here. Change the contact person in Draht.',
+                    'source' => FlowAccess::SOURCE_DRAHT,
+                ], 409);
+            }
+
+            DB::table('user_regional_partner')
+                ->where('user', $validated['user_id'])
+                ->where('regional_partner', $validated['regional_partner_id'])
+                ->where('source', FlowAccess::SOURCE_MANUAL)
+                ->delete();
+
+            Log::info('Manual user-regional partner grant deleted', [
                 'user_id' => $validated['user_id'],
                 'regional_partner_id' => $validated['regional_partner_id']
             ]);
 
             return response()->json([
-                'message' => 'Relation deleted successfully'
+                'message' => 'Manual grant deleted successfully'
             ]);
 
         } catch (\Exception $e) {

@@ -81,7 +81,7 @@ const goBack = () => {
 
 const goHome = () => {
   // Redirect to a default page or the main application
-  window.location.href = '/plan/event'
+  window.location.href = '/plan/overview'
 }
 </script>
 

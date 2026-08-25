@@ -15,17 +15,19 @@ class MatchEntry extends Model
     // Mass assignable fields
     protected $fillable = [
         'plan',
+        'first_program',
         'round',
         'match_no',
         'table_1',
         'table_2',
         'table_1_team',
-        'table_2_team'
+        'table_2_team',
     ];
 
     // Type casting for proper data types
     protected $casts = [
         'plan' => 'integer',
+        'first_program' => 'integer',
         'round' => 'integer',
         'match_no' => 'integer',
         'table_1' => 'integer',

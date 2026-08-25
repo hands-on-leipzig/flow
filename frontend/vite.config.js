@@ -20,12 +20,15 @@ export default defineConfig(({mode}) => {
                     name: 'FLOW - Flexibles OrganisationsWerkzeug',
                     short_name: 'FLOW',
                     description: 'FLOW event planning and organization tool',
-                    theme_color: '#ffffff',
+                    theme_color: '#F78B1F',
                     background_color: '#ffffff',
                     display: 'standalone',
-                    orientation: 'portrait',
+                    // any keeps landscape useful for day-of / public schedule
+                    orientation: 'any',
                     scope: '/',
-                    start_url: '/plan/event',
+                    start_url: '/plan/overview',
+                    lang: 'de',
+                    categories: ['productivity', 'utilities'],
                     icons: [
                         {
                             src: '/pwa-192x192.png',
@@ -56,6 +59,24 @@ export default defineConfig(({mode}) => {
                         /^\/schedule\//,
                         /^\/slug-handler\.php/,
                     ],
+                    // Public plan + RP app shell should work when opened from home screen
+                    runtimeCaching: [
+                        {
+                            urlPattern: ({url}) => url.pathname.startsWith('/api/plans/') && url.pathname.includes('/visitor/'),
+                            handler: 'NetworkFirst',
+                            options: {
+                                cacheName: 'flow-visitor-plan',
+                                networkTimeoutSeconds: 5,
+                                expiration: {
+                                    maxEntries: 32,
+                                    maxAgeSeconds: 60 * 60 * 6,
+                                },
+                                cacheableResponse: {
+                                    statuses: [0, 200],
+                                },
+                            },
+                        },
+                    ],
                     cleanupOutdatedCaches: true,
                     clientsClaim: true,
                     skipWaiting: true
@@ -71,10 +92,22 @@ export default defineConfig(({mode}) => {
                 '@': fileURLToPath(new URL('./src', import.meta.url))
             },
         },
+        // Keep glass Vue SFCs out of the dep optimizer (exports resolve via Vite + vue plugin).
+        optimizeDeps: {
+            exclude: ['@hands-on/glass'],
+        },
 
         // Proxy → Laravel (VITE_FILES_BASE_URL or http://localhost:8000). Backend must be running.
         server: {
             port: 5173,
+            // file:../../glass resolves outside frontend/; without this Vite rewrites
+            // @font-face urls to /@fs/... and serves 403 → system UI font instead of Uniform.
+            fs: {
+                allow: [
+                    fileURLToPath(new URL('.', import.meta.url)),
+                    fileURLToPath(new URL('../../glass', import.meta.url)),
+                ],
+            },
             proxy: {
                 // Blade-Views (unsere Tabelle)
                 '^/schedule/.*': {

@@ -70,10 +70,14 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                 $hasChallenge = in_array('Challenge', $columnNames);
                                 $hasRobotGame = in_array('Robot-Game', $columnNames);
                                 $hasLiveChallenge = in_array('Live Challenge', $columnNames);
+                                $hasAllgemein4 = in_array('Allgemein-4', $columnNames);
+                                $hasFuture8 = in_array('Future 8+', $columnNames);
+                                $hasGame = in_array('Game', $columnNames);
                                 
                                 // Count columns for each merged group
                                 $exploreColumns = 0;
                                 $challengeColumns = 0;
+                                $future8Columns = 0;
                                 
                                 if ($hasAllgemein2) $exploreColumns++;
                                 if ($hasExplore) $exploreColumns++;
@@ -82,6 +86,10 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                 if ($hasChallenge) $challengeColumns++;
                                 if ($hasRobotGame) $challengeColumns++;
                                 if ($hasLiveChallenge) $challengeColumns++;
+
+                                if ($hasAllgemein4) $future8Columns++;
+                                if ($hasFuture8) $future8Columns++;
+                                if ($hasGame) $future8Columns++;
                             @endphp
                             
                             @foreach($columnNames as $columnName)
@@ -91,7 +99,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if($hasExplore)
                                         <th colspan="{{ $exploreColumns }}" class="column-header merged-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
                                                 <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Explore</span>
                                             </div>
                                         </th>
@@ -102,7 +110,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if(!$hasAllgemein2)
                                         <th class="column-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_explore_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
                                                 <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Explore</span>
                                             </div>
                                         </th>
@@ -111,7 +119,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if($challengeColumns > 1)
                                         <th colspan="{{ $challengeColumns }}" class="column-header merged-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
                                                 <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Challenge</span>
                                             </div>
                                         </th>
@@ -122,7 +130,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if(!$hasAllgemein3 && !$hasRobotGame && !$hasLiveChallenge)
                                         <th class="column-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/fll_challenge_v.png') }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
                                                 <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Challenge</span>
                                             </div>
                                         </th>
@@ -133,6 +141,30 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @endif
                                 @elseif($columnName === 'Live Challenge' && $hasLiveChallenge)
                                     @if(!$hasAllgemein3 && !$hasChallenge && !$hasRobotGame)
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @elseif($columnName === 'Allgemein-4' && $hasAllgemein4)
+                                    @if($future8Columns > 1)
+                                        <th colspan="{{ $future8Columns }}" class="column-header merged-header" style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; justify-content: center;">
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath('FUTURE_8', 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Future 8+">
+                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Future 8+</span>
+                                            </div>
+                                        </th>
+                                    @else
+                                        <th class="column-header">{{ $columnName }}</th>
+                                    @endif
+                                @elseif($columnName === 'Future 8+' && $hasFuture8)
+                                    @if(!$hasAllgemein4 && !$hasGame)
+                                        <th class="column-header" style="vertical-align: middle;">
+                                            <div style="display: flex; align-items: center; justify-content: center;">
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath('FUTURE_8', 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Future 8+">
+                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Future 8+</span>
+                                            </div>
+                                        </th>
+                                    @endif
+                                @elseif($columnName === 'Game' && $hasGame)
+                                    @if(!$hasAllgemein4 && !$hasFuture8)
                                         <th class="column-header">{{ $columnName }}</th>
                                     @endif
                                 @endif
@@ -210,20 +242,7 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                             
                                             // Get color based on the event's assigned column
                                             $eventAssignedColumn = $event['assigned_column'] ?? 'Allgemein';
-                                            $baseColor = $eventAssignedColumn;
-                                            if (strpos($baseColor, 'Allgemein-') === 0) {
-                                                $baseColor = 'Allgemein';
-                                            }
-                                            
-                                            $columnColors = [
-                                                'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
-                                                'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
-                                                'Live Challenge' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
-                                                'Robot-Game' => ['bg' => '#fef5e7', 'border' => '#f39c12'],
-                                                'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']
-                                            ];
-                                            
-                                            $colors = $columnColors[$baseColor] ?? ['bg' => '#f5f5f5', 'border' => '#95a5a6'];
+                                            $colors = \App\Support\OverviewPlanStyle::cellColors($eventAssignedColumn);
                                             
                                             $startTime = $event['earliest_start']->format('H:i');
                                             $endTime = $event['latest_end']->format('H:i');

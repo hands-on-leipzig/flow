@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { useEventStore } from '@/stores/event'
 import { useRoute } from 'vue-router'
 import { imageUrl } from '@/utils/images'
-import { BANNER_STYLES } from '@/constants/styles'
 
 const eventStore = useEventStore()
 const route = useRoute()
@@ -42,7 +41,7 @@ const pdfUrl = computed(() => {
 <template>
   <div 
     v-if="shouldShowBanner"
-    :class="[BANNER_STYLES.warning, 'border-b px-4 py-3 w-full']"
+    class="glass-alert-warning px-4 py-3 w-full rounded-lg mx-0"
   >
     <div class="max-w-7xl mx-auto">
       <p class="text-sm">

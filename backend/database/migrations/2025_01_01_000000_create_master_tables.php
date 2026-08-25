@@ -96,7 +96,7 @@ return new class extends Migration {
         Schema::create('m_parameter', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 255)->nullable()->unique();
-            $table->enum('context', ['input', 'expert', 'protected', 'finale'])->nullable();
+            $table->enum('context', ['input', 'expert', 'protected', 'finale', 'afternoon'])->nullable();
             $table->unsignedInteger('level');
             $table->enum('type', ['integer', 'decimal', 'time', 'date', 'boolean'])->nullable();
             $table->string('value', 255)->nullable();
@@ -150,6 +150,13 @@ return new class extends Migration {
             $table->unsignedInteger('id')->autoIncrement();
             $table->string('name', 100);
             $table->string('code', 50)->nullable();
+            /**
+             * Public-plan / timeline semantics for visitors:
+             * - punctual: must be there at start (foreground card)
+             * - window: soft time window / frame (background band)
+             * - info: contextual / optional information
+             */
+            $table->string('presence', 20)->default('punctual');
             $table->string('name_preview', 100)->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->unsignedInteger('first_program')->nullable();
@@ -523,6 +530,7 @@ return new class extends Migration {
         Schema::create('match', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
             $table->unsignedInteger('plan');
+            $table->unsignedInteger('first_program');
             $table->unsignedInteger('round');
             $table->unsignedInteger('match_no');
             $table->unsignedInteger('table_1');
@@ -530,7 +538,12 @@ return new class extends Migration {
             $table->unsignedInteger('table_1_team');
             $table->unsignedInteger('table_2_team');
 
+            $table->unique(
+                ['plan', 'first_program', 'round', 'match_no'],
+                'match_plan_program_round_match_unique'
+            );
             $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
+            $table->foreign('first_program')->references('id')->on('m_first_program')->onDelete('restrict');
         });
         }
 

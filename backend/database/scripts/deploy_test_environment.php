@@ -95,7 +95,6 @@ function purgeTestDatabase()
         'm_activity_type',
         'm_activity_type_detail', 
         'm_first_program',
-        'm_insert_point',
         'm_level',
         'm_parameter',
         'm_role',
@@ -168,7 +167,6 @@ function populateMasterTables()
             'm_activity_type',
             'm_activity_type_detail', 
             'm_first_program',
-            'm_insert_point',
             'm_level',
             'm_parameter',
             'm_role',
@@ -343,9 +341,8 @@ function createTestEvents()
         'date' => now()->addDays(30),
         'days' => 1,
         'slug' => 'rpt-demo-nur-explore',
-        'event_explore' => 1001, // Mock explore ID
-        'event_challenge' => null
     ]);
+    \App\Support\ProgramCatalog::sync($exploreEvent, [['first_program' => 2, 'draht_id' => 1001]]);
     $eventsCreated++;
     echo "    ✓ Created explore event: {$exploreEvent->name}\n";
     
@@ -358,9 +355,8 @@ function createTestEvents()
         'date' => now()->addDays(45),
         'days' => 1,
         'slug' => 'rpt-demo-nur-challenge',
-        'event_explore' => null,
-        'event_challenge' => 1002 // Mock challenge ID
     ]);
+    \App\Support\ProgramCatalog::sync($challengeEvent, [['first_program' => 3, 'draht_id' => 1002]]);
     $eventsCreated++;
     echo "    ✓ Created challenge event: {$challengeEvent->name}\n";
     
@@ -373,8 +369,10 @@ function createTestEvents()
         'date' => now()->addDays(60),
         'days' => 1,
         'slug' => 'rpt-demo',
-        'event_explore' => 1003, // Mock explore ID
-        'event_challenge' => 1004 // Mock challenge ID
+    ]);
+    \App\Support\ProgramCatalog::sync($combinedEvent, [
+        ['first_program' => 2, 'draht_id' => 1003],
+        ['first_program' => 3, 'draht_id' => 1004],
     ]);
     $eventsCreated++;
     echo "    ✓ Created combined event: {$combinedEvent->name}\n";
@@ -391,7 +389,6 @@ function verifyDeployment()
         'm_activity_type' => 'Activity Types',
         'm_activity_type_detail' => 'Activity Type Details',
         'm_first_program' => 'First Programs',
-        'm_insert_point' => 'Insert Points',
         'm_level' => 'Levels',
         'm_parameter' => 'Parameters',
         'm_role' => 'Roles',

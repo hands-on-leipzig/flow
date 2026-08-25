@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\FlowAccess;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -64,17 +65,46 @@ class User extends Authenticatable
     }
 
     /**
-     * Get user roles from JWT token
+     * Roles from the current request JWT (client + realm).
+     *
+     * @return list<string>
      */
     public function getRoles(): array
     {
-        $request = request();
-        $jwt = $request->attributes->get('jwt');
-        
-        if (!$jwt || !isset($jwt['resource_access']->flow->roles)) {
-            return [];
+        return FlowAccess::rolesFromJwt(request()->attributes->get('jwt'));
+    }
+
+    public function isFlowAdmin(): bool
+    {
+        return FlowAccess::isAdmin($this->getRoles());
+    }
+
+    public function isFlowUser(): bool
+    {
+        return FlowAccess::isFlowUser($this->getRoles());
+    }
+
+    public function hasRegionalPartnerAccess(int $regionalPartnerId): bool
+    {
+        if ($this->isFlowAdmin()) {
+            return true;
         }
-        
-        return $jwt['resource_access']->flow->roles ?? [];
+
+        return $this->regionalPartners()
+            ->where('regional_partner.id', $regionalPartnerId)
+            ->exists();
+    }
+
+    public function hasEventAccess(int $eventId): bool
+    {
+        if ($this->isFlowAdmin()) {
+            return true;
+        }
+
+        return $this->regionalPartners()
+            ->whereHas('events', function ($query) use ($eventId) {
+                $query->where('id', $eventId);
+            })
+            ->exists();
     }
 }

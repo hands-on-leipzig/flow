@@ -29,8 +29,10 @@ $toDataUri = function (string $path): ?string {
 };
 
 $hourglassIcon = $toDataUri(public_path('flow/hourglass.png'));
-$exploreIcon = $toDataUri(public_path('flow/fll_explore_v.png'));
-$challengeIcon = $toDataUri(public_path('flow/fll_challenge_v.png'));
+$programIcons = [];
+foreach (collect($rows)->pluck('program_names')->flatten()->unique()->filter() as $name) {
+    $programIcons[$name] = $toDataUri(\App\Support\ProgramCatalog::logoPath($name, 'v'));
+}
 @endphp
 
 <h2 style="margin-bottom: 6px; font-size: 22px; font-weight: bold;">
@@ -55,9 +57,8 @@ $challengeIcon = $toDataUri(public_path('flow/fll_challenge_v.png'));
                         <th style="text-align:center; padding:6px 4px; width:4%;"></th>
                         <th style="text-align:left; padding:6px 8px; width:8%;">Start</th>
                         <th style="text-align:left; padding:6px 8px; width:8%;">Ende</th>
-                        <th style="text-align:center; padding:6px 4px; width:5%;"></th>
-                        <th style="text-align:center; padding:6px 4px; width:5%;"></th>
-                        <th style="text-align:left; padding:6px 8px; width:30%;">Aktivität</th>
+                        <th style="text-align:center; padding:6px 4px; width:6%;"></th>
+                        <th style="text-align:left; padding:6px 8px; width:34%;">Aktivität</th>
                         <th style="text-align:left; padding:6px 8px; width:40%;">Team</th>
                     </tr>
                 </thead>
@@ -71,17 +72,12 @@ $challengeIcon = $toDataUri(public_path('flow/fll_challenge_v.png'));
                             </td>
                             <td style="padding:5px 8px;">{{ $row['start'] }}</td>
                             <td style="padding:5px 8px;">{{ $row['end'] }}</td>
-                            {{-- Explore Icon --}}
-                            <td style="text-align:center; padding:4px;">
-                                @if(!empty($row['is_explore']) && !empty($exploreIcon))
-                                    <img src="{{ $exploreIcon }}" alt="Explore" style="height:16px;">
-                                @endif
-                            </td>
-                            {{-- Challenge Icon --}}
-                            <td style="text-align:center; padding:4px;">
-                                @if(!empty($row['is_challenge']) && !empty($challengeIcon))
-                                    <img src="{{ $challengeIcon }}" alt="Challenge" style="height:16px;">
-                                @endif
+                            <td style="text-align:center; padding:4px; white-space:nowrap;">
+                                @foreach(($row['program_names'] ?? []) as $name)
+                                    @if(!empty($programIcons[$name]))
+                                        <img src="{{ $programIcons[$name] }}" alt="{{ $name }}" style="height:16px; margin-right:2px;">
+                                    @endif
+                                @endforeach
                             </td>
                             <td style="padding:5px 8px;">{{ $row['activity'] }}</td>
                             <td style="padding:5px 8px;">

@@ -46,18 +46,22 @@ let canvas: Canvas;
 const standardImages = [
   {title: 'Hands on Technology', url: imageUrl('flow/hot.png')},
   {title: 'Hands on Technology', url: imageUrl('flow/hot_outline.png')},
-  {title: 'Unearthed', url: imageUrl('flow/season_unearthed+fll_h.png')},
-  {title: 'Unearthed', url: imageUrl('flow/season_unearthed_v.png')},
-  {title: 'Unearthed', url: imageUrl('flow/season_unearthed_wordmark.png')},
+  {title: 'Bioglow', url: imageUrl('flow/season_bioglow+fll_h.png')},
+  {title: 'Bioglow', url: imageUrl('flow/season_bioglow_v.png')},
+  {title: 'Bioglow', url: imageUrl('flow/season_bioglow_wordmark.png')},
   {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_h.png')},
   {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_v.png')},
   {title: 'FIRST', url: imageUrl('flow/first_h.png')},
   {title: 'FIRST', url: imageUrl('flow/first_v.png')},
   {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_h.png')},
+  {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_hs.png')},
   {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_v.png')},
   {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_h.png')},
   {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_hs.png')},
   {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_v.png')},
+  {title: 'FIRST LEGO League Future 8+', url: imageUrl('flow/fll_future8_h.png')},
+  {title: 'FIRST LEGO League Future 8+', url: imageUrl('flow/fll_future8_hs.png')},
+  {title: 'FIRST LEGO League Future 8+', url: imageUrl('flow/fll_future8_v.png')},
 ];
 const availableImages = ref(standardImages);
 const availableQrCodes = ref([]);
@@ -533,7 +537,7 @@ async function paste() {
       <div v-if="toolbarState.type === 'text'" class="ml-4 mb-1 flex items-center gap-x-2">
         <!-- Text property toolbar -->
         <input type="number" title="Textgröße" v-model.number="toolbarState.object.fontSize" v-on:change="triggerRender"
-               class="w-16 pr-1 border border-gray-300 rounded ml-2 h-10"/>
+               class="w-16 pr-1 border border-[var(--color-border)] rounded ml-2 h-10"/>
         <button v-on:click="makeBold" title="Fett"
                 class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-bold h-10 w-12"
                 :class="{ 'bg-gray-400': toolbarState.object.fontWeight === 'bold' }">B
@@ -564,7 +568,7 @@ async function paste() {
         <input type="color" title="Randfarbe" class="px-2 rounded ml-2 h-10 w-12" :value="toolbarState.object.stroke"
                @input="onStrokeChange($event.target.value)"/>
         <!-- Border Size -->
-        <input type="number" title="Randgröße" min="0" class="w-16 px-1 border border-gray-300 rounded ml-2 h-10"
+        <input type="number" title="Randgröße" min="0" class="w-16 px-1 border border-[var(--color-border)] rounded ml-2 h-10"
                :value="toolbarState.object.strokeWidth"
                @input="onStrokeWidthChange($event.target.value)"/>
       </div>
@@ -590,7 +594,7 @@ async function paste() {
         </div>
         <div class="mt-6 px-4 py-2 grid grid-cols-2">
           <div>
-            <router-link to="/logos" class="block px-2">
+            <router-link to="/plan/publish/logos" class="block px-2">
               <button class="rounded bg-gray-300 hover:bg-gray-400 w-full py-1">Logos verwalten</button>
             </router-link>
           </div>

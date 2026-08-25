@@ -54,7 +54,6 @@ function exportMainData()
             'm_activity_type',
             'm_activity_type_detail',
             'm_first_program',
-            'm_insert_point',
             'm_role',
             'm_visibility',
             'm_supported_plan'

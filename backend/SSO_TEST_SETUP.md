@@ -80,7 +80,21 @@ Your JWT tokens must include:
 
 ### "Access denied" errors
 - Ensure JWT includes `flow-tester` role for test environment
-- For production, use `regionalpartner` or `flow-admin` roles
+- For production, use `flow_user` or `flow_admin` (client roles on `flow`)
+
+## Production Keycloak model
+
+| Role | Meaning |
+|------|---------|
+| `flow_user` | May use FLOW (app gate) |
+| `flow_admin` | Admin APIs + all regions |
+| `flow-tester` | local/staging only |
+
+Recommended: Keycloak **groups** such as `Regionalpartner` and `Geschäftsstelle MA` include the `flow_user` role (and whatever else those groups need). FLOW no longer requires the bare group name `regionalpartner` / `Geschäftsstelle MA` once `flow_user` is assigned — but still accepts them as legacy during migration.
+
+Region scope (which events a user sees) comes from:
+1. Draht contact-person → region sync on login (`source=draht`)
+2. Manual FLOW admin grants (`source=manual`) for people who are not Draht contact persons
 
 ## Production Considerations
 
@@ -88,4 +102,4 @@ For production, you would:
 1. **Remove the fresh database script** from the deployment workflow
 2. **Use real regional partners** from your production data
 3. **Configure SSO** with your actual user base
-4. **Set up proper role mappings** for regional partner access
+4. **Assign `flow_user` via Keycloak groups**; grant extra regions in FLOW admin if needed

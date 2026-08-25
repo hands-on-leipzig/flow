@@ -1,0 +1,89 @@
+---
+description: Phased plan for the core schedule generator — do not skip ahead
+alwaysApply: true
+---
+
+# Core generator roadmap
+
+Work on `backend/app/Core/` (and its immediate callers) in this order. Do not start a later phase until the user says to.
+
+## 1. Revisit, clean up, stabilize (current)
+
+- Understand and tidy the existing generator: `PlanGeneratorCore`, Challenge, Explore, robot game, finale, activity writer, time cursor, parameters.
+- Prefer small, behavior-preserving changes. No afternoon redesign.
+- Fix inconsistency, dead paths, naming, and fragile timing — only with tests or a clear before/after.
+
+### Current architecture (read-only map)
+
+Entry: `PlanGeneratorController` → `PlanGeneratorService` (`isSupported`, `prepare`, `run` / `GeneratePlanJob`) → `PlanGeneratorCore::generate`.
+
+`PlanParameter` purges off-event overrides, then loads joint + attached program catalog rows only. `ProgramPresence` resolves which programs are on and which Challenge-shaped program leads (by `m_first_program.sequence`).
+
+`PlanGeneratorCore` loads params. If `g_finale` (event level 3) → `FinaleGenerator` (Day 2 first, then Day 1). Else `generateOneDayEvent()` from `ProgramPresence` + `e_mode` ceremony recipes.
+
+Clocks: `TimeCursor` (`jTime` judging, `rTime` robot game, `cTime` ceremony, `eTime` Explore). Shared hook: `IntegratedExploreState`. Writer: `ActivityWriter` → `activity_group` + `activity`. After generate: `FreeBlockGenerator`, then `SlotBlockPlanSyncService`.
+
+Challenge `main()` aligns judging rounds with RG (test round 0, then 1–3). Explore groups 1 = morning, 2 = afternoon. Pauses after TR/RG1/RG2/RG3/finals are **duration-only** (`addMinutes`). Inserted extra-blocks are removed; free + slot extra-blocks stay.
+
+### First cleanup (done)
+
+Inserted extra-block **content** is gone; **pauses** stay (`addMinutes`). Live DB migrated (no `m_insert_point`, no buffers, `extra_block.type` is `free`/`slot`).
+
+### Open program combinations (done)
+
+- Catalog `*_mode` defaults are **0** (off).
+- Bootstrap writes params only for attached programs; modes turn on from `event_program`.
+- `ProgramPresence`: attached + mode + teams; one Challenge-shaped lead by sequence; no Future attachment bypass.
+- Generator, free blocks, time matrix, workspace flags, and slot paths use presence — not hard-coded E+C.
+
+### Structural cleanup (phase 1, current)
+
+Constraints: Challenge-shaped judging ∥ games (do not generate as two days). Explore is judging-only. Exactly one Challenge-shaped lead until multi-lead work. Only joint opening/closing (plus after-RG1 handoff) couple programs. Finale stays a separate two-day tweak. No after-RG3 redesign.
+
+Agreed sequence — do not start the next item until the user has reviewed:
+
+1. **Ceremony recipes in Core** — same call order as the old `e_mode` ladder. `e_mode` 6/7 unused (documented below).
+2. Challenge-owned clocks; Explore gets a start from opening/closing/handoff; handoff as datetime not `H:i`.
+3. Named pieces inside Challenge `main()`, formulas unchanged; judging and RG stay in one loop.
+4. Robot game: match list vs write to `rTime`; write stays in the loop.
+5. Explore as a sequence; drop unused `setMode`.
+6. Finale: skip (leave as-is).
+7. Writer/log/constructor hygiene as we go.
+
+## 2. Later: multi Challenge-shaped on one day
+
+- **Policy A then B** interleave when Challenge + Future 8+ (or more Challenge-shaped programs) are both on.
+- Until then, `ProgramPresence` picks one lead; others on are logged and skipped.
+- Future 8+ is already a first-class generator program beside Explore and Challenge.
+
+### Prep before multi-lead: match plan (agreed)
+
+- Add `match.first_program`; builders delete/insert scoped by plan + program.
+- One pipeline: `MatchPlanSpec::for(FirstProgram, PlanParameter)` → single builder (seed + shared steps + persist). Spec maps program → param names and reads via `PlanParameter` (no recompute of derived rounds/matches/volunteer/asym). Challenge and Future differ only by binding (and Challenge-only finale start-team offsets kept as today).
+- **Remove different objectives** (`MatchPlanObjective` / TABLES vs OPPONENTS). Rotator already prefers opponents first, tables second; keep that one behavior for both. No F8-specific rotation model.
+- Old Quality mass/volume test for rotation baselines: **case closed** (broken after recent generator changes; do not rely on it for this work).
+- Extra blocks, PDF, RG preview, quality UI: out of scope for this prep.
+
+## 3. Then: rework the afternoon
+
+- “Afternoon” = everything **after robot game round three** (finals, awards, joint ceremonies, integrated Explore hooks, lunch-adjacent sequencing as it sits after RG3).
+- Do this only after §2 multi-lead work, because who shares that part of the day depends on which Challenge-shaped programs run.
+
+When unsure which phase a change belongs to, ask before implementing.
+
+## Explore `e_mode` (generated)
+
+| Value | Enum | Meaning |
+|---:|---|---|
+| 0 | `NONE` | No Explore |
+| 1 | `INTEGRATED_MORNING` | Joint opening; Explore 1 judging; Explore 1 awards after RG1; Challenge awards alone |
+| 2 | `INTEGRATED_AFTERNOON` | Challenge opening; Explore 2 opening after RG1; Explore 2 judging; joint awards |
+| 3 | `DECOUPLED_MORNING` | Full Challenge, then Explore 1 with own ceremonies |
+| 4 | `DECOUPLED_AFTERNOON` | Full Challenge, then Explore 2 with own ceremonies |
+| 5 | `DECOUPLED_BOTH` | Full Challenge, then Explore 1 and 2 with own ceremonies |
+| 8 | `HYBRID_BOTH` | Joint opening; Explore 1 with own awards; joint awards; Explore 2 opening after that + judging (no Explore 2 awards) |
+
+UI never writes 6 or 7 (morning+integrated → 1, afternoon+integrated → 2). Enum has no cases for them. Integers 6 and 7 stay reserved and unimplemented:
+
+- **6** would be hybrid morning (half of 8 vs 1): joint opening like 8; Explore 1 judging; Explore 1 **awards independent of Challenge** (not after RG1); Challenge awards alone.
+- **7** would be hybrid afternoon (half of 8 vs 2): Challenge opening; Explore 2 **opening independent of Challenge** (not after RG1); Explore 2 judging; joint awards.

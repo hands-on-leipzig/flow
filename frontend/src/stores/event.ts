@@ -2,6 +2,8 @@ import {defineStore} from 'pinia'
 import axios from "axios"
 import FllEvent  from "@/models/FllEvent"
 import {DrahtService} from "@/services/drahtService"
+import {usePlanCacheStore} from '@/stores/planCache'
+import {setEventProgramLogos} from '@/utils/images'
 
 interface EventStoreState {
   selectedEvent: FllEvent | null
@@ -28,6 +30,7 @@ export const useEventStore = defineStore('event', {
             this.selectedEvent = null
             this.selectedEventId = undefined
             this.readiness = null
+            setEventProgramLogos([])
         },
 
         async fetchCurrentSeasonId(): Promise<number | null> {
@@ -64,21 +67,8 @@ export const useEventStore = defineStore('event', {
         },
 
         async validateSelectedEventSeason(): Promise<boolean> {
-            if (!this.selectedEvent) {
-                return false
-            }
-
-            const currentSeasonId = await this.fetchCurrentSeasonId()
-            if (currentSeasonId === null) {
-                return true
-            }
-
-            if (this.isEventFromCurrentSeason(this.selectedEvent, currentSeasonId)) {
-                return true
-            }
-
-            await this.clearStaleSeasonSelection()
-            return false
+            // Past seasons are allowed for viewing/switching.
+            return !!this.selectedEvent
         },
 
         async fetchSelectedEvent() {
@@ -97,12 +87,6 @@ export const useEventStore = defineStore('event', {
                 }
 
                 const event = new FllEvent(response.data)
-                const currentSeasonId = await this.fetchCurrentSeasonId()
-
-                if (currentSeasonId !== null && !this.isEventFromCurrentSeason(event, currentSeasonId)) {
-                    await this.clearStaleSeasonSelection()
-                    return
-                }
 
                 // Fetch DRAHT team data
                 if (event.id) {
@@ -110,6 +94,7 @@ export const useEventStore = defineStore('event', {
                 }
 
                 this.selectedEvent = event
+                setEventProgramLogos(event.programs)
                 this.staleSeasonCleared = false
             } catch (error) {
                 console.error('Failed to fetch selected event', error)
@@ -130,6 +115,7 @@ export const useEventStore = defineStore('event', {
                 await this.loadDrahtTeamData(event)
                 
                 this.selectedEvent = event
+                setEventProgramLogos(event.programs)
             } catch (error) {
                 console.error('Failed to update selected event', error)
             }
@@ -137,14 +123,15 @@ export const useEventStore = defineStore('event', {
         
         async loadDrahtTeamData(event: FllEvent) {
             try {
+                // getTeamCounts is in-flight-deduped; draht-data goes through planCache
                 const teamCounts = await DrahtService.getTeamCounts(event.id)
                 event.drahtTeamsExplore = teamCounts.exploreCount
                 event.drahtTeamsChallenge = teamCounts.challengeCount
                 event.hasTeamDiscrepancy = teamCounts.hasDiscrepancy
+                event.discrepancyByProgram = teamCounts.discrepancyByProgram
                 event.drahtCapacityExplore = teamCounts.exploreCapacity
                 event.drahtCapacityChallenge = teamCounts.challengeCapacity
-                
-                // Update store state using $patch for proper reactivity
+
                 if (this.selectedEvent && this.selectedEvent.id === event.id) {
                     this.$patch({
                         selectedEvent: {
@@ -152,6 +139,7 @@ export const useEventStore = defineStore('event', {
                             drahtTeamsExplore: teamCounts.exploreCount,
                             drahtTeamsChallenge: teamCounts.challengeCount,
                             hasTeamDiscrepancy: teamCounts.hasDiscrepancy,
+                            discrepancyByProgram: teamCounts.discrepancyByProgram,
                             drahtCapacityExplore: teamCounts.exploreCapacity,
                             drahtCapacityChallenge: teamCounts.challengeCapacity
                         }
@@ -159,14 +147,13 @@ export const useEventStore = defineStore('event', {
                 }
             } catch (error) {
                 console.error('Failed to load DRAHT team data:', error)
-                // Set defaults on error
                 event.drahtTeamsExplore = 0
                 event.drahtTeamsChallenge = 0
                 event.hasTeamDiscrepancy = false
+                event.discrepancyByProgram = {}
                 event.drahtCapacityExplore = 0
                 event.drahtCapacityChallenge = 0
-                
-                // Update store state using $patch for proper reactivity
+
                 if (this.selectedEvent && this.selectedEvent.id === event.id) {
                     this.$patch({
                         selectedEvent: {
@@ -174,6 +161,7 @@ export const useEventStore = defineStore('event', {
                             drahtTeamsExplore: 0,
                             drahtTeamsChallenge: 0,
                             hasTeamDiscrepancy: false,
+                            discrepancyByProgram: {},
                             drahtCapacityExplore: 0,
                             drahtCapacityChallenge: 0
                         }
@@ -181,13 +169,14 @@ export const useEventStore = defineStore('event', {
                 }
             }
         },
-        
+
         async refreshDrahtTeamData() {
             if (this.selectedEvent) {
+                usePlanCacheStore().invalidateDraht()
                 await this.loadDrahtTeamData(this.selectedEvent)
             }
         },
-        
+
         async updateTeamDiscrepancyStatus() {
             if (this.selectedEvent) {
                 await this.loadDrahtTeamData(this.selectedEvent)

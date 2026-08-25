@@ -83,11 +83,12 @@ class PublishController extends Controller
                     ->count();
 
                 if ($eventCount > 1) {
-                    if (!is_null($event->event_challenge)) {
-                        $link .= "-challenge";
-                    }
-                    if (!is_null($event->event_explore)) {
-                        $link .= "-explore";
+                    $eventModel = Event::find($event->id);
+                    foreach ($eventModel?->programs ?? [] as $program) {
+                        $suffix = strtolower(str_replace('_', '-', (string) $program->name));
+                        if ($suffix !== '') {
+                            $link .= '-' . $suffix;
+                        }
                     }
                 }
                 break;
@@ -160,14 +161,11 @@ class PublishController extends Controller
             try {
                 $drahtController = app(\App\Http\Controllers\Api\DrahtController::class);
 
-                // Update link for challenge event if it exists
-                if (!empty($event->event_challenge)) {
-                    $drahtController->updateEventLink($event->event_challenge, $displayLink);
-                }
-
-                // Update link for explore event if it exists
-                if (!empty($event->event_explore)) {
-                    $drahtController->updateEventLink($event->event_explore, $displayLink);
+                $eventModel = Event::find($event->id);
+                foreach ($eventModel?->programs ?? [] as $program) {
+                    if (! empty($program->draht_id)) {
+                        $drahtController->updateEventLink((int) $program->draht_id, $displayLink);
+                    }
                 }
             } catch (\Exception $e) {
                 // Log error but don't fail the link generation
@@ -179,6 +177,8 @@ class PublishController extends Controller
             // Log that we're skipping DRAHT update in non-production environment
             Log::info("Skipping DRAHT link update for event {$event->id} (environment: " . app()->environment() . ")");
         }
+
+        app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $event->id);
 
         // In Response Prefix hinzufügen
         return response()->json([
@@ -339,66 +339,22 @@ class PublishController extends Controller
         $drahtCtrl = app(\App\Http\Controllers\Api\DrahtController::class);
         $drahtData = $drahtCtrl->show($event)->getData(true);
 
-        // Get color information from m_first_program table
-        $exploreColor = DB::table('m_first_program')
-            ->where('name', 'EXPLORE')
-            ->value('color_hex') ?? '00A651'; // Default green if not found
-
-        $challengeColor = DB::table('m_first_program')
-            ->where('name', 'CHALLENGE')
-            ->value('color_hex') ?? 'ED1C24'; // Default red if not found
-
-        // JSON bauen
-        $data = [
-            'event_id' => $eventId,
-            'level' => $level,
-            'date' => $event->date,
-            'days' => $event->days,
-            'enddate' => $event->enddate,
-            'address' => $drahtData['address'] ?? null,
-            // hier direkt durchreichen:
-            'contact' => $drahtData['contact'] ?? [],
-            'teams' => [
-                'explore' => [
-                    'capacity' => $drahtData['capacity_explore'] ?? 0,
-                    'registered' => count($drahtData['teams_explore'] ?? []),
-                    'color_hex' => $exploreColor,
-                    'list' => $level >= 1 ? array_map(function ($team) {
-                        return [
-                            'team_number_hot' => $team['ref'] ?? null,
-                            'name' => $team['name'] ?? '',
-                            'organization' => $team['organization'] ?? '',
-                            'location' => $team['location'] ?? ''
-                        ];
-                    }, array_values($drahtData['teams_explore'] ?? [])) : [],
-                ],
-                'challenge' => [
-                    'capacity' => $drahtData['capacity_challenge'] ?? 0,
-                    'registered' => count($drahtData['teams_challenge'] ?? []),
-                    'color_hex' => $challengeColor,
-                    'list' => $level >= 1 ? array_map(function ($team) {
-                        return [
-                            'team_number_hot' => $team['ref'] ?? null,
-                            'name' => $team['name'] ?? '',
-                            'organization' => $team['organization'] ?? '',
-                            'location' => $team['location'] ?? ''
-                        ];
-                    }, array_values($drahtData['teams_challenge'] ?? [])) : [],
-                ],
-            ],
-        ];
-
+        $plan = null;
         if ($level >= 3) {
-
-
-            $importantTimesResponse = $this->importantTimes($eventId);
-            $importantTimes = $importantTimesResponse->getData(true); // JSON -> Array
-
-            // Schedule ins Haupt-JSON einhängen
-            $data['plan'] = $importantTimes;
+            $plan = $this->importantTimesPayload($eventId);
         }
 
-        return response()->json($data);
+        return response()->json(\App\Support\PublicSchedulePayload::from($event, $drahtData, $level, $plan));
+    }
+
+    /**
+     * importantTimes JSON as an array (same body as the private HTTP helper).
+     *
+     * @return array<string, mixed>
+     */
+    public function importantTimesPayload(int $eventId): array
+    {
+        return $this->importantTimes($eventId)->getData(true);
     }
 
 
@@ -450,6 +406,7 @@ class PublishController extends Controller
                 'level' => $level,
                 'last_change' => Carbon::now(),
             ]);
+            app(\App\Services\CalendarFeedService::class)->rebuildSafely($eventId);
         }
 
         return response()->json([
@@ -491,7 +448,7 @@ class PublishController extends Controller
 
         // Check if there are 2x Explore groups
         $planParams = new PlanParameter($plan->id);
-        $eMode = (int)$planParams->get('e_mode');
+        $eMode = (int) $planParams->get('e_mode', 0);
         $hasTwoExploreGroups = ($eMode === ExploreMode::HYBRID_BOTH->value || $eMode === ExploreMode::DECOUPLED_BOTH->value);
 
         // Activity Type Details by code (cached lookup with name and sequence)

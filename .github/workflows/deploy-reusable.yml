@@ -54,6 +54,26 @@ jobs:
         with:
           ref: ${{ inputs.checkout_ref }}
 
+      # frontend/package.json: "@hands-on/glass": "file:../../glass"
+      # → sibling of the flow workspace root (…/work/flow/glass).
+      - name: Checkout glass design system
+        uses: actions/checkout@v4
+        with:
+          repository: hands-on-leipzig/glass
+          ref: main
+          path: .ci-glass
+          # Same-org private repo: enable "Access from other repositories in this org"
+          # for GITHUB_TOKEN, or replace with a PAT that can read hands-on-leipzig/glass.
+          token: ${{ github.token }}
+
+      - name: Link glass for file:../../glass
+        run: |
+          GLASS_TARGET="$(dirname "$GITHUB_WORKSPACE")/glass"
+          rm -rf "$GLASS_TARGET"
+          ln -sfn "$GITHUB_WORKSPACE/.ci-glass" "$GLASS_TARGET"
+          test -f "$GLASS_TARGET/package.json"
+          echo "Linked @hands-on/glass → $GLASS_TARGET"
+
       - name: Set up Node
         uses: actions/setup-node@v3
         with:

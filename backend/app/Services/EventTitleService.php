@@ -2,13 +2,15 @@
 
 namespace App\Services;
 
+use App\Support\ProgramCatalog;
+
 class EventTitleService
 {
     /**
      * Get long format event title
      * Returns: "FIRST LEGO League Ausstellung und Regionalwettbewerb Aachen"
      * 
-     * @param object $event Event object with event_explore, event_challenge, level, and name properties
+     * @param object $event Event with programs, level, and name
      * @return string
      */
     public function getEventTitleLong(object $event): string
@@ -23,7 +25,7 @@ class EventTitleService
      * Get short format event title
      * Returns: "Ausstellung und Regio Aachen"
      * 
-     * @param object $event Event object with event_explore, event_challenge, level, and name properties
+     * @param object $event Event with programs, level, and name
      * @return string
      */
     public function getEventTitleShort(object $event): string
@@ -39,13 +41,15 @@ class EventTitleService
      * Get competition type text only (for "Art:" display)
      * Returns: "Ausstellung und Regionalwettbewerb", "Ausstellung", "Regionalwettbewerb", etc.
      * 
-     * @param object $event Event object with event_explore, event_challenge, and level properties
+     * @param object $event Event with programs and level
      * @return string
      */
     public function getCompetitionTypeText(object $event): string
     {
-        $hasExplore = !empty($event->event_explore);
-        $hasChallenge = !empty($event->event_challenge);
+        $flags = $this->programFlags($event);
+        $hasExplore = $flags['explore'];
+        $hasChallenge = $flags['challenge'];
+        $hasFuture = $flags['future'];
         $level = (int)($event->level ?? 0);
 
         // First check level - level 2 and 3 take precedence regardless of E/C
@@ -55,6 +59,13 @@ class EventTitleService
 
         if ($level === 3) {
             return 'Finale';
+        }
+
+        if ($hasFuture && !$hasExplore && !$hasChallenge) {
+            return 'Future Wettbewerb';
+        }
+        if ($hasFuture && ($hasExplore || $hasChallenge)) {
+            return 'Mixed Wettbewerb';
         }
 
         // For level 1, check E/C combinations
@@ -72,6 +83,35 @@ class EventTitleService
 
         // Fallback
         return 'Wettbewerb';
+    }
+
+    /**
+     * @return array{explore: bool, challenge: bool, future: bool}
+     */
+    private function programFlags(object $event): array
+    {
+        if ($event instanceof \App\Models\Event) {
+            return [
+                'explore' => ProgramCatalog::hasExplore($event),
+                'challenge' => ProgramCatalog::hasChallenge($event),
+                'future' => ProgramCatalog::hasFuture($event),
+            ];
+        }
+
+        $programs = collect($event->programs ?? []);
+        $names = $programs->map(function ($row) {
+            if (is_array($row)) {
+                return strtoupper((string) ($row['name'] ?? ''));
+            }
+
+            return strtoupper((string) ($row->name ?? ''));
+        });
+
+        return [
+            'explore' => $names->contains(ProgramCatalog::EXPLORE),
+            'challenge' => $names->contains(ProgramCatalog::CHALLENGE),
+            'future' => $names->contains(fn ($name) => ProgramCatalog::isFuture($name)),
+        ];
     }
 
     /**

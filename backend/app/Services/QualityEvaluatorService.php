@@ -9,22 +9,20 @@ use App\Models\QPlanTeam;
 use App\Models\MParameter;
 use App\Models\PlanParamValue;
 use App\Models\Plan;
-use App\Models\Event;
 use App\Models\MSupportedPlan;
 use App\Enums\FirstProgram;
+use App\Support\ChallengeShapedParamMap;
 use Carbon\Carbon;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
-use PhpParser\Node\Expr\FuncCall;
 
 class QualityEvaluatorService
 {
 
     public function generateQPlansFromSelection(int $runId): void
-    {       
-        // Read q_run (Name + Selection)
+    {
         $qRun = DB::table('q_run')->where('id', $runId)->first();
 
         if (!$qRun) {
@@ -37,19 +35,27 @@ class QualityEvaluatorService
             throw new \Exception("Invalid JSON in q_run.selection (ID $runId): " . $e->getMessage());
         }
 
+        $firstProgramId = (int) ($selection['first_program'] ?? $qRun->first_program ?? FirstProgram::CHALLENGE->value);
+        if (! ChallengeShapedParamMap::isSupported($firstProgramId)) {
+            throw new \Exception("q_run $runId: first_program $firstProgramId is not Challenge-shaped (C or F8)");
+        }
+
+        $paramMap = ChallengeShapedParamMap::from($firstProgramId);
+
+        QRun::where('id', $runId)->update([
+            'first_program' => $firstProgramId,
+        ]);
+
         Log::info('QualityEvaluatorService::generateQPlansFromSelection', [
             'q_run' => $runId,
+            'first_program' => $firstProgramId,
             'selection' => $selection,
         ]);
 
-        // Get all allowed parameters once to be used in the loop below
         $parameters = MParameter::all()->keyBy('name');
-
-        // Create or get the special event for quality tests
         $eventId = $this->getOrCreateQualityEventId();
 
-        // Read m_supported_plan and filter by selection
-        $supportedPlans = MSupportedPlan::where('first_program', FirstProgram::CHALLENGE->value)
+        $supportedPlans = MSupportedPlan::where('first_program', $firstProgramId)
             ->orderBy('teams')
             ->orderBy('lanes')
             ->orderBy('tables')
@@ -61,72 +67,52 @@ class QualityEvaluatorService
             }
 
             $rounds = (int) ceil($plan->teams / $plan->lanes);
+            $tables = (int) ($plan->tables ?? 0);
 
-            // Two versions: with and without robot check
-            $robotCheckOptions = $selection['robot_check'] ?? ['off', 'on'];
+            // Robot check only exists for Challenge; F8 always off.
+            $robotCheckOptions = $paramMap->supportsRobotCheck()
+                ? ($selection['robot_check'] ?? ['off', 'on'])
+                : ['off'];
 
             foreach ($robotCheckOptions as $rc) {
                 $robotCheck = $rc === 'on' ? 1 : 0;
-                $suffix = $robotCheck === 1 ? ' RC an' : ' RC aus';
+                $suffix = $paramMap->supportsRobotCheck()
+                    ? ($robotCheck === 1 ? ' RC an' : ' RC aus')
+                    : '';
 
-                // Create a new plan and get its ID
                 $newPlan = Plan::create([
-                    'name' => "{$plan->teams}-{$plan->lanes}-{$plan->tables} ({$rounds}){$suffix}",
+                    'name' => "{$plan->teams}-{$plan->lanes}-{$tables} ({$rounds}){$suffix}",
                     'event' => $eventId,
                     'created' => Carbon::now(),
                     'last_change' => Carbon::now(),
                 ]);
 
                 $planId = $newPlan->id;
+                $this->writeChallengeShapedPlanParams(
+                    $planId,
+                    $parameters,
+                    $paramMap,
+                    (int) $plan->teams,
+                    (int) $plan->lanes,
+                    $tables,
+                    $robotCheck,
+                );
 
-                // Log::info("qRun $runId: Plan $planId {$newPlan->name} created");
+                $transferDefault = (int) ($parameters[$paramMap->transfer()]->value ?? 0);
 
-                // Add the parameter values for this plan
-                PlanParamValue::create([
-                    'parameter' => $parameters['c_teams']->id,
-                    'plan' => $planId,
-                    'set_value' => $plan->teams,
-                ]);
-
-                PlanParamValue::create([
-                    'parameter' => $parameters['j_lanes']->id,
-                    'plan' => $planId,
-                    'set_value' => $plan->lanes,
-                ]);
-
-                PlanParamValue::create([
-                    'parameter' => $parameters['r_tables']->id,
-                    'plan' => $planId,
-                    'set_value' => $plan->tables ?? 0,
-                ]);
-
-                PlanParamValue::create([
-                    'parameter' => $parameters['r_robot_check']->id,
-                    'plan' => $planId,
-                    'set_value' => $robotCheck,
-                ]);
-
-                PlanParamValue::create([
-                    'parameter' => $parameters['e_mode']->id,
-                    'plan' => $planId,
-                    'set_value' => 0,
-                ]);
-
-
-                // Create the corresponding q_plan entry
-                // All params are only for documentation
-                $qPlan = QPlan::create([
+                QPlan::create([
                     'plan' => $planId,
                     'q_run' => $runId,
+                    'first_program' => $firstProgramId,
                     'name' => $newPlan->name,
                     'c_teams' => $plan->teams,
-                    'r_tables' => $plan->tables ?? 0,
+                    'r_tables' => $tables,
                     'j_lanes' => $plan->lanes,
                     'j_rounds' => $rounds,
-                    'r_asym' => ($plan->tables == 4 && ($plan->teams % 4 == 1 || $plan->teams % 4 == 2)) ? 1 : 0,
+                    'r_asym' => ($tables === 4 && ($plan->teams % 4 === 1 || $plan->teams % 4 === 2)) ? 1 : 0,
                     'r_robot_check' => $robotCheck,
                     'r_duration_robot_check' => 0,
-                    'c_duration_transfer' => $parameters['c_duration_transfer']->value,
+                    'c_duration_transfer' => $transferDefault,
                     'q1_ok_count' => null,
                     'q2_ok_count' => null,
                     'q3_ok_count' => null,
@@ -134,22 +120,32 @@ class QualityEvaluatorService
                     'q5_idle_avg' => null,
                     'q5_idle_stddev' => null,
                 ]);
+            }
+        }
 
-                        
-            } // End foreach robot check yes/no
-             
-        }  // End foreach supported plan
-
-        // Update q_run with the total number of q_plans created
-        $qPlansTotal = QPlan::where('q_run', $runId)->count();
         QRun::where('id', $runId)->update([
-            'qplans_total' => $qPlansTotal,
+            'qplans_total' => QPlan::where('q_run', $runId)->count(),
         ]);
-
     }
 
     public function generateQPlansFromQPlans(int $newRunId, array $planIds)
     {
+        $eventId = $this->getOrCreateQualityEventId();
+
+        $programIds = QPlan::whereIn('id', $planIds)
+            ->pluck('first_program')
+            ->unique()
+            ->values();
+
+        if ($programIds->count() > 1) {
+            throw new \Exception("ReRun q_run $newRunId: mixed first_program in selection is not supported");
+        }
+
+        $firstProgramId = (int) ($programIds->first() ?? FirstProgram::CHALLENGE->value);
+        QRun::where('id', $newRunId)->update([
+            'first_program' => $firstProgramId,
+        ]);
+
         foreach ($planIds as $planId) {
             $original = QPlan::find($planId);
 
@@ -158,7 +154,6 @@ class QualityEvaluatorService
                 continue;
             }
 
-            // Plan-Datensatz kopieren
             $originalPlan = Plan::find($original->plan);
             if (!$originalPlan) {
                 Log::warning("Plan {$original->plan} nicht gefunden, QPlan $planId wird übersprungen.");
@@ -166,20 +161,14 @@ class QualityEvaluatorService
             }
 
             $planCopy = $originalPlan->replicate();
-
-            // Ensure the event id is valid. The old event might have been deleted.
-            $planCopy->event = $this->getOrCreateQualityEventId();
+            $planCopy->event = $eventId;
             $planCopy->save();
 
-            // Log::info("qRun $newRunId: Plan {$planCopy->id} copied from {$originalPlan->id}");
-
-            // QPlan-Datensatz kopieren und mit neuem Plan verknüpfen
             $copy = $original->replicate();
             $copy->q_run = $newRunId;
             $copy->plan = $planCopy->id;
+            $copy->first_program = $original->first_program ?? $firstProgramId;
 
-
-            // Q-Werte nullen
             $copy->q1_ok_count = null;
             $copy->q2_ok_count = null;
             $copy->q3_ok_count = null;
@@ -191,7 +180,6 @@ class QualityEvaluatorService
 
             $copy->save();
 
-            // Parameterwerte kopieren
             $paramValues = PlanParamValue::where('plan', $originalPlan->id)->get();
 
             foreach ($paramValues as $param) {
@@ -201,18 +189,20 @@ class QualityEvaluatorService
             }
         }
 
-        // qplans_total setzen
         QRun::where('id', $newRunId)->update([
             'qplans_total' => QPlan::where('q_run', $newRunId)->count(),
         ]);
     }
 
+    /**
+     * Shared Q-event with Challenge and Future 8+ attached so either program
+     * can be turned on per plan without purge removing its params.
+     */
     private function getOrCreateQualityEventId(): int
     {
         $RP_NAME = '!!! QPlan RP - nur für den Qualitätstest verwendet !!!';
         $EVENT_NAME = '!!! QPlan Event - nur für den Qualitätstest verwendet !!!';
 
-        // Regionalpartner prüfen oder anlegen
         $regionalPartner = DB::table('regional_partner')->where('name', $RP_NAME)->first();
 
         if (!$regionalPartner) {
@@ -220,12 +210,10 @@ class QualityEvaluatorService
                 'name' => $RP_NAME,
                 'region' => 0,
             ]);
-            // Log::info("Q-RP created with ID $regionalPartnerId");
         } else {
             $regionalPartnerId = $regionalPartner->id;
         }
 
-        // Event prüfen oder anlegen
         $event = DB::table('event')->where('name', $EVENT_NAME)->first();
 
         if (!$event) {
@@ -241,14 +229,86 @@ class QualityEvaluatorService
                 'date' => Carbon::today(),
                 'days' => 1,
             ]);
-            // Log::info("Q-Event created with ID $eventId");
         } else {
             $eventId = $event->id;
         }
 
-        return $eventId;
-    }    
+        $this->ensureQualityEventPrograms($eventId);
 
+        return $eventId;
+    }
+
+    private function ensureQualityEventPrograms(int $eventId): void
+    {
+        foreach (ChallengeShapedParamMap::supportedIds() as $programId) {
+            $exists = DB::table('event_program')
+                ->where('event', $eventId)
+                ->where('first_program', $programId)
+                ->exists();
+
+            if ($exists) {
+                continue;
+            }
+
+            DB::table('event_program')->insert([
+                'event' => $eventId,
+                'first_program' => $programId,
+                'draht_id' => null,
+                'contao_id' => null,
+            ]);
+        }
+    }
+
+    /**
+     * Write mode/teams/lanes/tables for the selected program; keep the other
+     * Challenge-shaped program attached but off (mode 0, teams 0).
+     *
+     * @param \Illuminate\Support\Collection<string, MParameter> $parameters
+     */
+    private function writeChallengeShapedPlanParams(
+        int $planId,
+        $parameters,
+        ChallengeShapedParamMap $selected,
+        int $teams,
+        int $lanes,
+        int $tables,
+        int $robotCheck,
+    ): void {
+        $this->setPlanParam($parameters, $planId, $selected->mode(), 1);
+        $this->setPlanParam($parameters, $planId, $selected->teams(), $teams);
+        $this->setPlanParam($parameters, $planId, $selected->lanes(), $lanes);
+        $this->setPlanParam($parameters, $planId, $selected->tables(), $tables);
+
+        if ($selected->supportsRobotCheck() && $selected->robotCheck() !== null) {
+            $this->setPlanParam($parameters, $planId, $selected->robotCheck(), $robotCheck);
+        }
+
+        foreach (ChallengeShapedParamMap::supportedIds() as $otherId) {
+            if ($otherId === $selected->program->value) {
+                continue;
+            }
+            $other = ChallengeShapedParamMap::from($otherId);
+            $this->setPlanParam($parameters, $planId, $other->mode(), 0);
+            $this->setPlanParam($parameters, $planId, $other->teams(), 0);
+        }
+    }
+
+    /**
+     * @param \Illuminate\Support\Collection<string, MParameter> $parameters
+     */
+    private function setPlanParam($parameters, int $planId, string $name, int|string $value): void
+    {
+        $param = $parameters->get($name);
+        if (!$param) {
+            throw new \RuntimeException("m_parameter '$name' not found");
+        }
+
+        PlanParamValue::create([
+            'parameter' => $param->id,
+            'plan' => $planId,
+            'set_value' => $value,
+        ]);
+    }
 
     private function isPlanSupported(MSupportedPlan $plan, array $selection): bool
     {
@@ -256,7 +316,6 @@ class QualityEvaluatorService
         $lanes = $plan->lanes;
         $tables = $plan->tables;
 
-        // Use defaults if keys are missing
         $min = $selection['min_teams'] ?? 0;
         $max = $selection['max_teams'] ?? PHP_INT_MAX;
         $juryLanes = $selection['jury_lanes'] ?? [];
@@ -317,44 +376,51 @@ class QualityEvaluatorService
      */
     private function prepareEvaluationData(int $qPlanId): Collection
     {
-        // Fetch the plan ID from q_plan
-        $planId = DB::table('q_plan')
-        ->where('id', $qPlanId)
-        ->value('plan');
-        
-        // Fetch activities related to the given q_plan
-       $activities = Activity::query()
-        ->select([
-            'activity.start',
-            'activity.end',
-            'activity.jury_lane',
-            'activity.jury_team',
-            'activity.table_1',
-            'activity.table_1_team',
-            'activity.table_2',
-            'activity.table_2_team',
-            'activity.activity_type_detail as activity_atd',
-            'activity_group.activity_type_detail as activity_group_atd',
-        ])
-        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-        ->where('activity_group.plan', $planId)
-        ->whereIn('activity_group.activity_type_detail', [8, 9, 10, 11, 20])
-        ->whereIn('activity.activity_type_detail', [15, 16, 17])
-        ->orderBy('activity.start')
-        ->get();
+        $planId = $this->planIdForQPlan($qPlanId);
+        $activityCodes = $this->teamActivityCodesForQPlan($qPlanId);
+        $groupCodes = $this->teamActivityGroupCodesForQPlan($qPlanId);
 
-        // Delete all previous entries for this q_plan in q_plan_team
+        $activityIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $activityCodes)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $groupIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $groupCodes)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $activities = Activity::query()
+            ->select([
+                'activity.start',
+                'activity.end',
+                'activity.jury_lane',
+                'activity.jury_team',
+                'activity.table_1',
+                'activity.table_1_team',
+                'activity.table_2',
+                'activity.table_2_team',
+                'activity.activity_type_detail as activity_atd',
+                'activity_group.activity_type_detail as activity_group_atd',
+            ])
+            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+            ->where('activity_group.plan', $planId)
+            ->whereIn('activity_group.activity_type_detail', $groupIds)
+            ->whereIn('activity.activity_type_detail', $activityIds)
+            ->orderBy('activity.start')
+            ->get();
+
         DB::table('q_plan_team')->where('q_plan', $qPlanId)->delete();
 
-        // Get number of teams for this plan
-        $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
+        $teamCount = $this->teamsForQPlan($qPlanId);
 
-        // Insert default rows in q_plan_team
         for ($team = 1; $team <= $teamCount; $team++) {
             DB::table('q_plan_team')->insert([
                 'q_plan' => $qPlanId,
                 'team' => $team,
-                
+
                 'q1_ok' => 0,
                 'q1_transition_1_2' => 0,
                 'q1_transition_2_3' => 0,
@@ -366,25 +432,120 @@ class QualityEvaluatorService
 
                 'q3_ok' => 0,
                 'q3_teams' => 0,
-                
+
                 'q4_ok' => 0,
-                
+
                 'q5_idle_0_1' => 0,
                 'q5_idle_1_2' => 0,
                 'q5_idle_2_3' => 0,
                 'q5_idle_avg' => 0,
-
             ]);
         }
-
-        // No need to build q_plan_match table as we're using match table directly
 
         return $activities;
     }
 
+    /** @return list<string> */
+    private function teamActivityCodesForQPlan(int $qPlanId): array
+    {
+        if ($this->paramMapForQPlan($qPlanId)->program === FirstProgram::FUTURE_8) {
+            return ['f8_j_with_team', 'f8_r_match'];
+        }
+
+        return ['j_with_team', 'r_match', 'r_check'];
+    }
+
+    /** Judging package + RG rounds 0–3 (exclude finals), per program. */
+    /** @return list<string> */
+    private function teamActivityGroupCodesForQPlan(int $qPlanId): array
+    {
+        if ($this->paramMapForQPlan($qPlanId)->program === FirstProgram::FUTURE_8) {
+            return [
+                'f8_j_package',
+                'f8_test_round',
+                'f8_round_1',
+                'f8_round_2',
+                'f8_round_3',
+            ];
+        }
+
+        return [
+            'j_package',
+            'r_test_round',
+            'r_round_1',
+            'r_round_2',
+            'r_round_3',
+        ];
+    }
+
+    private function qPlanRow(int $qPlanId): object
+    {
+        $row = DB::table('q_plan')->where('id', $qPlanId)->first();
+        if (!$row) {
+            throw new \RuntimeException("q_plan $qPlanId not found");
+        }
+
+        return $row;
+    }
+
+    private function planIdForQPlan(int $qPlanId): int
+    {
+        return (int) $this->qPlanRow($qPlanId)->plan;
+    }
+
+    private function paramMapForQPlan(int $qPlanId): ChallengeShapedParamMap
+    {
+        $firstProgram = (int) ($this->qPlanRow($qPlanId)->first_program ?? FirstProgram::CHALLENGE->value);
+
+        return ChallengeShapedParamMap::from($firstProgram);
+    }
+
+    private function teamsForQPlan(int $qPlanId): int
+    {
+        $map = $this->paramMapForQPlan($qPlanId);
+        $fromParams = $this->getParameterValueForPlan($qPlanId, $map->teams());
+        if ($fromParams > 0) {
+            return $fromParams;
+        }
+
+        // q_plan.c_teams stores the grid team count for either program.
+        return (int) ($this->qPlanRow($qPlanId)->c_teams ?? 0);
+    }
+
+    private function tablesForQPlan(int $qPlanId): int
+    {
+        $map = $this->paramMapForQPlan($qPlanId);
+        $fromParams = $this->getParameterValueForPlan($qPlanId, $map->tables());
+        if ($fromParams > 0) {
+            return $fromParams;
+        }
+
+        return (int) ($this->qPlanRow($qPlanId)->r_tables ?? 0);
+    }
+
+    private function transferForQPlan(int $qPlanId): int
+    {
+        $map = $this->paramMapForQPlan($qPlanId);
+
+        return $this->getParameterValueForPlan($qPlanId, $map->transfer());
+    }
+
+    /** @return \Illuminate\Support\Collection<int, object> */
+    private function matchesForQPlan(int $qPlanId, array $rounds)
+    {
+        $row = $this->qPlanRow($qPlanId);
+
+        return DB::table('match')
+            ->where('plan', $row->plan)
+            ->where('first_program', $row->first_program)
+            ->whereIn('round', $rounds)
+            ->orderBy('round')
+            ->orderBy('match_no')
+            ->get();
+    }
+
     private function getParameterValueForPlan(int $qPlanId, string $name): int
     {
-        // Join über q_plan → plan → plan_param_value → m_parameter
         $value = DB::table('q_plan')
             ->join('plan', 'q_plan.plan', '=', 'plan.id')
             ->join('plan_param_value', 'plan_param_value.plan', '=', 'plan.id')
@@ -394,15 +555,14 @@ class QualityEvaluatorService
             ->value('plan_param_value.set_value');
 
         if ($value !== null) {
-            return (int)$value;
+            return (int) $value;
         }
 
-        // Fallback: default aus m_parameter
         $default = DB::table('m_parameter')
             ->where('name', $name)
             ->value('value');
 
-        return (int)$default;
+        return (int) $default;
     }
 
 
@@ -411,22 +571,29 @@ class QualityEvaluatorService
      */
     private function calculateQ1(int $qPlanId, Collection $activities): void
     {
-        $minGap = $this->getParameterValueForPlan($qPlanId, 'c_duration_transfer');
-        $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
+        $minGap = $this->transferForQPlan($qPlanId);
+        $teamCount = $this->teamsForQPlan($qPlanId);
+        $map = $this->paramMapForQPlan($qPlanId);
 
-        // Get activity type detail IDs from database
-        $jWithTeamId = \App\Models\MActivityTypeDetail::where('code', 'j_with_team')->value('id');
-        $rMatchId = \App\Models\MActivityTypeDetail::where('code', 'r_match')->value('id');
-        $rCheckId = \App\Models\MActivityTypeDetail::where('code', 'r_check')->value('id');
+        $jWithTeamCode = $map->program === FirstProgram::FUTURE_8 ? 'f8_j_with_team' : 'j_with_team';
+        $rMatchCode = $map->program === FirstProgram::FUTURE_8 ? 'f8_r_match' : 'r_match';
+        $rCheckCode = $map->program === FirstProgram::FUTURE_8 ? null : 'r_check';
+
+        $jWithTeamId = \App\Models\MActivityTypeDetail::where('code', $jWithTeamCode)->value('id');
+        $rMatchId = \App\Models\MActivityTypeDetail::where('code', $rMatchCode)->value('id');
+        $rCheckId = $rCheckCode
+            ? \App\Models\MActivityTypeDetail::where('code', $rCheckCode)->value('id')
+            : null;
 
         for ($team = 1; $team <= $teamCount; $team++) {
-            // Filter activities relevant for this team
             $teamActivities = $activities->filter(function ($a) use ($team, $jWithTeamId, $rMatchId, $rCheckId) {
                 if ($a->activity_atd === $jWithTeamId) {
                     return $a->jury_team === $team;
-                } elseif ($a->activity_atd === $rMatchId || $a->activity_atd === $rCheckId) {
+                }
+                if ($a->activity_atd === $rMatchId || ($rCheckId !== null && $a->activity_atd === $rCheckId)) {
                     return $a->table_1_team === $team || $a->table_2_team === $team;
                 }
+
                 return false;
             })->sortBy('start')->values();
 
@@ -435,21 +602,19 @@ class QualityEvaluatorService
             $i = 0;
             while ($i < $teamActivities->count()) {
                 $current = $teamActivities[$i];
-                
-                // Check if current is r_check and next is r_match
-                if ($current->activity_atd === $rCheckId && 
-                    $i + 1 < $teamActivities->count() && 
+
+                if ($rCheckId !== null &&
+                    $current->activity_atd === $rCheckId &&
+                    $i + 1 < $teamActivities->count() &&
                     $teamActivities[$i + 1]->activity_atd === $rMatchId) {
-                    
-                    // Merge: use Check's start and Match's end
+
                     $merged = (object) [
                         'start' => $current->start,
                         'end' => $teamActivities[$i + 1]->end,
                     ];
                     $mergedActivities[] = $merged;
-                    $i += 2; // Skip both check and match
+                    $i += 2;
                 } else {
-                    // Keep as is
                     $mergedActivities[] = $current;
                     $i++;
                 }
@@ -501,16 +666,8 @@ class QualityEvaluatorService
      */
     private function calculateQ2(int $qPlanId): void
     {
-        $tablesAvailable = $this->getParameterValueForPlan($qPlanId, 'r_tables');
-        $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
-
-        // Get plan ID from q_plan
-        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
-
-        $matches = DB::table('match')
-            ->where('plan', $planId)
-            ->whereIn('round', [1, 2, 3])
-            ->get();
+        $tablesAvailable = $this->tablesForQPlan($qPlanId);
+        $matches = $this->matchesForQPlan($qPlanId, [1, 2, 3]);
 
         $teamTables = [];
 
@@ -589,15 +746,7 @@ class QualityEvaluatorService
      */
     private function calculateQ3(int $qPlanId): void
     {
-        $teamCount = $this->getParameterValueForPlan($qPlanId, 'c_teams');
-
-        // Get plan ID from q_plan
-        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
-
-        $matches = DB::table('match')
-            ->where('plan', $planId)
-            ->whereIn('round', [1, 2, 3])
-            ->get();
+        $matches = $this->matchesForQPlan($qPlanId, [1, 2, 3]);
 
         $opponents = [];
 
@@ -673,14 +822,7 @@ class QualityEvaluatorService
      */
     private function calculateQ4(int $qPlanId): void
     {
-        // Get plan ID from q_plan
-        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
-
-        $matches = DB::table('match')
-            ->where('plan', $planId)
-            ->whereIn('round', [0, 1])
-            ->orderBy('round')
-            ->get();
+        $matches = $this->matchesForQPlan($qPlanId, [0, 1]);
 
         $testTables = [];
         $round1Tables = [];
@@ -723,24 +865,8 @@ class QualityEvaluatorService
      */
     private function calculateQ5(int $qPlanId): void
     {
-        // Get plan ID from q_plan
-        $planId = DB::table('q_plan')->where('id', $qPlanId)->value('plan');
-
-        // Load all matches from rounds 0 to 3, sorted by round and match number
-        $matches = DB::table('match')
-            ->where('plan', $planId)
-            ->whereIn('round', [0, 1, 2, 3])
-            ->orderBy('round')
-            ->orderBy('match_no')
-            ->get();
-
-        // Group matches by round for quick access
-        $matchesByRound = collect($matches)->groupBy('round');
-
-        // Get all team numbers for this plan
+        $matches = $this->matchesForQPlan($qPlanId, [0, 1, 2, 3]);
         $teams = QPlanTeam::where('q_plan', $qPlanId)->pluck('team');
-
-        // Store idle counts for later average calculation
         $teamIdleCounts = [];
 
         foreach ($teams as $team) {
@@ -759,9 +885,13 @@ class QualityEvaluatorService
                 if ($isPlaying) {
                     $round++;
 
-                    if ($round === 1) $idleCounts['q5_idle_0_1'] = $idle;
-                    elseif ($round === 2) $idleCounts['q5_idle_1_2'] = $idle;
-                    elseif ($round === 3) $idleCounts['q5_idle_2_3'] = $idle;
+                    if ($round === 1) {
+                        $idleCounts['q5_idle_0_1'] = $idle;
+                    } elseif ($round === 2) {
+                        $idleCounts['q5_idle_1_2'] = $idle;
+                    } elseif ($round === 3) {
+                        $idleCounts['q5_idle_2_3'] = $idle;
+                    }
 
                     $idle = 0;
                 } else {
@@ -782,13 +912,20 @@ class QualityEvaluatorService
                 ]);
         }
 
-        // Calculate overall average and standard deviation
         $values = array_values($teamIdleCounts);
+        if ($values === []) {
+            QPlan::where('id', $qPlanId)->update([
+                'q5_idle_avg' => 0,
+                'q5_idle_stddev' => 0,
+            ]);
+
+            return;
+        }
+
         $mean = array_sum($values) / count($values);
-        $variance = array_sum(array_map(fn($v) => pow($v - $mean, 2), $values)) / count($values);
+        $variance = array_sum(array_map(fn ($v) => pow($v - $mean, 2), $values)) / count($values);
         $stdDev = sqrt($variance);
 
-        // Update q_plan summary fields
         QPlan::where('id', $qPlanId)
             ->update([
                 'q5_idle_avg' => $mean,

@@ -92,16 +92,16 @@ onMounted(fetchConfig)
   <div class="max-w-3xl space-y-6">
     <div>
       <h2 class="text-xl font-bold mb-2">SharePoint / Azure</h2>
-      <p class="text-gray-600 text-sm">
+      <p class="text-[var(--color-text-muted)] text-sm">
         Registriere Flow als App in Azure (App-Registrierung) und vergebe die Anwendungsberechtigung
         <strong>Sites.Read.All</strong> (mit Admin-Einwilligung). Trage Tenant-ID, Client-ID und Client-Secret ein
         und füge den Link zum SharePoint-Ordner ein (Freigabelink oder Ordner-URL).
       </p>
     </div>
 
-    <p v-if="loading" class="text-gray-500">Lade Konfiguration…</p>
+    <p v-if="loading" class="text-[var(--color-text-subtle)]">Lade Konfiguration…</p>
 
-    <form v-else class="space-y-4 bg-white rounded-lg shadow p-6 border border-gray-200" @submit.prevent="saveConfig">
+    <form v-else class="space-y-4 glass-surface-lg border border-[var(--color-border)]" @submit.prevent="saveConfig">
       <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
       <p v-if="successMessage" class="text-sm text-green-600">{{ successMessage }}</p>
 
@@ -111,7 +111,7 @@ onMounted(fetchConfig)
       </label>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Azure Tenant-ID</label>
+        <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">Azure Tenant-ID</label>
         <input
             v-model="form.tenant_id"
             type="text"
@@ -121,7 +121,7 @@ onMounted(fetchConfig)
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Client-ID (Anwendungs-ID)</label>
+        <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">Client-ID (Anwendungs-ID)</label>
         <input
             v-model="form.client_id"
             type="text"
@@ -131,7 +131,7 @@ onMounted(fetchConfig)
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">Client-Secret</label>
+        <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">Client-Secret</label>
         <input
             v-model="form.client_secret"
             type="password"
@@ -139,18 +139,18 @@ onMounted(fetchConfig)
             :placeholder="hasClientSecret ? '••••••••  (leer lassen = unverändert)' : 'Neues Secret eingeben'"
             autocomplete="new-password"
         />
-        <p v-if="hasClientSecret" class="text-xs text-gray-500 mt-1">Ein Secret ist bereits hinterlegt.</p>
+        <p v-if="hasClientSecret" class="text-xs text-[var(--color-text-subtle)] mt-1">Ein Secret ist bereits hinterlegt.</p>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">SharePoint-Ordner-Link</label>
+        <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">SharePoint-Ordner-Link</label>
         <input
             v-model="form.folder_url"
             type="url"
             class="w-full px-3 py-2 border rounded"
             placeholder="https://…sharepoint.com/…"
         />
-        <p v-if="cachedRootName" class="text-xs text-gray-500 mt-1">
+        <p v-if="cachedRootName" class="text-xs text-[var(--color-text-subtle)] mt-1">
           Zuletzt erkannt: <strong>{{ cachedRootName }}</strong>
         </p>
       </div>
@@ -165,7 +165,7 @@ onMounted(fetchConfig)
         </button>
         <button
             type="button"
-            class="px-6 py-2 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+            class="px-6 py-2 rounded border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] disabled:opacity-50"
             :disabled="testing"
             @click="runTest"
         >
@@ -187,7 +187,7 @@ onMounted(fetchConfig)
       </template>
     </div>
 
-    <div class="text-sm text-gray-600 bg-gray-50 rounded-lg p-4 border">
+    <div class="text-sm text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] rounded-lg p-4 border">
       <h3 class="font-semibold mb-2">Einrichtung in Azure</h3>
       <ol class="list-decimal list-inside space-y-1">
         <li>Azure Portal → App-Registrierungen → Neue Registrierung</li>

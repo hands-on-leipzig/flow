@@ -1,0 +1,781 @@
+/**
+ * FLOW content UI patterns on top of @hands-on/glass app shell.
+ * Shell / sidebar chrome lives in @hands-on/glass (AppShell + app-shell.css).
+ */
+
+/* Public / chrome-less routes: same cool canvas as the app shell */
+.pe-page {
+  background-image: var(--orbit-glow), var(--orbit-gradient);
+  background-attachment: fixed;
+  color: var(--color-text);
+}
+
+/* Content cards inside the main panel */
+.glass-card {
+  padding: 1.35rem 1.5rem 1.5rem;
+  border-radius: var(--radius-lg);
+  /* Clip backdrop-filter to the radius — otherwise corners look square. */
+  overflow: hidden;
+}
+
+/* Nested liquid cards – lift + rim so edges read on cool canvas */
+.glass-card.liquid-surface-inner {
+  border-color: color-mix(in srgb, var(--color-border-strong) 40%, var(--liquid-border-soft));
+  background: color-mix(in srgb, #ffffff 88%, var(--liquid-tile-bg-inner));
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.09),
+    0 4px 12px rgba(15, 23, 42, 0.045),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.98),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.05);
+}
+
+/* Accordion shells: quieter frame so nested cards can read as elevation.
+   Avoid overflow:hidden — it clips card shadows/radii once content loads. */
+.glass-accordion {
+  padding: 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 70%, var(--color-border));
+  background: color-mix(in srgb, var(--liquid-tile-bg-inner) 55%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  overflow: visible;
+}
+
+.glass-accordion__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1.15rem;
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text);
+  border: none;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-muted) 40%, transparent);
+  cursor: pointer;
+}
+
+.glass-accordion:has(.glass-accordion__body) .glass-accordion__header {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+}
+
+.glass-accordion__body {
+  padding: 1.35rem 1.35rem 1.6rem;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.glass-card__title {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+  margin-bottom: 0.85rem;
+  line-height: 1.3;
+}
+
+.glass-card__heading {
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  margin-bottom: 0.65rem;
+  line-height: 1.35;
+}
+
+.glass-settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+}
+
+.glass-settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.9rem;
+}
+
+.glass-settings-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.35;
+}
+
+.glass-settings-hint {
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.glass-choice {
+  padding: 0.45rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, var(--color-border));
+  background: color-mix(in srgb, var(--color-bg-elevated, #fff) 70%, transparent);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-choice:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-text-muted) 35%, var(--color-border));
+  background: var(--color-bg-hover);
+}
+
+.glass-choice--active {
+  border-color: color-mix(in srgb, var(--color-text) 55%, var(--color-border));
+  background: var(--color-bg-muted);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 12%, transparent);
+}
+
+.glass-choice:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.glass-chip {
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius);
+  border-color: color-mix(in srgb, var(--color-border-strong) 50%, var(--liquid-border-soft));
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.04),
+    var(--liquid-shadow-inset);
+}
+
+.glass-chip__label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.glass-chip__badge {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
+.glass-list {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  max-height: 20rem;
+  overflow-y: auto;
+}
+
+.glass-list__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: var(--text-sm);
+  border-bottom: 1px solid var(--color-border);
+  transition: background 0.15s ease;
+}
+
+.glass-list__item:last-child {
+  border-bottom: none;
+}
+
+.glass-list__item:hover {
+  background: var(--color-bg-hover);
+}
+
+.glass-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0 0.75rem;
+  margin: 0 0 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.glass-btn-accent {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, #fff 35%, var(--color-accent));
+  background: linear-gradient(180deg, color-mix(in srgb, #fff 18%, var(--color-accent)) 0%, var(--color-accent) 55%, var(--color-accent-hover) 100%);
+  color: var(--color-on-accent);
+  cursor: pointer;
+  box-shadow:
+    0 8px 18px rgba(255, 122, 0, 0.28),
+    0 2px 6px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  transition:
+    background 0.12s ease,
+    box-shadow 0.1s ease,
+    transform 0.08s ease,
+    border-color 0.12s ease;
+  transform: translateY(0);
+  will-change: transform;
+}
+
+.glass-btn-accent:hover:not(:disabled) {
+  background: linear-gradient(180deg, color-mix(in srgb, #fff 12%, var(--color-accent-hover)) 0%, var(--color-accent-hover) 100%);
+  box-shadow:
+    0 10px 22px rgba(255, 122, 0, 0.34),
+    0 3px 8px rgba(15, 23, 42, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Physical press-in: sink + inset shadow, outer lift disappears */
+.glass-btn-accent:active:not(:disabled) {
+  transform: translateY(2px) scale(0.985);
+  background: linear-gradient(
+    180deg,
+    var(--color-accent-hover) 0%,
+    color-mix(in srgb, #000 14%, var(--color-accent-hover)) 100%
+  );
+  border-color: color-mix(in srgb, #000 18%, var(--color-accent-hover));
+  box-shadow:
+    0 0 0 transparent,
+    0 1px 1px rgba(15, 23, 42, 0.12),
+    inset 0 3px 7px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(0, 0, 0, 0.18);
+}
+
+.glass-btn-accent:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.glass-alert-warning {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, #b45309 35%, var(--color-border));
+  background: color-mix(in srgb, #b45309 12%, var(--color-bg-muted));
+  color: var(--color-text);
+  font-size: var(--text-sm);
+}
+
+.glass-alert-error {
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border-left: 3px solid #dc2626;
+  background: color-mix(in srgb, #dc2626 8%, var(--color-bg-muted));
+  color: var(--color-text);
+}
+
+.glass-table-row--muted {
+  opacity: 0.6;
+  background: var(--color-bg-muted);
+}
+
+.glass-table-row--warning {
+  background: color-mix(in srgb, #b45309 14%, var(--color-bg-muted));
+}
+
+.glass-table-row--warning:hover {
+  background: color-mix(in srgb, #b45309 22%, var(--color-bg-muted));
+}
+
+.glass-table-row--hover:hover {
+  background: var(--color-bg-hover);
+}
+
+/* Shorthand surface panel */
+.glass-surface {
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-lg);
+}
+
+.glass-surface-lg {
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-xl);
+}
+
+.glass-surface,
+.glass-surface-lg {
+  background: var(--liquid-tile-bg-inner);
+  backdrop-filter: blur(calc(var(--liquid-blur) * 0.55)) saturate(calc(var(--liquid-saturate) * 0.92));
+  -webkit-backdrop-filter: blur(calc(var(--liquid-blur) * 0.55)) saturate(calc(var(--liquid-saturate) * 0.92));
+  border: 1px solid var(--liquid-border-soft);
+  box-shadow: var(--liquid-shadow-inset);
+}
+
+.glass-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  background: var(--color-accent-muted);
+  color: var(--color-accent);
+}
+
+.glass-scrim {
+  background: var(--liquid-modal-scrim-bg);
+}
+
+.glass-modal {
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  max-width: 28rem;
+  width: 100%;
+  margin: 0 1rem;
+  background: var(--liquid-popover-fill);
+  backdrop-filter: blur(var(--liquid-popover-blur)) saturate(var(--liquid-popover-saturate));
+  -webkit-backdrop-filter: blur(var(--liquid-popover-blur)) saturate(var(--liquid-popover-saturate));
+  border: 1px solid var(--liquid-border);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text);
+}
+
+.glass-modal-lg {
+  max-width: 42rem;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.glass-modal-header {
+  padding: 1rem 1.5rem;
+  margin: -1.5rem -1.5rem 1.25rem;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-hover) 100%);
+  color: var(--color-on-accent);
+}
+
+.glass-modal-footer {
+  padding: 1rem 1.5rem;
+  margin: 1.25rem -1.5rem -1.5rem;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  background: var(--color-bg-muted);
+}
+
+.glass-btn-secondary {
+  padding: 0.5rem 1rem;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  border-radius: var(--radius);
+  border: 1px solid var(--liquid-border);
+  background: var(--liquid-tile-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  box-shadow:
+    0 6px 14px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.04);
+  transition:
+    background 0.12s ease,
+    box-shadow 0.1s ease,
+    transform 0.08s ease;
+  transform: translateY(0);
+  will-change: transform;
+}
+
+.glass-btn-secondary:hover {
+  background: var(--color-bg-hover);
+  box-shadow:
+    0 8px 18px rgba(15, 23, 42, 0.09),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.05);
+}
+
+.glass-btn-secondary:active:not(:disabled) {
+  transform: translateY(2px) scale(0.985);
+  background: color-mix(in srgb, var(--color-bg-muted) 70%, #cbd5e1);
+  box-shadow:
+    0 0 0 transparent,
+    0 1px 1px rgba(15, 23, 42, 0.06),
+    inset 0 3px 8px rgba(15, 23, 42, 0.16),
+    inset 0 1px 0 rgba(15, 23, 42, 0.1);
+}
+
+.glass-btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-btn-accent,
+  .glass-btn-secondary {
+    transition: background 0.12s ease, box-shadow 0.1s ease;
+    will-change: auto;
+  }
+
+  .glass-btn-accent:active:not(:disabled),
+  .glass-btn-secondary:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* Page tabs (.glass-tabs / .glass-page-tabs) live in @hands-on/glass 1.6+ */
+
+.glass-dropdown {
+  border-radius: var(--radius-lg);
+  background: var(--liquid-popover-fill);
+  backdrop-filter: blur(var(--liquid-popover-blur)) saturate(var(--liquid-popover-saturate));
+  -webkit-backdrop-filter: blur(var(--liquid-popover-blur)) saturate(var(--liquid-popover-saturate));
+  border: 1px solid var(--liquid-border);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Program-colored activity chip (rooms sidebar / dropzones) */
+.glass-program-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-full);
+  border: 2px solid;
+  background: color-mix(in srgb, #ffffff 90%, var(--liquid-tile-bg-inner));
+  box-shadow: var(--liquid-shadow-inset);
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.25;
+}
+
+.glass-program-pill--interactive {
+  cursor: move;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-program-pill--interactive:hover {
+  background: color-mix(in srgb, #ffffff 96%, var(--color-bg-hover));
+}
+
+.glass-row-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--liquid-border-soft);
+  background: var(--liquid-tile-bg-inner);
+  box-shadow: var(--liquid-shadow-inset);
+}
+
+.glass-row-item--interactive {
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-row-item--interactive:hover {
+  background: var(--color-bg-hover);
+}
+
+/* Multi-line cards (rooms, etc.) — not a single horizontal row */
+.glass-stack-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, var(--liquid-border-soft));
+  background: color-mix(in srgb, #ffffff 86%, var(--liquid-tile-bg-inner));
+  box-shadow:
+    0 14px 32px rgba(15, 23, 42, 0.09),
+    0 4px 12px rgba(15, 23, 42, 0.045),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.98),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+
+.glass-stack-card--interactive {
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-stack-card--interactive:hover {
+  background: var(--color-bg-hover);
+}
+
+.glass-stack-card--dashed {
+  border-style: dashed;
+  border-width: 2px;
+  background: color-mix(in srgb, var(--color-bg-muted) 72%, transparent);
+  box-shadow: none;
+}
+
+/* Named-item chrome (rooms, extra activities, …) on glass-stack-card */
+.item-card__chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.item-card__leading,
+.item-card__trailing {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.item-card__title-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.item-card__title.glass-input {
+  width: 100%;
+  font-weight: 600;
+}
+
+.item-card__hint {
+  margin: 0.375rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-text-subtle);
+}
+
+.item-card--inactive {
+  border-style: dashed;
+  border-width: 2px;
+  background: color-mix(in srgb, var(--color-bg-muted) 72%, transparent);
+  box-shadow: none;
+}
+
+.item-card--selected {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 55%, transparent),
+    0 14px 32px rgba(15, 23, 42, 0.09);
+}
+
+.icon-danger-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.icon-danger-btn .bi {
+  font-size: 1.15rem;
+  line-height: 1;
+  display: block;
+}
+
+.icon-danger-btn:hover:not(:disabled) {
+  color: #b91c1c;
+  background: color-mix(in srgb, #dc2626 10%, transparent);
+}
+
+.icon-danger-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.glass-dropzone {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.375rem;
+  min-height: 4.75rem;
+  padding: 0.625rem;
+  border-radius: var(--radius);
+  border: 1.5px dashed color-mix(in srgb, var(--color-border) 88%, var(--color-text-subtle));
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-bg-muted) 42%, transparent) 0%,
+      color-mix(in srgb, var(--color-bg-muted) 68%, transparent) 100%
+    );
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.glass-dropzone--dragging {
+  border-color: color-mix(in srgb, var(--color-accent) 32%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-muted) 35%, var(--color-bg-muted));
+}
+
+.glass-dropzone--active,
+.glass-dropzone:has(.sortable-ghost) {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-muted) 78%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 16%, transparent),
+    0 0 0 3px color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+
+.glass-dropzone__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.375rem;
+  width: 100%;
+  min-height: 3.5rem;
+}
+
+.glass-dropzone__empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  text-align: center;
+  pointer-events: none;
+  color: var(--color-text-subtle);
+}
+
+.glass-dropzone__empty-icon {
+  font-size: 1.1rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.glass-dropzone__empty-text {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  max-width: 14rem;
+}
+
+.glass-dropzone--dragging .glass-dropzone__empty,
+.glass-dropzone--active .glass-dropzone__empty,
+.glass-dropzone:has(.sortable-ghost) .glass-dropzone__empty {
+  color: var(--color-accent);
+}
+
+.glass-selectable-card {
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.glass-selectable-card:hover {
+  background: var(--color-bg-hover);
+}
+
+.glass-selectable-card--active {
+  background: var(--color-accent-muted);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.glass-sidebar-panel {
+  width: 16rem;
+  flex-shrink: 0;
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+}
+
+.glass-sidebar-panel .glass-nav-link {
+  font-size: var(--text-sm);
+}
+
+.glass-sidebar-panel .glass-nav-link--active {
+  background: var(--color-accent-muted);
+}
+
+/* Dev-only admin items — FLOW-side so the muted state is visible even if glass CSS is cached. */
+.glass-sidebar__item:disabled,
+.glass-sidebar__item--disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.glass-input-inline {
+  border-radius: var(--radius);
+  padding: 0.375rem 0.5rem;
+  font-size: var(--text-sm);
+}
+
+.glass-segment {
+  display: inline-flex;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  background: var(--color-bg-muted);
+}
+
+.glass-segment__btn {
+  padding: 0.25rem 0.75rem;
+  font-size: var(--text-sm);
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  border-left: 1px solid var(--color-border);
+}
+
+.glass-segment__btn:first-child {
+  border-left: none;
+}
+
+.glass-segment__btn:hover:not(.glass-segment__btn--active) {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.glass-segment__btn--active {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+/* ── Mobile density: use the phone width, stack chrome, shrink card chrome ── */
+@media (max-width: 768px) {
+  .glass-card {
+    padding: 0.85rem 0.85rem 1rem;
+    border-radius: var(--radius);
+    /* Don’t clip stacked form controls / focus rings on narrow screens */
+    overflow: visible;
+  }
+
+  .glass-card__title {
+    font-size: 1rem;
+    margin-bottom: 0.65rem;
+  }
+
+  .glass-card__heading {
+    margin-bottom: 0.45rem;
+  }
+
+  .glass-chip {
+    padding: 0.75rem 0.85rem;
+  }
+
+  .glass-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.65rem;
+  }
+
+  .glass-settings-block {
+    gap: 1rem;
+  }
+
+  .glass-accordion__header {
+    padding: 0.7rem 0.85rem;
+  }
+
+  .glass-accordion__body {
+    padding: 0.85rem 0.85rem 1.1rem;
+  }
+
+  .glass-stack-card {
+    padding: 0.7rem 0.8rem;
+  }
+}

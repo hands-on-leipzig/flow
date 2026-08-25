@@ -1,15 +1,24 @@
 <script setup>
-import {ref, onMounted, onUnmounted, computed, nextTick, watch} from 'vue'
+import {ref, onMounted, computed, nextTick, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
+import {usePlanCacheStore} from '@/stores/planCache'
 import draggable from 'vuedraggable'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {eventPrograms, programDisplayName, programMatchesSlug, programSlug, programNameForId} from '@/utils/eventPrograms'
+import {getProgramTheme} from '@/utils/programTheme'
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import LoaderText from "@/components/atoms/LoaderText.vue";
+import IconDangerButton from "@/components/atoms/IconDangerButton.vue";
 import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
+import ItemCard from "@/components/molecules/ItemCard.vue";
+import ItemComposer from "@/components/molecules/ItemComposer.vue";
+
+defineOptions({name: 'Rooms'})
 
 // --- Stores & Refs ---
 const eventStore = useEventStore()
+const planCache = usePlanCacheStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => eventStore.selectedEvent?.id)
 const rooms = ref([])
@@ -21,12 +30,7 @@ const assignables = ref([]) // ← gemeinsame Ebene 1 (type = 'activity' | 'team
 // --- Hilfslisten ---
 const roomTypes = ref([])
 const typeGroups = ref([])
-const exploreTeams = ref([])
-const exploreTeamsMorning = ref([]) // Explore Vormittag teams
-const exploreTeamsAfternoon = ref([]) // Explore Nachmittag teams
-const challengeTeams = ref([])
-const e1Teams = ref(0) // Threshold for morning vs afternoon split
-const hasTwoExploreGroups = ref(false) // Whether there are 2 Explore groups
+const hasTwoExploreGroups = ref(false)
 
 // People data from DRAHT API
 const peopleData = ref({})
@@ -37,19 +41,35 @@ const isDraggingRoom = ref(false)
 const previewedTypeId = ref(null)
 
 // --- Farbzuweisung ---
+const itemProgramName = (item) => {
+  if (item?.program_name) return item.program_name
+  return programNameForId(event.value, item?.first_program)
+}
+
+const itemLogoSrc = (item) => programLogoSrc({
+  name: itemProgramName(item),
+  first_program: item?.first_program,
+})
+const itemLogoAlt = (item) => programLogoAlt({
+  name: itemProgramName(item),
+  first_program: item?.first_program,
+})
+
 const getProgramColor = (item) => {
-  switch (item.first_program) {
-    case 2:
-      return '#10B981' // Grün (Explore)
-    case 3:
-      return '#EF4444' // Rot (Challenge)
-    default:
-      return '#9CA3AF' // Grau (Neutral)
-  }
+  const programs = eventPrograms(event.value)
+  const row = programs.find((p) =>
+      Number(p.first_program) === Number(item?.first_program)
+      || programMatchesSlug(p.name, item?.program_name)
+  )
+  const hex = row?.color_hex
+  if (hex) return hex.startsWith('#') ? hex : `#${hex}`
+  const theme = getProgramTheme(itemProgramName(item) || String(item?.first_program || ''))
+  if (theme.key !== 'shared') return theme.accent
+  return '#9CA3AF'
 }
 
 // --- Format program name with italic FIRST ---
-// Handles both normalized names (FIRST LEGO League) and DB names (FLL Explore/Challenge)
+// Handles both normalized names (FIRST LEGO League) and DB names (FLL Explore/Challenge/Future 8+)
 const formatProgramName = (name) => {
   if (!name) return ''
 
@@ -57,6 +77,7 @@ const formatProgramName = (name) => {
   let normalized = name
       .replace(/^FLL Explore$/i, 'FIRST LEGO League Explore')
       .replace(/^FLL Challenge$/i, 'FIRST LEGO League Challenge')
+      .replace(/^FLL Future 8\+$/i, 'FIRST LEGO League Future 8+')
       .replace(/FLL /g, 'FIRST LEGO League ')
 
   // Then apply italic styling to FIRST
@@ -87,11 +108,12 @@ onMounted(async () => {
   rooms.value = Array.isArray(roomsData) ? roomsData : (roomsData?.rooms ?? [])
 
   // Plan-ID holen
-  const {data: planData} = await axios.get(`/plans/event/${eventId.value}`)
+  const planData = await planCache.getPlan(eventId.value)
   if (!planData?.id) {
     if (import.meta.env.DEV) {
       console.debug('Kein Plan für Event gefunden')
     }
+    loading.value = false
     return
   }
 
@@ -101,122 +123,115 @@ onMounted(async () => {
   roomTypes.value = roomTypeGroups.flatMap(group =>
       group.room_types.map(rt => ({
         id: rt.type_id,
-        key: `activity-${rt.type_id}`,   // 👈 HIER NEU
+        key: `activity-${rt.type_id}`,
         name: rt.type_name,
         first_program: rt.first_program,
+        program_name: programNameForId(event.value, rt.first_program),
         type: 'activity',
         group: {id: group.id, name: group.name}
       }))
   )
 
   // --- Teams laden über neue API ---
+  const mapTeam = (t, program, groupId, groupName) => ({
+    id: t.id,
+    key: `team-${t.id}`,
+    number: t.team_number_hot,
+    name: t.name ?? 'Unbenannt',
+    type: 'team',
+    first_program: Number(program.first_program),
+    program_name: program.name,
+    room: t.room ?? null,
+    team_number_plan: t.team_number_plan,
+    group: {id: groupId, name: groupName}
+  })
+
+  const teamsFromResponse = (data) => {
+    if (Array.isArray(data)) return {teams: data, metadata: {}}
+    return {teams: data?.teams || [], metadata: data?.metadata || {}}
+  }
+
+  const attached = eventPrograms(event.value)
+  const toFetch = attached
+  let teamGroups = []
+
   try {
-    const [exploreResponse, challengeResponse] = await Promise.all([
-      axios.get(`/events/${eventId.value}/teams`, {params: {program: 'explore', sort: 'name'}}),
-      axios.get(`/events/${eventId.value}/teams`, {params: {program: 'challenge', sort: 'name'}})
-    ])
+    const results = await Promise.all(toFetch.map(async (program) => {
+      try {
+        const res = await axios.get(`/events/${eventId.value}/teams`, {
+          params: {program: program.first_program || program.name, sort: 'name'}
+        })
+        return {program, ...teamsFromResponse(res.data)}
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.error('Fehler beim Laden der Teams:', err)
+        }
+        return {program, teams: [], metadata: {}}
+      }
+    }))
 
-    // Handle Explore teams - response may be object with metadata or array (backward compatible)
-    const exploreData = exploreResponse.data
-    let exploreTeamsArray = Array.isArray(exploreData) ? exploreData : exploreData.teams || []
-    const exploreMetadata = exploreData.metadata || {}
+    hasTwoExploreGroups.value = false
 
-    // Check if there are 2 Explore groups (e_mode = 8 for HYBRID_BOTH or 5 for DECOUPLED_BOTH)
-    const eMode = exploreMetadata.e_mode || 0
-    hasTwoExploreGroups.value = (eMode === 8 || eMode === 5)
-    e1Teams.value = exploreMetadata.e1_teams || 0
-
-    // Split Explore teams into morning and afternoon based on team_number_plan
-    if (hasTwoExploreGroups.value && e1Teams.value > 0) {
-      exploreTeamsMorning.value = exploreTeamsArray
-          .filter(t => (t.team_number_plan || 0) <= e1Teams.value)
-          .map(t => ({
-            id: t.id,
-            key: `team-${t.id}`,
-            number: t.team_number_hot,
-            name: t.name ?? 'Unbenannt',
-            type: 'team',
-            first_program: 2,
-            room: t.room ?? null,
-            team_number_plan: t.team_number_plan,
-            group: {id: 'explore-morning', name: 'Explore Vormittag'}
-          }))
-
-      exploreTeamsAfternoon.value = exploreTeamsArray
-          .filter(t => (t.team_number_plan || 0) > e1Teams.value)
-          .map(t => ({
-            id: t.id,
-            key: `team-${t.id}`,
-            number: t.team_number_hot,
-            name: t.name ?? 'Unbenannt',
-            type: 'team',
-            first_program: 2,
-            room: t.room ?? null,
-            team_number_plan: t.team_number_plan,
-            group: {id: 'explore-afternoon', name: 'Explore Nachmittag'}
-          }))
-
-      // Keep exploreTeams for backward compatibility (all teams combined)
-      exploreTeams.value = [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
-    } else {
-      // Single Explore group - use existing logic
-      exploreTeams.value = exploreTeamsArray.map(t => ({
-        id: t.id,
-        key: `team-${t.id}`,
-        number: t.team_number_hot,
-        name: t.name ?? 'Unbenannt',
-        type: 'team',
-        first_program: 2,
-        room: t.room ?? null,
-        team_number_plan: t.team_number_plan,
-        group: {id: 'explore', name: 'Explore'}
-      }))
-      exploreTeamsMorning.value = []
-      exploreTeamsAfternoon.value = []
+    const teamsByProgram = new Map()
+    for (const {program, teams, metadata} of results) {
+      teamsByProgram.set(Number(program.first_program), {program, teams, metadata})
     }
 
-    challengeTeams.value = challengeResponse.data.map(t => ({
-      id: t.id,
-      key: `team-${t.id}`,
-      number: t.team_number_hot,
-      name: t.name ?? 'Unbenannt',
-      type: 'team',
-      first_program: 3,
-      room: t.room ?? null,
-      group: {id: 'challenge', name: 'Challenge'}
-    }))
+    for (const program of toFetch) {
+      const id = Number(program.first_program)
+      const loaded = teamsByProgram.get(id) || {program, teams: [], metadata: {}}
+      const label = programDisplayName(program)
+      const slug = programSlug(program.name)
+
+      if (programMatchesSlug(program.name, 'explore')) {
+        const eMode = loaded.metadata.e_mode || 0
+        const e1Teams = loaded.metadata.e1_teams || 0
+        hasTwoExploreGroups.value = (eMode === 8 || eMode === 5) && e1Teams > 0
+        if (hasTwoExploreGroups.value) {
+          teamGroups.push(
+              {
+                id: 'explore-morning',
+                name: 'Explore Vormittag',
+                first_program: id,
+                program_name: program.name,
+                items: loaded.teams
+                    .filter(t => (t.team_number_plan || 0) <= e1Teams)
+                    .map(t => mapTeam(t, program, 'explore-morning', 'Explore Vormittag')),
+              },
+              {
+                id: 'explore-afternoon',
+                name: 'Explore Nachmittag',
+                first_program: id,
+                program_name: program.name,
+                items: loaded.teams
+                    .filter(t => (t.team_number_plan || 0) > e1Teams)
+                    .map(t => mapTeam(t, program, 'explore-afternoon', 'Explore Nachmittag')),
+              },
+          )
+        } else {
+          teamGroups.push({
+            id: slug,
+            name: label,
+            first_program: id,
+            program_name: program.name,
+            items: loaded.teams.map(t => mapTeam(t, program, slug, label)),
+          })
+        }
+      } else {
+        teamGroups.push({
+          id: slug,
+          name: label,
+          first_program: id,
+          program_name: program.name,
+          items: loaded.teams.map(t => mapTeam(t, program, slug, label)),
+        })
+      }
+    }
   } catch (err) {
     if (import.meta.env.DEV) {
       console.error('Fehler beim Laden der Teams:', err)
     }
-    exploreTeams.value = []
-    exploreTeamsMorning.value = []
-    exploreTeamsAfternoon.value = []
-    challengeTeams.value = []
-  }
-
-  // --- Zusammenführen in gemeinsame Struktur ---
-  // Build team groups based on whether there are 2 Explore groups
-  const teamGroups = []
-
-  if (hasTwoExploreGroups.value) {
-    // Two Explore groups: Vormittag and Nachmittag
-    teamGroups.push(
-        {id: 'explore-morning', name: 'Explore Vormittag', items: exploreTeamsMorning.value},
-        {id: 'explore-afternoon', name: 'Explore Nachmittag', items: exploreTeamsAfternoon.value}
-    )
-  } else {
-    // Single Explore group
-    teamGroups.push(
-        {id: 'explore', name: 'Explore', items: exploreTeams.value}
-    )
-  }
-
-  // Add Challenge group
-  if (showChallengeTeams.value) {
-    teamGroups.push(
-        {id: 'challenge', name: 'Challenge', items: challengeTeams.value}
-    )
+    teamGroups = []
   }
 
   assignables.value = [
@@ -228,13 +243,13 @@ onMounted(async () => {
         name: g.name,
         items: g.room_types.map(rt => ({
           id: rt.type_id,
-          // Use item_type from backend to create unique keys (prevents collision between room_type.id=5 and extra_block.id=5)
           key: rt.item_type === 'extra_block' ? `activity-eb-${rt.type_id}` : `activity-rt-${rt.type_id}`,
           name: rt.type_name,
           first_program: rt.first_program,
+          program_name: programNameForId(event.value, rt.first_program),
           type: 'activity',
           group: {id: g.id, name: g.name},
-          item_type: rt.item_type || 'room_type' // Store for reference
+          item_type: rt.item_type || 'room_type'
         }))
       }))
     },
@@ -245,28 +260,18 @@ onMounted(async () => {
     }
   ]
 
-
-  // --- Bestehende Zuordnungen übernehmen (Activities + Teams, typisierte Keys) ---
   const result = {}
 
-  // 1) Activities (RoomTypes + Extra Blocks)
   roomsData.rooms.forEach(room => {
     (room.room_types ?? []).forEach(rt => {
-      // Use rt prefix for room types
       result[`activity-rt-${rt.id}`] = room.id
     })
     ;(room.extra_blocks ?? []).forEach(eb => {
-      // Use eb prefix for extra blocks
       result[`activity-eb-${eb.id}`] = room.id
     })
   })
 
-  // 2) Teams (Explore + Challenge) – nur wenn backend room mitliefert
-  // Use split teams if available, otherwise use combined exploreTeams
-  const exploreTeamsForAssignment = hasTwoExploreGroups.value
-      ? [...exploreTeamsMorning.value, ...exploreTeamsAfternoon.value]
-      : exploreTeams.value
-  ;[...exploreTeamsForAssignment, ...challengeTeams.value].forEach(team => {
+  teamGroups.flatMap(g => g.items).forEach(team => {
     if (team.room !== null && team.room !== undefined) {
       result[`team-${team.id}`] = team.room
     }
@@ -285,13 +290,12 @@ onMounted(async () => {
   //   teams: Object.keys(result).filter(k => k.startsWith('team-')).length
   // })
 
-  // Fetch people data from DRAHT API for both programs
   const fetchPeopleData = async () => {
     const promises = []
-
-    if (event.value?.event_explore) {
+    for (const program of eventPrograms(event.value)) {
+      if (!program.draht_id) continue
       promises.push(
-          axios.get(`/draht/people/${event.value.event_explore}`)
+          axios.get(`/draht/people/${program.draht_id}`)
               .then(res => {
                 if (res.data) {
                   const {total_players, total_coaches, ...teamsData} = res.data
@@ -300,29 +304,11 @@ onMounted(async () => {
               })
               .catch(err => {
                 if (import.meta.env.DEV) {
-                  console.error('Failed to fetch Explore people data', err)
+                  console.error('Failed to fetch people data', err)
                 }
               })
       )
     }
-
-    if (event.value?.event_challenge) {
-      promises.push(
-          axios.get(`/draht/people/${event.value.event_challenge}`)
-              .then(res => {
-                if (res.data) {
-                  const {total_players, total_coaches, ...teamsData} = res.data
-                  Object.assign(peopleData.value, teamsData)
-                }
-              })
-              .catch(err => {
-                if (import.meta.env.DEV) {
-                  console.error('Failed to fetch Challenge people data', err)
-                }
-              })
-      )
-    }
-
     await Promise.all(promises)
   }
 
@@ -348,9 +334,7 @@ const toggleAccessibility = async (room) => {
 
 // --- Gemeinsame Zuordnung Raum <-> Item ---
 const assignItemToRoom = async (itemKey, roomId) => {
-  // Handle proxy items
-  if (itemKey === PROXY_EXPLORE_KEY || itemKey === PROXY_EXPLORE_MORNING_KEY ||
-      itemKey === PROXY_EXPLORE_AFTERNOON_KEY || itemKey === PROXY_CHALLENGE_KEY) {
+  if (String(itemKey).startsWith('proxy-')) {
     await handleProxyAssignment(itemKey, roomId)
     return
   }
@@ -449,9 +433,7 @@ const findItemById = (idOrKey) => {
 
 // --- Unassign ---
 const unassignItemFromRoom = async (itemKey) => {
-  // Handle proxy items
-  if (itemKey === PROXY_EXPLORE_KEY || itemKey === PROXY_EXPLORE_MORNING_KEY ||
-      itemKey === PROXY_EXPLORE_AFTERNOON_KEY || itemKey === PROXY_CHALLENGE_KEY) {
+  if (String(itemKey).startsWith('proxy-')) {
     await handleProxyAssignment(itemKey, null)
     return
   }
@@ -490,15 +472,20 @@ const unassignItemFromRoom = async (itemKey) => {
 // --- Raum erstellen ---
 const newRoomName = ref('')
 const newRoomNote = ref('')
-const newRoomInput = ref(null)
-const newRoomNoteInput = ref(null)
 const isSaving = ref(false)
 const isCreatingRoom = ref(false)
-const newRoomCardRef = ref(null)
+const mobileComposerRef = ref(null)
+const desktopComposerRef = ref(null)
+
+const focusNewRoomComposer = () => {
+  const desktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  const composer = desktop ? desktopComposerRef.value : mobileComposerRef.value
+  composer?.focusTitle()
+}
 
 const createRoom = async () => {
   if (isCreatingRoom.value) return
-  if (!newRoomName.value.trim() && !newRoomNote.value.trim()) return
+  if (!newRoomName.value.trim()) return
 
   isCreatingRoom.value = true
   isSaving.value = true
@@ -512,7 +499,7 @@ const createRoom = async () => {
     newRoomName.value = ''
     newRoomNote.value = ''
     await nextTick()
-    newRoomInput.value?.focus()
+    focusNewRoomComposer()
   } finally {
     isSaving.value = false
     isCreatingRoom.value = false
@@ -536,6 +523,14 @@ const handleDrop = async (event, room) => {
   }
   dragOverRoomId.value = null
   isDragging.value = false
+}
+
+const onRoomDropzoneLeave = (event, roomId) => {
+  const next = event.relatedTarget
+  if (next && event.currentTarget.contains(next)) return
+  if (dragOverRoomId.value === roomId) {
+    dragOverRoomId.value = null
+  }
 }
 
 // --- Room reordering ---
@@ -586,18 +581,9 @@ const cancelDeleteRoom = () => {
 
 const deleteRoomMessage = computed(() => {
   if (!roomToDelete.value) return ''
-  return `Raum "${roomToDelete.value.name || 'Unbekannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+  const name = roomToDelete.value.name || 'Unbekannt'
+  return `„${name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
-
-// --- Klick außerhalb Eingabefelds ---
-const handleClickOutside = (event) => {
-  if (newRoomCardRef.value && !newRoomCardRef.value.contains(event.target)) {
-    if (newRoomName.value.trim() || newRoomNote.value.trim()) createRoom()
-  }
-}
-
-onMounted(() => document.addEventListener('click', handleClickOutside))
-onUnmounted(() => document.removeEventListener('click', handleClickOutside))
 
 const activeTab = ref('activities')
 
@@ -605,28 +591,30 @@ const activeTab = ref('activities')
 const showAssignModal = ref(false)
 const selectedAssignable = ref(null)
 
-const isBulkModeEnabled = (groupId) => {
-  if (groupId === 'explore-morning') return bulkModeExploreMorning.value
-  if (groupId === 'explore-afternoon') return bulkModeExploreAfternoon.value
-  if (groupId === 'explore') return bulkModeExplore.value
-  if (groupId === 'challenge') return bulkModeChallenge.value
-  return false
+const bulkModeByGroup = ref({})
+
+const isBulkModeEnabled = (groupId) => !!bulkModeByGroup.value[groupId]
+
+const proxyKeyForGroup = (groupId) => `proxy-${groupId}`
+
+const groupIdFromProxyKey = (proxyKey) => String(proxyKey || '').replace(/^proxy-/, '')
+
+const findTeamGroup = (groupId) => {
+  const teamsCat = assignables.value.find(c => c.id === 'teams')
+  return teamsCat?.groups.find(g => g.id === groupId) || null
 }
 
 const buildProxyItem = (groupId) => {
-  if (groupId === 'explore-morning') {
-    return {key: PROXY_EXPLORE_MORNING_KEY, type: 'team-proxy', name: 'Alle Explore Vormittag Teams', first_program: 2, program: groupId}
+  const group = findTeamGroup(groupId)
+  if (!group) return null
+  return {
+    key: proxyKeyForGroup(groupId),
+    type: 'team-proxy',
+    name: `Alle ${group.name} Teams`,
+    first_program: group.first_program,
+    program_name: group.program_name,
+    program: groupId,
   }
-  if (groupId === 'explore-afternoon') {
-    return {key: PROXY_EXPLORE_AFTERNOON_KEY, type: 'team-proxy', name: 'Alle Explore Nachmittag Teams', first_program: 2, program: groupId}
-  }
-  if (groupId === 'explore') {
-    return {key: PROXY_EXPLORE_KEY, type: 'team-proxy', name: 'Alle Explore Teams', first_program: 2, program: groupId}
-  }
-  if (groupId === 'challenge') {
-    return {key: PROXY_CHALLENGE_KEY, type: 'team-proxy', name: 'Alle Challenge Teams', first_program: 3, program: groupId}
-  }
-  return null
 }
 
 const getUnassignedItems = (category, group) => {
@@ -654,24 +642,11 @@ const assignSelectedToRoom = async (roomId) => {
 }
 
 // --- Bulk Team Assignment Feature ---
-const bulkModeExplore = ref(false)
-const bulkModeExploreMorning = ref(false) // Bulk mode for Explore Vormittag
-const bulkModeExploreAfternoon = ref(false) // Bulk mode for Explore Nachmittag
-const bulkModeChallenge = ref(false)
-
-// Proxy keys for bulk assignment (constants for internal use)
-const PROXY_EXPLORE_KEY = 'proxy-explore'
-const PROXY_EXPLORE_MORNING_KEY = 'proxy-explore-morning'
-const PROXY_EXPLORE_AFTERNOON_KEY = 'proxy-explore-afternoon'
-const PROXY_CHALLENGE_KEY = 'proxy-challenge'
-
-// --- Persistence: localStorage with event scope ---
 const getStorageKey = () => {
   if (!eventId.value) return null
   return `rooms-bulk-mode-${eventId.value}`
 }
 
-// Load saved bulk mode preferences for current event
 const loadBulkModePreferences = () => {
   const key = getStorageKey()
   if (!key) return
@@ -680,17 +655,12 @@ const loadBulkModePreferences = () => {
     const saved = localStorage.getItem(key)
     if (saved) {
       const prefs = JSON.parse(saved)
-      // Handle old format (backward compatible)
-      if (prefs.explore !== undefined) {
-        bulkModeExplore.value = prefs.explore ?? false
-      }
-      // Handle new format with separate morning/afternoon
-      bulkModeExploreMorning.value = prefs.exploreMorning ?? false
-      bulkModeExploreAfternoon.value = prefs.exploreAfternoon ?? false
-      bulkModeChallenge.value = prefs.challenge ?? false
-
-      // Restore proxy assignments if bulk mode is enabled and teams are assigned
-      // We need to check after assignments are loaded, so we'll call restoreProxyAssignments separately
+      const groups = {...(prefs.groups || {})}
+      if (prefs.explore) groups.explore = prefs.explore
+      if (prefs.exploreMorning) groups['explore-morning'] = prefs.exploreMorning
+      if (prefs.exploreAfternoon) groups['explore-afternoon'] = prefs.exploreAfternoon
+      if (prefs.challenge) groups.challenge = prefs.challenge
+      bulkModeByGroup.value = groups
       nextTick(() => {
         restoreProxyAssignments()
       })
@@ -702,143 +672,54 @@ const loadBulkModePreferences = () => {
   }
 }
 
-// Restore proxy assignments based on actual team assignments
 const restoreProxyAssignments = () => {
-  // Check Explore Morning teams
-  if (bulkModeExploreMorning.value && exploreTeamsMorning.value.length > 0) {
-    const teamsWithAssignments = exploreTeamsMorning.value
+  const teamsCat = assignables.value.find(c => c.id === 'teams')
+  for (const group of teamsCat?.groups || []) {
+    if (!isBulkModeEnabled(group.id) || !group.items.length) continue
+    const teamsWithAssignments = group.items
         .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
         .filter(t => t.room !== null && t.room !== undefined)
-
-    if (teamsWithAssignments.length === exploreTeamsMorning.value.length) {
-      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
-      if (roomIds.length === 1) {
-        assignments.value[PROXY_EXPLORE_MORNING_KEY] = roomIds[0]
-      }
-    }
-  }
-
-  // Check Explore Afternoon teams
-  if (bulkModeExploreAfternoon.value && exploreTeamsAfternoon.value.length > 0) {
-    const teamsWithAssignments = exploreTeamsAfternoon.value
-        .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
-        .filter(t => t.room !== null && t.room !== undefined)
-
-    if (teamsWithAssignments.length === exploreTeamsAfternoon.value.length) {
-      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
-      if (roomIds.length === 1) {
-        assignments.value[PROXY_EXPLORE_AFTERNOON_KEY] = roomIds[0]
-      }
-    }
-  }
-
-  // Check single Explore group (backward compatibility)
-  if (bulkModeExplore.value && !hasTwoExploreGroups.value && exploreTeams.value.length > 0) {
-    const teamsWithAssignments = exploreTeams.value
-        .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
-        .filter(t => t.room !== null && t.room !== undefined)
-
-    if (teamsWithAssignments.length === exploreTeams.value.length) {
-      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
-      if (roomIds.length === 1) {
-        assignments.value[PROXY_EXPLORE_KEY] = roomIds[0]
-      }
-    }
-  }
-
-  // Check Challenge teams
-  if (bulkModeChallenge.value && challengeTeams.value.length > 0) {
-    const teamsWithAssignments = challengeTeams.value
-        .map(t => ({id: t.id, room: assignments.value[`team-${t.id}`]}))
-        .filter(t => t.room !== null && t.room !== undefined)
-
-    if (teamsWithAssignments.length === challengeTeams.value.length) {
-      const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
-      if (roomIds.length === 1) {
-        assignments.value[PROXY_CHALLENGE_KEY] = roomIds[0]
-      }
+    if (teamsWithAssignments.length !== group.items.length) continue
+    const roomIds = [...new Set(teamsWithAssignments.map(t => t.room))]
+    if (roomIds.length === 1) {
+      assignments.value[proxyKeyForGroup(group.id)] = roomIds[0]
     }
   }
 }
 
-// Save bulk mode preferences when they change
-watch([bulkModeExplore, bulkModeExploreMorning, bulkModeExploreAfternoon, bulkModeChallenge],
-    ([explore, exploreMorning, exploreAfternoon, challenge]) => {
-      const key = getStorageKey()
-      if (!key) return
-
-      try {
-        localStorage.setItem(key, JSON.stringify({
-          explore,
-          exploreMorning,
-          exploreAfternoon,
-          challenge
-        }))
-      } catch (e) {
-        if (import.meta.env.DEV) {
-          console.debug('Failed to save bulk mode preferences', e)
-        }
-      }
+watch(bulkModeByGroup, (groups) => {
+  const key = getStorageKey()
+  if (!key) return
+  try {
+    localStorage.setItem(key, JSON.stringify({groups}))
+  } catch (e) {
+    if (import.meta.env.DEV) {
+      console.debug('Failed to save bulk mode preferences', e)
     }
-)
+  }
+}, {deep: true})
 
-// Reload preferences when event changes
 watch(eventId, () => {
   loadBulkModePreferences()
 })
 
-// Find proxy assignment room ID (returns null if not assigned)
 const getProxyRoomId = (proxyKey) => {
   return assignments.value[proxyKey] || null
 }
 
-// Get all teams for a program/group
 const getTeamsForProgram = (programOrGroupId) => {
-  if (programOrGroupId === 'explore') return exploreTeams.value
-  if (programOrGroupId === 'explore-morning') return exploreTeamsMorning.value
-  if (programOrGroupId === 'explore-afternoon') return exploreTeamsAfternoon.value
-  if (programOrGroupId === 'challenge') return challengeTeams.value
-  return []
+  return findTeamGroup(programOrGroupId)?.items || []
 }
 
-// Checkbox toggle handler - unassign all teams when enabling bulk mode
-const toggleBulkMode = async (groupId) => {
-  // Determine which bulk mode to toggle based on group ID
-  let currentMode
-  let setBulkMode
-  let proxyKey
+const setBulkMode = (groupId, value) => {
+  bulkModeByGroup.value = {...bulkModeByGroup.value, [groupId]: value}
+}
 
-  if (groupId === 'explore-morning') {
-    currentMode = bulkModeExploreMorning.value
-    setBulkMode = (val) => {
-      bulkModeExploreMorning.value = val
-    }
-    proxyKey = PROXY_EXPLORE_MORNING_KEY
-  } else if (groupId === 'explore-afternoon') {
-    currentMode = bulkModeExploreAfternoon.value
-    setBulkMode = (val) => {
-      bulkModeExploreAfternoon.value = val
-    }
-    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-  } else if (groupId === 'explore') {
-    // Single Explore group (backward compatibility)
-    currentMode = bulkModeExplore.value
-    setBulkMode = (val) => {
-      bulkModeExplore.value = val
-    }
-    proxyKey = PROXY_EXPLORE_KEY
-  } else if (groupId === 'challenge') {
-    currentMode = bulkModeChallenge.value
-    setBulkMode = (val) => {
-      bulkModeChallenge.value = val
-    }
-    proxyKey = PROXY_CHALLENGE_KEY
-  } else {
-    return
-  }
+const toggleBulkMode = async (groupId) => {
+  const proxyKey = proxyKeyForGroup(groupId)
+  const currentMode = isBulkModeEnabled(groupId)
 
   if (!currentMode) {
-    // Enabling bulk mode: unassign all teams of this group
     const teams = getTeamsForProgram(groupId)
     for (const team of teams) {
       const key = `team-${team.id}`
@@ -846,16 +727,11 @@ const toggleBulkMode = async (groupId) => {
         await unassignItemFromRoom(key)
       }
     }
-    // Set bulk mode after unassigning
-    setBulkMode(true)
+    setBulkMode(groupId, true)
   } else {
-    // Disabling bulk mode: if proxy is assigned, keep assignments, otherwise clear
     const proxyRoomId = getProxyRoomId(proxyKey)
-
     if (proxyRoomId) {
-      // Proxy is assigned: all teams should appear individually in that room
       const teams = getTeamsForProgram(groupId)
-      // First, assign all teams to backend
       for (const team of teams) {
         const key = `team-${team.id}`
         assignments.value[key] = proxyRoomId
@@ -865,57 +741,32 @@ const toggleBulkMode = async (groupId) => {
           event: eventStore.selectedEvent?.id
         })
       }
-      // Remove proxy assignment
       assignments.value[proxyKey] = null
     }
-
-    setBulkMode(false)
+    setBulkMode(groupId, false)
   }
 
-  // Refresh readiness after mode change
   if (eventStore.selectedEvent?.id) {
     await eventStore.refreshReadiness(eventStore.selectedEvent.id)
   }
 }
 
-// Bulk assign all teams of a group to a room
 const bulkAssignTeams = async (groupId, roomId) => {
   const teams = getTeamsForProgram(groupId)
-
-  // Assign all teams to the room
   for (const team of teams) {
     const key = `team-${team.id}`
     assignments.value[key] = roomId
-
     await axios.put(`/rooms/assign-teams`, {
       team_id: team.id,
       room_id: roomId,
       event: eventStore.selectedEvent?.id
     })
   }
-
-  // Also set proxy assignment based on group ID
-  let proxyKey
-  if (groupId === 'explore-morning') {
-    proxyKey = PROXY_EXPLORE_MORNING_KEY
-  } else if (groupId === 'explore-afternoon') {
-    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-  } else if (groupId === 'explore') {
-    proxyKey = PROXY_EXPLORE_KEY
-  } else if (groupId === 'challenge') {
-    proxyKey = PROXY_CHALLENGE_KEY
-  }
-
-  if (proxyKey) {
-    assignments.value[proxyKey] = roomId
-  }
+  assignments.value[proxyKeyForGroup(groupId)] = roomId
 }
 
-// Bulk unassign all teams of a group
 const bulkUnassignTeams = async (groupId) => {
   const teams = getTeamsForProgram(groupId)
-
-  // Unassign all teams
   for (const team of teams) {
     const key = `team-${team.id}`
     if (assignments.value[key]) {
@@ -927,107 +778,42 @@ const bulkUnassignTeams = async (groupId) => {
       })
     }
   }
-
-  // Remove proxy assignment based on group ID
-  let proxyKey
-  if (groupId === 'explore-morning') {
-    proxyKey = PROXY_EXPLORE_MORNING_KEY
-  } else if (groupId === 'explore-afternoon') {
-    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-  } else if (groupId === 'explore') {
-    proxyKey = PROXY_EXPLORE_KEY
-  } else if (groupId === 'challenge') {
-    proxyKey = PROXY_CHALLENGE_KEY
-  }
-
-  if (proxyKey) {
-    assignments.value[proxyKey] = null
-  }
+  assignments.value[proxyKeyForGroup(groupId)] = null
 }
 
-// Handle proxy item assignment/unassignment
 const handleProxyAssignment = async (proxyKey, roomId) => {
-  // Determine group ID from proxy key
-  let groupId
-  if (proxyKey === PROXY_EXPLORE_MORNING_KEY) {
-    groupId = 'explore-morning'
-  } else if (proxyKey === PROXY_EXPLORE_AFTERNOON_KEY) {
-    groupId = 'explore-afternoon'
-  } else if (proxyKey === PROXY_EXPLORE_KEY) {
-    groupId = 'explore'
-  } else if (proxyKey === PROXY_CHALLENGE_KEY) {
-    groupId = 'challenge'
-  } else {
-    return
-  }
-
+  const groupId = groupIdFromProxyKey(proxyKey)
+  if (!groupId) return
   if (roomId) {
     await bulkAssignTeams(groupId, roomId)
   } else {
     await bulkUnassignTeams(groupId)
   }
-
-  // Refresh readiness
   if (eventStore.selectedEvent?.id) {
     await eventStore.refreshReadiness(eventStore.selectedEvent.id)
   }
 }
 
-// Hilfsfunktion für Template (typisierte IDs)
 const getItemsInRoom = (roomId) => {
   const all = []
-
-  // Handle regular items
   for (const category of assignables.value) {
     for (const group of category.groups) {
       if (category.type === 'team') {
-        // For teams: check bulk mode and show proxy or individual teams
-        let bulkMode = false
-        let proxyKey = null
-        let proxyName = ''
-
-        if (group.id === 'explore-morning') {
-          bulkMode = bulkModeExploreMorning.value
-          proxyKey = PROXY_EXPLORE_MORNING_KEY
-          proxyName = 'Alle Explore Vormittag Teams'
-        } else if (group.id === 'explore-afternoon') {
-          bulkMode = bulkModeExploreAfternoon.value
-          proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-          proxyName = 'Alle Explore Nachmittag Teams'
-        } else if (group.id === 'explore') {
-          bulkMode = bulkModeExplore.value
-          proxyKey = PROXY_EXPLORE_KEY
-          proxyName = 'Alle Explore Teams'
-        } else if (group.id === 'challenge') {
-          bulkMode = bulkModeChallenge.value
-          proxyKey = PROXY_CHALLENGE_KEY
-          proxyName = 'Alle Challenge Teams'
-        }
-
-        if (bulkMode && proxyKey) {
-          // Bulk mode: check if proxy is assigned to this room
-          if (assignments.value[proxyKey] === roomId) {
-            all.push({
-              key: proxyKey,
-              type: 'team-proxy',
-              name: proxyName,
-              first_program: (group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon') ? 2 : 3,
-              program: group.id
-            })
+        if (isBulkModeEnabled(group.id)) {
+          const proxy = buildProxyItem(group.id)
+          if (proxy && assignments.value[proxy.key] === roomId) {
+            all.push(proxy)
           }
         } else {
-          // Individual mode: show individual teams assigned to this room
           all.push(...group.items.filter(i => assignments.value[i.key] === roomId))
         }
       } else {
-        // Activities: use the item's key property (which has rt/eb prefix)
         all.push(...group.items.filter(i => assignments.value[i.key] === roomId))
       }
     }
   }
   return all
 }
-
 
 // --- Data Readiness: direkt aus Store ---
 
@@ -1058,61 +844,45 @@ const hasWarning = (tab) => {
   return false
 }
 
-// --- Visibility based on capacity ---
-const showExploreTeams = computed(() => {
-  const capacity = Number(event.value?.drahtCapacityExplore || 0)
-  return capacity > 0
-})
-
-const showChallengeTeams = computed(() => {
-  const capacity = Number(event.value?.drahtCapacityChallenge || 0)
-  return capacity > 0
-})
-
 </script>
 
 <template>
   <div>
-    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
+    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)] min-h-[400px]">
       <LoaderFlow/>
       <LoaderText/>
     </div>
-    <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6 p-3 md:p-6">
-      <!-- 🟢 Räume: Erste 3 Spalten -->
+    <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-5">
+      <!-- Räume: Erste 3 Spalten -->
       <div class="lg:col-span-3 order-2 lg:order-1">
-        <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">Räume</h2>
+        <h2 class="glass-card__heading !text-lg md:!text-xl !mb-3 md:!mb-4">Räume</h2>
         <!-- Mobile: tap-first room list (no drag/drop) -->
         <div class="md:hidden space-y-3">
-          <div
+          <ItemCard
               v-for="room in rooms"
               :key="`mobile-room-${room.id}`"
-              class="p-3 border rounded bg-white shadow-sm"
           >
-            <div class="flex items-center gap-2 mb-2">
+            <template #title>
               <input
                   v-model="room.name"
-                  class="text-sm font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
+                  class="item-card__title glass-input glass-input--sm liquid-surface-control"
                   @blur="updateRoom(room)"
               />
-              <button
-                  class="text-lg hover:text-red-800"
-                  title="Raum löschen"
-                  @click="askDeleteRoom(room)"
-              >
-                <i style="color: grey;" class="bi bi-trash-fill"></i>
-              </button>
-            </div>
+            </template>
+            <template #trailing>
+              <IconDangerButton label="Raum löschen" @click="askDeleteRoom(room)"/>
+            </template>
 
-            <div class="mb-2 flex items-center gap-2">
+            <div class="flex items-center gap-2">
               <input
                   v-model="room.navigation_instruction"
-                  class="text-xs border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
+                  class="glass-input glass-input--sm liquid-surface-control flex-1 min-w-0 !text-xs text-[var(--color-text-muted)]"
                   placeholder="z. B. 2. Etage rechts"
                   @blur="updateRoom(room)"
               />
               <div
                   :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
-                  class="cursor-pointer"
+                  class="shrink-0 cursor-pointer"
                   @click="toggleAccessibility(room)"
               >
                 <img
@@ -1123,59 +893,60 @@ const showChallengeTeams = computed(() => {
               </div>
             </div>
 
-            <div class="flex flex-wrap gap-1 min-h-[36px] border rounded p-1 bg-gray-50">
-              <div v-for="element in getItemsInRoom(room.id)" :key="`mobile-assigned-${element.key}`" class="flex items-center">
-                <span
-                    v-if="element.type === 'activity'"
-                    :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
-                    class="text-[11px] px-2 py-1 rounded-full flex items-center gap-1 font-medium"
-                >
-                  <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
-                  {{ element.name }}
-                  <button class="ml-1 text-sm text-gray-500 hover:text-black" @click.stop="unassignItemFromRoom(element.key)">✖</button>
-                </span>
-                <span
-                    v-else
-                    class="flex items-center border rounded-md text-[11px] bg-white shadow-sm"
-                >
-                  <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
-                  <span class="px-2 py-1 flex items-center gap-1">
-                    <img v-if="programLogoSrc(element.first_program)" :alt="programLogoAlt(element.first_program)" :src="programLogoSrc(element.first_program)" class="w-3 h-3 flex-shrink-0"/>
-                    {{ element.number ? `${element.number} | ` : '' }}{{ element.name }}
+            <div class="glass-dropzone">
+              <div
+                  v-if="getItemsInRoom(room.id).length === 0"
+                  class="glass-dropzone__empty"
+              >
+                <i class="bi bi-box-arrow-in-down glass-dropzone__empty-icon"></i>
+                <span class="glass-dropzone__empty-text">Noch nichts zugewiesen</span>
+              </div>
+              <div v-else class="glass-dropzone__list">
+                <div v-for="element in getItemsInRoom(room.id)" :key="`mobile-assigned-${element.key}`" class="flex items-center">
+                  <span
+                      v-if="element.type === 'activity'"
+                      :style="{ borderColor: getProgramColor(element) }"
+                      class="glass-program-pill text-[11px]"
+                  >
+                    <img v-if="itemLogoSrc(element)" :alt="itemLogoAlt(element)" :src="itemLogoSrc(element)" class="w-3 h-3 flex-shrink-0"/>
+                    {{ element.name }}
+                    <button class="ml-0.5 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)]" @click.stop="unassignItemFromRoom(element.key)">✖</button>
                   </span>
-                  <button class="ml-1 text-sm text-gray-500 hover:text-black pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
-                </span>
+                  <span
+                      v-else
+                      class="glass-row-item text-[11px]"
+                  >
+                    <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
+                    <span class="px-2 py-1 flex items-center gap-1">
+                      <img v-if="itemLogoSrc(element)" :alt="itemLogoAlt(element)" :src="itemLogoSrc(element)" class="w-3 h-3 flex-shrink-0"/>
+                      {{ element.number ? `${element.number} | ` : '' }}{{ element.name }}
+                    </span>
+                    <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
+          </ItemCard>
 
-          <div
-              ref="newRoomCardRef"
-              class="p-3 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+          <ItemComposer
+              ref="mobileComposerRef"
+              v-model:title="newRoomName"
+              :disabled="isSaving"
+              title-placeholder="Neuer Raum z. B. A2.03"
+              empty-hint="Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert."
+              @commit="createRoom"
           >
-            <div class="mb-2">
-              <input
-                  ref="newRoomInput"
-                  v-model="newRoomName"
-                  :disabled="isSaving"
-                  class="text-sm font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
-                  placeholder="Neuer Raum z.B. A2.03"
-                  @keyup.enter="createRoom"
-              />
-            </div>
             <transition name="fade">
               <div v-if="newRoomName.trim().length > 0">
                 <input
-                    ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
-                    class="text-xs border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                    class="glass-input glass-input--sm liquid-surface-control w-full !text-xs text-[var(--color-text-muted)]"
                     placeholder="Navigationshinweis"
-                    @keyup.enter="createRoom"
                 />
               </div>
             </transition>
-          </div>
+          </ItemComposer>
         </div>
 
         <!-- Desktop: drag/drop rooms -->
@@ -1189,42 +960,37 @@ const showChallengeTeams = computed(() => {
               @start="isDraggingRoom = true"
           >
             <template #item="{ element: room }">
-              <div
+              <ItemCard
                   :key="room.id"
-                  :class="{
-                'opacity-50': isDraggingRoom,
-                'shadow-lg': isDraggingRoom
-              }"
-                  class="p-3 md:p-4 mb-2 border rounded bg-white shadow-sm md:shadow cursor-move hover:shadow-md transition-shadow"
+                  interactive
+                  class="cursor-move"
+                  :class="{ 'opacity-55 scale-[1.01]': isDraggingRoom }"
               >
-                <!-- Line 1: Drag handle, Room name, Delete icon -->
-                <div class="flex items-center gap-2 mb-2">
-                  <div class="text-gray-400 cursor-move select-none">⋮⋮</div>
+                <template #leading>
+                  <div class="text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5" aria-hidden="true">⋮⋮</div>
+                </template>
+                <template #title>
                   <input
                       v-model="room.name"
-                      class="text-sm md:text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500"
+                      class="item-card__title glass-input glass-input--sm liquid-surface-control"
                       @blur="updateRoom(room)"
                   />
-                  <button
-                      class="text-lg hover:text-red-800"
-                      title="Raum löschen"
-                      @click="askDeleteRoom(room)"
-                  >
-                    <i style="color: grey;" class="bi bi-trash-fill"></i>
-                  </button>
-                </div>
+                </template>
+                <template #trailing>
+                  <IconDangerButton label="Raum löschen" @click.stop="askDeleteRoom(room)"/>
+                </template>
 
                 <!-- Line 2: Navigation instruction full width with accessibility icon at end -->
-                <div class="mb-2 flex items-center gap-2">
+                <div class="flex items-center gap-2">
                   <input
                       v-model="room.navigation_instruction"
-                      class="text-xs md:text-sm border-b border-gray-300 flex-1 text-gray-700 focus:outline-none focus:border-blue-500"
+                      class="glass-input glass-input--sm liquid-surface-control flex-1 min-w-0 !text-xs md:!text-sm text-[var(--color-text-muted)]"
                       placeholder="z. B. 2. Etage rechts"
                       @blur="updateRoom(room)"
                   />
                   <div
                       :title="room.is_accessible ? 'Barrierefrei' : 'Nicht barrierefrei'"
-                      class="cursor-pointer"
+                      class="shrink-0 cursor-pointer"
                       @click="toggleAccessibility(room)"
                   >
                     <img
@@ -1235,22 +1001,33 @@ const showChallengeTeams = computed(() => {
                   </div>
                 </div>
 
-                <!-- Line 3: Drop area full width with reduced padding -->
+                <!-- Line 3: Drop area -->
                 <div
+                    class="glass-dropzone"
                     :class="{
-                  'bg-blue-100': dragOverRoomId === room.id,
-                  'bg-yellow-100': isDragging && dragOverRoomId !== room.id,
-                  'bg-gray-50': !isDragging && dragOverRoomId !== room.id
-                }"
-                    class="flex flex-wrap gap-1 min-h-[36px] border rounded p-1 transition-colors"
+                      'glass-dropzone--dragging': isDragging,
+                      'glass-dropzone--active': dragOverRoomId === room.id,
+                    }"
+                    @dragenter.prevent="dragOverRoomId = room.id"
+                    @dragover.prevent="dragOverRoomId = room.id"
+                    @dragleave="onRoomDropzoneLeave($event, room.id)"
                 >
+                  <div
+                      v-if="getItemsInRoom(room.id).length === 0"
+                      class="glass-dropzone__empty"
+                  >
+                    <i class="bi bi-box-arrow-in-down glass-dropzone__empty-icon"></i>
+                    <span class="glass-dropzone__empty-text">
+                      {{ isDragging ? 'Hier ablegen' : 'Aktivitäten oder Teams hierher ziehen' }}
+                    </span>
+                  </div>
                   <draggable
                       :list="getItemsInRoom(room.id)"
-                      class="flex flex-wrap gap-1 w-full"
+                      class="glass-dropzone__list"
                       group="assignables"
                       item-key="key"
                       @add="event => handleDrop(event, room)"
-                      @end="isDragging = false"
+                      @end="isDragging = false; dragOverRoomId = null"
                       @start="isDragging = true"
                   >
 
@@ -1260,18 +1037,18 @@ const showChallengeTeams = computed(() => {
                         <!-- Activity -->
                         <span
                             v-if="element.type === 'activity'"
-                            :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
-                            class="text-[11px] md:text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
+                            :style="{ borderColor: getProgramColor(element) }"
+                            class="glass-program-pill glass-program-pill--interactive text-[11px] md:text-xs"
                         >
                           <img
-                              v-if="programLogoSrc(element.first_program)"
-                              :alt="programLogoAlt(element.first_program)"
-                              :src="programLogoSrc(element.first_program)"
+                              v-if="itemLogoSrc(element)"
+                              :alt="itemLogoAlt(element)"
+                              :src="itemLogoSrc(element)"
                               class="w-3 h-3 flex-shrink-0"
                           />
                           {{ element.name }}
                           <button
-                              class="ml-1 text-sm text-gray-500 hover:text-black"
+                              class="ml-0.5 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
                               @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
@@ -1281,7 +1058,7 @@ const showChallengeTeams = computed(() => {
                         <!-- Team Proxy -->
                         <span
                             v-else-if="element.type === 'team-proxy'"
-                            class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
+                            class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move"
                         >
                           <span
                               :style="{ backgroundColor: getProgramColor(element) }"
@@ -1289,15 +1066,15 @@ const showChallengeTeams = computed(() => {
                           ></span>
                           <span class="px-2 py-1 flex items-center gap-1">
                             <img
-                                v-if="programLogoSrc(element.first_program)"
-                                :alt="programLogoAlt(element.first_program)"
-                                :src="programLogoSrc(element.first_program)"
+                                v-if="itemLogoSrc(element)"
+                                :alt="itemLogoAlt(element)"
+                                :src="itemLogoSrc(element)"
                                 class="w-3 h-3 flex-shrink-0"
                             />
                             {{ element.name }}
                           </span>
                           <button
-                              class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
+                              class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] pr-1"
                               @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
@@ -1307,7 +1084,7 @@ const showChallengeTeams = computed(() => {
                         <!-- Team -->
                         <span
                             v-else
-                            class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
+                            class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move"
                         >
                           <span
                               :style="{ backgroundColor: getProgramColor(element) }"
@@ -1315,19 +1092,19 @@ const showChallengeTeams = computed(() => {
                           ></span>
                           <span class="px-2 py-1 flex items-center gap-1.5">
                             <img
-                                v-if="programLogoSrc(element.first_program)"
-                                :alt="programLogoAlt(element.first_program)"
-                                :src="programLogoSrc(element.first_program)"
+                                v-if="itemLogoSrc(element)"
+                                :alt="itemLogoAlt(element)"
+                                :src="itemLogoSrc(element)"
                                 class="w-3 h-3 flex-shrink-0"
                             />
-                            <span class="text-gray-600">{{ element.number || '–' }} | {{ element.name }}</span>
-                            <span v-if="getPeopleCount(element) !== null" class="text-gray-600 space-x-1">
+                            <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>
+                            <span v-if="getPeopleCount(element) !== null" class="text-[var(--color-text-muted)] space-x-1">
                               <span> | {{ getPeopleCount(element) }}</span>
-                              <i class="bi bi-person"></i>
+                              <i class="bi bi-person-fill"></i>
                             </span>
                           </span>
                           <button
-                              class="ml-1 text-sm text-gray-500 hover:text-black pr-1"
+                              class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] pr-1"
                               @click.stop="unassignItemFromRoom(element.key)"
                           >
                             ✖
@@ -1338,74 +1115,64 @@ const showChallengeTeams = computed(() => {
 
                   </draggable>
                 </div>
-              </div>
+              </ItemCard>
             </template>
           </draggable>
 
-          <!-- 🟩 Neuer Raum (always visible, outside draggable) -->
-          <div
-              ref="newRoomCardRef"
-              class="p-3 md:p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
+          <!-- Neuer Raum (always visible, outside draggable) -->
+          <ItemComposer
+              ref="desktopComposerRef"
+              v-model:title="newRoomName"
+              :disabled="isSaving"
+              title-placeholder="Neuer Raum z. B. A2.03"
+              empty-hint="Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert."
+              @commit="createRoom"
           >
-            <div class="mb-2">
-              <input
-                  ref="newRoomInput"
-                  v-model="newRoomName"
-                  :disabled="isSaving"
-                  class="text-sm md:text-md font-semibold border-b border-gray-300 w-full focus:outline-none focus:border-blue-500"
-                  placeholder="Neuer Raum z.B. A2.03"
-                  @keyup.enter="createRoom"
-              />
-              <p v-if="!newRoomName.trim()" class="text-xs text-gray-500 mt-1">
-                Bitte eintragen, wie der Raum im Gebäude heißt, nicht was darin passiert.
-              </p>
-            </div>
             <transition name="fade">
               <div v-if="newRoomName.trim().length > 0">
                 <input
-                    ref="newRoomNoteInput"
                     v-model="newRoomNote"
                     :disabled="isSaving"
-                    class="text-xs md:text-sm border-b border-gray-300 w-full text-gray-700 focus:outline-none focus:border-blue-500"
+                    class="glass-input glass-input--sm liquid-surface-control w-full !text-xs md:!text-sm text-[var(--color-text-muted)]"
                     placeholder="Navigationshinweis"
-                    @keyup.enter="createRoom"
                 />
-                <p v-if="!newRoomNote.trim()" class="text-xs text-gray-500 mt-1">
+                <p v-if="!newRoomNote.trim()" class="item-card__hint">
                   Falls der Raum schwer zu finden ist, hier bitte einen Hinweis eintragen.
                 </p>
               </div>
             </transition>
-          </div>
+          </ItemComposer>
         </div>
       </div>
 
-      <!-- 🔵 Rechte Spalte: Aktivitäten & Teams -->
+      <!-- Rechte Spalte: Aktivitäten & Teams -->
       <div class="lg:col-span-1 order-1 lg:order-2">
-        <div class="flex mb-3 md:mb-4 border-b text-base md:text-xl font-bold relative">
+        <div class="glass-card liquid-surface-inner !p-3 md:!p-4">
+        <div class="glass-tabs !mb-3 md:!mb-4">
           <button
-              :class="activeTab === 'activities' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
-              class="px-3 md:px-4 py-2 relative"
+              type="button"
+              :class="['glass-tab relative', activeTab === 'activities' ? 'glass-tab--active' : '']"
               @click="activeTab = 'activities'"
           >
             Aktivitäten
-            <div
+            <span
                 v-if="hasWarning('activities')"
-                class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+                class="absolute top-1.5 right-1 w-2 h-2 bg-red-500 rounded-full"
                 title="Noch nicht alle Aktivitäten zugeordnet"
-            ></div>
+            ></span>
           </button>
 
           <button
-              :class="activeTab === 'teams' ? 'border-b-2 border-blue-500 text-blue-600' : 'text-gray-600'"
-              class="px-3 md:px-4 py-2 ml-2 md:ml-4 relative"
+              type="button"
+              :class="['glass-tab relative', activeTab === 'teams' ? 'glass-tab--active' : '']"
               @click="activeTab = 'teams'"
           >
             Teams
-            <div
+            <span
                 v-if="hasWarning('teams')"
-                class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"
+                class="absolute top-1.5 right-1 w-2 h-2 bg-red-500 rounded-full"
                 title="Noch nicht alle Teams zugeordnet"
-            ></div>
+            ></span>
           </button>
         </div>
 
@@ -1416,24 +1183,13 @@ const showChallengeTeams = computed(() => {
               :key="group.id"
           >
             <div
-                v-if="category.type !== 'team' ||
-                  (group.id === 'explore' && showExploreTeams && !hasTwoExploreGroups) || 
-                  (group.id === 'explore-morning' && showExploreTeams && hasTwoExploreGroups) ||
-                  (group.id === 'explore-afternoon' && showExploreTeams && hasTwoExploreGroups) ||
-                  (group.id === 'challenge' && showChallengeTeams)"
-                class="mb-4 md:mb-6 bg-gray-50 border rounded-lg p-3 md:p-4 shadow-sm"
+                class="mb-3 md:mb-4 liquid-surface-inner rounded-[var(--radius)] p-3"
             >
-              <div class="text-base md:text-lg font-semibold text-black mb-2 md:mb-3 flex items-center gap-2">
+              <div class="glass-card__heading !mb-2 md:!mb-3 !text-sm md:!text-base flex items-center gap-2">
                 <img
-                    v-if="group.id === 'explore' || group.id === 'explore-morning' || group.id === 'explore-afternoon' || /FLL Explore|FIRST LEGO League Explore/i.test(group.name)"
-                    :alt="programLogoAlt('E')"
-                    :src="programLogoSrc('E')"
-                    class="w-6 h-6 flex-shrink-0"
-                />
-                <img
-                    v-if="group.id === 'challenge' || /FLL Challenge|FIRST LEGO League Challenge/i.test(group.name)"
-                    :alt="programLogoAlt('C')"
-                    :src="programLogoSrc('C')"
+                    v-if="category.type === 'team'"
+                    :alt="itemLogoAlt(group)"
+                    :src="itemLogoSrc(group)"
                     class="w-6 h-6 flex-shrink-0"
                 />
                 <span v-html="formatProgramName(group.name)"></span>
@@ -1441,13 +1197,10 @@ const showChallengeTeams = computed(() => {
 
               <!-- Bulk mode checkbox for teams -->
               <div v-if="category.type === 'team'" class="mb-2">
-                <label class="flex items-center gap-2 text-xs md:text-sm text-gray-700 cursor-pointer">
+                <label class="flex items-center gap-2 text-xs md:text-sm text-[var(--color-text-muted)] cursor-pointer">
                   <input
-                      :checked="group.id === 'explore-morning' ? bulkModeExploreMorning :
-                          group.id === 'explore-afternoon' ? bulkModeExploreAfternoon :
-                          group.id === 'explore' ? bulkModeExplore :
-                          group.id === 'challenge' ? bulkModeChallenge : false"
-                      class="cursor-pointer"
+                      :checked="isBulkModeEnabled(group.id)"
+                      class="cursor-pointer accent-[var(--color-accent)]"
                       type="checkbox"
                       @change="toggleBulkMode(group.id)"
                   />
@@ -1461,14 +1214,14 @@ const showChallengeTeams = computed(() => {
                   <button
                       v-if="element.type === 'activity'"
                       type="button"
-                      :style="{ border: '2px solid ' + getProgramColor(element), backgroundColor: '#fff' }"
-                      class="text-[11px] px-2 py-1 rounded-full flex items-center gap-1 font-medium"
+                      :style="{ borderColor: getProgramColor(element) }"
+                      class="glass-program-pill text-[11px]"
                       @click="openAssignModal(element)"
                   >
                     <img
-                        v-if="programLogoSrc(element.first_program)"
-                        :alt="programLogoAlt(element.first_program)"
-                        :src="programLogoSrc(element.first_program)"
+                        v-if="itemLogoSrc(element)"
+                        :alt="itemLogoAlt(element)"
+                        :src="itemLogoSrc(element)"
                         class="w-3 h-3 flex-shrink-0"
                     />
                     {{ element.name }}
@@ -1476,18 +1229,18 @@ const showChallengeTeams = computed(() => {
                   <button
                       v-else
                       type="button"
-                      class="flex items-center border rounded-md text-[11px] bg-white shadow-sm"
+                      class="glass-row-item text-[11px]"
                       @click="openAssignModal(element)"
                   >
                     <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
                     <span class="px-2 py-1 flex items-center gap-1.5">
                       <img
-                          v-if="programLogoSrc(element.first_program)"
-                          :alt="programLogoAlt(element.first_program)"
-                          :src="programLogoSrc(element.first_program)"
+                          v-if="itemLogoSrc(element)"
+                          :alt="itemLogoAlt(element)"
+                          :src="itemLogoSrc(element)"
                           class="w-3 h-3 flex-shrink-0"
                       />
-                      <span class="text-gray-600">{{ element.number ? `${element.number} | ` : '' }}{{ element.name }}</span>
+                      <span class="text-[var(--color-text-muted)]">{{ element.number ? `${element.number} | ` : '' }}{{ element.name }}</span>
                     </span>
                   </button>
                 </template>
@@ -1496,40 +1249,7 @@ const showChallengeTeams = computed(() => {
               <!-- Desktop: drag/drop chips -->
               <draggable
                   class="hidden md:flex flex-wrap gap-1.5 md:gap-2"
-                  :list="category.type === 'team' && (
-                    (group.id === 'explore-morning' && bulkModeExploreMorning) ||
-                    (group.id === 'explore-afternoon' && bulkModeExploreAfternoon) ||
-                    (group.id === 'explore' && bulkModeExplore) ||
-                    (group.id === 'challenge' && bulkModeChallenge)
-                  )
-              ? (() => {
-                  let proxyKey, proxyName, firstProgram
-                  if (group.id === 'explore-morning') {
-                    proxyKey = PROXY_EXPLORE_MORNING_KEY
-                    proxyName = 'Alle Explore Vormittag Teams'
-                    firstProgram = 2
-                  } else if (group.id === 'explore-afternoon') {
-                    proxyKey = PROXY_EXPLORE_AFTERNOON_KEY
-                    proxyName = 'Alle Explore Nachmittag Teams'
-                    firstProgram = 2
-                  } else if (group.id === 'explore') {
-                    proxyKey = PROXY_EXPLORE_KEY
-                    proxyName = 'Alle Explore Teams'
-                    firstProgram = 2
-                  } else {
-                    proxyKey = PROXY_CHALLENGE_KEY
-                    proxyName = 'Alle Challenge Teams'
-                    firstProgram = 3
-                  }
-                  return [{
-                    key: proxyKey,
-                    type: 'team-proxy',
-                    name: proxyName,
-                    first_program: firstProgram,
-                    program: group.id
-                  }].filter(p => !assignments[p.key])
-                })()
-              : group.items.filter(i => !assignments[i.key])"
+                  :list="getUnassignedItems(category, group)"
                   group="assignables"
                   item-key="key"
                   @end="isDragging = false"
@@ -1538,70 +1258,68 @@ const showChallengeTeams = computed(() => {
 
 
                 <template #item="{ element }">
-              <span
-                  v-if="element.type === 'activity'"
-                  :style="{
-                  border: '2px solid ' + getProgramColor(element),
-                  backgroundColor: '#fff'
-                }"
-                  class="text-[11px] md:text-xs px-2 py-1 rounded-full cursor-move flex items-center gap-1 font-medium"
-              >
-                <img
-                    v-if="programLogoSrc(element.first_program)"
-                    :alt="programLogoAlt(element.first_program)"
-                    :src="programLogoSrc(element.first_program)"
-                    class="w-3 h-3 flex-shrink-0"
-                />
-                {{ element.name }}
-              </span>
+                  <span
+                      v-if="element.type === 'activity'"
+                      :style="{ borderColor: getProgramColor(element) }"
+                      class="glass-program-pill glass-program-pill--interactive text-[11px] md:text-xs"
+                  >
+                    <img
+                        v-if="itemLogoSrc(element)"
+                        :alt="itemLogoAlt(element)"
+                        :src="itemLogoSrc(element)"
+                        class="w-3 h-3 flex-shrink-0"
+                    />
+                    {{ element.name }}
+                  </span>
 
                   <span
                       v-else-if="element.type === 'team-proxy'"
-                      class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
+                      class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move"
                   >
-                <span
-                    :style="{ backgroundColor: getProgramColor(element) }"
-                    class="w-1.5 self-stretch rounded-l-md"
-                ></span>
-                <span class="px-2 py-1 flex items-center gap-1">
-                  <img
-                      v-if="programLogoSrc(element.first_program)"
-                      :alt="programLogoAlt(element.first_program)"
-                      :src="programLogoSrc(element.first_program)"
-                      class="w-3 h-3 flex-shrink-0"
-                  />
-                  {{ element.name }}
-                </span>
-              </span>
+                    <span
+                        :style="{ backgroundColor: getProgramColor(element) }"
+                        class="w-1.5 self-stretch rounded-l-md"
+                    ></span>
+                    <span class="px-2 py-1 flex items-center gap-1">
+                      <img
+                          v-if="itemLogoSrc(element)"
+                          :alt="itemLogoAlt(element)"
+                          :src="itemLogoSrc(element)"
+                          class="w-3 h-3 flex-shrink-0"
+                      />
+                      {{ element.name }}
+                    </span>
+                  </span>
 
                   <span
                       v-else-if="element.type === 'team'"
-                      class="flex items-center border rounded-md text-[11px] md:text-xs bg-white shadow-sm cursor-move"
+                      class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move"
                   >
-              <span
-                  :style="{ backgroundColor: getProgramColor(element) }"
-                  class="w-1.5 self-stretch rounded-l-md"
-              ></span>
-                <span class="px-2 py-1 flex items-center gap-1.5">
-                  <img
-                      v-if="programLogoSrc(element.first_program)"
-                      :alt="programLogoAlt(element.first_program)"
-                      :src="programLogoSrc(element.first_program)"
-                      class="w-3 h-3 flex-shrink-0"
-                  />
-                 <span class="text-gray-600">{{ element.number || '–' }} | {{ element.name }}</span>
-                            <span v-if="getPeopleCount(element) !== null" class="text-gray-600 space-x-1">
-                              <span> | {{ getPeopleCount(element) }}</span>
-                              <i class="bi bi-person-fill"></i>
-                            </span>
-                </span>
-              </span>
+                    <span
+                        :style="{ backgroundColor: getProgramColor(element) }"
+                        class="w-1.5 self-stretch rounded-l-md"
+                    ></span>
+                    <span class="px-2 py-1 flex items-center gap-1.5">
+                      <img
+                          v-if="itemLogoSrc(element)"
+                          :alt="itemLogoAlt(element)"
+                          :src="itemLogoSrc(element)"
+                          class="w-3 h-3 flex-shrink-0"
+                      />
+                      <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>
+                      <span v-if="getPeopleCount(element) !== null" class="text-[var(--color-text-muted)] space-x-1">
+                        <span> | {{ getPeopleCount(element) }}</span>
+                        <i class="bi bi-person-fill"></i>
+                      </span>
+                    </span>
+                  </span>
                 </template>
 
 
               </draggable>
             </div>
           </template>
+        </div>
         </div>
       </div>
     </div>
@@ -1618,13 +1336,26 @@ const showChallengeTeams = computed(() => {
     />
 
     <!-- Mobile tap-to-assign modal -->
-    <div v-if="showAssignModal && selectedAssignable" class="fixed inset-0 z-50 bg-black/40 flex items-end md:hidden" @click="closeAssignModal">
-      <div class="w-full bg-white rounded-t-xl p-4 max-h-[70vh] overflow-y-auto" @click.stop>
+    <div
+        v-if="showAssignModal && selectedAssignable"
+        class="glass-scrim fixed inset-0 z-50 flex items-end md:hidden"
+        @click="closeAssignModal"
+    >
+      <div
+          class="w-full max-h-[70vh] overflow-y-auto rounded-t-[var(--radius-xl)] border border-[var(--liquid-border)] bg-[var(--liquid-popover-fill)] backdrop-blur-[var(--liquid-popover-blur)] p-4 shadow-[var(--shadow-lg)]"
+          @click.stop
+      >
         <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-gray-900">Zu Raum zuweisen</h3>
-          <button class="text-gray-500 hover:text-gray-700" @click="closeAssignModal">✕</button>
+          <h3 class="text-sm font-semibold text-[var(--color-text)]">Zu Raum zuweisen</h3>
+          <button
+              type="button"
+              class="text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
+              @click="closeAssignModal"
+          >
+            ✕
+          </button>
         </div>
-        <div class="text-xs text-gray-600 mb-3 truncate">
+        <div class="text-xs text-[var(--color-text-muted)] mb-3 truncate">
           {{ selectedAssignable.name }}
         </div>
         <div class="space-y-2">
@@ -1632,11 +1363,11 @@ const showChallengeTeams = computed(() => {
               v-for="room in rooms"
               :key="`assign-room-${room.id}`"
               type="button"
-              class="w-full text-left px-3 py-2 border rounded hover:bg-gray-50"
+              class="w-full text-left px-3 py-2.5 liquid-surface-inner rounded-[var(--radius)] hover:bg-[var(--color-bg-hover)] transition-colors"
               @click="assignSelectedToRoom(room.id)"
           >
-            <div class="font-medium text-sm">{{ room.name || 'Unbenannter Raum' }}</div>
-            <div v-if="room.navigation_instruction" class="text-xs text-gray-500">{{ room.navigation_instruction }}</div>
+            <div class="font-medium text-sm text-[var(--color-text)]">{{ room.name || 'Unbenannter Raum' }}</div>
+            <div v-if="room.navigation_instruction" class="text-xs text-[var(--color-text-subtle)]">{{ room.navigation_instruction }}</div>
           </button>
         </div>
       </div>

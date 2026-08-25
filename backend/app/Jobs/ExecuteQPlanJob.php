@@ -2,16 +2,20 @@
 
 namespace App\Jobs;
 
+use App\Models\QPlan;
+use App\Models\QRun;
+use App\Support\ChallengeShapedParamMap;
+use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
+use App\Services\PlanGeneratorService;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\QPlan;
-use App\Models\QRun;
-use App\Services\PlanGeneratorService;
-use Carbon\Carbon;
 
 class ExecuteQPlanJob implements ShouldQueue
 {
@@ -29,12 +33,10 @@ class ExecuteQPlanJob implements ShouldQueue
 
     public function handle(): void
     {
-        // Mark run as running
         QRun::where('id', $this->runId)->update([
             'status' => 'running',
         ]);
 
-        // Nächstes QPlan holen, das noch nicht berechnet ist
         $qPlan = QPlan::where('q_run', $this->runId)
             ->where('calculated', false)
             ->first();
@@ -49,27 +51,76 @@ class ExecuteQPlanJob implements ShouldQueue
             return;
         }
 
-        $planId = $qPlan->plan;
+        $planId = (int) $qPlan->plan;
         Log::info("ExecuteQPlanJob: Processing qPlan {$qPlan->id}", [
             'q_run' => $this->runId,
             'plan_id' => $planId,
+            'first_program' => $qPlan->first_program,
             'c_teams' => $qPlan->c_teams,
             'j_lanes' => $qPlan->j_lanes,
             'r_tables' => $qPlan->r_tables,
         ]);
 
-        // Plan erzeugen über den Service
         $generator = new PlanGeneratorService();
-        $generator->prepare($planId, 'job', null); // No user context in background job
-        $generator->dispatchJob($planId, true, null);
 
-        // Warten
+        try {
+            $this->assertProgramReady($qPlan);
 
-        // QPlan als berechnet markieren
+            $support = $generator->isSupported($planId);
+            if (! ($support['supported'] ?? false)) {
+                Log::warning('ExecuteQPlanJob: plan not supported, skipping generate', [
+                    'q_plan' => $qPlan->id,
+                    'plan_id' => $planId,
+                    'error' => $support['error'] ?? null,
+                    'details' => $support['details'] ?? null,
+                ]);
+            } else {
+                $generator->prepare($planId, 'job', null);
+                $generator->run($planId, true);
+
+                $activityGroups = DB::table('activity_group')->where('plan', $planId)->count();
+                if ($activityGroups < 1) {
+                    throw new \RuntimeException(
+                        "Generate finished with 0 activity_group rows for plan {$planId} (likely mode off / stale worker)."
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('ExecuteQPlanJob: generate/evaluate failed', [
+                'q_plan' => $qPlan->id,
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         QPlan::where('id', $qPlan->id)->update(['calculated' => true]);
         QRun::where('id', $this->runId)->increment('qplans_calculated');
 
-        // Job erneut dispatchen, bis alle QPlans berechnet sind
         ExecuteQPlanJob::dispatch($this->runId);
+    }
+
+    /**
+     * Quality plans must have the selected Challenge-shaped program on
+     * (attached + mode=1 + teams>0) before we call the generator.
+     */
+    private function assertProgramReady(QPlan $qPlan): void
+    {
+        $planId = (int) $qPlan->plan;
+        $firstProgram = (int) ($qPlan->first_program ?? 0);
+        if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
+            throw new \RuntimeException("q_plan {$qPlan->id}: first_program {$firstProgram} is not C/F8");
+        }
+
+        $map = ChallengeShapedParamMap::from($firstProgram);
+        $params = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $params);
+
+        if (! $presence->challengeShapedOn($firstProgram)) {
+            throw new \RuntimeException(
+                "q_plan {$qPlan->id}: program {$firstProgram} is not on "
+                ."(need event_program + {$map->mode()}=1 + {$map->teams()}>0). "
+                .'Restart queue:work if create still writes plans without mode.'
+            );
+        }
     }
 }

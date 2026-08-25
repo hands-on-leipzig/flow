@@ -11,6 +11,8 @@ use App\Models\Plan;
 use App\Services\ActivityFetcherService;
 use App\Services\EventTitleService;
 use App\Services\PdfLayoutService;
+use App\Support\OverviewPlanStyle;
+use App\Support\ProgramCatalog;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -633,6 +635,17 @@ class PlanExportController extends Controller
             ];
         }
 
+        $sequence = DB::table('m_first_program')->pluck('sequence', 'id');
+        usort(
+            $programs,
+            fn (array $a, array $b) => ((int) ($sequence[$a['id']] ?? 999)) <=> ((int) ($sequence[$b['id']] ?? 999))
+        );
+
+        foreach ($programs as &$program) {
+            $program['sequence'] = (int) ($sequence[$program['id']] ?? 999);
+        }
+        unset($program);
+
         return $programs;
     }
 
@@ -1161,7 +1174,7 @@ class PlanExportController extends Controller
 
             $activitiesCollection = collect($activities);
             $freeBlocks = $activitiesCollection->filter(function ($a) {
-                return ! is_null($a->extra_block_id) && is_null($a->extra_block_insert_point);
+                return ! is_null($a->extra_block_id) && ($a->extra_block_type ?? null) === 'free';
             });
 
             $allFreeBlocks = $allFreeBlocks->concat($freeBlocks);
@@ -1194,7 +1207,7 @@ class PlanExportController extends Controller
             // Filter to only regular activities (not free blocks)
             $activitiesCollection = collect($activities);
             $regularActivities = $activitiesCollection->filter(function ($a) {
-                return is_null($a->extra_block_id) || ! is_null($a->extra_block_insert_point);
+                return is_null($a->extra_block_id) || ($a->extra_block_type ?? null) !== 'free';
             });
 
             // Process regular activities under their program name
@@ -1932,6 +1945,7 @@ class PlanExportController extends Controller
             ->where('plan.id', $planId)
             ->select('event.*')
             ->first();
+        $eventModel = Event::find($event->id ?? null);
         $isMultidayEvent = (int) ($event->days ?? 1) > 1;
 
         // Räume nach room.sequence sortieren (Fallback: Name)
@@ -2114,9 +2128,10 @@ class PlanExportController extends Controller
                     'is_free' => $this->isFreeBlock($a),
                     'activity' => $this->formatActivityLabel($a),
                     'team' => $teamParts, // Array of team parts with name and is_noshow
-                    // 🔸 Icons vorbereiten (Logik bleibt hier, Blade rendert nur)
-                    'is_explore' => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::EXPLORE->value]),
-                    'is_challenge' => in_array($a->activity_first_program_id, [FirstProgram::JOINT->value, FirstProgram::CHALLENGE->value]),
+                    'program_names' => ProgramCatalog::logoNamesForId(
+                        (int) ($a->activity_first_program_id ?? 0),
+                        $eventModel
+                    ),
                     // Add date information for day grouping
                     'start_date' => \Carbon\Carbon::parse($a->start_time),
                 ];
@@ -2196,10 +2211,12 @@ class PlanExportController extends Controller
                         );
                     })
                     ->values()
-                    ->map(function ($t) {
+                    ->map(function ($t) use ($eventModel) {
                         return [
-                            'is_explore' => in_array($t->program, [0, 2]),
-                            'is_challenge' => in_array($t->program, [0, 3]),
+                            'program_names' => ProgramCatalog::logoNamesForId(
+                                (int) ($t->program ?? 0),
+                                $eventModel
+                            ),
                             'team_display' => trim($t->team_name.' ('.$t->team_number_hot.')'),
                             'team_is_noshow' => (bool) ($t->noshow ?? false),
                         ];
@@ -3248,51 +3265,33 @@ class PlanExportController extends Controller
         // Wenn kein RoomType ohne Mapping gefunden → alles gut
         $hasUnmappedRooms = ! empty($unmappedList);
 
-        // Check if all teams have a room assigned
-
-        // --- Team-Mapping prüfen ---
+        // --- Team-Mapping prüfen (every attached program) ---
         $teamController = app(TeamController::class);
-
         $event = Event::find($eventId);
+        $event?->loadMissing('programs');
 
-        // Explore Teams
-        $requestExplore = new \Illuminate\Http\Request;
-        $requestExplore->query->set('program', 'explore');
-        $exploreResponse = $teamController->index($requestExplore, $event);
-        $exploreData = $exploreResponse->getData(true);
-        // Handle both array format (challenge) and object format (explore with metadata)
-        $exploreTeamsArray = is_array($exploreData) && ! isset($exploreData['teams'])
-            ? $exploreData
-            : ($exploreData['teams'] ?? []);
-        $exploreTeams = collect($exploreTeamsArray);
+        $allTeamsHaveRooms = true;
+        foreach ($event?->programs ?? [] as $program) {
+            $request = new Request;
+            $request->query->set('program', (string) $program->first_program);
+            $response = $teamController->index($request, $event);
+            $data = $response->getData(true);
+            $teams = is_array($data) && ! isset($data['teams'])
+                ? collect($data)
+                : collect($data['teams'] ?? []);
 
-        // Log::debug('Explore Teams:', $exploreTeams->toArray());
-
-        // Challenge Teams
-        $requestChallenge = new \Illuminate\Http\Request;
-        $requestChallenge->query->set('program', 'challenge');
-        $challengeResponse = $teamController->index($requestChallenge, $event);
-        $challengeData = $challengeResponse->getData(true);
-        // Challenge teams are returned as direct array
-        $challengeTeams = collect($challengeData);
-
-        // Log::debug('Challenge Teams:', $challengeTeams->toArray());
-
-        // Prüfen, ob alle Teams einen Raum haben
-        $exploreWithoutRoom = $exploreTeams->whereNull('room')->count();
-        $challengeWithoutRoom = $challengeTeams->whereNull('room')->count();
-
-        $allExploreRoomsOk = $exploreTeams->isEmpty() || $exploreWithoutRoom === 0;
-        $allChallengeRoomsOk = $challengeTeams->isEmpty() || $challengeWithoutRoom === 0;
+            $withoutRoom = $teams->whereNull('room')->count();
+            $allTeamsHaveRooms = $allTeamsHaveRooms && ($teams->isEmpty() || $withoutRoom === 0);
+        }
 
         // --- Ergebnis zusammensetzen ---
         $result = [
             'explore_teams_ok' => ($plannedExploreTeams === $registeredExploreTeams),
             'challenge_teams_ok' => ($plannedChallengeTeams === $registeredChallengeTeams),
-            'room_mapping_ok' => ! $hasUnmappedRooms && $allExploreRoomsOk && $allChallengeRoomsOk,
+            'room_mapping_ok' => ! $hasUnmappedRooms && $allTeamsHaveRooms,
             'room_mapping_details' => [
                 'activities_ok' => ! $hasUnmappedRooms,
-                'teams_ok' => $allExploreRoomsOk && $allChallengeRoomsOk,
+                'teams_ok' => $allTeamsHaveRooms,
             ],
         ];
 
@@ -3354,29 +3353,16 @@ class PlanExportController extends Controller
         });
 
         // Manual assignment of free blocks to program-specific columns
-        // Logic: 0 = joint (Allgemein), 2 = Explore, 3 = Challenge
-        // Detect free blocks by checking if any activity in the group has extra_block_id and no insert_point
         foreach ($eventOverview as &$event) {
-            // Check if this group contains free blocks (extra_block_id not null and insert_point is null)
             $hasFreeBlock = $activities->where('activity_group_id', $event['group_id'])
                 ->contains(function ($a) {
                     return isset($a->extra_block_id) && $a->extra_block_id !== null &&
-                           (! isset($a->extra_block_insert_point) || $a->extra_block_insert_point === null);
+                           (($a->extra_block_type ?? null) === 'free');
                 });
 
             if ($hasFreeBlock && ($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null)) {
-                // This is a free block - assign to appropriate column based on first_program
                 $programId = (int) ($event['group_first_program_id'] ?? 0);
-                if ($programId === 0) {
-                    // Joint: keep as plain "Allgemein" (general column)
-                    $event['group_overview_plan_column'] = 'Allgemein';
-                } elseif ($programId === 2) {
-                    // Explore: assign to Explore column
-                    $event['group_overview_plan_column'] = 'Allgemein-2';
-                } elseif ($programId === 3) {
-                    // Challenge: assign to Challenge column
-                    $event['group_overview_plan_column'] = 'Allgemein-3';
-                }
+                $event['group_overview_plan_column'] = OverviewPlanStyle::allgemeinColumn($programId) ?? 'Allgemein';
             }
         }
         unset($event); // Clear the reference
@@ -3395,17 +3381,10 @@ class PlanExportController extends Controller
                 $event['assigned_column'] = 'Allgemein';
             }
 
-            // For Allgemein columns, include first_program to make them unique
-            // BUT exclude first_program = 0 (joint) - it stays as plain "Allgemein"
+            // Joint Allgemein stays plain; program-specific Allgemein uses 2/3/4 (not raw first_program id).
             if ($event['assigned_column'] === 'Allgemein') {
                 $program = (int) ($event['group_first_program_id'] ?? 0);
-                if ($program === null || $program === 0) {
-                    // Joint or null: keep as plain "Allgemein"
-                    $event['assigned_column'] = 'Allgemein';
-                } else {
-                    // Other programs: add program suffix
-                    $event['assigned_column'] = 'Allgemein-'.$program;
-                }
+                $event['assigned_column'] = OverviewPlanStyle::allgemeinColumn($program) ?? 'Allgemein';
             }
         }
         unset($event); // Clear the reference
@@ -3415,18 +3394,7 @@ class PlanExportController extends Controller
             ->pluck('assigned_column')
             ->unique()
             ->sortBy(function ($columnName) {
-                // Custom sorting to ensure specific column order
-                $customOrder = [
-                    'Allgemein' => 0,
-                    'Allgemein-2' => 1,
-                    'Explore' => 2,
-                    'Allgemein-3' => 3,
-                    'Challenge' => 4,
-                    'Robot-Game' => 5,
-                    'Live Challenge' => 6,
-                ];
-
-                return $customOrder[$columnName] ?? 999;
+                return OverviewPlanStyle::columnOrder()[$columnName] ?? 999;
             })
             ->values()
             ->toArray();

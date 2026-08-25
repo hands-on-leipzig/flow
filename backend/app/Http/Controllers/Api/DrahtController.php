@@ -6,7 +6,7 @@ use App\Models\Event;
 use App\Models\MSeason;
 use App\Models\RegionalPartner;
 use App\Models\Team;
-use App\Enums\FirstProgram;
+use App\Support\ProgramCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use App\Http\Controllers\Controller;
@@ -34,49 +34,78 @@ class DrahtController extends Controller
 
     public function show(Event $event)
     {
+        return response()->json($this->fetchScheduleData($event)['data']);
+    }
+
+    /**
+     * Same payload as show(), plus whether any DRAHT scheduledata HTTP call succeeded.
+     * ok is true when the event has no draht_id (nothing to fetch) or at least one call returned JSON.
+     *
+     * @return array{ok: bool, data: array<string, mixed>}
+     */
+    public function fetchScheduleData(Event $event): array
+    {
+        $event->loadMissing('programs.firstProgram');
+
         $mergedData = [
-            'event_challenge' => null,
-            'event_explore' => null,
+            'programs' => [],
             'address' => null,
             'contact' => null,
             'information' => null,
-            'teams_challenge' => [],
-            'teams_explore' => [],
-            'capacity_challenge' => 0,
-            'capacity_explore' => 0,
         ];
 
+        $attempted = 0;
+        $succeeded = 0;
 
-        if ($event->event_challenge) {
-            $res = $this->makeDrahtCall("/handson/events/{$event->event_challenge}/scheduledata");
-            if ($res->ok()) {
-                $challenge = $res->json();
-                $mergedData['event_challenge'] = $challenge;
-                $mergedData['address'] = $challenge['address'] ?? null;
-                $mergedData['contact'] = $this->formatContactData($challenge['contact'] ?? null);
-                $mergedData['information'] = $challenge['information'] ?? null;
-                $mergedData['teams_challenge'] = $challenge['teams'] ?? [];
-                $mergedData['capacity_challenge'] = $challenge['capacity_teams'] ?? 0;
+        foreach ($event->programs as $row) {
+            if (! $row->draht_id) {
+                $mergedData['programs'][] = [
+                    'first_program' => $row->first_program,
+                    'name' => $row->name,
+                    'sequence' => $row->sequence,
+                    'draht_id' => null,
+                    'scheduledata' => null,
+                    'teams' => [],
+                    'capacity' => 0,
+                ];
+                continue;
             }
+
+            $attempted++;
+            $payload = null;
+            try {
+                $res = $this->makeDrahtCall("/handson/events/{$row->draht_id}/scheduledata");
+                $payload = $res->ok() ? $res->json() : null;
+            } catch (\Throwable $e) {
+                Log::warning('DRAHT scheduledata failed', [
+                    'event_id' => $event->id,
+                    'draht_id' => $row->draht_id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            if (is_array($payload)) {
+                $succeeded++;
+                $mergedData['address'] ??= $payload['address'] ?? null;
+                $mergedData['contact'] ??= $this->formatContactData($payload['contact'] ?? null);
+                $mergedData['information'] ??= $payload['information'] ?? null;
+            }
+
+            $mergedData['programs'][] = [
+                'first_program' => $row->first_program,
+                'name' => $row->name,
+                'sequence' => $row->sequence,
+                'draht_id' => $row->draht_id,
+                'scheduledata' => is_array($payload) ? $payload : null,
+                'teams' => is_array($payload) ? ($payload['teams'] ?? []) : [],
+                'capacity' => is_array($payload) ? ($payload['capacity_teams'] ?? 0) : 0,
+            ];
         }
 
-        if ($event->event_explore) {
-            $res = $this->makeDrahtCall("/handson/events/{$event->event_explore}/scheduledata");
-            if ($res->ok()) {
-                $explore = $res->json();
-                $mergedData['event_explore'] = $explore;
-
-                // overwrite shared fields only if not already set
-                $mergedData['address'] ??= $explore['address'] ?? null;
-                $mergedData['contact'] ??= $this->formatContactData($explore['contact'] ?? null);
-                $mergedData['information'] ??= $explore['information'] ?? null;
-
-                $mergedData['teams_explore'] = $explore['teams'] ?? [];
-                $mergedData['capacity_explore'] = $explore['capacity_teams'] ?? 0;
-            }
-        }
-
-        return response()->json($mergedData);
+        return [
+            'ok' => $attempted === 0 || $succeeded > 0,
+            'data' => $mergedData,
+        ];
     }
 
     public function getAllRegions()
@@ -191,7 +220,8 @@ class DrahtController extends Controller
                 ], 500);
             }
 
-            DB::transaction(function () use ($seasonId, $eventsData) {
+            $icsEventIds = [];
+            DB::transaction(function () use ($seasonId, $eventsData, &$icsEventIds) {
                 // Track which events we've processed to identify events that should be deleted
                 $processedEventIds = [];
                 $processedDrahtIds = [];
@@ -202,62 +232,27 @@ class DrahtController extends Controller
                         $enddate = (isset($eventData["enddate"]) && $eventData["enddate"] != "") ? $eventData["enddate"] : "1970-01-01";
 
                         $regionalPartner = RegionalPartner::where('dolibarr_id', $eventData['region'])->first();
-                        $firstProgram = (int)$eventData['first_program'];
-
+                        $firstProgram = (int) $eventData['first_program'];
                         $days = 1;
 
-                        $IDs = [];
-                        switch ($firstProgram) {
-                            case FirstProgram::EXPLORE->value:
-                                $IDs['event_explore'] = $eventData['id'];
-                                $IDs['contao_id_explore'] = $eventData['contao_id'] ?? null;
-                                break;
-                            case FirstProgram::CHALLENGE->value:
-                                $IDs['event_challenge'] = $eventData['id'];
-                                $IDs['contao_id_challenge'] = $eventData['contao_id'] ?? null;
-                                break;
-                            case FirstProgram::FUTURE_8->value:
-                                $IDs['event_future_8'] = $eventData['id'];
-                                break;
-                        }
+                        $existingEvent = Event::where('season', $seasonId)
+                            ->whereHas('programs', function ($query) use ($eventData) {
+                                $query->where('draht_id', $eventData['id']);
+                            })
+                            ->first();
 
-                        // First, try to find event by draht ID (most reliable)
-                        $existingEvent = null;
-                        if ($firstProgram === FirstProgram::EXPLORE->value) {
-                            $existingEvent = Event::where('event_explore', $eventData['id'])
-                                ->where('season', $seasonId)
-                                ->first();
-                        } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
-                            $existingEvent = Event::where('event_challenge', $eventData['id'])
-                                ->where('season', $seasonId)
-                                ->first();
-                        } elseif ($firstProgram === FirstProgram::FUTURE_8->value) {
-                            $existingEvent = Event::where('event_future_8', $eventData['id'])
-                                ->where('season', $seasonId)
-                                ->first();
-                        }
-
-                        // If not found by draht ID, try fallback: find by date/regional_partner/season
-                        // (for events that don't have draht IDs yet)
-                        if (!$existingEvent) {
+                        if (! $existingEvent) {
                             $existingEvent = Event::where('regional_partner', $regionalPartner?->id)
                                 ->where('date', $date)
                                 ->where('season', $seasonId)
-                                ->where(function ($query) use ($firstProgram) {
-                                    if ($firstProgram === FirstProgram::EXPLORE->value) {
-                                        $query->whereNull('event_explore');
-                                    } elseif ($firstProgram === FirstProgram::CHALLENGE->value) {
-                                        $query->whereNull('event_challenge');
-                                    } elseif ($firstProgram === FirstProgram::FUTURE_8->value) {
-                                        $query->whereNull('event_future_8');
-                                    }
+                                ->whereDoesntHave('programs', function ($query) use ($firstProgram) {
+                                    $query->where('first_program', $firstProgram);
                                 })
                                 ->first();
                         }
 
                         if ($existingEvent) {
-                            // Update existing event
-                            $updateData = array_merge($IDs, [
+                            $existingEvent->update([
                                 'name' => $eventData['name'] ?? $existingEvent->name,
                                 'date' => $date,
                                 'enddate' => $enddate,
@@ -265,12 +260,9 @@ class DrahtController extends Controller
                                 'regional_partner' => $regionalPartner?->id ?? $existingEvent->regional_partner,
                                 'level' => $eventData['level'] ?? $existingEvent->level,
                             ]);
-
-                            $existingEvent->update($updateData);
                             $event = $existingEvent;
                         } else {
-                            // Create new event
-                            $eventAttributes = [
+                            $event = Event::create([
                                 'name' => $eventData['name'] ?? null,
                                 'date' => $date,
                                 'enddate' => $enddate,
@@ -278,10 +270,7 @@ class DrahtController extends Controller
                                 'days' => $days,
                                 'regional_partner' => $regionalPartner?->id,
                                 'level' => $eventData['level'] ?? null,
-                            ];
-                            $eventAttributes = array_merge($eventAttributes, $IDs);
-
-                            $event = Event::create($eventAttributes);
+                            ]);
 
                             // Automatically generate link and QR code for new events using existing PublishController
                             try {
@@ -296,10 +285,16 @@ class DrahtController extends Controller
                             }
                         }
 
+                        ProgramCatalog::upsertDrahtProgram(
+                            $event,
+                            $firstProgram,
+                            (int) $eventData['id'],
+                            isset($eventData['contao_id']) ? (int) $eventData['contao_id'] : null
+                        );
+
                         $processedEventIds[] = $event->id;
-                        if (in_array($firstProgram, [FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value])) {
-                            $processedDrahtIds[] = $eventData['id'];
-                        }
+                        $processedDrahtIds[] = $eventData['id'];
+                        $icsEventIds[] = $event->id;
                         if (isset($eventData['teams']) && is_array($eventData['teams'])) {
                             $existingTeams = Team::where('event', $event->id)
                                 ->get()
@@ -373,6 +368,10 @@ class DrahtController extends Controller
                 }
             });
 
+            foreach (array_unique($icsEventIds) as $eventId) {
+                app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+            }
+
             return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             Log::error('Connection error while fetching events from Draht API', [
@@ -397,7 +396,7 @@ class DrahtController extends Controller
     /**
      * Update the public link in DRAHT for an event
      *
-     * @param int $drahtEventId The DRAHT event ID (event_explore or event_challenge)
+     * @param int $drahtEventId The DRAHT event ID
      * @param string $link The public link URL
      * @return bool True if successful, false otherwise
      */
@@ -503,18 +502,22 @@ class DrahtController extends Controller
 
         try {
             $regionalPartnerIds = $this->getUserRegionalPartners($user->dolibarr_id);
+            $sourceDraht = \App\Support\FlowAccess::SOURCE_DRAHT;
+            $sourceManual = \App\Support\FlowAccess::SOURCE_MANUAL;
 
+            // Only Draht-sourced links are managed here. Manual FLOW grants stay untouched.
             if (empty($regionalPartnerIds)) {
-                Log::info("No regional partners found for user", [
+                Log::info("No regional partners found for user in Draht", [
                     'user_id' => $user->id,
                     'dolibarr_id' => $user->dolibarr_id
                 ]);
-                // Remove all existing relations if API returns empty
-                DB::table('user_regional_partner')->where('user', $user->id)->delete();
+                DB::table('user_regional_partner')
+                    ->where('user', $user->id)
+                    ->where('source', $sourceDraht)
+                    ->delete();
                 return true;
             }
 
-            // Get regional partners by dolibarr_id
             $regionalPartners = RegionalPartner::whereIn('dolibarr_id', $regionalPartnerIds)->get();
 
             if ($regionalPartners->isEmpty()) {
@@ -525,43 +528,65 @@ class DrahtController extends Controller
                 return false;
             }
 
-            // Get current relations
-            $currentRelations = DB::table('user_regional_partner')
+            $targetRelations = $regionalPartners->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+            $currentDraht = DB::table('user_regional_partner')
                 ->where('user', $user->id)
+                ->where('source', $sourceDraht)
                 ->pluck('regional_partner')
-                ->toArray();
+                ->map(fn ($id) => (int) $id)
+                ->all();
 
-            // Get target relations
-            $targetRelations = $regionalPartners->pluck('id')->toArray();
+            $currentManual = DB::table('user_regional_partner')
+                ->where('user', $user->id)
+                ->where('source', $sourceManual)
+                ->pluck('regional_partner')
+                ->map(fn ($id) => (int) $id)
+                ->all();
 
-            // Remove relations that are no longer valid
-            $toRemove = array_diff($currentRelations, $targetRelations);
+            $toRemove = array_diff($currentDraht, $targetRelations);
             if (!empty($toRemove)) {
                 DB::table('user_regional_partner')
                     ->where('user', $user->id)
+                    ->where('source', $sourceDraht)
                     ->whereIn('regional_partner', $toRemove)
                     ->delete();
-                Log::info("Removed regional partner relations", [
+                Log::info("Removed Draht regional partner relations", [
                     'user_id' => $user->id,
-                    'removed' => $toRemove
+                    'removed' => array_values($toRemove)
                 ]);
             }
 
-            // Add new relations
-            $toAdd = array_diff($targetRelations, $currentRelations);
+            $toAdd = array_diff($targetRelations, $currentDraht, $currentManual);
             if (!empty($toAdd)) {
-                $insertData = array_map(function ($rpId) use ($user) {
+                $insertData = array_map(function ($rpId) use ($user, $sourceDraht) {
                     return [
                         'user' => $user->id,
-                        'regional_partner' => $rpId
+                        'regional_partner' => $rpId,
+                        'source' => $sourceDraht,
+                        'granted_at' => now(),
+                        'granted_by' => null,
                     ];
                 }, $toAdd);
 
                 DB::table('user_regional_partner')->insert($insertData);
-                Log::info("Added regional partner relations", [
+                Log::info("Added Draht regional partner relations", [
                     'user_id' => $user->id,
-                    'added' => $toAdd
+                    'added' => array_values($toAdd)
                 ]);
+            }
+
+            // If Draht confirms a previously manual grant, mark it as Draht-owned
+            $toPromote = array_intersect($targetRelations, $currentManual);
+            if (!empty($toPromote)) {
+                DB::table('user_regional_partner')
+                    ->where('user', $user->id)
+                    ->where('source', $sourceManual)
+                    ->whereIn('regional_partner', $toPromote)
+                    ->update([
+                        'source' => $sourceDraht,
+                        'granted_by' => null,
+                    ]);
             }
 
             return true;
@@ -579,7 +604,7 @@ class DrahtController extends Controller
     /**
      * Get people data (players and coaches) for a DRAHT event
      *
-     * @param int $drahtEventId The DRAHT event ID (event_explore or event_challenge)
+     * @param int $drahtEventId The DRAHT event ID
      * @return \Illuminate\Http\JsonResponse
      */
     public function getPeople(int $drahtEventId)
@@ -623,7 +648,7 @@ class DrahtController extends Controller
     public function getTeamsCoordinates(Event $event)
     {
         try {
-            $response = $this->makeDrahtCall("/handson/teams/{$event->event_challenge}/locations");
+            $response = $this->makeDrahtCall("/handson/teams/{$event->programs->first()?->draht_id}/locations");
 
             if (!$response->ok()) {
                 Log::error("Failed to fetch teams locations from DRAHT API", [

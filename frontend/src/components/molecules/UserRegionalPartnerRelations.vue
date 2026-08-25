@@ -119,7 +119,11 @@ const clearUserSelection = () => {
   showUserDropdown.value = false
 }
 
-const removeRelation = async (userId, regionalPartnerId) => {
+const removeRelation = async (userId, regionalPartnerId, source) => {
+  if (source === 'draht') {
+    error.value = 'Draht-Zuordnungen bitte in Draht (Kontaktperson) ändern — nicht hier löschen.'
+    return
+  }
   try {
     await axios.delete('/admin/user-regional-partners', {
       data: {
@@ -128,13 +132,14 @@ const removeRelation = async (userId, regionalPartnerId) => {
       }
     })
 
-    // Refresh data
     await fetchData()
   } catch (err) {
     error.value = err.response?.data?.error || 'Failed to remove relation'
     console.error('Error removing relation:', err)
   }
 }
+
+const sourceLabel = (source) => source === 'manual' ? 'Manuell' : 'Draht'
 
 onMounted(() => {
   fetchData()
@@ -145,26 +150,27 @@ onMounted(() => {
   <div class="space-y-6">
     <!-- Statistics Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-white p-4 rounded-lg shadow">
-        <h3 class="text-sm font-medium text-gray-500">Total Users</h3>
-        <p class="text-2xl font-bold text-gray-900">{{ statistics.total_users || 0 }}</p>
+      <div class="glass-card liquid-surface-inner p-4">
+        <h3 class="text-sm font-medium text-[var(--color-text-subtle)]">Total Users</h3>
+        <p class="text-2xl font-bold text-[var(--color-text)]">{{ statistics.total_users || 0 }}</p>
       </div>
 
-      <div class="bg-white p-4 rounded-lg shadow">
-        <h3 class="text-sm font-medium text-gray-500">Users with Regional Partners</h3>
+      <div class="glass-card liquid-surface-inner p-4">
+        <h3 class="text-sm font-medium text-[var(--color-text-subtle)]">Users with Regional Partners</h3>
         <p class="text-2xl font-bold text-green-600">{{ statistics.users_with_regional_partners || 0 }}</p>
       </div>
 
-      <div class="bg-white p-4 rounded-lg shadow">
-        <h3 class="text-sm font-medium text-gray-500">Users without Regional Partners</h3>
+      <div class="glass-card liquid-surface-inner p-4">
+        <h3 class="text-sm font-medium text-[var(--color-text-subtle)]">Users without Regional Partners</h3>
         <p class="text-2xl font-bold text-red-600">{{ statistics.users_without_regional_partners || 0 }}</p>
       </div>
 
-      <div class="bg-white p-4 rounded-lg shadow">
-        <h3 class="text-sm font-medium text-gray-500">Avg Partners per User</h3>
-        <p class="text-2xl font-bold text-blue-600">{{
-            Math.round(statistics.average_regional_partners_per_user || 0)
-          }}</p>
+      <div class="glass-card liquid-surface-inner p-4">
+        <h3 class="text-sm font-medium text-[var(--color-text-subtle)]">Manuell / Draht</h3>
+        <p class="text-2xl font-bold text-blue-600">
+          {{ statistics.manual_grants || 0 }}
+          <span class="text-base font-medium text-[var(--color-text-muted)]">/ {{ statistics.draht_grants || 0 }}</span>
+        </p>
       </div>
     </div>
 
@@ -179,25 +185,31 @@ onMounted(() => {
     </div>
 
     <!-- Add Relation Form -->
-    <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="glass-card liquid-surface-inner overflow-hidden">
       <div class="px-4 py-5 sm:p-6">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="text-lg font-medium text-gray-900">Add User-Regional Partner Relation</h3>
+          <div>
+            <h3 class="text-lg font-medium text-[var(--color-text)]">Manuellen Regions-Zugang vergeben</h3>
+            <p class="text-sm text-[var(--color-text-muted)] mt-1">
+              Für Personen mit Keycloak-Rolle <code>flow_user</code>, die nicht als Draht-Kontaktperson einer Region hinterlegt sind.
+              Draht-Zuordnungen kommen beim Login automatisch und werden hier nur angezeigt.
+            </p>
+          </div>
           <button
               v-if="!showAddForm"
               @click="showAddForm = true"
-              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              class="glass-btn-accent !text-sm inline-flex items-center gap-1"
           >
-            ➕ Add Relation
+            ➕ Manuellen Zugang
           </button>
         </div>
 
         <!-- Add Form -->
-        <div v-if="showAddForm" class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+        <div v-if="showAddForm" class="border border-[var(--color-border)] rounded-lg p-4 bg-[var(--color-bg-muted)]">
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <!-- User Selection -->
             <div>
-              <label for="user-search" class="block text-sm font-medium text-gray-700 mb-2">
+              <label for="user-search" class="block text-sm font-medium text-[var(--color-text-muted)] mb-2">
                 Select User
               </label>
               <div class="relative">
@@ -209,7 +221,7 @@ onMounted(() => {
                     @blur="setTimeout(() => showUserDropdown = false, 200)"
                     type="text"
                     placeholder="Type to search by name, email, ID or subject..."
-                    class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    class="block w-full px-3 py-2 border border-[var(--color-border)] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
 
                 <!-- Clear button -->
@@ -217,43 +229,43 @@ onMounted(() => {
                     v-if="selectedUser"
                     @click="clearUserSelection"
                     type="button"
-                    class="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    class="absolute right-8 top-1/2 transform -translate-y-1/2 text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)]"
                 >
                   ✕
                 </button>
 
                 <!-- Search icon -->
-                <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+                <div class="absolute right-3 top-1/2 transform -translate-y-1/2 text-[var(--color-text-subtle)]">
                   🔍
                 </div>
 
                 <!-- Dropdown with search results -->
                 <div
                     v-if="showUserDropdown && filteredUsers.length > 0"
-                    class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto"
+                    class="absolute z-10 w-full mt-1 glass-dropdown max-h-60 overflow-auto"
                 >
                   <div
                       v-for="user in filteredUsers"
                       :key="user.id"
                       @click="selectUser(user)"
-                      class="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      class="px-3 py-2 hover:bg-[var(--color-bg-hover)] cursor-pointer border-b border-[var(--color-border)] last:border-b-0"
                   >
-                    <div class="text-sm font-medium text-gray-900">{{ user.display_name }}</div>
-                    <div v-if="user.name || user.email" class="text-xs text-gray-600">
+                    <div class="text-sm font-medium text-[var(--color-text)]">{{ user.display_name }}</div>
+                    <div v-if="user.name || user.email" class="text-xs text-[var(--color-text-muted)]">
                       <span v-if="user.name">{{ user.name }}</span>
                       <span v-if="user.name && user.email"> • </span>
                       <span v-if="user.email">{{ user.email }}</span>
                     </div>
-                    <div v-if="user.subject" class="text-xs text-gray-500">{{ user.subject }}</div>
+                    <div v-if="user.subject" class="text-xs text-[var(--color-text-subtle)]">{{ user.subject }}</div>
                   </div>
                 </div>
 
                 <!-- No results message -->
                 <div
                     v-if="showUserDropdown && filteredUsers.length === 0 && userSearchQuery.trim()"
-                    class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg"
+                    class="absolute z-10 w-full mt-1 glass-dropdown"
                 >
-                  <div class="px-3 py-2 text-sm text-gray-500">
+                  <div class="px-3 py-2 text-sm text-[var(--color-text-subtle)]">
                     No users found matching "{{ userSearchQuery }}"
                   </div>
                 </div>
@@ -262,13 +274,13 @@ onMounted(() => {
 
             <!-- Regional Partner Selection -->
             <div>
-              <label for="partner-select" class="block text-sm font-medium text-gray-700 mb-2">
+              <label for="partner-select" class="block text-sm font-medium text-[var(--color-text-muted)] mb-2">
                 Select Regional Partner
               </label>
               <select
                   id="partner-select"
                   v-model="selectedRegionalPartnerId"
-                  class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  class="block w-full px-3 py-2 border border-[var(--color-border)] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">Choose a regional partner...</option>
                 <option
@@ -286,7 +298,7 @@ onMounted(() => {
           <div class="flex justify-end space-x-3">
             <button
                 @click="cancelAddRelation"
-                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                class="inline-flex items-center px-4 py-2 border border-[var(--color-border)] text-sm font-medium rounded-md glass-btn-secondary hover:bg-[var(--color-bg-hover)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               Cancel
             </button>
@@ -304,11 +316,11 @@ onMounted(() => {
     </div>
 
     <!-- Relations Table -->
-    <div v-if="!loading" class="bg-white shadow rounded-lg overflow-hidden">
+    <div v-if="!loading" class="glass-card liquid-surface-inner overflow-hidden">
       <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">User-Regional Partner Relations</h3>
+        <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">User-Regional Partner Relations</h3>
 
-        <div v-if="relations.length === 0" class="text-center py-8 text-gray-500">
+        <div v-if="relations.length === 0" class="text-center py-8 text-[var(--color-text-subtle)]">
           No user-regional partner relations found.
         </div>
 
@@ -316,23 +328,23 @@ onMounted(() => {
           <div
               v-for="userRelation in relations"
               :key="userRelation.user_id"
-              class="border border-gray-200 rounded-lg p-4"
+              class="border border-[var(--color-border)] rounded-lg p-4"
           >
             <!-- User Header -->
             <div class="flex items-center justify-between mb-3">
               <div>
-                <h4 class="text-sm font-medium text-gray-900">
+                <h4 class="text-sm font-medium text-[var(--color-text)]">
                   <span v-if="userRelation.user_name">{{ userRelation.user_name }}</span>
                 </h4>
-                <div class="text-sm text-gray-500 space-y-1">
-                  <p v-if="userRelation.user_email" class="text-gray-600">
+                <div class="text-sm text-[var(--color-text-subtle)] space-y-1">
+                  <p v-if="userRelation.user_email" class="text-[var(--color-text-muted)]">
                     📧 {{ userRelation.user_email }}
                   </p>
-                  <p v-if="userRelation.user_subject" class="text-gray-500">
+                  <p v-if="userRelation.user_subject" class="text-[var(--color-text-subtle)]">
                     Subject: {{ userRelation.user_subject }}
                   </p>
                   <p v-if="!userRelation.user_name && !userRelation.user_email && !userRelation.user_subject"
-                     class="text-xs text-gray-400">
+                     class="text-xs text-[var(--color-text-subtle)]">
                     ID: {{ userRelation.user_id }}
                   </p>
                 </div>
@@ -350,21 +362,39 @@ onMounted(() => {
               <div
                   v-for="partner in userRelation.regional_partners"
                   :key="partner.id"
-                  class="flex items-center justify-between bg-gray-50 rounded-md p-3"
+                  class="flex items-center justify-between bg-[var(--color-bg-muted)] rounded-md p-3"
               >
                 <div class="flex-1">
-                  <h5 class="text-sm font-medium text-gray-900">{{ partner.name }}</h5>
-                  <p class="text-xs text-gray-500">
+                  <div class="flex items-center gap-2">
+                    <h5 class="text-sm font-medium text-[var(--color-text)]">{{ partner.name }}</h5>
+                    <span
+                        class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+                        :class="partner.source === 'manual'
+                          ? 'bg-orange-100 text-orange-800'
+                          : 'bg-slate-100 text-slate-700'"
+                    >
+                      {{ sourceLabel(partner.source) }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-[var(--color-text-subtle)]">
                     Region: {{ partner.region }} | Dolibarr ID: {{ partner.dolibarr_id }}
                   </p>
                 </div>
 
                 <button
-                    @click="removeRelation(userRelation.user_id, partner.id)"
+                    v-if="partner.source === 'manual'"
+                    @click="removeRelation(userRelation.user_id, partner.id, partner.source)"
                     class="ml-3 inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                 >
-                  Remove
+                  Entfernen
                 </button>
+                <span
+                    v-else
+                    class="ml-3 text-xs text-[var(--color-text-subtle)]"
+                    title="Wird über Draht-Kontaktperson gesteuert"
+                >
+                  nur lesen
+                </span>
               </div>
             </div>
           </div>
@@ -373,19 +403,19 @@ onMounted(() => {
     </div>
 
     <!-- Most Common Regional Partners -->
-    <div v-if="statistics.most_common_regional_partners?.length > 0" class="bg-white shadow rounded-lg overflow-hidden">
+    <div v-if="statistics.most_common_regional_partners?.length > 0" class="glass-card liquid-surface-inner overflow-hidden">
       <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg font-medium text-gray-900 mb-4">Most Common Regional Partners</h3>
+        <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">Most Common Regional Partners</h3>
 
         <div class="space-y-3">
           <div
               v-for="partner in statistics.most_common_regional_partners"
               :key="partner.id"
-              class="flex items-center justify-between p-3 bg-gray-50 rounded-md"
+              class="flex items-center justify-between p-3 bg-[var(--color-bg-muted)] rounded-md"
           >
             <div class="flex-1">
-              <h4 class="text-sm font-medium text-gray-900">{{ partner.name }}</h4>
-              <p class="text-xs text-gray-500">{{ partner.region }}</p>
+              <h4 class="text-sm font-medium text-[var(--color-text)]">{{ partner.name }}</h4>
+              <p class="text-xs text-[var(--color-text-subtle)]">{{ partner.region }}</p>
             </div>
             <div class="text-right">
               <span

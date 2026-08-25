@@ -6,16 +6,10 @@ use App\Models\Activity;
 use App\Models\ActivityGroup;
 use App\Models\MActivityTypeDetail;
 use App\Models\MRoomType;
-use App\Models\ExtraBlock;
-use App\Models\MInsertPoint;
 use App\Enums\FirstProgram;
 use App\Enums\ExploreMode;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
-
-use App\Core\TimeCursor;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 
 class ActivityWriter
 {
@@ -30,32 +24,29 @@ class ActivityWriter
     /** @var array<string,int> */
     private array $roomTypeMap = [];
 
-    /** @var array<int,int> Cache for activity_type_detail id to first_program mapping */
+    /** @var array<int,?int> */
     private array $activityTypeDetailFirstProgramMap = [];
 
-    public function __construct(int $planId, ?PlanParameter $params = null)
+    public function __construct(int $planId, PlanParameter $params)
     {
         $this->planId = $planId;
-        
-        // Set params if provided (for accessing plan parameters via pp())
-        if ($params !== null) {
-            $this->params = $params;
-        }
+        $this->params = $params;
 
-        $this->activityTypeDetailMap = MActivityTypeDetail::all()
+        $details = MActivityTypeDetail::all();
+
+        $this->activityTypeDetailMap = $details
             ->pluck('id', 'code')
             ->mapWithKeys(fn($id, $code) => [strtolower($code) => (int) $id])
+            ->toArray();
+
+        $this->activityTypeDetailFirstProgramMap = $details
+            ->pluck('first_program', 'id')
+            ->map(fn($fp) => $fp ? (int) $fp : null)
             ->toArray();
 
         $this->roomTypeMap = MRoomType::all()
             ->pluck('id', 'code')
             ->mapWithKeys(fn($id, $code) => [strtolower($code) => (int) $id])
-            ->toArray();
-
-        // Cache activity_type_detail id to first_program mapping
-        $this->activityTypeDetailFirstProgramMap = MActivityTypeDetail::all()
-            ->pluck('first_program', 'id')
-            ->map(fn($fp) => $fp ? (int) $fp : null)
             ->toArray();
     }
 
@@ -89,7 +80,7 @@ class ActivityWriter
         ?int $exploreGroup = null
     ): int {
         if (!$this->currentGroup) {
-            throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Einfügen der Aktivität '{$activityTypeCode}'. Bitte setze zunächst eine Aktivitätsgruppe mit setGroup().");
+            throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Einfügen der Aktivität '{$activityTypeCode}'. Bitte setze zunächst eine Aktivitätsgruppe mit withGroup().");
         }
 
         $start = $time->current()->format('Y-m-d H:i:s');
@@ -146,7 +137,7 @@ class ActivityWriter
     public function insertActivitiesBulk(array $activities): void
     {
         if (!$this->currentGroup) {
-            throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Bulk-Einfügen von Aktivitäten. Bitte setze zunächst eine Aktivitätsgruppe mit setGroup().");
+            throw new \RuntimeException("Keine Aktivitätsgruppe gesetzt vor dem Bulk-Einfügen von Aktivitäten. Bitte setze zunächst eine Aktivitätsgruppe mit withGroup().");
         }
 
         if (empty($activities)) {
@@ -191,14 +182,7 @@ class ActivityWriter
 
     private function activityTypeDetailIdFromCode(string $code): ?int
     {
-        static $cache = [];
-
-        $key = strtolower($code);
-        if (!isset($cache[$key])) {
-            $cache[$key] = $this->activityTypeDetailMap[$key] ?? null;
-        }
-
-        return $cache[$key];
+        return $this->activityTypeDetailMap[strtolower($code)] ?? null;
     }
 
     private function resolveRoomType(int $activityTypeDetailId, ?int $juryLane, ?int $exploreGroup = null): ?int
@@ -213,6 +197,9 @@ class ActivityWriter
         if ($juryLane !== null && $juryLane > 0) {
             if (in_array($code, ['j_with_team', 'j_scoring'])) {
                 return $this->roomTypeMap['j_lane_' . $juryLane] ?? null;
+            }
+            if (in_array($code, ['f8_j_with_team', 'f8_j_scoring'])) {
+                return $this->roomTypeMap['f8_j_lane_' . $juryLane] ?? null;
             }
             if (in_array($code, ['e_with_team', 'e_scoring'])) {
                 return $this->roomTypeMap['e_lane_' . $juryLane] ?? null;
@@ -251,68 +238,11 @@ class ActivityWriter
      */
     private function hasTwoExploreGroups(): bool
     {
-        $eMode = (int) $this->pp('e_mode');
+        $eMode = $this->exploreMode();
 
         // Check if e_mode indicates two Explore groups
         return ($eMode === ExploreMode::HYBRID_BOTH->value || 
                 $eMode === ExploreMode::DECOUPLED_BOTH->value);
-    }
-
-
-
-    public function insertPoint(string $insertPointCode, int $duration, TimeCursor $time): void
-    {
-        // Query insert point by code from database
-        $insertPoint = MInsertPoint::where('code', $insertPointCode)->first();
-        
-        if (!$insertPoint) {
-            throw new \RuntimeException("Einfügepunkt-Code '{$insertPointCode}' nicht in der Datenbank gefunden. Bitte überprüfe den Code in der Tabelle m_insert_point.");
-        }
-
-        // Get event level to check if insert point is applicable
-        $eventLevel = (int) DB::table('plan')
-            ->join('event', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $this->planId)
-            ->value('event.level');
-
-        // Only process insert point if event level >= insert point level
-        if ($eventLevel < $insertPoint->level) {
-            // Insert point not applicable for this event level, just advance time
-            $time->addMinutes($duration);
-            return;
-        }
-
-        // passenden ExtraBlock suchen
-        $extraBlock = ExtraBlock::where('plan', $this->planId)
-            ->where('insert_point', $insertPoint->id)
-            ->where('active', true)
-            ->first();
-
-        if ($extraBlock) {
-            // Determine activity type code based on first_program
-            $activityCode = match ($insertPoint->first_program) {
-                FirstProgram::EXPLORE->value => 'e_inserted_block',
-                FirstProgram::CHALLENGE->value => 'c_inserted_block',
-                FirstProgram::JOINT->value => 'g_inserted_block',
-                default => 'g_inserted_block',  // Fallback for unknown
-            };
-
-            $this->withGroup($activityCode, function () use ($extraBlock, $activityCode, $time) {
-                $time->addMinutes((int) $extraBlock->buffer_before);
-                $this->insertActivity(
-                    $activityCode, 
-                    $time, 
-                    (int) $extraBlock->duration,
-                    null, null, null, null, null, null,
-                    $extraBlock->id  // Pass extra_block ID
-                );
-                $time->addMinutes((int) $extraBlock->duration + (int) $extraBlock->buffer_after);
-            });
-
-            // Log::debug("Block inserted at '{$insertPointCode}' using activity type '{$activityCode}'.");
-        } else {
-            $time->addMinutes($duration);
-        }    
     }
 
 }

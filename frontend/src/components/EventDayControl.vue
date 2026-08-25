@@ -4,6 +4,9 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {eventPrograms} from '@/utils/eventPrograms'
+
+defineOptions({name: 'EventDayControl'})
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -30,12 +33,12 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
 </script>
 
 <template>
-  <div class="p-4 sm:p-6 space-y-4 sm:space-y-6">
-    <section class="rounded-xl bg-white shadow p-4 sm:p-6">
+  <div class="space-y-4 sm:space-y-6">
+    <section class="glass-surface-lg">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <div class="flex items-center gap-2">
-            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 truncate">{{ event?.name || 'am Tag' }}</h1>
+            <h1 class="text-xl sm:text-2xl font-bold text-[var(--color-text)] truncate">{{ event?.name || 'am Tag' }}</h1>
             <i
                 v-if="!loadingPublicationLevel && isHighestPublicationLevel"
                 class="bi bi-check-circle-fill text-green-600 text-base flex-shrink-0"
@@ -45,23 +48,18 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
           </div>
           <div
               v-if="!loadingPublicationLevel && !isHighestPublicationLevel"
-              class="mt-1 inline-flex items-center gap-1.5 text-xs text-orange-700"
+              class="glass-alert-warning mt-2 !mb-0 inline-flex items-center gap-1.5 !text-xs"
           >
-            <i class="bi bi-exclamation-circle-fill" aria-hidden="true"></i>
+            <i class="bi bi-exclamation-circle-fill text-[var(--color-accent)]" aria-hidden="true"></i>
             <span>Plan nicht vollständig veröffentlicht.</span>
           </div>
         </div>
         <div class="flex items-center gap-2" v-if="event">
           <img
-              v-if="event.event_explore !== null"
-              :src="programLogoSrc('E')"
-              :alt="programLogoAlt('E')"
-              class="w-8 h-8 flex-shrink-0"
-          />
-          <img
-              v-if="event.event_challenge !== null"
-              :src="programLogoSrc('C')"
-              :alt="programLogoAlt('C')"
+              v-for="program in eventPrograms(event)"
+              :key="program.first_program"
+              :src="programLogoSrc(program)"
+              :alt="programLogoAlt(program.name || program)"
               class="w-8 h-8 flex-shrink-0"
           />
         </div>
@@ -70,9 +68,9 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
 
     <RobotGameRoundsPanel/>
 
-    <section class="rounded-xl bg-white shadow p-4 sm:p-6">
-      <h2 class="text-base font-semibold text-gray-900">Weitere Live-Tools</h2>
-      <p class="mt-1 text-sm text-gray-600">
+    <section class="glass-surface-lg">
+      <h2 class="glass-card__heading">Weitere Live-Tools</h2>
+      <p class="text-sm text-[var(--color-text-muted)]">
         Hier werden später weitere mobile Funktionen für den Veranstaltungstag ergänzt werden.
       </p>
     </section>

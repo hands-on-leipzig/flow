@@ -7,6 +7,9 @@ import {useAuth} from '@/composables/useAuth'
 import dayjs from "dayjs";
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import { eventPrograms } from '@/utils/eventPrograms'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 const regionalPartners = ref([])
 const eventStore = useEventStore()
@@ -27,10 +30,7 @@ const createForm = ref({
   level: '',
   date: '',
   days: 1,
-  event_explore: null,
-  event_challenge: null,
-  explore_enabled: false,
-  challenge_enabled: false
+  programIds: []
 })
 
 const createEventData = ref({
@@ -70,12 +70,12 @@ async function selectEvent(eventId, regionalPartnerId) {
   })
   eventStore.staleSeasonCleared = false
   await eventStore.fetchSelectedEvent()
-  router.push('/event')
+  router.push('/overview')
 }
 
 async function createEvent() {
   if (!createForm.value.name || !createForm.value.regional_partner || !createForm.value.level || !createForm.value.date) {
-    alert('Please fill in all required fields')
+    showGlassToast('Please fill in all required fields', 'info')
     return
   }
 
@@ -88,8 +88,7 @@ async function createEvent() {
       level: createForm.value.level,
       date: createForm.value.date,
       days: createForm.value.days,
-      event_explore: createForm.value.explore_enabled ? 1 : null,
-      event_challenge: createForm.value.challenge_enabled ? 1 : null
+      programs: createForm.value.programIds.map((id) => ({ first_program: id }))
     }
     
     const { data } = await axios.post('/events', eventData)
@@ -101,10 +100,7 @@ async function createEvent() {
       level: '',
       date: '',
       days: 1,
-      event_explore: null,
-      event_challenge: null,
-      explore_enabled: false,
-      challenge_enabled: false
+      programIds: []
     }
     
     showCreateModal.value = false
@@ -121,7 +117,7 @@ async function createEvent() {
     
   } catch (error) {
     console.error('Error creating event:', error)
-    alert('Error creating event: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Error creating event: ' + (error.response?.data?.message || error.message), 'error')
   } finally {
     creating.value = false
   }
@@ -144,7 +140,7 @@ async function createEvent() {
       <button
         v-if="isAdmin"
         @click="showCreateModal = true"
-        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+        class="glass-btn-accent !px-4 !py-2 !text-base"
       >
         + Neue Veranstaltung
       </button>
@@ -160,7 +156,7 @@ async function createEvent() {
         <div
             v-for="event in rp.events"
             :key="event.id"
-            class="p-4 bg-white shadow rounded hover:bg-gray-100 cursor-pointer"
+            class="glass-selectable-card liquid-surface-inner hover:bg-[var(--color-bg-hover)]"
             @click="selectEvent(event.id, rp.regional_partner.id)"
         >
 
@@ -169,23 +165,18 @@ async function createEvent() {
             <!-- Linker Bereich: Text -->
             <div>
               <h3 class="font-medium text-lg">{{ event.name }}</h3>
-              <p class="text-sm text-gray-500">{{ dayjs(event.date).format('dddd, DD.MM.YYYY') }}</p>
-              <p class="text-sm text-gray-500">{{ event.level.name }}</p>
-              <p class="text-sm text-gray-500">{{ event.season.name }} ({{ event.season.year }})</p>
+              <p class="text-sm text-[var(--color-text-subtle)]">{{ dayjs(event.date).format('dddd, DD.MM.YYYY') }}</p>
+              <p class="text-sm text-[var(--color-text-subtle)]">{{ event.level.name }}</p>
+              <p class="text-sm text-[var(--color-text-subtle)]">{{ event.season.name }} ({{ event.season.year }})</p>
             </div>
 
             <!-- Rechter Bereich: Bilder nebeneinander, bedingt sichtbar -->
             <div class="flex ml-4 space-x-2">
               <img
-                v-if="event.event_explore !== null"
-                  :src="programLogoSrc('E')"
-                  :alt="programLogoAlt('E')"
-                class="w-20 h-20 flex-shrink-0"
-              />
-              <img
-                v-if="event.event_challenge !== null"
-                  :src="programLogoSrc('C')"
-                  :alt="programLogoAlt('C')"
+                v-for="program in eventPrograms(event)"
+                :key="program.first_program"
+                :src="programLogoSrc(program)"
+                :alt="programLogoAlt(program.name || program)"
                 class="w-20 h-20 flex-shrink-0"
               />
             </div>
@@ -195,28 +186,28 @@ async function createEvent() {
     </div>
 
     <!-- Create Event Modal -->
-    <div v-if="showCreateModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div v-if="showCreateModal" class="glass-scrim fixed inset-0 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
         <h2 class="text-xl font-bold mb-4">Neue Veranstaltung erstellen</h2>
         
         <form @submit.prevent="createEvent" class="space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+            <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">Name *</label>
             <input
               v-model="createForm.name"
               type="text"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-[var(--color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Veranstaltungsname"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Regional Partner *</label>
+            <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">Regional Partner *</label>
             <select
               v-model="createForm.regional_partner"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-[var(--color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Regional Partner wählen...</option>
               <option
@@ -230,11 +221,11 @@ async function createEvent() {
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Level *</label>
+            <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">Level *</label>
             <select
               v-model="createForm.level"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-[var(--color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Level wählen...</option>
               <option
@@ -248,53 +239,43 @@ async function createEvent() {
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Datum *</label>
+            <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">Datum *</label>
             <input
               v-model="createForm.date"
               type="date"
               required
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-[var(--color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tage</label>
+            <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">Tage</label>
             <input
               v-model.number="createForm.days"
               type="number"
               min="1"
               max="10"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              class="w-full px-3 py-2 border border-[var(--color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          <!-- Program Checkboxes -->
           <div class="space-y-3">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Programme</label>
-            
-            <div class="flex items-center space-x-2">
+            <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-2">Programme</label>
+            <div
+              v-for="program in (createEventData.programs || [])"
+              :key="program.id"
+              class="flex items-center space-x-2"
+            >
               <input
-                v-model="createForm.explore_enabled"
                 type="checkbox"
-                id="explore_enabled"
-                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                :id="'program_' + program.id"
+                :value="program.id"
+                v-model="createForm.programIds"
+                class="w-4 h-4 text-blue-600 bg-[var(--color-bg-muted)] border-[var(--color-border)] rounded focus:ring-blue-500 focus:ring-2"
               />
-              <label for="explore_enabled" class="text-sm text-gray-700 flex items-center">
-                <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')" class="w-5 h-5 mr-2" />
-                <span><span class="italic">FIRST</span> LEGO League Explore</span>
-              </label>
-            </div>
-
-            <div class="flex items-center space-x-2">
-              <input
-                v-model="createForm.challenge_enabled"
-                type="checkbox"
-                id="challenge_enabled"
-                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-              />
-              <label for="challenge_enabled" class="text-sm text-gray-700 flex items-center">
-                <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')" class="w-5 h-5 mr-2" />
-                <span><span class="italic">FIRST</span> LEGO League Challenge</span>
+              <label :for="'program_' + program.id" class="text-sm text-[var(--color-text-muted)] flex items-center">
+                <img :src="programLogoSrc(program)" :alt="programLogoAlt(program.name)" class="w-5 h-5 mr-2" />
+                <span>{{ program.name }}</span>
               </label>
             </div>
           </div>
@@ -303,7 +284,7 @@ async function createEvent() {
             <button
               type="button"
               @click="showCreateModal = false"
-              class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              class="px-4 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
             >
               Abbrechen
             </button>

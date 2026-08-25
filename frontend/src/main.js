@@ -3,72 +3,138 @@ import App from './App.vue'
 import {createRouter, createWebHistory} from 'vue-router'
 import axios from 'axios'
 import './assets/main.css'
+import './assets/glass-layout.css'
 import keycloak from "@/keycloak.js";
 import Schedule from "@/components/Schedule.vue";
+import ScheduleGeneral from "@/components/ScheduleGeneral.vue";
+import ScheduleTimes from "@/components/ScheduleTimes.vue";
+import ScheduleAfternoon from "@/components/ScheduleAfternoon.vue";
+import ScheduleExpert from "@/components/ScheduleExpert.vue";
+import ScheduleFreeActivities from "@/components/ScheduleFreeActivities.vue";
 import Logos from "@/components/Logos.vue";
 import {createPinia, setActivePinia} from "pinia";
 import SelectEvent from "@/components/SelectEvent.vue";
 import dayjs from "dayjs";
 import 'dayjs/locale/de';
 import Rooms from "@/components/Rooms.vue";
-import EventOverview from "@/components/EventOverview.vue";
+import HomeOverview from "@/components/HomeOverview.vue";
 import PublishControl from "@/components/PublishControl.vue";
+import PublishDistribution from "@/components/publish/PublishDistribution.vue";
+import PublishDigital from "@/components/publish/PublishDigital.vue";
+import PublishAnalog from "@/components/publish/PublishAnalog.vue";
 import EventDayControl from "@/components/EventDayControl.vue";
 // Admin is lazy-loaded - only loads when /admin route is accessed
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
+import TeamsProgram from "@/components/teams/TeamsProgram.vue";
 import Preview from "@/components/molecules/Preview.vue";
+import PlanPopout from "@/components/PlanPopout.vue";
 import Carousel from "@/components/Carousel.vue";
 import EditSlide from "@/components/EditSlide.vue";
 import PlanLayout from "@/components/PlanLayout.vue";
-import PresentationSettings from "@/components/molecules/PresentationSettings.vue";
 import PublicEvent from "@/components/PublicEvent.vue";
+import PublicSchedule from "@/components/PublicSchedule.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
 import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
 import PublicScores from "@/components/PublicScores.vue";
+import Profile from "@/components/Profile.vue";
+import AccessManagement from "@/components/AccessManagement.vue";
 import {useEventStore} from "@/stores/event";
+import {useProgramsStore} from "@/stores/programs";
+import {firstTeamsPath} from "@/utils/eventPrograms";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
+import '@hands-on/glass/styles.css'
+import {initTheme} from '@hands-on/glass/theme'
+
+initTheme()
 
 const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
     {path: '/carousel/:eventId/:slideId', component: StandaloneSlide, props: true, meta: {public: true}},
     {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
+    {path: '/public-schedule/:planId', component: PublicSchedule, props: true, meta: {public: true}},
+    // Slim second-screen plan view (auth required, no app chrome / event bootstrap)
+    {path: '/plan/popout/:planId', component: PlanPopout, props: true, meta: {popout: true}},
     {
         path: '/plan',
         component: PlanLayout,
-        redirect: '/plan/event',
+        redirect: '/plan/overview',
         children: [
-            {path: 'event', component: EventOverview},
-            {path: 'schedule', component: Schedule},
-            {path: 'teams', component: Teams},
-            {path: 'logos', component: Logos},
+            {path: 'overview', component: HomeOverview},
+            {path: 'event', redirect: '/plan/overview'},
+            {
+                path: 'schedule',
+                component: Schedule,
+                children: [
+                    {path: '', name: 'schedule-general', component: ScheduleGeneral},
+                    {path: 'times', name: 'schedule-times', component: ScheduleTimes},
+                    {path: 'afternoon', name: 'schedule-afternoon', component: ScheduleAfternoon},
+                    {path: 'expert', name: 'schedule-expert', component: ScheduleExpert},
+                    {path: 'blocks', redirect: {name: 'schedule-free'}},
+                    {path: 'free', name: 'schedule-free', component: ScheduleFreeActivities},
+                    {path: 'slots', name: 'schedule-slots', component: () => import('@/components/Slots.vue')},
+                ],
+            },
+            {
+                path: 'teams',
+                component: Teams,
+                redirect: () => firstTeamsPath(useEventStore().selectedEvent),
+                children: [
+                    {path: ':program', name: 'teams-program', component: TeamsProgram},
+                ],
+            },
+            {path: 'logos', redirect: '/plan/publish/logos'},
             {path: 'events', component: SelectEvent},
             {path: 'rooms', component: Rooms},
-            {path: 'publish', component: PublishControl},
+            {
+                path: 'publish',
+                component: PublishControl,
+                children: [
+                    {path: '', name: 'publish-distribution', component: PublishDistribution},
+                    {path: 'digital', name: 'publish-digital', component: PublishDigital},
+                    {path: 'analog', name: 'publish-analog', component: PublishAnalog},
+                    {path: 'logos', name: 'publish-logos', component: Logos},
+                ],
+            },
             {path: 'live', component: EventDayControl},
-            {path: 'slots', component: () => import('@/components/Slots.vue')},
-            // Lazy-load Admin component - only loads when route is accessed
-            // This significantly reduces initial bundle size since most users are not admins
-            {path: 'admin', component: () => import('@/components/Admin.vue')},
-            {path: 'presentation', component: PresentationSettings},
+            {path: 'slots', redirect: '/plan/schedule/slots'},
+            {path: 'profile', component: Profile},
+            {path: 'access', component: AccessManagement},
+            // Lazy-load Admin — one component for all sections so tab state stays mounted
+            {path: 'admin', redirect: '/plan/admin/statistics'},
+            {path: 'admin/:section', component: () => import('@/components/Admin.vue')},
+            {path: 'presentation', redirect: '/plan/publish/digital'},
             {path: 'preview/:planId', component: Preview, props: true},
             {path: 'editSlide/:slideId', component: EditSlide, props: true},
         ]
     },
     // Redirect old routes to new plan/ prefixed routes
-    {path: '/event', redirect: '/plan/event'},
+    {path: '/overview', redirect: '/plan/overview'},
+    {path: '/event', redirect: '/plan/overview'},
     {path: '/schedule', redirect: '/plan/schedule'},
-    {path: '/slots', redirect: '/plan/slots'},
+    {path: '/schedule/blocks', redirect: '/plan/schedule/free'},
+    {path: '/schedule/times', redirect: '/plan/schedule/times'},
+    {path: '/schedule/afternoon', redirect: '/plan/schedule/afternoon'},
+    {path: '/schedule/expert', redirect: '/plan/schedule/expert'},
+    {path: '/schedule/free', redirect: '/plan/schedule/free'},
+    {path: '/slots', redirect: '/plan/schedule/slots'},
+    {path: '/schedule/slots', redirect: '/plan/schedule/slots'},
     {path: '/teams', redirect: '/plan/teams'},
-    {path: '/logos', redirect: '/plan/logos'},
+    {path: '/teams/explore', redirect: '/plan/teams/explore'},
+    {path: '/teams/challenge', redirect: '/plan/teams/challenge'},
+    {path: '/teams/future8', redirect: '/plan/teams/future_8'},
+    {path: '/logos', redirect: '/plan/publish/logos'},
     {path: '/events', redirect: '/plan/events'},
     {path: '/rooms', redirect: '/plan/rooms'},
     {path: '/publish', redirect: '/plan/publish'},
+    {path: '/publish/digital', redirect: '/plan/publish/digital'},
+    {path: '/publish/analog', redirect: '/plan/publish/analog'},
+    {path: '/publish/logos', redirect: '/plan/publish/logos'},
     {path: '/event-day', redirect: '/plan/live'},
     {path: '/live', redirect: '/plan/live'},
     {path: '/admin', redirect: '/plan/admin'},
-    {path: '/presentation', redirect: '/plan/presentation'},
+    {path: '/presentation', redirect: '/plan/publish/digital'},
     {path: '/preview/:planId', redirect: to => `/plan/preview/${to.params.planId}`},
     {path: '/editSlide/:slideId', redirect: to => `/plan/editSlide/${to.params.slideId}`},
 
@@ -101,6 +167,8 @@ function isTodayWithinEvent(event) {
 }
 
 router.beforeEach(async (to, from, next) => {
+    await useProgramsStore().ensureLoaded()
+
     // Allow public routes (including unauthorized page)
     if (to.meta?.public || to.path === '/unauthorized') {
         next();
@@ -141,8 +209,15 @@ router.beforeEach(async (to, from, next) => {
     }
 
     // Check if event is selected for non-public routes
-    // Skip check for the events selection page itself
-    if (to.path !== '/plan/events' && to.path !== '/events' && to.path.startsWith('/plan')) {
+    // Skip check for the events selection page itself and slim pop-out windows
+    if (
+        !to.meta?.popout &&
+        to.path !== '/plan/events' &&
+        to.path !== '/events' &&
+        to.path !== '/plan/profile' &&
+        to.path !== '/plan/access' &&
+        to.path.startsWith('/plan')
+    ) {
         // Use the store - pinia is already active
         const eventStore = useEventStore();
 
@@ -160,9 +235,9 @@ router.beforeEach(async (to, from, next) => {
             return;
         }
 
-        // Day-of default view: on first load, open am Tag instead of Veranstaltung
+        // Day-of default view: on first load, open am Tag instead of Übersicht
         const isInitialNavigation = from.matched.length === 0
-        if (isInitialNavigation && to.path === '/plan/event' && isTodayWithinEvent(eventStore.selectedEvent)) {
+        if (isInitialNavigation && to.path === '/plan/overview' && isTodayWithinEvent(eventStore.selectedEvent)) {
             next('/plan/live')
             return
         }

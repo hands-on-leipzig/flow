@@ -3,23 +3,21 @@ import {computed, UnwrapRef, watch, watchEffect} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
-import TeamSelectionCard from "@/components/molecules/TeamSelectionCard.vue";
+import TeamPlanBar from "@/components/molecules/TeamPlanBar.vue";
 import {useEventStore} from '@/stores/event'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import ProgramSection from '@/components/atoms/ProgramSection.vue'
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 
 const props = defineProps<{
   parameters: any[]
-  showChallenge: boolean
   lanesIndex?: LanesIndex | UnwrapRef<LanesIndex> | null
   supportedPlanData?: any[] | null
 }>()
 
 const emit = defineEmits<{
   (e: 'update-param', param: any): void
-  (e: 'toggle-show', value: boolean): void
 }>()
 
 // No need to expose anything - parent handles all batching
@@ -31,45 +29,6 @@ const paramMapByName = computed<Record<string, any>>(
 // Simple parameter update - emit immediately to parent for batching
 function updateByName(name: string, value: any) {
   emit('update-param', {name, value})
-}
-
-function handleToggleChange(target: HTMLInputElement) {
-  const isChecked = target.checked
-  emit('toggle-show', isChecked)
-
-  // Update c_mode based on toggle state
-  updateByName('c_mode', isChecked ? 1 : 0)
-
-  // Update challenge parameters based on toggle state
-  if (isChecked) {
-    // Use DRAHT team count as default if available, otherwise use min
-    const drahtTeams = eventStore.selectedEvent?.drahtTeamsChallenge || 0
-    const minTeams = paramMapByName.value['c_teams']?.min || 1
-    const defaultTeams = drahtTeams > 0 ? drahtTeams : minTeams
-
-    if (cTeams.value === 0) {
-      updateByName('c_teams', defaultTeams)
-    }
-
-    // Auto-select robot game table
-    const currentTables = rTables.value
-    if (currentTables === 0) {
-      // Check which table options are available for the team count
-      const variants = tableVariantsForTeams.value
-      if (variants.length === 1) {
-        // Only one option available, select it
-        updateByName('r_tables', variants[0])
-      } else if (variants.length > 1) {
-        // Multiple options available, choose 2 (as requested)
-        updateByName('r_tables', 2)
-      }
-    }
-  } else {
-    // Turn off challenge - clear team count and related parameters
-    updateByName('c_teams', 0)
-    updateByName('r_tables', 0)
-    updateByName('j_lanes', 0)
-  }
 }
 
 // Inputs
@@ -109,6 +68,28 @@ const jLanesProxy = computed<number>({
   set: (val) => updateByName('j_lanes', val)
 })
 
+function ensureJuryLanesForSelection(tablesOverride?: number) {
+  const t = cTeams.value
+  if (!t || !props.lanesIndex) return
+
+  const tables = tablesOverride ?? rTables.value
+  const allowed = tables
+      ? (props.lanesIndex.challenge[`${t}|${tables}`] || []).slice().sort((a: number, b: number) => a - b)
+      : allowedJuryLanes.value
+
+  if (!allowed.length) return
+
+  const curLane = Number(paramMapByName.value['j_lanes']?.value || 0)
+  if (!allowed.includes(curLane)) {
+    updateByName('j_lanes', allowed[0])
+  }
+}
+
+function selectTables(tables: number) {
+  updateByName('r_tables', tables)
+  ensureJuryLanesForSelection(tables)
+}
+
 // ---- Invariant keeper: keep a valid (tables, lanes) combo at all times ----
 watchEffect(() => {
   const t = cTeams.value
@@ -123,6 +104,7 @@ watchEffect(() => {
   // 1) If tables unset and exactly one variant exists -> snap to it
   if (currentTables === 0 && variants.length === 1) {
     updateByName('r_tables', variants[0])
+    ensureJuryLanesForSelection(variants[0])
     return
   }
 
@@ -130,16 +112,12 @@ watchEffect(() => {
   if (currentTables !== 0 && !variants.includes(currentTables)) {
     const nextTables = variants[0]
     updateByName('r_tables', nextTables)
-    const allowedForNext = (props.lanesIndex.challenge[`${t}|${nextTables}`] || []).slice().sort((a, b) => a - b)
-    if (allowedForNext.length) updateByName('j_lanes', allowedForNext[0])
+    ensureJuryLanesForSelection(nextTables)
     return
   }
 
   // 3) Ensure current lane is valid for the (possibly merged) allowed set
-  const curLane = Number(paramMapByName.value['j_lanes']?.value || 0)
-  if (allowedJuryLanes.value.length && !allowedJuryLanes.value.includes(curLane)) {
-    updateByName('j_lanes', allowedJuryLanes.value[0])
-  }
+  ensureJuryLanesForSelection()
 })
 
 // If allowed set changes (due to teams/tables), snap lanes if invalid
@@ -147,6 +125,15 @@ watch(allowedJuryLanes, (opts) => {
   const cur = Number(paramMapByName.value['j_lanes']?.value || 0)
   if (opts.length && !opts.includes(cur)) updateByName('j_lanes', opts[0])
 })
+
+// When lanes index arrives after Challenge was already enabled, fill missing j_lanes
+watch(
+    () => props.lanesIndex,
+    (idx) => {
+      if (!idx || !cTeams.value) return
+      ensureJuryLanesForSelection()
+    }
+)
 
 // Helpers
 const isLaneAllowed = (n: number) => allowedJuryLanes.value.includes(n)
@@ -162,22 +149,6 @@ const rTablesProxy = computed<number>({
   get: () => Number(paramMapByName.value['r_tables']?.value || 0),
   set: (val) => updateByName('r_tables', val)
 })
-
-// Key helpers for challenge (teams|tables)
-const cKey = computed(() => {
-  const t = cTeams.value
-  const tb = rTables.value || 0
-  return t ? `${t}|${tb}` : ''
-})
-
-// Is a lane recommended for the current selection?
-const isLaneRecommended = (lane: number) => {
-  if (!props.lanesIndex || !cKey.value) return false
-  // if tables not chosen yet (tb=0), recommendation is ambiguous; treat as false
-  if (!rTables.value) return false
-  const meta = props.lanesIndex.metaChallenge[cKey.value]
-  return !!meta?.[lane]?.recommended
-}
 
 // Note for the current EXACT combo from database data
 const currentLaneNote = computed<string | undefined>(() => {
@@ -226,13 +197,13 @@ const challengeTeamLimits = computed(() => {
 const getAlertLevelStyle = (level: number) => {
   switch (level) {
     case 1:
-      return 'border-2 border-green-500 ring-2 ring-green-500' // Recommended
+      return 'glass-choice--active' // recommended → program accent via ProgramSection
     case 2:
-      return 'border-2 border-orange-500 ring-2 ring-orange-500' // Risk
+      return 'border-amber-400 bg-amber-50 text-amber-900'
     case 3:
-      return 'border-2 border-red-500 ring-2 ring-red-500' // High risk
+      return 'border-red-400 bg-red-50 text-red-900'
     default:
-      return 'ring-1 ring-gray-500 border-gray-500' // OK
+      return 'glass-choice--active'
   }
 }
 
@@ -240,10 +211,6 @@ const getAlertLevelStyle = (level: number) => {
 const planTeams = computed(() => Number(paramMapByName.value['c_teams']?.value || 0))
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsChallenge || 0))
 const capacity = computed(() => Number(event.value?.drahtCapacityChallenge || 0))
-
-const showWarningOnSwitch = computed(() => {
-  return !props.showChallenge && registeredTeams.value > 0
-})
 
 const teamsPerJuryHint = computed(() => {
   const teams = Number(paramMapByName.value['c_teams']?.value ?? 0)
@@ -260,139 +227,143 @@ const teamsPerJuryHint = computed(() => {
 </script>
 
 <template>
-  <div class="p-4 border rounded shadow relative min-w-0">
-    <div class="flex items-center gap-2 mb-4 justify-between flex-wrap">
-      <div class="flex items-center gap-2 min-w-0 flex-1">
-        <img
-            :alt="programLogoAlt('C')"
-            :src="programLogoSrc('C')"
-            class="w-10 h-10 flex-shrink-0"
-        />
-        <h3 class="text-lg font-semibold capitalize break-words min-w-0">
-          <span class="italic">FIRST</span> LEGO League Challenge
-        </h3>
-      </div>
-
-      <label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
-        <input
-            :checked="showChallenge"
-            class="sr-only peer"
-            type="checkbox"
-            @change="handleToggleChange($event.target as HTMLInputElement)"
-        >
-        <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
-        <div
-            class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
-        <span v-if="showWarningOnSwitch" class="ml-2 w-2 h-2 bg-red-500 rounded-full"></span>
-      </label>
-
-    </div>
-
-    <template v-if="showChallenge">
-      <div class="mb-3">
-        <TeamSelectionCard
-            :plan-teams="planTeams"
-            :registered-teams="registeredTeams"
-            :capacity="capacity"
-            :min-teams="challengeTeamLimits.min"
-            :max-teams="challengeTeamLimits.max"
-            :on-update="(value) => updateByName('c_teams', value)"
-        />
-      </div>
+  <ProgramSection program="challenge">
+    <TeamPlanBar
+        :plan-teams="planTeams"
+        :registered-teams="registeredTeams"
+        :capacity="capacity"
+        :min-teams="challengeTeamLimits.min"
+        :max-teams="challengeTeamLimits.max"
+        :on-update="(value) => updateByName('c_teams', value)"
+    />
 
       <!-- Jury lanes -->
-      <div class="mb-1">
-        <div class="flex flex-wrap items-center gap-2">
-          <RadioGroup v-model="jLanesProxy" class="flex gap-1 flex-wrap">
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center gap-1 min-w-0">
+          <span class="glass-settings-label">{{ paramMapByName['j_lanes']?.ui_label }}</span>
+          <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
+        </div>
+        <div class="glass-settings-row">
+          <RadioGroup v-model="jLanesProxy" class="flex gap-1.5 flex-wrap shrink-0">
             <RadioGroupOption
                 v-for="n in lanePalette"
                 :key="'j_lane_' + n"
                 v-slot="{ checked, disabled }"
                 :disabled="!isLaneAllowed(n)"
                 :value="n"
+                as="template"
             >
               <button
                   :aria-disabled="disabled"
                   :class="[
-                    checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
-                    disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400',
-                    // highlight recommended
-                    (!disabled && isLaneRecommended(n)) ? 'after:absolute after:-top-2 ' +
-                     'after:-right-2 after:text-[10px] after:px-1.5 after:py-0.5 after:bg-emerald-100 ' +
-                      'after:text-emerald-700 after/rounded after:content-[\'Empfohlen\']' : ''
+                    'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                    checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
+                    disabled ? 'opacity-40 cursor-not-allowed' : '',
                   ]"
-                  class="relative px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                   focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                   type="button"
+                  @click="!disabled && updateByName('j_lanes', n)"
               >
                 {{ n }}
               </button>
             </RadioGroupOption>
           </RadioGroup>
-
-          <span class="text-sm font-medium whitespace-nowrap">Jurygruppe(n)</span>
-          <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
-          <span class="text-xs text-gray-500 italic break-words">
+          <span class="glass-settings-hint whitespace-nowrap">
             {{ teamsPerJuryHint }}
           </span>
         </div>
 
-        <p v-if="cTeams && allowedJuryLanes.length === 0" class="text-xs text-gray-500 mt-1">
+        <p v-if="cTeams && allowedJuryLanes.length === 0" class="glass-settings-hint mt-1.5 !not-italic">
           Keine gültigen Spurenzahlen für die aktuelle Teamanzahl.
         </p>
-
       </div>
 
 
       <!-- Robot game tables -->
-      <div class="mb-3">
-        <div class="flex flex-wrap items-center gap-2">
-          <RadioGroup v-model="rTablesProxy" class="flex gap-1 flex-wrap">
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center gap-1 min-w-0">
+          <span class="glass-settings-label">{{ paramMapByName['r_tables']?.ui_label }}</span>
+          <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
+        </div>
+        <div class="glass-settings-row">
+          <RadioGroup v-model="rTablesProxy" class="flex gap-1.5 flex-wrap">
             <RadioGroupOption
                 v-for="tb in [2,4]"
                 :key="'tables_' + tb"
                 v-slot="{ checked, disabled }"
                 :disabled="tableVariantsForTeams.length > 0 && !tableVariantsForTeams.includes(tb)"
                 :value="tb"
+                as="template"
             >
               <button
                   :aria-disabled="disabled"
                   :class="[
-                    checked ? getAlertLevelStyle(currentConfigAlertLevel) : '',
-                    disabled ? 'opacity-40 cursor-not-allowed' : 'hover:border-gray-400'
+                    'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
+                    checked ? (getAlertLevelStyle(currentConfigAlertLevel) || 'glass-choice--active') : '',
+                    disabled ? 'opacity-40 cursor-not-allowed' : '',
                   ]"
-                  class="px-2 py-1 rounded-md border text-sm transition whitespace-nowrap
-                       focus:outline-none focus:ring-2 focus:ring-offset-1 border-gray-300"
                   type="button"
-                  @click="!disabled && updateByName('r_tables', tb)"
+                  @click="!disabled && selectTables(tb)"
               >
                 {{ tb }}
               </button>
             </RadioGroupOption>
           </RadioGroup>
-          <span class="text-sm font-medium whitespace-nowrap">Robot-Game Tische</span>
-          <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>
         </div>
       </div>
 
       <!-- Alert message banner -->
-      <div v-if="currentLaneNote && currentConfigAlertLevel >= 1"
-           :class="{
-             'bg-green-100 border border-green-300 text-green-700': currentConfigAlertLevel === 1,
-             'bg-orange-100 border border-orange-300 text-orange-700': currentConfigAlertLevel === 2,
-             'bg-red-100 border border-red-300 text-red-700': currentConfigAlertLevel === 3
-           }"
-           class="mt-3 flex items-center gap-2 px-3 py-2 rounded text-sm font-medium">
-        <span>⚠</span>
+      <div
+          v-if="currentLaneNote && currentConfigAlertLevel >= 1"
+          class="program-note"
+          :class="{
+            'program-note--ok': currentConfigAlertLevel === 1,
+            'program-note--warn': currentConfigAlertLevel === 2,
+            'program-note--error': currentConfigAlertLevel === 3,
+          }"
+      >
+        <i
+            class="bi"
+            :class="currentConfigAlertLevel === 1 ? 'bi-check-circle' : 'bi-exclamation-triangle'"
+            aria-hidden="true"
+        />
         <span>{{ currentLaneNote }}</span>
       </div>
-
-    </template>
-
-    <!-- Message when challenge is disabled -->
-    <div v-else class="text-center py-8 text-gray-500">
-      <div class="text-lg font-medium mb-2"><span class="italic">FIRST</span> LEGO League Challenge ist deaktiviert</div>
-      <div class="text-sm">Aktiviere den Schalter oben rechts, um <span class="italic">FIRST</span> LEGO League Challenge-Einstellungen zu konfigurieren.</div>
-    </div>
-  </div>
+  </ProgramSection>
 </template>
+
+<style scoped>
+.program-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 0.15rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 550;
+  line-height: 1.35;
+}
+
+.program-note .bi {
+  margin-top: 0.1rem;
+  flex-shrink: 0;
+}
+
+.program-note--ok {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+  border: 1px solid color-mix(in srgb, #22c55e 28%, transparent);
+}
+
+.program-note--warn {
+  color: #9a3412;
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 30%, transparent);
+}
+
+.program-note--error {
+  color: #991b1b;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  border: 1px solid color-mix(in srgb, #ef4444 28%, transparent);
+}
+</style>

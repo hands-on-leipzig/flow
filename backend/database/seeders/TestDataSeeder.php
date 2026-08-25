@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use App\Models\RegionalPartner;
 use App\Models\Event;
+use App\Support\ProgramCatalog;
 
 class TestDataSeeder extends Seeder
 {
@@ -76,29 +77,31 @@ class TestDataSeeder extends Seeder
                 'name' => 'RPT Demo - Nur Explore',
                 'regional_partner' => $rp1->id,
                 'slug' => 'rpt-demo-nur-explore',
-                'event_explore' => 1001,
-                'event_challenge' => null,
+                'programs' => [['first_program' => 2, 'draht_id' => 1001]],
                 'days' => 30
             ],
             [
                 'name' => 'RPT Demo - Nur Challenge',
                 'regional_partner' => $rp1->id,
                 'slug' => 'rpt-demo-nur-challenge',
-                'event_explore' => null,
-                'event_challenge' => 1002,
+                'programs' => [['first_program' => 3, 'draht_id' => 1002]],
                 'days' => 45
             ],
             [
                 'name' => 'RPT Demo',
                 'regional_partner' => $rp2->id,
                 'slug' => 'rpt-demo',
-                'event_explore' => 1003,
-                'event_challenge' => 1004,
+                'programs' => [
+                    ['first_program' => 2, 'draht_id' => 1003],
+                    ['first_program' => 3, 'draht_id' => 1004],
+                ],
                 'days' => 60
             ]
         ];
         
         foreach ($events as $eventData) {
+            $programs = $eventData['programs'];
+            unset($eventData['programs']);
             $event = Event::updateOrCreate(
                 ['slug' => $eventData['slug']],
                 array_merge($eventData, [
@@ -108,6 +111,7 @@ class TestDataSeeder extends Seeder
                     'days' => 1
                 ])
             );
+            ProgramCatalog::sync($event, $programs);
             
             // Generate link and QR code if event was just created (no link exists)
             if (empty($event->link)) {

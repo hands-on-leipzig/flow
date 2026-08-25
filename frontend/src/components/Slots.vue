@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
+import {computed, nextTick, onActivated, onDeactivated, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
+import {usePlanCacheStore} from '@/stores/planCache'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {programNameForId} from '@/utils/eventPrograms'
+import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
+import {notifyPlanPreviewReload} from '@/utils/planPreviewSync'
+
+defineOptions({name: 'Slots'})
+
+const {previewReload} = useScheduleWorkspace()
 
 /** 0 = beide, 2 = Explore, 3 = Challenge — wie Freie Blöcke */
 type SlotBlock = {
@@ -85,9 +93,12 @@ function mapApiToSlot(b: Record<string, unknown>): SlotBlock {
 }
 
 const eventStore = useEventStore()
+const planCache = usePlanCacheStore()
 const event = computed(() => eventStore.selectedEvent)
 const planId = ref<number | null>(null)
 const loading = ref(true)
+/** Skip full reload when keep-alive reactivates the same event. */
+const loadedForEventId = ref<number | null>(null)
 const blocks = ref<SlotBlock[]>([])
 const selectedId = ref<number | null>(null)
 const teams = ref<TeamRow[]>([])
@@ -126,6 +137,10 @@ async function applySlotsToPlan() {
   try {
     const {data} = await axios.post(`/plans/${planId.value}/extra-blocks/slot/apply-to-plan`)
     applyResult.value = data
+    previewReload.value += 1
+    notifyPlanPreviewReload(planId.value)
+    // Refresh collision colors after plan write
+    await loadTeams()
   } catch (e: any) {
     applyError.value = e?.response?.data?.message || e?.message || 'Übernahme fehlgeschlagen'
   } finally {
@@ -134,8 +149,8 @@ async function applySlotsToPlan() {
 }
 
 function programIcon(fp: number): { src: string; alt: string } {
-  if (fp === 3) return {src: programLogoSrc('C'), alt: programLogoAlt('C')}
-  return {src: programLogoSrc('E'), alt: programLogoAlt('E')}
+  const name = programNameForId(event.value, fp)
+  return {src: programLogoSrc(name), alt: programLogoAlt(name)}
 }
 
 const editingTeamId = ref<string | null>(null)
@@ -227,7 +242,7 @@ function cancelEditStart(row: TeamRow) {
 
 async function loadPlan() {
   if (!event.value?.id) return
-  const {data} = await axios.get(`/plans/event/${event.value.id}`)
+  const data = await planCache.getPlan(event.value.id)
   planId.value = data?.id ?? null
 }
 
@@ -400,42 +415,68 @@ function handleClickOutside(e: MouseEvent) {
   }
 }
 
-onMounted(async () => {
-  loading.value = true
+async function ensureSlotsLoaded(force = false) {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
-  await loadPlan()
-  if (planId.value) {
-    await loadBlocks()
+  const eventId = event.value?.id ?? null
+  if (!eventId) {
+    loading.value = false
+    return
   }
-  await loadTeams()
-  loading.value = false
-  document.addEventListener('click', handleClickOutside)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
-
-watch(planId, async (id) => {
-  if (id) {
-    await loadBlocks()
-    await loadTeams()
-  }
-})
-
-watch(selectedId, () => {
-  if (!selectedId.value || !planId.value) {
-    loadTeams()
+  if (!force && loadedForEventId.value === eventId && planId.value) {
     return
   }
 
-  // Keep collision checks on fresh plan activities when switching slot blocks.
-  applySlotsToPlan().finally(() => {
-    tooltipActivities.value = {}
-    tooltipOpenKey.value = null
-    tooltipLoadingKey.value = null
-    loadTeams()
-  })
+  loading.value = true
+  try {
+    await loadPlan()
+    if (planId.value) await loadBlocks()
+    else teams.value = []
+    // teams load via selectedId watch after blocks select a slot
+    loadedForEventId.value = eventId
+  } finally {
+    loading.value = false
+  }
+}
+
+function bindOutsideClick() {
+  document.addEventListener('click', handleClickOutside)
+}
+
+function unbindOutsideClick() {
+  document.removeEventListener('click', handleClickOutside)
+}
+
+onMounted(() => {
+  void ensureSlotsLoaded()
+  bindOutsideClick()
+})
+
+onActivated(() => {
+  void ensureSlotsLoaded()
+  bindOutsideClick()
+})
+
+onDeactivated(unbindOutsideClick)
+onUnmounted(unbindOutsideClick)
+
+watch(
+  () => event.value?.id,
+  (id, prev) => {
+    if (id && id !== prev) {
+      loadedForEventId.value = null
+      selectedId.value = null
+      blocks.value = []
+      teams.value = []
+      void ensureSlotsLoaded(true)
+    }
+  }
+)
+
+watch(selectedId, () => {
+  tooltipActivities.value = {}
+  tooltipOpenKey.value = null
+  tooltipLoadingKey.value = null
+  void loadTeams()
 })
 
 async function patchBlock(block: SlotBlock, patch: Record<string, unknown>) {
@@ -486,17 +527,26 @@ function formatPlanTeamNo(n: number | null | undefined): string {
 }
 
 function collisionDotClass(status: TeamRow['collision_status']): string {
-  if (status === 'red') return 'bg-red-500'
-  if (status === 'yellow') return 'bg-yellow-400'
-  if (status === 'green') return 'bg-green-500'
-  return 'bg-gray-300'
+  if (status === 'red') return 'dot--red'
+  if (status === 'yellow') return 'dot--yellow'
+  if (status === 'green') return 'dot--green'
+  return ''
+}
+
+function programLogoClass(block: SlotBlock, program: 2 | 3): string[] {
+  const on =
+      block.first_program === program || block.first_program === 0
+  return [
+    'slots-block__logo',
+    !block.active ? 'is-off' : on ? 'is-on' : 'is-off',
+  ]
 }
 
 function lineStatusClass(status: TeamActivityLine['status']): string {
   if (status === 'red') return 'text-red-700'
   if (status === 'yellow') return 'text-yellow-700'
   if (status === 'green') return 'text-green-700'
-  return 'text-gray-700'
+  return 'text-[var(--color-text-muted)]'
 }
 
 function wallTimeHm(s: string | null): string {
@@ -593,442 +643,586 @@ async function onTeamStartChange(row: TeamRow, value: string) {
 }
 
 const inputUnderline =
-  'border-b border-gray-300 w-full focus:outline-none focus:border-blue-500'
+  'border-b border-[var(--color-border)] w-full focus:outline-none focus:border-blue-500'
 const inputTitle =
-  'text-sm md:text-md font-semibold border-b border-gray-300 flex-1 focus:outline-none focus:border-blue-500'
+  'text-sm md:text-md font-semibold border-b border-[var(--color-border)] flex-1 focus:outline-none focus:border-blue-500'
 </script>
 
 <template>
-  <div>
-    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-gray-600 min-h-[400px]">
+  <div class="slots-panel">
+    <div v-if="loading" class="flex items-center justify-center flex-col text-[var(--color-text-muted)] py-16">
       <LoaderFlow/>
       <LoaderText/>
     </div>
-    <div v-else-if="!planId" class="p-3 md:p-6 text-gray-600">Kein Plan für diese Veranstaltung.</div>
-    <div v-else class="p-3 md:p-6">
-      <div class="mb-4">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-6 items-start">
-          <div class="lg:col-span-1">
-            <button
-              type="button"
-              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-lg py-4 rounded-xl shadow disabled:opacity-60 disabled:cursor-not-allowed"
-              :disabled="applying"
-              @click="applySlotsToPlan"
-            >
-              <span v-if="!applying">Zuordnungen in den Plan übernehmen</span>
-              <span v-else>Übernehme…</span>
-            </button>
-          </div>
-          <div class="lg:col-span-2">
-            <p class="text-sm text-gray-700">
-              Alle bisherigen Zuordnungen werden aus dem Plan entfernt. Dann werden die Zuordnungen für
-              alle aktiven Aktivitäten pro Team in den Plan eingefügt.
-            </p>
-            <p class="text-sm text-red-700 mt-2">
-              Dabei wird <strong>nicht</strong> überprüft, ob das zu zeitlichen Konflikten für Teams führt!
-            </p>
-          </div>
-        </div>
+    <div v-else-if="!planId" class="text-[var(--color-text-muted)]">Kein Plan für diese Veranstaltung.</div>
 
-        <p v-if="applyError" class="mt-2 text-sm text-red-600">{{ applyError }}</p>
-        <p v-else-if="applyResult" class="mt-2 text-sm text-green-700">
-          OK: entfernt {{ applyResult.removed_groups }} Groups / {{ applyResult.removed_activities }} Activities.
-          erstellt: {{ applyResult.created_groups }} Groups / {{ applyResult.created_activities }} Activities
+    <div v-else class="slots-panel__stack">
+      <section class="slots-panel__apply">
+        <button
+            type="button"
+            class="glass-btn-accent w-full !text-sm !py-2.5 !px-3 disabled:opacity-60 disabled:cursor-not-allowed"
+            :disabled="applying"
+            @click="applySlotsToPlan"
+        >
+          <span v-if="!applying">Zuordnungen in den Plan übernehmen</span>
+          <span v-else>Übernehme…</span>
+        </button>
+        <p class="text-xs text-[var(--color-text-muted)] leading-snug">
+          Ersetzt bisherige Slot-Zuordnungen im Plan. Konflikte werden dabei nicht geprüft.
         </p>
-      </div>
+        <p v-if="applyError" class="glass-alert-error text-xs !py-2 !px-2.5">{{ applyError }}</p>
+        <p
+            v-else-if="applyResult"
+            class="text-xs rounded-[var(--radius)] border border-[var(--color-border)] px-2.5 py-2 text-[var(--color-text)]"
+            style="background: color-mix(in srgb, #16a34a 10%, var(--color-bg-muted));"
+        >
+          OK: −{{ applyResult.removed_groups }}/{{ applyResult.removed_activities }} ·
+          +{{ applyResult.created_groups }}/{{ applyResult.created_activities }}
+        </p>
+      </section>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-      <div class="lg:col-span-1 min-w-0">
-        <h2 class="text-lg md:text-xl font-bold mb-3 md:mb-4">Aktivitäten pro Team</h2>
+      <section class="slots-panel__section">
+        <h2 class="slots-panel__heading">Aktivitäten</h2>
         <p v-if="errorMsg" class="text-sm text-red-600 mb-2">{{ errorMsg }}</p>
 
-        <div class="space-y-3 md:space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
+        <div class="slots-panel__list">
           <div
-            v-for="block in blocks"
-            :key="block.id"
-            class="p-3 md:p-4 mb-2 border rounded shadow-sm md:shadow transition-all duration-200 cursor-pointer flex gap-3"
-            :class="[
-              selectedId === block.id ? 'ring-2 ring-blue-500 border-blue-400 shadow-md' : 'hover:shadow-md',
-              block.active ? 'bg-white border-gray-200' : 'opacity-60 bg-gray-50 border-gray-200',
-            ]"
-            @click="selectedId = block.id"
+              v-for="block in blocks"
+              :key="block.id"
+              class="slots-block"
+              :class="{
+                'slots-block--selected': selectedId === block.id,
+                'slots-block--off': !block.active,
+              }"
+              @click="selectedId = block.id"
           >
-            <div class="flex flex-col items-center gap-2 flex-shrink-0 pt-0.5" @click.stop>
+            <div class="slots-block__side" @click.stop>
               <ToggleSwitch
-                :model-value="block.active"
-                @update:model-value="toggleActiveBlock(block, $event)"
+                  :model-value="block.active"
+                  @update:model-value="toggleActiveBlock(block, $event)"
               />
               <button
-                type="button"
-                class="text-lg hover:text-red-800"
-                title="Slot-Block löschen"
-                @click="blockToDelete = block"
+                  type="button"
+                  class="slots-block__trash"
+                  title="Slot-Block löschen"
+                  @click="blockToDelete = block"
               >
-                <i style="color: grey" class="bi bi-trash-fill"/>
+                <i class="bi bi-trash-fill" aria-hidden="true"/>
               </button>
             </div>
-            <div class="flex-1 min-w-0">
+            <div class="slots-block__body">
               <input
-                v-model="block.name"
-                :disabled="!block.active"
-                :class="[
-                  inputTitle,
-                  'w-full mb-2',
-                  !block.active ? 'text-gray-400 cursor-not-allowed' : '',
-                ]"
-                placeholder="Name"
-                @click.stop
-                @blur="block.active && patchBlock(block, { name: block.name.trim() })"
+                  v-model="block.name"
+                  :disabled="!block.active"
+                  :class="[inputTitle, 'w-full', !block.active ? 'text-[var(--color-text-subtle)]' : '']"
+                  placeholder="Name"
+                  @click.stop
+                  @blur="block.active && patchBlock(block, { name: block.name.trim() })"
               />
               <input
-                v-model="block.description"
-                type="text"
-                :disabled="!block.active"
-                :class="[
-                  inputUnderline,
-                  'text-xs md:text-sm text-gray-700 mb-2',
-                  !block.active ? 'text-gray-400 cursor-not-allowed' : '',
-                ]"
-                placeholder="Beschreibung"
-                @click.stop
-                @blur="block.active && patchBlock(block, { description: block.description || null })"
+                  v-model="block.description"
+                  type="text"
+                  :disabled="!block.active"
+                  :class="[inputUnderline, 'text-xs text-[var(--color-text-muted)]', !block.active ? 'cursor-not-allowed' : '']"
+                  placeholder="Beschreibung"
+                  @click.stop
+                  @blur="block.active && patchBlock(block, { description: block.description || null })"
               />
               <input
-                v-model="block.link"
-                type="url"
-                :disabled="!block.active"
-                :class="[
-                  inputUnderline,
-                  'text-xs md:text-sm text-gray-700 mb-2',
-                  !block.active ? 'text-gray-400 cursor-not-allowed' : '',
-                ]"
-                placeholder="Link (URL)"
-                @click.stop
-                @blur="block.active && patchBlock(block, { link: block.link || null })"
+                  v-model="block.link"
+                  type="url"
+                  :disabled="!block.active"
+                  :class="[inputUnderline, 'text-xs text-[var(--color-text-muted)]', !block.active ? 'cursor-not-allowed' : '']"
+                  placeholder="Link (URL)"
+                  @click.stop
+                  @blur="block.active && patchBlock(block, { link: block.link || null })"
               />
-              <div class="flex flex-wrap items-center gap-4 mb-1">
-                <div class="flex items-center gap-2">
-                  <span class="text-xs text-gray-600 whitespace-nowrap">Dauer (Min.)</span>
+              <div class="slots-block__meta">
+                <label class="slots-block__duration">
+                  <span>Min.</span>
                   <input
-                    type="number"
-                    :value="block.duration"
-                    min="5"
-                    max="480"
-                    step="5"
-                    :disabled="!block.active"
-                    inputmode="none"
-                    class="w-[4.25rem] text-sm text-center border border-gray-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
-                    title="Nur mit Pfeiltasten oder Klick auf ▲▼ ändern (5-Min-Schritte)"
-                    @click.stop
-                    @keydown="onDurationKeydown"
-                    @paste.prevent
-                    @input="onDurationInputBlock(block, $event.target as HTMLInputElement)"
+                      type="number"
+                      :value="block.duration"
+                      min="5"
+                      max="480"
+                      step="5"
+                      :disabled="!block.active"
+                      inputmode="none"
+                      title="Nur mit Pfeiltasten ändern (5-Min-Schritte)"
+                      @click.stop
+                      @keydown="onDurationKeydown"
+                      @paste.prevent
+                      @input="onDurationInputBlock(block, $event.target as HTMLInputElement)"
                   />
-                </div>
-                <div class="flex justify-center gap-1">
+                </label>
+                <div class="slots-block__programs">
                   <img
-                    :src="programLogoSrc('E')"
-                    :alt="programLogoAlt('E')"
-                    :class="[
-                      'w-8 h-8 transition-all duration-200',
-                      !block.active
-                        ? 'opacity-30 grayscale cursor-not-allowed'
-                        : block.first_program === 2 || block.first_program === 0
-                          ? 'opacity-100 cursor-pointer hover:scale-110'
-                          : 'opacity-30 grayscale cursor-pointer hover:scale-110',
-                    ]"
-                    title="FIRST LEGO League Explore"
-                    @click.stop="toggleProgramBlock(block, 2)"
+                      :src="programLogoSrc('EXPLORE')"
+                      :alt="programLogoAlt('EXPLORE')"
+                      :class="programLogoClass(block, 2)"
+                      title="Explore"
+                      @click.stop="toggleProgramBlock(block, 2)"
                   />
                   <img
-                    :src="programLogoSrc('C')"
-                    :alt="programLogoAlt('C')"
-                    :class="[
-                      'w-8 h-8 transition-all duration-200',
-                      !block.active
-                        ? 'opacity-30 grayscale cursor-not-allowed'
-                        : block.first_program === 3 || block.first_program === 0
-                          ? 'opacity-100 cursor-pointer hover:scale-110'
-                          : 'opacity-30 grayscale cursor-pointer hover:scale-110',
-                    ]"
-                    title="FIRST LEGO League Challenge"
-                    @click.stop="toggleProgramBlock(block, 3)"
+                      :src="programLogoSrc('CHALLENGE')"
+                      :alt="programLogoAlt('CHALLENGE')"
+                      :class="programLogoClass(block, 3)"
+                      title="Challenge"
+                      @click.stop="toggleProgramBlock(block, 3)"
                   />
                 </div>
               </div>
-              <div v-if="savingBlockId === block.id" class="text-xs text-gray-500">Speichern…</div>
+              <div v-if="savingBlockId === block.id" class="text-xs text-[var(--color-text-subtle)]">Speichern…</div>
             </div>
           </div>
 
-          <div
-            ref="newSlotCardRef"
-            class="p-3 md:p-4 mb-2 border-dashed border-2 border-gray-300 rounded bg-gray-50 shadow-sm"
-            @click.stop
-          >
-            <div class="mb-2">
-              <input
+          <div ref="newSlotCardRef" class="slots-block slots-block--new" @click.stop>
+            <input
                 ref="newSlotInput"
                 v-model="newSlotName"
                 :disabled="isSavingNew"
                 :class="inputTitle + ' w-full'"
-                placeholder="Neu Aktivität pro Team"
+                placeholder="Neue Aktivität…"
                 @keyup.enter="createNewSlotBlock"
-              />
-              <p v-if="!newSlotName.trim()" class="text-xs text-gray-500 mt-1">
-                Titel der Aktivität (z.B. Führung, Mittagessen, Interview, …)
-              </p>
-            </div>
+            />
+            <p v-if="!newSlotName.trim()" class="text-xs text-[var(--color-text-subtle)] mt-1">
+              z.B. Führung, Mittagessen, Interview
+            </p>
             <transition name="fade">
-              <div v-if="newSlotName.trim().length > 0" class="space-y-2">
+              <div v-if="newSlotName.trim().length > 0" class="slots-block__body !p-0 mt-2 space-y-2">
                 <input
-                  v-model="newSlotDescription"
-                  :disabled="isSavingNew"
-                  type="text"
-                  :class="inputUnderline + ' text-xs md:text-sm text-gray-700'"
-                  placeholder="Beschreibung"
-                  @keyup.enter="createNewSlotBlock"
+                    v-model="newSlotDescription"
+                    :disabled="isSavingNew"
+                    type="text"
+                    :class="inputUnderline + ' text-xs text-[var(--color-text-muted)]'"
+                    placeholder="Beschreibung"
+                    @keyup.enter="createNewSlotBlock"
                 />
                 <input
-                  v-model="newSlotLink"
-                  :disabled="isSavingNew"
-                  type="url"
-                  :class="inputUnderline + ' text-xs md:text-sm text-gray-700'"
-                  placeholder="Link (URL)"
-                  @keyup.enter="createNewSlotBlock"
+                    v-model="newSlotLink"
+                    :disabled="isSavingNew"
+                    type="url"
+                    :class="inputUnderline + ' text-xs text-[var(--color-text-muted)]'"
+                    placeholder="Link (URL)"
+                    @keyup.enter="createNewSlotBlock"
                 />
-                <div class="flex flex-wrap items-center gap-4">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-600">Dauer (Min.)</span>
+                <div class="slots-block__meta">
+                  <label class="slots-block__duration">
+                    <span>Min.</span>
                     <input
-                      type="number"
-                      :value="newSlotDuration"
-                      min="5"
-                      max="480"
-                      step="5"
-                      :disabled="isSavingNew"
-                      inputmode="none"
-                      class="w-[4.25rem] text-sm text-center border border-gray-300 rounded px-1 py-0.5"
-                      @keydown="onDurationKeydown"
-                      @paste.prevent
-                      @input="onNewDurationChange($event.target as HTMLInputElement)"
+                        type="number"
+                        :value="newSlotDuration"
+                        min="5"
+                        max="480"
+                        step="5"
+                        :disabled="isSavingNew"
+                        inputmode="none"
+                        @keydown="onDurationKeydown"
+                        @paste.prevent
+                        @input="onNewDurationChange($event.target as HTMLInputElement)"
                     />
-                  </div>
-                  <div class="flex gap-1">
+                  </label>
+                  <div class="slots-block__programs">
                     <img
-                      :src="programLogoSrc('E')"
-                      :alt="programLogoAlt('E')"
-                      :class="[
-                        'w-8 h-8 transition-all cursor-pointer',
-                        newFirstProgram === 2 || newFirstProgram === 0
-                          ? 'opacity-100 hover:scale-110'
-                          : 'opacity-30 grayscale hover:scale-110',
-                      ]"
-                      title="Explore"
-                      @click="toggleProgramNew(2)"
+                        :src="programLogoSrc('EXPLORE')"
+                        :alt="programLogoAlt('EXPLORE')"
+                        :class="[
+                          'slots-block__logo',
+                          newFirstProgram === 2 || newFirstProgram === 0 ? 'is-on' : 'is-off',
+                        ]"
+                        title="Explore"
+                        @click="toggleProgramNew(2)"
                     />
                     <img
-                      :src="programLogoSrc('C')"
-                      :alt="programLogoAlt('C')"
-                      :class="[
-                        'w-8 h-8 transition-all cursor-pointer',
-                        newFirstProgram === 3 || newFirstProgram === 0
-                          ? 'opacity-100 hover:scale-110'
-                          : 'opacity-30 grayscale hover:scale-110',
-                      ]"
-                      title="Challenge"
-                      @click="toggleProgramNew(3)"
+                        :src="programLogoSrc('CHALLENGE')"
+                        :alt="programLogoAlt('CHALLENGE')"
+                        :class="[
+                          'slots-block__logo',
+                          newFirstProgram === 3 || newFirstProgram === 0 ? 'is-on' : 'is-off',
+                        ]"
+                        title="Challenge"
+                        @click="toggleProgramNew(3)"
                     />
                   </div>
                 </div>
-                <p class="text-xs text-gray-500">
-                  Klick außerhalb oder Enter legt den Block an.
-                </p>
+                <p class="text-xs text-[var(--color-text-subtle)]">Enter oder Klick außerhalb legt an.</p>
               </div>
             </transition>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div
-        class="lg:col-span-2 min-w-0"
-        :class="selectedBlock && !selectedBlock.active ? 'opacity-60' : ''"
+      <section
+          class="slots-panel__section"
+          :class="selectedBlock && !selectedBlock.active ? 'opacity-60' : ''"
       >
-        <div class="mb-3 md:mb-4 border-b border-gray-200 pb-2">
-          <h2 class="text-base md:text-xl font-bold text-gray-900">
-            {{
-              selectedBlock
-                ? `${selectedBlock.name} - Zuordnung der Teams`
-                : 'Teams'
-            }}
-          </h2>
-        </div>
+        <h2 class="slots-panel__heading">
+          {{ selectedBlock ? `Teams · ${selectedBlock.name}` : 'Teams' }}
+        </h2>
 
         <template v-if="selectedBlock">
-          <div class="mb-2 text-xs text-gray-600 flex flex-wrap items-center gap-4">
-            <span class="inline-flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
-              Konflikt mit anderer Aktivität des Teams
-            </span>
-            <span class="inline-flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span>
-              Abstand zu anderer Aktivität kleiner als Transferzeit (E:{{ eDurationTransfer }} Min, C: {{ cDurationTransfer }} Min)
-            </span>
-            <span class="inline-flex items-center gap-1.5">
-              <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
-              OK
-            </span>
+          <div class="slots-legend">
+            <span><i class="dot dot--red"/>Konflikt</span>
+            <span><i class="dot dot--yellow"/>Transfer &lt; E{{ eDurationTransfer }}/C{{ cDurationTransfer }}</span>
+            <span><i class="dot dot--green"/>OK</span>
           </div>
-          <div v-if="loadingTeams" class="flex items-center gap-2 text-gray-500 py-8">
+
+          <div v-if="loadingTeams" class="flex items-center gap-2 text-[var(--color-text-subtle)] py-6">
             <LoaderFlow class="scale-75"/>
             <span class="text-sm">Lade Teams…</span>
           </div>
-          <div v-else class="overflow-x-auto border rounded bg-white shadow-sm">
-            <table class="w-full table-fixed text-sm">
-              <colgroup>
-                <col class="w-[220px]" />
-                <col class="w-[42px]" />
-                <col class="w-[68px]" />
-                <col class="w-[72px]" />
-                <col />
-              </colgroup>
-              <tbody>
-                <tr
-                  v-for="row in teams"
-                  :key="row.row_key"
-                  class="border-b border-gray-100 hover:bg-gray-50/80"
-                >
-                  <td class="px-3 py-2 align-middle">
-                    <div class="flex items-center gap-2">
-                      <button
-                        v-if="!row.start && editingTeamId !== rowEditKey(row)"
-                        type="button"
-                        class="w-[180px] max-w-full text-left px-2 py-1 border border-gray-200 rounded bg-white hover:bg-gray-50 text-gray-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                        :disabled="!selectedBlock.active"
-                        title="Startzeit setzen"
-                        @click="beginEditStart(row)"
-                      >
-                        <span class="inline-flex items-center gap-2">
-                          <i class="bi bi-clock"></i>
-                          <span class="text-sm">Start setzen…</span>
-                        </span>
-                      </button>
 
-                      <input
-                        v-else
-                        type="datetime-local"
-                        :disabled="!selectedBlock.active"
-                        class="text-sm border-b border-gray-300 bg-transparent py-0.5 w-[180px] max-w-full focus:outline-none focus:border-blue-500 disabled:text-gray-400 disabled:cursor-not-allowed"
-                        :value="editingTeamId === rowEditKey(row) ? editingStartLocal : wallTimeToDatetimeLocal(row.start)"
-                        @change="onTeamStartChange(row, ($event.target as HTMLInputElement).value)"
-                        @blur="!row.start && cancelEditStart(row)"
-                      />
-
-                      <button
-                        v-if="row.start"
-                        type="button"
-                        class="text-lg hover:text-red-800 disabled:text-gray-300 disabled:cursor-not-allowed"
-                        :disabled="!selectedBlock.active"
-                        title="Zuweisung entfernen"
-                        @click="onTeamStartChange(row, '')"
-                      >
-                        <i class="bi bi-trash-fill"></i>
-                      </button>
-
-                      <span
-                        v-if="row.start"
-                        class="w-3 h-3 rounded-full inline-block"
-                        :class="collisionDotClass(row.collision_status ?? null)"
-                        :title="collisionTitle(row)"
-                      ></span>
-                    </div>
-                  </td>
-                  <td class="px-2 py-2 text-center">
-                    <img
-                      :src="programIcon(row.first_program).src"
-                      :alt="programIcon(row.first_program).alt"
-                      class="w-6 h-6 mx-auto"
-                    />
-                  </td>
-                  <td class="px-3 py-2 text-gray-800 font-medium tabular-nums">
+          <div v-else class="slots-teams">
+            <div
+                v-for="row in teams"
+                :key="row.row_key"
+                class="slots-team"
+            >
+              <div class="slots-team__top">
+                <img
+                    :src="programIcon(row.first_program).src"
+                    :alt="programIcon(row.first_program).alt"
+                    class="w-6 h-6 flex-shrink-0"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-baseline gap-2 min-w-0">
                     <div
-                      class="relative inline-block"
-                      @mouseenter="openTooltip(row)"
-                      @mouseleave="closeTooltip(row)"
+                        class="relative"
+                        @mouseenter="openTooltip(row)"
+                        @mouseleave="closeTooltip(row)"
                     >
                       <button
-                        type="button"
-                        class="underline decoration-dotted underline-offset-2 hover:text-blue-700"
-                        @focus="openTooltip(row)"
-                        @blur="closeTooltip(row)"
+                          type="button"
+                          class="font-semibold tabular-nums underline decoration-dotted underline-offset-2 hover:text-[var(--color-accent)]"
+                          @focus="openTooltip(row)"
+                          @blur="closeTooltip(row)"
                       >
                         {{ formatPlanTeamNo(row.team_number_plan) }}
                       </button>
-
                       <div
-                        v-if="tooltipOpenKey === row.row_key"
-                        class="absolute z-30 mt-2 w-[24rem] max-w-[70vw] rounded-lg border border-gray-200 bg-white shadow-xl p-3"
+                          v-if="tooltipOpenKey === row.row_key"
+                          class="slots-tooltip glass-dropdown"
                       >
-                        <p class="text-xs font-semibold text-gray-800 mb-2">
-                          Team-spezifische Aktivitäten · {{ formatTooltipDate(tooltipActivities[row.row_key]?.slot_date ?? null) }}
+                        <p class="text-xs font-semibold mb-2">
+                          Aktivitäten · {{ formatTooltipDate(tooltipActivities[row.row_key]?.slot_date ?? null) }}
                         </p>
-                        <p v-if="tooltipLoadingKey === row.row_key" class="text-xs text-gray-500">Lade...</p>
-                        <p v-else-if="!(tooltipActivities[row.row_key]?.activities?.length)" class="text-xs text-gray-500">
-                          Keine team-spezifischen Aktivitäten gefunden.
+                        <p v-if="tooltipLoadingKey === row.row_key" class="text-xs text-[var(--color-text-subtle)]">Lade…</p>
+                        <p
+                            v-else-if="!(tooltipActivities[row.row_key]?.activities?.length)"
+                            class="text-xs text-[var(--color-text-subtle)]"
+                        >
+                          Keine team-spezifischen Aktivitäten.
                         </p>
-                        <ul v-else class="space-y-1.5">
+                        <ul v-else class="space-y-1">
                           <li
-                            v-for="act in tooltipActivities[row.row_key].activities"
-                            :key="act.id"
-                            class="text-xs leading-snug"
-                            :class="lineStatusClass(act.status)"
+                              v-for="act in tooltipActivities[row.row_key].activities"
+                              :key="act.id"
+                              class="text-xs"
+                              :class="lineStatusClass(act.status)"
                           >
                             <span class="font-mono">{{ wallTimeHm(act.start) }}-{{ wallTimeHm(act.end) }}</span>
-                            <span> · {{ act.label }}</span>
+                            · {{ act.label }}
                           </li>
                         </ul>
                       </div>
                     </div>
-                  </td>
-                  <td class="px-3 py-2 text-gray-800">{{ row.team_number_hot ?? '–' }}</td>
-                  <td class="px-3 py-2 text-gray-900">{{ row.team_name }}</td>
-                </tr>
-              </tbody>
-            </table>
-            <p v-if="!teams.length" class="p-6 text-sm text-gray-500 text-center">
+                    <span class="text-xs text-[var(--color-text-muted)] tabular-nums">
+                      {{ row.team_number_hot ?? '–' }}
+                    </span>
+                  </div>
+                  <p class="text-sm truncate">{{ row.team_name }}</p>
+                </div>
+                <span
+                    v-if="row.start"
+                    class="dot"
+                    :class="collisionDotClass(row.collision_status ?? null)"
+                    :title="collisionTitle(row)"
+                />
+              </div>
+
+              <div class="slots-team__time">
+                <button
+                    v-if="!row.start && editingTeamId !== rowEditKey(row)"
+                    type="button"
+                    class="glass-btn-secondary w-full !justify-start !text-sm !py-1.5 !text-[var(--color-text-subtle)]"
+                    :disabled="!selectedBlock.active"
+                    @click="beginEditStart(row)"
+                >
+                  <i class="bi bi-clock" aria-hidden="true"/>
+                  Start setzen…
+                </button>
+                <template v-else>
+                  <input
+                      type="datetime-local"
+                      :disabled="!selectedBlock.active"
+                      class="slots-team__datetime"
+                      :value="editingTeamId === rowEditKey(row) ? editingStartLocal : wallTimeToDatetimeLocal(row.start)"
+                      @change="onTeamStartChange(row, ($event.target as HTMLInputElement).value)"
+                      @blur="!row.start && cancelEditStart(row)"
+                  />
+                  <button
+                      v-if="row.start"
+                      type="button"
+                      class="slots-block__trash"
+                      :disabled="!selectedBlock.active"
+                      title="Zuweisung entfernen"
+                      @click="onTeamStartChange(row, '')"
+                  >
+                    <i class="bi bi-trash-fill" aria-hidden="true"/>
+                  </button>
+                </template>
+              </div>
+            </div>
+
+            <p v-if="!teams.length" class="py-6 text-sm text-[var(--color-text-subtle)] text-center">
               Keine Teams im Plan für diesen Slot-Typ.
             </p>
           </div>
         </template>
-        <p v-else class="text-sm text-gray-500">Links einen Slot-Block auswählen.</p>
-      </div>
-    </div>
+        <p v-else class="text-sm text-[var(--color-text-subtle)]">Oben eine Aktivität auswählen.</p>
+      </section>
     </div>
 
     <ConfirmationModal
-      :show="!!blockToDelete"
-      type="danger"
-      title="Slot-Block löschen?"
-      :message="blockToDelete ? `„${blockToDelete.name}“ und alle Team-Zeiten dazu werden gelöscht.` : ''"
-      confirm-text="Löschen"
-      cancel-text="Abbrechen"
-      @confirm="confirmDelete"
-      @cancel="blockToDelete = null"
+        :show="!!blockToDelete"
+        type="danger"
+        title="Slot-Block löschen?"
+        :message="blockToDelete ? `„${blockToDelete.name}“ und alle Team-Zeiten dazu werden gelöscht.` : ''"
+        confirm-text="Löschen"
+        cancel-text="Abbrechen"
+        @confirm="confirmDelete"
+        @cancel="blockToDelete = null"
     />
 
     <ScheduleToast
-      ref="applyToast"
-      :is-generating="applying"
-      :countdown="null"
-      message="Plan wird aktualisiert"
+        ref="applyToast"
+        action="update"
+        :is-generating="applying"
+        :countdown="null"
+        message="Plan wird aktualisiert"
     />
   </div>
 </template>
 
 <style scoped>
+.slots-panel__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.slots-panel__apply {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.slots-panel__heading {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.slots-panel__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.slots-block {
+  display: flex;
+  gap: 0.65rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.slots-block--selected {
+  border-color: color-mix(in srgb, var(--color-accent) 70%, var(--color-border));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+.slots-block--off {
+  opacity: 0.62;
+}
+
+.slots-block--new {
+  display: block;
+  border-style: dashed;
+  cursor: default;
+}
+
+.slots-block__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+  padding-top: 0.1rem;
+}
+
+.slots-block__trash {
+  color: var(--color-text-subtle);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.15rem;
+}
+
+.slots-block__trash:hover:not(:disabled) {
+  color: #b91c1c;
+}
+
+.slots-block__trash:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.slots-block__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.slots-block__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-top: 0.15rem;
+}
+
+.slots-block__duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.slots-block__duration input {
+  width: 3.75rem;
+  text-align: center;
+  font-size: 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.15rem 0.25rem;
+  background: transparent;
+}
+
+.slots-block__programs {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.slots-block__logo {
+  width: 1.75rem;
+  height: 1.75rem;
+  cursor: pointer;
+  transition: opacity 0.12s ease, transform 0.12s ease, filter 0.12s ease;
+}
+
+.slots-block__logo.is-on {
+  opacity: 1;
+}
+
+.slots-block__logo.is-off {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.slots-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.85rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+}
+
+.slots-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  display: inline-block;
+  flex-shrink: 0;
+  background: #94a3b8;
+}
+
+.dot--red {
+  background: #ef4444;
+}
+
+.dot--yellow {
+  background: #facc15;
+}
+
+.dot--green {
+  background: #22c55e;
+}
+
+.slots-teams {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.slots-team {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 32%, transparent);
+  border-radius: 10px;
+}
+
+.slots-team__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.slots-team__time {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.slots-team__datetime {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.875rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.3rem 0.4rem;
+  background: transparent;
+}
+
+.slots-tooltip {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  width: min(20rem, 78vw);
+  padding: 0.65rem 0.75rem;
+}
+
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.15s ease;
 }
+
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;

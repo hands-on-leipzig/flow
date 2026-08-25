@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
-use App\Models\FirstProgram;
+use App\Support\ProgramCatalog;
 use App\Models\Team;
 use App\Models\TeamPlan;
 use App\Models\Plan;
@@ -32,21 +32,17 @@ class TeamController extends Controller
 
     public function index(Request $request, Event $event)
     {
-        $programName = $request->query('program');
+        $programParam = $request->query('program');
         $sortBy = $request->query('sort', 'name'); // 'name' or 'plan_order'
 
-        if (!in_array($programName, ['explore', 'challenge'])) {
-            return response()->json(['error' => 'Invalid program'], 400);
+        $program = ProgramCatalog::resolve($programParam);
+
+        if (! $program) {
+            return response()->json(['error' => 'Program not found'], 404);
         }
 
         if (!in_array($sortBy, ['name', 'plan_order'])) {
             return response()->json(['error' => 'Invalid sort parameter'], 400);
-        }
-
-        $program = FirstProgram::where('name', $programName)->first();
-
-        if (!$program) {
-            return response()->json(['error' => 'Program not found'], 404);
         }
 
         // Get teams with their plan order
@@ -73,7 +69,7 @@ class TeamController extends Controller
         $teams = $query->get();
 
         // If Explore teams, include e1_teams and e_mode for frontend to determine morning/afternoon split
-        if ($programName === 'explore') {
+        if (strcasecmp((string) $program->name, 'EXPLORE') === 0) {
             $plan = Plan::where('event', $event->id)->first();
             if ($plan) {
                 $e1Teams = DB::table('plan_param_value')
@@ -149,7 +145,10 @@ class TeamController extends Controller
 
     public function create(Request $request)
     {
-        $program = FirstProgram::where('name', $request->get('first_program'))->first();
+        $program = ProgramCatalog::resolve($request->get('first_program'));
+        if (! $program) {
+            return response()->json(['error' => 'Program not found'], 404);
+        }
         $team = new Team();
         $team->first_program = $program->id;
         $team->name = $request->get('name');
@@ -186,13 +185,13 @@ class TeamController extends Controller
     public function updateOrder(Request $request, Event $event)
     {
         $validated = $request->validate([
-            'program' => 'required|in:explore,challenge',
+            'program' => 'required|string',
             'order' => 'required|array',
             'order.*.team_id' => 'required|integer|exists:team,id',
             'order.*.order' => 'required|integer|min:1'
         ]);
 
-        $program = FirstProgram::where('name', $validated['program'])->first();
+        $program = ProgramCatalog::resolve($validated['program']);
         if (!$program) {
             return response()->json(['error' => 'Program not found'], 404);
         }

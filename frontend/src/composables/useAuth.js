@@ -3,29 +3,42 @@ import keycloak from '@/keycloak.js'
 
 const userRoles = ref([])
 
+function collectRolesFromToken(tokenParsed) {
+  const roles = []
+  const clientRoles = tokenParsed?.resource_access?.flow?.roles
+  if (Array.isArray(clientRoles)) {
+    roles.push(...clientRoles)
+  }
+  const realmRoles = tokenParsed?.realm_access?.roles
+  if (Array.isArray(realmRoles)) {
+    roles.push(...realmRoles)
+  }
+  return [...new Set(roles)]
+}
+
 // Initialize user roles from Keycloak token
 function initializeUserRoles() {
   if (keycloak.authenticated && keycloak.tokenParsed) {
-    // Handle both plain objects and stdClass objects
-    let roles = []
-    if (keycloak.tokenParsed.resource_access?.flow?.roles) {
-      roles = Array.isArray(keycloak.tokenParsed.resource_access.flow.roles) 
-        ? keycloak.tokenParsed.resource_access.flow.roles 
-        : []
-    }
-    
-    userRoles.value = roles
+    userRoles.value = collectRolesFromToken(keycloak.tokenParsed)
   }
 }
 
-// Check if user has admin role
-// NOTE: This is for UI convenience only - actual authorization happens on the server
+// NOTE: UI convenience only — actual authorization happens on the server
 const isAdmin = computed(() => {
   return userRoles.value.includes('flow-admin') || userRoles.value.includes('flow_admin')
 })
 
-// Check if user has specific role
-// NOTE: This is for UI convenience only - actual authorization happens on the server
+// Intended production gate role (Keycloak groups like Regionalpartner grant this)
+const isFlowUser = computed(() => {
+  return (
+    userRoles.value.includes('flow_user') ||
+    userRoles.value.includes('flow-user') ||
+    userRoles.value.includes('regionalpartner') || // legacy
+    userRoles.value.includes('Geschäftsstelle MA') || // legacy
+    isAdmin.value
+  )
+})
+
 function hasRole(role) {
   return userRoles.value.includes(role)
 }
@@ -55,6 +68,7 @@ export function useAuth() {
   return {
     userRoles: computed(() => userRoles.value),
     isAdmin,
+    isFlowUser,
     hasRole,
     initializeUserRoles
   }

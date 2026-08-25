@@ -32,8 +32,6 @@
             }
             return 'data:' . $mime . ';base64,' . base64_encode($data);
         };
-        $exploreIcon = $toDataUri(public_path('flow/fll_explore_v.png'));
-        $challengeIcon = $toDataUri(public_path('flow/fll_challenge_v.png'));
     @endphp
     @if(empty($slots ?? []))
         <div class="header">
@@ -94,10 +92,11 @@
                                     <tr>
                                         <td>{{ $row['start_time'] }}</td>
                                         <td>
-                                            @if(($row['first_program'] ?? 0) === 2 && !empty($exploreIcon))
-                                                <img src="{{ $exploreIcon }}" alt="Explore" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
-                                            @elseif(($row['first_program'] ?? 0) === 3 && !empty($challengeIcon))
-                                                <img src="{{ $challengeIcon }}" alt="Challenge" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
+                                            @php
+                                                $slotIcon = $toDataUri(\App\Support\ProgramCatalog::logoPath($row['first_program'] ?? null, 'v'));
+                                            @endphp
+                                            @if(!empty($slotIcon))
+                                                <img src="{{ $slotIcon }}" alt="" style="height:14px; width:auto; vertical-align:middle; margin-right:6px;">
                                             @endif
                                             {!! \App\Helpers\PdfHelper::formatTeamNameWithNoshow($row['team_label'] ?? '–', $row['team_noshow'] ?? false) !!}
                                         </td>

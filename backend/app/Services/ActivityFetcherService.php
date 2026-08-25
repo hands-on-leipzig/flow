@@ -53,8 +53,8 @@ class ActivityFetcherService
         // Free-Blocks filtern (optional)
         if (! $freeBlocks) {
             $q->where(function ($sub) {
-                $sub->whereNull('a.extra_block')   // normale Activities
-                    ->orWhereNotNull('peb.insert_point'); // Extra-Blocks mit insert_point
+                $sub->whereNull('a.extra_block')
+                    ->orWhere('peb.type', '<>', 'free');
             });
         }
 
@@ -188,7 +188,7 @@ class ActivityFetcherService
             a.table_2 as table_2,
             a.table_2_team as table_2_team,
             a.extra_block as extra_block_id,
-            peb.insert_point as extra_block_insert_point,
+            peb.type as extra_block_type,
             CASE a.table_1
                 WHEN 1 THEN CONCAT("Tisch ", COALESCE(te1.table_name, "1"))
                 WHEN 3 THEN CONCAT("Tisch ", COALESCE(te3.table_name, "3"))
@@ -224,6 +224,7 @@ class ActivityFetcherService
                 ELSE atd.name
             END                        as activity_atd_name,
                 atd.code                   as activity_type_code,
+                atd.presence               as activity_presence,
                 atd.first_program          as activity_first_program_id,
                 fp.name                    as activity_first_program_name,
                 CASE 
@@ -250,6 +251,7 @@ class ActivityFetcherService
                 ag_at.id                   as activity_type_id,
                 ag_at.name                 as activity_type_name,
                 ag_atd.code                as group_activity_type_code,
+                ag_atd.presence            as group_presence,
                 a.extra_block as is_extra_block,
                 ag.activity_type_detail as activity_type_detail,
                 ag.explore_group           as group_explore_group,

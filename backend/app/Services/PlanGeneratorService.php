@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
 use App\Support\Helpers;
 use App\Jobs\GeneratePlanJob;
 use App\Enums\FirstProgram;
@@ -17,6 +18,7 @@ class PlanGeneratorService
     {
         // Parameter laden
         $params = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $params);
 
         // --- Finale validation ---
         // Finale events (level 3) require exactly 25 Challenge teams
@@ -38,11 +40,22 @@ class PlanGeneratorService
             // There is only one supported configuration
         } else {
             // --- Challenge prüfen (non-finale events) ---
-            if ($params->get("c_teams") > 0) {
-                $cTeams = $params->get("c_teams");
+            if ($presence->challengeShapedOn(FirstProgram::CHALLENGE->value)) {
+                $cTeams = (int) ($params->get('c_teams') ?? 0);
                 $jLanes = $params->get("j_lanes");
                 $rTables = $params->get("r_tables");
-                
+
+                if ($jLanes === null || $jLanes === '') {
+                    return [
+                        'supported' => false,
+                        'error' => 'Challenge-Konfiguration unvollständig',
+                        'details' => 'Jury-Spuren (j_lanes) sind nicht gesetzt. Bitte wähle eine gültige Spuranzahl.',
+                    ];
+                }
+
+                $jLanes = (int) $jLanes;
+                $rTables = $rTables === null || $rTables === '' ? null : (int) $rTables;
+
                 $ok = $this->checkSupportedPlan(
                     FirstProgram::CHALLENGE->value,
                     $cTeams,
@@ -60,62 +73,124 @@ class PlanGeneratorService
                     return [
                         'supported' => false,
                         'error' => 'Challenge-Konfiguration wird nicht unterstützt',
-                        'details' => "Die Kombination aus Challenge-Teams ({$cTeams}), Spuren ({$jLanes}) und Tischen ({$rTables}) wird nicht unterstützt. Bitte überprüfe diese Parameter."
+                        'details' => "Die Kombination aus Challenge-Teams ({$cTeams}), Spuren ({$jLanes}) und Tischen (".($rTables ?? '–').") wird nicht unterstützt. Bitte überprüfe diese Parameter."
                     ];
                 }
             }
         }
 
         // --- Explore prüfen ---
+        if ($presence->exploreOn()) {
+            if ((int) ($params->get('e1_teams') ?? 0) > 0) {
+                $e1Teams = (int) ($params->get('e1_teams') ?? 0);
+                $e1Lanes = $params->get('e1_lanes');
 
-        if ($params->get("e1_teams") > 0) {
-            $e1Teams = $params->get("e1_teams");
-            $e1Lanes = $params->get("e1_lanes");
-            
-            $ok = $this->checkSupportedPlan(
-                FirstProgram::EXPLORE->value,
-                $e1Teams,
-                $e1Lanes
-            );
+                if ($e1Lanes === null || $e1Lanes === '') {
+                    return [
+                        'supported' => false,
+                        'error' => 'Explore Vormittag-Konfiguration unvollständig',
+                        'details' => 'Explore-Spuren am Vormittag (e1_lanes) sind nicht gesetzt. Bitte wähle eine gültige Spuranzahl.',
+                    ];
+                }
 
-            if (!$ok) {
-                Log::warning('Unsupported Explore plan', [
-                    'plan_id' => $planId,
-                    'teams' => $e1Teams,
-                    'lanes' => $e1Lanes,
-                ]);
-                return [
-                    'supported' => false,
-                    'error' => 'Explore Vormittag-Konfiguration wird nicht unterstützt',
-                    'details' => "Die Kombination aus Explore Vormittag-Teams ({$e1Teams}) und Spuren ({$e1Lanes}) wird nicht unterstützt. Bitte überprüfe diese Parameter."
-                ];
+                $e1Lanes = (int) $e1Lanes;
+
+                $ok = $this->checkSupportedPlan(
+                    FirstProgram::EXPLORE->value,
+                    $e1Teams,
+                    $e1Lanes
+                );
+
+                if (! $ok) {
+                    Log::warning('Unsupported Explore plan', [
+                        'plan_id' => $planId,
+                        'teams' => $e1Teams,
+                        'lanes' => $e1Lanes,
+                    ]);
+
+                    return [
+                        'supported' => false,
+                        'error' => 'Explore Vormittag-Konfiguration wird nicht unterstützt',
+                        'details' => "Die Kombination aus Explore Vormittag-Teams ({$e1Teams}) und Spuren ({$e1Lanes}) wird nicht unterstützt. Bitte überprüfe diese Parameter.",
+                    ];
+                }
+            }
+
+            if ((int) ($params->get('e2_teams') ?? 0) > 0) {
+                $e2Teams = (int) ($params->get('e2_teams') ?? 0);
+                $e2Lanes = $params->get('e2_lanes');
+
+                if ($e2Lanes === null || $e2Lanes === '') {
+                    return [
+                        'supported' => false,
+                        'error' => 'Explore Nachmittag-Konfiguration unvollständig',
+                        'details' => 'Explore-Spuren am Nachmittag (e2_lanes) sind nicht gesetzt. Bitte wähle eine gültige Spuranzahl.',
+                    ];
+                }
+
+                $e2Lanes = (int) $e2Lanes;
+
+                $ok = $this->checkSupportedPlan(
+                    FirstProgram::EXPLORE->value,
+                    $e2Teams,
+                    $e2Lanes
+                );
+
+                if (! $ok) {
+                    Log::warning('Unsupported Explore plan', [
+                        'plan_id' => $planId,
+                        'teams' => $e2Teams,
+                        'lanes' => $e2Lanes,
+                    ]);
+
+                    return [
+                        'supported' => false,
+                        'error' => 'Explore Nachmittag-Konfiguration wird nicht unterstützt',
+                        'details' => "Die Kombination aus Explore Nachmittag-Teams ({$e2Teams}) und Spuren ({$e2Lanes}) wird nicht unterstützt. Bitte überprüfe diese Parameter.",
+                    ];
+                }
             }
         }
 
-        if ($params->get("e2_teams") > 0) {
-            $e2Teams = $params->get("e2_teams");
-            $e2Lanes = $params->get("e2_lanes");
-            
-            $ok = $this->checkSupportedPlan(
-                FirstProgram::EXPLORE->value,
-                $e2Teams,
-                $e2Lanes
-            );
+        // --- Future 8+ prüfen ---
+        if ($presence->challengeShapedOn(FirstProgram::FUTURE_8->value)) {
+            $f8Teams = (int) ($params->get('f8_teams') ?? 0);
+            $f8Lanes = $params->get('f8_lanes');
+            $f8Fields = $params->get('f8_fields');
 
-            if (!$ok) {
-                Log::warning('Unsupported Explore plan', [
-                    'plan_id' => $planId,
-                    'teams' => $e2Teams,
-                    'lanes' => $e2Lanes,
-                ]);
+            if ($f8Lanes === null || $f8Lanes === '') {
                 return [
                     'supported' => false,
-                    'error' => 'Explore Nachmittag-Konfiguration wird nicht unterstützt',
-                    'details' => "Die Kombination aus Explore Nachmittag-Teams ({$e2Teams}) und Spuren ({$e2Lanes}) wird nicht unterstützt. Bitte überprüfe diese Parameter."
+                    'error' => 'Future 8+-Konfiguration unvollständig',
+                    'details' => 'Jury-Spuren (f8_lanes) sind nicht gesetzt. Bitte wähle eine gültige Spuranzahl.',
+                ];
+            }
+
+            $f8Lanes = (int) $f8Lanes;
+            $f8Fields = $f8Fields === null || $f8Fields === '' ? null : (int) $f8Fields;
+
+            $ok = $this->checkSupportedPlan(
+                FirstProgram::FUTURE_8->value,
+                $f8Teams,
+                $f8Lanes,
+                $f8Fields
+            );
+
+            if (! $ok) {
+                Log::warning('Unsupported Future 8+ plan', [
+                    'plan_id' => $planId,
+                    'teams' => $f8Teams,
+                    'lanes' => $f8Lanes,
+                    'fields' => $f8Fields,
+                ]);
+
+                return [
+                    'supported' => false,
+                    'error' => 'Future 8+-Konfiguration wird nicht unterstützt',
+                    'details' => 'Die Kombination aus Future 8+-Teams ('.$f8Teams.'), Spuren ('.$f8Lanes.') und Feldern ('.($f8Fields ?? '–').') wird nicht unterstützt. Bitte überprüfe diese Parameter.',
                 ];
             }
         }
-
 
         return ['supported' => true];
     }
@@ -231,8 +306,8 @@ class PlanGeneratorService
             }
 
             // Schritt 3: Neue FreeActivities einsetzen
-            $writer = new \App\Core\ActivityWriter($planId);
             $params = \App\Support\PlanParameter::load($planId);
+            $writer = new \App\Core\ActivityWriter($planId, $params);
             (new \App\Core\FreeBlockGenerator($writer, $params))->insertFreeActivities();
 
             // Set generator status to DONE

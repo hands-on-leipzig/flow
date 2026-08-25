@@ -89,15 +89,6 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     <th style="width: 10%; background-color: #f8f9fa; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold;">Zeit</th>';
         
         // Dynamic column headers with merged cells
-        $columnColors = [
-            'Explore' => '#27ae60',
-            'Challenge' => '#e74c3c', 
-            'Live Challenge' => '#8e44ad',
-            'Robot-Game' => '#f39c12',
-            'Allgemein' => '#95a5a6'
-        ];
-        
-        // Calculate column widths dynamically
         // Zeit gets 10%, remaining 90% is divided among actual HTML columns
         $actualHtmlColumns = 0;
         foreach($columnNames as $columnName) {
@@ -107,12 +98,16 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $actualHtmlColumns += 2; // Merged cell (Allgemein-2 + Explore)
             } elseif ($columnName === 'Allgemein-3') {
                 $actualHtmlColumns += 2; // Merged cell (Allgemein-3 + Challenge)
+            } elseif ($columnName === 'Allgemein-4') {
+                $actualHtmlColumns += 2; // Merged cell (Allgemein-4 + Future 8+)
             } elseif ($columnName === 'Robot-Game') {
                 $actualHtmlColumns += 1; // Single column
             } elseif ($columnName === 'Live Challenge') {
                 $actualHtmlColumns += 1; // Single column
+            } elseif ($columnName === 'Game') {
+                $actualHtmlColumns += 1; // Single column
             }
-            // Skip Explore and Challenge as they are merged
+            // Skip Explore, Challenge, Future 8+ as they are merged
         }
         
         $remainingWidth = 90;
@@ -130,8 +125,9 @@ foreach($eventsByDay as $dayKey => $dayData) {
             return 'data:' . $mime . ';base64,' . base64_encode($data);
         };
         $hotHeaderLogo = $toDataUri(public_path('flow/hot.png'));
-        $exploreHeaderLogo = $toDataUri(public_path('flow/fll_explore_h.png'));
-        $challengeHeaderLogo = $toDataUri(public_path('flow/fll_challenge_h.png'));
+        $exploreHeaderLogo = $toDataUri(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'h'));
+        $challengeHeaderLogo = $toDataUri(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'h'));
+        $future8HeaderLogo = $toDataUri(\App\Support\ProgramCatalog::logoPath('FUTURE_8', 'h'));
         
         
         // Check if columns exist to determine merge behavior
@@ -141,10 +137,14 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $hasChallenge = in_array('Challenge', $columnNames);
         $hasRobotGame = in_array('Robot-Game', $columnNames);
         $hasLiveChallenge = in_array('Live Challenge', $columnNames);
+        $hasAllgemein4 = in_array('Allgemein-4', $columnNames);
+        $hasFuture8 = in_array('Future 8+', $columnNames);
+        $hasGame = in_array('Game', $columnNames);
         
         // Count columns for each merged group
         $exploreColumns = 0;
         $challengeColumns = 0;
+        $future8Columns = 0;
         
         if ($hasAllgemein2) $exploreColumns++;
         if ($hasExplore) $exploreColumns++;
@@ -153,15 +153,15 @@ foreach($eventsByDay as $dayKey => $dayData) {
         if ($hasChallenge) $challengeColumns++;
         if ($hasRobotGame) $challengeColumns++;
         if ($hasLiveChallenge) $challengeColumns++;
+
+        if ($hasAllgemein4) $future8Columns++;
+        if ($hasFuture8) $future8Columns++;
+        if ($hasGame) $future8Columns++;
         
         // Generate headers with conditional merging
         foreach($columnNames as $columnName) {
             $displayName = $columnName;
-            $baseColor = $displayName;
-            if (strpos($displayName, 'Allgemein-') === 0) {
-                $baseColor = 'Allgemein';
-            }
-            $color = $columnColors[$baseColor] ?? '#95a5a6';
+            $color = \App\Support\OverviewPlanStyle::headerColor($columnName);
             
             if ($columnName === 'Allgemein') {
                 // Logo only
@@ -216,6 +216,28 @@ foreach($eventsByDay as $dayKey => $dayData) {
             } elseif ($columnName === 'Live Challenge') {
                 // Live Challenge gets text only if not merged with other columns
                 if (!$hasAllgemein3 && !$hasChallenge && !$hasRobotGame) {
+                    $headerContent = htmlspecialchars($displayName);
+                    $contentHtml .= '
+                        <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                }
+            } elseif ($columnName === 'Allgemein-4') {
+                if ($hasAllgemein4 && $future8Columns > 1) {
+                    $headerContent = $future8HeaderLogo ? '<img src="' . $future8HeaderLogo . '" style="height: 20px; width: auto;">' : htmlspecialchars($displayName);
+                    $contentHtml .= '
+                        <th colspan="' . $future8Columns . '" style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                } elseif ($hasAllgemein4) {
+                    $headerContent = htmlspecialchars($displayName);
+                    $contentHtml .= '
+                        <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                }
+            } elseif ($columnName === 'Future 8+') {
+                if (!$hasAllgemein4 && !$hasGame) {
+                    $headerContent = $future8HeaderLogo ? '<img src="' . $future8HeaderLogo . '" style="height: 20px; width: auto;">' : htmlspecialchars($displayName);
+                    $contentHtml .= '
+                        <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
+                }
+            } elseif ($columnName === 'Game') {
+                if (!$hasAllgemein4 && !$hasFuture8) {
                     $headerContent = htmlspecialchars($displayName);
                     $contentHtml .= '
                         <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
@@ -311,17 +333,8 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 // Mark this column as occupied for the next N-1 rows
                 $occupiedCells[$columnName] = $index + $rowspan;
                 
-                // Get color based on the event's actual overview_plan_column, not the column name
-                $eventColumn = $event['group_overview_plan_column'] ?? 'Allgemein';
-                $columnColors = [
-                    'Explore' => ['bg' => '#d5f4e6', 'border' => '#27ae60'],
-                    'Challenge' => ['bg' => '#fdeaea', 'border' => '#e74c3c'],
-                    'Live Challenge' => ['bg' => '#f4e6f7', 'border' => '#8e44ad'],
-                    'Robot-Game' => ['bg' => '#fef5e7', 'border' => '#f39c12'],
-                    'Allgemein' => ['bg' => '#f5f5f5', 'border' => '#95a5a6']
-                ];
-                
-                $colors = $columnColors[$eventColumn] ?? ['bg' => '#f5f5f5', 'border' => '#95a5a6'];
+                $eventColumn = $event['assigned_column'] ?? $event['group_overview_plan_column'] ?? 'Allgemein';
+                $colors = \App\Support\OverviewPlanStyle::cellColors($eventColumn);
                 
                 $startTime = $event['earliest_start']->format('H:i');
                 $endTime = $event['latest_end']->format('H:i');

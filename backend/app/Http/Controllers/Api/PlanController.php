@@ -9,7 +9,9 @@ use App\Models\PlanParamValue;
 use App\Models\Team;
 use App\Models\TeamPlan;
 use App\Enums\FirstProgram;
+use App\Services\AfternoonBlockOrderService;
 use App\Services\EventAttentionService;
+use App\Support\ProgramCatalog;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -51,17 +53,19 @@ class PlanController extends Controller
         // Get DRAHT team counts for this event
         $event = \App\Models\Event::find($eventId);
 
-        $e_teams = 6; // Default
-        $c_teams = 8; // Default
+        $e_teams = 0;
+        $c_teams = 0;
+        $f8_teams = 0;
 
         if ($event) {
+            $enrolledExplore = 0;
+            $enrolledChallenge = 0;
+
             $drahtController = new \App\Http\Controllers\Api\DrahtController();
             $drahtData = $drahtController->show($event);
             $data = $drahtData->getData(true);
 
-
             if ($data) {
-                $enrolledExplore = 0;
                 if (array_key_exists('teams_explore_count', $data)) {
                     $enrolledExplore = (int)$data['teams_explore_count'];
                 } elseif (isset($data['teams_explore'])) {
@@ -72,15 +76,6 @@ class PlanController extends Controller
                     }
                 }
 
-                $plannedExplore = $data['capacity_explore'] ?? null;
-
-                if ($enrolledExplore > 0) {
-                    $e_teams = $enrolledExplore;
-                } elseif (!is_null($plannedExplore)) {
-                    $e_teams = (int)$plannedExplore;
-                }
-
-                $enrolledChallenge = 0;
                 if (array_key_exists('teams_challenge_count', $data)) {
                     $enrolledChallenge = (int)$data['teams_challenge_count'];
                 } elseif (isset($data['teams_challenge'])) {
@@ -90,14 +85,16 @@ class PlanController extends Controller
                         $enrolledChallenge = (int)$data['teams_challenge'];
                     }
                 }
+            }
 
-                $plannedChallenge = $data['capacity_challenge'] ?? null;
-
-                if ($enrolledChallenge > 0) {
-                    $c_teams = $enrolledChallenge;
-                } elseif (!is_null($plannedChallenge)) {
-                    $c_teams = (int)$plannedChallenge;
-                }
+            if (ProgramCatalog::hasExplore($event)) {
+                $e_teams = max(6, $enrolledExplore);
+            }
+            if (ProgramCatalog::hasChallenge($event)) {
+                $c_teams = max(8, $enrolledChallenge);
+            }
+            if (ProgramCatalog::hasFuture($event)) {
+                $f8_teams = 8;
             }
         }
 
@@ -108,11 +105,11 @@ class PlanController extends Controller
 
         if ($e_teams > 0) {
 
-            if ($c_teams == 0) {
-                // e_mode standlone morning
+            if ($c_teams == 0 && $f8_teams == 0) {
+                // e_mode standalone morning
                 $e_mode = 3;
             } else {
-                // e_mode integrated morning
+                // e_mode integrated morning (Challenge or Future 8+ is the lead)
                 $e_mode = 1;
             }
 
@@ -147,46 +144,72 @@ class PlanController extends Controller
 
         }
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 7],
-            ['set_value' => $e_mode]);
+        $f8_mode = 0;
+        $f8_lanes = 0;
+        $f8_fields = 0;
+        if ($f8_teams > 0) {
+            $f8_mode = 1;
+            $f8Plan = MSupportedPlan::where('first_program', FirstProgram::FUTURE_8->value)->where('teams', $f8_teams)->first();
+            $f8_lanes = (int) ($f8Plan->lanes ?? 0);
+            $f8_fields = (int) ($f8Plan->tables ?? 0);
+        }
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 6],
-            ['set_value' => $e_teams]);
+        $hasExplore = $event && ProgramCatalog::hasExplore($event);
+        $hasChallenge = $event && ProgramCatalog::hasChallenge($event);
+        $hasFuture = $event && ProgramCatalog::hasFuture($event);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 111],
-            ['set_value' => $e1_teams]);
+        if ($hasExplore) {
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 7],
+                ['set_value' => $e_mode]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 81],
-            ['set_value' => $e1_lanes]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 6],
+                ['set_value' => $e_teams]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 112],
-            ['set_value' => $e2_teams]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 111],
+                ['set_value' => $e1_teams]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 117],
-            ['set_value' => $e2_lanes]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 81],
+                ['set_value' => $e1_lanes]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 122],
-            ['set_value' => $c_mode]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 112],
+                ['set_value' => $e2_teams]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 22],
-            ['set_value' => $c_teams]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 117],
+                ['set_value' => $e2_lanes]);
+        }
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 23],
-            ['set_value' => $j_lanes]);
+        if ($hasChallenge) {
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 122],
+                ['set_value' => $c_mode]);
 
-        PlanParamValue::updateOrCreate(
-            ['plan' => $newId, 'parameter' => 24],
-            ['set_value' => $r_tables]);
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 22],
+                ['set_value' => $c_teams]);
 
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 23],
+                ['set_value' => $j_lanes]);
+
+            PlanParamValue::updateOrCreate(
+                ['plan' => $newId, 'parameter' => 24],
+                ['set_value' => $r_tables]);
+        }
+
+        if ($hasFuture) {
+            $this->setPlanParamByName($newId, 'f8_mode', $f8_mode);
+            $this->setPlanParamByName($newId, 'f8_teams', $f8_teams);
+            $this->setPlanParamByName($newId, 'f8_lanes', $f8_lanes);
+            $this->setPlanParamByName($newId, 'f8_fields', $f8_fields);
+        }
+
+        app(AfternoonBlockOrderService::class)->writeDefaultOrder($newId);
 
         // Populate team_plan table with all teams for this event
         Log::info("Creating plan $newId for event $eventId - calling populateTeamPlanForNewPlan");
@@ -225,8 +248,9 @@ class PlanController extends Controller
         // Group teams by program and assign order
         $exploreTeams = $teams->where('first_program', FirstProgram::EXPLORE->value)->values();
         $challengeTeams = $teams->where('first_program', FirstProgram::CHALLENGE->value)->values();
+        $futureTeams = $teams->where('first_program', FirstProgram::FUTURE_8->value)->values();
 
-        Log::info("Explore teams: " . $exploreTeams->count() . ", Challenge teams: " . $challengeTeams->count());
+        Log::info("Explore teams: " . $exploreTeams->count() . ", Challenge teams: " . $challengeTeams->count() . ", Future 8+ teams: " . $futureTeams->count());
 
         $teamPlanEntries = [];
 
@@ -242,6 +266,15 @@ class PlanController extends Controller
 
         // Add challenge teams with order (also starting from 1, independently)
         foreach ($challengeTeams as $index => $team) {
+            $teamPlanEntries[] = [
+                'team' => $team->id,
+                'plan' => $planId,
+                'team_number_plan' => $index + 1,
+                'room' => null
+            ];
+        }
+
+        foreach ($futureTeams as $index => $team) {
             $teamPlanEntries[] = [
                 'team' => $team->id,
                 'plan' => $planId,
@@ -319,6 +352,7 @@ class PlanController extends Controller
         // Group missing teams by program
         $missingExploreTeams = $missingTeams->where('first_program', FirstProgram::EXPLORE->value)->values();
         $missingChallengeTeams = $missingTeams->where('first_program', FirstProgram::CHALLENGE->value)->values();
+        $missingFutureTeams = $missingTeams->where('first_program', FirstProgram::FUTURE_8->value)->values();
 
         // Get max team_number_plan per program for this plan
         $existingExploreMax = TeamPlan::where('plan', $planId)
@@ -331,7 +365,12 @@ class PlanController extends Controller
             ->where('team.first_program', FirstProgram::CHALLENGE->value)
             ->max('team_plan.team_number_plan') ?? 0;
 
-        Log::info("Max team_number_plan for explore: $existingExploreMax, challenge: $existingChallengeMax");
+        $existingFutureMax = TeamPlan::where('plan', $planId)
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team.first_program', FirstProgram::FUTURE_8->value)
+            ->max('team_plan.team_number_plan') ?? 0;
+
+        Log::info("Max team_number_plan for explore: $existingExploreMax, challenge: $existingChallengeMax, future: $existingFutureMax");
 
         // Add missing teams with sequential order per program (starting from max+1 for each program)
         $teamPlanEntries = [];
@@ -350,6 +389,15 @@ class PlanController extends Controller
                 'team' => $team->id,
                 'plan' => $planId,
                 'team_number_plan' => $existingChallengeMax + $index + 1,
+                'room' => null
+            ];
+        }
+
+        foreach ($missingFutureTeams as $index => $team) {
+            $teamPlanEntries[] = [
+                'team' => $team->id,
+                'plan' => $planId,
+                'team_number_plan' => $existingFutureMax + $index + 1,
                 'room' => null
             ];
         }
@@ -493,6 +541,23 @@ class PlanController extends Controller
             'success' => true,
             'message' => 'Plan deleted successfully',
         ]);
+    }
+
+    private function setPlanParamByName(int $planId, string $name, mixed $value): void
+    {
+        $parameterId = DB::table('m_parameter')->where('name', $name)->value('id');
+        if (! $parameterId) {
+            Log::warning("PlanController: unknown parameter {$name}, skip write", [
+                'plan_id' => $planId,
+            ]);
+
+            return;
+        }
+
+        PlanParamValue::updateOrCreate(
+            ['plan' => $planId, 'parameter' => $parameterId],
+            ['set_value' => $value]
+        );
     }
 
 }

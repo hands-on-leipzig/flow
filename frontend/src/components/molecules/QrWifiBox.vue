@@ -1,14 +1,26 @@
 <script lang="ts" setup>
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onActivated, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
+import QRCode from 'qrcode'
 import {useEventStore} from '@/stores/event'
 import {usePdfExport} from '@/composables/usePdfExport'
+import FllEvent from '@/models/FllEvent'
+
+withDefaults(
+  defineProps<{
+    /** Skip outer card chrome when parent provides the panel. */
+    embed?: boolean
+  }>(),
+  {embed: false}
+)
 
 // === Store & Basis ===
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
 const loadingWifiQr = ref(false)
+/** Client-side fallback when the API event has SSID but no stored wifi_qrcode yet. */
+const localWifiQr = ref('')
 
 // === Password Management ===
 const showPassword = ref(false)
@@ -170,9 +182,52 @@ async function onPasswordBlur() {
 const {isDownloading, anyDownloading, downloadPdf} = usePdfExport()
 
 // === QR ===
+function toDataUrl(raw: string | null | undefined): string {
+  if (!raw) return ''
+  return raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`
+}
+
 const qrWifiUrl = computed(() => {
-  return event.value?.wifi_qrcode ? `data:image/png;base64,${event.value.wifi_qrcode}` : ''
+  const fromEvent = toDataUrl(event.value?.wifi_qrcode)
+  return fromEvent || localWifiQr.value
 })
+
+async function ensureLocalWifiQr() {
+  const ssid = event.value?.wifi_ssid?.trim()
+  if (!ssid) {
+    localWifiQr.value = ''
+    return
+  }
+  if (event.value?.wifi_qrcode) {
+    localWifiQr.value = ''
+    return
+  }
+  try {
+    const password = originalPassword.value || ''
+    const content = password
+      ? `WIFI:T:WPA;S:${ssid};P:${password};;`
+      : `WIFI:T:nopass;S:${ssid};;`
+    localWifiQr.value = await QRCode.toDataURL(content, {
+      width: 300,
+      margin: 2,
+      errorCorrectionLevel: 'M',
+    })
+  } catch (e) {
+    console.error('WLAN-QR konnte nicht erzeugt werden:', e)
+    localWifiQr.value = ''
+  }
+}
+
+async function refreshEventFromApi() {
+  if (!eventId.value) return
+  try {
+    const {data} = await axios.get(`/events/${eventId.value}`)
+    eventStore.selectedEvent = new FllEvent(data)
+  } catch (e) {
+    console.error('Event für QR/WLAN konnte nicht geladen werden:', e)
+  }
+  await ensureLocalWifiQr()
+}
 
 // === Preview-URLs ===
 const previewPlan = ref<string | null>(null)
@@ -198,7 +253,8 @@ async function updateEventField(field: string, value: string) {
     loadingWifiQr.value = true
     await axios.put(`/events/${eventId.value}`, {[field]: value})
     const {data} = await axios.get(`/events/${eventId.value}`)
-    eventStore.selectedEvent = data
+    eventStore.selectedEvent = new FllEvent(data)
+    await ensureLocalWifiQr()
 
     // Wenn WLAN-Daten geändert wurden → Preview neu laden
     if (['wifi_ssid', 'wifi_password', 'wifi_instruction'].includes(field)) {
@@ -219,254 +275,388 @@ async function downloadPng(dataUrl: string, filename: string) {
   a.click()
 }
 
-// === Initial Previews laden ===
+async function boot() {
+  await refreshEventFromApi()
+  void loadPreview('plan')
+  void loadPreview('plan_wifi')
+}
+
 onMounted(() => {
-  loadPreview('plan')
-  loadPreview('plan_wifi')
+  void boot()
 })
+
+// keep-alive: refresh when returning to Analog
+onActivated(() => {
+  void boot()
+})
+
+watch(
+  () => [event.value?.wifi_ssid, event.value?.wifi_qrcode, originalPassword.value] as const,
+  () => {
+    void ensureLocalWifiQr()
+  }
+)
 </script>
 
 <template>
-  <div class="rounded-xl shadow bg-white p-3">
-    <div class="border-b border-gray-200 p-3 flex flex-col gap-6">
-      <div>
-        <h3 class="text-lg font-semibold mb-0">
-          QR Code zum Online-Plan
-        </h3>
-        <p class="text-sm text-gray-600">Der QR-Code beinhaltet den oben gezeigten Link. Er kann während der
-          Veranstaltung gescannt
-          werden, um direkt
-          zum
-          online Zeitplan zu gelangen.</p>
-      </div>
-
+  <div :class="embed ? 'qr-wifi qr-wifi--embed' : 'glass-card liquid-surface-inner p-3 qr-wifi'">
+    <div class="qr-wifi__grid">
       <!-- Plan QR -->
-      <div class="flex flex-row gap-6 justify-around">
-        <!-- Linke Seite: QR-Code + PNG -->
-        <div class="flex flex-col items-center w-36">
-          <img
-              v-if="event?.qrcode"
-              :src="`data:image/png;base64,${event.qrcode}`"
-              alt="QR Plan"
-              class="w-20 h-20 mb-2 object-contain"
-          />
-          <button
-              v-if="event?.qrcode"
-              class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
-              @click="downloadPng(`data:image/png;base64,${event.qrcode}`, 'FLOW_QR_Code_Plan.png')"
-          >
-            PNG
-          </button>
-        </div>
+      <section class="qr-wifi__col">
+        <header class="qr-wifi__col-head">
+          <h3 class="qr-wifi__col-title">
+            <i class="bi bi-qr-code" aria-hidden="true"/>
+            Online-Plan
+          </h3>
+          <p class="qr-wifi__col-sub">
+            QR enthält den öffentlichen Link — zum Scannen vor Ort.
+          </p>
+        </header>
 
-        <!-- Rechte Seite: Preview + PDF -->
-        <div class="flex flex-col items-center w-44">
-          <template v-if="previewPlan">
+        <div class="qr-wifi__exports">
+          <div class="qr-wifi__export">
             <img
-                :src="previewPlan"
-                alt="Preview Plan mit WLAN"
-                class="h-20 mb-2 object-contain rounded border border-gray-200"
+                v-if="event?.qrcode"
+                :src="`data:image/png;base64,${event.qrcode}`"
+                alt="QR Plan"
+                class="qr-wifi__thumb"
             />
-          </template>
-
-          <template v-else>
-            <div
-                class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
-            >
-              Preview
-            </div>
-          </template>
-
-          <button
-              :disabled="isDownloading.plan"
-              class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300 flex items-center gap-2"
-              @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, 'Plan.pdf')"
-          >
-            <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                    fill="currentColor"/>
-            </svg>
-            <span>{{ isDownloading.plan ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- WLAN -->
-    <div class="p-3 flex flex-col gap-6">
-      <div>
-        <h4 class="text-base font-semibold text-gray-800 mb-0">QR-Code für WLAN-Zugang</h4>
-        <p class="text-sm text-gray-600">Es werden nur Netzwerke mit Netzwerkschlüssel unterstützt. Falls ein Web-Login
-          notwendig ist,
-          nur SSID ohne
-          Passwort eingeben - Anmeldedaten können im Hinweis hinterlegt werden.</p>
-      </div>
-      <div v-if="event" class="space-y-3">
-        <div class="flex items-center gap-3">
-          <label class="w-20 text-sm text-gray-700">SSID</label>
-          <input
-              v-model="event.wifi_ssid"
-              class="flex-1 border px-3 py-1 rounded text-sm"
-              placeholder="z. B. TH_EVENT_WLAN"
-              type="text"
-              @blur="updateEventField('wifi_ssid', event.wifi_ssid)"
-          />
-        </div>
-        <div class="flex items-center gap-3">
-          <label class="w-20 text-sm text-gray-700">Passwort</label>
-          <div class="flex-1 relative">
-            <input
-                :placeholder="hasPassword ? '*****' : 'z. B. $N#Uh)eA~ado]tyMXTkG'"
-                :value="displayPassword"
-                class="w-full border px-3 py-1 pr-10 rounded text-sm"
-                type="text"
-                @blur="onPasswordBlur"
-                @focus="onPasswordFocus"
-                @input="(e) => onPasswordInput((e.target as HTMLInputElement).value)"
-            />
+            <div v-else class="qr-wifi__placeholder">Kein QR</div>
             <button
-                v-if="hasPassword"
-                class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-                tabindex="-1"
+                v-if="event?.qrcode"
                 type="button"
-                @click="togglePasswordVisibility"
-            >
-              <!-- Eye icon (show password) -->
-              <svg
-                  v-if="!showPassword"
-                  class="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                />
-                <path
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                />
-              </svg>
-              <!-- Eye slash icon (hide password) -->
-              <svg
-                  v-else
-                  class="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="flex items-start gap-3">
-          <label class="w-20 text-sm text-gray-700 mt-1">Hinweise</label>
-          <textarea
-              v-model="event.wifi_instruction"
-              class="flex-1 border px-3 py-1 rounded text-sm"
-              placeholder="z. B. Code 'FLL' eingeben und Nutzungbedingungen akzeptieren."
-              rows="3"
-              @blur="updateEventField('wifi_instruction', event.wifi_instruction)"
-          ></textarea>
-        </div>
-      </div>
-
-      <!-- QR WLAN -->
-      <div class="flex flex-row gap-6 justify-around">
-        <div class="flex flex-col items-center w-36">
-          <template v-if="!event?.wifi_ssid">
-            <div
-                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-xl text-gray-400 mb-2"
-            >?
-            </div>
-          </template>
-          <template v-else-if="loadingWifiQr">
-            <div
-                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-lg text-gray-500 mb-2"
-            >⏳
-            </div>
-          </template>
-          <template v-else-if="qrWifiUrl">
-            <img :src="qrWifiUrl" alt="QR Wifi" class="w-20 h-20 mb-2 object-contain"/>
-            <button
-                class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300"
-                @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
+                class="glass-btn-secondary !px-3 !py-1 !text-sm"
+                @click="downloadPng(`data:image/png;base64,${event.qrcode}`, 'FLOW_QR_Code_Plan.png')"
             >
               PNG
             </button>
-          </template>
-        </div>
+          </div>
 
-        <div class="flex flex-col items-center w-44">
-          <template v-if="!event?.wifi_ssid">
-            <div
-                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
-            >?
-            </div>
-          </template>
-          <template v-else-if="loadingWifiQr">
-            <div
-                class="w-20 h-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-500 text-sm mb-2"
-            >⏳
-            </div>
-          </template>
-          <template v-else-if="previewPlanWifi">
+          <div class="qr-wifi__export">
             <img
-                :src="previewPlanWifi"
-                alt="Preview Plan mit WLAN"
-                class="h-20 mb-2 object-contain rounded border border-gray-200"
+                v-if="previewPlan"
+                :src="previewPlan"
+                alt="Preview Plan-QR als PDF"
+                class="qr-wifi__preview"
             />
-          </template>
-          <template v-else>
-            <div
-                class="h-20 w-20 flex items-center justify-center border-2 border-dashed border-gray-300 rounded text-gray-400 text-sm mb-2"
-            >Preview
-            </div>
-          </template>
-
-          <button
-              :disabled="isDownloading.plan_wifi"
-              class="px-3 py-1 bg-gray-200 rounded text-sm hover:bg-gray-300 flex items-center gap-2"
-              @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, 'Plan_WLAN.pdf')"
-          >
-            <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                    fill="currentColor"/>
-            </svg>
-            <span>{{ isDownloading.plan_wifi ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
+            <div v-else class="qr-wifi__placeholder">Preview</div>
+            <button
+                type="button"
+                :disabled="isDownloading.plan"
+                class="glass-btn-secondary !px-3 !py-1 !text-sm inline-flex items-center gap-2"
+                @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, 'Plan.pdf')"
+            >
+              <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" fill="currentColor"/>
+              </svg>
+              <span>{{ isDownloading.plan ? 'Erzeuge…' : 'PDF' }}</span>
+            </button>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <!-- WLAN -->
+      <section class="qr-wifi__col">
+        <header class="qr-wifi__col-head">
+          <h3 class="qr-wifi__col-title">
+            <i class="bi bi-wifi" aria-hidden="true"/>
+            WLAN-Zugang
+          </h3>
+          <p class="qr-wifi__col-sub">
+            Netzwerke mit Schlüssel. Bei Web-Login nur SSID setzen — Rest in den Hinweisen.
+          </p>
+        </header>
+
+        <!-- QR first so it isn’t buried under the form -->
+        <div class="qr-wifi__exports qr-wifi__exports--first">
+          <div class="qr-wifi__export">
+            <template v-if="!event?.wifi_ssid">
+              <div class="qr-wifi__placeholder">SSID fehlt</div>
+            </template>
+            <template v-else-if="loadingWifiQr">
+              <div class="qr-wifi__placeholder">…</div>
+            </template>
+            <template v-else-if="qrWifiUrl">
+              <img :src="qrWifiUrl" alt="QR Wifi" class="qr-wifi__thumb"/>
+              <button
+                  type="button"
+                  class="glass-btn-secondary !px-3 !py-1 !text-sm"
+                  @click="downloadPng(qrWifiUrl, 'FLOW_QR_Code_WLAN.png')"
+              >
+                PNG
+              </button>
+            </template>
+            <template v-else>
+              <div class="qr-wifi__placeholder">Kein QR</div>
+            </template>
+          </div>
+
+          <div class="qr-wifi__export">
+            <template v-if="!event?.wifi_ssid">
+              <div class="qr-wifi__placeholder">SSID fehlt</div>
+            </template>
+            <template v-else-if="loadingWifiQr">
+              <div class="qr-wifi__placeholder">…</div>
+            </template>
+            <template v-else-if="previewPlanWifi">
+              <img
+                  :src="previewPlanWifi"
+                  alt="Preview WLAN-PDF"
+                  class="qr-wifi__preview"
+              />
+            </template>
+            <template v-else>
+              <div class="qr-wifi__placeholder">Preview</div>
+            </template>
+
+            <button
+                type="button"
+                :disabled="isDownloading.plan_wifi"
+                class="glass-btn-secondary !px-3 !py-1 !text-sm inline-flex items-center gap-2"
+                @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, 'Plan_WLAN.pdf')"
+            >
+              <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" fill="currentColor"/>
+              </svg>
+              <span>{{ isDownloading.plan_wifi ? 'Erzeuge…' : 'PDF' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="event" class="qr-wifi__fields">
+          <div class="qr-wifi__field">
+            <label class="qr-wifi__label" for="wifi-ssid">SSID</label>
+            <input
+                id="wifi-ssid"
+                v-model="event.wifi_ssid"
+                class="qr-wifi__input"
+                placeholder="z. B. TH_EVENT_WLAN"
+                type="text"
+                @blur="updateEventField('wifi_ssid', event.wifi_ssid || '')"
+            />
+          </div>
+          <div class="qr-wifi__field">
+            <label class="qr-wifi__label" for="wifi-password">Passwort</label>
+            <div class="qr-wifi__password">
+              <input
+                  id="wifi-password"
+                  :placeholder="hasPassword ? '*****' : 'z. B. $N#Uh)eA~ado]tyMXTkG'"
+                  :value="displayPassword"
+                  class="qr-wifi__input qr-wifi__input--password"
+                  type="text"
+                  @blur="onPasswordBlur"
+                  @focus="onPasswordFocus"
+                  @input="(e) => onPasswordInput((e.target as HTMLInputElement).value)"
+              />
+              <button
+                  v-if="hasPassword"
+                  class="qr-wifi__eye"
+                  tabindex="-1"
+                  type="button"
+                  :title="showPassword ? 'Passwort verbergen' : 'Passwort zeigen'"
+                  @click="togglePasswordVisibility"
+              >
+                <i class="bi" :class="showPassword ? 'bi-eye-slash' : 'bi-eye'" aria-hidden="true"/>
+              </button>
+            </div>
+          </div>
+          <div class="qr-wifi__field qr-wifi__field--top">
+            <label class="qr-wifi__label" for="wifi-hint">Hinweise</label>
+            <textarea
+                id="wifi-hint"
+                v-model="event.wifi_instruction"
+                class="qr-wifi__input"
+                placeholder="z. B. Code 'FLL' eingeben und Nutzungsbedingungen akzeptieren."
+                rows="2"
+                @blur="updateEventField('wifi_instruction', event.wifi_instruction || '')"
+            />
+          </div>
+        </div>
+      </section>
     </div>
 
-    <!-- Globaler Ladeindikator -->
     <div
         v-if="anyDownloading"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
     >
-      <div class="bg-white px-4 py-3 rounded shadow flex items-center gap-2">
+      <div class="glass-row-item inline-flex px-4 py-3 gap-2">
         <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                fill="currentColor"/>
+          <path class="opacity-75" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" fill="currentColor"/>
         </svg>
         <span>PDF wird erzeugt…</span>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.qr-wifi--embed {
+  padding: 0;
+}
+
+.qr-wifi__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 900px) {
+  .qr-wifi__grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+}
+
+.qr-wifi__col {
+  min-width: 0;
+  padding: 0.95rem 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
+  background: color-mix(in srgb, var(--color-bg-muted) 28%, #fff);
+}
+
+.qr-wifi:not(.qr-wifi--embed) .qr-wifi__col {
+  background: #fff;
+}
+
+.qr-wifi__col-head {
+  margin-bottom: 0.9rem;
+}
+
+.qr-wifi__col-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.98rem;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+}
+
+.qr-wifi__col-title .bi {
+  color: var(--color-accent);
+}
+
+.qr-wifi__col-sub {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.qr-wifi__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-bottom: 0;
+}
+
+.qr-wifi__field {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.qr-wifi__field--top {
+  align-items: start;
+}
+
+.qr-wifi__label {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+  padding-top: 0.35rem;
+}
+
+.qr-wifi__input {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+  border-radius: 8px;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.85rem;
+  background: #fff;
+  color: var(--color-text);
+}
+
+.qr-wifi__input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-accent) 55%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.qr-wifi__password {
+  position: relative;
+}
+
+.qr-wifi__input--password {
+  padding-right: 2.25rem;
+}
+
+.qr-wifi__eye {
+  position: absolute;
+  right: 0.45rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-subtle);
+  padding: 0.15rem;
+}
+
+.qr-wifi__eye:hover {
+  color: var(--color-text-muted);
+}
+
+.qr-wifi__exports {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 0.75rem 1rem;
+}
+
+.qr-wifi__exports--first {
+  margin-bottom: 0.95rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 22%, transparent);
+}
+
+.qr-wifi__export {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 5.5rem;
+}
+
+.qr-wifi__thumb {
+  width: 5rem;
+  height: 5rem;
+  object-fit: contain;
+}
+
+.qr-wifi__preview {
+  height: 5rem;
+  width: auto;
+  max-width: 7rem;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
+  background: #fff;
+}
+
+.qr-wifi__placeholder {
+  width: 5rem;
+  height: 5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed color-mix(in srgb, var(--color-border-strong) 45%, transparent);
+  border-radius: 8px;
+  color: var(--color-text-subtle);
+  font-size: 0.72rem;
+  text-align: center;
+  padding: 0.35rem;
+}
+</style>

@@ -6,11 +6,15 @@ import axios from "axios";
 const Navigation = defineAsyncComponent(() => import('@/components/Navigation.vue'));
 const NewsModal = defineAsyncComponent(() => import('@/components/atoms/NewsModal.vue'));
 const EventDayBanner = defineAsyncComponent(() => import('@/components/atoms/EventDayBanner.vue'));
+const GlassToast = defineAsyncComponent(() => import('@/components/atoms/GlassToast.vue'));
 
 // Check if current route is public (no navigation needed)
 const isPublicRoute = computed(() => {
   return route.meta?.public === true
 })
+
+/** Slim plan pop-out / public surfaces: no app chrome. */
+const isChromeLess = computed(() => isPublicRoute.value || route.meta?.popout === true)
 
 const router = useRouter();
 const route = useRoute();
@@ -22,7 +26,7 @@ const showNewsModal = ref(false)
 // Check for unread news
 const checkForUnreadNews = async () => {
   // Only check for authenticated, non-public routes
-  if (isPublicRoute.value) {
+  if (isPublicRoute.value || route.meta?.popout === true) {
     return
   }
 
@@ -63,36 +67,35 @@ const markNewsAsRead = async (newsId) => {
 
 // Watch for route changes and check for unread news
 watch(() => route.path, async () => {
-  if (!isPublicRoute.value) {
+  if (!isPublicRoute.value && route.meta?.popout !== true) {
     await checkForUnreadNews()
   }
 })
 
 onMounted(() => {
   if (window.location.pathname === "/") {
-    router.push("/event")
+    router.push("/overview")
   }
 })
 </script>
 
 <template>
-  <div :class="['flex flex-col w-full font-sans', isPublicRoute ? 'min-h-screen' : 'h-screen', { 'px-0 md:px-10': !isPublicRoute }]">
-    <Navigation v-if="!isPublicRoute"/>
-    <EventDayBanner v-if="!isPublicRoute"/>
+  <div v-if="isChromeLess" class="min-h-dvh w-full font-sans liquid-surface-scope pe-page">
+    <router-view/>
+  </div>
 
-    <div :class="['shadow-lg', isPublicRoute ? 'flex-grow' : 'flex-1']">
+  <Navigation v-else class="font-sans">
+    <EventDayBanner/>
+    <div class="glass-app__panel liquid-surface">
       <router-view/>
     </div>
 
-    <!-- News Modal -->
-    <NewsModal 
-      v-if="showNewsModal && currentNews" 
-      :news="currentNews" 
-      @markRead="markNewsAsRead"
+    <NewsModal
+        v-if="showNewsModal && currentNews"
+        :news="currentNews"
+        @markRead="markNewsAsRead"
     />
-  </div>
+  </Navigation>
+
+  <GlassToast/>
 </template>
-
-<style scoped>
-
-</style>

@@ -55,10 +55,18 @@ class PlanGeneratorController extends Controller
             try {
                 $this->generator->run($planId);
                 
-                // Update attention status after successful plan generation
-                $eventId = DB::table('plan')->where('id', $planId)->value('event');
-                if ($eventId) {
-                    app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+                // Best-effort only — must never turn a successful generation into a 500
+                try {
+                    $eventId = DB::table('plan')->where('id', $planId)->value('event');
+                    if ($eventId) {
+                        app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+                        app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+                    }
+                } catch (\Throwable $attentionError) {
+                    Log::warning('Attention update after generation failed', [
+                        'plan_id' => $planId,
+                        'error' => $attentionError->getMessage(),
+                    ]);
                 }
                 
                 return response()->json(['message' => 'Generation done']);
@@ -122,6 +130,7 @@ class PlanGeneratorController extends Controller
             $eventId = DB::table('plan')->where('id', $planId)->value('event');
             if ($eventId) {
                 app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
+                app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
             }
 
             return response()->json([

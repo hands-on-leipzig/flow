@@ -8,6 +8,7 @@ use App\Models\ExtraBlock;
 use App\Models\MActivityTypeDetail;
 use App\Support\ExtraBlockActivityTypeCode;
 use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
 use Illuminate\Support\Facades\Log;
 
 class FreeBlockGenerator
@@ -28,14 +29,12 @@ class FreeBlockGenerator
 
     public function insertFreeActivities(): void
     {
-        // Get plan configuration to check which programs are enabled
-        $eMode = $this->params->get('e_mode');
-        $cMode = $this->params->get('c_mode');
+        $presence = ProgramPresence::forPlan($this->planId, $this->params);
 
         Log::info('FreeBlockGenerator::insertFreeActivities', [
             'plan_id' => $this->planId,
-            'e_mode' => $eMode,
-            'c_mode' => $cMode,
+            'explore_on' => $presence->exploreOn(),
+            'lead_program_id' => $presence->leadProgramId(),
         ]);
 
         try {
@@ -50,16 +49,16 @@ class FreeBlockGenerator
             foreach ($blocks as $block) {
                 $blockProgram = (int) $block->first_program;
 
-                // Skip Explore blocks if Explore is disabled (e_mode = 0)
-                if ($blockProgram === FirstProgram::EXPLORE->value && $eMode == 0) {
-                    // Log::info("FreeBlockGenerator: Skipping Explore block {$block->id} (Explore disabled in plan)");
+                if ($blockProgram !== FirstProgram::JOINT->value && ! $presence->programOn($blockProgram)) {
                     continue;
                 }
 
-                // Skip Challenge blocks if Challenge is disabled (c_mode = 0)
-                if ($blockProgram === FirstProgram::CHALLENGE->value && $cMode == 0) {
-                    // Log::info("FreeBlockGenerator: Skipping Challenge block {$block->id} (Challenge disabled in plan)");
-                    continue;
+                if ($blockProgram === FirstProgram::JOINT->value) {
+                    $anyOn = $presence->exploreOn()
+                        || $presence->leadProgramId() !== null;
+                    if (! $anyOn) {
+                        continue;
+                    }
                 }
 
                 $code = ExtraBlockActivityTypeCode::forFree($blockProgram);

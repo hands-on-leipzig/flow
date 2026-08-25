@@ -61,15 +61,15 @@ onMounted(fetchRounds)
 </script>
 
 <template>
-  <section class="rounded-xl bg-white shadow p-4 sm:p-6">
+  <section class="glass-surface-lg p-4 sm:p-6">
     <div class="mb-4">
-      <h2 class="text-lg font-semibold text-gray-900">Robot-Game Ergebnisse</h2>
-      <p class="text-sm text-gray-600">
+      <h2 class="text-lg font-semibold text-[var(--color-text)]">Robot-Game Ergebnisse</h2>
+      <p class="text-sm text-[var(--color-text-muted)]">
         Wähle aus, welche Runden öffentlich sichtbar sein sollen.
       </p>
     </div>
 
-    <div v-if="loading" class="py-8 text-center text-sm text-gray-500">Lade...</div>
+    <div v-if="loading" class="py-8 text-center text-sm text-[var(--color-text-subtle)]">Lade...</div>
 
     <div v-else-if="rounds" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <button
@@ -79,11 +79,9 @@ onMounted(fetchRounds)
           :disabled="saving !== null"
           @click="toggleRound(round.key)"
           :class="[
-            'min-h-12 rounded-lg border px-4 py-3 text-sm font-semibold transition-colors',
-            rounds[round.key]
-              ? 'border-green-600 bg-green-600 text-white'
-              : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400',
-            saving === round.key ? 'opacity-70' : ''
+            'round-toggle',
+            rounds[round.key] ? 'round-toggle--on' : 'glass-btn-secondary',
+            saving === round.key ? 'opacity-70' : '',
           ]"
       >
         {{ round.label }}
@@ -91,3 +89,34 @@ onMounted(fetchRounds)
     </div>
   </section>
 </template>
+
+<style scoped>
+.round-toggle {
+  min-height: 3rem;
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.round-toggle--on {
+  border: 1px solid color-mix(in srgb, #000 12%, #16a34a);
+  color: #fff;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 14%, #16a34a) 0%,
+    #16a34a 55%,
+    #15803d 100%
+  );
+  box-shadow:
+    0 0 0 transparent,
+    0 1px 1px rgba(15, 23, 42, 0.12),
+    inset 0 3px 7px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(0, 0, 0, 0.14);
+  transform: translateY(1px) scale(0.99);
+}
+
+.round-toggle--on:active:not(:disabled) {
+  transform: translateY(2px) scale(0.985);
+}
+</style>

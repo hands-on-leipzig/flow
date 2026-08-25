@@ -1,9 +1,12 @@
 <script lang="ts" setup>
-import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
+import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
+import ItemCard from '@/components/molecules/ItemCard.vue'
+import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import {useDebouncedSave} from "@/composables/useDebouncedSave";
 import {TIMING_FIELDS, DEBOUNCE_DELAY} from "@/constants/extraBlocks";
@@ -28,6 +31,7 @@ const props = defineProps<{
   planId: number | null
   showExplore?: boolean
   showChallenge?: boolean
+  showFuture?: boolean
   eventDate?: string
   eventDays?: number
 }>()
@@ -70,16 +74,32 @@ const {scheduleUpdate, flush, immediateFlush} = useDebouncedSave({
 // --- Batch save system (save on countdown) ---
 // Note: Block changes trigger debounce immediately, blocks are saved to DB when countdown reaches 0 or is clicked
 
-// --- Computed ---
-const customBlocks = computed(() => blocks.value.filter(b => !('insert_point' in b) || !b.insert_point))
+function compareDateTime(a: Maybe<string>, b: Maybe<string>): number {
+  const left = a ? a.replace('T', ' ') : ''
+  const right = b ? b.replace('T', ' ') : ''
+  if (!left && !right) return 0
+  if (!left) return 1
+  if (!right) return -1
+  return left.localeCompare(right)
+}
+
+function compareBlocks(a: ExtraBlock, b: ExtraBlock): number {
+  const byStart = compareDateTime(a.start, b.start)
+  if (byStart !== 0) return byStart
+  return compareDateTime(a.end, b.end)
+}
+
+const customBlocks = computed(() => blocks.value)
 
 const visibleCustomBlocks = computed(() => {
   return customBlocks.value.filter(block => {
-    if (props.showExplore === false && props.showChallenge === false) return true
+    const allOff = props.showExplore === false && props.showChallenge === false && props.showFuture === false
+    if (allOff) return true
     if (props.showExplore === false && (block.first_program === 2 || block.first_program === 0)) return false
     if (props.showChallenge === false && (block.first_program === 3 || block.first_program === 0)) return false
+    if (props.showFuture === false && (block.first_program === 8 || block.first_program === 0)) return false
     return true
-  })
+  }).slice().sort(compareBlocks)
 })
 
 // --- Lifecycle ---
@@ -99,32 +119,7 @@ async function loadBlocks() {
   const {data} = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`, {
     params: {type: 'free'},
   })
-  const loadedBlocks = Array.isArray(data) ? data : []
-
-  // Sort by date first, then start time (ascending - earliest first)
-  blocks.value = loadedBlocks.sort((a, b) => {
-    // Extract dates for comparison
-    const dateA = extractDate(a.start || a.end || '')
-    const dateB = extractDate(b.start || b.end || '')
-
-    // Compare dates first
-    if (dateA && dateB) {
-      const dateCompare = dateA.localeCompare(dateB)
-      if (dateCompare !== 0) return dateCompare
-    } else if (dateA) return -1 // A has date, B doesn't - A comes first
-    else if (dateB) return 1 // B has date, A doesn't - B comes first
-
-    // If dates are equal or both missing, compare start times
-    const timeA = extractTime(a.start || '')
-    const timeB = extractTime(b.start || '')
-
-    if (timeA && timeB) {
-      return timeA.localeCompare(timeB)
-    } else if (timeA) return -1
-    else if (timeB) return 1
-
-    return 0 // Both missing, keep order
-  })
+  blocks.value = Array.isArray(data) ? data : []
 }
 
 // Save all enabled blocks to DB (called when countdown triggers)
@@ -198,7 +193,7 @@ async function saveAllEnabledBlocks() {
   }
 }
 
-// Expose functions to parent (for consistency with InsertBlocks)
+// Expose functions to parent
 defineExpose({
   saveAllEnabledBlocks
 })
@@ -286,6 +281,7 @@ async function flushUpdates(updates: Record<string, any>) {
       // No regeneration needed, ensure generating state is off
       isGenerating.value = false
     }
+    emit('changed')
   } catch (error: any) {
     console.error('Error flushing updates:', error)
     isGenerating.value = false
@@ -399,48 +395,95 @@ function combineDateTime(date: string, time: string): string | null {
   return `${date} ${time}:00`
 }
 
-// --- Actions ---
-async function addCustom() {
-  if (!props.planId) return
-  const baseDate = props.eventDate ? new Date(props.eventDate) : new Date()
-  // Format as YYYY-MM-DD
-  const dateStr = baseDate.toISOString().slice(0, 10)
+const newBlockName = ref('')
+const newBlockDescription = ref('')
+const newBlockLink = ref('')
+const newBlockDate = ref('')
+const newBlockStart = ref('06:00')
+const newBlockEnd = ref('07:00')
+const newFirstProgram = ref(0)
+const composerRef = ref<{ focusTitle?: () => void } | null>(null)
+const isCreating = ref(false)
 
-  const draft: ExtraBlock = {
-    plan: props.planId!,
-    first_program: 0, // Start with both icons on (joint)
-    name: '',
-    description: '',
-    link: null,
-    active: true,
-    start: combineDateTime(dateStr, '06:00') || `${dateStr} 06:00:00`,
-    end: combineDateTime(dateStr, '07:00') || `${dateStr} 07:00:00`
+function defaultBlockDate(): string {
+  if (props.eventDate) return dayjs(props.eventDate).format('YYYY-MM-DD')
+  return dayjs().format('YYYY-MM-DD')
+}
+
+function resetComposer() {
+  newBlockName.value = ''
+  newBlockDescription.value = ''
+  newBlockLink.value = ''
+  newBlockDate.value = defaultBlockDate()
+  newBlockStart.value = '06:00'
+  newBlockEnd.value = '07:00'
+  newFirstProgram.value = 0
+}
+
+watch(() => props.eventDate, () => {
+  if (!newBlockName.value.trim()) {
+    newBlockDate.value = defaultBlockDate()
   }
+}, {immediate: true})
+
+function cycleFirstProgram(current: number | null | undefined, program: 2 | 3): number {
+  const value = current ?? 0
+  if (program === 2) {
+    if (value === 2) return 3
+    if (value === 3) return 0
+    if (value === 0) return 3
+    return 2
+  }
+  if (value === 3) return 2
+  if (value === 2) return 0
+  if (value === 0) return 2
+  return 3
+}
+
+// --- Actions ---
+async function createCustom() {
+  if (isCreating.value || !props.planId) return
+  const name = newBlockName.value.trim()
+  if (!name) return
+
+  isCreating.value = true
+  isGenerating.value = true
+  const dateStr = newBlockDate.value || defaultBlockDate()
+  const start = combineDateTime(dateStr, newBlockStart.value || '06:00') || `${dateStr} 06:00:00`
+  const end = combineDateTime(dateStr, newBlockEnd.value || '07:00') || `${dateStr} 07:00:00`
 
   try {
-    // Save immediately with default timing but empty content
-    // This gives the block an ID so it behaves like any other block
     const response = await axios.post(`/plans/${props.planId}/extra-blocks`, {
-      ...draft,
-      skip_regeneration: true // Don't regenerate for empty block
+      plan: props.planId,
+      first_program: newFirstProgram.value,
+      name,
+      description: newBlockDescription.value,
+      link: newBlockLink.value.trim() || null,
+      active: true,
+      start,
+      end,
     })
 
-    // Check for errors
     if (response.data?.error) {
       generatorError.value = response.data.error
       errorDetails.value = response.data.details || null
+      isGenerating.value = false
       return
     }
 
-    // Reload blocks to get the new block with its ID
+    resetComposer()
     await loadBlocks()
-
-    // Emit changed event
+    await pollUntilReady(props.planId)
     emit('changed')
+    await nextTick()
+    composerRef.value?.focusTitle?.()
   } catch (error: any) {
     console.error('Failed to create block:', error)
     generatorError.value = 'Fehler beim Erstellen des Blocks'
     errorDetails.value = error.message || 'Unbekannter Fehler'
+    isGenerating.value = false
+  } finally {
+    isCreating.value = false
   }
 }
 
@@ -483,40 +526,12 @@ function toggleActive(block: ExtraBlock, active: boolean) {
 }
 
 function toggleProgram(block: ExtraBlock, program: 2 | 3) {
-  // Logic: 0 = joint (both), 2 = Explore only, 3 = Challenge only
-  // At least one icon must always be on
-  if (program === 2) {
-    // Clicking Explore icon
-    if (block.first_program === 2) {
-      // Explore only -> switch to Challenge only
-      block.first_program = 3
-    } else if (block.first_program === 3) {
-      // Challenge only -> switch to both (joint)
-      block.first_program = 0
-    } else if (block.first_program === 0) {
-      // Both on -> switch to Challenge only (other icon off)
-      block.first_program = 3
-    } else {
-      // null or other -> default to Explore only
-      block.first_program = 2
-    }
-  } else {
-    // Clicking Challenge icon (program === 3)
-    if (block.first_program === 3) {
-      // Challenge only -> switch to Explore only
-      block.first_program = 2
-    } else if (block.first_program === 2) {
-      // Explore only -> switch to both (joint)
-      block.first_program = 0
-    } else if (block.first_program === 0) {
-      // Both on -> switch to Explore only (other icon off)
-      block.first_program = 2
-    } else {
-      // null or other -> default to Challenge only
-      block.first_program = 3
-    }
-  }
+  block.first_program = cycleFirstProgram(block.first_program, program)
   saveBlock(block)
+}
+
+function toggleComposerProgram(program: 2 | 3) {
+  newFirstProgram.value = cycleFirstProgram(newFirstProgram.value, program)
 }
 
 // Handle date change (updates both start and end with the same date)
@@ -637,7 +652,8 @@ function handleEndTimeChange(block: ExtraBlock, time: string) {
 
 const deleteMessage = computed(() => {
   if (!blockToDelete.value) return ''
-  return `Block "${blockToDelete.value.name || 'Unbenannt'}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
+  const name = (blockToDelete.value.name || '').trim() || 'Unbenannt'
+  return `„${name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
 
 // Check if a block is outside the event date range
@@ -656,7 +672,6 @@ function isBlockOutsideEventDates(block: ExtraBlock): boolean {
   return blockDate.isBefore(eventStartDate, 'day') || blockDate.isAfter(eventEndDate, 'day')
 }
 
-// Check if any blocks are outside event dates (for showing explanation)
 const hasBlocksOutsideEventDates = computed(() => {
   return visibleCustomBlocks.value.some(block => isBlockOutsideEventDates(block))
 })
@@ -665,18 +680,18 @@ const hasBlocksOutsideEventDates = computed(() => {
 <template>
   <div class="space-y-8 relative">
     <!-- Error Alert Banner -->
-    <div v-if="generatorError" class="bg-red-50 border-l-4 border-red-500 p-4 rounded shadow-lg">
+    <div v-if="generatorError" class="glass-alert-error">
       <div class="flex items-start justify-between">
         <div class="flex-1">
           <div class="flex items-center">
-            <svg class="h-5 w-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="h-5 w-5 text-red-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd"
                     d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                     clip-rule="evenodd"/>
             </svg>
-            <h3 class="text-red-800 font-semibold text-lg">{{ generatorError }}</h3>
+            <h3 class="text-red-700 font-semibold text-lg">{{ generatorError }}</h3>
           </div>
-          <p v-if="errorDetails" class="mt-2 text-red-700 text-sm">{{ errorDetails }}</p>
+          <p v-if="errorDetails" class="mt-2 text-red-600 text-sm">{{ errorDetails }}</p>
         </div>
         <button
             @click="generatorError = null; errorDetails = null"
@@ -693,175 +708,201 @@ const hasBlocksOutsideEventDates = computed(() => {
     </div>
 
     <!-- CUSTOM BLOCKS -->
-    <div class="bg-white shadow-sm rounded-xl border border-gray-200 relative">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <span class="text-sm text-gray-600">Diese Blöcke werden direkt in den generierten Plan kopiert.</span>
-        <button
-            class="bg-green-500 hover:bg-green-600 text-white text-xs font-medium px-3 py-1.5 rounded-md shadow-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
-            :disabled="!planId"
-            @click="addCustom">
-          + Block hinzufügen
-        </button>
-      </div>
-
-      <!-- Warning for blocks outside event dates -->
-      <div v-if="hasBlocksOutsideEventDates"
-           class="mb-2 p-2 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded">
+    <div class="free-blocks">
+      <div v-if="hasBlocksOutsideEventDates" class="glass-alert-warning">
         Freie Blöcke an Tagen außerhalb der Veranstaltung werden in den Plänen nicht angezeigt.
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead>
-          <tr class="text-gray-500 text-xs uppercase tracking-wide">
-            <th class="text-left px-2 py-2 w-20">Aktion</th>
-            <th class="text-center px-2 py-2 w-20">Programme</th>
-            <th class="text-left px-2 py-2 w-28">Zeit</th>
-            <th class="text-left px-2 py-2">Inhalt</th>
-          </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-          <tr v-for="b in visibleCustomBlocks" :key="b.id ?? JSON.stringify(b)"
-              class="border-b transition-all duration-200"
-              :class="{
-                'opacity-60 bg-gray-50': b.active === false,
-                'bg-yellow-100 hover:bg-yellow-200': b.active !== false && isBlockOutsideEventDates(b),
-                'hover:bg-gray-50': b.active !== false && !isBlockOutsideEventDates(b)
-              }">
-            <td class="px-2 py-2">
-              <div class="flex flex-col items-center space-y-2">
-                <ToggleSwitch
-                    :model-value="b.active !== false"
-                    @update:modelValue="toggleActive(b, $event)"
-                    :disabled="!b.id"
-                />
-                <button
-                    v-if="b.id"
-                    @click="confirmDeleteBlock(b)"
-                    class="hover:text-red-800 text-lg"
-                    title="Block löschen"
-                >
-                  <i class="bi bi-trash-fill"></i>
-                </button>
-              </div>
-            </td>
+      <div class="free-blocks__list">
+        <ItemComposer
+            ref="composerRef"
+            v-model:title="newBlockName"
+            :disabled="isCreating || !planId"
+            title-placeholder="Neuer Block z. B. Mittagessen"
+            empty-hint="Eigener Eintrag im Plan, ohne den generierten Ablauf zu ändern."
+            @commit="createCustom"
+        >
+          <div class="free-block__when">
+            <input
+                v-model="newBlockDate"
+                :disabled="isCreating || !planId"
+                class="glass-input glass-input--sm liquid-surface-control free-block__date"
+                type="date"
+            />
+            <input
+                v-model="newBlockStart"
+                :disabled="isCreating || !planId"
+                class="glass-input glass-input--sm liquid-surface-control free-block__time"
+                type="time"
+                min="00:05"
+                max="23:55"
+                step="300"
+                aria-label="Startzeit"
+            />
+            <input
+                v-model="newBlockEnd"
+                :disabled="isCreating || !planId"
+                class="glass-input glass-input--sm liquid-surface-control free-block__time"
+                type="time"
+                min="00:05"
+                max="23:55"
+                step="300"
+                aria-label="Endzeit"
+            />
+            <div class="free-block__programs">
+              <img
+                  :src="programLogoSrc('EXPLORE')"
+                  :alt="programLogoAlt('EXPLORE')"
+                  class="free-block__logo"
+                  :class="{
+                    'free-block__logo--off': !(newFirstProgram === 2 || newFirstProgram === 0),
+                  }"
+                  title="FIRST LEGO League Explore"
+                  @click="toggleComposerProgram(2)"
+              />
+              <img
+                  :src="programLogoSrc('CHALLENGE')"
+                  :alt="programLogoAlt('CHALLENGE')"
+                  class="free-block__logo"
+                  :class="{
+                    'free-block__logo--off': !(newFirstProgram === 3 || newFirstProgram === 0),
+                  }"
+                  title="FIRST LEGO League Challenge"
+                  @click="toggleComposerProgram(3)"
+              />
+            </div>
+          </div>
+          <transition name="fade">
+            <div v-if="newBlockName.trim().length > 0" class="free-block__composer-extra">
+              <input
+                  v-model="newBlockDescription"
+                  :disabled="isCreating || !planId"
+                  class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                  type="text"
+                  placeholder="Beschreibung"
+              />
+              <input
+                  v-model="newBlockLink"
+                  :disabled="isCreating || !planId"
+                  class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+                  type="url"
+                  placeholder="https://example.com"
+              />
+            </div>
+          </transition>
+        </ItemComposer>
 
-            <td class="px-2 py-2 text-center">
-              <div class="flex justify-center space-x-1">
-                <img :src="programLogoSrc('E')" :alt="programLogoAlt('E')"
-                     :class="[
-                       'w-8 h-8 transition-all duration-200',
-                       b.active === false
-                         ? 'opacity-30 grayscale cursor-not-allowed'
-                         : (b.first_program === 2 || b.first_program === 0
-                            ? 'opacity-100 cursor-pointer hover:scale-110'
-                            : 'opacity-30 grayscale cursor-pointer hover:scale-110')
-                     ]"
-                     @click="b.active !== false && toggleProgram(b, 2)" title="FIRST LEGO League Explore"/>
-                <img :src="programLogoSrc('C')" :alt="programLogoAlt('C')"
-                     :class="[
-                       'w-8 h-8 transition-all duration-200',
-                       b.active === false
-                         ? 'opacity-30 grayscale cursor-not-allowed'
-                         : (b.first_program === 3 || b.first_program === 0
-                            ? 'opacity-100 cursor-pointer hover:scale-110'
-                            : 'opacity-30 grayscale cursor-pointer hover:scale-110')
-                     ]"
-                     @click="b.active !== false && toggleProgram(b, 3)" title="FIRST LEGO League Challenge"/>
-              </div>
-            </td>
+        <ItemCard
+            v-for="b in visibleCustomBlocks"
+            :key="b.id ?? JSON.stringify(b)"
+            :inactive="b.active === false"
+            :class="{
+              'free-block--warning': b.active !== false && isBlockOutsideEventDates(b),
+            }"
+        >
+          <template #leading>
+            <ToggleSwitch
+                :model-value="b.active !== false"
+                :disabled="!b.id"
+                @update:modelValue="toggleActive(b, $event)"
+            />
+          </template>
+          <template #title>
+            <input
+                :value="b.name"
+                :disabled="b.active === false"
+                class="item-card__title glass-input glass-input--sm liquid-surface-control"
+                type="text"
+                placeholder="Titel"
+                @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
+                @blur="saveBlock(b)"
+            />
+          </template>
+          <template #trailing>
+            <IconDangerButton
+                v-if="b.id"
+                label="Block löschen"
+                @click="confirmDeleteBlock(b)"
+            />
+          </template>
 
-            <td class="px-2 py-2">
-              <div class="space-y-2">
-                <!-- Date field (first line) -->
-                <input
-                    :value="extractDate(b.start || b.end)"
-                    :disabled="b.active === false"
-                    :class="['w-full border rounded px-2 py-1 text-sm',
-                           b.active !== false
-                             ? 'bg-white border-gray-300'
-                             : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                    type="date"
-                    @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
-                />
-                <!-- Start and End time fields (second line) -->
-                <div class="flex space-x-1">
-                  <input
-                      :value="extractTime(b.start)"
-                      :disabled="b.active === false"
-                      :class="['flex-1 border rounded px-2 py-1 text-sm',
-                             b.active !== false
-                               ? 'bg-white border-gray-300'
-                               : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                      type="time"
-                      min="00:05"
-                      max="23:55"
-                      step="300"
-                      placeholder="Start"
-                      @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start }"
-                      @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
-                  />
-                  <input
-                      :value="extractTime(b.end)"
-                      :disabled="b.active === false"
-                      :class="['flex-1 border rounded px-2 py-1 text-sm',
-                             b.active !== false
-                               ? 'bg-white border-gray-300'
-                               : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                      type="time"
-                      min="00:05"
-                      max="23:55"
-                      step="300"
-                      placeholder="Ende"
-                      @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
-                      @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
-                  />
-                </div>
-              </div>
-            </td>
+          <div class="free-block__when">
+            <input
+                :value="extractDate(b.start || b.end)"
+                :disabled="b.active === false"
+                class="glass-input glass-input--sm liquid-surface-control free-block__date"
+                type="date"
+                @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
+            />
+            <input
+                :value="extractTime(b.start)"
+                :disabled="b.active === false"
+                class="glass-input glass-input--sm liquid-surface-control free-block__time"
+                type="time"
+                min="00:05"
+                max="23:55"
+                step="300"
+                aria-label="Startzeit"
+                @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start }"
+                @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
+            />
+            <input
+                :value="extractTime(b.end)"
+                :disabled="b.active === false"
+                class="glass-input glass-input--sm liquid-surface-control free-block__time"
+                type="time"
+                min="00:05"
+                max="23:55"
+                step="300"
+                aria-label="Endzeit"
+                @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
+                @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
+            />
+            <div class="free-block__programs">
+              <img
+                  :src="programLogoSrc('EXPLORE')"
+                  :alt="programLogoAlt('EXPLORE')"
+                  class="free-block__logo"
+                  :class="{
+                    'free-block__logo--off': b.active === false || !(b.first_program === 2 || b.first_program === 0),
+                    'free-block__logo--disabled': b.active === false,
+                  }"
+                  title="FIRST LEGO League Explore"
+                  @click="b.active !== false && toggleProgram(b, 2)"
+              />
+              <img
+                  :src="programLogoSrc('CHALLENGE')"
+                  :alt="programLogoAlt('CHALLENGE')"
+                  class="free-block__logo"
+                  :class="{
+                    'free-block__logo--off': b.active === false || !(b.first_program === 3 || b.first_program === 0),
+                    'free-block__logo--disabled': b.active === false,
+                  }"
+                  title="FIRST LEGO League Challenge"
+                  @click="b.active !== false && toggleProgram(b, 3)"
+              />
+            </div>
+          </div>
 
-            <td class="px-2 py-2">
-              <div class="space-y-2">
-                <div class="flex space-x-2">
-                  <input :value="b.name"
-                         :disabled="b.active === false"
-                         :class="['flex-1 border rounded px-2 py-1 text-sm',
-                                  b.active !== false
-                                    ? 'bg-white border-gray-300'
-                                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                         type="text" placeholder="Titel"
-                         @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
-                         @blur="saveBlock(b)"/>
-                  <input :value="b.link ?? ''"
-                         :disabled="b.active === false"
-                         :class="['flex-1 border rounded px-2 py-1 text-sm',
-                                  b.active !== false
-                                    ? 'bg-white border-gray-300'
-                                    : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                         type="url" placeholder="https://example.com"
-                         @input="(e) => { b.link = (e.target as HTMLInputElement).value }"
-                         @blur="saveBlock(b)"/>
-                </div>
-                <input :value="b.description"
-                       :disabled="b.active === false"
-                       :class="['w-full border rounded px-2 py-1 text-sm',
-                                b.active !== false
-                                  ? 'bg-white border-gray-300'
-                                  : 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed']"
-                       type="text" placeholder="Beschreibung"
-                       @input="(e) => { b.description = (e.target as HTMLInputElement).value }"
-                       @blur="saveBlock(b)"/>
-              </div>
-            </td>
-          </tr>
-
-          <tr v-if="!customBlocks.length">
-            <td class="px-4 py-6 text-gray-500 text-center" colspan="4">
-              Noch keine freien Zusatzblöcke. Füge oben welche hinzu.
-            </td>
-          </tr>
-          </tbody>
-        </table>
+          <input
+              :value="b.description"
+              :disabled="b.active === false"
+              class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+              type="text"
+              placeholder="Beschreibung"
+              @input="(e) => { b.description = (e.target as HTMLInputElement).value }"
+              @blur="saveBlock(b)"
+          />
+          <input
+              :value="b.link ?? ''"
+              :disabled="b.active === false"
+              class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+              type="url"
+              placeholder="https://example.com"
+              @input="(e) => { b.link = (e.target as HTMLInputElement).value }"
+              @blur="saveBlock(b)"
+          />
+        </ItemCard>
       </div>
     </div>
 
@@ -878,6 +919,7 @@ const hasBlocksOutsideEventDates = computed(() => {
 
     <ScheduleToast
         ref="savingToast"
+        action="update"
         :is-generating="isGenerating"
         :countdown="countdownSeconds"
         :on-immediate-save="immediateFlush"
@@ -885,3 +927,89 @@ const hasBlocksOutsideEventDates = computed(() => {
     />
   </div>
 </template>
+
+<style scoped>
+.free-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.free-blocks__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.free-block__programs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.free-block__logo {
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  object-fit: contain;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+}
+
+.free-block__logo:hover:not(.free-block__logo--disabled) {
+  transform: scale(1.08);
+}
+
+.free-block__logo--off {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.free-block__logo--disabled {
+  cursor: not-allowed;
+}
+
+.free-block__when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.free-block__date.glass-input,
+.free-block__time.glass-input {
+  display: inline-flex;
+  width: auto;
+  flex: 0 0 auto;
+  max-width: max-content;
+}
+
+.free-block__date.glass-input {
+  width: 11.25rem;
+}
+
+.free-block__time.glass-input {
+  width: 7.25rem;
+}
+
+.free-block__composer-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.free-block--warning {
+  background: color-mix(in srgb, #b45309 14%, var(--color-bg-muted));
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

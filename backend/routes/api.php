@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\AfternoonController;
+use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
@@ -12,18 +14,21 @@ use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanActivityController;
+use App\Http\Controllers\Api\PublicPlanController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanExportController;
 use App\Http\Controllers\Api\PlanGeneratorController;
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
+use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Models\Event;
@@ -45,15 +50,21 @@ Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPubli
 Route::get('/carousel/{event}/slide/{slide}', [CarouselController::class, 'getPublicSingleSlide']);
 Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?room=24&point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?room=24&interval=15&point_in_time=...
+Route::get('/plans/{planId}/visitor/roles', [PublicPlanController::class, 'roles']); // Public role picker for interactive plan
+Route::get('/plans/{planId}/visitor/schedule', [PublicPlanController::class, 'schedule']); // Public role-filtered schedule
 Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
 Route::get('/events/public/{id}', [EventController::class, 'getPublicEventById']); // Public event lookup by id
 Route::get('/events/{event}/team-coordinates', [DrahtController::class, 'getTeamsCoordinates']);
 Route::get('/events', [EventController::class, 'index']); // Get list of current events
+Route::get('/programs', [ProgramController::class, 'index']); // Catalog from m_first_program
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
 Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']); // Public one-link access logging
+Route::get('/calendar.ics', [CalendarFeedController::class, 'all']); // Public ICS subscription (all events in window)
+Route::get('/calendar/{postfix}.ics', [CalendarFeedController::class, 'postfix'])
+    ->where('postfix', '[A-Za-z0-9_]+');
 
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);
@@ -74,6 +85,12 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
+    Route::get('/user/me', [UserAccessController::class, 'me']);
+    Route::get('/user/access', [UserAccessController::class, 'overview']);
+    Route::get('/user/access/events/{eventId}/users', [UserAccessController::class, 'eventUsers']);
+    Route::get('/user/access/users', [UserAccessController::class, 'searchUsers']);
+    Route::post('/user/access/grants', [UserAccessController::class, 'grant']);
+    Route::delete('/user/access/grants', [UserAccessController::class, 'revoke']);
     Route::get('/user/regional-partners', function (Request $request) {
         $user = $request->user();
         if (!$user) {
@@ -96,7 +113,8 @@ Route::middleware(['keycloak'])->group(function () {
         }
 
         $event = Event::find($eventId);
-        if (!$event || $event->season !== SeasonService::currentSeasonId()) {
+        // Past seasons are allowed (view/switch via event modal). Only clear if missing or no access.
+        if (!$event || !$user->hasEventAccess($event->id)) {
             $user->selection_event = null;
             $user->selection_regional_partner = null;
             $user->save();
@@ -128,6 +146,22 @@ Route::middleware(['keycloak'])->group(function () {
         ]);
 
         $user = $request->user();
+        $event = Event::find($validated['event']);
+
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        if ((int) $event->regional_partner !== (int) $validated['regional_partner']) {
+            return response()->json([
+                'error' => 'regional_partner does not match the event',
+            ], 422);
+        }
+
+        if (!$user->hasEventAccess($event->id)) {
+            return response()->json(['error' => 'Forbidden - no access to this event'], 403);
+        }
+
         $user->selection_event = $validated['event'];
         $user->selection_regional_partner = $validated['regional_partner'];
         $user->save();
@@ -177,7 +211,6 @@ Route::middleware(['keycloak'])->group(function () {
     // ExtraBlock controller
     Route::get('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'getBlocksForPlan']);
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
-    Route::get('/insert-points', [ExtraBlockController::class, 'getInsertPoints']);
     Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
 
     Route::post('/plans/{planId}/extra-blocks/slot/apply-to-plan', [ExtraBlockController::class, 'slotApplyToPlan']);
@@ -206,6 +239,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/slideshow/{event}', [CarouselController::class, 'getAllSlideshows']);
     Route::put('/slideshow/{slideshow}/updateOrder', [CarouselController::class, 'updateSlideshowOrder']);
     Route::put('/slideshow/{slideshow}', [CarouselController::class, 'updateSlideshow']);
+    Route::delete('/slideshow/{slideshow}', [CarouselController::class, 'deleteSlideshow']);
     Route::put('/slideshow/{slideshow}/add', [CarouselController::class, 'addSlide']);
     Route::post('/slideshow/{event}', [CarouselController::class, 'generateSlideshow']);
 
@@ -249,11 +283,14 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/', [ParameterController::class, 'index']);
         Route::get('/condition', [ParameterController::class, 'listConditions']);
         Route::get('/lanes-options', [ParameterController::class, 'listLanesOptions']);
+        Route::get('/afternoon-programs', [ParameterController::class, 'afternoonPrograms']);
         Route::post('/condition', [ParameterController::class, 'addCondition']);
         Route::put('/condition/{id}', [ParameterController::class, 'updateCondition']);
         Route::delete('/condition/{id}', [ParameterController::class, 'deleteCondition']);
     });
     Route::get('/parameters/visibility', [ParameterController::class, 'visibility']);
+    Route::get('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'blocks']);
+    Route::put('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'updateOrder']);
 
     Route::prefix('mparams')->group(function () {
         Route::get('/', [MParameterController::class, 'listMparameter']);
@@ -299,6 +336,13 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/admin/draht/sync-draht-regions', [DrahtController::class, 'getAllRegions']);
     Route::get('/admin/draht/sync-draht-events/{seasonId}', [DrahtController::class, 'getAllEventsAndTeams']);
 
+    Route::prefix('admin/calendar')->group(function () {
+        Route::get('/feeds', [CalendarFeedController::class, 'feeds']);
+        Route::post('/rebuild', [CalendarFeedController::class, 'rebuildWindow']);
+        Route::get('/feeds/{key}', [CalendarFeedController::class, 'preview'])
+            ->where('key', '[A-Za-z0-9_]+');
+    });
+
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
         Route::post('/regenerate/{eventId}', [PublishController::class, 'regenerateLinkAndQRcode']); // Link und QR-Code neu generieren (Admin)
@@ -338,6 +382,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/details-by-plan/{planId}', [QualityController::class, 'getQPlanDetailsByPlan']); // Details mit Auto-Generierung (by Plan ID)
         Route::post('/rerun', [QualityController::class, 'rerunQPlans']);
         Route::delete('/delete/{qRunId}', [QualityController::class, 'deleteQRun']);        // Löschen eines Runs und aller zugehörigen Pläne
+        Route::delete('/preview-runs', [QualityController::class, 'deletePreviewQRuns']); // Preview/ReRun (selection null), ohne Event-Pläne
         // compress endpoint removed (no longer needed)
     });
 

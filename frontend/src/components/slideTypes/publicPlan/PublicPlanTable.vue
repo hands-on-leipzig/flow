@@ -309,16 +309,22 @@ watch(
           class="audience-group"
       >
         <div class="audience-group-header">
+          <template v-if="g.group_meta?.first_program_id === 0">
+            <img
+                :src="programLogoSrc('EXPLORE')"
+                :alt="programLogoAlt('EXPLORE')"
+                class="audience-program-icon"
+            />
+            <img
+                :src="programLogoSrc('CHALLENGE')"
+                :alt="programLogoAlt('CHALLENGE')"
+                class="audience-program-icon"
+            />
+          </template>
           <img
-              v-if="g.group_meta?.first_program_id === 2 || g.group_meta?.first_program_id === 0"
-              :src="programLogoSrc('E')"
-              :alt="programLogoAlt('E')"
-              class="audience-program-icon"
-          />
-          <img
-              v-if="g.group_meta?.first_program_id === 3 || g.group_meta?.first_program_id === 0"
-              :src="programLogoSrc('C')"
-              :alt="programLogoAlt('C')"
+              v-else
+              :src="programLogoSrc(g.group_meta?.first_program_name || { first_program: g.group_meta?.first_program_id })"
+              :alt="programLogoAlt(g.group_meta?.first_program_name || { first_program: g.group_meta?.first_program_id })"
               class="audience-program-icon"
           />
           <span class="audience-group-title">

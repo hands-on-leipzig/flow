@@ -2,6 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import ConfirmationModal from './ConfirmationModal.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
+
 
 // Removed isDevEnvironment prop - news can now be created in any environment
 
@@ -34,7 +36,7 @@ const loadNews = async () => {
 
 const createNews = async () => {
   if (!newNews.value.title.trim() || !newNews.value.text.trim()) {
-    alert('Bitte fülle Titel und Text aus')
+    showGlassToast('Bitte fülle Titel und Text aus', 'info')
     return
   }
 
@@ -53,7 +55,7 @@ const createNews = async () => {
     await loadNews()
   } catch (err) {
     console.error('Error creating news:', err)
-    alert('Fehler beim Erstellen der News')
+    showGlassToast('Fehler beim Erstellen der News', 'error')
   }
 }
 
@@ -79,7 +81,7 @@ const deleteNews = async () => {
     newsToDelete.value = null
   } catch (err) {
     console.error('Error deleting news:', err)
-    alert('Fehler beim Löschen der News')
+    showGlassToast('Fehler beim Löschen der News', 'error')
     newsToDelete.value = null
   }
 }
@@ -97,7 +99,7 @@ onMounted(() => {
 <template>
   <div class="p-6">
     <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-gray-800">System News</h1>
+      <h1 class="text-2xl font-bold text-[var(--color-text)]">System News</h1>
       <button
         v-if="!showCreateForm"
         @click="showCreateForm = true"
@@ -108,44 +110,44 @@ onMounted(() => {
     </div>
 
     <!-- Create Form -->
-    <div v-if="showCreateForm" class="bg-white border border-gray-300 rounded-lg p-6 mb-6 shadow-sm">
-      <h2 class="text-xl font-semibold text-gray-800 mb-4">Neue News erstellen</h2>
+    <div v-if="showCreateForm" class="glass-card liquid-surface-inner p-6 mb-6">
+      <h2 class="text-xl font-semibold text-[var(--color-text)] mb-4">Neue News erstellen</h2>
       
       <div class="space-y-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
             Titel *
           </label>
           <input
             v-model="newNews.title"
             type="text"
             placeholder="z.B. Neue Funktion: Robot-Game Vorschau"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             maxlength="255"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
             Text *
           </label>
           <textarea
             v-model="newNews.text"
             placeholder="Beschreibung der Änderung oder Neuigkeit..."
             rows="6"
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-1">
             Link (optional)
           </label>
           <input
             v-model="newNews.link"
             type="url"
             placeholder="https://..."
-            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            class="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             maxlength="500"
           />
         </div>
@@ -159,7 +161,7 @@ onMounted(() => {
           </button>
           <button
             @click="cancelCreate"
-            class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
+            class="bg-gray-300 hover:bg-gray-400 text-[var(--color-text)] font-semibold py-2 px-6 rounded-lg transition-colors duration-200"
           >
             Abbrechen
           </button>
@@ -168,7 +170,7 @@ onMounted(() => {
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="text-center py-8 text-gray-500">
+    <div v-if="loading" class="text-center py-8 text-[var(--color-text-subtle)]">
       Lade News...
     </div>
 
@@ -178,7 +180,7 @@ onMounted(() => {
     </div>
 
     <!-- News List -->
-    <div v-else-if="newsList.length === 0" class="text-center py-8 text-gray-500">
+    <div v-else-if="newsList.length === 0" class="text-center py-8 text-[var(--color-text-subtle)]">
       Keine News vorhanden
     </div>
 
@@ -186,13 +188,13 @@ onMounted(() => {
       <div
         v-for="news in newsList"
         :key="news.id"
-        class="bg-white border border-gray-300 rounded-lg p-5 shadow-sm hover:shadow-md transition-shadow duration-200"
+        class="glass-card liquid-surface-inner p-5 hover:bg-[var(--color-bg-hover)] transition-colors duration-200"
       >
         <!-- Header -->
         <div class="flex justify-between items-start mb-3">
           <div class="flex-1">
-            <h3 class="text-lg font-semibold text-gray-800">{{ news.title }}</h3>
-            <p class="text-sm text-gray-500 mt-1">
+            <h3 class="text-lg font-semibold text-[var(--color-text)]">{{ news.title }}</h3>
+            <p class="text-sm text-[var(--color-text-subtle)] mt-1">
               {{ new Date(news.created_at).toLocaleDateString('de-DE', { 
                 year: 'numeric', 
                 month: 'long', 
@@ -214,7 +216,7 @@ onMounted(() => {
         </div>
 
         <!-- Content -->
-        <p class="text-gray-700 whitespace-pre-wrap mb-3">{{ news.text }}</p>
+        <p class="text-[var(--color-text-muted)] whitespace-pre-wrap mb-3">{{ news.text }}</p>
 
         <!-- Link -->
         <div v-if="news.link" class="mb-3">

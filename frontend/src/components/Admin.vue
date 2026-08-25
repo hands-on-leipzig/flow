@@ -1,6 +1,6 @@
 <script setup>
 import {ref, watch, onMounted, computed} from 'vue'
-import {Menu, MenuButton, MenuItems, MenuItem} from '@headlessui/vue'
+import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import Multiselect from '@vueform/multiselect'
 import Quality from '@/components/molecules/Quality.vue'
@@ -12,45 +12,58 @@ import MainTablesAdmin from '@/components/molecules/MainTablesAdmin.vue'
 import SystemNews from '@/components/molecules/SystemNews.vue'
 import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
+import CalendarFeedsAdmin from '@/components/molecules/CalendarFeedsAdmin.vue'
 import '@vueform/multiselect/themes/default.css'
+import {showGlassToast} from '@/composables/useGlassToast'
+import {ADMIN_DEFAULT_SECTION, ADMIN_SECTIONS, isAdminSection, isAdminSectionAvailable} from '@/constants/adminNav'
+import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 
-const activeTab = ref('statistics')
+defineOptions({name: 'Admin'})
 
-// Admin menu entries (shared by sidebar and mobile dropdown)
-const adminMenuItems = [
-  {key: 'statistics', label: 'Statistiken', icon: '📊', devOnly: false},
-  {key: 'main-tables', label: 'Main Tables', icon: '📝', devOnly: true, devSuffix: '(nur Dev)'},
-  {key: 'system-news', label: 'System News', icon: '📰', devOnly: false},
-  {key: 'nowandnext', label: 'Now and Next', icon: '⏰', devOnly: false},
-  {key: 'quality', label: 'Massentest', icon: '🧪', devOrLocalOnly: true, devSuffix: '(Dev oder lokal)'},
-  {key: 'conditions', label: 'Parameter-Anzeige', icon: '📄', devOnly: false},
-  {key: 'user-regional-partners', label: 'User-Regional Partner Relations', icon: '👥', devOnly: false},
-  {key: 'sync', label: 'Draht Sync', icon: '🔁', devOnly: false},
-  {key: 'external-api', label: 'External API', icon: '🔑', devOnly: false},
-  {key: 'sharepoint', label: 'SharePoint', icon: '📂', devOnly: false},
-  {key: 'hilfsfunktionen', label: 'Hilfsfunktionen', icon: '🔧', devOnly: false},
-]
+const route = useRoute()
+const router = useRouter()
+const {isDevEnvironment, isLocal, ensureLoaded: ensureAdminEnvironment} = useAdminEnvironment()
 
-const currentMenuLabel = computed(() => {
-  const item = adminMenuItems.find(i => i.key === activeTab.value)
-  return item ? `${item.icon} ${item.label}` : 'Admin'
+const activeTab = computed(() => {
+  const section = String(route.params.section || '')
+  return isAdminSection(section) ? section : ADMIN_DEFAULT_SECTION
 })
 
-// Tab available: devOrLocalOnly => Dev or local; devOnly => Dev only; else always
-const isTabAvailable = (item) => {
-  if (item.devOrLocalOnly) return isDevEnvironment.value || isLocal
-  if (item.devOnly) return isDevEnvironment.value
-  return true
+const sectionAllowed = computed(() => {
+  const item = ADMIN_SECTIONS.find((entry) => entry.key === activeTab.value)
+  if (!item) return true
+  return isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
+})
+
+function redirectIfSectionBlocked(section) {
+  const key = String(section || '')
+  if (!isAdminSection(key)) {
+    void router.replace(`/plan/admin/${ADMIN_DEFAULT_SECTION}`)
+    return
+  }
+  const item = ADMIN_SECTIONS.find((entry) => entry.key === key)
+  if (item && !isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)) {
+    void router.replace(`/plan/admin/${ADMIN_DEFAULT_SECTION}`)
+  }
 }
+
+watch(
+  () => route.params.section,
+  (section) => redirectIfSectionBlocked(section),
+  {immediate: true}
+)
+
+watch(isDevEnvironment, () => {
+  redirectIfSectionBlocked(route.params.section)
+})
 
 const parameters = ref([])
 const conditions = ref([])
-const isDevEnvironment = ref(false)
-const isLocal = typeof window !== 'undefined' && (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1')
 const seasons = ref([])
 const selectedSeason = ref(null)
 const regeneratingLinks = ref(false)
 const cleaningLogos = ref(false)
+const rebuildingCalendar = ref(false)
 
 // New refs for Contao update parameters and loading state
 const contaoEventId = ref(null)
@@ -60,18 +73,8 @@ const updatingMatchSchedule = ref(false)
 // Toggle for "Nur Tabelle" mode in Statistics
 const statisticsTableOnly = ref(false)
 
-// Check environment on mount
 onMounted(async () => {
-  try {
-    const response = await axios.get('/environment')
-    isDevEnvironment.value = response.data.is_dev || false
-  } catch (error) {
-    console.error('Failed to fetch environment:', error)
-    // Default to false (not dev) if check fails
-    isDevEnvironment.value = false
-  }
-
-  // Fetch seasons
+  void ensureAdminEnvironment()
   try {
     const seasonsResponse = await axios.get('/seasons')
     // Ensure we have an array (axios wraps responses, but this endpoint returns array directly)
@@ -96,9 +99,9 @@ const syncDrahtRegions = async () => {
 
   try {
     await axios.get('/admin/draht/sync-draht-regions')
-    alert('Regional Partner erfolgreich synchronisiert!')
+    showGlassToast('Regional Partner erfolgreich synchronisiert!', 'success')
   } catch (error) {
-    alert('Fehler beim Synchronisieren: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler beim Synchronisieren: ' + (error.response?.data?.message || error.message), 'error')
   }
 }
 
@@ -109,9 +112,9 @@ const syncDrahtEvents = async () => {
 
   try {
     await axios.get('/admin/draht/sync-draht-events/3')
-    alert('Events erfolgreich synchronisiert!')
+    showGlassToast('Events erfolgreich synchronisiert!', 'success')
   } catch (error) {
-    alert('Fehler beim Synchronisieren: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler beim Synchronisieren: ' + (error.response?.data?.message || error.message), 'error')
   }
 }
 
@@ -161,7 +164,7 @@ watch(conditions, async (newVal) => {
 
 const regenerateLinksForSeason = async () => {
   if (!selectedSeason.value) {
-    alert('Bitte wähle eine Saison aus')
+    showGlassToast('Bitte wähle eine Saison aus', 'info')
     return
   }
 
@@ -174,12 +177,12 @@ const regenerateLinksForSeason = async () => {
   try {
     const response = await axios.post(`/publish/regenerate-season/${selectedSeason.value}`)
     if (response.data.success) {
-      alert(`✅ ${response.data.message}\n\nRegeneriert: ${response.data.regenerated}\nFehlgeschlagen: ${response.data.failed}\nGesamt: ${response.data.total}`)
+      showGlassToast(`✅ ${response.data.message}\n\nRegeneriert: ${response.data.regenerated}\nFehlgeschlagen: ${response.data.failed}\nGesamt: ${response.data.total}`, 'success')
     } else {
-      alert('Fehler: ' + (response.data.message || response.data.error || 'Unbekannter Fehler'))
+      showGlassToast('Fehler: ' + (response.data.message || response.data.error || 'Unbekannter Fehler'), 'error')
     }
   } catch (error) {
-    alert('Fehler beim Regenerieren der Links: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler beim Regenerieren der Links: ' + (error.response?.data?.message || error.message), 'error')
   } finally {
     regeneratingLinks.value = false
   }
@@ -198,17 +201,43 @@ const cleanupOrphanedLogos = async () => {
           `Gelöschte DB-Einträge: ${response.data.deleted_db_entries}\n` +
           `Gelöschte Dateien: ${response.data.deleted_files}`
       if (response.data.errors && response.data.errors.length > 0) {
-        alert(message + `\n\nFehler:\n${response.data.errors.join('\n')}`)
+        showGlassToast(message + `\n\nFehler:\n${response.data.errors.join('\n')}`, 'error')
       } else {
-        alert(message)
+        showGlassToast(message, 'success')
       }
     } else {
-      alert('Fehler: ' + (response.data.message || 'Unbekannter Fehler'))
+      showGlassToast('Fehler: ' + (response.data.message || 'Unbekannter Fehler'), 'error')
     }
   } catch (error) {
-    alert('Fehler bei der Logo-Bereinigung: ' + (error.response?.data?.message || error.message))
+    showGlassToast('Fehler bei der Logo-Bereinigung: ' + (error.response?.data?.message || error.message), 'error')
   } finally {
     cleaningLogos.value = false
+  }
+}
+
+const rebuildCalendarFeeds = async () => {
+  if (!confirm('Möchtest du wirklich alle Kalender-Einträge im Feed-Fenster neu aufbauen?\n\nDas schreibt event_calendar für veröffentlichte Events (Zukunft plus 90 Tage zurück) neu und entfernt Einträge außerhalb dieses Fensters. DRAHT wird je Event aufgerufen. Das kann einige Minuten dauern.')) {
+    return
+  }
+
+  rebuildingCalendar.value = true
+  try {
+    const response = await axios.post('/admin/calendar/rebuild', null, {timeout: 600000})
+    const data = response.data
+    if (data.success) {
+      const message = `Kalender aktualisiert.\n\nNeu gebaut: ${data.rebuilt}\nBehalten (DRAHT fehlgeschlagen): ${data.kept}\nÜbersprungen: ${data.skipped}\nEntfernt: ${data.removed}\nFehlgeschlagen: ${data.failed}\nGesamt im Fenster: ${data.total}`
+      if (data.errors && data.errors.length > 0) {
+        showGlassToast(message + `\n\nFehler:\n${data.errors.join('\n')}`, 'error')
+      } else {
+        showGlassToast(message, 'success')
+      }
+    } else {
+      showGlassToast('Fehler: ' + (data.message || data.error || 'Unbekannter Fehler'), 'error')
+    }
+  } catch (error) {
+    showGlassToast('Fehler beim Aktualisieren der Kalender-Einträge: ' + (error.response?.data?.message || error.message), 'error')
+  } finally {
+    rebuildingCalendar.value = false
   }
 }
 
@@ -232,92 +261,13 @@ fetchConditions()
 </script>
 
 <template>
-  <div class="flex flex-col lg:flex-row min-h-screen">
-    <!-- Desktop sidebar (lg and up) -->
-    <aside
-        v-if="!(activeTab === 'statistics' && statisticsTableOnly)"
-        class="hidden lg:block w-64 flex-shrink-0 bg-gray-100 border-r p-4 space-y-2"
-    >
-      <button
-          v-for="item in adminMenuItems"
-          :key="item.key"
-          type="button"
-          class="w-full text-left px-3 py-2 rounded text-sm"
-          :class="{
-          'bg-white font-semibold shadow': activeTab === item.key,
-          'opacity-50 cursor-not-allowed bg-gray-100': (item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item),
-          'hover:bg-gray-200': isTabAvailable(item)
-        }"
-          :disabled="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)"
-          :title="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item) ? `${item.label} ist nur auf Dev oder lokal verfügbar` : ''"
-          @click="isTabAvailable(item) && (activeTab = item.key)"
-      >
-        {{ item.icon }} {{ item.label }}
-        <span v-if="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)" class="ml-2 text-xs text-gray-500">{{
-            item.devSuffix
-          }}</span>
-      </button>
-    </aside>
-
-    <!-- Mobile: dropdown bar (below main nav) + content -->
-    <div class="flex-1 flex flex-col min-w-0">
-      <!-- Mobile admin menu dropdown (below nav bar) -->
-      <div
-          class="lg:hidden sticky z-40 bg-gray-100 border-b border-gray-200 shadow-sm"
-          style="top: var(--app-nav-height, 52px);"
-      >
-        <Menu as="div" class="relative">
-          <MenuButton
-              class="flex items-center justify-between w-full px-4 py-3 text-left text-sm font-medium text-gray-700 hover:bg-gray-200/80 transition-colors"
-          >
-            <span>{{ currentMenuLabel }}</span>
-            <svg class="w-5 h-5 text-gray-500 flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd"
-                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                    clip-rule="evenodd"/>
-            </svg>
-          </MenuButton>
-          <MenuItems
-              class="absolute left-0 right-0 z-50 mt-0 max-h-[min(70vh,400px)] overflow-y-auto bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border-b border-gray-200"
-          >
-            <div class="py-1">
-              <MenuItem
-                  v-for="item in adminMenuItems"
-                  :key="item.key"
-                  v-slot="{ active }"
-              >
-                <button
-                    type="button"
-                    :disabled="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)"
-                    :class="[
-                    'w-full text-left px-4 py-3 text-sm flex items-center gap-2',
-                    active ? 'bg-blue-50' : '',
-                    activeTab === item.key ? 'font-semibold bg-gray-100' : '',
-                    (item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item) ? 'opacity-50 cursor-not-allowed' : ''
-                  ]"
-                    @click="isTabAvailable(item) && (activeTab = item.key)"
-                >
-                  <span>{{ item.icon }} {{ item.label }}</span>
-                  <span v-if="(item.devOnly || item.devOrLocalOnly) && !isTabAvailable(item)"
-                        class="text-xs text-gray-500">{{ item.devSuffix }}</span>
-                  <span v-if="activeTab === item.key" class="ml-auto text-blue-600">✓</span>
-                </button>
-              </MenuItem>
-            </div>
-          </MenuItems>
-        </Menu>
-      </div>
-
-      <!-- Content -->
-      <div class="flex-1 p-4 lg:p-6 overflow-auto">
-
-
+  <div class="h-full min-h-0 overflow-auto p-4 lg:p-6">
         <div v-if="activeTab === 'conditions'">
           <h2 class="text-xl font-bold mb-4">Parameter-Anzeige-Bedingungen</h2>
           <div
               v-for="(cond, index) in conditions"
               :key="cond.id || index"
-              class="flex items-center justify-center gap-4 px-3 py-2 rounded bg-white hover:bg-gray-200"
+              class="flex items-center justify-center gap-4 px-3 py-2 rounded glass-row-item hover:bg-[var(--color-bg-hover)]"
           >
             <Multiselect
                 v-model="cond.parameter"
@@ -382,9 +332,9 @@ fetchConditions()
 
           <div class="space-y-6">
             <!-- Regional Partner Sync -->
-            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="glass-surface-lg border border-[var(--color-border)]">
               <h3 class="text-lg font-semibold mb-2">Regional Partner synchronisieren</h3>
-              <p class="text-gray-600 mb-4">
+              <p class="text-[var(--color-text-muted)] mb-4">
                 Synchronisiert alle Regional Partner aus DRAHT in die Datenbank.
                 Bestehende Regional Partner werden aktualisiert, neue werden hinzugefügt.
               </p>
@@ -397,9 +347,9 @@ fetchConditions()
             </div>
 
             <!-- Events Sync -->
-            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="glass-surface-lg border border-[var(--color-border)]">
               <h3 class="text-lg font-semibold mb-2">Events synchronisieren</h3>
-              <p class="text-gray-600 mb-4">
+              <p class="text-[var(--color-text-muted)] mb-4">
                 Synchronisiert alle Events aus DRAHT in die Datenbank.
                 Bestehende Events werden aktualisiert, neue werden hinzugefügt.
               </p>
@@ -412,9 +362,9 @@ fetchConditions()
             </div>
 
             <!-- Temporary for testing: Update match schedule from Contao -->
-            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="glass-surface-lg border border-[var(--color-border)]">
               <h3 class="text-lg font-semibold mb-2">Teams in Finalrunden aus Contao laden</h3>
-              <p class="text-gray-600 mb-4">
+              <p class="text-[var(--color-text-muted)] mb-4">
                 Dieser Button ist hier, damit man die Funktion gut auf dev testen kann. Kommt bald wieder weg :)
               </p>
               <div class="flex items-center gap-2">
@@ -439,13 +389,13 @@ fetchConditions()
           </div>
         </div>
 
-        <div v-if="activeTab === 'quality'">
+        <div v-if="activeTab === 'quality' && sectionAllowed">
           <h2 class="text-xl font-bold mb-4">Massentest</h2>
           <quality/>
         </div>
 
 
-        <div v-if="activeTab === 'main-tables'">
+        <div v-if="activeTab === 'main-tables' && sectionAllowed">
           <MainTablesAdmin/>
         </div>
 
@@ -463,6 +413,10 @@ fetchConditions()
           <NowAndNext/>
         </div>
 
+        <div v-if="activeTab === 'calendar'">
+          <CalendarFeedsAdmin/>
+        </div>
+
         <div v-if="activeTab === 'statistics'">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-xl font-bold">Statistiken</h2>
@@ -475,7 +429,7 @@ fetchConditions()
               <div class="w-11 h-6 bg-gray-300 rounded-full peer-checked:bg-blue-600 transition-colors"></div>
               <div
                   class="absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full shadow transform peer-checked:translate-x-full transition-transform"></div>
-              <span class="ml-2 text-sm font-medium text-gray-700">Nur Tabelle</span>
+              <span class="ml-2 text-sm font-medium text-[var(--color-text-muted)]">Nur Tabelle</span>
             </label>
           </div>
           <statistics :table-only="statisticsTableOnly"/>
@@ -494,16 +448,16 @@ fetchConditions()
 
           <div class="space-y-6">
             <!-- Regenerate Public Links -->
-            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="glass-surface-lg border border-[var(--color-border)]">
               <h3 class="text-lg font-semibold mb-2">Öffentliche Links regenerieren</h3>
-              <p class="text-gray-600 mb-4">
+              <p class="text-[var(--color-text-muted)] mb-4">
                 Regeneriert alle öffentlichen Links und QR-Codes für alle Events einer ausgewählten Saison.
                 Dies erstellt neue Links und QR-Codes und aktualisiert sie auch in DRAHT.
               </p>
               <div class="flex items-center gap-4">
                 <select
                     v-model="selectedSeason"
-                    class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="px-4 py-2 border border-[var(--color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     :disabled="regeneratingLinks"
                 >
                   <option :value="null">-- Saison auswählen --</option>
@@ -526,12 +480,12 @@ fetchConditions()
             </div>
 
             <!-- Logo Cleanup -->
-            <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="glass-surface-lg border border-[var(--color-border)]">
               <h3 class="text-lg font-semibold mb-2">Logo-Bereinigung</h3>
-              <p class="text-gray-600 mb-2">
+              <p class="text-[var(--color-text-muted)] mb-2">
                 Diese Funktion bereinigt verwaiste Logos:
               </p>
-              <ul class="list-disc list-inside mb-4 space-y-1 text-sm text-gray-600">
+              <ul class="list-disc list-inside mb-4 space-y-1 text-sm text-[var(--color-text-muted)]">
                 <li>Löscht Datenbankeinträge, deren Dateien nicht mehr auf dem Server existieren</li>
                 <li>Löscht Dateien ohne zugehörigen Datenbankeintrag (nur hochgeladene Logos, keine System-Logos)</li>
               </ul>
@@ -543,11 +497,26 @@ fetchConditions()
                 {{ cleaningLogos ? '⏳ Bereinige...' : '🧹 Logo-Bereinigung durchführen' }}
               </button>
             </div>
+
+            <!-- Calendar rebuild -->
+            <div class="glass-surface-lg border border-[var(--color-border)]">
+              <h3 class="text-lg font-semibold mb-2">Kalender-Einträge aktualisieren</h3>
+              <p class="text-[var(--color-text-muted)] mb-4">
+                Schreibt die gespeicherten iCalendar-Einträge für alle veröffentlichten
+                Events im Feed-Fenster neu: zukünftige Termine und bis 90 Tage zurück.
+                Dafür wird DRAHT je Event aufgerufen. Einträge außerhalb des Fensters werden entfernt.
+                Die Vorschau unter Kalender-Feeds zeigt das Ergebnis sofort; Kalender-Apps holen den Feed später.
+              </p>
+              <button
+                  class="px-6 py-2 rounded bg-blue-500 text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  @click="rebuildCalendarFeeds"
+                  :disabled="rebuildingCalendar"
+              >
+                {{ rebuildingCalendar ? '⏳ Aktualisiere...' : '📅 Kalender aktualisieren' }}
+              </button>
+            </div>
           </div>
         </div>
-
-      </div>
-    </div>
   </div>
 </template>
 

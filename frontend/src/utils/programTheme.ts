@@ -1,0 +1,98 @@
+/**
+ * Visual identity for FIRST programs in settings / schedule UI.
+ * Accents are m_first_program.color_hex (FUTURE_5 is null in the catalog).
+ */
+import {findCatalogRow} from '@/utils/eventPrograms'
+
+export type ProgramKey = 'explore' | 'challenge' | 'future5' | 'future8' | 'discover' | 'shared'
+
+export type ProgramTheme = {
+  key: ProgramKey
+  /** Short label for scanning (Explore, Challenge, …) */
+  shortName: string
+  /** Full product line after italic FIRST */
+  productName: string
+  accent: string
+  /** Catalog name for programLogoSrc (EXPLORE, CHALLENGE, …) */
+  catalogName: string | null
+}
+
+/** Live m_first_program.color_hex. FUTURE_5 has no catalog color. */
+export const PROGRAM_COLOR_HEX = {
+  EXPLORE: '#00A651',
+  CHALLENGE: '#ED1C24',
+  DISCOVER: '#662D91',
+  FUTURE_8: '#5CD4C2',
+} as const
+
+const THEMES: Record<ProgramKey, ProgramTheme> = {
+  explore: {
+    key: 'explore',
+    shortName: 'Explore',
+    productName: 'LEGO League',
+    accent: PROGRAM_COLOR_HEX.EXPLORE,
+    catalogName: 'EXPLORE',
+  },
+  challenge: {
+    key: 'challenge',
+    shortName: 'Challenge',
+    productName: 'LEGO League',
+    accent: PROGRAM_COLOR_HEX.CHALLENGE,
+    catalogName: 'CHALLENGE',
+  },
+  future5: {
+    key: 'future5',
+    shortName: 'Future 5+',
+    productName: 'LEGO League',
+    accent: '#888888',
+    catalogName: 'FUTURE_5',
+  },
+  future8: {
+    key: 'future8',
+    shortName: 'Future 8+',
+    productName: 'LEGO League',
+    accent: PROGRAM_COLOR_HEX.FUTURE_8,
+    catalogName: 'FUTURE_8',
+  },
+  discover: {
+    key: 'discover',
+    shortName: 'Discover',
+    productName: 'LEGO League',
+    accent: PROGRAM_COLOR_HEX.DISCOVER,
+    catalogName: 'DISCOVER',
+  },
+  shared: {
+    key: 'shared',
+    shortName: 'Gemeinsam',
+    productName: 'LEGO League',
+    accent: 'var(--color-accent, #F78B1F)',
+    catalogName: null,
+  },
+}
+
+function withCatalog(theme: ProgramTheme): ProgramTheme {
+  const row = findCatalogRow(theme.catalogName)
+  if (!row) return theme
+  return {
+    ...theme,
+    shortName: row.display_name || theme.shortName,
+    accent: row.color_hex || theme.accent,
+    catalogName: row.name || theme.catalogName,
+  }
+}
+
+export function getProgramTheme(program: string): ProgramTheme {
+  const compact = String(program || '').toLowerCase().replace(/[_-]/g, '')
+  if (compact === 'explore' || compact === 'e' || compact === '2') return withCatalog(THEMES.explore)
+  if (compact === 'challenge' || compact === 'c' || compact === '3') return withCatalog(THEMES.challenge)
+  if (compact === 'future5' || compact === 'f5' || compact === '7') return withCatalog(THEMES.future5)
+  if (compact === 'future8' || compact === 'f8' || compact === '8') return withCatalog(THEMES.future8)
+  if (compact === 'discover' || compact === 'd' || compact === '1') return withCatalog(THEMES.discover)
+  const keyed = THEMES[program as ProgramKey]
+  return keyed ? withCatalog(keyed) : THEMES.shared
+}
+
+export function listProgramKeys(includeShared = false): ProgramKey[] {
+  const keys: ProgramKey[] = ['challenge', 'explore', 'future5', 'future8']
+  return includeShared ? [...keys, 'shared'] : keys
+}
