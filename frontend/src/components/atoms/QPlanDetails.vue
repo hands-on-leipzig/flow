@@ -7,6 +7,12 @@ const props = defineProps({
     type: Number,
     required: true,
   },
+  /** Challenge (3) or Future 8+ (8); omit to use backend lead default. */
+  firstProgram: {
+    type: Number,
+    required: false,
+    default: null,
+  },
 })
 
 const details = ref(null)
@@ -17,7 +23,11 @@ const loadDetails = async () => {
   loading.value = true
   error.value = null
   try {
-    const response = await axios.get(`/quality/details-by-plan/${props.planId}`)
+    const params = {}
+    if (props.firstProgram != null) {
+      params.first_program = props.firstProgram
+    }
+    const response = await axios.get(`/quality/details-by-plan/${props.planId}`, { params })
     details.value = response.data
   } catch (err) {
     console.error('Fehler beim Laden der Plan-Details', err)
@@ -27,7 +37,7 @@ const loadDetails = async () => {
   }
 }
 
-watch(() => props.planId, loadDetails, { immediate: true })
+watch(() => [props.planId, props.firstProgram], loadDetails, { immediate: true })
 
 const okIcon = (val) => (val == 1 || val === '1') ? '✓' : '⚠️'
 const okClass = (val) => (val == 1 || val === '1') ? 'text-gray-300' : 'text-yellow-500 font-semibold'

@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\FirstProgram;
 use App\Http\Controllers\Controller;
 use App\Services\ActivityFetcherService;
 use App\Services\PreviewMatrixService;
 use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PlanPreviewController extends Controller
@@ -103,40 +106,61 @@ class PlanPreviewController extends Controller
     }
 
     /**
-     * Get Robot-Game match plan for preview
+     * Match-Plan preview for Challenge and/or Future 8+.
+     * Query: first_program (3|8) — required when both are on; otherwise defaults to the only/lead program.
      */
-    public function previewRobotGame(int $plan)
+    public function previewRobotGame(Request $request, int $plan)
     {
-        $isTwoDayEvent = (bool) (new PlanParameter($plan))->get('g_finale');
+        $params = PlanParameter::load($plan);
+        $presence = ProgramPresence::forPlan($plan, $params);
+        $programs = $presence->challengeShapedOnIds();
 
-        // Check if Challenge exists in this plan
-        $hasChallenge = DB::table('activity')
-            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-            ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
-            ->where('activity_group.plan', $plan)
-            ->where('m_activity_type_detail.first_program', 3)
-            ->exists();
-
-        if (! $hasChallenge) {
+        if ($programs === []) {
             return response()->json([
                 'has_challenge' => false,
+                'has_match_plan' => false,
+                'programs' => [],
+                'first_program' => null,
                 'rounds' => [],
                 'team_summary' => [],
             ]);
         }
 
-        // Fetch all matches for this plan
+        $requested = $request->query('first_program');
+        if ($requested !== null && $requested !== '') {
+            $firstProgram = (int) $requested;
+            if (! in_array($firstProgram, $programs, true)) {
+                return response()->json([
+                    'message' => 'first_program is not on for this plan',
+                    'programs' => $programs,
+                ], 422);
+            }
+        } elseif (count($programs) === 1) {
+            $firstProgram = $programs[0];
+        } else {
+            $firstProgram = $presence->leadProgramId() ?? $programs[0];
+        }
+
+        $isTwoDayEvent = (bool) $params->get('g_finale');
+
         $matches = DB::table('match')
             ->where('plan', $plan)
+            ->where('first_program', $firstProgram)
             ->orderBy('round')
             ->orderBy('match_no')
             ->get();
 
         $rounds = [];
         if ($isTwoDayEvent) {
-            // Two-day finals: test rounds are stored in day-1 activity groups (r_test_round), not match.round=0.
-            $rTestRoundGroupAtdId = DB::table('m_activity_type_detail')->where('code', 'r_test_round')->value('id');
-            $rMatchAtdId = DB::table('m_activity_type_detail')->where('code', 'r_match')->value('id');
+            $testRoundGroupCode = $firstProgram === FirstProgram::FUTURE_8->value
+                ? 'f8_test_round'
+                : 'r_test_round';
+            $matchCode = $firstProgram === FirstProgram::FUTURE_8->value
+                ? 'f8_r_match'
+                : 'r_match';
+
+            $rTestRoundGroupAtdId = DB::table('m_activity_type_detail')->where('code', $testRoundGroupCode)->value('id');
+            $rMatchAtdId = DB::table('m_activity_type_detail')->where('code', $matchCode)->value('id');
 
             $testRoundActivities = DB::table('activity as a')
                 ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
@@ -194,7 +218,6 @@ class PlanPreviewController extends Controller
                 ];
             }
         } else {
-            // One-day events (unchanged): round 0 is the single test round.
             $roundNames = [
                 0 => 'Testrunde',
                 1 => 'Runde 1',
@@ -226,11 +249,8 @@ class PlanPreviewController extends Controller
             }
         }
 
-        // Calculate team diversity metrics (Q2 and Q3)
-        // Only use rounds 1-3 (robot game rounds, not test round)
         $robotGameMatches = $matches->whereIn('round', [1, 2, 3]);
 
-        // Get all unique teams from matches
         $allTeams = collect();
         foreach ($robotGameMatches as $match) {
             if ($match->table_1_team > 0) {
@@ -252,11 +272,9 @@ class PlanPreviewController extends Controller
             $opponents = [];
 
             foreach ($teamMatches as $match) {
-                // Get table this team played on
                 $table = $match->table_1_team == $team ? $match->table_1 : $match->table_2;
                 $tables[] = $table;
 
-                // Get opponent (exclude Team 0 - volunteers)
                 $opponent = $match->table_1_team == $team ? $match->table_2_team : $match->table_1_team;
                 if ($opponent > 0) {
                     $opponents[] = $opponent;
@@ -271,7 +289,10 @@ class PlanPreviewController extends Controller
         }
 
         return response()->json([
-            'has_challenge' => true,
+            'has_challenge' => in_array(FirstProgram::CHALLENGE->value, $programs, true),
+            'has_match_plan' => true,
+            'programs' => $programs,
+            'first_program' => $firstProgram,
             'rounds' => $rounds,
             'team_summary' => $teamSummary,
         ]);

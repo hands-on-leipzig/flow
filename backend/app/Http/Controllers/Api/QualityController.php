@@ -421,15 +421,43 @@ class QualityController extends Controller
 
     /**
      * Ensure a QPlan exists and is up-to-date for a given plan ID, then return details.
+     * Optional query first_program (3|8) selects which Challenge-shaped program to evaluate.
      */
-    public function getQPlanDetailsByPlan(int $planId)
+    public function getQPlanDetailsByPlan(Request $request, int $planId)
     {
         $plan = DB::table('plan')->where('id', $planId)->first();
         if (!$plan) {
             return response()->json(['message' => 'Plan not found'], 404);
         }
 
-        $qplan = DB::table('q_plan')->where('plan', $planId)->first();
+        $pp = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $pp);
+        $onPrograms = $presence->challengeShapedOnIds();
+
+        $requested = $request->query('first_program');
+        if ($requested !== null && $requested !== '') {
+            $firstProgram = (int) $requested;
+            if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
+                return response()->json(['message' => 'first_program must be Challenge or Future 8+'], 422);
+            }
+            if ($onPrograms !== [] && ! in_array($firstProgram, $onPrograms, true)) {
+                return response()->json([
+                    'message' => 'first_program is not on for this plan',
+                    'programs' => $onPrograms,
+                ], 422);
+            }
+        } else {
+            $firstProgram = $presence->leadProgramId() ?? FirstProgram::CHALLENGE->value;
+            if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
+                $firstProgram = FirstProgram::CHALLENGE->value;
+            }
+        }
+
+        $qplan = DB::table('q_plan')
+            ->where('plan', $planId)
+            ->where('first_program', $firstProgram)
+            ->orderByDesc('id')
+            ->first();
 
         $needsCreateOrRefresh = false;
         if (!$qplan) {
@@ -446,12 +474,6 @@ class QualityController extends Controller
 
         if ($needsCreateOrRefresh) {
             $host = gethostname();
-            $pp = PlanParameter::load($planId);
-            $presence = ProgramPresence::forPlan($planId, $pp);
-            $firstProgram = $presence->leadProgramId() ?? FirstProgram::CHALLENGE->value;
-            if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
-                $firstProgram = FirstProgram::CHALLENGE->value;
-            }
             $map = ChallengeShapedParamMap::from($firstProgram);
 
             $runId = DB::table('q_run')->insertGetId([
@@ -504,8 +526,10 @@ class QualityController extends Controller
 
             $qplan = DB::table('q_plan')->where('id', $qPlanId)->first();
 
+            // Drop older auto rows for the same plan + program only (keep the other C/F8 row).
             DB::table('q_plan')
                 ->where('plan', $planId)
+                ->where('first_program', $firstProgram)
                 ->where('id', '!=', $qPlanId)
                 ->delete();
         }
