@@ -18,6 +18,14 @@ const PDF_TABS: { key: TabKey; label: string }[] = [
   { key: 'aufkleber', label: 'Aufkleber' },
 ]
 
+withDefaults(
+  defineProps<{
+    /** Hide inner title when the page already says „Drucksachen“. */
+    hideHeading?: boolean
+  }>(),
+  {hideHeading: false}
+)
+
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
@@ -689,7 +697,7 @@ const currentTabLabel = computed(() =>
 
 <template>
   <div class="glass-surface-lg flex flex-col">
-    <h3 class="text-lg font-semibold mb-4">Drucksachen</h3>
+    <h3 v-if="!hideHeading" class="text-lg font-semibold mb-4">Drucksachen</h3>
 
     <!-- Tabs: dropdown on mobile, row on desktop -->
     <div class="mb-4 border-b border-[var(--color-border)]">

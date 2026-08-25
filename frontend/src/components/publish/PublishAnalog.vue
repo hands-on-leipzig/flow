@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Ausgabe → Analog: PDF-Pläne und Aushänge zum Drucken.
+ * Ausgabe → Drucksachen: PDF-Pläne und Aushänge zum Drucken.
  */
 import PdfPlansBox from '@/components/molecules/PdfPlansBox.vue'
 
@@ -10,13 +10,10 @@ defineOptions({name: 'PublishAnalog'})
 <template>
   <div class="analog">
     <header class="analog__intro">
-      <h1 class="analog__title">Analog</h1>
-      <p class="analog__sub">
-        Druckbare Pläne und Aushänge für vor Ort.
-      </p>
+      <h1 class="analog__title">Drucksachen</h1>
     </header>
 
-    <PdfPlansBox/>
+    <PdfPlansBox hide-heading/>
   </div>
 </template>
 
@@ -37,12 +34,5 @@ defineOptions({name: 'PublishAnalog'})
   font-size: 1.35rem;
   font-weight: 750;
   letter-spacing: -0.02em;
-}
-
-.analog__sub {
-  margin: 0.3rem 0 0;
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-  max-width: 40rem;
 }
 </style>

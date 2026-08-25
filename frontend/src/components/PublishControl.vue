@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Ausgabe shell: nested publish panes (Veröffentlichung, WLAN, Digital, Analog, Logos).
+ * Ausgabe shell: nested publish panes (Veröffentlichung, WLAN, Digital, Drucksachen, Logos).
  * Route-keyed keep-alive — same pattern as Schedule nested panes.
  */
 defineOptions({name: 'PublishControl'})
