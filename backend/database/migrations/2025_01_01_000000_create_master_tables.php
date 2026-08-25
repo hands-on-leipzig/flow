@@ -530,6 +530,7 @@ return new class extends Migration {
         Schema::create('match', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
             $table->unsignedInteger('plan');
+            $table->unsignedInteger('first_program');
             $table->unsignedInteger('round');
             $table->unsignedInteger('match_no');
             $table->unsignedInteger('table_1');
@@ -537,7 +538,12 @@ return new class extends Migration {
             $table->unsignedInteger('table_1_team');
             $table->unsignedInteger('table_2_team');
 
+            $table->unique(
+                ['plan', 'first_program', 'round', 'match_no'],
+                'match_plan_program_round_match_unique'
+            );
             $table->foreign('plan')->references('id')->on('plan')->onDelete('cascade');
+            $table->foreign('first_program')->references('id')->on('m_first_program')->onDelete('restrict');
         });
         }
 

@@ -17,6 +17,14 @@ const loading = ref(true)
 const error = ref(null)
 const expandedPlanId = ref(null)
 
+const runFirstProgram = computed(() => {
+  const first = plansRaw.value[0]
+  return Number(first?.first_program ?? 3)
+})
+
+const isFuture8 = computed(() => runFirstProgram.value === 8)
+const tablesHeader = computed(() => (isFuture8.value ? 'RG-Felder' : 'RG-Tische'))
+
 const filterQ = {
   1: ref(false),
   2: ref(false),
@@ -296,12 +304,12 @@ async function startRerun() {
 
           </div>
 
-          <!-- Filter-Kiste: RG-Tische -->
+          <!-- Filter-Kiste: RG-Tische / Felder -->
           <div class="glass-row-item px-2 py-2 flex justify-between items-center">
             
             <!-- Label-Teil -->
             <div class="text-sm font-medium text-[var(--color-text-muted)]">
-              Tische:
+              {{ isFuture8 ? 'Felder' : 'Tische' }}:
             </div>
 
             <!-- Checkboxen -->
@@ -363,7 +371,10 @@ async function startRerun() {
           </div>
 
           <!-- Filter-Kiste: Robot-Check -->
-          <div class="glass-row-item px-2 py-2 flex justify-between items-center">
+          <div
+            v-if="!isFuture8"
+            class="glass-row-item px-2 py-2 flex justify-between items-center"
+          >
             
             <!-- Label-Teil -->
             <div class="text-sm font-medium text-[var(--color-text-muted)]">
@@ -404,10 +415,10 @@ async function startRerun() {
         <div>Plan</div>
         <div>Teams</div>
         <div>Spuren</div>
-        <div>RG-Tische</div>
+        <div>{{ tablesHeader }}</div>
         <div>Runden</div>
         <div>RG asym</div>
-        <div>Robot check</div>
+        <div>{{ isFuture8 ? '—' : 'Robot check' }}</div>
         <div>Dauer</div>
         <div class="flex items-center gap-1">
           <input
@@ -481,7 +492,7 @@ async function startRerun() {
           <div>{{ qplan.r_tables }}</div>
           <div>{{ qplan.j_rounds }}</div>
           <div>{{ qplan.r_asym ? 'Ja' : 'Nein' }}</div>
-          <div>{{ qplan.r_robot_check ? 'An' : 'Aus' }}</div>
+          <div>{{ isFuture8 ? '—' : (qplan.r_robot_check ? 'An' : 'Aus') }}</div>
           
           <!-- Q6: Dauer -->
           <div>{{ formatDuration(qplan.q6_duration) }}</div>

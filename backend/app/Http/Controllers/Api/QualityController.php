@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 
 use App\Models\QRun;
+use App\Enums\FirstProgram;
+use App\Support\ChallengeShapedParamMap;
+use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -113,10 +117,23 @@ class QualityController extends Controller
     public function startQRun(Request $request)
     {
         try {
+            // Validate every selection key we persist — Laravel's validated()
+            // payload only keeps nested keys that have rules (not the whole array).
             $payload = $request->validate([
                 'name' => 'required|string|max:100',
                 'comment' => 'nullable|string',
                 'selection' => 'required|array',
+                'selection.first_program' => 'required|integer|in:3,8',
+                'selection.min_teams' => 'required|integer|min:4|max:25',
+                'selection.max_teams' => 'required|integer|min:4|max:25|gte:selection.min_teams',
+                'selection.jury_lanes' => 'required|array|min:1',
+                'selection.jury_lanes.*' => 'integer|min:1|max:5',
+                'selection.tables' => 'required|array|min:1',
+                'selection.tables.*' => 'integer|in:2,4',
+                'selection.jury_rounds' => 'required|array|min:1',
+                'selection.jury_rounds.*' => 'integer|min:3|max:6',
+                'selection.robot_check' => 'required|array|min:1',
+                'selection.robot_check.*' => 'string|in:on,off',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             error_log('Validation failed: ' . json_encode($e->errors()));
@@ -124,11 +141,14 @@ class QualityController extends Controller
         }
 
         $host = gethostname();
+        $selection = $payload['selection'];
+        $firstProgram = (int) $selection['first_program'];
 
         $qRunId = DB::table('q_run')->insertGetId([
             'name' => $payload['name'],
+            'first_program' => $firstProgram,
             'comment' => $payload['comment'] ?? null,
-            'selection' => json_encode($payload['selection']),
+            'selection' => json_encode($selection),
             'started_at' => Carbon::now(),
             'status' => 'pending',
             'host' => $host,
@@ -139,6 +159,8 @@ class QualityController extends Controller
         Log::info("QualityController::startQRun", [
             'q_run' => $qRunId,
             'name' => $payload['name'],
+            'first_program' => $firstProgram,
+            'selection' => $selection,
         ]);
 
         return response()->json([
@@ -167,11 +189,25 @@ class QualityController extends Controller
             ], 404);
         }
 
+        $programIds = DB::table('q_plan')
+            ->whereIn('id', $planIds)
+            ->distinct()
+            ->pluck('first_program');
+
+        if ($programIds->count() > 1) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'ReRun mit gemischten first_program ist nicht erlaubt.',
+            ], 400);
+        }
+
         $originalRunId = $firstQPlan->q_run;
+        $firstProgram = (int) ($programIds->first() ?? $firstQPlan->first_program ?? 3);
         $host = gethostname();
 
         $newRunId = DB::table('q_run')->insertGetId([
             'name' => "ReRun für $originalRunId (gefiltert)",
+            'first_program' => $firstProgram,
             'comment' => null,
             'selection' => null,
             'started_at' => Carbon::now(),
@@ -184,6 +220,7 @@ class QualityController extends Controller
         Log::info("QualityController::rerunQPlans", [
             'new_q_run' => $newRunId,
             'original_q_run' => $originalRunId,
+            'first_program' => $firstProgram,
             'plan_count' => count($planIds),
         ]);
 
@@ -223,21 +260,30 @@ class QualityController extends Controller
     public function getQPlanDetails(int $qplanId)
     {
         $teams = \App\Models\QPlanTeam::where('q_plan', $qplanId)->get();
-        
-        // Get plan ID from q_plan and fetch matches from match table
+
         $qplan = \App\Models\QPlan::findOrFail($qplanId);
         $planId = $qplan->plan;
-        $isTwoDayEvent = (bool) (new \App\Support\PlanParameter($planId))->get('g_finale');
+        $firstProgram = (int) ($qplan->first_program ?? FirstProgram::CHALLENGE->value);
+        $isTwoDayEvent = (bool) (new PlanParameter($planId))->get('g_finale');
+
         $matches = \App\Models\MatchEntry::where('plan', $planId)
+            ->where('first_program', $firstProgram)
             ->orderBy('round')
             ->orderBy('match_no')
             ->get();
         $matchPlanRounds = [];
 
         if ($isTwoDayEvent) {
-            // Day 1 has two test rounds stored as activity groups (r_test_round), not in match.round=0.
-            $rTestRoundGroupAtdId = MActivityTypeDetail::where('code', 'r_test_round')->value('id');
-            $rMatchAtdId = MActivityTypeDetail::where('code', 'r_match')->value('id');
+            // Day 1 has two test rounds stored as activity groups, not in match.round=0.
+            $testRoundGroupCode = $firstProgram === FirstProgram::FUTURE_8->value
+                ? 'f8_test_round'
+                : 'r_test_round';
+            $matchCode = $firstProgram === FirstProgram::FUTURE_8->value
+                ? 'f8_r_match'
+                : 'r_match';
+
+            $rTestRoundGroupAtdId = MActivityTypeDetail::where('code', $testRoundGroupCode)->value('id');
+            $rMatchAtdId = MActivityTypeDetail::where('code', $matchCode)->value('id');
 
             $testRoundActivities = DB::table('activity as a')
                 ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
@@ -318,10 +364,9 @@ class QualityController extends Controller
 
         $c_teams = $qplan->c_teams;
         $transferSummary = $isTwoDayEvent
-            ? $this->buildTwoDayTransferSummary($planId, (int)$c_teams, (int)$qplan->c_duration_transfer)
+            ? $this->buildTwoDayTransferSummary($planId, (int) $c_teams, (int) $qplan->c_duration_transfer)
             : [];
 
-        // Indexiere Matches nach Runde für schnelleren Zugriff
         $matchesByRound = $matches->groupBy('round');
 
         $summary = [];
@@ -329,16 +374,14 @@ class QualityController extends Controller
         for ($team = 1; $team <= $c_teams; $team++) {
             $entry = ['team' => $team];
 
-            // Runde 0 – Testrunde
-            $round0 = $matchesByRound[0]->first(fn($m) => $m->table_1_team == $team || $m->table_2_team == $team);
+            $round0 = $matchesByRound[0]->first(fn ($m) => $m->table_1_team == $team || $m->table_2_team == $team);
             $entry['tr_table'] = $round0?->table_1_team == $team ? $round0->table_1 : $round0?->table_2;
 
-            // Runde 1–3
             $tables = [];
             $opponents = [];
 
             foreach ([1, 2, 3] as $r) {
-                $match = $matchesByRound[$r]?->first(fn($m) => $m->table_1_team == $team || $m->table_2_team == $team);
+                $match = $matchesByRound[$r]?->first(fn ($m) => $m->table_1_team == $team || $m->table_2_team == $team);
                 if ($match) {
                     $tableKey = "r{$r}_table";
                     $oppKey = "r{$r}_opponent";
@@ -364,6 +407,7 @@ class QualityController extends Controller
         }
 
         return response()->json([
+            'first_program' => $firstProgram,
             'teams' => $teams,
             'matches' => $matches,
             'match_plan_rounds' => $matchPlanRounds,
@@ -377,25 +421,51 @@ class QualityController extends Controller
 
     /**
      * Ensure a QPlan exists and is up-to-date for a given plan ID, then return details.
+     * Optional query first_program (3|8) selects which Challenge-shaped program to evaluate.
      */
-    public function getQPlanDetailsByPlan(int $planId)
+    public function getQPlanDetailsByPlan(Request $request, int $planId)
     {
-        // Load plan.last_change
         $plan = DB::table('plan')->where('id', $planId)->first();
         if (!$plan) {
             return response()->json(['message' => 'Plan not found'], 404);
         }
 
-        $qplan = DB::table('q_plan')->where('plan', $planId)->first();
+        $pp = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $pp);
+        $onPrograms = $presence->challengeShapedOnIds();
+
+        $requested = $request->query('first_program');
+        if ($requested !== null && $requested !== '') {
+            $firstProgram = (int) $requested;
+            if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
+                return response()->json(['message' => 'first_program must be Challenge or Future 8+'], 422);
+            }
+            if ($onPrograms !== [] && ! in_array($firstProgram, $onPrograms, true)) {
+                return response()->json([
+                    'message' => 'first_program is not on for this plan',
+                    'programs' => $onPrograms,
+                ], 422);
+            }
+        } else {
+            $firstProgram = $presence->leadProgramId() ?? FirstProgram::CHALLENGE->value;
+            if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
+                $firstProgram = FirstProgram::CHALLENGE->value;
+            }
+        }
+
+        $qplan = DB::table('q_plan')
+            ->where('plan', $planId)
+            ->where('first_program', $firstProgram)
+            ->orderByDesc('id')
+            ->first();
 
         $needsCreateOrRefresh = false;
         if (!$qplan) {
             $needsCreateOrRefresh = true;
         } else {
-            // If q_plan.last_change is null or older than plan.last_change, refresh
             if (!empty($plan->last_change)) {
-                $planChanged = \Carbon\Carbon::parse($plan->last_change);
-                $qLast = $qplan->last_change ? \Carbon\Carbon::parse($qplan->last_change) : null;
+                $planChanged = Carbon::parse($plan->last_change);
+                $qLast = $qplan->last_change ? Carbon::parse($qplan->last_change) : null;
                 if ($qLast === null || $qLast->lt($planChanged)) {
                     $needsCreateOrRefresh = true;
                 }
@@ -403,106 +473,149 @@ class QualityController extends Controller
         }
 
         if ($needsCreateOrRefresh) {
-            // Create a minimal q_run and q_plan, then evaluate
             $host = gethostname();
+            $map = ChallengeShapedParamMap::from($firstProgram);
+
             $runId = DB::table('q_run')->insertGetId([
                 'name' => "Auto für Plan {$planId}",
+                'first_program' => $firstProgram,
                 'comment' => 'Automatisch erstellt durch Preview',
                 'selection' => null,
-                'started_at' => \Carbon\Carbon::now(),
+                'started_at' => Carbon::now(),
                 'status' => 'running',
                 'host' => $host,
             ]);
 
-            // Load parameters
-            $pp = new \App\Support\PlanParameter($planId);
-            $cTeams = (int) $pp->get('c_teams');
-            $rTables = (int) $pp->get('r_tables');
-            $jLanes = (int) $pp->get('j_lanes');
-            $juryRounds = (int) ceil(max(1, $cTeams) / max(1, $jLanes));
-            $robotCheck = (bool) $pp->get('r_robot_check');
-            $rDurationRobotCheck = (int) $pp->get('r_duration_robot_check');
-            $cDurationTransfer = (int) $pp->get('c_duration_transfer');
-            $rAsym = ($rTables === 4 && ($cTeams % 4 === 1 || $cTeams % 4 === 2)) ? 1 : 0;
+            $teams = (int) $pp->get($map->teams(), 0);
+            $tables = (int) $pp->get($map->tables(), 0);
+            $lanes = (int) $pp->get($map->lanes(), 0);
+            $juryRounds = (int) ceil(max(1, $teams) / max(1, $lanes));
+            $robotCheck = $map->supportsRobotCheck()
+                ? (bool) $pp->get($map->robotCheck(), 0)
+                : false;
+            $rDurationRobotCheck = (int) $pp->get('r_duration_robot_check', 0);
+            $transfer = (int) $pp->get($map->transfer(), 0);
+            $rAsym = ($tables === 4 && ($teams % 4 === 1 || $teams % 4 === 2)) ? 1 : 0;
 
             $qPlanId = DB::table('q_plan')->insertGetId([
                 'plan' => $planId,
                 'q_run' => $runId,
+                'first_program' => $firstProgram,
                 'name' => $plan->name,
-                'c_teams' => $cTeams,
-                'r_tables' => $rTables,
-                'j_lanes' => $jLanes,
+                'c_teams' => $teams,
+                'r_tables' => $tables,
+                'j_lanes' => $lanes,
                 'j_rounds' => $juryRounds,
                 'r_asym' => $rAsym,
                 'r_robot_check' => $robotCheck,
                 'r_duration_robot_check' => $rDurationRobotCheck,
-                'c_duration_transfer' => $cDurationTransfer,
-                'calculated' => false,
+                'c_duration_transfer' => $transfer,
+                'calculated' => true,
                 'last_change' => null,
             ]);
 
-            // Evaluate to populate q_plan_team and summary fields
             app(\App\Services\QualityEvaluatorService::class)->evaluate($qPlanId);
 
-            // Mark run as done and update counters
             $totals = DB::table('q_plan')->where('q_run', $runId)->count();
-            $calculated = DB::table('q_plan')->where('q_run', $runId)->where('calculated', 1)->count();
             DB::table('q_run')->where('id', $runId)->update([
                 'qplans_total' => $totals,
-                'qplans_calculated' => $calculated,
-                'finished_at' => \Carbon\Carbon::now(),
+                'qplans_calculated' => $totals,
+                'finished_at' => Carbon::now(),
                 'status' => 'done',
             ]);
 
             $qplan = DB::table('q_plan')->where('id', $qPlanId)->first();
 
-            // Cleanup: remove any older q_plan versions for this plan (keep only the fresh one)
+            // Drop older auto rows for the same plan + program only (keep the other C/F8 row).
             DB::table('q_plan')
                 ->where('plan', $planId)
+                ->where('first_program', $firstProgram)
                 ->where('id', '!=', $qPlanId)
                 ->delete();
         }
 
-        // Reuse details builder
         return $this->getQPlanDetails($qplan->id);
     }
 
     public function deleteQRun(int $qRunId)
     {
         try {
-            // Find plan IDs that will be deleted (for logging)
-            $planIds = DB::table('q_plan')
-                ->where('q_run', $qRunId)
-                ->whereNotNull('plan')
-                ->pluck('plan')
-                ->unique()
-                ->all();
-
-            // Delete the q_run - CASCADE DELETE will handle all related records:
-            // q_run -> q_plan -> q_plan_team, q_plan_match
-            $deleted = DB::table('q_run')->where('id', $qRunId)->delete();
-
-            if ($deleted) {
-                // Also delete the plan records (they're not CASCADE deleted)
-                if (!empty($planIds)) {
-                    DB::table('plan')->whereIn('id', $planIds)->delete();
-                }
-                
-                Log::info("QualityController::deleteQRun", [
-                    'q_run' => $qRunId,
-                    'plans_deleted' => count($planIds),
-                ]);
-                return response()->json(['status' => 'deleted']);
-            } else {
+            $qRun = DB::table('q_run')->where('id', $qRunId)->first();
+            if (! $qRun) {
                 Log::warning("qRun $qRunId: not found");
                 return response()->json(['status' => 'not_found'], 404);
             }
+
+            // Mass-test runs own disposable plans. Preview/ReRun rows
+            // (selection null) may point at a real event plan — never delete those.
+            $deleteOwnedPlans = $qRun->selection !== null;
+
+            $planIds = [];
+            if ($deleteOwnedPlans) {
+                $planIds = DB::table('q_plan')
+                    ->where('q_run', $qRunId)
+                    ->whereNotNull('plan')
+                    ->pluck('plan')
+                    ->unique()
+                    ->all();
+            }
+
+            // Delete the q_run - CASCADE DELETE will handle all related records:
+            // q_run -> q_plan -> q_plan_team, q_plan_match
+            DB::table('q_run')->where('id', $qRunId)->delete();
+
+            if ($deleteOwnedPlans && ! empty($planIds)) {
+                DB::table('plan')->whereIn('id', $planIds)->delete();
+            }
+
+            Log::info('QualityController::deleteQRun', [
+                'q_run' => $qRunId,
+                'plans_deleted' => count($planIds),
+                'owned_plans' => $deleteOwnedPlans,
+            ]);
+
+            return response()->json(['status' => 'deleted']);
         } catch (\Exception $e) {
             Log::error("deleteQRun($qRunId) failed: " . $e->getMessage());
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
+    /**
+     * Delete Preview / ReRun quality runs (selection IS NULL).
+     * Does not delete plan rows — Preview q_plans reference real event plans.
+     */
+    public function deletePreviewQRuns()
+    {
+        try {
+            $runIds = DB::table('q_run')
+                ->whereNull('selection')
+                ->pluck('id')
+                ->all();
+
+            if ($runIds === []) {
+                return response()->json([
+                    'status' => 'deleted',
+                    'q_runs_deleted' => 0,
+                ]);
+            }
+
+            $deleted = DB::table('q_run')->whereIn('id', $runIds)->delete();
+
+            Log::info('QualityController::deletePreviewQRuns', [
+                'q_runs_deleted' => $deleted,
+                'q_run_ids' => $runIds,
+            ]);
+
+            return response()->json([
+                'status' => 'deleted',
+                'q_runs_deleted' => $deleted,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('deletePreviewQRuns failed: '.$e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
 
     // compressQRun removed – functionality no longer needed
 

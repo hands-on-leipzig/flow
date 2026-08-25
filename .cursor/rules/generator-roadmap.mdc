@@ -56,6 +56,14 @@ Agreed sequence — do not start the next item until the user has reviewed:
 - Until then, `ProgramPresence` picks one lead; others on are logged and skipped.
 - Future 8+ is already a first-class generator program beside Explore and Challenge.
 
+### Prep before multi-lead: match plan (agreed)
+
+- Add `match.first_program`; builders delete/insert scoped by plan + program.
+- One pipeline: `MatchPlanSpec::for(FirstProgram, PlanParameter)` → single builder (seed + shared steps + persist). Spec maps program → param names and reads via `PlanParameter` (no recompute of derived rounds/matches/volunteer/asym). Challenge and Future differ only by binding (and Challenge-only finale start-team offsets kept as today).
+- **Remove different objectives** (`MatchPlanObjective` / TABLES vs OPPONENTS). Rotator already prefers opponents first, tables second; keep that one behavior for both. No F8-specific rotation model.
+- Old Quality mass/volume test for rotation baselines: **case closed** (broken after recent generator changes; do not rely on it for this work).
+- Extra blocks, PDF, RG preview, quality UI: out of scope for this prep.
+
 ## 3. Then: rework the afternoon
 
 - “Afternoon” = everything **after robot game round three** (finals, awards, joint ceremonies, integrated Explore hooks, lunch-adjacent sequencing as it sits after RG3).

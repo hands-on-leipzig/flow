@@ -3,7 +3,9 @@
 namespace App\Core;
 
 use App\Enums\ExploreMode;
+use App\Enums\FirstProgram;
 use App\Support\IntegratedExploreState;
+use App\Support\MatchPlanSpec;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use Illuminate\Support\Facades\Log;
@@ -204,7 +206,9 @@ class Future8Generator implements ChallengeShapedLead
         ]);
 
         try {
-            $matchPlan = (new Future8MatchPlanBuilder($this->params))->build();
+            $matchPlan = (new MatchPlanBuilder)->build(
+                MatchPlanSpec::for(FirstProgram::FUTURE_8, $this->params)
+            );
             $this->robotGame = new RobotGameGenerator(
                 $this->writer,
                 $this->params,

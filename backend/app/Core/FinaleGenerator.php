@@ -4,6 +4,7 @@ namespace App\Core;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use App\Enums\FirstProgram;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 
@@ -129,16 +130,18 @@ class FinaleGenerator
             'plan_id' => $this->pp('g_plan'),
         ]);
 
-        // Read matches from Day 2 for test rounds
+        // Read Challenge matches from Day 2 for test rounds (scoped by program)
         $planId = $this->pp('g_plan');
         $round1Matches = DB::table('match')
             ->where('plan', $planId)
+            ->where('first_program', FirstProgram::CHALLENGE->value)
             ->where('round', 1)
             ->orderBy('match_no')
             ->get();
             
         $round2Matches = DB::table('match')
             ->where('plan', $planId)
+            ->where('first_program', FirstProgram::CHALLENGE->value)
             ->where('round', 2)
             ->orderBy('match_no')
             ->get();
