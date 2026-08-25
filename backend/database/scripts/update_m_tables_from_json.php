@@ -211,6 +211,52 @@ function canDeleteSafely(string $table, int $id): array {
 }
 
 /**
+ * Extra unique keys beyond primary id. Test/Prod may have the same natural
+ * key under a different id than Dev/JSON; id-only sync then fails on insert.
+ *
+ * @return list<list<string>>
+ */
+function mTableNaturalUniqueKeys(string $table): array
+{
+    return match ($table) {
+        'm_visibility' => [['activity_type_detail', 'role']],
+        default => [],
+    };
+}
+
+/**
+ * Drop DB rows that collide on a natural unique key with a JSON row of another id.
+ *
+ * @param  \Illuminate\Support\Collection<int|string, object>  $dbRecords
+ * @return \Illuminate\Support\Collection<int|string, object>
+ */
+function clearNaturalKeyConflicts(string $table, array $jsonRecords, $dbRecords)
+{
+    foreach (mTableNaturalUniqueKeys($table) as $cols) {
+        foreach ($jsonRecords as $jsonRecord) {
+            $id = $jsonRecord['id'] ?? null;
+            if ($id === null) {
+                continue;
+            }
+
+            $query = DB::table($table)->where('id', '!=', $id);
+            foreach ($cols as $col) {
+                $query->where($col, $jsonRecord[$col] ?? null);
+            }
+
+            foreach ($query->pluck('id') as $conflictId) {
+                DB::table($table)->where('id', $conflictId)->delete();
+                unset($dbRecords[$conflictId]);
+                echo "    ⚠️  Removed {$table}.id={$conflictId} conflicting on ("
+                    .implode(', ', $cols).") with JSON id={$id}\n";
+            }
+        }
+    }
+
+    return $dbRecords;
+}
+
+/**
  * Update a single m-table from JSON
  */
 function updateMTable(string $table, array $jsonRecords): array {
@@ -234,6 +280,9 @@ function updateMTable(string $table, array $jsonRecords): array {
     
     // Get current records from DB
     $dbRecords = DB::table($table)->get()->keyBy('id');
+
+    // Same (activity_type_detail, role) under a different id → unique violation on insert
+    $dbRecords = clearNaturalKeyConflicts($table, $jsonRecords, $dbRecords);
     
     // Get table columns to filter JSON data
     $tableColumns = Schema::getColumnListing($table);
