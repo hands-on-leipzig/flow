@@ -9,15 +9,25 @@ defineOptions({name: 'PublishAnalog'})
 
 <template>
   <div class="druck">
-    <div class="glass-card liquid-surface-inner">
-      <h1 class="glass-card__heading">Drucksachen</h1>
-      <PdfPlansBox hide-heading/>
-    </div>
+    <header class="druck__intro">
+      <h1 class="druck__title">Drucksachen</h1>
+    </header>
+    <PdfPlansBox hide-heading/>
   </div>
 </template>
 
 <style scoped>
 .druck {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.druck__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
 }
 </style>

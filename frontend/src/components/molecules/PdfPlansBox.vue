@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
-import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { useEventStore } from '@/stores/event'
 import { usePdfExport } from '@/composables/usePdfExport'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
@@ -10,13 +9,6 @@ import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
 import {hasChallenge, eventPrograms, programId, programDisplayName, catalogNameFromCode, type EventProgramRef} from '@/utils/eventPrograms'
 
-
-type TabKey = 'public' | 'organisation' | 'aufkleber'
-const PDF_TABS: { key: TabKey; label: string }[] = [
-  { key: 'public', label: 'Pläne für alle' },
-  { key: 'organisation', label: 'Extra für Orga' },
-  { key: 'aufkleber', label: 'Aufkleber' },
-]
 
 withDefaults(
   defineProps<{
@@ -687,81 +679,18 @@ const eventTitleNormalized = computed(() => {
   return title.replace(/FIRST/, '<em>FIRST</em>')
 })
 
-// Tab state
-const activeTab = ref<TabKey>('public')
-
-const currentTabLabel = computed(() =>
-  PDF_TABS.find(t => t.key === activeTab.value)?.label ?? 'Pläne für alle'
-)
 </script>
 
 <template>
-  <div :class="hideHeading ? 'pdf-plans pdf-plans--embed' : 'glass-card liquid-surface-inner pdf-plans'">
-    <h3 v-if="!hideHeading" class="glass-card__heading">Drucksachen</h3>
+  <div class="pdf-plans">
+    <section class="glass-card liquid-surface-inner pdf-plans__panel">
+      <h3 v-if="!hideHeading" class="glass-card__heading">Drucksachen</h3>
 
-    <!-- Tabs: dropdown on mobile, glass tabs on desktop -->
-    <div class="pdf-plans__tabs mb-4">
-      <!-- Mobile: dropdown -->
-      <div class="lg:hidden">
-        <Menu as="div" class="relative">
-          <MenuButton
-            class="flex items-center justify-between w-full px-4 py-3 text-left text-base font-semibold text-[var(--color-text)] liquid-surface-inner rounded-[var(--radius)] border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-1"
-          >
-            <span>{{ currentTabLabel }}</span>
-            <svg class="w-5 h-5 text-[var(--color-text-subtle)] flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </MenuButton>
-          <MenuItems
-            class="absolute left-0 right-0 z-50 mt-1 rounded-[var(--radius)] glass-dropdown focus:outline-none"
-          >
-            <div class="py-1">
-              <MenuItem
-                v-for="tab in PDF_TABS"
-                :key="tab.key"
-                v-slot="{ active }"
-              >
-                <button
-                  type="button"
-                  :class="[
-                    'w-full text-left px-4 py-3 text-sm font-semibold',
-                    active ? 'bg-[var(--color-bg-hover)]' : '',
-                    activeTab === tab.key ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'
-                  ]"
-                  @click="activeTab = tab.key"
-                >
-                  {{ tab.label }}
-                  <span v-if="activeTab === tab.key" class="ml-2 text-[var(--color-accent)]">✓</span>
-                </button>
-              </MenuItem>
-            </div>
-          </MenuItems>
-        </Menu>
-      </div>
-      <!-- Desktop: glass tabs -->
-      <div class="hidden lg:block glass-tabs">
-        <button
-          v-for="tab in PDF_TABS"
-          :key="tab.key"
-          type="button"
-          :class="['glass-tab', activeTab === tab.key && 'glass-tab--active']"
-          @click="activeTab = tab.key"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-    </div>
+      <p class="pdf-plans__group-label">
+        Zum Aushang bzw. zum Verteilen an Teams und Volunteers
+      </p>
+      <div class="pdf-plans__grid">
 
-    <!-- Subtitle -->
-    <p v-if="activeTab === 'public'" class="glass-settings-hint !not-italic mb-4">
-      Zum Aushang bzw. zum Verteilen an Teams und Volunteers
-    </p>
-    <p v-if="activeTab === 'organisation'" class="glass-settings-hint !not-italic mb-4">
-      Nur für Veranstalter – nicht für Teams oder Besucher.
-    </p>
-
-    <!-- Tab Content: Öffentlich -->
-    <div v-show="activeTab === 'public'" class="pdf-plans__grid">
       <article class="pdf-plans__tile liquid-surface-inner">
         <header class="pdf-plans__tile-head">
           <h4 class="pdf-plans__tile-title">Online-Plan</h4>
@@ -996,10 +925,13 @@ const currentTabLabel = computed(() =>
           </button>
         </footer>
       </article>
-    </div>
+      </div>
 
-    <!-- Tab Content: Organisation -->
-    <div v-show="activeTab === 'organisation'" class="pdf-plans__grid">
+      <p class="pdf-plans__group-label pdf-plans__group-label--next">
+        Nur für Veranstalter – nicht für Teams oder Besucher.
+      </p>
+      <div class="pdf-plans__grid">
+
       <article class="pdf-plans__tile liquid-surface-inner">
         <header class="pdf-plans__tile-head">
           <h4 class="pdf-plans__tile-title">Teamliste</h4>
@@ -1136,10 +1068,11 @@ const currentTabLabel = computed(() =>
           </button>
         </footer>
       </article>
-    </div>
+      </div>
+    </section>
 
-    <!-- Tab Content: Aufkleber -->
-    <div v-show="activeTab === 'aufkleber'" class="pdf-plans__list">
+    <section class="glass-card liquid-surface-inner pdf-plans__panel">
+      <h3 class="glass-card__heading">Aufkleber</h3>
       <p class="glass-settings-hint !not-italic mb-4">
         Namensaufkleber zum Drucken auf A4-Papier
       </p>
@@ -1363,7 +1296,7 @@ const currentTabLabel = computed(() =>
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- Match Plan Modal -->
     <div
@@ -1540,13 +1473,27 @@ const currentTabLabel = computed(() =>
 </template>
 
 <style scoped>
-.pdf-plans--embed {
-  padding: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+.pdf-plans {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pdf-plans__panel {
+  min-width: 0;
+}
+
+.pdf-plans__group-label {
+  margin: 0 0 0.75rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.pdf-plans__group-label--next {
+  margin-top: 1.35rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, transparent);
 }
 
 .pdf-plans__grid {
