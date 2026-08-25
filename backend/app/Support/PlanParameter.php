@@ -121,8 +121,10 @@ class PlanParameter
             return;
         }
 
-        // Skip validation for all team parameters - they are used for support plan checking elsewhere
-        if (str_ends_with($param->name, '_teams') || str_ends_with($param->name, '_tables')) {
+        // Off programs store 0 for team/hardware counts (below catalog min). Support-plan checks handle them.
+        if (str_ends_with($param->name, '_teams')
+            || str_ends_with($param->name, '_tables')
+            || str_ends_with($param->name, '_fields')) {
             return;
         }
 
