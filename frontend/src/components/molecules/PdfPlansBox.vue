@@ -687,7 +687,8 @@ const eventTitleNormalized = computed(() => {
       <h3 v-if="!hideHeading" class="glass-card__heading">Drucksachen</h3>
 
       <p class="pdf-plans__group-label">
-        Zum Aushang bzw. zum Verteilen an Teams und Volunteers
+        <i class="bi bi-people" aria-hidden="true"/>
+        <span>Zum Aushang bzw. zum Verteilen an Teams und Volunteers</span>
       </p>
       <div class="pdf-plans__grid">
 
@@ -928,7 +929,8 @@ const eventTitleNormalized = computed(() => {
       </div>
 
       <p class="pdf-plans__group-label pdf-plans__group-label--next">
-        Nur für Veranstalter – nicht für Teams oder Besucher.
+        <i class="bi bi-shield-lock" aria-hidden="true"/>
+        <span>Nur für Veranstalter – nicht für Teams oder Besucher.</span>
       </p>
       <div class="pdf-plans__grid">
 
@@ -1485,9 +1487,19 @@ const eventTitleNormalized = computed(() => {
 
 .pdf-plans__group-label {
   margin: 0 0 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
   font-size: 0.82rem;
   line-height: 1.4;
   color: var(--color-text-muted);
+}
+
+.pdf-plans__group-label .bi {
+  flex-shrink: 0;
+  margin-top: 0.12rem;
+  font-size: 1rem;
+  color: var(--color-accent);
 }
 
 .pdf-plans__group-label--next {
