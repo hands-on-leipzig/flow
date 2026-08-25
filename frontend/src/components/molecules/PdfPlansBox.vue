@@ -115,6 +115,7 @@ onMounted(async () => {
     await eventStore.refreshReadiness(eventStore.selectedEvent.id)
     await fetchAvailableRoles()
     await fetchAvailableTeamPrograms()
+    await loadPosterPreviews()
   }
 })
 
@@ -124,6 +125,7 @@ watch(() => event.value?.id, async (id) => {
     await eventStore.refreshReadiness(id)
     await fetchAvailableRoles()
     await fetchAvailableTeamPrograms()
+    await loadPosterPreviews()
   }
 })
 
@@ -132,9 +134,29 @@ const hasTeamIssues = computed(
   () => !readiness.value?.explore_teams_ok || !readiness.value?.challenge_teams_ok
 )
 const hasRoomIssues = computed(() => !readiness.value?.room_mapping_ok)
+const hasWifiSsid = computed(() => !!event.value?.wifi_ssid?.trim())
 
 // --- PDF Download (Composable) ---
 const { isDownloading, anyDownloading, downloadPdf } = usePdfExport()
+
+// --- Aushang-Poster (Online-Plan / WLAN) ---
+const previewPlan = ref<string | null>(null)
+const previewPlanWifi = ref<string | null>(null)
+
+async function loadPosterPreview(type: 'plan' | 'plan_wifi') {
+  if (!eventId.value) return
+  try {
+    const {data} = await axios.get(`/publish/pdf_preview/${type}/${eventId.value}?_=${Date.now()}`)
+    if (type === 'plan') previewPlan.value = data
+    else previewPlanWifi.value = data
+  } catch (e) {
+    console.error(`Poster-Preview (${type}) fehlgeschlagen:`, e)
+  }
+}
+
+async function loadPosterPreviews() {
+  await Promise.all([loadPosterPreview('plan'), loadPosterPreview('plan_wifi')])
+}
 
 // --- CSV Download State ---
 const isDownloadingCsv = ref(false)
@@ -735,6 +757,77 @@ const currentTabLabel = computed(() =>
 
     <!-- Tab Content: Öffentlich -->
     <div v-show="activeTab === 'public'">
+      <!-- Online-Plan Aushang (PDF only) -->
+      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <h4 class="text-base font-semibold text-[var(--color-text)]">Online-Plan</h4>
+            <p class="text-sm text-[var(--color-text-muted)]">
+              Aushang mit QR zum öffentlichen Plan-Link.
+            </p>
+          </div>
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <img
+              v-if="previewPlan"
+              :src="previewPlan"
+              alt="Vorschau Online-Plan PDF"
+              class="h-12 w-auto max-w-[5.5rem] object-contain rounded border border-[var(--color-border)] bg-white"
+            />
+            <button
+              type="button"
+              class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+              :class="isDownloading.plan ? '!opacity-50' : ''"
+              :disabled="isDownloading.plan || !eventId"
+              @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, 'Plan.pdf')"
+            >
+              <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor"
+                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              </svg>
+              <span>{{ isDownloading.plan ? 'Erzeuge…' : 'PDF' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- WLAN-Zugang Aushang -->
+      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <h4 class="text-base font-semibold text-[var(--color-text)]">WLAN-Zugang</h4>
+            <p class="text-sm text-[var(--color-text-muted)]">
+              Druckposter mit Netzwerkdaten — Zugang unter WLAN vor Ort pflegen.
+            </p>
+          </div>
+          <div class="flex items-center gap-3 flex-shrink-0">
+            <template v-if="hasWifiSsid">
+              <img
+                v-if="previewPlanWifi"
+                :src="previewPlanWifi"
+                alt="Vorschau WLAN-PDF"
+                class="h-12 w-auto max-w-[5.5rem] object-contain rounded border border-[var(--color-border)] bg-white"
+              />
+              <button
+                type="button"
+                class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+                :class="isDownloading.plan_wifi ? '!opacity-50' : ''"
+                :disabled="isDownloading.plan_wifi || !eventId"
+                @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, 'Plan_WLAN.pdf')"
+              >
+                <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+                <span>{{ isDownloading.plan_wifi ? 'Erzeuge…' : 'PDF' }}</span>
+              </button>
+            </template>
+            <span v-else class="text-sm text-[var(--color-text-muted)]">SSID fehlt</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Übersichtsplan -->
       <div class="border-b border-[var(--color-border)] pb-3 mb-3">
         <div class="flex items-center justify-between">

@@ -12,21 +12,18 @@ const props = withDefaults(
     embed?: boolean
     /**
      * all — both columns (DuringEventBox)
-     * plan — Online-Plan QR/PDF only
+     * plan — Online-Plan PDF only
      * wifi — credentials + QR (WLAN page; no PDF)
-     * print — Online-Plan + WLAN PDF posters (Analog)
      */
-    section?: 'all' | 'plan' | 'wifi' | 'print'
+    section?: 'all' | 'plan' | 'wifi'
   }>(),
   {embed: false, section: 'all'}
 )
 
-const showPlan = computed(
-  () => props.section === 'all' || props.section === 'plan' || props.section === 'print'
-)
+const showPlan = computed(() => props.section === 'all' || props.section === 'plan')
 const showWifiForm = computed(() => props.section === 'all' || props.section === 'wifi')
 const showWifiQr = computed(() => props.section === 'all' || props.section === 'wifi')
-const showWifiPdf = computed(() => props.section === 'all' || props.section === 'print')
+const showWifiPdf = computed(() => props.section === 'all')
 const showWifi = computed(() => showWifiForm.value || showWifiQr.value || showWifiPdf.value)
 const singleSection = computed(() => props.section === 'plan' || props.section === 'wifi')
 /** Page already provides chrome + title — no nested card/headers. */
@@ -218,42 +215,24 @@ watch(
 <template>
   <div :class="embed ? 'qr-wifi qr-wifi--embed' : 'glass-card liquid-surface-inner p-3 qr-wifi'">
     <div :class="['qr-wifi__grid', singleSection && 'qr-wifi__grid--single']">
-      <!-- Plan QR -->
+      <!-- Online-Plan (PDF Aushang; QR/PNG live under Veröffentlichung) -->
       <section v-if="showPlan" :class="flat ? 'qr-wifi__flat' : 'qr-wifi__col'">
         <header v-if="!flat" class="qr-wifi__col-head">
           <h3 class="qr-wifi__col-title">
-            <i class="bi bi-qr-code" aria-hidden="true"/>
+            <i class="bi bi-file-earmark-pdf" aria-hidden="true"/>
             Online-Plan
           </h3>
           <p class="qr-wifi__col-sub">
-            QR enthält den öffentlichen Link — zum Scannen vor Ort.
+            Druckposter mit QR zum öffentlichen Plan-Link.
           </p>
         </header>
 
         <div class="qr-wifi__exports">
           <div class="qr-wifi__export">
             <img
-                v-if="event?.qrcode"
-                :src="`data:image/png;base64,${event.qrcode}`"
-                alt="QR Plan"
-                class="qr-wifi__thumb"
-            />
-            <div v-else class="qr-wifi__placeholder">Kein QR</div>
-            <button
-                v-if="event?.qrcode"
-                type="button"
-                class="glass-btn-secondary !px-3 !py-1 !text-sm"
-                @click="downloadPng(`data:image/png;base64,${event.qrcode}`, 'FLOW_QR_Code_Plan.png')"
-            >
-              PNG
-            </button>
-          </div>
-
-          <div class="qr-wifi__export">
-            <img
                 v-if="previewPlan"
                 :src="previewPlan"
-                alt="Preview Plan-QR als PDF"
+                alt="Preview Plan-PDF"
                 class="qr-wifi__preview"
             />
             <div v-else class="qr-wifi__placeholder">Preview</div>
@@ -283,7 +262,7 @@ watch(
           <p v-if="showWifiForm" class="qr-wifi__col-sub">
             Netzwerke mit Schlüssel. Bei Web-Login nur SSID setzen — Rest in den Hinweisen.
           </p>
-          <p v-else class="qr-wifi__col-sub">
+          <p v-else-if="showWifiPdf" class="qr-wifi__col-sub">
             Druckposter mit Netzwerkdaten — Zugang unter WLAN vor Ort pflegen.
           </p>
         </header>
