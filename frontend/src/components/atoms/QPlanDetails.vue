@@ -71,10 +71,10 @@ const transferRows = computed(() => {
   <div class="mt-2 border-t border-[var(--color-border)] pt-2">
     <div v-if="loading" class="text-sm text-[var(--color-text-subtle)]">Lade Plan-Details …</div>
     <div v-else-if="error" class="text-sm text-red-500">{{ error }}</div>
-    <div v-else>
-      <div class="flex flex-row justify-between items-start gap-4">
-        <!-- Linker Block: Timing -->
-        <div class="basis-[25%] flex-shrink-0 overflow-x-auto">
+    <div v-else class="flex flex-col gap-4">
+      <!-- Row 1: Transfer + Tisch-Zuordnung -->
+      <div class="flex flex-row items-start gap-4">
+        <div class="overflow-x-auto">
           <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Transfer</div>
           <table class="table-auto text-sm border-collapse">
             <thead class="bg-[var(--color-bg-muted)]">
@@ -130,8 +130,7 @@ const transferRows = computed(() => {
           </table>
         </div>
 
-        <!-- Mittlerer Block: Tisch-Zuordnung -->
-        <div class="basis-[30%] flex-shrink-0 overflow-x-auto">
+        <div class="overflow-x-auto">
           <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Testrunde, Tische und Teams gegenüber</div>
           <table class="table-auto text-sm border-collapse">
             <thead class="bg-[var(--color-bg-muted)]">
@@ -178,57 +177,56 @@ const transferRows = computed(() => {
             </tbody>
           </table>
         </div>
+      </div>
 
-        <!-- Rechter Block: Matchplan -->
-        <div class="basis-[50%] flex-shrink-0 overflow-x-auto">
-          <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Matchplan</div>
-          <div class="flex flex-row gap-4">
-            <div
-              v-for="col in matchPlanColumns"
-              :key="`${col.key}-${col.label}`"
-              class="min-w-max"
-            >
-              <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
-                {{ col.label }}
-              </div>
-              <table class="table-auto text-sm border-collapse">
-                <thead class="bg-[var(--color-bg-muted)]">
-                  <tr>
-                    <th class="px-2 py-1">T1</th>
-                    <th class="px-2 py-1">T2</th>
-                    <th class="px-2 py-1">T3</th>
-                    <th class="px-2 py-1">T4</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="match in col.matches"
-                    :key="match.id"
-                    class="border-t"
-                  >
-                    <td class="text-center">
-                      <span v-if="match.table_1 === 1">{{ formatTeam(match.table_1_team) }}</span>
-                      <span v-else-if="match.table_2 === 1">{{ formatTeam(match.table_2_team) }}</span>
-                    </td>
-                    <td class="text-center">
-                      <span v-if="match.table_1 === 2">{{ formatTeam(match.table_1_team) }}</span>
-                      <span v-else-if="match.table_2 === 2">{{ formatTeam(match.table_2_team) }}</span>
-                    </td>
-                    <td class="text-center">
-                      <span v-if="match.table_1 === 3">{{ formatTeam(match.table_1_team) }}</span>
-                      <span v-else-if="match.table_2 === 3">{{ formatTeam(match.table_2_team) }}</span>
-                    </td>
-                    <td class="text-center">
-                      <span v-if="match.table_1 === 4">{{ formatTeam(match.table_1_team) }}</span>
-                      <span v-else-if="match.table_2 === 4">{{ formatTeam(match.table_2_team) }}</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+      <!-- Row 2: Matchplan -->
+      <div class="overflow-x-auto">
+        <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Matchplan</div>
+        <div class="flex flex-row gap-4">
+          <div
+            v-for="col in matchPlanColumns"
+            :key="`${col.key}-${col.label}`"
+            class="min-w-max"
+          >
+            <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
+              {{ col.label }}
             </div>
+            <table class="table-auto text-sm border-collapse">
+              <thead class="bg-[var(--color-bg-muted)]">
+                <tr>
+                  <th class="px-2 py-1">T1</th>
+                  <th class="px-2 py-1">T2</th>
+                  <th class="px-2 py-1">T3</th>
+                  <th class="px-2 py-1">T4</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="match in col.matches"
+                  :key="match.id"
+                  class="border-t"
+                >
+                  <td class="text-center">
+                    <span v-if="match.table_1 === 1">{{ formatTeam(match.table_1_team) }}</span>
+                    <span v-else-if="match.table_2 === 1">{{ formatTeam(match.table_2_team) }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span v-if="match.table_1 === 2">{{ formatTeam(match.table_1_team) }}</span>
+                    <span v-else-if="match.table_2 === 2">{{ formatTeam(match.table_2_team) }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span v-if="match.table_1 === 3">{{ formatTeam(match.table_1_team) }}</span>
+                    <span v-else-if="match.table_2 === 3">{{ formatTeam(match.table_2_team) }}</span>
+                  </td>
+                  <td class="text-center">
+                    <span v-if="match.table_1 === 4">{{ formatTeam(match.table_1_team) }}</span>
+                    <span v-else-if="match.table_2 === 4">{{ formatTeam(match.table_2_team) }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
-
       </div>
     </div>
   </div>
