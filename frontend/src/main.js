@@ -20,6 +20,7 @@ import Rooms from "@/components/Rooms.vue";
 import HomeOverview from "@/components/HomeOverview.vue";
 import PublishControl from "@/components/PublishControl.vue";
 import PublishDistribution from "@/components/publish/PublishDistribution.vue";
+import PublishWlan from "@/components/publish/PublishWlan.vue";
 import PublishDigital from "@/components/publish/PublishDigital.vue";
 import PublishAnalog from "@/components/publish/PublishAnalog.vue";
 import EventDayControl from "@/components/EventDayControl.vue";
@@ -92,6 +93,7 @@ const routes = [
                 component: PublishControl,
                 children: [
                     {path: '', name: 'publish-distribution', component: PublishDistribution},
+                    {path: 'wlan', name: 'publish-wlan', component: PublishWlan},
                     {path: 'digital', name: 'publish-digital', component: PublishDigital},
                     {path: 'analog', name: 'publish-analog', component: PublishAnalog},
                     {path: 'logos', name: 'publish-logos', component: Logos},
@@ -128,6 +130,7 @@ const routes = [
     {path: '/events', redirect: '/plan/events'},
     {path: '/rooms', redirect: '/plan/rooms'},
     {path: '/publish', redirect: '/plan/publish'},
+    {path: '/publish/wlan', redirect: '/plan/publish/wlan'},
     {path: '/publish/digital', redirect: '/plan/publish/digital'},
     {path: '/publish/analog', redirect: '/plan/publish/analog'},
     {path: '/publish/logos', redirect: '/plan/publish/logos'},

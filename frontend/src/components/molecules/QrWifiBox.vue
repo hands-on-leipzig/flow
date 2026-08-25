@@ -6,13 +6,19 @@ import {useEventStore} from '@/stores/event'
 import {usePdfExport} from '@/composables/usePdfExport'
 import FllEvent from '@/models/FllEvent'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     /** Skip outer card chrome when parent provides the panel. */
     embed?: boolean
+    /** Which columns to show (default both — e.g. DuringEventBox). */
+    section?: 'all' | 'plan' | 'wifi'
   }>(),
-  {embed: false}
+  {embed: false, section: 'all'}
 )
+
+const showPlan = computed(() => props.section === 'all' || props.section === 'plan')
+const showWifi = computed(() => props.section === 'all' || props.section === 'wifi')
+const singleSection = computed(() => props.section !== 'all')
 
 // === Store & Basis ===
 const eventStore = useEventStore()
@@ -277,15 +283,15 @@ async function downloadPng(dataUrl: string, filename: string) {
 
 async function boot() {
   await refreshEventFromApi()
-  void loadPreview('plan')
-  void loadPreview('plan_wifi')
+  if (showPlan.value) void loadPreview('plan')
+  if (showWifi.value) void loadPreview('plan_wifi')
 }
 
 onMounted(() => {
   void boot()
 })
 
-// keep-alive: refresh when returning to Analog
+// keep-alive: refresh when returning to this pane
 onActivated(() => {
   void boot()
 })
@@ -300,9 +306,9 @@ watch(
 
 <template>
   <div :class="embed ? 'qr-wifi qr-wifi--embed' : 'glass-card liquid-surface-inner p-3 qr-wifi'">
-    <div class="qr-wifi__grid">
+    <div :class="['qr-wifi__grid', singleSection && 'qr-wifi__grid--single']">
       <!-- Plan QR -->
-      <section class="qr-wifi__col">
+      <section v-if="showPlan" class="qr-wifi__col">
         <header class="qr-wifi__col-head">
           <h3 class="qr-wifi__col-title">
             <i class="bi bi-qr-code" aria-hidden="true"/>
@@ -357,7 +363,7 @@ watch(
       </section>
 
       <!-- WLAN -->
-      <section class="qr-wifi__col">
+      <section v-if="showWifi" class="qr-wifi__col">
         <header class="qr-wifi__col-head">
           <h3 class="qr-wifi__col-title">
             <i class="bi bi-wifi" aria-hidden="true"/>
@@ -504,7 +510,7 @@ watch(
 }
 
 @media (min-width: 900px) {
-  .qr-wifi__grid {
+  .qr-wifi__grid:not(.qr-wifi__grid--single) {
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
   }
