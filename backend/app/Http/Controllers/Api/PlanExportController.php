@@ -11,6 +11,7 @@ use App\Models\Plan;
 use App\Services\ActivityFetcherService;
 use App\Services\EventTitleService;
 use App\Services\PdfLayoutService;
+use App\Support\OverviewPlanStyle;
 use App\Support\ProgramCatalog;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -3352,7 +3353,6 @@ class PlanExportController extends Controller
         });
 
         // Manual assignment of free blocks to program-specific columns
-        // Logic: 0 = joint (Allgemein), 2 = Explore, 3 = Challenge
         foreach ($eventOverview as &$event) {
             $hasFreeBlock = $activities->where('activity_group_id', $event['group_id'])
                 ->contains(function ($a) {
@@ -3361,18 +3361,8 @@ class PlanExportController extends Controller
                 });
 
             if ($hasFreeBlock && ($event['group_overview_plan_column'] === 'Allgemein' || $event['group_overview_plan_column'] === null)) {
-                // This is a free block - assign to appropriate column based on first_program
                 $programId = (int) ($event['group_first_program_id'] ?? 0);
-                if ($programId === 0) {
-                    // Joint: keep as plain "Allgemein" (general column)
-                    $event['group_overview_plan_column'] = 'Allgemein';
-                } elseif ($programId === 2) {
-                    // Explore: assign to Explore column
-                    $event['group_overview_plan_column'] = 'Allgemein-2';
-                } elseif ($programId === 3) {
-                    // Challenge: assign to Challenge column
-                    $event['group_overview_plan_column'] = 'Allgemein-3';
-                }
+                $event['group_overview_plan_column'] = OverviewPlanStyle::allgemeinColumn($programId) ?? 'Allgemein';
             }
         }
         unset($event); // Clear the reference
@@ -3391,17 +3381,10 @@ class PlanExportController extends Controller
                 $event['assigned_column'] = 'Allgemein';
             }
 
-            // For Allgemein columns, include first_program to make them unique
-            // BUT exclude first_program = 0 (joint) - it stays as plain "Allgemein"
+            // Joint Allgemein stays plain; program-specific Allgemein uses 2/3/4 (not raw first_program id).
             if ($event['assigned_column'] === 'Allgemein') {
                 $program = (int) ($event['group_first_program_id'] ?? 0);
-                if ($program === null || $program === 0) {
-                    // Joint or null: keep as plain "Allgemein"
-                    $event['assigned_column'] = 'Allgemein';
-                } else {
-                    // Other programs: add program suffix
-                    $event['assigned_column'] = 'Allgemein-'.$program;
-                }
+                $event['assigned_column'] = OverviewPlanStyle::allgemeinColumn($program) ?? 'Allgemein';
             }
         }
         unset($event); // Clear the reference
@@ -3411,18 +3394,7 @@ class PlanExportController extends Controller
             ->pluck('assigned_column')
             ->unique()
             ->sortBy(function ($columnName) {
-                // Custom sorting to ensure specific column order
-                $customOrder = [
-                    'Allgemein' => 0,
-                    'Allgemein-2' => 1,
-                    'Explore' => 2,
-                    'Allgemein-3' => 3,
-                    'Challenge' => 4,
-                    'Robot-Game' => 5,
-                    'Live Challenge' => 6,
-                ];
-
-                return $customOrder[$columnName] ?? 999;
+                return OverviewPlanStyle::columnOrder()[$columnName] ?? 999;
             })
             ->values()
             ->toArray();
