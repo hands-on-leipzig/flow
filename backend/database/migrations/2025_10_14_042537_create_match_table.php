@@ -18,12 +18,18 @@ return new class extends Migration
                 Schema::create('match', function (Blueprint $table) {
                     $table->unsignedInteger('id')->autoIncrement();
                     $table->unsignedInteger('plan');
+                    $table->unsignedInteger('first_program');
                     $table->integer('round');
                     $table->integer('match_no');
                     $table->integer('table_1');
                     $table->integer('table_2');
                     $table->integer('table_1_team');
                     $table->integer('table_2_team');
+
+                    $table->unique(
+                        ['plan', 'first_program', 'round', 'match_no'],
+                        'match_plan_program_round_match_unique'
+                    );
                 });
                 
                 // Try to add foreign key separately (may fail if column types don't match)

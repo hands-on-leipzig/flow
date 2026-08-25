@@ -3,13 +3,11 @@
 namespace App\Support;
 
 use App\Enums\FirstProgram;
-use App\Enums\MatchPlanObjective;
 
 /**
  * Robot-game match list for one program on one plan.
  *
- * Not a clock: no rTime, no activities. One of these per program later
- * (Challenge now; Future 8+ when that program is generated).
+ * Not a clock: no rTime, no activities. One of these per Challenge-shaped program.
  *
  * @phpstan-type MatchEntry array{
  *     round: int,
@@ -27,7 +25,6 @@ class MatchPlan
      */
     public function __construct(
         public FirstProgram $program,
-        public MatchPlanObjective $objective,
         public array $entries,
     ) {
     }

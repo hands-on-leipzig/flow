@@ -6,7 +6,9 @@ use Illuminate\Support\Facades\Log;
 use App\Support\PlanParameter;
 use App\Support\UsesPlanParameter;
 use App\Support\IntegratedExploreState;
+use App\Support\MatchPlanSpec;
 use App\Enums\ExploreMode;
+use App\Enums\FirstProgram;
 
 
 class ChallengeGenerator implements ChallengeShapedLead
@@ -239,7 +241,9 @@ class ChallengeGenerator implements ChallengeShapedLead
 
         try {
             // Match list (who vs whom) is Challenge-owned; the writer only places it on rTime.
-            $matchPlan = (new ChallengeMatchPlanBuilder($this->params))->build();
+            $matchPlan = (new MatchPlanBuilder)->build(
+                MatchPlanSpec::for(FirstProgram::CHALLENGE, $this->params)
+            );
             $this->robotGame = new RobotGameGenerator(
                 $this->writer,
                 $this->params,
