@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from 'vue'
-import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 import { useEventStore } from '@/stores/event'
 import { usePdfExport } from '@/composables/usePdfExport'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
@@ -9,14 +8,21 @@ import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
 import {hasChallenge, eventPrograms, programId, programDisplayName, catalogNameFromCode, type EventProgramRef} from '@/utils/eventPrograms'
+import {flowFilename} from '@/utils/flowFilename'
 
 
-type TabKey = 'public' | 'organisation' | 'aufkleber'
-const PDF_TABS: { key: TabKey; label: string }[] = [
-  { key: 'public', label: 'Pläne für alle' },
-  { key: 'organisation', label: 'Extra für Orga' },
-  { key: 'aufkleber', label: 'Aufkleber' },
-]
+const props = withDefaults(
+  defineProps<{
+    /** Hide inner title when the page already provides one. */
+    hideHeading?: boolean
+    /** Which panels to show (Ausgabe splits plans vs name tags). */
+    section?: 'plans' | 'labels' | 'all'
+  }>(),
+  {hideHeading: false, section: 'all'}
+)
+
+const showPlans = computed(() => props.section === 'plans' || props.section === 'all')
+const showLabels = computed(() => props.section === 'labels' || props.section === 'all')
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -115,6 +121,7 @@ onMounted(async () => {
     await eventStore.refreshReadiness(eventStore.selectedEvent.id)
     await fetchAvailableRoles()
     await fetchAvailableTeamPrograms()
+    await loadPosterPreviews()
   }
 })
 
@@ -124,6 +131,7 @@ watch(() => event.value?.id, async (id) => {
     await eventStore.refreshReadiness(id)
     await fetchAvailableRoles()
     await fetchAvailableTeamPrograms()
+    await loadPosterPreviews()
   }
 })
 
@@ -132,9 +140,31 @@ const hasTeamIssues = computed(
   () => !readiness.value?.explore_teams_ok || !readiness.value?.challenge_teams_ok
 )
 const hasRoomIssues = computed(() => !readiness.value?.room_mapping_ok)
+const hasWifiSsid = computed(() => !!event.value?.wifi_ssid?.trim())
 
 // --- PDF Download (Composable) ---
 const { isDownloading, anyDownloading, downloadPdf } = usePdfExport()
+
+const flowHint = (name: string, ext = 'pdf') => flowFilename(name, ext, event.value?.date)
+
+// --- Aushang-Poster (Online-Plan / WLAN) ---
+const previewPlan = ref<string | null>(null)
+const previewPlanWifi = ref<string | null>(null)
+
+async function loadPosterPreview(type: 'plan' | 'plan_wifi') {
+  if (!eventId.value) return
+  try {
+    const {data} = await axios.get(`/publish/pdf_preview/${type}/${eventId.value}?_=${Date.now()}`)
+    if (type === 'plan') previewPlan.value = data
+    else previewPlanWifi.value = data
+  } catch (e) {
+    console.error(`Poster-Preview (${type}) fehlgeschlagen:`, e)
+  }
+}
+
+async function loadPosterPreviews() {
+  await Promise.all([loadPosterPreview('plan'), loadPosterPreview('plan_wifi')])
+}
 
 // --- CSV Download State ---
 const isDownloadingCsv = ref(false)
@@ -153,8 +183,7 @@ async function downloadRoomUtilizationCsv() {
     const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
-    const dateStr = new Date().toISOString().split('T')[0]
-    link.download = `FLOW_Raumnutzung_(${dateStr}).csv`
+    link.download = response.headers['x-filename'] || flowHint('Raumnutzung', 'csv')
     link.click()
     window.URL.revokeObjectURL(link.href)
   } catch (error) {
@@ -182,7 +211,7 @@ async function downloadRolesPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Rollen.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Rollen')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -208,7 +237,7 @@ async function downloadTeamsPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Teams.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Teams')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -237,7 +266,7 @@ async function downloadEventOverviewPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Übersichtsplan.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Übersichtsplan')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -266,7 +295,7 @@ async function downloadModeratorMatchPlanPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Robot-Game_kompakt.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Moderation')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -294,7 +323,7 @@ async function downloadSlotAssignmentsPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Slot-Zuordnung.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Slot-Zuordnung')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -323,7 +352,7 @@ async function downloadTeamListPdf() {
       { responseType: 'blob' }
     )
 
-    const filename = response.headers['x-filename'] || 'Teamliste.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Teamliste')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -401,7 +430,7 @@ async function downloadNameTagsPdf() {
       { responseType: 'blob' }
     )
     
-    const filename = response.headers['x-filename'] || 'FLOW_Aufkleber_Teams.pdf'
+    const filename = response.headers['x-filename'] || flowHint('Aufkleber_Teams')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -499,7 +528,7 @@ async function downloadVolunteerLabelsPdf() {
       { responseType: 'blob' }
     )
     
-    const filename = response.headers['x-filename'] || `FLOW_Aufkleber_Volunteers.pdf`
+    const filename = response.headers['x-filename'] || flowHint('Aufkleber_Volunteers')
     const blob = new Blob([response.data], { type: 'application/pdf' })
     const link = document.createElement('a')
     link.href = window.URL.createObjectURL(blob)
@@ -648,7 +677,7 @@ async function downloadMatchPlanPdf() {
   const planId = planResponse.data.id
   if (!planId) return
   
-  await downloadPdf('match-plan', `/export/match-plan/${planId}`, 'Match-Plan.pdf')
+  await downloadPdf('match-plan', `/export/match-plan/${planId}`, flowHint('Match-Plan'))
 }
 
 // Computed: normalized event title for modal header
@@ -657,533 +686,448 @@ const eventTitleNormalized = computed(() => {
   return title.replace(/FIRST/, '<em>FIRST</em>')
 })
 
-// Tab state
-const activeTab = ref<TabKey>('public')
-
-const currentTabLabel = computed(() =>
-  PDF_TABS.find(t => t.key === activeTab.value)?.label ?? 'Pläne für alle'
-)
 </script>
 
 <template>
-  <div class="glass-surface-lg flex flex-col">
-    <h3 class="text-lg font-semibold mb-4">Drucksachen</h3>
+  <div class="pdf-plans">
+    <section v-if="showPlans" class="glass-card liquid-surface-inner pdf-plans__panel">
+      <h3 v-if="!hideHeading" class="glass-card__heading">Drucksachen</h3>
 
-    <!-- Tabs: dropdown on mobile, row on desktop -->
-    <div class="mb-4 border-b border-[var(--color-border)]">
-      <!-- Mobile: dropdown -->
-      <div class="lg:hidden">
-        <Menu as="div" class="relative">
-          <MenuButton
-            class="flex items-center justify-between w-full px-4 py-3 text-left text-base font-semibold text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] rounded-t-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-          >
-            <span>{{ currentTabLabel }}</span>
-            <svg class="w-5 h-5 text-[var(--color-text-subtle)] flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </MenuButton>
-          <MenuItems
-            class="absolute left-0 right-0 z-50 mt-0 rounded-b-lg glass-dropdown focus:outline-none"
-          >
-            <div class="py-1">
-              <MenuItem
-                v-for="tab in PDF_TABS"
-                :key="tab.key"
-                v-slot="{ active }"
-              >
-                <button
-                  type="button"
-                  :class="[
-                    'w-full text-left px-4 py-3 text-sm font-semibold',
-                    active ? 'bg-blue-50' : '',
-                    activeTab === tab.key ? 'text-blue-600' : 'text-[var(--color-text-muted)]'
-                  ]"
-                  @click="activeTab = tab.key"
-                >
-                  {{ tab.label }}
-                  <span v-if="activeTab === tab.key" class="ml-2 text-blue-600">✓</span>
-                </button>
-              </MenuItem>
-            </div>
-          </MenuItems>
-        </Menu>
-      </div>
-      <!-- Desktop: tab buttons -->
-      <div class="hidden lg:flex text-lg font-semibold relative">
-        <button
-          v-for="tab in PDF_TABS"
-          :key="tab.key"
-          type="button"
-          :class="[
-            'px-4 py-2 relative',
-            activeTab === tab.key ? 'border-b-2 border-blue-500 text-blue-600' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-          ]"
-          @click="activeTab = tab.key"
-        >
-          {{ tab.label }}
-        </button>
-      </div>
-    </div>
+      <p class="pdf-plans__group-label">
+        <i class="bi bi-people" aria-hidden="true"/>
+        <span>Zum Aushang bzw. zum Verteilen an Teams und Volunteers</span>
+      </p>
+      <div class="pdf-plans__grid">
 
-    <!-- Subtitle -->
-    <p v-if="activeTab === 'public'" class="text-sm text-blue-600 mb-4">
-      Zum Aushang bzw zum Verteilen an Teams und Volunteers
-    </p>
-    <p v-if="activeTab === 'organisation'" class="text-sm text-blue-600 mb-4">
-      Nur für Veranstalter – nicht für Teams oder Besucher.
-    </p>
-
-    <!-- Tab Content: Öffentlich -->
-    <div v-show="activeTab === 'public'">
-      <!-- Übersichtsplan -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Übersichtsplan für das Publikum</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
-          </div>
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Online-Plan</h4>
+          <p class="pdf-plans__tile-sub">Aushang mit QR zum öffentlichen Plan-Link.</p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <img
+            v-if="previewPlan"
+            :src="previewPlan"
+            alt="Vorschau Online-Plan PDF"
+            class="pdf-plans__preview"
+          />
+        </div>
+        <footer class="pdf-plans__tile-actions">
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="isDownloading.plan ? '!opacity-50' : ''"
+            :disabled="isDownloading.plan || !eventId"
+            @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, flowHint('Plan'))"
+          >
+            <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.plan ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </footer>
+      </article>
+
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">WLAN-Zugang</h4>
+          <p class="pdf-plans__tile-sub">Druckposter mit Netzwerkdaten — Zugang unter WLAN vor Ort pflegen.</p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <template v-if="hasWifiSsid">
+            <img
+              v-if="previewPlanWifi"
+              :src="previewPlanWifi"
+              alt="Vorschau WLAN-PDF"
+              class="pdf-plans__preview"
+            />
+          </template>
+          <p v-else class="pdf-plans__tile-note">SSID fehlt — unter WLAN vor Ort eintragen.</p>
+        </div>
+        <footer class="pdf-plans__tile-actions">
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="isDownloading.plan_wifi || !hasWifiSsid ? '!opacity-50' : ''"
+            :disabled="isDownloading.plan_wifi || !eventId || !hasWifiSsid"
+            @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, flowHint('Plan_mit_WLAN'))"
+          >
+            <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.plan_wifi ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </footer>
+      </article>
+
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Übersichtsplan</h4>
+          <p class="pdf-plans__tile-sub">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
+        </header>
+        <div class="pdf-plans__tile-body"></div>
+        <footer class="pdf-plans__tile-actions">
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading.overview ? '!opacity-50' : ''"
             :disabled="isDownloading.overview"
             @click="downloadEventOverviewPdf()"
           >
             <svg v-if="isDownloading.overview" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading.overview ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
+        </footer>
+      </article>
+
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Räume</h4>
+          <p class="pdf-plans__tile-sub">Eine Seite pro Raum mit allen Aktivitäten.</p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <p v-if="hasRoomIssues" class="pdf-plans__tile-warn">
+            Noch nicht alle Aktivitäten und Teams auf Räume verteilt.
+          </p>
         </div>
-      </div>
-
-    <!-- Räume -->
-    <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-      <div class="mb-2">
-        <h4 class="text-base font-semibold text-[var(--color-text)]">Räume</h4>
-        <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Raum mit allen Aktivitäten.</p>
-      </div>
-
-      <!-- Warning box -->
-      <div
-        v-if="hasRoomIssues"
-        class="glass-alert-warning mt-3 flex items-start"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
-             fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
-        </svg>
-        <span class="text-sm">
-          Achtung: Es wurden noch nicht alle Aktivitäten und Teams auf die Räume verteilt.<br>
-          Das PDF sollte so nicht gedruckt werden.
-        </span>
-      </div>
-
-      <!-- Buttons -->
-      <div class="mt-4 flex justify-between">
-        <!-- Raumnutzung CSV Button -->
-        <button
-          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-          :class="isDownloadingCsv ? '!opacity-50' : ''"
-          :disabled="isDownloadingCsv"
-          @click="downloadRoomUtilizationCsv"
-        >
-          <svg v-if="isDownloadingCsv" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloadingCsv ? 'Erzeuge…' : 'Raumnutzung' }}</span>
-        </button>
-
-        <!-- PDF Button -->
-        <button
-          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-          :class="isDownloading.rooms ? '!opacity-50' : ''"
-          :disabled="isDownloading.rooms"
-          @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, 'Räume.pdf')"
-        >
-          <svg v-if="isDownloading.rooms" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading.rooms ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Rollen -->
-    <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-      <div class="mb-2">
-        <h4 class="text-base font-semibold text-[var(--color-text)]">Rollen</h4>
-        <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Rolle mit allen Aktivitäten.</p>
-      </div>
-
-      <!-- Warning box -->
-      <div
-        v-if="hasTeamIssues"
-        class="glass-alert-warning mt-3 flex items-start"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
-             fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
-        </svg>
-        <span class="text-sm">
-          Achtung: Die Anzahl der angemeldeten Teams stimmt nicht mit der Anzahl im Plan überein.<br>
-          Das PDF sollte so nicht gedruckt werden.
-        </span>
-      </div>
-
-      <!-- No roles available message -->
-      <div v-if="availableRoles.length === 0" class="mt-4 p-4 bg-[var(--color-bg-muted)] rounded text-center text-sm text-[var(--color-text-muted)]">
-        Keine Rollen mit Aktivitäten im Plan vorhanden.
-      </div>
-
-      <!-- Role Selector: stacked on mobile, side-by-side on desktop when both programs -->
-      <div 
-        v-else
-        class="mt-4 grid gap-4 grid-cols-1"
-        :class="{ 'lg:grid-cols-2': roleProgramGroups.length > 1 }"
-      >
-        <div
-            v-for="group in roleProgramGroups"
-            :key="programId(group.program)"
-            class="bg-[var(--color-bg-muted)] rounded p-3"
-        >
-          <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-            <img 
-              :src="programLogoSrc(group.program)" 
-              :alt="programLogoAlt(group.program)"
-              class="w-6 h-6 flex-shrink-0"
-            />
-            <span>FIRST LEGO League {{ programDisplayName(group.program) }}</span>
-          </h5>
-          <div class="space-y-0.5">
-            <label 
-              v-for="role in group.roles" 
-              :key="role.id"
-              class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
-            >
-              <input 
-                type="checkbox" 
-                :checked="selectedRoleIds.has(role.id)"
-                @change="toggleRole(role.id)"
-                class="accent-blue-600"
-              />
-              <span class="text-sm">{{ role.name }}</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- Buttons -->
-      <div class="mt-4 flex justify-between">
-        <!-- HERO Schichten Button -->
-        <button
-          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-          @click="showWorkerShiftsModal"
-        >
-          <span>HERO Schichten</span>
-        </button>
-        
-        <!-- PDF Button -->
-        <button
-          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-          :class="!(hasSelectedRoles && !isDownloading.roles) ? '!opacity-50' : ''"
-          :disabled="!hasSelectedRoles || isDownloading.roles"
-          @click="downloadRolesPdf"
-        >
-          <svg v-if="isDownloading.roles" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading.roles ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Teams -->
-    <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-      <div class="mb-2">
-        <h4 class="text-base font-semibold text-[var(--color-text)]">Teams</h4>
-        <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Team mit allen Aktivitäten.</p>
-      </div>
-
-      <!-- Warning box -->
-      <div
-        v-if="hasTeamIssues"
-        class="glass-alert-warning mt-3 flex items-start"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg"
-             class="h-5 w-5 mr-2 mt-0.5 flex-shrink-0 text-yellow-500"
-             fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 9v2m0 4h.01M4.93 4.93l14.14 14.14M12 2a10 10 0 100 20 10 10 0 000-20z" />
-        </svg>
-        <span class="text-sm">
-          Achtung: Die Anzahl der angemeldeten Teams stimmt nicht mit der Anzahl im Plan überein.<br>
-          Das PDF sollte so nicht gedruckt werden.
-        </span>
-      </div>
-
-      <!-- No teams available message -->
-      <div v-if="availableTeamPrograms.length === 0" class="mt-4 p-4 bg-[var(--color-bg-muted)] rounded text-center text-sm text-[var(--color-text-muted)]">
-        Keine Teams im Plan vorhanden.
-      </div>
-
-      <!-- Program Selector: stacked on mobile, side-by-side on desktop when both programs -->
-      <div 
-        v-else
-        class="mt-4 grid gap-4 grid-cols-1"
-        :class="{ 'lg:grid-cols-2': availableTeamPrograms.length > 1 }"
-      >
-        <div
-            v-for="program in availableTeamPrograms"
-            :key="program.id"
-            class="bg-[var(--color-bg-muted)] rounded p-3"
-        >
-          <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-            <img 
-              :src="programLogoSrc(program)" 
-              :alt="programLogoAlt(program)"
-              class="w-6 h-6 flex-shrink-0"
-            />
-            <span>FIRST LEGO League {{ programDisplayName(program) }}</span>
-          </h5>
-          <div class="space-y-0.5">
-            <label 
-              class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded"
-            >
-              <input 
-                type="checkbox" 
-                :checked="selectedProgramIds.has(program.id)"
-                @change="toggleTeamProgram(program.id)"
-                class="accent-blue-600"
-              />
-              <span class="text-sm">Alle Teams</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <!-- PDF Button -->
-      <div class="mt-4 flex justify-end">
-        <button
-          class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-          :class="!(hasSelectedPrograms && !isDownloading.teams) ? '!opacity-50' : ''"
-          :disabled="!hasSelectedPrograms || isDownloading.teams"
-          @click="downloadTeamsPdf"
-        >
-          <svg v-if="isDownloading.teams" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-            <path class="opacity-75" fill="currentColor"
-                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-          </svg>
-          <span>{{ isDownloading.teams ? 'Erzeuge…' : 'PDF' }}</span>
-        </button>
-      </div>
-    </div>
-    </div>
-
-    <!-- Tab Content: Organisation -->
-    <div v-show="activeTab === 'organisation'">
-      <!-- 1. Teamliste -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Teamliste</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">Alle Teams mit Teamräume und Zuordnung zu Guterachter:innen- bzw. Jury Gruppen.</p>
-            <p class="text-sm text-[var(--color-text-muted)] mt-2">Diese Liste hilft beim Check-In und bei den Briefings und Beratungen.</p>
-          </div>
+        <footer class="pdf-plans__tile-actions">
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="isDownloadingCsv ? '!opacity-50' : ''"
+            :disabled="isDownloadingCsv"
+            @click="downloadRoomUtilizationCsv"
+          >
+            <svg v-if="isDownloadingCsv" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloadingCsv ? 'Erzeuge…' : 'CSV' }}</span>
+          </button>
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="isDownloading.rooms ? '!opacity-50' : ''"
+            :disabled="isDownloading.rooms"
+            @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, flowHint('Räume'))"
+          >
+            <svg v-if="isDownloading.rooms" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.rooms ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </footer>
+      </article>
+
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Rollen</h4>
+          <p class="pdf-plans__tile-sub">Eine Seite pro Rolle mit allen Aktivitäten.</p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <p v-if="hasTeamIssues" class="pdf-plans__tile-warn">Teamanzahl weicht vom Plan ab.</p>
+          <p v-if="availableRoles.length === 0" class="pdf-plans__tile-note">Keine Rollen mit Aktivitäten im Plan.</p>
+          <div v-else class="pdf-plans__tile-scroll">
+            <div
+              v-for="group in roleProgramGroups"
+              :key="programId(group.program)"
+              class="pdf-plans__option-group"
+            >
+              <h5 class="pdf-plans__option-heading">
+                <img
+                  :src="programLogoSrc(group.program)"
+                  :alt="programLogoAlt(group.program)"
+                  class="w-5 h-5 flex-shrink-0"
+                />
+                <span>{{ programDisplayName(group.program) }}</span>
+              </h5>
+              <label
+                v-for="role in group.roles"
+                :key="role.id"
+                class="pdf-plans__option"
+              >
+                <input
+                  type="checkbox"
+                  :checked="selectedRoleIds.has(role.id)"
+                  class="accent-[var(--color-accent)]"
+                  @change="toggleRole(role.id)"
+                />
+                <span>{{ role.name }}</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <footer class="pdf-plans__tile-actions">
+          <button type="button" class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm" @click="showWorkerShiftsModal">
+            HERO Schichten
+          </button>
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="!(hasSelectedRoles && !isDownloading.roles) ? '!opacity-50' : ''"
+            :disabled="!hasSelectedRoles || isDownloading.roles"
+            @click="downloadRolesPdf"
+          >
+            <svg v-if="isDownloading.roles" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.roles ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </footer>
+      </article>
+
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Teams</h4>
+          <p class="pdf-plans__tile-sub">Eine Seite pro Team mit allen Aktivitäten.</p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <p v-if="hasTeamIssues" class="pdf-plans__tile-warn">Teamanzahl weicht vom Plan ab.</p>
+          <p v-if="availableTeamPrograms.length === 0" class="pdf-plans__tile-note">Keine Teams im Plan.</p>
+          <div v-else class="pdf-plans__tile-scroll">
+            <div
+              v-for="program in availableTeamPrograms"
+              :key="program.id"
+              class="pdf-plans__option-group"
+            >
+              <h5 class="pdf-plans__option-heading">
+                <img
+                  :src="programLogoSrc(program)"
+                  :alt="programLogoAlt(program)"
+                  class="w-5 h-5 flex-shrink-0"
+                />
+                <span>{{ programDisplayName(program) }}</span>
+              </h5>
+              <label class="pdf-plans__option">
+                <input
+                  type="checkbox"
+                  :checked="selectedProgramIds.has(program.id)"
+                  class="accent-[var(--color-accent)]"
+                  @change="toggleTeamProgram(program.id)"
+                />
+                <span>Alle Teams</span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <footer class="pdf-plans__tile-actions">
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
+            :class="!(hasSelectedPrograms && !isDownloading.teams) ? '!opacity-50' : ''"
+            :disabled="!hasSelectedPrograms || isDownloading.teams"
+            @click="downloadTeamsPdf"
+          >
+            <svg v-if="isDownloading.teams" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span>{{ isDownloading.teams ? 'Erzeuge…' : 'PDF' }}</span>
+          </button>
+        </footer>
+      </article>
+      </div>
+
+      <p class="pdf-plans__group-label pdf-plans__group-label--next">
+        <i class="bi bi-shield-lock" aria-hidden="true"/>
+        <span>Nur für Veranstalter – nicht für Teams oder Besucher.</span>
+      </p>
+      <div class="pdf-plans__grid">
+
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Teamliste</h4>
+          <p class="pdf-plans__tile-sub">
+            Teams mit Räumen und Gutachter-/Jury-Gruppen — für Check-In und Briefings.
+          </p>
+        </header>
+        <div class="pdf-plans__tile-body"></div>
+        <footer class="pdf-plans__tile-actions">
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading['team-list'] ? '!opacity-50' : ''"
             :disabled="isDownloading['team-list']"
             @click="downloadTeamListPdf"
           >
             <svg v-if="isDownloading['team-list']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading['team-list'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
-        </div>
-      </div>
+        </footer>
+      </article>
 
-      <!-- 2. Moderation -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Moderation</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">Zeiten für alle Aktivitäten mit Moderation und kompletter Robot-Game-Matchplan</p>
-          </div>
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Moderation</h4>
+          <p class="pdf-plans__tile-sub">
+            Moderierte Aktivitäten und vollständiger Robot-Game-Matchplan.
+          </p>
+        </header>
+        <div class="pdf-plans__tile-body"></div>
+        <footer class="pdf-plans__tile-actions">
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading['moderator-match-plan'] ? '!opacity-50' : ''"
             :disabled="isDownloading['moderator-match-plan']"
             @click="downloadModeratorMatchPlanPdf"
           >
             <svg v-if="isDownloading['moderator-match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading['moderator-match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
-        </div>
-      </div>
+        </footer>
+      </article>
 
-      <!-- 3. Slot-Zuordnung -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Slot-Zuordnung</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.</p>
-          </div>
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Slot-Zuordnung</h4>
+          <p class="pdf-plans__tile-sub">
+            Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.
+          </p>
+        </header>
+        <div class="pdf-plans__tile-body"></div>
+        <footer class="pdf-plans__tile-actions">
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading['slot-assignments'] ? '!opacity-50' : ''"
             :disabled="isDownloading['slot-assignments']"
             @click="downloadSlotAssignmentsPdf"
           >
             <svg v-if="isDownloading['slot-assignments']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading['slot-assignments'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
-        </div>
-      </div>
+        </footer>
+      </article>
 
-      <!-- 4. Match-Plan für SCORE -->
-      <div v-if="hasChallengeTeams || hasChallenge(event)" class="border-b border-[var(--color-border)] pb-3 mb-3">
-        <div class="mb-2">
-          <h4 class="text-base font-semibold text-[var(--color-text)]">Match-Plan für SCORE</h4>
-          <p class="text-sm text-[var(--color-text-muted)]">Vorrunden-Matches zum Übernehmen in die Auswertesoftware 
-            <a 
-              href="https://evaluation.hands-on-technology.org/" 
-              target="_blank" 
+      <article
+        v-if="hasChallengeTeams || hasChallenge(event)"
+        class="pdf-plans__tile liquid-surface-inner"
+      >
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Match-Plan SCORE</h4>
+          <p class="pdf-plans__tile-sub">
+            Vorrunden-Matches zum Übernehmen in
+            <a
+              href="https://evaluation.hands-on-technology.org/"
+              target="_blank"
               rel="noopener noreferrer"
-              class="text-blue-600 underline hover:text-blue-800"
-            >
-              SCORE
-            </a>.
+              class="text-[var(--color-accent)] underline hover:opacity-80"
+            >SCORE</a>.
           </p>
-          <p class="text-sm text-[var(--color-text-muted)] mt-2">
-            Damit die Schiedsrichter:innen die Matches in der Reihenfolge angezeigt bekommen, wie in den den Plänen aus FLOW, müssen in SCORE die Matches exakt so angepasst werden, wie hier gezeigt.
-          </p>
+        </header>
+        <div class="pdf-plans__tile-body">
+          <p class="pdf-plans__tile-note">Reihenfolge in SCORE an FLOW anpassen.</p>
         </div>
-
-        <!-- Buttons -->
-        <div class="mt-4 flex justify-between">
-          <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-            @click="openMatchPlanModal"
-          >
-            <span>Online anzeigen</span>
+        <footer class="pdf-plans__tile-actions">
+          <button type="button" class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm" @click="openMatchPlanModal">
+            Online
           </button>
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading['match-plan'] ? '!opacity-50' : ''"
             :disabled="isDownloading['match-plan']"
             @click="downloadMatchPlanPdf"
           >
             <svg v-if="isDownloading['match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading['match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
-        </div>
-      </div>
+        </footer>
+      </article>
 
-      <!-- 5. Gesamtplan -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Gesamtplan</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">Volle Details, aber in einfacher Formatierung.</p>
-          </div>
+      <article class="pdf-plans__tile liquid-surface-inner">
+        <header class="pdf-plans__tile-head">
+          <h4 class="pdf-plans__tile-title">Gesamtplan</h4>
+          <p class="pdf-plans__tile-sub">Volle Details in einfacher Formatierung.</p>
+        </header>
+        <div class="pdf-plans__tile-body"></div>
+        <footer class="pdf-plans__tile-actions">
           <button
-            class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
+            type="button"
+            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
             :class="isDownloading.full ? '!opacity-50' : ''"
             :disabled="isDownloading.full"
-            @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, 'Gesamtplan.pdf')"
+            @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, flowHint('Gesamtplan'))"
           >
             <svg v-if="isDownloading.full" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
             <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
-        </div>
+        </footer>
+      </article>
       </div>
-    </div>
+    </section>
 
-    <!-- Tab Content: Aufkleber -->
-    <div v-show="activeTab === 'aufkleber'">
-      <p class="text-sm text-blue-600 mb-4">
-        Namensaufkleber zum Drucken auf A4-Papier
-      </p>
-      <p class="text-sm text-[var(--color-text-muted)] mb-3">
-        Die PDF-Dateien sind passend zum  
-        <a 
-          href="https://www.avery-zweckform.com/vorlage-l4785" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          class="text-blue-600 underline hover:text-blue-800"
-        >
-          Format Avery L4785</a> formatiert.
-      </p>
-      <p class="text-sm text-[var(--color-text-muted)] mb-4">
-        Jeder Aufkleber enthält den Namen der Person, den Team-Namen bzw. die Rolle sowie die Logos (Programm, Saison, Veranstalter).
-      </p>
-      <p class="text-sm text-[var(--color-text-muted)] mb-4">
-        Als Veranstalter-Logo wird das erste aktive aus dem
-        <a
-          href="/plan/publish/logos"
-          class="text-blue-600 underline hover:text-blue-800"
-        >
-          View Logos</a>
-        verwendet.
-      </p>
-      <p class="text-sm text-[var(--color-text-muted)] mb-4">
-        Mit "Überspringen" können die ersten Aufkleber auf dem ersten Blatt übersprungen werden, um teilweise bereits verwendete Blätter weiter zu nutzen und Material zu sparen.
-      </p>
- 
-      
-      <!-- Namensaufkleber für Teams -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-        <div>
-          <h4 class="text-base font-semibold text-[var(--color-text)] mb-2">Namensaufkleber für Teams</h4>
-          <p class="text-sm text-[var(--color-text-muted)] mb-4">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
-          <p class="text-sm text-[var(--color-text-muted)] mb-4">"No-Show" Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.</p>
-          
-          <!-- Filters: stacked on mobile, side-by-side on desktop when both programs -->
-          <div 
+    <template v-if="showLabels">
+      <section class="glass-card liquid-surface-inner pdf-plans__panel">
+        <h3 v-if="!hideHeading" class="glass-card__heading">Namensschilder</h3>
+        <p class="glass-settings-hint !not-italic mb-3">
+          Namensaufkleber zum Drucken auf A4-Papier
+        </p>
+        <p class="text-sm text-[var(--color-text-muted)] mb-3">
+          Die PDF-Dateien sind passend zum
+          <a
+            href="https://www.avery-zweckform.com/vorlage-l4785"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[var(--color-accent)] underline hover:opacity-80"
+          >Format Avery L4785</a>
+          formatiert.
+          Jeder Aufkleber enthält den Namen der Person, den Team-Namen bzw. die Rolle sowie die Logos (Programm, Saison, Veranstalter).
+          Als Veranstalter-Logo wird das erste aktive aus dem
+          <a
+            href="/plan/publish/logos"
+            class="text-[var(--color-accent)] underline hover:opacity-80"
+          >View Logos</a>
+          verwendet.
+        </p>
+        <p class="text-sm text-[var(--color-text-muted)] mb-0">
+          Mit „Überspringen“ können die ersten Aufkleber auf dem ersten Blatt übersprungen werden, um teilweise bereits verwendete Blätter weiter zu nutzen und Material zu sparen.
+        </p>
+      </section>
+
+      <div class="pdf-plans__labels-cols">
+        <section class="glass-card liquid-surface-inner pdf-plans__panel">
+          <h4 class="pdf-plans__row-title mb-2">Für Teams</h4>
+          <p class="text-sm text-[var(--color-text-muted)] mb-4">
+            Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.
+            „No-Show“-Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.
+          </p>
+
+          <div
             v-if="availableTeamPrograms.length > 0"
-            class="mb-4 grid gap-4 grid-cols-1"
-            :class="{ 'lg:grid-cols-2': availableTeamPrograms.length > 1 }"
+            class="mb-4 grid gap-3 grid-cols-1"
           >
             <div
-                v-for="program in availableTeamPrograms"
-                :key="program.id"
-                class="bg-[var(--color-bg-muted)] rounded p-3"
+              v-for="program in availableTeamPrograms"
+              :key="program.id"
+              class="bg-[var(--color-bg-muted)] rounded p-3"
             >
               <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-                <img 
-                  :src="programLogoSrc(program)" 
+                <img
+                  :src="programLogoSrc(program)"
                   :alt="programLogoAlt(program)"
                   class="w-6 h-6 flex-shrink-0"
                 />
@@ -1191,8 +1135,8 @@ const currentTabLabel = computed(() =>
               </h5>
               <div class="space-y-0.5">
                 <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     :checked="teamLabelFilters[program.id]?.players ?? true"
                     @change="toggleTeamLabelPersonType(program.id, 'players')"
                     class="accent-blue-600"
@@ -1200,8 +1144,8 @@ const currentTabLabel = computed(() =>
                   <span class="text-sm">Teammitglieder</span>
                 </label>
                 <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
-                  <input 
-                    type="checkbox" 
+                  <input
+                    type="checkbox"
                     :checked="teamLabelFilters[program.id]?.coaches ?? true"
                     @change="toggleTeamLabelPersonType(program.id, 'coaches')"
                     class="accent-blue-600"
@@ -1211,8 +1155,7 @@ const currentTabLabel = computed(() =>
               </div>
             </div>
           </div>
-          
-          <!-- PDF Button -->
+
           <div class="flex items-center justify-end gap-2">
             <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
               <span class="text-xs">Überspringen:</span>
@@ -1238,22 +1181,18 @@ const currentTabLabel = computed(() =>
               <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
             </button>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <!-- Namensaufkleber für Volunteer -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-        <div>
-          <h4 class="text-base font-semibold text-[var(--color-text)] mb-2">Namensaufkleber für Volunteers</h4>
+        <section class="glass-card liquid-surface-inner pdf-plans__panel">
+          <h4 class="pdf-plans__row-title mb-2">Für Volunteers</h4>
           <p class="text-sm text-[var(--color-text-muted)] mb-3">
             Hier kann eine einfache Liste von Rollen und Namen hochgeladen werden, aus der dann ein PDF erzeugt wird.
           </p>
           <p class="text-xs text-[var(--color-text-subtle)] mb-4">
-            Format: Name, Rolle, Programm (E für Explore, C für Challenge, leer für kein Logo). 
+            Format: Name, Rolle, Programm (E für Explore, C für Challenge, leer für kein Logo).
             Spalten können durch Tab oder Komma getrennt sein.
           </p>
-          
-          <!-- Input Textarea -->
+
           <div class="mb-4">
             <textarea
               v-model="volunteerInputText"
@@ -1263,8 +1202,7 @@ const currentTabLabel = computed(() =>
               rows="6"
             ></textarea>
           </div>
-          
-          <!-- Preview Grid -->
+
           <div v-if="volunteerPreview.length > 0 || submittedVolunteers.length > 0" class="mb-4">
             <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-2">
               Vorschau ({{ (volunteerPreview.length + submittedVolunteers.length) }} Einträge):
@@ -1280,26 +1218,24 @@ const currentTabLabel = computed(() =>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-gray-200">
-                    <!-- Submitted volunteers (persistent) -->
                     <tr v-for="(vol, idx) in submittedVolunteers" :key="'submitted-' + idx" class="bg-green-50">
                       <td class="px-3 py-2">{{ vol.name }}</td>
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
-                        <img 
-                          :src="programLogoSrc(catalogNameFromCode(vol.program))" 
-                          :alt="programLogoAlt(catalogNameFromCode(vol.program))" 
+                        <img
+                          :src="programLogoSrc(catalogNameFromCode(vol.program))"
+                          :alt="programLogoAlt(catalogNameFromCode(vol.program))"
                           class="w-5 h-5 inline-block"
                         />
                       </td>
                     </tr>
-                    <!-- Preview volunteers (pending) -->
                     <tr v-for="(vol, idx) in volunteerPreview" :key="'preview-' + idx">
                       <td class="px-3 py-2">{{ vol.name }}</td>
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
-                        <img 
-                          :src="programLogoSrc(catalogNameFromCode(vol.program))" 
-                          :alt="programLogoAlt(catalogNameFromCode(vol.program))" 
+                        <img
+                          :src="programLogoSrc(catalogNameFromCode(vol.program))"
+                          :alt="programLogoAlt(catalogNameFromCode(vol.program))"
                           class="w-5 h-5 inline-block"
                         />
                       </td>
@@ -1309,8 +1245,7 @@ const currentTabLabel = computed(() =>
               </div>
             </div>
           </div>
-          
-          <!-- Action Buttons -->
+
           <div class="flex gap-2 flex-wrap justify-between items-center">
             <div class="flex gap-2">
               <button
@@ -1345,18 +1280,18 @@ const currentTabLabel = computed(() =>
                 :class="!(hasSubmittedVolunteers && !isDownloading['volunteer-labels']) ? '!opacity-50' : ''"
                 :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
               >
-              <svg v-if="isDownloading['volunteer-labels']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-              </svg>
-              <span>{{ isDownloading['volunteer-labels'] ? 'Erzeuge…' : 'PDF' }}</span>
+                <svg v-if="isDownloading['volunteer-labels']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                </svg>
+                <span>{{ isDownloading['volunteer-labels'] ? 'Erzeuge…' : 'PDF' }}</span>
               </button>
             </div>
           </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </template>
 
     <!-- Match Plan Modal -->
     <div
@@ -1397,7 +1332,7 @@ const currentTabLabel = computed(() =>
                 <transition name="fade">
                   <div v-if="openRound === option.value" class="p-4">
                     <div v-if="isLoadingMatches" class="flex items-center justify-center py-8">
-                      <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+                      <svg class="animate-spin h-8 w-8 text-[var(--color-accent)]" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                       </svg>
@@ -1469,7 +1404,7 @@ const currentTabLabel = computed(() =>
         <!-- Modal Content -->
         <div class="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
           <div v-if="isLoadingShifts" class="flex items-center justify-center py-8">
-            <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+            <svg class="animate-spin h-8 w-8 text-[var(--color-accent)]" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
@@ -1533,6 +1468,216 @@ const currentTabLabel = computed(() =>
 </template>
 
 <style scoped>
+.pdf-plans {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pdf-plans__panel {
+  min-width: 0;
+}
+
+.pdf-plans__labels-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .pdf-plans__labels-cols {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pdf-plans__group-label {
+  margin: 0 0 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.pdf-plans__group-label .bi {
+  flex-shrink: 0;
+  margin-top: 0.12rem;
+  font-size: 1rem;
+  color: var(--color-accent);
+}
+
+.pdf-plans__group-label--next {
+  margin-top: 1.35rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, transparent);
+}
+
+.pdf-plans__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16.5rem, 1fr));
+  gap: 0.85rem;
+  align-items: stretch;
+}
+
+.pdf-plans__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  min-height: 13.75rem;
+  height: 100%;
+  padding: 1rem 1.05rem 1.05rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 38%, var(--liquid-border-soft));
+  background: color-mix(in srgb, #ffffff 90%, var(--liquid-tile-bg-inner));
+  box-shadow:
+    0 8px 20px rgba(15, 23, 42, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.pdf-plans__tile-head {
+  min-height: 3.6rem;
+}
+
+.pdf-plans__tile-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+
+.pdf-plans__tile-sub {
+  margin: 0.28rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pdf-plans__tile-body {
+  flex: 1 1 auto;
+  min-height: 3.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.pdf-plans__tile-scroll {
+  max-height: 5.75rem;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.pdf-plans__tile-actions {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.pdf-plans__tile-note,
+.pdf-plans__tile-warn {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.pdf-plans__tile-note {
+  color: var(--color-text-muted);
+}
+
+.pdf-plans__tile-warn {
+  color: color-mix(in srgb, #b45309 75%, var(--color-text));
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 28%, transparent);
+  border-radius: 8px;
+  padding: 0.4rem 0.55rem;
+}
+
+.pdf-plans__option-group + .pdf-plans__option-group {
+  margin-top: 0.2rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 22%, transparent);
+}
+
+.pdf-plans__option-heading {
+  margin: 0 0 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+}
+
+.pdf-plans__option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.2rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.pdf-plans__option:hover {
+  background: var(--color-bg-hover);
+}
+
+.pdf-plans__preview {
+  height: 3.25rem;
+  width: auto;
+  max-width: 5.5rem;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
+  background: #fff;
+}
+
+/* Aufkleber keeps stacked list layout */
+.pdf-plans__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-plans__row {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, transparent);
+}
+
+.pdf-plans__row:last-child {
+  border-bottom: none;
+  padding-bottom: 0.15rem;
+}
+
+.pdf-plans__row-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+
+.pdf-plans__row-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
 .fade-enter-active, .fade-leave-active {
   transition: all 0.2s ease;
 }
@@ -1540,5 +1685,11 @@ const currentTabLabel = computed(() =>
 .fade-enter-from, .fade-leave-to {
   opacity: 0;
   transform: translateY(-0.5rem);
+}
+
+@media (max-width: 640px) {
+  .pdf-plans__grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

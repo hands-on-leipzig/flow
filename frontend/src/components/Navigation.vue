@@ -117,10 +117,12 @@ const navEntries = computed<NavEntry[]>(() => [
     path: '/plan/publish',
     icon: 'bi-broadcast',
     children: [
-      {name: 'Logos', path: '/plan/publish/logos', icon: 'bi-images'},
       {name: 'Veröffentlichung', path: '/plan/publish', icon: 'bi-link-45deg'},
+      {name: 'Logos', path: '/plan/publish/logos', icon: 'bi-images'},
+      {name: 'WLAN vor Ort', path: '/plan/publish/wlan', icon: 'bi-wifi'},
       {name: 'Digital', path: '/plan/publish/digital', icon: 'bi-display'},
-      {name: 'Analog', path: '/plan/publish/analog', icon: 'bi-printer'},
+      {name: 'Drucksachen', path: '/plan/publish/analog', icon: 'bi-printer'},
+      {name: 'Namensschilder', path: '/plan/publish/namensschilder', icon: 'bi-person-badge'},
     ],
   },
   {name: 'am Tag', path: '/plan/live', icon: 'bi-play-circle'},
@@ -438,12 +440,6 @@ function logout() {
         </template>
 
         <template #partners>
-          <img
-              :src="imageUrl('/flow/first+fll_v.png')"
-              alt="FIRST LEGO League"
-              class="glass-sidebar__partner-logo glass-sidebar__partner-logo--primary"
-              decoding="async"
-          />
           <a
               href="https://www.hands-on-technology.org"
               target="_blank"

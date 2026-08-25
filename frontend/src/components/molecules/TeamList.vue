@@ -9,6 +9,7 @@ import {getProgramTheme} from '@/utils/programTheme'
 import SavingToast from "@/components/atoms/SavingToast.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
 import {drahtIdFor, programMatchesSlug} from '@/utils/eventPrograms'
+import {flowFilename} from '@/utils/flowFilename'
 
 
 const props = defineProps({
@@ -29,6 +30,11 @@ const programLabel = computed(() => programTheme.value.shortName)
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
+
+function peopleExportFilename(ext) {
+  return flowFilename(`People_Teams_${programLabel.value}`, ext, event.value?.date)
+}
+
 const localTeams = ref([])
 const teamList = ref([])
 const teamsDiffer = ref(false)
@@ -574,7 +580,7 @@ const downloadJSON = () => {
   const url = URL.createObjectURL(dataBlob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `${props.program}_teams_people.json`
+  link.download = peopleExportFilename('json')
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -641,7 +647,7 @@ const downloadCSV = () => {
   const url = URL.createObjectURL(dataBlob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `${props.program}_teams_people.csv`
+  link.download = peopleExportFilename('csv')
   link.click()
   URL.revokeObjectURL(url)
 }
@@ -731,7 +737,7 @@ const downloadXML = () => {
   const url = URL.createObjectURL(dataBlob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `${props.program}_teams_people.xml`
+  link.download = peopleExportFilename('xml')
   link.click()
   URL.revokeObjectURL(url)
 }

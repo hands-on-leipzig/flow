@@ -9,7 +9,7 @@ import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBo
 import EventMap from '@/components/molecules/EventMap.vue'
 import {imageUrl, programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
-import {eventPrograms, programDisplayName, firstTeamsPath} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, firstTeamsPath, teamPathFor, programCompact} from '@/utils/eventPrograms'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
 
 defineOptions({name: 'HomeOverview'})
@@ -62,6 +62,10 @@ const eventSoon = computed(() => {
 })
 
 const hasTeamDiscrepancy = computed(() => !!event.value?.hasTeamDiscrepancy)
+
+function programHasDiscrepancy(programName: string): boolean {
+  return !!event.value?.discrepancyByProgram?.[programCompact(programName)]
+}
 
 const readiness = computed(() => eventStore.readiness)
 
@@ -230,12 +234,7 @@ watch(
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
       <div class="xl:col-span-1 space-y-4 order-2 xl:order-1">
         <div class="glass-card liquid-surface-inner">
-          <div class="flex items-center justify-between gap-2 mb-3">
-            <h2 class="glass-card__title !mb-0">Teams</h2>
-            <button type="button" class="glass-btn-secondary !px-3 !py-1.5 !text-sm" @click="goTo('/teams')">
-              Zur Teams-Seite
-            </button>
-          </div>
+          <h2 class="glass-card__title">Teams</h2>
 
           <div
               v-if="hasTeamDiscrepancy"
@@ -243,29 +242,36 @@ watch(
           >
             <div class="flex items-start gap-2">
               <i class="bi bi-exclamation-triangle-fill mt-0.5" aria-hidden="true"/>
-              <div>
-                <p class="font-medium">Sync mit DRAHT nötig</p>
-                <p class="text-[var(--color-text-muted)]">
-                  Anmeldungen weichen von FLOW ab. Bitte auf der Teams-Seite abgleichen.
-                </p>
-              </div>
+              <p>
+                Die aktuellen Anmeldungen weichen von den Teams in FLOW ab. Bitte auf der Teams-Seite abgleichen.
+              </p>
             </div>
           </div>
 
-          <div class="space-y-3">
-            <div
+          <div class="space-y-2">
+            <RouterLink
                 v-for="stat in teamStats"
                 :key="stat.first_program"
-                class="flex items-start gap-2"
+                :to="teamPathFor({ name: stat.programName, first_program: Number(stat.first_program) })"
+                class="flex items-start gap-2 rounded-lg px-3 py-2 liquid-surface-inner hover:bg-[var(--color-bg-hover)] transition-colors no-underline text-inherit"
             >
               <img :alt="programLogoAlt(stat.programName)" :src="programLogoSrc(stat.programName)" class="w-9 h-9 flex-shrink-0"/>
-              <div>
-                <span class="font-medium block">
-                  {{ stat.registered }} von {{ stat.capacity }} Teams
+              <div class="min-w-0 flex-1">
+                <div class="font-medium flex items-center justify-between gap-2">
+                  <span>{{ stat.registered }} von {{ stat.capacity }} Teams</span>
+                  <i class="bi bi-chevron-right text-[var(--color-text-subtle)]" aria-hidden="true"/>
+                </div>
+                <span class="text-sm text-[var(--color-text-muted)] inline-flex items-center gap-1.5">
+                  {{ stat.name }} angemeldet
+                  <span
+                      v-if="programHasDiscrepancy(stat.programName)"
+                      class="inline-block h-2 w-2 rounded-full bg-red-500 shrink-0"
+                      title="Abweichung zu DRAHT"
+                      aria-label="Abweichung zu DRAHT"
+                  />
                 </span>
-                <span class="text-sm text-[var(--color-text-muted)]">{{ stat.name }} angemeldet</span>
               </div>
-            </div>
+            </RouterLink>
 
             <p
                 v-if="teamStats.length === 0"
@@ -361,16 +367,6 @@ watch(
                 <i class="bi bi-file-earmark-text" aria-hidden="true"/>
                 Wenn Teams nicht erscheinen
               </a>
-            </li>
-            <li>
-              <button
-                  type="button"
-                  class="inline-flex items-center gap-2 text-[var(--color-accent)] hover:underline"
-                  @click="goTo('/schedule/free')"
-              >
-                <i class="bi bi-calendar2-plus" aria-hidden="true"/>
-                Freie Blöcke
-              </button>
             </li>
           </ul>
         </div>
