@@ -117,6 +117,7 @@ class QualityController extends Controller
                 'name' => 'required|string|max:100',
                 'comment' => 'nullable|string',
                 'selection' => 'required|array',
+                'selection.first_program' => 'required|integer|in:3,8',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             error_log('Validation failed: ' . json_encode($e->errors()));
@@ -124,9 +125,11 @@ class QualityController extends Controller
         }
 
         $host = gethostname();
+        $firstProgram = (int) $payload['selection']['first_program'];
 
         $qRunId = DB::table('q_run')->insertGetId([
             'name' => $payload['name'],
+            'first_program' => $firstProgram,
             'comment' => $payload['comment'] ?? null,
             'selection' => json_encode($payload['selection']),
             'started_at' => Carbon::now(),
@@ -139,6 +142,7 @@ class QualityController extends Controller
         Log::info("QualityController::startQRun", [
             'q_run' => $qRunId,
             'name' => $payload['name'],
+            'first_program' => $firstProgram,
         ]);
 
         return response()->json([
@@ -167,11 +171,25 @@ class QualityController extends Controller
             ], 404);
         }
 
+        $programIds = DB::table('q_plan')
+            ->whereIn('id', $planIds)
+            ->distinct()
+            ->pluck('first_program');
+
+        if ($programIds->count() > 1) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'ReRun mit gemischten first_program ist nicht erlaubt.',
+            ], 400);
+        }
+
         $originalRunId = $firstQPlan->q_run;
+        $firstProgram = (int) ($programIds->first() ?? $firstQPlan->first_program ?? 3);
         $host = gethostname();
 
         $newRunId = DB::table('q_run')->insertGetId([
             'name' => "ReRun für $originalRunId (gefiltert)",
+            'first_program' => $firstProgram,
             'comment' => null,
             'selection' => null,
             'started_at' => Carbon::now(),
@@ -184,6 +202,7 @@ class QualityController extends Controller
         Log::info("QualityController::rerunQPlans", [
             'new_q_run' => $newRunId,
             'original_q_run' => $originalRunId,
+            'first_program' => $firstProgram,
             'plan_count' => count($planIds),
         ]);
 

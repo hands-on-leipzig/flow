@@ -29,12 +29,10 @@ class ExecuteQPlanJob implements ShouldQueue
 
     public function handle(): void
     {
-        // Mark run as running
         QRun::where('id', $this->runId)->update([
             'status' => 'running',
         ]);
 
-        // Nächstes QPlan holen, das noch nicht berechnet ist
         $qPlan = QPlan::where('q_run', $this->runId)
             ->where('calculated', false)
             ->first();
@@ -53,23 +51,39 @@ class ExecuteQPlanJob implements ShouldQueue
         Log::info("ExecuteQPlanJob: Processing qPlan {$qPlan->id}", [
             'q_run' => $this->runId,
             'plan_id' => $planId,
+            'first_program' => $qPlan->first_program,
             'c_teams' => $qPlan->c_teams,
             'j_lanes' => $qPlan->j_lanes,
             'r_tables' => $qPlan->r_tables,
         ]);
 
-        // Plan erzeugen über den Service
         $generator = new PlanGeneratorService();
-        $generator->prepare($planId, 'job', null); // No user context in background job
-        $generator->dispatchJob($planId, true, null);
 
-        // Warten
+        try {
+            $support = $generator->isSupported($planId);
+            if (! ($support['supported'] ?? false)) {
+                Log::warning('ExecuteQPlanJob: plan not supported, skipping generate', [
+                    'q_plan' => $qPlan->id,
+                    'plan_id' => $planId,
+                    'error' => $support['error'] ?? null,
+                    'details' => $support['details'] ?? null,
+                ]);
+            } else {
+                $generator->prepare($planId, 'job', null);
+                // Run synchronously so evaluation sees matches before we mark calculated.
+                $generator->run($planId, true);
+            }
+        } catch (\Throwable $e) {
+            Log::error('ExecuteQPlanJob: generate/evaluate failed', [
+                'q_plan' => $qPlan->id,
+                'plan_id' => $planId,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
-        // QPlan als berechnet markieren
         QPlan::where('id', $qPlan->id)->update(['calculated' => true]);
         QRun::where('id', $this->runId)->increment('qplans_calculated');
 
-        // Job erneut dispatchen, bis alle QPlans berechnet sind
         ExecuteQPlanJob::dispatch($this->runId);
     }
 }
