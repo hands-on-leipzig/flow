@@ -70,6 +70,7 @@ const effectivePlanId = computed(() => {
 })
 
 const view = ref<'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'rooms' | 'activities'>(props.initialView as any)
+const showAdminSegment = ref(false)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -187,6 +188,13 @@ function setView(v: 'overview' | 'roles' | 'teams' | 'quality' | 'rooms' | 'acti
   if (view.value !== v) view.value = v
 }
 
+function toggleAdminSegment() {
+  showAdminSegment.value = !showAdminSegment.value
+  if (!showAdminSegment.value && (view.value === 'activities' || view.value === 'quality')) {
+    setView('overview')
+  }
+}
+
 // Helper functions for Robot-Game view
 function hasTable34(round: RobotGameRound): boolean {
   // Check if any match in this round uses table 3 or 4
@@ -260,6 +268,20 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
         </div>
 
         <div v-if="isAdmin" class="glass-segment">
+          <button
+            type="button"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': showAdminSegment}"
+            :aria-pressed="showAdminSegment"
+            :aria-label="showAdminSegment ? 'Admin-Ansichten ausblenden' : 'Admin-Ansichten einblenden'"
+            title="Admin"
+            @click="toggleAdminSegment"
+          >
+            <i class="bi bi-shield-lock" aria-hidden="true"/>
+          </button>
+        </div>
+
+        <div v-if="isAdmin && showAdminSegment" class="glass-segment">
           <button
             class="glass-segment__btn"
             :class="{'glass-segment__btn--active': view === 'activities'}"
