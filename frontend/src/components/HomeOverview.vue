@@ -9,7 +9,7 @@ import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBo
 import EventMap from '@/components/molecules/EventMap.vue'
 import {imageUrl, programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
-import {eventPrograms, programDisplayName, firstTeamsPath, teamPathFor} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, firstTeamsPath, teamPathFor, programCompact} from '@/utils/eventPrograms'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
 
 defineOptions({name: 'HomeOverview'})
@@ -62,6 +62,10 @@ const eventSoon = computed(() => {
 })
 
 const hasTeamDiscrepancy = computed(() => !!event.value?.hasTeamDiscrepancy)
+
+function programHasDiscrepancy(programName: string): boolean {
+  return !!event.value?.discrepancyByProgram?.[programCompact(programName)]
+}
 
 const readiness = computed(() => eventStore.readiness)
 
@@ -257,7 +261,15 @@ watch(
                   <span>{{ stat.registered }} von {{ stat.capacity }} Teams</span>
                   <i class="bi bi-chevron-right text-[var(--color-text-subtle)]" aria-hidden="true"/>
                 </div>
-                <span class="text-sm text-[var(--color-text-muted)]">{{ stat.name }} angemeldet</span>
+                <span class="text-sm text-[var(--color-text-muted)] inline-flex items-center gap-1.5">
+                  {{ stat.name }} angemeldet
+                  <span
+                      v-if="programHasDiscrepancy(stat.programName)"
+                      class="inline-block h-2 w-2 rounded-full bg-red-500 shrink-0"
+                      title="Abweichung zu DRAHT"
+                      aria-label="Abweichung zu DRAHT"
+                  />
+                </span>
               </div>
             </RouterLink>
 
