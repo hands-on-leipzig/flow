@@ -1,5 +1,13 @@
 <script setup>
+import { computed } from 'vue'
+
+const FIRST_PROGRAM = {
+  CHALLENGE: 3,
+  FUTURE_8: 8,
+}
+
 const props = defineProps({
+  firstProgram: Number,
   minTeams: Number,
   maxTeams: Number,
   juryLanes: Object,
@@ -12,6 +20,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
+  'update:firstProgram',
   'update:minTeams',
   'update:maxTeams',
   'update:juryLanes',
@@ -23,11 +32,39 @@ const emit = defineEmits([
   'start',
   'refresh',
 ])
+
+const isFuture8 = computed(() => props.firstProgram === FIRST_PROGRAM.FUTURE_8)
+const tablesLabel = computed(() => (isFuture8.value ? 'RG-Felder' : 'RG-Tische'))
 </script>
 
 <template>
   <div class="sticky top-0 bg-white border-b p-4 z-10">
     <div class="flex flex-wrap items-end gap-6">
+      <!-- Program -->
+      <div>
+        <label class="block font-semibold mb-1">Programm</label>
+        <div class="flex gap-4">
+          <label class="flex items-center gap-1">
+            <input
+              type="radio"
+              name="qrun_first_program"
+              :checked="firstProgram === FIRST_PROGRAM.CHALLENGE"
+              @change="emit('update:firstProgram', FIRST_PROGRAM.CHALLENGE)"
+            />
+            Challenge
+          </label>
+          <label class="flex items-center gap-1">
+            <input
+              type="radio"
+              name="qrun_first_program"
+              :checked="firstProgram === FIRST_PROGRAM.FUTURE_8"
+              @change="emit('update:firstProgram', FIRST_PROGRAM.FUTURE_8)"
+            />
+            Future 8+
+          </label>
+        </div>
+      </div>
+
       <!-- Name -->
       <div>
         <label class="block font-semibold mb-1">Name für den QRun</label>
@@ -86,9 +123,9 @@ const emit = defineEmits([
         </div>
       </div>
 
-      <!-- Table Types -->
+      <!-- Tables / Fields -->
       <div>
-        <label class="block font-semibold mb-1">RG-Tische</label>
+        <label class="block font-semibold mb-1">{{ tablesLabel }}</label>
         <div class="flex gap-4">
           <label class="flex items-center gap-1">
             <input
@@ -148,9 +185,8 @@ const emit = defineEmits([
         </div>
       </div>
 
-
-      <!-- Robot-Check -->
-      <div>
+      <!-- Robot-Check (Challenge only) -->
+      <div v-if="!isFuture8">
         <label class="block font-semibold mb-1">Robot-Check</label>
         <div class="flex gap-4">
           <label class="flex items-center gap-1">

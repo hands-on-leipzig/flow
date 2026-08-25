@@ -83,6 +83,23 @@ async function handleDelete() {
 
 // compress functionality removed
 
+function resolveFirstProgram(qrun) {
+  return Number(qrun.first_program ?? qrun.selection?.first_program ?? 3)
+}
+
+function isFuture8(qrun) {
+  return resolveFirstProgram(qrun) === 8
+}
+
+function programLabel(qrun) {
+  return isFuture8(qrun) ? 'F8' : 'C'
+}
+
+function programBadgeClass(qrun) {
+  return isFuture8(qrun)
+    ? 'bg-indigo-100 text-indigo-800'
+    : 'bg-emerald-100 text-emerald-800'
+}
 
 </script>
 
@@ -103,7 +120,15 @@ async function handleDelete() {
         >
           <!-- Spalte 1: Name + Kommentar -->
           <div class="basis-[35%] flex-shrink-0">
-            <div class="font-bold text-lg"> {{ qrun.id }} {{ qrun.name }}</div>
+            <div class="font-bold text-lg">
+              {{ qrun.id }} {{ qrun.name }}
+              <span
+                class="ml-2 text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded"
+                :class="programBadgeClass(qrun)"
+              >
+                {{ programLabel(qrun) }}
+              </span>
+            </div>
             <div class="text-xs text-[var(--color-text-subtle)] italic"> {{ qrun.host || 'unknown' }} </div>
             <div class="text-sm text-[var(--color-text-muted)] whitespace-pre-line">{{ qrun.comment || '—' }}</div>
           </div>
@@ -114,10 +139,13 @@ async function handleDelete() {
             <div><strong>Runden:</strong> {{ qrun.selection.jury_rounds?.join(', ') ?? '?' }}</div>
           </div>
 
-          <!-- Spalte 3: Spuren + Tische -->
+          <!-- Spalte 3: Spuren + Tische/Felder -->
           <div class="basis-[20%] flex-shrink-0 text-sm text-[var(--color-text-muted)] space-y-1">
             <div><strong>Spuren:</strong> {{ qrun.selection.jury_lanes?.join(', ') ?? '?' }}</div>
-            <div><strong>Tische:</strong> {{ qrun.selection.tables?.join(', ') ?? '?' }}</div>
+            <div>
+              <strong>{{ isFuture8(qrun) ? 'Felder' : 'Tische' }}:</strong>
+              {{ qrun.selection.tables?.join(', ') ?? '?' }}
+            </div>
           </div>
 
           <!-- Spalte 4: QPlans + Status + Start/Ende -->
