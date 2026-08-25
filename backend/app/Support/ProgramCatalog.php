@@ -257,6 +257,37 @@ class ProgramCatalog
     }
 
     /**
+     * Mix a CSS hex toward white. $colorAmount is the fraction of the original
+     * color kept (0 = white, 1 = unchanged). Used for overview cell tints.
+     */
+    public static function mixHexWithWhite(string $hex, float $colorAmount): string
+    {
+        $hex = ltrim($hex, '#');
+        if (strlen($hex) === 3) {
+            $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
+        }
+        if (! preg_match('/^[0-9A-Fa-f]{6}$/', $hex)) {
+            return '#F5F5F5';
+        }
+
+        $colorAmount = max(0.0, min(1.0, $colorAmount));
+        $mix = static fn (int $channel): int => (int) round($channel * $colorAmount + 255 * (1.0 - $colorAmount));
+
+        return sprintf(
+            '#%02X%02X%02X',
+            $mix(hexdec(substr($hex, 0, 2))),
+            $mix(hexdec(substr($hex, 2, 2))),
+            $mix(hexdec(substr($hex, 4, 2))),
+        );
+    }
+
+    /** Light tint of a catalog color, e.g. mixHexWithWhite(colorCss(...), 0.10). */
+    public static function colorTintCss(?string $name, string $fallback = '888888', float $colorAmount = 0.10): string
+    {
+        return self::mixHexWithWhite(self::colorCss($name, $fallback), $colorAmount);
+    }
+
+    /**
      * Filename stem for public/flow/{stem}_{v|h|hs}.png (no orientation, no extension).
      * Missing / unknown programs fall back to first+fll.
      */
