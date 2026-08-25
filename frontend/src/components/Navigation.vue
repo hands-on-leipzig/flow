@@ -440,12 +440,6 @@ function logout() {
         </template>
 
         <template #partners>
-          <img
-              :src="imageUrl('/flow/first+fll_v.png')"
-              alt="FIRST LEGO League"
-              class="glass-sidebar__partner-logo glass-sidebar__partner-logo--primary"
-              decoding="async"
-          />
           <a
               href="https://www.hands-on-technology.org"
               target="_blank"
