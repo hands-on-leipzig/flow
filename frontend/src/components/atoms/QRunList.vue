@@ -19,6 +19,7 @@ const loading = ref(true)
 const error = ref(null)
 const expandedQRunId = ref(null)
 const qrunToDelete = ref(null)
+const showDeletePreviewConfirm = ref(false)
 let intervalId = null
 
 const toggleExpanded = (id) => {
@@ -40,6 +41,8 @@ const loadQRuns = async () => {
       return {
         ...qrun,
         selection,
+        // Raw null = Preview / ReRun (no mass-test grid)
+        isPreviewRun: qrun.selection == null,
       }
     })
       } catch (err) {
@@ -56,6 +59,8 @@ onBeforeUnmount(() => {
   if (intervalId) clearInterval(intervalId)
 })
 
+const previewRunCount = computed(() => qruns.value.filter(q => q.isPreviewRun).length)
+
 const confirmDeleteQRun = (qrunId) => {
   qrunToDelete.value = qrunId
 }
@@ -69,6 +74,15 @@ const deleteQRunMessage = computed(() => {
   return `QRun ${qrunToDelete.value || 'Unbekannt'} wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
 
+const deletePreviewMessage = computed(() => {
+  const n = previewRunCount.value
+  if (n < 1) {
+    return 'Es gibt derzeit keine Preview-/ReRun-QRuns (selection leer).'
+  }
+  return `${n} Preview-/ReRun-QRun${n === 1 ? '' : 's'} (ohne selection) löschen? ` +
+    'Zugehörige Qualitätsdaten (q_plan / Teams / Matches) werden entfernt. Event-Pläne bleiben erhalten.'
+})
+
 async function handleDelete() {
   if (!qrunToDelete.value) return
 
@@ -80,6 +94,24 @@ async function handleDelete() {
     console.error('Fehler beim Löschen des QRuns:', err)
     showGlassToast('Löschen fehlgeschlagen.', 'error')
     qrunToDelete.value = null
+  }
+}
+
+async function handleDeletePreviewRuns() {
+  showDeletePreviewConfirm.value = false
+  if (previewRunCount.value < 1) return
+
+  try {
+    const { data } = await axios.delete('/quality/preview-runs')
+    await loadQRuns()
+    const n = data?.q_runs_deleted ?? 0
+    showGlassToast(
+      n < 1 ? 'Keine Preview-QRuns gefunden.' : `${n} Preview-/ReRun-QRun${n === 1 ? '' : 's'} gelöscht.`,
+      n < 1 ? 'info' : 'success',
+    )
+  } catch (err) {
+    console.error('Fehler beim Löschen der Preview-QRuns:', err)
+    showGlassToast('Löschen der Preview-QRuns fehlgeschlagen.', 'error')
   }
 }
 
@@ -101,6 +133,18 @@ function programTheme(qrun) {
 
 <template>
   <div class="space-y-2 mt-4">
+    <div class="flex items-center justify-end gap-2">
+      <button
+        type="button"
+        class="px-3 py-1.5 text-sm rounded border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        :disabled="loading || previewRunCount < 1"
+        title="Löscht alle QRuns ohne selection (Preview / ReRun)"
+        @click="showDeletePreviewConfirm = true"
+      >
+        Preview-QRuns löschen{{ previewRunCount > 0 ? ` (${previewRunCount})` : '' }}
+      </button>
+    </div>
+
     <div v-if="loading" class="text-[var(--color-text-subtle)]">Lade QRuns …</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else-if="qruns.length === 0" class="text-[var(--color-text-subtle)]">Keine QRuns gefunden.</div>
@@ -208,5 +252,17 @@ function programTheme(qrun) {
     cancel-text="Abbrechen"
     @confirm="handleDelete"
     @cancel="cancelDeleteQRun"
+  />
+
+  <ConfirmationModal
+    :show="showDeletePreviewConfirm"
+    title="Preview-QRuns löschen"
+    :message="deletePreviewMessage"
+    type="danger"
+    confirm-text="Löschen"
+    cancel-text="Abbrechen"
+    :disable-confirm-button="previewRunCount < 1"
+    @confirm="handleDeletePreviewRuns"
+    @cancel="showDeletePreviewConfirm = false"
   />
 </template>

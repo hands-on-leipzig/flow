@@ -382,6 +382,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/details-by-plan/{planId}', [QualityController::class, 'getQPlanDetailsByPlan']); // Details mit Auto-Generierung (by Plan ID)
         Route::post('/rerun', [QualityController::class, 'rerunQPlans']);
         Route::delete('/delete/{qRunId}', [QualityController::class, 'deleteQRun']);        // Löschen eines Runs und aller zugehörigen Pläne
+        Route::delete('/preview-runs', [QualityController::class, 'deletePreviewQRuns']); // Preview/ReRun (selection null), ohne Event-Pläne
         // compress endpoint removed (no longer needed)
     });
 

@@ -516,39 +516,82 @@ class QualityController extends Controller
     public function deleteQRun(int $qRunId)
     {
         try {
-            // Find plan IDs that will be deleted (for logging)
-            $planIds = DB::table('q_plan')
-                ->where('q_run', $qRunId)
-                ->whereNotNull('plan')
-                ->pluck('plan')
-                ->unique()
-                ->all();
-
-            // Delete the q_run - CASCADE DELETE will handle all related records:
-            // q_run -> q_plan -> q_plan_team, q_plan_match
-            $deleted = DB::table('q_run')->where('id', $qRunId)->delete();
-
-            if ($deleted) {
-                // Also delete the plan records (they're not CASCADE deleted)
-                if (!empty($planIds)) {
-                    DB::table('plan')->whereIn('id', $planIds)->delete();
-                }
-                
-                Log::info("QualityController::deleteQRun", [
-                    'q_run' => $qRunId,
-                    'plans_deleted' => count($planIds),
-                ]);
-                return response()->json(['status' => 'deleted']);
-            } else {
+            $qRun = DB::table('q_run')->where('id', $qRunId)->first();
+            if (! $qRun) {
                 Log::warning("qRun $qRunId: not found");
                 return response()->json(['status' => 'not_found'], 404);
             }
+
+            // Mass-test runs own disposable plans. Preview/ReRun rows
+            // (selection null) may point at a real event plan — never delete those.
+            $deleteOwnedPlans = $qRun->selection !== null;
+
+            $planIds = [];
+            if ($deleteOwnedPlans) {
+                $planIds = DB::table('q_plan')
+                    ->where('q_run', $qRunId)
+                    ->whereNotNull('plan')
+                    ->pluck('plan')
+                    ->unique()
+                    ->all();
+            }
+
+            // Delete the q_run - CASCADE DELETE will handle all related records:
+            // q_run -> q_plan -> q_plan_team, q_plan_match
+            DB::table('q_run')->where('id', $qRunId)->delete();
+
+            if ($deleteOwnedPlans && ! empty($planIds)) {
+                DB::table('plan')->whereIn('id', $planIds)->delete();
+            }
+
+            Log::info('QualityController::deleteQRun', [
+                'q_run' => $qRunId,
+                'plans_deleted' => count($planIds),
+                'owned_plans' => $deleteOwnedPlans,
+            ]);
+
+            return response()->json(['status' => 'deleted']);
         } catch (\Exception $e) {
             Log::error("deleteQRun($qRunId) failed: " . $e->getMessage());
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
+    /**
+     * Delete Preview / ReRun quality runs (selection IS NULL).
+     * Does not delete plan rows — Preview q_plans reference real event plans.
+     */
+    public function deletePreviewQRuns()
+    {
+        try {
+            $runIds = DB::table('q_run')
+                ->whereNull('selection')
+                ->pluck('id')
+                ->all();
+
+            if ($runIds === []) {
+                return response()->json([
+                    'status' => 'deleted',
+                    'q_runs_deleted' => 0,
+                ]);
+            }
+
+            $deleted = DB::table('q_run')->whereIn('id', $runIds)->delete();
+
+            Log::info('QualityController::deletePreviewQRuns', [
+                'q_runs_deleted' => $deleted,
+                'q_run_ids' => $runIds,
+            ]);
+
+            return response()->json([
+                'status' => 'deleted',
+                'q_runs_deleted' => $deleted,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('deletePreviewQRuns failed: '.$e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
 
     // compressQRun removed – functionality no longer needed
 
