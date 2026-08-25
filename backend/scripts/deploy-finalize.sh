@@ -121,10 +121,16 @@ echo "✓ Migrations completed successfully"
 # This runs AFTER migrations to ensure schema matches JSON structure
 if [ "$REFRESH_M_TABLES" == "true" ]; then
   echo "🔄 Updating m_ tables from JSON (FK checks ENABLED)..."
-  php artisan tinker --execute="include 'database/scripts/update_m_tables_from_json.php'; updateMTablesFromJson('database/exports/main-tables-latest.json');" || {
+  # tinker often exits 0 even when PHP throws; capture output and require the success line.
+  M_TABLES_OUT=$(php artisan tinker --execute="include 'database/scripts/update_m_tables_from_json.php'; updateMTablesFromJson('database/exports/main-tables-latest.json');" 2>&1)
+  M_TABLES_EXIT=$?
+  echo "$M_TABLES_OUT"
+  if [ "$M_TABLES_EXIT" -ne 0 ] \
+    || echo "$M_TABLES_OUT" | grep -qE 'Exception|SQLSTATE\[|ERROR: update_m_tables' \
+    || ! echo "$M_TABLES_OUT" | grep -q 'All m-tables updated successfully'; then
     echo "❌ ERROR: update_m_tables_from_json.php failed"
     exit 1
-  }
+  fi
   echo "✓ Master tables updated"
 fi
 
