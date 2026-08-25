@@ -696,16 +696,16 @@ const currentTabLabel = computed(() =>
 </script>
 
 <template>
-  <div class="glass-surface-lg flex flex-col">
-    <h3 v-if="!hideHeading" class="text-lg font-semibold mb-4">Drucksachen</h3>
+  <div :class="hideHeading ? 'pdf-plans pdf-plans--embed' : 'glass-card liquid-surface-inner pdf-plans'">
+    <h3 v-if="!hideHeading" class="glass-card__heading">Drucksachen</h3>
 
-    <!-- Tabs: dropdown on mobile, row on desktop -->
-    <div class="mb-4 border-b border-[var(--color-border)]">
+    <!-- Tabs: dropdown on mobile, glass tabs on desktop -->
+    <div class="pdf-plans__tabs mb-4">
       <!-- Mobile: dropdown -->
       <div class="lg:hidden">
         <Menu as="div" class="relative">
           <MenuButton
-            class="flex items-center justify-between w-full px-4 py-3 text-left text-base font-semibold text-[var(--color-text-muted)] bg-[var(--color-bg-muted)] rounded-t-lg border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+            class="flex items-center justify-between w-full px-4 py-3 text-left text-base font-semibold text-[var(--color-text)] liquid-surface-inner rounded-[var(--radius)] border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:ring-offset-1"
           >
             <span>{{ currentTabLabel }}</span>
             <svg class="w-5 h-5 text-[var(--color-text-subtle)] flex-shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
@@ -713,7 +713,7 @@ const currentTabLabel = computed(() =>
             </svg>
           </MenuButton>
           <MenuItems
-            class="absolute left-0 right-0 z-50 mt-0 rounded-b-lg glass-dropdown focus:outline-none"
+            class="absolute left-0 right-0 z-50 mt-1 rounded-[var(--radius)] glass-dropdown focus:outline-none"
           >
             <div class="py-1">
               <MenuItem
@@ -725,29 +725,26 @@ const currentTabLabel = computed(() =>
                   type="button"
                   :class="[
                     'w-full text-left px-4 py-3 text-sm font-semibold',
-                    active ? 'bg-blue-50' : '',
-                    activeTab === tab.key ? 'text-blue-600' : 'text-[var(--color-text-muted)]'
+                    active ? 'bg-[var(--color-bg-hover)]' : '',
+                    activeTab === tab.key ? 'text-[var(--color-accent)]' : 'text-[var(--color-text-muted)]'
                   ]"
                   @click="activeTab = tab.key"
                 >
                   {{ tab.label }}
-                  <span v-if="activeTab === tab.key" class="ml-2 text-blue-600">✓</span>
+                  <span v-if="activeTab === tab.key" class="ml-2 text-[var(--color-accent)]">✓</span>
                 </button>
               </MenuItem>
             </div>
           </MenuItems>
         </Menu>
       </div>
-      <!-- Desktop: tab buttons -->
-      <div class="hidden lg:flex text-lg font-semibold relative">
+      <!-- Desktop: glass tabs -->
+      <div class="hidden lg:block glass-tabs">
         <button
           v-for="tab in PDF_TABS"
           :key="tab.key"
           type="button"
-          :class="[
-            'px-4 py-2 relative',
-            activeTab === tab.key ? 'border-b-2 border-blue-500 text-blue-600' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-          ]"
+          :class="['glass-tab', activeTab === tab.key && 'glass-tab--active']"
           @click="activeTab = tab.key"
         >
           {{ tab.label }}
@@ -756,21 +753,21 @@ const currentTabLabel = computed(() =>
     </div>
 
     <!-- Subtitle -->
-    <p v-if="activeTab === 'public'" class="text-sm text-blue-600 mb-4">
-      Zum Aushang bzw zum Verteilen an Teams und Volunteers
+    <p v-if="activeTab === 'public'" class="glass-settings-hint !not-italic mb-4">
+      Zum Aushang bzw. zum Verteilen an Teams und Volunteers
     </p>
-    <p v-if="activeTab === 'organisation'" class="text-sm text-blue-600 mb-4">
+    <p v-if="activeTab === 'organisation'" class="glass-settings-hint !not-italic mb-4">
       Nur für Veranstalter – nicht für Teams oder Besucher.
     </p>
 
     <!-- Tab Content: Öffentlich -->
-    <div v-show="activeTab === 'public'">
+    <div v-show="activeTab === 'public'" class="pdf-plans__list">
       <!-- Online-Plan Aushang (PDF only) -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+      <div class="pdf-plans__row">
         <div class="flex items-center justify-between gap-3">
           <div class="min-w-0">
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Online-Plan</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">
+            <h4 class="pdf-plans__row-title">Online-Plan</h4>
+            <p class="pdf-plans__row-sub">
               Aushang mit QR zum öffentlichen Plan-Link.
             </p>
           </div>
@@ -779,7 +776,7 @@ const currentTabLabel = computed(() =>
               v-if="previewPlan"
               :src="previewPlan"
               alt="Vorschau Online-Plan PDF"
-              class="h-12 w-auto max-w-[5.5rem] object-contain rounded border border-[var(--color-border)] bg-white"
+              class="pdf-plans__preview"
             />
             <button
               type="button"
@@ -800,11 +797,11 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- WLAN-Zugang Aushang -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+      <div class="pdf-plans__row">
         <div class="flex items-center justify-between gap-3">
           <div class="min-w-0">
-            <h4 class="text-base font-semibold text-[var(--color-text)]">WLAN-Zugang</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">
+            <h4 class="pdf-plans__row-title">WLAN-Zugang</h4>
+            <p class="pdf-plans__row-sub">
               Druckposter mit Netzwerkdaten — Zugang unter WLAN vor Ort pflegen.
             </p>
           </div>
@@ -814,7 +811,7 @@ const currentTabLabel = computed(() =>
                 v-if="previewPlanWifi"
                 :src="previewPlanWifi"
                 alt="Vorschau WLAN-PDF"
-                class="h-12 w-auto max-w-[5.5rem] object-contain rounded border border-[var(--color-border)] bg-white"
+                class="pdf-plans__preview"
               />
               <button
                 type="button"
@@ -837,11 +834,11 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- Übersichtsplan -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Übersichtsplan für das Publikum</h4>
-            <p class="text-sm text-[var(--color-text-muted)]">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
+      <div class="pdf-plans__row">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <h4 class="pdf-plans__row-title">Übersichtsplan für das Publikum</h4>
+            <p class="pdf-plans__row-sub">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
           </div>
           <button
             class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
@@ -860,9 +857,9 @@ const currentTabLabel = computed(() =>
       </div>
 
     <!-- Räume -->
-    <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+    <div class="pdf-plans__row">
       <div class="mb-2">
-        <h4 class="text-base font-semibold text-[var(--color-text)]">Räume</h4>
+        <h4 class="pdf-plans__row-title">Räume</h4>
         <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Raum mit allen Aktivitäten.</p>
       </div>
 
@@ -918,9 +915,9 @@ const currentTabLabel = computed(() =>
     </div>
 
     <!-- Rollen -->
-    <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+    <div class="pdf-plans__row">
       <div class="mb-2">
-        <h4 class="text-base font-semibold text-[var(--color-text)]">Rollen</h4>
+        <h4 class="pdf-plans__row-title">Rollen</h4>
         <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Rolle mit allen Aktivitäten.</p>
       </div>
 
@@ -1011,9 +1008,9 @@ const currentTabLabel = computed(() =>
     </div>
 
     <!-- Teams -->
-    <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+    <div class="pdf-plans__row">
       <div class="mb-2">
-        <h4 class="text-base font-semibold text-[var(--color-text)]">Teams</h4>
+        <h4 class="pdf-plans__row-title">Teams</h4>
         <p class="text-sm text-[var(--color-text-muted)]">Eine Seite pro Team mit allen Aktivitäten.</p>
       </div>
 
@@ -1094,12 +1091,12 @@ const currentTabLabel = computed(() =>
     </div>
 
     <!-- Tab Content: Organisation -->
-    <div v-show="activeTab === 'organisation'">
+    <div v-show="activeTab === 'organisation'" class="pdf-plans__list">
       <!-- 1. Teamliste -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+      <div class="pdf-plans__row">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Teamliste</h4>
+            <h4 class="pdf-plans__row-title">Teamliste</h4>
             <p class="text-sm text-[var(--color-text-muted)]">Alle Teams mit Teamräume und Zuordnung zu Guterachter:innen- bzw. Jury Gruppen.</p>
             <p class="text-sm text-[var(--color-text-muted)] mt-2">Diese Liste hilft beim Check-In und bei den Briefings und Beratungen.</p>
           </div>
@@ -1120,10 +1117,10 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- 2. Moderation -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+      <div class="pdf-plans__row">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Moderation</h4>
+            <h4 class="pdf-plans__row-title">Moderation</h4>
             <p class="text-sm text-[var(--color-text-muted)]">Zeiten für alle Aktivitäten mit Moderation und kompletter Robot-Game-Matchplan</p>
           </div>
           <button
@@ -1143,10 +1140,10 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- 3. Slot-Zuordnung -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+      <div class="pdf-plans__row">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Slot-Zuordnung</h4>
+            <h4 class="pdf-plans__row-title">Slot-Zuordnung</h4>
             <p class="text-sm text-[var(--color-text-muted)]">Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.</p>
           </div>
           <button
@@ -1166,15 +1163,15 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- 4. Match-Plan für SCORE -->
-      <div v-if="hasChallengeTeams || hasChallenge(event)" class="border-b border-[var(--color-border)] pb-3 mb-3">
+      <div v-if="hasChallengeTeams || hasChallenge(event)" class="pdf-plans__row">
         <div class="mb-2">
-          <h4 class="text-base font-semibold text-[var(--color-text)]">Match-Plan für SCORE</h4>
+          <h4 class="pdf-plans__row-title">Match-Plan für SCORE</h4>
           <p class="text-sm text-[var(--color-text-muted)]">Vorrunden-Matches zum Übernehmen in die Auswertesoftware 
             <a 
               href="https://evaluation.hands-on-technology.org/" 
               target="_blank" 
               rel="noopener noreferrer"
-              class="text-blue-600 underline hover:text-blue-800"
+              class="text-[var(--color-accent)] underline hover:opacity-80"
             >
               SCORE
             </a>.
@@ -1209,10 +1206,10 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- 5. Gesamtplan -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+      <div class="pdf-plans__row">
         <div class="flex items-center justify-between">
           <div>
-            <h4 class="text-base font-semibold text-[var(--color-text)]">Gesamtplan</h4>
+            <h4 class="pdf-plans__row-title">Gesamtplan</h4>
             <p class="text-sm text-[var(--color-text-muted)]">Volle Details, aber in einfacher Formatierung.</p>
           </div>
           <button
@@ -1233,8 +1230,8 @@ const currentTabLabel = computed(() =>
     </div>
 
     <!-- Tab Content: Aufkleber -->
-    <div v-show="activeTab === 'aufkleber'">
-      <p class="text-sm text-blue-600 mb-4">
+    <div v-show="activeTab === 'aufkleber'" class="pdf-plans__list">
+      <p class="glass-settings-hint !not-italic mb-4">
         Namensaufkleber zum Drucken auf A4-Papier
       </p>
       <p class="text-sm text-[var(--color-text-muted)] mb-3">
@@ -1243,7 +1240,7 @@ const currentTabLabel = computed(() =>
           href="https://www.avery-zweckform.com/vorlage-l4785" 
           target="_blank" 
           rel="noopener noreferrer"
-          class="text-blue-600 underline hover:text-blue-800"
+          class="text-[var(--color-accent)] underline hover:opacity-80"
         >
           Format Avery L4785</a> formatiert.
       </p>
@@ -1254,7 +1251,7 @@ const currentTabLabel = computed(() =>
         Als Veranstalter-Logo wird das erste aktive aus dem
         <a
           href="/plan/publish/logos"
-          class="text-blue-600 underline hover:text-blue-800"
+          class="text-[var(--color-accent)] underline hover:opacity-80"
         >
           View Logos</a>
         verwendet.
@@ -1265,9 +1262,9 @@ const currentTabLabel = computed(() =>
  
       
       <!-- Namensaufkleber für Teams -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+      <div class="pdf-plans__row">
         <div>
-          <h4 class="text-base font-semibold text-[var(--color-text)] mb-2">Namensaufkleber für Teams</h4>
+          <h4 class="pdf-plans__row-title mb-2">Namensaufkleber für Teams</h4>
           <p class="text-sm text-[var(--color-text-muted)] mb-4">Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.</p>
           <p class="text-sm text-[var(--color-text-muted)] mb-4">"No-Show" Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.</p>
           
@@ -1343,9 +1340,9 @@ const currentTabLabel = computed(() =>
       </div>
 
       <!-- Namensaufkleber für Volunteer -->
-      <div class="border-b border-[var(--color-border)] pb-3 mb-3">
+      <div class="pdf-plans__row">
         <div>
-          <h4 class="text-base font-semibold text-[var(--color-text)] mb-2">Namensaufkleber für Volunteers</h4>
+          <h4 class="pdf-plans__row-title mb-2">Namensaufkleber für Volunteers</h4>
           <p class="text-sm text-[var(--color-text-muted)] mb-3">
             Hier kann eine einfache Liste von Rollen und Namen hochgeladen werden, aus der dann ein PDF erzeugt wird.
           </p>
@@ -1498,7 +1495,7 @@ const currentTabLabel = computed(() =>
                 <transition name="fade">
                   <div v-if="openRound === option.value" class="p-4">
                     <div v-if="isLoadingMatches" class="flex items-center justify-center py-8">
-                      <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+                      <svg class="animate-spin h-8 w-8 text-[var(--color-accent)]" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                       </svg>
@@ -1570,7 +1567,7 @@ const currentTabLabel = computed(() =>
         <!-- Modal Content -->
         <div class="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
           <div v-if="isLoadingShifts" class="flex items-center justify-center py-8">
-            <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
+            <svg class="animate-spin h-8 w-8 text-[var(--color-accent)]" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
             </svg>
@@ -1634,6 +1631,56 @@ const currentTabLabel = computed(() =>
 </template>
 
 <style scoped>
+.pdf-plans--embed {
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.pdf-plans__list {
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-plans__row {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, transparent);
+}
+
+.pdf-plans__row:last-child {
+  border-bottom: none;
+  padding-bottom: 0.15rem;
+}
+
+.pdf-plans__row-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+
+.pdf-plans__row-sub {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.pdf-plans__preview {
+  height: 3rem;
+  width: auto;
+  max-width: 5.5rem;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
+  background: #fff;
+}
+
 .fade-enter-active, .fade-leave-active {
   transition: all 0.2s ease;
 }
