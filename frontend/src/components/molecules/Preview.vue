@@ -128,6 +128,32 @@ const dualMatchPlan = computed(() => matchPlanPrograms.value.length > 1)
 const overviewHtml = ref<string>('')
 /** New Rollen grid HTML (Überblick-style); old /roles matrix kept for teams/rooms. */
 const rolesHtml = ref<string>('')
+type RolesProgramFilter = { id: number; label: string; logo: string }
+const rolesPrograms = ref<RolesProgramFilter[]>([])
+/** Program id → visible (default true). */
+const rolesProgramOn = ref<Record<number, boolean>>({})
+
+const rolesHiddenProgramIds = computed(() =>
+  rolesPrograms.value
+    .filter((p) => rolesProgramOn.value[p.id] === false)
+    .map((p) => p.id)
+)
+
+function syncRolesProgramFilters(programs: RolesProgramFilter[]) {
+  rolesPrograms.value = programs
+  const next: Record<number, boolean> = {}
+  for (const p of programs) {
+    next[p.id] = rolesProgramOn.value[p.id] !== false
+  }
+  rolesProgramOn.value = next
+}
+
+function toggleRolesProgram(programId: number) {
+  rolesProgramOn.value = {
+    ...rolesProgramOn.value,
+    [programId]: rolesProgramOn.value[programId] === false,
+  }
+}
 
 function programThemeKey(programId: number): 'challenge' | 'future8' {
   return programId === FIRST_PROGRAM.FUTURE_8 ? 'future8' : 'challenge'
@@ -178,6 +204,14 @@ async function load() {
     } else if (view.value === 'roles') {
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/roles-grid`)
       rolesHtml.value = data.html ?? ''
+      const programs = Array.isArray(data?.programs)
+        ? data.programs.map((p: { id: number; label: string; logo: string }) => ({
+            id: Number(p.id),
+            label: String(p.label ?? ''),
+            logo: String(p.logo ?? ''),
+          }))
+        : []
+      syncRolesProgramFilters(programs)
       overviewHtml.value = ''
       headers.value = []
       rows.value = []
@@ -467,13 +501,36 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Rollen (new grid) -->
-    <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+    <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4 flex flex-col gap-3">
       <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
       <template v-else>
         <div v-if="!rolesHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
           Keine Rollen-Daten gefunden.
         </div>
-        <div v-else v-html="rolesHtml" class="roles-grid-host"></div>
+        <template v-else>
+          <div
+            v-if="rolesPrograms.length > 1"
+            class="flex flex-wrap items-center gap-2 shrink-0"
+          >
+            <button
+              v-for="p in rolesPrograms"
+              :key="p.id"
+              type="button"
+              class="roles-program-filter"
+              :class="{ 'roles-program-filter--active': rolesProgramOn[p.id] !== false }"
+              :aria-pressed="rolesProgramOn[p.id] !== false"
+              @click="toggleRolesProgram(p.id)"
+            >
+              <img :src="p.logo" alt="" class="roles-program-filter__logo" />
+              <span class="roles-program-filter__label">{{ p.label }}</span>
+            </button>
+          </div>
+          <div
+            class="roles-grid-host min-h-0"
+            :data-hide-programs="rolesHiddenProgramIds.join(' ')"
+            v-html="rolesHtml"
+          ></div>
+        </template>
       </template>
     </div>
 
@@ -782,5 +839,49 @@ td {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+/* Hide program columns when filter toggles are off */
+.roles-grid-host[data-hide-programs~='2'] :deep([data-program-id='2']),
+.roles-grid-host[data-hide-programs~='3'] :deep([data-program-id='3']),
+.roles-grid-host[data-hide-programs~='8'] :deep([data-program-id='8']) {
+  display: none !important;
+}
+
+.roles-program-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.55rem 0.25rem 0.3rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-muted);
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.roles-program-filter:hover {
+  background: var(--color-bg-hover);
+}
+
+.roles-program-filter--active {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 12%, #fff);
+  color: var(--color-text);
+}
+
+.roles-program-filter__logo {
+  width: 1.35rem;
+  height: 1.35rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.roles-program-filter__label {
+  white-space: nowrap;
+  line-height: 1.2;
 }
 </style>

@@ -31,21 +31,24 @@ foreach ($programs as $program) {
                                 <th
                                     colspan="{{ count($program['columns']) }}"
                                     class="roles-grid-program-header"
+                                    data-program-id="{{ $program['id'] }}"
                                 >
                                     <div class="roles-grid-program-header__inner">
                                         <img
                                             src="{{ $program['logo'] }}"
-                                            alt=""
+                                            alt="{{ $program['label'] }}"
                                             class="roles-grid-program-logo"
                                         >
-                                        <span>{!! preg_replace('/^FIRST /', '<em>FIRST</em> ', e($program['label'])) !!}</span>
                                     </div>
                                 </th>
                             @endforeach
                         </tr>
                         <tr>
                             @foreach($allColumns as $col)
-                                <th class="roles-grid-role-header">{{ $col['title'] }}</th>
+                                <th
+                                    class="roles-grid-role-header"
+                                    data-program-id="{{ $col['program_id'] }}"
+                                >{{ $col['title'] }}</th>
                             @endforeach
                         </tr>
                     </thead>
@@ -93,10 +96,11 @@ foreach ($programs as $program) {
                                         <td
                                             rowspan="{{ $rowspan }}"
                                             class="roles-grid-activity"
+                                            data-program-id="{{ $col['program_id'] }}"
                                             style="background-color: {{ $colors['bg'] }}; border-left: 3px solid {{ $colors['border'] }};"
                                         >{{ $starting['text'] }}</td>
                                     @else
-                                        <td class="roles-grid-empty-cell"></td>
+                                        <td class="roles-grid-empty-cell" data-program-id="{{ $col['program_id'] }}"></td>
                                     @endif
                                 @endforeach
                             </tr>

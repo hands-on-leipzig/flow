@@ -162,6 +162,7 @@ class RolesPreviewGridService
                         'key' => $this->columnKey((int) $role->id, $i),
                         'title' => $base.$i,
                         'style_column' => $styleColumn,
+                        'program_id' => $programId,
                         'role_id' => (int) $role->id,
                         'index' => $i,
                     ];

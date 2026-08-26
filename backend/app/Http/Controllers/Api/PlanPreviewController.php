@@ -49,6 +49,11 @@ class PlanPreviewController extends Controller
                 'programs' => $data['programs'],
                 'eventsByDay' => $data['eventsByDay'],
             ])->render(),
+            'programs' => array_map(static fn (array $p) => [
+                'id' => $p['id'],
+                'label' => $p['label'],
+                'logo' => $p['logo'],
+            ], $data['programs']),
             'success' => true,
         ]);
     }
