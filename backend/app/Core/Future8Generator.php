@@ -270,6 +270,7 @@ class Future8Generator implements ChallengeShapedLead
         if ($this->pp('f8_fields') == 2) {
             $rT2M = $rMB * $rDuration;
         } else {
+            // Same 4-field pair-stagger grid as RobotGameGenerator (ns / D-ns).
             if ($rMB % 2 === 0) {
                 $rT2M = $rMB / 2 * $rDuration;
             } else {
@@ -430,7 +431,11 @@ class Future8Generator implements ChallengeShapedLead
         $nextStart = $this->pp('f8_r_duration_next_start');
 
         $this->writer->withGroup($groupCode, function () use ($fields, $matches, $duration, $nextStart) {
+            $lastMatchStart = null;
+
             for ($match = 1; $match <= $matches; $match++) {
+                $lastMatchStart = $this->rTime->current();
+
                 if ($fields == 2) {
                     $this->writer->insertActivity(
                         'f8_r_match',
@@ -458,12 +463,19 @@ class Future8Generator implements ChallengeShapedLead
                         $table2,
                         null
                     );
-                    $this->rTime->addMinutes($nextStart);
+                    // Same 4-field pair stagger as RobotGameGenerator (ns / D-ns).
+                    if ($match % 2 === 1) {
+                        $this->rTime->addMinutes($nextStart);
+                    } else {
+                        $this->rTime->addMinutes($duration - $nextStart);
+                    }
                 }
             }
 
-            if ($fields === 4) {
-                $this->rTime->addMinutes($duration - $nextStart);
+            if ($fields === 4 && $lastMatchStart !== null) {
+                $roundEnd = new TimeCursor($lastMatchStart);
+                $roundEnd->addMinutes($duration);
+                $this->rTime->set($roundEnd->current());
             }
         });
 

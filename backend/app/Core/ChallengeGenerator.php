@@ -367,12 +367,12 @@ class ChallengeGenerator implements ChallengeShapedLead
             $rMB = 0;
         }
 
-        // Calculate time to START of match
+        // Calculate time to START of protected match (4 tables: pair stagger ns / D-ns grid).
         if ($this->pp('r_tables') == 2) {
             // matches START in sequence
             $rT2M = $rMB * $rDuration;
         } else {
-            // matches START alternating with respective delay between STARTs
+            // start(m) = floor((m-1)/2)*D + ((m-1)%2)*ns — same as RobotGameGenerator
             if ($rMB % 2 === 0) {
                 $rT2M = $rMB       / 2 * $rDuration;
 
