@@ -9,7 +9,7 @@ import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import Preview from '@/components/molecules/Preview.vue'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
-import { parseBerlinWallTime } from '@/utils/dateTimeFormat'
+import { formatDateTime } from '@/utils/dateTimeFormat'
 
 defineOptions({ name: 'Schedule' })
 
@@ -42,21 +42,10 @@ function clearGeneratorError() {
 }
 
 const planLastChangeLabel = computed(() => {
-  if (!planLastChange.value) return 'unbekannt'
-  const ms = parseBerlinWallTime(planLastChange.value)
-  if (!ms) return 'unbekannt'
-  const date = new Date(ms)
-  const datePart = new Intl.DateTimeFormat('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(date)
-  const timePart = new Intl.DateTimeFormat('de-DE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(date)
-  return `${datePart} um ${timePart}`
+  const formatted = formatDateTime(planLastChange.value)
+  if (!formatted) return 'unbekannt'
+  // formatDateTime → "DD.MM.YYYY, HH:mm" → "DD.MM.YYYY um HH:mm"
+  return formatted.replace(', ', ' um ')
 })
 
 async function handlePlanLockToggle() {
