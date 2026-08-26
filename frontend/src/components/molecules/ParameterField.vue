@@ -193,6 +193,43 @@ function emitChange() {
   }
 }
 
+function defaultLocalValue(param) {
+  switch (param.type) {
+    case 'boolean':
+      return normalizeBoolean(param.default_value)
+    case 'time':
+      return normalizeTimeFormat(param.default_value) || param.default_value
+    default:
+      return param.default_value
+  }
+}
+
+function resetToDefault() {
+  if (props.disabled || !hasDefaultValue(props.param)) return
+  if (!isChangedFromDefault(props.param)) return
+
+  const next = defaultLocalValue(props.param)
+  if (props.param.type === 'boolean') {
+    if (next && props.onDisabled) return
+    if (!next && props.offDisabled) return
+  }
+
+  localValue.value = next
+  emitChange()
+}
+
+function onDefaultKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  resetToDefault()
+}
+
+const canResetToDefault = computed(() =>
+  !props.disabled
+  && hasDefaultValue(props.param)
+  && isChangedFromDefault(props.param)
+)
+
 function setBoolean(value) {
   if (props.disabled || localValue.value === value) return
   if (value && props.onDisabled) return
@@ -244,7 +281,15 @@ const timeStepSeconds = computed(() => {
         <span
             v-if="hasDefaultValue(param) && !validationError"
             class="glass-settings-hint"
-            :class="{ 'param-field__default--changed': param.type === 'integer' && isChangedFromDefault(param) }"
+            :class="{
+              'param-field__default--changed': (param.type === 'integer' || param.type === 'decimal') && isChangedFromDefault(param),
+              'param-field__default--resettable': canResetToDefault,
+            }"
+            :role="canResetToDefault ? 'button' : undefined"
+            :tabindex="canResetToDefault ? 0 : undefined"
+            :title="canResetToDefault ? 'Auf Standardwert zurücksetzen' : undefined"
+            @click="resetToDefault"
+            @keydown="onDefaultKeydown"
         >
           {{ showDefaultValue(param) }}
         </span>
@@ -274,7 +319,15 @@ const timeStepSeconds = computed(() => {
         <span
             v-if="hasDefaultValue(param)"
             class="glass-settings-hint"
-            :class="{ 'param-field__default--changed': isChangedFromDefault(param) }"
+            :class="{
+              'param-field__default--changed': isChangedFromDefault(param),
+              'param-field__default--resettable': canResetToDefault,
+            }"
+            :role="canResetToDefault ? 'button' : undefined"
+            :tabindex="canResetToDefault ? 0 : undefined"
+            :title="canResetToDefault ? 'Auf Standardwert zurücksetzen' : undefined"
+            @click="resetToDefault"
+            @keydown="onDefaultKeydown"
         >
           {{ showDefaultValue(param) }}
         </span>
@@ -304,7 +357,19 @@ const timeStepSeconds = computed(() => {
             @change="emitChange"
             @input="validateValue(localValue, param)"
         />
-        <span v-if="showDefaultValue(param) && !validationError" class="glass-settings-hint">
+        <span
+            v-if="showDefaultValue(param) && !validationError"
+            class="glass-settings-hint"
+            :class="{
+              'param-field__default--changed': isChangedFromDefault(param),
+              'param-field__default--resettable': canResetToDefault,
+            }"
+            :role="canResetToDefault ? 'button' : undefined"
+            :tabindex="canResetToDefault ? 0 : undefined"
+            :title="canResetToDefault ? 'Auf Standardwert zurücksetzen' : undefined"
+            @click="resetToDefault"
+            @keydown="onDefaultKeydown"
+        >
           {{ showDefaultValue(param) }}
         </span>
       </div>
@@ -350,6 +415,20 @@ const timeStepSeconds = computed(() => {
   background: color-mix(in srgb, #b45309 12%, var(--color-bg-muted));
   color: var(--color-text);
   font-style: normal;
+}
+
+.param-field__default--resettable {
+  cursor: pointer;
+}
+
+.param-field__default--resettable:hover {
+  border-color: color-mix(in srgb, #b45309 55%, var(--color-border));
+  background: color-mix(in srgb, #b45309 18%, var(--color-bg-muted));
+}
+
+.param-field__default--resettable:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .param-field__control--invalid {
