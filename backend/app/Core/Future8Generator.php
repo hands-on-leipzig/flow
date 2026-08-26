@@ -206,21 +206,11 @@ class Future8Generator implements ChallengeShapedLead
         ]);
 
         try {
-            $matchPlan = (new MatchPlanBuilder)->build(
-                MatchPlanSpec::for(FirstProgram::FUTURE_8, $this->params)
-            );
-            $this->robotGame = new RobotGameGenerator(
-                $this->writer,
-                $this->params,
-                $this->rTime,
-                $this->integratedExplore,
-                $matchPlan,
-                RobotGameWriteConfig::future8()
-            );
+            $this->prepareMain();
 
             $jTimeEarliest = clone $this->jTime;
             $jT = 0;
-            $jT4J = $this->pp('f8_j_duration_with_team') + $this->pp('f8_duration_transfer');
+            $jT4J = $this->judgingAwayDuration();
 
             for ($cBlock = 1; $cBlock <= $this->pp('f8_j_rounds'); $cBlock++) {
                 $this->alignJudgingWithRobotGame($cBlock, $jTimeEarliest, $jT4J);
@@ -230,8 +220,7 @@ class Future8Generator implements ChallengeShapedLead
                 $this->maybeInsertHardLunch($cBlock);
             }
 
-            $this->syncCeremonyTimeAfterMain();
-            $this->insertDeliberations();
+            $this->finishMainAfterGames();
         } catch (\Throwable $e) {
             Log::error('Future8Generator: Error in main', [
                 'explore' => $explore,
@@ -240,6 +229,89 @@ class Future8Generator implements ChallengeShapedLead
             ]);
             throw new \RuntimeException('Fehler beim Generieren der Future 8+ Hauptaktivitäten: '.$e->getMessage(), 0, $e);
         }
+    }
+
+    public function prepareMain(): void
+    {
+        $matchPlan = (new MatchPlanBuilder)->build(
+            MatchPlanSpec::for(FirstProgram::FUTURE_8, $this->params)
+        );
+        $this->robotGame = new RobotGameGenerator(
+            $this->writer,
+            $this->params,
+            $this->rTime,
+            $this->integratedExplore,
+            $matchPlan,
+            RobotGameWriteConfig::future8()
+        );
+    }
+
+    public function cTime(): TimeCursor
+    {
+        return $this->cTime;
+    }
+
+    public function jTime(): TimeCursor
+    {
+        return $this->jTime;
+    }
+
+    public function rTime(): TimeCursor
+    {
+        return $this->rTime;
+    }
+
+    public function judgingRoundCount(): int
+    {
+        return (int) $this->pp('f8_j_rounds');
+    }
+
+    public function judgingAwayDuration(): mixed
+    {
+        return $this->pp('f8_j_duration_with_team') + $this->pp('f8_duration_transfer');
+    }
+
+    public function gameRoundForJudgingBlock(int $cBlock): ?int
+    {
+        return match ($cBlock) {
+            1 => 0,
+            2 => $this->pp('f8_j_rounds') == 4 ? 1 : null,
+            3 => $this->pp('f8_j_rounds') == 4 ? 2 : 1,
+            4 => $this->pp('f8_j_rounds') == 4 ? 3 : 2,
+            5 => 3,
+            default => null,
+        };
+    }
+
+    public function runJudgingBlock(int $cBlock, TimeCursor &$jTimeEarliest, int &$jT): void
+    {
+        $this->alignJudgingWithRobotGame($cBlock, $jTimeEarliest, $this->judgingAwayDuration());
+        $this->judgingOneRound($cBlock, $jT);
+        $jT += (int) $this->pp('f8_lanes');
+        $this->maybeInsertHardLunch($cBlock);
+    }
+
+    public function writeGameRound(int $round, bool $applyPostRoundBreak = true): void
+    {
+        $this->robotGame->insertOneRound($round, $applyPostRoundBreak);
+    }
+
+    public function applyPostRoundBreak(int $round): void
+    {
+        $this->robotGame->applyPostRoundBreak($round);
+    }
+
+    public function finishMainAfterGames(): void
+    {
+        $this->syncCeremonyTimeAfterMain();
+        $this->insertDeliberations();
+    }
+
+    public function syncClocksFrom(ChallengeGenerator|Future8Generator $other): void
+    {
+        $this->cTime->set($other->cTime()->current());
+        $this->jTime->set($other->jTime()->current());
+        $this->rTime->set($other->rTime()->current());
     }
 
     private function alignJudgingWithRobotGame(int $cBlock, TimeCursor &$jTimeEarliest, mixed $jT4J): void
