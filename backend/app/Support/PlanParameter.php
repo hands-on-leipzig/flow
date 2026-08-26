@@ -92,6 +92,7 @@ class PlanParameter
         $this->add('g_finale', ((int)$event->level === 3), 'boolean');
 
         ProgramPresence::purgeParametersOutsideEvent($this->planId);
+        ProgramPresence::syncChallengeShapedModes($this->planId);
 
         $attachedProgramIds = ProgramPresence::attachedProgramIds((int) $eventId);
 

@@ -117,6 +117,24 @@ class DualChallengeShapedSupportTest extends TestCase
         $this->assertSame([FirstProgram::FUTURE_8->value], $presence->skippedLeadProgramIds());
     }
 
+    public function test_sync_turns_on_mode_when_attached_with_teams(): void
+    {
+        $planId = $this->seedBothOnPlan(perRound: true);
+
+        // Simulate stale plan: teams set, mode left at catalog 0 / missing override.
+        DB::table('plan_param_value')->where('plan', $planId)->where('parameter', 201)->delete();
+
+        $params = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $params);
+
+        $this->assertTrue($presence->challengeShapedOn(FirstProgram::FUTURE_8->value));
+        $this->assertSame(
+            [FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value],
+            $presence->challengeShapedOnIds()
+        );
+        $this->assertSame(1, (int) $params->get('f8_mode'));
+    }
+
     public function test_is_supported_rejects_policy_b_when_both_on(): void
     {
         $planId = $this->seedBothOnPlan(perRound: false);

@@ -118,6 +118,8 @@ class PlanParameterController extends Controller
                     ]
                 );
             }
+
+            ProgramPresence::syncChallengeShapedModes((int) $planId);
         } else {
             // Single parameter update (backward compatibility)
             $validated = $request->validate([
@@ -136,13 +138,15 @@ class PlanParameterController extends Controller
                     'set_value' => $validated['value'],
                 ]
             );
+
+            ProgramPresence::syncChallengeShapedModes((int) $planId);
         }
 
         // Get event ID from plan to update attention status
         $plan = Plan::find($planId);
         if ($plan) {
-            // Only update attention if team count parameters (c_teams, e_teams) were changed
-            $teamParamNames = ['c_teams', 'e_teams'];
+            // Only update attention if team count parameters were changed
+            $teamParamNames = ['c_teams', 'e_teams', 'f8_teams'];
             $shouldUpdate = false;
             
             if ($request->has('parameters')) {
