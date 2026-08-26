@@ -199,10 +199,10 @@ const contextBarClass = (ctx: string | null | undefined) => {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="mparam-shell">
 
     <!-- Filterleiste -->
-    <div class="flex flex-wrap items-center gap-3 mb-3">
+    <div class="mparam-shell__filters flex flex-wrap items-center gap-3">
     <!-- Context -->
     <div class="glass-row-item inline-flex gap-3 px-3 py-2 whitespace-nowrap">
         <div class="text-sm font-medium text-[var(--color-text-muted)]">Context:</div>
@@ -241,14 +241,15 @@ const contextBarClass = (ctx: string | null | undefined) => {
     </div>
 
     <!-- Liste -->
-    <div class="border rounded bg-white">
+    <div class="mparam-shell__list border rounded bg-white">
       <div v-if="loading" class="p-4 text-[var(--color-text-subtle)]">Lade …</div>
       <div v-else-if="error" class="p-4 text-red-600">{{ error }}</div>
-      <div v-else>
-        <div class="px-3 py-2 text-xs text-[var(--color-text-subtle)] border-b bg-[var(--color-bg-muted)]">
+      <div v-else class="mparam-shell__list-inner">
+        <div class="mparam-shell__list-hint px-3 py-2 text-xs text-[var(--color-text-subtle)] border-b bg-[var(--color-bg-muted)]">
           Ziehen zum Umsortieren · Sortiert nach <code>sequence</code>
         </div>
 
+        <div class="mparam-shell__list-scroll">
         <draggable
           v-model="items"   
           item-key="id"
@@ -430,12 +431,52 @@ const contextBarClass = (ctx: string | null | undefined) => {
         <div v-if="filtered.length === 0 && !loading" class="px-4 py-6 text-[var(--color-text-subtle)]">
           Keine Einträge für diese Filter.
         </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.mparam-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mparam-shell__filters {
+  flex-shrink: 0;
+}
+
+.mparam-shell__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mparam-shell__list-inner {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mparam-shell__list-hint {
+  flex-shrink: 0;
+}
+
+.mparam-shell__list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
 .drag-ghost { opacity: 0.4; transform: scale(0.98); }
 .drag-chosen { background-color: #e5e7eb; } /* gray-200 */
 .drag-dragging { cursor: grabbing; }

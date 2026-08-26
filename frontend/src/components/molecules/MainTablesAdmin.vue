@@ -35,7 +35,7 @@
               {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
             </h3>
           </div>
-          <div class="main-tables-admin__table-scroll p-4 sm:p-6">
+          <div class="main-tables-admin__special-body">
             <MParameter />
           </div>
         </div>
@@ -47,7 +47,7 @@
               {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
             </h3>
           </div>
-          <div class="main-tables-admin__table-scroll p-4 sm:p-6">
+          <div class="main-tables-admin__special-body">
             <Visibility />
           </div>
         </div>
@@ -482,6 +482,21 @@ onMounted(() => {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+}
+
+.main-tables-admin__special-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.main-tables-admin__special-body > :deep(*) {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .main-tables-admin__th {
