@@ -13,7 +13,6 @@ import {
   ADMIN_DEFAULT_SECTION,
   adminSectionPath,
   isAdminSectionAvailable,
-  isEntwicklungEnvironment,
 } from '@/constants/adminNav'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import keycloak from '@/keycloak.js'
@@ -158,10 +157,8 @@ function toAdminNavEntry(item: (typeof ADMIN_OPS_SECTIONS)[number]): NavEntry {
 
 const adminOpsNavEntries = computed<NavEntry[]>(() => ADMIN_OPS_SECTIONS.map(toAdminNavEntry))
 
-const showEntwicklungNav = computed(() => isEntwicklungEnvironment(isLocal))
-
 const adminEntwicklungNavEntries = computed<NavEntry[]>(() =>
-  showEntwicklungNav.value ? ADMIN_ENTWICKLUNG_SECTIONS.map(toAdminNavEntry) : [],
+  ADMIN_ENTWICKLUNG_SECTIONS.map(toAdminNavEntry),
 )
 
 const currentNavEntries = computed(() => (isAdminMode.value ? adminOpsNavEntries.value : navEntries.value))
@@ -358,7 +355,6 @@ function logout() {
             @select="onNavSelect(entry)"
         />
         <div
-            v-if="showEntwicklungNav"
             class="admin-nav-group"
             :class="{ 'admin-nav-group--collapsed': !!navCollapsed }"
             role="group"

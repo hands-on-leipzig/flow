@@ -44,9 +44,9 @@ export function isEntwicklungEnvironment(isLocal: boolean): boolean {
 }
 
 /**
- * Ops tools (all tiers), then Entwicklung (Local/Dev only).
+ * Ops tools (all tiers), then Entwicklung (always listed; Local/Dev enable the entries).
  * Full-page UIs stay top-level; push-button actions live under Wartung.
- * Every Entwicklung entry uses the same Local+Dev gate.
+ * Every Entwicklung entry uses the same Local+Dev availability gate.
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
   // Ops
@@ -57,7 +57,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {key: 'external-api', label: 'External API', icon: 'bi-key', group: 'ops'},
   {key: 'sharepoint', label: 'SharePoint', icon: 'bi-folder', group: 'ops'},
   {key: 'wartung', label: 'Wartung', icon: 'bi-tools', group: 'ops'},
-  // Entwicklung (bottom) — all Local + Dev only
+  // Entwicklung (bottom) — listed everywhere; enabled on Local + Dev only
   {
     key: 'nowandnext',
     label: 'Now and Next',
@@ -98,8 +98,8 @@ export function isAdminSection(key: string): boolean {
 }
 
 /**
- * Entwicklung (and any `devOrLocalOnly` flag): Local or hosted Dev only.
- * Test/production hosts never get those tools.
+ * Entwicklung (and any `devOrLocalOnly` flag): interactive only on Local or hosted Dev.
+ * Test/production hosts still list the entries, but they stay disabled in the nav.
  */
 export function isAdminSectionAvailable(
   item: Pick<AdminSection, 'devOrLocalOnly' | 'group'>,
