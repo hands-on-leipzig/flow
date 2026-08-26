@@ -141,7 +141,7 @@ onMounted(() => {
         Vorschau der gespeicherten iCalendar-Einträge. Die Abo-URL kann in Kalender-Apps abonniert werden.
         Kalender-Apps holen den Feed oft erst Stunden später. Neue Texte erscheinen hier sofort nach einem Rebuild —
         einzeln über Plan/Veröffentlichung/DRAHT, oder gesammelt unter
-        <router-link to="/plan/admin/hilfsfunktionen" class="text-blue-600 hover:underline">Hilfsfunktionen</router-link>.
+        <router-link to="/plan/admin/wartung" class="text-[var(--color-accent)] hover:underline">Wartung</router-link>.
       </p>
     </div>
 
