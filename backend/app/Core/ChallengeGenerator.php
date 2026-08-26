@@ -241,16 +241,7 @@ class ChallengeGenerator implements ChallengeShapedLead
 
         try {
             // Match list (who vs whom) is Challenge-owned; the writer only places it on rTime.
-            $matchPlan = (new MatchPlanBuilder)->build(
-                MatchPlanSpec::for(FirstProgram::CHALLENGE, $this->params)
-            );
-            $this->robotGame = new RobotGameGenerator(
-                $this->writer,
-                $this->params,
-                $this->rTime,
-                $this->integratedExplore,
-                $matchPlan
-            );
+            $this->prepareMain();
 
             // -----------------------------------------------------------------------------------
             // FLL Challenge: Put the judging / robot game schedule together
@@ -263,7 +254,7 @@ class ChallengeGenerator implements ChallengeShapedLead
             $jT = 0; // first team index for this block
 
             // Time for judging (T4J) = how long will a team be away to judging and thus not available for robot game.
-            $jT4J = $this->pp('j_duration_with_team') + $this->pp('c_duration_transfer');
+            $jT4J = $this->judgingAwayDuration();
 
             // Create the blocks of judging with robot game aligned
             for ($cBlock = 1; $cBlock <= $this->pp('j_rounds'); $cBlock++) {
@@ -291,12 +282,7 @@ class ChallengeGenerator implements ChallengeShapedLead
             // -----------------------------------------------------------------------------------
             // Synchronize after judging and robot game
             // -----------------------------------------------------------------------------------
-            $this->syncCeremonyTimeAfterMain();
-
-            // -----------------------------------------------------------------------------------
-            // FLL Challenge: Deliberations
-            // -----------------------------------------------------------------------------------
-            $this->insertDeliberations();
+            $this->finishMainAfterGames();
 
         } catch (\Throwable $e) {
             Log::error('ChallengeGenerator: Error in main challenge generation', [
@@ -306,6 +292,108 @@ class ChallengeGenerator implements ChallengeShapedLead
             ]);
             throw new \RuntimeException("Fehler beim Generieren der Challenge-Hauptaktivitäten (Explore: " . ($explore ? 'aktiv' : 'inaktiv') . "): {$e->getMessage()}", 0, $e);
         }
+    }
+
+    /** Build match list and robot-game writer (shared by solo main and dual coordinator). */
+    public function prepareMain(): void
+    {
+        $matchPlan = (new MatchPlanBuilder)->build(
+            MatchPlanSpec::for(FirstProgram::CHALLENGE, $this->params)
+        );
+        $this->robotGame = new RobotGameGenerator(
+            $this->writer,
+            $this->params,
+            $this->rTime,
+            $this->integratedExplore,
+            $matchPlan
+        );
+    }
+
+    public function cTime(): TimeCursor
+    {
+        return $this->cTime;
+    }
+
+    public function jTime(): TimeCursor
+    {
+        return $this->jTime;
+    }
+
+    public function rTime(): TimeCursor
+    {
+        return $this->rTime;
+    }
+
+    public function judgingRoundCount(): int
+    {
+        return (int) $this->pp('j_rounds');
+    }
+
+    public function judgingAwayDuration(): mixed
+    {
+        return $this->pp('j_duration_with_team') + $this->pp('c_duration_transfer');
+    }
+
+    /**
+     * Which robot-game round (0–3) this judging block inserts, or null if none.
+     * Mirrors insertRobotGameRoundForBlock for non-finale events.
+     */
+    public function gameRoundForJudgingBlock(int $cBlock): ?int
+    {
+        if ($this->pp('g_finale')) {
+            return match ($cBlock) {
+                1 => 1,
+                3 => 2,
+                4 => 3,
+                default => null,
+            };
+        }
+
+        return match ($cBlock) {
+            1 => 0,
+            2 => $this->pp('j_rounds') == 4 ? 1 : null,
+            3 => $this->pp('j_rounds') == 4 ? 2 : 1,
+            4 => $this->pp('j_rounds') == 4 ? 3 : 2,
+            5 => 3,
+            default => null,
+        };
+    }
+
+    /**
+     * Align + one judging round for the coordinator (does not write robot game).
+     *
+     * @param-out TimeCursor $jTimeEarliest
+     */
+    public function runJudgingBlock(int $cBlock, TimeCursor &$jTimeEarliest, int &$jT): void
+    {
+        $this->alignJudgingWithRobotGame($cBlock, $jTimeEarliest, $this->judgingAwayDuration());
+        $this->judgingOneRound($cBlock, $jT);
+        $jT += (int) $this->pp('j_lanes');
+        $this->maybeInsertHardLunch($cBlock);
+    }
+
+    public function writeGameRound(int $round, bool $applyPostRoundBreak = true): void
+    {
+        $this->robotGame->insertOneRound($round, $applyPostRoundBreak);
+    }
+
+    public function applyPostRoundBreak(int $round): void
+    {
+        $this->robotGame->applyPostRoundBreak($round);
+    }
+
+    public function finishMainAfterGames(): void
+    {
+        $this->syncCeremonyTimeAfterMain();
+        $this->insertDeliberations();
+    }
+
+    /** Copy ceremony / judging / game clocks from another Challenge-shaped generator (after joint opening). */
+    public function syncClocksFrom(ChallengeGenerator|Future8Generator $other): void
+    {
+        $this->cTime->set($other->cTime()->current());
+        $this->jTime->set($other->jTime()->current());
+        $this->rTime->set($other->rTime()->current());
     }
 
     /**

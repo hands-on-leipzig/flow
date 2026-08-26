@@ -121,7 +121,11 @@ class RobotGameGenerator
     }    
 
 
-    public function insertOneRound(int $round)
+    /**
+     * @param  bool  $applyPostRoundBreak  When false, only place matches (Policy A interleave:
+     *                                     break runs once after both programs finish the round).
+     */
+    public function insertOneRound(int $round, bool $applyPostRoundBreak = true): void
     {
         $groupCode = $this->write->roundGroupCodes[$round] ?? null;
         if ($groupCode === null) {
@@ -202,7 +206,16 @@ class RobotGameGenerator
             $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
         }
 
-        // 7) Breaks before the next round
+        if ($applyPostRoundBreak) {
+            $this->applyPostRoundBreak($round);
+        }
+    }
+
+    /**
+     * Pause / Explore handoff after a game round (solo path, or once after dual Policy A).
+     */
+    public function applyPostRoundBreak(int $round): void
+    {
         switch ($round) {
             case 0:
                 // Test round: Handle early lunch break if enabled
@@ -261,7 +274,6 @@ class RobotGameGenerator
                 // After RG3 is handled in PlanGeneratorCore::afternoon()
                 break;
         }
-
     }
 
     /**

@@ -113,6 +113,10 @@ class ParameterController extends Controller
                         if ($f8 === 1) {
                             $this->enableLeadTimes($entry, $e, 'f8');
                         }
+                        // Dual Challenge-shaped: awards are always joint (g_awards), same as the generator.
+                        if ($c === 1 && $f8 === 1) {
+                            $this->forceJointAwards($entry);
+                        }
                         $this->enableExploreTimes($entry, $e);
                     }
 
@@ -176,6 +180,18 @@ class ParameterController extends Controller
                 }
                 break;
         }
+    }
+
+    /**
+     * When Challenge and Future are both on, Preisverleihung uses g_duration_awards (not c_/f8_).
+     *
+     * @param  array<string, array{editable: bool}>  $entry
+     */
+    private function forceJointAwards(array &$entry): void
+    {
+        $entry['c_duration_awards']['editable'] = false;
+        $entry['f8_duration_awards']['editable'] = false;
+        $entry['g_duration_awards']['editable'] = true;
     }
 
     /**
