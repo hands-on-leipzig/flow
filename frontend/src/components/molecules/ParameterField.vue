@@ -140,11 +140,39 @@ function timeToMinutes(timeString) {
   return (hours || 0) * 60 + (minutes || 0)
 }
 
+function minutesToTime(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
 function normalizeTimeFormat(timeString) {
   if (!timeString || typeof timeString !== 'string') return timeString
   const [hours, minutes] = timeString.split(':')
   if (!hours || !minutes) return timeString
   return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`
+}
+
+/** Round up to the next step multiple (generator grid). Already aligned values stay put. */
+function roundTimeUpToStep(timeString, stepMinutes) {
+  const normalized = normalizeTimeFormat(timeString)
+  if (!normalized || typeof normalized !== 'string') return timeString
+  if (!Number.isFinite(stepMinutes) || stepMinutes <= 0) return normalized
+
+  const mins = timeToMinutes(normalized)
+  const rem = mins % stepMinutes
+  if (rem === 0) return normalized
+
+  const rounded = mins + (stepMinutes - rem)
+  if (rounded >= 24 * 60) {
+    return minutesToTime(Math.floor((24 * 60 - 1) / stepMinutes) * stepMinutes)
+  }
+  return minutesToTime(rounded)
+}
+
+function timeStepMinutes(param) {
+  const step = Number(param?.step)
+  return Number.isFinite(step) && step > 0 ? step : 5
 }
 
 function validateTimeValue(timeValue, param) {
@@ -177,21 +205,57 @@ function validateTimeValue(timeValue, param) {
     }
   }
 
-  if (param.step !== null && param.step !== undefined && param.step > 0) {
-    if (valueMinutes % param.step !== 0) {
-      validationError.value = `Nur ${param.step}-Minuten-Schritte erlaubt`
-      return false
-    }
-  }
-
   return true
 }
 
 function emitChange() {
+  if (props.param.type === 'time' && localValue.value) {
+    const rounded = roundTimeUpToStep(localValue.value, timeStepMinutes(props.param))
+    if (rounded && rounded !== localValue.value) {
+      localValue.value = rounded
+    }
+  }
   if (validateValue(localValue.value, props.param)) {
     emit('update', {...props.param, value: localValue.value})
   }
 }
+
+function defaultLocalValue(param) {
+  switch (param.type) {
+    case 'boolean':
+      return normalizeBoolean(param.default_value)
+    case 'time':
+      return normalizeTimeFormat(param.default_value) || param.default_value
+    default:
+      return param.default_value
+  }
+}
+
+function resetToDefault() {
+  if (props.disabled || !hasDefaultValue(props.param)) return
+  if (!isChangedFromDefault(props.param)) return
+
+  const next = defaultLocalValue(props.param)
+  if (props.param.type === 'boolean') {
+    if (next && props.onDisabled) return
+    if (!next && props.offDisabled) return
+  }
+
+  localValue.value = next
+  emitChange()
+}
+
+function onDefaultKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return
+  event.preventDefault()
+  resetToDefault()
+}
+
+const canResetToDefault = computed(() =>
+  !props.disabled
+  && hasDefaultValue(props.param)
+  && isChangedFromDefault(props.param)
+)
 
 function setBoolean(value) {
   if (props.disabled || localValue.value === value) return
@@ -244,7 +308,15 @@ const timeStepSeconds = computed(() => {
         <span
             v-if="hasDefaultValue(param) && !validationError"
             class="glass-settings-hint"
-            :class="{ 'param-field__default--changed': param.type === 'integer' && isChangedFromDefault(param) }"
+            :class="{
+              'param-field__default--changed': (param.type === 'integer' || param.type === 'decimal') && isChangedFromDefault(param),
+              'param-field__default--resettable': canResetToDefault,
+            }"
+            :role="canResetToDefault ? 'button' : undefined"
+            :tabindex="canResetToDefault ? 0 : undefined"
+            :title="canResetToDefault ? 'Auf Standardwert zurücksetzen' : undefined"
+            @click="resetToDefault"
+            @keydown="onDefaultKeydown"
         >
           {{ showDefaultValue(param) }}
         </span>
@@ -274,7 +346,15 @@ const timeStepSeconds = computed(() => {
         <span
             v-if="hasDefaultValue(param)"
             class="glass-settings-hint"
-            :class="{ 'param-field__default--changed': isChangedFromDefault(param) }"
+            :class="{
+              'param-field__default--changed': isChangedFromDefault(param),
+              'param-field__default--resettable': canResetToDefault,
+            }"
+            :role="canResetToDefault ? 'button' : undefined"
+            :tabindex="canResetToDefault ? 0 : undefined"
+            :title="canResetToDefault ? 'Auf Standardwert zurücksetzen' : undefined"
+            @click="resetToDefault"
+            @keydown="onDefaultKeydown"
         >
           {{ showDefaultValue(param) }}
         </span>
@@ -304,7 +384,19 @@ const timeStepSeconds = computed(() => {
             @change="emitChange"
             @input="validateValue(localValue, param)"
         />
-        <span v-if="showDefaultValue(param) && !validationError" class="glass-settings-hint">
+        <span
+            v-if="showDefaultValue(param) && !validationError"
+            class="glass-settings-hint"
+            :class="{
+              'param-field__default--changed': isChangedFromDefault(param),
+              'param-field__default--resettable': canResetToDefault,
+            }"
+            :role="canResetToDefault ? 'button' : undefined"
+            :tabindex="canResetToDefault ? 0 : undefined"
+            :title="canResetToDefault ? 'Auf Standardwert zurücksetzen' : undefined"
+            @click="resetToDefault"
+            @keydown="onDefaultKeydown"
+        >
           {{ showDefaultValue(param) }}
         </span>
       </div>
@@ -350,6 +442,20 @@ const timeStepSeconds = computed(() => {
   background: color-mix(in srgb, #b45309 12%, var(--color-bg-muted));
   color: var(--color-text);
   font-style: normal;
+}
+
+.param-field__default--resettable {
+  cursor: pointer;
+}
+
+.param-field__default--resettable:hover {
+  border-color: color-mix(in srgb, #b45309 55%, var(--color-border));
+  background: color-mix(in srgb, #b45309 18%, var(--color-bg-muted));
+}
+
+.param-field__default--resettable:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .param-field__control--invalid {

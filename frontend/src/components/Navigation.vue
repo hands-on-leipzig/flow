@@ -6,7 +6,7 @@ import {usePlanCacheStore} from '@/stores/planCache'
 import {useProgramsStore} from '@/stores/programs'
 import {useAuth} from '@/composables/useAuth'
 import {imageUrl, programLogoSrc} from '@/utils/images'
-import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programMatchesSlug, programCompact, hasAfternoon} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
 import {
   ADMIN_OPS_SECTIONS,
   ADMIN_ENTWICKLUNG_SECTIONS,
@@ -42,6 +42,7 @@ const userLabel = computed(() => {
 const readiness = ref({
   explore_teams_ok: true,
   challenge_teams_ok: true,
+  future_8_teams_ok: true,
   room_mapping_ok: true
 })
 
@@ -52,12 +53,14 @@ async function checkDataReadiness() {
     readiness.value = {
       explore_teams_ok: !!data.explore_teams_ok,
       challenge_teams_ok: !!data.challenge_teams_ok,
+      future_8_teams_ok: data.future_8_teams_ok !== false,
       room_mapping_ok: !!data.room_mapping_ok,
     }
   } else {
     readiness.value = {
       explore_teams_ok: false,
       challenge_teams_ok: false,
+      future_8_teams_ok: false,
       room_mapping_ok: false,
     }
   }
@@ -214,6 +217,7 @@ watch(
         readiness.value = {
           explore_teams_ok: !!newVal.explore_teams_ok,
           challenge_teams_ok: !!newVal.challenge_teams_ok,
+          future_8_teams_ok: newVal.future_8_teams_ok !== false,
           room_mapping_ok: !!newVal.room_mapping_ok,
         }
       }
@@ -244,20 +248,15 @@ function hasWarning(tabPath: string): boolean {
         hasWarning(teamPathFor(program))
       )
     }
-    const discrepancy = !!eventStore.selectedEvent?.discrepancyByProgram?.[programCompact(slug)]
-    if (programMatchesSlug(slug, 'explore')) {
-      return !readiness.value.explore_teams_ok || discrepancy
-    }
-    if (programMatchesSlug(slug, 'challenge')) {
-      return !readiness.value.challenge_teams_ok || discrepancy
-    }
-    return discrepancy
+    // DRAHT vs FLOW only — plan capacity mismatch belongs on Ablauf/Allgemein
+    return !!eventStore.selectedEvent?.discrepancyByProgram?.[programCompact(slug)]
   }
 
   switch (path) {
     case '/plan/schedule':
-    case '/plan/schedule/expert':
-      return !readiness.value.explore_teams_ok || !readiness.value.challenge_teams_ok
+      return !readiness.value.explore_teams_ok
+        || !readiness.value.challenge_teams_ok
+        || !readiness.value.future_8_teams_ok
     case '/plan/rooms':
       return !readiness.value.room_mapping_ok
     default:
