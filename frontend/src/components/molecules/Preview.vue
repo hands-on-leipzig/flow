@@ -15,17 +15,6 @@ const FIRST_PROGRAM = {
   FUTURE_8: 8,
 } as const
 
-type Header = { key: string; title: string }
-type Cell = { render?: boolean; rowspan?: number; colspan?: number; text?: string }
-type Row = {
-  separator?: boolean
-  variant?: 'day'
-  timeIso?: string
-  timeLabel?: string
-  cells?: Record<string, Cell>
-}
-
-// Match-Plan types
 type Match = {
   match_id: number
   match_no: number
@@ -66,7 +55,7 @@ onMounted(() => {
 
 const props = withDefaults(defineProps<{
   planId?: number
-  initialView?: 'overview' | 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities'
+  initialView?: 'overview' | 'roles' | 'teams' | 'robot-game' | 'activities'
   reload?: number
   /** Hide Plan-ID and similar meta (used in pop-out). */
   hideMeta?: boolean
@@ -79,16 +68,11 @@ const effectivePlanId = computed(() => {
   return props.planId ?? Number(route.params.planId)
 })
 
-const view = ref<'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'rooms' | 'activities'>(props.initialView as any)
+const view = ref<'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'activities'>(props.initialView as any)
 const showAdminSegment = ref(false)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
-
-// Bestehende Preview-Struktur
-const headers = ref<Header[]>([])
-const rows = ref<Row[]>([])
-const headerKeys = computed(() => headers.value.map(h => h.key))
 
 // Activities-Datenstruktur (roh von /plans/activities/{id})
 type ActivityRow = {
@@ -126,7 +110,7 @@ const dualMatchPlan = computed(() => matchPlanPrograms.value.length > 1)
 
 // Event overview HTML
 const overviewHtml = ref<string>('')
-/** New Rollen / Teams grid HTML (Überblick-style); old matrices kept on /roles and /teams. */
+/** Rollen / Teams grid HTML (Überblick-style). */
 const rolesHtml = ref<string>('')
 const teamsHtml = ref<string>('')
 type PreviewProgramFilter = { id: number; label: string; logo: string }
@@ -227,12 +211,9 @@ async function load() {
 
   try {
     if (view.value === 'overview') {
-      // Event overview HTML
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/overview`)
       overviewHtml.value = data.html
       clearGridHtml()
-      headers.value = []
-      rows.value = []
       activities.value = []
       robotGameData.value = null
     } else if (view.value === 'roles') {
@@ -241,8 +222,6 @@ async function load() {
       teamsHtml.value = ''
       syncProgramFilters(rolesPrograms, rolesProgramOn, mapPreviewPrograms(data?.programs))
       overviewHtml.value = ''
-      headers.value = []
-      rows.value = []
       activities.value = []
       robotGameData.value = null
     } else if (view.value === 'teams') {
@@ -251,11 +230,9 @@ async function load() {
       rolesHtml.value = ''
       syncProgramFilters(teamsPrograms, teamsProgramOn, mapPreviewPrograms(data?.programs))
       overviewHtml.value = ''
-      headers.value = []
-      rows.value = []
       activities.value = []
       robotGameData.value = null
-  } else if (view.value === 'robot-game') {
+    } else if (view.value === 'robot-game') {
       const params: Record<string, number> = {}
       if (selectedFirstProgram.value != null) {
         params.first_program = selectedFirstProgram.value
@@ -268,34 +245,16 @@ async function load() {
       if (data?.first_program != null) {
         selectedFirstProgram.value = Number(data.first_program)
       }
-      headers.value = []
-      rows.value = []
       activities.value = []
       overviewHtml.value = ''
       clearGridHtml()
-  } else if (view.value === 'quality') {
-      // Qualität-Ansicht lädt separat in QPlanDetails
-      headers.value = []
-      rows.value = []
+    } else if (view.value === 'quality') {
       activities.value = []
       overviewHtml.value = ''
       clearGridHtml()
     } else if (view.value === 'activities') {
-      // Power-User-Sicht: rohe Activities vom Backend
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/activities`)
       activities.value = Array.isArray(data?.groups) ? data.groups : []
-      headers.value = []
-      rows.value = []
-      robotGameData.value = null
-      overviewHtml.value = ''
-      clearGridHtml()
-    } else {
-      // Legacy matrix: rooms (roles/teams matrices kept on API for later removal)
-      const url = `/plans/preview/${effectivePlanId.value}/${view.value}`
-      const { data } = await axios.get(url)
-      headers.value = Array.isArray(data?.headers) ? data.headers : []
-      rows.value = Array.isArray(data?.rows) ? data.rows : []
-      activities.value = []
       robotGameData.value = null
       overviewHtml.value = ''
       clearGridHtml()
@@ -303,8 +262,6 @@ async function load() {
   } catch (e: any) {
     console.error('[Preview] load() error:', e)
     error.value = e?.message || 'Fehler beim Laden'
-    headers.value = []
-    rows.value = []
     activities.value = []
     robotGameData.value = null
     overviewHtml.value = ''
@@ -335,7 +292,7 @@ onMounted(async () => {
   load()
 })
 
-function setView(v: 'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'rooms' | 'activities') {
+function setView(v: 'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'activities') {
   if (view.value !== v) view.value = v
 }
 
@@ -420,12 +377,6 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
             :class="{'glass-segment__btn--active': view === 'teams'}"
             @click="setView('teams')"
           >Teams</button>
-
-          <button
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': view === 'rooms'}"
-            @click="setView('rooms')"
-          >Räume</button>
         </div>
 
         <div v-if="hasMatchPlan && !dualMatchPlan" class="glass-segment">
@@ -527,7 +478,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <div
-      v-if="view === 'roles' || view === 'teams' || view === 'rooms'"
+      v-if="view === 'roles' || view === 'teams'"
       class="text-xs text-[var(--color-text-subtle)]"
     >
       Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
@@ -604,63 +555,6 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           ></div>
         </template>
       </template>
-    </div>
-
-    <!-- Legacy matrix: rooms -->
-    <div v-else-if="view === 'rooms'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white">
-      <table class="w-full table-fixed text-sm">
-        <thead class="sticky top-0 bg-[var(--color-bg-muted)]">
-          <tr>
-            <th v-for="h in headers" :key="h.key" class="text-left font-normal px-2 py-2 border-b border-[var(--color-border)]">
-              {{ h.title }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading">
-            <td :colspan="headers.length" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</td>
-          </tr>
-
-          <template v-else>
-            <template v-for="(r, ridx) in rows" :key="ridx">
-              <tr v-if="r.separator">
-                <td :colspan="headers.length" class="p-0">
-                  <div v-if="r.variant === 'day'" class="h-0.5 bg-[var(--color-bg-muted)]0"></div>
-                  <div v-else class="h-3"></div>
-                </td>
-              </tr>
-
-              <tr v-else class="odd:bg-[var(--color-bg-muted)] even:bg-[var(--color-bg-muted)]">
-                <td v-if="headerKeys[0]==='time'" class="align-top px-2 py-2 whitespace-pre-line">
-                  <template v-if="r.timeLabel">
-                    <span class="block">{{ (r.timeLabel || '').split(' ')[0] }}</span>
-                    <span class="block">{{ (r.timeLabel || '').split(' ')[1] || '' }}</span>
-                  </template>
-                </td>
-
-                <template v-for="(h, cidx) in headers.slice(1)" :key="h.key + '-' + ridx">
-                  <template v-if="r.cells && r.cells[h.key]">
-                    <td v-if="r.cells[h.key].render !== false"
-                        class="align-top px-2 py-2 whitespace-pre-line"
-                        :rowspan="r.cells[h.key].rowspan || 1"
-                        :colspan="r.cells[h.key].colspan || 1"
-                        :class="(r.cells[h.key].text && r.cells[h.key].text!.trim() !== '') ? 'bg-white' : ''">
-                      {{ r.cells[h.key].text || '' }}
-                    </td>
-                  </template>
-                  <td v-else class="align-top px-2 py-2"></td>
-                </template>
-              </tr>
-            </template>
-
-            <tr v-if="rows.length === 0 && !loading">
-              <td :colspan="headers.length" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
-                Keine Aktivitäten im Zeitraum.
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
     </div>
 
     <!-- ANSICHT: Überblick -->
