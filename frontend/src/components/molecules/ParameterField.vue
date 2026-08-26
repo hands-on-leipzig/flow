@@ -140,11 +140,39 @@ function timeToMinutes(timeString) {
   return (hours || 0) * 60 + (minutes || 0)
 }
 
+function minutesToTime(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+}
+
 function normalizeTimeFormat(timeString) {
   if (!timeString || typeof timeString !== 'string') return timeString
   const [hours, minutes] = timeString.split(':')
   if (!hours || !minutes) return timeString
   return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`
+}
+
+/** Round up to the next step multiple (generator grid). Already aligned values stay put. */
+function roundTimeUpToStep(timeString, stepMinutes) {
+  const normalized = normalizeTimeFormat(timeString)
+  if (!normalized || typeof normalized !== 'string') return timeString
+  if (!Number.isFinite(stepMinutes) || stepMinutes <= 0) return normalized
+
+  const mins = timeToMinutes(normalized)
+  const rem = mins % stepMinutes
+  if (rem === 0) return normalized
+
+  const rounded = mins + (stepMinutes - rem)
+  if (rounded >= 24 * 60) {
+    return minutesToTime(Math.floor((24 * 60 - 1) / stepMinutes) * stepMinutes)
+  }
+  return minutesToTime(rounded)
+}
+
+function timeStepMinutes(param) {
+  const step = Number(param?.step)
+  return Number.isFinite(step) && step > 0 ? step : 5
 }
 
 function validateTimeValue(timeValue, param) {
@@ -177,17 +205,16 @@ function validateTimeValue(timeValue, param) {
     }
   }
 
-  if (param.step !== null && param.step !== undefined && param.step > 0) {
-    if (valueMinutes % param.step !== 0) {
-      validationError.value = `Nur ${param.step}-Minuten-Schritte erlaubt`
-      return false
-    }
-  }
-
   return true
 }
 
 function emitChange() {
+  if (props.param.type === 'time' && localValue.value) {
+    const rounded = roundTimeUpToStep(localValue.value, timeStepMinutes(props.param))
+    if (rounded && rounded !== localValue.value) {
+      localValue.value = rounded
+    }
+  }
   if (validateValue(localValue.value, props.param)) {
     emit('update', {...props.param, value: localValue.value})
   }
