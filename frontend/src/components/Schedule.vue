@@ -2,19 +2,23 @@
 /**
  * Ablauf / Zusatzaktivitäten shell: sidebar picks the left pane; plan preview stays on the right.
  */
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
+import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import Preview from '@/components/molecules/Preview.vue'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
+import { parseBerlinWallTime } from '@/utils/dateTimeFormat'
 
 defineOptions({ name: 'Schedule' })
 
 const {
   selectedEvent,
   selectedPlanId,
+  planLocked,
+  planLastChange,
   loading,
   isGenerating,
   generatorError,
@@ -28,6 +32,7 @@ const {
   openPlanPopout,
   focusPlanPopout,
   dockPlanPopout,
+  updatePlanLock,
 } = useScheduleWorkspace()
 
 const leftWidth = ref(50)
@@ -35,6 +40,32 @@ const leftWidth = ref(50)
 function clearGeneratorError() {
   generatorError.value = null
   errorDetails.value = null
+}
+
+const planLastChangeLabel = computed(() => {
+  if (!planLastChange.value) return 'unbekannt'
+  const ms = parseBerlinWallTime(planLastChange.value)
+  if (!ms) return 'unbekannt'
+  const date = new Date(ms)
+  const datePart = new Intl.DateTimeFormat('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date)
+  const timePart = new Intl.DateTimeFormat('de-DE', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
+  return `${datePart} um ${timePart}`
+})
+
+async function handlePlanLockToggle(nextValue: boolean) {
+  try {
+    await updatePlanLock(nextValue)
+  } catch (error) {
+    if (import.meta.env.DEV) console.error('Fehler beim Sperren des Plans:', error)
+  }
 }
 
 onMounted(() => {
@@ -143,17 +174,29 @@ watch(
             <section class="schedule-workspace__right">
               <div class="schedule-workspace__preview">
                 <div class="schedule-workspace__preview-bar">
-                  <h2 class="text-sm font-semibold text-[var(--color-text)] uppercase tracking-wide">Plan</h2>
-                  <button
-                      type="button"
-                      class="inline-flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] disabled:opacity-50"
-                      :disabled="!selectedPlanId"
-                      title="Plan in eigenem Fenster öffnen"
-                      @click="openPlanPopout"
-                  >
-                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
-                    <span>Pop-out</span>
-                  </button>
+                  <div class="min-w-0">
+                    <h2 class="text-sm font-semibold text-[var(--color-text)] truncate">
+                      Veranstaltungsplan - zuletzt geändert am {{ planLastChangeLabel }}
+                    </h2>
+                    <p v-if="planLocked" class="text-xs text-[var(--color-text-muted)] mt-0.5">gegen Änderungen gesperrt</p>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <ToggleSwitch
+                        :model-value="planLocked"
+                        :disabled="!selectedPlanId"
+                        @update:model-value="handlePlanLockToggle"
+                    />
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] disabled:opacity-50"
+                        :disabled="!selectedPlanId"
+                        title="Plan in eigenem Fenster öffnen"
+                        @click="openPlanPopout"
+                    >
+                      <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
+                      <span>Pop-out</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div class="flex-1 min-h-0 min-w-0 overflow-hidden">

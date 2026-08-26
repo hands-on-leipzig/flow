@@ -28,6 +28,11 @@ class PlanGeneratorController extends Controller
             return $response;
         }
 
+        $isLocked = (bool) DB::table('plan')->where('id', $planId)->value('locked');
+        if ($isLocked) {
+            return response()->json([]);
+        }
+
         try {
             // Prüfen, ob Plan unterstützt wird
             $supportCheck = $this->generator->isSupported($planId);

@@ -14,6 +14,7 @@ class Plan extends Model
         'created',
         'last_change',
         'generator_status',
+        'locked',
     ];
 
     public function parameters()
