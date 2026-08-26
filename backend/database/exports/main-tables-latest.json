@@ -1319,7 +1319,7 @@
             "letter": "F8",
             "ics_postfix": "future_8",
             "sequence": 5,
-            "color_hex": "F78B1F",
+            "color_hex": "51BFB4",
             "logo_stem": "fll_future8",
             "logo_white": "Bioglow_Future_column.png"
         }
@@ -3497,7 +3497,7 @@
         {
             "id": 5,
             "name": "Schiedsrichter:in",
-            "name_short": "RG T",
+            "name_short": "RG F",
             "sequence": 5,
             "first_program": 3,
             "description": "K\u00fcmmert sich um das Robot-Game der Challenge Teams",
@@ -3575,7 +3575,7 @@
         {
             "id": 11,
             "name": "Robot-Check",
-            "name_short": "RC T",
+            "name_short": "RC F",
             "sequence": 4,
             "first_program": 3,
             "description": "\u00dcberpr\u00fcft die Roboter und stellt sicher, dass sie regelkonform sind",
@@ -8914,7 +8914,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-08-26T09:50:20.596030Z",
+        "exported_at": "2026-08-26T18:13:27.506353Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
