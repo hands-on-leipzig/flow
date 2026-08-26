@@ -39,6 +39,8 @@ function visibleParams(params: Parameter[]): Parameter[] {
         v-for="program in attachedPrograms"
         :key="programId(program)"
         :program="program.name || 'shared'"
+        collapsible
+        default-collapsed
     >
       <ParameterField
           v-for="param in expertParamsFor(program)"
@@ -74,6 +76,8 @@ function visibleParams(params: Parameter[]): Parameter[] {
         title="Finale"
         subtitle="Parameter nur für Finalveranstaltungen"
         :show-logo="false"
+        collapsible
+        default-collapsed
     >
       <ParameterField
           v-for="param in visibleParams(finaleInputParams)"
