@@ -128,7 +128,8 @@ onBeforeUnmount(() => {
       </label>
       <p v-if="errorText && !valid" class="capacity-override__error">{{ errorText }}</p>
       <p class="capacity-override__note">
-        Beim nächsten Öffnen dieser Seite wird wieder der richtige Wert genommen.
+        Beim nächsten Öffnen dieser Seite wird wieder der offizielle Wert genommen.<br>
+        Um den zu Ändern, bitte in der Geschäftsstelle melden.
       </p>
       <div class="capacity-override__actions">
         <button type="button" class="glass-btn-secondary !px-2.5 !py-1 !text-xs" @click="closeDialog">
