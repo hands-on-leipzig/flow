@@ -11,8 +11,9 @@ use RuntimeException;
  * Coordinates Challenge + Future 8+ mornings when both are on (Policy A only).
  *
  * Test round runs in parallel. Rounds 1–3: all matches of one program, then the other
- * (order from f8_future_first). Judging stays per program on its own jTime; game clocks
- * share one wall-clock timeline so the other program’s round duration is visible in rTime.
+ * (order from f8_future_first), with f8_duration_flip_after_round between the two.
+ * Judging stays per program on its own jTime; game clocks share one wall-clock timeline
+ * so the other program’s round duration is visible in rTime.
  */
 class GameRoundCoordinator
 {
@@ -69,7 +70,13 @@ class GameRoundCoordinator
                 $this->writeTestRoundParallel();
             } else {
                 $order = $futureFirst ? ['future', 'challenge'] : ['challenge', 'future'];
+                $first = true;
                 foreach ($order as $key) {
+                    if (! $first) {
+                        $this->applyFlipPause();
+                    }
+                    $first = false;
+
                     $this->runJudgingUntilGameRound($key, $gameRound);
                     $this->syncSharedGameClock();
                     // Matches only — post-round break once after both programs finish this round.
@@ -186,6 +193,22 @@ class GameRoundCoordinator
         $later = $ch > $f8 ? $ch : $f8;
         $this->challenge->rTime()->set($later);
         $this->future->rTime()->set($later);
+    }
+
+    /**
+     * Pause on the shared game timeline when Policy A flips from one program’s
+     * full round matches to the other’s (f8_duration_flip_after_round).
+     */
+    private function applyFlipPause(): void
+    {
+        $minutes = (int) $this->pp('f8_duration_flip_after_round', 0);
+        if ($minutes <= 0) {
+            return;
+        }
+
+        $this->syncSharedGameClock();
+        $this->challenge->rTime()->addMinutes($minutes);
+        $this->future->rTime()->set($this->challenge->rTime()->current());
     }
 
     /**
