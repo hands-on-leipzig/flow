@@ -126,12 +126,15 @@ const dualMatchPlan = computed(() => matchPlanPrograms.value.length > 1)
 
 // Event overview HTML
 const overviewHtml = ref<string>('')
-/** New Rollen grid HTML (Überblick-style); old /roles matrix kept for teams/rooms. */
+/** New Rollen / Teams grid HTML (Überblick-style); old matrices kept on /roles and /teams. */
 const rolesHtml = ref<string>('')
-type RolesProgramFilter = { id: number; label: string; logo: string }
-const rolesPrograms = ref<RolesProgramFilter[]>([])
+const teamsHtml = ref<string>('')
+type PreviewProgramFilter = { id: number; label: string; logo: string }
+const rolesPrograms = ref<PreviewProgramFilter[]>([])
+const teamsPrograms = ref<PreviewProgramFilter[]>([])
 /** Program id → visible (default true). */
 const rolesProgramOn = ref<Record<number, boolean>>({})
+const teamsProgramOn = ref<Record<number, boolean>>({})
 
 const rolesHiddenProgramIds = computed(() =>
   rolesPrograms.value
@@ -139,13 +142,32 @@ const rolesHiddenProgramIds = computed(() =>
     .map((p) => p.id)
 )
 
-function syncRolesProgramFilters(programs: RolesProgramFilter[]) {
-  rolesPrograms.value = programs
+const teamsHiddenProgramIds = computed(() =>
+  teamsPrograms.value
+    .filter((p) => teamsProgramOn.value[p.id] === false)
+    .map((p) => p.id)
+)
+
+function mapPreviewPrograms(raw: unknown): PreviewProgramFilter[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((p: { id: number; label: string; logo: string }) => ({
+    id: Number(p.id),
+    label: String(p.label ?? ''),
+    logo: String(p.logo ?? ''),
+  }))
+}
+
+function syncProgramFilters(
+  targetPrograms: typeof rolesPrograms,
+  targetOn: typeof rolesProgramOn,
+  programs: PreviewProgramFilter[]
+) {
+  targetPrograms.value = programs
   const next: Record<number, boolean> = {}
   for (const p of programs) {
-    next[p.id] = rolesProgramOn.value[p.id] !== false
+    next[p.id] = targetOn.value[p.id] !== false
   }
-  rolesProgramOn.value = next
+  targetOn.value = next
 }
 
 function toggleRolesProgram(programId: number) {
@@ -153,6 +175,18 @@ function toggleRolesProgram(programId: number) {
     ...rolesProgramOn.value,
     [programId]: rolesProgramOn.value[programId] === false,
   }
+}
+
+function toggleTeamsProgram(programId: number) {
+  teamsProgramOn.value = {
+    ...teamsProgramOn.value,
+    [programId]: teamsProgramOn.value[programId] === false,
+  }
+}
+
+function clearGridHtml() {
+  rolesHtml.value = ''
+  teamsHtml.value = ''
 }
 
 function programThemeKey(programId: number): 'challenge' | 'future8' {
@@ -196,7 +230,7 @@ async function load() {
       // Event overview HTML
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/overview`)
       overviewHtml.value = data.html
-      rolesHtml.value = ''
+      clearGridHtml()
       headers.value = []
       rows.value = []
       activities.value = []
@@ -204,14 +238,18 @@ async function load() {
     } else if (view.value === 'roles') {
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/roles-grid`)
       rolesHtml.value = data.html ?? ''
-      const programs = Array.isArray(data?.programs)
-        ? data.programs.map((p: { id: number; label: string; logo: string }) => ({
-            id: Number(p.id),
-            label: String(p.label ?? ''),
-            logo: String(p.logo ?? ''),
-          }))
-        : []
-      syncRolesProgramFilters(programs)
+      teamsHtml.value = ''
+      syncProgramFilters(rolesPrograms, rolesProgramOn, mapPreviewPrograms(data?.programs))
+      overviewHtml.value = ''
+      headers.value = []
+      rows.value = []
+      activities.value = []
+      robotGameData.value = null
+    } else if (view.value === 'teams') {
+      const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/teams-grid`)
+      teamsHtml.value = data.html ?? ''
+      rolesHtml.value = ''
+      syncProgramFilters(teamsPrograms, teamsProgramOn, mapPreviewPrograms(data?.programs))
       overviewHtml.value = ''
       headers.value = []
       rows.value = []
@@ -234,14 +272,14 @@ async function load() {
       rows.value = []
       activities.value = []
       overviewHtml.value = ''
-      rolesHtml.value = ''
+      clearGridHtml()
   } else if (view.value === 'quality') {
       // Qualität-Ansicht lädt separat in QPlanDetails
       headers.value = []
       rows.value = []
       activities.value = []
       overviewHtml.value = ''
-      rolesHtml.value = ''
+      clearGridHtml()
     } else if (view.value === 'activities') {
       // Power-User-Sicht: rohe Activities vom Backend
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/activities`)
@@ -250,9 +288,9 @@ async function load() {
       rows.value = []
       robotGameData.value = null
       overviewHtml.value = ''
-      rolesHtml.value = ''
+      clearGridHtml()
     } else {
-      // Legacy matrix: teams / rooms (roles matrix kept on /roles for later removal)
+      // Legacy matrix: rooms (roles/teams matrices kept on API for later removal)
       const url = `/plans/preview/${effectivePlanId.value}/${view.value}`
       const { data } = await axios.get(url)
       headers.value = Array.isArray(data?.headers) ? data.headers : []
@@ -260,7 +298,7 @@ async function load() {
       activities.value = []
       robotGameData.value = null
       overviewHtml.value = ''
-      rolesHtml.value = ''
+      clearGridHtml()
     }
   } catch (e: any) {
     console.error('[Preview] load() error:', e)
@@ -270,7 +308,7 @@ async function load() {
     activities.value = []
     robotGameData.value = null
     overviewHtml.value = ''
-    rolesHtml.value = ''
+    clearGridHtml()
   } finally {
     loading.value = false
   }
@@ -534,8 +572,42 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
       </template>
     </div>
 
-    <!-- Legacy matrix: teams / rooms (old roles matrix at /roles unused by UI) -->
-    <div v-else-if="view === 'teams' || view === 'rooms'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white">
+    <!-- ANSICHT: Teams (new grid) -->
+    <div v-else-if="view === 'teams'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4 flex flex-col gap-3">
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <template v-else>
+        <div v-if="!teamsHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
+          Keine Team-Daten gefunden.
+        </div>
+        <template v-else>
+          <div
+            v-if="teamsPrograms.length > 1"
+            class="flex flex-wrap items-center gap-2 shrink-0"
+          >
+            <button
+              v-for="p in teamsPrograms"
+              :key="p.id"
+              type="button"
+              class="roles-program-filter"
+              :class="{ 'roles-program-filter--active': teamsProgramOn[p.id] !== false }"
+              :aria-pressed="teamsProgramOn[p.id] !== false"
+              @click="toggleTeamsProgram(p.id)"
+            >
+              <img :src="p.logo" alt="" class="roles-program-filter__logo" />
+              <span class="roles-program-filter__label">{{ p.label }}</span>
+            </button>
+          </div>
+          <div
+            class="roles-grid-host min-h-0"
+            :data-hide-programs="teamsHiddenProgramIds.join(' ')"
+            v-html="teamsHtml"
+          ></div>
+        </template>
+      </template>
+    </div>
+
+    <!-- Legacy matrix: rooms -->
+    <div v-else-if="view === 'rooms'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white">
       <table class="w-full table-fixed text-sm">
         <thead class="sticky top-0 bg-[var(--color-bg-muted)]">
           <tr>

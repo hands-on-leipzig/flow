@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Services\ActivityFetcherService;
 use App\Services\PreviewMatrixService;
 use App\Services\RolesPreviewGridService;
+use App\Services\TeamsPreviewGridService;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
 use Illuminate\Http\Request;
@@ -46,6 +47,28 @@ class PlanPreviewController extends Controller
 
         return response()->json([
             'html' => view('preview.roles-grid', [
+                'programs' => $data['programs'],
+                'eventsByDay' => $data['eventsByDay'],
+            ])->render(),
+            'programs' => array_map(static fn (array $p) => [
+                'id' => $p['id'],
+                'label' => $p['label'],
+                'logo' => $p['logo'],
+            ], $data['programs']),
+            'success' => true,
+        ]);
+    }
+
+    /**
+     * New Überblick-style teams grid (5-minute columns, G/J/C/F cells).
+     * Old JSON matrix remains at previewTeams /teams.
+     */
+    public function previewTeamsGrid(int $planId, TeamsPreviewGridService $grid)
+    {
+        $data = $grid->build($planId);
+
+        return response()->json([
+            'html' => view('preview.teams-grid', [
                 'programs' => $data['programs'],
                 'eventsByDay' => $data['eventsByDay'],
             ])->render(),
