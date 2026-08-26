@@ -1,10 +1,11 @@
 <script lang="ts" setup>
-import {computed, ref, watch, type UnwrapRef} from 'vue'
+import {computed, onDeactivated, ref, watch, type UnwrapRef} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import TeamPlanBar from '@/components/molecules/TeamPlanBar.vue'
 import TeamSplitBar from '@/components/molecules/TeamSplitBar.vue'
+import CapacityOverrideDialog from '@/components/atoms/CapacityOverrideDialog.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import {useEventStore} from '@/stores/event'
 import {eventPrograms, programId} from '@/utils/eventPrograms'
@@ -207,7 +208,13 @@ const getAlertLevelStyle = (level: number) => {
 
 const planTeams = computed(() => Number(paramMapByName.value['e_teams']?.value || 0))
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsExplore || 0))
-const capacity = computed(() => Number(event.value?.drahtCapacityExplore || 0))
+const drahtCapacity = computed(() => Number(event.value?.drahtCapacityExplore || 0))
+const capacityOverride = ref<number | null>(null)
+const effectiveCapacity = computed(() => capacityOverride.value ?? drahtCapacity.value)
+
+onDeactivated(() => {
+  capacityOverride.value = null
+})
 
 const hasOtherPrograms = computed(() =>
     eventPrograms(event.value).some((program) => programId(program) !== PROGRAM_ID)
@@ -280,10 +287,18 @@ watch(
 
 <template>
   <ProgramSection program="explore">
+    <template #actions>
+      <CapacityOverrideDialog
+          :capacity="effectiveCapacity"
+          :min="teamLimits.min"
+          :max="teamLimits.max"
+          @apply="capacityOverride = $event"
+      />
+    </template>
     <TeamPlanBar
         :plan-teams="planTeams"
         :registered-teams="registeredTeams"
-        :capacity="capacity"
+        :capacity="effectiveCapacity"
         :min-teams="teamLimits.min"
         :max-teams="teamLimits.max"
         :on-update="(value) => updateByName('e_teams', value)"

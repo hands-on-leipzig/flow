@@ -1,9 +1,10 @@
 <script lang="ts" setup>
-import {computed, UnwrapRef, watch, watchEffect} from 'vue'
+import {computed, onDeactivated, ref, UnwrapRef, watch, watchEffect} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import TeamPlanBar from "@/components/molecules/TeamPlanBar.vue";
+import CapacityOverrideDialog from '@/components/atoms/CapacityOverrideDialog.vue'
 import {useEventStore} from '@/stores/event'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 
@@ -210,7 +211,13 @@ const getAlertLevelStyle = (level: number) => {
 
 const planTeams = computed(() => Number(paramMapByName.value['c_teams']?.value || 0))
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsChallenge || 0))
-const capacity = computed(() => Number(event.value?.drahtCapacityChallenge || 0))
+const drahtCapacity = computed(() => Number(event.value?.drahtCapacityChallenge || 0))
+const capacityOverride = ref<number | null>(null)
+const effectiveCapacity = computed(() => capacityOverride.value ?? drahtCapacity.value)
+
+onDeactivated(() => {
+  capacityOverride.value = null
+})
 
 const teamsPerJuryHint = computed(() => {
   const teams = Number(paramMapByName.value['c_teams']?.value ?? 0)
@@ -228,10 +235,18 @@ const teamsPerJuryHint = computed(() => {
 
 <template>
   <ProgramSection program="challenge">
+    <template #actions>
+      <CapacityOverrideDialog
+          :capacity="effectiveCapacity"
+          :min="challengeTeamLimits.min"
+          :max="challengeTeamLimits.max"
+          @apply="capacityOverride = $event"
+      />
+    </template>
     <TeamPlanBar
         :plan-teams="planTeams"
         :registered-teams="registeredTeams"
-        :capacity="capacity"
+        :capacity="effectiveCapacity"
         :min-teams="challengeTeamLimits.min"
         :max-teams="challengeTeamLimits.max"
         :on-update="(value) => updateByName('c_teams', value)"

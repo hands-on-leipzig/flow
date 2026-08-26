@@ -3,6 +3,7 @@
  * Ablauf / Zusatzaktivitäten shell: sidebar picks the left pane; plan preview stays on the right.
  */
 import { computed, onMounted, ref, watch } from 'vue'
+import dayjs from 'dayjs'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
@@ -10,6 +11,8 @@ import LoaderText from '@/components/atoms/LoaderText.vue'
 import Preview from '@/components/molecules/Preview.vue'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import { formatDateTime } from '@/utils/dateTimeFormat'
+import { seasonLogoAlt, seasonLogoSrc } from '@/utils/images'
+import { cleanEventName, getAbbreviatedCompetitionType } from '@/utils/eventTitle'
 
 defineOptions({ name: 'Schedule' })
 
@@ -35,6 +38,24 @@ const {
 } = useScheduleWorkspace()
 
 const leftWidth = ref(50)
+
+const seasonName = computed(() =>
+  (selectedEvent.value as any)?.season_rel?.name
+  || (selectedEvent.value as any)?.seasonRel?.name
+  || null
+)
+const headingType = computed(() => getAbbreviatedCompetitionType(selectedEvent.value) || 'Veranstaltung')
+const headingPlace = computed(() => cleanEventName(selectedEvent.value) || selectedEvent.value?.name || '—')
+const headingDate = computed(() => {
+  if (!selectedEvent.value?.date) return ''
+  const start = dayjs(selectedEvent.value.date)
+  if (!start.isValid()) return ''
+  if ((selectedEvent.value.days || 1) > 1) {
+    const end = start.add(selectedEvent.value.days - 1, 'day')
+    return `${start.format('DD.MM.YYYY')}–${end.format('DD.MM.YYYY')}`
+  }
+  return start.format('DD.MM.YYYY')
+})
 
 function clearGeneratorError() {
   generatorError.value = null
@@ -80,7 +101,7 @@ watch(
 
 <template>
   <div class="h-full min-h-0 flex flex-col gap-3 overflow-hidden">
-    <div v-if="loading && !selectedPlanId" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)]">
+    <div v-if="loading && !selectedPlanId" class="flex items-center justify-start h-full flex-col text-[var(--color-text-muted)]">
       <LoaderFlow/>
       <LoaderText/>
     </div>
@@ -189,43 +210,63 @@ watch(
             <section class="schedule-workspace__right">
               <div class="schedule-workspace__preview">
                 <div class="schedule-workspace__preview-bar">
-                  <div class="min-w-0 flex items-center gap-2 flex-wrap">
-                    <h2 class="text-sm font-semibold text-[var(--color-text)] truncate min-w-0">
-                      Veranstaltungsplan - zuletzt geändert am {{ planLastChangeLabel }}
-                    </h2>
-                    <button
-                        v-if="!planLocked"
-                        type="button"
-                        class="inline-flex items-center gap-1.5 shrink-0 text-xs md:text-sm px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] disabled:opacity-50"
-                        :disabled="!selectedPlanId"
-                        title="Plan gegen Änderungen sperren"
-                        @click="lockPlan"
-                    >
-                      <i class="bi bi-lock-fill" aria-hidden="true"/>
-                      <span>Sperren</span>
-                    </button>
-                    <span
-                        v-else
-                        class="inline-flex items-center gap-1.5 shrink-0 text-xs font-medium text-[#dc2626]"
-                    >
-                      <i class="bi bi-lock-fill" aria-hidden="true"/>
-                      gegen Änderungen gesperrt
-                    </span>
+                  <div class="min-w-0 flex-1 space-y-1">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                      <div class="flex items-center gap-2 min-w-0 flex-1">
+                        <img
+                            :src="seasonLogoSrc(seasonName)"
+                            :alt="seasonLogoAlt(seasonName)"
+                            class="h-8 w-auto shrink-0 object-contain"
+                        />
+                        <h2 class="min-w-0 text-base sm:text-lg font-bold text-[var(--color-text)] truncate">
+                          <span>{{ headingType }}</span>
+                          <span class="text-[var(--color-text-muted)] font-semibold mx-1.5">·</span>
+                          <span>{{ headingPlace }}</span>
+                          <template v-if="headingDate">
+                            <span class="text-[var(--color-text-muted)] font-semibold mx-1.5">·</span>
+                            <span class="tabular-nums font-semibold">{{ headingDate }}</span>
+                          </template>
+                        </h2>
+                      </div>
+                      <div class="flex items-center gap-2 shrink-0">
+                        <button
+                            v-if="!planLocked"
+                            type="button"
+                            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            :disabled="!selectedPlanId"
+                            title="Plan gegen Änderungen sperren"
+                            @click="lockPlan"
+                        >
+                          <i class="bi bi-lock-fill" aria-hidden="true"/>
+                          <span>Sperren</span>
+                        </button>
+                        <span
+                            v-else
+                            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 font-medium text-[#dc2626]"
+                        >
+                          <i class="bi bi-lock-fill" aria-hidden="true"/>
+                          gesperrt
+                        </span>
+                        <button
+                            type="button"
+                            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            :disabled="!selectedPlanId"
+                            title="Plan in eigenem Fenster öffnen"
+                            @click="openPlanPopout"
+                        >
+                          <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
+                          <span>Pop-out</span>
+                        </button>
+                      </div>
+                    </div>
+                    <p class="text-sm text-[var(--color-text-muted)] m-0">
+                      Zuletzt geändert am {{ planLastChangeLabel }}
+                    </p>
                   </div>
-                  <button
-                      type="button"
-                      class="inline-flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] disabled:opacity-50"
-                      :disabled="!selectedPlanId"
-                      title="Plan in eigenem Fenster öffnen"
-                      @click="openPlanPopout"
-                  >
-                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
-                    <span>Pop-out</span>
-                  </button>
                 </div>
 
                 <div class="flex-1 min-h-0 min-w-0 overflow-hidden">
-                  <div v-if="isGenerating" class="flex items-center justify-center h-full w-full flex-col text-[var(--color-text-muted)]">
+                  <div v-if="isGenerating" class="flex items-center justify-start h-full w-full flex-col text-[var(--color-text-muted)]">
                     <LoaderFlow/>
                     <LoaderText/>
                   </div>
@@ -304,7 +345,7 @@ watch(
 
 .schedule-workspace__preview-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   flex-shrink: 0;

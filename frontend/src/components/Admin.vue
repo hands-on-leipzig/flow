@@ -40,6 +40,10 @@ const sectionAllowed = computed(() => {
 })
 
 function redirectIfSectionBlocked(section) {
+  // Admin stays keep-alive'd; ignore route changes after leaving /plan/admin
+  // (otherwise empty section redirects back to Statistiken).
+  if (!route.path.startsWith('/plan/admin')) return
+
   const resolved = resolveAdminSection(String(section || ''))
   if (resolved !== String(section || '')) {
     void router.replace(`/plan/admin/${resolved}`)

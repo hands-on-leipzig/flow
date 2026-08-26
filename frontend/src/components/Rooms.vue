@@ -848,7 +848,7 @@ const hasWarning = (tab) => {
 
 <template>
   <div>
-    <div v-if="loading" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)] min-h-[400px]">
+    <div v-if="loading" class="flex items-center justify-start h-full flex-col text-[var(--color-text-muted)] min-h-[400px]">
       <LoaderFlow/>
       <LoaderText/>
     </div>

@@ -7,7 +7,7 @@ import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import axios from 'axios'
 import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
-import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import { programLogoSrc } from '@/utils/images'
 import { getProgramTheme } from '@/utils/programTheme'
 
 const FIRST_PROGRAM = {
@@ -15,17 +15,6 @@ const FIRST_PROGRAM = {
   FUTURE_8: 8,
 } as const
 
-type Header = { key: string; title: string }
-type Cell = { render?: boolean; rowspan?: number; colspan?: number; text?: string }
-type Row = {
-  separator?: boolean
-  variant?: 'day'
-  timeIso?: string
-  timeLabel?: string
-  cells?: Record<string, Cell>
-}
-
-// Match-Plan types
 type Match = {
   match_id: number
   match_no: number
@@ -66,7 +55,7 @@ onMounted(() => {
 
 const props = withDefaults(defineProps<{
   planId?: number
-  initialView?: 'overview' | 'roles' | 'teams' | 'robot-game' | 'rooms' | 'activities'
+  initialView?: 'overview' | 'roles' | 'teams' | 'robot-game' | 'activities'
   reload?: number
   /** Hide Plan-ID and similar meta (used in pop-out). */
   hideMeta?: boolean
@@ -79,16 +68,11 @@ const effectivePlanId = computed(() => {
   return props.planId ?? Number(route.params.planId)
 })
 
-const view = ref<'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'rooms' | 'activities'>(props.initialView as any)
+const view = ref<'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'activities'>(props.initialView as any)
 const showAdminSegment = ref(false)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
-
-// Bestehende Preview-Struktur
-const headers = ref<Header[]>([])
-const rows = ref<Row[]>([])
-const headerKeys = computed(() => headers.value.map(h => h.key))
 
 // Activities-Datenstruktur (roh von /plans/activities/{id})
 type ActivityRow = {
@@ -126,6 +110,68 @@ const dualMatchPlan = computed(() => matchPlanPrograms.value.length > 1)
 
 // Event overview HTML
 const overviewHtml = ref<string>('')
+/** Rollen / Teams grid HTML (Überblick-style). */
+const rolesHtml = ref<string>('')
+const teamsHtml = ref<string>('')
+type PreviewProgramFilter = { id: number; label: string; logo: string }
+const rolesPrograms = ref<PreviewProgramFilter[]>([])
+const teamsPrograms = ref<PreviewProgramFilter[]>([])
+/** Program id → visible (default true). */
+const rolesProgramOn = ref<Record<number, boolean>>({})
+const teamsProgramOn = ref<Record<number, boolean>>({})
+
+const rolesHiddenProgramIds = computed(() =>
+  rolesPrograms.value
+    .filter((p) => rolesProgramOn.value[p.id] === false)
+    .map((p) => p.id)
+)
+
+const teamsHiddenProgramIds = computed(() =>
+  teamsPrograms.value
+    .filter((p) => teamsProgramOn.value[p.id] === false)
+    .map((p) => p.id)
+)
+
+function mapPreviewPrograms(raw: unknown): PreviewProgramFilter[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((p: { id: number; label: string; logo: string }) => ({
+    id: Number(p.id),
+    label: String(p.label ?? ''),
+    logo: String(p.logo ?? ''),
+  }))
+}
+
+function syncProgramFilters(
+  targetPrograms: typeof rolesPrograms,
+  targetOn: typeof rolesProgramOn,
+  programs: PreviewProgramFilter[]
+) {
+  targetPrograms.value = programs
+  const next: Record<number, boolean> = {}
+  for (const p of programs) {
+    next[p.id] = targetOn.value[p.id] !== false
+  }
+  targetOn.value = next
+}
+
+function toggleRolesProgram(programId: number) {
+  rolesProgramOn.value = {
+    ...rolesProgramOn.value,
+    [programId]: rolesProgramOn.value[programId] === false,
+  }
+}
+
+function toggleTeamsProgram(programId: number) {
+  teamsProgramOn.value = {
+    ...teamsProgramOn.value,
+    [programId]: teamsProgramOn.value[programId] === false,
+  }
+}
+
+function clearGridHtml() {
+  rolesHtml.value = ''
+  teamsHtml.value = ''
+}
 
 function programThemeKey(programId: number): 'challenge' | 'future8' {
   return programId === FIRST_PROGRAM.FUTURE_8 ? 'future8' : 'challenge'
@@ -165,14 +211,28 @@ async function load() {
 
   try {
     if (view.value === 'overview') {
-      // Event overview HTML
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/overview`)
       overviewHtml.value = data.html
-      headers.value = []
-      rows.value = []
+      clearGridHtml()
       activities.value = []
       robotGameData.value = null
-  } else if (view.value === 'robot-game') {
+    } else if (view.value === 'roles') {
+      const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/roles-grid`)
+      rolesHtml.value = data.html ?? ''
+      teamsHtml.value = ''
+      syncProgramFilters(rolesPrograms, rolesProgramOn, mapPreviewPrograms(data?.programs))
+      overviewHtml.value = ''
+      activities.value = []
+      robotGameData.value = null
+    } else if (view.value === 'teams') {
+      const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/teams-grid`)
+      teamsHtml.value = data.html ?? ''
+      rolesHtml.value = ''
+      syncProgramFilters(teamsPrograms, teamsProgramOn, mapPreviewPrograms(data?.programs))
+      overviewHtml.value = ''
+      activities.value = []
+      robotGameData.value = null
+    } else if (view.value === 'robot-game') {
       const params: Record<string, number> = {}
       if (selectedFirstProgram.value != null) {
         params.first_program = selectedFirstProgram.value
@@ -185,37 +245,27 @@ async function load() {
       if (data?.first_program != null) {
         selectedFirstProgram.value = Number(data.first_program)
       }
-      headers.value = []
-      rows.value = []
       activities.value = []
-  } else if (view.value === 'quality') {
-      // Qualität-Ansicht lädt separat in QPlanDetails
-      headers.value = []
-      rows.value = []
+      overviewHtml.value = ''
+      clearGridHtml()
+    } else if (view.value === 'quality') {
       activities.value = []
+      overviewHtml.value = ''
+      clearGridHtml()
     } else if (view.value === 'activities') {
-      // Power-User-Sicht: rohe Activities vom Backend
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/activities`)
       activities.value = Array.isArray(data?.groups) ? data.groups : []
-      headers.value = []
-      rows.value = []
       robotGameData.value = null
-    } else {
-      // Bestehende Preview-API nutzen
-      const url = `/plans/preview/${effectivePlanId.value}/${view.value}` // roles / teams / rooms
-      const { data } = await axios.get(url)
-      headers.value = Array.isArray(data?.headers) ? data.headers : []
-      rows.value = Array.isArray(data?.rows) ? data.rows : []
-      activities.value = []
-      robotGameData.value = null
+      overviewHtml.value = ''
+      clearGridHtml()
     }
   } catch (e: any) {
     console.error('[Preview] load() error:', e)
     error.value = e?.message || 'Fehler beim Laden'
-    headers.value = []
-    rows.value = []
     activities.value = []
     robotGameData.value = null
+    overviewHtml.value = ''
+    clearGridHtml()
   } finally {
     loading.value = false
   }
@@ -242,7 +292,7 @@ onMounted(async () => {
   load()
 })
 
-function setView(v: 'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'rooms' | 'activities') {
+function setView(v: 'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'activities') {
   if (view.value !== v) view.value = v
 }
 
@@ -288,6 +338,15 @@ function formatTeam(teamNum: number | null): string {
   return String(teamNum)
 }
 
+function matchPlanProgramLabel(programId: number): string {
+  return `FIRST LEGO League ${themeForProgram(programId).shortName}`
+}
+
+function selectMatchPlanProgram(programId: number) {
+  if (selectedFirstProgram.value === programId) return
+  selectedFirstProgram.value = programId
+}
+
 // Check if any activity group has explore_group filled
 const hasExploreGroups = computed(() => {
   return activities.value.some(group => group.explore_group !== null && group.explore_group !== undefined)
@@ -304,69 +363,34 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
 <template>
   <div class="flex flex-col gap-3 h-full min-h-0">
-    <!-- Kopfbereich: Buttons + Info -->
-    <div class="flex items-center gap-2 min-w-0">
+    <div class="glass-panel-header !mb-0 shrink-0">
       <div class="flex flex-wrap items-center gap-2 min-w-0 flex-1">
         <div class="glass-segment">
           <button
+            type="button"
             class="glass-segment__btn"
             :class="{'glass-segment__btn--active': view === 'overview'}"
             @click="setView('overview')"
           >Überblick</button>
-        </div>
-
-        <div class="glass-segment">
           <button
+            type="button"
             class="glass-segment__btn"
             :class="{'glass-segment__btn--active': view === 'roles'}"
             @click="setView('roles')"
           >Rollen</button>
-
           <button
+            type="button"
             class="glass-segment__btn"
             :class="{'glass-segment__btn--active': view === 'teams'}"
             @click="setView('teams')"
           >Teams</button>
-
           <button
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': view === 'rooms'}"
-            @click="setView('rooms')"
-          >Räume</button>
-        </div>
-
-        <div v-if="hasMatchPlan && !dualMatchPlan" class="glass-segment">
-          <button
+            v-if="hasMatchPlan"
+            type="button"
             class="glass-segment__btn"
             :class="{'glass-segment__btn--active': view === 'robot-game'}"
             @click="openMatchPlan()"
           >Match-Plan</button>
-        </div>
-
-        <div v-if="hasMatchPlan && dualMatchPlan" class="flex items-center gap-1.5">
-          <div class="glass-segment">
-            <span
-              class="glass-segment__btn pointer-events-none cursor-default"
-              :class="{'glass-segment__btn--active': view === 'robot-game'}"
-            >Match-Plan</span>
-          </div>
-          <button
-            v-for="programId in matchPlanPrograms"
-            :key="`match-${programId}`"
-            type="button"
-            class="preview-program-icon"
-            :class="{'preview-program-icon--active': view === 'robot-game' && selectedFirstProgram === programId}"
-            :title="themeForProgram(programId).shortName"
-            :aria-label="`Match-Plan ${themeForProgram(programId).shortName}`"
-            @click="openMatchPlan(programId)"
-          >
-            <img
-              v-if="themeForProgram(programId).catalogName"
-              :src="programLogoSrc(themeForProgram(programId).catalogName)"
-              :alt="programLogoAlt(themeForProgram(programId).catalogName)"
-              class="preview-program-icon__img"
-            />
-          </button>
         </div>
 
         <div v-if="isAdmin" class="glass-segment">
@@ -383,127 +407,133 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           </button>
         </div>
 
-        <div v-if="isAdmin && showAdminSegment" class="flex flex-wrap items-center gap-2">
-          <div class="glass-segment">
-            <button
-              class="glass-segment__btn"
-              :class="{'glass-segment__btn--active': view === 'activities'}"
-              @click="setView('activities')"
-            >Aktivitäten</button>
-          </div>
-
-          <div v-if="hasMatchPlan && !dualMatchPlan" class="glass-segment">
-            <button
-              class="glass-segment__btn"
-              :class="{'glass-segment__btn--active': view === 'quality'}"
-              @click="openQuality()"
-            >Plan-Qualität</button>
-          </div>
-
-          <div v-if="hasMatchPlan && dualMatchPlan" class="flex items-center gap-1.5">
-            <div class="glass-segment">
-              <span
-                class="glass-segment__btn pointer-events-none cursor-default"
-                :class="{'glass-segment__btn--active': view === 'quality'}"
-              >Plan-Qualität</span>
-            </div>
-            <button
-              v-for="programId in matchPlanPrograms"
-              :key="`quality-${programId}`"
-              type="button"
-              class="preview-program-icon"
-              :class="{'preview-program-icon--active': view === 'quality' && selectedFirstProgram === programId}"
-              :title="themeForProgram(programId).shortName"
-              :aria-label="`Plan-Qualität ${themeForProgram(programId).shortName}`"
-              @click="openQuality(programId)"
-            >
-              <img
-                v-if="themeForProgram(programId).catalogName"
-                :src="programLogoSrc(themeForProgram(programId).catalogName)"
-                :alt="programLogoAlt(themeForProgram(programId).catalogName)"
-                class="preview-program-icon__img"
-              />
-            </button>
-          </div>
+        <div v-if="isAdmin && showAdminSegment" class="glass-segment">
+          <button
+            type="button"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'activities'}"
+            @click="setView('activities')"
+          >Aktivitäten</button>
+          <button
+            v-if="hasMatchPlan"
+            type="button"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'quality'}"
+            @click="openQuality()"
+          >Plan-Qualität</button>
         </div>
       </div>
 
-      <div v-if="!hideMeta" class="shrink-0 text-xs text-[var(--color-text-subtle)]">
-        <span class="whitespace-nowrap">Plan ID: {{ effectivePlanId }}</span>
-      </div>
+      <p v-if="!hideMeta" class="glass-settings-hint !not-italic shrink-0 m-0">
+        Plan ID: {{ effectivePlanId }}
+      </p>
+    </div>
+
+    <p
+      v-if="view === 'roles' || view === 'teams'"
+      class="glass-settings-hint !mt-0 !mb-0"
+    >
+      Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+    </p>
+
+    <!-- Program filters (glass-choice), above content -->
+    <div
+      v-if="view === 'roles' && !loading && rolesHtml && rolesPrograms.length > 1"
+      class="glass-settings-row shrink-0"
+    >
+      <button
+        v-for="p in rolesPrograms"
+        :key="p.id"
+        type="button"
+        class="glass-choice preview-program-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
+        :class="{ 'glass-choice--active': rolesProgramOn[p.id] !== false }"
+        :aria-pressed="rolesProgramOn[p.id] !== false"
+        @click="toggleRolesProgram(p.id)"
+      >
+        <img :src="p.logo" alt="" class="preview-program-choice__logo" />
+        <span>{{ p.label }}</span>
+      </button>
     </div>
 
     <div
-      v-if="view === 'roles' || view === 'teams' || view === 'rooms'"
-      class="text-xs text-[var(--color-text-subtle)]"
+      v-else-if="view === 'teams' && !loading && teamsHtml && teamsPrograms.length > 1"
+      class="glass-settings-row shrink-0"
     >
-      Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+      <button
+        v-for="p in teamsPrograms"
+        :key="p.id"
+        type="button"
+        class="glass-choice preview-program-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
+        :class="{ 'glass-choice--active': teamsProgramOn[p.id] !== false }"
+        :aria-pressed="teamsProgramOn[p.id] !== false"
+        @click="toggleTeamsProgram(p.id)"
+      >
+        <img :src="p.logo" alt="" class="preview-program-choice__logo" />
+        <span>{{ p.label }}</span>
+      </button>
     </div>
 
-    <!-- Fehlermeldung -->
-    <div v-if="error" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
+    <div
+      v-else-if="(view === 'robot-game' || view === 'quality') && dualMatchPlan"
+      class="glass-settings-row shrink-0"
+    >
+      <button
+        v-for="programId in matchPlanPrograms"
+        :key="`program-filter-${programId}`"
+        type="button"
+        class="glass-choice preview-program-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
+        :class="{ 'glass-choice--active': selectedFirstProgram === programId }"
+        :aria-pressed="selectedFirstProgram === programId"
+        @click="selectMatchPlanProgram(programId)"
+      >
+        <img
+          v-if="themeForProgram(programId).catalogName"
+          :src="programLogoSrc(themeForProgram(programId).catalogName)"
+          alt=""
+          class="preview-program-choice__logo"
+        />
+        <span>{{ matchPlanProgramLabel(programId) }}</span>
+      </button>
+    </div>
+
+    <div v-if="error" class="glass-chip liquid-surface-inner !px-3 !py-2 text-sm text-red-700 shrink-0">
       {{ error }}
     </div>
 
-    <!-- ANSICHT 1–3: Bestehende Preview-Tabellen (roles, teams, rooms) -->
-    <div v-if="view === 'roles' || view === 'teams' || view === 'rooms'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white">
-      <table class="w-full table-fixed text-sm">
-        <thead class="sticky top-0 bg-[var(--color-bg-muted)]">
-          <tr>
-            <th v-for="h in headers" :key="h.key" class="text-left font-normal px-2 py-2 border-b border-[var(--color-border)]">
-              {{ h.title }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="loading">
-            <td :colspan="headers.length" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</td>
-          </tr>
+    <!-- ANSICHT: Rollen (new grid) -->
+    <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <template v-else>
+        <div v-if="!rolesHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
+          Keine Rollen-Daten gefunden.
+        </div>
+        <div
+          v-else
+          class="roles-grid-host min-h-0"
+          :data-hide-programs="rolesHiddenProgramIds.join(' ')"
+          v-html="rolesHtml"
+        ></div>
+      </template>
+    </div>
 
-          <template v-else>
-            <template v-for="(r, ridx) in rows" :key="ridx">
-              <tr v-if="r.separator">
-                <td :colspan="headers.length" class="p-0">
-                  <div v-if="r.variant === 'day'" class="h-0.5 bg-[var(--color-bg-muted)]0"></div>
-                  <div v-else class="h-3"></div>
-                </td>
-              </tr>
-
-              <tr v-else class="odd:bg-[var(--color-bg-muted)] even:bg-[var(--color-bg-muted)]">
-                <td v-if="headerKeys[0]==='time'" class="align-top px-2 py-2 whitespace-pre-line">
-                  <template v-if="r.timeLabel">
-                    <span class="block">{{ (r.timeLabel || '').split(' ')[0] }}</span>
-                    <span class="block">{{ (r.timeLabel || '').split(' ')[1] || '' }}</span>
-                  </template>
-                </td>
-
-                <template v-for="(h, cidx) in headers.slice(1)" :key="h.key + '-' + ridx">
-                  <template v-if="r.cells && r.cells[h.key]">
-                    <td v-if="r.cells[h.key].render !== false"
-                        class="align-top px-2 py-2 whitespace-pre-line"
-                        :rowspan="r.cells[h.key].rowspan || 1"
-                        :colspan="r.cells[h.key].colspan || 1"
-                        :class="(r.cells[h.key].text && r.cells[h.key].text!.trim() !== '') ? 'bg-white' : ''">
-                      {{ r.cells[h.key].text || '' }}
-                    </td>
-                  </template>
-                  <td v-else class="align-top px-2 py-2"></td>
-                </template>
-              </tr>
-            </template>
-
-            <tr v-if="rows.length === 0 && !loading">
-              <td :colspan="headers.length" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
-                Keine Aktivitäten im Zeitraum.
-              </td>
-            </tr>
-          </template>
-        </tbody>
-      </table>
+    <!-- ANSICHT: Teams (new grid) -->
+    <div v-else-if="view === 'teams'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <template v-else>
+        <div v-if="!teamsHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
+          Keine Team-Daten gefunden.
+        </div>
+        <div
+          v-else
+          class="roles-grid-host min-h-0"
+          :data-hide-programs="teamsHiddenProgramIds.join(' ')"
+          v-html="teamsHtml"
+        ></div>
+      </template>
     </div>
 
     <!-- ANSICHT: Überblick -->
-    <div v-if="view === 'overview'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+    <div v-else-if="view === 'overview'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
       <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
       
       <template v-else>
@@ -722,33 +752,24 @@ td {
   height: 18px;
 }
 
-.preview-program-icon {
+/* Hide program columns when filter toggles are off */
+.roles-grid-host[data-hide-programs~='2'] :deep([data-program-id='2']),
+.roles-grid-host[data-hide-programs~='3'] :deep([data-program-id='3']),
+.roles-grid-host[data-hide-programs~='8'] :deep([data-program-id='8']) {
+  display: none !important;
+}
+
+.preview-program-choice {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0.15rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-muted);
+  gap: 0.4rem;
   cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
-.preview-program-icon:hover {
-  background: var(--color-bg-hover);
-}
-
-.preview-program-icon--active {
-  border-color: var(--color-accent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 12%, #fff);
-}
-
-.preview-program-icon__img {
-  width: 100%;
-  height: 100%;
+.preview-program-choice__logo {
+  width: 1.25rem;
+  height: 1.25rem;
   object-fit: contain;
+  flex-shrink: 0;
 }
 </style>

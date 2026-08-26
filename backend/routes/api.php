@@ -181,9 +181,8 @@ Route::middleware(['keycloak'])->group(function () {
     // Preview controller
     Route::prefix('plans/preview')->group(function () {
         Route::get('/{planId}/overview', [PlanPreviewController::class, 'previewOverview']);
-        Route::get('/{planId}/roles', [PlanPreviewController::class, 'previewRoles']);
-        Route::get('/{planId}/teams', [PlanPreviewController::class, 'previewTeams']);
-        Route::get('/{planId}/rooms', [PlanPreviewController::class, 'previewRooms']);
+        Route::get('/{planId}/roles-grid', [PlanPreviewController::class, 'previewRolesGrid']);
+        Route::get('/{planId}/teams-grid', [PlanPreviewController::class, 'previewTeamsGrid']);
         Route::get('/{planId}/robot-game', [PlanPreviewController::class, 'previewRobotGame']);
         Route::get('/{planId}/activities', [PlanPreviewController::class, 'previewActivities']);
     });
