@@ -53,17 +53,16 @@ function selectProgram(id) {
 </script>
 
 <template>
-  <div class="sticky top-0 bg-white border-b p-4 z-10">
-    <div class="flex flex-wrap items-end gap-6">
-      <!-- Program (Ablauf / ProgramSection identity) -->
-      <div>
-        <label class="block font-semibold mb-1">Programm</label>
+  <div class="qrun-config">
+    <div class="qrun-config__fields">
+      <div class="qrun-config__field qrun-config__field--break">
+        <label class="qrun-config__label">Programm</label>
         <div class="flex items-center gap-2">
           <button
             v-for="option in PROGRAM_OPTIONS"
             :key="option.id"
             type="button"
-            class="qrun-program-choice"
+            class="qrun-program-choice liquid-surface-inner"
             :class="{ 'qrun-program-choice--active': firstProgram === option.id }"
             :style="{ '--program-accent': themeFor(option.key).accent }"
             :title="themeFor(option.key).shortName"
@@ -80,50 +79,47 @@ function selectProgram(id) {
         </div>
       </div>
 
-      <!-- Name -->
-      <div>
-        <label class="block font-semibold mb-1">Name für den QRun</label>
+      <div class="qrun-config__field">
+        <label class="qrun-config__label">Name für den QRun</label>
         <input
           type="text"
-          class="border rounded px-2 py-1 w-64"
+          class="glass-input liquid-surface-control !px-3 !py-2 w-64 max-w-full"
           :value="qrunName"
           @input="emit('update:qrunName', $event.target.value)"
           placeholder="z. B. letzter Test für heute"
         />
       </div>
 
-      <!-- Team Range -->
-      <div>
-        <label class="block font-semibold mb-1">Teams (min–max)</label>
-        <div class="flex gap-2">
+      <div class="qrun-config__field">
+        <label class="qrun-config__label">Teams (min–max)</label>
+        <div class="flex gap-2 items-center">
           <input
             type="number"
             min="4"
             max="25"
-            class="border rounded px-2 py-1 w-20"
+            class="glass-input liquid-surface-control !px-3 !py-2 w-20"
             :value="minTeams"
             @input="emit('update:minTeams', Number($event.target.value))"
           />
-          <span class="self-center">–</span>
+          <span class="text-[var(--color-text-muted)]">–</span>
           <input
             type="number"
             min="4"
             max="25"
-            class="border rounded px-2 py-1 w-20"
+            class="glass-input liquid-surface-control !px-3 !py-2 w-20"
             :value="maxTeams"
             @input="emit('update:maxTeams', Number($event.target.value))"
           />
         </div>
       </div>
 
-      <!-- Jury Lanes -->
-      <div>
-        <label class="block font-semibold mb-1">Jury-Spuren</label>
-        <div class="flex flex-wrap gap-2">
+      <div class="qrun-config__field">
+        <label class="qrun-config__label">Jury-Spuren</label>
+        <div class="qrun-config__checks">
           <label
             v-for="i in 5"
             :key="'lane_' + i"
-            class="flex items-center gap-1"
+            class="qrun-config__check"
           >
             <input
               type="checkbox"
@@ -138,11 +134,10 @@ function selectProgram(id) {
         </div>
       </div>
 
-      <!-- Tables / Fields -->
-      <div>
-        <label class="block font-semibold mb-1">{{ tablesLabel }}</label>
-        <div class="flex gap-4">
-          <label class="flex items-center gap-1">
+      <div class="qrun-config__field">
+        <label class="qrun-config__label">{{ tablesLabel }}</label>
+        <div class="qrun-config__checks">
+          <label class="qrun-config__check">
             <input
               type="checkbox"
               :checked="tables.tables_2"
@@ -150,7 +145,7 @@ function selectProgram(id) {
             />
             2
           </label>
-          <label class="flex items-center gap-1">
+          <label class="qrun-config__check">
             <input
               type="checkbox"
               :checked="tables.tables_4"
@@ -161,11 +156,10 @@ function selectProgram(id) {
         </div>
       </div>
 
-      <!-- Jury Runden -->
-      <div>
-        <label class="block font-semibold mb-1">Jury-Runden</label>
-        <div class="flex gap-4">
-          <label class="flex items-center gap-1">
+      <div class="qrun-config__field">
+        <label class="qrun-config__label">Jury-Runden</label>
+        <div class="qrun-config__checks">
+          <label class="qrun-config__check">
             <input
               type="checkbox"
               :checked="juryRounds.rounds_3"
@@ -173,7 +167,7 @@ function selectProgram(id) {
             />
             3
           </label>
-          <label class="flex items-center gap-1">
+          <label class="qrun-config__check">
             <input
               type="checkbox"
               :checked="juryRounds.rounds_4"
@@ -181,7 +175,7 @@ function selectProgram(id) {
             />
             4
           </label>
-          <label class="flex items-center gap-1">
+          <label class="qrun-config__check">
             <input
               type="checkbox"
               :checked="juryRounds.rounds_5"
@@ -189,7 +183,7 @@ function selectProgram(id) {
             />
             5
           </label>
-          <label class="flex items-center gap-1">
+          <label class="qrun-config__check">
             <input
               type="checkbox"
               :checked="juryRounds.rounds_6"
@@ -200,57 +194,58 @@ function selectProgram(id) {
         </div>
       </div>
 
-      <!-- Robot-Check (Challenge only) -->
-      <div v-if="!isFuture8">
-        <label class="block font-semibold mb-1">Robot-Check</label>
-        <div class="flex gap-4">
-          <label class="flex items-center gap-1">
+      <div v-if="!isFuture8" class="qrun-config__field">
+        <label class="qrun-config__label">Robot-Check</label>
+        <div class="qrun-config__checks">
+          <label class="qrun-config__check">
             <input
               type="checkbox"
               :checked="robotCheck.rc_off"
               @change="emit('update:robotCheck', { ...robotCheck, rc_off: $event.target.checked })"
             />
-            ❌ Aus
+            Aus
           </label>
-          <label class="flex items-center gap-1">
+          <label class="qrun-config__check">
             <input
               type="checkbox"
               :checked="robotCheck.rc_on"
               @change="emit('update:robotCheck', { ...robotCheck, rc_on: $event.target.checked })"
             />
-            ✅ An
+            An
           </label>
         </div>
       </div>
 
-      <!-- Kommentar -->
-      <div class="w-full">
-        <label class="block font-semibold mb-1">Kommentar (optional)</label>
+      <div class="qrun-config__field qrun-config__field--wide">
+        <label class="qrun-config__label">Kommentar (optional)</label>
         <textarea
           rows="2"
-          class="border rounded px-2 py-1 w-full"
+          class="glass-input liquid-surface-control !px-3 !py-2 w-full"
           :value="qrunComment"
           @input="emit('update:qrunComment', $event.target.value)"
           placeholder="Notizen zum QRun …"
         />
       </div>
 
-      <!-- Buttons: Start + Refresh -->
-      <div class="flex items-center gap-3">
+      <div class="qrun-config__actions">
         <button
-          class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded disabled:opacity-40"
+          type="button"
+          class="glass-btn-accent !px-5 !py-2.5 !text-sm inline-flex items-center gap-2 disabled:opacity-40"
           :disabled="!isValid"
           @click="emit('start')"
         >
-          ▶️ Start
+          <i class="bi bi-play-fill" aria-hidden="true"/>
+          Start
         </button>
 
         <button
-          class="bg-gray-200 hover:bg-gray-300 text-[var(--color-text)] font-semibold px-3 py-2 rounded"
+          type="button"
+          class="glass-btn-secondary !px-4 !py-2.5 !text-sm inline-flex items-center gap-2"
           title="Liste neu laden"
           @click="emit('refresh')"
         >
-          🔄 Aktualisieren
+          <i class="bi bi-arrow-clockwise" aria-hidden="true"/>
+          Aktualisieren
         </button>
       </div>
     </div>
@@ -258,14 +253,65 @@ function selectProgram(id) {
 </template>
 
 <style scoped>
+.qrun-config__fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1.25rem 1.5rem;
+}
+
+.qrun-config__field {
+  min-width: 0;
+}
+
+.qrun-config__field--wide {
+  width: 100%;
+}
+
+.qrun-config__field--break {
+  flex: 1 0 100%;
+}
+
+.qrun-config__label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+}
+
+.qrun-config__checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.qrun-config__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, var(--liquid-border-soft));
+  background: color-mix(in srgb, #ffffff 82%, var(--liquid-tile-bg-inner));
+  font-size: 0.875rem;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.qrun-config__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .qrun-program-choice {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
   padding: 0.35rem 0.65rem 0.35rem 0.4rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-border);
-  background: #fff;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, var(--liquid-border-soft));
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
@@ -276,7 +322,7 @@ function selectProgram(id) {
 
 .qrun-program-choice--active {
   border-color: color-mix(in srgb, var(--program-accent) 55%, var(--color-border));
-  background: color-mix(in srgb, var(--program-accent) 10%, #fff);
+  background: color-mix(in srgb, var(--program-accent) 12%, #fff);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--program-accent) 16%, transparent);
 }
 

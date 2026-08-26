@@ -19,6 +19,8 @@ const cachedPages = [
 
 const eventId = computed(() => eventStore.selectedEvent?.id ?? 0)
 
+const isAdminPage = computed(() => route.path.includes('/plan/admin'))
+
 /** Nested Ablauf / Ausgabe / Teams routes share one cache entry so the shell stays mounted. */
 const pageKey = computed(() => {
   const path = route.path
@@ -31,13 +33,16 @@ const pageKey = computed(() => {
 </script>
 
 <template>
-  <router-view v-slot="{ Component }">
-    <keep-alive :include="cachedPages" :max="12">
-      <component
-          :is="Component"
-          v-if="Component"
-          :key="pageKey"
-      />
-    </keep-alive>
-  </router-view>
+  <div :class="isAdminPage ? 'h-full min-h-0' : undefined">
+    <router-view v-slot="{ Component }">
+      <keep-alive :include="cachedPages" :max="12">
+        <component
+            :is="Component"
+            v-if="Component"
+            :key="pageKey"
+            :class="isAdminPage ? 'h-full min-h-0' : undefined"
+        />
+      </keep-alive>
+    </router-view>
+  </div>
 </template>

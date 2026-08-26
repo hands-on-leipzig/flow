@@ -2,7 +2,7 @@
   <div class="visibility-admin">
 
     <!-- Filters -->
-    <div class="filters mb-4 flex gap-4 items-center">
+    <div class="filters flex gap-4 items-center flex-wrap">
       <div class="flex items-center gap-2">
         <label class="text-sm font-medium text-[var(--color-text-muted)]">Activity Type:</label>
         <select 
@@ -320,10 +320,28 @@ const getRoleName = (roleId) => {
 </script>
 
 <style scoped>
+.visibility-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.filters {
+  flex-shrink: 0;
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+}
+
 .matrix-wrapper {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
-  max-height: 70vh;
-  max-width: 90vw;
   border: 1px solid #e5e7eb;
   border-radius: 0.375rem;
 }
@@ -334,7 +352,7 @@ const getRoleName = (roleId) => {
   width: 100%;
 }
 
-.sticky-top {
+.sticky-top th {
   position: sticky;
   top: 0;
   z-index: 10;
@@ -346,20 +364,7 @@ const getRoleName = (roleId) => {
   z-index: 5;
 }
 
-.sticky-top.sticky-left {
+.sticky-top th.sticky-left {
   z-index: 15;
-}
-
-.filters {
-  background: #f9fafb;
-  padding: 1rem;
-  border-radius: 0.375rem;
-  border: 1px solid #e5e7eb;
-}
-</style>
-
-<style scoped>
-.visibility-admin {
-  max-width: 100%;
 }
 </style>

@@ -7,7 +7,14 @@ import {useProgramsStore} from '@/stores/programs'
 import {useAuth} from '@/composables/useAuth'
 import {imageUrl, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programMatchesSlug, programCompact, hasAfternoon} from '@/utils/eventPrograms'
-import {ADMIN_SECTIONS, ADMIN_DEFAULT_SECTION, adminSectionPath, isAdminSectionAvailable} from '@/constants/adminNav'
+import {
+  ADMIN_OPS_SECTIONS,
+  ADMIN_ENTWICKLUNG_SECTIONS,
+  ADMIN_DEFAULT_SECTION,
+  adminSectionPath,
+  isAdminSectionAvailable,
+  isEntwicklungEnvironment,
+} from '@/constants/adminNav'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
@@ -133,25 +140,28 @@ const isLiveTabActive = computed(() => isActive(liveTabPath))
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
 const showBackToOverview = computed(() => isLiveTabActive.value || isAdminMode.value)
 
-const adminNavEntries = computed<NavEntry[]>(() =>
-  ADMIN_SECTIONS.map((item) => {
-    const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
-    const suffix = !available && item.devSuffix ? ` ${item.devSuffix}` : ''
-    return {
-      name: `${item.label}${suffix}`,
-      path: item.path,
-      icon: item.icon,
-      disabled: !available,
-      title: available
-        ? undefined
-        : item.devOrLocalOnly
-          ? `${item.label} ist nur auf Dev oder lokal verfügbar`
-          : `${item.label} ist nur auf Dev verfügbar`,
-    }
-  })
+function toAdminNavEntry(item: (typeof ADMIN_OPS_SECTIONS)[number]): NavEntry {
+  const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
+  return {
+    name: item.label,
+    path: item.path,
+    icon: item.icon,
+    disabled: !available,
+    title: available
+      ? undefined
+      : `${item.label} ist nur auf Dev oder lokal verfügbar`,
+  }
+}
+
+const adminOpsNavEntries = computed<NavEntry[]>(() => ADMIN_OPS_SECTIONS.map(toAdminNavEntry))
+
+const showEntwicklungNav = computed(() => isEntwicklungEnvironment(isLocal))
+
+const adminEntwicklungNavEntries = computed<NavEntry[]>(() =>
+  showEntwicklungNav.value ? ADMIN_ENTWICKLUNG_SECTIONS.map(toAdminNavEntry) : [],
 )
 
-const currentNavEntries = computed(() => (isAdminMode.value ? adminNavEntries.value : navEntries.value))
+const currentNavEntries = computed(() => (isAdminMode.value ? adminOpsNavEntries.value : navEntries.value))
 
 function entryWarning(entry: NavEntry): boolean {
   if (entry.children?.length) {
@@ -335,20 +345,62 @@ function logout() {
         />
     </template>
 
-    <template #nav>
-      <SidebarNavItem
-          v-for="entry in currentNavEntries"
-          :key="entry.path ?? entry.name"
-          :label="entry.name"
-          :icon="entry.icon"
-          :active="entryActive(entry)"
-          :warning="entryWarning(entry)"
-          :disabled="!!entry.disabled"
-          :title="entry.title"
-          :children="entry.children?.map(childNavProps)"
-          @select="onNavSelect(entry)"
-          @select-child="onNavChildSelect"
-      />
+    <template #nav="{ collapsed: navCollapsed }">
+      <template v-if="isAdminMode">
+        <SidebarNavItem
+            v-for="entry in adminOpsNavEntries"
+            :key="entry.path ?? entry.name"
+            :label="entry.name"
+            :icon="entry.icon"
+            :active="entryActive(entry)"
+            :warning="entryWarning(entry)"
+            :disabled="!!entry.disabled"
+            :title="entry.title"
+            @select="onNavSelect(entry)"
+        />
+        <div
+            v-if="showEntwicklungNav"
+            class="admin-nav-group"
+            :class="{ 'admin-nav-group--collapsed': !!navCollapsed }"
+            role="group"
+            aria-label="Entwicklung"
+        >
+          <div class="admin-nav-group__header" :title="navCollapsed ? 'Entwicklung (nur Dev/Lokal)' : undefined">
+            <span v-if="!navCollapsed" class="admin-nav-group__label">Entwicklung</span>
+            <span
+                v-if="!navCollapsed"
+                class="glass-chip !px-2 !py-0.5 !text-xs shrink-0"
+            >nur Dev/Lokal</span>
+            <span v-else class="admin-nav-group__rail-mark" aria-hidden="true"/>
+          </div>
+          <SidebarNavItem
+              v-for="entry in adminEntwicklungNavEntries"
+              :key="entry.path ?? entry.name"
+              :label="entry.name"
+              :icon="entry.icon"
+              :active="entryActive(entry)"
+              :warning="entryWarning(entry)"
+              :disabled="!!entry.disabled"
+              :title="entry.title"
+              @select="onNavSelect(entry)"
+          />
+        </div>
+      </template>
+      <template v-else>
+        <SidebarNavItem
+            v-for="entry in currentNavEntries"
+            :key="entry.path ?? entry.name"
+            :label="entry.name"
+            :icon="entry.icon"
+            :active="entryActive(entry)"
+            :warning="entryWarning(entry)"
+            :disabled="!!entry.disabled"
+            :title="entry.title"
+            :children="entry.children?.map(childNavProps)"
+            @select="onNavSelect(entry)"
+            @select-child="onNavChildSelect"
+        />
+      </template>
     </template>
 
     <template #lower="{ collapsed }">
