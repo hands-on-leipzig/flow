@@ -119,8 +119,8 @@ const startVolumeTest = () => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full overflow-hidden">
-    <div class="sticky top-0 z-10 bg-white border-b p-4">
+  <div class="quality-shell flex flex-col gap-4">
+    <div class="glass-card liquid-surface-inner quality-shell__config">
       <QRunConfigForm
         v-model:first-program="firstProgram"
         v-model:min-teams="minTeams"
@@ -137,7 +137,7 @@ const startVolumeTest = () => {
       />
     </div>
 
-    <div class="flex-1 overflow-y-auto p-4">
+    <div class="quality-shell__list">
       <QRunList :reload="reload" />
     </div>
   </div>

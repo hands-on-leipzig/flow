@@ -244,7 +244,7 @@ async function startRerun() {
 </script>
 
 <template>
-  <div class="ml-4 mt-2 border-l-2 border-[var(--color-border)] pl-4">
+  <div class="ml-1 mt-1">
 
     <div v-if="loading" class="text-[var(--color-text-subtle)] text-sm">Lade QPläne …</div>
     <div v-else-if="error" class="text-red-500 text-sm">{{ error }}</div>
@@ -401,11 +401,13 @@ async function startRerun() {
 
           <!-- Button rechts außen -->
           <button
+            type="button"
             @click.stop="startRerun"
-            class="text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded"
+            class="glass-btn-accent !px-3 !py-1.5 !text-sm inline-flex items-center gap-1.5"
             title="Neuen QRun mit diesen Plänen starten"
           >
-            🔁 ReRun für {{ plans.length }} Pläne
+            <i class="bi bi-arrow-repeat" aria-hidden="true"/>
+            ReRun für {{ plans.length }} Pläne
           </button>
         </div>
 
@@ -477,7 +479,7 @@ async function startRerun() {
               <span>{{ qplan.plan }}</span>
               <button
                 @click.stop="openPreview(qplan.plan)"
-                class="text-blue-600 hover:text-blue-800"
+                class="text-[var(--color-accent)] hover:opacity-80"
                 title="Vorschau öffnen"
               >
                 🧾

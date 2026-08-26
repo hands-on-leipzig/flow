@@ -86,8 +86,8 @@ const transferRows = computed(() => {
       <div class="flex flex-row items-start gap-4">
         <div class="overflow-x-auto">
           <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Transfer</div>
-          <table class="table-auto text-sm border-collapse">
-            <thead class="bg-[var(--color-bg-muted)]">
+          <table class="table-auto text-sm border-collapse glass-list">
+            <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
               <tr>
                 <th class="px-2 py-1 text-left">Team</th>
                 <th class="px-2 py-1">Tr.</th>
@@ -142,8 +142,8 @@ const transferRows = computed(() => {
 
         <div class="overflow-x-auto">
           <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Testrunde, Tische und Teams gegenüber</div>
-          <table class="table-auto text-sm border-collapse">
-            <thead class="bg-[var(--color-bg-muted)]">
+          <table class="table-auto text-sm border-collapse glass-list">
+            <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
               <tr>
                 <th class="px-2 py-1 text-left">Team</th>
                 <th class="px-2 py-1">TR</th>
@@ -201,8 +201,8 @@ const transferRows = computed(() => {
             <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
               {{ col.label }}
             </div>
-            <table class="table-auto text-sm border-collapse">
-              <thead class="bg-[var(--color-bg-muted)]">
+            <table class="table-auto text-sm border-collapse glass-list">
+              <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
                 <tr>
                   <th class="px-2 py-1">T1</th>
                   <th class="px-2 py-1">T2</th>

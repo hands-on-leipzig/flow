@@ -132,11 +132,11 @@ function programTheme(qrun) {
 </script>
 
 <template>
-  <div class="space-y-2 mt-4">
+  <div class="space-y-3">
     <div class="flex items-center justify-end gap-2">
       <button
         type="button"
-        class="px-3 py-1.5 text-sm rounded border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        class="glass-btn-secondary !px-3 !py-1.5 !text-sm text-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
         :disabled="loading || previewRunCount < 1"
         title="Löscht alle QRuns ohne selection (Preview / ReRun)"
         @click="showDeletePreviewConfirm = true"
@@ -147,12 +147,14 @@ function programTheme(qrun) {
 
     <div v-if="loading" class="text-[var(--color-text-subtle)]">Lade QRuns …</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
-    <div v-else-if="qruns.length === 0" class="text-[var(--color-text-subtle)]">Keine QRuns gefunden.</div>
-    <div v-else>
+    <div v-else-if="qruns.length === 0" class="glass-card liquid-surface-inner text-[var(--color-text-subtle)]">
+      Keine QRuns gefunden.
+    </div>
+    <div v-else class="space-y-3">
       <div
         v-for="qrun in qruns"
         :key="qrun.id"
-        class="border rounded bg-[var(--color-bg-muted)] overflow-hidden"
+        class="glass-card liquid-surface-inner !p-0 overflow-hidden"
       >
         <div
           class="flex p-4 items-start hover:bg-[var(--color-bg-hover)] cursor-pointer"
@@ -194,15 +196,15 @@ function programTheme(qrun) {
             <div class="flex justify-end items-center gap-2">
               <div>QPlans: {{ qrun.qplans_calculated }} / {{ qrun.qplans_total }}</div>
               <span
-                class="inline-block rounded px-2 py-0.5 text-xs"
+                class="glass-chip !px-2 !py-0.5 !text-xs shrink-0"
                 :class="{
-                  'bg-gray-400 text-white': qrun.status === 'pending',
-                  'bg-yellow-500 text-white': qrun.status === 'running',
-                  'bg-green-600 text-white': qrun.status === 'done',
+                  'qrun-status--pending': qrun.status === 'pending',
+                  'qrun-status--running': qrun.status === 'running',
+                  'qrun-status--done': qrun.status === 'done',
                 }"
               >
                 {{ qrun.status }}
-              </span>            
+              </span>
             </div>
             <div>Start: {{ formatDateTime(qrun.started_at) }}</div>
             <div v-if="qrun.finished_at">
@@ -218,11 +220,12 @@ function programTheme(qrun) {
         <div class="basis-[10%] flex-shrink-0 flex items-center justify-center ml-4">
           <div class="flex flex-col items-center gap-2">
             <button
+              type="button"
               @click.stop="confirmDeleteQRun(qrun.id)"
-              class="px-2 py-1 rounded hover:bg-red-50"
+              class="glass-btn-secondary !px-2.5 !py-1.5 !text-sm text-red-700"
               title="QRun löschen (inkl. zugehöriger QPlans & Pläne)"
             >
-              🗑️
+              <i class="bi bi-trash3" aria-hidden="true"/>
             </button>
             
           </div>
@@ -231,7 +234,7 @@ function programTheme(qrun) {
         </div>
 
         <div v-if="expandedQRunId === qrun.id" class="border-t border-[var(--color-border)]">
-           <div class="bg-white px-4 py-2">
+           <div class="px-4 py-3 bg-[color-mix(in_srgb,#ffffff_55%,var(--liquid-tile-bg-inner))]">
             <QPlanList
               :qrun="qrun.id"
               @refreshParent="loadQRuns"
@@ -266,3 +269,20 @@ function programTheme(qrun) {
     @cancel="showDeletePreviewConfirm = false"
   />
 </template>
+
+<style scoped>
+.qrun-status--pending {
+  background: color-mix(in srgb, var(--color-text-muted) 18%, transparent);
+  color: var(--color-text-muted);
+}
+
+.qrun-status--running {
+  background: color-mix(in srgb, #eab308 22%, transparent);
+  color: #a16207;
+}
+
+.qrun-status--done {
+  background: color-mix(in srgb, #16a34a 18%, transparent);
+  color: #15803d;
+}
+</style>
