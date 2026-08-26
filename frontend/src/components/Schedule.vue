@@ -80,7 +80,7 @@ watch(
 
 <template>
   <div class="h-full min-h-0 flex flex-col gap-3 overflow-hidden">
-    <div v-if="loading && !selectedPlanId" class="flex items-center justify-center h-full flex-col text-[var(--color-text-muted)]">
+    <div v-if="loading && !selectedPlanId" class="flex items-center justify-start h-full flex-col text-[var(--color-text-muted)]">
       <LoaderFlow/>
       <LoaderText/>
     </div>
@@ -225,7 +225,7 @@ watch(
                 </div>
 
                 <div class="flex-1 min-h-0 min-w-0 overflow-hidden">
-                  <div v-if="isGenerating" class="flex items-center justify-center h-full w-full flex-col text-[var(--color-text-muted)]">
+                  <div v-if="isGenerating" class="flex items-center justify-start h-full w-full flex-col text-[var(--color-text-muted)]">
                     <LoaderFlow/>
                     <LoaderText/>
                   </div>

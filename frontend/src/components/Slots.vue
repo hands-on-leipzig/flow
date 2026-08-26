@@ -650,7 +650,7 @@ const inputTitle =
 
 <template>
   <div class="slots-panel">
-    <div v-if="loading" class="flex items-center justify-center flex-col text-[var(--color-text-muted)] py-16">
+    <div v-if="loading" class="flex items-center justify-start flex-col text-[var(--color-text-muted)] py-16">
       <LoaderFlow/>
       <LoaderText/>
     </div>
