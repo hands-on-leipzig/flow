@@ -1,245 +1,206 @@
 <template>
   <div class="main-tables-admin">
-    <div class="mb-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-2xl font-bold text-[var(--color-text)]">m-Tabellen-Verwaltung</h2>
-        
-        <!-- Export Button -->
+    <div class="main-tables-admin__header">
+      <h2 class="text-2xl font-bold text-[var(--color-text)]">m-Tabellen-Verwaltung</h2>
+      <button
+        type="button"
+        @click="createGitHubPR"
+        :disabled="loading || creatingPR"
+        class="glass-btn-accent !px-4 !py-2 !text-sm disabled:opacity-50"
+      >
+        {{ creatingPR ? 'PR wird erstellt...' : 'm-Tabellen exportieren' }}
+      </button>
+    </div>
+
+    <div class="main-tables-admin__body">
+      <aside class="main-tables-admin__nav glass-card liquid-surface-inner !p-2">
         <button
-          @click="createGitHubPR"
-          :disabled="loading || creatingPR"
-          class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+          v-for="table in availableTables"
+          :key="table.name"
+          type="button"
+          class="main-tables-admin__nav-item"
+          :class="{ 'main-tables-admin__nav-item--active': selectedTable === table.name }"
+          @click="selectTable(table.name)"
         >
-          {{ creatingPR ? 'PR wird erstellt...' : 'm-Tabellen exportieren' }}
+          <span class="main-tables-admin__nav-label">{{ table.displayName }}</span>
+          <span class="glass-chip !px-2 !py-0.5 !text-xs shrink-0">{{ table.recordCount }}</span>
         </button>
-      </div>
-      
-      <!-- Table Tabs -->
-      <div class="mb-6">
-        <div class="border-b border-[var(--color-border)] relative">
-          <!-- Left scroll indicator -->
-          <div 
-            v-if="showLeftScroll"
-            class="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent z-10 flex items-center justify-center cursor-pointer hover:bg-[var(--color-bg-hover)]"
-            @mouseenter="scrollLeft"
-            @mouseleave="stopScrolling"
-          >
-            <svg class="w-4 h-4 text-[var(--color-text-subtle)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
-            </svg>
+      </aside>
+
+      <section class="main-tables-admin__content min-w-0">
+        <!-- Special UI for m_parameter table -->
+        <div v-if="selectedTable === 'm_parameter'" class="glass-card liquid-surface-inner overflow-hidden">
+          <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
+              {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
+            </h3>
+            <MParameter />
           </div>
-          
-          <!-- Right scroll indicator -->
-          <div 
-            v-if="showRightScroll"
-            class="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10 flex items-center justify-center cursor-pointer hover:bg-[var(--color-bg-hover)]"
-            @mouseenter="scrollRight"
-            @mouseleave="stopScrolling"
-          >
-            <svg class="w-4 h-4 text-[var(--color-text-subtle)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-            </svg>
+        </div>
+
+        <!-- Special UI for m_visibility table -->
+        <div v-else-if="selectedTable === 'm_visibility'" class="glass-card liquid-surface-inner overflow-hidden">
+          <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
+              {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
+            </h3>
+            <Visibility />
           </div>
-          
-          <nav 
-            ref="tabContainer"
-            class="-mb-px flex space-x-6 overflow-x-auto scrollbar-hide"
-            @scroll="updateScrollIndicators"
-          >
+        </div>
+
+        <!-- Generic Table Content for other tables -->
+        <div v-else-if="selectedTable && tableData.length > 0" class="glass-card liquid-surface-inner overflow-hidden">
+          <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
+              {{ getTableDisplayName(selectedTable) }} - {{ tableData.length }} Datensätze
+            </h3>
+
+            <div class="mb-4">
+              <button
+                type="button"
+                @click="addNewRecord"
+                class="glass-btn-accent !px-3 !py-2 !text-sm inline-flex items-center gap-2"
+              >
+                <i class="bi bi-plus-lg" aria-hidden="true"/>
+                Neuen Datensatz hinzufügen
+              </button>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="min-w-full divide-y divide-[var(--color-border)]">
+                <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-[var(--color-text-subtle)] uppercase tracking-wider">
+                      Aktionen
+                    </th>
+                    <th
+                      v-for="column in tableColumns"
+                      :key="column"
+                      class="px-6 py-3 text-left text-xs font-medium text-[var(--color-text-subtle)] uppercase tracking-wider"
+                    >
+                      {{ column }}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[var(--color-border)]">
+                  <tr v-for="(record, index) in tableData" :key="record.id || index">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div v-if="editingRecord === index" class="flex space-x-2">
+                        <button
+                          type="button"
+                          @click="saveRecord(index)"
+                          class="text-green-600 hover:text-green-900"
+                        >
+                          Speichern
+                        </button>
+                        <button
+                          type="button"
+                          @click="cancelEdit"
+                          class="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                        >
+                          Abbrechen
+                        </button>
+                      </div>
+                      <div v-else class="flex space-x-2">
+                        <button
+                          type="button"
+                          @click="editRecord(index)"
+                          class="text-[var(--color-accent)] hover:opacity-80"
+                        >
+                          Bearbeiten
+                        </button>
+                        <button
+                          type="button"
+                          @click="confirmDeleteRecord(index)"
+                          class="text-red-600 hover:text-red-900"
+                        >
+                          Löschen
+                        </button>
+                      </div>
+                    </td>
+                    <td
+                      v-for="column in tableColumns"
+                      :key="column"
+                      class="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]"
+                    >
+                      <select
+                        v-if="editingRecord === index && column === 'presence'"
+                        v-model="editingData[column]"
+                        class="glass-input liquid-surface-control !px-3 !py-2 w-full"
+                      >
+                        <option value="punctual">punctual — pünktlich da</option>
+                        <option value="window">window — Zeitfenster / Rahmen</option>
+                        <option value="info">info — Kontext / optional</option>
+                      </select>
+                      <input
+                        v-else-if="editingRecord === index"
+                        v-model="editingData[column]"
+                        :type="getInputType(column)"
+                        class="glass-input liquid-surface-control !px-3 !py-2 w-full"
+                      />
+                      <span v-else>{{ record[column] || '-' }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div
+          v-else-if="selectedTable && selectedTable !== 'm_parameter' && selectedTable !== 'm_visibility' && tableData.length === 0"
+          class="glass-card liquid-surface-inner text-center py-12"
+        >
+          <h3 class="mt-2 text-sm font-medium text-[var(--color-text)]">Keine Datensätze gefunden</h3>
+          <p class="mt-1 text-sm text-[var(--color-text-subtle)]">Diese Tabelle ist leer.</p>
+          <div class="mt-6">
             <button
-              v-for="table in availableTables"
-              :key="table.name"
-              :data-table="table.name"
-              @click="selectTable(table.name)"
-              :class="[
-                selectedTable === table.name
-                  ? 'border-blue-500 text-blue-600 bg-blue-50'
-                  : 'border-transparent text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] hover:border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]',
-                'whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm transition-all duration-200 ease-in-out rounded-t-lg tab-button'
-              ]"
+              type="button"
+              @click="addNewRecord"
+              class="glass-btn-accent !px-4 !py-2 !text-sm inline-flex items-center gap-2"
             >
-              <span class="flex items-center">
-                {{ table.displayName }}
-                <span class="ml-2 text-xs bg-gray-200 text-[var(--color-text-muted)] px-2 py-1 rounded-full font-semibold">
-                  {{ table.recordCount }}
-                </span>
-              </span>
+              <i class="bi bi-plus-lg" aria-hidden="true"/>
+              Ersten Datensatz hinzufügen
             </button>
-          </nav>
-        </div>
-      </div>
-    </div>
-
-    <!-- Special UI for m_parameter table -->
-    <div v-if="selectedTable === 'm_parameter'" class="glass-card liquid-surface-inner overflow-hidden">
-      <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
-          {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
-        </h3>
-        <MParameter />
-      </div>
-    </div>
-
-    <!-- Special UI for m_visibility table -->
-    <div v-else-if="selectedTable === 'm_visibility'" class="glass-card liquid-surface-inner overflow-hidden">
-      <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
-          {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
-        </h3>
-        <Visibility />
-      </div>
-    </div>
-
-    <!-- Generic Table Content for other tables -->
-    <div v-else-if="selectedTable && tableData.length > 0" class="glass-card liquid-surface-inner overflow-hidden">
-      <div class="px-4 py-5 sm:p-6">
-        <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
-          {{ getTableDisplayName(selectedTable) }} - {{ tableData.length }} Datensätze
-        </h3>
-
-        <!-- Add New Record Button -->
-        <div class="mb-4">
-          <button
-            @click="addNewRecord"
-            class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-            </svg>
-            Neuen Datensatz hinzufügen
-          </button>
+          </div>
         </div>
 
-        <!-- Table -->
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-[var(--color-bg-muted)]">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-[var(--color-text-subtle)] uppercase tracking-wider">
-                  Aktionen
-                </th>
-                <th
-                  v-for="column in tableColumns"
-                  :key="column"
-                  class="px-6 py-3 text-left text-xs font-medium text-[var(--color-text-subtle)] uppercase tracking-wider"
-                >
-                  {{ column }}
-                </th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <tr v-for="(record, index) in tableData" :key="record.id || index">
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div v-if="editingRecord === index" class="flex space-x-2">
-                    <button
-                      @click="saveRecord(index)"
-                      class="text-green-600 hover:text-green-900"
-                    >
-                      Speichern
-                    </button>
-                    <button
-                      @click="cancelEdit"
-                      class="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                    >
-                      Abbrechen
-                    </button>
-                  </div>
-                  <div v-else class="flex space-x-2">
-                    <button
-                      @click="editRecord(index)"
-                      class="text-blue-600 hover:text-blue-900"
-                    >
-                      Bearbeiten
-                    </button>
-                    <button
-                      @click="confirmDeleteRecord(index)"
-                      class="text-red-600 hover:text-red-900"
-                    >
-                      Löschen
-                    </button>
-                  </div>
-                </td>
-                <td
-                  v-for="column in tableColumns"
-                  :key="column"
-                  class="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]"
-                >
-                  <select
-                    v-if="editingRecord === index && column === 'presence'"
-                    v-model="editingData[column]"
-                    class="block w-full px-3 py-2 border border-[var(--color-border)] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="punctual">punctual — pünktlich da</option>
-                    <option value="window">window — Zeitfenster / Rahmen</option>
-                    <option value="info">info — Kontext / optional</option>
-                  </select>
-                  <input
-                    v-else-if="editingRecord === index"
-                    v-model="editingData[column]"
-                    :type="getInputType(column)"
-                    class="block w-full px-3 py-2 border border-[var(--color-border)] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <span v-else>{{ record[column] || '-' }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- Empty State -->
-    <div v-else-if="selectedTable && selectedTable !== 'm_parameter' && selectedTable !== 'm_visibility' && tableData.length === 0" class="text-center py-12">
-      <svg class="mx-auto h-12 w-12 text-[var(--color-text-subtle)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-      </svg>
-      <h3 class="mt-2 text-sm font-medium text-[var(--color-text)]">Keine Datensätze gefunden</h3>
-      <p class="mt-1 text-sm text-[var(--color-text-subtle)]">Diese Tabelle ist leer.</p>
-      <div class="mt-6">
-        <button
-          @click="addNewRecord"
-          class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        <!-- Loading State -->
+        <div
+          v-else-if="loading && selectedTable !== 'm_parameter' && selectedTable !== 'm_visibility'"
+          class="glass-card liquid-surface-inner text-center py-12"
         >
-          <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-          </svg>
-          Ersten Datensatz hinzufügen
-        </button>
-      </div>
+          <p class="text-sm text-[var(--color-text-subtle)]">Tabellendaten werden geladen...</p>
+        </div>
+
+        <div v-else-if="!selectedTable" class="glass-card liquid-surface-inner text-center py-12">
+          <p class="text-sm text-[var(--color-text-subtle)]">Tabelle links auswählen.</p>
+        </div>
+      </section>
     </div>
 
-    <!-- Loading State -->
-    <div v-else-if="loading && selectedTable !== 'm_parameter' && selectedTable !== 'm_visibility'" class="text-center py-12">
-      <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-      </svg>
-      <p class="mt-2 text-sm text-[var(--color-text-subtle)]">Tabellendaten werden geladen...</p>
-    </div>
+    <ConfirmationModal
+      :show="!!recordToDelete"
+      title="Datensatz löschen"
+      :message="deleteRecordMessage"
+      type="danger"
+      confirm-text="Löschen"
+      cancel-text="Abbrechen"
+      @confirm="deleteRecord"
+      @cancel="cancelDeleteRecord"
+    />
   </div>
-
-  <ConfirmationModal
-    :show="!!recordToDelete"
-    title="Datensatz löschen"
-    :message="deleteRecordMessage"
-    type="danger"
-    confirm-text="Löschen"
-    cancel-text="Abbrechen"
-    @confirm="deleteRecord"
-    @cancel="cancelDeleteRecord"
-  />
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import MParameter from './MParameter.vue'
 import Visibility from './Visibility.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 
-
-// Reactive data
 const selectedTable = ref('')
 const tableData = ref([])
 const tableColumns = ref([])
@@ -249,151 +210,36 @@ const editingData = ref({})
 const creatingPR = ref(false)
 const recordToDelete = ref(null)
 
-// Scroll functionality
-const tabContainer = ref(null)
-const showLeftScroll = ref(false)
-const showRightScroll = ref(false)
-const scrollInterval = ref(null)
-
-// Available tables configuration
 const availableTables = ref([
   { name: 'm_activity_type', displayName: 'Activity Types', recordCount: 0 },
   { name: 'm_activity_type_detail', displayName: 'Activity Type Details', recordCount: 0 },
   { name: 'm_first_program', displayName: 'First Programs', recordCount: 0 },
   { name: 'm_level', displayName: 'Levels', recordCount: 0 },
-  // m_news removed - news is now a regular table, managed separately in System News component
   { name: 'm_parameter', displayName: 'Parameters', recordCount: 0 },
   { name: 'm_role', displayName: 'Roles', recordCount: 0 },
   { name: 'm_room_type', displayName: 'Room Types', recordCount: 0 },
   { name: 'm_room_type_group', displayName: 'Room Type Groups', recordCount: 0 },
   { name: 'm_season', displayName: 'Seasons', recordCount: 0 },
   { name: 'm_supported_plan', displayName: 'Supported Plans', recordCount: 0 },
-  { name: 'm_visibility', displayName: 'Visibility Rules', recordCount: 0 }
+  { name: 'm_visibility', displayName: 'Visibility Rules', recordCount: 0 },
 ])
 
-// Methods
 const selectTable = (tableName) => {
   selectedTable.value = tableName
   loadTableData()
-  
-  // Scroll to the selected tab
-  setTimeout(() => {
-    scrollToSelectedTab()
-  }, 50)
-}
-
-const scrollToSelectedTab = () => {
-  if (!tabContainer.value) return
-  
-  const selectedButton = tabContainer.value.querySelector(`button[data-table="${selectedTable.value}"]`)
-  if (selectedButton) {
-    const containerRect = tabContainer.value.getBoundingClientRect()
-    const buttonRect = selectedButton.getBoundingClientRect()
-    
-    const scrollLeft = tabContainer.value.scrollLeft
-    const buttonLeft = buttonRect.left - containerRect.left + scrollLeft
-    const buttonRight = buttonLeft + buttonRect.width
-    const containerWidth = containerRect.width
-    
-    if (buttonLeft < scrollLeft) {
-      // Button is to the left of visible area
-      tabContainer.value.scrollLeft = buttonLeft - 20
-    } else if (buttonRight > scrollLeft + containerWidth) {
-      // Button is to the right of visible area
-      tabContainer.value.scrollLeft = buttonRight - containerWidth + 20
-    }
-  }
-}
-
-// Scroll functionality methods
-const updateScrollIndicators = () => {
-  if (!tabContainer.value) return
-  
-  const container = tabContainer.value
-  const scrollLeft = container.scrollLeft
-  const scrollWidth = container.scrollWidth
-  const clientWidth = container.clientWidth
-  
-  // Add a small tolerance to account for sub-pixel rendering
-  const tolerance = 1
-  
-  showLeftScroll.value = scrollLeft > tolerance
-  showRightScroll.value = scrollLeft < (scrollWidth - clientWidth - tolerance)
-}
-
-const scrollLeft = () => {
-  if (!tabContainer.value) return
-  
-  console.log('Starting left scroll, current scrollLeft:', tabContainer.value.scrollLeft)
-  
-  // Clear any existing interval first
-  stopScrolling()
-  
-  scrollInterval.value = setInterval(() => {
-    if (tabContainer.value) {
-      const oldScrollLeft = tabContainer.value.scrollLeft
-      tabContainer.value.scrollLeft -= 15
-      console.log('Left scroll: old =', oldScrollLeft, 'new =', tabContainer.value.scrollLeft)
-      
-      // Update indicators after scrolling
-      updateScrollIndicators()
-      
-      // Stop if we've reached the beginning
-      if (tabContainer.value.scrollLeft <= 0) {
-        console.log('Reached beginning, stopping left scroll')
-        stopScrolling()
-      }
-    }
-  }, 16) // ~60fps
-}
-
-const scrollRight = () => {
-  if (!tabContainer.value) return
-  
-  console.log('Starting right scroll, current scrollLeft:', tabContainer.value.scrollLeft)
-  
-  // Clear any existing interval first
-  stopScrolling()
-  
-  scrollInterval.value = setInterval(() => {
-    if (tabContainer.value) {
-      const oldScrollLeft = tabContainer.value.scrollLeft
-      tabContainer.value.scrollLeft += 15
-      console.log('Right scroll: old =', oldScrollLeft, 'new =', tabContainer.value.scrollLeft)
-      
-      // Update indicators after scrolling
-      updateScrollIndicators()
-      
-      // Stop if we've reached the end
-      const maxScrollLeft = tabContainer.value.scrollWidth - tabContainer.value.clientWidth
-      if (tabContainer.value.scrollLeft >= maxScrollLeft) {
-        console.log('Reached end, stopping right scroll')
-        stopScrolling()
-      }
-    }
-  }, 16) // ~60fps
-}
-
-const stopScrolling = () => {
-  if (scrollInterval.value) {
-    clearInterval(scrollInterval.value)
-    scrollInterval.value = null
-  }
 }
 
 const loadTableData = async () => {
   if (!selectedTable.value || selectedTable.value === 'm_parameter' || selectedTable.value === 'm_visibility') return
-  
+
   loading.value = true
   try {
     const response = await axios.get(`/admin/main-tables/${selectedTable.value}`)
     tableData.value = response.data.data || []
-    
-    // Extract columns from first record
+
     if (tableData.value.length > 0) {
       tableColumns.value = Object.keys(tableData.value[0])
     } else {
-      // If no data, get columns from API
       const columnsResponse = await axios.get(`/admin/main-tables/${selectedTable.value}/columns`)
       tableColumns.value = columnsResponse.data.columns || []
     }
@@ -418,6 +264,16 @@ const loadTableCounts = async () => {
   }
 }
 
+const addNewRecord = () => {
+  const newRecord = {}
+  tableColumns.value.forEach((column) => {
+    newRecord[column] = ''
+  })
+  tableData.value.push(newRecord)
+  editingRecord.value = tableData.value.length - 1
+  editingData.value = { ...newRecord }
+}
+
 const editRecord = (index) => {
   editingRecord.value = index
   editingData.value = { ...tableData.value[index] }
@@ -432,7 +288,7 @@ const saveRecord = async (index) => {
   try {
     const record = tableData.value[index]
     const isNew = !record.id
-    
+
     if (isNew) {
       const response = await axios.post(`/admin/main-tables/${selectedTable.value}`, editingData.value)
       tableData.value[index] = response.data.data
@@ -440,7 +296,7 @@ const saveRecord = async (index) => {
       const response = await axios.put(`/admin/main-tables/${selectedTable.value}/${record.id}`, editingData.value)
       tableData.value[index] = response.data.data
     }
-    
+
     editingRecord.value = null
     editingData.value = {}
   } catch (error) {
@@ -464,7 +320,7 @@ const deleteRecordMessage = computed(() => {
 
 const deleteRecord = async () => {
   if (!recordToDelete.value) return
-  
+
   try {
     const { index, id } = recordToDelete.value
     if (id) {
@@ -479,28 +335,16 @@ const deleteRecord = async () => {
   }
 }
 
-const addNewRecord = () => {
-  const newRecord = {}
-  tableColumns.value.forEach(column => {
-    newRecord[column] = ''
-  })
-  tableData.value.push(newRecord)
-  editingRecord.value = tableData.value.length - 1
-  editingData.value = { ...newRecord }
-}
-
 const createGitHubPR = async () => {
   creatingPR.value = true
   try {
     const response = await axios.post('/admin/main-tables/create-pr')
-    
-    // Show success message with PR details
-    const message = response.data.success 
+
+    const message = response.data.success
       ? `GitHub PR-Erstellung erfolgreich gestartet!\n\n${response.data.message}`
       : 'Fehler beim Erstellen des GitHub PR'
     showGlassToast(message, 'error')
-    
-    // If there's output, show it
+
     if (response.data.output) {
       console.log('PR Creation Output:', response.data.output)
     }
@@ -513,7 +357,7 @@ const createGitHubPR = async () => {
 }
 
 const getTableDisplayName = (tableName) => {
-  const table = availableTables.value.find(t => t.name === tableName)
+  const table = availableTables.value.find((t) => t.name === tableName)
   return table ? table.displayName : tableName
 }
 
@@ -527,49 +371,89 @@ const getInputType = (column) => {
   return 'text'
 }
 
-// Lifecycle
 onMounted(() => {
   loadTableCounts()
-  // Initialize scroll indicators after a short delay to ensure DOM is ready
-  setTimeout(() => {
-    updateScrollIndicators()
-  }, 100)
-  
-  // Add resize listener
-  window.addEventListener('resize', updateScrollIndicators)
-})
-
-// Cleanup on unmount
-onUnmounted(() => {
-  stopScrolling()
-  window.removeEventListener('resize', updateScrollIndicators)
 })
 </script>
 
 <style scoped>
 .main-tables-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   max-width: 100%;
+  min-height: 0;
 }
 
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.main-tables-admin__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.main-tables-admin__body {
+  display: grid;
+  grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  min-height: 0;
 }
 
-/* Smooth transitions for tab interactions */
-.tab-button {
-  transition: all 0.2s ease-in-out;
+.main-tables-admin__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: min(70vh, 40rem);
+  overflow-y: auto;
+  position: sticky;
+  top: 0.5rem;
 }
 
-.tab-button:hover {
-  transform: translateY(-1px);
+.main-tables-admin__nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.tab-button:active {
-  transform: translateY(0);
+.main-tables-admin__nav-item:hover {
+  background: var(--color-bg-hover);
+}
+
+.main-tables-admin__nav-item--active {
+  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 10%, #fff);
+}
+
+.main-tables-admin__nav-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.main-tables-admin__content {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .main-tables-admin__body {
+    grid-template-columns: 1fr;
+  }
+
+  .main-tables-admin__nav {
+    position: static;
+    max-height: 14rem;
+  }
 }
 </style>
