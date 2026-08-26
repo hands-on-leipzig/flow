@@ -113,6 +113,67 @@ class ProgramPresence
         return $deleted;
     }
 
+    /**
+     * Keep c_mode / f8_mode aligned with attachment + team count (same rule as new-plan bootstrap).
+     * Catalog defaults are 0; without this, attached Future with teams but no mode override stays off.
+     */
+    public static function syncChallengeShapedModes(int $planId): int
+    {
+        $eventId = (int) (DB::table('plan')->where('id', $planId)->value('event') ?? 0);
+        if ($eventId < 1) {
+            return 0;
+        }
+
+        $attached = self::attachedProgramIds($eventId);
+        $written = 0;
+
+        foreach (self::CHALLENGE_SHAPED as $programId => $def) {
+            if (! in_array($programId, $attached, true)) {
+                continue;
+            }
+
+            $modeParam = DB::table('m_parameter')->where('name', $def['mode'])->first();
+            $teamsParam = DB::table('m_parameter')->where('name', $def['teams'])->first();
+            if ($modeParam === null || $teamsParam === null) {
+                continue;
+            }
+
+            $teamsOverride = DB::table('plan_param_value')
+                ->where('plan', $planId)
+                ->where('parameter', $teamsParam->id)
+                ->value('set_value');
+            $teams = (int) ($teamsOverride !== null ? $teamsOverride : $teamsParam->value);
+            $mode = $teams > 0 ? 1 : 0;
+
+            $existing = DB::table('plan_param_value')
+                ->where('plan', $planId)
+                ->where('parameter', $modeParam->id)
+                ->value('set_value');
+
+            if ($existing !== null && (int) $existing === $mode) {
+                continue;
+            }
+
+            DB::table('plan_param_value')->updateOrInsert(
+                [
+                    'plan' => $planId,
+                    'parameter' => $modeParam->id,
+                ],
+                ['set_value' => (string) $mode]
+            );
+            $written++;
+        }
+
+        if ($written > 0) {
+            Log::info('Synced Challenge-shaped mode params from team counts', [
+                'plan_id' => $planId,
+                'updated' => $written,
+            ]);
+        }
+
+        return $written;
+    }
+
     /** @return list<int> */
     public function attachedIds(): array
     {

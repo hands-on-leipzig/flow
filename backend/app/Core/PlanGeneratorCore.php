@@ -3,6 +3,7 @@
 namespace App\Core;
 
 use App\Enums\ExploreMode;
+use App\Enums\FirstProgram;
 use App\Services\AfternoonBlockOrderService;
 use App\Support\IntegratedExploreState;
 use App\Support\PlanParameter;
@@ -15,6 +16,12 @@ class PlanGeneratorCore
     private ActivityWriter $writer;
 
     private ChallengeShapedLead $lead;
+
+    private ?ChallengeGenerator $challenge = null;
+
+    private ?Future8Generator $future = null;
+
+    private ?GameRoundCoordinator $coordinator = null;
 
     private ExploreGenerator $explore;
 
@@ -83,6 +90,7 @@ class PlanGeneratorCore
      *
      * Ceremony recipes (Challenge-shaped lead; Explore is a wrapper). Same call order as before.
      * Lead is Challenge when c_mode is on; Future 8+ when f8_mode is on and Challenge is off.
+     * When both Challenge and Future are on, a GameRoundCoordinator runs Policy A mornings.
      *
      * Explore e_mode (generated):
      *
@@ -110,23 +118,11 @@ class PlanGeneratorCore
         $planId = (int) $this->pp('g_plan');
         $presence = ProgramPresence::forPlan($planId, $this->params);
         $eMode = $presence->exploreMode();
+        $onIds = $presence->challengeShapedOnIds();
         $leadId = $presence->leadProgramId();
 
-        foreach ($presence->skippedLeadProgramIds() as $skippedProgramId) {
-            Log::warning('PlanGeneratorCore: Challenge-shaped program on but not lead; skipped until multi-lead work', [
-                'plan_id' => $planId,
-                'program_id' => $skippedProgramId,
-                'lead_program_id' => $leadId,
-            ]);
-        }
-
         if ($leadId !== null) {
-            $generatorClass = $presence->leadGeneratorClass();
-            $this->lead = new $generatorClass(
-                $this->writer,
-                $this->params,
-                $this->integratedExplore
-            );
+            $this->constructChallengeShaped($onIds);
             $this->runLeadRecipes($eMode);
 
             return;
@@ -141,6 +137,47 @@ class PlanGeneratorCore
         $this->makeExplore();
 
         $this->recipeExploreOnly($eMode);
+    }
+
+    /**
+     * @param list<int> $onIds
+     */
+    private function constructChallengeShaped(array $onIds): void
+    {
+        $challengeOn = in_array(FirstProgram::CHALLENGE->value, $onIds, true);
+        $futureOn = in_array(FirstProgram::FUTURE_8->value, $onIds, true);
+
+        if ($challengeOn) {
+            $this->challenge = new ChallengeGenerator(
+                $this->writer,
+                $this->params,
+                $this->integratedExplore
+            );
+        }
+
+        if ($futureOn) {
+            $this->future = new Future8Generator(
+                $this->writer,
+                $this->params,
+                $this->integratedExplore
+            );
+        }
+
+        // Ceremony lead: Challenge when on, else Future (same as ProgramPresence::leadProgramId).
+        $this->lead = $this->challenge ?? $this->future;
+
+        if ($this->challenge !== null && $this->future !== null) {
+            $this->coordinator = new GameRoundCoordinator(
+                $this->challenge,
+                $this->future,
+                $this->params
+            );
+            Log::info('PlanGeneratorCore: dual Challenge-shaped morning (Policy A)', [
+                'plan_id' => $this->pp('g_plan'),
+                'f8_future_first' => (bool) $this->ppLoaded('f8_future_first'),
+                'f8_per_round' => (bool) $this->ppLoaded('f8_per_round', true),
+            ]);
+        }
     }
 
     private function runLeadRecipes(int $eMode): void
@@ -160,10 +197,10 @@ class PlanGeneratorCore
     /** Challenge-shaped lead only: opening → main (judging ∥ games) → afternoon → awards. */
     private function recipeLeadOnly(): void
     {
-        $this->lead->openingsAndBriefings();
-        $this->lead->main();
+        $this->openingsForPrograms(false);
+        $this->runMain();
         $this->afternoon();
-        $this->lead->awards();
+        $this->awardsForPrograms();
     }
 
     /**
@@ -173,7 +210,7 @@ class PlanGeneratorCore
     {
         $this->makeExplore();
 
-        $this->lead->openingsAndBriefings(true);
+        $this->openingsForPrograms(true);
         $this->explore->openingsAndBriefings(1);
         $this->explore->judgingAndDeliberations(1);
 
@@ -191,12 +228,19 @@ class PlanGeneratorCore
             $exploreEnd = $this->eTime->current();
             $exploreEnd->modify('+'.((int) $this->pp('e_ready_awards', 0)).' minutes');
             $rTime->advanceToLater($exploreEnd);
+            if ($this->future !== null) {
+                $this->future->rTime()->advanceToLater($rTime->current());
+            }
+            if ($this->challenge !== null) {
+                $this->challenge->rTime()->advanceToLater($rTime->current());
+            }
         };
 
-        $this->lead->main(true, $afterRG1Callback);
+        $this->runMain(true, $afterRG1Callback);
 
         $this->afternoon();
-        $this->lead->awards();
+        // Explore already awarded; Challenge-shaped programs share g_awards when both on.
+        $this->awardsForPrograms();
     }
 
     /**
@@ -206,8 +250,8 @@ class PlanGeneratorCore
     {
         $this->makeExplore();
 
-        $this->lead->openingsAndBriefings();
-        $this->lead->main(true);
+        $this->openingsForPrograms(false);
+        $this->runMain(true);
         $start = $this->integratedExplore->startTime;
         if ($start !== null) {
             $this->eTime->set($start);
@@ -216,7 +260,7 @@ class PlanGeneratorCore
         }
         $this->explore->judgingAndDeliberations(2);
         $this->afternoon();
-        $this->lead->awards(true);
+        $this->awardsForPrograms(true);
     }
 
     /**
@@ -226,15 +270,15 @@ class PlanGeneratorCore
     {
         $this->makeExplore();
 
-        $this->lead->openingsAndBriefings(true);
-        $this->lead->main();
+        $this->openingsForPrograms(true);
+        $this->runMain();
 
         $this->explore->openingsAndBriefings(1);
         $this->explore->judgingAndDeliberations(1);
         $this->explore->awards(1);
 
         $this->afternoon();
-        $this->lead->awards(true);
+        $this->awardsForPrograms(true);
 
         $start = $this->integratedExplore->startTime;
         if ($start !== null) {
@@ -249,10 +293,10 @@ class PlanGeneratorCore
     {
         $this->makeExplore();
 
-        $this->lead->openingsAndBriefings();
-        $this->lead->main();
+        $this->openingsForPrograms(false);
+        $this->runMain();
         $this->afternoon();
-        $this->lead->awards();
+        $this->awardsForPrograms();
 
         if ($eMode === ExploreMode::DECOUPLED_MORNING->value || $eMode === ExploreMode::DECOUPLED_BOTH->value) {
             $this->explore->openingsAndBriefings(1);
@@ -265,6 +309,49 @@ class PlanGeneratorCore
             $this->explore->judgingAndDeliberations(2);
             $this->explore->awards(2);
         }
+    }
+
+    /**
+     * Ceremony lead writes opening (+ its briefings). When Future is secondary, add Future briefings
+     * and sync its clocks to the lead (coordinator also syncs before morning).
+     */
+    private function openingsForPrograms(bool $jointOpening): void
+    {
+        $this->lead->openingsAndBriefings($jointOpening);
+
+        if ($this->coordinator !== null && $this->future !== null && $this->challenge !== null) {
+            // Lead is Challenge: Future briefings only (opening already joint/Challenge).
+            $this->future->briefings($this->challenge->cTime()->current());
+            $this->future->syncClocksFrom($this->challenge);
+        }
+    }
+
+    private function runMain(bool $explore = false, ?callable $afterRG1Callback = null): void
+    {
+        if ($this->coordinator !== null) {
+            $this->coordinator->main($explore, $afterRG1Callback);
+
+            return;
+        }
+
+        $this->lead->main($explore, $afterRG1Callback);
+    }
+
+    /**
+     * Ceremony awards. When Challenge and Future are both on, always joint (g_awards) from the later end.
+     *
+     * @param  bool  $jointWithExplore  Explore-integrated recipes that already used g_awards with Explore.
+     */
+    private function awardsForPrograms(bool $jointWithExplore = false): void
+    {
+        if ($this->challenge !== null && $this->future !== null) {
+            $this->syncSharedCeremonyClock();
+            $this->lead->awards(true);
+
+            return;
+        }
+
+        $this->lead->awards($jointWithExplore);
     }
 
     private function makeExplore(): void
@@ -294,7 +381,7 @@ class PlanGeneratorCore
     }
 
     /**
-     * Walk the Nachmittag list (presentations, finals / Future extra rounds). Awards stay in the recipes after this.
+     * Walk the Nachmittag list in table order. One shared stage clock — each block starts after the previous.
      */
     private function afternoon(): void
     {
@@ -305,7 +392,7 @@ class PlanGeneratorCore
         ]);
 
         try {
-            $this->lead->beginAfternoon();
+            $this->beginAfternoonForPrograms();
 
             $blocks = app(AfternoonBlockOrderService::class)
                 ->resolvedBlocks((int) $this->pp('g_plan'));
@@ -315,8 +402,11 @@ class PlanGeneratorCore
                     continue;
                 }
 
+                $this->syncSharedAfternoonClock();
+
                 match ((string) $block->code) {
-                    'c_presentations', 'f8_presentations' => $this->lead->presentations(),
+                    'c_presentations' => $this->challenge?->presentations(),
+                    'f8_presentations' => $this->future?->presentations(),
                     'r_final_16' => $this->insertChallengeFinalRound(16),
                     'r_final_8' => $this->insertChallengeFinalRound(8),
                     'r_final_4' => $this->insertChallengeFinalRound(4),
@@ -325,9 +415,11 @@ class PlanGeneratorCore
                     'f8_round_5' => $this->insertFutureEmptyRound(5),
                     default => null,
                 };
+
+                $this->syncSharedAfternoonClock();
             }
 
-            $this->lead->endAfternoon();
+            $this->endAfternoonForPrograms();
         } catch (\Throwable $e) {
             Log::error('PlanGeneratorCore: Error in afternoon', [
                 'error' => $e->getMessage(),
@@ -337,18 +429,92 @@ class PlanGeneratorCore
         }
     }
 
+    private function beginAfternoonForPrograms(): void
+    {
+        if ($this->challenge !== null && $this->future !== null) {
+            $this->syncSharedCeremonyClock();
+
+            $start = $this->challenge->cTime()->current();
+            $this->challenge->beginAfternoon();
+            $chEnd = $this->challenge->rTime()->current();
+
+            $this->future->cTime()->set($start);
+            $this->future->beginAfternoon();
+            $f8End = $this->future->rTime()->current();
+
+            $end = $chEnd > $f8End ? $chEnd : $f8End;
+            $this->challenge->rTime()->set($end);
+            $this->future->rTime()->set($end);
+
+            return;
+        }
+
+        $this->lead->beginAfternoon();
+    }
+
+    private function endAfternoonForPrograms(): void
+    {
+        if ($this->challenge !== null && $this->future !== null) {
+            $this->syncSharedAfternoonClock();
+            $start = $this->challenge->rTime()->current();
+
+            $this->challenge->endAfternoon();
+            $chC = $this->challenge->cTime()->current();
+
+            $this->future->rTime()->set($start);
+            $this->future->endAfternoon();
+            $f8C = $this->future->cTime()->current();
+
+            $later = $chC > $f8C ? $chC : $f8C;
+            $this->challenge->cTime()->set($later);
+            $this->future->cTime()->set($later);
+            $this->challenge->rTime()->set($later);
+            $this->future->rTime()->set($later);
+
+            return;
+        }
+
+        $this->lead->endAfternoon();
+    }
+
+    /** Shared stage clock for Nachmittag blocks (both programs' rTime). */
+    private function syncSharedAfternoonClock(): void
+    {
+        if ($this->challenge === null || $this->future === null) {
+            return;
+        }
+
+        $later = $this->challenge->rTime()->current();
+        if ($this->future->rTime()->current() > $later) {
+            $later = $this->future->rTime()->current();
+        }
+        $this->challenge->rTime()->set($later);
+        $this->future->rTime()->set($later);
+    }
+
+    /** Shared ceremony clock before joint awards / afternoon start. */
+    private function syncSharedCeremonyClock(): void
+    {
+        if ($this->challenge === null || $this->future === null) {
+            return;
+        }
+
+        $later = $this->challenge->cTime()->current();
+        if ($this->future->cTime()->current() > $later) {
+            $later = $this->future->cTime()->current();
+        }
+        $this->challenge->cTime()->set($later);
+        $this->future->cTime()->set($later);
+    }
+
     private function insertChallengeFinalRound(int $teamCount): void
     {
-        if ($this->lead instanceof ChallengeGenerator) {
-            $this->lead->insertFinalRound($teamCount);
-        }
+        $this->challenge?->insertFinalRound($teamCount);
     }
 
     private function insertFutureEmptyRound(int $round): void
     {
-        if ($this->lead instanceof Future8Generator) {
-            $this->lead->insertEmptyGameRound($round);
-        }
+        $this->future?->insertEmptyGameRound($round);
     }
 
     private function afternoonBlockShouldEmit(object $block): bool

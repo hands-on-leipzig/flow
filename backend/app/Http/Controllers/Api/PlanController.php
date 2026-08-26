@@ -27,7 +27,7 @@ class PlanController extends Controller
         // Plan suchen
         $plan = DB::table('plan')
             ->where('event', $eventId)
-            ->select('id')
+            ->select('id', 'last_change', 'locked')
             ->first();
 
         if ($plan) {
@@ -39,6 +39,8 @@ class PlanController extends Controller
             return response()->json([
                 'id' => $plan->id,
                 'existing' => $hasActivityGroup,  // true nur, wenn activity_group existiert
+                'last_change' => $plan->last_change,
+                'locked' => (bool) ($plan->locked ?? false),
             ]);
         }
 
@@ -224,6 +226,31 @@ class PlanController extends Controller
         return response()->json([
             'id' => $newId,
             'existing' => false,
+            'last_change' => Carbon::now(),
+            'locked' => false,
+        ]);
+    }
+
+    public function updateLock(int $id, \Illuminate\Http\Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'locked' => 'required|boolean',
+        ]);
+
+        $updated = DB::table('plan')
+            ->where('id', $id)
+            ->update(['locked' => $validated['locked'] ? 1 : 0]);
+
+        if ($updated === 0 && !DB::table('plan')->where('id', $id)->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Plan not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'locked' => (bool) $validated['locked'],
         ]);
     }
 

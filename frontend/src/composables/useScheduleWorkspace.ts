@@ -34,6 +34,8 @@ const parameters = ref<Parameter[]>([])
 const displayConditions = ref<ParameterCondition[]>([])
 const plans = ref<Array<{ id: number; name: string; is_chosen?: boolean }>>([])
 const selectedPlanId = ref<number | null>(null)
+const planLocked = ref(false)
+const planLastChange = ref<string | null>(null)
 const loading = ref(true)
 const bootstrapped = ref(false)
 
@@ -262,6 +264,12 @@ async function runGeneratorOnce() {
   try {
     await axios.post(`/plans/${selectedPlanId.value}/generate`)
     await pollUntilReady(selectedPlanId.value)
+    if (selectedEvent.value?.id) {
+      planCache().invalidatePlan()
+      const refreshedPlan = await planCache().getPlan(selectedEvent.value.id)
+      planLocked.value = Boolean(refreshedPlan?.locked)
+      planLastChange.value = refreshedPlan?.last_change ?? null
+    }
     previewReload.value += 1
     notifyPlanPreviewReload(selectedPlanId.value)
   } catch (error: any) {
@@ -415,10 +423,21 @@ async function getOrCreatePlan() {
   const planData = await planCache().getPlan(selectedEvent.value.id)
   plans.value = [planData]
   selectedPlanId.value = planData.id
+  planLocked.value = Boolean(planData?.locked)
+  planLastChange.value = planData?.last_change ?? null
   await fetchParams(selectedPlanId.value as number)
   if (planData.existing === false) {
     planCache().invalidatePlan()
     await runGeneratorOnce()
+  }
+}
+
+async function updatePlanLock(locked: boolean) {
+  if (!selectedPlanId.value) return
+  await axios.patch(`/plans/${selectedPlanId.value}/lock`, { locked })
+  planLocked.value = locked
+  if (selectedEvent.value?.id) {
+    planCache().invalidatePlan()
   }
 }
 
@@ -525,6 +544,8 @@ export function useScheduleWorkspace() {
     selectedEvent,
     parameters,
     selectedPlanId,
+    planLocked,
+    planLastChange,
     loading,
     showExplore,
     showChallenge,
@@ -550,6 +571,7 @@ export function useScheduleWorkspace() {
     reloadForEventChange,
     handleParamUpdate,
     handleBlockUpdates,
+    updatePlanLock,
     updateTableName,
     immediateFlush: api.immediateFlush,
     openPlanPopout,
