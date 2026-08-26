@@ -3380,51 +3380,6 @@
             "ui_description": "Findet Future 8+ statt oder nicht?"
         },
         {
-            "id": 175,
-            "name": "f8_future_first",
-            "context": "expert",
-            "level": 1,
-            "type": "boolean",
-            "value": "0",
-            "min": null,
-            "max": null,
-            "step": null,
-            "first_program": 8,
-            "sequence": 1,
-            "ui_label": "Matches: Future zu erst ",
-            "ui_description": "Nur für kombinierte Events: Wer fängt mit den Matches an? Future oder Challenge?"
-        },
-        {
-            "id": 176,
-            "name": "f8_per_round",
-            "context": "protected",
-            "level": 1,
-            "type": "boolean",
-            "value": "1",
-            "min": null,
-            "max": null,
-            "step": null,
-            "first_program": 8,
-            "sequence": 2,
-            "ui_label": "Matches: Komplette Runden",
-            "ui_description": "Nur für kombinierte Events: Wann wird zwischen Future und Challenge gewechselt? Nach einer vollen Runde eines Programs oder nach jedem Match?"
-        },
-        {
-            "id": 177,
-            "name": "f8_duration_flip_after_round",
-            "context": "protected",
-            "level": 1,
-            "type": "integer",
-            "value": "5",
-            "min": null,
-            "max": null,
-            "step": null,
-            "first_program": 8,
-            "sequence": 3,
-            "ui_label": "Dauer Flip",
-            "ui_description": "Dauer des Wechseln zwischen den Programmen nach einer kompletten Runde"
-        },
-        {
             "id": 174,
             "name": "f8_j_deliberations_flex",
             "context": "expert",
@@ -3468,6 +3423,21 @@
             "sequence": 2,
             "ui_label": "Matches: Komplette Runden",
             "ui_description": "Nur f\u00fcr kombinierte Events: Wann wird zwischen Future und Challenge gewechselt? Nach einer vollen Runde eines Programs oder nach jedem Match?"
+        },
+        {
+            "id": 177,
+            "name": "f8_duration_flip_after_round",
+            "context": "protected",
+            "level": 1,
+            "type": "integer",
+            "value": "5",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 8,
+            "sequence": 3,
+            "ui_label": "Dauer Flip",
+            "ui_description": "Dauer des Wechseln zwischen den Programmen nach einer kompletten Runde"
         }
     ],
     "m_parameter_condition": [],
@@ -8944,7 +8914,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-08-26T07:51:37.934098Z",
+        "exported_at": "2026-08-26T08:52:31.029204Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
