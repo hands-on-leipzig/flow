@@ -274,10 +274,15 @@ class FinaleGenerator
         
         $activities = [];
         $matchNumber = 0;
+        $lastMatchStart = null;
+        $lastDuration = null;
         
         foreach ($matches as $match) {
             $matchNumber++;
             $duration = $this->pp('r_duration_test_match');
+
+            $lastMatchStart = $trTime->current();
+            $lastDuration = $duration;
 
             // Clone time for this match
             $time = $trTime->copy();
@@ -315,14 +320,17 @@ class FinaleGenerator
             $this->writer->insertActivitiesBulk($activities);
         }
 
+        // Snap to end of last match (same 4-field grid as RobotGameGenerator).
+        if ($lastMatchStart !== null && $lastDuration !== null) {
+            $roundEnd = new TimeCursor($lastMatchStart);
+            $roundEnd->addMinutes($lastDuration);
+            $trTime->set($roundEnd->current());
+        }
+
         // Robot check adds additional time at the end of the round (once for all matches)
         if ($this->pp('r_robot_check')) {
             $trTime->addMinutes($this->pp('r_duration_robot_check'));
         }
-
-        // Fix for 4 tables: when last match is over, correct total duration
-        $delta = $this->pp('r_duration_test_match') - $this->pp('r_duration_next_start');
-        $trTime->addMinutes($delta);
         
         // Return end time for potential follow-up activities
         return $trTime->current();
@@ -387,28 +395,17 @@ class FinaleGenerator
     }
 
     /**
-     * Advance time cursor for test rounds with 4 tables
-     * Matches run in pairs: tables 1+2 parallel to tables 3+4
-     * 
-     * @param TimeCursor $trTime Time cursor to advance
-     * @param int $matchNumber Current match number (1-based)
-     * @param int $duration Match duration
+     * Advance time for finale test rounds (always 4 tables).
+     * Same pair-stagger grid as RobotGameGenerator: after odd match +ns,
+     * after even +(D-ns). start(m) = floor((m-1)/2)*D + ((m-1)%2)*ns.
      */
     private function advanceTimeForTestMatch(TimeCursor $trTime, int $matchNumber, int $duration): void
     {
-        // Finale always uses 4 tables
-        // Matches run in pairs (tables 1+2 parallel to tables 3+4)
-        // Timing alternates between odd and even matches
-        
+        $nextStart = (int) $this->pp('r_duration_next_start');
         if ($matchNumber % 2 === 1) {
-            // Odd match (1, 3, 5...): Tables 1+2
-            // Next match (tables 3+4) starts after r_duration_next_start
-            $trTime->addMinutes($this->pp('r_duration_next_start'));
+            $trTime->addMinutes($nextStart);
         } else {
-            // Even match (2, 4, 6...): Tables 3+4
-            // Next match waits for this one to finish
-            $delta = $duration - $this->pp('r_duration_next_start');
-            $trTime->addMinutes($delta);
+            $trTime->addMinutes($duration - $nextStart);
         }
     }
 

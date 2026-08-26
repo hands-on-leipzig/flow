@@ -779,3 +779,39 @@
     padding: 0.7rem 0.8rem;
   }
 }
+
+/* Admin sidebar: Entwicklung group */
+.admin-nav-group {
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 45%, transparent);
+}
+
+.admin-nav-group__header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  padding: 0.35rem 0.75rem 0.55rem;
+}
+
+.admin-nav-group__label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.admin-nav-group--collapsed .admin-nav-group__header {
+  justify-content: center;
+  padding: 0.25rem 0 0.45rem;
+}
+
+.admin-nav-group__rail-mark {
+  display: block;
+  width: 1.25rem;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-border-strong) 70%, transparent);
+}

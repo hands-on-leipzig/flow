@@ -3393,6 +3393,36 @@
             "sequence": 74,
             "ui_label": "Beratung vor Ende Runde 3 erlauben",
             "ui_description": "F\u00fcr die Pokalvergabe m\u00fcssen die drei Game-Vorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erlaubt das."
+        },
+        {
+            "id": 175,
+            "name": "f8_future_first",
+            "context": "expert",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 8,
+            "sequence": 1,
+            "ui_label": "Matches: Future zu erst ",
+            "ui_description": "Nur f\u00fcr kombinierte Events: Wer f\u00e4ngt mit den Matches an? Future oder Challenge?"
+        },
+        {
+            "id": 176,
+            "name": "f8_per_round",
+            "context": "protected",
+            "level": 1,
+            "type": "boolean",
+            "value": "1",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 8,
+            "sequence": 2,
+            "ui_label": "Matches: Komplette Runden",
+            "ui_description": "Nur f\u00fcr kombinierte Events: Wann wird zwischen Future und Challenge gewechselt? Nach einer vollen Runde eines Programs oder nach jedem Match?"
         }
     ],
     "m_parameter_condition": [],
@@ -8869,7 +8899,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-08-25T13:52:44.770103Z",
+        "exported_at": "2026-08-26T07:51:37.934098Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",

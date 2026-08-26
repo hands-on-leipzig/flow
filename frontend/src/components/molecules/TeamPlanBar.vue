@@ -32,6 +32,8 @@ const labelOnLeft = computed(() => handlePct.value > 50)
 
 const overEnrolled = computed(() => props.registeredTeams > props.planTeams)
 
+const planMismatch = computed(() => props.planTeams !== props.registeredTeams)
+
 function clampPlan(value: number): number {
   return Math.min(maxPlan.value, Math.max(props.minTeams, Math.round(value)))
 }
@@ -113,7 +115,14 @@ function onPointerUp() {
         <span class="plan-bar__triangle"/>
         <span class="plan-bar__line"/>
       </div>
-      <span class="plan-bar__value glass-chip liquid-surface-inner">Plan für {{ planTeams }} Teams</span>
+      <span class="plan-bar__value glass-chip liquid-surface-inner">
+        Plan für {{ planTeams }} Teams
+        <span
+            v-if="planMismatch"
+            class="plan-bar__warning"
+            title="Angemeldete Teams weichen vom Plan ab"
+        />
+      </span>
     </div>
   </div>
 </template>
@@ -222,6 +231,9 @@ function onPointerUp() {
   position: absolute;
   top: 0;
   left: 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   padding: 0.12rem 0.45rem !important;
   font-size: 0.75rem;
   font-weight: 600;
@@ -229,6 +241,14 @@ function onPointerUp() {
   line-height: 1.2;
   color: var(--color-text);
   white-space: nowrap;
+}
+
+.plan-bar__warning {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #ef4444;
+  flex-shrink: 0;
 }
 
 .plan-bar__handle.is-flipped .plan-bar__value {

@@ -6,8 +6,15 @@ import {usePlanCacheStore} from '@/stores/planCache'
 import {useProgramsStore} from '@/stores/programs'
 import {useAuth} from '@/composables/useAuth'
 import {imageUrl, programLogoSrc} from '@/utils/images'
-import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programMatchesSlug, programCompact, hasAfternoon} from '@/utils/eventPrograms'
-import {ADMIN_SECTIONS, ADMIN_DEFAULT_SECTION, adminSectionPath, isAdminSectionAvailable} from '@/constants/adminNav'
+import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
+import {
+  ADMIN_OPS_SECTIONS,
+  ADMIN_ENTWICKLUNG_SECTIONS,
+  ADMIN_DEFAULT_SECTION,
+  adminSectionPath,
+  isAdminSectionAvailable,
+  isEntwicklungEnvironment,
+} from '@/constants/adminNav'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
@@ -35,6 +42,7 @@ const userLabel = computed(() => {
 const readiness = ref({
   explore_teams_ok: true,
   challenge_teams_ok: true,
+  future_8_teams_ok: true,
   room_mapping_ok: true
 })
 
@@ -45,12 +53,14 @@ async function checkDataReadiness() {
     readiness.value = {
       explore_teams_ok: !!data.explore_teams_ok,
       challenge_teams_ok: !!data.challenge_teams_ok,
+      future_8_teams_ok: data.future_8_teams_ok !== false,
       room_mapping_ok: !!data.room_mapping_ok,
     }
   } else {
     readiness.value = {
       explore_teams_ok: false,
       challenge_teams_ok: false,
+      future_8_teams_ok: false,
       room_mapping_ok: false,
     }
   }
@@ -117,10 +127,12 @@ const navEntries = computed<NavEntry[]>(() => [
     path: '/plan/publish',
     icon: 'bi-broadcast',
     children: [
-      {name: 'Logos', path: '/plan/publish/logos', icon: 'bi-images'},
       {name: 'Veröffentlichung', path: '/plan/publish', icon: 'bi-link-45deg'},
+      {name: 'Logos', path: '/plan/publish/logos', icon: 'bi-images'},
+      {name: 'WLAN vor Ort', path: '/plan/publish/wlan', icon: 'bi-wifi'},
       {name: 'Digital', path: '/plan/publish/digital', icon: 'bi-display'},
-      {name: 'Analog', path: '/plan/publish/analog', icon: 'bi-printer'},
+      {name: 'Drucksachen', path: '/plan/publish/analog', icon: 'bi-printer'},
+      {name: 'Namensschilder', path: '/plan/publish/namensschilder', icon: 'bi-person-badge'},
     ],
   },
   {name: 'am Tag', path: '/plan/live', icon: 'bi-play-circle'},
@@ -131,25 +143,28 @@ const isLiveTabActive = computed(() => isActive(liveTabPath))
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
 const showBackToOverview = computed(() => isLiveTabActive.value || isAdminMode.value)
 
-const adminNavEntries = computed<NavEntry[]>(() =>
-  ADMIN_SECTIONS.map((item) => {
-    const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
-    const suffix = !available && item.devSuffix ? ` ${item.devSuffix}` : ''
-    return {
-      name: `${item.label}${suffix}`,
-      path: item.path,
-      icon: item.icon,
-      disabled: !available,
-      title: available
-        ? undefined
-        : item.devOrLocalOnly
-          ? `${item.label} ist nur auf Dev oder lokal verfügbar`
-          : `${item.label} ist nur auf Dev verfügbar`,
-    }
-  })
+function toAdminNavEntry(item: (typeof ADMIN_OPS_SECTIONS)[number]): NavEntry {
+  const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
+  return {
+    name: item.label,
+    path: item.path,
+    icon: item.icon,
+    disabled: !available,
+    title: available
+      ? undefined
+      : `${item.label} ist nur auf Dev oder lokal verfügbar`,
+  }
+}
+
+const adminOpsNavEntries = computed<NavEntry[]>(() => ADMIN_OPS_SECTIONS.map(toAdminNavEntry))
+
+const showEntwicklungNav = computed(() => isEntwicklungEnvironment(isLocal))
+
+const adminEntwicklungNavEntries = computed<NavEntry[]>(() =>
+  showEntwicklungNav.value ? ADMIN_ENTWICKLUNG_SECTIONS.map(toAdminNavEntry) : [],
 )
 
-const currentNavEntries = computed(() => (isAdminMode.value ? adminNavEntries.value : navEntries.value))
+const currentNavEntries = computed(() => (isAdminMode.value ? adminOpsNavEntries.value : navEntries.value))
 
 function entryWarning(entry: NavEntry): boolean {
   if (entry.children?.length) {
@@ -202,6 +217,7 @@ watch(
         readiness.value = {
           explore_teams_ok: !!newVal.explore_teams_ok,
           challenge_teams_ok: !!newVal.challenge_teams_ok,
+          future_8_teams_ok: newVal.future_8_teams_ok !== false,
           room_mapping_ok: !!newVal.room_mapping_ok,
         }
       }
@@ -232,20 +248,15 @@ function hasWarning(tabPath: string): boolean {
         hasWarning(teamPathFor(program))
       )
     }
-    const discrepancy = !!eventStore.selectedEvent?.discrepancyByProgram?.[programCompact(slug)]
-    if (programMatchesSlug(slug, 'explore')) {
-      return !readiness.value.explore_teams_ok || discrepancy
-    }
-    if (programMatchesSlug(slug, 'challenge')) {
-      return !readiness.value.challenge_teams_ok || discrepancy
-    }
-    return discrepancy
+    // DRAHT vs FLOW only — plan capacity mismatch belongs on Ablauf/Allgemein
+    return !!eventStore.selectedEvent?.discrepancyByProgram?.[programCompact(slug)]
   }
 
   switch (path) {
     case '/plan/schedule':
-    case '/plan/schedule/expert':
-      return !readiness.value.explore_teams_ok || !readiness.value.challenge_teams_ok
+      return !readiness.value.explore_teams_ok
+        || !readiness.value.challenge_teams_ok
+        || !readiness.value.future_8_teams_ok
     case '/plan/rooms':
       return !readiness.value.room_mapping_ok
     default:
@@ -333,20 +344,62 @@ function logout() {
         />
     </template>
 
-    <template #nav>
-      <SidebarNavItem
-          v-for="entry in currentNavEntries"
-          :key="entry.path ?? entry.name"
-          :label="entry.name"
-          :icon="entry.icon"
-          :active="entryActive(entry)"
-          :warning="entryWarning(entry)"
-          :disabled="!!entry.disabled"
-          :title="entry.title"
-          :children="entry.children?.map(childNavProps)"
-          @select="onNavSelect(entry)"
-          @select-child="onNavChildSelect"
-      />
+    <template #nav="{ collapsed: navCollapsed }">
+      <template v-if="isAdminMode">
+        <SidebarNavItem
+            v-for="entry in adminOpsNavEntries"
+            :key="entry.path ?? entry.name"
+            :label="entry.name"
+            :icon="entry.icon"
+            :active="entryActive(entry)"
+            :warning="entryWarning(entry)"
+            :disabled="!!entry.disabled"
+            :title="entry.title"
+            @select="onNavSelect(entry)"
+        />
+        <div
+            v-if="showEntwicklungNav"
+            class="admin-nav-group"
+            :class="{ 'admin-nav-group--collapsed': !!navCollapsed }"
+            role="group"
+            aria-label="Entwicklung"
+        >
+          <div class="admin-nav-group__header" :title="navCollapsed ? 'Entwicklung (nur Dev/Lokal)' : undefined">
+            <span v-if="!navCollapsed" class="admin-nav-group__label">Entwicklung</span>
+            <span
+                v-if="!navCollapsed"
+                class="glass-chip !px-2 !py-0.5 !text-xs shrink-0"
+            >nur Dev/Lokal</span>
+            <span v-else class="admin-nav-group__rail-mark" aria-hidden="true"/>
+          </div>
+          <SidebarNavItem
+              v-for="entry in adminEntwicklungNavEntries"
+              :key="entry.path ?? entry.name"
+              :label="entry.name"
+              :icon="entry.icon"
+              :active="entryActive(entry)"
+              :warning="entryWarning(entry)"
+              :disabled="!!entry.disabled"
+              :title="entry.title"
+              @select="onNavSelect(entry)"
+          />
+        </div>
+      </template>
+      <template v-else>
+        <SidebarNavItem
+            v-for="entry in currentNavEntries"
+            :key="entry.path ?? entry.name"
+            :label="entry.name"
+            :icon="entry.icon"
+            :active="entryActive(entry)"
+            :warning="entryWarning(entry)"
+            :disabled="!!entry.disabled"
+            :title="entry.title"
+            :children="entry.children?.map(childNavProps)"
+            @select="onNavSelect(entry)"
+            @select-child="onNavChildSelect"
+        />
+      </template>
     </template>
 
     <template #lower="{ collapsed }">
@@ -438,12 +491,6 @@ function logout() {
         </template>
 
         <template #partners>
-          <img
-              :src="imageUrl('/flow/first+fll_v.png')"
-              alt="FIRST LEGO League"
-              class="glass-sidebar__partner-logo glass-sidebar__partner-logo--primary"
-              decoding="async"
-          />
           <a
               href="https://www.hands-on-technology.org"
               target="_blank"

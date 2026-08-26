@@ -299,30 +299,41 @@ class EventController extends Controller
         $updatableFields = ['wifi_ssid', 'wifi_password', 'wifi_instruction'];
         $data = $request->only($updatableFields);
 
-        // Passwort verschlüsseln
-        if (!empty($data['wifi_password'])) {
+        // Passwort verschlüsseln (leerer String bleibt leer)
+        if (array_key_exists('wifi_password', $data) && $data['wifi_password'] !== null && $data['wifi_password'] !== '') {
             $data['wifi_password'] = Crypt::encryptString($data['wifi_password']);
         }
 
         // Update nur für dieses Event
-        DB::table('event')->where('id', $eventId)->update($data);
+        if (!empty($data)) {
+            DB::table('event')->where('id', $eventId)->update($data);
+        }
 
-        // QR-Code nur erzeugen, wenn SSID oder Passwort geändert wurden
-        if (!empty($data['wifi_ssid']) || !empty($data['wifi_password'])) {
+        // QR neu erzeugen, sobald SSID oder Passwort im Request sind (auch beim Leeren)
+        $shouldRegenerateQr = array_key_exists('wifi_ssid', $data) || array_key_exists('wifi_password', $data);
+
+        if ($shouldRegenerateQr) {
             $event = DB::table('event')
                 ->where('id', $eventId)
                 ->select('wifi_ssid', 'wifi_password')
                 ->first();
 
-            if ($event) {
+            if (!$event || empty($event->wifi_ssid)) {
+                DB::table('event')
+                    ->where('id', $eventId)
+                    ->update(['wifi_qrcode' => null]);
+            } else {
                 // Passwort entschlüsseln (oder unverschlüsselt übernehmen)
-                try {
-                    $wifiPassword = Crypt::decryptString($event->wifi_password);
-                } catch (\Exception $e) {
-                    $wifiPassword = $event->wifi_password;
+                $wifiPassword = '';
+                if (!empty($event->wifi_password)) {
+                    try {
+                        $wifiPassword = Crypt::decryptString($event->wifi_password);
+                    } catch (\Exception $e) {
+                        $wifiPassword = $event->wifi_password;
+                    }
                 }
 
-                if (!empty($wifiPassword)) {
+                if ($wifiPassword !== '') {
                     $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";
                 } else {
                     $wifiQrContent = "WIFI:T:nopass;S:{$event->wifi_ssid};;";
@@ -338,7 +349,6 @@ class EventController extends Controller
                     new \Endroid\QrCode\Color\Color(0, 0, 0),
                     new \Endroid\QrCode\Color\Color(255, 255, 255)
                 );
-
 
                 $writer = new \Endroid\QrCode\Writer\PngWriter();
                 $wifiLogoPath = public_path('flow/wifi.png');

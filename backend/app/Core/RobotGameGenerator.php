@@ -134,17 +134,22 @@ class RobotGameGenerator
 
         // 3) Prepare activities for bulk insert
         $activities = [];
-        
+        $lastMatchStart = null;
+        $lastDuration = null;
+
         foreach ($filtered as $match) {
             // Determine duration (TR vs RG)
             $duration = ($round === 0)
                 ? $this->pp($this->write->durationTestMatch)
                 : $this->pp($this->write->durationMatch);
 
+            $lastMatchStart = $this->rTime->current();
+            $lastDuration = $duration;
+
             // Exotic case: skip empty TR match
             if ($match['team_1'] === 0 && $match['team_2'] === 0) {
                 // Update time but don't create activity
-                $this->advanceTimeForMatch($round, $match, $duration);
+                $this->advanceTimeForMatch($match, $duration);
                 continue;
             }
 
@@ -176,7 +181,7 @@ class RobotGameGenerator
             );
 
             // Advance main time cursor
-            $this->advanceTimeForMatch($round, $match, $duration);
+            $this->advanceTimeForMatch($match, $duration);
         }
 
         // Bulk insert all activities for this round
@@ -184,15 +189,17 @@ class RobotGameGenerator
             $this->writer->insertActivitiesBulk($activities);
         }
 
-        // 5) Robot check adds additional time at the end of the round
-        if ($this->robotCheckEnabled()) {
-            $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
+        // 4 fields: rTime after the last advance is mid-grid; snap to end of last match.
+        // start(m) = floor((m-1)/2)*D + ((m-1)%2)*ns → last end = lastStart + D.
+        if ($this->pp($this->write->tablesParam) === 4 && $lastMatchStart !== null && $lastDuration !== null) {
+            $roundEnd = new TimeCursor($lastMatchStart);
+            $roundEnd->addMinutes($lastDuration);
+            $this->rTime->set($roundEnd->current());
         }
 
-        // 6) Fix for 4 tables: when last match is over, correct total duration
-        if ($this->pp($this->write->tablesParam) === 4) {
-            $delta = $this->pp($this->write->durationMatch) - $this->pp($this->write->durationNextStart);
-            $this->rTime->addMinutes($delta);
+        // Robot check adds additional time at the end of the round
+        if ($this->robotCheckEnabled()) {
+            $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
         }
 
         // 7) Breaks before the next round
@@ -287,27 +294,29 @@ class RobotGameGenerator
     }
 
     /**
-     * Advance time cursor based on match configuration
+     * Advance rTime to the next match start.
+     *
+     * 2 tables/fields: serial — wait for this match to finish (duration).
+     * 4 tables/fields: pair stagger — opposite pair starts after next_start;
+     * same pair every duration. Closed form:
+     *   start(m) = floor((m-1)/2)*D + ((m-1)%2)*ns
+     * Walking in order: after odd m advance ns, after even m advance (D-ns).
+     * When ns = D/2 this is "every next_start"; otherwise next_start stays
+     * the stagger (e.g. F8 D=15, ns=5 or ns=10). Same rule for TR and R1–3.
      */
-    private function advanceTimeForMatch(int $round, array $match, int $duration): void
+    private function advanceTimeForMatch(array $match, int $duration): void
     {
         if ($this->pp($this->write->tablesParam) === 2) {
-            // 2 tables: Next match waits until this one is finished
             $this->rTime->addMinutes($duration);
+
+            return;
+        }
+
+        $nextStart = (int) $this->pp($this->write->durationNextStart);
+        if (($match['match'] % 2) === 1) {
+            $this->rTime->addMinutes($nextStart);
         } else {
-            // 4 tables
-            if ($round === 0) {
-                // TR: Start times alternate between next_start and (match - next_start)
-                if (($match['match']) % 2 === 1) {
-                    $this->rTime->addMinutes($this->pp($this->write->durationNextStart));
-                } else {
-                    $delta = $duration - $this->pp($this->write->durationNextStart);
-                    $this->rTime->addMinutes($delta);
-                }
-            } else {
-                // RG1–3: Overlap — next start every r_duration_next_start
-                $this->rTime->addMinutes($this->pp($this->write->durationNextStart));
-            }
+            $this->rTime->addMinutes($duration - $nextStart);
         }
     }
     

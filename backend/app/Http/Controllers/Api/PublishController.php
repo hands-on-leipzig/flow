@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Helpers\FlowFilename;
 use App\Models\Event;
 use App\Models\MActivityTypeDetail;
 use App\Models\OneLinkAccess;
@@ -769,9 +770,9 @@ class PublishController extends Controller
     {
         $pdfData = $this->buildEventSheetPdf($type, $eventId, false);
 
-        $formattedDate = now()->format('d.m.y');
+        $event = Event::find($eventId);
         $name = $type === 'plan_wifi' ? 'Plan_mit_WLAN' : 'Plan';
-        $filename = "FLOW_{$name}_({$formattedDate}).pdf";
+        $filename = FlowFilename::make($name, 'pdf', $event?->date);
 
         return response($pdfData, 200)
             ->header('Content-Type', 'application/pdf')

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\ExploreMode;
 use App\Enums\FirstProgram;
+use App\Helpers\FlowFilename;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\MRole;
@@ -246,14 +247,7 @@ class PlanExportController extends Controller
             ->select('last_change')
             ->first();
 
-        // Format date for filename
-        $formattedDate = $plan && $plan->last_change
-            ? \Carbon\Carbon::parse($plan->last_change)
-                ->timezone('Europe/Berlin')
-                ->format('d.m.y')
-            : date('d.m.y');
-
-        $filename = "FLOW_Match-Plan_({$formattedDate}).pdf";
+        $filename = FlowFilename::make('Match-Plan', 'pdf', $plan?->last_change);
 
         // Return PDF with header for filename
         return response($pdf->output(), 200)
@@ -571,12 +565,7 @@ class PlanExportController extends Controller
             // Generate PDF in portrait orientation (simple, no fancy layout)
             $pdf = Pdf::loadHTML($contentHtml, 'UTF-8')->setPaper('a4', 'portrait');
 
-            // Format date for filename
-            $formattedDate = Carbon::parse($plan->last_change, 'UTC')
-                ->timezone('Europe/Berlin')
-                ->format('d.m.y');
-
-            $filename = "FLOW_Moderation_({$formattedDate}).pdf";
+            $filename = FlowFilename::make('Moderation', 'pdf', $plan->last_change);
 
             // Return PDF with header for filename
             Log::info("moderatorMatchPlanPdf returning PDF with filename: {$filename}");
@@ -719,13 +708,6 @@ class PlanExportController extends Controller
             return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
         }
 
-        // Datum formatieren
-        $formattedDate = $plan->last_change
-            ? \Carbon\Carbon::parse($plan->last_change)
-                ->timezone('Europe/Berlin')
-                ->format('d.m.y')
-            : '';
-
         // Determine rows per page depending on multiday events
         $eventDays = DB::table('event')->where('id', $eventId)->value('days');
         $isMultidayEvent = (int) ($eventDays ?? 1) > 1;
@@ -771,12 +753,7 @@ class PlanExportController extends Controller
                         ->pluck('name')
                         ->toArray();
 
-                    // Sanitize role names for filename (remove special chars)
-                    $sanitizedNames = array_map(function ($roleName) {
-                        return preg_replace('/[^a-zA-Z0-9]/', '', $roleName);
-                    }, $roleNames);
-
-                    $name = 'Rollen_'.implode('_', $sanitizedNames);
+                    $name = 'Rollen_'.implode('_', $roleNames);
                 }
             }
         }
@@ -807,14 +784,7 @@ class PlanExportController extends Controller
             }
         }
 
-        $filename = "FLOW_{$name}_({$formattedDate}).pdf";
-
-        // Umlaute transliterieren
-        $filename = str_replace(
-            ['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'],
-            ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'],
-            $filename
-        );
+        $filename = FlowFilename::make($name, 'pdf', $plan->last_change);
 
         // PDF zurückgeben mit Header für Dateiname
         return response($pdf->output(), 200)
@@ -975,12 +945,7 @@ class PlanExportController extends Controller
             // Generate PDF in portrait orientation (simple, no fancy layout)
             $pdf = Pdf::loadHTML($contentHtml, 'UTF-8')->setPaper('a4', 'portrait');
 
-            // Format date for filename
-            $formattedDate = Carbon::parse($plan->last_change, 'UTC')
-                ->timezone('Europe/Berlin')
-                ->format('d.m.y');
-
-            $filename = "FLOW_Teamliste_({$formattedDate}).pdf";
+            $filename = FlowFilename::make('Teamliste', 'pdf', $plan->last_change);
 
             // Return PDF with header for filename
             Log::info("teamListPdf returning PDF with filename: {$filename}");
@@ -1124,10 +1089,7 @@ class PlanExportController extends Controller
 
             $pdf = Pdf::loadHTML($contentHtml, 'UTF-8')->setPaper('a4', 'portrait');
 
-            $formattedDate = Carbon::parse($plan->last_change, 'UTC')
-                ->timezone('Europe/Berlin')
-                ->format('d.m.y');
-            $filename = "FLOW_Slot-Zuordnung_({$formattedDate}).pdf";
+            $filename = FlowFilename::make('Slot-Zuordnung', 'pdf', $plan->last_change);
 
             return response($pdf->output(), 200)
                 ->header('Content-Type', 'application/pdf')
@@ -3221,19 +3183,32 @@ class PlanExportController extends Controller
      */
     public function dataReadiness(int $eventId)
     {
+        $event = Event::findOrFail($eventId);
+        $event->loadMissing('programs');
+
+        $hasExplore = ProgramCatalog::hasExplore($event);
+        $hasChallenge = ProgramCatalog::hasChallenge($event);
+        $hasFuture = ProgramCatalog::hasFuture($event);
+
         $plan = DB::table('plan')->where('event', $eventId)->first();
         if (! $plan) {
             return response()->json([
-                'explore_teams_ok' => false,
-                'challenge_teams_ok' => false,
+                // Unattached programs are ok (no box to warn about).
+                'explore_teams_ok' => ! $hasExplore,
+                'challenge_teams_ok' => ! $hasChallenge,
+                'future_8_teams_ok' => ! $hasFuture,
                 'room_mapping_ok' => false,
+                'room_mapping_details' => [
+                    'activities_ok' => false,
+                    'teams_ok' => false,
+                ],
             ]);
         }
 
-        // Geplante vs. angemeldete Teams prüfen ---
+        // Geplante vs. angemeldete Teams prüfen (nur angehängte Programme) ---
 
         $paramIds = DB::table('m_parameter')
-            ->whereIn('name', ['c_teams', 'e_teams'])
+            ->whereIn('name', ['c_teams', 'e_teams', 'f8_teams'])
             ->pluck('id', 'name');
 
         $values = DB::table('plan_param_value')
@@ -3242,20 +3217,41 @@ class PlanExportController extends Controller
             ->pluck('set_value', 'parameter')
             ->map(fn ($v) => (int) $v);
 
-        $plannedChallengeTeams = $values[$paramIds['c_teams']] ?? 0;
-        $plannedExploreTeams = $values[$paramIds['e_teams']] ?? 0;
+        $plannedChallengeTeams = $values[$paramIds['c_teams'] ?? null] ?? 0;
+        $plannedExploreTeams = $values[$paramIds['e_teams'] ?? null] ?? 0;
+        $plannedFutureTeams = $values[$paramIds['f8_teams'] ?? null] ?? 0;
 
         $drahtController = app(DrahtController::class);
-        $response = $drahtController->show(Event::findOrFail($eventId));
+        $response = $drahtController->show($event);
         $drahtData = $response->getData(true);
 
-        $registeredChallengeTeams = isset($drahtData['teams_challenge'])
-            ? count($drahtData['teams_challenge'])
-            : 0;
+        $drahtPrograms = collect($drahtData['programs'] ?? []);
+        $countFor = function (callable $match) use ($drahtPrograms): int {
+            $row = $drahtPrograms->first($match);
+            $teams = $row['teams'] ?? [];
 
-        $registeredExploreTeams = isset($drahtData['teams_explore'])
-            ? count($drahtData['teams_explore'])
-            : 0;
+            return is_array($teams) ? count($teams) : 0;
+        };
+
+        $registeredExploreTeams = $countFor(
+            fn ($p) => strcasecmp((string) ($p['name'] ?? ''), ProgramCatalog::EXPLORE) === 0
+        );
+        $registeredChallengeTeams = $countFor(
+            fn ($p) => strcasecmp((string) ($p['name'] ?? ''), ProgramCatalog::CHALLENGE) === 0
+        );
+        $registeredFutureTeams = $countFor(
+            fn ($p) => ProgramCatalog::isFuture($p['name'] ?? null)
+        );
+
+        $exploreTeamsOk = $hasExplore
+            ? ($plannedExploreTeams === $registeredExploreTeams)
+            : true;
+        $challengeTeamsOk = $hasChallenge
+            ? ($plannedChallengeTeams === $registeredChallengeTeams)
+            : true;
+        $futureTeamsOk = $hasFuture
+            ? ($plannedFutureTeams === $registeredFutureTeams)
+            : true;
 
         // Raum-Mapping prüfen ---
         $planRoomTypeController = app(PlanRoomTypeController::class);
@@ -3267,11 +3263,9 @@ class PlanExportController extends Controller
 
         // --- Team-Mapping prüfen (every attached program) ---
         $teamController = app(TeamController::class);
-        $event = Event::find($eventId);
-        $event?->loadMissing('programs');
 
         $allTeamsHaveRooms = true;
-        foreach ($event?->programs ?? [] as $program) {
+        foreach ($event->programs as $program) {
             $request = new Request;
             $request->query->set('program', (string) $program->first_program);
             $response = $teamController->index($request, $event);
@@ -3286,8 +3280,9 @@ class PlanExportController extends Controller
 
         // --- Ergebnis zusammensetzen ---
         $result = [
-            'explore_teams_ok' => ($plannedExploreTeams === $registeredExploreTeams),
-            'challenge_teams_ok' => ($plannedChallengeTeams === $registeredChallengeTeams),
+            'explore_teams_ok' => $exploreTeamsOk,
+            'challenge_teams_ok' => $challengeTeamsOk,
+            'future_8_teams_ok' => $futureTeamsOk,
             'room_mapping_ok' => ! $hasUnmappedRooms && $allTeamsHaveRooms,
             'room_mapping_details' => [
                 'activities_ok' => ! $hasUnmappedRooms,
@@ -3599,21 +3594,7 @@ class PlanExportController extends Controller
                 ->select('last_change')
                 ->first();
 
-            // Format date for filename
-            $formattedDate = $plan && $plan->last_change
-                ? \Carbon\Carbon::parse($plan->last_change)
-                    ->timezone('Europe/Berlin')
-                    ->format('d.m.y')
-                : now()->format('d.m.y');
-
-            $filename = "FLOW_Übersichtsplan_({$formattedDate}).pdf";
-
-            // Umlaute transliterieren
-            $filename = str_replace(
-                ['ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß'],
-                ['ae', 'oe', 'ue', 'Ae', 'Oe', 'Ue', 'ss'],
-                $filename
-            );
+            $filename = FlowFilename::make('Übersichtsplan', 'pdf', $plan?->last_change);
 
             // Return PDF with proper headers for filename
             return response($pdf->output(), 200)
@@ -3752,12 +3733,14 @@ class PlanExportController extends Controller
         $csv = $this->generateRoomUtilizationCsv($grouped);
 
         // Return CSV response - format matches PDF exports
-        $formattedDate = date('Y-m-d');
-        $filename = "FLOW_Raumnutzung_({$formattedDate}).csv";
+        $eventDate = DB::table('event')->where('id', $eventId)->value('date');
+        $filename = FlowFilename::make('Raumnutzung', 'csv', $eventDate);
 
         return response($csv, 200, [
             'Content-Type' => 'text/csv; charset=utf-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'X-Filename' => $filename,
+            'Access-Control-Expose-Headers' => 'X-Filename',
         ]);
     }
 
