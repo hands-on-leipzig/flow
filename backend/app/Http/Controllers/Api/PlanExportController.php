@@ -3183,19 +3183,32 @@ class PlanExportController extends Controller
      */
     public function dataReadiness(int $eventId)
     {
+        $event = Event::findOrFail($eventId);
+        $event->loadMissing('programs');
+
+        $hasExplore = ProgramCatalog::hasExplore($event);
+        $hasChallenge = ProgramCatalog::hasChallenge($event);
+        $hasFuture = ProgramCatalog::hasFuture($event);
+
         $plan = DB::table('plan')->where('event', $eventId)->first();
         if (! $plan) {
             return response()->json([
-                'explore_teams_ok' => false,
-                'challenge_teams_ok' => false,
+                // Unattached programs are ok (no box to warn about).
+                'explore_teams_ok' => ! $hasExplore,
+                'challenge_teams_ok' => ! $hasChallenge,
+                'future_8_teams_ok' => ! $hasFuture,
                 'room_mapping_ok' => false,
+                'room_mapping_details' => [
+                    'activities_ok' => false,
+                    'teams_ok' => false,
+                ],
             ]);
         }
 
-        // Geplante vs. angemeldete Teams prüfen ---
+        // Geplante vs. angemeldete Teams prüfen (nur angehängte Programme) ---
 
         $paramIds = DB::table('m_parameter')
-            ->whereIn('name', ['c_teams', 'e_teams'])
+            ->whereIn('name', ['c_teams', 'e_teams', 'f8_teams'])
             ->pluck('id', 'name');
 
         $values = DB::table('plan_param_value')
@@ -3204,20 +3217,41 @@ class PlanExportController extends Controller
             ->pluck('set_value', 'parameter')
             ->map(fn ($v) => (int) $v);
 
-        $plannedChallengeTeams = $values[$paramIds['c_teams']] ?? 0;
-        $plannedExploreTeams = $values[$paramIds['e_teams']] ?? 0;
+        $plannedChallengeTeams = $values[$paramIds['c_teams'] ?? null] ?? 0;
+        $plannedExploreTeams = $values[$paramIds['e_teams'] ?? null] ?? 0;
+        $plannedFutureTeams = $values[$paramIds['f8_teams'] ?? null] ?? 0;
 
         $drahtController = app(DrahtController::class);
-        $response = $drahtController->show(Event::findOrFail($eventId));
+        $response = $drahtController->show($event);
         $drahtData = $response->getData(true);
 
-        $registeredChallengeTeams = isset($drahtData['teams_challenge'])
-            ? count($drahtData['teams_challenge'])
-            : 0;
+        $drahtPrograms = collect($drahtData['programs'] ?? []);
+        $countFor = function (callable $match) use ($drahtPrograms): int {
+            $row = $drahtPrograms->first($match);
+            $teams = $row['teams'] ?? [];
 
-        $registeredExploreTeams = isset($drahtData['teams_explore'])
-            ? count($drahtData['teams_explore'])
-            : 0;
+            return is_array($teams) ? count($teams) : 0;
+        };
+
+        $registeredExploreTeams = $countFor(
+            fn ($p) => strcasecmp((string) ($p['name'] ?? ''), ProgramCatalog::EXPLORE) === 0
+        );
+        $registeredChallengeTeams = $countFor(
+            fn ($p) => strcasecmp((string) ($p['name'] ?? ''), ProgramCatalog::CHALLENGE) === 0
+        );
+        $registeredFutureTeams = $countFor(
+            fn ($p) => ProgramCatalog::isFuture($p['name'] ?? null)
+        );
+
+        $exploreTeamsOk = $hasExplore
+            ? ($plannedExploreTeams === $registeredExploreTeams)
+            : true;
+        $challengeTeamsOk = $hasChallenge
+            ? ($plannedChallengeTeams === $registeredChallengeTeams)
+            : true;
+        $futureTeamsOk = $hasFuture
+            ? ($plannedFutureTeams === $registeredFutureTeams)
+            : true;
 
         // Raum-Mapping prüfen ---
         $planRoomTypeController = app(PlanRoomTypeController::class);
@@ -3229,11 +3263,9 @@ class PlanExportController extends Controller
 
         // --- Team-Mapping prüfen (every attached program) ---
         $teamController = app(TeamController::class);
-        $event = Event::find($eventId);
-        $event?->loadMissing('programs');
 
         $allTeamsHaveRooms = true;
-        foreach ($event?->programs ?? [] as $program) {
+        foreach ($event->programs as $program) {
             $request = new Request;
             $request->query->set('program', (string) $program->first_program);
             $response = $teamController->index($request, $event);
@@ -3248,8 +3280,9 @@ class PlanExportController extends Controller
 
         // --- Ergebnis zusammensetzen ---
         $result = [
-            'explore_teams_ok' => ($plannedExploreTeams === $registeredExploreTeams),
-            'challenge_teams_ok' => ($plannedChallengeTeams === $registeredChallengeTeams),
+            'explore_teams_ok' => $exploreTeamsOk,
+            'challenge_teams_ok' => $challengeTeamsOk,
+            'future_8_teams_ok' => $futureTeamsOk,
             'room_mapping_ok' => ! $hasUnmappedRooms && $allTeamsHaveRooms,
             'room_mapping_details' => [
                 'activities_ok' => ! $hasUnmappedRooms,
