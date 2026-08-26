@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Enums\FirstProgram;
 use App\Http\Controllers\Controller;
 use App\Services\ActivityFetcherService;
-use App\Services\PreviewMatrixService;
+use App\Services\RolesPreviewGridService;
+use App\Services\TeamsPreviewGridService;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
 use Illuminate\Http\Request;
@@ -35,74 +36,46 @@ class PlanPreviewController extends Controller
         ]);
     }
 
-    public function previewTeams(int $plan, PreviewMatrixService $builder)
+    /**
+     * Überblick-style roles grid (5-minute activity columns).
+     */
+    public function previewRolesGrid(int $planId, RolesPreviewGridService $grid)
     {
-        // Team-Rollen ermitteln (nur für Programme, die in der Preview-Matrix relevant sind)
-        $teamRoleIds = DB::table('m_role')
-            ->whereNotNull('first_program')
-            ->where('preview_matrix', 1)
-            ->where('differentiation_parameter', 'team')
-            ->pluck('id')
-            ->all();
+        $data = $grid->build($planId);
 
-        // Activities gefiltert nach diesen Rollen laden
-        $activities = $this->activities->fetchActivities(
-            plan: $plan,
-            roles: $teamRoleIds,
-            freeBlocks: false
-        );
-
-        if ($activities->isEmpty()) {
-            // Return stable headers so the frontend can render an empty grid
-            return [
-                ['key' => 'time', 'title' => 'Zeit'],
-            ];
-        }
-
-        $matrix = $builder->buildTeamsMatrix($activities);
-
-        return response()->json($matrix);
+        return response()->json([
+            'html' => view('preview.roles-grid', [
+                'programs' => $data['programs'],
+                'eventsByDay' => $data['eventsByDay'],
+            ])->render(),
+            'programs' => array_map(static fn (array $p) => [
+                'id' => $p['id'],
+                'label' => $p['label'],
+                'logo' => $p['logo'],
+            ], $data['programs']),
+            'success' => true,
+        ]);
     }
 
-    public function previewRooms(int $plan, PreviewMatrixService $builder)
+    /**
+     * Überblick-style teams grid (5-minute columns, G/J/C/F cells).
+     */
+    public function previewTeamsGrid(int $planId, TeamsPreviewGridService $grid)
     {
-        $activities = $this->activities->fetchActivities(
-            plan: $plan,
-            includeRooms: true,
-            freeBlocks: false
-        );
+        $data = $grid->build($planId);
 
-        if ($activities->isEmpty()) {
-            return [['key' => 'time', 'title' => 'Zeit']];
-        }
-
-        return response()->json($builder->buildRoomsMatrix($activities));
-    }
-
-    public function previewRoles(int $plan, PreviewMatrixService $builder)
-    {
-        // Nur lane/table-Rollen für Preview
-        $roles = DB::table('m_role')
-            ->whereNotNull('first_program')
-            ->where('preview_matrix', 1)
-            ->whereIn('differentiation_parameter', ['lane', 'table'])
-            ->orderBy('first_program')
-            ->orderBy('sequence')
-            ->get();
-
-        $activities = $this->activities->fetchActivities(
-            plan: $plan,
-            roles: $roles->pluck('id')->all(),
-            freeBlocks: false
-        );
-
-        if ($activities->isEmpty()) {
-            return [['key' => 'time', 'title' => 'Zeit']];
-        }
-
-        $matrix = $builder->buildRolesMatrix($activities, $roles);
-
-        return response()->json($matrix);
+        return response()->json([
+            'html' => view('preview.teams-grid', [
+                'programs' => $data['programs'],
+                'eventsByDay' => $data['eventsByDay'],
+            ])->render(),
+            'programs' => array_map(static fn (array $p) => [
+                'id' => $p['id'],
+                'label' => $p['label'],
+                'logo' => $p['logo'],
+            ], $data['programs']),
+            'success' => true,
+        ]);
     }
 
     /**
