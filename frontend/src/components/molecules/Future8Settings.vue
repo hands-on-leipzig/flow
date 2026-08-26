@@ -1,9 +1,10 @@
 <script lang="ts" setup>
-import {computed, onMounted, ref, watch, watchEffect, type UnwrapRef} from 'vue'
+import {computed, onDeactivated, onMounted, ref, watch, watchEffect, type UnwrapRef} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import TeamPlanBar from '@/components/molecules/TeamPlanBar.vue'
+import CapacityOverrideDialog from '@/components/atoms/CapacityOverrideDialog.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
@@ -183,13 +184,19 @@ const getAlertLevelStyle = (level: number) => {
 
 const planTeams = computed(() => Number(paramMapByName.value['f8_teams']?.value || 0))
 const registeredTeams = ref(0)
-const capacity = ref(0)
+const drahtCapacity = ref(0)
+const capacityOverride = ref<number | null>(null)
+const effectiveCapacity = computed(() => capacityOverride.value ?? drahtCapacity.value)
+
+onDeactivated(() => {
+  capacityOverride.value = null
+})
 
 async function loadDrahtCounts() {
   const eventId = event.value?.id
   if (!eventId) {
     registeredTeams.value = 0
-    capacity.value = 0
+    drahtCapacity.value = 0
     return
   }
   const data = await planCache.getDrahtData(eventId)
@@ -199,7 +206,7 @@ async function loadDrahtCounts() {
       || String(p.name || '').toUpperCase() === 'FUTURE_8'
   )
   registeredTeams.value = row?.teams ? Object.keys(row.teams).length : 0
-  capacity.value = Number(row?.capacity || 0)
+  drahtCapacity.value = Number(row?.capacity || 0)
 }
 
 onMounted(() => {
@@ -226,10 +233,18 @@ const teamsPerJuryHint = computed(() => {
 
 <template>
   <ProgramSection program="future8">
+    <template #actions>
+      <CapacityOverrideDialog
+          :capacity="effectiveCapacity"
+          :min="teamLimits.min"
+          :max="teamLimits.max"
+          @apply="capacityOverride = $event"
+      />
+    </template>
     <TeamPlanBar
         :plan-teams="planTeams"
         :registered-teams="registeredTeams"
-        :capacity="capacity"
+        :capacity="effectiveCapacity"
         :min-teams="teamLimits.min"
         :max-teams="teamLimits.max"
         :on-update="(value) => updateByName('f8_teams', value)"
