@@ -142,17 +142,14 @@ const showBackToOverview = computed(() => isLiveTabActive.value || isAdminMode.v
 
 function toAdminNavEntry(item: (typeof ADMIN_OPS_SECTIONS)[number]): NavEntry {
   const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
-  const suffix = !available && item.devSuffix ? ` ${item.devSuffix}` : ''
   return {
-    name: `${item.label}${suffix}`,
+    name: item.label,
     path: item.path,
     icon: item.icon,
     disabled: !available,
     title: available
       ? undefined
-      : item.devOrLocalOnly
-        ? `${item.label} ist nur auf Dev oder lokal verfügbar`
-        : `${item.label} ist nur auf Dev verfügbar`,
+      : `${item.label} ist nur auf Dev oder lokal verfügbar`,
   }
 }
 

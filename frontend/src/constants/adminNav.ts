@@ -8,11 +8,8 @@ export type AdminSection = {
   icon: string
   path: string
   group: AdminGroup
-  /** Hosted Dev only (not local). */
-  devOnly?: boolean
-  /** Hosted Dev or localhost. */
+  /** Hosted Dev or localhost (same gate for every Entwicklung entry). */
   devOrLocalOnly?: boolean
-  devSuffix?: string
 }
 
 const DEV_HOSTS = ['dev.flow.hands-on-technology.org']
@@ -39,7 +36,7 @@ export function isLocalHost(): boolean {
   return LOCAL_HOSTS.includes(currentHostname())
 }
 
-/** Entwicklung block: Local and/or hosted Dev — never Test/Production. */
+/** Local and/or hosted Dev — never Test/Production. */
 export function isEntwicklungEnvironment(isLocal: boolean): boolean {
   const host = currentHostname()
   if (BLOCKED_HOSTS.includes(host)) return false
@@ -49,6 +46,7 @@ export function isEntwicklungEnvironment(isLocal: boolean): boolean {
 /**
  * Ops tools (all tiers), then Entwicklung (Local/Dev only).
  * Full-page UIs stay top-level; push-button actions live under Wartung.
+ * Every Entwicklung entry uses the same Local+Dev gate.
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
   // Ops
@@ -59,22 +57,20 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {key: 'external-api', label: 'External API', icon: 'bi-key', group: 'ops'},
   {key: 'sharepoint', label: 'SharePoint', icon: 'bi-folder', group: 'ops'},
   {key: 'wartung', label: 'Wartung', icon: 'bi-tools', group: 'ops'},
-  // Entwicklung (bottom)
+  // Entwicklung (bottom) — all Local + Dev only
   {
     key: 'nowandnext',
     label: 'Now and Next',
     icon: 'bi-clock-history',
     group: 'entwicklung',
     devOrLocalOnly: true,
-    devSuffix: '(Dev oder lokal)',
   },
   {
     key: 'main-tables',
     label: 'Main Tables',
     icon: 'bi-table',
     group: 'entwicklung',
-    devOnly: true,
-    devSuffix: '(nur Dev)',
+    devOrLocalOnly: true,
   },
   {
     key: 'quality',
@@ -82,7 +78,6 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     icon: 'bi-flask',
     group: 'entwicklung',
     devOrLocalOnly: true,
-    devSuffix: '(Dev oder lokal)',
   },
 ].map((item) => ({
   ...item,
@@ -103,30 +98,23 @@ export function isAdminSection(key: string): boolean {
 }
 
 /**
- * Main Tables: only the hosted Dev site (not local APP_ENV=local).
- * Massentest / Now and Next: hosted Dev or localhost.
- * Test/production hosts never get Entwicklung tools.
+ * Entwicklung (and any `devOrLocalOnly` flag): Local or hosted Dev only.
+ * Test/production hosts never get those tools.
  */
 export function isAdminSectionAvailable(
-  item: Pick<AdminSection, 'devOnly' | 'devOrLocalOnly' | 'group'>,
+  item: Pick<AdminSection, 'devOrLocalOnly' | 'group'>,
   _isDev: boolean,
   isLocal: boolean,
 ): boolean {
-  const host = currentHostname()
-  if (item.group === 'entwicklung' && !isEntwicklungEnvironment(isLocal)) {
-    return false
+  if (item.group === 'entwicklung' || item.devOrLocalOnly) {
+    return isEntwicklungEnvironment(isLocal)
   }
-  if (BLOCKED_HOSTS.includes(host)) {
-    return !item.devOnly && !item.devOrLocalOnly
-  }
-  if (item.devOnly) return isHostedDev()
-  if (item.devOrLocalOnly) return isHostedDev() || isLocal || isLocalHost()
   return true
 }
 
 /** Contao / other Wartung cards that are Local+Dev only. */
 export function isDevOrLocalToolAvailable(isLocal: boolean): boolean {
-  return isHostedDev() || isLocal || isLocalHost()
+  return isEntwicklungEnvironment(isLocal)
 }
 
 export function adminSectionPath(key: string = ADMIN_DEFAULT_SECTION): string {

@@ -332,12 +332,9 @@ function confirmRebuildCalendar() {
       </div>
 
       <div v-if="showDevTools" class="wartung-tile glass-card liquid-surface-inner">
-        <div class="flex flex-wrap items-center gap-2">
-          <h3 class="glass-card__title !mb-0">Teams in Finalrunden aus Contao laden</h3>
-          <span class="glass-chip !px-2 !py-0.5 !text-xs shrink-0">nur Dev/Lokal</span>
-        </div>
+        <h3 class="glass-card__title !mb-0">Teams in Finalrunden aus Contao laden</h3>
         <p class="wartung-tile__body text-sm text-[var(--color-text-muted)]">
-          Lädt Finalrunden-Teams aus Contao in den Spielplan (zum Testen auf Dev/Lokal).
+          Lädt Finalrunden-Teams aus Contao in den Spielplan.
         </p>
         <div class="wartung-tile__controls wartung-tile__controls--row">
           <input
