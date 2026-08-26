@@ -16,6 +16,9 @@ const isPublicRoute = computed(() => {
 /** Slim plan pop-out / public surfaces: no app chrome. */
 const isChromeLess = computed(() => isPublicRoute.value || route.meta?.popout === true)
 
+/** Admin fills the panel so tools can scroll internally (e.g. Main Tables). */
+const isAdminRoute = computed(() => route.path.startsWith('/plan/admin'))
+
 const router = useRouter();
 const route = useRoute();
 
@@ -86,7 +89,10 @@ onMounted(() => {
 
   <Navigation v-else class="font-sans">
     <EventDayBanner/>
-    <div class="glass-app__panel liquid-surface">
+    <div
+      class="glass-app__panel liquid-surface"
+      :class="{ 'glass-app__panel--fill': isAdminRoute }"
+    >
       <router-view/>
     </div>
 
@@ -99,3 +105,17 @@ onMounted(() => {
 
   <GlassToast/>
 </template>
+
+<style scoped>
+.glass-app__panel--fill {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.glass-app__panel--fill > :deep(*) {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+</style>

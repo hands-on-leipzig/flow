@@ -71,7 +71,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-full min-h-0 overflow-auto p-4 lg:p-6">
+  <div
+    class="admin-shell h-full min-h-0 p-4 lg:p-6"
+    :class="activeTab === 'main-tables' ? 'admin-shell--fill' : 'overflow-auto'"
+  >
     <div v-if="activeTab === 'user-regional-partners'">
       <h2 class="text-xl font-bold mb-4">User ↔ Regionen</h2>
       <UserRegionalPartnerRelations/>
@@ -82,7 +85,7 @@ onMounted(() => {
       <Quality/>
     </div>
 
-    <div v-else-if="activeTab === 'main-tables' && sectionAllowed">
+    <div v-else-if="activeTab === 'main-tables' && sectionAllowed" class="admin-shell__fill-child">
       <MainTablesAdmin/>
     </div>
 
@@ -127,3 +130,24 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.admin-shell--fill {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-shell__fill-child {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-shell__fill-child > :deep(*) {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+</style>

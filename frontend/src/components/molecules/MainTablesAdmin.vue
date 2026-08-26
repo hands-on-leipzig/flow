@@ -29,121 +29,122 @@
 
       <section class="main-tables-admin__content min-w-0">
         <!-- Special UI for m_parameter table -->
-        <div v-if="selectedTable === 'm_parameter'" class="glass-card liquid-surface-inner overflow-hidden">
-          <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
+        <div v-if="selectedTable === 'm_parameter'" class="main-tables-admin__panel glass-card liquid-surface-inner">
+          <div class="main-tables-admin__panel-toolbar">
+            <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
               {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
             </h3>
+          </div>
+          <div class="main-tables-admin__table-scroll p-4 sm:p-6">
             <MParameter />
           </div>
         </div>
 
         <!-- Special UI for m_visibility table -->
-        <div v-else-if="selectedTable === 'm_visibility'" class="glass-card liquid-surface-inner overflow-hidden">
-          <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
+        <div v-else-if="selectedTable === 'm_visibility'" class="main-tables-admin__panel glass-card liquid-surface-inner">
+          <div class="main-tables-admin__panel-toolbar">
+            <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
               {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
             </h3>
+          </div>
+          <div class="main-tables-admin__table-scroll p-4 sm:p-6">
             <Visibility />
           </div>
         </div>
 
         <!-- Generic Table Content for other tables -->
-        <div v-else-if="selectedTable && tableData.length > 0" class="glass-card liquid-surface-inner overflow-hidden">
-          <div class="px-4 py-5 sm:p-6">
-            <h3 class="text-lg font-medium text-[var(--color-text)] mb-4">
+        <div v-else-if="selectedTable && tableData.length > 0" class="main-tables-admin__panel glass-card liquid-surface-inner">
+          <div class="main-tables-admin__panel-toolbar">
+            <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
               {{ getTableDisplayName(selectedTable) }} - {{ tableData.length }} Datensätze
             </h3>
+            <button
+              type="button"
+              @click="addNewRecord"
+              class="glass-btn-accent !px-3 !py-2 !text-sm inline-flex items-center gap-2 shrink-0"
+            >
+              <i class="bi bi-plus-lg" aria-hidden="true"/>
+              Neuen Datensatz hinzufügen
+            </button>
+          </div>
 
-            <div class="mb-4">
-              <button
-                type="button"
-                @click="addNewRecord"
-                class="glass-btn-accent !px-3 !py-2 !text-sm inline-flex items-center gap-2"
-              >
-                <i class="bi bi-plus-lg" aria-hidden="true"/>
-                Neuen Datensatz hinzufügen
-              </button>
-            </div>
-
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-[var(--color-border)]">
-                <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
-                  <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-[var(--color-text-subtle)] uppercase tracking-wider">
-                      Aktionen
-                    </th>
-                    <th
-                      v-for="column in tableColumns"
-                      :key="column"
-                      class="px-6 py-3 text-left text-xs font-medium text-[var(--color-text-subtle)] uppercase tracking-wider"
-                    >
-                      {{ column }}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-[var(--color-border)]">
-                  <tr v-for="(record, index) in tableData" :key="record.id || index">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div v-if="editingRecord === index" class="flex space-x-2">
-                        <button
-                          type="button"
-                          @click="saveRecord(index)"
-                          class="text-green-600 hover:text-green-900"
-                        >
-                          Speichern
-                        </button>
-                        <button
-                          type="button"
-                          @click="cancelEdit"
-                          class="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                        >
-                          Abbrechen
-                        </button>
-                      </div>
-                      <div v-else class="flex space-x-2">
-                        <button
-                          type="button"
-                          @click="editRecord(index)"
-                          class="text-[var(--color-accent)] hover:opacity-80"
-                        >
-                          Bearbeiten
-                        </button>
-                        <button
-                          type="button"
-                          @click="confirmDeleteRecord(index)"
-                          class="text-red-600 hover:text-red-900"
-                        >
-                          Löschen
-                        </button>
-                      </div>
-                    </td>
-                    <td
-                      v-for="column in tableColumns"
-                      :key="column"
-                      class="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]"
-                    >
-                      <select
-                        v-if="editingRecord === index && column === 'presence'"
-                        v-model="editingData[column]"
-                        class="glass-input liquid-surface-control !px-3 !py-2 w-full"
+          <div class="main-tables-admin__table-scroll">
+            <table class="min-w-full divide-y divide-[var(--color-border)]">
+              <thead>
+                <tr>
+                  <th class="main-tables-admin__th">
+                    Aktionen
+                  </th>
+                  <th
+                    v-for="column in tableColumns"
+                    :key="column"
+                    class="main-tables-admin__th"
+                  >
+                    {{ column }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[var(--color-border)]">
+                <tr v-for="(record, index) in tableData" :key="record.id || index">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div v-if="editingRecord === index" class="flex space-x-2">
+                      <button
+                        type="button"
+                        @click="saveRecord(index)"
+                        class="text-green-600 hover:text-green-900"
                       >
-                        <option value="punctual">punctual — pünktlich da</option>
-                        <option value="window">window — Zeitfenster / Rahmen</option>
-                        <option value="info">info — Kontext / optional</option>
-                      </select>
-                      <input
-                        v-else-if="editingRecord === index"
-                        v-model="editingData[column]"
-                        :type="getInputType(column)"
-                        class="glass-input liquid-surface-control !px-3 !py-2 w-full"
-                      />
-                      <span v-else>{{ record[column] || '-' }}</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                        Speichern
+                      </button>
+                      <button
+                        type="button"
+                        @click="cancelEdit"
+                        class="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
+                    <div v-else class="flex space-x-2">
+                      <button
+                        type="button"
+                        @click="editRecord(index)"
+                        class="text-[var(--color-accent)] hover:opacity-80"
+                      >
+                        Bearbeiten
+                      </button>
+                      <button
+                        type="button"
+                        @click="confirmDeleteRecord(index)"
+                        class="text-red-600 hover:text-red-900"
+                      >
+                        Löschen
+                      </button>
+                    </div>
+                  </td>
+                  <td
+                    v-for="column in tableColumns"
+                    :key="column"
+                    class="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]"
+                  >
+                    <select
+                      v-if="editingRecord === index && column === 'presence'"
+                      v-model="editingData[column]"
+                      class="glass-input liquid-surface-control !px-3 !py-2 w-full"
+                    >
+                      <option value="punctual">punctual — pünktlich da</option>
+                      <option value="window">window — Zeitfenster / Rahmen</option>
+                      <option value="info">info — Kontext / optional</option>
+                    </select>
+                    <input
+                      v-else-if="editingRecord === index"
+                      v-model="editingData[column]"
+                      :type="getInputType(column)"
+                      class="glass-input liquid-surface-control !px-3 !py-2 w-full"
+                    />
+                    <span v-else>{{ record[column] || '-' }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
@@ -382,7 +383,9 @@ onMounted(() => {
   flex-direction: column;
   gap: 1rem;
   max-width: 100%;
+  height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 .main-tables-admin__header {
@@ -391,24 +394,27 @@ onMounted(() => {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 .main-tables-admin__body {
   display: grid;
   grid-template-columns: minmax(14rem, 17rem) minmax(0, 1fr);
   gap: 1rem;
-  align-items: start;
+  align-items: stretch;
   min-height: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .main-tables-admin__nav {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  max-height: min(70vh, 40rem);
+  min-height: 0;
+  height: 100%;
+  overflow-x: hidden;
   overflow-y: auto;
-  position: sticky;
-  top: 0.5rem;
 }
 
 .main-tables-admin__nav-item {
@@ -444,16 +450,64 @@ onMounted(() => {
 
 .main-tables-admin__content {
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.main-tables-admin__panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.main-tables-admin__panel-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+}
+
+.main-tables-admin__table-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.main-tables-admin__th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-subtle);
+  background: color-mix(in srgb, #ffffff 92%, var(--color-bg-muted));
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 1px 0 var(--color-border);
 }
 
 @media (max-width: 900px) {
   .main-tables-admin__body {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(10rem, 30%) minmax(0, 1fr);
   }
 
   .main-tables-admin__nav {
-    position: static;
-    max-height: 14rem;
+    max-height: none;
   }
 }
 </style>
