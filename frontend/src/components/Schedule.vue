@@ -7,7 +7,6 @@ import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
-import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import Preview from '@/components/molecules/Preview.vue'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import { parseBerlinWallTime } from '@/utils/dateTimeFormat'
@@ -60,9 +59,10 @@ const planLastChangeLabel = computed(() => {
   return `${datePart} um ${timePart}`
 })
 
-async function handlePlanLockToggle(nextValue: boolean) {
+async function handlePlanLockToggle() {
+  if (!selectedPlanId.value) return
   try {
-    await updatePlanLock(nextValue)
+    await updatePlanLock(!planLocked.value)
   } catch (error) {
     if (import.meta.env.DEV) console.error('Fehler beim Sperren des Plans:', error)
   }
@@ -175,28 +175,39 @@ watch(
               <div class="schedule-workspace__preview">
                 <div class="schedule-workspace__preview-bar">
                   <div class="min-w-0">
-                    <h2 class="text-sm font-semibold text-[var(--color-text)] truncate">
-                      Veranstaltungsplan - zuletzt geändert am {{ planLastChangeLabel }}
+                    <h2 class="text-sm font-semibold text-[var(--color-text)] flex items-center gap-2 min-w-0">
+                      <span class="truncate">
+                        Veranstaltungsplan - zuletzt geändert am {{ planLastChangeLabel }}
+                      </span>
+                      <button
+                          type="button"
+                          class="inline-flex items-center gap-1.5 shrink-0 rounded px-0.5 py-0.5 text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)] disabled:opacity-50"
+                          :class="planLocked ? 'text-[#dc2626] hover:text-[#b91c1c]' : 'hover:text-[var(--color-text)]'"
+                          :disabled="!selectedPlanId"
+                          :aria-pressed="planLocked"
+                          :aria-label="planLocked ? 'Plan entsperren' : 'Plan sperren'"
+                          :title="planLocked ? 'gegen Änderungen gesperrt – klicken zum Entsperren' : 'entsperrt – klicken zum Sperren'"
+                          @click="handlePlanLockToggle"
+                      >
+                        <i
+                            class="bi text-base"
+                            :class="planLocked ? 'bi-lock-fill' : 'bi-unlock'"
+                            aria-hidden="true"
+                        />
+                        <span v-if="planLocked" class="text-xs font-medium">gegen Änderungen gesperrt</span>
+                      </button>
                     </h2>
-                    <p v-if="planLocked" class="text-xs text-[var(--color-text-muted)] mt-0.5">gegen Änderungen gesperrt</p>
                   </div>
-                  <div class="flex items-center gap-3">
-                    <ToggleSwitch
-                        :model-value="planLocked"
-                        :disabled="!selectedPlanId"
-                        @update:model-value="handlePlanLockToggle"
-                    />
-                    <button
-                        type="button"
-                        class="inline-flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] disabled:opacity-50"
-                        :disabled="!selectedPlanId"
-                        title="Plan in eigenem Fenster öffnen"
-                        @click="openPlanPopout"
-                    >
-                      <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
-                      <span>Pop-out</span>
-                    </button>
-                  </div>
+                  <button
+                      type="button"
+                      class="inline-flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] disabled:opacity-50"
+                      :disabled="!selectedPlanId"
+                      title="Plan in eigenem Fenster öffnen"
+                      @click="openPlanPopout"
+                  >
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
+                    <span>Pop-out</span>
+                  </button>
                 </div>
 
                 <div class="flex-1 min-h-0 min-w-0 overflow-hidden">
