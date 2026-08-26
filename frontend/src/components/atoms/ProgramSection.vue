@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {getProgramTheme} from '@/utils/programTheme'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
@@ -15,10 +15,16 @@ const props = withDefaults(
       title?: string
       /** Optional subtitle under the heading */
       subtitle?: string
+      /** When true, header toggles the body open/closed. */
+      collapsible?: boolean
+      /** Initial collapsed state when collapsible (ignored after first toggle). */
+      defaultCollapsed?: boolean
     }>(),
     {
       active: true,
       showLogo: true,
+      collapsible: false,
+      defaultCollapsed: false,
     }
 )
 
@@ -30,38 +36,95 @@ const subtitleText = computed(() => {
   if (props.title) return null
   return 'FIRST LEGO League'
 })
+
+const collapsed = ref(props.collapsible && props.defaultCollapsed)
+
+watch(
+    () => props.collapsible,
+    (on) => {
+      if (!on) collapsed.value = false
+    }
+)
+
+const bodyOpen = computed(() => !props.collapsible || !collapsed.value)
+
+function toggleCollapsed() {
+  if (!props.collapsible) return
+  collapsed.value = !collapsed.value
+}
 </script>
 
 <template>
   <section
       class="program-section glass-card liquid-surface-inner"
-      :class="{ 'program-section--inactive': !active }"
+      :class="{
+        'program-section--inactive': !active,
+        'program-section--collapsed': collapsible && collapsed,
+      }"
       :style="{ '--program-accent': theme.accent }"
       :data-program="program"
   >
-    <header class="program-section__header">
-      <div class="program-section__identity">
-        <img
-            v-if="showLogoImg"
-            :alt="programLogoAlt(theme.catalogName)"
-            :src="programLogoSrc(theme.catalogName)"
-            class="program-section__logo"
-        />
-        <div class="min-w-0">
-          <h3 class="program-section__title glass-card__title !mb-0">{{ heading }}</h3>
-          <p v-if="subtitleText" class="program-section__subtitle">
-            <template v-if="!subtitle && !title">
-              <span class="italic">FIRST</span> LEGO League
-            </template>
-            <template v-else>{{ subtitleText }}</template>
-          </p>
+    <header
+        class="program-section__header"
+        :class="{ 'program-section__header--toggle': collapsible }"
+    >
+      <button
+          v-if="collapsible"
+          type="button"
+          class="program-section__toggle"
+          :aria-expanded="bodyOpen"
+          @click="toggleCollapsed"
+      >
+        <div class="program-section__identity">
+          <img
+              v-if="showLogoImg"
+              :alt="programLogoAlt(theme.catalogName)"
+              :src="programLogoSrc(theme.catalogName)"
+              class="program-section__logo"
+          />
+          <div class="min-w-0">
+            <h3 class="program-section__title glass-card__title !mb-0">{{ heading }}</h3>
+            <p v-if="subtitleText" class="program-section__subtitle">
+              <template v-if="!subtitle && !title">
+                <span class="italic">FIRST</span> LEGO League
+              </template>
+              <template v-else>{{ subtitleText }}</template>
+            </p>
+          </div>
         </div>
-      </div>
-      <div v-if="$slots.actions" class="program-section__actions">
+        <i
+            class="bi program-section__chevron"
+            :class="collapsed ? 'bi-chevron-down' : 'bi-chevron-up'"
+            aria-hidden="true"
+        />
+      </button>
+      <template v-else>
+        <div class="program-section__identity">
+          <img
+              v-if="showLogoImg"
+              :alt="programLogoAlt(theme.catalogName)"
+              :src="programLogoSrc(theme.catalogName)"
+              class="program-section__logo"
+          />
+          <div class="min-w-0">
+            <h3 class="program-section__title glass-card__title !mb-0">{{ heading }}</h3>
+            <p v-if="subtitleText" class="program-section__subtitle">
+              <template v-if="!subtitle && !title">
+                <span class="italic">FIRST</span> LEGO League
+              </template>
+              <template v-else>{{ subtitleText }}</template>
+            </p>
+          </div>
+        </div>
+        <div v-if="$slots.actions" class="program-section__actions">
+          <slot name="actions"/>
+        </div>
+      </template>
+      <div v-if="collapsible && $slots.actions" class="program-section__actions">
         <slot name="actions"/>
       </div>
     </header>
-    <div class="program-section__body glass-settings-block">
+    <div v-show="bodyOpen" class="program-section__body glass-settings-block">
       <slot/>
     </div>
   </section>
@@ -106,6 +169,10 @@ const subtitleText = computed(() => {
   opacity: 0.75;
 }
 
+.program-section--collapsed {
+  padding-bottom: 0.55rem;
+}
+
 .program-section__header {
   display: flex;
   align-items: center;
@@ -115,6 +182,39 @@ const subtitleText = computed(() => {
   padding: 0 0 0.4rem;
   margin-bottom: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 22%, transparent);
+}
+
+.program-section--collapsed .program-section__header {
+  border-bottom-color: transparent;
+  padding-bottom: 0;
+}
+
+.program-section__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.program-section__toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--program-accent) 45%, transparent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.program-section__chevron {
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  color: var(--color-text-muted);
 }
 
 .program-section__identity {

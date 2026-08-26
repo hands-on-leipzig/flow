@@ -173,6 +173,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('plans')->group(function () {
         Route::post('/create', [PlanController::class, 'create']);
         Route::get('/event/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']);
+        Route::patch('/{id}/lock', [PlanController::class, 'updateLock']);
         Route::post('/sync-team-plan/{eventId}', [PlanController::class, 'syncTeamPlanForEvent']);
         Route::delete('/{id}', [PlanController::class, 'delete']);
     });

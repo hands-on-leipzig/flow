@@ -28,6 +28,10 @@ class PlanGeneratorController extends Controller
             return $response;
         }
 
+        if ($response = $this->ensurePlanUnlocked($planId)) {
+            return $response;
+        }
+
         try {
             // Prüfen, ob Plan unterstützt wird
             $supportCheck = $this->generator->isSupported($planId);
@@ -122,6 +126,10 @@ class PlanGeneratorController extends Controller
             return $response;
         }
 
+        if ($response = $this->ensurePlanUnlocked($planId)) {
+            return $response;
+        }
+
         try {
             // Service aufrufen
             $this->generator->generateLite($planId);
@@ -173,6 +181,16 @@ class PlanGeneratorController extends Controller
             return response()->json([
                 'error' => "Plan {$planId} nicht gefunden",
             ], 404);
+        }
+
+        return null;
+    }
+
+    private function ensurePlanUnlocked(int $planId): ?JsonResponse
+    {
+        $isLocked = (bool) DB::table('plan')->where('id', $planId)->value('locked');
+        if ($isLocked) {
+            return response()->json([]);
         }
 
         return null;

@@ -2,19 +2,22 @@
 /**
  * Ablauf / Zusatzaktivitäten shell: sidebar picks the left pane; plan preview stays on the right.
  */
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import Preview from '@/components/molecules/Preview.vue'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
+import { formatDateTime } from '@/utils/dateTimeFormat'
 
 defineOptions({ name: 'Schedule' })
 
 const {
   selectedEvent,
   selectedPlanId,
+  planLocked,
+  planLastChange,
   loading,
   isGenerating,
   generatorError,
@@ -28,6 +31,7 @@ const {
   openPlanPopout,
   focusPlanPopout,
   dockPlanPopout,
+  updatePlanLock,
 } = useScheduleWorkspace()
 
 const leftWidth = ref(50)
@@ -35,6 +39,31 @@ const leftWidth = ref(50)
 function clearGeneratorError() {
   generatorError.value = null
   errorDetails.value = null
+}
+
+const planLastChangeLabel = computed(() => {
+  const formatted = formatDateTime(planLastChange.value)
+  if (!formatted) return 'unbekannt'
+  // formatDateTime → "DD.MM.YYYY, HH:mm" → "DD.MM.YYYY um HH:mm"
+  return formatted.replace(', ', ' um ')
+})
+
+async function unlockPlan() {
+  if (!selectedPlanId.value || !planLocked.value) return
+  try {
+    await updatePlanLock(false)
+  } catch (error) {
+    if (import.meta.env.DEV) console.error('Fehler beim Entsperren des Plans:', error)
+  }
+}
+
+async function lockPlan() {
+  if (!selectedPlanId.value || planLocked.value) return
+  try {
+    await updatePlanLock(true)
+  } catch (error) {
+    if (import.meta.env.DEV) console.error('Fehler beim Sperren des Plans:', error)
+  }
 }
 
 onMounted(() => {
@@ -58,6 +87,7 @@ watch(
 
     <template v-else>
       <ScheduleToast
+          v-if="!planLocked"
           :is-generating="isGenerating"
           :countdown="countdownSeconds"
           :on-immediate-save="immediateFlush"
@@ -119,7 +149,23 @@ watch(
               :style="planPopoutOpen ? undefined : { flex: `0 0 ${leftWidth}%` }"
           >
             <div class="schedule-workspace__settings">
-              <router-view v-slot="{ Component, route: paneRoute }">
+              <div v-if="planLocked" class="glass-alert-error flex flex-col items-start gap-3">
+                <div class="flex items-start gap-2">
+                  <i class="bi bi-lock-fill text-[#dc2626] mt-0.5 shrink-0" aria-hidden="true"/>
+                  <p class="text-sm md:text-base font-medium text-[#dc2626]">
+                    Der Plan ist gegen Änderungen gesperrt.
+                  </p>
+                </div>
+                <button
+                    type="button"
+                    class="glass-btn-secondary inline-flex items-center gap-1.5"
+                    @click="unlockPlan"
+                >
+                  <i class="bi bi-unlock" aria-hidden="true"/>
+                  <span>Entsperren</span>
+                </button>
+              </div>
+              <router-view v-else v-slot="{ Component, route: paneRoute }">
                 <keep-alive
                     include="ScheduleGeneral,ScheduleTimes,ScheduleAfternoon,ScheduleExpert,ScheduleFreeActivities,Slots"
                 >
@@ -143,7 +189,29 @@ watch(
             <section class="schedule-workspace__right">
               <div class="schedule-workspace__preview">
                 <div class="schedule-workspace__preview-bar">
-                  <h2 class="text-sm font-semibold text-[var(--color-text)] uppercase tracking-wide">Plan</h2>
+                  <div class="min-w-0 flex items-center gap-2 flex-wrap">
+                    <h2 class="text-sm font-semibold text-[var(--color-text)] truncate min-w-0">
+                      Veranstaltungsplan - zuletzt geändert am {{ planLastChangeLabel }}
+                    </h2>
+                    <button
+                        v-if="!planLocked"
+                        type="button"
+                        class="inline-flex items-center gap-1.5 shrink-0 text-xs md:text-sm px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] disabled:opacity-50"
+                        :disabled="!selectedPlanId"
+                        title="Plan gegen Änderungen sperren"
+                        @click="lockPlan"
+                    >
+                      <i class="bi bi-lock-fill" aria-hidden="true"/>
+                      <span>Sperren</span>
+                    </button>
+                    <span
+                        v-else
+                        class="inline-flex items-center gap-1.5 shrink-0 text-xs font-medium text-[#dc2626]"
+                    >
+                      <i class="bi bi-lock-fill" aria-hidden="true"/>
+                      gegen Änderungen gesperrt
+                    </span>
+                  </div>
                   <button
                       type="button"
                       class="inline-flex items-center gap-1.5 text-xs md:text-sm px-2.5 py-1.5 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] hover:bg-[var(--color-bg-hover)] text-[var(--color-text)] disabled:opacity-50"
