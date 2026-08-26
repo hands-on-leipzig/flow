@@ -7,7 +7,7 @@ import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import axios from 'axios'
 import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
-import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import { programLogoSrc } from '@/utils/images'
 import { getProgramTheme } from '@/utils/programTheme'
 
 const FIRST_PROGRAM = {
@@ -338,6 +338,15 @@ function formatTeam(teamNum: number | null): string {
   return String(teamNum)
 }
 
+function matchPlanProgramLabel(programId: number): string {
+  return `FIRST LEGO League ${themeForProgram(programId).shortName}`
+}
+
+function selectMatchPlanProgram(programId: number) {
+  if (selectedFirstProgram.value === programId) return
+  selectedFirstProgram.value = programId
+}
+
 // Check if any activity group has explore_group filled
 const hasExploreGroups = computed(() => {
   return activities.value.some(group => group.explore_group !== null && group.explore_group !== undefined)
@@ -379,38 +388,12 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           >Teams</button>
         </div>
 
-        <div v-if="hasMatchPlan && !dualMatchPlan" class="glass-segment">
+        <div v-if="hasMatchPlan" class="glass-segment">
           <button
             class="glass-segment__btn"
             :class="{'glass-segment__btn--active': view === 'robot-game'}"
             @click="openMatchPlan()"
           >Match-Plan</button>
-        </div>
-
-        <div v-if="hasMatchPlan && dualMatchPlan" class="flex items-center gap-1.5">
-          <div class="glass-segment">
-            <span
-              class="glass-segment__btn pointer-events-none cursor-default"
-              :class="{'glass-segment__btn--active': view === 'robot-game'}"
-            >Match-Plan</span>
-          </div>
-          <button
-            v-for="programId in matchPlanPrograms"
-            :key="`match-${programId}`"
-            type="button"
-            class="preview-program-icon"
-            :class="{'preview-program-icon--active': view === 'robot-game' && selectedFirstProgram === programId}"
-            :title="themeForProgram(programId).shortName"
-            :aria-label="`Match-Plan ${themeForProgram(programId).shortName}`"
-            @click="openMatchPlan(programId)"
-          >
-            <img
-              v-if="themeForProgram(programId).catalogName"
-              :src="programLogoSrc(themeForProgram(programId).catalogName)"
-              :alt="programLogoAlt(themeForProgram(programId).catalogName)"
-              class="preview-program-icon__img"
-            />
-          </button>
         </div>
 
         <div v-if="isAdmin" class="glass-segment">
@@ -436,38 +419,12 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
             >Aktivitäten</button>
           </div>
 
-          <div v-if="hasMatchPlan && !dualMatchPlan" class="glass-segment">
+          <div v-if="hasMatchPlan" class="glass-segment">
             <button
               class="glass-segment__btn"
               :class="{'glass-segment__btn--active': view === 'quality'}"
               @click="openQuality()"
             >Plan-Qualität</button>
-          </div>
-
-          <div v-if="hasMatchPlan && dualMatchPlan" class="flex items-center gap-1.5">
-            <div class="glass-segment">
-              <span
-                class="glass-segment__btn pointer-events-none cursor-default"
-                :class="{'glass-segment__btn--active': view === 'quality'}"
-              >Plan-Qualität</span>
-            </div>
-            <button
-              v-for="programId in matchPlanPrograms"
-              :key="`quality-${programId}`"
-              type="button"
-              class="preview-program-icon"
-              :class="{'preview-program-icon--active': view === 'quality' && selectedFirstProgram === programId}"
-              :title="themeForProgram(programId).shortName"
-              :aria-label="`Plan-Qualität ${themeForProgram(programId).shortName}`"
-              @click="openQuality(programId)"
-            >
-              <img
-                v-if="themeForProgram(programId).catalogName"
-                :src="programLogoSrc(themeForProgram(programId).catalogName)"
-                :alt="programLogoAlt(themeForProgram(programId).catalogName)"
-                class="preview-program-icon__img"
-              />
-            </button>
           </div>
         </div>
       </div>
@@ -571,7 +528,30 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Match-Plan -->
-    <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+    <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4 flex flex-col gap-3">
+      <div
+        v-if="dualMatchPlan"
+        class="flex flex-wrap items-center gap-2 shrink-0"
+      >
+        <button
+          v-for="programId in matchPlanPrograms"
+          :key="`match-filter-${programId}`"
+          type="button"
+          class="roles-program-filter"
+          :class="{ 'roles-program-filter--active': selectedFirstProgram === programId }"
+          :aria-pressed="selectedFirstProgram === programId"
+          @click="selectMatchPlanProgram(programId)"
+        >
+          <img
+            v-if="themeForProgram(programId).catalogName"
+            :src="programLogoSrc(themeForProgram(programId).catalogName)"
+            alt=""
+            class="roles-program-filter__logo"
+          />
+          <span class="roles-program-filter__label">{{ matchPlanProgramLabel(programId) }}</span>
+        </button>
+      </div>
+
       <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
 
       <template v-else>
@@ -656,7 +636,29 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Plan-Qualität (QPlanDetails) -->
-    <div v-else-if="view === 'quality'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+    <div v-else-if="view === 'quality'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4 flex flex-col gap-3">
+      <div
+        v-if="dualMatchPlan"
+        class="flex flex-wrap items-center gap-2 shrink-0"
+      >
+        <button
+          v-for="programId in matchPlanPrograms"
+          :key="`quality-filter-${programId}`"
+          type="button"
+          class="roles-program-filter"
+          :class="{ 'roles-program-filter--active': selectedFirstProgram === programId }"
+          :aria-pressed="selectedFirstProgram === programId"
+          @click="selectMatchPlanProgram(programId)"
+        >
+          <img
+            v-if="themeForProgram(programId).catalogName"
+            :src="programLogoSrc(themeForProgram(programId).catalogName)"
+            alt=""
+            class="roles-program-filter__logo"
+          />
+          <span class="roles-program-filter__label">{{ matchPlanProgramLabel(programId) }}</span>
+        </button>
+      </div>
       <QPlanDetails
         v-if="effectivePlanId"
         :plan-id="Number(effectivePlanId)"
