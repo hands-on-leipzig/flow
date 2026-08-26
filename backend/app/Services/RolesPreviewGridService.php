@@ -151,6 +151,10 @@ class RolesPreviewGridService
             $columns = [];
 
             foreach ($roles as $role) {
+                if ($this->isRobotCheckRole($role) && ! (int) $params->get('r_robot_check', 0)) {
+                    continue;
+                }
+
                 $count = $this->multiplicityForRole($programId, (string) $role->differentiation_parameter, $params);
                 if ($count < 1) {
                     continue;

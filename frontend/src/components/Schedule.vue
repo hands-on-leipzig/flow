@@ -260,7 +260,7 @@ watch(
                       </div>
                     </div>
                     <p class="text-sm text-[var(--color-text-muted)] m-0">
-                      Veranstaltungsplan – zuletzt geändert am {{ planLastChangeLabel }}
+                      Zuletzt geändert am {{ planLastChangeLabel }}
                     </p>
                   </div>
                 </div>
