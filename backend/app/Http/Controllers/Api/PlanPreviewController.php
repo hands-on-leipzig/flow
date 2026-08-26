@@ -6,6 +6,7 @@ use App\Enums\FirstProgram;
 use App\Http\Controllers\Controller;
 use App\Services\ActivityFetcherService;
 use App\Services\PreviewMatrixService;
+use App\Services\RolesPreviewGridService;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
 use Illuminate\Http\Request;
@@ -31,6 +32,23 @@ class PlanPreviewController extends Controller
         // Return the data in the same format as other preview methods
         return response()->json([
             'html' => view('preview.event-overview', $data)->render(),
+            'success' => true,
+        ]);
+    }
+
+    /**
+     * New Überblick-style roles grid (5-minute activity columns).
+     * Old JSON matrix remains at previewRoles /roles.
+     */
+    public function previewRolesGrid(int $planId, RolesPreviewGridService $grid)
+    {
+        $data = $grid->build($planId);
+
+        return response()->json([
+            'html' => view('preview.roles-grid', [
+                'programs' => $data['programs'],
+                'eventsByDay' => $data['eventsByDay'],
+            ])->render(),
             'success' => true,
         ]);
     }

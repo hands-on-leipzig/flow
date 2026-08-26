@@ -126,6 +126,8 @@ const dualMatchPlan = computed(() => matchPlanPrograms.value.length > 1)
 
 // Event overview HTML
 const overviewHtml = ref<string>('')
+/** New Rollen grid HTML (Überblick-style); old /roles matrix kept for teams/rooms. */
+const rolesHtml = ref<string>('')
 
 function programThemeKey(programId: number): 'challenge' | 'future8' {
   return programId === FIRST_PROGRAM.FUTURE_8 ? 'future8' : 'challenge'
@@ -168,6 +170,15 @@ async function load() {
       // Event overview HTML
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/overview`)
       overviewHtml.value = data.html
+      rolesHtml.value = ''
+      headers.value = []
+      rows.value = []
+      activities.value = []
+      robotGameData.value = null
+    } else if (view.value === 'roles') {
+      const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/roles-grid`)
+      rolesHtml.value = data.html ?? ''
+      overviewHtml.value = ''
       headers.value = []
       rows.value = []
       activities.value = []
@@ -188,11 +199,15 @@ async function load() {
       headers.value = []
       rows.value = []
       activities.value = []
+      overviewHtml.value = ''
+      rolesHtml.value = ''
   } else if (view.value === 'quality') {
       // Qualität-Ansicht lädt separat in QPlanDetails
       headers.value = []
       rows.value = []
       activities.value = []
+      overviewHtml.value = ''
+      rolesHtml.value = ''
     } else if (view.value === 'activities') {
       // Power-User-Sicht: rohe Activities vom Backend
       const { data } = await axios.get(`/plans/preview/${effectivePlanId.value}/activities`)
@@ -200,14 +215,18 @@ async function load() {
       headers.value = []
       rows.value = []
       robotGameData.value = null
+      overviewHtml.value = ''
+      rolesHtml.value = ''
     } else {
-      // Bestehende Preview-API nutzen
-      const url = `/plans/preview/${effectivePlanId.value}/${view.value}` // roles / teams / rooms
+      // Legacy matrix: teams / rooms (roles matrix kept on /roles for later removal)
+      const url = `/plans/preview/${effectivePlanId.value}/${view.value}`
       const { data } = await axios.get(url)
       headers.value = Array.isArray(data?.headers) ? data.headers : []
       rows.value = Array.isArray(data?.rows) ? data.rows : []
       activities.value = []
       robotGameData.value = null
+      overviewHtml.value = ''
+      rolesHtml.value = ''
     }
   } catch (e: any) {
     console.error('[Preview] load() error:', e)
@@ -216,6 +235,8 @@ async function load() {
     rows.value = []
     activities.value = []
     robotGameData.value = null
+    overviewHtml.value = ''
+    rolesHtml.value = ''
   } finally {
     loading.value = false
   }
@@ -445,8 +466,19 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
       {{ error }}
     </div>
 
-    <!-- ANSICHT 1–3: Bestehende Preview-Tabellen (roles, teams, rooms) -->
-    <div v-if="view === 'roles' || view === 'teams' || view === 'rooms'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white">
+    <!-- ANSICHT: Rollen (new grid) -->
+    <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <template v-else>
+        <div v-if="!rolesHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
+          Keine Rollen-Daten gefunden.
+        </div>
+        <div v-else v-html="rolesHtml" class="roles-grid-host"></div>
+      </template>
+    </div>
+
+    <!-- Legacy matrix: teams / rooms (old roles matrix at /roles unused by UI) -->
+    <div v-else-if="view === 'teams' || view === 'rooms'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white">
       <table class="w-full table-fixed text-sm">
         <thead class="sticky top-0 bg-[var(--color-bg-muted)]">
           <tr>
@@ -503,7 +535,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Überblick -->
-    <div v-if="view === 'overview'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+    <div v-else-if="view === 'overview'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
       <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
       
       <template v-else>
