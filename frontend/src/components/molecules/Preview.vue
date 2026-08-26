@@ -363,33 +363,30 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
 <template>
   <div class="flex flex-col gap-3 h-full min-h-0">
-    <!-- Kopfbereich: Buttons + Info -->
-    <div class="flex items-center gap-2 min-w-0">
+    <div class="glass-panel-header !mb-0 shrink-0">
       <div class="flex flex-wrap items-center gap-2 min-w-0 flex-1">
         <div class="glass-segment">
           <button
+            type="button"
             class="glass-segment__btn"
             :class="{'glass-segment__btn--active': view === 'overview'}"
             @click="setView('overview')"
           >Überblick</button>
-        </div>
-
-        <div class="glass-segment">
           <button
+            type="button"
             class="glass-segment__btn"
             :class="{'glass-segment__btn--active': view === 'roles'}"
             @click="setView('roles')"
           >Rollen</button>
-
           <button
+            type="button"
             class="glass-segment__btn"
             :class="{'glass-segment__btn--active': view === 'teams'}"
             @click="setView('teams')"
           >Teams</button>
-        </div>
-
-        <div v-if="hasMatchPlan" class="glass-segment">
           <button
+            v-if="hasMatchPlan"
+            type="button"
             class="glass-segment__btn"
             :class="{'glass-segment__btn--active': view === 'robot-game'}"
             @click="openMatchPlan()"
@@ -410,107 +407,128 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           </button>
         </div>
 
-        <div v-if="isAdmin && showAdminSegment" class="flex flex-wrap items-center gap-2">
-          <div class="glass-segment">
-            <button
-              class="glass-segment__btn"
-              :class="{'glass-segment__btn--active': view === 'activities'}"
-              @click="setView('activities')"
-            >Aktivitäten</button>
-          </div>
-
-          <div v-if="hasMatchPlan" class="glass-segment">
-            <button
-              class="glass-segment__btn"
-              :class="{'glass-segment__btn--active': view === 'quality'}"
-              @click="openQuality()"
-            >Plan-Qualität</button>
-          </div>
+        <div v-if="isAdmin && showAdminSegment" class="glass-segment">
+          <button
+            type="button"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'activities'}"
+            @click="setView('activities')"
+          >Aktivitäten</button>
+          <button
+            v-if="hasMatchPlan"
+            type="button"
+            class="glass-segment__btn"
+            :class="{'glass-segment__btn--active': view === 'quality'}"
+            @click="openQuality()"
+          >Plan-Qualität</button>
         </div>
       </div>
 
-      <div v-if="!hideMeta" class="shrink-0 text-xs text-[var(--color-text-subtle)]">
-        <span class="whitespace-nowrap">Plan ID: {{ effectivePlanId }}</span>
-      </div>
+      <p v-if="!hideMeta" class="glass-settings-hint !not-italic shrink-0 m-0">
+        Plan ID: {{ effectivePlanId }}
+      </p>
+    </div>
+
+    <p
+      v-if="view === 'roles' || view === 'teams'"
+      class="glass-settings-hint !mt-0 !mb-0"
+    >
+      Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+    </p>
+
+    <!-- Program filters (glass-choice), above content -->
+    <div
+      v-if="view === 'roles' && !loading && rolesHtml && rolesPrograms.length > 1"
+      class="glass-settings-row shrink-0"
+    >
+      <button
+        v-for="p in rolesPrograms"
+        :key="p.id"
+        type="button"
+        class="glass-choice preview-program-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
+        :class="{ 'glass-choice--active': rolesProgramOn[p.id] !== false }"
+        :aria-pressed="rolesProgramOn[p.id] !== false"
+        @click="toggleRolesProgram(p.id)"
+      >
+        <img :src="p.logo" alt="" class="preview-program-choice__logo" />
+        <span>{{ p.label }}</span>
+      </button>
     </div>
 
     <div
-      v-if="view === 'roles' || view === 'teams'"
-      class="text-xs text-[var(--color-text-subtle)]"
+      v-else-if="view === 'teams' && !loading && teamsHtml && teamsPrograms.length > 1"
+      class="glass-settings-row shrink-0"
     >
-      Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+      <button
+        v-for="p in teamsPrograms"
+        :key="p.id"
+        type="button"
+        class="glass-choice preview-program-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
+        :class="{ 'glass-choice--active': teamsProgramOn[p.id] !== false }"
+        :aria-pressed="teamsProgramOn[p.id] !== false"
+        @click="toggleTeamsProgram(p.id)"
+      >
+        <img :src="p.logo" alt="" class="preview-program-choice__logo" />
+        <span>{{ p.label }}</span>
+      </button>
     </div>
 
-    <!-- Fehlermeldung -->
-    <div v-if="error" class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-2">
+    <div
+      v-else-if="(view === 'robot-game' || view === 'quality') && dualMatchPlan"
+      class="glass-settings-row shrink-0"
+    >
+      <button
+        v-for="programId in matchPlanPrograms"
+        :key="`program-filter-${programId}`"
+        type="button"
+        class="glass-choice preview-program-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
+        :class="{ 'glass-choice--active': selectedFirstProgram === programId }"
+        :aria-pressed="selectedFirstProgram === programId"
+        @click="selectMatchPlanProgram(programId)"
+      >
+        <img
+          v-if="themeForProgram(programId).catalogName"
+          :src="programLogoSrc(themeForProgram(programId).catalogName)"
+          alt=""
+          class="preview-program-choice__logo"
+        />
+        <span>{{ matchPlanProgramLabel(programId) }}</span>
+      </button>
+    </div>
+
+    <div v-if="error" class="glass-chip liquid-surface-inner !px-3 !py-2 text-sm text-red-700 shrink-0">
       {{ error }}
     </div>
 
     <!-- ANSICHT: Rollen (new grid) -->
-    <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4 flex flex-col gap-3">
+    <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
       <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
       <template v-else>
         <div v-if="!rolesHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
           Keine Rollen-Daten gefunden.
         </div>
-        <template v-else>
-          <div
-            v-if="rolesPrograms.length > 1"
-            class="flex flex-wrap items-center gap-2 shrink-0"
-          >
-            <button
-              v-for="p in rolesPrograms"
-              :key="p.id"
-              type="button"
-              class="roles-program-filter"
-              :class="{ 'roles-program-filter--active': rolesProgramOn[p.id] !== false }"
-              :aria-pressed="rolesProgramOn[p.id] !== false"
-              @click="toggleRolesProgram(p.id)"
-            >
-              <img :src="p.logo" alt="" class="roles-program-filter__logo" />
-              <span class="roles-program-filter__label">{{ p.label }}</span>
-            </button>
-          </div>
-          <div
-            class="roles-grid-host min-h-0"
-            :data-hide-programs="rolesHiddenProgramIds.join(' ')"
-            v-html="rolesHtml"
-          ></div>
-        </template>
+        <div
+          v-else
+          class="roles-grid-host min-h-0"
+          :data-hide-programs="rolesHiddenProgramIds.join(' ')"
+          v-html="rolesHtml"
+        ></div>
       </template>
     </div>
 
     <!-- ANSICHT: Teams (new grid) -->
-    <div v-else-if="view === 'teams'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4 flex flex-col gap-3">
+    <div v-else-if="view === 'teams'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
       <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
       <template v-else>
         <div v-if="!teamsHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
           Keine Team-Daten gefunden.
         </div>
-        <template v-else>
-          <div
-            v-if="teamsPrograms.length > 1"
-            class="flex flex-wrap items-center gap-2 shrink-0"
-          >
-            <button
-              v-for="p in teamsPrograms"
-              :key="p.id"
-              type="button"
-              class="roles-program-filter"
-              :class="{ 'roles-program-filter--active': teamsProgramOn[p.id] !== false }"
-              :aria-pressed="teamsProgramOn[p.id] !== false"
-              @click="toggleTeamsProgram(p.id)"
-            >
-              <img :src="p.logo" alt="" class="roles-program-filter__logo" />
-              <span class="roles-program-filter__label">{{ p.label }}</span>
-            </button>
-          </div>
-          <div
-            class="roles-grid-host min-h-0"
-            :data-hide-programs="teamsHiddenProgramIds.join(' ')"
-            v-html="teamsHtml"
-          ></div>
-        </template>
+        <div
+          v-else
+          class="roles-grid-host min-h-0"
+          :data-hide-programs="teamsHiddenProgramIds.join(' ')"
+          v-html="teamsHtml"
+        ></div>
       </template>
     </div>
 
@@ -528,30 +546,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Match-Plan -->
-    <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4 flex flex-col gap-3">
-      <div
-        v-if="dualMatchPlan"
-        class="flex flex-wrap items-center gap-2 shrink-0"
-      >
-        <button
-          v-for="programId in matchPlanPrograms"
-          :key="`match-filter-${programId}`"
-          type="button"
-          class="roles-program-filter"
-          :class="{ 'roles-program-filter--active': selectedFirstProgram === programId }"
-          :aria-pressed="selectedFirstProgram === programId"
-          @click="selectMatchPlanProgram(programId)"
-        >
-          <img
-            v-if="themeForProgram(programId).catalogName"
-            :src="programLogoSrc(themeForProgram(programId).catalogName)"
-            alt=""
-            class="roles-program-filter__logo"
-          />
-          <span class="roles-program-filter__label">{{ matchPlanProgramLabel(programId) }}</span>
-        </button>
-      </div>
-
+    <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
       <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
 
       <template v-else>
@@ -636,29 +631,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Plan-Qualität (QPlanDetails) -->
-    <div v-else-if="view === 'quality'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4 flex flex-col gap-3">
-      <div
-        v-if="dualMatchPlan"
-        class="flex flex-wrap items-center gap-2 shrink-0"
-      >
-        <button
-          v-for="programId in matchPlanPrograms"
-          :key="`quality-filter-${programId}`"
-          type="button"
-          class="roles-program-filter"
-          :class="{ 'roles-program-filter--active': selectedFirstProgram === programId }"
-          :aria-pressed="selectedFirstProgram === programId"
-          @click="selectMatchPlanProgram(programId)"
-        >
-          <img
-            v-if="themeForProgram(programId).catalogName"
-            :src="programLogoSrc(themeForProgram(programId).catalogName)"
-            alt=""
-            class="roles-program-filter__logo"
-          />
-          <span class="roles-program-filter__label">{{ matchPlanProgramLabel(programId) }}</span>
-        </button>
-      </div>
+    <div v-else-if="view === 'quality'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
       <QPlanDetails
         v-if="effectivePlanId"
         :plan-id="Number(effectivePlanId)"
@@ -779,36 +752,6 @@ td {
   height: 18px;
 }
 
-.preview-program-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0.15rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-muted);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.preview-program-icon:hover {
-  background: var(--color-bg-hover);
-}
-
-.preview-program-icon--active {
-  border-color: var(--color-accent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 12%, #fff);
-}
-
-.preview-program-icon__img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
 /* Hide program columns when filter toggles are off */
 .roles-grid-host[data-hide-programs~='2'] :deep([data-program-id='2']),
 .roles-grid-host[data-hide-programs~='3'] :deep([data-program-id='3']),
@@ -816,40 +759,17 @@ td {
   display: none !important;
 }
 
-.roles-program-filter {
+.preview-program-choice {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.25rem 0.55rem 0.25rem 0.3rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-muted);
   cursor: pointer;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
-.roles-program-filter:hover {
-  background: var(--color-bg-hover);
-}
-
-.roles-program-filter--active {
-  border-color: var(--color-accent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent);
-  background: color-mix(in srgb, var(--color-accent) 12%, #fff);
-  color: var(--color-text);
-}
-
-.roles-program-filter__logo {
-  width: 1.35rem;
-  height: 1.35rem;
+.preview-program-choice__logo {
+  width: 1.25rem;
+  height: 1.25rem;
   object-fit: contain;
   flex-shrink: 0;
-}
-
-.roles-program-filter__label {
-  white-space: nowrap;
-  line-height: 1.2;
 }
 </style>
