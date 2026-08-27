@@ -533,7 +533,7 @@ watch(eventId, () => load(), {immediate: true})
               <span v-else class="staffing-stale-badge">Überzählig</span>
             </template>
 
-            <div class="staffing-meta">
+            <div v-if="!tile.group.surplus" class="staffing-meta">
               <div
                   class="staffing-slots"
                   :title="`min ${tile.role.min} · best ${tile.role.best} · max ${tile.role.max}`"
