@@ -8,6 +8,7 @@ import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import type {Parameter} from '@/models/Parameter'
 import {programDisplayName} from '@/utils/eventPrograms'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import ProgramSection from '@/components/atoms/ProgramSection.vue'
 
 defineOptions({ name: 'ScheduleAfternoon' })
 
@@ -250,163 +251,164 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
 
 <template>
   <div class="schedule-afternoon flex flex-col pb-2">
-    <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
-      <h2 class="afternoon-anchor__title">Vorrunden</h2>
-    </section>
-
-    <!-- Policy C: independent per-program lists -->
+    <!-- Policy C: vertical stack of program tiles (same rhythm as Ablauf → Allgemein) -->
     <template v-if="splitLists">
-      <section class="afternoon-program">
-        <h3 class="afternoon-program__title">
-          <img
-              :src="programLogoSrc('CHALLENGE')"
-              :alt="programLogoAlt('CHALLENGE')"
-              class="afternoon-block__logo"
+      <ProgramSection program="challenge" :short-name="challengeLabel">
+        <div class="afternoon-tile flex flex-col">
+          <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+            <h2 class="afternoon-anchor__title">Vorrunden {{ challengeLabel }}</h2>
+          </section>
+          <draggable
+              v-model="challengeBlocks"
+              animation="150"
+              chosen-class="drag-chosen"
+              class="afternoon-stack"
+              drag-class="drag-dragging"
+              ghost-class="drag-ghost"
+              handle=".drag-handle"
+              item-key="id"
+              :move="allowMoveChallenge"
+              @end="saveOrder"
           >
-          {{ challengeLabel }}
-        </h3>
-        <draggable
-            v-model="challengeBlocks"
-            animation="150"
-            chosen-class="drag-chosen"
-            class="afternoon-stack"
-            drag-class="drag-dragging"
-            ghost-class="drag-ghost"
-            handle=".drag-handle"
-            item-key="id"
-            :move="allowMoveChallenge"
-            @end="saveOrder"
-        >
-          <template #item="{ element }">
-            <div
-                class="afternoon-block glass-card liquid-surface-inner"
-                :class="{ 'afternoon-block--off': isOff(element) }"
-            >
-              <div class="afternoon-block__header">
-                <span class="drag-handle" aria-label="Reihenfolge ändern">
-                  <IconDraggable/>
-                </span>
-                <span class="afternoon-block__label">{{ element.name }}</span>
+            <template #item="{ element }">
+              <div
+                  class="afternoon-block glass-card liquid-surface-inner"
+                  :class="{ 'afternoon-block--off': isOff(element) }"
+              >
+                <div class="afternoon-block__header">
+                  <span class="drag-handle" aria-label="Reihenfolge ändern">
+                    <IconDraggable/>
+                  </span>
+                  <span class="afternoon-block__label">{{ element.name }}</span>
+                </div>
+                <ParameterField
+                    v-for="param in embeddedParams(element)"
+                    :key="param.id"
+                    class="afternoon-block__param"
+                    :param="param"
+                    :disabled="disabledMap[param.id]"
+                    :off-disabled="booleanOffBlocked(element, param)"
+                    :on-disabled="booleanOnBlocked(element, param)"
+                    :with-label="false"
+                    :compact="true"
+                    @pointerdown.stop
+                    @update="(p: Parameter) => onParamUpdate(element, p)"
+                />
               </div>
-              <ParameterField
-                  v-for="param in embeddedParams(element)"
-                  :key="param.id"
-                  class="afternoon-block__param"
-                  :param="param"
-                  :disabled="disabledMap[param.id]"
-                  :off-disabled="booleanOffBlocked(element, param)"
-                  :on-disabled="booleanOnBlocked(element, param)"
-                  :with-label="false"
-                  :compact="true"
-                  @pointerdown.stop
-                  @update="(p: Parameter) => onParamUpdate(element, p)"
-              />
-            </div>
-          </template>
-        </draggable>
-      </section>
+            </template>
+          </draggable>
+          <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+            <h2 class="afternoon-anchor__title">Preisverleihung</h2>
+          </section>
+        </div>
+      </ProgramSection>
 
-      <section class="afternoon-program">
-        <h3 class="afternoon-program__title">
-          <img
-              :src="programLogoSrc('FUTURE_8')"
-              :alt="programLogoAlt('FUTURE_8')"
-              class="afternoon-block__logo"
+      <ProgramSection program="future8" :short-name="futureLabel">
+        <div class="afternoon-tile flex flex-col">
+          <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+            <h2 class="afternoon-anchor__title">Vorrunden {{ futureLabel }}</h2>
+          </section>
+          <draggable
+              v-model="futureBlocks"
+              animation="150"
+              chosen-class="drag-chosen"
+              class="afternoon-stack"
+              drag-class="drag-dragging"
+              ghost-class="drag-ghost"
+              handle=".drag-handle"
+              item-key="id"
+              :move="allowMoveFuture"
+              @end="saveOrder"
           >
-          {{ futureLabel }}
-        </h3>
-        <draggable
-            v-model="futureBlocks"
-            animation="150"
-            chosen-class="drag-chosen"
-            class="afternoon-stack"
-            drag-class="drag-dragging"
-            ghost-class="drag-ghost"
-            handle=".drag-handle"
-            item-key="id"
-            :move="allowMoveFuture"
-            @end="saveOrder"
-        >
-          <template #item="{ element }">
-            <div
-                class="afternoon-block glass-card liquid-surface-inner"
-                :class="{ 'afternoon-block--off': isOff(element) }"
-            >
-              <div class="afternoon-block__header">
-                <span class="drag-handle" aria-label="Reihenfolge ändern">
-                  <IconDraggable/>
-                </span>
-                <span class="afternoon-block__label">{{ element.name }}</span>
+            <template #item="{ element }">
+              <div
+                  class="afternoon-block glass-card liquid-surface-inner"
+                  :class="{ 'afternoon-block--off': isOff(element) }"
+              >
+                <div class="afternoon-block__header">
+                  <span class="drag-handle" aria-label="Reihenfolge ändern">
+                    <IconDraggable/>
+                  </span>
+                  <span class="afternoon-block__label">{{ element.name }}</span>
+                </div>
+                <ParameterField
+                    v-for="param in embeddedParams(element)"
+                    :key="param.id"
+                    class="afternoon-block__param"
+                    :param="param"
+                    :disabled="disabledMap[param.id]"
+                    :off-disabled="booleanOffBlocked(element, param)"
+                    :on-disabled="booleanOnBlocked(element, param)"
+                    :with-label="false"
+                    :compact="true"
+                    @pointerdown.stop
+                    @update="(p: Parameter) => onParamUpdate(element, p)"
+                />
               </div>
-              <ParameterField
-                  v-for="param in embeddedParams(element)"
-                  :key="param.id"
-                  class="afternoon-block__param"
-                  :param="param"
-                  :disabled="disabledMap[param.id]"
-                  :off-disabled="booleanOffBlocked(element, param)"
-                  :on-disabled="booleanOnBlocked(element, param)"
-                  :with-label="false"
-                  :compact="true"
-                  @pointerdown.stop
-                  @update="(p: Parameter) => onParamUpdate(element, p)"
-              />
-            </div>
-          </template>
-        </draggable>
-      </section>
+            </template>
+          </draggable>
+          <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+            <h2 class="afternoon-anchor__title">Preisverleihung</h2>
+          </section>
+        </div>
+      </ProgramSection>
     </template>
 
-    <!-- A/B: one shared stage list -->
-    <draggable
-        v-else
-        v-model="blocks"
-        animation="150"
-        chosen-class="drag-chosen"
-        class="afternoon-stack"
-        drag-class="drag-dragging"
-        ghost-class="drag-ghost"
-        handle=".drag-handle"
-        item-key="id"
-        :move="allowMove"
-        @end="saveOrder"
-    >
-      <template #item="{ element }">
-        <div
-            class="afternoon-block glass-card liquid-surface-inner"
-            :class="{ 'afternoon-block--off': isOff(element) }"
-        >
-          <div class="afternoon-block__header">
-            <span class="drag-handle" aria-label="Reihenfolge ändern">
-              <IconDraggable/>
-            </span>
-            <img
-                :alt="programLogoAlt(element.program || element.first_program)"
-                :src="programLogoSrc(element.program || element.first_program)"
-                class="afternoon-block__logo"
-            >
-            <span class="afternoon-block__label">{{ element.name }}</span>
-          </div>
-          <ParameterField
-              v-for="param in embeddedParams(element)"
-              :key="param.id"
-              class="afternoon-block__param"
-              :param="param"
-              :disabled="disabledMap[param.id]"
-              :off-disabled="booleanOffBlocked(element, param)"
-              :on-disabled="booleanOnBlocked(element, param)"
-              :with-label="false"
-              :compact="true"
-              @pointerdown.stop
-              @update="(p: Parameter) => onParamUpdate(element, p)"
-          />
-        </div>
-      </template>
-    </draggable>
+    <!-- Other profiles: one shared stage -->
+    <template v-else>
+      <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+        <h2 class="afternoon-anchor__title">Vorrunden</h2>
+      </section>
 
-    <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
-      <h2 class="afternoon-anchor__title">Preisverleihung</h2>
-    </section>
+      <draggable
+          v-model="blocks"
+          animation="150"
+          chosen-class="drag-chosen"
+          class="afternoon-stack"
+          drag-class="drag-dragging"
+          ghost-class="drag-ghost"
+          handle=".drag-handle"
+          item-key="id"
+          :move="allowMove"
+          @end="saveOrder"
+      >
+        <template #item="{ element }">
+          <div
+              class="afternoon-block glass-card liquid-surface-inner"
+              :class="{ 'afternoon-block--off': isOff(element) }"
+          >
+            <div class="afternoon-block__header">
+              <span class="drag-handle" aria-label="Reihenfolge ändern">
+                <IconDraggable/>
+              </span>
+              <img
+                  :alt="programLogoAlt(element.program || element.first_program)"
+                  :src="programLogoSrc(element.program || element.first_program)"
+                  class="afternoon-block__logo"
+              >
+              <span class="afternoon-block__label">{{ element.name }}</span>
+            </div>
+            <ParameterField
+                v-for="param in embeddedParams(element)"
+                :key="param.id"
+                class="afternoon-block__param"
+                :param="param"
+                :disabled="disabledMap[param.id]"
+                :off-disabled="booleanOffBlocked(element, param)"
+                :on-disabled="booleanOnBlocked(element, param)"
+                :with-label="false"
+                :compact="true"
+                @pointerdown.stop
+                @update="(p: Parameter) => onParamUpdate(element, p)"
+            />
+          </div>
+        </template>
+      </draggable>
+
+      <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+        <h2 class="afternoon-anchor__title">Preisverleihung</h2>
+      </section>
+    </template>
   </div>
 </template>
 
@@ -415,27 +417,15 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
   gap: 1.15rem;
 }
 
+.afternoon-tile {
+  gap: 0.85rem;
+  min-width: 0;
+}
+
 .afternoon-stack {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-}
-
-.afternoon-program {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.afternoon-program__title {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--color-text);
-  line-height: 1.3;
 }
 
 .afternoon-anchor {
