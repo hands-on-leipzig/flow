@@ -478,32 +478,25 @@ function logout() {
                 </button>
               </div>
             </div>
-            <div v-if="isAdmin" class="glass-sidebar-footer__prefs-block">
-              <span class="glass-sidebar-footer__menu-label">Inline-Admin im Planner</span>
-              <div class="glass-sidebar-footer__prefs-row" role="group" aria-label="Inline-Admin im Planner">
-                <button
-                    type="button"
-                    class="glass-sidebar-footer__pref-btn"
-                    :class="{ active: adminInlinePreference }"
-                    :aria-pressed="adminInlinePreference"
-                    @click="setAdminInlinePreference(true)"
-                >
-                  <i class="bi bi-eye-fill" aria-hidden="true"/>
-                  <span>An</span>
-                </button>
-                <button
-                    type="button"
-                    class="glass-sidebar-footer__pref-btn"
-                    :class="{ active: !adminInlinePreference }"
-                    :aria-pressed="!adminInlinePreference"
-                    @click="setAdminInlinePreference(false)"
-                >
-                  <i class="bi bi-eye-slash-fill" aria-hidden="true"/>
-                  <span>Aus</span>
-                </button>
-              </div>
-            </div>
           </div>
+          <button
+              v-if="isAdmin"
+              type="button"
+              class="glass-sidebar-footer__menu-item"
+              role="menuitemcheckbox"
+              :aria-checked="adminInlinePreference"
+              :title="adminInlinePreference
+                ? 'Preview-Admin-Tools und Geschützte Parameter ausblenden'
+                : 'Preview-Admin-Tools und Geschützte Parameter einblenden'"
+              @click="setAdminInlinePreference(!adminInlinePreference)"
+          >
+            <i
+                class="bi"
+                :class="adminInlinePreference ? 'bi-eye-fill' : 'bi-eye-slash'"
+                aria-hidden="true"
+            />
+            <span>Inline-Admin {{ adminInlinePreference ? 'an' : 'aus' }}</span>
+          </button>
           <button
               v-if="isAdmin && !isAdminMode"
               type="button"
