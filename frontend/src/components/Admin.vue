@@ -19,14 +19,24 @@ import {
   resolveAdminSection,
 } from '@/constants/adminNav'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
+import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 
 defineOptions({name: 'Admin'})
 
 const route = useRoute()
 const router = useRouter()
 const {isDevEnvironment, isLocal, ensureLoaded: ensureAdminEnvironment} = useAdminEnvironment()
+const {
+  isAdmin,
+  adminInlinePreference,
+  setAdminInlinePreference,
+} = useAdminInlineVisibility()
 
 const statisticsTableOnly = ref(false)
+
+function onAdminInlineToggle(event) {
+  setAdminInlinePreference(event.target.checked)
+}
 
 const activeTab = computed(() => {
   const section = resolveAdminSection(String(route.params.section || ''))
@@ -79,6 +89,27 @@ onMounted(() => {
     class="admin-shell h-full min-h-0 p-4 lg:p-6"
     :class="activeTab === 'main-tables' ? 'admin-shell--fill' : 'overflow-auto'"
   >
+    <div
+      v-if="isAdmin"
+      class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded border border-[var(--color-border)] bg-[var(--color-bg-muted)] px-3 py-2 shrink-0"
+    >
+      <div class="min-w-0">
+        <p class="text-sm font-medium text-[var(--color-text)]">Inline-Admin im Planner</p>
+        <p class="text-xs text-[var(--color-text-muted)]">
+          Geschützte Parameter und Preview-Admin-Tools. Zum Demo aus.
+        </p>
+      </div>
+      <label class="glass-chip !px-3 !py-1.5 !text-sm inline-flex items-center gap-2 cursor-pointer select-none shrink-0">
+        <input
+            type="checkbox"
+            class="rounded border-[var(--color-border)]"
+            :checked="adminInlinePreference"
+            @change="onAdminInlineToggle"
+        />
+        <span class="text-[var(--color-text-muted)]">Anzeigen</span>
+      </label>
+    </div>
+
     <div v-if="activeTab === 'user-regional-partners'">
       <h2 class="text-xl font-bold mb-4">User ↔ Regionen</h2>
       <UserRegionalPartnerRelations/>

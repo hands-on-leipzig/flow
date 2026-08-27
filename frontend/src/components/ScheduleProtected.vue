@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import ParameterField from '@/components/molecules/ParameterField.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import { useAuth } from '@/composables/useAuth'
+import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import type { Parameter } from '@/models/Parameter'
 import { programId, type EventProgramRef } from '@/utils/eventPrograms'
@@ -11,7 +12,8 @@ import { programId, type EventProgramRef } from '@/utils/eventPrograms'
 defineOptions({ name: 'ScheduleProtected' })
 
 const router = useRouter()
-const { isAdmin, initializeUserRoles } = useAuth()
+const { initializeUserRoles } = useAuth()
+const { showAdminInline } = useAdminInlineVisibility()
 const {
   selectedEvent,
   attachedPrograms,
@@ -22,15 +24,15 @@ const {
   handleParamUpdate,
 } = useScheduleWorkspace()
 
-function redirectIfNotAdmin() {
+function redirectIfHidden() {
   initializeUserRoles()
-  if (!isAdmin.value) {
+  if (!showAdminInline.value) {
     void router.replace('/plan/schedule')
   }
 }
 
-onMounted(redirectIfNotAdmin)
-watch(isAdmin, redirectIfNotAdmin)
+onMounted(redirectIfHidden)
+watch(showAdminInline, redirectIfHidden)
 
 function protectedParamsFor(program: EventProgramRef): Parameter[] {
   return (protectedParamsByProgramId.value[programId(program)] || []).filter(
@@ -44,7 +46,7 @@ function visibleParams(params: Parameter[]): Parameter[] {
 </script>
 
 <template>
-  <div v-if="isAdmin" class="schedule-protected flex flex-col pb-2">
+  <div v-if="showAdminInline" class="schedule-protected flex flex-col pb-2">
     <ProgramSection
         v-for="program in attachedPrograms"
         :key="programId(program)"
