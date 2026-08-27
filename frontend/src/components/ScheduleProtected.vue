@@ -1,30 +1,43 @@
 <script setup lang="ts">
+import { onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import ParameterField from '@/components/molecules/ParameterField.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
+import { useAuth } from '@/composables/useAuth'
+import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import type { Parameter } from '@/models/Parameter'
 import { programId, type EventProgramRef } from '@/utils/eventPrograms'
 
-defineOptions({ name: 'ScheduleExpert' })
+defineOptions({ name: 'ScheduleProtected' })
 
+const router = useRouter()
+const { initializeUserRoles } = useAuth()
+const { showAdminInline } = useAdminInlineVisibility()
 const {
   selectedEvent,
   attachedPrograms,
   visibilityMap,
   disabledMap,
-  expertParamsByProgramId,
-  finaleExpertParams,
-  tableNames,
+  protectedParamsByProgramId,
+  finaleProtectedParams,
   handleParamUpdate,
-  updateTableName,
 } = useScheduleWorkspace()
 
-function isChallenge(program: EventProgramRef): boolean {
-  return String(program.name || '').toUpperCase() === 'CHALLENGE'
+function redirectIfHidden() {
+  initializeUserRoles()
+  if (!showAdminInline.value) {
+    void router.replace('/plan/schedule')
+  }
 }
 
-function expertParamsFor(program: EventProgramRef): Parameter[] {
-  return (expertParamsByProgramId.value[programId(program)] || []).filter((param) => visibilityMap.value[param.id])
+onMounted(redirectIfHidden)
+watch(showAdminInline, redirectIfHidden)
+
+function protectedParamsFor(program: EventProgramRef): Parameter[] {
+  return (protectedParamsByProgramId.value[programId(program)] || []).filter(
+    (param) => visibilityMap.value[param.id],
+  )
 }
 
 function visibleParams(params: Parameter[]): Parameter[] {
@@ -33,7 +46,7 @@ function visibleParams(params: Parameter[]): Parameter[] {
 </script>
 
 <template>
-  <div class="schedule-expert flex flex-col pb-2">
+  <div v-if="showAdminInline" class="schedule-protected flex flex-col pb-2">
     <ProgramSection
         v-for="program in attachedPrograms"
         :key="programId(program)"
@@ -42,30 +55,13 @@ function visibleParams(params: Parameter[]): Parameter[] {
         default-collapsed
     >
       <ParameterField
-          v-for="param in expertParamsFor(program)"
+          v-for="param in protectedParamsFor(program)"
           :key="param.id"
           :param="param"
           :disabled="disabledMap[param.id]"
           :with-label="true"
           @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
       />
-
-      <div v-if="isChallenge(program)" class="flex flex-col gap-1.5 min-w-0">
-        <span class="glass-settings-label">Bezeichnung der Robot-Game-Tische</span>
-        <span class="glass-settings-hint">ersetzt nur die Nummer</span>
-        <div class="grid grid-cols-1 min-[420px]:grid-cols-2 gap-x-4 gap-y-2">
-          <div v-for="(name, i) in tableNames" :key="i" class="flex flex-col gap-1 min-w-0">
-            <label class="glass-settings-hint !not-italic">Tisch {{ i + 1 }}</label>
-            <input
-                v-model="tableNames[i]"
-                class="glass-input glass-input--sm liquid-surface-control w-full min-w-0 text-sm"
-                :placeholder="`z.B. Alpha`"
-                type="text"
-                @blur="updateTableName"
-            />
-          </div>
-        </div>
-      </div>
     </ProgramSection>
 
     <ProgramSection
@@ -73,14 +69,14 @@ function visibleParams(params: Parameter[]): Parameter[] {
         program="shared"
         short-name="Finale"
         title="Finale"
-        subtitle="Parameter nur für Finalveranstaltungen"
+        subtitle="Geschützte Parameter nur für Finalveranstaltungen"
         :show-logo="false"
         collapsible
         default-collapsed
     >
       <ParameterField
-          v-for="param in visibleParams(finaleExpertParams)"
-          :key="'ex_' + param.id"
+          v-for="param in visibleParams(finaleProtectedParams)"
+          :key="'pr_' + param.id"
           :param="param"
           :disabled="disabledMap[param.id]"
           :with-label="true"
@@ -91,7 +87,7 @@ function visibleParams(params: Parameter[]): Parameter[] {
 </template>
 
 <style scoped>
-.schedule-expert {
+.schedule-protected {
   gap: 1.15rem;
 }
 </style>

@@ -5,6 +5,8 @@ import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import {useProgramsStore} from '@/stores/programs'
 import {useAuth} from '@/composables/useAuth'
+import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
+import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {imageUrl, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
 import {
@@ -26,6 +28,12 @@ const eventStore = useEventStore()
 const programsStore = useProgramsStore()
 const planCache = usePlanCacheStore()
 const {isAdmin, initializeUserRoles} = useAuth()
+const {planLocked} = useScheduleWorkspace()
+const {
+  showAdminInline,
+  adminInlinePreference,
+  setAdminInlinePreference,
+} = useAdminInlineVisibility()
 const {isDevEnvironment, isLocal, ensureLoaded: ensureAdminEnvironment} = useAdminEnvironment()
 const router = useRouter()
 const route = useRoute()
@@ -106,6 +114,9 @@ const navEntries = computed<NavEntry[]>(() => [
         ? [{name: 'Nachmittag', path: '/plan/schedule/afternoon', icon: 'bi-sunset'}]
         : []),
       {name: 'Expertenparameter', path: '/plan/schedule/expert', icon: 'bi-gear-wide-connected'},
+      ...(showAdminInline.value && !planLocked.value
+        ? [{name: 'Geschützte Parameter', path: '/plan/schedule/protected', icon: 'bi-shield-lock'}]
+        : []),
     ],
   },
   {
@@ -468,6 +479,24 @@ function logout() {
               </div>
             </div>
           </div>
+          <button
+              v-if="isAdmin"
+              type="button"
+              class="glass-sidebar-footer__menu-item"
+              role="menuitemcheckbox"
+              :aria-checked="adminInlinePreference"
+              :title="adminInlinePreference
+                ? 'Preview-Admin-Tools und Geschützte Parameter ausblenden'
+                : 'Preview-Admin-Tools und Geschützte Parameter einblenden'"
+              @click="setAdminInlinePreference(!adminInlinePreference)"
+          >
+            <i
+                class="bi"
+                :class="adminInlinePreference ? 'bi-eye-fill' : 'bi-eye-slash'"
+                aria-hidden="true"
+            />
+            <span>Inline-Admin {{ adminInlinePreference ? 'an' : 'aus' }}</span>
+          </button>
           <button
               v-if="isAdmin && !isAdminMode"
               type="button"
