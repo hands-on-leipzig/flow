@@ -501,6 +501,7 @@ const filteredRows = computed(() => {
   let filtered = [...flattenedRows.value]
   
   // Filter 1: Hide past events (default: on)
+  // Exception: 1970-01-01 is a dummy placeholder date — always keep those rows.
   if (hidePastEvents.value) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -510,6 +511,13 @@ const filteredRows = computed(() => {
       try {
         const eventDate = new Date(row.event_date)
         eventDate.setHours(0, 0, 0, 0)
+        if (
+          eventDate.getFullYear() === 1970 &&
+          eventDate.getMonth() === 0 &&
+          eventDate.getDate() === 1
+        ) {
+          return true
+        }
         return eventDate >= today
       } catch (e) {
         return true // Keep rows with invalid dates
@@ -592,6 +600,24 @@ function hasAttachedProgram(
 ): boolean {
   return !!findProgram({ programs }, programName)
 }
+
+/** Unique events marked as DRAHT problems (full season check, ignores table filters). */
+const drahtProblemTotal = computed(() => {
+  let n = 0
+  for (const has of drahtIssues.value.values()) {
+    if (has) n++
+  }
+  return n
+})
+
+/** Unique problem events still visible under current date/program filters. */
+const drahtProblemVisible = computed(() => {
+  const seen = new Set<number>()
+  for (const row of filteredRows.value) {
+    if (row.event_id != null && row.draht_issue) seen.add(row.event_id)
+  }
+  return seen.size
+})
 
 function shouldShowPartner(index) {
   if (index === 0) return true
@@ -1118,10 +1144,18 @@ function exportToCSV() {
           <div class="flex items-center gap-2">
             <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="text-sm font-medium text-blue-800">
               <template v-if="drahtCheckState.isRunning">
-                DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
+                DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet.
+                {{ drahtProblemTotal }} Probleme
+                <template v-if="drahtProblemTotal !== drahtProblemVisible">
+                  ({{ drahtProblemVisible }} in der Ansicht)
+                </template>.
               </template>
               <template v-else-if="drahtCheckState.completed">
-                DRAHT-Daten geladen: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
+                DRAHT-Daten geladen: {{ drahtProblemTotal }}
+                {{ drahtProblemTotal === 1 ? 'Problem' : 'Probleme' }}
+                <template v-if="drahtProblemTotal !== drahtProblemVisible">
+                  ({{ drahtProblemVisible }} in der aktuellen Ansicht — Rest durch Filter ausgeblendet)
+                </template>.
               </template>
             </div>
             <button
@@ -1231,7 +1265,10 @@ function exportToCSV() {
         <tr
             v-for="(row, index) in filteredRows"
           :key="`${row.partner_id}-${row.event_id}-${row.plan_id}`"
-          class="border-t border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]"
+          class="border-t border-[var(--color-border)]"
+          :class="row.draht_issue
+            ? 'bg-red-50 hover:bg-red-100'
+            : 'hover:bg-[var(--color-bg-hover)]'"
         >
           <!-- RP ID -->
           <td class="px-3 py-2 text-[var(--color-text-subtle)]">
