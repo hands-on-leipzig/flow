@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Log;
 /**
  * Coordinates Challenge + Future 8+ mornings when both are on.
  *
- * Policy A (f8_per_round): full round then flip; f8_duration_flip_after_round between.
- * Policy B (!f8_per_round): zip/drain per match/wave; no flip pause; no robot check.
+ * Policy A (g_per_round): full round then flip; g_duration_flip_after_round between.
+ * Policy B (!g_per_round): zip/drain per match/wave; no flip pause; no robot check.
  * Test round stays parallel for both policies.
  */
 class GameRoundCoordinator
@@ -37,12 +37,12 @@ class GameRoundCoordinator
 
     public function main(bool $explore = false, ?callable $afterRG1Callback = null): void
     {
-        $policyA = (bool) $this->pp('f8_per_round', true);
+        $policyA = (bool) $this->pp('g_per_round', true);
 
         Log::info('GameRoundCoordinator::main', [
             'plan_id' => $this->pp('g_plan'),
             'policy' => $policyA ? 'A' : 'B',
-            'f8_future_first' => (bool) $this->pp('f8_future_first', false),
+            'g_future_first' => (bool) $this->pp('g_future_first', false),
             'explore' => $explore,
         ]);
 
@@ -57,7 +57,7 @@ class GameRoundCoordinator
         $this->nextJudgingBlock = ['challenge' => 1, 'future' => 1];
         $this->teamOffset = ['challenge' => 0, 'future' => 0];
 
-        $futureFirst = (bool) $this->pp('f8_future_first', false);
+        $futureFirst = (bool) $this->pp('g_future_first', false);
 
         for ($gameRound = 0; $gameRound <= 3; $gameRound++) {
             if ($gameRound === 0) {
@@ -184,7 +184,7 @@ class GameRoundCoordinator
             (int) $this->pp('r_duration_next_start'),
             (int) $this->pp('f8_r_duration_next_start'),
             (int) $this->pp('f8_r_duration_next_start'),
-            (bool) $this->pp('f8_future_first', false),
+            (bool) $this->pp('g_future_first', false),
             $anchor,
         );
 
@@ -365,11 +365,11 @@ class GameRoundCoordinator
 
     /**
      * Pause on the shared game timeline when Policy A flips from one program’s
-     * full round matches to the other’s (f8_duration_flip_after_round).
+     * full round matches to the other’s (g_duration_flip_after_round).
      */
     private function applyFlipPause(): void
     {
-        $minutes = (int) $this->pp('f8_duration_flip_after_round', 0);
+        $minutes = (int) $this->pp('g_duration_flip_after_round', 0);
         if ($minutes <= 0) {
             return;
         }

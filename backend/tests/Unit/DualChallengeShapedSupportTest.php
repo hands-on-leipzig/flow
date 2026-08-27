@@ -89,9 +89,9 @@ class DualChallengeShapedSupportTest extends TestCase
             ['id' => 201, 'name' => 'f8_mode', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
             ['id' => 202, 'name' => 'f8_lanes', 'value' => '2', 'first_program' => FirstProgram::FUTURE_8->value],
             ['id' => 203, 'name' => 'f8_fields', 'value' => '4', 'first_program' => FirstProgram::FUTURE_8->value],
-            ['id' => 175, 'name' => 'f8_future_first', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
-            ['id' => 176, 'name' => 'f8_per_round', 'value' => '1', 'first_program' => FirstProgram::FUTURE_8->value],
-            ['id' => 178, 'name' => 'f8_separate_rooms', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
+            ['id' => 175, 'name' => 'g_future_first', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
+            ['id' => 176, 'name' => 'g_per_round', 'value' => '1', 'first_program' => FirstProgram::FUTURE_8->value],
+            ['id' => 178, 'name' => 'g_separate_rooms', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
         ];
         foreach ($params as $row) {
             DB::table('m_parameter')->insert($row);
@@ -161,7 +161,7 @@ class DualChallengeShapedSupportTest extends TestCase
         $result = app(\App\Services\PlanGeneratorService::class)->isSupported($planId);
 
         $this->assertFalse($result['supported']);
-        $this->assertStringContainsString('f8_separate_rooms', $result['details']);
+        $this->assertStringContainsString('g_separate_rooms', $result['details']);
     }
 
     public function test_game_round_mapping_four_judging_rounds(): void

@@ -15,7 +15,7 @@ use Tests\TestCase;
  * Narrow Policy B verification (scheduler constraints + support regress).
  *
  * Manual UI check (not automated): event with Challenge + Future 8+ attached,
- * f8_per_round=0, f8_separate_rooms=0 — generate and confirm R1–3 matches
+ * g_per_round=0, g_separate_rooms=0 — generate and confirm R1–3 matches
  * interleave (no r_check), TR parallel, drain when match counts differ.
  */
 class PolicyBVerificationTest extends TestCase
@@ -97,9 +97,9 @@ class PolicyBVerificationTest extends TestCase
             ['id' => 201, 'name' => 'f8_mode', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
             ['id' => 202, 'name' => 'f8_lanes', 'value' => '2', 'first_program' => FirstProgram::FUTURE_8->value],
             ['id' => 203, 'name' => 'f8_fields', 'value' => '4', 'first_program' => FirstProgram::FUTURE_8->value],
-            ['id' => 175, 'name' => 'f8_future_first', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
-            ['id' => 176, 'name' => 'f8_per_round', 'value' => '1', 'first_program' => FirstProgram::FUTURE_8->value],
-            ['id' => 178, 'name' => 'f8_separate_rooms', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
+            ['id' => 175, 'name' => 'g_future_first', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
+            ['id' => 176, 'name' => 'g_per_round', 'value' => '1', 'first_program' => FirstProgram::FUTURE_8->value],
+            ['id' => 178, 'name' => 'g_separate_rooms', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
         ] as $row) {
             DB::table('m_parameter')->insert($row);
         }
@@ -115,7 +115,7 @@ class PolicyBVerificationTest extends TestCase
         $this->seedBothOnPlan(perRound: true);
         $result = app(\App\Services\PlanGeneratorService::class)->isSupported(1);
         $this->assertTrue($result['supported']);
-        $this->assertTrue((bool) PlanParameter::load(1)->get('f8_per_round'));
+        $this->assertTrue((bool) PlanParameter::load(1)->get('g_per_round'));
     }
 
     public function test_two_plus_two_zip_ordering_challenge_first(): void

@@ -3396,7 +3396,7 @@
         },
         {
             "id": 175,
-            "name": "f8_future_first",
+            "name": "g_future_first",
             "context": "expert",
             "level": 1,
             "type": "boolean",
@@ -3411,7 +3411,7 @@
         },
         {
             "id": 176,
-            "name": "f8_per_round",
+            "name": "g_per_round",
             "context": "protected",
             "level": 1,
             "type": "boolean",
@@ -3426,7 +3426,7 @@
         },
         {
             "id": 177,
-            "name": "f8_duration_flip_after_round",
+            "name": "g_duration_flip_after_round",
             "context": "protected",
             "level": 1,
             "type": "integer",
@@ -3441,7 +3441,7 @@
         },
         {
             "id": 178,
-            "name": "f8_separate_rooms",
+            "name": "g_separate_rooms",
             "context": "protected",
             "level": 1,
             "type": "boolean",
