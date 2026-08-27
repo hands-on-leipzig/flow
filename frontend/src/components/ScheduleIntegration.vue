@@ -6,37 +6,40 @@ import {computed} from 'vue'
 import ExploreIntegration from '@/components/molecules/ExploreIntegration.vue'
 import ChallengeFutureIntegration from '@/components/molecules/ChallengeFutureIntegration.vue'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
-import {
-  eventPrograms,
-  hasChallenge,
-  hasExplore,
-  hasFuture,
-  programId,
-} from '@/utils/eventPrograms'
-import {useEventStore} from '@/stores/event'
+import {programId} from '@/utils/eventPrograms'
 
 const EXPLORE_ID = 2
 
 defineOptions({name: 'ScheduleIntegration'})
 
-const eventStore = useEventStore()
-
 const {
   parameters,
+  attachedPrograms,
   handleParamUpdate,
 } = useScheduleWorkspace()
 
-const showExploreIntegration = computed(() =>
-    hasExplore(eventStore.selectedEvent)
-    && eventPrograms(eventStore.selectedEvent).some((program) => programId(program) !== EXPLORE_ID)
-)
+function programName(row: {name?: string | null}): string {
+  return String(row.name || '').toUpperCase()
+}
 
-const hasChallengeAndFuture = computed(() =>
-    hasChallenge(eventStore.selectedEvent) && hasFuture(eventStore.selectedEvent)
-)
+/** Explore tile: Explore attached and at least one other program (coupling target). */
+const showExploreIntegration = computed(() => {
+  const programs = attachedPrograms.value
+  const exploreOn = programs.some((p) => programName(p) === 'EXPLORE')
+  if (!exploreOn) return false
+  return programs.some((p) => programId(p) !== EXPLORE_ID)
+})
+
+/** Challenge + Future 8+ tile: both attached (Future 8+ only, not Future 5+). */
+const showChallengeFutureIntegration = computed(() => {
+  const programs = attachedPrograms.value
+  const challengeOn = programs.some((p) => programName(p) === 'CHALLENGE')
+  const future8On = programs.some((p) => programName(p) === 'FUTURE_8')
+  return challengeOn && future8On
+})
 
 const hasAnyTile = computed(() =>
-    showExploreIntegration.value || hasChallengeAndFuture.value
+    showExploreIntegration.value || showChallengeFutureIntegration.value
 )
 </script>
 
@@ -48,7 +51,7 @@ const hasAnyTile = computed(() =>
         @update-param="handleParamUpdate"
     />
     <ChallengeFutureIntegration
-        v-if="hasChallengeAndFuture"
+        v-if="showChallengeFutureIntegration"
         :parameters="parameters"
         @update-param="handleParamUpdate"
     />
