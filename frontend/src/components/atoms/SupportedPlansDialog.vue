@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onBeforeUnmount, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 
 export type SupportedPlanRow = {
   teams?: number | null
@@ -11,13 +11,16 @@ export type SupportedPlanRow = {
 
 const FIELD_COLUMNS = [2, 4] as const
 const MAX_JURY_COLUMNS = 5
+const GAP_PX = 4
 
 const props = defineProps<{
   plans: SupportedPlanRow[]
 }>()
 
 const open = ref(false)
-const rootRef = ref<HTMLElement | null>(null)
+const triggerRef = ref<HTMLElement | null>(null)
+const panelRef = ref<HTMLElement | null>(null)
+const panelStyle = ref<Record<string, string>>({})
 
 const sortedPlans = computed(() => {
   return [...props.plans].sort((a, b) => {
@@ -46,12 +49,31 @@ function hasFields(row: SupportedPlanRow, n: number): boolean {
   return Number(row.tables || 0) === n
 }
 
+function updatePanelPosition() {
+  const trigger = triggerRef.value
+  if (!trigger) return
+  const rect = trigger.getBoundingClientRect()
+  const accent = getComputedStyle(trigger).getPropertyValue('--program-accent').trim()
+  panelStyle.value = {
+    left: `${Math.round(rect.right + GAP_PX)}px`,
+    bottom: `${Math.round(window.innerHeight - rect.top + GAP_PX)}px`,
+    ...(accent ? {'--program-accent': accent} : {}),
+  }
+}
+
 function closeDialog() {
   open.value = false
 }
 
+async function openDialog() {
+  open.value = true
+  await nextTick()
+  updatePanelPosition()
+}
+
 function toggle() {
-  open.value = !open.value
+  if (open.value) closeDialog()
+  else void openDialog()
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -63,23 +85,43 @@ function onKeydown(e: KeyboardEvent) {
 
 function onDocPointerDown(e: PointerEvent) {
   if (!open.value) return
-  const root = rootRef.value
-  if (root && !root.contains(e.target as Node)) closeDialog()
+  const target = e.target as Node
+  if (triggerRef.value?.contains(target)) return
+  if (panelRef.value?.contains(target)) return
+  closeDialog()
+}
+
+function onReposition() {
+  if (!open.value) return
+  updatePanelPosition()
 }
 
 watch(open, (isOpen) => {
-  if (isOpen) document.addEventListener('pointerdown', onDocPointerDown, true)
-  else document.removeEventListener('pointerdown', onDocPointerDown, true)
+  if (isOpen) {
+    document.addEventListener('pointerdown', onDocPointerDown, true)
+    document.addEventListener('keydown', onKeydown, true)
+    window.addEventListener('resize', onReposition)
+    window.addEventListener('scroll', onReposition, true)
+  } else {
+    document.removeEventListener('pointerdown', onDocPointerDown, true)
+    document.removeEventListener('keydown', onKeydown, true)
+    window.removeEventListener('resize', onReposition)
+    window.removeEventListener('scroll', onReposition, true)
+  }
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocPointerDown, true)
+  document.removeEventListener('keydown', onKeydown, true)
+  window.removeEventListener('resize', onReposition)
+  window.removeEventListener('scroll', onReposition, true)
 })
 </script>
 
 <template>
-  <div ref="rootRef" class="supported-plans">
+  <div class="supported-plans">
     <button
+        ref="triggerRef"
         type="button"
         class="supported-plans__trigger"
         title="Unterstützte Pläne"
@@ -90,19 +132,20 @@ onBeforeUnmount(() => {
       <i class="bi bi-table" aria-hidden="true"/>
     </button>
 
-    <div
-        v-if="open"
-        class="supported-plans__panel liquid-surface-inner"
-        role="dialog"
-        aria-label="Unterstützte Pläne"
-        @keydown="onKeydown"
-    >
-      <p class="supported-plans__title">Unterstützte Pläne</p>
-      <p v-if="sortedPlans.length === 0" class="supported-plans__empty">
-        Keine Einträge für dieses Programm.
-      </p>
-      <div v-else class="supported-plans__table-wrap">
-        <table class="supported-plans__table">
+    <Teleport to="body">
+      <div
+          v-if="open"
+          ref="panelRef"
+          class="supported-plans__panel liquid-surface-inner"
+          role="dialog"
+          aria-label="Unterstützte Pläne"
+          :style="panelStyle"
+      >
+        <p class="supported-plans__title">Unterstützte Pläne</p>
+        <p v-if="sortedPlans.length === 0" class="supported-plans__empty">
+          Keine Einträge für dieses Programm.
+        </p>
+        <table v-else class="supported-plans__table">
           <thead>
             <tr>
               <th rowspan="2" class="supported-plans__teams-head">Teams</th>
@@ -163,7 +206,7 @@ onBeforeUnmount(() => {
           </tbody>
         </table>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -199,17 +242,15 @@ onBeforeUnmount(() => {
   outline: 2px solid color-mix(in srgb, var(--program-accent, var(--color-accent)) 45%, transparent);
   outline-offset: 2px;
 }
+</style>
 
+<!-- Panel is teleported to body; keep its styles unscoped via a second block with :global,
+     or duplicate without scoped. Use a non-scoped style block for the panel. -->
+<style>
 .supported-plans__panel {
-  position: absolute;
-  bottom: calc(100% + 0.4rem);
-  right: 0;
-  z-index: 40;
+  position: fixed;
+  z-index: 10050;
   width: max-content;
-  max-width: min(36rem, calc(100vw - 2rem));
-  max-height: min(22rem, 50vh);
-  display: flex;
-  flex-direction: column;
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -232,13 +273,8 @@ onBeforeUnmount(() => {
   line-height: 1.35;
 }
 
-.supported-plans__table-wrap {
-  overflow: auto;
-  min-height: 0;
-}
-
 .supported-plans__table {
-  width: 100%;
+  width: max-content;
   border-collapse: collapse;
   font-size: 0.8rem;
   line-height: 1.3;
