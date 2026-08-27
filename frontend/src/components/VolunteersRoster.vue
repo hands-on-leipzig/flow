@@ -67,7 +67,7 @@ async function addToRoster() {
     })
     pickId.value = ''
     await load()
-    showToast('Zur Anmeldung hinzugefügt')
+    showToast('Zur Helferliste hinzugefügt')
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Hinzufügen fehlgeschlagen'
   }
@@ -83,7 +83,7 @@ async function removeFromRoster(entry: RosterEntry) {
   try {
     await axios.delete(`/events/${eventId.value}/volunteer-roster/${entry.person.id}`)
     await load()
-    showToast('Von Anmeldung entfernt')
+    showToast('Von Helferliste entfernt')
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Entfernen fehlgeschlagen'
   }
@@ -142,7 +142,7 @@ onMounted(() => load())
   <div class="vol-page">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Anmeldung</h1>
+        <h1 class="vol-page__title">Helferliste</h1>
         <p class="vol-page__sub">Wer ist für diese Veranstaltung dabei? (Formular folgt später.)</p>
       </div>
     </header>
@@ -197,7 +197,7 @@ onMounted(() => load())
 
       <aside class="glass-card vol-page__aside">
         <h2 class="vol-aside__title">Outreach</h2>
-        <p class="vol-muted">E-Mail-Liste der Anmeldung für BCC / Excel.</p>
+        <p class="vol-muted">E-Mail-Liste der Helferliste für BCC / Excel.</p>
         <button type="button" class="glass-btn-accent vol-aside__btn" @click="copyEmails">E-Mails kopieren</button>
         <button type="button" class="glass-btn-secondary vol-aside__btn" @click="openMailto">Mailprogramm öffnen</button>
         <button type="button" class="glass-btn-secondary vol-aside__btn" @click="downloadCsv">Excel / CSV</button>

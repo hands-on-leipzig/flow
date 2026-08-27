@@ -451,9 +451,9 @@ watch(eventId, () => load(), {immediate: true})
   <div class="vol-page">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Besetzung</h1>
+        <h1 class="vol-page__title">Zuordnung</h1>
         <p class="vol-page__sub">
-          <span v-if="staffingOk" class="vol-ok">Besetzung ok</span>
+          <span v-if="staffingOk" class="vol-ok">Zuordnung ok</span>
           <span v-else class="vol-warn">
             Handlungsbedarf:
             <template v-if="gapSummary.underMin">{{ gapSummary.underMin }} unter Min</template>
@@ -694,11 +694,11 @@ watch(eventId, () => load(), {immediate: true})
           <p class="text-xs text-[var(--color-text-subtle)] mb-3">
             {{ unassignedPeople.length }} frei
             · {{ assignedPeople.length }} zugewiesen
-            · {{ roster.length }} auf der Anmeldung
+            · {{ roster.length }} auf der Helferliste
           </p>
 
           <p v-if="!roster.length" class="text-sm text-[var(--color-text-subtle)]">
-            Noch niemand auf der Anmeldung — unter Anmeldung Personen hinzufügen.
+            Noch niemand auf der Helferliste — unter Helferliste Personen hinzufügen.
           </p>
 
           <div v-else class="space-y-3">

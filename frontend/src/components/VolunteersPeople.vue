@@ -228,7 +228,7 @@ onMounted(() => load())
               <input v-model="p.mobile" class="glass-input glass-input--sm" placeholder="Mobil" @blur="savePerson(p)" />
             </div>
             <div class="vol-row__meta">
-              <span v-if="p.on_roster" class="glass-chip">Auf Anmeldung</span>
+              <span v-if="p.on_roster" class="glass-chip">Auf Helferliste</span>
               <span v-if="historyLabel(p)" class="vol-muted">{{ historyLabel(p) }}</span>
               <span v-if="p.updated_at" class="vol-muted">Bearbeitet {{ p.updated_at.slice(0, 10) }}</span>
               <button type="button" class="glass-btn-secondary" @click="removePerson(p)">Löschen</button>
