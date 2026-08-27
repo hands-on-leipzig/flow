@@ -9,6 +9,9 @@ export type SupportedPlanRow = {
   alert_level?: number | null
 }
 
+const FIELD_COLUMNS = [2, 4] as const
+const MAX_JURY_COLUMNS = 5
+
 const props = defineProps<{
   plans: SupportedPlanRow[]
 }>()
@@ -26,9 +29,21 @@ const sortedPlans = computed(() => {
   })
 })
 
-function formatTables(value: number | null | undefined): string {
-  const n = Number(value || 0)
-  return n > 0 ? String(n) : '—'
+const juryColumns = computed(() => {
+  const maxInData = sortedPlans.value.reduce((max, row) => {
+    const n = Number(row.lanes || 0)
+    return n > max ? n : max
+  }, 0)
+  const n = Math.min(MAX_JURY_COLUMNS, maxInData)
+  return Array.from({length: n}, (_, i) => i + 1)
+})
+
+function hasJury(row: SupportedPlanRow, n: number): boolean {
+  return Number(row.lanes || 0) === n
+}
+
+function hasFields(row: SupportedPlanRow, n: number): boolean {
+  return Number(row.tables || 0) === n
 }
 
 function closeDialog() {
@@ -90,20 +105,60 @@ onBeforeUnmount(() => {
         <table class="supported-plans__table">
           <thead>
             <tr>
-              <th>Teams</th>
-              <th>Spuren</th>
-              <th>Tische</th>
-              <th>Alert</th>
-              <th>Hinweis</th>
+              <th rowspan="2" class="supported-plans__teams-head">Teams</th>
+              <th
+                  v-if="juryColumns.length"
+                  :colspan="juryColumns.length"
+                  class="supported-plans__group-head"
+              >
+                Jurygruppen
+              </th>
+              <th :colspan="FIELD_COLUMNS.length" class="supported-plans__group-head">
+                Spielfelder
+              </th>
+            </tr>
+            <tr>
+              <th
+                  v-for="n in juryColumns"
+                  :key="'jury_h_' + n"
+                  class="supported-plans__num-head"
+              >
+                {{ n }}
+              </th>
+              <th
+                  v-for="n in FIELD_COLUMNS"
+                  :key="'field_h_' + n"
+                  class="supported-plans__num-head"
+              >
+                {{ n }}
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(row, idx) in sortedPlans" :key="idx">
-              <td>{{ row.teams ?? '—' }}</td>
-              <td>{{ row.lanes ?? '—' }}</td>
-              <td>{{ formatTables(row.tables) }}</td>
-              <td>{{ row.alert_level ?? 0 }}</td>
-              <td>{{ row.note || '—' }}</td>
+              <td class="supported-plans__teams">{{ row.teams ?? '—' }}</td>
+              <td
+                  v-for="n in juryColumns"
+                  :key="'jury_' + idx + '_' + n"
+                  class="supported-plans__mark"
+              >
+                <i
+                    v-if="hasJury(row, n)"
+                    class="bi bi-check-lg"
+                    aria-label="ja"
+                />
+              </td>
+              <td
+                  v-for="n in FIELD_COLUMNS"
+                  :key="'field_' + idx + '_' + n"
+                  class="supported-plans__mark"
+              >
+                <i
+                    v-if="hasFields(row, n)"
+                    class="bi bi-check-lg"
+                    aria-label="ja"
+                />
+              </td>
             </tr>
           </tbody>
         </table>
@@ -150,7 +205,8 @@ onBeforeUnmount(() => {
   bottom: calc(100% + 0.4rem);
   right: 0;
   z-index: 40;
-  width: min(28rem, calc(100vw - 2rem));
+  width: max-content;
+  max-width: min(36rem, calc(100vw - 2rem));
   max-height: min(22rem, 50vh);
   display: flex;
   flex-direction: column;
@@ -190,21 +246,47 @@ onBeforeUnmount(() => {
 
 .supported-plans__table th,
 .supported-plans__table td {
-  padding: 0.25rem 0.4rem;
-  text-align: left;
-  vertical-align: top;
+  padding: 0.2rem 0.35rem;
+  vertical-align: middle;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
   white-space: nowrap;
-}
-
-.supported-plans__table th:last-child,
-.supported-plans__table td:last-child {
-  white-space: normal;
-  min-width: 8rem;
 }
 
 .supported-plans__table th {
   font-weight: 600;
   color: var(--color-text-muted);
+}
+
+.supported-plans__teams-head {
+  text-align: left;
+  vertical-align: bottom;
+}
+
+.supported-plans__group-head {
+  text-align: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+}
+
+.supported-plans__num-head {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.6rem;
+}
+
+.supported-plans__teams {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+}
+
+.supported-plans__mark {
+  text-align: center;
+  color: color-mix(in srgb, var(--program-accent, var(--color-accent)) 70%, #166534);
+  min-width: 1.6rem;
+}
+
+.supported-plans__mark .bi {
+  font-size: 1rem;
+  line-height: 1;
 }
 </style>
