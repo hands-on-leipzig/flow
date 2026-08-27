@@ -247,16 +247,6 @@ function connectionFromMode(mode: number): 'integrated' | 'independent' {
   return 'integrated'
 }
 
-const connection = ref<'integrated' | 'independent' | null>(null)
-
-const connectionProxy = computed<'integrated' | 'independent'>({
-  get: () => connection.value
-      ?? connectionFromMode(Number(paramMapByName.value['e_mode']?.value || 0)),
-  set: (val) => {
-    connection.value = val
-  },
-})
-
 function computeEMode(): number {
   const e1 = e1Teams.value
   const e2 = e2Teams.value
@@ -264,7 +254,8 @@ function computeEMode(): number {
 
   const both = e1 > 0 && e2 > 0
   const morning = e1 > 0 && e2 <= 0
-  const integrated = hasOtherPrograms.value && connectionProxy.value === 'integrated'
+  const integrated = hasOtherPrograms.value
+      && connectionFromMode(Number(paramMapByName.value['e_mode']?.value || 0)) === 'integrated'
 
   if (integrated) {
     if (both) return ExploreMode.HYBRID_BOTH
@@ -278,7 +269,7 @@ function computeEMode(): number {
 }
 
 watch(
-    [eTeams, e1Teams, e2Teams, hasOtherPrograms, connectionProxy],
+    [eTeams, e1Teams, e2Teams, hasOtherPrograms, () => paramMapByName.value['e_mode']?.value],
     () => {
       if (!paramMapByName.value['e_mode']) return
       const next = computeEMode()
@@ -348,7 +339,7 @@ watch(
           {{ group.hint }}
         </span>
         <SupportedPlansDialog
-            v-if="groupIndex === laneGroups.length - 1 && !hasOtherPrograms"
+            v-if="groupIndex === laneGroups.length - 1"
             class="ml-auto"
             program="explore"
             :plans="programPlans"
@@ -372,31 +363,6 @@ watch(
             aria-hidden="true"
         />
         <span>{{ group.note }}</span>
-      </div>
-    </div>
-
-    <div v-if="hasOtherPrograms" class="flex flex-col gap-1.5">
-      <span class="glass-settings-label">Verbindung mit anderen Programmen</span>
-      <div class="glass-settings-row">
-        <RadioGroup v-model="connectionProxy" class="flex gap-1.5 flex-wrap">
-          <RadioGroupOption
-              v-for="opt in [{value: 'integrated', label: 'Integriert'}, {value: 'independent', label: 'unabhängig'}]"
-              :key="'explore_connection_' + opt.value"
-              v-slot="{ checked }"
-              :value="opt.value"
-              as="template"
-          >
-            <button
-                :class="checked ? 'glass-choice--active' : ''"
-                class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                type="button"
-                @click="connectionProxy = opt.value"
-            >
-              {{ opt.label }}
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
-        <SupportedPlansDialog class="ml-auto" program="explore" :plans="programPlans"/>
       </div>
     </div>
   </ProgramSection>
