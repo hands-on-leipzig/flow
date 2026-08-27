@@ -28,6 +28,9 @@ class RobotGameGenerator
 
     private RobotGameWriteConfig $write;
 
+    /** When false, skip Explore rg1End / hole coordination (Policy C Future back-room). */
+    private bool $coordinateExplore = true;
+
     public function __construct(
         ActivityWriter $writer,
         PlanParameter $params,
@@ -44,11 +47,104 @@ class RobotGameGenerator
         $this->write = $write ?? RobotGameWriteConfig::challenge();
     }
 
+    public function setCoordinateExplore(bool $coordinateExplore): void
+    {
+        $this->coordinateExplore = $coordinateExplore;
+    }
+
     private function robotCheckEnabled(): bool
     {
         $param = $this->write->robotCheckParam;
 
         return $param !== null && (bool) $this->pp($param);
+    }
+
+    public function matchPlan(): MatchPlan
+    {
+        return $this->matchPlan;
+    }
+
+    public function rTime(): TimeCursor
+    {
+        return $this->rTime;
+    }
+
+    /**
+     * Create the activity group for this game round; returns its id.
+     */
+    public function ensureRoundGroup(int $round): int
+    {
+        $groupCode = $this->write->roundGroupCodes[$round] ?? null;
+        if ($groupCode === null) {
+            throw new \InvalidArgumentException("No activity group code configured for game round {$round}");
+        }
+
+        return $this->writer->insertActivityGroup($groupCode);
+    }
+
+    public function activateGroup(int $groupId): void
+    {
+        $this->writer->setCurrentGroupById($groupId);
+    }
+
+    /**
+     * Write one match at an absolute start (Policy B commit). Does not advance rTime.
+     * When $allowRobotCheck is false, never emits a robot-check activity.
+     *
+     * @param  array<string, mixed>  $match
+     */
+    public function writeMatchAt(array $match, int $round, \DateTimeInterface $start, bool $allowRobotCheck = false): void
+    {
+        if ($match['team_1'] === 0 && $match['team_2'] === 0) {
+            return;
+        }
+
+        $duration = ($round === 0)
+            ? $this->pp($this->write->durationTestMatch)
+            : $this->pp($this->write->durationMatch);
+
+        $startDt = \DateTime::createFromInterface($start);
+        $time = new TimeCursor($startDt instanceof \DateTime ? $startDt : new \DateTime($startDt->format('Y-m-d H:i:s')));
+
+        if ($allowRobotCheck && $this->robotCheckEnabled() && $this->write->checkCode !== null) {
+            $this->writer->insertActivity(
+                $this->write->checkCode,
+                $time,
+                $this->pp('r_duration_robot_check'),
+                null,
+                null,
+                $match['table_1'],
+                $match['team_1'] === 0 ? null : $match['team_1'],
+                $match['table_2'],
+                $match['team_2'] === 0 ? null : $match['team_2']
+            );
+            $time->addMinutes($this->pp('r_duration_robot_check'));
+        }
+
+        $this->writer->insertActivity(
+            $this->write->matchCode,
+            $time,
+            $duration,
+            null,
+            null,
+            $match['table_1'],
+            $match['team_1'] === 0 ? null : $match['team_1'],
+            $match['table_2'],
+            $match['team_2'] === 0 ? null : $match['team_2']
+        );
+    }
+
+    /**
+     * Solo grid advance after a match (drain helper).
+     *
+     * @param  array<string, mixed>  $match
+     */
+    public function advanceAfterMatchSolo(array $match, int $round): void
+    {
+        $duration = ($round === 0)
+            ? $this->pp($this->write->durationTestMatch)
+            : $this->pp($this->write->durationMatch);
+        $this->advanceTimeForMatch($match, $duration);
     }
 
     private function lunchBreakEarly(): bool
@@ -235,13 +331,16 @@ class RobotGameGenerator
                 } else {
                     // Challenge break is the floor for RG2. Explore may only push rTime later.
                     $rg1End = $this->rTime->current();
-                    $this->integratedExplore->rg1End = $rg1End;
+                    if ($this->coordinateExplore) {
+                        $this->integratedExplore->rg1End = $rg1End;
+                    }
 
                     if (!$this->lunchBreakEarly() && $this->hardLunchDuration() === 0) {
                         $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                     }
 
-                    if ($this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                    if ($this->coordinateExplore
+                        && $this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
                         $this->integratedExplore->startTime = clone $rg1End;
                         $exploreHoleEnd = new TimeCursor($rg1End);
                         $exploreHoleEnd->addMinutes($this->integratedExplore->duration);
@@ -253,8 +352,9 @@ class RobotGameGenerator
             case 2:
                 if ($this->pp('g_finale')) {
                     // Finale: Everything that was in case 1 for normal events
-                    if ($this->exploreMode() == ExploreMode::INTEGRATED_MORNING->value ||
-                        $this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                    if ($this->coordinateExplore
+                        && ($this->exploreMode() == ExploreMode::INTEGRATED_MORNING->value ||
+                            $this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value)) {
                         // Integrated Explore mode: coordinate with ExploreGenerator
                         $this->integratedExplore->startTime = $this->rTime->current();
                         $this->rTime->addMinutes($this->integratedExplore->duration);

@@ -4,7 +4,7 @@ import axios from 'axios'
 
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
-import { eventPrograms } from '@/utils/eventPrograms'
+import { eventPrograms, findProgram, programId } from '@/utils/eventPrograms'
 
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
@@ -55,11 +55,6 @@ function programDraht(programs: FlattenedRow['programs'] | undefined, name: stri
   return row?.draht_id ?? null
 }
 
-function programTeams(programs: FlattenedRow['programs'] | undefined, name: string, fallback = 0): number {
-  const row = (programs || []).find((p) => String(p.name || '').toUpperCase() === name.toUpperCase())
-  return Number(row?.teams ?? fallback)
-}
-
 const data = ref<any>(null)
 const totals = ref<any>(null)
 const accessStats = ref<Map<number, number>>(new Map())
@@ -82,6 +77,27 @@ const planWarnings = ref<Map<number, boolean>>(new Map()) // plan_id => has_warn
 // Filter toggles
 const hidePastEvents = ref(true) // Default: hide past events
 const showOnlyNext14Days = ref(false) // Default: show all future events
+/** 'rp' = partner order (default); 'date' = by event_date ascending */
+const sortBy = ref<'rp' | 'date'>('rp')
+
+/** Header program-icon filters (logical AND when multiple selected). Empty = no filter. */
+type ProgramFilterName = 'EXPLORE' | 'CHALLENGE' | 'FUTURE_8'
+const programFilters = ref<Set<ProgramFilterName>>(new Set())
+
+function toggleProgramFilter(name: ProgramFilterName) {
+  const next = new Set(programFilters.value)
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  programFilters.value = next
+}
+
+function isProgramFilterActive(name: ProgramFilterName): boolean {
+  return programFilters.value.has(name)
+}
+
+type DrahtEnrollment = { enrolled: number; capacity: number }
+/** event_id → first_program → enrolled/capacity from DRAHT check */
+const drahtEnrollments = ref<Map<number, Map<number, DrahtEnrollment>>>(new Map())
 
 const router = useRouter()
 const eventStore = useEventStore()
@@ -136,6 +152,7 @@ watch(selectedSeasonKey, () => {
     drahtCheckState.value.isRunning = false
     drahtIssues.value.clear()
     contactEmails.value = {}
+    drahtEnrollments.value = new Map()
     drahtCheckState.value = {
       isRunning: false,
       checked: 0,
@@ -209,6 +226,20 @@ async function startDrahtChecks() {
       for (const [planId, hasWarning] of Object.entries(planWarningsData)) {
         planWarnings.value.set(Number(planId), hasWarning === true)
       }
+
+      // Store DRAHT enrolled/capacity per program
+      const programMap = new Map<number, DrahtEnrollment>()
+      for (const p of response.data.programs || []) {
+        const fp = Number(p.first_program)
+        if (!fp) continue
+        programMap.set(fp, {
+          enrolled: Number(p.enrolled ?? 0),
+          capacity: Number(p.capacity ?? 0),
+        })
+      }
+      const nextEnrollments = new Map(drahtEnrollments.value)
+      nextEnrollments.set(eventId, programMap)
+      drahtEnrollments.value = nextEnrollments
     } catch (e) {
       // On error, mark as having issue
       drahtIssues.value.set(eventId, true)
@@ -239,6 +270,7 @@ function startDrahtCheck() {
   drahtIssues.value.clear()
   contactEmails.value = {}
   planWarnings.value.clear()
+  drahtEnrollments.value = new Map()
   drahtCheckState.value = {
     isRunning: true,
     checked: 0,
@@ -469,6 +501,7 @@ const filteredRows = computed(() => {
   let filtered = [...flattenedRows.value]
   
   // Filter 1: Hide past events (default: on)
+  // Exception: 1970-01-01 is a dummy placeholder date — always keep those rows.
   if (hidePastEvents.value) {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -478,6 +511,13 @@ const filteredRows = computed(() => {
       try {
         const eventDate = new Date(row.event_date)
         eventDate.setHours(0, 0, 0, 0)
+        if (
+          eventDate.getFullYear() === 1970 &&
+          eventDate.getMonth() === 0 &&
+          eventDate.getDate() === 1
+        ) {
+          return true
+        }
         return eventDate >= today
       } catch (e) {
         return true // Keep rows with invalid dates
@@ -506,8 +546,77 @@ const filteredRows = computed(() => {
       }
     })
   }
+
+  // Program icon filters (AND): keep only events that have every selected program
+  if (programFilters.value.size > 0) {
+    const required = [...programFilters.value]
+    filtered = filtered.filter((row) =>
+      required.every((name) => hasAttachedProgram(row.programs, name))
+    )
+  }
+
+  if (sortBy.value === 'date') {
+    filtered.sort((a, b) => {
+      const aHas = !!a.event_date
+      const bHas = !!b.event_date
+      if (aHas !== bHas) return aHas ? -1 : 1
+      if (aHas && bHas) {
+        const byDate = String(a.event_date).localeCompare(String(b.event_date))
+        if (byDate !== 0) return byDate
+      }
+      const byPartner = (a.partner_id ?? 0) - (b.partner_id ?? 0)
+      if (byPartner !== 0) return byPartner
+      const byEvent = (a.event_id ?? 0) - (b.event_id ?? 0)
+      if (byEvent !== 0) return byEvent
+      return (a.plan_id ?? 0) - (b.plan_id ?? 0)
+    })
+  }
   
   return filtered
+})
+
+/** DRAHT enrolled/capacity for a named program on an event, or null if not fetched / not present. */
+function drahtEnrollmentFor(
+  eventId: number | null,
+  programs: FlattenedRow['programs'] | undefined,
+  programName: string,
+): DrahtEnrollment | null {
+  if (!eventId) return null
+  const attached = findProgram({ programs }, programName)
+  if (!attached) return null
+  const fp = programId(attached)
+  if (!fp) return null
+  return drahtEnrollments.value.get(eventId)?.get(fp) ?? null
+}
+
+function formatEnrollment(enr: DrahtEnrollment | null): string {
+  if (!enr) return ''
+  return `${enr.enrolled} / ${enr.capacity}`
+}
+
+function hasAttachedProgram(
+  programs: FlattenedRow['programs'] | undefined,
+  programName: string,
+): boolean {
+  return !!findProgram({ programs }, programName)
+}
+
+/** Unique events marked as DRAHT problems (full season check, ignores table filters). */
+const drahtProblemTotal = computed(() => {
+  let n = 0
+  for (const has of drahtIssues.value.values()) {
+    if (has) n++
+  }
+  return n
+})
+
+/** Unique problem events still visible under current date/program filters. */
+const drahtProblemVisible = computed(() => {
+  const seen = new Set<number>()
+  for (const row of filteredRows.value) {
+    if (row.event_id != null && row.draht_issue) seen.add(row.event_id)
+  }
+  return seen.size
 })
 
 function shouldShowPartner(index) {
@@ -702,6 +811,7 @@ async function reloadStats() {
   // Reset DRAHT check state (don't auto-start)
   drahtIssues.value.clear()
   contactEmails.value = {}
+  drahtEnrollments.value = new Map()
   drahtCheckState.value = {
     isRunning: false,
     checked: 0,
@@ -752,8 +862,9 @@ function exportToCSV() {
     'Event Explore',
     'Event Challenge',
     'Event Needs Attention',
-    'Teams Explore',
-    'Teams Challenge',
+    'Explore Anmeldungen',
+    'Challenge Anmeldungen',
+    'Future 8+ Anmeldungen',
     'DRAHT Issue',
     'Plan ID',
     'Explore Mode',
@@ -794,8 +905,9 @@ function exportToCSV() {
         escapeCSV(programDraht(row.programs, 'EXPLORE')),
         escapeCSV(programDraht(row.programs, 'CHALLENGE')),
         escapeCSV(row.event_needs_attention ? 'Yes' : 'No'),
-        escapeCSV(programTeams(row.programs, 'EXPLORE', row.event_teams_explore)),
-        escapeCSV(programTeams(row.programs, 'CHALLENGE', row.event_teams_challenge)),
+        escapeCSV(formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'EXPLORE'))),
+        escapeCSV(formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'CHALLENGE'))),
+        escapeCSV(formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'FUTURE_8'))),
         escapeCSV(row.draht_issue ? 'Yes' : 'No'),
         escapeCSV(row.plan_id),
         escapeCSV(row.e_mode ?? 0),
@@ -1013,16 +1125,37 @@ function exportToCSV() {
               ></div>
               <span class="ml-2 text-sm font-medium text-[var(--color-text-muted)]">Nur die nächsten 14 Tage</span>
             </label>
+
+            <!-- Sort: RP vs date -->
+            <div class="flex items-center gap-2 text-sm font-medium text-[var(--color-text-muted)]">
+              <span>Sortierung:</span>
+              <label class="inline-flex items-center gap-1 cursor-pointer">
+                <input v-model="sortBy" type="radio" value="rp" class="accent-blue-600" />
+                <span>Nach RP</span>
+              </label>
+              <label class="inline-flex items-center gap-1 cursor-pointer">
+                <input v-model="sortBy" type="radio" value="date" class="accent-blue-600" />
+                <span>Nach Datum</span>
+              </label>
+            </div>
           </div>
           
           <!-- DRAHT Check on the right -->
           <div class="flex items-center gap-2">
             <div v-if="drahtCheckState.isRunning || drahtCheckState.completed" class="text-sm font-medium text-blue-800">
               <template v-if="drahtCheckState.isRunning">
-                DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet. {{ drahtCheckState.problems }} Probleme.
+                DRAHT-Daten werden geladen. {{ drahtCheckState.checked }} von {{ drahtCheckState.total }} getestet.
+                {{ drahtProblemTotal }} Probleme
+                <template v-if="drahtProblemTotal !== drahtProblemVisible">
+                  ({{ drahtProblemVisible }} in der Ansicht)
+                </template>.
               </template>
               <template v-else-if="drahtCheckState.completed">
-                DRAHT-Daten geladen: {{ drahtCheckState.problems }} {{ drahtCheckState.problems === 1 ? 'Problem' : 'Probleme' }}.
+                DRAHT-Daten geladen: {{ drahtProblemTotal }}
+                {{ drahtProblemTotal === 1 ? 'Problem' : 'Probleme' }}
+                <template v-if="drahtProblemTotal !== drahtProblemVisible">
+                  ({{ drahtProblemVisible }} in der aktuellen Ansicht — Rest durch Filter ausgeblendet)
+                </template>.
               </template>
             </div>
             <button
@@ -1063,7 +1196,61 @@ function exportToCSV() {
                 <th class="px-3 py-2">RP</th>
                 <th class="px-3 py-2 w-24">Partner</th>
                 <th class="px-3 py-2">Event</th>
-                <th class="px-3 py-2">Name, Datum, Anmeldungen</th>
+                <th class="px-3 py-2">Name, Datum</th>
+                <th class="px-3 py-2 text-center">
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded p-0.5 transition"
+                    :class="isProgramFilterActive('EXPLORE')
+                      ? 'ring-2 ring-blue-500 bg-blue-50'
+                      : 'opacity-60 hover:opacity-100'"
+                    :title="isProgramFilterActive('EXPLORE') ? 'Explore-Filter entfernen' : 'Nur Events mit Explore'"
+                    :aria-pressed="isProgramFilterActive('EXPLORE')"
+                    @click="toggleProgramFilter('EXPLORE')"
+                  >
+                    <img
+                      :src="programLogoSrc('EXPLORE')"
+                      :alt="programLogoAlt('EXPLORE')"
+                      class="w-5 h-5"
+                    />
+                  </button>
+                </th>
+                <th class="px-3 py-2 text-center">
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded p-0.5 transition"
+                    :class="isProgramFilterActive('CHALLENGE')
+                      ? 'ring-2 ring-blue-500 bg-blue-50'
+                      : 'opacity-60 hover:opacity-100'"
+                    :title="isProgramFilterActive('CHALLENGE') ? 'Challenge-Filter entfernen' : 'Nur Events mit Challenge'"
+                    :aria-pressed="isProgramFilterActive('CHALLENGE')"
+                    @click="toggleProgramFilter('CHALLENGE')"
+                  >
+                    <img
+                      :src="programLogoSrc('CHALLENGE')"
+                      :alt="programLogoAlt('CHALLENGE')"
+                      class="w-5 h-5"
+                    />
+                  </button>
+                </th>
+                <th class="px-3 py-2 text-center">
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded p-0.5 transition"
+                    :class="isProgramFilterActive('FUTURE_8')
+                      ? 'ring-2 ring-blue-500 bg-blue-50'
+                      : 'opacity-60 hover:opacity-100'"
+                    :title="isProgramFilterActive('FUTURE_8') ? 'Future-8+-Filter entfernen' : 'Nur Events mit Future 8+'"
+                    :aria-pressed="isProgramFilterActive('FUTURE_8')"
+                    @click="toggleProgramFilter('FUTURE_8')"
+                  >
+                    <img
+                      :src="programLogoSrc('FUTURE_8')"
+                      :alt="programLogoAlt('FUTURE_8')"
+                      class="w-5 h-5"
+                    />
+                  </button>
+                </th>
                 <th class="px-3 py-2">Plan</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
                 <th class="px-3 py-2">Generie-<br>rungen</th>
@@ -1078,7 +1265,10 @@ function exportToCSV() {
         <tr
             v-for="(row, index) in filteredRows"
           :key="`${row.partner_id}-${row.event_id}-${row.plan_id}`"
-          class="border-t border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]"
+          class="border-t border-[var(--color-border)]"
+          :class="row.draht_issue
+            ? 'bg-red-50 hover:bg-red-100'
+            : 'hover:bg-[var(--color-bg-hover)]'"
         >
           <!-- RP ID -->
           <td class="px-3 py-2 text-[var(--color-text-subtle)]">
@@ -1148,30 +1338,37 @@ function exportToCSV() {
               >
                 {{ row.event_name }}
               </a>
-              <span class="text-[var(--color-text-subtle)] ml-1">({{ formatDateOnly(row.event_date) }})</span>
               <span
                 v-if="row.event_needs_attention"
                 class="inline-block w-2 h-2 bg-red-500 rounded-full ml-1 align-middle"
                 title="Event benötigt Aufmerksamkeit: Ablauf, Teams oder Räume haben Probleme"
               ></span>
-              <span
-                v-if="(row.programs || []).length"
-                class="inline-flex items-center ml-2 whitespace-nowrap"
-              >
-                <template v-for="program in eventPrograms(row)" :key="program.first_program">
-                  <img
-                    :src="programLogoSrc(program)"
-                    :alt="programLogoAlt(program)"
-                    class="w-5 h-5 inline-block align-middle ml-2 first:ml-0"
-                  />
-                  <span class="text-xs text-[var(--color-text-muted)] ml-1">
-                    {{ program.teams ?? 0 }}
-                  </span>
-                </template>
-              </span>
+              <br />
+              <span class="text-[var(--color-text-subtle)]">{{ formatDateOnly(row.event_date) }}</span>
             </template>
             <template v-else>
               &nbsp;
+            </template>
+          </td>
+
+          <!-- Explore Anmeldungen -->
+          <td class="px-3 py-2 text-center whitespace-nowrap text-[var(--color-text-muted)]">
+            <template v-if="shouldShowEvent(index) && hasAttachedProgram(row.programs, 'EXPLORE')">
+              {{ formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'EXPLORE')) }}
+            </template>
+          </td>
+
+          <!-- Challenge Anmeldungen -->
+          <td class="px-3 py-2 text-center whitespace-nowrap text-[var(--color-text-muted)]">
+            <template v-if="shouldShowEvent(index) && hasAttachedProgram(row.programs, 'CHALLENGE')">
+              {{ formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'CHALLENGE')) }}
+            </template>
+          </td>
+
+          <!-- Future 8+ Anmeldungen -->
+          <td class="px-3 py-2 text-center whitespace-nowrap text-[var(--color-text-muted)]">
+            <template v-if="shouldShowEvent(index) && hasAttachedProgram(row.programs, 'FUTURE_8')">
+              {{ formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'FUTURE_8')) }}
             </template>
           </td>
 

@@ -192,16 +192,7 @@ class PlanGeneratorService
             }
         }
 
-        // --- Challenge + Future: Policy A only (f8_per_round) ---
-        if ($presence->challengeShapedOn(FirstProgram::CHALLENGE->value)
-            && $presence->challengeShapedOn(FirstProgram::FUTURE_8->value)
-            && ! (bool) $params->get('f8_per_round', true)) {
-            return [
-                'supported' => false,
-                'error' => 'Match-Wechsel nach jedem Match noch nicht unterstützt',
-                'details' => 'Für kombinierte Challenge- und Future 8+-Events ist derzeit nur der Wechsel nach kompletten Runden (f8_per_round) implementiert.',
-            ];
-        }
+        // --- Challenge + Future: Policy A / B / C all supported ---
 
         return ['supported' => true];
     }

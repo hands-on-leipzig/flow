@@ -26,6 +26,8 @@ class Future8Generator implements ChallengeShapedLead
 
     private IntegratedExploreState $integratedExplore;
 
+    private bool $coordinateExplore = true;
+
     public function __construct(
         ActivityWriter $writer,
         PlanParameter $params,
@@ -231,6 +233,12 @@ class Future8Generator implements ChallengeShapedLead
         }
     }
 
+    /** Policy C back-room: Future must not own Explore rg1End / hole timing. */
+    public function setCoordinateExplore(bool $coordinateExplore): void
+    {
+        $this->coordinateExplore = $coordinateExplore;
+    }
+
     public function prepareMain(): void
     {
         $matchPlan = (new MatchPlanBuilder)->build(
@@ -244,6 +252,7 @@ class Future8Generator implements ChallengeShapedLead
             $matchPlan,
             RobotGameWriteConfig::future8()
         );
+        $this->robotGame->setCoordinateExplore($this->coordinateExplore);
     }
 
     public function cTime(): TimeCursor
@@ -283,17 +292,45 @@ class Future8Generator implements ChallengeShapedLead
         };
     }
 
-    public function runJudgingBlock(int $cBlock, TimeCursor &$jTimeEarliest, int &$jT): void
+    public function runJudgingBlock(int $cBlock, TimeCursor &$jTimeEarliest, int &$jT, ?array $policyBTiming = null): void
     {
-        $this->alignJudgingWithRobotGame($cBlock, $jTimeEarliest, $this->judgingAwayDuration());
+        $this->alignJudgingWithRobotGame($cBlock, $jTimeEarliest, $this->judgingAwayDuration(), $policyBTiming);
         $this->judgingOneRound($cBlock, $jT);
         $jT += (int) $this->pp('f8_lanes');
         $this->maybeInsertHardLunch($cBlock);
     }
 
+    /**
+     * Match index (0-based) that align protects for this judging block — same as solo rMB.
+     */
+    public function protectedMatchIndexForBlock(int $cBlock): int
+    {
+        if ($cBlock == $this->pp('f8_j_rounds') && ($this->pp('f8_teams') % $this->pp('f8_lanes')) !== 0) {
+            $teamsInLastRound = $this->pp('f8_teams') % $this->pp('f8_lanes');
+            $rMB = max(0, $this->pp('f8_r_matches_per_round') - $teamsInLastRound);
+        } else {
+            $rMB = $this->pp('f8_r_matches_per_round') - ceil($this->pp('f8_lanes') / 2);
+        }
+
+        if ($cBlock == 1 && $this->pp('f8_r_asym') && $this->pp('f8_j_rounds') != 4) {
+            $rMB++;
+        }
+
+        if ($cBlock < $this->pp('f8_j_rounds') && $this->pp('f8_teams') <= $cBlock * $this->pp('f8_lanes')) {
+            $rMB = 0;
+        }
+
+        return (int) $rMB;
+    }
+
     public function writeGameRound(int $round, bool $applyPostRoundBreak = true): void
     {
         $this->robotGame->insertOneRound($round, $applyPostRoundBreak);
+    }
+
+    public function robotGame(): RobotGameGenerator
+    {
+        return $this->robotGame;
     }
 
     public function applyPostRoundBreak(int $round): void
@@ -314,7 +351,10 @@ class Future8Generator implements ChallengeShapedLead
         $this->rTime->set($other->rTime()->current());
     }
 
-    private function alignJudgingWithRobotGame(int $cBlock, TimeCursor &$jTimeEarliest, mixed $jT4J): void
+    /**
+     * @param  array{rT2MMinutes: int, rA4JMinutes: int}|null  $policyBTiming
+     */
+    private function alignJudgingWithRobotGame(int $cBlock, TimeCursor &$jTimeEarliest, mixed $jT4J, ?array $policyBTiming = null): void
     {
         $rDuration = ($cBlock == 1)
             ? $this->pp('f8_r_duration_test_match')
@@ -324,22 +364,11 @@ class Future8Generator implements ChallengeShapedLead
             $this->jTime->set($jTimeEarliest->current());
         }
 
-        if ($cBlock == $this->pp('f8_j_rounds') && ($this->pp('f8_teams') % $this->pp('f8_lanes')) !== 0) {
-            $teamsInLastRound = $this->pp('f8_teams') % $this->pp('f8_lanes');
-            $rMB = max(0, $this->pp('f8_r_matches_per_round') - $teamsInLastRound);
-        } else {
-            $rMB = $this->pp('f8_r_matches_per_round') - ceil($this->pp('f8_lanes') / 2);
-        }
+        $rMB = $this->protectedMatchIndexForBlock($cBlock);
 
-        if ($cBlock == 1 && $this->pp('f8_r_asym') && $this->pp('f8_j_rounds') != 4) {
-            $rMB++;
-        }
-
-        if ($cBlock < $this->pp('f8_j_rounds') && $this->pp('f8_teams') <= $cBlock * $this->pp('f8_lanes')) {
-            $rMB = 0;
-        }
-
-        if ($this->pp('f8_fields') == 2) {
+        if ($policyBTiming !== null) {
+            $rT2M = $policyBTiming['rT2MMinutes'];
+        } elseif ($this->pp('f8_fields') == 2) {
             $rT2M = $rMB * $rDuration;
         } else {
             // Same 4-field pair-stagger grid as RobotGameGenerator (ns / D-ns).
@@ -357,7 +386,9 @@ class Future8Generator implements ChallengeShapedLead
             $this->rTime->set($rStartTarget->current());
         }
 
-        if ($this->pp('f8_j_rounds') > 4 && $cBlock == 2) {
+        if ($policyBTiming !== null) {
+            $rA4J = $policyBTiming['rA4JMinutes'];
+        } elseif ($this->pp('f8_j_rounds') > 4 && $cBlock == 2) {
             $rA4J = 0;
         } else {
             $rMB = ceil($this->pp('f8_lanes') / 2);

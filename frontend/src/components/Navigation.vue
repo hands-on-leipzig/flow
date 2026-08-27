@@ -98,6 +98,9 @@ const navEntries = computed<NavEntry[]>(() => [
     icon: 'bi-list-check',
     children: [
       {name: 'Allgemein', path: '/plan/schedule', icon: 'bi-sliders2-vertical'},
+      ...(eventPrograms(eventStore.selectedEvent).length > 1
+        ? [{name: 'Integration', path: '/plan/schedule/integration', icon: 'bi-puzzle'}]
+        : []),
       {name: 'Zeiten', path: '/plan/schedule/times', icon: 'bi-clock'},
       ...(hasAfternoon(eventStore.selectedEvent, programsStore.afternoonFirstPrograms)
         ? [{name: 'Nachmittag', path: '/plan/schedule/afternoon', icon: 'bi-sunset'}]

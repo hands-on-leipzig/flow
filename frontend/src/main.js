@@ -8,6 +8,7 @@ import keycloak from "@/keycloak.js";
 import Schedule from "@/components/Schedule.vue";
 import ScheduleGeneral from "@/components/ScheduleGeneral.vue";
 import ScheduleTimes from "@/components/ScheduleTimes.vue";
+import ScheduleIntegration from "@/components/ScheduleIntegration.vue";
 import ScheduleAfternoon from "@/components/ScheduleAfternoon.vue";
 import ScheduleExpert from "@/components/ScheduleExpert.vue";
 import ScheduleFreeActivities from "@/components/ScheduleFreeActivities.vue";
@@ -70,6 +71,7 @@ const routes = [
                 component: Schedule,
                 children: [
                     {path: '', name: 'schedule-general', component: ScheduleGeneral},
+                    {path: 'integration', name: 'schedule-integration', component: ScheduleIntegration},
                     {path: 'times', name: 'schedule-times', component: ScheduleTimes},
                     {path: 'afternoon', name: 'schedule-afternoon', component: ScheduleAfternoon},
                     {path: 'expert', name: 'schedule-expert', component: ScheduleExpert},
@@ -118,6 +120,7 @@ const routes = [
     {path: '/event', redirect: '/plan/overview'},
     {path: '/schedule', redirect: '/plan/schedule'},
     {path: '/schedule/blocks', redirect: '/plan/schedule/free'},
+    {path: '/schedule/integration', redirect: '/plan/schedule/integration'},
     {path: '/schedule/times', redirect: '/plan/schedule/times'},
     {path: '/schedule/afternoon', redirect: '/plan/schedule/afternoon'},
     {path: '/schedule/expert', redirect: '/plan/schedule/expert'},

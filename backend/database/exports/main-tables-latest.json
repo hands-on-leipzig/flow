@@ -1265,6 +1265,22 @@
             "link": null,
             "link_text": null,
             "activity_type": 24
+        },
+        {
+            "id": 85,
+            "name": "Ende der Veranstaltung",
+            "code": "g_end",
+            "presence": "punctual",
+            "name_preview": null,
+            "sequence": 999,
+            "first_program": null,
+            "afternoon_chain": null,
+            "afternoon_default": null,
+            "afternoon_parameter": null,
+            "description": "Ende der Veranstaltung",
+            "link": null,
+            "link_text": null,
+            "activity_type": 7
         }
     ],
     "m_first_program": [
@@ -3396,8 +3412,8 @@
         },
         {
             "id": 175,
-            "name": "f8_future_first",
-            "context": "expert",
+            "name": "g_future_first",
+            "context": "integration",
             "level": 1,
             "type": "boolean",
             "value": "0",
@@ -3406,13 +3422,13 @@
             "step": null,
             "first_program": 8,
             "sequence": 1,
-            "ui_label": "Matches: Future zu erst ",
-            "ui_description": "Nur f\u00fcr kombinierte Events: Wer f\u00e4ngt mit den Matches an? Future oder Challenge?"
+            "ui_label": "Wer hat das erste Match des Tages?",
+            "ui_description": "Welches Program f\u00e4ngt an? Danach wird automatisch gewechselt. Je nach Anzahl Teams pro Programm, kann es ein deutlichen Unterschied machen, wer anf\u00e4ngt."
         },
         {
             "id": 176,
-            "name": "f8_per_round",
-            "context": "protected",
+            "name": "g_per_round",
+            "context": "integration",
             "level": 1,
             "type": "boolean",
             "value": "1",
@@ -3421,12 +3437,12 @@
             "step": null,
             "first_program": 8,
             "sequence": 2,
-            "ui_label": "Matches: Komplette Runden",
-            "ui_description": "Nur f\u00fcr kombinierte Events: Wann wird zwischen Future und Challenge gewechselt? Nach einer vollen Runde eines Programs oder nach jedem Match?"
+            "ui_label": "Wann wird zwischen den Programmen gewechselt?",
+            "ui_description": "Die Runden k\u00f6nnen nach Programmen getrennt hintereinander oder verwoben generiert werden. "
         },
         {
             "id": 177,
-            "name": "f8_duration_flip_after_round",
+            "name": "g_duration_flip_after_round",
             "context": "protected",
             "level": 1,
             "type": "integer",
@@ -3438,6 +3454,21 @@
             "sequence": 3,
             "ui_label": "Dauer Flip",
             "ui_description": "Dauer des Wechseln zwischen den Programmen nach einer kompletten Runde"
+        },
+        {
+            "id": 178,
+            "name": "g_separate_rooms",
+            "context": "integration",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 8,
+            "sequence": 4,
+            "ui_label": "Wo finden die Matches statt?",
+            "ui_description": "Wenn die Game-Bereiche der beiden Programm nicht zusammen in einen Raum passen, werden unabh\u00e4ngige Zeitpl\u00e4ne pro Programm erzeugt. Er\u00f6ffnung und Preisverleihung bleiben aber integriert."
         }
     ],
     "m_parameter_condition": [],
@@ -5351,16 +5382,6 @@
             "alert_level": 2
         },
         {
-            "id": 111,
-            "first_program": 2,
-            "teams": 11,
-            "lanes": 2,
-            "tables": null,
-            "calibration": null,
-            "note": "F\u00fcr Cathrin :-)",
-            "alert_level": null
-        },
-        {
             "id": 112,
             "first_program": 3,
             "teams": 9,
@@ -5591,126 +5612,6 @@
             "alert_level": 1
         },
         {
-            "id": 135,
-            "first_program": 8,
-            "teams": 16,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 16 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 136,
-            "first_program": 8,
-            "teams": 16,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 137,
-            "first_program": 8,
-            "teams": 17,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 17 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 138,
-            "first_program": 8,
-            "teams": 17,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 139,
-            "first_program": 8,
-            "teams": 18,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 18 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 140,
-            "first_program": 8,
-            "teams": 18,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 141,
-            "first_program": 8,
-            "teams": 19,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 19 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 142,
-            "first_program": 8,
-            "teams": 20,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 20 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 143,
-            "first_program": 8,
-            "teams": 21,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 21 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 144,
-            "first_program": 8,
-            "teams": 22,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 22 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 145,
-            "first_program": 8,
-            "teams": 23,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 23 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 146,
-            "first_program": 8,
-            "teams": 24,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 24 Teams",
-            "alert_level": 1
-        },
-        {
             "id": 147,
             "first_program": 8,
             "teams": 4,
@@ -5781,16 +5682,6 @@
             "alert_level": 0
         },
         {
-            "id": 154,
-            "first_program": 8,
-            "teams": 15,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
             "id": 155,
             "first_program": 8,
             "teams": 10,
@@ -5811,140 +5702,10 @@
             "alert_level": 2
         },
         {
-            "id": 157,
-            "first_program": 8,
-            "teams": 13,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 2
-        },
-        {
-            "id": 158,
-            "first_program": 8,
-            "teams": 14,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 159,
-            "first_program": 8,
-            "teams": 16,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 4 Jurygruppen umgestellt werden.",
-            "alert_level": 2
-        },
-        {
-            "id": 160,
-            "first_program": 8,
-            "teams": 17,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 161,
-            "first_program": 8,
-            "teams": 18,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 162,
-            "first_program": 8,
-            "teams": 19,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 163,
-            "first_program": 8,
-            "teams": 20,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 164,
-            "first_program": 8,
-            "teams": 21,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 165,
-            "first_program": 8,
-            "teams": 22,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 166,
-            "first_program": 8,
-            "teams": 23,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 167,
-            "first_program": 8,
-            "teams": 24,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 168,
-            "first_program": 8,
-            "teams": 25,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 25 Teams",
-            "alert_level": 1
-        },
-        {
             "id": 169,
             "first_program": 8,
             "teams": 14,
             "lanes": 3,
-            "tables": 2,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 170,
-            "first_program": 8,
-            "teams": 14,
-            "lanes": 4,
             "tables": 2,
             "calibration": 0,
             "note": null,
@@ -5959,16 +5720,6 @@
             "calibration": 0,
             "note": null,
             "alert_level": 0
-        },
-        {
-            "id": 172,
-            "first_program": 8,
-            "teams": 13,
-            "lanes": 4,
-            "tables": 2,
-            "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 2
         },
         {
             "id": 173,
@@ -6011,34 +5762,24 @@
             "alert_level": 3
         },
         {
-            "id": 177,
+            "id": 180,
             "first_program": 8,
-            "teams": 12,
-            "lanes": 4,
+            "teams": 3,
+            "lanes": 1,
             "tables": 2,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 3
+            "note": null,
+            "alert_level": null
         },
         {
-            "id": 178,
+            "id": 181,
             "first_program": 8,
-            "teams": 12,
-            "lanes": 4,
-            "tables": 4,
+            "teams": 2,
+            "lanes": 1,
+            "tables": 2,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 3
-        },
-        {
-            "id": 179,
-            "first_program": 8,
-            "teams": 15,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 4 Jurygruppen umgestellt werden.",
-            "alert_level": 3
+            "note": null,
+            "alert_level": null
         }
     ],
     "m_visibility": [
@@ -8911,10 +8652,25 @@
             "id": 1022,
             "activity_type_detail": 84,
             "role": 21
+        },
+        {
+            "id": 1044,
+            "activity_type_detail": 85,
+            "role": 7
+        },
+        {
+            "id": 1045,
+            "activity_type_detail": 85,
+            "role": 15
+        },
+        {
+            "id": 1046,
+            "activity_type_detail": 85,
+            "role": 20
         }
     ],
     "_metadata": {
-        "exported_at": "2026-08-26T18:13:27.506353Z",
+        "exported_at": "2026-08-27T13:42:22.580536Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",

@@ -1,14 +1,19 @@
 <script setup lang="ts">
-import {ref, watch} from 'vue'
+import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import draggable from 'vuedraggable'
 import IconDraggable from '@/components/icons/IconDraggable.vue'
 import ParameterField from '@/components/molecules/ParameterField.vue'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import type {Parameter} from '@/models/Parameter'
+import {programDisplayName} from '@/utils/eventPrograms'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import ProgramSection from '@/components/atoms/ProgramSection.vue'
 
 defineOptions({ name: 'ScheduleAfternoon' })
+
+const CHALLENGE_FP = 3
+const FUTURE_8_FP = 8
 
 type AfternoonBlock = {
   id: number
@@ -34,6 +39,46 @@ const blocks = ref<AfternoonBlock[]>([])
 const lastSavedIds = ref<number[]>([])
 const loading = ref(false)
 
+function asBool(value: unknown): boolean {
+  return value === 1 || value === true || value === '1'
+}
+
+const separateRooms = computed(() => {
+  const param = Object.values(paramMap.value).find((p) => p.name === 'g_separate_rooms')
+  return param ? asBool(param.value) : false
+})
+
+/** Policy C UI: two lists when separate rooms and both Challenge + Future blocks exist. */
+const splitLists = computed(() => {
+  if (!separateRooms.value) return false
+  const programs = new Set(
+      blocks.value.map((b) => Number(b.first_program)).filter((id) => id > 0)
+  )
+  return programs.has(CHALLENGE_FP) && programs.has(FUTURE_8_FP)
+})
+
+const challengeBlocks = computed({
+  get: () => blocks.value.filter((b) => Number(b.first_program) === CHALLENGE_FP),
+  set: (next: AfternoonBlock[]) => {
+    const rest = blocks.value.filter((b) => Number(b.first_program) !== CHALLENGE_FP)
+    blocks.value = [...next, ...rest]
+  },
+})
+
+const futureBlocks = computed({
+  get: () => blocks.value.filter((b) => Number(b.first_program) === FUTURE_8_FP),
+  set: (next: AfternoonBlock[]) => {
+    const rest = blocks.value.filter((b) => Number(b.first_program) !== FUTURE_8_FP)
+    // Keep Challenge first in underlying array for concat save stability.
+    const challenge = rest.filter((b) => Number(b.first_program) === CHALLENGE_FP)
+    const other = rest.filter((b) => Number(b.first_program) !== CHALLENGE_FP)
+    blocks.value = [...challenge, ...next, ...other]
+  },
+})
+
+const challengeLabel = computed(() => programDisplayName('CHALLENGE') || 'Challenge')
+const futureLabel = computed(() => programDisplayName('FUTURE_8') || 'Future 8+')
+
 function blockIds(order: AfternoonBlock[]): number[] {
   return order.map((block) => Number(block.id))
 }
@@ -58,14 +103,28 @@ function orderRespectsChains(order: AfternoonBlock[]): boolean {
   return true
 }
 
+function allowMoveIn(list: AfternoonBlock[]) {
+  return (event: {draggedContext: {index: number; futureIndex: number}}): boolean => {
+    const from = event.draggedContext.index
+    const to = event.draggedContext.futureIndex
+    if (from === to || to == null) return true
+    const next = list.slice()
+    const [moved] = next.splice(from, 1)
+    next.splice(to, 0, moved)
+    return orderRespectsChains(next)
+  }
+}
+
 function allowMove(event: {draggedContext: {index: number; futureIndex: number}}): boolean {
-  const from = event.draggedContext.index
-  const to = event.draggedContext.futureIndex
-  if (from === to || to == null) return true
-  const next = blocks.value.slice()
-  const [moved] = next.splice(from, 1)
-  next.splice(to, 0, moved)
-  return orderRespectsChains(next)
+  return allowMoveIn(blocks.value)(event)
+}
+
+function allowMoveChallenge(event: {draggedContext: {index: number; futureIndex: number}}): boolean {
+  return allowMoveIn(challengeBlocks.value)(event)
+}
+
+function allowMoveFuture(event: {draggedContext: {index: number; futureIndex: number}}): boolean {
+  return allowMoveIn(futureBlocks.value)(event)
 }
 
 function embeddedParam(block: AfternoonBlock): Parameter | undefined {
@@ -133,6 +192,21 @@ function onParamUpdate(block: AfternoonBlock, param: Parameter) {
   handleParamUpdate({name: param.name, value: param.value})
 }
 
+function orderedIdsForSave(): number[] {
+  if (!splitLists.value) {
+    return blockIds(blocks.value)
+  }
+  const other = blocks.value.filter((b) => {
+    const fp = Number(b.first_program)
+    return fp !== CHALLENGE_FP && fp !== FUTURE_8_FP
+  })
+  return [
+    ...blockIds(challengeBlocks.value),
+    ...blockIds(futureBlocks.value),
+    ...blockIds(other),
+  ]
+}
+
 async function loadBlocks() {
   const planId = selectedPlanId.value
   if (!planId) {
@@ -144,7 +218,7 @@ async function loadBlocks() {
   try {
     const response = await axios.get(`/plans/${planId}/afternoon/blocks`)
     blocks.value = response.data.blocks || []
-    lastSavedIds.value = blockIds(blocks.value)
+    lastSavedIds.value = orderedIdsForSave()
   } catch (error) {
     console.error('Failed to fetch afternoon blocks:', error)
     blocks.value = []
@@ -156,7 +230,7 @@ async function loadBlocks() {
 
 async function saveOrder() {
   const planId = selectedPlanId.value
-  const ids = blockIds(blocks.value)
+  const ids = orderedIdsForSave()
   if (!planId || loading.value || sameIds(ids, lastSavedIds.value)) return
   try {
     const response = await axios.put(`/plans/${planId}/afternoon/blocks`, {
@@ -165,7 +239,7 @@ async function saveOrder() {
     if (response.data.blocks) {
       blocks.value = response.data.blocks
     }
-    lastSavedIds.value = blockIds(blocks.value)
+    lastSavedIds.value = orderedIdsForSave()
     handleBlockUpdates([{name: 'afternoon_order', value: lastSavedIds.value.join(',')}])
   } catch (error) {
     console.error('Failed to save afternoon block order:', error)
@@ -177,64 +251,175 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
 
 <template>
   <div class="schedule-afternoon flex flex-col pb-2">
-    <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
-      <h2 class="afternoon-anchor__title">Vorrunden</h2>
-    </section>
-
-    <draggable
-        v-model="blocks"
-        animation="150"
-        chosen-class="drag-chosen"
-        class="afternoon-stack"
-        drag-class="drag-dragging"
-        ghost-class="drag-ghost"
-        handle=".drag-handle"
-        item-key="id"
-        :move="allowMove"
-        @end="saveOrder"
-    >
-      <template #item="{ element }">
-        <div
-            class="afternoon-block glass-card liquid-surface-inner"
-            :class="{ 'afternoon-block--off': isOff(element) }"
-        >
-          <div class="afternoon-block__header">
-            <span class="drag-handle" aria-label="Reihenfolge ändern">
-              <IconDraggable/>
-            </span>
-            <img
-                :alt="programLogoAlt(element.program || element.first_program)"
-                :src="programLogoSrc(element.program || element.first_program)"
-                class="afternoon-block__logo"
-            >
-            <span class="afternoon-block__label">{{ element.name }}</span>
-          </div>
-          <ParameterField
-              v-for="param in embeddedParams(element)"
-              :key="param.id"
-              class="afternoon-block__param"
-              :param="param"
-              :disabled="disabledMap[param.id]"
-              :off-disabled="booleanOffBlocked(element, param)"
-              :on-disabled="booleanOnBlocked(element, param)"
-              :with-label="false"
-              :compact="true"
-              @pointerdown.stop
-              @update="(p: Parameter) => onParamUpdate(element, p)"
-          />
+    <!-- Policy C: vertical stack of program tiles (same rhythm as Ablauf → Allgemein) -->
+    <template v-if="splitLists">
+      <ProgramSection program="challenge" :short-name="challengeLabel">
+        <div class="afternoon-tile flex flex-col">
+          <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+            <h2 class="afternoon-anchor__title">Vorrunden {{ challengeLabel }}</h2>
+          </section>
+          <draggable
+              v-model="challengeBlocks"
+              animation="150"
+              chosen-class="drag-chosen"
+              class="afternoon-stack"
+              drag-class="drag-dragging"
+              ghost-class="drag-ghost"
+              handle=".drag-handle"
+              item-key="id"
+              :move="allowMoveChallenge"
+              @end="saveOrder"
+          >
+            <template #item="{ element }">
+              <div
+                  class="afternoon-block glass-card liquid-surface-inner"
+                  :class="{ 'afternoon-block--off': isOff(element) }"
+              >
+                <div class="afternoon-block__header">
+                  <span class="drag-handle" aria-label="Reihenfolge ändern">
+                    <IconDraggable/>
+                  </span>
+                  <span class="afternoon-block__label">{{ element.name }}</span>
+                </div>
+                <ParameterField
+                    v-for="param in embeddedParams(element)"
+                    :key="param.id"
+                    class="afternoon-block__param"
+                    :param="param"
+                    :disabled="disabledMap[param.id]"
+                    :off-disabled="booleanOffBlocked(element, param)"
+                    :on-disabled="booleanOnBlocked(element, param)"
+                    :with-label="false"
+                    :compact="true"
+                    @pointerdown.stop
+                    @update="(p: Parameter) => onParamUpdate(element, p)"
+                />
+              </div>
+            </template>
+          </draggable>
+          <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+            <h2 class="afternoon-anchor__title">Preisverleihung</h2>
+          </section>
         </div>
-      </template>
-    </draggable>
+      </ProgramSection>
 
-    <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
-      <h2 class="afternoon-anchor__title">Preisverleihung</h2>
-    </section>
+      <ProgramSection program="future8" :short-name="futureLabel">
+        <div class="afternoon-tile flex flex-col">
+          <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+            <h2 class="afternoon-anchor__title">Vorrunden {{ futureLabel }}</h2>
+          </section>
+          <draggable
+              v-model="futureBlocks"
+              animation="150"
+              chosen-class="drag-chosen"
+              class="afternoon-stack"
+              drag-class="drag-dragging"
+              ghost-class="drag-ghost"
+              handle=".drag-handle"
+              item-key="id"
+              :move="allowMoveFuture"
+              @end="saveOrder"
+          >
+            <template #item="{ element }">
+              <div
+                  class="afternoon-block glass-card liquid-surface-inner"
+                  :class="{ 'afternoon-block--off': isOff(element) }"
+              >
+                <div class="afternoon-block__header">
+                  <span class="drag-handle" aria-label="Reihenfolge ändern">
+                    <IconDraggable/>
+                  </span>
+                  <span class="afternoon-block__label">{{ element.name }}</span>
+                </div>
+                <ParameterField
+                    v-for="param in embeddedParams(element)"
+                    :key="param.id"
+                    class="afternoon-block__param"
+                    :param="param"
+                    :disabled="disabledMap[param.id]"
+                    :off-disabled="booleanOffBlocked(element, param)"
+                    :on-disabled="booleanOnBlocked(element, param)"
+                    :with-label="false"
+                    :compact="true"
+                    @pointerdown.stop
+                    @update="(p: Parameter) => onParamUpdate(element, p)"
+                />
+              </div>
+            </template>
+          </draggable>
+          <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+            <h2 class="afternoon-anchor__title">Preisverleihung</h2>
+          </section>
+        </div>
+      </ProgramSection>
+    </template>
+
+    <!-- Other profiles: one shared stage -->
+    <template v-else>
+      <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+        <h2 class="afternoon-anchor__title">Vorrunden</h2>
+      </section>
+
+      <draggable
+          v-model="blocks"
+          animation="150"
+          chosen-class="drag-chosen"
+          class="afternoon-stack"
+          drag-class="drag-dragging"
+          ghost-class="drag-ghost"
+          handle=".drag-handle"
+          item-key="id"
+          :move="allowMove"
+          @end="saveOrder"
+      >
+        <template #item="{ element }">
+          <div
+              class="afternoon-block glass-card liquid-surface-inner"
+              :class="{ 'afternoon-block--off': isOff(element) }"
+          >
+            <div class="afternoon-block__header">
+              <span class="drag-handle" aria-label="Reihenfolge ändern">
+                <IconDraggable/>
+              </span>
+              <img
+                  :alt="programLogoAlt(element.program || element.first_program)"
+                  :src="programLogoSrc(element.program || element.first_program)"
+                  class="afternoon-block__logo"
+              >
+              <span class="afternoon-block__label">{{ element.name }}</span>
+            </div>
+            <ParameterField
+                v-for="param in embeddedParams(element)"
+                :key="param.id"
+                class="afternoon-block__param"
+                :param="param"
+                :disabled="disabledMap[param.id]"
+                :off-disabled="booleanOffBlocked(element, param)"
+                :on-disabled="booleanOnBlocked(element, param)"
+                :with-label="false"
+                :compact="true"
+                @pointerdown.stop
+                @update="(p: Parameter) => onParamUpdate(element, p)"
+            />
+          </div>
+        </template>
+      </draggable>
+
+      <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
+        <h2 class="afternoon-anchor__title">Preisverleihung</h2>
+      </section>
+    </template>
   </div>
 </template>
 
 <style scoped>
 .schedule-afternoon {
   gap: 1.15rem;
+}
+
+.afternoon-tile {
+  gap: 0.85rem;
+  min-width: 0;
 }
 
 .afternoon-stack {

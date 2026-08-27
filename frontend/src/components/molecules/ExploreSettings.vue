@@ -6,6 +6,7 @@ import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import TeamPlanBar from '@/components/molecules/TeamPlanBar.vue'
 import TeamSplitBar from '@/components/molecules/TeamSplitBar.vue'
 import CapacityOverrideDialog from '@/components/atoms/CapacityOverrideDialog.vue'
+import SupportedPlansDialog from '@/components/atoms/SupportedPlansDialog.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import {useEventStore} from '@/stores/event'
 import {eventPrograms, programId} from '@/utils/eventPrograms'
@@ -193,6 +194,10 @@ const teamLimits = computed(() => {
   return {min: Math.min(...teamCounts), max: Math.max(...teamCounts)}
 })
 
+const programPlans = computed(() =>
+    (props.supportedPlanData || []).filter((plan: any) => plan.first_program === PROGRAM_ID)
+)
+
 const getAlertLevelStyle = (level: number) => {
   switch (level) {
     case 1:
@@ -242,16 +247,6 @@ function connectionFromMode(mode: number): 'integrated' | 'independent' {
   return 'integrated'
 }
 
-const connection = ref<'integrated' | 'independent' | null>(null)
-
-const connectionProxy = computed<'integrated' | 'independent'>({
-  get: () => connection.value
-      ?? connectionFromMode(Number(paramMapByName.value['e_mode']?.value || 0)),
-  set: (val) => {
-    connection.value = val
-  },
-})
-
 function computeEMode(): number {
   const e1 = e1Teams.value
   const e2 = e2Teams.value
@@ -259,7 +254,8 @@ function computeEMode(): number {
 
   const both = e1 > 0 && e2 > 0
   const morning = e1 > 0 && e2 <= 0
-  const integrated = hasOtherPrograms.value && connectionProxy.value === 'integrated'
+  const integrated = hasOtherPrograms.value
+      && connectionFromMode(Number(paramMapByName.value['e_mode']?.value || 0)) === 'integrated'
 
   if (integrated) {
     if (both) return ExploreMode.HYBRID_BOTH
@@ -273,7 +269,7 @@ function computeEMode(): number {
 }
 
 watch(
-    [eTeams, e1Teams, e2Teams, hasOtherPrograms, connectionProxy],
+    [eTeams, e1Teams, e2Teams, hasOtherPrograms, () => paramMapByName.value['e_mode']?.value],
     () => {
       if (!paramMapByName.value['e_mode']) return
       const next = computeEMode()
@@ -310,7 +306,7 @@ watch(
         :on-update="setSplit"
     />
 
-    <div v-for="group in laneGroups" :key="group.key" class="flex flex-col gap-1.5">
+    <div v-for="(group, groupIndex) in laneGroups" :key="group.key" class="flex flex-col gap-1.5">
       <div class="flex items-center gap-1 min-w-0">
         <span class="glass-settings-label">{{ group.label }}</span>
         <InfoPopover :text="group.description"/>
@@ -342,6 +338,12 @@ watch(
         <span class="glass-settings-hint whitespace-nowrap">
           {{ group.hint }}
         </span>
+        <SupportedPlansDialog
+            v-if="groupIndex === laneGroups.length - 1"
+            class="ml-auto"
+            program="explore"
+            :plans="programPlans"
+        />
       </div>
       <p v-if="group.teams && group.allowed.length === 0" class="glass-settings-hint mt-1.5 !not-italic">
         Keine gültigen Spurenzahlen für die aktuelle Teamanzahl.
@@ -361,30 +363,6 @@ watch(
             aria-hidden="true"
         />
         <span>{{ group.note }}</span>
-      </div>
-    </div>
-
-    <div v-if="hasOtherPrograms" class="flex flex-col gap-1.5">
-      <span class="glass-settings-label">Verbindung mit anderen Programmen</span>
-      <div class="glass-settings-row">
-        <RadioGroup v-model="connectionProxy" class="flex gap-1.5 flex-wrap">
-          <RadioGroupOption
-              v-for="opt in [{value: 'integrated', label: 'Integriert'}, {value: 'independent', label: 'unabhängig'}]"
-              :key="'explore_connection_' + opt.value"
-              v-slot="{ checked }"
-              :value="opt.value"
-              as="template"
-          >
-            <button
-                :class="checked ? 'glass-choice--active' : ''"
-                class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                type="button"
-                @click="connectionProxy = opt.value"
-            >
-              {{ opt.label }}
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
       </div>
     </div>
   </ProgramSection>
