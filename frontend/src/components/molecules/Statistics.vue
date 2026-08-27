@@ -80,6 +80,21 @@ const showOnlyNext14Days = ref(false) // Default: show all future events
 /** 'rp' = partner order (default); 'date' = by event_date ascending */
 const sortBy = ref<'rp' | 'date'>('rp')
 
+/** Header program-icon filters (logical AND when multiple selected). Empty = no filter. */
+type ProgramFilterName = 'EXPLORE' | 'CHALLENGE' | 'FUTURE_8'
+const programFilters = ref<Set<ProgramFilterName>>(new Set())
+
+function toggleProgramFilter(name: ProgramFilterName) {
+  const next = new Set(programFilters.value)
+  if (next.has(name)) next.delete(name)
+  else next.add(name)
+  programFilters.value = next
+}
+
+function isProgramFilterActive(name: ProgramFilterName): boolean {
+  return programFilters.value.has(name)
+}
+
 type DrahtEnrollment = { enrolled: number; capacity: number }
 /** event_id → first_program → enrolled/capacity from DRAHT check */
 const drahtEnrollments = ref<Map<number, Map<number, DrahtEnrollment>>>(new Map())
@@ -522,6 +537,14 @@ const filteredRows = computed(() => {
         return false // Hide rows with invalid dates when filtering
       }
     })
+  }
+
+  // Program icon filters (AND): keep only events that have every selected program
+  if (programFilters.value.size > 0) {
+    const required = [...programFilters.value]
+    filtered = filtered.filter((row) =>
+      required.every((name) => hasAttachedProgram(row.programs, name))
+    )
   }
 
   if (sortBy.value === 'date') {
@@ -1140,26 +1163,59 @@ function exportToCSV() {
                 <th class="px-3 py-2 w-24">Partner</th>
                 <th class="px-3 py-2">Event</th>
                 <th class="px-3 py-2">Name, Datum</th>
-                <th class="px-3 py-2 text-center" title="Explore">
-                  <img
-                    :src="programLogoSrc('EXPLORE')"
-                    :alt="programLogoAlt('EXPLORE')"
-                    class="w-5 h-5 inline-block align-middle"
-                  />
+                <th class="px-3 py-2 text-center">
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded p-0.5 transition"
+                    :class="isProgramFilterActive('EXPLORE')
+                      ? 'ring-2 ring-blue-500 bg-blue-50'
+                      : 'opacity-60 hover:opacity-100'"
+                    :title="isProgramFilterActive('EXPLORE') ? 'Explore-Filter entfernen' : 'Nur Events mit Explore'"
+                    :aria-pressed="isProgramFilterActive('EXPLORE')"
+                    @click="toggleProgramFilter('EXPLORE')"
+                  >
+                    <img
+                      :src="programLogoSrc('EXPLORE')"
+                      :alt="programLogoAlt('EXPLORE')"
+                      class="w-5 h-5"
+                    />
+                  </button>
                 </th>
-                <th class="px-3 py-2 text-center" title="Challenge">
-                  <img
-                    :src="programLogoSrc('CHALLENGE')"
-                    :alt="programLogoAlt('CHALLENGE')"
-                    class="w-5 h-5 inline-block align-middle"
-                  />
+                <th class="px-3 py-2 text-center">
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded p-0.5 transition"
+                    :class="isProgramFilterActive('CHALLENGE')
+                      ? 'ring-2 ring-blue-500 bg-blue-50'
+                      : 'opacity-60 hover:opacity-100'"
+                    :title="isProgramFilterActive('CHALLENGE') ? 'Challenge-Filter entfernen' : 'Nur Events mit Challenge'"
+                    :aria-pressed="isProgramFilterActive('CHALLENGE')"
+                    @click="toggleProgramFilter('CHALLENGE')"
+                  >
+                    <img
+                      :src="programLogoSrc('CHALLENGE')"
+                      :alt="programLogoAlt('CHALLENGE')"
+                      class="w-5 h-5"
+                    />
+                  </button>
                 </th>
-                <th class="px-3 py-2 text-center" title="Future 8+">
-                  <img
-                    :src="programLogoSrc('FUTURE_8')"
-                    :alt="programLogoAlt('FUTURE_8')"
-                    class="w-5 h-5 inline-block align-middle"
-                  />
+                <th class="px-3 py-2 text-center">
+                  <button
+                    type="button"
+                    class="inline-flex items-center justify-center rounded p-0.5 transition"
+                    :class="isProgramFilterActive('FUTURE_8')
+                      ? 'ring-2 ring-blue-500 bg-blue-50'
+                      : 'opacity-60 hover:opacity-100'"
+                    :title="isProgramFilterActive('FUTURE_8') ? 'Future-8+-Filter entfernen' : 'Nur Events mit Future 8+'"
+                    :aria-pressed="isProgramFilterActive('FUTURE_8')"
+                    @click="toggleProgramFilter('FUTURE_8')"
+                  >
+                    <img
+                      :src="programLogoSrc('FUTURE_8')"
+                      :alt="programLogoAlt('FUTURE_8')"
+                      class="w-5 h-5"
+                    />
+                  </button>
                 </th>
                 <th class="px-3 py-2">Plan</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
