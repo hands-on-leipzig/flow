@@ -69,6 +69,16 @@ class ActivityWriter
         return $group->id;
     }
 
+    /** Switch writer to an existing activity group (Policy B zip across programs). */
+    public function setCurrentGroupById(int $groupId): void
+    {
+        $group = ActivityGroup::find($groupId);
+        if ($group === null || (int) $group->plan !== $this->planId) {
+            throw new \RuntimeException("Aktivitätsgruppe {$groupId} gehört nicht zu Plan {$this->planId}.");
+        }
+        $this->currentGroup = $group;
+    }
+
     public function insertActivity(
         string $activityTypeCode,
         TimeCursor $time,

@@ -192,15 +192,16 @@ class PlanGeneratorService
             }
         }
 
-        // --- Challenge + Future: Policy A only (f8_per_round) ---
+        // --- Challenge + Future: Policy C refused; A and B supported ---
         if ($presence->challengeShapedOn(FirstProgram::CHALLENGE->value)
-            && $presence->challengeShapedOn(FirstProgram::FUTURE_8->value)
-            && ! (bool) $params->get('f8_per_round', true)) {
-            return [
-                'supported' => false,
-                'error' => 'Match-Wechsel nach jedem Match noch nicht unterstützt',
-                'details' => 'Für kombinierte Challenge- und Future 8+-Events ist derzeit nur der Wechsel nach kompletten Runden (f8_per_round) implementiert.',
-            ];
+            && $presence->challengeShapedOn(FirstProgram::FUTURE_8->value)) {
+            if ((bool) $params->get('g_separate_rooms', false)) {
+                return [
+                    'supported' => false,
+                    'error' => 'Getrennte Räume noch nicht unterstützt',
+                    'details' => 'Für kombinierte Challenge- und Future 8+-Events mit getrennten Räumen (g_separate_rooms) ist die Generierung noch nicht implementiert.',
+                ];
+            }
         }
 
         return ['supported' => true];

@@ -124,6 +124,7 @@ class PlanGeneratorCore
         if ($leadId !== null) {
             $this->constructChallengeShaped($onIds);
             $this->runLeadRecipes($eMode);
+            $this->insertEventEnd();
 
             return;
         }
@@ -137,6 +138,7 @@ class PlanGeneratorCore
         $this->makeExplore();
 
         $this->recipeExploreOnly($eMode);
+        $this->insertEventEnd();
     }
 
     /**
@@ -172,10 +174,11 @@ class PlanGeneratorCore
                 $this->future,
                 $this->params
             );
-            Log::info('PlanGeneratorCore: dual Challenge-shaped morning (Policy A)', [
+            Log::info('PlanGeneratorCore: dual Challenge-shaped morning', [
                 'plan_id' => $this->pp('g_plan'),
-                'f8_future_first' => (bool) $this->ppLoaded('f8_future_first'),
-                'f8_per_round' => (bool) $this->ppLoaded('f8_per_round', true),
+                'g_future_first' => (bool) $this->ppLoaded('g_future_first'),
+                'g_per_round' => (bool) $this->ppLoaded('g_per_round', true),
+                'policy' => (bool) $this->ppLoaded('g_per_round', true) ? 'A' : 'B',
             ]);
         }
     }
@@ -352,6 +355,39 @@ class PlanGeneratorCore
         }
 
         $this->lead->awards($jointWithExplore);
+    }
+
+    /**
+     * Zero-duration marker after the last awards — wall-clock end of the event (code g_end).
+     */
+    private function insertEventEnd(): void
+    {
+        $end = null;
+
+        if ($this->challenge !== null) {
+            $end = $this->challenge->cTime()->current();
+        }
+        if ($this->future !== null) {
+            $t = $this->future->cTime()->current();
+            if ($end === null || $t > $end) {
+                $end = $t;
+            }
+        }
+        if (isset($this->explore)) {
+            $t = $this->eTime->current();
+            if ($end === null || $t > $end) {
+                $end = $t;
+            }
+        }
+
+        if ($end === null) {
+            return;
+        }
+
+        $cursor = new TimeCursor(clone $end);
+        $this->writer->withGroup('g_end', function () use ($cursor) {
+            $this->writer->insertActivity('g_end', $cursor, 0);
+        });
     }
 
     private function makeExplore(): void

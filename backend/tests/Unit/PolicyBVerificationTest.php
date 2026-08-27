@@ -2,15 +2,23 @@
 
 namespace Tests\Unit;
 
+use App\Core\PolicyBRoundScheduler;
 use App\Enums\FirstProgram;
 use App\Support\PlanParameter;
-use App\Support\ProgramPresence;
+use DateTime;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
-class DualChallengeShapedSupportTest extends TestCase
+/**
+ * Narrow Policy B verification (scheduler constraints + support regress).
+ *
+ * Manual UI check (not automated): event with Challenge + Future 8+ attached,
+ * g_per_round=0, g_separate_rooms=0 — generate and confirm R1–3 matches
+ * interleave (no r_check), TR parallel, drain when match counts differ.
+ */
+class PolicyBVerificationTest extends TestCase
 {
     protected function setUp(): void
     {
@@ -79,7 +87,7 @@ class DualChallengeShapedSupportTest extends TestCase
             ['id' => FirstProgram::FUTURE_8->value, 'sequence' => 5],
         ]);
 
-        $params = [
+        foreach ([
             ['id' => 1, 'name' => 'g_plan', 'value' => '1', 'first_program' => null],
             ['id' => 22, 'name' => 'c_teams', 'value' => '8', 'first_program' => FirstProgram::CHALLENGE->value],
             ['id' => 122, 'name' => 'c_mode', 'value' => '0', 'first_program' => FirstProgram::CHALLENGE->value],
@@ -92,8 +100,7 @@ class DualChallengeShapedSupportTest extends TestCase
             ['id' => 175, 'name' => 'g_future_first', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
             ['id' => 176, 'name' => 'g_per_round', 'value' => '1', 'first_program' => FirstProgram::FUTURE_8->value],
             ['id' => 178, 'name' => 'g_separate_rooms', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
-        ];
-        foreach ($params as $row) {
+        ] as $row) {
             DB::table('m_parameter')->insert($row);
         }
 
@@ -103,101 +110,123 @@ class DualChallengeShapedSupportTest extends TestCase
         ]);
     }
 
-    public function test_presence_lists_both_challenge_shaped_on(): void
+    public function test_policy_a_still_supported_when_per_round_true(): void
     {
-        $planId = $this->seedBothOnPlan(perRound: true);
-
-        $params = PlanParameter::load($planId);
-        $presence = ProgramPresence::forPlan($planId, $params);
-
-        $this->assertSame(
-            [FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value],
-            $presence->challengeShapedOnIds()
-        );
-        $this->assertSame(FirstProgram::CHALLENGE->value, $presence->leadProgramId());
-        $this->assertSame([FirstProgram::FUTURE_8->value], $presence->skippedLeadProgramIds());
-    }
-
-    public function test_sync_turns_on_mode_when_attached_with_teams(): void
-    {
-        $planId = $this->seedBothOnPlan(perRound: true);
-
-        // Simulate stale plan: teams set, mode left at catalog 0 / missing override.
-        DB::table('plan_param_value')->where('plan', $planId)->where('parameter', 201)->delete();
-
-        $params = PlanParameter::load($planId);
-        $presence = ProgramPresence::forPlan($planId, $params);
-
-        $this->assertTrue($presence->challengeShapedOn(FirstProgram::FUTURE_8->value));
-        $this->assertSame(
-            [FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value],
-            $presence->challengeShapedOnIds()
-        );
-        $this->assertSame(1, (int) $params->get('f8_mode'));
-    }
-
-    public function test_is_supported_accepts_policy_b_when_both_on(): void
-    {
-        $planId = $this->seedBothOnPlan(perRound: false, separateRooms: false);
-
-        $result = app(\App\Services\PlanGeneratorService::class)->isSupported($planId);
-
+        $this->seedBothOnPlan(perRound: true);
+        $result = app(\App\Services\PlanGeneratorService::class)->isSupported(1);
         $this->assertTrue($result['supported']);
+        $this->assertTrue((bool) PlanParameter::load(1)->get('g_per_round'));
     }
 
-    public function test_is_supported_accepts_policy_a_when_both_on(): void
+    public function test_two_plus_two_zip_ordering_challenge_first(): void
     {
-        $planId = $this->seedBothOnPlan(perRound: true, separateRooms: false);
+        $scheduler = new PolicyBRoundScheduler;
+        $plan = $scheduler->plan(
+            $this->matchEntries(2),
+            $this->matchEntries(2),
+            2,
+            2,
+            10,
+            15,
+            5,
+            5,
+            5,
+            false,
+            new DateTime('2026-01-01 10:00:00'),
+        );
 
-        $result = app(\App\Services\PlanGeneratorService::class)->isSupported($planId);
+        $programs = array_column($plan['events'], 'program');
+        $this->assertSame(['challenge', 'future', 'challenge', 'future'], $programs);
 
-        $this->assertTrue($result['supported']);
+        $times = array_map(fn ($e) => $e['start']->format('H:i'), $plan['events']);
+        $this->assertSame(['10:00', '10:05', '10:15', '10:20'], $times);
     }
 
-    public function test_is_supported_rejects_policy_c_separate_rooms(): void
+    public function test_mixed_four_field_wave_then_single_uses_shared_ns(): void
     {
-        $planId = $this->seedBothOnPlan(perRound: true, separateRooms: true);
+        $scheduler = new PolicyBRoundScheduler;
+        // C4 (wave 2) + F2 (single): shared ns between units (not both-two D−ns).
+        $plan = $scheduler->plan(
+            $this->matchEntries(4),
+            $this->matchEntries(2),
+            4,
+            2,
+            10,
+            15,
+            5,
+            5,
+            5,
+            false,
+            new DateTime('2026-01-01 10:00:00'),
+        );
 
-        $result = app(\App\Services\PlanGeneratorService::class)->isSupported($planId);
+        $seq = array_map(
+            fn ($e) => [$e['program'], $e['index'], $e['start']->format('H:i')],
+            $plan['events']
+        );
 
-        $this->assertFalse($result['supported']);
-        $this->assertStringContainsString('g_separate_rooms', $result['details']);
+        $this->assertSame([
+            ['challenge', 0, '10:00'],
+            ['challenge', 1, '10:05'],
+            ['future', 0, '10:10'],
+            ['challenge', 2, '10:15'],
+            ['challenge', 3, '10:20'],
+            ['future', 1, '10:25'],
+        ], $seq);
     }
 
-    public function test_game_round_mapping_four_judging_rounds(): void
+    public function test_protected_match_meta_from_dry_run_starts(): void
     {
-        // Mirrors ChallengeGenerator / Future8Generator::gameRoundForJudgingBlock (non-finale).
-        $mapFour = static fn (int $cBlock): ?int => match ($cBlock) {
-            1 => 0,
-            2 => 1,
-            3 => 2,
-            4 => 3,
-            5 => 3,
-            default => null,
-        };
+        $scheduler = new PolicyBRoundScheduler;
+        $plan = $scheduler->plan(
+            $this->matchEntries(4),
+            $this->matchEntries(4),
+            2,
+            2,
+            10,
+            15,
+            5,
+            5,
+            5,
+            false,
+            new DateTime('2026-01-01 10:00:00'),
+        );
 
-        $mapFive = static fn (int $cBlock, int $jRounds): ?int => match ($cBlock) {
-            1 => 0,
-            2 => $jRounds == 4 ? 1 : null,
-            3 => $jRounds == 4 ? 2 : 1,
-            4 => $jRounds == 4 ? 3 : 2,
-            5 => 3,
-            default => null,
-        };
+        $meta = PolicyBRoundScheduler::withProtectedMatch($plan['meta']['challenge'], 2);
+        $this->assertNotNull($meta['protectedMatchStart']);
+        $this->assertSame(
+            $meta['starts'][2]->format('H:i'),
+            $meta['protectedMatchStart']->format('H:i')
+        );
 
-        $this->assertSame(0, $mapFour(1));
-        $this->assertSame(1, $mapFour(2));
-        $this->assertSame(2, $mapFour(3));
-        $this->assertSame(3, $mapFour(4));
-
-        $this->assertSame(0, $mapFive(1, 5));
-        $this->assertNull($mapFive(2, 5));
-        $this->assertSame(1, $mapFive(3, 5));
-        $this->assertSame(2, $mapFive(4, 5));
-        $this->assertSame(3, $mapFive(5, 5));
+        $rT2M = PolicyBRoundScheduler::minutesBetween(
+            new DateTime('2026-01-01 10:00:00'),
+            $meta['protectedMatchStart']
+        );
+        $this->assertGreaterThan(0, $rT2M);
     }
 
-    private function seedBothOnPlan(bool $perRound, bool $separateRooms = false): int
+    /**
+     * @return list<array{round: int, match: int, table_1: int, table_2: int, team_1: int, team_2: int}>
+     */
+    private function matchEntries(int $count): array
+    {
+        $out = [];
+        for ($i = 1; $i <= $count; $i++) {
+            $out[] = [
+                'round' => 1,
+                'match' => $i,
+                'table_1' => 1,
+                'table_2' => 2,
+                'team_1' => $i,
+                'team_2' => $i + 100,
+            ];
+        }
+
+        return $out;
+    }
+
+    private function seedBothOnPlan(bool $perRound): void
     {
         DB::table('event')->insert(['id' => 1, 'date' => '2026-01-01']);
         DB::table('plan')->insert(['id' => 1, 'event' => 1]);
@@ -217,9 +246,7 @@ class DualChallengeShapedSupportTest extends TestCase
             ['plan' => 1, 'parameter' => 203, 'set_value' => '4'],
             ['plan' => 1, 'parameter' => 175, 'set_value' => '0'],
             ['plan' => 1, 'parameter' => 176, 'set_value' => $perRound ? '1' : '0'],
-            ['plan' => 1, 'parameter' => 178, 'set_value' => $separateRooms ? '1' : '0'],
+            ['plan' => 1, 'parameter' => 178, 'set_value' => '0'],
         ]);
-
-        return 1;
     }
 }

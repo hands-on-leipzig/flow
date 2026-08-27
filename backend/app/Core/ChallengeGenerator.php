@@ -363,18 +363,47 @@ class ChallengeGenerator implements ChallengeShapedLead
      * Align + one judging round for the coordinator (does not write robot game).
      *
      * @param-out TimeCursor $jTimeEarliest
+     * @param  array{rT2MMinutes: int, rA4JMinutes: int}|null  $policyBTiming  Dry-run offsets (no robot check).
      */
-    public function runJudgingBlock(int $cBlock, TimeCursor &$jTimeEarliest, int &$jT): void
+    public function runJudgingBlock(int $cBlock, TimeCursor &$jTimeEarliest, int &$jT, ?array $policyBTiming = null): void
     {
-        $this->alignJudgingWithRobotGame($cBlock, $jTimeEarliest, $this->judgingAwayDuration());
+        $this->alignJudgingWithRobotGame($cBlock, $jTimeEarliest, $this->judgingAwayDuration(), $policyBTiming);
         $this->judgingOneRound($cBlock, $jT);
         $jT += (int) $this->pp('j_lanes');
         $this->maybeInsertHardLunch($cBlock);
     }
 
+    /**
+     * Match index (0-based) that align protects for this judging block — same as solo rMB.
+     */
+    public function protectedMatchIndexForBlock(int $cBlock): int
+    {
+        if ($cBlock == $this->pp('j_rounds') && ($this->pp('c_teams') % $this->pp('j_lanes')) !== 0) {
+            $teamsInLastRound = $this->pp('c_teams') % $this->pp('j_lanes');
+            $rMB = max(0, $this->pp('r_matches_per_round') - $teamsInLastRound);
+        } else {
+            $rMB = $this->pp('r_matches_per_round') - ceil($this->pp('j_lanes') / 2);
+        }
+
+        if ($cBlock == 1 && $this->pp('r_asym') && $this->pp('j_rounds') != 4) {
+            $rMB++;
+        }
+
+        if ($cBlock < $this->pp('j_rounds') && $this->pp('c_teams') <= $cBlock * $this->pp('j_lanes')) {
+            $rMB = 0;
+        }
+
+        return (int) $rMB;
+    }
+
     public function writeGameRound(int $round, bool $applyPostRoundBreak = true): void
     {
         $this->robotGame->insertOneRound($round, $applyPostRoundBreak);
+    }
+
+    public function robotGame(): RobotGameGenerator
+    {
+        return $this->robotGame;
     }
 
     public function applyPostRoundBreak(int $round): void
@@ -399,8 +428,10 @@ class ChallengeGenerator implements ChallengeShapedLead
     /**
      * Delay judging and/or robot game so teams are not in two places.
      * Updates $jTimeEarliest for the next block. Formulas unchanged.
+     *
+     * @param  array{rT2MMinutes: int, rA4JMinutes: int}|null  $policyBTiming
      */
-    private function alignJudgingWithRobotGame(int $cBlock, TimeCursor &$jTimeEarliest, mixed $jT4J): void
+    private function alignJudgingWithRobotGame(int $cBlock, TimeCursor &$jTimeEarliest, mixed $jT4J, ?array $policyBTiming = null): void
     {
         Log::debug("Before: cBlock: {$cBlock}, jTime: {$this->jTime->current()->format('H:i')}, rTime: {$this->rTime->current()->format('H:i')}, jTimeEarliest: {$jTimeEarliest->current()->format('H:i')}");
 
@@ -434,29 +465,12 @@ class ChallengeGenerator implements ChallengeShapedLead
         // Key concept 2: teams at judging are last in CURRENT robot game round
         //
         // number of matches before (MB) teams must be back from judging
-        if ($cBlock == $this->pp('j_rounds') && ($this->pp('c_teams') % $this->pp('j_lanes')) !== 0) {
-            // Last round has partial lanes: protect as many matches as we have teams in that round
-            // (e.g. 14 teams, 4 lanes → 2 teams in round 4 → ensure matches 4 and 5 start after judging+transfer)
-            $teamsInLastRound = $this->pp('c_teams') % $this->pp('j_lanes');
-            $rMB = max(0, $this->pp('r_matches_per_round') - $teamsInLastRound);
-        } else {
-            $rMB = $this->pp('r_matches_per_round') - ceil($this->pp('j_lanes') / 2);
-        }
-
-        // If asymmetrical match plan, one empty match is added into the test round.
-        if ($cBlock == 1 && $this->pp('r_asym') && $this->pp("j_rounds") != 4) {
-            $rMB++;
-        }
-
-        // When the NEXT judging round has no teams (e.g. 9 teams, 3 lanes → round 4 empty),
-        // teams at judging in THIS round can appear in any RG match (rotation). Ensure the
-        // whole robot game round starts after judging+transfer so every team gets >= transfer.
-        if ($cBlock < $this->pp('j_rounds') && $this->pp('c_teams') <= $cBlock * $this->pp('j_lanes')) {
-            $rMB = 0;
-        }
+        $rMB = $this->protectedMatchIndexForBlock($cBlock);
 
         // Calculate time to START of protected match (4 tables: pair stagger ns / D-ns grid).
-        if ($this->pp('r_tables') == 2) {
+        if ($policyBTiming !== null) {
+            $rT2M = $policyBTiming['rT2MMinutes'];
+        } elseif ($this->pp('r_tables') == 2) {
             // matches START in sequence
             $rT2M = $rMB * $rDuration;
         } else {
@@ -489,7 +503,9 @@ class ChallengeGenerator implements ChallengeShapedLead
         // Calculate a4j for concept 1 above
         // -----------------------------------------------------------------------------------
 
-        if ($this->pp('j_rounds') > 4 && $cBlock == 2) {
+        if ($policyBTiming !== null) {
+            $rA4J = $policyBTiming['rA4JMinutes'];
+        } elseif ($this->pp('j_rounds') > 4 && $cBlock == 2) {
 
                 // for plans with more than 4 rounds, juding rounds 1 and 2 are aligned with just one robot game round
                 // for plans with 6 rounds, judging rounds 5 and 6 are aligned with just one robot game round
