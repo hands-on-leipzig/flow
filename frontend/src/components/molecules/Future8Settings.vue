@@ -5,6 +5,7 @@ import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import TeamPlanBar from '@/components/molecules/TeamPlanBar.vue'
 import CapacityOverrideDialog from '@/components/atoms/CapacityOverrideDialog.vue'
+import SupportedPlansDialog from '@/components/atoms/SupportedPlansDialog.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
@@ -169,6 +170,10 @@ const teamLimits = computed(() => {
   return {min: Math.min(...teamCounts), max: Math.max(...teamCounts)}
 })
 
+const programPlans = computed(() =>
+    (props.supportedPlanData || []).filter((plan: any) => plan.first_program === PROGRAM_ID)
+)
+
 const getAlertLevelStyle = (level: number) => {
   switch (level) {
     case 1:
@@ -317,6 +322,7 @@ const teamsPerJuryHint = computed(() => {
             </button>
           </RadioGroupOption>
         </RadioGroup>
+        <SupportedPlansDialog class="ml-auto" :plans="programPlans"/>
       </div>
     </div>
 

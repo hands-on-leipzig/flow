@@ -127,6 +127,9 @@ function toggleCollapsed() {
     <div v-show="bodyOpen" class="program-section__body glass-settings-block">
       <slot/>
     </div>
+    <div v-if="bodyOpen && $slots.footer" class="program-section__footer">
+      <slot name="footer"/>
+    </div>
   </section>
 </template>
 
@@ -256,6 +259,15 @@ function toggleCollapsed() {
 
 .program-section__body {
   padding: 0.5rem 0 0.1rem;
+}
+
+.program-section__footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+  padding-top: 0.15rem;
 }
 
 .program-section__body :slotted(.program-empty) {
