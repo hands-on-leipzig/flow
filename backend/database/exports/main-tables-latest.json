@@ -334,7 +334,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Die erste von drei Robot-Game Runden",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
         },
@@ -350,7 +350,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Die zweite von drei Robot-Game Runden",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
         },
@@ -366,7 +366,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Die dritte von drei Robot-Game Runden",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
         },
@@ -382,7 +382,7 @@
             "afternoon_default": 4,
             "afternoon_parameter": 39,
             "description": "Die besten 8 Teams treten noch einmal an",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
         },
@@ -398,7 +398,7 @@
             "afternoon_default": 6,
             "afternoon_parameter": null,
             "description": "Die besten 4 Teams treten noch einmal an",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
         },
@@ -414,7 +414,7 @@
             "afternoon_default": 8,
             "afternoon_parameter": null,
             "description": "Die besten 2 Teams sind im Finale. Es finden zwei Matches statt. Die Summe der erzielten Punkte enscheidet",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
         },
@@ -430,7 +430,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "In einem Match stehen sich zwei Teams gegen\u00fcber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:innen Punkte pro gel\u00f6ster Aufgabe",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
         },
@@ -446,7 +446,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Vor einem Match zeigen die Teams, dass ihre Roboter den Regeln des Robot-Games entsprechen",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
         },
@@ -462,7 +462,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Zu beiden stellen die Juror:innen Fragen",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
         },
@@ -478,7 +478,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Nachdem das Team den Raum verlassen hat, f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
         },
@@ -494,7 +494,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Alle Juror:innen beraten gemeinsam, welche Teams Nominierungen und Pokale erhalten ",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
         },
@@ -510,7 +510,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Anschlie\u00dfend f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
         },
@@ -558,7 +558,7 @@
             "afternoon_default": 1,
             "afternoon_parameter": 37,
             "description": "Von den Juror:innen ausgew\u00e4hlte Forschungen werden noch einmal \u00f6ffentlich pr\u00e4sentiert. Eine Fragerunde gibt es nicht",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/forschung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
             "link_text": null,
             "activity_type": 16
         },
@@ -574,22 +574,6 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Medaillen und Urkunden f\u00fcr die Explore Teams und Medaillen, Urkunden und Pokale f\u00fcr die Challenge Teams",
-            "link": "",
-            "link_text": null,
-            "activity_type": 13
-        },
-        {
-            "id": 85,
-            "name": "Ende der Veranstaltung",
-            "code": "g_end",
-            "presence": "info",
-            "name_preview": "Ende",
-            "sequence": 21,
-            "first_program": null,
-            "afternoon_chain": null,
-            "afternoon_default": null,
-            "afternoon_parameter": null,
-            "description": "Markiert das Ende der Veranstaltung (Zeitpunkt nach der Preisverleihung)",
             "link": "",
             "link_text": null,
             "activity_type": 13
@@ -622,7 +606,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Das Jury-Briefing sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
         },
@@ -638,7 +622,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Im Schiedsrichter:innen-Briefing werden aktuelle Regel\u00e4nderungen besprochen und offene Fragen beantwortet",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
         },
@@ -766,7 +750,7 @@
             "afternoon_default": 3,
             "afternoon_parameter": 128,
             "description": "Die besten 16 Teams treten noch einmal an",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 1
         },
@@ -862,7 +846,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Das Jury-Briefing (an Tag 1) sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
         },
@@ -1086,7 +1070,7 @@
             "afternoon_default": 2,
             "afternoon_parameter": 140,
             "description": "Von den Juror:innen ausgew\u00e4hlte Forschungen werden noch einmal \u00f6ffentlich pr\u00e4sentiert. Eine Fragerunde gibt es nicht",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/forschung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
             "link_text": null,
             "activity_type": 21
         },
@@ -1118,7 +1102,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "In einem Match stehen sich zwei Teams gegen\u00fcber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:innen Punkte pro gel\u00f6ster Aufgabe",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 19
         },
@@ -1134,7 +1118,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Zu beiden stellen die Juror:innen Fragen",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20
         },
@@ -1150,7 +1134,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Nachdem das Team den Raum verlassen hat, f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20
         },
@@ -1166,7 +1150,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Alle Juror:innen beraten gemeinsam, welche Teams Nominierungen und Pokale erhalten ",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20
         },
@@ -1182,7 +1166,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Anschlie\u00dfend f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20
         },
@@ -1230,7 +1214,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Das Jury-Briefing sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/bewertung",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20
         },
@@ -1246,7 +1230,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Im Schiedsrichter:innen-Briefing werden aktuelle Regel\u00e4nderungen besprochen und offene Fragen beantwortet",
-            "link": "https://www.first-lego-league.org/de/saison-2025-26/challenge-ressourcen/robot-game",
+            "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 19
         },
@@ -1281,6 +1265,22 @@
             "link": null,
             "link_text": null,
             "activity_type": 24
+        },
+        {
+            "id": 85,
+            "name": "Ende der Veranstaltung",
+            "code": "g_end",
+            "presence": "punctual",
+            "name_preview": null,
+            "sequence": 999,
+            "first_program": null,
+            "afternoon_chain": null,
+            "afternoon_default": null,
+            "afternoon_parameter": null,
+            "description": "Ende der Veranstaltung",
+            "link": null,
+            "link_text": null,
+            "activity_type": 7
         }
     ],
     "m_first_program": [
@@ -1907,7 +1907,7 @@
             "step": "5",
             "first_program": 3,
             "sequence": 94,
-            "ui_label": "Wechsel zu/von den Pr\u00e4sentationen",
+            "ui_label": "Wechsel zu\/von den Pr\u00e4sentationen",
             "ui_description": "Zeit f\u00fcr den Umbau von Robot-Game. Die gleiche Zeit wird auch f\u00fcr den Umbau zur\u00fcck zu den Robot-Game-Finalrunden verwendet."
         },
         {
@@ -2342,7 +2342,7 @@
             "step": "5",
             "first_program": 3,
             "sequence": 40,
-            "ui_label": "Wechsel zu LC / RG Testrunden",
+            "ui_label": "Wechsel zu LC \/ RG Testrunden",
             "ui_description": "Nach der Er\u00f6ffnung machen sich Juroren, Teams, und Schiedsrichter:innen bereit f\u00fcr LC und RG-Testrunden"
         },
         {
@@ -3122,7 +3122,7 @@
             "step": "5",
             "first_program": 8,
             "sequence": 94,
-            "ui_label": "Wechsel zu/von den Pr\u00e4sentationen",
+            "ui_label": "Wechsel zu\/von den Pr\u00e4sentationen",
             "ui_description": "Zeit f\u00fcr den Umbau von Game. Die gleiche Zeit wird auch f\u00fcr den Umbau zur\u00fcck zu den Game-Finalrunden verwendet."
         },
         {
@@ -3413,7 +3413,7 @@
         {
             "id": 175,
             "name": "g_future_first",
-            "context": "expert",
+            "context": "integration",
             "level": 1,
             "type": "boolean",
             "value": "0",
@@ -3422,13 +3422,13 @@
             "step": null,
             "first_program": 8,
             "sequence": 1,
-            "ui_label": "Matches: Future zu erst ",
-            "ui_description": "Nur f\u00fcr kombinierte Events: Wer f\u00e4ngt mit den Matches an? Future oder Challenge?"
+            "ui_label": "Wer hat das erste Match des Tages?",
+            "ui_description": "Welches Program f\u00e4ngt an? Danach wird automatisch gewechselt. Je nach Anzahl Teams pro Programm, kann es ein deutlichen Unterschied machen, wer anf\u00e4ngt."
         },
         {
             "id": 176,
             "name": "g_per_round",
-            "context": "protected",
+            "context": "integration",
             "level": 1,
             "type": "boolean",
             "value": "1",
@@ -3437,8 +3437,8 @@
             "step": null,
             "first_program": 8,
             "sequence": 2,
-            "ui_label": "Matches: Komplette Runden",
-            "ui_description": "Nur f\u00fcr kombinierte Events: Wann wird zwischen Future und Challenge gewechselt? Nach einer vollen Runde eines Programs oder nach jedem Match?"
+            "ui_label": "Wann wird zwischen den Programmen gewechselt?",
+            "ui_description": "Die Runden k\u00f6nnen nach Programmen getrennt hintereinander oder verwoben generiert werden. "
         },
         {
             "id": 177,
@@ -3458,7 +3458,7 @@
         {
             "id": 178,
             "name": "g_separate_rooms",
-            "context": "protected",
+            "context": "integration",
             "level": 1,
             "type": "boolean",
             "value": "0",
@@ -3467,8 +3467,8 @@
             "step": null,
             "first_program": 8,
             "sequence": 4,
-            "ui_label": "Getrennte R\u00e4ume",
-            "ui_description": "Finden Challenge und Future 8+ Matches in getrennten R\u00e4umen statt? Falls ja, werden unabh\u00e4ngige Matchpl\u00e4ne generiert."
+            "ui_label": "Wo finden die Matches statt?",
+            "ui_description": "Wenn die Game-Bereiche der beiden Programm nicht zusammen in einen Raum passen, werden unabh\u00e4ngige Zeitpl\u00e4ne pro Programm erzeugt. Er\u00f6ffnung und Preisverleihung bleiben aber integriert."
         }
     ],
     "m_parameter_condition": [],
@@ -3980,15 +3980,6 @@
             "code": "g_awards",
             "name": "Gemeinsame Preisverleihung",
             "sequence": 510,
-            "room_type_group": 5,
-            "level": 1,
-            "first_program": 0
-        },
-        {
-            "id": 81,
-            "code": "g_end",
-            "name": "Ende der Veranstaltung",
-            "sequence": 511,
             "room_type_group": 5,
             "level": 1,
             "first_program": 0
@@ -5391,16 +5382,6 @@
             "alert_level": 2
         },
         {
-            "id": 111,
-            "first_program": 2,
-            "teams": 11,
-            "lanes": 2,
-            "tables": null,
-            "calibration": null,
-            "note": "F\u00fcr Cathrin :-)",
-            "alert_level": null
-        },
-        {
             "id": 112,
             "first_program": 3,
             "teams": 9,
@@ -5631,126 +5612,6 @@
             "alert_level": 1
         },
         {
-            "id": 135,
-            "first_program": 8,
-            "teams": 16,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 16 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 136,
-            "first_program": 8,
-            "teams": 16,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 137,
-            "first_program": 8,
-            "teams": 17,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 17 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 138,
-            "first_program": 8,
-            "teams": 17,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 139,
-            "first_program": 8,
-            "teams": 18,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 18 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 140,
-            "first_program": 8,
-            "teams": 18,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 141,
-            "first_program": 8,
-            "teams": 19,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 19 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 142,
-            "first_program": 8,
-            "teams": 20,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 20 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 143,
-            "first_program": 8,
-            "teams": 21,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 21 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 144,
-            "first_program": 8,
-            "teams": 22,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 22 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 145,
-            "first_program": 8,
-            "teams": 23,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 23 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 146,
-            "first_program": 8,
-            "teams": 24,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 24 Teams",
-            "alert_level": 1
-        },
-        {
             "id": 147,
             "first_program": 8,
             "teams": 4,
@@ -5821,16 +5682,6 @@
             "alert_level": 0
         },
         {
-            "id": 154,
-            "first_program": 8,
-            "teams": 15,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
             "id": 155,
             "first_program": 8,
             "teams": 10,
@@ -5851,140 +5702,10 @@
             "alert_level": 2
         },
         {
-            "id": 157,
-            "first_program": 8,
-            "teams": 13,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 2
-        },
-        {
-            "id": 158,
-            "first_program": 8,
-            "teams": 14,
-            "lanes": 4,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 159,
-            "first_program": 8,
-            "teams": 16,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 4 Jurygruppen umgestellt werden.",
-            "alert_level": 2
-        },
-        {
-            "id": 160,
-            "first_program": 8,
-            "teams": 17,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 161,
-            "first_program": 8,
-            "teams": 18,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 162,
-            "first_program": 8,
-            "teams": 19,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 163,
-            "first_program": 8,
-            "teams": 20,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 164,
-            "first_program": 8,
-            "teams": 21,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 165,
-            "first_program": 8,
-            "teams": 22,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 166,
-            "first_program": 8,
-            "teams": 23,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 167,
-            "first_program": 8,
-            "teams": 24,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 168,
-            "first_program": 8,
-            "teams": 25,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 25 Teams",
-            "alert_level": 1
-        },
-        {
             "id": 169,
             "first_program": 8,
             "teams": 14,
             "lanes": 3,
-            "tables": 2,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 170,
-            "first_program": 8,
-            "teams": 14,
-            "lanes": 4,
             "tables": 2,
             "calibration": 0,
             "note": null,
@@ -5999,16 +5720,6 @@
             "calibration": 0,
             "note": null,
             "alert_level": 0
-        },
-        {
-            "id": 172,
-            "first_program": 8,
-            "teams": 13,
-            "lanes": 4,
-            "tables": 2,
-            "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 2
         },
         {
             "id": 173,
@@ -6051,34 +5762,24 @@
             "alert_level": 3
         },
         {
-            "id": 177,
+            "id": 180,
             "first_program": 8,
-            "teams": 12,
-            "lanes": 4,
+            "teams": 3,
+            "lanes": 1,
             "tables": 2,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 3
+            "note": null,
+            "alert_level": null
         },
         {
-            "id": 178,
+            "id": 181,
             "first_program": 8,
-            "teams": 12,
-            "lanes": 4,
-            "tables": 4,
+            "teams": 2,
+            "lanes": 1,
+            "tables": 2,
             "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 3 Jurygruppen umgestellt werden.",
-            "alert_level": 3
-        },
-        {
-            "id": 179,
-            "first_program": 8,
-            "teams": 15,
-            "lanes": 5,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 4 Jurygruppen umgestellt werden.",
-            "alert_level": 3
+            "note": null,
+            "alert_level": null
         }
     ],
     "m_visibility": [
@@ -8951,10 +8652,25 @@
             "id": 1022,
             "activity_type_detail": 84,
             "role": 21
+        },
+        {
+            "id": 1044,
+            "activity_type_detail": 85,
+            "role": 7
+        },
+        {
+            "id": 1045,
+            "activity_type_detail": 85,
+            "role": 15
+        },
+        {
+            "id": 1046,
+            "activity_type_detail": 85,
+            "role": 20
         }
     ],
     "_metadata": {
-        "exported_at": "2026-08-26T18:13:27.506353Z",
+        "exported_at": "2026-08-27T13:42:22.580536Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
