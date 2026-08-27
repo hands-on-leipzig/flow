@@ -29,7 +29,11 @@ const programsStore = useProgramsStore()
 const planCache = usePlanCacheStore()
 const {isAdmin, initializeUserRoles} = useAuth()
 const {planLocked} = useScheduleWorkspace()
-const {showAdminInline} = useAdminInlineVisibility()
+const {
+  showAdminInline,
+  adminInlinePreference,
+  setAdminInlinePreference,
+} = useAdminInlineVisibility()
 const {isDevEnvironment, isLocal, ensureLoaded: ensureAdminEnvironment} = useAdminEnvironment()
 const router = useRouter()
 const route = useRoute()
@@ -471,6 +475,31 @@ function logout() {
                 >
                   <i class="bi bi-moon-fill" aria-hidden="true"/>
                   <span>Dunkel</span>
+                </button>
+              </div>
+            </div>
+            <div v-if="isAdmin" class="glass-sidebar-footer__prefs-block">
+              <span class="glass-sidebar-footer__menu-label">Inline-Admin im Planner</span>
+              <div class="glass-sidebar-footer__prefs-row" role="group" aria-label="Inline-Admin im Planner">
+                <button
+                    type="button"
+                    class="glass-sidebar-footer__pref-btn"
+                    :class="{ active: adminInlinePreference }"
+                    :aria-pressed="adminInlinePreference"
+                    @click="setAdminInlinePreference(true)"
+                >
+                  <i class="bi bi-eye-fill" aria-hidden="true"/>
+                  <span>An</span>
+                </button>
+                <button
+                    type="button"
+                    class="glass-sidebar-footer__pref-btn"
+                    :class="{ active: !adminInlinePreference }"
+                    :aria-pressed="!adminInlinePreference"
+                    @click="setAdminInlinePreference(false)"
+                >
+                  <i class="bi bi-eye-slash-fill" aria-hidden="true"/>
+                  <span>Aus</span>
                 </button>
               </div>
             </div>
