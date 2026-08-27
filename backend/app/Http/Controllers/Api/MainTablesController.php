@@ -469,6 +469,7 @@ class MainTablesController extends Controller
             'm_activity_type_detail' => 'Activity Type Details',
             'm_first_program' => 'First Programs',
             'm_role' => 'Roles',
+            'm_staffing_rule' => 'Staffing Rules',
             'm_visibility' => 'Visibility Rules',
             'm_supported_plan' => 'Supported Plans'
         ];

@@ -31,6 +31,8 @@ use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
+use App\Http\Controllers\Api\VolunteerPersonController;
+use App\Http\Controllers\Api\EventVolunteerRosterController;
 use App\Models\Event;
 use App\Services\SeasonService;
 use Illuminate\Http\Request;
@@ -252,6 +254,16 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);
     Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
     Route::delete('/teams/{team}', [TeamController::class, 'destroy']);
+
+    // Volunteer staffing (pool + roster)
+    Route::get('/events/{event}/volunteers', [VolunteerPersonController::class, 'index']);
+    Route::post('/events/{event}/volunteers', [VolunteerPersonController::class, 'store']);
+    Route::get('/events/{event}/volunteers/export', [VolunteerPersonController::class, 'exportCsv']);
+    Route::put('/volunteers/{volunteer}', [VolunteerPersonController::class, 'update']);
+    Route::delete('/volunteers/{volunteer}', [VolunteerPersonController::class, 'destroy']);
+    Route::get('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'index']);
+    Route::post('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'store']);
+    Route::delete('/events/{event}/volunteer-roster/{volunteer}', [EventVolunteerRosterController::class, 'destroy']);
 
     Route::prefix('logos')->group(function () {
         Route::get('/', [LogoController::class, 'index']);
