@@ -26,6 +26,8 @@ class Future8Generator implements ChallengeShapedLead
 
     private IntegratedExploreState $integratedExplore;
 
+    private bool $coordinateExplore = true;
+
     public function __construct(
         ActivityWriter $writer,
         PlanParameter $params,
@@ -231,6 +233,12 @@ class Future8Generator implements ChallengeShapedLead
         }
     }
 
+    /** Policy C back-room: Future must not own Explore rg1End / hole timing. */
+    public function setCoordinateExplore(bool $coordinateExplore): void
+    {
+        $this->coordinateExplore = $coordinateExplore;
+    }
+
     public function prepareMain(): void
     {
         $matchPlan = (new MatchPlanBuilder)->build(
@@ -244,6 +252,7 @@ class Future8Generator implements ChallengeShapedLead
             $matchPlan,
             RobotGameWriteConfig::future8()
         );
+        $this->robotGame->setCoordinateExplore($this->coordinateExplore);
     }
 
     public function cTime(): TimeCursor

@@ -90,7 +90,8 @@ class PlanGeneratorCore
      *
      * Ceremony recipes (Challenge-shaped lead; Explore is a wrapper). Same call order as before.
      * Lead is Challenge when c_mode is on; Future 8+ when f8_mode is on and Challenge is off.
-     * When both Challenge and Future are on, a GameRoundCoordinator runs Policy A mornings.
+     * When both Challenge and Future are on: Policy A/B via GameRoundCoordinator, or Policy C
+     * (g_separate_rooms) as parallel solo mains.
      *
      * Explore e_mode (generated):
      *
@@ -174,11 +175,13 @@ class PlanGeneratorCore
                 $this->future,
                 $this->params
             );
+            $policyC = (bool) $this->ppLoaded('g_separate_rooms', false);
             Log::info('PlanGeneratorCore: dual Challenge-shaped morning', [
                 'plan_id' => $this->pp('g_plan'),
+                'g_separate_rooms' => $policyC,
                 'g_future_first' => (bool) $this->ppLoaded('g_future_first'),
                 'g_per_round' => (bool) $this->ppLoaded('g_per_round', true),
-                'policy' => (bool) $this->ppLoaded('g_per_round', true) ? 'A' : 'B',
+                'policy' => $policyC ? 'C' : ((bool) $this->ppLoaded('g_per_round', true) ? 'A' : 'B'),
             ]);
         }
     }
@@ -231,11 +234,12 @@ class PlanGeneratorCore
             $exploreEnd = $this->eTime->current();
             $exploreEnd->modify('+'.((int) $this->pp('e_ready_awards', 0)).' minutes');
             $rTime->advanceToLater($exploreEnd);
-            if ($this->future !== null) {
-                $this->future->rTime()->advanceToLater($rTime->current());
-            }
             if ($this->challenge !== null) {
                 $this->challenge->rTime()->advanceToLater($rTime->current());
+            }
+            // Policy C: Future runs solo from opening end — do not pull F8 into the Explore hole.
+            if ($this->future !== null && ! $this->isPolicyC()) {
+                $this->future->rTime()->advanceToLater($rTime->current());
             }
         };
 
@@ -317,10 +321,11 @@ class PlanGeneratorCore
     /**
      * Ceremony lead writes opening (+ its briefings). When Future is secondary, add Future briefings
      * and sync its clocks to the lead (coordinator also syncs before morning).
+     * Policy C always uses joint g_opening even without Explore.
      */
     private function openingsForPrograms(bool $jointOpening): void
     {
-        $this->lead->openingsAndBriefings($jointOpening);
+        $this->lead->openingsAndBriefings($jointOpening || $this->isPolicyC());
 
         if ($this->coordinator !== null && $this->future !== null && $this->challenge !== null) {
             // Lead is Challenge: Future briefings only (opening already joint/Challenge).
@@ -329,8 +334,21 @@ class PlanGeneratorCore
         }
     }
 
+    private function isPolicyC(): bool
+    {
+        return $this->challenge !== null
+            && $this->future !== null
+            && (bool) $this->pp('g_separate_rooms', false);
+    }
+
     private function runMain(bool $explore = false, ?callable $afterRG1Callback = null): void
     {
+        if ($this->isPolicyC()) {
+            $this->runPolicyCMain($explore, $afterRG1Callback);
+
+            return;
+        }
+
         if ($this->coordinator !== null) {
             $this->coordinator->main($explore, $afterRG1Callback);
 
@@ -338,6 +356,30 @@ class PlanGeneratorCore
         }
 
         $this->lead->main($explore, $afterRG1Callback);
+    }
+
+    /**
+     * Policy C: parallel solo mornings from the same opening-end anchor.
+     * Challenge runs first (owns Explore hooks); Future is re-anchored then runs standalone.
+     */
+    private function runPolicyCMain(bool $explore = false, ?callable $afterRG1Callback = null): void
+    {
+        $openingC = clone $this->challenge->cTime()->current();
+        $openingJ = clone $this->challenge->jTime()->current();
+        $openingR = clone $this->challenge->rTime()->current();
+
+        Log::info('PlanGeneratorCore: Policy C parallel solo morning', [
+            'plan_id' => $this->pp('g_plan'),
+            'opening' => $openingR->format('H:i'),
+        ]);
+
+        $this->challenge->main($explore, $afterRG1Callback);
+
+        $this->future->cTime()->set(clone $openingC);
+        $this->future->jTime()->set(clone $openingJ);
+        $this->future->rTime()->set(clone $openingR);
+        $this->future->setCoordinateExplore(false);
+        $this->future->main(false, null);
     }
 
     /**
@@ -417,17 +459,24 @@ class PlanGeneratorCore
     }
 
     /**
-     * Walk the Nachmittag list in table order. One shared stage clock — each block starts after the previous.
+     * Walk the Nachmittag list. A/B: one shared stage clock. Policy C: each program alone.
      */
     private function afternoon(): void
     {
         Log::info('PlanGeneratorCore::afternoon', [
             'plan_id' => $this->pp('g_plan'),
+            'policy_c' => $this->isPolicyC(),
             'c_teams' => $this->ppLoaded('c_teams'),
             'f8_teams' => $this->ppLoaded('f8_teams'),
         ]);
 
         try {
+            if ($this->isPolicyC()) {
+                $this->afternoonPolicyC();
+
+                return;
+            }
+
             $this->beginAfternoonForPrograms();
 
             $blocks = app(AfternoonBlockOrderService::class)
@@ -439,19 +488,7 @@ class PlanGeneratorCore
                 }
 
                 $this->syncSharedAfternoonClock();
-
-                match ((string) $block->code) {
-                    'c_presentations' => $this->challenge?->presentations(),
-                    'f8_presentations' => $this->future?->presentations(),
-                    'r_final_16' => $this->insertChallengeFinalRound(16),
-                    'r_final_8' => $this->insertChallengeFinalRound(8),
-                    'r_final_4' => $this->insertChallengeFinalRound(4),
-                    'r_final_2' => $this->insertChallengeFinalRound(2),
-                    'f8_round_4' => $this->insertFutureEmptyRound(4),
-                    'f8_round_5' => $this->insertFutureEmptyRound(5),
-                    default => null,
-                };
-
+                $this->emitAfternoonBlock($block);
                 $this->syncSharedAfternoonClock();
             }
 
@@ -463,6 +500,55 @@ class PlanGeneratorCore
             ]);
             throw new \RuntimeException("Fehler beim Generieren des Nachmittags: {$e->getMessage()}", 0, $e);
         }
+    }
+
+    /**
+     * Policy C: independent afternoon walks (filter by first_program), then leave clocks
+     * for joint awards (later-of-both in awardsForPrograms).
+     */
+    private function afternoonPolicyC(): void
+    {
+        $blocks = app(AfternoonBlockOrderService::class)
+            ->resolvedBlocks((int) $this->pp('g_plan'));
+
+        $this->challenge->beginAfternoon();
+        foreach ($blocks as $block) {
+            if ((int) ($block->first_program ?? 0) !== FirstProgram::CHALLENGE->value) {
+                continue;
+            }
+            if (! $this->afternoonBlockShouldEmit($block)) {
+                continue;
+            }
+            $this->emitAfternoonBlock($block);
+        }
+        $this->challenge->endAfternoon();
+
+        $this->future->beginAfternoon();
+        foreach ($blocks as $block) {
+            if ((int) ($block->first_program ?? 0) !== FirstProgram::FUTURE_8->value) {
+                continue;
+            }
+            if (! $this->afternoonBlockShouldEmit($block)) {
+                continue;
+            }
+            $this->emitAfternoonBlock($block);
+        }
+        $this->future->endAfternoon();
+    }
+
+    private function emitAfternoonBlock(object $block): void
+    {
+        match ((string) $block->code) {
+            'c_presentations' => $this->challenge?->presentations(),
+            'f8_presentations' => $this->future?->presentations(),
+            'r_final_16' => $this->insertChallengeFinalRound(16),
+            'r_final_8' => $this->insertChallengeFinalRound(8),
+            'r_final_4' => $this->insertChallengeFinalRound(4),
+            'r_final_2' => $this->insertChallengeFinalRound(2),
+            'f8_round_4' => $this->insertFutureEmptyRound(4),
+            'f8_round_5' => $this->insertFutureEmptyRound(5),
+            default => null,
+        };
     }
 
     private function beginAfternoonForPrograms(): void

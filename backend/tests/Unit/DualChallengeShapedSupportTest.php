@@ -154,14 +154,13 @@ class DualChallengeShapedSupportTest extends TestCase
         $this->assertTrue($result['supported']);
     }
 
-    public function test_is_supported_rejects_policy_c_separate_rooms(): void
+    public function test_is_supported_accepts_policy_c_separate_rooms(): void
     {
         $planId = $this->seedBothOnPlan(perRound: true, separateRooms: true);
 
         $result = app(\App\Services\PlanGeneratorService::class)->isSupported($planId);
 
-        $this->assertFalse($result['supported']);
-        $this->assertStringContainsString('g_separate_rooms', $result['details']);
+        $this->assertTrue($result['supported']);
     }
 
     public function test_game_round_mapping_four_judging_rounds(): void

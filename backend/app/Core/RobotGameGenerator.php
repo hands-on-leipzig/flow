@@ -28,6 +28,9 @@ class RobotGameGenerator
 
     private RobotGameWriteConfig $write;
 
+    /** When false, skip Explore rg1End / hole coordination (Policy C Future back-room). */
+    private bool $coordinateExplore = true;
+
     public function __construct(
         ActivityWriter $writer,
         PlanParameter $params,
@@ -42,6 +45,11 @@ class RobotGameGenerator
         $this->integratedExplore = $integratedExplore;
         $this->matchPlan = $matchPlan;
         $this->write = $write ?? RobotGameWriteConfig::challenge();
+    }
+
+    public function setCoordinateExplore(bool $coordinateExplore): void
+    {
+        $this->coordinateExplore = $coordinateExplore;
     }
 
     private function robotCheckEnabled(): bool
@@ -323,13 +331,16 @@ class RobotGameGenerator
                 } else {
                     // Challenge break is the floor for RG2. Explore may only push rTime later.
                     $rg1End = $this->rTime->current();
-                    $this->integratedExplore->rg1End = $rg1End;
+                    if ($this->coordinateExplore) {
+                        $this->integratedExplore->rg1End = $rg1End;
+                    }
 
                     if (!$this->lunchBreakEarly() && $this->hardLunchDuration() === 0) {
                         $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                     }
 
-                    if ($this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                    if ($this->coordinateExplore
+                        && $this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
                         $this->integratedExplore->startTime = clone $rg1End;
                         $exploreHoleEnd = new TimeCursor($rg1End);
                         $exploreHoleEnd->addMinutes($this->integratedExplore->duration);
@@ -341,8 +352,9 @@ class RobotGameGenerator
             case 2:
                 if ($this->pp('g_finale')) {
                     // Finale: Everything that was in case 1 for normal events
-                    if ($this->exploreMode() == ExploreMode::INTEGRATED_MORNING->value ||
-                        $this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                    if ($this->coordinateExplore
+                        && ($this->exploreMode() == ExploreMode::INTEGRATED_MORNING->value ||
+                            $this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value)) {
                         // Integrated Explore mode: coordinate with ExploreGenerator
                         $this->integratedExplore->startTime = $this->rTime->current();
                         $this->rTime->addMinutes($this->integratedExplore->duration);
