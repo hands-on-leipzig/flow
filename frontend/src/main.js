@@ -11,6 +11,7 @@ import ScheduleTimes from "@/components/ScheduleTimes.vue";
 import ScheduleIntegration from "@/components/ScheduleIntegration.vue";
 import ScheduleAfternoon from "@/components/ScheduleAfternoon.vue";
 import ScheduleExpert from "@/components/ScheduleExpert.vue";
+import ScheduleProtected from "@/components/ScheduleProtected.vue";
 import ScheduleFreeActivities from "@/components/ScheduleFreeActivities.vue";
 import Logos from "@/components/Logos.vue";
 import {createPinia, setActivePinia} from "pinia";
@@ -75,6 +76,7 @@ const routes = [
                     {path: 'times', name: 'schedule-times', component: ScheduleTimes},
                     {path: 'afternoon', name: 'schedule-afternoon', component: ScheduleAfternoon},
                     {path: 'expert', name: 'schedule-expert', component: ScheduleExpert},
+                    {path: 'protected', name: 'schedule-protected', component: ScheduleProtected},
                     {path: 'blocks', redirect: {name: 'schedule-free'}},
                     {path: 'free', name: 'schedule-free', component: ScheduleFreeActivities},
                     {path: 'slots', name: 'schedule-slots', component: () => import('@/components/Slots.vue')},
@@ -124,6 +126,7 @@ const routes = [
     {path: '/schedule/times', redirect: '/plan/schedule/times'},
     {path: '/schedule/afternoon', redirect: '/plan/schedule/afternoon'},
     {path: '/schedule/expert', redirect: '/plan/schedule/expert'},
+    {path: '/schedule/protected', redirect: '/plan/schedule/protected'},
     {path: '/schedule/free', redirect: '/plan/schedule/free'},
     {path: '/slots', redirect: '/plan/schedule/slots'},
     {path: '/schedule/slots', redirect: '/plan/schedule/slots'},

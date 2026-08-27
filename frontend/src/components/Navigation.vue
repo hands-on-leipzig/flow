@@ -5,6 +5,7 @@ import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import {useProgramsStore} from '@/stores/programs'
 import {useAuth} from '@/composables/useAuth'
+import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {imageUrl, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
 import {
@@ -26,6 +27,7 @@ const eventStore = useEventStore()
 const programsStore = useProgramsStore()
 const planCache = usePlanCacheStore()
 const {isAdmin, initializeUserRoles} = useAuth()
+const {planLocked} = useScheduleWorkspace()
 const {isDevEnvironment, isLocal, ensureLoaded: ensureAdminEnvironment} = useAdminEnvironment()
 const router = useRouter()
 const route = useRoute()
@@ -106,6 +108,9 @@ const navEntries = computed<NavEntry[]>(() => [
         ? [{name: 'Nachmittag', path: '/plan/schedule/afternoon', icon: 'bi-sunset'}]
         : []),
       {name: 'Expertenparameter', path: '/plan/schedule/expert', icon: 'bi-gear-wide-connected'},
+      ...(isAdmin.value && !planLocked.value
+        ? [{name: 'Geschützte Parameter', path: '/plan/schedule/protected', icon: 'bi-shield-lock'}]
+        : []),
     ],
   },
   {
