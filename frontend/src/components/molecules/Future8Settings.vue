@@ -322,7 +322,7 @@ const teamsPerJuryHint = computed(() => {
             </button>
           </RadioGroupOption>
         </RadioGroup>
-        <SupportedPlansDialog class="ml-auto" :plans="programPlans"/>
+        <SupportedPlansDialog class="ml-auto" program="future8" :plans="programPlans"/>
       </div>
     </div>
 

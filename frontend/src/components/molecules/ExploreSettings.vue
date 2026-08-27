@@ -350,6 +350,7 @@ watch(
         <SupportedPlansDialog
             v-if="groupIndex === laneGroups.length - 1 && !hasOtherPrograms"
             class="ml-auto"
+            program="explore"
             :plans="programPlans"
         />
       </div>
@@ -395,7 +396,7 @@ watch(
             </button>
           </RadioGroupOption>
         </RadioGroup>
-        <SupportedPlansDialog class="ml-auto" :plans="programPlans"/>
+        <SupportedPlansDialog class="ml-auto" program="explore" :plans="programPlans"/>
       </div>
     </div>
   </ProgramSection>

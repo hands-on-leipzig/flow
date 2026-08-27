@@ -13,9 +13,23 @@ const FIELD_COLUMNS = [2, 4] as const
 const MAX_JURY_COLUMNS = 5
 const GAP_PX = 4
 
-const props = defineProps<{
-  plans: SupportedPlanRow[]
-}>()
+const props = withDefaults(
+    defineProps<{
+      plans: SupportedPlanRow[]
+      /** Drives Explore-specific labels/columns. */
+      program?: 'explore' | 'challenge' | 'future8'
+    }>(),
+    {
+      program: 'challenge',
+    }
+)
+
+const isExplore = computed(() => props.program === 'explore')
+const showFields = computed(() => !isExplore.value)
+const juryGroupLabel = computed(() =>
+    isExplore.value ? 'Gutachter:innengruppen' : 'Jurygruppen'
+)
+const fieldColumns = computed(() => (showFields.value ? [...FIELD_COLUMNS] : []))
 
 const open = ref(false)
 const triggerRef = ref<HTMLElement | null>(null)
@@ -47,6 +61,19 @@ function hasJury(row: SupportedPlanRow, n: number): boolean {
 
 function hasFields(row: SupportedPlanRow, n: number): boolean {
   return Number(row.tables || 0) === n
+}
+
+function alertRowClass(row: SupportedPlanRow): string {
+  switch (Number(row.alert_level || 0)) {
+    case 1:
+      return 'supported-plans__row--ok'
+    case 2:
+      return 'supported-plans__row--warn'
+    case 3:
+      return 'supported-plans__row--error'
+    default:
+      return ''
+  }
 }
 
 function updatePanelPosition() {
@@ -155,9 +182,13 @@ onBeforeUnmount(() => {
                     :colspan="juryColumns.length"
                     class="supported-plans__group-head"
                 >
-                  Jurygruppen
+                  {{ juryGroupLabel }}
                 </th>
-                <th :colspan="FIELD_COLUMNS.length" class="supported-plans__group-head">
+                <th
+                    v-if="fieldColumns.length"
+                    :colspan="fieldColumns.length"
+                    class="supported-plans__group-head"
+                >
                   Spielfelder
                 </th>
               </tr>
@@ -170,7 +201,7 @@ onBeforeUnmount(() => {
                   {{ n }}
                 </th>
                 <th
-                    v-for="n in FIELD_COLUMNS"
+                    v-for="n in fieldColumns"
                     :key="'field_h_' + n"
                     class="supported-plans__num-head"
                 >
@@ -179,7 +210,11 @@ onBeforeUnmount(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(row, idx) in sortedPlans" :key="idx">
+              <tr
+                  v-for="(row, idx) in sortedPlans"
+                  :key="idx"
+                  :class="alertRowClass(row)"
+              >
                 <td class="supported-plans__teams">{{ row.teams ?? '—' }}</td>
                 <td
                     v-for="n in juryColumns"
@@ -193,7 +228,7 @@ onBeforeUnmount(() => {
                   />
                 </td>
                 <td
-                    v-for="n in FIELD_COLUMNS"
+                    v-for="n in fieldColumns"
                     :key="'field_' + idx + '_' + n"
                     class="supported-plans__mark"
                 >
@@ -355,5 +390,27 @@ onBeforeUnmount(() => {
 .supported-plans__mark .bi {
   font-size: 1rem;
   line-height: 1;
+}
+
+/* Same palette as program-note in Explore/Challenge/Future8 settings */
+.supported-plans__row--ok td {
+  color: #166534;
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+}
+
+.supported-plans__row--warn td {
+  color: #9a3412;
+  background: color-mix(in srgb, #f59e0b 14%, transparent);
+}
+
+.supported-plans__row--error td {
+  color: #991b1b;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+}
+
+.supported-plans__row--ok .supported-plans__mark,
+.supported-plans__row--warn .supported-plans__mark,
+.supported-plans__row--error .supported-plans__mark {
+  color: inherit;
 }
 </style>
