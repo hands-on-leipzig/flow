@@ -3438,6 +3438,21 @@
             "sequence": 3,
             "ui_label": "Dauer Flip",
             "ui_description": "Dauer des Wechseln zwischen den Programmen nach einer kompletten Runde"
+        },
+        {
+            "id": 178,
+            "name": "f8_separate_rooms",
+            "context": "protected",
+            "level": 1,
+            "type": "boolean",
+            "value": "0",
+            "min": null,
+            "max": null,
+            "step": null,
+            "first_program": 8,
+            "sequence": 4,
+            "ui_label": "Getrennte Räume",
+            "ui_description": "Finden Challenge und Future 8+ Matches in getrennten Räumen statt? Falls ja, werden unabhängige Matchpläne generiert."
         }
     ],
     "m_parameter_condition": [],
