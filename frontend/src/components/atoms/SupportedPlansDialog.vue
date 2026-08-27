@@ -163,7 +163,7 @@ onBeforeUnmount(() => {
       <div
           v-if="open"
           ref="panelRef"
-          class="supported-plans__panel liquid-surface-inner"
+          class="supported-plans__panel"
           role="dialog"
           aria-label="Unterstützte Pläne"
           :style="panelStyle"
@@ -292,6 +292,7 @@ onBeforeUnmount(() => {
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
+  /* Intentionally solid (no liquid-surface-inner) so opacity is identical local vs prod. */
   background: #fff;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
 }
