@@ -11,6 +11,8 @@ import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
+import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import {programNameForId} from '@/utils/eventPrograms'
 
 defineOptions({name: 'VolunteersStaffing'})
 
@@ -180,11 +182,20 @@ function groupTitle(role: Role, group: Group) {
   return `${role.label} ${group.group_index}`
 }
 
-function programLabel(fp: number | null) {
-  if (fp === 2) return 'Explore'
-  if (fp === 3) return 'Challenge'
-  if (fp === 8) return 'Future 8+'
-  return ''
+function roleLogoSrc(role: Role) {
+  if (!role.first_program) return ''
+  return programLogoSrc({
+    first_program: role.first_program,
+    name: programNameForId(eventStore.selectedEvent, role.first_program),
+  })
+}
+
+function roleLogoAlt(role: Role) {
+  if (!role.first_program) return ''
+  return programLogoAlt({
+    first_program: role.first_program,
+    name: programNameForId(eventStore.selectedEvent, role.first_program),
+  })
 }
 
 function assignmentLabel(person: Person) {
@@ -194,23 +205,20 @@ function assignmentLabel(person: Person) {
   return ''
 }
 
-function meterPct(value: number, max: number) {
-  if (max <= 0) return 0
-  return Math.min(100, Math.max(0, (value / max) * 100))
+function isUnderMin(tile: Tile) {
+  return !tile.group.surplus && tile.group.filled < Number(tile.role.min)
 }
 
-function meterFillClass(group: Group, role: Role) {
-  if (group.surplus) return 'staffing-meter__fill--surplus'
-  if (group.filled < role.min) return 'staffing-meter__fill--low'
-  if (group.filled < role.best) return 'staffing-meter__fill--mid'
-  return 'staffing-meter__fill--ok'
+function slotPositions(role: Role) {
+  const max = Number(role.max)
+  if (!Number.isInteger(max) || max < 1) return []
+  return Array.from({length: max}, (_, i) => i + 1)
 }
 
-function countClass(group: Group, role: Role) {
-  if (group.surplus) return 'staffing-count--surplus'
-  if (group.filled < role.min) return 'staffing-count--low'
-  if (group.filled < role.best) return 'staffing-count--mid'
-  return 'staffing-count--ok'
+function slotBarClass(pos: number, role: Role) {
+  if (pos < role.min) return 'staffing-slot__bar--low'
+  if (pos === role.best) return 'staffing-slot__bar--best'
+  return 'staffing-slot__bar--mid'
 }
 
 function apiError(e: any, fallback: string) {
@@ -491,16 +499,30 @@ watch(eventId, () => load(), {immediate: true})
               :inactive="tile.group.surplus"
               :class="{'staffing-tile--surplus': tile.group.surplus}"
           >
-            <template #title>
-              <input
-                  v-if="tile.role.is_local"
-                  v-model="tile.role.label"
-                  class="item-card__title glass-input glass-input--sm liquid-surface-control"
-                  @blur="persistLocalRole(tile.role)"
+            <template v-if="roleLogoSrc(tile.role)" #leading>
+              <img
+                  :src="roleLogoSrc(tile.role)"
+                  :alt="roleLogoAlt(tile.role)"
+                  class="w-6 h-6 flex-shrink-0"
               />
-              <span v-else class="item-card__title font-semibold truncate flex items-center min-h-[var(--field-min-height-sm)]">
-                {{ tile.name }}
-              </span>
+            </template>
+            <template #title>
+              <div class="staffing-title">
+                <input
+                    v-if="tile.role.is_local"
+                    v-model="tile.role.label"
+                    class="item-card__title glass-input glass-input--sm liquid-surface-control"
+                    @blur="persistLocalRole(tile.role)"
+                />
+                <span v-else class="item-card__title font-semibold truncate flex items-center min-h-[var(--field-min-height-sm)]">
+                  {{ tile.name }}
+                </span>
+                <span
+                    v-if="isUnderMin(tile)"
+                    class="staffing-need-dot"
+                    title="Unter Min"
+                />
+              </div>
             </template>
             <template v-if="tile.role.is_local || tile.group.surplus" #trailing>
               <IconDangerButton
@@ -513,37 +535,19 @@ watch(eventId, () => load(), {immediate: true})
 
             <div class="staffing-meta">
               <div
-                  class="staffing-meter"
+                  class="staffing-slots"
                   :title="`min ${tile.role.min} · best ${tile.role.best} · max ${tile.role.max}`"
               >
-                <div class="staffing-meter__track">
-                  <div class="staffing-meter__rail">
-                    <div
-                        class="staffing-meter__fill"
-                        :class="meterFillClass(tile.group, tile.role)"
-                        :style="{width: meterPct(tile.group.filled, tile.role.max) + '%'}"
-                    />
-                  </div>
-                  <span
-                      class="staffing-meter__tick"
-                      :style="{left: meterPct(tile.role.min, tile.role.max) + '%'}"
-                      title="Min"
+                <div
+                    v-for="pos in slotPositions(tile.role)"
+                    :key="`${tile.key}-slot-${pos}`"
+                    class="staffing-slot"
+                >
+                  <i
+                      class="staffing-slot__icon"
+                      :class="pos <= tile.group.filled ? 'bi bi-person-fill staffing-slot__icon--filled' : 'bi bi-person'"
                   />
-                  <span
-                      class="staffing-meter__tick staffing-meter__tick--best"
-                      :style="{left: meterPct(tile.role.best, tile.role.max) + '%'}"
-                      title="Best"
-                  />
-                </div>
-                <div class="staffing-meter__legend">
-                  <template v-if="!tile.role.is_local">
-                    <span>min {{ tile.role.min }}</span>
-                    <span>best {{ tile.role.best }}</span>
-                    <span>max {{ tile.role.max }}</span>
-                  </template>
-                  <strong class="staffing-count" :class="countClass(tile.group, tile.role)">
-                    {{ tile.group.filled }}
-                  </strong>
+                  <span class="staffing-slot__bar" :class="slotBarClass(pos, tile.role)"/>
                 </div>
               </div>
 
@@ -584,12 +588,6 @@ watch(eventId, () => load(), {immediate: true})
 
             <p v-if="tile.group.surplus" class="staffing-surplus">
               Nicht mehr benötigt — Personen in andere Rollen ziehen.
-            </p>
-            <p
-                v-else-if="programLabel(tile.role.first_program)"
-                class="item-card__hint"
-            >
-              {{ programLabel(tile.role.first_program) }}
             </p>
 
             <div
@@ -849,6 +847,28 @@ watch(eventId, () => load(), {immediate: true})
   font-weight: 600;
 }
 
+.staffing-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.staffing-title .item-card__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+}
+
+.staffing-need-dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #ef4444;
+}
+
 .staffing-meta {
   display: flex;
   align-items: flex-end;
@@ -856,94 +876,50 @@ watch(eventId, () => load(), {immediate: true})
   gap: 0.5rem;
 }
 
-.staffing-meter {
-  flex: 1 1 8rem;
+.staffing-slots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.3rem 0.4rem;
+  flex: 1 1 7rem;
   min-width: 0;
 }
 
-.staffing-meter__track {
-  position: relative;
-  height: 0.55rem;
-}
-
-.staffing-meter__rail {
-  height: 100%;
-  border-radius: 999px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--color-bg-muted) 80%, var(--color-border));
-}
-
-.staffing-meter__fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.2s ease, background 0.15s ease;
-}
-
-.staffing-meter__fill--low {
-  background: #d97706;
-}
-
-.staffing-meter__fill--mid {
-  background: color-mix(in srgb, var(--color-accent) 70%, #fbbf24);
-}
-
-.staffing-meter__fill--ok {
-  background: #16a34a;
-}
-
-.staffing-meter__fill--surplus {
-  background: #dc2626;
-}
-
-.staffing-meter__tick {
-  position: absolute;
-  top: -2px;
-  bottom: -2px;
-  width: 2px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--color-text) 50%, transparent);
-  transform: translateX(-1px);
-  pointer-events: none;
-}
-
-.staffing-meter__tick--best {
-  background: color-mix(in srgb, var(--color-accent) 90%, transparent);
-}
-
-.staffing-meter__legend {
+.staffing-slot {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-  font-size: 0.65rem;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  width: 1.05rem;
+}
+
+.staffing-slot__icon {
+  font-size: 1rem;
+  line-height: 1;
   color: var(--color-text-subtle);
 }
 
-.staffing-count {
-  margin-left: auto;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
-  font-variant-numeric: tabular-nums;
-}
-
-.staffing-count--low {
-  color: #b45309;
-}
-
-.staffing-count--mid {
+.staffing-slot__icon--filled {
   color: var(--color-text);
 }
 
-.staffing-count--ok {
-  color: #15803d;
+.staffing-slot__bar {
+  display: block;
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
 }
 
-.staffing-count--surplus {
-  color: #b91c1c;
+.staffing-slot__bar--low {
+  background: #dc2626;
+}
+
+.staffing-slot__bar--mid {
+  background: #eab308;
+}
+
+.staffing-slot__bar--best {
+  background: #16a34a;
 }
 
 .staffing-bounds {
