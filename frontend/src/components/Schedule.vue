@@ -188,7 +188,7 @@ watch(
               </div>
               <router-view v-else v-slot="{ Component, route: paneRoute }">
                 <keep-alive
-                    include="ScheduleGeneral,ScheduleTimes,ScheduleAfternoon,ScheduleExpert,ScheduleFreeActivities,Slots"
+                    include="ScheduleGeneral,ScheduleIntegration,ScheduleTimes,ScheduleAfternoon,ScheduleExpert,ScheduleFreeActivities,Slots"
                 >
                   <component
                       :is="Component"
