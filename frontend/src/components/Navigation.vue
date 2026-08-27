@@ -42,7 +42,8 @@ const readiness = ref({
   explore_teams_ok: true,
   challenge_teams_ok: true,
   future_8_teams_ok: true,
-  room_mapping_ok: true
+  room_mapping_ok: true,
+  staffing_ok: true,
 })
 
 async function checkDataReadiness() {
@@ -54,6 +55,7 @@ async function checkDataReadiness() {
       challenge_teams_ok: !!data.challenge_teams_ok,
       future_8_teams_ok: data.future_8_teams_ok !== false,
       room_mapping_ok: !!data.room_mapping_ok,
+      staffing_ok: data.staffing_ok !== false,
     }
   } else {
     readiness.value = {
@@ -61,6 +63,7 @@ async function checkDataReadiness() {
       challenge_teams_ok: false,
       future_8_teams_ok: false,
       room_mapping_ok: false,
+      staffing_ok: false,
     }
   }
 }
@@ -229,6 +232,7 @@ watch(
           challenge_teams_ok: !!newVal.challenge_teams_ok,
           future_8_teams_ok: newVal.future_8_teams_ok !== false,
           room_mapping_ok: !!newVal.room_mapping_ok,
+          staffing_ok: newVal.staffing_ok !== false,
         }
       }
     },
@@ -269,6 +273,8 @@ function hasWarning(tabPath: string): boolean {
         || !readiness.value.future_8_teams_ok
     case '/plan/rooms':
       return !readiness.value.room_mapping_ok
+    case '/plan/volunteers/staffing':
+      return !readiness.value.staffing_ok
     default:
       return false
   }

@@ -33,6 +33,7 @@ use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\VolunteerPersonController;
 use App\Http\Controllers\Api\EventVolunteerRosterController;
+use App\Http\Controllers\Api\EventStaffingController;
 use App\Models\Event;
 use App\Services\SeasonService;
 use Illuminate\Http\Request;
@@ -264,6 +265,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'index']);
     Route::post('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'store']);
     Route::delete('/events/{event}/volunteer-roster/{volunteer}', [EventVolunteerRosterController::class, 'destroy']);
+    Route::get('/events/{event}/staffing', [EventStaffingController::class, 'index']);
+    Route::post('/events/{event}/staffing/sync', [EventStaffingController::class, 'sync']);
 
     Route::prefix('logos')->group(function () {
         Route::get('/', [LogoController::class, 'index']);
