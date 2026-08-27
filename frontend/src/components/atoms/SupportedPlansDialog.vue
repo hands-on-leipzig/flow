@@ -145,66 +145,68 @@ onBeforeUnmount(() => {
         <p v-if="sortedPlans.length === 0" class="supported-plans__empty">
           Keine Einträge für dieses Programm.
         </p>
-        <table v-else class="supported-plans__table">
-          <thead>
-            <tr>
-              <th rowspan="2" class="supported-plans__teams-head">Teams</th>
-              <th
-                  v-if="juryColumns.length"
-                  :colspan="juryColumns.length"
-                  class="supported-plans__group-head"
-              >
-                Jurygruppen
-              </th>
-              <th :colspan="FIELD_COLUMNS.length" class="supported-plans__group-head">
-                Spielfelder
-              </th>
-            </tr>
-            <tr>
-              <th
-                  v-for="n in juryColumns"
-                  :key="'jury_h_' + n"
-                  class="supported-plans__num-head"
-              >
-                {{ n }}
-              </th>
-              <th
-                  v-for="n in FIELD_COLUMNS"
-                  :key="'field_h_' + n"
-                  class="supported-plans__num-head"
-              >
-                {{ n }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, idx) in sortedPlans" :key="idx">
-              <td class="supported-plans__teams">{{ row.teams ?? '—' }}</td>
-              <td
-                  v-for="n in juryColumns"
-                  :key="'jury_' + idx + '_' + n"
-                  class="supported-plans__mark"
-              >
-                <i
-                    v-if="hasJury(row, n)"
-                    class="bi bi-check-lg"
-                    aria-label="ja"
-                />
-              </td>
-              <td
-                  v-for="n in FIELD_COLUMNS"
-                  :key="'field_' + idx + '_' + n"
-                  class="supported-plans__mark"
-              >
-                <i
-                    v-if="hasFields(row, n)"
-                    class="bi bi-check-lg"
-                    aria-label="ja"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-else class="supported-plans__table-wrap">
+          <table class="supported-plans__table">
+            <thead>
+              <tr>
+                <th rowspan="2" class="supported-plans__teams-head">Teams</th>
+                <th
+                    v-if="juryColumns.length"
+                    :colspan="juryColumns.length"
+                    class="supported-plans__group-head"
+                >
+                  Jurygruppen
+                </th>
+                <th :colspan="FIELD_COLUMNS.length" class="supported-plans__group-head">
+                  Spielfelder
+                </th>
+              </tr>
+              <tr>
+                <th
+                    v-for="n in juryColumns"
+                    :key="'jury_h_' + n"
+                    class="supported-plans__num-head"
+                >
+                  {{ n }}
+                </th>
+                <th
+                    v-for="n in FIELD_COLUMNS"
+                    :key="'field_h_' + n"
+                    class="supported-plans__num-head"
+                >
+                  {{ n }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(row, idx) in sortedPlans" :key="idx">
+                <td class="supported-plans__teams">{{ row.teams ?? '—' }}</td>
+                <td
+                    v-for="n in juryColumns"
+                    :key="'jury_' + idx + '_' + n"
+                    class="supported-plans__mark"
+                >
+                  <i
+                      v-if="hasJury(row, n)"
+                      class="bi bi-check-lg"
+                      aria-label="ja"
+                  />
+                </td>
+                <td
+                    v-for="n in FIELD_COLUMNS"
+                    :key="'field_' + idx + '_' + n"
+                    class="supported-plans__mark"
+                >
+                  <i
+                      v-if="hasFields(row, n)"
+                      class="bi bi-check-lg"
+                      aria-label="ja"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </Teleport>
   </div>
@@ -244,10 +246,11 @@ onBeforeUnmount(() => {
 }
 </style>
 
-<!-- Panel is teleported to body; keep its styles unscoped via a second block with :global,
-     or duplicate without scoped. Use a non-scoped style block for the panel. -->
+<!-- Panel is teleported to body; keep its styles unscoped. -->
 <style>
 .supported-plans__panel {
+  --sp-head-h: 1.55rem;
+  --sp-row-h: 1.7rem;
   position: fixed;
   z-index: 10050;
   width: max-content;
@@ -273,29 +276,56 @@ onBeforeUnmount(() => {
   line-height: 1.35;
 }
 
+.supported-plans__table-wrap {
+  width: max-content;
+  max-height: calc((2 * var(--sp-head-h)) + (10 * var(--sp-row-h)));
+  overflow: auto;
+}
+
 .supported-plans__table {
   width: max-content;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.8rem;
   line-height: 1.3;
 }
 
 .supported-plans__table th,
 .supported-plans__table td {
-  padding: 0.2rem 0.35rem;
+  padding: 0 0.35rem;
   vertical-align: middle;
   border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
-.supported-plans__table th {
+.supported-plans__table thead th {
+  position: sticky;
+  z-index: 2;
+  height: var(--sp-head-h);
+  background: #fff;
   font-weight: 600;
   color: var(--color-text-muted);
 }
 
+.supported-plans__table thead tr:first-child th {
+  top: 0;
+}
+
+.supported-plans__table thead tr:last-child th {
+  top: var(--sp-head-h);
+}
+
+.supported-plans__table tbody td {
+  height: var(--sp-row-h);
+}
+
 .supported-plans__teams-head {
   text-align: left;
-  vertical-align: bottom;
+  vertical-align: middle;
+  top: 0;
+  height: calc(2 * var(--sp-head-h));
+  z-index: 3;
 }
 
 .supported-plans__group-head {
@@ -307,6 +337,7 @@ onBeforeUnmount(() => {
   text-align: center;
   font-variant-numeric: tabular-nums;
   min-width: 1.6rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
 }
 
 .supported-plans__teams {
