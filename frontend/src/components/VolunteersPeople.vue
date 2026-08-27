@@ -21,8 +21,14 @@ const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const people = ref<Person[]>([])
+const assignedIds = ref<Set<number>>(new Set())
 const search = ref('')
+const rosterOnly = ref(false)
+type SortKey = 'first_name' | 'last_name'
+const sortKey = ref<SortKey>('last_name')
+const sortDir = ref<'asc' | 'desc'>('asc')
 const loading = ref(false)
+const togglingId = ref<number | null>(null)
 const error = ref('')
 const toast = ref('')
 
@@ -33,8 +39,6 @@ const draft = ref({
   email: '',
   mobile: '',
 })
-
-const filtered = computed(() => people.value)
 
 function displayName(p: Person) {
   if (p.nickname?.trim()) {
@@ -49,15 +53,76 @@ function historyLabel(p: Person) {
   return items.map((a) => `${a.role} · ${a.year ?? ''}`).join(', ')
 }
 
+function searchHaystack(p: Person) {
+  return [
+    p.first_name,
+    p.last_name,
+    p.nickname,
+    p.email,
+    p.mobile,
+    historyLabel(p),
+    p.updated_at?.slice(0, 10),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+}
+
+function toggleSort(key: SortKey) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortKey.value = key
+    sortDir.value = 'asc'
+  }
+}
+
+function sortIcon(key: SortKey) {
+  if (sortKey.value !== key) return 'bi-arrow-down-up'
+  return sortDir.value === 'asc' ? 'bi-sort-up' : 'bi-sort-down'
+}
+
+const filtered = computed(() => {
+  let list = people.value
+  if (rosterOnly.value) {
+    list = list.filter((p) => p.on_roster)
+  }
+  const q = search.value.trim().toLowerCase()
+  if (q) {
+    list = list.filter((p) => searchHaystack(p).includes(q))
+  }
+  const key = sortKey.value
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  return [...list].sort((a, b) => {
+    const av = (a[key] ?? '').toLocaleLowerCase('de')
+    const bv = (b[key] ?? '').toLocaleLowerCase('de')
+    if (av < bv) return -1 * dir
+    if (av > bv) return 1 * dir
+    const aLast = (a.last_name ?? '').toLocaleLowerCase('de')
+    const bLast = (b.last_name ?? '').toLocaleLowerCase('de')
+    if (aLast !== bLast) return aLast < bLast ? -1 : 1
+    const aFirst = (a.first_name ?? '').toLocaleLowerCase('de')
+    const bFirst = (b.first_name ?? '').toLocaleLowerCase('de')
+    if (aFirst !== bFirst) return aFirst < bFirst ? -1 : 1
+    return a.id - b.id
+  })
+})
+
 async function load() {
   if (!eventId.value) return
   loading.value = true
   error.value = ''
   try {
-    const {data} = await axios.get(`/events/${eventId.value}/volunteers`, {
-      params: {q: search.value || undefined},
-    })
-    people.value = data.people ?? []
+    const [peopleRes, rosterRes] = await Promise.all([
+      axios.get(`/events/${eventId.value}/volunteers`),
+      axios.get(`/events/${eventId.value}/volunteer-roster`),
+    ])
+    people.value = peopleRes.data.people ?? []
+    assignedIds.value = new Set(
+      (rosterRes.data.roster ?? [])
+        .filter((row: {has_assignment?: boolean}) => row.has_assignment)
+        .map((row: {person: {id: number}}) => row.person.id),
+    )
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Laden fehlgeschlagen'
   } finally {
@@ -121,43 +186,32 @@ async function removePerson(p: Person) {
   }
 }
 
-async function copyEmails() {
-  const emails = filtered.value.map((p) => p.email).filter(Boolean)
-  if (!emails.length) {
-    showToast('Keine E-Mails')
+async function toggleRoster(p: Person, checked: boolean) {
+  if (!eventId.value || togglingId.value === p.id) return
+  if (!checked && assignedIds.value.has(p.id)) {
+    error.value = 'Person ist noch besetzt — zuerst Einsatz entfernen.'
     return
   }
-  const text = emails.join('; ')
-  try {
-    await navigator.clipboard.writeText(text)
-    showToast(`${emails.length} E-Mails kopiert`)
-  } catch {
-    error.value = 'Zwischenablage nicht verfügbar'
-  }
-}
 
-function openMailto() {
-  const emails = filtered.value.map((p) => p.email).filter(Boolean)
-  if (!emails.length) return
-  // BCC via mailto is limited; still offer for small lists
-  window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}`
-}
-
-async function downloadCsv() {
-  if (!eventId.value) return
+  const previous = !!p.on_roster
+  p.on_roster = checked
+  togglingId.value = p.id
+  error.value = ''
   try {
-    const {data} = await axios.get(`/events/${eventId.value}/volunteers/export`, {
-      params: {scope: 'pool'},
-      responseType: 'blob',
-    })
-    const url = window.URL.createObjectURL(data)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `helfer-pool-${eventId.value}.csv`
-    link.click()
-    window.URL.revokeObjectURL(url)
-  } catch {
-    error.value = 'Export fehlgeschlagen'
+    if (checked) {
+      await axios.post(`/events/${eventId.value}/volunteer-roster`, {
+        volunteer_person: p.id,
+      })
+      showToast('Zur Helferliste hinzugefügt')
+    } else {
+      await axios.delete(`/events/${eventId.value}/volunteer-roster/${p.id}`)
+      showToast('Von Helferliste entfernt')
+    }
+  } catch (e: any) {
+    p.on_roster = previous
+    error.value = e?.response?.data?.error || 'Helferliste konnte nicht geändert werden'
+  } finally {
+    togglingId.value = null
   }
 }
 
@@ -168,12 +222,6 @@ function showToast(msg: string) {
   }, 2200)
 }
 
-let searchTimer: ReturnType<typeof setTimeout> | null = null
-watch(search, () => {
-  if (searchTimer) clearTimeout(searchTimer)
-  searchTimer = setTimeout(() => load(), 250)
-})
-
 watch(eventId, () => load(), {immediate: true})
 onMounted(() => load())
 </script>
@@ -183,68 +231,212 @@ onMounted(() => load())
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Personen</h1>
-        <p class="vol-page__sub">Adressbuch des Regionalpartners — möglichst wenig Daten.</p>
+        <p class="vol-page__sub">Saison-übergreifende Kontaktliste</p>
       </div>
     </header>
 
-    <div v-if="error" class="glass-alert-danger vol-page__alert">{{ error }}</div>
-    <div v-if="toast" class="glass-alert-success vol-page__alert">{{ toast }}</div>
+    <div v-if="error" class="glass-alert-warning vol-page__alert">{{ error }}</div>
+    <div v-if="toast" class="vol-page__toast">{{ toast }}</div>
 
-    <div class="vol-page__grid">
-      <section class="glass-card vol-page__main">
-        <div class="vol-toolbar">
-          <input
-              v-model="search"
-              type="search"
-              class="glass-input"
-              placeholder="Suche Name oder E-Mail…"
-          />
-          <span class="vol-toolbar__count">{{ filtered.length }}</span>
-        </div>
+    <section class="glass-card liquid-surface-inner vol-tile">
+      <div class="vol-table-frame">
+        <table class="vol-table">
+          <colgroup>
+            <col class="vol-col--roster"/>
+            <col class="vol-col--first"/>
+            <col class="vol-col--last"/>
+            <col class="vol-col--nick"/>
+            <col class="vol-col--email"/>
+            <col class="vol-col--mobile"/>
+            <col class="vol-col--meta"/>
+            <col class="vol-col--actions"/>
+          </colgroup>
+          <tbody>
+            <tr>
+              <td class="vol-table__roster"/>
+              <td>
+                <input
+                    v-model="draft.first_name"
+                    class="glass-input glass-input--sm"
+                    placeholder="Vorname *"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="draft.last_name"
+                    class="glass-input glass-input--sm"
+                    placeholder="Nachname *"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="draft.nickname"
+                    class="glass-input glass-input--sm"
+                    placeholder="Spitzname"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="draft.email"
+                    class="glass-input glass-input--sm"
+                    type="email"
+                    placeholder="E-Mail *"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="draft.mobile"
+                    class="glass-input glass-input--sm"
+                    placeholder="Mobil"
+                />
+              </td>
+              <td class="vol-table__meta"/>
+              <td class="vol-table__actions">
+                <button type="button" class="glass-btn-accent" @click="createPerson">Anlegen</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-        <div class="vol-composer glass-card liquid-surface-inner">
-          <div class="vol-composer__row">
-            <input v-model="draft.first_name" class="glass-input" placeholder="Vorname *" />
-            <input v-model="draft.last_name" class="glass-input" placeholder="Nachname *" />
-            <input v-model="draft.nickname" class="glass-input" placeholder="Spitzname" />
-          </div>
-          <div class="vol-composer__row">
-            <input v-model="draft.email" class="glass-input" type="email" placeholder="E-Mail *" />
-            <input v-model="draft.mobile" class="glass-input" placeholder="Mobil" />
-            <button type="button" class="glass-btn-accent" @click="createPerson">Anlegen</button>
-          </div>
-        </div>
+    <section class="glass-card liquid-surface-inner vol-tile">
+      <div class="vol-toolbar">
+        <input
+            v-model="search"
+            type="search"
+            class="glass-input glass-input--sm"
+            placeholder="Tippen zum Filtern (alle Felder)…"
+            autocomplete="off"
+        />
+        <span class="vol-toolbar__count">{{ filtered.length }} / {{ people.length }}</span>
+      </div>
 
-        <p v-if="loading" class="vol-muted">Laden…</p>
-        <p v-else-if="!filtered.length" class="vol-muted">Noch keine Personen im Pool.</p>
+      <p v-if="loading" class="vol-muted">Laden…</p>
+      <p v-else-if="!people.length" class="vol-muted">Noch keine Personen im Pool.</p>
+      <p v-else-if="!filtered.length" class="vol-muted">Keine Treffer für diesen Filter.</p>
 
-        <ul v-else class="vol-list">
-          <li v-for="p in filtered" :key="p.id" class="vol-row liquid-surface-inner">
-            <div class="vol-row__fields">
-              <input v-model="p.first_name" class="glass-input glass-input--sm" @blur="savePerson(p)" />
-              <input v-model="p.last_name" class="glass-input glass-input--sm" @blur="savePerson(p)" />
-              <input v-model="p.nickname" class="glass-input glass-input--sm" placeholder="Spitzname" @blur="savePerson(p)" />
-              <input v-model="p.email" class="glass-input glass-input--sm" type="email" @blur="savePerson(p)" />
-              <input v-model="p.mobile" class="glass-input glass-input--sm" placeholder="Mobil" @blur="savePerson(p)" />
-            </div>
-            <div class="vol-row__meta">
-              <span v-if="p.on_roster" class="glass-chip">Auf Helferliste</span>
-              <span v-if="historyLabel(p)" class="vol-muted">{{ historyLabel(p) }}</span>
-              <span v-if="p.updated_at" class="vol-muted">Bearbeitet {{ p.updated_at.slice(0, 10) }}</span>
-              <button type="button" class="glass-btn-secondary" @click="removePerson(p)">Löschen</button>
-            </div>
-          </li>
-        </ul>
-      </section>
-
-      <aside class="glass-card vol-page__aside">
-        <h2 class="vol-aside__title">Werkzeuge</h2>
-        <p class="vol-muted">FLOW versendet keine Inhaltsmails. Listen zum Einfügen in BCC kopieren.</p>
-        <button type="button" class="glass-btn-accent vol-aside__btn" @click="copyEmails">E-Mails kopieren</button>
-        <button type="button" class="glass-btn-secondary vol-aside__btn" @click="openMailto">Mailprogramm öffnen</button>
-        <button type="button" class="glass-btn-secondary vol-aside__btn" @click="downloadCsv">Excel / CSV</button>
-      </aside>
-    </div>
+      <div v-else class="vol-table-frame vol-table-frame--scroll">
+        <table class="vol-table">
+          <colgroup>
+            <col class="vol-col--roster"/>
+            <col class="vol-col--first"/>
+            <col class="vol-col--last"/>
+            <col class="vol-col--nick"/>
+            <col class="vol-col--email"/>
+            <col class="vol-col--mobile"/>
+            <col class="vol-col--meta"/>
+            <col class="vol-col--actions"/>
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="vol-table__roster" scope="col">
+                <button
+                    type="button"
+                    class="vol-roster-filter"
+                    :class="{'vol-roster-filter--on': rosterOnly}"
+                    :aria-pressed="rosterOnly"
+                    title="Nur Helferliste anzeigen"
+                    @click="rosterOnly = !rosterOnly"
+                >
+                  <i class="bi bi-clipboard-check" aria-hidden="true"/>
+                  <span class="sr-only">Helferliste filtern</span>
+                </button>
+              </th>
+              <th scope="col">
+                <button
+                    type="button"
+                    class="vol-sort"
+                    :class="{'vol-sort--active': sortKey === 'first_name'}"
+                    @click="toggleSort('first_name')"
+                >
+                  Vorname
+                  <i class="bi" :class="sortIcon('first_name')" aria-hidden="true"/>
+                </button>
+              </th>
+              <th scope="col">
+                <button
+                    type="button"
+                    class="vol-sort"
+                    :class="{'vol-sort--active': sortKey === 'last_name'}"
+                    @click="toggleSort('last_name')"
+                >
+                  Nachname
+                  <i class="bi" :class="sortIcon('last_name')" aria-hidden="true"/>
+                </button>
+              </th>
+              <th scope="col">Spitzname</th>
+              <th scope="col">E-Mail</th>
+              <th scope="col">Mobil</th>
+              <th scope="col">Einsätze</th>
+              <th scope="col" class="vol-table__actions"><span class="sr-only">Aktionen</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in filtered" :key="p.id" class="glass-table-row--hover">
+              <td class="vol-table__roster">
+                <input
+                    type="checkbox"
+                    class="vol-roster-check"
+                    :checked="!!p.on_roster"
+                    :disabled="togglingId === p.id || (!!p.on_roster && assignedIds.has(p.id))"
+                    :title="assignedIds.has(p.id) && p.on_roster
+                      ? 'Noch besetzt — zuerst Einsatz entfernen'
+                      : (p.on_roster ? 'Von Helferliste entfernen' : 'Zur Helferliste hinzufügen')"
+                    @change="toggleRoster(p, ($event.target as HTMLInputElement).checked)"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="p.first_name"
+                    class="glass-input glass-input--sm"
+                    @blur="savePerson(p)"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="p.last_name"
+                    class="glass-input glass-input--sm"
+                    @blur="savePerson(p)"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="p.nickname"
+                    class="glass-input glass-input--sm"
+                    placeholder="—"
+                    @blur="savePerson(p)"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="p.email"
+                    class="glass-input glass-input--sm"
+                    type="email"
+                    @blur="savePerson(p)"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="p.mobile"
+                    class="glass-input glass-input--sm"
+                    placeholder="—"
+                    @blur="savePerson(p)"
+                />
+              </td>
+              <td class="vol-table__meta">
+                <span v-if="historyLabel(p)" class="vol-muted">{{ historyLabel(p) }}</span>
+              </td>
+              <td class="vol-table__actions">
+                <button type="button" class="glass-btn-secondary" @click="removePerson(p)">
+                  Löschen
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 </template>
 
@@ -259,27 +451,162 @@ onMounted(() => load())
 .vol-page__title { font-size: 1.5rem; font-weight: 650; margin: 0; }
 .vol-page__sub { margin: 0.25rem 0 0; opacity: 0.75; }
 .vol-page__alert { padding: 0.75rem 1rem; border-radius: 0.75rem; }
-.vol-page__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(14rem, 1fr);
-  gap: 1rem;
-  align-items: start;
+.vol-page__toast {
+  padding: 0.65rem 1rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, #15803d 12%, var(--color-bg-muted));
+  border: 1px solid color-mix(in srgb, #15803d 30%, var(--color-border));
+  font-size: 0.9rem;
 }
-@media (max-width: 900px) {
-  .vol-page__grid { grid-template-columns: 1fr; }
+.vol-tile {
+  padding: 1rem;
 }
-.vol-page__main, .vol-page__aside { padding: 1rem; }
-.vol-toolbar { display: flex; gap: 0.75rem; align-items: center; margin-bottom: 0.75rem; }
+.vol-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
 .vol-toolbar input { flex: 1; }
-.vol-toolbar__count { opacity: 0.6; font-variant-numeric: tabular-nums; }
-.vol-composer { padding: 0.75rem; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-.vol-composer__row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.vol-composer__row .glass-input { flex: 1; min-width: 8rem; }
-.vol-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
-.vol-row { padding: 0.75rem; border-radius: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
-.vol-row__fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.4rem; }
-.vol-row__meta { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.vol-toolbar__count {
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .vol-muted { opacity: 0.7; font-size: 0.9rem; margin: 0; }
-.vol-aside__title { margin: 0 0 0.5rem; font-size: 1.05rem; }
-.vol-aside__btn { width: 100%; margin-top: 0.5rem; }
+
+.vol-table-frame {
+  width: 100%;
+  scrollbar-gutter: stable;
+}
+.vol-table-frame--scroll {
+  max-height: min(62vh, 36rem);
+  overflow: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, var(--liquid-border-soft));
+  background: color-mix(in srgb, #ffffff 70%, transparent);
+}
+.vol-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+}
+.vol-col--roster { width: 2.75rem; }
+.vol-col--first { width: 12%; }
+.vol-col--last { width: 12%; }
+.vol-col--nick { width: 11%; }
+.vol-col--email { width: 18%; }
+.vol-col--mobile { width: 12%; }
+.vol-col--meta { width: 16%; }
+.vol-col--actions { width: 6.5rem; }
+
+.vol-table th,
+.vol-table td {
+  padding: 0.4rem 0.45rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+}
+.vol-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
+  backdrop-filter: blur(8px);
+}
+.vol-table tbody tr:last-child td { border-bottom: none; }
+.vol-table__roster {
+  text-align: center;
+}
+.vol-table th.vol-table__roster,
+.vol-table td.vol-table__roster {
+  text-align: center;
+}
+.vol-table__actions {
+  white-space: nowrap;
+}
+.vol-table__meta {
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vol-table .glass-input {
+  width: 100%;
+  min-width: 0;
+}
+.vol-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.vol-sort .bi {
+  font-size: 0.9rem;
+  opacity: 0.45;
+}
+.vol-sort:hover .bi,
+.vol-sort--active .bi {
+  opacity: 1;
+  color: var(--color-accent);
+}
+.vol-roster-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: 0 auto;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+.vol-roster-filter:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+.vol-roster-filter--on {
+  color: var(--color-accent);
+  background: var(--color-accent-muted);
+  border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+.vol-roster-check {
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+.vol-roster-check:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 </style>
