@@ -116,7 +116,7 @@ class PlanController extends Controller
             }
 
             $e1_teams = $e_teams;
-            $e1_lanes = MSupportedPlan::where('first_program', FirstProgram::EXPLORE->value)->where('teams', $e_teams)->value('lanes');
+            $e1_lanes = (int) (MSupportedPlan::bestFor(FirstProgram::EXPLORE->value, $e_teams)?->lanes ?? 0);
 
         } else {
 
@@ -134,8 +134,9 @@ class PlanController extends Controller
             // c_mode on
             $c_mode = 1;
 
-            $j_lanes = MSupportedPlan::where('first_program', FirstProgram::CHALLENGE->value)->where('teams', $c_teams)->value('lanes');
-            $r_tables = MSupportedPlan::where('first_program', FirstProgram::CHALLENGE->value)->where('teams', $c_teams)->value('tables');
+            $challengePlan = MSupportedPlan::bestFor(FirstProgram::CHALLENGE->value, $c_teams);
+            $j_lanes = (int) ($challengePlan->lanes ?? 0);
+            $r_tables = (int) ($challengePlan->tables ?? 0);
 
         } else {
 
@@ -151,7 +152,7 @@ class PlanController extends Controller
         $f8_fields = 0;
         if ($f8_teams > 0) {
             $f8_mode = 1;
-            $f8Plan = MSupportedPlan::where('first_program', FirstProgram::FUTURE_8->value)->where('teams', $f8_teams)->first();
+            $f8Plan = MSupportedPlan::bestFor(FirstProgram::FUTURE_8->value, $f8_teams);
             $f8_lanes = (int) ($f8Plan->lanes ?? 0);
             $f8_fields = (int) ($f8Plan->tables ?? 0);
         }
