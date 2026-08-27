@@ -269,6 +269,9 @@ onMounted(() => load())
           <template v-if="gapSummary.underMin && gapSummary.surplusPeople"> · </template>
           <template v-if="gapSummary.surplusPeople">{{ gapSummary.surplusPeople }} Surplus mit Personen</template>
         </span>
+        <p v-if="!roster.length" class="vol-muted">
+          Noch niemand auf der Anmeldung — unter Anmeldung Personen hinzufügen, dann hier zuweisen.
+        </p>
       </div>
 
       <section class="glass-card vol-local">

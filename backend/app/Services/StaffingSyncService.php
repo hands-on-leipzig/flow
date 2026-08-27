@@ -59,7 +59,7 @@ class StaffingSyncService
                     $q->orWhereIn('first_program', $programIds);
                 }
             })
-            ->orderByRaw('ISNULL(first_program) ASC')
+            ->orderByRaw('(first_program is null) asc')
             ->orderBy('first_program')
             ->orderBy('sequence')
             ->get();
