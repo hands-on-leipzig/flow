@@ -192,17 +192,7 @@ class PlanGeneratorService
             }
         }
 
-        // --- Challenge + Future: Policy C refused; A and B supported ---
-        if ($presence->challengeShapedOn(FirstProgram::CHALLENGE->value)
-            && $presence->challengeShapedOn(FirstProgram::FUTURE_8->value)) {
-            if ((bool) $params->get('g_separate_rooms', false)) {
-                return [
-                    'supported' => false,
-                    'error' => 'Getrennte Räume noch nicht unterstützt',
-                    'details' => 'Für kombinierte Challenge- und Future 8+-Events mit getrennten Räumen (g_separate_rooms) ist die Generierung noch nicht implementiert.',
-                ];
-            }
-        }
+        // --- Challenge + Future: Policy A / B / C all supported ---
 
         return ['supported' => true];
     }

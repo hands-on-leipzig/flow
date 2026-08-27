@@ -119,34 +119,69 @@ const futureLabel = computed(() => programDisplayName('FUTURE_8') || 'Future 8+'
           </RadioGroupOption>
 
           <div
-              v-if="roomsMode === 'shared' && switchParam"
+              v-if="roomsMode === 'shared'"
               class="integration-nested"
           >
-            <span class="glass-settings-label">{{ switchParam.ui_label }}</span>
-            <p v-if="switchParam.ui_description" class="integration-desc">
-              {{ switchParam.ui_description }}
-            </p>
-            <RadioGroup v-model="switchMode" class="flex gap-1.5 flex-wrap">
-              <RadioGroupOption
-                  v-for="opt in [
-                    {value: 'per_round', label: 'Nach einer kompletten Runde'},
-                    {value: 'within_round', label: 'Innerhalb einer Runde'},
-                  ]"
-                  :key="'switch_' + opt.value"
-                  v-slot="{ checked }"
-                  :value="opt.value"
-                  as="template"
-              >
-                <button
-                    type="button"
-                    class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                    :class="checked ? 'glass-choice--active' : ''"
-                    @click="switchMode = opt.value"
+            <template v-if="switchParam">
+              <span class="glass-settings-label">{{ switchParam.ui_label }}</span>
+              <p v-if="switchParam.ui_description" class="integration-desc">
+                {{ switchParam.ui_description }}
+              </p>
+              <RadioGroup v-model="switchMode" class="flex gap-1.5 flex-wrap">
+                <RadioGroupOption
+                    v-for="opt in [
+                      {value: 'per_round', label: 'Nach einer kompletten Runde'},
+                      {value: 'within_round', label: 'Innerhalb einer Runde'},
+                    ]"
+                    :key="'switch_' + opt.value"
+                    v-slot="{ checked }"
+                    :value="opt.value"
+                    as="template"
                 >
-                  {{ opt.label }}
-                </button>
-              </RadioGroupOption>
-            </RadioGroup>
+                  <button
+                      type="button"
+                      class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
+                      :class="checked ? 'glass-choice--active' : ''"
+                      @click="switchMode = opt.value"
+                  >
+                    {{ opt.label }}
+                  </button>
+                </RadioGroupOption>
+              </RadioGroup>
+            </template>
+
+            <div v-if="firstParam" class="flex flex-col gap-1.5" :class="switchParam ? 'mt-3' : ''">
+              <span class="glass-settings-label">{{ firstParam.ui_label }}</span>
+              <p v-if="firstParam.ui_description" class="integration-desc">
+                {{ firstParam.ui_description }}
+              </p>
+              <RadioGroup v-model="firstMatch" class="flex gap-1.5 flex-wrap">
+                <RadioGroupOption
+                    v-for="opt in [
+                      {value: 'challenge', label: challengeLabel, logo: 'CHALLENGE'},
+                      {value: 'future8', label: futureLabel, logo: 'FUTURE_8'},
+                    ]"
+                    :key="'first_' + opt.value"
+                    v-slot="{ checked }"
+                    :value="opt.value"
+                    as="template"
+                >
+                  <button
+                      type="button"
+                      class="glass-choice inline-flex items-center gap-1.5 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
+                      :class="checked ? 'glass-choice--active' : ''"
+                      @click="firstMatch = opt.value"
+                  >
+                    <img
+                        :src="programLogoSrc(opt.logo)"
+                        :alt="programLogoAlt(opt.logo)"
+                        class="w-5 h-5 object-contain"
+                    >
+                    {{ opt.label }}
+                  </button>
+                </RadioGroupOption>
+              </RadioGroup>
+            </div>
           </div>
 
           <RadioGroupOption
@@ -161,40 +196,6 @@ const futureLabel = computed(() => programDisplayName('FUTURE_8') || 'Future 8+'
                 @click="roomsMode = 'separate'"
             >
               In getrennten Räumen
-            </button>
-          </RadioGroupOption>
-        </RadioGroup>
-      </div>
-
-      <!-- First match -->
-      <div v-if="firstParam" class="flex flex-col gap-1.5">
-        <span class="glass-settings-label">{{ firstParam.ui_label }}</span>
-        <p v-if="firstParam.ui_description" class="integration-desc">
-          {{ firstParam.ui_description }}
-        </p>
-        <RadioGroup v-model="firstMatch" class="flex gap-1.5 flex-wrap">
-          <RadioGroupOption
-              v-for="opt in [
-                {value: 'challenge', label: challengeLabel, logo: 'CHALLENGE'},
-                {value: 'future8', label: futureLabel, logo: 'FUTURE_8'},
-              ]"
-              :key="'first_' + opt.value"
-              v-slot="{ checked }"
-              :value="opt.value"
-              as="template"
-          >
-            <button
-                type="button"
-                class="glass-choice inline-flex items-center gap-1.5 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                :class="checked ? 'glass-choice--active' : ''"
-                @click="firstMatch = opt.value"
-            >
-              <img
-                  :src="programLogoSrc(opt.logo)"
-                  :alt="programLogoAlt(opt.logo)"
-                  class="w-5 h-5 object-contain"
-              >
-              {{ opt.label }}
             </button>
           </RadioGroupOption>
         </RadioGroup>
