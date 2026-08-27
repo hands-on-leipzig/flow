@@ -850,15 +850,20 @@ watch(eventId, () => load(), {immediate: true})
 .staffing-title {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.3rem;
   min-width: 0;
   width: 100%;
 }
 
 .staffing-title .item-card__title {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   width: auto;
+  max-width: 100%;
+}
+
+.staffing-title .item-card__title.glass-input {
+  flex: 1 1 auto;
 }
 
 .staffing-need-dot {
