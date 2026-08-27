@@ -6,6 +6,7 @@ import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import TeamPlanBar from '@/components/molecules/TeamPlanBar.vue'
 import TeamSplitBar from '@/components/molecules/TeamSplitBar.vue'
 import CapacityOverrideDialog from '@/components/atoms/CapacityOverrideDialog.vue'
+import SupportedPlansDialog from '@/components/atoms/SupportedPlansDialog.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import {useEventStore} from '@/stores/event'
 import {eventPrograms, programId} from '@/utils/eventPrograms'
@@ -193,6 +194,10 @@ const teamLimits = computed(() => {
   return {min: Math.min(...teamCounts), max: Math.max(...teamCounts)}
 })
 
+const programPlans = computed(() =>
+    (props.supportedPlanData || []).filter((plan: any) => plan.first_program === PROGRAM_ID)
+)
+
 const getAlertLevelStyle = (level: number) => {
   switch (level) {
     case 1:
@@ -310,7 +315,7 @@ watch(
         :on-update="setSplit"
     />
 
-    <div v-for="group in laneGroups" :key="group.key" class="flex flex-col gap-1.5">
+    <div v-for="(group, groupIndex) in laneGroups" :key="group.key" class="flex flex-col gap-1.5">
       <div class="flex items-center gap-1 min-w-0">
         <span class="glass-settings-label">{{ group.label }}</span>
         <InfoPopover :text="group.description"/>
@@ -342,6 +347,12 @@ watch(
         <span class="glass-settings-hint whitespace-nowrap">
           {{ group.hint }}
         </span>
+        <SupportedPlansDialog
+            v-if="groupIndex === laneGroups.length - 1 && !hasOtherPrograms"
+            class="ml-auto"
+            program="explore"
+            :plans="programPlans"
+        />
       </div>
       <p v-if="group.teams && group.allowed.length === 0" class="glass-settings-hint mt-1.5 !not-italic">
         Keine gültigen Spurenzahlen für die aktuelle Teamanzahl.
@@ -385,6 +396,7 @@ watch(
             </button>
           </RadioGroupOption>
         </RadioGroup>
+        <SupportedPlansDialog class="ml-auto" program="explore" :plans="programPlans"/>
       </div>
     </div>
   </ProgramSection>

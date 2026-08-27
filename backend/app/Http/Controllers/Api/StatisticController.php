@@ -1030,9 +1030,12 @@ class StatisticController extends Controller
                 'has_issue' => false,
                 'contact_email' => null,
                 'plan_warnings' => [],
+                'programs' => [],
                 'error' => 'Event not found'
             ], 404);
         }
+
+        $event->loadMissing('programs');
 
         // Calculate readiness/warnings for all plans in this event
         $planWarnings = [];
@@ -1049,6 +1052,7 @@ class StatisticController extends Controller
                 'has_issue' => false,
                 'contact_email' => null,
                 'plan_warnings' => $planWarnings,
+                'programs' => [],
                 'message' => 'No DRAHT IDs'
             ]);
         }
@@ -1059,6 +1063,7 @@ class StatisticController extends Controller
             $payload = $response->getData(true);
 
             $hasIssue = false;
+            $programsOut = [];
             foreach ($event->programs as $program) {
                 if (! $program->draht_id) {
                     continue;
@@ -1066,8 +1071,14 @@ class StatisticController extends Controller
                 $match = collect($payload['programs'] ?? [])->firstWhere('first_program', $program->first_program);
                 if (! $match || empty($match['scheduledata'])) {
                     $hasIssue = true;
-                    break;
+                    continue;
                 }
+                $teams = $match['teams'] ?? [];
+                $programsOut[] = [
+                    'first_program' => (int) $program->first_program,
+                    'enrolled' => is_array($teams) ? count($teams) : 0,
+                    'capacity' => (int) ($match['capacity'] ?? 0),
+                ];
             }
 
             // Extract email from contact data (first contact only)
@@ -1103,6 +1114,7 @@ class StatisticController extends Controller
                 'has_issue' => $hasIssue,
                 'contact_email' => $email,
                 'plan_warnings' => $planWarnings,
+                'programs' => $programsOut,
             ]);
         } catch (\Throwable $e) {
             // If exception occurs, there's definitely an issue
@@ -1115,6 +1127,7 @@ class StatisticController extends Controller
                 'has_issue' => true,
                 'contact_email' => null,
                 'plan_warnings' => $planWarnings,
+                'programs' => [],
                 'error' => $e->getMessage()
             ]);
         }

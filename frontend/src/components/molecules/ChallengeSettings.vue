@@ -5,8 +5,11 @@ import type {LanesIndex} from '@/utils/lanesIndex'
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import TeamPlanBar from "@/components/molecules/TeamPlanBar.vue";
 import CapacityOverrideDialog from '@/components/atoms/CapacityOverrideDialog.vue'
+import SupportedPlansDialog from '@/components/atoms/SupportedPlansDialog.vue'
 import {useEventStore} from '@/stores/event'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
+
+const PROGRAM_ID = 3
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -156,7 +159,7 @@ const currentLaneNote = computed<string | undefined>(() => {
   if (!props.supportedPlanData || !cTeams.value || !rTables.value || !jLanesProxy.value) return
 
   const matchingPlan = props.supportedPlanData.find(plan =>
-      plan.first_program === 3 &&
+      plan.first_program === PROGRAM_ID &&
       plan.teams === cTeams.value &&
       plan.tables === rTables.value &&
       plan.lanes === jLanesProxy.value
@@ -170,7 +173,7 @@ const currentConfigAlertLevel = computed<number>(() => {
   if (!props.supportedPlanData || !cTeams.value || !rTables.value || !jLanesProxy.value) return 0
 
   const matchingPlan = props.supportedPlanData.find(plan =>
-      plan.first_program === 3 &&
+      plan.first_program === PROGRAM_ID &&
       plan.teams === cTeams.value &&
       plan.tables === rTables.value &&
       plan.lanes === jLanesProxy.value
@@ -184,7 +187,7 @@ const currentConfigAlertLevel = computed<number>(() => {
 const challengeTeamLimits = computed(() => {
   if (!props.supportedPlanData) return {min: 1, max: 50}
 
-  const challengePlans = props.supportedPlanData.filter(plan => plan.first_program === 3)
+  const challengePlans = props.supportedPlanData.filter(plan => plan.first_program === PROGRAM_ID)
   if (challengePlans.length === 0) return {min: 1, max: 50}
 
   const teamCounts = challengePlans.map(plan => plan.teams)
@@ -193,6 +196,10 @@ const challengeTeamLimits = computed(() => {
     max: Math.max(...teamCounts)
   }
 })
+
+const programPlans = computed(() =>
+    (props.supportedPlanData || []).filter((plan: any) => plan.first_program === PROGRAM_ID)
+)
 
 // Alert level styling and messages
 const getAlertLevelStyle = (level: number) => {
@@ -323,6 +330,7 @@ const teamsPerJuryHint = computed(() => {
               </button>
             </RadioGroupOption>
           </RadioGroup>
+          <SupportedPlansDialog class="ml-auto" program="challenge" :plans="programPlans"/>
         </div>
       </div>
 
