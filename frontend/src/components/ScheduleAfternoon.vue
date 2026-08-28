@@ -7,7 +7,7 @@ import ParameterField from '@/components/molecules/ParameterField.vue'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import type {Parameter} from '@/models/Parameter'
 import {programDisplayName} from '@/utils/eventPrograms'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 
 defineOptions({ name: 'ScheduleAfternoon' })
@@ -381,11 +381,11 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
               <span class="drag-handle" aria-label="Reihenfolge ändern">
                 <IconDraggable/>
               </span>
-              <img
-                  :alt="programLogoAlt(element.program || element.first_program)"
-                  :src="programLogoSrc(element.program || element.first_program)"
+              <ProgramLogo
+                  :program="element.program || element.first_program"
+                  size="section"
                   class="afternoon-block__logo"
-              >
+              />
               <span class="afternoon-block__label">{{ element.name }}</span>
             </div>
             <ParameterField

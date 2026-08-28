@@ -3190,6 +3190,17 @@ class PlanExportController extends Controller
         $hasChallenge = ProgramCatalog::hasChallenge($event);
         $hasFuture = ProgramCatalog::hasFuture($event);
 
+        $programIds = $event->programs
+            ->pluck('first_program')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        $staffingSync = app(\App\Services\StaffingSyncService::class);
+
         $plan = DB::table('plan')->where('event', $eventId)->first();
         if (! $plan) {
             return response()->json([
@@ -3198,6 +3209,9 @@ class PlanExportController extends Controller
                 'challenge_teams_ok' => ! $hasChallenge,
                 'future_8_teams_ok' => ! $hasFuture,
                 'room_mapping_ok' => false,
+                'staffing_ok' => true,
+                'staffing_summary' => $staffingSync->summaryByScope((int) $eventId, $programIds),
+                'open_positions' => $staffingSync->openPositionsByScope((int) $eventId, $programIds),
                 'room_mapping_details' => [
                     'activities_ok' => false,
                     'teams_ok' => false,
@@ -3284,6 +3298,9 @@ class PlanExportController extends Controller
             'challenge_teams_ok' => $challengeTeamsOk,
             'future_8_teams_ok' => $futureTeamsOk,
             'room_mapping_ok' => ! $hasUnmappedRooms && $allTeamsHaveRooms,
+            'staffing_ok' => $staffingSync->staffingOk((int) $eventId),
+            'staffing_summary' => $staffingSync->summaryByScope((int) $eventId, $programIds),
+            'open_positions' => $staffingSync->openPositionsByScope((int) $eventId, $programIds),
             'room_mapping_details' => [
                 'activities_ok' => ! $hasUnmappedRooms,
                 'teams_ok' => $allTeamsHaveRooms,

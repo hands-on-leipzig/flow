@@ -7,7 +7,8 @@ import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import axios from 'axios'
 import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
-import { programLogoSrc } from '@/utils/images'
+import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getProgramTheme } from '@/utils/programTheme'
 
 const FIRST_PROGRAM = {
@@ -46,7 +47,8 @@ type RobotGameData = {
 }
 
 const route = useRoute()
-const { isAdmin, initializeUserRoles } = useAuth()
+const { initializeUserRoles } = useAuth()
+const { showAdminInline } = useAdminInlineVisibility()
 
 // Ensure roles are initialized
 onMounted(() => {
@@ -69,7 +71,6 @@ const effectivePlanId = computed(() => {
 })
 
 const view = ref<'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'activities'>(props.initialView as any)
-const showAdminSegment = ref(false)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -113,7 +114,7 @@ const overviewHtml = ref<string>('')
 /** Rollen / Teams grid HTML (Überblick-style). */
 const rolesHtml = ref<string>('')
 const teamsHtml = ref<string>('')
-type PreviewProgramFilter = { id: number; label: string; logo: string }
+type PreviewProgramFilter = { id: number; label: string }
 const rolesPrograms = ref<PreviewProgramFilter[]>([])
 const teamsPrograms = ref<PreviewProgramFilter[]>([])
 /** Program id → visible (default true). */
@@ -134,10 +135,9 @@ const teamsHiddenProgramIds = computed(() =>
 
 function mapPreviewPrograms(raw: unknown): PreviewProgramFilter[] {
   if (!Array.isArray(raw)) return []
-  return raw.map((p: { id: number; label: string; logo: string }) => ({
+  return raw.map((p: { id: number; label: string }) => ({
     id: Number(p.id),
     label: String(p.label ?? ''),
-    logo: String(p.logo ?? ''),
   }))
 }
 
@@ -286,6 +286,11 @@ watch(selectedFirstProgram, (program, prev) => {
     load()
   }
 })
+watch(showAdminInline, (visible) => {
+  if (!visible && (view.value === 'activities' || view.value === 'quality')) {
+    setView('overview')
+  }
+})
 
 onMounted(async () => {
   await loadMatchPlanMeta()
@@ -312,13 +317,6 @@ function openQuality(programId?: number) {
     selectedFirstProgram.value = matchPlanPrograms.value[0]
   }
   setView('quality')
-}
-
-function toggleAdminSegment() {
-  showAdminSegment.value = !showAdminSegment.value
-  if (!showAdminSegment.value && (view.value === 'activities' || view.value === 'quality')) {
-    setView('overview')
-  }
 }
 
 // Helper functions for Match-Plan view
@@ -393,21 +391,17 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           >Match-Plan</button>
         </div>
 
-        <div v-if="isAdmin" class="glass-segment">
-          <button
-            type="button"
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': showAdminSegment}"
-            :aria-pressed="showAdminSegment"
-            :aria-label="showAdminSegment ? 'Admin-Ansichten ausblenden' : 'Admin-Ansichten einblenden'"
+        <div v-if="showAdminInline" class="glass-segment">
+          <span
+            class="glass-segment__btn pointer-events-none opacity-80"
             title="Admin"
-            @click="toggleAdminSegment"
+            aria-hidden="true"
           >
             <i class="bi bi-shield-lock" aria-hidden="true"/>
-          </button>
+          </span>
         </div>
 
-        <div v-if="isAdmin && showAdminSegment" class="glass-segment">
+        <div v-if="showAdminInline" class="glass-segment">
           <button
             type="button"
             class="glass-segment__btn"
@@ -450,7 +444,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
         :aria-pressed="rolesProgramOn[p.id] !== false"
         @click="toggleRolesProgram(p.id)"
       >
-        <img :src="p.logo" alt="" class="preview-program-choice__logo" />
+        <ProgramLogo :program="p.id" size="sm" decorative class="preview-program-choice__logo" />
         <span>{{ p.label }}</span>
       </button>
     </div>
@@ -468,7 +462,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
         :aria-pressed="teamsProgramOn[p.id] !== false"
         @click="toggleTeamsProgram(p.id)"
       >
-        <img :src="p.logo" alt="" class="preview-program-choice__logo" />
+        <ProgramLogo :program="p.id" size="sm" decorative class="preview-program-choice__logo" />
         <span>{{ p.label }}</span>
       </button>
     </div>
@@ -486,10 +480,11 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
         :aria-pressed="selectedFirstProgram === programId"
         @click="selectMatchPlanProgram(programId)"
       >
-        <img
+        <ProgramLogo
           v-if="themeForProgram(programId).catalogName"
-          :src="programLogoSrc(themeForProgram(programId).catalogName)"
-          alt=""
+          :program="programId"
+          size="sm"
+          decorative
           class="preview-program-choice__logo"
         />
         <span>{{ matchPlanProgramLabel(programId) }}</span>

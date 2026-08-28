@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {getProgramTheme} from '@/utils/programTheme'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
 const props = withDefaults(
     defineProps<{
@@ -76,11 +76,11 @@ function toggleCollapsed() {
           @click="toggleCollapsed"
       >
         <div class="program-section__identity">
-          <img
+          <ProgramLogo
               v-if="showLogoImg"
-              :alt="programLogoAlt(theme.catalogName)"
-              :src="programLogoSrc(theme.catalogName)"
-              class="program-section__logo"
+              :program="theme.catalogName"
+              size="section"
+              :muted="!active"
           />
           <div class="min-w-0">
             <h3 class="program-section__title glass-card__title !mb-0">{{ heading }}</h3>
@@ -100,11 +100,11 @@ function toggleCollapsed() {
       </button>
       <template v-else>
         <div class="program-section__identity">
-          <img
+          <ProgramLogo
               v-if="showLogoImg"
-              :alt="programLogoAlt(theme.catalogName)"
-              :src="programLogoSrc(theme.catalogName)"
-              class="program-section__logo"
+              :program="theme.catalogName"
+              size="section"
+              :muted="!active"
           />
           <div class="min-w-0">
             <h3 class="program-section__title glass-card__title !mb-0">{{ heading }}</h3>

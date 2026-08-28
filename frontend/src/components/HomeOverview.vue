@@ -7,9 +7,12 @@ import {useEventStore} from '@/stores/event'
 import {schedulePlanPrefetch, usePlanCacheStore} from '@/stores/planCache'
 import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBox.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
-import {imageUrl, programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import {imageUrl, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
 import {eventPrograms, programDisplayName, firstTeamsPath, teamPathFor, programCompact} from '@/utils/eventPrograms'
+import {staffingSummaryFromReadiness, type StaffingScopeSummary} from '@/utils/volunteerStaffingSummary'
+import VolunteerStaffingSummary from '@/components/volunteers/VolunteerStaffingSummary.vue'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
 
 defineOptions({name: 'HomeOverview'})
@@ -30,6 +33,14 @@ const teamStats = ref<Array<{
 const hasPlan = ref(false)
 const publicationLevel = ref<number | null>(null)
 const loading = ref(true)
+
+const programList = computed(() => eventPrograms(event.value))
+
+const staffingSummary = computed<StaffingScopeSummary[]>(() =>
+  staffingSummaryFromReadiness(readiness.value?.staffing_summary, programList.value),
+)
+
+const staffingHasGaps = computed(() => staffingSummary.value.some((row) => row.missing_min > 0))
 
 const seasonName = computed(() =>
     (event.value as any)?.season_rel?.name
@@ -253,23 +264,25 @@ watch(
                 v-for="stat in teamStats"
                 :key="stat.first_program"
                 :to="teamPathFor({ name: stat.programName, first_program: Number(stat.first_program) })"
-                class="flex items-start gap-2 rounded-lg px-3 py-2 liquid-surface-inner hover:bg-[var(--color-bg-hover)] transition-colors no-underline text-inherit"
+                class="flex items-center gap-2 rounded-lg px-3 py-1.5 liquid-surface-inner hover:bg-[var(--color-bg-hover)] transition-colors no-underline text-inherit"
             >
-              <img :alt="programLogoAlt(stat.programName)" :src="programLogoSrc(stat.programName)" class="w-9 h-9 flex-shrink-0"/>
+              <ProgramLogo
+                  :program="{first_program: stat.first_program, name: stat.programName}"
+                  size="lg"
+              />
               <div class="min-w-0 flex-1">
                 <div class="font-medium flex items-center justify-between gap-2">
-                  <span>{{ stat.registered }} von {{ stat.capacity }} Teams</span>
-                  <i class="bi bi-chevron-right text-[var(--color-text-subtle)]" aria-hidden="true"/>
+                  <span class="inline-flex items-center gap-1.5 min-w-0">
+                    <span>{{ stat.registered }} von {{ stat.capacity }} Teams angemeldet</span>
+                    <span
+                        v-if="programHasDiscrepancy(stat.programName)"
+                        class="inline-block h-2 w-2 rounded-full bg-red-500 shrink-0"
+                        title="Abweichung zu DRAHT"
+                        aria-label="Abweichung zu DRAHT"
+                    />
+                  </span>
+                  <i class="bi bi-chevron-right text-[var(--color-text-subtle)] shrink-0" aria-hidden="true"/>
                 </div>
-                <span class="text-sm text-[var(--color-text-muted)] inline-flex items-center gap-1.5">
-                  {{ stat.name }} angemeldet
-                  <span
-                      v-if="programHasDiscrepancy(stat.programName)"
-                      class="inline-block h-2 w-2 rounded-full bg-red-500 shrink-0"
-                      title="Abweichung zu DRAHT"
-                      aria-label="Abweichung zu DRAHT"
-                  />
-                </span>
               </div>
             </RouterLink>
 
@@ -280,6 +293,35 @@ watch(
               {{ loading ? 'Lade Teamdaten…' : 'Keine Team-Daten verfügbar' }}
             </p>
           </div>
+        </div>
+
+        <div class="glass-card liquid-surface-inner">
+          <h2 class="glass-card__title">Helfer:innen</h2>
+
+          <div
+              v-if="!hasPlan && !loading"
+              class="mb-3 rounded-lg px-3 py-2 text-sm bg-[color-mix(in_srgb,var(--color-text-subtle)_12%,transparent)] border border-[color-mix(in_srgb,var(--color-border-strong)_35%,transparent)]"
+          >
+            Noch kein Ablauf — Rollen erscheinen nach der Planerzeugung.
+          </div>
+
+          <div
+              v-else-if="staffingHasGaps"
+              class="mb-3 rounded-lg px-3 py-2 text-sm bg-[color-mix(in_srgb,var(--color-warning,#f59e0b)_18%,transparent)] border border-[color-mix(in_srgb,var(--color-warning,#f59e0b)_40%,transparent)]"
+          >
+            <div class="flex items-start gap-2">
+              <i class="bi bi-exclamation-triangle-fill mt-0.5" aria-hidden="true"/>
+              <p>Einige Rollen sind noch unter der Mindestempfehlung.</p>
+            </div>
+          </div>
+
+          <VolunteerStaffingSummary
+              :scopes="staffingSummary"
+              :programs="programList"
+              :loading="loading"
+              layout="teams"
+              link-to="/plan/volunteers/staffing"
+          />
         </div>
 
         <div class="glass-card liquid-surface-inner">

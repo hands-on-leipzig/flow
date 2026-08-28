@@ -26,4 +26,9 @@ class RegionalPartner extends Model
         return $this->hasMany(Logo::class, "regional_partner");
     }
 
+    public function volunteerPeople()
+    {
+        return $this->hasMany(VolunteerPerson::class, 'regional_partner');
+    }
+
 }

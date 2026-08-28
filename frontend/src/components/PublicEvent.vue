@@ -2,8 +2,10 @@
 import {ref, computed, onMounted} from 'vue'
 import {useRoute} from 'vue-router'
 import axios from 'axios'
-import {programLogoSrc, programLogoAlt, imageUrl} from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import {imageUrl} from '@/utils/images'
 import {PROGRAM_COLOR_HEX} from '@/utils/programTheme'
+import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
 import {formatTimeOnly} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
@@ -232,6 +234,15 @@ const hasTeamsSection = computed(() => {
   )
 })
 
+const exploreProgram = computed(() => resolveProgramRef(event.value, 'EXPLORE'))
+const challengeProgram = computed(() => resolveProgramRef(event.value, 'CHALLENGE'))
+
+const errorFooterPrograms = computed(() => {
+  const programs = eventPrograms(event.value)
+  if (programs.length > 0) return programs
+  return [exploreProgram.value, challengeProgram.value].filter(Boolean)
+})
+
 onMounted(async () => {
   await loadEvent()
 })
@@ -269,8 +280,13 @@ onMounted(async () => {
           <code class="pe-slug__value">{{ route.params.slug || 'N/A' }}</code>
         </div>
         <div class="pe-error-logos">
-          <img :alt="programLogoAlt('EXPLORE')" :src="programLogoSrc('EXPLORE')" class="pe-error-logos__img"/>
-          <img :alt="programLogoAlt('CHALLENGE')" :src="programLogoSrc('CHALLENGE')" class="pe-error-logos__img"/>
+          <ProgramLogo
+              v-for="program in errorFooterPrograms"
+              :key="program.first_program ?? program.name"
+              :event="event"
+              :program="program"
+              class="pe-error-logos__img"
+          />
         </div>
       </div>
     </div>
@@ -306,7 +322,12 @@ onMounted(async () => {
                 :style="{ '--pe-program': exploreColor }"
             >
               <h3 class="pe-program__title">
-                <img :alt="programLogoAlt('EXPLORE')" :src="programLogoSrc('EXPLORE')" class="pe-program__logo"/>
+                <ProgramLogo
+                    v-if="exploreProgram"
+                    :event="event"
+                    :program="exploreProgram"
+                    class="pe-program__logo"
+                />
                 <span><em>FIRST</em> LEGO League Explore · Vormittag</span>
               </h3>
               <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
@@ -334,7 +355,12 @@ onMounted(async () => {
                 :style="{ '--pe-program': exploreColor }"
             >
               <h3 class="pe-program__title">
-                <img :alt="programLogoAlt('EXPLORE')" :src="programLogoSrc('EXPLORE')" class="pe-program__logo"/>
+                <ProgramLogo
+                    v-if="exploreProgram"
+                    :event="event"
+                    :program="exploreProgram"
+                    class="pe-program__logo"
+                />
                 <span><em>FIRST</em> LEGO League Explore · Nachmittag</span>
               </h3>
               <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
@@ -362,7 +388,12 @@ onMounted(async () => {
                 :style="{ '--pe-program': exploreColor }"
             >
               <h3 class="pe-program__title">
-                <img :alt="programLogoAlt('EXPLORE')" :src="programLogoSrc('EXPLORE')" class="pe-program__logo"/>
+                <ProgramLogo
+                    v-if="exploreProgram"
+                    :event="event"
+                    :program="exploreProgram"
+                    class="pe-program__logo"
+                />
                 <span><em>FIRST</em> LEGO League Explore</span>
               </h3>
               <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
@@ -391,7 +422,12 @@ onMounted(async () => {
               :style="{ '--pe-program': challengeColor, minHeight: combinedExploreHeight }"
           >
             <h3 class="pe-program__title">
-              <img :alt="programLogoAlt('CHALLENGE')" :src="programLogoSrc('CHALLENGE')" class="pe-program__logo"/>
+              <ProgramLogo
+                  v-if="challengeProgram"
+                  :event="event"
+                  :program="challengeProgram"
+                  class="pe-program__logo"
+              />
               <span><em>FIRST</em> LEGO League Challenge</span>
             </h3>
             <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
@@ -491,9 +527,11 @@ onMounted(async () => {
               <thead>
               <tr>
                 <th colspan="4">
-                  <img
-                      :alt="programLogoAlt('EXPLORE')"
-                      :src="programLogoSrc('EXPLORE', 'h')"
+                  <ProgramLogo
+                      v-if="exploreProgram"
+                      :event="event"
+                      :program="exploreProgram"
+                      orientation="h"
                       class="pe-teams-table__brand"
                   />
                 </th>
@@ -528,9 +566,11 @@ onMounted(async () => {
             </table>
           </div>
           <div v-else class="pe-teams-count glass-chip liquid-surface-inner">
-            <img
-                :alt="programLogoAlt('EXPLORE')"
-                :src="programLogoSrc('EXPLORE', 'h')"
+            <ProgramLogo
+                v-if="exploreProgram"
+                :event="event"
+                :program="exploreProgram"
+                orientation="h"
                 class="pe-teams-count__logo"
             />
             <span>{{ scheduleInfo.teams.explore.registered }} Team(s) angemeldet</span>
@@ -553,9 +593,11 @@ onMounted(async () => {
               <thead>
               <tr>
                 <th colspan="4">
-                  <img
-                      :alt="programLogoAlt('CHALLENGE')"
-                      :src="programLogoSrc('CHALLENGE', 'h')"
+                  <ProgramLogo
+                      v-if="challengeProgram"
+                      :event="event"
+                      :program="challengeProgram"
+                      orientation="h"
                       class="pe-teams-table__brand"
                   />
                 </th>
@@ -590,9 +632,11 @@ onMounted(async () => {
             </table>
           </div>
           <div v-else class="pe-teams-count glass-chip liquid-surface-inner">
-            <img
-                :alt="programLogoAlt('CHALLENGE')"
-                :src="programLogoSrc('CHALLENGE', 'h')"
+            <ProgramLogo
+                v-if="challengeProgram"
+                :event="event"
+                :program="challengeProgram"
+                orientation="h"
                 class="pe-teams-count__logo"
             />
             <span>{{ scheduleInfo.teams.challenge.registered }} Team(s) angemeldet</span>

@@ -4,6 +4,7 @@ import {createRouter, createWebHistory} from 'vue-router'
 import axios from 'axios'
 import './assets/main.css'
 import './assets/glass-layout.css'
+import './assets/volunteers.css'
 import keycloak from "@/keycloak.js";
 import Schedule from "@/components/Schedule.vue";
 import ScheduleGeneral from "@/components/ScheduleGeneral.vue";
@@ -11,6 +12,7 @@ import ScheduleTimes from "@/components/ScheduleTimes.vue";
 import ScheduleIntegration from "@/components/ScheduleIntegration.vue";
 import ScheduleAfternoon from "@/components/ScheduleAfternoon.vue";
 import ScheduleExpert from "@/components/ScheduleExpert.vue";
+import ScheduleProtected from "@/components/ScheduleProtected.vue";
 import ScheduleFreeActivities from "@/components/ScheduleFreeActivities.vue";
 import Logos from "@/components/Logos.vue";
 import {createPinia, setActivePinia} from "pinia";
@@ -30,6 +32,9 @@ import EventDayControl from "@/components/EventDayControl.vue";
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
 import TeamsProgram from "@/components/teams/TeamsProgram.vue";
+import VolunteersPeople from "@/components/VolunteersPeople.vue";
+import VolunteersRoster from "@/components/VolunteersRoster.vue";
+import VolunteersStaffing from "@/components/VolunteersStaffing.vue";
 import Preview from "@/components/molecules/Preview.vue";
 import PlanPopout from "@/components/PlanPopout.vue";
 import Carousel from "@/components/Carousel.vue";
@@ -75,6 +80,7 @@ const routes = [
                     {path: 'times', name: 'schedule-times', component: ScheduleTimes},
                     {path: 'afternoon', name: 'schedule-afternoon', component: ScheduleAfternoon},
                     {path: 'expert', name: 'schedule-expert', component: ScheduleExpert},
+                    {path: 'protected', name: 'schedule-protected', component: ScheduleProtected},
                     {path: 'blocks', redirect: {name: 'schedule-free'}},
                     {path: 'free', name: 'schedule-free', component: ScheduleFreeActivities},
                     {path: 'slots', name: 'schedule-slots', component: () => import('@/components/Slots.vue')},
@@ -88,6 +94,9 @@ const routes = [
                     {path: ':program', name: 'teams-program', component: TeamsProgram},
                 ],
             },
+            {path: 'volunteers', name: 'volunteers-people', component: VolunteersPeople},
+            {path: 'volunteers/roster', name: 'volunteers-roster', component: VolunteersRoster},
+            {path: 'volunteers/staffing', name: 'volunteers-staffing', component: VolunteersStaffing},
             {path: 'logos', redirect: '/plan/publish/logos'},
             {path: 'events', component: SelectEvent},
             {path: 'rooms', component: Rooms},
@@ -124,6 +133,7 @@ const routes = [
     {path: '/schedule/times', redirect: '/plan/schedule/times'},
     {path: '/schedule/afternoon', redirect: '/plan/schedule/afternoon'},
     {path: '/schedule/expert', redirect: '/plan/schedule/expert'},
+    {path: '/schedule/protected', redirect: '/plan/schedule/protected'},
     {path: '/schedule/free', redirect: '/plan/schedule/free'},
     {path: '/slots', redirect: '/plan/schedule/slots'},
     {path: '/schedule/slots', redirect: '/plan/schedule/slots'},

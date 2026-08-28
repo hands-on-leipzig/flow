@@ -100,9 +100,16 @@ class MainTablesController extends Controller
      */
     public function getTableData(string $table): JsonResponse
     {
+        if (!$this->isAllowedTable($table)) {
+            return response()->json(['error' => 'Table not allowed'], 404);
+        }
+
         try {
             $data = DB::table($table)->get()->toArray();
-            return response()->json(['data' => $data]);
+            return response()->json([
+                'data' => $data,
+                'primary_key' => $this->getPrimaryKeyColumn($table),
+            ]);
         } catch (\Exception $e) {
             Log::error("Error getting data for table {$table}: " . $e->getMessage());
             return response()->json(['data' => []], 500);
@@ -114,13 +121,39 @@ class MainTablesController extends Controller
      */
     public function getTableColumns(string $table): JsonResponse
     {
+        if (!$this->isAllowedTable($table)) {
+            return response()->json(['error' => 'Table not allowed'], 404);
+        }
+
         try {
             $columns = DB::getSchemaBuilder()->getColumnListing($table);
-            return response()->json(['columns' => $columns]);
+            return response()->json([
+                'columns' => $columns,
+                'primary_key' => $this->getPrimaryKeyColumn($table),
+            ]);
         } catch (\Exception $e) {
             Log::error("Error getting columns for table {$table}: " . $e->getMessage());
-            return response()->json(['columns' => []], 500);
+            return response()->json(['columns' => [], 'primary_key' => 'id'], 500);
         }
+    }
+
+    private function isAllowedTable(string $table): bool
+    {
+        return in_array($table, $this->discoverMTables(), true);
+    }
+
+    private function getPrimaryKeyColumn(string $table): string
+    {
+        static $cache = [];
+
+        if (isset($cache[$table])) {
+            return $cache[$table];
+        }
+
+        $keys = DB::select("SHOW KEYS FROM `{$table}` WHERE Key_name = 'PRIMARY'");
+        $cache[$table] = !empty($keys) ? $keys[0]->Column_name : 'id';
+
+        return $cache[$table];
     }
 
     /**
@@ -128,6 +161,10 @@ class MainTablesController extends Controller
      */
     public function store(Request $request, string $table): JsonResponse
     {
+        if (!$this->isAllowedTable($table)) {
+            return response()->json(['error' => 'Table not allowed'], 404);
+        }
+
         try {
             $data = $request->all();
             
@@ -136,8 +173,15 @@ class MainTablesController extends Controller
                 return $value !== '' && $value !== null;
             });
 
-            $id = DB::table($table)->insertGetId($data);
-            $record = DB::table($table)->where('id', $id)->first();
+            $primaryKey = $this->getPrimaryKeyColumn($table);
+
+            if ($primaryKey === 'id') {
+                $id = DB::table($table)->insertGetId($data);
+                $record = DB::table($table)->where('id', $id)->first();
+            } else {
+                DB::table($table)->insert($data);
+                $record = DB::table($table)->where($primaryKey, $data[$primaryKey])->first();
+            }
 
             return response()->json(['data' => $record]);
         } catch (\Exception $e) {
@@ -149,18 +193,26 @@ class MainTablesController extends Controller
     /**
      * Update an existing record in a table
      */
-    public function update(Request $request, string $table, int $id): JsonResponse
+    public function update(Request $request, string $table, string $id): JsonResponse
     {
+        if (!$this->isAllowedTable($table)) {
+            return response()->json(['error' => 'Table not allowed'], 404);
+        }
+
         try {
             $data = $request->all();
+            $primaryKey = $this->getPrimaryKeyColumn($table);
+
+            // Never change the primary key on update
+            unset($data[$primaryKey]);
             
             // Remove empty values
             $data = array_filter($data, function($value) {
                 return $value !== '' && $value !== null;
             });
 
-            DB::table($table)->where('id', $id)->update($data);
-            $record = DB::table($table)->where('id', $id)->first();
+            DB::table($table)->where($primaryKey, $id)->update($data);
+            $record = DB::table($table)->where($primaryKey, $id)->first();
 
             return response()->json(['data' => $record]);
         } catch (\Exception $e) {
@@ -172,10 +224,15 @@ class MainTablesController extends Controller
     /**
      * Delete a record from a table
      */
-    public function destroy(string $table, int $id): JsonResponse
+    public function destroy(string $table, string $id): JsonResponse
     {
+        if (!$this->isAllowedTable($table)) {
+            return response()->json(['error' => 'Table not allowed'], 404);
+        }
+
         try {
-            DB::table($table)->where('id', $id)->delete();
+            $primaryKey = $this->getPrimaryKeyColumn($table);
+            DB::table($table)->where($primaryKey, $id)->delete();
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
             Log::error("Error deleting record {$id} from table {$table}: " . $e->getMessage());
@@ -469,6 +526,7 @@ class MainTablesController extends Controller
             'm_activity_type_detail' => 'Activity Type Details',
             'm_first_program' => 'First Programs',
             'm_role' => 'Roles',
+            'm_staffing_rule' => 'Staffing Rules',
             'm_visibility' => 'Visibility Rules',
             'm_supported_plan' => 'Supported Plans'
         ];

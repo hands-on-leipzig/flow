@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {programDisplayName} from '@/utils/eventPrograms'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import {programDisplayName, resolveProgramRef} from '@/utils/eventPrograms'
+import {useEventStore} from '@/stores/event'
 
 const props = defineProps<{
   parameters: any[]
@@ -71,24 +72,33 @@ const firstMatch = computed<'challenge' | 'future8'>({
   },
 })
 
+const eventStore = useEventStore()
+
 const challengeLabel = computed(() => programDisplayName('CHALLENGE') || 'Challenge')
 const futureLabel = computed(() => programDisplayName('FUTURE_8') || 'Future 8+')
+const challengeProgram = computed(() => resolveProgramRef(eventStore.selectedEvent, 'CHALLENGE'))
+const futureProgram = computed(() => resolveProgramRef(eventStore.selectedEvent, 'FUTURE_8'))
+
+const firstMatchOptions = computed(() => [
+  {value: 'challenge' as const, label: challengeLabel.value, program: challengeProgram.value},
+  {value: 'future8' as const, label: futureLabel.value, program: futureProgram.value},
+])
 </script>
 
 <template>
   <section class="integration-tile glass-card liquid-surface-inner">
     <header class="integration-tile__header">
       <div class="integration-tile__logos">
-        <img
-            :src="programLogoSrc('CHALLENGE')"
-            :alt="programLogoAlt('CHALLENGE')"
-            class="integration-tile__logo"
-        >
-        <img
-            :src="programLogoSrc('FUTURE_8')"
-            :alt="programLogoAlt('FUTURE_8')"
-            class="integration-tile__logo"
-        >
+        <ProgramLogo
+            v-if="challengeProgram"
+            :program="challengeProgram"
+            size="section"
+        />
+        <ProgramLogo
+            v-if="futureProgram"
+            :program="futureProgram"
+            size="section"
+        />
       </div>
       <h2 class="glass-card__title !mb-0">
         {{ challengeLabel }} und {{ futureLabel }}
@@ -157,10 +167,7 @@ const futureLabel = computed(() => programDisplayName('FUTURE_8') || 'Future 8+'
               </p>
               <RadioGroup v-model="firstMatch" class="flex gap-1.5 flex-wrap">
                 <RadioGroupOption
-                    v-for="opt in [
-                      {value: 'challenge', label: challengeLabel, logo: 'CHALLENGE'},
-                      {value: 'future8', label: futureLabel, logo: 'FUTURE_8'},
-                    ]"
+                    v-for="opt in firstMatchOptions"
                     :key="'first_' + opt.value"
                     v-slot="{ checked }"
                     :value="opt.value"
@@ -172,11 +179,12 @@ const futureLabel = computed(() => programDisplayName('FUTURE_8') || 'Future 8+'
                       :class="checked ? 'glass-choice--active' : ''"
                       @click="firstMatch = opt.value"
                   >
-                    <img
-                        :src="programLogoSrc(opt.logo)"
-                        :alt="programLogoAlt(opt.logo)"
-                        class="w-5 h-5 object-contain"
-                    >
+                    <ProgramLogo
+                        v-if="opt.program"
+                        :program="opt.program"
+                        size="sm"
+                        decorative
+                    />
                     {{ opt.label }}
                   </button>
                 </RadioGroupOption>

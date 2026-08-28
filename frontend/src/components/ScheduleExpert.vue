@@ -13,7 +13,6 @@ const {
   visibilityMap,
   disabledMap,
   expertParamsByProgramId,
-  finaleInputParams,
   finaleExpertParams,
   tableNames,
   handleParamUpdate,
@@ -79,14 +78,6 @@ function visibleParams(params: Parameter[]): Parameter[] {
         collapsible
         default-collapsed
     >
-      <ParameterField
-          v-for="param in visibleParams(finaleInputParams)"
-          :key="'in_' + param.id"
-          :param="param"
-          :disabled="disabledMap[param.id]"
-          :with-label="true"
-          @update="(p: Parameter) => handleParamUpdate({ name: p.name, value: p.value })"
-      />
       <ParameterField
           v-for="param in visibleParams(finaleExpertParams)"
           :key="'ex_' + param.id"
