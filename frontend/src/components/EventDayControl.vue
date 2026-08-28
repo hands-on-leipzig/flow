@@ -3,7 +3,7 @@ import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
-import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {eventPrograms} from '@/utils/eventPrograms'
 
 defineOptions({name: 'EventDayControl'})
@@ -54,13 +54,12 @@ watch(() => event.value?.id, fetchPublicationLevel, {immediate: true})
             <span>Plan nicht vollständig veröffentlicht.</span>
           </div>
         </div>
-        <div class="flex items-center gap-2" v-if="event">
-          <img
+        <div v-if="event" class="flex items-center gap-2">
+          <ProgramLogo
               v-for="program in eventPrograms(event)"
               :key="program.first_program"
-              :src="programLogoSrc(program)"
-              :alt="programLogoAlt(program.name || program)"
-              class="w-8 h-8 flex-shrink-0"
+              :program="program"
+              size="md"
           />
         </div>
       </div>
