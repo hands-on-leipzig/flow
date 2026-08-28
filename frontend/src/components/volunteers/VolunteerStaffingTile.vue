@@ -4,7 +4,7 @@ import {useEventStore} from '@/stores/event'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {programNameForId} from '@/utils/eventPrograms'
 import {volunteerDisplayName, type VolunteerPersonRef} from '@/utils/volunteerPerson'
 import {
@@ -45,20 +45,12 @@ function dropGroup(group: StaffingGroup) {
   }
 }
 
-function roleLogoSrc(role: StaffingRole) {
-  if (!role.first_program) return ''
-  return programLogoSrc({
+function roleProgramRef(role: StaffingRole) {
+  if (!role.first_program) return null
+  return {
     first_program: role.first_program,
     name: programNameForId(eventStore.selectedEvent, role.first_program),
-  })
-}
-
-function roleLogoAlt(role: StaffingRole) {
-  if (!role.first_program) return ''
-  return programLogoAlt({
-    first_program: role.first_program,
-    name: programNameForId(eventStore.selectedEvent, role.first_program),
-  })
+  }
 }
 
 function gapStatusClass(tile: StaffingTile) {
@@ -71,12 +63,11 @@ function gapStatusClass(tile: StaffingTile) {
       :inactive="tile.group.surplus"
       :class="{'staffing-tile--surplus': tile.group.surplus}"
   >
-    <template v-if="roleLogoSrc(tile.role)" #leading>
-      <img
-          :src="roleLogoSrc(tile.role)"
-          :alt="roleLogoAlt(tile.role)"
-          class="w-6 h-6 flex-shrink-0"
-      >
+    <template v-if="roleProgramRef(tile.role)" #leading>
+      <ProgramLogo
+          :program="roleProgramRef(tile.role)!"
+          size="base"
+      />
     </template>
     <template #title>
       <div class="staffing-title">

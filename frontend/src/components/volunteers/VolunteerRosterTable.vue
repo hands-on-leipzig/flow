@@ -2,7 +2,7 @@
 import axios from 'axios'
 import {ref} from 'vue'
 import {useEventStore} from '@/stores/event'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {programNameForId} from '@/utils/eventPrograms'
 import {volunteerDisplayName} from '@/utils/volunteerPerson'
 import {ROSTER_MEALS, T_SHIRT_CUTS} from '@/volunteers/rosterConstants'
@@ -56,20 +56,12 @@ function rosterIconTooltip(entry: RosterEntry) {
   return 'Von Helferliste entfernen'
 }
 
-function assignmentLogoSrc(assignment: RosterAssignment) {
-  if (!assignment.first_program) return ''
-  return programLogoSrc({
+function assignmentProgramRef(assignment: RosterAssignment) {
+  if (!assignment.first_program) return null
+  return {
     first_program: assignment.first_program,
     name: programNameForId(eventStore.selectedEvent, assignment.first_program),
-  })
-}
-
-function assignmentLogoAlt(assignment: RosterAssignment) {
-  if (!assignment.first_program) return ''
-  return programLogoAlt({
-    first_program: assignment.first_program,
-    name: programNameForId(eventStore.selectedEvent, assignment.first_program),
-  })
+  }
 }
 
 function entryCustom(entry: RosterEntry) {
@@ -202,12 +194,13 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
                     :key="`${entry.id}-assignment-${idx}`"
                     class="vol-table__assignment"
                 >
-                  <img
-                      v-if="assignmentLogoSrc(assignment)"
-                      :src="assignmentLogoSrc(assignment)"
-                      :alt="assignmentLogoAlt(assignment)"
+                  <ProgramLogo
+                      v-if="assignmentProgramRef(assignment)"
+                      :program="assignmentProgramRef(assignment)!"
+                      size="chip"
+                      decorative
                       class="vol-table__assignment-icon"
-                  >
+                  />
                   <span>{{ assignment.tile_name }}</span>
                 </div>
               </div>

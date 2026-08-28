@@ -2,9 +2,10 @@
 import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import ParameterField from '@/components/molecules/ParameterField.vue'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {eventPrograms, programDisplayName} from '@/utils/eventPrograms'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import {eventPrograms, programDisplayName, resolveProgramRef} from '@/utils/eventPrograms'
 import {useEventStore} from '@/stores/event'
+import type {EventProgramRef} from '@/utils/eventPrograms'
 
 const props = defineProps<{
   parameters: any[]
@@ -20,7 +21,6 @@ const emit = defineEmits<{
 
 type Prefix = 'g' | 'e1' | 'e2' | 'c' | 'f8'
 type TimeKey = 'start_opening' | 'duration_opening' | 'duration_awards'
-type Logo = { src: string; alt: string }
 
 const eventStore = useEventStore()
 const visibilityMatrix = ref<Record<string, any>>({})
@@ -51,23 +51,22 @@ const columnLabels = computed<Record<Prefix, string>>(() => ({
   f8: programDisplayName('FUTURE_8') || 'Future 8+',
 }))
 
-const columnIcons = computed<Record<Exclude<Prefix, 'g'>, string>>(() => ({
-  e1: programLogoSrc('EXPLORE'),
-  e2: programLogoSrc('EXPLORE'),
-  c: programLogoSrc('CHALLENGE'),
-  f8: programLogoSrc('FUTURE_8'),
-}))
-
-const gemeinsamLogos = computed<Logo[]>(() => {
-  return eventPrograms(eventStore.selectedEvent).map((program) => ({
-    src: programLogoSrc(program),
-    alt: programLogoAlt(program),
-  }))
+const columnPrograms = computed<Record<Exclude<Prefix, 'g'>, EventProgramRef | null>>(() => {
+  const event = eventStore.selectedEvent
+  return {
+    e1: resolveProgramRef(event, 'EXPLORE'),
+    e2: resolveProgramRef(event, 'EXPLORE'),
+    c: resolveProgramRef(event, 'CHALLENGE'),
+    f8: resolveProgramRef(event, 'FUTURE_8'),
+  }
 })
 
-function logosFor(prefix: Prefix): Logo[] {
-  if (prefix === 'g') return gemeinsamLogos.value
-  return [{src: columnIcons.value[prefix], alt: columnLabels.value[prefix]}]
+const gemeinsamPrograms = computed(() => eventPrograms(eventStore.selectedEvent))
+
+function programsFor(prefix: Prefix): EventProgramRef[] {
+  if (prefix === 'g') return gemeinsamPrograms.value
+  const program = columnPrograms.value[prefix]
+  return program ? [program] : []
 }
 
 const allPrefixes: Prefix[] = ['g', 'e1', 'e2', 'c', 'f8']
@@ -131,13 +130,12 @@ onMounted(async () => {
             class="glass-settings-row flex-nowrap"
         >
           <div class="inline-flex items-center gap-2 min-w-[11rem] shrink-0">
-            <img
-                v-for="logo in logosFor(prefix)"
-                :key="logo.src"
-                :src="logo.src"
-                :alt="logo.alt"
-                class="w-8 h-8 flex-shrink-0 object-contain"
-            >
+            <ProgramLogo
+                v-for="program in programsFor(prefix)"
+                :key="`${prefix}-${program.first_program ?? program.name}`"
+                :program="program"
+                size="md"
+            />
             <span class="text-sm font-medium text-[var(--color-text-muted)]">{{ columnLabels[prefix] }}</span>
           </div>
           <ParameterField
@@ -172,13 +170,12 @@ onMounted(async () => {
             class="glass-settings-row"
         >
           <div class="inline-flex items-center gap-2 min-w-[11rem]">
-            <img
-                v-for="logo in logosFor(prefix)"
-                :key="logo.src"
-                :src="logo.src"
-                :alt="logo.alt"
-                class="w-8 h-8 flex-shrink-0 object-contain"
-            >
+            <ProgramLogo
+                v-for="program in programsFor(prefix)"
+                :key="`${prefix}-${program.first_program ?? program.name}`"
+                :program="program"
+                size="md"
+            />
             <span class="text-sm font-medium text-[var(--color-text-muted)]">{{ columnLabels[prefix] }}</span>
           </div>
           <ParameterField

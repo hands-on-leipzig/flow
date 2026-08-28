@@ -97,7 +97,7 @@ const teamNavChildren = computed<NavChild[]>(() => {
     name: programDisplayName(program),
     path: teamPathFor(program),
     icon: 'bi-people',
-    iconSrc: programLogoSrc(program.name),
+    iconSrc: programLogoSrc(program),
   }))
 })
 

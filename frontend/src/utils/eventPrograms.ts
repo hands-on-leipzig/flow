@@ -166,6 +166,60 @@ export function programNameForId(
   return eventPrograms(event).find((row) => Number(row.first_program) === id)?.name ?? null
 }
 
+export type ProgramLogoInput =
+  | ProgramIdentityRef
+  | {
+      first_program?: number | null
+      id?: number
+      name?: string | null
+      display_name?: string | null
+      program_name?: string | null
+      logo_stem?: string | null
+    }
+
+/** Normalize event/catalog rows, ids, and names for programLogoSrc. */
+export function resolveProgramRef(
+  event: EventWithPrograms | null | undefined,
+  program: ProgramLogoInput
+): EventProgramRef | null {
+  if (program == null || program === '') return null
+
+  if (typeof program === 'number') {
+    const id = program
+    if (id <= 0) return null
+    const fromEvent = eventPrograms(event).find((row) => programId(row) === id)
+    if (fromEvent) return fromEvent
+    const fromCatalog = findCatalogRow(id)
+    return fromCatalog ?? {first_program: id, name: programNameForId(event, id) ?? undefined}
+  }
+
+  if (typeof program === 'string') {
+    const trimmed = program.trim()
+    if (!trimmed) return null
+    const fromEvent = eventPrograms(event).find(
+      (row) => programMatchesSlug(row.name, trimmed) || String(row.name) === trimmed
+    )
+    if (fromEvent) return fromEvent
+    const fromCatalog = findCatalogRow(trimmed)
+    return fromCatalog ?? {name: trimmed}
+  }
+
+  const row = program as EventProgramRef & {program_name?: string | null}
+  const id = programId(row)
+  const name = row.program_name ?? row.name ?? programNameForId(event, id)
+  const fromEvent = id ? eventPrograms(event).find((p) => programId(p) === id) : undefined
+  const fromCatalog = findCatalogRow({...row, name: name ?? undefined, first_program: id || undefined})
+
+  const merged: EventProgramRef = {
+    ...(fromCatalog ?? {}),
+    ...(fromEvent ?? {}),
+    ...row,
+    first_program: id || row.first_program,
+    name: name ?? row.name,
+  }
+  return merged.name || merged.first_program ? merged : null
+}
+
 export function drahtIdFor(
   event: EventWithPrograms | null | undefined,
   name: string

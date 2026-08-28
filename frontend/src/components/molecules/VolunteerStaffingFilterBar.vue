@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {useEventStore} from '@/stores/event'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {
   isStaffingFilterActive,
   type StaffingFilterKey,
@@ -22,18 +22,11 @@ const emit = defineEmits<{
 
 const eventStore = useEventStore()
 
-function programFilterLogo(program: ProgramRef) {
-  return programLogoSrc({
+function programFilterRef(program: ProgramRef) {
+  return {
     first_program: programId(program),
     name: program.name ?? programNameForId(eventStore.selectedEvent, programId(program)),
-  })
-}
-
-function programFilterLogoAlt(program: ProgramRef) {
-  return programLogoAlt({
-    first_program: programId(program),
-    name: program.name ?? programNameForId(eventStore.selectedEvent, programId(program)),
-  })
+  }
 }
 
 function isActive(key: StaffingFilterKey) {
@@ -71,12 +64,11 @@ function onToggle(key: StaffingFilterKey) {
         :class="{'vol-staffing-filter--active': isActive(`program:${programId(program)}`)}"
         @click="onToggle(`program:${programId(program)}`)"
     >
-      <img
-          v-if="programFilterLogo(program)"
-          :src="programFilterLogo(program)"
-          :alt="programFilterLogoAlt(program)"
-          class="vol-staffing-filter__logo"
-      >
+      <ProgramLogo
+          :program="programFilterRef(program)"
+          size="chip"
+          decorative
+      />
       <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
       <span
           v-if="hasAttention?.(`program:${programId(program)}`)"

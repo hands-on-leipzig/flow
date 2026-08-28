@@ -7,7 +7,8 @@ import {useEventStore} from '@/stores/event'
 import {schedulePlanPrefetch, usePlanCacheStore} from '@/stores/planCache'
 import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBox.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
-import {imageUrl, programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import {imageUrl, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
 import {eventPrograms, programDisplayName, firstTeamsPath, teamPathFor, programCompact} from '@/utils/eventPrograms'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
@@ -255,7 +256,10 @@ watch(
                 :to="teamPathFor({ name: stat.programName, first_program: Number(stat.first_program) })"
                 class="flex items-start gap-2 rounded-lg px-3 py-2 liquid-surface-inner hover:bg-[var(--color-bg-hover)] transition-colors no-underline text-inherit"
             >
-              <img :alt="programLogoAlt(stat.programName)" :src="programLogoSrc(stat.programName)" class="w-9 h-9 flex-shrink-0"/>
+              <ProgramLogo
+                  :program="{first_program: stat.first_program, name: stat.programName}"
+                  size="lg"
+              />
               <div class="min-w-0 flex-1">
                 <div class="font-medium flex items-center justify-between gap-2">
                   <span>{{ stat.registered }} von {{ stat.capacity }} Teams</span>

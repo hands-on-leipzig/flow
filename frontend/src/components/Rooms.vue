@@ -4,7 +4,7 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import draggable from 'vuedraggable'
-import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {eventPrograms, programDisplayName, programMatchesSlug, programSlug, programNameForId} from '@/utils/eventPrograms'
 import {getProgramTheme} from '@/utils/programTheme'
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
@@ -46,14 +46,12 @@ const itemProgramName = (item) => {
   return programNameForId(event.value, item?.first_program)
 }
 
-const itemLogoSrc = (item) => programLogoSrc({
-  name: itemProgramName(item),
+const itemProgramRef = (item) => ({
   first_program: item?.first_program,
-})
-const itemLogoAlt = (item) => programLogoAlt({
   name: itemProgramName(item),
-  first_program: item?.first_program,
 })
+
+const showItemProgramLogo = (item) => !!(item?.first_program || itemProgramName(item))
 
 const getProgramColor = (item) => {
   const programs = eventPrograms(event.value)
@@ -908,7 +906,7 @@ const hasWarning = (tab) => {
                       :style="{ borderColor: getProgramColor(element) }"
                       class="glass-program-pill text-[11px]"
                   >
-                    <img v-if="itemLogoSrc(element)" :alt="itemLogoAlt(element)" :src="itemLogoSrc(element)" class="w-3 h-3 flex-shrink-0"/>
+                    <ProgramLogo v-if="showItemProgramLogo(element)" :program="itemProgramRef(element)" size="xs" />
                     {{ element.name }}
                     <button class="ml-0.5 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)]" @click.stop="unassignItemFromRoom(element.key)">✖</button>
                   </span>
@@ -918,7 +916,7 @@ const hasWarning = (tab) => {
                   >
                     <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
                     <span class="px-2 py-1 flex items-center gap-1">
-                      <img v-if="itemLogoSrc(element)" :alt="itemLogoAlt(element)" :src="itemLogoSrc(element)" class="w-3 h-3 flex-shrink-0"/>
+                      <ProgramLogo v-if="showItemProgramLogo(element)" :program="itemProgramRef(element)" size="xs" />
                       {{ element.number ? `${element.number} | ` : '' }}{{ element.name }}
                     </span>
                     <button class="ml-1 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] pr-1" @click.stop="unassignItemFromRoom(element.key)">✖</button>
@@ -1040,11 +1038,10 @@ const hasWarning = (tab) => {
                             :style="{ borderColor: getProgramColor(element) }"
                             class="glass-program-pill glass-program-pill--interactive text-[11px] md:text-xs"
                         >
-                          <img
-                              v-if="itemLogoSrc(element)"
-                              :alt="itemLogoAlt(element)"
-                              :src="itemLogoSrc(element)"
-                              class="w-3 h-3 flex-shrink-0"
+                          <ProgramLogo
+                              v-if="showItemProgramLogo(element)"
+                              :program="itemProgramRef(element)"
+                              size="xs"
                           />
                           {{ element.name }}
                           <button
@@ -1065,11 +1062,10 @@ const hasWarning = (tab) => {
                               class="w-1.5 self-stretch rounded-l-md"
                           ></span>
                           <span class="px-2 py-1 flex items-center gap-1">
-                            <img
-                                v-if="itemLogoSrc(element)"
-                                :alt="itemLogoAlt(element)"
-                                :src="itemLogoSrc(element)"
-                                class="w-3 h-3 flex-shrink-0"
+                            <ProgramLogo
+                                v-if="showItemProgramLogo(element)"
+                                :program="itemProgramRef(element)"
+                                size="xs"
                             />
                             {{ element.name }}
                           </span>
@@ -1091,11 +1087,10 @@ const hasWarning = (tab) => {
                               class="w-1.5 self-stretch rounded-l-md"
                           ></span>
                           <span class="px-2 py-1 flex items-center gap-1.5">
-                            <img
-                                v-if="itemLogoSrc(element)"
-                                :alt="itemLogoAlt(element)"
-                                :src="itemLogoSrc(element)"
-                                class="w-3 h-3 flex-shrink-0"
+                            <ProgramLogo
+                                v-if="showItemProgramLogo(element)"
+                                :program="itemProgramRef(element)"
+                                size="xs"
                             />
                             <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>
                             <span v-if="getPeopleCount(element) !== null" class="text-[var(--color-text-muted)] space-x-1">
@@ -1186,11 +1181,10 @@ const hasWarning = (tab) => {
                 class="mb-3 md:mb-4 liquid-surface-inner rounded-[var(--radius)] p-3"
             >
               <div class="glass-card__heading !mb-2 md:!mb-3 !text-sm md:!text-base flex items-center gap-2">
-                <img
-                    v-if="category.type === 'team'"
-                    :alt="itemLogoAlt(group)"
-                    :src="itemLogoSrc(group)"
-                    class="w-6 h-6 flex-shrink-0"
+                <ProgramLogo
+                    v-if="category.type === 'team' && showItemProgramLogo(group)"
+                    :program="itemProgramRef(group)"
+                    size="base"
                 />
                 <span v-html="formatProgramName(group.name)"></span>
               </div>
@@ -1218,11 +1212,10 @@ const hasWarning = (tab) => {
                       class="glass-program-pill text-[11px]"
                       @click="openAssignModal(element)"
                   >
-                    <img
-                        v-if="itemLogoSrc(element)"
-                        :alt="itemLogoAlt(element)"
-                        :src="itemLogoSrc(element)"
-                        class="w-3 h-3 flex-shrink-0"
+                    <ProgramLogo
+                        v-if="showItemProgramLogo(element)"
+                        :program="itemProgramRef(element)"
+                        size="xs"
                     />
                     {{ element.name }}
                   </button>
@@ -1234,11 +1227,10 @@ const hasWarning = (tab) => {
                   >
                     <span :style="{ backgroundColor: getProgramColor(element) }" class="w-1.5 self-stretch rounded-l-md"></span>
                     <span class="px-2 py-1 flex items-center gap-1.5">
-                      <img
-                          v-if="itemLogoSrc(element)"
-                          :alt="itemLogoAlt(element)"
-                          :src="itemLogoSrc(element)"
-                          class="w-3 h-3 flex-shrink-0"
+                      <ProgramLogo
+                          v-if="showItemProgramLogo(element)"
+                          :program="itemProgramRef(element)"
+                          size="xs"
                       />
                       <span class="text-[var(--color-text-muted)]">{{ element.number ? `${element.number} | ` : '' }}{{ element.name }}</span>
                     </span>
@@ -1263,11 +1255,10 @@ const hasWarning = (tab) => {
                       :style="{ borderColor: getProgramColor(element) }"
                       class="glass-program-pill glass-program-pill--interactive text-[11px] md:text-xs"
                   >
-                    <img
-                        v-if="itemLogoSrc(element)"
-                        :alt="itemLogoAlt(element)"
-                        :src="itemLogoSrc(element)"
-                        class="w-3 h-3 flex-shrink-0"
+                    <ProgramLogo
+                        v-if="showItemProgramLogo(element)"
+                        :program="itemProgramRef(element)"
+                        size="xs"
                     />
                     {{ element.name }}
                   </span>
@@ -1281,11 +1272,10 @@ const hasWarning = (tab) => {
                         class="w-1.5 self-stretch rounded-l-md"
                     ></span>
                     <span class="px-2 py-1 flex items-center gap-1">
-                      <img
-                          v-if="itemLogoSrc(element)"
-                          :alt="itemLogoAlt(element)"
-                          :src="itemLogoSrc(element)"
-                          class="w-3 h-3 flex-shrink-0"
+                      <ProgramLogo
+                          v-if="showItemProgramLogo(element)"
+                          :program="itemProgramRef(element)"
+                          size="xs"
                       />
                       {{ element.name }}
                     </span>
@@ -1300,11 +1290,10 @@ const hasWarning = (tab) => {
                         class="w-1.5 self-stretch rounded-l-md"
                     ></span>
                     <span class="px-2 py-1 flex items-center gap-1.5">
-                      <img
-                          v-if="itemLogoSrc(element)"
-                          :alt="itemLogoAlt(element)"
-                          :src="itemLogoSrc(element)"
-                          class="w-3 h-3 flex-shrink-0"
+                      <ProgramLogo
+                          v-if="showItemProgramLogo(element)"
+                          :program="itemProgramRef(element)"
+                          size="xs"
                       />
                       <span class="text-[var(--color-text-muted)]">{{ element.number || '–' }} | {{ element.name }}</span>
                       <span v-if="getPeopleCount(element) !== null" class="text-[var(--color-text-muted)] space-x-1">

@@ -4,7 +4,7 @@ import {computed, toRef, ref, watch, onMounted, nextTick} from "vue";
 import axios from "axios";
 import {useEventStore} from "@/stores/event";
 import IconDraggable from "@/components/icons/IconDraggable.vue";
-import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {getProgramTheme} from '@/utils/programTheme'
 import SavingToast from "@/components/atoms/SavingToast.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
@@ -827,11 +827,7 @@ onMounted(async () => {
   >
     <div class="team-list__main glass-card liquid-surface-inner">
       <div class="flex items-start sm:items-center gap-2 mb-2">
-        <img
-            :alt="programLogoAlt(program)"
-            :src="programLogoSrc(program)"
-            class="w-10 h-10 flex-shrink-0"
-        />
+        <ProgramLogo :program="program" size="xl"/>
         <div>
           <h3 class="text-lg font-semibold">
             <span class="italic">FIRST</span> LEGO League {{ programLabel }}
