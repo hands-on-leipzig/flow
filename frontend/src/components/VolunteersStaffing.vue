@@ -222,6 +222,13 @@ function canDragFromSearch(person: Person) {
   return !isAssigned(person)
 }
 
+function searchChipIconClass(person: Person) {
+  if (isOnRoster(person)) {
+    return 'bi-clipboard-check-fill staffing-search-chip__icon--roster'
+  }
+  return 'bi-person-fill'
+}
+
 function groupTitle(role: Role, group: Group) {
   if (role.groups.length <= 1 && !group.surplus) return role.label
   return `${role.label} ${group.group_index}`
@@ -785,61 +792,55 @@ watch(eventId, () => load(), {immediate: true})
               Keine Treffer in der Personenliste.
             </p>
             <div v-else class="staffing-search-chips">
-              <draggable
-                  :list="searchDisplayPool"
-                  class="hidden md:flex flex-wrap gap-1.5 md:gap-2"
-                  :group="searchDragGroup"
-                  :sort="false"
-                  filter=".staffing-search-chip--static"
-                  item-key="id"
-                  @start="onDragStart($event, null)"
-                  @end="onDragEnd"
-              >
-                <template #item="{element: person}">
-                  <span
-                      class="glass-row-item staffing-search-chip"
-                      :class="canDragFromSearch(person)
-                        ? 'glass-row-item--interactive staffing-search-chip--draggable cursor-move'
-                        : 'staffing-search-chip--static'"
-                  >
-                    <i
-                        class="bi staffing-search-chip__icon"
-                        :class="isAssigned(person)
-                          ? 'bi-person-check'
-                          : isOnRoster(person)
-                            ? 'bi-clipboard-check-fill staffing-search-chip__icon--roster'
-                            : 'bi-person-fill'"
-                        aria-hidden="true"
-                    />
-                    <span class="staffing-search-chip__label">{{ displayName(person) }}</span>
-                  </span>
-                </template>
-              </draggable>
+              <div class="staffing-search-chips__desktop hidden md:block">
+                <draggable
+                    :list="searchDisplayPool"
+                    class="flex flex-wrap gap-1.5 md:gap-2"
+                    :group="searchDragGroup"
+                    :sort="false"
+                    filter=".staffing-search-chip--static"
+                    item-key="id"
+                    @start="onDragStart($event, null)"
+                    @end="onDragEnd"
+                >
+                  <template #item="{element: person}">
+                    <span
+                        class="glass-row-item staffing-search-chip"
+                        :class="canDragFromSearch(person)
+                          ? 'glass-row-item--interactive staffing-search-chip--draggable cursor-move'
+                          : 'staffing-search-chip--static'"
+                    >
+                      <i
+                          class="bi staffing-search-chip__icon"
+                          :class="searchChipIconClass(person)"
+                          aria-hidden="true"
+                      />
+                      <span class="staffing-search-chip__label">{{ displayName(person) }}</span>
+                    </span>
+                  </template>
+                </draggable>
+              </div>
 
-              <template v-for="person in personSearchMatches" :key="`search-mobile-${person.id}`">
+              <div class="staffing-search-chips__mobile flex flex-wrap gap-1.5 md:hidden">
                 <button
-                    v-if="canDragFromSearch(person)"
+                    v-for="person in personSearchMatches"
+                    :key="`search-mobile-${person.id}`"
                     type="button"
-                    class="glass-row-item glass-row-item--interactive staffing-search-chip md:hidden"
-                    @click="openAssignModal(person)"
+                    class="glass-row-item staffing-search-chip"
+                    :class="canDragFromSearch(person)
+                      ? 'glass-row-item--interactive'
+                      : 'staffing-search-chip--static'"
+                    :disabled="!canDragFromSearch(person)"
+                    @click="canDragFromSearch(person) && openAssignModal(person)"
                 >
                   <i
                       class="bi staffing-search-chip__icon"
-                      :class="isOnRoster(person)
-                        ? 'bi-clipboard-check-fill staffing-search-chip__icon--roster'
-                        : 'bi-person-fill'"
+                      :class="searchChipIconClass(person)"
                       aria-hidden="true"
                   />
                   <span class="staffing-search-chip__label">{{ displayName(person) }}</span>
                 </button>
-                <span
-                    v-else
-                    class="glass-row-item staffing-search-chip staffing-search-chip--static md:hidden"
-                >
-                  <i class="bi bi-person-check staffing-search-chip__icon" aria-hidden="true"/>
-                  <span class="staffing-search-chip__label">{{ displayName(person) }}</span>
-                </span>
-              </template>
+              </div>
             </div>
           </div>
         </div>
@@ -1192,9 +1193,7 @@ watch(eventId, () => load(), {immediate: true})
 }
 
 .staffing-search-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  display: block;
 }
 
 .staffing-search-chip {
@@ -1204,6 +1203,11 @@ watch(eventId, () => load(), {immediate: true})
 }
 
 .staffing-search-chip--static {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.staffing-search-chip:disabled {
   opacity: 0.72;
   cursor: default;
 }
