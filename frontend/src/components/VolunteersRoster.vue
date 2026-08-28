@@ -36,17 +36,32 @@ const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const roster = ref<RosterEntry[]>([])
 const pool = ref<Person[]>([])
-const pickId = ref<number | ''>('')
+const personSearch = ref('')
 const loading = ref(false)
 const togglingId = ref<number | null>(null)
+const addingId = ref<number | null>(null)
 const removeTarget = ref<RosterEntry | null>(null)
 const error = ref('')
 const toast = ref('')
 const sortDir = ref<'asc' | 'desc'>('asc')
 
-const availablePool = computed(() =>
-  pool.value.filter((p) => !roster.value.some((r) => r.person.id === p.id)),
-)
+const rosterPersonIds = computed(() => new Set(roster.value.map((r) => r.person.id)))
+
+const personSearchMatches = computed(() => {
+  const q = personSearch.value.trim().toLowerCase()
+  if (!q) return []
+
+  return pool.value
+    .filter((p) => !rosterPersonIds.value.has(p.id))
+    .filter((p) => searchHaystack(p).includes(q))
+    .sort((a, b) => {
+      const av = displayName(a).toLocaleLowerCase('de')
+      const bv = displayName(b).toLocaleLowerCase('de')
+      if (av < bv) return -1
+      if (av > bv) return 1
+      return a.id - b.id
+    })
+})
 
 const sortedRoster = computed(() => {
   const dir = sortDir.value === 'asc' ? 1 : -1
@@ -72,6 +87,20 @@ const removeMessage = computed(() => {
 function displayName(p: Person) {
   if (p.nickname?.trim()) return `${p.first_name} „${p.nickname}“ ${p.last_name}`
   return `${p.first_name} ${p.last_name}`
+}
+
+function searchHaystack(p: Person) {
+  return [
+    p.first_name,
+    p.last_name,
+    p.nickname,
+    p.email,
+    p.mobile,
+    p.updated_at?.slice(0, 10),
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
 }
 
 function placeholderFields(_entry: RosterEntry): RosterFormFields {
@@ -116,18 +145,20 @@ async function load() {
   }
 }
 
-async function addToRoster() {
-  if (!eventId.value || !pickId.value) return
+async function addToRoster(person: Person) {
+  if (!eventId.value || addingId.value) return
+  addingId.value = person.id
   error.value = ''
   try {
     await axios.post(`/events/${eventId.value}/volunteer-roster`, {
-      volunteer_person: pickId.value,
+      volunteer_person: person.id,
     })
-    pickId.value = ''
     await load()
-    showToast('Zur Helferliste hinzugefügt')
+    showToast(`${displayName(person)} zur Helferliste hinzugefügt`)
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Hinzufügen fehlgeschlagen'
+  } finally {
+    addingId.value = null
   }
 }
 
@@ -169,7 +200,7 @@ onMounted(() => load())
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Helferliste</h1>
-        <p class="vol-page__sub">Wer ist für diese Veranstaltung dabei? (Formular folgt später.)</p>
+        <p class="vol-page__sub">Alle Helfer für diese Veranstaltung</p>
       </div>
       <VolunteerEmailOutreach scope="roster"/>
     </header>
@@ -177,23 +208,35 @@ onMounted(() => load())
     <div v-if="error" class="glass-alert-warning vol-page__alert">{{ error }}</div>
     <div v-if="toast" class="vol-page__toast">{{ toast }}</div>
 
-    <section class="glass-card liquid-surface-inner vol-tile">
-      <div class="vol-toolbar">
-        <select v-model="pickId" class="glass-input glass-input--sm vol-toolbar__pick">
-          <option value="">Aus dem Pool wählen…</option>
-          <option v-for="p in availablePool" :key="p.id" :value="p.id">
-            {{ displayName(p) }} · {{ p.email }}
-          </option>
-        </select>
-        <button type="button" class="glass-btn-accent" :disabled="!pickId" @click="addToRoster">
-          Hinzufügen
-        </button>
-        <span class="vol-toolbar__count">{{ roster.length }} angemeldet</span>
+    <section class="glass-card liquid-surface-inner vol-tile vol-search-tile">
+      <input
+          v-model="personSearch"
+          type="search"
+          class="glass-input glass-input--sm vol-search-tile__input"
+          placeholder="Personen suchen…"
+          autocomplete="off"
+      />
+      <div v-if="personSearch.trim()" class="vol-search-results">
+        <p v-if="!personSearchMatches.length" class="vol-muted">
+          Keine Treffer in der Personenliste.
+        </p>
+        <div v-else class="vol-search-chips">
+          <button
+              v-for="person in personSearchMatches"
+              :key="person.id"
+              type="button"
+              class="glass-row-item glass-row-item--interactive vol-search-chip"
+              :disabled="addingId === person.id"
+              @click="addToRoster(person)"
+          >
+            <i class="bi bi-person-fill vol-search-chip__icon" aria-hidden="true"/>
+            <span class="vol-search-chip__label">{{ displayName(person) }}</span>
+          </button>
+        </div>
       </div>
-      <p v-if="!availablePool.length && !loading" class="vol-muted vol-toolbar__hint">
-        Alle Pool-Personen sind bereits angemeldet — oder der Pool ist leer (unter Personen anlegen).
-      </p>
+    </section>
 
+    <section class="glass-card liquid-surface-inner vol-tile">
       <p v-if="loading" class="vol-muted">Laden…</p>
       <p v-else-if="!roster.length" class="vol-muted">Noch niemand angemeldet.</p>
 
@@ -281,21 +324,37 @@ onMounted(() => load())
   font-size: 0.9rem;
 }
 .vol-tile { padding: 1rem; }
-.vol-toolbar {
+.vol-search-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.vol-search-tile__input {
+  width: 100%;
+}
+.vol-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.vol-search-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-  margin-bottom: 0.75rem;
+  gap: 0.5rem;
 }
-.vol-toolbar__pick { flex: 1; min-width: 12rem; }
-.vol-toolbar__count {
-  opacity: 0.6;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.vol-search-chip {
+  font-size: 0.75rem;
+  padding: 0;
 }
-.vol-toolbar__hint {
-  margin: -0.35rem 0 0.75rem;
+.vol-search-chip__icon {
+  color: var(--color-text-subtle);
+}
+.vol-search-chip__label {
+  padding: 0.35rem 0.5rem 0.35rem 0;
+}
+.vol-search-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .vol-muted { opacity: 0.7; font-size: 0.9rem; margin: 0; }
 
