@@ -13,12 +13,14 @@ return new class extends Migration
         }
 
         Schema::create('m_staffing_rule', function (Blueprint $table) {
-            $table->unsignedInteger('m_role')->primary();
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('m_role');
             $table->unsignedSmallInteger('min');
             $table->unsignedSmallInteger('best');
             $table->unsignedSmallInteger('max');
             $table->text('ui_description')->nullable();
 
+            $table->unique('m_role');
             $table->foreign('m_role')->references('id')->on('m_role')->onDelete('cascade');
         });
     }

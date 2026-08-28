@@ -310,7 +310,8 @@ class StaffingSyncServiceTest extends TestCase
         });
 
         Schema::create('m_staffing_rule', function (Blueprint $table) {
-            $table->unsignedInteger('m_role')->primary();
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('m_role')->unique();
             $table->unsignedSmallInteger('min');
             $table->unsignedSmallInteger('best');
             $table->unsignedSmallInteger('max');
@@ -396,6 +397,7 @@ class StaffingSyncServiceTest extends TestCase
         ]);
 
         DB::table('m_staffing_rule')->insert([
+            'id' => 1,
             'm_role' => 4,
             'min' => 2,
             'best' => 3,
