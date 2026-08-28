@@ -156,13 +156,15 @@ class EventVolunteerRosterController extends Controller
             'nickname',
             'email',
             'mobile',
+            'zuordnung_1_program',
+            'zuordnung_1_role',
             't_shirt_cut',
             't_shirt_size',
             'meal',
             'eve_meeting',
             'notes',
         ];
-        for ($i = 1; $i <= self::EXPORT_ASSIGNMENT_PAIRS; $i++) {
+        for ($i = 2; $i <= self::EXPORT_ASSIGNMENT_PAIRS; $i++) {
             $header[] = "zuordnung_{$i}_program";
             $header[] = "zuordnung_{$i}_role";
         }
@@ -179,29 +181,26 @@ class EventVolunteerRosterController extends Controller
                 }
 
                 $detail = $row->detail;
+                $assignments = $assignmentsByPerson[$person->id] ?? [];
+
                 $line = [
                     $person->first_name,
                     $person->last_name,
                     $person->nickname,
                     $person->email,
                     $person->mobile,
+                ];
+                $line = array_merge($line, $this->exportAssignmentPair($assignments[0] ?? null, $programNames));
+                $line = array_merge($line, [
                     VolunteerRosterDetailFields::exportLabel($detail?->t_shirt_cut),
                     $detail?->t_shirt_size ?? '',
                     VolunteerRosterDetailFields::exportMealLabel($detail?->meal),
                     VolunteerRosterDetailFields::exportEveMeeting($detail?->eve_meeting),
                     $detail?->notes ?? '',
-                ];
+                ]);
 
-                $assignments = $assignmentsByPerson[$person->id] ?? [];
-                for ($i = 0; $i < self::EXPORT_ASSIGNMENT_PAIRS; $i++) {
-                    $assignment = $assignments[$i] ?? null;
-                    if ($assignment) {
-                        $line[] = $this->assignmentProgramLabel($assignment, $programNames);
-                        $line[] = $assignment['label'];
-                    } else {
-                        $line[] = '';
-                        $line[] = '';
-                    }
+                for ($i = 1; $i < self::EXPORT_ASSIGNMENT_PAIRS; $i++) {
+                    $line = array_merge($line, $this->exportAssignmentPair($assignments[$i] ?? null, $programNames));
                 }
 
                 fputcsv($out, $line, ';');
@@ -211,6 +210,23 @@ class EventVolunteerRosterController extends Controller
         }, 'helferliste-'.$event->id.'.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
+    }
+
+    /**
+     * @param  array{first_program: ?int, is_local: bool, label: string}|null  $assignment
+     * @param  array<int, string>  $programNames
+     * @return list<string>
+     */
+    private function exportAssignmentPair(?array $assignment, array $programNames): array
+    {
+        if (! $assignment) {
+            return ['', ''];
+        }
+
+        return [
+            $this->assignmentProgramLabel($assignment, $programNames),
+            $assignment['label'],
+        ];
     }
 
     public function destroy(Event $event, VolunteerPerson $volunteer): JsonResponse
