@@ -9,10 +9,6 @@ class MStaffingRule extends Model
 {
     protected $table = 'm_staffing_rule';
 
-    protected $primaryKey = 'm_role';
-
-    public $incrementing = false;
-
     public $timestamps = false;
 
     protected $fillable = [

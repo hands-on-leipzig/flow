@@ -220,6 +220,7 @@ function mTableNaturalUniqueKeys(string $table): array
 {
     return match ($table) {
         'm_visibility' => [['activity_type_detail', 'role']],
+        'm_staffing_rule' => [['m_role']],
         default => [],
     };
 }

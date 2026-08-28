@@ -4576,6 +4576,7 @@
     ],
     "m_staffing_rule": [
         {
+            "id": 1,
             "m_role": 2,
             "min": 1,
             "best": 1,
@@ -4583,6 +4584,7 @@
             "ui_description": "Eine Moderator:in muss sein. F\u00fcr gr\u00f6sse Veranstaltungen sind zwei besser, damit sie sich abwechseln k\u00f6nnen."
         },
         {
+            "id": 2,
             "m_role": 4,
             "min": 3,
             "best": 5,
@@ -4590,6 +4592,7 @@
             "ui_description": "Idealerweise sollte jemand Expert:in f\u00fcr Roboter-Design und jemand f\u00fcr Forschung sein. Dazu ein weitere:r um den \u00dcberblick zu behalten."
         },
         {
+            "id": 3,
             "m_role": 5,
             "min": 2,
             "best": 2,
@@ -4597,6 +4600,7 @@
             "ui_description": "Jedes Spielfeld braucht zwei Schiedsrichter:innen."
         },
         {
+            "id": 4,
             "m_role": 9,
             "min": 1,
             "best": 2,
@@ -4604,6 +4608,7 @@
             "ui_description": "In jeder Gruppe sollten zwei Gutachter:innen sein. Allein geht es auch, macht aber allen weniger Spa\u00df."
         },
         {
+            "id": 5,
             "m_role": 11,
             "min": 1,
             "best": 2,
@@ -4611,6 +4616,7 @@
             "ui_description": "Robot-Check ist mit eine Person gut besetzt. Bei zwei k\u00f6nnte Langeweile aufkommen."
         },
         {
+            "id": 6,
             "m_role": 22,
             "min": 3,
             "best": 3,
@@ -4618,6 +4624,7 @@
             "ui_description": "F8+ Jury TODO"
         },
         {
+            "id": 7,
             "m_role": 23,
             "min": 1,
             "best": 1,
@@ -4625,6 +4632,7 @@
             "ui_description": "Jedes Spielfeld braucht mindestens eine:n Schiedsrichter:in."
         },
         {
+            "id": 8,
             "m_role": 27,
             "min": 1,
             "best": 1,
@@ -4632,6 +4640,7 @@
             "ui_description": "Idealerweise ist genau ein:r verantwortlich. Wenn es zwei gibt, sollte den Juror:innenen erk\u00e4rt werden warum."
         },
         {
+            "id": 9,
             "m_role": 28,
             "min": 1,
             "best": 1,
@@ -4639,6 +4648,7 @@
             "ui_description": "Eine:r muss sein. Bei gr\u00f6\u00dferen Verstaltungen kann es helfen, zu zweit zu sein. Dann m\u00fcssen die beiden aber sehr gut abgestimmt sein."
         },
         {
+            "id": 10,
             "m_role": 29,
             "min": 1,
             "best": 1,
@@ -4646,6 +4656,7 @@
             "ui_description": "Idealerweise ist genau ein:r verantwortlich. Wenn es zwei gibt, sollte den Juror:innen erk\u00e4rt werden warum."
         },
         {
+            "id": 11,
             "m_role": 30,
             "min": 1,
             "best": 1,
@@ -4653,6 +4664,7 @@
             "ui_description": "Eine:r muss sein. Bei gr\u00f6\u00dferen Verstaltungen kann es helfen, zu zweit zu sein. Dann m\u00fcssen die beiden aber sehr gut abgestimmt sein."
         },
         {
+            "id": 12,
             "m_role": 31,
             "min": 1,
             "best": 1,
@@ -4660,6 +4672,7 @@
             "ui_description": "Es kann nur eine:n geben! (The Highlander Principle)"
         },
         {
+            "id": 13,
             "m_role": 32,
             "min": 1,
             "best": 1,
@@ -4667,6 +4680,7 @@
             "ui_description": "Idealerweise ist genau ein:r verantwortlich. Wenn es zwei gibt, sollte den Gutachter:innen erk\u00e4rt werden warum."
         },
         {
+            "id": 14,
             "m_role": 33,
             "min": 0,
             "best": 1,
@@ -8864,7 +8878,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-08-28T12:41:11.444176Z",
+        "exported_at": "2026-08-28T12:58:46.014994Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
