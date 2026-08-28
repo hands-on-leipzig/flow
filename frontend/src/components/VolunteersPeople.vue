@@ -7,6 +7,9 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import VolunteerPeopleImport from '@/components/molecules/VolunteerPeopleImport.vue'
 import {validateAndNormalizeMobile} from '@/utils/mobileNumber'
+import {formatDateTime} from '@/utils/dateTimeFormat'
+import {PERSON_TABLE_COLUMNS} from '@/volunteers/columns/personColumns'
+import type {VolunteerTableColumn} from '@/volunteers/columns/types'
 
 type Person = {
   id: number
@@ -23,6 +26,7 @@ const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const people = ref<Person[]>([])
+const tableColumns = ref<VolunteerTableColumn[]>([...PERSON_TABLE_COLUMNS])
 const assignedIds = ref<Set<number>>(new Set())
 const search = ref('')
 type SortKey = 'first_name' | 'last_name'
@@ -46,6 +50,27 @@ const editingId = ref<number | null>(null)
 const draftMobileError = ref('')
 
 const isEditing = computed(() => editingId.value !== null)
+
+function formatUpdatedAt(value: string | null | undefined) {
+  if (!value) return '—'
+  return formatDateTime(value, true)
+}
+
+function columnColClass(key: string) {
+  const classes: Record<string, string> = {
+    first_name: 'vol-col--first',
+    last_name: 'vol-col--last',
+    nickname: 'vol-col--nick',
+    email: 'vol-col--email',
+    mobile: 'vol-col--mobile',
+    updated_at: 'vol-col--updated',
+  }
+  return classes[key] ?? ''
+}
+
+function isSortableColumn(key: string): key is SortKey {
+  return key === 'first_name' || key === 'last_name'
+}
 
 function displayName(p: Person) {
   if (p.nickname?.trim()) {
@@ -125,6 +150,7 @@ async function load() {
       axios.get(`/events/${eventId.value}/volunteer-roster`),
     ])
     people.value = peopleRes.data.people ?? []
+    tableColumns.value = peopleRes.data.columns ?? [...PERSON_TABLE_COLUMNS]
     assignedIds.value = new Set(
       (rosterRes.data.roster ?? [])
         .filter((row: {has_assignment?: boolean}) => row.has_assignment)
@@ -341,11 +367,11 @@ onMounted(() => load())
         <table class="vol-table">
           <colgroup>
             <col class="vol-col--roster"/>
-            <col class="vol-col--first"/>
-            <col class="vol-col--last"/>
-            <col class="vol-col--nick"/>
-            <col class="vol-col--email"/>
-            <col class="vol-col--mobile"/>
+            <col
+                v-for="column in tableColumns"
+                :key="`composer-col-${column.key}`"
+                :class="columnColClass(column.key)"
+            />
             <col class="vol-col--actions"/>
           </colgroup>
           <tbody>
@@ -394,6 +420,7 @@ onMounted(() => load())
                     @blur="onDraftMobileBlur"
                 />
               </td>
+              <td class="vol-table__updated"/>
               <td class="vol-table__actions">
                 <button
                     v-if="isEditing"
@@ -444,41 +471,33 @@ onMounted(() => load())
         <table class="vol-table">
           <colgroup>
             <col class="vol-col--roster"/>
-            <col class="vol-col--first"/>
-            <col class="vol-col--last"/>
-            <col class="vol-col--nick"/>
-            <col class="vol-col--email"/>
-            <col class="vol-col--mobile"/>
+            <col
+                v-for="column in tableColumns"
+                :key="`composer-col-${column.key}`"
+                :class="columnColClass(column.key)"
+            />
             <col class="vol-col--actions"/>
           </colgroup>
           <thead>
             <tr>
               <th class="vol-table__roster" scope="col"><span class="sr-only">Helferliste</span></th>
-              <th scope="col">
+              <th
+                  v-for="column in tableColumns"
+                  :key="column.key"
+                  scope="col"
+              >
                 <button
+                    v-if="column.sortable && isSortableColumn(column.key)"
                     type="button"
                     class="vol-sort"
-                    :class="{'vol-sort--active': sortKey === 'first_name'}"
-                    @click="toggleSort('first_name')"
+                    :class="{'vol-sort--active': sortKey === column.key}"
+                    @click="toggleSort(column.key)"
                 >
-                  Vorname
-                  <i class="bi" :class="sortIcon('first_name')" aria-hidden="true"/>
+                  {{ column.label }}
+                  <i class="bi" :class="sortIcon(column.key)" aria-hidden="true"/>
                 </button>
+                <span v-else>{{ column.label }}</span>
               </th>
-              <th scope="col">
-                <button
-                    type="button"
-                    class="vol-sort"
-                    :class="{'vol-sort--active': sortKey === 'last_name'}"
-                    @click="toggleSort('last_name')"
-                >
-                  Nachname
-                  <i class="bi" :class="sortIcon('last_name')" aria-hidden="true"/>
-                </button>
-              </th>
-              <th scope="col">Spitzname</th>
-              <th scope="col">E-Mail</th>
-              <th scope="col">Mobil</th>
               <th scope="col" class="vol-table__actions"><span class="sr-only">Aktionen</span></th>
             </tr>
           </thead>
@@ -511,6 +530,7 @@ onMounted(() => load())
               <td>{{ p.nickname?.trim() || '—' }}</td>
               <td>{{ p.email }}</td>
               <td>{{ p.mobile?.trim() || '—' }}</td>
+              <td class="vol-table__updated">{{ formatUpdatedAt(p.updated_at) }}</td>
               <td class="vol-table__actions">
                 <button
                     type="button"
@@ -622,11 +642,12 @@ onMounted(() => load())
   font-size: 0.875rem;
 }
 .vol-col--roster { width: 2.75rem; }
-.vol-col--first { width: 14%; }
-.vol-col--last { width: 14%; }
-.vol-col--nick { width: 12%; }
-.vol-col--email { width: 22%; }
-.vol-col--mobile { width: 14%; }
+.vol-col--first { width: 13%; }
+.vol-col--last { width: 13%; }
+.vol-col--nick { width: 11%; }
+.vol-col--email { width: 20%; }
+.vol-col--mobile { width: 13%; }
+.vol-col--updated { width: 11%; }
 .vol-col--actions { width: 10rem; }
 
 .vol-table th,
@@ -648,7 +669,12 @@ onMounted(() => load())
   background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
   backdrop-filter: blur(8px);
 }
-.vol-table tbody tr:last-child td { border-bottom: none; }
+.vol-table__updated {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
 .vol-table__roster {
   text-align: center;
 }

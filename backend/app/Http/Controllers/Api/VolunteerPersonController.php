@@ -9,6 +9,7 @@ use App\Models\EventVolunteerRoster;
 use App\Models\VolunteerPerson;
 use App\Services\VolunteerPersonImportService;
 use App\Support\GermanMobileNumber;
+use App\Support\VolunteerPersonColumns;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -50,7 +51,10 @@ class VolunteerPersonController extends Controller
             return $this->serializePerson($person, in_array($person->id, $rosterIds, true), $event->id);
         });
 
-        return response()->json(['people' => $people]);
+        return response()->json([
+            'people' => $people,
+            'columns' => VolunteerPersonColumns::tablePayload(),
+        ]);
     }
 
     public function store(Request $request, Event $event): JsonResponse
@@ -183,19 +187,14 @@ class VolunteerPersonController extends Controller
 
         $rows = $query->get();
 
-        return response()->streamDownload(function () use ($rows) {
+        $header = VolunteerPersonColumns::exportLabels();
+
+        return response()->streamDownload(function () use ($rows, $header) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['first_name', 'last_name', 'nickname', 'email', 'mobile', 'updated_at'], ';');
+            fputcsv($out, $header, ';');
             foreach ($rows as $person) {
-                fputcsv($out, [
-                    $person->first_name,
-                    $person->last_name,
-                    $person->nickname,
-                    $person->email,
-                    $person->mobile,
-                    optional($person->updated_at)?->toIso8601String(),
-                ], ';');
+                fputcsv($out, VolunteerPersonColumns::exportValues($person), ';');
             }
             fclose($out);
         }, $filename, [

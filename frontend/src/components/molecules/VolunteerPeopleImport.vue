@@ -6,6 +6,7 @@ import {
   parseVolunteerPeopleImportText,
   type VolunteerImportRow,
 } from '@/utils/volunteerPeopleImportParse'
+import {personImportColumnLabels, personImportFormatHint} from '@/volunteers/columns/personColumns'
 
 type ImportResponse = {
   created: number
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 const inputText = ref('')
 const previewRows = ref<VolunteerImportRow[]>([])
 const busy = ref(false)
+const importColumns = personImportColumnLabels()
 
 const canAddToContactList = computed(() => previewRows.value.length > 0 && !busy.value)
 
@@ -97,7 +99,7 @@ watch(() => props.eventId, () => resetInput())
   <section class="glass-card liquid-surface-inner vol-tile vol-import">
     <h2 class="vol-import__title">Mehrere Personen einfügen</h2>
     <p class="vol-import__hint">
-      Format: Vorname, Nachname, Spitzname, E-Mail, Mobil.
+      Format: {{ personImportFormatHint() }}.
       Spalten durch Tab, Komma oder Semikolon. Spitzname und Mobil optional; E-Mail Pflicht.
     </p>
     <p class="vol-import__hint">
@@ -118,11 +120,7 @@ watch(() => props.eventId, () => resetInput())
         <table class="vol-import__table">
           <thead>
             <tr>
-              <th>Vorname</th>
-              <th>Nachname</th>
-              <th>Spitzname</th>
-              <th>E-Mail</th>
-              <th>Mobil</th>
+              <th v-for="label in importColumns" :key="label">{{ label }}</th>
             </tr>
           </thead>
           <tbody>

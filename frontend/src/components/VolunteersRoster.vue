@@ -8,6 +8,8 @@ import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
 import {compareRosterEntriesByStaffingRole} from '@/utils/volunteerStaffingSort'
 import {flowFilename} from '@/utils/flowFilename'
+import {ROSTER_TABLE_COLUMNS, rosterColumnLabel} from '@/volunteers/columns/rosterColumns'
+import type {VolunteerTableColumn} from '@/volunteers/columns/types'
 
 const T_SHIRT_CUTS = [
   {value: 'maenner', label: 'Männer'},
@@ -66,6 +68,7 @@ const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const roster = ref<RosterEntry[]>([])
+const tableColumns = ref<VolunteerTableColumn[]>([...ROSTER_TABLE_COLUMNS])
 const pool = ref<Person[]>([])
 const personSearch = ref('')
 const loading = ref(false)
@@ -163,6 +166,22 @@ const removeMessage = computed(() => {
   }
   return base
 })
+
+function columnColClass(key: string) {
+  const classes: Record<string, string> = {
+    name: 'vol-col--name',
+    role: 'vol-col--role',
+    t_shirt: 'vol-col--tshirt',
+    meal: 'vol-col--meal',
+    eve_meeting: 'vol-col--eve',
+    notes: 'vol-col--notes',
+  }
+  return classes[key] ?? ''
+}
+
+function isSortableRosterColumn(key: string): key is 'name' | 'role' {
+  return key === 'name' || key === 'role'
+}
 
 function displayName(p: Person) {
   if (p.nickname?.trim()) return `${p.first_name} „${p.nickname}“ ${p.last_name}`
@@ -452,6 +471,7 @@ async function load() {
       ...entry,
       detail: entry.detail ?? defaultDetail(),
     }))
+    tableColumns.value = rosterRes.data.columns ?? [...ROSTER_TABLE_COLUMNS]
     pool.value = poolRes.data.people ?? []
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Laden fehlgeschlagen'
@@ -638,42 +658,32 @@ onBeforeUnmount(() => {
         <table class="vol-table">
           <colgroup>
             <col class="vol-col--roster"/>
-            <col class="vol-col--name"/>
-            <col class="vol-col--role"/>
-            <col class="vol-col--tshirt"/>
-            <col class="vol-col--meal"/>
-            <col class="vol-col--eve"/>
-            <col class="vol-col--notes"/>
+            <col
+                v-for="column in tableColumns"
+                :key="`roster-col-${column.key}`"
+                :class="columnColClass(column.key)"
+            />
           </colgroup>
           <thead>
             <tr>
               <th class="vol-table__roster" scope="col"><span class="sr-only">Helferliste</span></th>
-              <th scope="col">
+              <th
+                  v-for="column in tableColumns"
+                  :key="column.key"
+                  scope="col"
+              >
                 <button
+                    v-if="column.sortable && isSortableRosterColumn(column.key)"
                     type="button"
                     class="vol-sort"
-                    :class="{'vol-sort--active': sortKey === 'name'}"
-                    @click="toggleSort('name')"
+                    :class="{'vol-sort--active': sortKey === column.key}"
+                    @click="toggleSort(column.key)"
                 >
-                  Name
-                  <i class="bi" :class="sortIcon('name')" aria-hidden="true"/>
+                  {{ column.label }}
+                  <i class="bi" :class="sortIcon(column.key)" aria-hidden="true"/>
                 </button>
+                <span v-else>{{ column.label }}</span>
               </th>
-              <th scope="col">
-                <button
-                    type="button"
-                    class="vol-sort"
-                    :class="{'vol-sort--active': sortKey === 'role'}"
-                    @click="toggleSort('role')"
-                >
-                  Rolle
-                  <i class="bi" :class="sortIcon('role')" aria-hidden="true"/>
-                </button>
-              </th>
-              <th scope="col">T-Shirt Größe</th>
-              <th scope="col">Essen</th>
-              <th scope="col">Vorabendtreffen</th>
-              <th scope="col">Bemerkungen</th>
             </tr>
           </thead>
           <tbody>
@@ -737,7 +747,7 @@ onBeforeUnmount(() => {
                 <div
                     class="glass-segment vol-tristate"
                     role="group"
-                    aria-label="Vorabendtreffen"
+                    :aria-label="rosterColumnLabel('eve_meeting')"
                 >
                   <button
                       type="button"

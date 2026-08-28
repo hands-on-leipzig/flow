@@ -8,6 +8,7 @@ use App\Models\EventStaffingAssignment;
 use App\Models\EventVolunteerRoster;
 use App\Models\EventVolunteerRosterDetail;
 use App\Models\VolunteerPerson;
+use App\Support\VolunteerRosterColumns;
 use App\Support\VolunteerRosterDetailFields;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,8 +17,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EventVolunteerRosterController extends Controller
 {
-    private const EXPORT_ASSIGNMENT_PAIRS = 5;
-
     public function index(Event $event): JsonResponse
     {
         $rows = EventVolunteerRoster::query()
@@ -58,7 +57,10 @@ class EventVolunteerRosterController extends Controller
             ];
         })->filter()->values();
 
-        return response()->json(['roster' => $roster]);
+        return response()->json([
+            'roster' => $roster,
+            'columns' => VolunteerRosterColumns::tablePayload(),
+        ]);
     }
 
     public function store(Request $request, Event $event): JsonResponse
@@ -150,24 +152,7 @@ class EventVolunteerRosterController extends Controller
         $assignmentsByPerson = $this->assignmentsByPerson($event->id);
         $programNames = $this->programNameMap();
 
-        $header = [
-            'first_name',
-            'last_name',
-            'nickname',
-            'email',
-            'mobile',
-            'zuordnung_1_program',
-            'zuordnung_1_role',
-            't_shirt_cut',
-            't_shirt_size',
-            'meal',
-            'eve_meeting',
-            'notes',
-        ];
-        for ($i = 2; $i <= self::EXPORT_ASSIGNMENT_PAIRS; $i++) {
-            $header[] = "zuordnung_{$i}_program";
-            $header[] = "zuordnung_{$i}_role";
-        }
+        $header = VolunteerRosterColumns::exportLabels();
 
         return response()->streamDownload(function () use ($rows, $assignmentsByPerson, $programNames, $header) {
             $out = fopen('php://output', 'w');
@@ -175,58 +160,22 @@ class EventVolunteerRosterController extends Controller
             fputcsv($out, $header, ';');
 
             foreach ($rows as $row) {
-                $person = $row->person;
-                if (! $person) {
+                if (! $row->person) {
                     continue;
                 }
 
-                $detail = $row->detail;
-                $assignments = $assignmentsByPerson[$person->id] ?? [];
-
-                $line = [
-                    $person->first_name,
-                    $person->last_name,
-                    $person->nickname,
-                    $person->email,
-                    $person->mobile,
-                ];
-                $line = array_merge($line, $this->exportAssignmentPair($assignments[0] ?? null, $programNames));
-                $line = array_merge($line, [
-                    VolunteerRosterDetailFields::exportLabel($detail?->t_shirt_cut),
-                    $detail?->t_shirt_size ?? '',
-                    VolunteerRosterDetailFields::exportMealLabel($detail?->meal),
-                    VolunteerRosterDetailFields::exportEveMeeting($detail?->eve_meeting),
-                    $detail?->notes ?? '',
-                ]);
-
-                for ($i = 1; $i < self::EXPORT_ASSIGNMENT_PAIRS; $i++) {
-                    $line = array_merge($line, $this->exportAssignmentPair($assignments[$i] ?? null, $programNames));
-                }
-
-                fputcsv($out, $line, ';');
+                $assignments = $assignmentsByPerson[$row->person->id] ?? [];
+                fputcsv(
+                    $out,
+                    VolunteerRosterColumns::exportValues($row, $assignments, $programNames),
+                    ';'
+                );
             }
 
             fclose($out);
         }, 'helferliste-'.$event->id.'.csv', [
             'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
-    }
-
-    /**
-     * @param  array{first_program: ?int, is_local: bool, label: string}|null  $assignment
-     * @param  array<int, string>  $programNames
-     * @return list<string>
-     */
-    private function exportAssignmentPair(?array $assignment, array $programNames): array
-    {
-        if (! $assignment) {
-            return ['', ''];
-        }
-
-        return [
-            $this->assignmentProgramLabel($assignment, $programNames),
-            $assignment['label'],
-        ];
     }
 
     public function destroy(Event $event, VolunteerPerson $volunteer): JsonResponse
@@ -256,22 +205,6 @@ class EventVolunteerRosterController extends Controller
             ->pluck('name', 'id')
             ->map(fn ($name) => (string) $name)
             ->all();
-    }
-
-    /**
-     * @param  array{first_program: ?int, is_local: bool}  $assignment
-     * @param  array<int, string>  $programNames
-     */
-    private function assignmentProgramLabel(array $assignment, array $programNames): string
-    {
-        if ($assignment['is_local']) {
-            return 'Zusätzlich';
-        }
-        if ($assignment['first_program'] === null) {
-            return 'Übergreifend';
-        }
-
-        return $programNames[$assignment['first_program']] ?? (string) $assignment['first_program'];
     }
 
     /**

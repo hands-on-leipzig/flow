@@ -13,10 +13,19 @@ const HEADER_HINTS = new Set([
   'email',
   'e-mail',
   'mobile',
+  'updated_at',
   'vorname',
   'nachname',
   'spitzname',
   'mobil',
+  'letzte änderung',
+  'zuordnung 1 programm',
+  'zuordnung 1 rolle',
+  't-shirt schnitt',
+  't-shirt größe',
+  'essen',
+  'vorabendtreffen',
+  'bemerkungen',
 ])
 
 function splitLine(line: string): string[] {
