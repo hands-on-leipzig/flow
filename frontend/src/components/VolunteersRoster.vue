@@ -249,15 +249,10 @@ function entryDetail(entry: RosterEntry): RosterDetail {
   return entry.detail
 }
 
-function eveMeetingSelectValue(detail: RosterDetail) {
-  if (detail.eve_meeting === true) return 'yes'
-  if (detail.eve_meeting === false) return 'no'
-  return ''
-}
-
-function onEveMeetingChange(entry: RosterEntry, value: string) {
+function setEveMeeting(entry: RosterEntry, value: boolean) {
   const detail = entryDetail(entry)
-  detail.eve_meeting = value === 'yes' ? true : value === 'no' ? false : null
+  if (detail.eve_meeting === value) return
+  detail.eve_meeting = value
   void saveDetail(entry)
 }
 
@@ -607,16 +602,37 @@ onMounted(() => load())
                 </select>
               </td>
               <td class="vol-table__field">
-                <select
-                    class="glass-input glass-input--sm vol-detail-select vol-detail-select--full"
-                    :value="eveMeetingSelectValue(entryDetail(entry))"
-                    :disabled="savingDetailKey === String(entry.id)"
-                    @change="onEveMeetingChange(entry, ($event.target as HTMLSelectElement).value)"
+                <div
+                    class="glass-segment vol-tristate"
+                    role="group"
+                    aria-label="Vorabendtreffen"
                 >
-                  <option value="">—</option>
-                  <option value="yes">Ja</option>
-                  <option value="no">Nein</option>
-                </select>
+                  <span
+                      class="vol-tristate__na"
+                      :class="{'vol-tristate__na--active': entryDetail(entry).eve_meeting === null}"
+                      aria-hidden="true"
+                  >n/a</span>
+                  <button
+                      type="button"
+                      class="glass-segment__btn"
+                      :class="{'glass-segment__btn--active': entryDetail(entry).eve_meeting === true}"
+                      :aria-pressed="entryDetail(entry).eve_meeting === true"
+                      :disabled="savingDetailKey === String(entry.id)"
+                      @click="setEveMeeting(entry, true)"
+                  >
+                    Ja
+                  </button>
+                  <button
+                      type="button"
+                      class="glass-segment__btn"
+                      :class="{'glass-segment__btn--active': entryDetail(entry).eve_meeting === false}"
+                      :aria-pressed="entryDetail(entry).eve_meeting === false"
+                      :disabled="savingDetailKey === String(entry.id)"
+                      @click="setEveMeeting(entry, false)"
+                  >
+                    Nein
+                  </button>
+                </div>
               </td>
               <td class="vol-table__field">
                 <input
@@ -848,6 +864,36 @@ onMounted(() => load())
 }
 .vol-detail-select--full {
   min-width: 6.5rem;
+}
+.vol-tristate {
+  display: inline-flex;
+  width: 100%;
+  min-width: 7.5rem;
+}
+.vol-tristate__na {
+  flex: 1;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  text-align: center;
+  border-right: 1px solid var(--color-border);
+  color: var(--color-text-subtle);
+  user-select: none;
+}
+.vol-tristate__na--active {
+  background: color-mix(in srgb, var(--color-bg-muted) 80%, var(--liquid-tile-bg-inner));
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+.vol-tristate .glass-segment__btn {
+  flex: 1;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+.vol-tristate .glass-segment__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .vol-roster-icon {
