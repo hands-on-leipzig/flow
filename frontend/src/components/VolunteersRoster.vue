@@ -10,6 +10,7 @@ import {compareRosterEntriesByStaffingRole} from '@/utils/volunteerStaffingSort'
 import {flowFilename} from '@/utils/flowFilename'
 import {ROSTER_TABLE_COLUMNS, rosterColumnLabel} from '@/volunteers/columns/rosterColumns'
 import type {VolunteerTableColumn} from '@/volunteers/columns/types'
+import {rosterEntryHasUnsetField} from '@/utils/volunteerRosterUnset'
 
 const T_SHIRT_CUTS = [
   {value: 'maenner', label: 'Männer'},
@@ -95,6 +96,7 @@ const sortDir = ref<'asc' | 'desc'>('asc')
 type AssignmentFilterKey = 'cross' | 'local' | `program:${number}`
 
 const activeAssignmentFilters = ref<Set<AssignmentFilterKey>>(new Set())
+const showOnlyUnset = ref(false)
 
 const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
 
@@ -145,9 +147,18 @@ function assignmentFilterKey(assignment: RosterAssignment): AssignmentFilterKey 
 
 function entryMatchesFilters(entry: RosterEntry) {
   const assignments = entry.assignments ?? []
-  if (!assignments.length) return true
-  if (activeAssignmentFilters.value.size === 0) return false
-  return assignments.some((assignment) => activeAssignmentFilters.value.has(assignmentFilterKey(assignment)))
+  if (assignments.length) {
+    if (activeAssignmentFilters.value.size === 0) return false
+    if (!assignments.some((assignment) => activeAssignmentFilters.value.has(assignmentFilterKey(assignment)))) {
+      return false
+    }
+  }
+
+  if (showOnlyUnset.value && !rosterEntryHasUnsetField(entry)) {
+    return false
+  }
+
+  return true
 }
 
 const filteredRoster = computed(() => {
@@ -648,6 +659,20 @@ onBeforeUnmount(() => {
         >
           <span class="roster-filter__label">Zusätzlich</span>
         </button>
+        <span class="roster-filters__sep" aria-hidden="true"/>
+        <button
+            type="button"
+            class="roster-filter roster-filter--toggle"
+            :class="{'roster-filter--active': showOnlyUnset}"
+            :aria-pressed="showOnlyUnset"
+            @click="showOnlyUnset = !showOnlyUnset"
+        >
+          <i class="bi bi-exclamation-circle roster-filter__icon" aria-hidden="true"/>
+          <span class="roster-filter__label">Unvollständige</span>
+        </button>
+        <span class="vol-toolbar__count roster-filters__count">
+          {{ filteredRoster.length }} / {{ roster.length }}
+        </span>
       </div>
 
       <p v-if="loading" class="vol-muted">Laden…</p>
@@ -980,7 +1005,23 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  align-items: center;
   margin-bottom: 0.75rem;
+}
+
+.roster-filters__sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 1.75rem;
+  margin: 0 0.1rem;
+  background: color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+}
+
+.roster-filters__count {
+  margin-left: auto;
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .roster-filter {
@@ -1015,6 +1056,17 @@ onBeforeUnmount(() => {
   width: 1rem;
   height: 1rem;
   flex-shrink: 0;
+}
+
+.roster-filter__icon {
+  font-size: 0.95rem;
+  line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.roster-filter--active .roster-filter__icon {
+  opacity: 1;
 }
 
 .vol-table-frame {
