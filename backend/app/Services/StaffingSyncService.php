@@ -75,7 +75,7 @@ class StaffingSyncService
                 continue;
             }
 
-            if ($rule->min > $rule->best || $rule->best > $rule->max || $rule->min < 1) {
+            if ($rule->min > $rule->best || $rule->best > $rule->max || $rule->min < 0) {
                 $msg = "invalid min/best/max on rule for role {$role->id}";
                 Log::warning('[staffing-sync] '.$msg);
                 $stats['skipped'][] = $msg;

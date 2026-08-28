@@ -101,6 +101,27 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertSame('updated', $role->ui_description);
     }
 
+    public function test_sync_allows_optional_catalog_role_with_min_zero(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+
+        DB::table('m_staffing_rule')->where('m_role', 4)->update([
+            'min' => 0,
+            'best' => 1,
+            'max' => 2,
+        ]);
+
+        $stats = $this->sync->syncForEvent(1);
+
+        $this->assertSame(1, $stats['roles']);
+        $this->assertNotContains('invalid min/best/max on rule for role 4', $stats['skipped']);
+
+        $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
+        $this->assertSame(0, $role->min);
+        $this->assertSame(1, $role->best);
+        $this->assertSame(2, $role->max);
+    }
+
     public function test_program_off_marks_catalog_groups_surplus(): void
     {
         $this->seedChallengeEvent(lanes: 2);
