@@ -132,16 +132,16 @@ class StaffingSyncService
      * Assigned people and min gaps per staffing scope (cross, each attached program, local).
      *
      * @param  list<int>  $programIds  attached event first_program ids
-     * @return list<array{key: string, assigned: int, missing_min: int}>
+     * @return list<array{key: string, assigned: int, missing_min: int, roles: int}>
      */
     public function summaryByScope(int $eventId, array $programIds): array
     {
         $buckets = [
-            'cross' => ['assigned' => 0, 'missing_min' => 0],
-            'local' => ['assigned' => 0, 'missing_min' => 0],
+            'cross' => ['assigned' => 0, 'missing_min' => 0, 'roles' => 0],
+            'local' => ['assigned' => 0, 'missing_min' => 0, 'roles' => 0],
         ];
         foreach ($programIds as $programId) {
-            $buckets['program:'.$programId] = ['assigned' => 0, 'missing_min' => 0];
+            $buckets['program:'.$programId] = ['assigned' => 0, 'missing_min' => 0, 'roles' => 0];
         }
 
         $roles = EventStaffingRole::query()
@@ -154,6 +154,8 @@ class StaffingSyncService
             if (! isset($buckets[$scopeKey])) {
                 continue;
             }
+
+            $buckets[$scopeKey]['roles']++;
 
             $min = (int) $role->min;
             foreach ($role->groups as $group) {

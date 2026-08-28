@@ -264,7 +264,7 @@ watch(
                 v-for="stat in teamStats"
                 :key="stat.first_program"
                 :to="teamPathFor({ name: stat.programName, first_program: Number(stat.first_program) })"
-                class="flex items-start gap-2 rounded-lg px-3 py-2 liquid-surface-inner hover:bg-[var(--color-bg-hover)] transition-colors no-underline text-inherit"
+                class="flex items-center gap-2 rounded-lg px-3 py-1.5 liquid-surface-inner hover:bg-[var(--color-bg-hover)] transition-colors no-underline text-inherit"
             >
               <ProgramLogo
                   :program="{first_program: stat.first_program, name: stat.programName}"
@@ -272,18 +272,17 @@ watch(
               />
               <div class="min-w-0 flex-1">
                 <div class="font-medium flex items-center justify-between gap-2">
-                  <span>{{ stat.registered }} von {{ stat.capacity }} Teams</span>
-                  <i class="bi bi-chevron-right text-[var(--color-text-subtle)]" aria-hidden="true"/>
+                  <span class="inline-flex items-center gap-1.5 min-w-0">
+                    <span>{{ stat.registered }} von {{ stat.capacity }} Teams angemeldet</span>
+                    <span
+                        v-if="programHasDiscrepancy(stat.programName)"
+                        class="inline-block h-2 w-2 rounded-full bg-red-500 shrink-0"
+                        title="Abweichung zu DRAHT"
+                        aria-label="Abweichung zu DRAHT"
+                    />
+                  </span>
+                  <i class="bi bi-chevron-right text-[var(--color-text-subtle)] shrink-0" aria-hidden="true"/>
                 </div>
-                <span class="text-sm text-[var(--color-text-muted)] inline-flex items-center gap-1.5">
-                  {{ stat.name }} angemeldet
-                  <span
-                      v-if="programHasDiscrepancy(stat.programName)"
-                      class="inline-block h-2 w-2 rounded-full bg-red-500 shrink-0"
-                      title="Abweichung zu DRAHT"
-                      aria-label="Abweichung zu DRAHT"
-                  />
-                </span>
               </div>
             </RouterLink>
 
@@ -321,26 +320,8 @@ watch(
               :programs="programList"
               :loading="loading"
               layout="teams"
+              link-to="/plan/volunteers/staffing"
           />
-
-          <RouterLink
-              to="/plan/volunteers/staffing"
-              class="mt-2 flex items-start gap-2 rounded-lg px-3 py-2 liquid-surface-inner hover:bg-[var(--color-bg-hover)] transition-colors no-underline text-inherit"
-          >
-            <div
-                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]"
-                aria-hidden="true"
-            >
-              <i class="bi bi-diagram-3 text-lg"/>
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="font-medium flex items-center justify-between gap-2">
-                <span>Zur Zuordnung</span>
-                <i class="bi bi-chevron-right text-[var(--color-text-subtle)]" aria-hidden="true"/>
-              </div>
-              <span class="text-sm text-[var(--color-text-muted)]">Rollen zuweisen und prüfen</span>
-            </div>
-          </RouterLink>
         </div>
 
         <div class="glass-card liquid-surface-inner">

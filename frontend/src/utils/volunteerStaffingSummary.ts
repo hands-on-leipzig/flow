@@ -10,17 +10,19 @@ export type StaffingScopeSummary = {
   key: StaffingFilterKey
   assigned: number
   missing_min: number
+  roles?: number
 }
 
 type SummaryScope = {
   assigned: number
   missing_min: number
+  roles: number
 }
 
 function emptyBuckets(programs: ReadonlyArray<EventProgramRef>): Map<StaffingFilterKey, SummaryScope> {
   const buckets = new Map<StaffingFilterKey, SummaryScope>()
   for (const key of buildStaffingFilterKeys(programs)) {
-    buckets.set(key, {assigned: 0, missing_min: 0})
+    buckets.set(key, {assigned: 0, missing_min: 0, roles: 0})
   }
   return buckets
 }
@@ -30,6 +32,7 @@ export function emptyStaffingSummary(programs: ReadonlyArray<EventProgramRef>): 
     key,
     assigned: 0,
     missing_min: 0,
+    roles: 0,
   }))
 }
 
@@ -44,6 +47,8 @@ export function computeStaffingSummary(
     const bucket = buckets.get(key)
     if (!bucket) continue
 
+    bucket.roles += 1
+
     const min = Number(role.min)
     for (const group of role.groups) {
       bucket.assigned += group.filled
@@ -57,6 +62,7 @@ export function computeStaffingSummary(
     key,
     assigned: buckets.get(key)?.assigned ?? 0,
     missing_min: buckets.get(key)?.missing_min ?? 0,
+    roles: buckets.get(key)?.roles ?? 0,
   }))
 }
 
@@ -70,19 +76,21 @@ export function parseStaffingSummaryScopeKey(key: string): StaffingFilterKey {
 }
 
 export function staffingSummaryFromReadiness(
-  rows: ReadonlyArray<{key: string; assigned: number; missing_min: number}> | null | undefined,
+  rows: ReadonlyArray<{key: string; assigned: number; missing_min: number; roles?: number}> | null | undefined,
   programs: ReadonlyArray<EventProgramRef>,
 ): StaffingScopeSummary[] {
   const byKey = new Map<StaffingFilterKey, StaffingScopeSummary>()
   for (const row of rows ?? []) {
-    byKey.set(parseStaffingSummaryScopeKey(row.key), {
-      key: parseStaffingSummaryScopeKey(row.key),
+    const key = parseStaffingSummaryScopeKey(row.key)
+    byKey.set(key, {
+      key,
       assigned: Number(row.assigned) || 0,
       missing_min: Number(row.missing_min) || 0,
+      roles: Number(row.roles) || 0,
     })
   }
 
-  return buildStaffingFilterKeys(programs).map((key) => byKey.get(key) ?? {key, assigned: 0, missing_min: 0})
+  return buildStaffingFilterKeys(programs).map((key) => byKey.get(key) ?? {key, assigned: 0, missing_min: 0, roles: 0})
 }
 
 export function programIdFromSummaryKey(key: StaffingFilterKey): number | null {

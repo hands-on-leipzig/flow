@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed} from 'vue'
+import {RouterLink} from 'vue-router'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {useEventStore} from '@/stores/event'
 import {programDisplayName, programId, programNameForId, type EventProgramRef} from '@/utils/eventPrograms'
@@ -11,6 +12,7 @@ const props = defineProps<{
   programs: ReadonlyArray<EventProgramRef>
   layout?: 'list' | 'bar' | 'teams'
   loading?: boolean
+  linkTo?: string
 }>()
 
 const emit = defineEmits<{
@@ -21,6 +23,17 @@ const eventStore = useEventStore()
 
 const layout = computed(() => props.layout ?? 'list')
 
+const visibleScopes = computed(() =>
+  props.scopes.filter((scope) => scope.key !== 'local' || (scope.roles ?? 0) > 0),
+)
+
+function scopeProgram(key: StaffingFilterKey) {
+  const id = programIdFromSummaryKey(key)
+  if (!id) return null
+  const program = props.programs.find((row) => programId(row) === id)
+  return program ?? {first_program: id, name: programNameForId(eventStore.selectedEvent, id)}
+}
+
 function scopeLabel(key: StaffingFilterKey) {
   if (key === 'cross') return 'Übergreifend'
   if (key === 'local') return 'Zusätzlich'
@@ -30,16 +43,14 @@ function scopeLabel(key: StaffingFilterKey) {
   return programDisplayName(program ?? {first_program: id, name: programNameForId(eventStore.selectedEvent, id)})
 }
 
-function scopeProgram(key: StaffingFilterKey) {
-  const id = programIdFromSummaryKey(key)
-  if (!id) return null
-  const program = props.programs.find((row) => programId(row) === id)
-  return program ?? {first_program: id, name: programNameForId(eventStore.selectedEvent, id)}
-}
-
 function missingLabel(count: number) {
   if (count === 1) return '1 fehlt'
   return `${count} fehlen`
+}
+
+function scopeStatus(scope: StaffingScopeSummary) {
+  if (scope.missing_min > 0) return missingLabel(scope.missing_min)
+  return 'komplett'
 }
 
 function onSelect(key: StaffingFilterKey) {
@@ -47,7 +58,7 @@ function onSelect(key: StaffingFilterKey) {
 }
 
 function scopeIconClass(key: StaffingFilterKey) {
-  if (key === 'cross') return 'bi-diagram-3'
+  if (key === 'cross') return 'bi-intersect'
   if (key === 'local') return 'bi-plus-lg'
   return ''
 }
@@ -60,10 +71,13 @@ function scopeIconClass(key: StaffingFilterKey) {
   >
     <p v-if="loading" class="vol-staffing-summary__muted">Lade Zuordnung…</p>
     <template v-else>
-      <div
-          v-for="scope in scopes"
+      <component
+          :is="linkTo ? RouterLink : 'div'"
+          v-for="scope in visibleScopes"
           :key="scope.key"
-          class="flex items-start gap-2 rounded-lg px-3 py-2 liquid-surface-inner"
+          :to="linkTo"
+          class="flex items-center gap-2 rounded-lg px-3 py-1.5 liquid-surface-inner"
+          :class="linkTo ? 'hover:bg-[var(--color-bg-hover)] transition-colors no-underline text-inherit' : ''"
       >
         <ProgramLogo
             v-if="scopeProgram(scope.key)"
@@ -79,26 +93,24 @@ function scopeIconClass(key: StaffingFilterKey) {
         </div>
         <div class="min-w-0 flex-1">
           <div class="font-medium flex items-center justify-between gap-2">
-            <span>{{ scope.assigned }} zugeordnet</span>
-            <span
-                v-if="scope.missing_min > 0"
-                class="text-sm font-semibold text-[color-mix(in_srgb,var(--color-warning,#f59e0b)_88%,#111)]"
-            >
-              {{ missingLabel(scope.missing_min) }}
+            <span class="inline-flex items-center gap-1.5 min-w-0">
+              <span>{{ scope.assigned }} zugeordnet, {{ scopeStatus(scope) }}</span>
+              <span
+                  v-if="scope.missing_min > 0"
+                  class="inline-block h-2 w-2 rounded-full bg-red-500 shrink-0"
+                  title="Unter Mindestempfehlung"
+                  aria-label="Unter Mindestempfehlung"
+              />
             </span>
-          </div>
-          <span class="text-sm text-[var(--color-text-muted)] inline-flex items-center gap-1.5">
-            {{ scopeLabel(scope.key) }}
-            <span
-                v-if="scope.missing_min > 0"
-                class="inline-block h-2 w-2 rounded-full bg-[color-mix(in_srgb,var(--color-warning,#f59e0b)_75%,transparent)] shrink-0"
-                title="Unter Mindestempfehlung"
-                aria-label="Unter Mindestempfehlung"
+            <i
+                v-if="linkTo"
+                class="bi bi-chevron-right text-[var(--color-text-subtle)] shrink-0"
+                aria-hidden="true"
             />
-          </span>
+          </div>
         </div>
-      </div>
-      <p v-if="scopes.length === 0" class="text-sm text-[var(--color-text-subtle)]">
+      </component>
+      <p v-if="visibleScopes.length === 0" class="text-sm text-[var(--color-text-subtle)]">
         Keine Rollen-Daten verfügbar
       </p>
     </template>
@@ -115,7 +127,7 @@ function scopeIconClass(key: StaffingFilterKey) {
     <template v-else>
       <component
           :is="layout === 'list' ? 'button' : 'div'"
-          v-for="scope in scopes"
+          v-for="scope in visibleScopes"
           :key="scope.key"
           type="button"
           class="vol-staffing-summary__row"

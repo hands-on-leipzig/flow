@@ -187,10 +187,13 @@ class StaffingSyncServiceTest extends TestCase
 
         $this->assertSame(0, $summary['cross']['assigned']);
         $this->assertSame(0, $summary['cross']['missing_min']);
+        $this->assertSame(0, $summary['cross']['roles']);
         $this->assertSame(1, $summary['program:'.FirstProgram::CHALLENGE->value]['assigned']);
         $this->assertSame(3, $summary['program:'.FirstProgram::CHALLENGE->value]['missing_min']);
+        $this->assertSame(1, $summary['program:'.FirstProgram::CHALLENGE->value]['roles']);
         $this->assertSame(0, $summary['local']['assigned']);
         $this->assertSame(0, $summary['local']['missing_min']);
+        $this->assertSame(0, $summary['local']['roles']);
     }
 
     private function createSchema(): void
