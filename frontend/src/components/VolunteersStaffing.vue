@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, nextTick, ref, watch} from 'vue'
+import {RouterLink} from 'vue-router'
 import axios from 'axios'
 import draggable from 'vuedraggable'
 import {useEventStore} from '@/stores/event'
@@ -157,6 +158,10 @@ const personSearchMatches = computed(() => {
       return a.id - b.id
     })
 })
+
+const hasPersonPool = computed(() => pool.value.length > 0)
+
+const volunteersPeopleRoute = {name: 'volunteers-people'} as const
 
 watch(unassignedPeople, (people) => {
   rosterPool.value = [...people]
@@ -592,13 +597,23 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
 
       <div class="lg:col-span-1 order-1 lg:order-2 space-y-3 md:space-y-4 lg:sticky lg:top-4 self-start">
         <div class="glass-card liquid-surface-inner staffing-sidebar-tile">
-          <input
-              v-model="personSearch"
-              type="search"
-              class="glass-input glass-input--sm staffing-search__input"
-              placeholder="Personen suchen…"
-              autocomplete="off"
-          />
+          <div class="vol-person-search-field">
+            <input
+                v-model="personSearch"
+                type="search"
+                class="glass-input glass-input--sm staffing-search__input"
+                :placeholder="hasPersonPool ? 'Personen suchen…' : ''"
+                :disabled="!hasPersonPool"
+                autocomplete="off"
+            />
+            <RouterLink
+                v-if="!hasPersonPool"
+                :to="volunteersPeopleRoute"
+                class="vol-person-search-empty-link"
+            >
+              Bitte Personen anlegen.
+            </RouterLink>
+          </div>
           <div v-if="personSearch.trim()" class="staffing-search-results">
             <p v-if="!personSearchMatches.length" class="staffing-sidebar-muted">
               Keine Treffer in der Personenliste.

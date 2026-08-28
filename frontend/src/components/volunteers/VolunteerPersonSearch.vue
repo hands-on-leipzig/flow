@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
+import {RouterLink} from 'vue-router'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
+
+const volunteersPeopleRoute = {name: 'volunteers-people'} as const
 
 const props = defineProps<{
   pool: VolunteerPersonRef[]
@@ -14,6 +17,10 @@ const emit = defineEmits<{
 }>()
 
 const search = ref('')
+
+const hasPeople = computed(() => props.pool.length > 0)
+
+const inputPlaceholder = computed(() => props.placeholder ?? 'Personen zum Hinzufügen zur Liste suchen…')
 
 const matches = computed(() => {
   const q = search.value.trim().toLowerCase()
@@ -38,13 +45,23 @@ function onChipClick(person: VolunteerPersonRef) {
 
 <template>
   <section class="glass-card liquid-surface-inner vol-tile vol-search-tile">
-    <input
-        v-model="search"
-        type="search"
-        class="glass-input glass-input--sm vol-search-tile__input"
-        :placeholder="placeholder ?? 'Personen zum Hinzufügen zur Liste suchen…'"
-        autocomplete="off"
-    />
+    <div class="vol-person-search-field">
+      <input
+          v-model="search"
+          type="search"
+          class="glass-input glass-input--sm vol-search-tile__input"
+          :placeholder="hasPeople ? inputPlaceholder : ''"
+          :disabled="!hasPeople"
+          autocomplete="off"
+      />
+      <RouterLink
+          v-if="!hasPeople"
+          :to="volunteersPeopleRoute"
+          class="vol-person-search-empty-link"
+      >
+        Bitte Personen anlegen.
+      </RouterLink>
+    </div>
     <div v-if="search.trim()" class="vol-search-results">
       <p v-if="!matches.length" class="vol-muted">
         Keine Treffer in der Personenliste.

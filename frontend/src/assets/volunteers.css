@@ -76,6 +76,32 @@
   white-space: nowrap;
 }
 
+.vol-person-search-field {
+  position: relative;
+  width: 100%;
+}
+
+.vol-person-search-field input:disabled {
+  cursor: default;
+}
+
+.vol-person-search-empty-link {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding-inline: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.vol-person-search-empty-link:hover {
+  color: color-mix(in srgb, var(--color-accent) 80%, var(--color-text));
+}
+
 .vol-staffing-filters {
   display: flex;
   flex-wrap: wrap;
