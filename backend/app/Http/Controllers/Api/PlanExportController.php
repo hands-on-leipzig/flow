@@ -3198,7 +3198,6 @@ class PlanExportController extends Controller
                 'challenge_teams_ok' => ! $hasChallenge,
                 'future_8_teams_ok' => ! $hasFuture,
                 'room_mapping_ok' => false,
-                'staffing_ok' => true,
                 'room_mapping_details' => [
                     'activities_ok' => false,
                     'teams_ok' => false,
@@ -3285,7 +3284,6 @@ class PlanExportController extends Controller
             'challenge_teams_ok' => $challengeTeamsOk,
             'future_8_teams_ok' => $futureTeamsOk,
             'room_mapping_ok' => ! $hasUnmappedRooms && $allTeamsHaveRooms,
-            'staffing_ok' => app(\App\Services\StaffingSyncService::class)->staffingOk((int) $eventId),
             'room_mapping_details' => [
                 'activities_ok' => ! $hasUnmappedRooms,
                 'teams_ok' => $allTeamsHaveRooms,

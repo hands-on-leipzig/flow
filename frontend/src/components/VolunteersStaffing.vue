@@ -71,7 +71,6 @@ const roster = ref<RosterEntry[]>([])
 const pool = ref<Person[]>([])
 const personSearch = ref('')
 const planId = ref<number | null>(null)
-const staffingOk = ref(true)
 const loading = ref(false)
 const syncing = ref(false)
 const isSaving = ref(false)
@@ -160,16 +159,6 @@ watch(unassignedPeople, (people) => {
 watch(personSearchMatches, (matches) => {
   searchDisplayPool.value = [...matches]
 }, {immediate: true})
-
-const gapSummary = computed(() => {
-  let underMin = 0
-  let surplusPeople = 0
-  for (const tile of tiles.value) {
-    if (tile.group.surplus && tile.group.filled > 0) surplusPeople += tile.group.filled
-    if (tile.group.under_min) underMin++
-  }
-  return {underMin, surplusPeople}
-})
 
 const deleteRoleMessage = computed(() => {
   if (!roleToDelete.value) return ''
@@ -354,7 +343,6 @@ async function load() {
     ])
     roles.value = staffingRes.data.roles ?? []
     planId.value = staffingRes.data.plan_id ?? null
-    staffingOk.value = staffingRes.data.staffing_ok !== false
     roster.value = rosterRes.data.roster ?? []
     pool.value = poolRes.data.people ?? []
     await eventStore.refreshReadiness(eventId.value)
@@ -580,15 +568,7 @@ watch(eventId, () => load(), {immediate: true})
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Zuordnung</h1>
-        <p class="vol-page__sub">
-          <span v-if="staffingOk" class="vol-ok">Zuordnung ok</span>
-          <span v-else class="vol-warn">
-            Handlungsbedarf:
-            <template v-if="gapSummary.underMin">{{ gapSummary.underMin }} unter Min</template>
-            <template v-if="gapSummary.underMin && gapSummary.surplusPeople"> · </template>
-            <template v-if="gapSummary.surplusPeople">{{ gapSummary.surplusPeople }} umsetzen</template>
-          </span>
-        </p>
+        <p class="vol-page__sub">Verteilung der Helfer:innen auf die Rollen im Veranstaltungsplan</p>
       </div>
       <div class="vol-page__actions">
         <VolunteerEmailOutreach scope="roster"/>
@@ -617,8 +597,6 @@ watch(eventId, () => load(), {immediate: true})
 
     <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-5">
       <div class="lg:col-span-3 order-2 lg:order-1">
-        <h2 class="glass-card__heading !text-lg md:!text-xl !mb-3 md:!mb-4">Rollen</h2>
-
         <p v-if="!tiles.length" class="text-sm text-[var(--color-text-subtle)] mb-3">
           Noch keine Rollen. Mit Plan abgleichen — oder links eine eigene Rolle anlegen.
         </p>
@@ -1049,17 +1027,7 @@ watch(eventId, () => load(), {immediate: true})
 
 .vol-page__sub {
   margin: 0.25rem 0 0;
-  font-size: 0.9rem;
-}
-
-.vol-ok {
-  color: #15803d;
-  font-weight: 600;
-}
-
-.vol-warn {
-  color: #b91c1c;
-  font-weight: 600;
+  opacity: 0.75;
 }
 
 .staffing-title {

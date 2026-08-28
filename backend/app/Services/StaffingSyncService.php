@@ -129,38 +129,6 @@ class StaffingSyncService
     }
 
     /**
-     * Red-dot: surplus with people, or non-surplus under min (catalog + local).
-     */
-    public function staffingOk(int $eventId): bool
-    {
-        $roles = EventStaffingRole::query()
-            ->where('event', $eventId)
-            ->with(['groups.assignments'])
-            ->get();
-
-        if ($roles->isEmpty()) {
-            return true;
-        }
-
-        foreach ($roles as $role) {
-            foreach ($role->groups as $group) {
-                $count = $group->assignments->count();
-                if ($group->surplus) {
-                    if ($count > 0) {
-                        return false;
-                    }
-                    continue;
-                }
-                if ($count < (int) $role->min) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    /**
      * @return list<int>
      */
     private function activeProgramIds(ProgramPresence $presence): array

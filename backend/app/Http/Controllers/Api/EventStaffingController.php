@@ -80,7 +80,6 @@ class EventStaffingController extends Controller
 
         return response()->json([
             'plan_id' => $planId ?: null,
-            'staffing_ok' => $this->sync->staffingOk($event->id),
             'roles' => $payload,
         ]);
     }
@@ -92,7 +91,6 @@ class EventStaffingController extends Controller
         return response()->json([
             'ok' => true,
             'stats' => $stats,
-            'staffing_ok' => $this->sync->staffingOk($event->id),
         ]);
     }
 }
