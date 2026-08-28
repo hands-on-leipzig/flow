@@ -3,6 +3,7 @@ import {computed, ref} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {flowFilename} from '@/utils/flowFilename'
 
 export type VolunteerOutreachPerson = {
   first_name: string
@@ -21,10 +22,16 @@ const props = defineProps<{
 
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
+const eventDate = computed(() => eventStore.selectedEvent?.date)
 const open = ref(false)
 const busy = ref(false)
 
 const usesCustomPeople = computed(() => props.people !== undefined)
+
+function csvFilename() {
+  const name = props.scope === 'roster' ? 'Helferliste' : 'Personen'
+  return flowFilename(name, 'csv', eventDate.value)
+}
 
 function close() {
   open.value = false
@@ -69,9 +76,7 @@ function downloadCsvBlob(people: VolunteerOutreachPerson[]) {
   const url = window.URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = props.scope === 'roster'
-    ? `helfer-anmeldung-${eventId.value}.csv`
-    : `helfer-pool-${eventId.value}.csv`
+  link.download = csvFilename()
   link.click()
   window.URL.revokeObjectURL(url)
 }
@@ -131,16 +136,14 @@ async function downloadCsv() {
       close()
       return
     }
-    const {data} = await axios.get(`/events/${eventId.value}/volunteers/export`, {
+    const response = await axios.get(`/events/${eventId.value}/volunteers/export`, {
       params: {scope: props.scope},
       responseType: 'blob',
     })
-    const url = window.URL.createObjectURL(data)
+    const url = window.URL.createObjectURL(response.data)
     const link = document.createElement('a')
     link.href = url
-    link.download = props.scope === 'roster'
-      ? `helfer-anmeldung-${eventId.value}.csv`
-      : `helfer-pool-${eventId.value}.csv`
+    link.download = response.headers['x-filename'] || csvFilename()
     link.click()
     window.URL.revokeObjectURL(url)
     close()
