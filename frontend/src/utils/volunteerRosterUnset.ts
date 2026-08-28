@@ -1,32 +1,34 @@
+import type {RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
+
 type RosterDetailLike = {
   t_shirt_cut: string | null
   t_shirt_size: string | null
   meal: string | null
-  eve_meeting: boolean | null
   notes: string | null
 }
 
 type RosterEntryLike = {
   assignments?: unknown[]
   detail?: RosterDetailLike | null
+  custom?: Record<string, string | number | boolean | null> | null
 }
 
-/** Table columns (except Name) that can still show ? or — in the UI. */
-export const ROSTER_UNSET_FIELD_KEYS = ['role', 't_shirt', 'meal', 'eve_meeting'] as const
-
-export type RosterUnsetFieldKey = (typeof ROSTER_UNSET_FIELD_KEYS)[number]
+export const ROSTER_FIXED_UNSET_KEYS = ['role', 't_shirt', 'meal'] as const
 
 function detailOf(entry: RosterEntryLike): RosterDetailLike {
   return entry.detail ?? {
     t_shirt_cut: null,
     t_shirt_size: null,
     meal: null,
-    eve_meeting: null,
     notes: null,
   }
 }
 
-export function rosterFieldIsUnset(entry: RosterEntryLike, key: RosterUnsetFieldKey): boolean {
+function customValue(entry: RosterEntryLike, fieldKey: string) {
+  return entry.custom?.[fieldKey] ?? null
+}
+
+export function rosterFixedFieldIsUnset(entry: RosterEntryLike, key: (typeof ROSTER_FIXED_UNSET_KEYS)[number]): boolean {
   const detail = detailOf(entry)
 
   switch (key) {
@@ -36,13 +38,25 @@ export function rosterFieldIsUnset(entry: RosterEntryLike, key: RosterUnsetField
       return !detail.t_shirt_cut || !detail.t_shirt_size
     case 'meal':
       return detail.meal === null
-    case 'eve_meeting':
-      return detail.eve_meeting === null
     default:
       return false
   }
 }
 
-export function rosterEntryHasUnsetField(entry: RosterEntryLike): boolean {
-  return ROSTER_UNSET_FIELD_KEYS.some((key) => rosterFieldIsUnset(entry, key))
+export function rosterCustomFieldIsUnset(column: RosterColumnMeta, entry: RosterEntryLike): boolean {
+  if (column.kind !== 'custom' || !column.field_key) return false
+
+  const value = customValue(entry, column.field_key)
+  if (value === null || value === undefined) return true
+  if (column.type === 'text' && String(value).trim() === '') return true
+
+  return false
+}
+
+export function rosterEntryHasUnsetField(entry: RosterEntryLike, columns: RosterColumnMeta[]): boolean {
+  if (ROSTER_FIXED_UNSET_KEYS.some((key) => rosterFixedFieldIsUnset(entry, key))) {
+    return true
+  }
+
+  return columns.some((column) => rosterCustomFieldIsUnset(column, entry))
 }

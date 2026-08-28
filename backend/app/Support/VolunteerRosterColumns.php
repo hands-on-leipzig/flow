@@ -2,37 +2,83 @@
 
 namespace App\Support;
 
+use App\Models\EventVolunteerField;
 use App\Models\EventVolunteerRoster;
 use App\Models\EventVolunteerRosterDetail;
+use Illuminate\Support\Collection;
 
 final class VolunteerRosterColumns
 {
     public const EXPORT_ASSIGNMENT_PAIRS = 5;
 
     /**
-     * @var list<array{key: string, label: string, table?: bool, export?: bool, sortable?: bool}>
+     * @var list<array{key: string, label: string, table?: bool, export?: bool, sortable?: bool, kind?: string, editor?: string}>
      */
-    private const TABLE_DEFINITIONS = [
-        ['key' => 'name', 'label' => 'Name', 'table' => true, 'sortable' => true],
-        ['key' => 'role', 'label' => 'Rolle', 'table' => true, 'sortable' => true],
-        ['key' => 't_shirt', 'label' => 'T-Shirt Größe', 'table' => true],
-        ['key' => 'meal', 'label' => 'Essen', 'table' => true, 'export' => true],
-        ['key' => 'eve_meeting', 'label' => 'Vorabendtreffen', 'table' => true, 'export' => true],
-        ['key' => 'notes', 'label' => 'Bemerkungen', 'table' => true, 'export' => true],
+    private const FIXED_TABLE_START = [
+        ['key' => 'name', 'label' => 'Name', 'table' => true, 'sortable' => true, 'kind' => 'fixed'],
+        ['key' => 'role', 'label' => 'Rolle', 'table' => true, 'sortable' => true, 'kind' => 'fixed'],
+        ['key' => 't_shirt', 'label' => 'T-Shirt Größe', 'table' => true, 'kind' => 'fixed', 'editor' => 't_shirt'],
+        ['key' => 'meal', 'label' => 'Essen', 'table' => true, 'export' => true, 'kind' => 'fixed', 'editor' => 'meal'],
     ];
 
     /**
-     * @return list<array{key: string, label: string, sortable: bool}>
+     * @var list<array{key: string, label: string, table?: bool, export?: bool, kind?: string, editor?: string}>
      */
-    public static function tablePayload(): array
+    private const FIXED_TABLE_END = [
+        ['key' => 'notes', 'label' => 'Bemerkungen', 'table' => true, 'export' => true, 'kind' => 'fixed', 'editor' => 'text'],
+    ];
+
+    /**
+     * @return Collection<int, EventVolunteerField>
+     */
+    public static function customFieldsForEvent(int $eventId): Collection
     {
-        return VolunteerColumnDefinition::tablePayload(self::TABLE_DEFINITIONS);
+        return EventVolunteerField::query()
+            ->where('event', $eventId)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get();
     }
 
     /**
-     * @return list<array{key: string, label: string, table?: bool, export?: bool, sortable?: bool}>
+     * @return list<array<string, mixed>>
      */
-    public static function exportDefinitions(): array
+    public static function tablePayloadForEvent(int $eventId): array
+    {
+        $columns = self::FIXED_TABLE_START;
+        foreach (self::customFieldsForEvent($eventId) as $field) {
+            $columns[] = VolunteerRosterCustomFields::serializeColumn($field);
+        }
+        foreach (self::FIXED_TABLE_END as $column) {
+            $columns[] = $column;
+        }
+
+        return array_values(array_map(function (array $column) {
+            return [
+                'key' => $column['key'],
+                'label' => $column['label'],
+                'sortable' => (bool) ($column['sortable'] ?? false),
+                'kind' => $column['kind'] ?? 'fixed',
+                'type' => $column['type'] ?? null,
+                'editor' => $column['editor'] ?? null,
+                'field_key' => $column['field_key'] ?? null,
+                'options' => $column['options'] ?? [],
+            ];
+        }, $columns));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function exportLabelsForEvent(int $eventId): array
+    {
+        return VolunteerColumnDefinition::exportLabels(self::exportDefinitionsForEvent($eventId));
+    }
+
+    /**
+     * @return list<array{key: string, label: string, table?: bool, export?: bool}>
+     */
+    public static function exportDefinitionsForEvent(int $eventId): array
     {
         $definitions = array_map(
             fn (array $column) => array_merge($column, ['table' => false, 'export' => true]),
@@ -44,7 +90,15 @@ final class VolunteerRosterColumns
         $definitions[] = ['key' => 't_shirt_cut', 'label' => 'T-Shirt Schnitt', 'export' => true];
         $definitions[] = ['key' => 't_shirt_size', 'label' => 'T-Shirt Größe', 'export' => true];
         $definitions[] = ['key' => 'meal', 'label' => 'Essen', 'export' => true];
-        $definitions[] = ['key' => 'eve_meeting', 'label' => 'Vorabendtreffen', 'export' => true];
+
+        foreach (self::customFieldsForEvent($eventId) as $field) {
+            $definitions[] = [
+                'key' => 'custom:'.$field->field_key,
+                'label' => $field->label,
+                'export' => true,
+            ];
+        }
+
         $definitions[] = ['key' => 'notes', 'label' => 'Bemerkungen', 'export' => true];
 
         for ($i = 2; $i <= self::EXPORT_ASSIGNMENT_PAIRS; $i++) {
@@ -56,26 +110,21 @@ final class VolunteerRosterColumns
     }
 
     /**
-     * @return list<string>
-     */
-    public static function exportLabels(): array
-    {
-        return VolunteerColumnDefinition::exportLabels(self::exportDefinitions());
-    }
-
-    /**
      * @param  list<array{first_program: ?int, is_local: bool, label: string}>  $assignments
      * @param  array<int, string>  $programNames
+     * @param  array<string, mixed>  $customValues
      * @return list<string>
      */
-    public static function exportValues(
+    public static function exportValuesForEvent(
+        int $eventId,
         EventVolunteerRoster $row,
         array $assignments,
         array $programNames,
+        array $customValues,
     ): array {
         $person = $row->person;
         if (! $person) {
-            return array_fill(0, count(self::exportLabels()), '');
+            return array_fill(0, count(self::exportLabelsForEvent($eventId)), '');
         }
 
         /** @var EventVolunteerRosterDetail|null $detail */
@@ -87,9 +136,15 @@ final class VolunteerRosterColumns
             VolunteerRosterDetailFields::exportLabel($detail?->t_shirt_cut),
             $detail?->t_shirt_size ?? '',
             VolunteerRosterDetailFields::exportMealLabel($detail?->meal),
-            VolunteerRosterDetailFields::exportEveMeeting($detail?->eve_meeting),
-            $detail?->notes ?? '',
         ]);
+
+        foreach (self::customFieldsForEvent($eventId) as $field) {
+            $apiValue = $customValues[$field->field_key] ?? null;
+            $stored = $apiValue === null ? null : (string) (is_bool($apiValue) ? ($apiValue ? '1' : '0') : $apiValue);
+            $values[] = VolunteerRosterCustomFields::exportValue($field, $stored);
+        }
+
+        $values[] = $detail?->notes ?? '';
 
         for ($i = 1; $i < self::EXPORT_ASSIGNMENT_PAIRS; $i++) {
             $values = array_merge($values, self::assignmentPairValues($assignments[$i] ?? null, $programNames));

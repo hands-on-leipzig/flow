@@ -5,18 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class EventVolunteerRosterDetail extends Model
+class EventVolunteerFieldValue extends Model
 {
     public $timestamps = false;
 
-    protected $table = 'event_volunteer_roster_detail';
+    protected $table = 'event_volunteer_field_value';
 
     protected $fillable = [
         'event_volunteer_roster',
-        't_shirt_cut',
-        't_shirt_size',
-        'meal',
-        'notes',
+        'event_volunteer_field',
+        'value',
         'updated_at',
     ];
 
@@ -27,5 +25,10 @@ class EventVolunteerRosterDetail extends Model
     public function roster(): BelongsTo
     {
         return $this->belongsTo(EventVolunteerRoster::class, 'event_volunteer_roster');
+    }
+
+    public function field(): BelongsTo
+    {
+        return $this->belongsTo(EventVolunteerField::class, 'event_volunteer_field');
     }
 }

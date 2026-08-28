@@ -2,12 +2,37 @@
 
 namespace Tests\Unit;
 
+use App\Models\EventVolunteerField;
 use App\Support\VolunteerPersonColumns;
 use App\Support\VolunteerRosterColumns;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class VolunteerColumnsTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (Schema::hasTable('event_volunteer_field')) {
+            return;
+        }
+
+        Schema::create('event_volunteer_field', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('event');
+            $table->string('field_key', 64);
+            $table->string('label', 120);
+            $table->string('type', 20);
+            $table->json('options')->nullable();
+            $table->unsignedSmallInteger('sequence')->default(0);
+            $table->timestamps();
+
+            $table->unique(['event', 'field_key'], 'event_volunteer_field_event_key_unique');
+        });
+    }
+
     public function test_person_export_labels_match_table_headers(): void
     {
         $this->assertSame(
@@ -33,7 +58,36 @@ class VolunteerColumnsTest extends TestCase
         );
     }
 
-    public function test_roster_export_labels_use_german_headers(): void
+    public function test_roster_table_payload_without_custom_fields(): void
+    {
+        $keys = array_column(VolunteerRosterColumns::tablePayloadForEvent(999999), 'key');
+
+        $this->assertSame(
+            ['name', 'role', 't_shirt', 'meal', 'notes'],
+            $keys,
+        );
+    }
+
+    public function test_roster_table_payload_includes_custom_fields_between_meal_and_notes(): void
+    {
+        EventVolunteerField::create([
+            'event' => 1,
+            'field_key' => 'vorabend',
+            'label' => 'Vorabendtreffen',
+            'type' => 'boolean',
+            'options' => null,
+            'sequence' => 1,
+        ]);
+
+        $keys = array_column(VolunteerRosterColumns::tablePayloadForEvent(1), 'key');
+
+        $this->assertSame(
+            ['name', 'role', 't_shirt', 'meal', 'custom:vorabend', 'notes'],
+            $keys,
+        );
+    }
+
+    public function test_roster_export_labels_without_custom_fields(): void
     {
         $this->assertSame(
             [
@@ -48,7 +102,6 @@ class VolunteerColumnsTest extends TestCase
                 'T-Shirt Schnitt',
                 'T-Shirt Größe',
                 'Essen',
-                'Vorabendtreffen',
                 'Bemerkungen',
                 'Zuordnung 2 Programm',
                 'Zuordnung 2 Rolle',
@@ -59,22 +112,30 @@ class VolunteerColumnsTest extends TestCase
                 'Zuordnung 5 Programm',
                 'Zuordnung 5 Rolle',
             ],
-            VolunteerRosterColumns::exportLabels(),
+            VolunteerRosterColumns::exportLabelsForEvent(999999),
         );
     }
 
-    public function test_roster_table_payload_matches_ui_columns(): void
+    public function test_roster_export_labels_place_custom_fields_before_notes(): void
     {
-        $this->assertSame(
-            [
-                ['key' => 'name', 'label' => 'Name', 'sortable' => true],
-                ['key' => 'role', 'label' => 'Rolle', 'sortable' => true],
-                ['key' => 't_shirt', 'label' => 'T-Shirt Größe', 'sortable' => false],
-                ['key' => 'meal', 'label' => 'Essen', 'sortable' => false],
-                ['key' => 'eve_meeting', 'label' => 'Vorabendtreffen', 'sortable' => false],
-                ['key' => 'notes', 'label' => 'Bemerkungen', 'sortable' => false],
-            ],
-            VolunteerRosterColumns::tablePayload(),
-        );
+        EventVolunteerField::create([
+            'event' => 2,
+            'field_key' => 'parkplatz',
+            'label' => 'Parkplatz',
+            'type' => 'text',
+            'options' => null,
+            'sequence' => 1,
+        ]);
+
+        $labels = VolunteerRosterColumns::exportLabelsForEvent(2);
+        $essenIndex = array_search('Essen', $labels, true);
+        $notesIndex = array_search('Bemerkungen', $labels, true);
+        $customIndex = array_search('Parkplatz', $labels, true);
+
+        $this->assertNotFalse($essenIndex);
+        $this->assertNotFalse($notesIndex);
+        $this->assertNotFalse($customIndex);
+        $this->assertGreaterThan($essenIndex, $customIndex);
+        $this->assertLessThan($notesIndex, $customIndex);
     }
 }

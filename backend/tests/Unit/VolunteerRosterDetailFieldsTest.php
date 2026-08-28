@@ -13,7 +13,6 @@ class VolunteerRosterDetailFieldsTest extends TestCase
             't_shirt_cut' => 'frauen',
             't_shirt_size' => 'M',
             'meal' => 'vegetarisch',
-            'eve_meeting' => true,
             'notes' => 'Allergie Nüsse',
         ]);
 
@@ -21,7 +20,6 @@ class VolunteerRosterDetailFieldsTest extends TestCase
         $this->assertSame('frauen', $result['data']['t_shirt_cut']);
         $this->assertSame('M', $result['data']['t_shirt_size']);
         $this->assertSame('vegetarisch', $result['data']['meal']);
-        $this->assertTrue($result['data']['eve_meeting']);
         $this->assertSame('Allergie Nüsse', $result['data']['notes']);
     }
 
@@ -31,7 +29,6 @@ class VolunteerRosterDetailFieldsTest extends TestCase
             't_shirt_cut' => 'maenner',
             't_shirt_size' => null,
             'meal' => null,
-            'eve_meeting' => null,
             'notes' => null,
         ]);
 
@@ -44,7 +41,6 @@ class VolunteerRosterDetailFieldsTest extends TestCase
             't_shirt_cut' => null,
             't_shirt_size' => null,
             'meal' => null,
-            'eve_meeting' => null,
             'notes' => null,
         ]);
 

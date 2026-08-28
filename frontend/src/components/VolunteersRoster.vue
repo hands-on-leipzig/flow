@@ -3,13 +3,13 @@ import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
+import VolunteerRosterColumnsPanel from '@/components/molecules/VolunteerRosterColumnsPanel.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
 import {compareRosterEntriesByStaffingRole} from '@/utils/volunteerStaffingSort'
 import {flowFilename} from '@/utils/flowFilename'
-import {ROSTER_TABLE_COLUMNS, rosterColumnLabel} from '@/volunteers/columns/rosterColumns'
-import type {VolunteerTableColumn} from '@/volunteers/columns/types'
+import {ROSTER_TABLE_COLUMNS, type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {rosterEntryHasUnsetField} from '@/utils/volunteerRosterUnset'
 
 const T_SHIRT_CUTS = [
@@ -30,7 +30,6 @@ type RosterDetail = {
   t_shirt_cut: string | null
   t_shirt_size: string | null
   meal: string | null
-  eve_meeting: boolean | null
   notes: string | null
   updated_at: string | null
 }
@@ -61,6 +60,7 @@ type RosterEntry = {
   has_assignment: boolean
   assignments?: RosterAssignment[]
   detail?: RosterDetail
+  custom?: Record<string, string | number | boolean | null>
   created_at: string | null
   person: Person
 }
@@ -69,7 +69,8 @@ const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const roster = ref<RosterEntry[]>([])
-const tableColumns = ref<VolunteerTableColumn[]>([...ROSTER_TABLE_COLUMNS])
+const tableColumns = ref<RosterColumnMeta[]>([...ROSTER_TABLE_COLUMNS])
+const columnsPanelOpen = ref(false)
 const pool = ref<Person[]>([])
 const personSearch = ref('')
 const loading = ref(false)
@@ -154,7 +155,7 @@ function entryMatchesFilters(entry: RosterEntry) {
     }
   }
 
-  if (showOnlyUnset.value && !rosterEntryHasUnsetField(entry)) {
+  if (showOnlyUnset.value && !rosterEntryHasUnsetField(entry, tableColumns.value)) {
     return false
   }
 
@@ -184,10 +185,9 @@ function columnColClass(key: string) {
     role: 'vol-col--role',
     t_shirt: 'vol-col--tshirt',
     meal: 'vol-col--meal',
-    eve_meeting: 'vol-col--eve',
     notes: 'vol-col--notes',
   }
-  return classes[key] ?? ''
+  return classes[key] ?? 'vol-col--custom'
 }
 
 function isSortableRosterColumn(key: string): key is 'name' | 'role' {
@@ -276,10 +276,20 @@ function defaultDetail(): RosterDetail {
     t_shirt_cut: null,
     t_shirt_size: null,
     meal: null,
-    eve_meeting: null,
     notes: null,
     updated_at: null,
   }
+}
+
+function entryCustom(entry: RosterEntry): Record<string, string | number | boolean | null> {
+  if (!entry.custom) {
+    entry.custom = {}
+  }
+  return entry.custom
+}
+
+function customValue(entry: RosterEntry, fieldKey: string) {
+  return entryCustom(entry)[fieldKey] ?? null
 }
 
 function entryDetail(entry: RosterEntry): RosterDetail {
@@ -395,13 +405,6 @@ async function confirmShirtPopup() {
   closeShirtPopup()
 }
 
-function setEveMeeting(entry: RosterEntry, value: boolean | null) {
-  const detail = entryDetail(entry)
-  if (detail.eve_meeting === value) return
-  detail.eve_meeting = value
-  void saveDetail(entry)
-}
-
 async function saveDetail(entry: RosterEntry) {
   if (!eventId.value) return
   const detail = entryDetail(entry)
@@ -415,7 +418,6 @@ async function saveDetail(entry: RosterEntry) {
         t_shirt_cut: detail.t_shirt_cut,
         t_shirt_size: detail.t_shirt_size,
         meal: detail.meal,
-        eve_meeting: detail.eve_meeting,
         notes: detail.notes,
       },
     )
@@ -425,6 +427,32 @@ async function saveDetail(entry: RosterEntry) {
   } finally {
     if (savingDetailKey.value === key) savingDetailKey.value = null
   }
+}
+
+async function saveCustom(entry: RosterEntry, fieldKey: string, value: string | number | boolean | null) {
+  if (!eventId.value) return
+  const key = `${entry.id}`
+  savingDetailKey.value = key
+  error.value = ''
+  try {
+    const {data} = await axios.patch(
+      `/events/${eventId.value}/volunteer-roster/${entry.person.id}/custom`,
+      {field_key: fieldKey, value},
+    )
+    if (data.custom) {
+      entry.custom = {...entryCustom(entry), ...data.custom}
+    }
+  } catch (e: any) {
+    error.value = e?.response?.data?.error || 'Speichern fehlgeschlagen'
+  } finally {
+    if (savingDetailKey.value === key) savingDetailKey.value = null
+  }
+}
+
+function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean | null) {
+  if (customValue(entry, fieldKey) === value) return
+  entryCustom(entry)[fieldKey] = value
+  void saveCustom(entry, fieldKey, value)
 }
 
 async function downloadCsv() {
@@ -483,6 +511,7 @@ async function load() {
     roster.value = (rosterRes.data.roster ?? []).map((entry: RosterEntry) => ({
       ...entry,
       detail: entry.detail ?? defaultDetail(),
+      custom: entry.custom ?? {},
     }))
     tableColumns.value = rosterRes.data.columns ?? [...ROSTER_TABLE_COLUMNS]
     pool.value = poolRes.data.people ?? []
@@ -577,6 +606,16 @@ onBeforeUnmount(() => {
         <p class="vol-page__sub">Alle Helfer für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">
+        <button
+            type="button"
+            class="glass-btn-secondary vol-upload-trigger"
+            title="Spalten verwalten"
+            :disabled="!eventId"
+            @click="columnsPanelOpen = true"
+        >
+          <i class="bi bi-gear" aria-hidden="true"/>
+          Spalten
+        </button>
         <button
             type="button"
             class="glass-btn-secondary vol-upload-trigger"
@@ -729,96 +768,127 @@ onBeforeUnmount(() => {
                   </span>
                 </button>
               </td>
-              <td class="vol-table__name">{{ displayName(entry.person) }}</td>
-              <td class="vol-table__role">
-                <div v-if="entry.assignments?.length" class="vol-table__assignments">
-                  <div
-                      v-for="(assignment, idx) in entry.assignments"
-                      :key="`${entry.id}-assignment-${idx}`"
-                      class="vol-table__assignment"
-                  >
-                    <img
-                        v-if="assignmentLogoSrc(assignment)"
-                        :src="assignmentLogoSrc(assignment)"
-                        :alt="assignmentLogoAlt(assignment)"
-                        class="vol-table__assignment-icon"
+              <template v-for="column in tableColumns" :key="`${entry.id}-${column.key}`">
+                <td v-if="column.key === 'name'" class="vol-table__name">{{ displayName(entry.person) }}</td>
+                <td v-else-if="column.key === 'role'" class="vol-table__role">
+                  <div v-if="entry.assignments?.length" class="vol-table__assignments">
+                    <div
+                        v-for="(assignment, idx) in entry.assignments"
+                        :key="`${entry.id}-assignment-${idx}`"
+                        class="vol-table__assignment"
                     >
-                    <span>{{ assignment.tile_name }}</span>
+                      <img
+                          v-if="assignmentLogoSrc(assignment)"
+                          :src="assignmentLogoSrc(assignment)"
+                          :alt="assignmentLogoAlt(assignment)"
+                          class="vol-table__assignment-icon"
+                      >
+                      <span>{{ assignment.tile_name }}</span>
+                    </div>
                   </div>
-                </div>
-                <span v-else>—</span>
-              </td>
-              <td class="vol-table__field">
-                <button
-                    type="button"
-                    class="vol-detail-trigger glass-input glass-input--sm"
-                    :class="{'vol-detail-trigger--unset': !entryDetail(entry).t_shirt_cut || !entryDetail(entry).t_shirt_size}"
-                    :disabled="savingDetailKey === String(entry.id)"
-                    @click="openShirtPopup(entry, $event.currentTarget as HTMLElement)"
-                >
-                  {{ tShirtLabel(entryDetail(entry)) }}
-                </button>
-              </td>
-              <td class="vol-table__field">
-                <select
-                    class="glass-input glass-input--sm vol-detail-select vol-detail-select--full"
-                    :value="entryDetail(entry).meal ?? ''"
-                    :disabled="savingDetailKey === String(entry.id)"
-                    @change="entryDetail(entry).meal = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
-                >
-                  <option value="">?</option>
-                  <option v-for="meal in MEALS" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
-                </select>
-              </td>
-              <td class="vol-table__field">
-                <div
-                    class="glass-segment vol-tristate"
-                    role="group"
-                    :aria-label="rosterColumnLabel('eve_meeting')"
-                >
+                  <span v-else>—</span>
+                </td>
+                <td v-else-if="column.editor === 't_shirt'" class="vol-table__field">
                   <button
                       type="button"
-                      class="glass-segment__btn"
-                      :class="{'glass-segment__btn--active': entryDetail(entry).eve_meeting === null}"
-                      :aria-pressed="entryDetail(entry).eve_meeting === null"
+                      class="vol-detail-trigger glass-input glass-input--sm"
+                      :class="{'vol-detail-trigger--unset': !entryDetail(entry).t_shirt_cut || !entryDetail(entry).t_shirt_size}"
                       :disabled="savingDetailKey === String(entry.id)"
-                      @click="setEveMeeting(entry, null)"
+                      @click="openShirtPopup(entry, $event.currentTarget as HTMLElement)"
                   >
-                    ?
+                    {{ tShirtLabel(entryDetail(entry)) }}
                   </button>
-                  <button
-                      type="button"
-                      class="glass-segment__btn"
-                      :class="{'glass-segment__btn--active': entryDetail(entry).eve_meeting === true}"
-                      :aria-pressed="entryDetail(entry).eve_meeting === true"
+                </td>
+                <td v-else-if="column.editor === 'meal'" class="vol-table__field">
+                  <select
+                      class="glass-input glass-input--sm vol-detail-select vol-detail-select--full"
+                      :value="entryDetail(entry).meal ?? ''"
                       :disabled="savingDetailKey === String(entry.id)"
-                      @click="setEveMeeting(entry, true)"
+                      @change="entryDetail(entry).meal = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
                   >
-                    Ja
-                  </button>
-                  <button
-                      type="button"
-                      class="glass-segment__btn"
-                      :class="{'glass-segment__btn--active': entryDetail(entry).eve_meeting === false}"
-                      :aria-pressed="entryDetail(entry).eve_meeting === false"
+                    <option value="">?</option>
+                    <option v-for="meal in MEALS" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
+                  </select>
+                </td>
+                <td v-else-if="column.editor === 'text'" class="vol-table__field">
+                  <input
+                      type="text"
+                      class="glass-input glass-input--sm vol-detail-input"
+                      :value="entryDetail(entry).notes ?? ''"
+                      placeholder="Bemerkung"
                       :disabled="savingDetailKey === String(entry.id)"
-                      @click="setEveMeeting(entry, false)"
+                      @change="entryDetail(entry).notes = ($event.target as HTMLInputElement).value.trim() || null"
+                      @blur="saveDetail(entry)"
                   >
-                    Nein
-                  </button>
-                </div>
-              </td>
-              <td class="vol-table__field">
-                <input
-                    type="text"
-                    class="glass-input glass-input--sm vol-detail-input"
-                    :value="entryDetail(entry).notes ?? ''"
-                    placeholder="Bemerkung"
-                    :disabled="savingDetailKey === String(entry.id)"
-                    @change="entryDetail(entry).notes = ($event.target as HTMLInputElement).value.trim() || null"
-                    @blur="saveDetail(entry)"
-                >
-              </td>
+                </td>
+                <td v-else-if="column.kind === 'custom' && column.field_key" class="vol-table__field">
+                  <input
+                      v-if="column.type === 'text'"
+                      type="text"
+                      class="glass-input glass-input--sm vol-detail-input"
+                      :value="(customValue(entry, column.field_key) as string | null) ?? ''"
+                      :disabled="savingDetailKey === String(entry.id)"
+                      @change="entryCustom(entry)[column.field_key] = ($event.target as HTMLInputElement).value.trim() || null; saveCustom(entry, column.field_key, entryCustom(entry)[column.field_key] ?? null)"
+                  >
+                  <input
+                      v-else-if="column.type === 'number'"
+                      type="number"
+                      class="glass-input glass-input--sm vol-detail-input"
+                      :value="customValue(entry, column.field_key) ?? ''"
+                      :disabled="savingDetailKey === String(entry.id)"
+                      @change="saveCustom(entry, column.field_key, ($event.target as HTMLInputElement).value.trim() || null)"
+                  >
+                  <select
+                      v-else-if="column.type === 'select'"
+                      class="glass-input glass-input--sm vol-detail-select vol-detail-select--full"
+                      :value="(customValue(entry, column.field_key) as string | null) ?? ''"
+                      :disabled="savingDetailKey === String(entry.id)"
+                      @change="saveCustom(entry, column.field_key, ($event.target as HTMLSelectElement).value || null)"
+                  >
+                    <option value="">?</option>
+                    <option v-for="option in column.options ?? []" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                  <div
+                      v-else-if="column.type === 'boolean'"
+                      class="glass-segment vol-tristate"
+                      role="group"
+                      :aria-label="column.label"
+                  >
+                    <button
+                        type="button"
+                        class="glass-segment__btn"
+                        :class="{'glass-segment__btn--active': customValue(entry, column.field_key) === null}"
+                        :aria-pressed="customValue(entry, column.field_key) === null"
+                        :disabled="savingDetailKey === String(entry.id)"
+                        @click="setCustomBoolean(entry, column.field_key, null)"
+                    >
+                      ?
+                    </button>
+                    <button
+                        type="button"
+                        class="glass-segment__btn"
+                        :class="{'glass-segment__btn--active': customValue(entry, column.field_key) === true}"
+                        :aria-pressed="customValue(entry, column.field_key) === true"
+                        :disabled="savingDetailKey === String(entry.id)"
+                        @click="setCustomBoolean(entry, column.field_key, true)"
+                    >
+                      Ja
+                    </button>
+                    <button
+                        type="button"
+                        class="glass-segment__btn"
+                        :class="{'glass-segment__btn--active': customValue(entry, column.field_key) === false}"
+                        :aria-pressed="customValue(entry, column.field_key) === false"
+                        :disabled="savingDetailKey === String(entry.id)"
+                        @click="setCustomBoolean(entry, column.field_key, false)"
+                    >
+                      Nein
+                    </button>
+                  </div>
+                </td>
+              </template>
             </tr>
           </tbody>
         </table>
@@ -834,6 +904,13 @@ onBeforeUnmount(() => {
         cancel-text="Abbrechen"
         @confirm="confirmRemove"
         @cancel="removeTarget = null"
+    />
+
+    <VolunteerRosterColumnsPanel
+        :open="columnsPanelOpen"
+        :event-id="eventId"
+        @close="columnsPanelOpen = false"
+        @changed="load"
     />
 
     <Teleport to="body">
@@ -1094,8 +1171,8 @@ onBeforeUnmount(() => {
 .vol-col--role { width: 18%; }
 .vol-col--tshirt { width: 11%; }
 .vol-col--meal { width: 11%; }
-.vol-col--eve { width: 13%; }
 .vol-col--notes { width: auto; }
+.vol-col--custom { width: 11%; }
 
 .vol-table th,
 .vol-table td {

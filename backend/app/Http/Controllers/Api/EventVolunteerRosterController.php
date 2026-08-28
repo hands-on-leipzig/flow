@@ -5,13 +5,17 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventStaffingAssignment;
+use App\Models\EventVolunteerField;
+use App\Models\EventVolunteerFieldValue;
 use App\Models\EventVolunteerRoster;
 use App\Models\EventVolunteerRosterDetail;
 use App\Models\VolunteerPerson;
 use App\Support\VolunteerRosterColumns;
+use App\Support\VolunteerRosterCustomFields;
 use App\Support\VolunteerRosterDetailFields;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -19,9 +23,11 @@ class EventVolunteerRosterController extends Controller
 {
     public function index(Event $event): JsonResponse
     {
+        $customFields = VolunteerRosterColumns::customFieldsForEvent($event->id);
+
         $rows = EventVolunteerRoster::query()
             ->where('event', $event->id)
-            ->with(['person', 'detail'])
+            ->with(['person', 'detail', 'fieldValues.field'])
             ->get()
             ->sortBy(fn (EventVolunteerRoster $row) => [
                 mb_strtolower($row->person?->last_name ?? ''),
@@ -32,7 +38,7 @@ class EventVolunteerRosterController extends Controller
         $assignedPersonIds = $this->assignedPersonIds($event->id);
         $assignmentsByPerson = $this->assignmentsByPerson($event->id);
 
-        $roster = $rows->map(function (EventVolunteerRoster $row) use ($assignedPersonIds, $assignmentsByPerson) {
+        $roster = $rows->map(function (EventVolunteerRoster $row) use ($assignedPersonIds, $assignmentsByPerson, $customFields) {
             $person = $row->person;
             if (! $person) {
                 return null;
@@ -45,6 +51,7 @@ class EventVolunteerRosterController extends Controller
                 'has_assignment' => in_array($person->id, $assignedPersonIds, true),
                 'assignments' => $assignmentsByPerson[$person->id] ?? [],
                 'detail' => VolunteerRosterDetailFields::serialize($row->detail),
+                'custom' => $this->customValuesForRow($row, $customFields),
                 'person' => [
                     'id' => $person->id,
                     'first_name' => $person->first_name,
@@ -59,7 +66,7 @@ class EventVolunteerRosterController extends Controller
 
         return response()->json([
             'roster' => $roster,
-            'columns' => VolunteerRosterColumns::tablePayload(),
+            'columns' => VolunteerRosterColumns::tablePayloadForEvent($event->id),
         ]);
     }
 
@@ -116,9 +123,6 @@ class EventVolunteerRosterController extends Controller
             't_shirt_cut' => $request->input('t_shirt_cut', $existing?->t_shirt_cut),
             't_shirt_size' => $request->input('t_shirt_size', $existing?->t_shirt_size),
             'meal' => $request->input('meal', $existing?->meal),
-            'eve_meeting' => $request->has('eve_meeting')
-                ? $request->input('eve_meeting')
-                : $existing?->eve_meeting,
             'notes' => $request->has('notes') ? $request->input('notes') : $existing?->notes,
         ];
 
@@ -137,11 +141,72 @@ class EventVolunteerRosterController extends Controller
         ]);
     }
 
+    public function updateCustom(Request $request, Event $event, VolunteerPerson $volunteer): JsonResponse
+    {
+        if ((int) $volunteer->regional_partner !== (int) $event->regional_partner) {
+            return response()->json(['error' => 'Person gehört nicht zu diesem Regionalpartner.'], 422);
+        }
+
+        $roster = EventVolunteerRoster::query()
+            ->where('event', $event->id)
+            ->where('volunteer_person', $volunteer->id)
+            ->first();
+
+        if (! $roster) {
+            return response()->json(['error' => 'Person ist nicht auf der Helferliste.'], 404);
+        }
+
+        $validated = $request->validate([
+            'field_key' => 'required|string|max:64',
+            'value' => 'nullable',
+        ]);
+
+        $field = EventVolunteerField::query()
+            ->where('event', $event->id)
+            ->where('field_key', $validated['field_key'])
+            ->first();
+
+        if (! $field) {
+            return response()->json(['error' => 'Spalte nicht gefunden.'], 404);
+        }
+
+        $validation = VolunteerRosterCustomFields::validateValue($field, $validated['value']);
+        if (! $validation['ok']) {
+            return response()->json(['error' => $validation['error']], 422);
+        }
+
+        if ($validation['stored'] === null) {
+            EventVolunteerFieldValue::query()
+                ->where('event_volunteer_roster', $roster->id)
+                ->where('event_volunteer_field', $field->id)
+                ->delete();
+        } else {
+            EventVolunteerFieldValue::query()->updateOrCreate(
+                [
+                    'event_volunteer_roster' => $roster->id,
+                    'event_volunteer_field' => $field->id,
+                ],
+                [
+                    'value' => $validation['stored'],
+                    'updated_at' => now(),
+                ]
+            );
+        }
+
+        return response()->json([
+            'custom' => [
+                $field->field_key => $validation['api'],
+            ],
+        ]);
+    }
+
     public function exportCsv(Request $request, Event $event): StreamedResponse
     {
+        $customFields = VolunteerRosterColumns::customFieldsForEvent($event->id);
+
         $query = EventVolunteerRoster::query()
             ->where('event', $event->id)
-            ->with(['person', 'detail']);
+            ->with(['person', 'detail', 'fieldValues.field']);
 
         $personIds = $this->parsePersonIdsFilter($request);
         if ($personIds !== null) {
@@ -158,10 +223,9 @@ class EventVolunteerRosterController extends Controller
 
         $assignmentsByPerson = $this->assignmentsByPerson($event->id);
         $programNames = $this->programNameMap();
+        $header = VolunteerRosterColumns::exportLabelsForEvent($event->id);
 
-        $header = VolunteerRosterColumns::exportLabels();
-
-        return response()->streamDownload(function () use ($rows, $assignmentsByPerson, $programNames, $header) {
+        return response()->streamDownload(function () use ($rows, $assignmentsByPerson, $programNames, $header, $event, $customFields) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
             fputcsv($out, $header, ';');
@@ -174,7 +238,13 @@ class EventVolunteerRosterController extends Controller
                 $assignments = $assignmentsByPerson[$row->person->id] ?? [];
                 fputcsv(
                     $out,
-                    VolunteerRosterColumns::exportValues($row, $assignments, $programNames),
+                    VolunteerRosterColumns::exportValuesForEvent(
+                        $event->id,
+                        $row,
+                        $assignments,
+                        $programNames,
+                        $this->customValuesForRow($row, $customFields),
+                    ),
                     ';'
                 );
             }
@@ -201,6 +271,23 @@ class EventVolunteerRosterController extends Controller
         });
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * @param  Collection<int, EventVolunteerField>  $customFields
+     * @return array<string, mixed>
+     */
+    private function customValuesForRow(EventVolunteerRoster $row, Collection $customFields): array
+    {
+        $valuesByFieldId = $row->fieldValues->keyBy('event_volunteer_field');
+        $payload = [];
+
+        foreach ($customFields as $field) {
+            $stored = $valuesByFieldId->get($field->id)?->value;
+            $payload[$field->field_key] = VolunteerRosterCustomFields::apiValue($field, $stored);
+        }
+
+        return $payload;
     }
 
     /**

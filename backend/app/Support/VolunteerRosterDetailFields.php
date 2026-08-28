@@ -37,19 +37,6 @@ class VolunteerRosterDetailFields
             ? ($input['notes'] === null || $input['notes'] === '' ? null : trim((string) $input['notes']))
             : null;
 
-        $eveMeeting = null;
-        if (array_key_exists('eve_meeting', $input)) {
-            if ($input['eve_meeting'] === null || $input['eve_meeting'] === '') {
-                $eveMeeting = null;
-            } else {
-                $eveMeeting = filter_var($input['eve_meeting'], FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-                if ($eveMeeting === null && ! in_array($input['eve_meeting'], [0, 1, '0', '1', false, true], true)) {
-                    return ['ok' => false, 'error' => 'Ungültiger Wert für Vorabendtreffen.'];
-                }
-                $eveMeeting = (bool) $eveMeeting;
-            }
-        }
-
         if ($cut !== null && ! in_array($cut, self::T_SHIRT_CUTS, true)) {
             return ['ok' => false, 'error' => 'Ungültiger T-Shirt-Schnitt.'];
         }
@@ -72,7 +59,6 @@ class VolunteerRosterDetailFields
                 't_shirt_cut' => $cut,
                 't_shirt_size' => $size,
                 'meal' => $meal,
-                'eve_meeting' => $eveMeeting,
                 'notes' => $notes,
             ],
         ];
@@ -88,7 +74,6 @@ class VolunteerRosterDetailFields
                 't_shirt_cut' => null,
                 't_shirt_size' => null,
                 'meal' => null,
-                'eve_meeting' => null,
                 'notes' => null,
                 'updated_at' => null,
             ];
@@ -98,7 +83,6 @@ class VolunteerRosterDetailFields
             't_shirt_cut' => $detail->t_shirt_cut,
             't_shirt_size' => $detail->t_shirt_size,
             'meal' => $detail->meal,
-            'eve_meeting' => $detail->eve_meeting,
             'notes' => $detail->notes,
             'updated_at' => optional($detail->updated_at)?->toIso8601String(),
         ];
@@ -112,15 +96,6 @@ class VolunteerRosterDetailFields
     public static function exportMealLabel(?string $meal): string
     {
         return $meal ? (self::MEAL_LABELS[$meal] ?? $meal) : '';
-    }
-
-    public static function exportEveMeeting(?bool $value): string
-    {
-        if ($value === null) {
-            return '';
-        }
-
-        return $value ? 'ja' : 'nein';
     }
 
     private static function nullableString(array $input, string $key): ?string
