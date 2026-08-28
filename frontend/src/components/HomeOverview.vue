@@ -11,6 +11,8 @@ import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {imageUrl, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
 import {eventPrograms, programDisplayName, firstTeamsPath, teamPathFor, programCompact} from '@/utils/eventPrograms'
+import {staffingSummaryFromReadiness, type StaffingScopeSummary} from '@/utils/volunteerStaffingSummary'
+import VolunteerStaffingSummary from '@/components/volunteers/VolunteerStaffingSummary.vue'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
 
 defineOptions({name: 'HomeOverview'})
@@ -31,6 +33,14 @@ const teamStats = ref<Array<{
 const hasPlan = ref(false)
 const publicationLevel = ref<number | null>(null)
 const loading = ref(true)
+
+const programList = computed(() => eventPrograms(event.value))
+
+const staffingSummary = computed<StaffingScopeSummary[]>(() =>
+  staffingSummaryFromReadiness(readiness.value?.staffing_summary, programList.value),
+)
+
+const staffingHasGaps = computed(() => staffingSummary.value.some((row) => row.missing_min > 0))
 
 const seasonName = computed(() =>
     (event.value as any)?.season_rel?.name
@@ -284,6 +294,43 @@ watch(
               {{ loading ? 'Lade Teamdaten…' : 'Keine Team-Daten verfügbar' }}
             </p>
           </div>
+        </div>
+
+        <div class="glass-card liquid-surface-inner">
+          <div class="flex items-center justify-between gap-2 mb-3">
+            <h2 class="glass-card__title !mb-0">Helfer:innen</h2>
+            <RouterLink
+                to="/plan/volunteers/staffing"
+                class="text-xs font-medium text-[var(--color-accent)] hover:underline no-underline"
+            >
+              Zur Zuordnung →
+            </RouterLink>
+          </div>
+
+          <div
+              v-if="!hasPlan && !loading"
+              class="mb-3 rounded-lg px-3 py-2 text-sm bg-[color-mix(in_srgb,var(--color-text-subtle)_12%,transparent)] border border-[color-mix(in_srgb,var(--color-border-strong)_35%,transparent)]"
+          >
+            Noch kein Ablauf — Rollen erscheinen nach der Planerzeugung.
+          </div>
+
+          <div
+              v-else-if="staffingHasGaps"
+              class="mb-3 rounded-lg px-3 py-2 text-sm bg-[color-mix(in_srgb,var(--color-warning,#f59e0b)_18%,transparent)] border border-[color-mix(in_srgb,var(--color-warning,#f59e0b)_40%,transparent)]"
+          >
+            <div class="flex items-start gap-2">
+              <i class="bi bi-exclamation-triangle-fill mt-0.5" aria-hidden="true"/>
+              <p>Einige Rollen sind noch unter der Mindestempfehlung.</p>
+            </div>
+          </div>
+
+          <VolunteerStaffingSummary
+              :scopes="staffingSummary"
+              :programs="programList"
+              :loading="loading"
+              layout="list"
+              @select="goTo('/volunteers/staffing')"
+          />
         </div>
 
         <div class="glass-card liquid-surface-inner">

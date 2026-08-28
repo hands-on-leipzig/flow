@@ -11,6 +11,7 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
+import VolunteerStaffingSummary from '@/components/volunteers/VolunteerStaffingSummary.vue'
 import VolunteerStaffingBoundsPopover from '@/components/volunteers/VolunteerStaffingBoundsPopover.vue'
 import VolunteerStaffingTile from '@/components/volunteers/VolunteerStaffingTile.vue'
 import {eventPrograms} from '@/utils/eventPrograms'
@@ -30,6 +31,7 @@ import {
   type StaffingRole,
   type StaffingTile,
 } from '@/volunteers/staffingTypes'
+import {computeStaffingSummary} from '@/utils/volunteerStaffingSummary'
 
 defineOptions({name: 'VolunteersStaffing'})
 
@@ -68,6 +70,8 @@ const newRoleMax = ref<number | ''>('')
 const activeTileFilters = ref<Set<StaffingFilterKey>>(new Set())
 
 const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
+
+const staffingSummary = computed(() => computeStaffingSummary(roles.value, programFilters.value))
 
 const tiles = computed<Tile[]>(() => {
   const list = roles.value.flatMap((role) =>
@@ -498,6 +502,14 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
         <p v-if="!tiles.length" class="text-sm text-[var(--color-text-subtle)] mb-3">
           Noch keine Rollen. Rollen werden beim Erzeugen des Ablaufs angelegt — oder links eine eigene Rolle anlegen.
         </p>
+
+        <VolunteerStaffingSummary
+            v-if="planId"
+            class="mb-4"
+            :scopes="staffingSummary"
+            :programs="programFilters"
+            layout="bar"
+        />
 
         <VolunteerStaffingFilterBar
             v-if="tiles.length"

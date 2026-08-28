@@ -129,6 +129,60 @@ class StaffingSyncService
     }
 
     /**
+     * Assigned people and min gaps per staffing scope (cross, each attached program, local).
+     *
+     * @param  list<int>  $programIds  attached event first_program ids
+     * @return list<array{key: string, assigned: int, missing_min: int}>
+     */
+    public function summaryByScope(int $eventId, array $programIds): array
+    {
+        $buckets = [
+            'cross' => ['assigned' => 0, 'missing_min' => 0],
+            'local' => ['assigned' => 0, 'missing_min' => 0],
+        ];
+        foreach ($programIds as $programId) {
+            $buckets['program:'.$programId] = ['assigned' => 0, 'missing_min' => 0];
+        }
+
+        $roles = EventStaffingRole::query()
+            ->where('event', $eventId)
+            ->with(['catalogRole', 'groups.assignments'])
+            ->get();
+
+        foreach ($roles as $role) {
+            $scopeKey = $this->scopeKeyForRole($role);
+            if (! isset($buckets[$scopeKey])) {
+                continue;
+            }
+
+            $min = (int) $role->min;
+            foreach ($role->groups as $group) {
+                $filled = $group->assignments->count();
+                $buckets[$scopeKey]['assigned'] += $filled;
+
+                if (! $group->surplus && $filled < $min) {
+                    $buckets[$scopeKey]['missing_min'] += $min - $filled;
+                }
+            }
+        }
+
+        $result = [
+            ['key' => 'cross', ...$buckets['cross']],
+        ];
+
+        $sortedPrograms = $programIds;
+        sort($sortedPrograms);
+        foreach ($sortedPrograms as $programId) {
+            $key = 'program:'.$programId;
+            $result[] = ['key' => $key, ...$buckets[$key]];
+        }
+
+        $result[] = ['key' => 'local', ...$buckets['local']];
+
+        return $result;
+    }
+
+    /**
      * Nav red-dot: surplus group with people, or non-surplus group below min (catalog + local).
      */
     public function staffingOk(int $eventId): bool
@@ -159,6 +213,20 @@ class StaffingSyncService
         }
 
         return true;
+    }
+
+    private function scopeKeyForRole(EventStaffingRole $role): string
+    {
+        if ($role->isLocal()) {
+            return 'local';
+        }
+
+        $firstProgram = $role->catalogRole?->first_program;
+        if ($firstProgram === null) {
+            return 'cross';
+        }
+
+        return 'program:'.(int) $firstProgram;
     }
 
     /**

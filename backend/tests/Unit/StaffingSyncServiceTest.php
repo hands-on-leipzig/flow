@@ -164,6 +164,35 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertTrue($this->sync->staffingOk(1));
     }
 
+    public function test_summary_by_scope_counts_assigned_and_missing_min(): void
+    {
+        $this->seedChallengeEvent(lanes: 2);
+        DB::table('m_staffing_rule')->where('m_role', 4)->update(['min' => 2, 'best' => 2, 'max' => 3]);
+        $this->sync->syncForEvent(1);
+
+        $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
+        $groups = EventStaffingGroup::query()
+            ->where('event_staffing_role', $role->id)
+            ->orderBy('group_index')
+            ->get();
+
+        EventStaffingAssignment::create([
+            'event_staffing_group' => $groups[0]->id,
+            'volunteer_person' => 1,
+            'created_at' => now(),
+        ]);
+
+        $summary = collect($this->sync->summaryByScope(1, [FirstProgram::CHALLENGE->value]))
+            ->keyBy('key');
+
+        $this->assertSame(0, $summary['cross']['assigned']);
+        $this->assertSame(0, $summary['cross']['missing_min']);
+        $this->assertSame(1, $summary['program:'.FirstProgram::CHALLENGE->value]['assigned']);
+        $this->assertSame(3, $summary['program:'.FirstProgram::CHALLENGE->value]['missing_min']);
+        $this->assertSame(0, $summary['local']['assigned']);
+        $this->assertSame(0, $summary['local']['missing_min']);
+    }
+
     private function createSchema(): void
     {
         Schema::dropAllTables();
