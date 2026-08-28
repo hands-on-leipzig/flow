@@ -29,6 +29,7 @@ const people = ref<Person[]>([])
 const tableColumns = ref<VolunteerTableColumn[]>([...PERSON_TABLE_COLUMNS])
 const assignedIds = ref<Set<number>>(new Set())
 const search = ref('')
+const notOnRosterOnly = ref(false)
 type SortKey = 'first_name' | 'last_name'
 const sortKey = ref<SortKey>('last_name')
 const sortDir = ref<'asc' | 'desc'>('asc')
@@ -109,6 +110,9 @@ function sortIcon(key: SortKey) {
 
 const filtered = computed(() => {
   let list = people.value
+  if (notOnRosterOnly.value) {
+    list = list.filter((p) => !p.on_roster)
+  }
   const q = search.value.trim().toLowerCase()
   if (q) {
     list = list.filter((p) => searchHaystack(p).includes(q))
@@ -453,10 +457,21 @@ onMounted(() => load())
 
     <section class="glass-card liquid-surface-inner vol-tile">
       <div class="vol-toolbar">
+        <button
+            type="button"
+            class="vol-roster-filter"
+            :class="{'vol-roster-filter--active': notOnRosterOnly}"
+            :aria-pressed="notOnRosterOnly"
+            title="Nur Personen anzeigen, die noch nicht auf der Helferliste sind"
+            @click="notOnRosterOnly = !notOnRosterOnly"
+        >
+          <i class="bi bi-clipboard-check vol-roster-filter__icon" aria-hidden="true"/>
+          <span class="vol-roster-filter__label">Nicht auf Helferliste</span>
+        </button>
         <input
             v-model="search"
             type="search"
-            class="glass-input glass-input--sm"
+            class="glass-input glass-input--sm vol-toolbar__search"
             placeholder="Tippen zum Filtern (alle Felder)…"
             autocomplete="off"
         />
@@ -610,7 +625,40 @@ onMounted(() => load())
   align-items: center;
   margin-bottom: 0.75rem;
 }
-.vol-toolbar input { flex: 1; }
+.vol-toolbar__search { flex: 1; min-width: 0; }
+.vol-roster-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--liquid-border-soft);
+  border-radius: var(--radius);
+  background: var(--liquid-tile-bg-inner);
+  box-shadow: var(--liquid-shadow-inset);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.vol-roster-filter:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+.vol-roster-filter--active {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-muted) 55%, var(--liquid-tile-bg-inner));
+  color: var(--color-text);
+}
+.vol-roster-filter--active .vol-roster-filter__icon {
+  color: var(--color-accent);
+}
+.vol-roster-filter__icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
 .vol-toolbar__count {
   opacity: 0.6;
   font-variant-numeric: tabular-nums;
