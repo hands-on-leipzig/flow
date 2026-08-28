@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, ref, watch} from 'vue'
 import axios from 'axios'
 import draggable from 'vuedraggable'
 import {useEventStore} from '@/stores/event'
+import {useAnchoredPanel} from '@/composables/useAnchoredPanel'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
@@ -88,13 +89,6 @@ const roleToDelete = ref<Role | null>(null)
 const boundsEditRole = ref<Role | null>(null)
 const boundsDraft = ref({min: 1, best: 1, max: 1})
 const boundsAnchorEl = ref<HTMLElement | null>(null)
-const boundsPanelRef = ref<HTMLElement | null>(null)
-const boundsPanelStyle = ref<Record<string, string>>({
-  position: 'fixed',
-  top: '0',
-  left: '0',
-  visibility: 'hidden',
-})
 const pickPerson = ref<Person | null>(null)
 const composerRef = ref<{focusTitle?: () => void} | null>(null)
 
@@ -366,48 +360,16 @@ function closeBoundsModal() {
   boundsAnchorEl.value = null
 }
 
-function placeBoundsPanel() {
-  const anchor = boundsAnchorEl.value
-  const panel = boundsPanelRef.value
-  if (!anchor || !panel) return
+const boundsPanelOpen = computed(() => !!boundsEditRole.value)
 
-  const rect = anchor.getBoundingClientRect()
-  const width = panel.offsetWidth || 320
-  const height = panel.offsetHeight || 220
-  const margin = 8
-  const vw = window.innerWidth
-  const vh = window.innerHeight
-
-  let top = rect.bottom + margin
-  if (top + height > vh - margin && rect.top - height - margin >= margin) {
-    top = rect.top - height - margin
-  }
-  top = Math.min(Math.max(top, margin), Math.max(margin, vh - margin - height))
-
-  let left = rect.right - width
-  if (left < margin) left = margin
-  if (left + width > vw - margin) left = vw - margin - width
-
-  boundsPanelStyle.value = {
-    position: 'fixed',
-    top: `${Math.round(top)}px`,
-    left: `${Math.round(left)}px`,
-    visibility: 'visible',
-  }
-}
-
-function onBoundsReposition() {
-  if (boundsEditRole.value) placeBoundsPanel()
-}
-
-function handleBoundsClickOutside(event: MouseEvent) {
-  if (!boundsEditRole.value) return
-  const target = event.target
-  if (!(target instanceof Node)) return
-  if (boundsPanelRef.value?.contains(target)) return
-  if (boundsAnchorEl.value?.contains(target)) return
-  closeBoundsModal()
-}
+const {panelRef: boundsPanelRef, panelStyle: boundsPanelStyle} = useAnchoredPanel({
+  isOpen: boundsPanelOpen,
+  anchor: boundsAnchorEl,
+  align: 'right',
+  fallbackWidth: 320,
+  fallbackHeight: 220,
+  onClose: closeBoundsModal,
+})
 
 async function saveBoundsModal() {
   const role = boundsEditRole.value
@@ -647,29 +609,6 @@ function assignableTilesFor(person: Person) {
 
 watch(eventId, () => load(), {immediate: true})
 watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: true})
-watch(boundsEditRole, async (role) => {
-  if (!role) return
-  boundsPanelStyle.value = {
-    position: 'fixed',
-    top: '0',
-    left: '0',
-    visibility: 'hidden',
-  }
-  await nextTick()
-  placeBoundsPanel()
-})
-
-onMounted(() => {
-  document.addEventListener('click', handleBoundsClickOutside)
-  window.addEventListener('resize', onBoundsReposition)
-  window.addEventListener('scroll', onBoundsReposition, true)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleBoundsClickOutside)
-  window.removeEventListener('resize', onBoundsReposition)
-  window.removeEventListener('scroll', onBoundsReposition, true)
-})
 </script>
 
 <template>

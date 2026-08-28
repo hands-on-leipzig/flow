@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
+import {useAnchoredPanel} from '@/composables/useAnchoredPanel'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import VolunteerRosterColumnsPanel from '@/components/molecules/VolunteerRosterColumnsPanel.vue'
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
@@ -84,13 +85,7 @@ const savingDetailKey = ref<string | null>(null)
 const shirtEditEntry = ref<RosterEntry | null>(null)
 const shirtDraft = ref<{cut: string | null; size: string | null}>({cut: null, size: null})
 const shirtAnchorEl = ref<HTMLElement | null>(null)
-const shirtPanelRef = ref<HTMLElement | null>(null)
-const shirtPanelStyle = ref<Record<string, string>>({
-  position: 'fixed',
-  top: '0',
-  left: '0',
-  visibility: 'hidden',
-})
+
 const sortKey = ref<'name' | 'role'>('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
 
@@ -268,7 +263,6 @@ function openShirtPopup(entry: RosterEntry, anchor: HTMLElement) {
     cut: detail.t_shirt_cut,
     size: detail.t_shirt_size,
   }
-  void nextTick(() => placeShirtPanel())
 }
 
 function closeShirtPopup() {
@@ -276,48 +270,16 @@ function closeShirtPopup() {
   shirtAnchorEl.value = null
 }
 
-function placeShirtPanel() {
-  const anchor = shirtAnchorEl.value
-  const panel = shirtPanelRef.value
-  if (!anchor || !panel) return
+const shirtPanelOpen = computed(() => !!shirtEditEntry.value)
 
-  const rect = anchor.getBoundingClientRect()
-  const width = panel.offsetWidth || 260
-  const height = panel.offsetHeight || 300
-  const margin = 8
-  const vw = window.innerWidth
-  const vh = window.innerHeight
-
-  let top = rect.bottom + margin
-  if (top + height > vh - margin && rect.top - height - margin >= margin) {
-    top = rect.top - height - margin
-  }
-  top = Math.min(Math.max(top, margin), Math.max(margin, vh - margin - height))
-
-  let left = rect.left
-  if (left + width > vw - margin) left = vw - margin - width
-  if (left < margin) left = margin
-
-  shirtPanelStyle.value = {
-    position: 'fixed',
-    top: `${Math.round(top)}px`,
-    left: `${Math.round(left)}px`,
-    visibility: 'visible',
-  }
-}
-
-function onShirtReposition() {
-  if (shirtEditEntry.value) placeShirtPanel()
-}
-
-function handleShirtClickOutside(event: MouseEvent) {
-  if (!shirtEditEntry.value) return
-  const target = event.target
-  if (!(target instanceof Node)) return
-  if (shirtPanelRef.value?.contains(target)) return
-  if (shirtAnchorEl.value?.contains(target)) return
-  closeShirtPopup()
-}
+const {panelRef: shirtPanelRef, panelStyle: shirtPanelStyle} = useAnchoredPanel({
+  isOpen: shirtPanelOpen,
+  anchor: shirtAnchorEl,
+  fallbackWidth: 260,
+  fallbackHeight: 300,
+  closeOn: 'mousedown',
+  onClose: closeShirtPopup,
+})
 
 function shirtDraftCutValue(): string {
   return shirtDraft.value.cut ?? ''
@@ -512,32 +474,8 @@ async function confirmRemove() {
 
 watch(eventId, () => syncAssignmentFilters(), {immediate: true})
 watch(eventId, () => load(), {immediate: true})
-watch(shirtEditEntry, async (entry) => {
-  if (!entry) {
-    shirtPanelStyle.value = {
-      position: 'fixed',
-      top: '0',
-      left: '0',
-      visibility: 'hidden',
-    }
-    return
-  }
-  await nextTick()
-  placeShirtPanel()
-})
 
-onMounted(() => {
-  load()
-  document.addEventListener('mousedown', handleShirtClickOutside)
-  window.addEventListener('resize', onShirtReposition)
-  window.addEventListener('scroll', onShirtReposition, true)
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('mousedown', handleShirtClickOutside)
-  window.removeEventListener('resize', onShirtReposition)
-  window.removeEventListener('scroll', onShirtReposition, true)
-})
+onMounted(() => load())
 </script>
 
 <template>
