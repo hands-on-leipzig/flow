@@ -67,7 +67,7 @@ class StaffingSyncService
         $activeRoleIds = [];
 
         foreach ($catalogRoles as $role) {
-            $rule = MStaffingRule::query()->find($role->id);
+            $rule = MStaffingRule::query()->where('m_role', $role->id)->first();
             if (! $rule) {
                 $msg = "staffable role {$role->id} ({$role->name}) has no m_staffing_rule";
                 Log::warning('[staffing-sync] '.$msg);
