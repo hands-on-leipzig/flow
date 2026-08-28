@@ -21,14 +21,11 @@ const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const people = ref<Person[]>([])
-const assignedIds = ref<Set<number>>(new Set())
 const search = ref('')
-const rosterOnly = ref(false)
 type SortKey = 'first_name' | 'last_name'
 const sortKey = ref<SortKey>('last_name')
 const sortDir = ref<'asc' | 'desc'>('asc')
 const loading = ref(false)
-const togglingId = ref<number | null>(null)
 const error = ref('')
 const toast = ref('')
 
@@ -84,9 +81,6 @@ function sortIcon(key: SortKey) {
 
 const filtered = computed(() => {
   let list = people.value
-  if (rosterOnly.value) {
-    list = list.filter((p) => p.on_roster)
-  }
   const q = search.value.trim().toLowerCase()
   if (q) {
     list = list.filter((p) => searchHaystack(p).includes(q))
@@ -113,16 +107,8 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const [peopleRes, rosterRes] = await Promise.all([
-      axios.get(`/events/${eventId.value}/volunteers`),
-      axios.get(`/events/${eventId.value}/volunteer-roster`),
-    ])
-    people.value = peopleRes.data.people ?? []
-    assignedIds.value = new Set(
-      (rosterRes.data.roster ?? [])
-        .filter((row: {has_assignment?: boolean}) => row.has_assignment)
-        .map((row: {person: {id: number}}) => row.person.id),
-    )
+    const {data} = await axios.get(`/events/${eventId.value}/volunteers`)
+    people.value = data.people ?? []
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Laden fehlgeschlagen'
   } finally {
@@ -186,35 +172,6 @@ async function removePerson(p: Person) {
   }
 }
 
-async function toggleRoster(p: Person, checked: boolean) {
-  if (!eventId.value || togglingId.value === p.id) return
-  if (!checked && assignedIds.value.has(p.id)) {
-    error.value = 'Person ist noch besetzt — zuerst Einsatz entfernen.'
-    return
-  }
-
-  const previous = !!p.on_roster
-  p.on_roster = checked
-  togglingId.value = p.id
-  error.value = ''
-  try {
-    if (checked) {
-      await axios.post(`/events/${eventId.value}/volunteer-roster`, {
-        volunteer_person: p.id,
-      })
-      showToast('Zur Helferliste hinzugefügt')
-    } else {
-      await axios.delete(`/events/${eventId.value}/volunteer-roster/${p.id}`)
-      showToast('Von Helferliste entfernt')
-    }
-  } catch (e: any) {
-    p.on_roster = previous
-    error.value = e?.response?.data?.error || 'Helferliste konnte nicht geändert werden'
-  } finally {
-    togglingId.value = null
-  }
-}
-
 function showToast(msg: string) {
   toast.value = msg
   setTimeout(() => {
@@ -242,7 +199,6 @@ onMounted(() => load())
       <div class="vol-table-frame">
         <table class="vol-table">
           <colgroup>
-            <col class="vol-col--roster"/>
             <col class="vol-col--first"/>
             <col class="vol-col--last"/>
             <col class="vol-col--nick"/>
@@ -253,7 +209,6 @@ onMounted(() => load())
           </colgroup>
           <tbody>
             <tr>
-              <td class="vol-table__roster"/>
               <td>
                 <input
                     v-model="draft.first_name"
@@ -319,7 +274,6 @@ onMounted(() => load())
       <div v-else class="vol-table-frame vol-table-frame--scroll">
         <table class="vol-table">
           <colgroup>
-            <col class="vol-col--roster"/>
             <col class="vol-col--first"/>
             <col class="vol-col--last"/>
             <col class="vol-col--nick"/>
@@ -330,19 +284,6 @@ onMounted(() => load())
           </colgroup>
           <thead>
             <tr>
-              <th class="vol-table__roster" scope="col">
-                <button
-                    type="button"
-                    class="vol-roster-filter"
-                    :class="{'vol-roster-filter--on': rosterOnly}"
-                    :aria-pressed="rosterOnly"
-                    title="Nur Helferliste anzeigen"
-                    @click="rosterOnly = !rosterOnly"
-                >
-                  <i class="bi bi-clipboard-check" aria-hidden="true"/>
-                  <span class="sr-only">Helferliste filtern</span>
-                </button>
-              </th>
               <th scope="col">
                 <button
                     type="button"
@@ -374,18 +315,6 @@ onMounted(() => load())
           </thead>
           <tbody>
             <tr v-for="p in filtered" :key="p.id" class="glass-table-row--hover">
-              <td class="vol-table__roster">
-                <input
-                    type="checkbox"
-                    class="vol-roster-check"
-                    :checked="!!p.on_roster"
-                    :disabled="togglingId === p.id || (!!p.on_roster && assignedIds.has(p.id))"
-                    :title="assignedIds.has(p.id) && p.on_roster
-                      ? 'Noch besetzt — zuerst Einsatz entfernen'
-                      : (p.on_roster ? 'Von Helferliste entfernen' : 'Zur Helferliste hinzufügen')"
-                    @change="toggleRoster(p, ($event.target as HTMLInputElement).checked)"
-                />
-              </td>
               <td>
                 <input
                     v-model="p.first_name"
@@ -493,13 +422,12 @@ onMounted(() => load())
   border-spacing: 0;
   font-size: 0.875rem;
 }
-.vol-col--roster { width: 2.75rem; }
-.vol-col--first { width: 12%; }
-.vol-col--last { width: 12%; }
-.vol-col--nick { width: 11%; }
-.vol-col--email { width: 18%; }
-.vol-col--mobile { width: 12%; }
-.vol-col--meta { width: 16%; }
+.vol-col--first { width: 13%; }
+.vol-col--last { width: 13%; }
+.vol-col--nick { width: 12%; }
+.vol-col--email { width: 20%; }
+.vol-col--mobile { width: 13%; }
+.vol-col--meta { width: 18%; }
 .vol-col--actions { width: 6.5rem; }
 
 .vol-table th,
@@ -522,13 +450,6 @@ onMounted(() => load())
   backdrop-filter: blur(8px);
 }
 .vol-table tbody tr:last-child td { border-bottom: none; }
-.vol-table__roster {
-  text-align: center;
-}
-.vol-table th.vol-table__roster,
-.vol-table td.vol-table__roster {
-  text-align: center;
-}
 .vol-table__actions {
   white-space: nowrap;
 }
@@ -563,40 +484,6 @@ onMounted(() => load())
 .vol-sort--active .bi {
   opacity: 1;
   color: var(--color-accent);
-}
-.vol-roster-filter {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2rem;
-  height: 2rem;
-  margin: 0 auto;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 1.05rem;
-  line-height: 1;
-}
-.vol-roster-filter:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text);
-}
-.vol-roster-filter--on {
-  color: var(--color-accent);
-  background: var(--color-accent-muted);
-  border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
-}
-.vol-roster-check {
-  width: 1.05rem;
-  height: 1.05rem;
-  accent-color: var(--color-accent);
-  cursor: pointer;
-}
-.vol-roster-check:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 .sr-only {
   position: absolute;
