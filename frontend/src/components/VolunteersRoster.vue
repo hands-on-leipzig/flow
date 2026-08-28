@@ -52,7 +52,6 @@ const personSearchMatches = computed(() => {
   if (!q) return []
 
   return pool.value
-    .filter((p) => !rosterPersonIds.value.has(p.id))
     .filter((p) => searchHaystack(p).includes(q))
     .sort((a, b) => {
       const av = displayName(a).toLocaleLowerCase('de')
@@ -101,6 +100,15 @@ function searchHaystack(p: Person) {
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
+}
+
+function isOnRoster(person: Person) {
+  return rosterPersonIds.value.has(person.id)
+}
+
+function onSearchChipClick(person: Person) {
+  if (isOnRoster(person) || addingId.value) return
+  addToRoster(person)
 }
 
 function placeholderFields(_entry: RosterEntry): RosterFormFields {
@@ -225,11 +233,16 @@ onMounted(() => load())
               v-for="person in personSearchMatches"
               :key="person.id"
               type="button"
-              class="glass-row-item glass-row-item--interactive vol-search-chip"
+              class="glass-row-item vol-search-chip"
+              :class="isOnRoster(person) ? 'vol-search-chip--on' : 'glass-row-item--interactive'"
               :disabled="addingId === person.id"
-              @click="addToRoster(person)"
+              @click="onSearchChipClick(person)"
           >
-            <i class="bi bi-person-fill vol-search-chip__icon" aria-hidden="true"/>
+            <i
+                class="bi vol-search-chip__icon"
+                :class="isOnRoster(person) ? 'bi-clipboard-check-fill vol-search-chip__icon--roster' : 'bi-person-fill'"
+                aria-hidden="true"
+            />
             <span class="vol-search-chip__label">{{ displayName(person) }}</span>
           </button>
         </div>
@@ -344,13 +357,20 @@ onMounted(() => load())
 }
 .vol-search-chip {
   font-size: 0.75rem;
-  padding: 0;
+  padding: 0.35rem 0.5rem;
+  gap: 0.4rem;
+}
+.vol-search-chip--on {
+  cursor: default;
 }
 .vol-search-chip__icon {
   color: var(--color-text-subtle);
 }
+.vol-search-chip__icon--roster {
+  color: var(--color-accent);
+}
 .vol-search-chip__label {
-  padding: 0.35rem 0.5rem 0.35rem 0;
+  padding: 0;
 }
 .vol-search-chip:disabled {
   opacity: 0.55;
