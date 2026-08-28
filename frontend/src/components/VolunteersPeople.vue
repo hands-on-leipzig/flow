@@ -3,6 +3,7 @@ import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
+import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 
 type RecentAssignment = { event_id: number; role: string; year: string | null }
 
@@ -22,11 +23,14 @@ const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const people = ref<Person[]>([])
+const assignedIds = ref<Set<number>>(new Set())
 const search = ref('')
 type SortKey = 'first_name' | 'last_name'
 const sortKey = ref<SortKey>('last_name')
 const sortDir = ref<'asc' | 'desc'>('asc')
 const loading = ref(false)
+const togglingId = ref<number | null>(null)
+const removeFromRosterTarget = ref<Person | null>(null)
 const error = ref('')
 const toast = ref('')
 
@@ -108,8 +112,16 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const {data} = await axios.get(`/events/${eventId.value}/volunteers`)
-    people.value = data.people ?? []
+    const [peopleRes, rosterRes] = await Promise.all([
+      axios.get(`/events/${eventId.value}/volunteers`),
+      axios.get(`/events/${eventId.value}/volunteer-roster`),
+    ])
+    people.value = peopleRes.data.people ?? []
+    assignedIds.value = new Set(
+      (rosterRes.data.roster ?? [])
+        .filter((row: {has_assignment?: boolean}) => row.has_assignment)
+        .map((row: {person: {id: number}}) => row.person.id),
+    )
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Laden fehlgeschlagen'
   } finally {
@@ -173,6 +185,53 @@ async function removePerson(p: Person) {
   }
 }
 
+function onRosterIconClick(p: Person) {
+  if (togglingId.value === p.id) return
+  if (p.on_roster) {
+    if (assignedIds.value.has(p.id)) {
+      error.value = 'Person ist noch besetzt — zuerst Einsatz entfernen.'
+      return
+    }
+    removeFromRosterTarget.value = p
+    return
+  }
+  void addToRoster(p)
+}
+
+async function addToRoster(p: Person) {
+  if (!eventId.value || togglingId.value === p.id) return
+  togglingId.value = p.id
+  error.value = ''
+  try {
+    await axios.post(`/events/${eventId.value}/volunteer-roster`, {
+      volunteer_person: p.id,
+    })
+    p.on_roster = true
+    showToast('Zur Helferliste hinzugefügt')
+  } catch (e: any) {
+    error.value = e?.response?.data?.error || 'Hinzufügen fehlgeschlagen'
+  } finally {
+    togglingId.value = null
+  }
+}
+
+async function confirmRemoveFromRoster() {
+  const p = removeFromRosterTarget.value
+  if (!eventId.value || !p || togglingId.value === p.id) return
+  togglingId.value = p.id
+  error.value = ''
+  try {
+    await axios.delete(`/events/${eventId.value}/volunteer-roster/${p.id}`)
+    p.on_roster = false
+    removeFromRosterTarget.value = null
+    showToast('Von Helferliste entfernt')
+  } catch (e: any) {
+    error.value = e?.response?.data?.error || 'Entfernen fehlgeschlagen'
+  } finally {
+    togglingId.value = null
+  }
+}
+
 function showToast(msg: string) {
   toast.value = msg
   setTimeout(() => {
@@ -201,6 +260,7 @@ onMounted(() => load())
       <div class="vol-table-frame">
         <table class="vol-table">
           <colgroup>
+            <col class="vol-col--roster"/>
             <col class="vol-col--first"/>
             <col class="vol-col--last"/>
             <col class="vol-col--nick"/>
@@ -211,6 +271,7 @@ onMounted(() => load())
           </colgroup>
           <tbody>
             <tr>
+              <td class="vol-table__roster"/>
               <td>
                 <input
                     v-model="draft.first_name"
@@ -276,6 +337,7 @@ onMounted(() => load())
       <div v-else class="vol-table-frame vol-table-frame--scroll">
         <table class="vol-table">
           <colgroup>
+            <col class="vol-col--roster"/>
             <col class="vol-col--first"/>
             <col class="vol-col--last"/>
             <col class="vol-col--nick"/>
@@ -286,6 +348,7 @@ onMounted(() => load())
           </colgroup>
           <thead>
             <tr>
+              <th class="vol-table__roster" scope="col"><span class="sr-only">Helferliste</span></th>
               <th scope="col">
                 <button
                     type="button"
@@ -317,6 +380,27 @@ onMounted(() => load())
           </thead>
           <tbody>
             <tr v-for="p in filtered" :key="p.id" class="glass-table-row--hover">
+              <td class="vol-table__roster">
+                <button
+                    type="button"
+                    class="vol-roster-icon"
+                    :class="p.on_roster ? 'vol-roster-icon--on' : 'vol-roster-icon--off'"
+                    :disabled="togglingId === p.id || (!!p.on_roster && assignedIds.has(p.id))"
+                    :title="assignedIds.has(p.id) && p.on_roster
+                      ? 'Noch besetzt — zuerst Einsatz entfernen'
+                      : (p.on_roster ? 'Von Helferliste entfernen' : 'Zur Helferliste hinzufügen')"
+                    @click="onRosterIconClick(p)"
+                >
+                  <i
+                      class="bi"
+                      :class="p.on_roster ? 'bi-clipboard-check-fill' : 'bi-clipboard-check'"
+                      aria-hidden="true"
+                  />
+                  <span class="sr-only">
+                    {{ p.on_roster ? 'Von Helferliste entfernen' : 'Zur Helferliste hinzufügen' }}
+                  </span>
+                </button>
+              </td>
               <td>
                 <input
                     v-model="p.first_name"
@@ -368,6 +452,19 @@ onMounted(() => load())
         </table>
       </div>
     </section>
+
+    <ConfirmationModal
+        :show="!!removeFromRosterTarget"
+        type="warning"
+        title="Von Helferliste entfernen?"
+        :message="removeFromRosterTarget
+          ? `${displayName(removeFromRosterTarget)} wird von der Helferliste dieser Veranstaltung entfernt.`
+          : ''"
+        confirm-text="Entfernen"
+        cancel-text="Abbrechen"
+        @confirm="confirmRemoveFromRoster"
+        @cancel="removeFromRosterTarget = null"
+    />
   </div>
 </template>
 
@@ -424,12 +521,13 @@ onMounted(() => load())
   border-spacing: 0;
   font-size: 0.875rem;
 }
-.vol-col--first { width: 13%; }
-.vol-col--last { width: 13%; }
-.vol-col--nick { width: 12%; }
-.vol-col--email { width: 20%; }
-.vol-col--mobile { width: 13%; }
-.vol-col--meta { width: 18%; }
+.vol-col--roster { width: 2.75rem; }
+.vol-col--first { width: 12%; }
+.vol-col--last { width: 12%; }
+.vol-col--nick { width: 11%; }
+.vol-col--email { width: 19%; }
+.vol-col--mobile { width: 12%; }
+.vol-col--meta { width: 17%; }
 .vol-col--actions { width: 6.5rem; }
 
 .vol-table th,
@@ -452,6 +550,47 @@ onMounted(() => load())
   backdrop-filter: blur(8px);
 }
 .vol-table tbody tr:last-child td { border-bottom: none; }
+.vol-table__roster {
+  text-align: center;
+}
+.vol-table th.vol-table__roster,
+.vol-table td.vol-table__roster {
+  text-align: center;
+}
+.vol-roster-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: 0 auto;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+.vol-roster-icon--on {
+  color: var(--color-accent);
+}
+.vol-roster-icon--on:hover:not(:disabled) {
+  background: var(--color-accent-muted);
+}
+.vol-roster-icon--off {
+  color: var(--color-text-muted);
+  opacity: 0.45;
+}
+.vol-roster-icon--off:hover:not(:disabled) {
+  opacity: 0.85;
+  color: var(--color-text);
+  background: var(--color-bg-hover);
+}
+.vol-roster-icon:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
 .vol-table__actions {
   white-space: nowrap;
 }
