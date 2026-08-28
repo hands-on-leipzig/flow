@@ -289,7 +289,7 @@ function isTileFilterActive(key: TileFilterKey) {
 }
 
 function filterHasUnderMin(key: TileFilterKey) {
-  return tiles.value.some((tile) => tileFilterKey(tile) === key && isUnderMin(tile))
+  return filterHasAttention(key)
 }
 
 function toggleTileFilter(key: TileFilterKey) {
@@ -324,6 +324,18 @@ function roleLogoAlt(role: Role) {
 
 function isUnderMin(tile: Tile) {
   return !tile.group.surplus && tile.group.filled < Number(tile.role.min)
+}
+
+function tileNeedsAttention(tile: Tile) {
+  if (tile.group.surplus) {
+    return tile.group.filled > 0
+  }
+
+  return isUnderMin(tile)
+}
+
+function filterHasAttention(key: TileFilterKey) {
+  return tiles.value.some((tile) => tileFilterKey(tile) === key && tileNeedsAttention(tile))
 }
 
 type StaffingGapTone = 'warn' | 'caution' | 'ok' | 'muted'
@@ -853,9 +865,9 @@ onBeforeUnmount(() => {
                   {{ tile.name }}
                 </span>
                 <span
-                    v-if="isUnderMin(tile)"
+                    v-if="tileNeedsAttention(tile)"
                     class="staffing-need-dot"
-                    title="Unter Min"
+                    :title="tile.group.surplus ? 'Überzählig mit Personen' : 'Unter Min'"
                 />
               </div>
             </template>

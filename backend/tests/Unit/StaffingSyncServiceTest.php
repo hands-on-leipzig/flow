@@ -45,6 +45,7 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertSame(5, $role->max);
         $this->assertSame('Jury help text', $role->ui_description);
         $this->assertSame(3, EventStaffingGroup::query()->where('event_staffing_role', $role->id)->count());
+        $this->assertFalse($this->sync->staffingOk(1));
     }
 
     public function test_sync_marks_surplus_and_collapses_empty(): void
@@ -72,6 +73,7 @@ class StaffingSyncServiceTest extends TestCase
         $group3->refresh();
         $this->assertTrue((bool) $group3->surplus);
         $this->assertGreaterThanOrEqual(1, $stats['groups_surplus']);
+        $this->assertFalse($this->sync->staffingOk(1));
 
         EventStaffingAssignment::query()->where('event_staffing_group', $group3->id)->delete();
         $stats2 = $this->sync->syncForEvent(1);
@@ -142,6 +144,24 @@ class StaffingSyncServiceTest extends TestCase
 
         $g1->refresh();
         $this->assertTrue((bool) $g1->surplus);
+        $this->assertFalse($this->sync->staffingOk(1));
+    }
+
+    public function test_staffing_ok_when_min_met_and_no_surplus_people(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+        DB::table('m_staffing_rule')->where('m_role', 4)->update(['min' => 1, 'best' => 1, 'max' => 2]);
+        $this->sync->syncForEvent(1);
+
+        $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
+        $group = EventStaffingGroup::query()->where('event_staffing_role', $role->id)->firstOrFail();
+        EventStaffingAssignment::create([
+            'event_staffing_group' => $group->id,
+            'volunteer_person' => 1,
+            'created_at' => now(),
+        ]);
+
+        $this->assertTrue($this->sync->staffingOk(1));
     }
 
     private function createSchema(): void
