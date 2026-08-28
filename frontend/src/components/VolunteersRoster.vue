@@ -801,7 +801,7 @@ onBeforeUnmount(() => {
                 </td>
                 <td v-else-if="column.editor === 'meal'" class="vol-table__field">
                   <select
-                      class="glass-input glass-input--sm vol-detail-select vol-detail-select--full"
+                      class="select-input vol-detail-select vol-detail-select--full"
                       :value="entryDetail(entry).meal ?? ''"
                       :disabled="savingDetailKey === String(entry.id)"
                       @change="entryDetail(entry).meal = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
@@ -833,14 +833,14 @@ onBeforeUnmount(() => {
                   <input
                       v-else-if="column.type === 'number'"
                       type="number"
-                      class="glass-input glass-input--sm vol-detail-input"
+                      class="glass-input glass-input--sm vol-detail-input vol-detail-input--number"
                       :value="customValue(entry, column.field_key) ?? ''"
                       :disabled="savingDetailKey === String(entry.id)"
                       @change="saveCustom(entry, column.field_key, ($event.target as HTMLInputElement).value.trim() || null)"
                   >
                   <select
                       v-else-if="column.type === 'select'"
-                      class="glass-input glass-input--sm vol-detail-select vol-detail-select--full"
+                      class="select-input vol-detail-select vol-detail-select--full"
                       :value="(customValue(entry, column.field_key) as string | null) ?? ''"
                       :disabled="savingDetailKey === String(entry.id)"
                       @change="saveCustom(entry, column.field_key, ($event.target as HTMLSelectElement).value || null)"
@@ -1245,6 +1245,24 @@ onBeforeUnmount(() => {
   width: 100%;
   min-width: 0;
   font-size: 0.8125rem;
+}
+.vol-table__field select.select-input {
+  box-sizing: border-box;
+  min-height: var(--field-min-height-sm);
+  height: var(--field-min-height-sm);
+  padding: var(--field-padding-y-sm) 2rem var(--field-padding-y-sm) var(--field-padding-x-sm);
+  font-size: var(--field-font-size-sm);
+  border-radius: var(--field-radius-sm);
+  line-height: 1.4;
+}
+.vol-detail-input--number {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.vol-detail-input--number::-webkit-outer-spin-button,
+.vol-detail-input--number::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 .vol-detail-select--full {
   min-width: 6.5rem;

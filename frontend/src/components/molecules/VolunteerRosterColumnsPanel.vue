@@ -16,7 +16,7 @@ export type VolunteerFieldDefinition = {
 const FIELD_TYPES = [
   {value: 'text', label: 'Text'},
   {value: 'number', label: 'Zahl'},
-  {value: 'boolean', label: 'Ja / Nein / ?'},
+  {value: 'boolean', label: 'Ja / Nein'},
   {value: 'select', label: 'Auswahl'},
 ] as const
 
