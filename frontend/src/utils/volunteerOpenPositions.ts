@@ -12,6 +12,7 @@ import {
 import type {StaffingTile} from '@/volunteers/staffingTypes'
 
 export type OpenPositionEntry = {
+  roleId: number
   sortable: StaffingSortable
   name: string
   wanted: number
@@ -23,6 +24,13 @@ export type OpenPositionScopeGroup = {
   nice: OpenPositionEntry[]
 }
 
+type RoleAccumulator = {
+  sortable: StaffingSortable
+  name: string
+  critical: number
+  nice: number
+}
+
 function sortEntries(
   a: OpenPositionEntry,
   b: OpenPositionEntry,
@@ -31,14 +39,59 @@ function sortEntries(
   return compareStaffingTiles(a.sortable, b.sortable, programs)
 }
 
+function roleName(tile: StaffingTile) {
+  return (tile.role.label || '').trim() || 'Unbenannt'
+}
+
+function accumulateRole(
+  roles: Map<number, RoleAccumulator>,
+  tile: StaffingTile,
+  section: 'critical' | 'nice',
+  amount: number,
+) {
+  const roleId = tile.role.id
+  let acc = roles.get(roleId)
+  if (!acc) {
+    acc = {
+      sortable: staffingSortableFromTile(tile),
+      name: roleName(tile),
+      critical: 0,
+      nice: 0,
+    }
+    roles.set(roleId, acc)
+  }
+
+  if (section === 'critical') acc.critical += amount
+  else acc.nice += amount
+}
+
+function entriesFromRoles(
+  roles: Map<number, RoleAccumulator>,
+  section: 'critical' | 'nice',
+  programs: ReadonlyArray<EventProgramRef>,
+): OpenPositionEntry[] {
+  return [...roles.values()]
+    .map((acc) => ({
+      roleId: acc.sortable.role_id,
+      sortable: acc.sortable,
+      name: acc.name,
+      wanted: section === 'critical' ? acc.critical : acc.nice,
+    }))
+    .filter((entry) => entry.wanted > 0)
+    .sort((a, b) => sortEntries(a, b, programs))
+}
+
 export function computeOpenPositions(
   tiles: ReadonlyArray<StaffingTile>,
   programs: ReadonlyArray<EventProgramRef>,
 ): OpenPositionScopeGroup[] {
-  const byKey = new Map<StaffingFilterKey, {critical: OpenPositionEntry[]; nice: OpenPositionEntry[]}>()
+  const byKey = new Map<
+    StaffingFilterKey,
+    {critical: Map<number, RoleAccumulator>; nice: Map<number, RoleAccumulator>}
+  >()
 
   for (const key of buildStaffingFilterKeys(programs)) {
-    byKey.set(key, {critical: [], nice: []})
+    byKey.set(key, {critical: new Map(), nice: new Map()})
   }
 
   for (const tile of tiles) {
@@ -51,24 +104,21 @@ export function computeOpenPositions(
     const filled = tile.group.filled
     const min = Number(tile.role.min)
     const best = Number(tile.role.best)
-    const sortable = staffingSortableFromTile(tile)
 
     if (filled < min) {
-      bucket.critical.push({sortable, name: tile.name, wanted: min - filled})
+      accumulateRole(bucket.critical, tile, 'critical', min - filled)
     }
     if (filled < best && best > min) {
-      bucket.nice.push({sortable, name: tile.name, wanted: best - min})
+      accumulateRole(bucket.nice, tile, 'nice', best - min)
     }
   }
 
   return buildStaffingFilterKeys(programs)
     .map((key) => {
       const bucket = byKey.get(key)!
-      return {
-        key,
-        critical: [...bucket.critical].sort((a, b) => sortEntries(a, b, programs)),
-        nice: [...bucket.nice].sort((a, b) => sortEntries(a, b, programs)),
-      }
+      const critical = entriesFromRoles(bucket.critical, 'critical', programs)
+      const nice = entriesFromRoles(bucket.nice, 'nice', programs)
+      return {key, critical, nice}
     })
     .filter((scope) => scope.critical.length > 0 || scope.nice.length > 0)
 }

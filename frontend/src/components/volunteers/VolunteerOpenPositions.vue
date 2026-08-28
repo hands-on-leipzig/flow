@@ -77,7 +77,7 @@ function scopesWithEntries(
             <ul class="staffing-open-positions__list">
               <li
                   v-for="entry in scope.entries"
-                  :key="`critical-${scope.key}-${entry.sortable.role_id}-${entry.sortable.group_index}`"
+                  :key="`critical-${scope.key}-${entry.roleId}`"
                   class="staffing-open-positions__item"
               >
                 <span class="staffing-open-positions__name">{{ entry.name }}</span>
@@ -110,7 +110,7 @@ function scopesWithEntries(
             <ul class="staffing-open-positions__list">
               <li
                   v-for="entry in scope.entries"
-                  :key="`nice-${scope.key}-${entry.sortable.role_id}-${entry.sortable.group_index}`"
+                  :key="`nice-${scope.key}-${entry.roleId}`"
                   class="staffing-open-positions__item"
               >
                 <span class="staffing-open-positions__name">{{ entry.name }}</span>
