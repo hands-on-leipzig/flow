@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, nextTick, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import draggable from 'vuedraggable'
 import {useEventStore} from '@/stores/event'
@@ -85,6 +85,14 @@ const draggedPerson = ref<Person | null>(null)
 const roleToDelete = ref<Role | null>(null)
 const boundsEditRole = ref<Role | null>(null)
 const boundsDraft = ref({min: 1, best: 1, max: 1})
+const boundsAnchorEl = ref<HTMLElement | null>(null)
+const boundsPanelRef = ref<HTMLElement | null>(null)
+const boundsPanelStyle = ref<Record<string, string>>({
+  position: 'fixed',
+  top: '0',
+  left: '0',
+  visibility: 'hidden',
+})
 const pickPerson = ref<Person | null>(null)
 const composerRef = ref<{focusTitle?: () => void} | null>(null)
 
@@ -353,13 +361,32 @@ function boundsValidationError(min: number, best: number, max: number) {
   if (!Number.isInteger(min) || !Number.isInteger(best) || !Number.isInteger(max)) {
     return 'Bitte min, ideal und max eintragen.'
   }
+  if (min < 1 || best < 1 || max < 1) {
+    return 'min, ideal und max müssen mindestens 1 sein.'
+  }
   if (min > best || best > max) {
     return 'Es muss min ≤ ideal ≤ max gelten.'
   }
   return null
 }
 
-function openBoundsModal(role: Role) {
+function resolveRoleBounds(minRaw: number | '', bestRaw: number | '', maxRaw: number | '') {
+  const isEmpty = (value: number | '') =>
+    value === '' || value === null || value === undefined || Number.isNaN(Number(value))
+
+  if (isEmpty(minRaw) && isEmpty(bestRaw) && isEmpty(maxRaw)) {
+    return {min: 1, best: 1, max: 2}
+  }
+
+  return {
+    min: Number(minRaw),
+    best: Number(bestRaw),
+    max: Number(maxRaw),
+  }
+}
+
+function openBoundsModal(role: Role, anchor: HTMLElement) {
+  boundsAnchorEl.value = anchor
   boundsEditRole.value = role
   boundsDraft.value = {
     min: Number(role.min),
@@ -370,6 +397,50 @@ function openBoundsModal(role: Role) {
 
 function closeBoundsModal() {
   boundsEditRole.value = null
+  boundsAnchorEl.value = null
+}
+
+function placeBoundsPanel() {
+  const anchor = boundsAnchorEl.value
+  const panel = boundsPanelRef.value
+  if (!anchor || !panel) return
+
+  const rect = anchor.getBoundingClientRect()
+  const width = panel.offsetWidth || 320
+  const height = panel.offsetHeight || 220
+  const margin = 8
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+
+  let top = rect.bottom + margin
+  if (top + height > vh - margin && rect.top - height - margin >= margin) {
+    top = rect.top - height - margin
+  }
+  top = Math.min(Math.max(top, margin), Math.max(margin, vh - margin - height))
+
+  let left = rect.right - width
+  if (left < margin) left = margin
+  if (left + width > vw - margin) left = vw - margin - width
+
+  boundsPanelStyle.value = {
+    position: 'fixed',
+    top: `${Math.round(top)}px`,
+    left: `${Math.round(left)}px`,
+    visibility: 'visible',
+  }
+}
+
+function onBoundsReposition() {
+  if (boundsEditRole.value) placeBoundsPanel()
+}
+
+function handleBoundsClickOutside(event: MouseEvent) {
+  if (!boundsEditRole.value) return
+  const target = event.target
+  if (!(target instanceof Node)) return
+  if (boundsPanelRef.value?.contains(target)) return
+  if (boundsAnchorEl.value?.contains(target)) return
+  closeBoundsModal()
 }
 
 async function saveBoundsModal() {
@@ -402,7 +473,13 @@ function slotPositions(role: Role) {
 }
 
 function apiError(e: any, fallback: string) {
-  return e?.response?.data?.error || fallback
+  const data = e?.response?.data
+  if (data?.error) return data.error
+  if (data?.errors) {
+    return Object.values(data.errors as Record<string, string[]>).flat().join(' ')
+  }
+  if (data?.message && data.message !== 'The given data was invalid.') return data.message
+  return fallback
 }
 
 async function load() {
@@ -522,9 +599,7 @@ async function unassign(group: Group, person: Person) {
 async function createLocalRole() {
   if (!eventId.value || isSaving.value) return
   const label = newRoleName.value.trim()
-  const min = Number(newRoleMin.value)
-  const best = Number(newRoleBest.value)
-  const max = Number(newRoleMax.value)
+  const {min, best, max} = resolveRoleBounds(newRoleMin.value, newRoleBest.value, newRoleMax.value)
   if (!label) return
   const validationError = boundsValidationError(min, best, max)
   if (validationError) {
@@ -635,6 +710,29 @@ function assignableTilesFor(person: Person) {
 
 watch(eventId, () => load(), {immediate: true})
 watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: true})
+watch(boundsEditRole, async (role) => {
+  if (!role) return
+  boundsPanelStyle.value = {
+    position: 'fixed',
+    top: '0',
+    left: '0',
+    visibility: 'hidden',
+  }
+  await nextTick()
+  placeBoundsPanel()
+})
+
+onMounted(() => {
+  document.addEventListener('click', handleBoundsClickOutside)
+  window.addEventListener('resize', onBoundsReposition)
+  window.addEventListener('scroll', onBoundsReposition, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleBoundsClickOutside)
+  window.removeEventListener('resize', onBoundsReposition)
+  window.removeEventListener('scroll', onBoundsReposition, true)
+})
 </script>
 
 <template>
@@ -797,7 +895,7 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
                       class="staffing-bounds-gear"
                       title="Besetzung bearbeiten"
                       aria-label="Besetzung bearbeiten"
-                      @click.stop="openBoundsModal(tile.role)"
+                      @click.stop="openBoundsModal(tile.role, $event.currentTarget as HTMLElement)"
                   >
                     <i class="bi bi-gear" aria-hidden="true"/>
                   </button>
@@ -1030,12 +1128,14 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
         @cancel="cancelDeleteRole"
     />
 
-    <div
-        v-if="boundsEditRole"
-        class="glass-scrim fixed inset-0 z-50 flex items-center justify-center p-4"
-        @click="closeBoundsModal"
-    >
-      <div class="glass-modal staffing-bounds-modal" @click.stop>
+    <Teleport to="body">
+      <div
+          v-if="boundsEditRole"
+          ref="boundsPanelRef"
+          class="glass-modal staffing-bounds-modal staffing-bounds-popover"
+          :style="boundsPanelStyle"
+          @click.stop
+      >
         <h3 class="staffing-bounds-modal__title">Besetzung bearbeiten</h3>
         <p class="staffing-bounds-modal__role">{{ boundsEditRole.label }}</p>
         <div class="staffing-bounds staffing-bounds--modal">
@@ -1077,7 +1177,7 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
           </button>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <div
         v-if="pickPerson"
@@ -1317,8 +1417,13 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
 }
 
 .staffing-bounds-modal {
-  width: min(100%, 20rem);
+  width: min(100vw - 1rem, 20rem);
   padding: 1rem 1.1rem;
+}
+
+.staffing-bounds-popover {
+  z-index: 4000;
+  box-shadow: var(--shadow-lg);
 }
 
 .staffing-bounds-modal__title {
