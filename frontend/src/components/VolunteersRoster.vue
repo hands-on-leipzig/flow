@@ -428,11 +428,13 @@ async function saveDetail(entry: RosterEntry) {
 }
 
 async function downloadCsv() {
-  if (!eventId.value || exportBusy.value) return
+  if (!eventId.value || exportBusy.value || !filteredRoster.value.length) return
   exportBusy.value = true
   error.value = ''
   try {
+    const personIds = filteredRoster.value.map((entry) => entry.person.id)
     const response = await axios.get(`/events/${eventId.value}/volunteer-roster/export`, {
+      params: {person_ids: personIds.join(',')},
       responseType: 'blob',
     })
     const url = window.URL.createObjectURL(response.data)
@@ -579,7 +581,7 @@ onBeforeUnmount(() => {
             type="button"
             class="glass-btn-secondary vol-upload-trigger"
             :class="{'vol-upload-trigger--active': exportBusy}"
-            :disabled="!eventId || exportBusy || !roster.length"
+            :disabled="!eventId || exportBusy || !filteredRoster.length"
             @click="downloadCsv"
         >
           <i class="bi bi-download" aria-hidden="true"/>

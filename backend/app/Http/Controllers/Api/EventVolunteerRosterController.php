@@ -137,11 +137,18 @@ class EventVolunteerRosterController extends Controller
         ]);
     }
 
-    public function exportCsv(Event $event): StreamedResponse
+    public function exportCsv(Request $request, Event $event): StreamedResponse
     {
-        $rows = EventVolunteerRoster::query()
+        $query = EventVolunteerRoster::query()
             ->where('event', $event->id)
-            ->with(['person', 'detail'])
+            ->with(['person', 'detail']);
+
+        $personIds = $this->parsePersonIdsFilter($request);
+        if ($personIds !== null) {
+            $query->whereIn('volunteer_person', $personIds);
+        }
+
+        $rows = $query
             ->get()
             ->sortBy(fn (EventVolunteerRoster $row) => [
                 mb_strtolower($row->person?->last_name ?? ''),
@@ -194,6 +201,29 @@ class EventVolunteerRosterController extends Controller
         });
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * @return list<int>|null  null = no filter (export all); empty list = export none
+     */
+    private function parsePersonIdsFilter(Request $request): ?array
+    {
+        if (! $request->has('person_ids')) {
+            return null;
+        }
+
+        $raw = $request->query('person_ids');
+        $parts = is_array($raw) ? $raw : explode(',', (string) $raw);
+
+        $ids = [];
+        foreach ($parts as $part) {
+            $id = (int) trim((string) $part);
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+
+        return array_values($ids);
     }
 
     /**
