@@ -82,6 +82,8 @@ const dragSourceGroupId = ref<number | null>(null)
 const draggedPerson = ref<Person | null>(null)
 
 const roleToDelete = ref<Role | null>(null)
+const boundsEditRole = ref<Role | null>(null)
+const boundsDraft = ref({min: 1, best: 1, max: 1})
 const pickPerson = ref<Person | null>(null)
 const composerRef = ref<{focusTitle?: () => void} | null>(null)
 
@@ -285,6 +287,52 @@ function boundsLabel(role: Role) {
   return `min ${role.min} · ideal ${role.best} · max ${role.max}`
 }
 
+function boundsValidationError(min: number, best: number, max: number) {
+  if (!Number.isInteger(min) || !Number.isInteger(best) || !Number.isInteger(max)) {
+    return 'Bitte min, ideal und max eintragen.'
+  }
+  if (min > best || best > max) {
+    return 'Es muss min ≤ ideal ≤ max gelten.'
+  }
+  return null
+}
+
+function openBoundsModal(role: Role) {
+  boundsEditRole.value = role
+  boundsDraft.value = {
+    min: Number(role.min),
+    best: Number(role.best),
+    max: Number(role.max),
+  }
+}
+
+function closeBoundsModal() {
+  boundsEditRole.value = null
+}
+
+async function saveBoundsModal() {
+  const role = boundsEditRole.value
+  if (!role || isSaving.value) return
+  const min = Number(boundsDraft.value.min)
+  const best = Number(boundsDraft.value.best)
+  const max = Number(boundsDraft.value.max)
+  const validationError = boundsValidationError(min, best, max)
+  if (validationError) {
+    showGlassToast(validationError, 'info')
+    return
+  }
+  isSaving.value = true
+  try {
+    role.min = min
+    role.best = best
+    role.max = max
+    await persistLocalRole(role)
+    closeBoundsModal()
+  } finally {
+    isSaving.value = false
+  }
+}
+
 function slotPositions(role: Role) {
   const max = Number(role.max)
   if (!Number.isInteger(max) || max < 1) return []
@@ -417,12 +465,9 @@ async function createLocalRole() {
   const best = Number(newRoleBest.value)
   const max = Number(newRoleMax.value)
   if (!label) return
-  if (!Number.isInteger(min) || !Number.isInteger(best) || !Number.isInteger(max)) {
-    showGlassToast('Bitte min, ideal und max eintragen.', 'info')
-    return
-  }
-  if (min > best || best > max) {
-    showGlassToast('Es muss min ≤ ideal ≤ max gelten.', 'info')
+  const validationError = boundsValidationError(min, best, max)
+  if (validationError) {
+    showGlassToast(validationError, 'info')
     return
   }
   isSaving.value = true
@@ -456,9 +501,12 @@ async function persistLocalRole(role: Role) {
     return
   }
   if (role.min > role.best || role.best > role.max) {
-    showGlassToast('Es muss min ≤ ideal ≤ max gelten.', 'info')
-    await load()
-    return
+    const validationError = boundsValidationError(Number(role.min), Number(role.best), Number(role.max))
+    if (validationError) {
+      showGlassToast(validationError, 'info')
+      await load()
+      return
+    }
   }
   try {
     await axios.put(`/events/${eventId.value}/staffing/local-roles/${role.id}`, {
@@ -636,42 +684,18 @@ watch(eventId, () => load(), {immediate: true})
                 </div>
 
                 <div class="staffing-status__bounds">
-                  <div v-if="tile.role.is_local" class="staffing-bounds">
-                    <label class="staffing-bounds__field">
-                      <span>min</span>
-                      <input
-                          v-model.number="tile.role.min"
-                          class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                          type="number"
-                          min="1"
-                          @blur="persistLocalRole(tile.role)"
-                      />
-                    </label>
-                    <label class="staffing-bounds__field">
-                      <span>ideal</span>
-                      <input
-                          v-model.number="tile.role.best"
-                          class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                          type="number"
-                          min="1"
-                          @blur="persistLocalRole(tile.role)"
-                      />
-                    </label>
-                    <label class="staffing-bounds__field">
-                      <span>max</span>
-                      <input
-                          v-model.number="tile.role.max"
-                          class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                          type="number"
-                          min="1"
-                          @blur="persistLocalRole(tile.role)"
-                      />
-                    </label>
-                  </div>
-                  <template v-else>
-                    <span class="staffing-bounds-text">{{ boundsLabel(tile.role) }}</span>
-                    <InfoPopover v-if="tile.role.ui_description" :text="tile.role.ui_description"/>
-                  </template>
+                  <span class="staffing-bounds-text">{{ boundsLabel(tile.role) }}</span>
+                  <button
+                      v-if="tile.role.is_local"
+                      type="button"
+                      class="staffing-bounds-gear"
+                      title="Besetzung bearbeiten"
+                      aria-label="Besetzung bearbeiten"
+                      @click.stop="openBoundsModal(tile.role)"
+                  >
+                    <i class="bi bi-gear" aria-hidden="true"/>
+                  </button>
+                  <InfoPopover v-else-if="tile.role.ui_description" :text="tile.role.ui_description"/>
                 </div>
               </div>
             </div>
@@ -901,6 +925,55 @@ watch(eventId, () => load(), {immediate: true})
     />
 
     <div
+        v-if="boundsEditRole"
+        class="glass-scrim fixed inset-0 z-50 flex items-center justify-center p-4"
+        @click="closeBoundsModal"
+    >
+      <div class="glass-modal staffing-bounds-modal" @click.stop>
+        <h3 class="staffing-bounds-modal__title">Besetzung bearbeiten</h3>
+        <p class="staffing-bounds-modal__role">{{ boundsEditRole.label }}</p>
+        <div class="staffing-bounds staffing-bounds--modal">
+          <label class="staffing-bounds__field">
+            <span>min</span>
+            <input
+                v-model.number="boundsDraft.min"
+                class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
+                type="number"
+                min="1"
+            />
+          </label>
+          <label class="staffing-bounds__field">
+            <span>ideal</span>
+            <input
+                v-model.number="boundsDraft.best"
+                class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
+                type="number"
+                min="1"
+            />
+          </label>
+          <label class="staffing-bounds__field">
+            <span>max</span>
+            <input
+                v-model.number="boundsDraft.max"
+                class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
+                type="number"
+                min="1"
+            />
+          </label>
+        </div>
+        <p class="item-card__hint">min ≤ ideal ≤ max — wie viele Personen diese Rolle braucht.</p>
+        <div class="staffing-bounds-modal__actions">
+          <button type="button" class="glass-btn-secondary" :disabled="isSaving" @click="closeBoundsModal">
+            Abbrechen
+          </button>
+          <button type="button" class="glass-btn-accent" :disabled="isSaving" @click="saveBoundsModal">
+            Speichern
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
         v-if="pickPerson"
         class="glass-scrim fixed inset-0 z-50 flex items-end md:hidden"
         @click="closeAssignModal"
@@ -1082,6 +1155,56 @@ watch(eventId, () => load(), {immediate: true})
   color: var(--color-text-subtle);
   letter-spacing: 0.02em;
   white-space: nowrap;
+}
+
+.staffing-bounds-gear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text-subtle);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.staffing-bounds-gear:hover {
+  color: var(--color-accent);
+  background: var(--color-bg-hover);
+}
+
+.staffing-bounds-modal {
+  width: min(100%, 20rem);
+  padding: 1rem 1.1rem;
+}
+
+.staffing-bounds-modal__title {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.staffing-bounds-modal__role {
+  margin: 0 0 0.85rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-subtle);
+}
+
+.staffing-bounds--modal {
+  margin-bottom: 0.35rem;
+}
+
+.staffing-bounds-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
 }
 
 .staffing-slots {
