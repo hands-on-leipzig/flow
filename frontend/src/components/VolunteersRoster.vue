@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
@@ -76,6 +76,16 @@ const error = ref('')
 const toast = ref('')
 const exportBusy = ref(false)
 const savingDetailKey = ref<string | null>(null)
+const shirtEditEntry = ref<RosterEntry | null>(null)
+const shirtDraft = ref<{cut: string | null; size: string | null}>({cut: null, size: null})
+const shirtAnchorEl = ref<HTMLElement | null>(null)
+const shirtPanelRef = ref<HTMLElement | null>(null)
+const shirtPanelStyle = ref<Record<string, string>>({
+  position: 'fixed',
+  top: '0',
+  left: '0',
+  visibility: 'hidden',
+})
 const sortKey = ref<'name' | 'role'>('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
 
@@ -249,7 +259,113 @@ function entryDetail(entry: RosterEntry): RosterDetail {
   return entry.detail
 }
 
-function setEveMeeting(entry: RosterEntry, value: boolean) {
+function tShirtLabel(detail: RosterDetail): string {
+  if (!detail.t_shirt_cut || !detail.t_shirt_size) return '?'
+  const cutLabel = T_SHIRT_CUTS.find((c) => c.value === detail.t_shirt_cut)?.label ?? detail.t_shirt_cut
+  return `${cutLabel} ${detail.t_shirt_size}`
+}
+
+function openShirtPopup(entry: RosterEntry, anchor: HTMLElement) {
+  const detail = entryDetail(entry)
+  shirtAnchorEl.value = anchor
+  shirtEditEntry.value = entry
+  shirtDraft.value = {
+    cut: detail.t_shirt_cut,
+    size: detail.t_shirt_size,
+  }
+  void nextTick(() => placeShirtPanel())
+}
+
+function closeShirtPopup() {
+  shirtEditEntry.value = null
+  shirtAnchorEl.value = null
+}
+
+function placeShirtPanel() {
+  const anchor = shirtAnchorEl.value
+  const panel = shirtPanelRef.value
+  if (!anchor || !panel) return
+
+  const rect = anchor.getBoundingClientRect()
+  const width = panel.offsetWidth || 260
+  const height = panel.offsetHeight || 300
+  const margin = 8
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+
+  let top = rect.bottom + margin
+  if (top + height > vh - margin && rect.top - height - margin >= margin) {
+    top = rect.top - height - margin
+  }
+  top = Math.min(Math.max(top, margin), Math.max(margin, vh - margin - height))
+
+  let left = rect.left
+  if (left + width > vw - margin) left = vw - margin - width
+  if (left < margin) left = margin
+
+  shirtPanelStyle.value = {
+    position: 'fixed',
+    top: `${Math.round(top)}px`,
+    left: `${Math.round(left)}px`,
+    visibility: 'visible',
+  }
+}
+
+function onShirtReposition() {
+  if (shirtEditEntry.value) placeShirtPanel()
+}
+
+function handleShirtClickOutside(event: MouseEvent) {
+  if (!shirtEditEntry.value) return
+  const target = event.target
+  if (!(target instanceof Node)) return
+  if (shirtPanelRef.value?.contains(target)) return
+  if (shirtAnchorEl.value?.contains(target)) return
+  closeShirtPopup()
+}
+
+function shirtDraftCutValue(): string {
+  return shirtDraft.value.cut ?? ''
+}
+
+function shirtDraftSizeValue(): string {
+  return shirtDraft.value.size ?? ''
+}
+
+function cancelShirtPopup() {
+  closeShirtPopup()
+}
+
+function onShirtCutPick(cut: string | null) {
+  shirtDraft.value.cut = cut
+}
+
+function onShirtSizePick(size: string | null) {
+  shirtDraft.value.size = size
+}
+
+async function confirmShirtPopup() {
+  const entry = shirtEditEntry.value
+  if (!entry) return
+
+  const cut = shirtDraft.value.cut
+  const size = shirtDraft.value.size
+  const hasCut = cut !== null && cut !== ''
+  const hasSize = size !== null && size !== ''
+
+  if (hasCut !== hasSize) {
+    error.value = 'Bitte Schnitt und Größe gemeinsam wählen — oder „?“ in beiden Spalten.'
+    return
+  }
+
+  const detail = entryDetail(entry)
+  detail.t_shirt_cut = hasCut ? cut : null
+  detail.t_shirt_size = hasSize ? size : null
+  await saveDetail(entry)
+  closeShirtPopup()
+}
+
+function setEveMeeting(entry: RosterEntry, value: boolean | null) {
   const detail = entryDetail(entry)
   if (detail.eve_meeting === value) return
   detail.eve_meeting = value
@@ -392,7 +508,32 @@ function showToast(msg: string) {
 
 watch(eventId, () => syncAssignmentFilters(), {immediate: true})
 watch(eventId, () => load(), {immediate: true})
-onMounted(() => load())
+watch(shirtEditEntry, async (entry) => {
+  if (!entry) {
+    shirtPanelStyle.value = {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      visibility: 'hidden',
+    }
+    return
+  }
+  await nextTick()
+  placeShirtPanel()
+})
+
+onMounted(() => {
+  load()
+  document.addEventListener('mousedown', handleShirtClickOutside)
+  window.addEventListener('resize', onShirtReposition)
+  window.addEventListener('scroll', onShirtReposition, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', handleShirtClickOutside)
+  window.removeEventListener('resize', onShirtReposition)
+  window.removeEventListener('scroll', onShirtReposition, true)
+})
 </script>
 
 <template>
@@ -569,26 +710,15 @@ onMounted(() => load())
                 <span v-else>—</span>
               </td>
               <td class="vol-table__field">
-                <div class="vol-detail-shirt">
-                  <select
-                      class="glass-input glass-input--sm vol-detail-select"
-                      :value="entryDetail(entry).t_shirt_cut ?? ''"
-                      :disabled="savingDetailKey === String(entry.id)"
-                      @change="entryDetail(entry).t_shirt_cut = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
-                  >
-                    <option value="">Schnitt</option>
-                    <option v-for="cut in T_SHIRT_CUTS" :key="cut.value" :value="cut.value">{{ cut.label }}</option>
-                  </select>
-                  <select
-                      class="glass-input glass-input--sm vol-detail-select"
-                      :value="entryDetail(entry).t_shirt_size ?? ''"
-                      :disabled="savingDetailKey === String(entry.id)"
-                      @change="entryDetail(entry).t_shirt_size = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
-                  >
-                    <option value="">Größe</option>
-                    <option v-for="size in T_SHIRT_SIZES" :key="size" :value="size">{{ size }}</option>
-                  </select>
-                </div>
+                <button
+                    type="button"
+                    class="vol-detail-trigger glass-input glass-input--sm"
+                    :class="{'vol-detail-trigger--unset': !entryDetail(entry).t_shirt_cut || !entryDetail(entry).t_shirt_size}"
+                    :disabled="savingDetailKey === String(entry.id)"
+                    @click="openShirtPopup(entry, $event.currentTarget as HTMLElement)"
+                >
+                  {{ tShirtLabel(entryDetail(entry)) }}
+                </button>
               </td>
               <td class="vol-table__field">
                 <select
@@ -597,7 +727,7 @@ onMounted(() => load())
                     :disabled="savingDetailKey === String(entry.id)"
                     @change="entryDetail(entry).meal = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
                 >
-                  <option value="">—</option>
+                  <option value="">?</option>
                   <option v-for="meal in MEALS" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
                 </select>
               </td>
@@ -607,11 +737,16 @@ onMounted(() => load())
                     role="group"
                     aria-label="Vorabendtreffen"
                 >
-                  <span
-                      class="vol-tristate__na"
-                      :class="{'vol-tristate__na--active': entryDetail(entry).eve_meeting === null}"
-                      aria-hidden="true"
-                  >n/a</span>
+                  <button
+                      type="button"
+                      class="glass-segment__btn"
+                      :class="{'glass-segment__btn--active': entryDetail(entry).eve_meeting === null}"
+                      :aria-pressed="entryDetail(entry).eve_meeting === null"
+                      :disabled="savingDetailKey === String(entry.id)"
+                      @click="setEveMeeting(entry, null)"
+                  >
+                    ?
+                  </button>
                   <button
                       type="button"
                       class="glass-segment__btn"
@@ -661,6 +796,92 @@ onMounted(() => load())
         @confirm="confirmRemove"
         @cancel="removeTarget = null"
     />
+
+    <Teleport to="body">
+      <div
+          v-if="shirtEditEntry"
+          ref="shirtPanelRef"
+          class="glass-modal vol-shirt-popover"
+          :style="shirtPanelStyle"
+          @click.stop
+      >
+        <h3 class="vol-shirt-popover__title">T-Shirt</h3>
+        <div class="vol-shirt-popover__columns">
+        <fieldset class="vol-shirt-popover__group">
+          <legend class="vol-shirt-popover__legend">Schnitt</legend>
+          <label class="vol-shirt-popover__option">
+            <input
+                type="radio"
+                name="vol-shirt-cut"
+                value=""
+                :checked="shirtDraftCutValue() === ''"
+                @change="onShirtCutPick(null)"
+            >
+            <span>?</span>
+          </label>
+          <label
+              v-for="cut in T_SHIRT_CUTS"
+              :key="cut.value"
+              class="vol-shirt-popover__option"
+          >
+            <input
+                type="radio"
+                name="vol-shirt-cut"
+                :value="cut.value"
+                :checked="shirtDraftCutValue() === cut.value"
+                @change="onShirtCutPick(cut.value)"
+            >
+            <span>{{ cut.label }}</span>
+          </label>
+        </fieldset>
+        <fieldset class="vol-shirt-popover__group">
+          <legend class="vol-shirt-popover__legend">Größe</legend>
+          <label class="vol-shirt-popover__option">
+            <input
+                type="radio"
+                name="vol-shirt-size"
+                value=""
+                :checked="shirtDraftSizeValue() === ''"
+                @change="onShirtSizePick(null)"
+            >
+            <span>?</span>
+          </label>
+          <label
+              v-for="size in T_SHIRT_SIZES"
+              :key="size"
+              class="vol-shirt-popover__option"
+          >
+            <input
+                type="radio"
+                name="vol-shirt-size"
+                :value="size"
+                :checked="shirtDraftSizeValue() === size"
+                @change="onShirtSizePick(size)"
+            >
+            <span>{{ size }}</span>
+          </label>
+        </fieldset>
+        </div>
+        <div class="vol-shirt-popover__actions">
+          <button
+              type="button"
+              class="glass-btn-secondary"
+              :disabled="savingDetailKey === String(shirtEditEntry?.id)"
+              @click="cancelShirtPopup"
+          >
+            Abbruch
+          </button>
+          <button
+              type="button"
+              class="glass-btn-accent"
+              :disabled="savingDetailKey === String(shirtEditEntry?.id)"
+              @click="confirmShirtPopup"
+          >
+            Übernehmen
+          </button>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -850,11 +1071,19 @@ onMounted(() => load())
 .vol-table__field {
   vertical-align: middle;
 }
-.vol-detail-shirt {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+.vol-detail-trigger {
+  width: 100%;
   min-width: 5.5rem;
+  text-align: left;
+  cursor: pointer;
+}
+.vol-detail-trigger--unset {
+  color: var(--color-text-subtle);
+  text-align: center;
+}
+.vol-detail-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .vol-detail-select,
 .vol-detail-input {
@@ -865,25 +1094,68 @@ onMounted(() => load())
 .vol-detail-select--full {
   min-width: 6.5rem;
 }
+.vol-shirt-popover {
+  z-index: 1200;
+  width: min(20rem, calc(100vw - 1rem));
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--liquid-border);
+  background: var(--liquid-popover-fill);
+  backdrop-filter: blur(var(--liquid-popover-blur));
+  box-shadow: var(--shadow-lg);
+}
+.vol-shirt-popover__title {
+  margin: 0 0 0.65rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.vol-shirt-popover__columns {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.vol-shirt-popover__group {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.vol-shirt-popover__legend {
+  padding: 0;
+  margin-bottom: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+.vol-shirt-popover__option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  width: 100%;
+  margin: 0.12rem 0;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.vol-shirt-popover__option input {
+  margin: 0;
+}
+.vol-shirt-popover__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
 .vol-tristate {
   display: inline-flex;
   width: 100%;
   min-width: 7.5rem;
-}
-.vol-tristate__na {
-  flex: 1;
-  padding: 0.2rem 0.35rem;
-  font-size: 0.75rem;
-  line-height: 1.3;
-  text-align: center;
-  border-right: 1px solid var(--color-border);
-  color: var(--color-text-subtle);
-  user-select: none;
-}
-.vol-tristate__na--active {
-  background: color-mix(in srgb, var(--color-bg-muted) 80%, var(--liquid-tile-bg-inner));
-  color: var(--color-text-muted);
-  font-weight: 500;
 }
 .vol-tristate .glass-segment__btn {
   flex: 1;
