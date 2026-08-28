@@ -4,6 +4,7 @@ import axios from 'axios'
 import draggable from 'vuedraggable'
 import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {apiError} from '@/utils/apiError'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
@@ -457,16 +458,6 @@ function slotPositions(role: Role) {
   const max = Number(role.max)
   if (!Number.isInteger(max) || max < 1) return []
   return Array.from({length: max}, (_, i) => i + 1)
-}
-
-function apiError(e: any, fallback: string) {
-  const data = e?.response?.data
-  if (data?.error) return data.error
-  if (data?.errors) {
-    return Object.values(data.errors as Record<string, string[]>).flat().join(' ')
-  }
-  if (data?.message && data.message !== 'The given data was invalid.') return data.message
-  return fallback
 }
 
 async function load() {

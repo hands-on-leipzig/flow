@@ -48,19 +48,6 @@
   opacity: 0.75;
 }
 
-.vol-page__alert {
-  padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-}
-
-.vol-page__toast {
-  padding: 0.65rem 1rem;
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, #15803d 12%, var(--color-bg-muted));
-  border: 1px solid color-mix(in srgb, #15803d 30%, var(--color-border));
-  font-size: 0.9rem;
-}
-
 .vol-tile {
   padding: 1rem;
 }

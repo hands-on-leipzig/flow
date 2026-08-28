@@ -11,6 +11,8 @@ import {compareRosterEntriesByStaffingRole} from '@/utils/volunteerStaffingSort'
 import {flowFilename} from '@/utils/flowFilename'
 import {ROSTER_TABLE_COLUMNS, type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {rosterEntryHasUnsetField} from '@/utils/volunteerRosterUnset'
+import {showGlassToast} from '@/composables/useGlassToast'
+import {apiError} from '@/utils/apiError'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 
 const T_SHIRT_CUTS = [
@@ -69,8 +71,6 @@ const loading = ref(false)
 const togglingId = ref<number | null>(null)
 const addingId = ref<number | null>(null)
 const removeTarget = ref<RosterEntry | null>(null)
-const error = ref('')
-const toast = ref('')
 const exportBusy = ref(false)
 const savingDetailKey = ref<string | null>(null)
 const shirtEditEntry = ref<RosterEntry | null>(null)
@@ -367,7 +367,7 @@ async function confirmShirtPopup() {
   const hasSize = size !== null && size !== ''
 
   if (hasCut !== hasSize) {
-    error.value = 'Bitte Schnitt und Größe gemeinsam wählen — oder „?“ in beiden Spalten.'
+    showGlassToast('Bitte Schnitt und Größe gemeinsam wählen — oder „?“ in beiden Spalten.', 'info')
     return
   }
 
@@ -383,7 +383,6 @@ async function saveDetail(entry: RosterEntry) {
   const detail = entryDetail(entry)
   const key = `${entry.id}`
   savingDetailKey.value = key
-  error.value = ''
   try {
     const {data} = await axios.patch(
       `/events/${eventId.value}/volunteer-roster/${entry.person.id}/detail`,
@@ -395,8 +394,8 @@ async function saveDetail(entry: RosterEntry) {
       },
     )
     entry.detail = data.detail ?? detail
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Speichern fehlgeschlagen'
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
   } finally {
     if (savingDetailKey.value === key) savingDetailKey.value = null
   }
@@ -406,7 +405,6 @@ async function saveCustom(entry: RosterEntry, fieldKey: string, value: string | 
   if (!eventId.value) return
   const key = `${entry.id}`
   savingDetailKey.value = key
-  error.value = ''
   try {
     const {data} = await axios.patch(
       `/events/${eventId.value}/volunteer-roster/${entry.person.id}/custom`,
@@ -415,8 +413,8 @@ async function saveCustom(entry: RosterEntry, fieldKey: string, value: string | 
     if (data.custom) {
       entry.custom = {...entryCustom(entry), ...data.custom}
     }
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Speichern fehlgeschlagen'
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
   } finally {
     if (savingDetailKey.value === key) savingDetailKey.value = null
   }
@@ -431,7 +429,6 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 async function downloadCsv() {
   if (!eventId.value || exportBusy.value || !filteredRoster.value.length) return
   exportBusy.value = true
-  error.value = ''
   try {
     const personIds = filteredRoster.value.map((entry) => entry.person.id)
     const response = await axios.get(`/events/${eventId.value}/volunteer-roster/export`, {
@@ -445,7 +442,7 @@ async function downloadCsv() {
     link.click()
     window.URL.revokeObjectURL(url)
   } catch {
-    error.value = 'Export fehlgeschlagen'
+    showGlassToast('Export fehlgeschlagen', 'error')
   } finally {
     exportBusy.value = false
   }
@@ -475,7 +472,6 @@ function sortIcon(key: 'name' | 'role') {
 async function load() {
   if (!eventId.value) return
   loading.value = true
-  error.value = ''
   try {
     const [rosterRes, poolRes] = await Promise.all([
       axios.get(`/events/${eventId.value}/volunteer-roster`),
@@ -488,8 +484,8 @@ async function load() {
     }))
     tableColumns.value = rosterRes.data.columns ?? [...ROSTER_TABLE_COLUMNS]
     pool.value = poolRes.data.people ?? []
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Laden fehlgeschlagen'
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
     loading.value = false
   }
@@ -498,15 +494,14 @@ async function load() {
 async function addToRoster(person: Person) {
   if (!eventId.value || addingId.value) return
   addingId.value = person.id
-  error.value = ''
   try {
     await axios.post(`/events/${eventId.value}/volunteer-roster`, {
       volunteer_person: person.id,
     })
     await load()
-    showToast(`${volunteerDisplayName(person)} zur Helferliste hinzugefügt`)
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Hinzufügen fehlgeschlagen'
+    showGlassToast(`${volunteerDisplayName(person)} zur Helferliste hinzugefügt`, 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Hinzufügen fehlgeschlagen'), 'error')
   } finally {
     addingId.value = null
   }
@@ -521,24 +516,16 @@ async function confirmRemove() {
   const entry = removeTarget.value
   if (!eventId.value || !entry || togglingId.value === entry.person.id) return
   togglingId.value = entry.person.id
-  error.value = ''
   try {
     await axios.delete(`/events/${eventId.value}/volunteer-roster/${entry.person.id}`)
     removeTarget.value = null
     await load()
-    showToast('Von Helferliste entfernt')
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Entfernen fehlgeschlagen'
+    showGlassToast('Von Helferliste entfernt', 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Entfernen fehlgeschlagen'), 'error')
   } finally {
     togglingId.value = null
   }
-}
-
-function showToast(msg: string) {
-  toast.value = msg
-  setTimeout(() => {
-    if (toast.value === msg) toast.value = ''
-  }, 2200)
 }
 
 watch(eventId, () => syncAssignmentFilters(), {immediate: true})
@@ -602,9 +589,6 @@ onBeforeUnmount(() => {
         <VolunteerEmailOutreach scope="roster" :people="visibleRosterPeople"/>
       </div>
     </header>
-
-    <div v-if="error" class="glass-alert-warning vol-page__alert">{{ error }}</div>
-    <div v-if="toast" class="vol-page__toast">{{ toast }}</div>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-search-tile">
       <input

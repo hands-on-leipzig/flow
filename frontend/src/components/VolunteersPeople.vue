@@ -10,6 +10,8 @@ import {validateAndNormalizeMobile} from '@/utils/mobileNumber'
 import {formatDateTime} from '@/utils/dateTimeFormat'
 import {PERSON_TABLE_COLUMNS} from '@/volunteers/columns/personColumns'
 import type {VolunteerTableColumn} from '@/volunteers/columns/types'
+import {showGlassToast} from '@/composables/useGlassToast'
+import {apiError} from '@/utils/apiError'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 
 type Person = VolunteerPersonRef
@@ -28,8 +30,7 @@ const sortDir = ref<'asc' | 'desc'>('asc')
 const loading = ref(false)
 const togglingId = ref<number | null>(null)
 const removeFromRosterTarget = ref<Person | null>(null)
-const error = ref('')
-const toast = ref('')
+const deletePersonTarget = ref<Person | null>(null)
 const importOpen = ref(false)
 
 const draft = ref({
@@ -115,10 +116,15 @@ const removeFromRosterMessage = computed(() => {
   return base
 })
 
+const deletePersonMessage = computed(() => {
+  const p = deletePersonTarget.value
+  if (!p) return ''
+  return `${volunteerDisplayName(p)} wird dauerhaft gelöscht.`
+})
+
 async function load() {
   if (!eventId.value) return
   loading.value = true
-  error.value = ''
   try {
     const [peopleRes, rosterRes] = await Promise.all([
       axios.get(`/events/${eventId.value}/volunteers`),
@@ -131,8 +137,8 @@ async function load() {
         .filter((row: {has_assignment?: boolean}) => row.has_assignment)
         .map((row: {person: {id: number}}) => row.person.id),
     )
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Laden fehlgeschlagen'
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
     loading.value = false
   }
@@ -180,14 +186,13 @@ function startEdit(p: Person) {
     mobile: p.mobile ?? '',
   }
   draftMobileError.value = ''
-  error.value = ''
   document.querySelector('.vol-composer')?.scrollIntoView({behavior: 'smooth', block: 'nearest'})
 }
 
 async function submitPerson() {
   if (!eventId.value) return
   if (!draft.value.first_name.trim() || !draft.value.last_name.trim() || !draft.value.email.trim()) {
-    error.value = 'Vorname, Nachname und E-Mail sind erforderlich.'
+    showGlassToast('Vorname, Nachname und E-Mail sind erforderlich.', 'info')
     return
   }
   const mobileResult = resolveMobile(draft.value.mobile)
@@ -195,7 +200,6 @@ async function submitPerson() {
     draftMobileError.value = mobileResult.error
     return
   }
-  error.value = ''
   draftMobileError.value = ''
   const payload = {
     first_name: draft.value.first_name.trim(),
@@ -209,19 +213,18 @@ async function submitPerson() {
       await axios.put(`/volunteers/${editingId.value}`, payload)
       resetDraft()
       await load()
-      showToast('Gespeichert')
+      showGlassToast('Gespeichert', 'success')
       return
     }
     await axios.post(`/events/${eventId.value}/volunteers`, payload)
     resetDraft()
     await load()
-    showToast('Person angelegt')
-  } catch (e: any) {
-    const msg = e?.response?.data?.message
-      || e?.response?.data?.error
-      || (e?.response?.data?.errors ? Object.values(e.response.data.errors).flat().join(' ') : null)
-      || (editingId.value ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen')
-    error.value = String(msg)
+    showGlassToast('Person angelegt', 'success')
+  } catch (e: unknown) {
+    showGlassToast(
+      apiError(e, editingId.value ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen'),
+      'error',
+    )
   }
 }
 
@@ -230,17 +233,22 @@ function deletePersonLabel(p: Person) {
   return 'Person löschen'
 }
 
-async function removePerson(p: Person) {
+function requestDeletePerson(p: Person) {
   if (p.on_roster) return
-  if (!confirm(`${volunteerDisplayName(p)} wirklich löschen?`)) return
-  error.value = ''
+  deletePersonTarget.value = p
+}
+
+async function confirmDeletePerson() {
+  const p = deletePersonTarget.value
+  if (!p) return
   try {
     await axios.delete(`/volunteers/${p.id}`)
     if (editingId.value === p.id) resetDraft()
+    deletePersonTarget.value = null
     await load()
-    showToast('Gelöscht')
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Löschen fehlgeschlagen'
+    showGlassToast('Gelöscht', 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Löschen fehlgeschlagen'), 'error')
   }
 }
 
@@ -264,15 +272,14 @@ function onRosterIconClick(p: Person) {
 async function addToRoster(p: Person) {
   if (!eventId.value || togglingId.value === p.id) return
   togglingId.value = p.id
-  error.value = ''
   try {
     await axios.post(`/events/${eventId.value}/volunteer-roster`, {
       volunteer_person: p.id,
     })
     p.on_roster = true
-    showToast('Zur Helferliste hinzugefügt')
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Hinzufügen fehlgeschlagen'
+    showGlassToast('Zur Helferliste hinzugefügt', 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Hinzufügen fehlgeschlagen'), 'error')
   } finally {
     togglingId.value = null
   }
@@ -282,31 +289,23 @@ async function confirmRemoveFromRoster() {
   const p = removeFromRosterTarget.value
   if (!eventId.value || !p || togglingId.value === p.id) return
   togglingId.value = p.id
-  error.value = ''
   try {
     await axios.delete(`/events/${eventId.value}/volunteer-roster/${p.id}`)
     p.on_roster = false
     assignedIds.value.delete(p.id)
     removeFromRosterTarget.value = null
-    showToast('Von Helferliste entfernt')
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Entfernen fehlgeschlagen'
+    showGlassToast('Von Helferliste entfernt', 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Entfernen fehlgeschlagen'), 'error')
   } finally {
     togglingId.value = null
   }
 }
 
-function showToast(msg: string) {
-  toast.value = msg
-  setTimeout(() => {
-    if (toast.value === msg) toast.value = ''
-  }, 2200)
-}
-
 function onPeopleImported() {
   importOpen.value = false
   void load()
-  showToast('Import abgeschlossen')
+  showGlassToast('Import abgeschlossen', 'success')
 }
 
 watch(eventId, () => load(), {immediate: true})
@@ -333,9 +332,6 @@ onMounted(() => load())
         <VolunteerEmailOutreach scope="pool" :people="filtered"/>
       </div>
     </header>
-
-    <div v-if="error" class="glass-alert-warning vol-page__alert">{{ error }}</div>
-    <div v-if="toast" class="vol-page__toast">{{ toast }}</div>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-composer" :class="{'vol-composer--edit': isEditing}">
       <div class="vol-table-frame">
@@ -530,7 +526,7 @@ onMounted(() => load())
                 <IconDangerButton
                     :label="deletePersonLabel(p)"
                     :disabled="p.on_roster"
-                    @click="removePerson(p)"
+                    @click="requestDeletePerson(p)"
                 />
               </td>
             </tr>
@@ -548,6 +544,17 @@ onMounted(() => load())
         cancel-text="Abbrechen"
         @confirm="confirmRemoveFromRoster"
         @cancel="removeFromRosterTarget = null"
+    />
+
+    <ConfirmationModal
+        :show="!!deletePersonTarget"
+        type="danger"
+        title="Person löschen?"
+        :message="deletePersonMessage"
+        confirm-text="Löschen"
+        cancel-text="Abbrechen"
+        @confirm="confirmDeletePerson"
+        @cancel="deletePersonTarget = null"
     />
   </div>
 </template>
