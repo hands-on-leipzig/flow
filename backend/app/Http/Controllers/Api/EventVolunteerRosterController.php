@@ -92,16 +92,14 @@ class EventVolunteerRosterController extends Controller
             return response()->json(['error' => 'Person gehört nicht zu diesem Regionalpartner.'], 422);
         }
 
-        if ($this->personHasAssignmentOnEvent($event->id, $volunteer->id)) {
-            return response()->json([
-                'error' => 'Person ist noch besetzt und kann nicht von der Anmeldung entfernt werden.',
-            ], 409);
-        }
+        DB::transaction(function () use ($event, $volunteer) {
+            $this->deleteAssignmentsOnEvent($event->id, $volunteer->id);
 
-        EventVolunteerRoster::query()
-            ->where('event', $event->id)
-            ->where('volunteer_person', $volunteer->id)
-            ->delete();
+            EventVolunteerRoster::query()
+                ->where('event', $event->id)
+                ->where('volunteer_person', $volunteer->id)
+                ->delete();
+        });
 
         return response()->json(['ok' => true]);
     }
@@ -120,6 +118,23 @@ class EventVolunteerRosterController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function deleteAssignmentsOnEvent(int $eventId, int $personId): void
+    {
+        $groupIds = DB::table('event_staffing_group as g')
+            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
+            ->where('r.event', $eventId)
+            ->pluck('g.id');
+
+        if ($groupIds->isEmpty()) {
+            return;
+        }
+
+        EventStaffingAssignment::query()
+            ->where('volunteer_person', $personId)
+            ->whereIn('event_staffing_group', $groupIds)
+            ->delete();
     }
 
     private function personHasAssignmentOnEvent(int $eventId, int $personId): bool

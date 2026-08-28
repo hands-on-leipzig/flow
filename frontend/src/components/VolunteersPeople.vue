@@ -5,8 +5,6 @@ import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 
-type RecentAssignment = { event_id: number; role: string; year: string | null }
-
 type Person = {
   id: number
   first_name: string
@@ -16,7 +14,6 @@ type Person = {
   mobile: string | null
   updated_at: string | null
   on_roster?: boolean
-  recent_assignments?: RecentAssignment[]
 }
 
 const eventStore = useEventStore()
@@ -49,12 +46,6 @@ function displayName(p: Person) {
   return `${p.first_name} ${p.last_name}`
 }
 
-function historyLabel(p: Person) {
-  const items = p.recent_assignments ?? []
-  if (!items.length) return ''
-  return items.map((a) => `${a.role} · ${a.year ?? ''}`).join(', ')
-}
-
 function searchHaystack(p: Person) {
   return [
     p.first_name,
@@ -62,7 +53,6 @@ function searchHaystack(p: Person) {
     p.nickname,
     p.email,
     p.mobile,
-    historyLabel(p),
     p.updated_at?.slice(0, 10),
   ]
     .filter(Boolean)
@@ -105,6 +95,16 @@ const filtered = computed(() => {
     if (aFirst !== bFirst) return aFirst < bFirst ? -1 : 1
     return a.id - b.id
   })
+})
+
+const removeFromRosterMessage = computed(() => {
+  const p = removeFromRosterTarget.value
+  if (!p) return ''
+  const base = `${displayName(p)} wird von der Helferliste dieser Veranstaltung entfernt.`
+  if (assignedIds.value.has(p.id)) {
+    return `${base} Bestehende Zuordnungen werden ebenfalls entfernt.`
+  }
+  return base
 })
 
 async function load() {
@@ -185,13 +185,17 @@ async function removePerson(p: Person) {
   }
 }
 
+function rosterIconTooltip(p: Person) {
+  if (!p.on_roster) return 'Zur Helferliste hinzufügen'
+  if (assignedIds.value.has(p.id)) {
+    return 'Von Helferliste entfernen — Zuordnungen werden ebenfalls entfernt'
+  }
+  return 'Von Helferliste entfernen'
+}
+
 function onRosterIconClick(p: Person) {
   if (togglingId.value === p.id) return
   if (p.on_roster) {
-    if (assignedIds.value.has(p.id)) {
-      error.value = 'Person ist noch besetzt — zuerst Einsatz entfernen.'
-      return
-    }
     removeFromRosterTarget.value = p
     return
   }
@@ -223,6 +227,7 @@ async function confirmRemoveFromRoster() {
   try {
     await axios.delete(`/events/${eventId.value}/volunteer-roster/${p.id}`)
     p.on_roster = false
+    assignedIds.value.delete(p.id)
     removeFromRosterTarget.value = null
     showToast('Von Helferliste entfernt')
   } catch (e: any) {
@@ -266,7 +271,6 @@ onMounted(() => load())
             <col class="vol-col--nick"/>
             <col class="vol-col--email"/>
             <col class="vol-col--mobile"/>
-            <col class="vol-col--meta"/>
             <col class="vol-col--actions"/>
           </colgroup>
           <tbody>
@@ -308,7 +312,6 @@ onMounted(() => load())
                     placeholder="Mobil"
                 />
               </td>
-              <td class="vol-table__meta"/>
               <td class="vol-table__actions">
                 <button type="button" class="glass-btn-accent" @click="createPerson">Anlegen</button>
               </td>
@@ -343,7 +346,6 @@ onMounted(() => load())
             <col class="vol-col--nick"/>
             <col class="vol-col--email"/>
             <col class="vol-col--mobile"/>
-            <col class="vol-col--meta"/>
             <col class="vol-col--actions"/>
           </colgroup>
           <thead>
@@ -374,7 +376,6 @@ onMounted(() => load())
               <th scope="col">Spitzname</th>
               <th scope="col">E-Mail</th>
               <th scope="col">Mobil</th>
-              <th scope="col">Einsätze</th>
               <th scope="col" class="vol-table__actions"><span class="sr-only">Aktionen</span></th>
             </tr>
           </thead>
@@ -385,20 +386,16 @@ onMounted(() => load())
                     type="button"
                     class="vol-roster-icon"
                     :class="p.on_roster ? 'vol-roster-icon--on' : 'vol-roster-icon--off'"
-                    :disabled="togglingId === p.id || (!!p.on_roster && assignedIds.has(p.id))"
-                    :title="assignedIds.has(p.id) && p.on_roster
-                      ? 'Noch besetzt — zuerst Einsatz entfernen'
-                      : (p.on_roster ? 'Von Helferliste entfernen' : 'Zur Helferliste hinzufügen')"
+                    :disabled="togglingId === p.id"
+                    :aria-label="rosterIconTooltip(p)"
                     @click="onRosterIconClick(p)"
                 >
                   <i
-                      class="bi"
+                      class="bi vol-roster-icon__glyph"
                       :class="p.on_roster ? 'bi-clipboard-check-fill' : 'bi-clipboard-check'"
                       aria-hidden="true"
                   />
-                  <span class="sr-only">
-                    {{ p.on_roster ? 'Von Helferliste entfernen' : 'Zur Helferliste hinzufügen' }}
-                  </span>
+                  <span class="vol-roster-icon__tip glass-dropdown" role="tooltip">{{ rosterIconTooltip(p) }}</span>
                 </button>
               </td>
               <td>
@@ -439,9 +436,6 @@ onMounted(() => load())
                     @blur="savePerson(p)"
                 />
               </td>
-              <td class="vol-table__meta">
-                <span v-if="historyLabel(p)" class="vol-muted">{{ historyLabel(p) }}</span>
-              </td>
               <td class="vol-table__actions">
                 <button type="button" class="glass-btn-secondary" @click="removePerson(p)">
                   Löschen
@@ -457,9 +451,7 @@ onMounted(() => load())
         :show="!!removeFromRosterTarget"
         type="warning"
         title="Von Helferliste entfernen?"
-        :message="removeFromRosterTarget
-          ? `${displayName(removeFromRosterTarget)} wird von der Helferliste dieser Veranstaltung entfernt.`
-          : ''"
+        :message="removeFromRosterMessage"
         confirm-text="Entfernen"
         cancel-text="Abbrechen"
         @confirm="confirmRemoveFromRoster"
@@ -522,12 +514,11 @@ onMounted(() => load())
   font-size: 0.875rem;
 }
 .vol-col--roster { width: 2.75rem; }
-.vol-col--first { width: 12%; }
-.vol-col--last { width: 12%; }
-.vol-col--nick { width: 11%; }
-.vol-col--email { width: 19%; }
-.vol-col--mobile { width: 12%; }
-.vol-col--meta { width: 17%; }
+.vol-col--first { width: 14%; }
+.vol-col--last { width: 14%; }
+.vol-col--nick { width: 12%; }
+.vol-col--email { width: 22%; }
+.vol-col--mobile { width: 14%; }
 .vol-col--actions { width: 6.5rem; }
 
 .vol-table th,
@@ -561,6 +552,7 @@ onMounted(() => load())
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   width: 2rem;
   height: 2rem;
   margin: 0 auto;
@@ -572,6 +564,30 @@ onMounted(() => load())
   font-size: 1.1rem;
   line-height: 1;
 }
+.vol-roster-icon__tip {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 0.45rem);
+  z-index: 30;
+  width: max-content;
+  max-width: 12rem;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--color-text-muted);
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-50%) translateX(-2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.vol-roster-icon:hover .vol-roster-icon__tip,
+.vol-roster-icon:focus-visible .vol-roster-icon__tip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
 .vol-roster-icon--on {
   color: var(--color-accent);
 }
@@ -580,24 +596,25 @@ onMounted(() => load())
 }
 .vol-roster-icon--off {
   color: var(--color-text-muted);
+}
+.vol-roster-icon--off .vol-roster-icon__glyph {
   opacity: 0.45;
 }
 .vol-roster-icon--off:hover:not(:disabled) {
-  opacity: 0.85;
   color: var(--color-text);
   background: var(--color-bg-hover);
 }
+.vol-roster-icon--off:hover:not(:disabled) .vol-roster-icon__glyph {
+  opacity: 0.85;
+}
 .vol-roster-icon:disabled {
   cursor: not-allowed;
+}
+.vol-roster-icon:disabled .vol-roster-icon__glyph {
   opacity: 0.35;
 }
 .vol-table__actions {
   white-space: nowrap;
-}
-.vol-table__meta {
-  font-size: 0.8rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .vol-table .glass-input {
   width: 100%;

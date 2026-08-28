@@ -76,10 +76,10 @@ async function addToRoster() {
 
 async function removeFromRoster(entry: RosterEntry) {
   if (!eventId.value) return
-  if (entry.has_assignment) {
-    error.value = 'Person ist noch besetzt — zuerst Einsatz entfernen.'
-    return
-  }
+  const msg = entry.has_assignment
+    ? `${displayName(entry.person)} von der Helferliste entfernen? Bestehende Zuordnungen werden ebenfalls entfernt.`
+    : `${displayName(entry.person)} von der Helferliste entfernen?`
+  if (!confirm(msg)) return
   error.value = ''
   try {
     await axios.delete(`/events/${eventId.value}/volunteer-roster/${entry.person.id}`)
@@ -145,12 +145,11 @@ onMounted(() => load())
           </div>
           <div class="vol-row__meta">
             <span v-if="entry.has_assignment" class="glass-chip">Besetzt</span>
-            <button
-                type="button"
-                class="glass-btn-secondary"
-                :disabled="entry.has_assignment"
-                @click="removeFromRoster(entry)"
-            >
+              <button
+                  type="button"
+                  class="glass-btn-secondary"
+                  @click="removeFromRoster(entry)"
+              >
               Entfernen
             </button>
           </div>
