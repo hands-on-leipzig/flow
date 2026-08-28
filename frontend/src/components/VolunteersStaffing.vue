@@ -13,7 +13,7 @@ import ItemCard from '@/components/molecules/ItemCard.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {programNameForId} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
 
 defineOptions({name: 'VolunteersStaffing'})
 
@@ -48,6 +48,7 @@ type Role = {
   best: number
   max: number
   ui_description: string | null
+  sequence: number
   groups: Group[]
 }
 
@@ -91,8 +92,14 @@ const newRoleMin = ref<number | ''>('')
 const newRoleBest = ref<number | ''>('')
 const newRoleMax = ref<number | ''>('')
 
-const tiles = computed<Tile[]>(() =>
-  roles.value.flatMap((role) =>
+type TileFilterKey = 'cross' | 'local' | `program:${number}`
+
+const activeTileFilters = ref<Set<TileFilterKey>>(new Set())
+
+const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
+
+const tiles = computed<Tile[]>(() => {
+  const list = roles.value.flatMap((role) =>
     role.groups
       .filter((group) => !(group.surplus && group.people.length === 0))
       .map((group) => ({
@@ -101,8 +108,14 @@ const tiles = computed<Tile[]>(() =>
         group,
         name: groupTitle(role, group),
       })),
-  ),
-)
+  )
+  return [...list].sort(compareTiles)
+})
+
+const filteredTiles = computed(() => {
+  if (activeTileFilters.value.size === 0) return []
+  return tiles.value.filter((tile) => activeTileFilters.value.has(tileFilterKey(tile)))
+})
 
 const assignedIds = computed(() => {
   const ids = new Set<number>()
@@ -223,6 +236,79 @@ function searchChipIconClass(person: Person) {
 function groupTitle(role: Role, group: Group) {
   if (role.groups.length <= 1 && !group.surplus) return role.label
   return `${role.label} ${group.group_index}`
+}
+
+function firstProgramSequence(program: number | null) {
+  if (program == null) return -1
+  const row = eventStore.selectedEvent?.programs?.find((p) => programId(p) === program)
+  return row?.sequence ?? Number.MAX_SAFE_INTEGER
+}
+
+function compareTiles(a: Tile, b: Tile) {
+  if (a.role.is_local !== b.role.is_local) {
+    return a.role.is_local ? 1 : -1
+  }
+
+  if (a.role.is_local) {
+    const byName = a.name.localeCompare(b.name, 'de')
+    if (byName !== 0) return byName
+    return a.group.group_index - b.group.group_index
+  }
+
+  const aNoProgram = a.role.first_program == null
+  const bNoProgram = b.role.first_program == null
+  if (aNoProgram !== bNoProgram) return aNoProgram ? -1 : 1
+
+  const byProgram = firstProgramSequence(a.role.first_program) - firstProgramSequence(b.role.first_program)
+  if (byProgram !== 0) return byProgram
+
+  if (a.role.sequence !== b.role.sequence) return a.role.sequence - b.role.sequence
+
+  const byLabel = a.role.label.localeCompare(b.role.label, 'de')
+  if (byLabel !== 0) return byLabel
+
+  if (a.role.id !== b.role.id) return a.role.id - b.role.id
+
+  return a.group.group_index - b.group.group_index
+}
+
+function buildTileFilterKeys(): TileFilterKey[] {
+  const keys: TileFilterKey[] = ['cross', 'local']
+  for (const program of programFilters.value) {
+    const id = programId(program)
+    if (id > 0) keys.push(`program:${id}`)
+  }
+  return keys
+}
+
+function syncTileFilters() {
+  const keys = buildTileFilterKeys()
+  const kept = keys.filter((key) => activeTileFilters.value.has(key))
+  activeTileFilters.value = kept.length > 0 ? new Set(kept) : new Set(keys)
+}
+
+function tileFilterKey(tile: Tile): TileFilterKey {
+  if (tile.role.is_local) return 'local'
+  if (tile.role.first_program == null) return 'cross'
+  return `program:${tile.role.first_program}`
+}
+
+function isTileFilterActive(key: TileFilterKey) {
+  return activeTileFilters.value.has(key)
+}
+
+function toggleTileFilter(key: TileFilterKey) {
+  const next = new Set(activeTileFilters.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  activeTileFilters.value = next
+}
+
+function programFilterLogo(program: {first_program?: number; id?: number; name?: string | null}) {
+  return programLogoSrc({
+    first_program: programId(program),
+    name: program.name ?? programNameForId(eventStore.selectedEvent, programId(program)),
+  })
 }
 
 function roleLogoSrc(role: Role) {
@@ -561,6 +647,7 @@ function assignableTilesFor(person: Person) {
 }
 
 watch(eventId, () => load(), {immediate: true})
+watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: true})
 </script>
 
 <template>
@@ -601,9 +688,48 @@ watch(eventId, () => load(), {immediate: true})
           Noch keine Rollen. Mit Plan abgleichen — oder links eine eigene Rolle anlegen.
         </p>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+        <div v-if="tiles.length" class="staffing-filters glass-card liquid-surface-inner">
+          <button
+              type="button"
+              class="staffing-filter"
+              :class="{'staffing-filter--active': isTileFilterActive('cross')}"
+              @click="toggleTileFilter('cross')"
+          >
+            Übergreifend
+          </button>
+          <button
+              v-for="program in programFilters"
+              :key="`filter-program-${programId(program)}`"
+              type="button"
+              class="staffing-filter"
+              :class="{'staffing-filter--active': isTileFilterActive(`program:${programId(program)}`)}"
+              @click="toggleTileFilter(`program:${programId(program)}`)"
+          >
+            <img
+                v-if="programFilterLogo(program)"
+                :src="programFilterLogo(program)"
+                :alt="programDisplayName(program)"
+                class="staffing-filter__logo"
+            />
+            {{ programDisplayName(program) }}
+          </button>
+          <button
+              type="button"
+              class="staffing-filter"
+              :class="{'staffing-filter--active': isTileFilterActive('local')}"
+              @click="toggleTileFilter('local')"
+          >
+            Zusätzlich
+          </button>
+        </div>
+
+        <p v-if="tiles.length && !filteredTiles.length" class="text-sm text-[var(--color-text-subtle)] mb-3">
+          Keine Rollen für die gewählten Filter.
+        </p>
+
+        <div v-if="filteredTiles.length" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
           <ItemCard
-              v-for="tile in tiles"
+              v-for="tile in filteredTiles"
               :key="tile.key"
               :inactive="tile.group.surplus"
               :class="{'staffing-tile--surplus': tile.group.surplus}"
@@ -1028,6 +1154,48 @@ watch(eventId, () => load(), {immediate: true})
 .vol-page__sub {
   margin: 0.25rem 0 0;
   opacity: 0.75;
+}
+
+.staffing-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.65rem;
+  margin-bottom: 0.75rem;
+}
+
+.staffing-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--liquid-border-soft);
+  border-radius: var(--radius);
+  background: var(--liquid-tile-bg-inner);
+  box-shadow: var(--liquid-shadow-inset);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.staffing-filter:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.staffing-filter--active {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-muted) 55%, var(--liquid-tile-bg-inner));
+  color: var(--color-text);
+}
+
+.staffing-filter__logo {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
 }
 
 .staffing-title {
