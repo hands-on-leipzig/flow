@@ -568,7 +568,7 @@ watch(eventId, () => load(), {immediate: true})
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Zuordnung</h1>
-        <p class="vol-page__sub">Verteilung der Helfer:innen auf die Rollen im Veranstaltungsplan</p>
+        <p class="vol-page__sub">Zuordnung der Helfer:innen auf die Rollen im Veranstaltungsplan</p>
       </div>
       <div class="vol-page__actions">
         <VolunteerEmailOutreach scope="roster"/>
