@@ -5,6 +5,7 @@ import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
+import VolunteerPeopleImport from '@/components/molecules/VolunteerPeopleImport.vue'
 import {validateAndNormalizeMobile} from '@/utils/mobileNumber'
 
 type Person = {
@@ -32,6 +33,7 @@ const togglingId = ref<number | null>(null)
 const removeFromRosterTarget = ref<Person | null>(null)
 const error = ref('')
 const toast = ref('')
+const importOpen = ref(false)
 
 const draft = ref({
   first_name: '',
@@ -294,6 +296,12 @@ function showToast(msg: string) {
   }, 2200)
 }
 
+function onPeopleImported() {
+  importOpen.value = false
+  void load()
+  showToast('Import abgeschlossen')
+}
+
 watch(eventId, () => load(), {immediate: true})
 onMounted(() => load())
 </script>
@@ -305,7 +313,18 @@ onMounted(() => load())
         <h1 class="vol-page__title">Personen</h1>
         <p class="vol-page__sub">Saison-übergreifende Kontaktliste</p>
       </div>
-      <VolunteerEmailOutreach scope="pool" :people="filtered"/>
+      <div class="vol-page__actions">
+        <button
+            type="button"
+            class="glass-btn-secondary vol-upload-trigger"
+            :class="{'vol-upload-trigger--active': importOpen}"
+            @click="importOpen = !importOpen"
+        >
+          <i class="bi bi-upload" aria-hidden="true"/>
+          Upload
+        </button>
+        <VolunteerEmailOutreach scope="pool" :people="filtered"/>
+      </div>
     </header>
 
     <div v-if="error" class="glass-alert-warning vol-page__alert">{{ error }}</div>
@@ -391,6 +410,13 @@ onMounted(() => load())
         </table>
       </div>
     </section>
+
+    <VolunteerPeopleImport
+        v-if="importOpen"
+        :event-id="eventId"
+        @imported="onPeopleImported"
+        @cancel="importOpen = false"
+    />
 
     <section class="glass-card liquid-surface-inner vol-tile">
       <div class="vol-toolbar">
@@ -518,6 +544,23 @@ onMounted(() => load())
   padding: 0.5rem 0 2rem;
 }
 .vol-page__header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.vol-page__actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
+}
+.vol-upload-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+.vol-upload-trigger--active {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
+    0 8px 18px rgba(15, 23, 42, 0.08);
+}
 .vol-page__title { font-size: 1.5rem; font-weight: 650; margin: 0; }
 .vol-page__sub { margin: 0.25rem 0 0; opacity: 0.75; }
 .vol-page__alert { padding: 0.75rem 1rem; border-radius: 0.75rem; }

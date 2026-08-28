@@ -260,6 +260,7 @@ Route::middleware(['keycloak'])->group(function () {
     // Volunteer staffing (pool + roster)
     Route::get('/events/{event}/volunteers', [VolunteerPersonController::class, 'index']);
     Route::post('/events/{event}/volunteers', [VolunteerPersonController::class, 'store']);
+    Route::post('/events/{event}/volunteers/import', [VolunteerPersonController::class, 'import']);
     Route::get('/events/{event}/volunteers/export', [VolunteerPersonController::class, 'exportCsv']);
     Route::put('/volunteers/{volunteer}', [VolunteerPersonController::class, 'update']);
     Route::delete('/volunteers/{volunteer}', [VolunteerPersonController::class, 'destroy']);

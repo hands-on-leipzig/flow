@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\EventStaffingAssignment;
 use App\Models\EventVolunteerRoster;
 use App\Models\VolunteerPerson;
+use App\Services\VolunteerPersonImportService;
 use App\Support\GermanMobileNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -135,6 +136,31 @@ class VolunteerPersonController extends Controller
         $volunteer->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    public function import(Request $request, Event $event, VolunteerPersonImportService $importService): JsonResponse
+    {
+        $validated = $request->validate([
+            'dry_run' => 'sometimes|boolean',
+            'rows' => 'required|array|max:'.VolunteerPersonImportService::MAX_ROWS,
+            'rows.*.first_name' => 'required|string|max:100',
+            'rows.*.last_name' => 'required|string|max:100',
+            'rows.*.nickname' => 'nullable|string|max:100',
+            'rows.*.email' => 'required|string|max:255',
+            'rows.*.mobile' => 'nullable|string|max:50',
+        ]);
+
+        $result = $importService->import(
+            $event,
+            $validated['rows'],
+            (bool) ($validated['dry_run'] ?? false),
+        );
+
+        if ($result['errors'] !== [] && $result['results'] === []) {
+            return response()->json($result, 422);
+        }
+
+        return response()->json($result);
     }
 
     public function exportCsv(Request $request, Event $event): StreamedResponse
