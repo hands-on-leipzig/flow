@@ -224,7 +224,13 @@ async function submitPerson() {
   }
 }
 
+function deletePersonLabel(p: Person) {
+  if (p.on_roster) return 'Löschen nicht möglich — Person ist auf der Helferliste'
+  return 'Person löschen'
+}
+
 async function removePerson(p: Person) {
+  if (p.on_roster) return
   if (!confirm(`${displayName(p)} wirklich löschen?`)) return
   error.value = ''
   try {
@@ -515,7 +521,11 @@ onMounted(() => load())
                 >
                   <i class="bi bi-pencil" aria-hidden="true"/>
                 </button>
-                <IconDangerButton label="Person löschen" @click="removePerson(p)"/>
+                <IconDangerButton
+                    :label="deletePersonLabel(p)"
+                    :disabled="p.on_roster"
+                    @click="removePerson(p)"
+                />
               </td>
             </tr>
           </tbody>
