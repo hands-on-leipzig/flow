@@ -1,7 +1,8 @@
 <template>
   <div
       v-if="show"
-      class="glass-scrim fixed inset-0 flex items-center justify-center z-[100]"
+      class="glass-scrim fixed inset-0 flex items-center justify-center"
+      :class="scrimClass"
       @click="handleBackdropClick"
   >
     <div class="glass-modal" @click.stop>
@@ -84,7 +85,11 @@ const props = defineProps({
   disableConfirmButton: {
     type: Boolean,
     default: false
-  }
+  },
+  scrimClass: {
+    type: String,
+    default: 'z-[100]',
+  },
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
