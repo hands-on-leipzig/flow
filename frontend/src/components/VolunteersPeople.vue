@@ -446,7 +446,7 @@ onMounted(() => load())
       </div>
 
       <p v-if="loading" class="vol-muted">Laden…</p>
-      <p v-else-if="!people.length" class="vol-muted">Noch keine Personen im Pool.</p>
+      <p v-else-if="!people.length" class="vol-muted">Noch niemand auf der Kontaktliste.</p>
       <p v-else-if="!filtered.length" class="vol-muted">Keine Treffer für diesen Filter.</p>
 
       <div v-else class="vol-table-frame vol-table-frame--scroll">

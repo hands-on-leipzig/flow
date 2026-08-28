@@ -290,7 +290,7 @@ onMounted(() => load())
       </VolunteerStaffingFilterBar>
 
       <p v-if="loading" class="vol-muted">Laden…</p>
-      <p v-else-if="!roster.length" class="vol-muted">Noch niemand angemeldet.</p>
+      <p v-else-if="!roster.length" class="vol-muted">Noch niemand auf der Helferliste.</p>
       <p v-else-if="!filteredRoster.length" class="vol-muted">Keine Helfer für die gewählten Filter.</p>
 
       <VolunteerRosterTable
