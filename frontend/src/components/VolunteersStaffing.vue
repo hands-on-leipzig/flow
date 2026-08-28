@@ -23,6 +23,7 @@ type Person = {
   last_name: string
   nickname: string | null
   email: string
+  mobile?: string | null
 }
 
 type Group = {
@@ -67,6 +68,8 @@ const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const roles = ref<Role[]>([])
 const roster = ref<RosterEntry[]>([])
+const pool = ref<Person[]>([])
+const personSearch = ref('')
 const planId = ref<number | null>(null)
 const staffingOk = ref(true)
 const loading = ref(false)
@@ -129,17 +132,32 @@ const unassignedPeople = computed(() =>
 )
 
 const rosterPool = ref<Person[]>([])
+const searchDisplayPool = ref<Person[]>([])
 
 watch(unassignedPeople, (people) => {
   rosterPool.value = [...people]
 }, {immediate: true})
 
-const assignedPeople = computed(() =>
-  roster.value
-    .map((entry) => entry.person)
-    .filter((person) => assignedIds.value.has(person.id))
-    .sort(sortPeople),
-)
+watch(personSearchMatches, (matches) => {
+  searchDisplayPool.value = [...matches]
+}, {immediate: true})
+
+const rosterPersonIds = computed(() => new Set(roster.value.map((entry) => entry.person.id)))
+
+const personSearchMatches = computed(() => {
+  const q = personSearch.value.trim().toLowerCase()
+  if (!q) return []
+
+  return pool.value
+    .filter((p) => searchHaystack(p).includes(q))
+    .sort((a, b) => {
+      const av = displayName(a).toLocaleLowerCase('de')
+      const bv = displayName(b).toLocaleLowerCase('de')
+      if (av < bv) return -1
+      if (av > bv) return 1
+      return a.id - b.id
+    })
+})
 
 const gapSummary = computed(() => {
   let underMin = 0
@@ -158,6 +176,7 @@ const deleteRoleMessage = computed(() => {
 })
 
 const peopleGroup = {name: 'staffing-people', pull: true, put: false}
+const searchDragGroup = {name: 'staffing-people', pull: 'clone', put: false}
 
 function dropGroup(group: Group) {
   return {
@@ -176,6 +195,31 @@ function sortPeople(a: Person, b: Person) {
 function displayName(person: Person) {
   if (person.nickname?.trim()) return `${person.first_name} „${person.nickname}“ ${person.last_name}`
   return `${person.first_name} ${person.last_name}`
+}
+
+function searchHaystack(person: Person) {
+  return [
+    person.first_name,
+    person.last_name,
+    person.nickname,
+    person.email,
+    person.mobile,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+}
+
+function isOnRoster(person: Person) {
+  return rosterPersonIds.value.has(person.id)
+}
+
+function isAssigned(person: Person) {
+  return assignedIds.value.has(person.id)
+}
+
+function canDragFromSearch(person: Person) {
+  return !isAssigned(person)
 }
 
 function groupTitle(role: Role, group: Group) {
@@ -197,13 +241,6 @@ function roleLogoAlt(role: Role) {
     first_program: role.first_program,
     name: programNameForId(eventStore.selectedEvent, role.first_program),
   })
-}
-
-function assignmentLabel(person: Person) {
-  for (const tile of tiles.value) {
-    if (tile.group.people.some((p) => p.id === person.id)) return tile.name
-  }
-  return ''
 }
 
 function isUnderMin(tile: Tile) {
@@ -255,20 +292,29 @@ async function load() {
   if (!eventId.value) return
   loading.value = true
   try {
-    const [staffingRes, rosterRes] = await Promise.all([
+    const [staffingRes, rosterRes, poolRes] = await Promise.all([
       axios.get(`/events/${eventId.value}/staffing`),
       axios.get(`/events/${eventId.value}/volunteer-roster`),
+      axios.get(`/events/${eventId.value}/volunteers`),
     ])
     roles.value = staffingRes.data.roles ?? []
     planId.value = staffingRes.data.plan_id ?? null
     staffingOk.value = staffingRes.data.staffing_ok !== false
     roster.value = rosterRes.data.roster ?? []
+    pool.value = poolRes.data.people ?? []
     await eventStore.refreshReadiness(eventId.value)
   } catch (e: any) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
     loading.value = false
   }
+}
+
+async function ensureOnRoster(person: Person) {
+  if (!eventId.value || isOnRoster(person)) return
+  await axios.post(`/events/${eventId.value}/volunteer-roster`, {
+    volunteer_person: person.id,
+  })
 }
 
 async function syncFromPlan() {
@@ -332,6 +378,7 @@ async function handleDrop(event: any, group: Group) {
         `/events/${eventId.value}/staffing/groups/${dragSourceGroupId.value}/assignments/${person.id}`,
       )
     }
+    await ensureOnRoster(person)
     await axios.post(`/events/${eventId.value}/staffing/groups/${group.id}/assignments`, {
       volunteer_person: person.id,
     })
@@ -724,20 +771,90 @@ watch(eventId, () => load(), {immediate: true})
         </div>
       </div>
 
-      <div class="lg:col-span-1 order-1 lg:order-2">
-        <div class="glass-card liquid-surface-inner !p-3 md:!p-4 lg:sticky lg:top-4">
-          <h2 class="glass-card__heading !mb-1 !text-sm md:!text-base">Personen</h2>
-          <p class="text-xs text-[var(--color-text-subtle)] mb-3">
-            {{ unassignedPeople.length }} frei
-            · {{ assignedPeople.length }} zugewiesen
-            · {{ roster.length }} auf der Helferliste
-          </p>
+      <div class="lg:col-span-1 order-1 lg:order-2 space-y-3 md:space-y-4 lg:sticky lg:top-4 self-start">
+        <div class="glass-card liquid-surface-inner staffing-sidebar-tile">
+          <input
+              v-model="personSearch"
+              type="search"
+              class="glass-input glass-input--sm staffing-search__input"
+              placeholder="Personen suchen…"
+              autocomplete="off"
+          />
+          <div v-if="personSearch.trim()" class="staffing-search-results">
+            <p v-if="!personSearchMatches.length" class="staffing-sidebar-muted">
+              Keine Treffer in der Personenliste.
+            </p>
+            <div v-else class="staffing-search-chips">
+              <draggable
+                  :list="searchDisplayPool"
+                  class="hidden md:flex flex-wrap gap-1.5 md:gap-2"
+                  :group="searchDragGroup"
+                  :sort="false"
+                  filter=".staffing-search-chip--static"
+                  item-key="id"
+                  @start="onDragStart($event, null)"
+                  @end="onDragEnd"
+              >
+                <template #item="{element: person}">
+                  <span
+                      class="glass-row-item staffing-search-chip"
+                      :class="canDragFromSearch(person)
+                        ? 'glass-row-item--interactive staffing-search-chip--draggable cursor-move'
+                        : 'staffing-search-chip--static'"
+                  >
+                    <i
+                        class="bi staffing-search-chip__icon"
+                        :class="isAssigned(person)
+                          ? 'bi-person-check'
+                          : isOnRoster(person)
+                            ? 'bi-clipboard-check-fill staffing-search-chip__icon--roster'
+                            : 'bi-person-fill'"
+                        aria-hidden="true"
+                    />
+                    <span class="staffing-search-chip__label">{{ displayName(person) }}</span>
+                  </span>
+                </template>
+              </draggable>
 
-          <p v-if="!roster.length" class="text-sm text-[var(--color-text-subtle)]">
+              <template v-for="person in personSearchMatches" :key="`search-mobile-${person.id}`">
+                <button
+                    v-if="canDragFromSearch(person)"
+                    type="button"
+                    class="glass-row-item glass-row-item--interactive staffing-search-chip md:hidden"
+                    @click="openAssignModal(person)"
+                >
+                  <i
+                      class="bi staffing-search-chip__icon"
+                      :class="isOnRoster(person)
+                        ? 'bi-clipboard-check-fill staffing-search-chip__icon--roster'
+                        : 'bi-person-fill'"
+                      aria-hidden="true"
+                  />
+                  <span class="staffing-search-chip__label">{{ displayName(person) }}</span>
+                </button>
+                <span
+                    v-else
+                    class="glass-row-item staffing-search-chip staffing-search-chip--static md:hidden"
+                >
+                  <i class="bi bi-person-check staffing-search-chip__icon" aria-hidden="true"/>
+                  <span class="staffing-search-chip__label">{{ displayName(person) }}</span>
+                </span>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card liquid-surface-inner staffing-sidebar-tile">
+          <h2 class="glass-card__heading !mb-3 !text-sm md:!text-base">Helfer:innen ohne Zuordnung</h2>
+
+          <p v-if="!roster.length" class="staffing-sidebar-muted">
             Noch niemand auf der Helferliste — unter Helferliste Personen hinzufügen.
           </p>
+          <p v-else-if="!unassignedPeople.length" class="staffing-sidebar-muted">
+            Alle auf der Helferliste sind zugewiesen.
+          </p>
 
-          <div v-else class="space-y-3">
+          <template v-else>
             <draggable
                 :list="rosterPool"
                 class="hidden md:flex flex-wrap gap-1.5 md:gap-2"
@@ -766,27 +883,7 @@ watch(eventId, () => load(), {immediate: true})
                 <span class="px-1.5 py-1">{{ displayName(person) }}</span>
               </button>
             </div>
-
-            <div v-if="assignedPeople.length" class="staffing-assigned">
-              <h3 class="staffing-assigned__label">Zugewiesen</h3>
-              <div class="flex flex-wrap gap-1.5">
-                <span
-                    v-for="person in assignedPeople"
-                    :key="`assigned-${person.id}`"
-                    class="glass-row-item text-[11px] md:text-xs staffing-assigned__chip"
-                    :title="assignmentLabel(person)"
-                >
-                  <i class="bi bi-person-check text-[var(--color-text-subtle)]"/>
-                  <span class="px-1.5 py-1 truncate max-w-[11rem]">
-                    {{ displayName(person) }}
-                    <span v-if="assignmentLabel(person)" class="staffing-assigned__role">
-                      · {{ assignmentLabel(person) }}
-                    </span>
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
+          </template>
         </div>
       </div>
     </div>
@@ -1070,27 +1167,57 @@ watch(eventId, () => load(), {immediate: true})
   background: color-mix(in srgb, #fecaca 28%, var(--color-bg-muted));
 }
 
-.staffing-assigned {
-  padding-top: 0.75rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+.staffing-sidebar-tile {
+  padding: 0.75rem;
 }
 
-.staffing-assigned__label {
-  margin: 0 0 0.45rem;
-  font-size: 0.7rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+@media (min-width: 768px) {
+  .staffing-sidebar-tile {
+    padding: 1rem;
+  }
+}
+
+.staffing-sidebar-muted {
+  margin: 0;
+  font-size: 0.875rem;
   color: var(--color-text-subtle);
 }
 
-.staffing-assigned__chip {
+.staffing-search__input {
+  width: 100%;
+}
+
+.staffing-search-results {
+  margin-top: 0.75rem;
+}
+
+.staffing-search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.staffing-search-chip {
+  font-size: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  gap: 0.4rem;
+}
+
+.staffing-search-chip--static {
   opacity: 0.72;
+  cursor: default;
 }
 
-.staffing-assigned__role {
+.staffing-search-chip__icon {
   color: var(--color-text-subtle);
-  font-weight: 500;
+}
+
+.staffing-search-chip__icon--roster {
+  color: var(--color-accent);
+}
+
+.staffing-search-chip__label {
+  padding: 0;
 }
 
 .fade-enter-active,
