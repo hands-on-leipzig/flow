@@ -56,8 +56,8 @@ export function computeOpenPositions(
     if (filled < min) {
       bucket.critical.push({sortable, name: tile.name, wanted: min - filled})
     }
-    if (filled < best) {
-      bucket.nice.push({sortable, name: tile.name, wanted: best - filled})
+    if (filled < best && best > min) {
+      bucket.nice.push({sortable, name: tile.name, wanted: best - min})
     }
   }
 

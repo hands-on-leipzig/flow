@@ -91,8 +91,8 @@ function scopesWithEntries(
       </section>
 
       <section class="staffing-open-positions__section">
-        <h3 class="staffing-open-positions__heading staffing-open-positions__heading--nice">
-          Nice to have
+        <h3 class="staffing-open-positions__heading staffing-open-positions__heading--recommended">
+          Zusätzlich empfohlen
         </h3>
         <p v-if="!hasNice" class="staffing-sidebar-muted staffing-open-positions__empty">
           Idealbesetzung erreicht.
@@ -114,7 +114,7 @@ function scopesWithEntries(
                   class="staffing-open-positions__item"
               >
                 <span class="staffing-open-positions__name">{{ entry.name }}</span>
-                <span class="staffing-open-positions__count staffing-open-positions__count--nice">
+                <span class="staffing-open-positions__count staffing-open-positions__count--recommended">
                   {{ entry.wanted }}
                 </span>
               </li>
@@ -145,7 +145,7 @@ function scopesWithEntries(
   color: #dc2626;
 }
 
-.staffing-open-positions__heading--nice {
+.staffing-open-positions__heading--recommended {
   color: #d97706;
 }
 
@@ -200,7 +200,7 @@ function scopesWithEntries(
   color: #dc2626;
 }
 
-.staffing-open-positions__count--nice {
+.staffing-open-positions__count--recommended {
   color: #d97706;
 }
 </style>
