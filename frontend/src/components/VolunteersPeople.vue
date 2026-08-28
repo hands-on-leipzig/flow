@@ -426,14 +426,14 @@ onMounted(() => load())
       <div class="vol-toolbar">
         <button
             type="button"
-            class="vol-roster-filter"
-            :class="{'vol-roster-filter--active': notOnRosterOnly}"
+            class="vol-staffing-filter"
+            :class="{'vol-staffing-filter--active': notOnRosterOnly}"
             :aria-pressed="notOnRosterOnly"
             title="Nur Personen anzeigen, die noch nicht auf der Helferliste sind"
             @click="notOnRosterOnly = !notOnRosterOnly"
         >
-          <i class="bi bi-clipboard-check vol-roster-filter__icon" aria-hidden="true"/>
-          <span class="vol-roster-filter__label">Nicht auf Helferliste</span>
+          <i class="bi bi-clipboard-check vol-staffing-filter__icon" aria-hidden="true"/>
+          <span class="vol-staffing-filter__label">Nicht auf Helferliste</span>
         </button>
         <input
             v-model="search"

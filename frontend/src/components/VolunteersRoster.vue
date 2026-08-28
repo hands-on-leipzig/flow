@@ -4,10 +4,18 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import VolunteerRosterColumnsPanel from '@/components/molecules/VolunteerRosterColumnsPanel.vue'
+import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
+import {eventPrograms, programNameForId} from '@/utils/eventPrograms'
 import {compareRosterEntriesByStaffingRole} from '@/utils/volunteerStaffingSort'
+import {
+  buildStaffingFilterKeys,
+  staffingFilterKeyFromScope,
+  syncStaffingFilters,
+  toggleStaffingFilter,
+  type StaffingFilterKey,
+} from '@/utils/volunteerStaffingFilters'
 import {flowFilename} from '@/utils/flowFilename'
 import {ROSTER_TABLE_COLUMNS, type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {rosterEntryHasUnsetField} from '@/utils/volunteerRosterUnset'
@@ -86,9 +94,7 @@ const shirtPanelStyle = ref<Record<string, string>>({
 const sortKey = ref<'name' | 'role'>('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
 
-type AssignmentFilterKey = 'cross' | 'local' | `program:${number}`
-
-const activeAssignmentFilters = ref<Set<AssignmentFilterKey>>(new Set())
+const activeAssignmentFilters = ref<Set<StaffingFilterKey>>(new Set())
 const showOnlyUnset = ref(false)
 
 const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
@@ -132,10 +138,8 @@ const sortedRoster = computed(() => {
   })
 })
 
-function assignmentFilterKey(assignment: RosterAssignment): AssignmentFilterKey {
-  if (assignment.is_local) return 'local'
-  if (assignment.first_program == null) return 'cross'
-  return `program:${assignment.first_program}`
+function assignmentFilterKey(assignment: RosterAssignment): StaffingFilterKey {
+  return staffingFilterKeyFromScope(assignment)
 }
 
 function entryMatchesFilters(entry: RosterEntry) {
@@ -211,37 +215,15 @@ function assignmentLogoAlt(assignment: RosterAssignment) {
   })
 }
 
-function buildAssignmentFilterKeys(): AssignmentFilterKey[] {
-  const keys: AssignmentFilterKey[] = ['cross', 'local']
-  for (const program of programFilters.value) {
-    const id = programId(program)
-    if (id > 0) keys.push(`program:${id}`)
-  }
-  return keys
-}
-
 function syncAssignmentFilters() {
-  const keys = buildAssignmentFilterKeys()
-  const kept = keys.filter((key) => activeAssignmentFilters.value.has(key))
-  activeAssignmentFilters.value = kept.length > 0 ? new Set(kept) : new Set(keys)
+  activeAssignmentFilters.value = syncStaffingFilters(
+    activeAssignmentFilters.value,
+    buildStaffingFilterKeys(programFilters.value),
+  )
 }
 
-function isAssignmentFilterActive(key: AssignmentFilterKey) {
-  return activeAssignmentFilters.value.has(key)
-}
-
-function toggleAssignmentFilter(key: AssignmentFilterKey) {
-  const next = new Set(activeAssignmentFilters.value)
-  if (next.has(key)) next.delete(key)
-  else next.add(key)
-  activeAssignmentFilters.value = next
-}
-
-function programFilterLogo(program: {first_program?: number; id?: number; name?: string | null}) {
-  return programLogoSrc({
-    first_program: programId(program),
-    name: program.name ?? programNameForId(eventStore.selectedEvent, programId(program)),
-  })
+function onToggleAssignmentFilter(key: StaffingFilterKey) {
+  activeAssignmentFilters.value = toggleStaffingFilter(activeAssignmentFilters.value, key)
 }
 
 function defaultDetail(): RosterDetail {
@@ -624,54 +606,29 @@ onBeforeUnmount(() => {
     </section>
 
     <section class="glass-card liquid-surface-inner vol-tile">
-      <div v-if="roster.length && !loading" class="roster-filters">
-        <button
-            type="button"
-            class="roster-filter"
-            :class="{'roster-filter--active': isAssignmentFilterActive('cross')}"
-            @click="toggleAssignmentFilter('cross')"
-        >
-          <span class="roster-filter__label">Übergreifend</span>
-        </button>
-        <button
-            v-for="program in programFilters"
-            :key="`filter-program-${programId(program)}`"
-            type="button"
-            class="roster-filter"
-            :class="{'roster-filter--active': isAssignmentFilterActive(`program:${programId(program)}`)}"
-            @click="toggleAssignmentFilter(`program:${programId(program)}`)"
-        >
-          <img
-              v-if="programFilterLogo(program)"
-              :src="programFilterLogo(program)"
-              :alt="programDisplayName(program)"
-              class="roster-filter__logo"
+      <VolunteerStaffingFilterBar
+          v-if="roster.length && !loading"
+          :active-filters="activeAssignmentFilters"
+          :programs="programFilters"
+          @toggle="onToggleAssignmentFilter"
+      >
+        <template #trailing>
+          <span class="vol-staffing-filters__sep" aria-hidden="true"/>
+          <button
+              type="button"
+              class="vol-staffing-filter"
+              :class="{'vol-staffing-filter--active': showOnlyUnset}"
+              :aria-pressed="showOnlyUnset"
+              @click="showOnlyUnset = !showOnlyUnset"
           >
-          <span class="roster-filter__label">{{ programDisplayName(program) }}</span>
-        </button>
-        <button
-            type="button"
-            class="roster-filter"
-            :class="{'roster-filter--active': isAssignmentFilterActive('local')}"
-            @click="toggleAssignmentFilter('local')"
-        >
-          <span class="roster-filter__label">Zusätzlich</span>
-        </button>
-        <span class="roster-filters__sep" aria-hidden="true"/>
-        <button
-            type="button"
-            class="roster-filter roster-filter--toggle"
-            :class="{'roster-filter--active': showOnlyUnset}"
-            :aria-pressed="showOnlyUnset"
-            @click="showOnlyUnset = !showOnlyUnset"
-        >
-          <i class="bi bi-exclamation-circle roster-filter__icon" aria-hidden="true"/>
-          <span class="roster-filter__label">Unvollständige</span>
-        </button>
-        <span class="vol-toolbar__count roster-filters__count">
-          {{ filteredRoster.length }} / {{ roster.length }}
-        </span>
-      </div>
+            <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
+            <span class="vol-staffing-filter__label">Unvollständige</span>
+          </button>
+          <span class="vol-toolbar__count vol-staffing-filters__count">
+            {{ filteredRoster.length }} / {{ roster.length }}
+          </span>
+        </template>
+      </VolunteerStaffingFilterBar>
 
       <p v-if="loading" class="vol-muted">Laden…</p>
       <p v-else-if="!roster.length" class="vol-muted">Noch niemand angemeldet.</p>
@@ -997,71 +954,6 @@ onBeforeUnmount(() => {
 .vol-search-chip:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.roster-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.roster-filters__sep {
-  width: 1px;
-  align-self: stretch;
-  min-height: 1.75rem;
-  margin: 0 0.1rem;
-  background: color-mix(in srgb, var(--color-border-strong) 55%, transparent);
-}
-
-.roster-filters__count {
-  margin-left: auto;
-}
-
-.roster-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.65rem;
-  border: 1px solid var(--liquid-border-soft);
-  border-radius: var(--radius);
-  background: var(--liquid-tile-bg-inner);
-  box-shadow: var(--liquid-shadow-inset);
-  color: var(--color-text-muted);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.roster-filter:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text);
-}
-
-.roster-filter--active {
-  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent-muted) 55%, var(--liquid-tile-bg-inner));
-  color: var(--color-text);
-}
-
-.roster-filter__logo {
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
-}
-
-.roster-filter__icon {
-  font-size: 0.95rem;
-  line-height: 1;
-  flex-shrink: 0;
-  opacity: 0.85;
-}
-
-.roster-filter--active .roster-filter__icon {
-  opacity: 1;
 }
 
 .vol-col--name { width: 20%; }

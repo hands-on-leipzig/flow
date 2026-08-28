@@ -13,9 +13,17 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
+import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
+import {eventPrograms, programNameForId} from '@/utils/eventPrograms'
 import {compareStaffingTiles, staffingSortableFromTile} from '@/utils/volunteerStaffingSort'
+import {
+  buildStaffingFilterKeys,
+  staffingFilterKeyFromScope,
+  syncStaffingFilters,
+  toggleStaffingFilter,
+  type StaffingFilterKey,
+} from '@/utils/volunteerStaffingFilters'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 
 defineOptions({name: 'VolunteersStaffing'})
@@ -95,9 +103,7 @@ const newRoleMin = ref<number | ''>('')
 const newRoleBest = ref<number | ''>('')
 const newRoleMax = ref<number | ''>('')
 
-type TileFilterKey = 'cross' | 'local' | `program:${number}`
-
-const activeTileFilters = ref<Set<TileFilterKey>>(new Set())
+const activeTileFilters = ref<Set<StaffingFilterKey>>(new Set())
 
 const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
 
@@ -239,47 +245,19 @@ function groupTitle(role: Role, group: Group) {
   return `${role.label} ${group.group_index}`
 }
 
-function buildTileFilterKeys(): TileFilterKey[] {
-  const keys: TileFilterKey[] = ['cross', 'local']
-  for (const program of programFilters.value) {
-    const id = programId(program)
-    if (id > 0) keys.push(`program:${id}`)
-  }
-  return keys
-}
-
 function syncTileFilters() {
-  const keys = buildTileFilterKeys()
-  const kept = keys.filter((key) => activeTileFilters.value.has(key))
-  activeTileFilters.value = kept.length > 0 ? new Set(kept) : new Set(keys)
+  activeTileFilters.value = syncStaffingFilters(
+    activeTileFilters.value,
+    buildStaffingFilterKeys(programFilters.value),
+  )
 }
 
-function tileFilterKey(tile: Tile): TileFilterKey {
-  if (tile.role.is_local) return 'local'
-  if (tile.role.first_program == null) return 'cross'
-  return `program:${tile.role.first_program}`
+function tileFilterKey(tile: Tile): StaffingFilterKey {
+  return staffingFilterKeyFromScope(tile.role)
 }
 
-function isTileFilterActive(key: TileFilterKey) {
-  return activeTileFilters.value.has(key)
-}
-
-function filterHasUnderMin(key: TileFilterKey) {
-  return filterHasAttention(key)
-}
-
-function toggleTileFilter(key: TileFilterKey) {
-  const next = new Set(activeTileFilters.value)
-  if (next.has(key)) next.delete(key)
-  else next.add(key)
-  activeTileFilters.value = next
-}
-
-function programFilterLogo(program: {first_program?: number; id?: number; name?: string | null}) {
-  return programLogoSrc({
-    first_program: programId(program),
-    name: program.name ?? programNameForId(eventStore.selectedEvent, programId(program)),
-  })
+function onToggleTileFilter(key: StaffingFilterKey) {
+  activeTileFilters.value = toggleStaffingFilter(activeTileFilters.value, key)
 }
 
 function roleLogoSrc(role: Role) {
@@ -310,7 +288,7 @@ function tileNeedsAttention(tile: Tile) {
   return isUnderMin(tile)
 }
 
-function filterHasAttention(key: TileFilterKey) {
+function filterHasAttention(key: StaffingFilterKey) {
   return tiles.value.some((tile) => tileFilterKey(tile) === key && tileNeedsAttention(tile))
 }
 
@@ -724,55 +702,14 @@ onBeforeUnmount(() => {
           Noch keine Rollen. Rollen werden beim Erzeugen des Ablaufs angelegt — oder links eine eigene Rolle anlegen.
         </p>
 
-        <div v-if="tiles.length" class="staffing-filters glass-card liquid-surface-inner">
-          <button
-              type="button"
-              class="staffing-filter"
-              :class="{'staffing-filter--active': isTileFilterActive('cross')}"
-              @click="toggleTileFilter('cross')"
-          >
-            <span class="staffing-filter__label">Übergreifend</span>
-            <span
-                v-if="filterHasUnderMin('cross')"
-                class="staffing-need-dot"
-                title="Unter Min"
-            />
-          </button>
-          <button
-              v-for="program in programFilters"
-              :key="`filter-program-${programId(program)}`"
-              type="button"
-              class="staffing-filter"
-              :class="{'staffing-filter--active': isTileFilterActive(`program:${programId(program)}`)}"
-              @click="toggleTileFilter(`program:${programId(program)}`)"
-          >
-            <img
-                v-if="programFilterLogo(program)"
-                :src="programFilterLogo(program)"
-                :alt="programDisplayName(program)"
-                class="staffing-filter__logo"
-            />
-            <span class="staffing-filter__label">{{ programDisplayName(program) }}</span>
-            <span
-                v-if="filterHasUnderMin(`program:${programId(program)}`)"
-                class="staffing-need-dot"
-                title="Unter Min"
-            />
-          </button>
-          <button
-              type="button"
-              class="staffing-filter"
-              :class="{'staffing-filter--active': isTileFilterActive('local')}"
-              @click="toggleTileFilter('local')"
-          >
-            <span class="staffing-filter__label">Zusätzlich</span>
-            <span
-                v-if="filterHasUnderMin('local')"
-                class="staffing-need-dot"
-                title="Unter Min"
-            />
-          </button>
-        </div>
+        <VolunteerStaffingFilterBar
+            v-if="tiles.length"
+            card
+            :active-filters="activeTileFilters"
+            :programs="programFilters"
+            :has-attention="filterHasAttention"
+            @toggle="onToggleTileFilter"
+        />
 
         <p v-if="tiles.length && !filteredTiles.length" class="text-sm text-[var(--color-text-subtle)] mb-3">
           Keine Rollen für die gewählten Filter.
@@ -1175,48 +1112,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.staffing-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.65rem;
-  margin-bottom: 0.75rem;
-}
-
-.staffing-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.65rem;
-  border: 1px solid var(--liquid-border-soft);
-  border-radius: var(--radius);
-  background: var(--liquid-tile-bg-inner);
-  box-shadow: var(--liquid-shadow-inset);
-  color: var(--color-text-muted);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-
-.staffing-filter:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text);
-}
-
-.staffing-filter--active {
-  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent-muted) 55%, var(--liquid-tile-bg-inner));
-  color: var(--color-text);
-}
-
-.staffing-filter__logo {
-  width: 1rem;
-  height: 1rem;
-  flex-shrink: 0;
-}
-
 .staffing-title {
   display: flex;
   align-items: center;
@@ -1234,14 +1129,6 @@ onBeforeUnmount(() => {
 
 .staffing-title .item-card__title.glass-input {
   flex: 1 1 auto;
-}
-
-.staffing-need-dot {
-  flex-shrink: 0;
-  width: 0.5rem;
-  height: 0.5rem;
-  border-radius: 999px;
-  background: #ef4444;
 }
 
 .staffing-meta {

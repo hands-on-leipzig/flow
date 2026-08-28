@@ -76,7 +76,31 @@
   white-space: nowrap;
 }
 
-.vol-roster-filter {
+.vol-staffing-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.vol-staffing-filters--card {
+  padding: 0.65rem;
+}
+
+.vol-staffing-filters__sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 1.75rem;
+  margin: 0 0.1rem;
+  background: color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+}
+
+.vol-staffing-filters__count {
+  margin-left: auto;
+}
+
+.vol-staffing-filter {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -94,24 +118,41 @@
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.vol-roster-filter:hover {
+.vol-staffing-filter:hover {
   background: var(--color-bg-hover);
   color: var(--color-text);
 }
 
-.vol-roster-filter--active {
+.vol-staffing-filter--active {
   border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
   background: color-mix(in srgb, var(--color-accent-muted) 55%, var(--liquid-tile-bg-inner));
   color: var(--color-text);
 }
 
-.vol-roster-filter--active .vol-roster-filter__icon {
+.vol-staffing-filter--active .vol-staffing-filter__icon {
+  opacity: 1;
   color: var(--color-accent);
 }
 
-.vol-roster-filter__icon {
+.vol-staffing-filter__logo {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.vol-staffing-filter__icon {
   font-size: 0.95rem;
   line-height: 1;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.vol-staffing-filter__dot {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #ef4444;
 }
 
 .vol-table-frame {
