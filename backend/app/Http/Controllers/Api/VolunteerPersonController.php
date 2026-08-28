@@ -7,10 +7,12 @@ use App\Models\Event;
 use App\Models\EventStaffingAssignment;
 use App\Models\EventVolunteerRoster;
 use App\Models\VolunteerPerson;
+use App\Support\GermanMobileNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class VolunteerPersonController extends Controller
@@ -66,13 +68,15 @@ class VolunteerPersonController extends Controller
             'mobile' => 'nullable|string|max:50',
         ]);
 
+        $mobile = $this->normalizeMobile($validated['mobile'] ?? null);
+
         $person = VolunteerPerson::create([
             'regional_partner' => $event->regional_partner,
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
             'nickname' => $validated['nickname'] ?? null,
             'email' => strtolower(trim($validated['email'])),
-            'mobile' => $validated['mobile'] ?? null,
+            'mobile' => $mobile,
         ]);
 
         return response()->json([
@@ -97,6 +101,10 @@ class VolunteerPersonController extends Controller
             ],
             'mobile' => 'nullable|string|max:50',
         ]);
+
+        if (array_key_exists('mobile', $validated)) {
+            $validated['mobile'] = $this->normalizeMobile($validated['mobile']);
+        }
 
         if (isset($validated['email'])) {
             $validated['email'] = strtolower(trim($validated['email']));
@@ -192,6 +200,18 @@ class VolunteerPersonController extends Controller
         }
 
         return $payload;
+    }
+
+    private function normalizeMobile(?string $mobile): ?string
+    {
+        $result = GermanMobileNumber::validateAndNormalize($mobile);
+        if (! $result['ok']) {
+            throw ValidationException::withMessages([
+                'mobile' => [$result['error']],
+            ]);
+        }
+
+        return $result['normalized'];
     }
 
     /**

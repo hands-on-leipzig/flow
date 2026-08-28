@@ -4,6 +4,7 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
+import {validateAndNormalizeMobile} from '@/utils/mobileNumber'
 
 type Person = {
   id: number
@@ -38,6 +39,8 @@ const draft = ref({
   email: '',
   mobile: '',
 })
+const draftMobileError = ref('')
+const mobileErrors = ref<Record<number, string>>({})
 
 function displayName(p: Person) {
   if (p.nickname?.trim()) {
@@ -129,20 +132,73 @@ async function load() {
   }
 }
 
+function mobileInputClass(error?: string) {
+  return error ? 'glass-input glass-input--sm vol-input--invalid' : 'glass-input glass-input--sm'
+}
+
+function clearDraftMobileError() {
+  draftMobileError.value = ''
+}
+
+function clearMobileError(personId: number) {
+  if (mobileErrors.value[personId]) {
+    const next = {...mobileErrors.value}
+    delete next[personId]
+    mobileErrors.value = next
+  }
+}
+
+function resolveMobile(raw: string | null | undefined) {
+  const result = validateAndNormalizeMobile(raw)
+  if (!result.ok) return {ok: false as const, error: result.error}
+  return {ok: true as const, normalized: result.normalized}
+}
+
+function onDraftMobileBlur() {
+  const result = resolveMobile(draft.value.mobile)
+  if (!result.ok) {
+    draftMobileError.value = result.error
+    return
+  }
+  draftMobileError.value = ''
+  if (result.normalized !== null) {
+    draft.value.mobile = result.normalized
+  }
+}
+
+function onPersonMobileBlur(p: Person) {
+  const result = resolveMobile(p.mobile)
+  if (!result.ok) {
+    mobileErrors.value = {...mobileErrors.value, [p.id]: result.error}
+    return
+  }
+  clearMobileError(p.id)
+  if (result.normalized !== (p.mobile?.trim() || null)) {
+    p.mobile = result.normalized
+  }
+  void savePerson(p)
+}
+
 async function createPerson() {
   if (!eventId.value) return
   if (!draft.value.first_name.trim() || !draft.value.last_name.trim() || !draft.value.email.trim()) {
     error.value = 'Vorname, Nachname und E-Mail sind erforderlich.'
     return
   }
+  const mobileResult = resolveMobile(draft.value.mobile)
+  if (!mobileResult.ok) {
+    draftMobileError.value = mobileResult.error
+    return
+  }
   error.value = ''
+  draftMobileError.value = ''
   try {
     await axios.post(`/events/${eventId.value}/volunteers`, {
       first_name: draft.value.first_name.trim(),
       last_name: draft.value.last_name.trim(),
       nickname: draft.value.nickname.trim() || null,
       email: draft.value.email.trim(),
-      mobile: draft.value.mobile.trim() || null,
+      mobile: mobileResult.normalized,
     })
     draft.value = {first_name: '', last_name: '', nickname: '', email: '', mobile: ''}
     await load()
@@ -157,6 +213,12 @@ async function createPerson() {
 }
 
 async function savePerson(p: Person) {
+  const mobileResult = resolveMobile(p.mobile)
+  if (!mobileResult.ok) {
+    mobileErrors.value = {...mobileErrors.value, [p.id]: mobileResult.error}
+    return
+  }
+  clearMobileError(p.id)
   error.value = ''
   try {
     await axios.put(`/volunteers/${p.id}`, {
@@ -164,7 +226,7 @@ async function savePerson(p: Person) {
       last_name: p.last_name.trim(),
       nickname: p.nickname?.trim() || null,
       email: p.email.trim(),
-      mobile: p.mobile?.trim() || null,
+      mobile: mobileResult.normalized,
     })
     await load()
     showToast('Gespeichert')
@@ -308,8 +370,15 @@ onMounted(() => load())
               <td>
                 <input
                     v-model="draft.mobile"
-                    class="glass-input glass-input--sm"
-                    placeholder="Mobil"
+                    :class="mobileInputClass(draftMobileError)"
+                    type="tel"
+                    inputmode="tel"
+                    autocomplete="tel"
+                    placeholder="0170 1234567 oder +49 170 1234567"
+                    :aria-invalid="draftMobileError ? true : undefined"
+                    :title="draftMobileError || undefined"
+                    @input="clearDraftMobileError"
+                    @blur="onDraftMobileBlur"
                 />
               </td>
               <td class="vol-table__actions">
@@ -431,9 +500,15 @@ onMounted(() => load())
               <td>
                 <input
                     v-model="p.mobile"
-                    class="glass-input glass-input--sm"
-                    placeholder="—"
-                    @blur="savePerson(p)"
+                    :class="mobileInputClass(mobileErrors[p.id])"
+                    type="tel"
+                    inputmode="tel"
+                    autocomplete="tel"
+                    placeholder="0170 … oder +49 170 …"
+                    :aria-invalid="mobileErrors[p.id] ? true : undefined"
+                    :title="mobileErrors[p.id] || undefined"
+                    @input="clearMobileError(p.id)"
+                    @blur="onPersonMobileBlur(p)"
                 />
               </td>
               <td class="vol-table__actions">
@@ -494,6 +569,11 @@ onMounted(() => load())
   white-space: nowrap;
 }
 .vol-muted { opacity: 0.7; font-size: 0.9rem; margin: 0; }
+
+.vol-input--invalid {
+  border-color: color-mix(in srgb, var(--color-danger, #dc2626) 72%, var(--color-border-strong));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-danger, #dc2626) 35%, transparent);
+}
 
 .vol-table-frame {
   width: 100%;
