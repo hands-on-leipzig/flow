@@ -7,6 +7,30 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
 import {compareRosterEntriesByStaffingRole} from '@/utils/volunteerStaffingSort'
+import {flowFilename} from '@/utils/flowFilename'
+
+const T_SHIRT_CUTS = [
+  {value: 'maenner', label: 'Männer'},
+  {value: 'frauen', label: 'Frauen'},
+] as const
+
+const T_SHIRT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'] as const
+
+const MEALS = [
+  {value: 'standard', label: 'Standard'},
+  {value: 'vegetarisch', label: 'Vegetarisch'},
+  {value: 'vegan', label: 'Vegan'},
+  {value: 'keine', label: 'Keine'},
+] as const
+
+type RosterDetail = {
+  t_shirt_cut: string | null
+  t_shirt_size: string | null
+  meal: string | null
+  eve_meeting: boolean | null
+  notes: string | null
+  updated_at: string | null
+}
 
 type Person = {
   id: number
@@ -33,16 +57,9 @@ type RosterEntry = {
   id: number
   has_assignment: boolean
   assignments?: RosterAssignment[]
+  detail?: RosterDetail
   created_at: string | null
   person: Person
-}
-
-/** Questionnaire fields — UI placeholder until DB/form work lands. */
-type RosterFormFields = {
-  t_shirt_size: string | null
-  meal: string | null
-  eve_meeting: string | null
-  notes: string | null
 }
 
 const eventStore = useEventStore()
@@ -57,6 +74,8 @@ const addingId = ref<number | null>(null)
 const removeTarget = ref<RosterEntry | null>(null)
 const error = ref('')
 const toast = ref('')
+const exportBusy = ref(false)
+const savingDetailKey = ref<string | null>(null)
 const sortKey = ref<'name' | 'role'>('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
 
@@ -212,12 +231,79 @@ function programFilterLogo(program: {first_program?: number; id?: number; name?:
   })
 }
 
-function placeholderFields(_entry: RosterEntry): RosterFormFields {
+function defaultDetail(): RosterDetail {
   return {
+    t_shirt_cut: null,
     t_shirt_size: null,
     meal: null,
     eve_meeting: null,
     notes: null,
+    updated_at: null,
+  }
+}
+
+function entryDetail(entry: RosterEntry): RosterDetail {
+  if (!entry.detail) {
+    entry.detail = defaultDetail()
+  }
+  return entry.detail
+}
+
+function eveMeetingSelectValue(detail: RosterDetail) {
+  if (detail.eve_meeting === true) return 'yes'
+  if (detail.eve_meeting === false) return 'no'
+  return ''
+}
+
+function onEveMeetingChange(entry: RosterEntry, value: string) {
+  const detail = entryDetail(entry)
+  detail.eve_meeting = value === 'yes' ? true : value === 'no' ? false : null
+  void saveDetail(entry)
+}
+
+async function saveDetail(entry: RosterEntry) {
+  if (!eventId.value) return
+  const detail = entryDetail(entry)
+  const key = `${entry.id}`
+  savingDetailKey.value = key
+  error.value = ''
+  try {
+    const {data} = await axios.patch(
+      `/events/${eventId.value}/volunteer-roster/${entry.person.id}/detail`,
+      {
+        t_shirt_cut: detail.t_shirt_cut,
+        t_shirt_size: detail.t_shirt_size,
+        meal: detail.meal,
+        eve_meeting: detail.eve_meeting,
+        notes: detail.notes,
+      },
+    )
+    entry.detail = data.detail ?? detail
+  } catch (e: any) {
+    error.value = e?.response?.data?.error || 'Speichern fehlgeschlagen'
+  } finally {
+    if (savingDetailKey.value === key) savingDetailKey.value = null
+  }
+}
+
+async function downloadCsv() {
+  if (!eventId.value || exportBusy.value) return
+  exportBusy.value = true
+  error.value = ''
+  try {
+    const response = await axios.get(`/events/${eventId.value}/volunteer-roster/export`, {
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = flowFilename('Helferliste', 'csv', eventStore.selectedEvent?.date)
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch {
+    error.value = 'Export fehlgeschlagen'
+  } finally {
+    exportBusy.value = false
   }
 }
 
@@ -251,7 +337,10 @@ async function load() {
       axios.get(`/events/${eventId.value}/volunteer-roster`),
       axios.get(`/events/${eventId.value}/volunteers`),
     ])
-    roster.value = rosterRes.data.roster ?? []
+    roster.value = (rosterRes.data.roster ?? []).map((entry: RosterEntry) => ({
+      ...entry,
+      detail: entry.detail ?? defaultDetail(),
+    }))
     pool.value = poolRes.data.people ?? []
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Laden fehlgeschlagen'
@@ -318,7 +407,17 @@ onMounted(() => load())
         <h1 class="vol-page__title">Helferliste</h1>
         <p class="vol-page__sub">Alle Helfer für diese Veranstaltung</p>
       </div>
-      <VolunteerEmailOutreach scope="roster" :people="visibleRosterPeople"/>
+      <div class="vol-page__actions">
+        <button
+            type="button"
+            class="glass-btn-secondary"
+            :disabled="!eventId || exportBusy || !roster.length"
+            @click="downloadCsv"
+        >
+          {{ exportBusy ? 'Export…' : 'CSV' }}
+        </button>
+        <VolunteerEmailOutreach scope="roster" :people="visibleRosterPeople"/>
+      </div>
     </header>
 
     <div v-if="error" class="glass-alert-warning vol-page__alert">{{ error }}</div>
@@ -474,10 +573,62 @@ onMounted(() => load())
                 </div>
                 <span v-else>—</span>
               </td>
-              <td class="vol-table__placeholder">{{ placeholderFields(entry).t_shirt_size ?? '—' }}</td>
-              <td class="vol-table__placeholder">{{ placeholderFields(entry).meal ?? '—' }}</td>
-              <td class="vol-table__placeholder">{{ placeholderFields(entry).eve_meeting ?? '—' }}</td>
-              <td class="vol-table__placeholder">{{ placeholderFields(entry).notes ?? '—' }}</td>
+              <td class="vol-table__field">
+                <div class="vol-detail-shirt">
+                  <select
+                      class="glass-input glass-input--sm vol-detail-select"
+                      :value="entryDetail(entry).t_shirt_cut ?? ''"
+                      :disabled="savingDetailKey === String(entry.id)"
+                      @change="entryDetail(entry).t_shirt_cut = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
+                  >
+                    <option value="">Schnitt</option>
+                    <option v-for="cut in T_SHIRT_CUTS" :key="cut.value" :value="cut.value">{{ cut.label }}</option>
+                  </select>
+                  <select
+                      class="glass-input glass-input--sm vol-detail-select"
+                      :value="entryDetail(entry).t_shirt_size ?? ''"
+                      :disabled="savingDetailKey === String(entry.id)"
+                      @change="entryDetail(entry).t_shirt_size = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
+                  >
+                    <option value="">Größe</option>
+                    <option v-for="size in T_SHIRT_SIZES" :key="size" :value="size">{{ size }}</option>
+                  </select>
+                </div>
+              </td>
+              <td class="vol-table__field">
+                <select
+                    class="glass-input glass-input--sm vol-detail-select vol-detail-select--full"
+                    :value="entryDetail(entry).meal ?? ''"
+                    :disabled="savingDetailKey === String(entry.id)"
+                    @change="entryDetail(entry).meal = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
+                >
+                  <option value="">—</option>
+                  <option v-for="meal in MEALS" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
+                </select>
+              </td>
+              <td class="vol-table__field">
+                <select
+                    class="glass-input glass-input--sm vol-detail-select vol-detail-select--full"
+                    :value="eveMeetingSelectValue(entryDetail(entry))"
+                    :disabled="savingDetailKey === String(entry.id)"
+                    @change="onEveMeetingChange(entry, ($event.target as HTMLSelectElement).value)"
+                >
+                  <option value="">—</option>
+                  <option value="yes">Ja</option>
+                  <option value="no">Nein</option>
+                </select>
+              </td>
+              <td class="vol-table__field">
+                <input
+                    type="text"
+                    class="glass-input glass-input--sm vol-detail-input"
+                    :value="entryDetail(entry).notes ?? ''"
+                    placeholder="Bemerkung"
+                    :disabled="savingDetailKey === String(entry.id)"
+                    @change="entryDetail(entry).notes = ($event.target as HTMLInputElement).value.trim() || null"
+                    @blur="saveDetail(entry)"
+                >
+              </td>
             </tr>
           </tbody>
         </table>
@@ -505,6 +656,13 @@ onMounted(() => load())
   padding: 0.5rem 0 2rem;
 }
 .vol-page__header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.vol-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
 .vol-page__title { font-size: 1.5rem; font-weight: 650; margin: 0; }
 .vol-page__sub { margin: 0.25rem 0 0; opacity: 0.75; }
 .vol-page__alert { padding: 0.75rem 1rem; border-radius: 0.75rem; }
@@ -672,6 +830,24 @@ onMounted(() => load())
 }
 .vol-table__placeholder {
   color: var(--color-text-muted);
+}
+.vol-table__field {
+  vertical-align: middle;
+}
+.vol-detail-shirt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 5.5rem;
+}
+.vol-detail-select,
+.vol-detail-input {
+  width: 100%;
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+.vol-detail-select--full {
+  min-width: 6.5rem;
 }
 
 .vol-roster-icon {

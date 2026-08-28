@@ -265,7 +265,9 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/volunteers/{volunteer}', [VolunteerPersonController::class, 'update']);
     Route::delete('/volunteers/{volunteer}', [VolunteerPersonController::class, 'destroy']);
     Route::get('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'index']);
+    Route::get('/events/{event}/volunteer-roster/export', [EventVolunteerRosterController::class, 'exportCsv']);
     Route::post('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'store']);
+    Route::patch('/events/{event}/volunteer-roster/{volunteer}/detail', [EventVolunteerRosterController::class, 'updateDetail']);
     Route::delete('/events/{event}/volunteer-roster/{volunteer}', [EventVolunteerRosterController::class, 'destroy']);
     Route::get('/events/{event}/staffing', [EventStaffingController::class, 'index']);
     Route::post('/events/{event}/staffing/sync', [EventStaffingController::class, 'sync']);

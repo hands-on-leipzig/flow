@@ -30,4 +30,9 @@ class EventVolunteerRoster extends Model
     {
         return $this->belongsTo(VolunteerPerson::class, 'volunteer_person');
     }
+
+    public function detail(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(EventVolunteerRosterDetail::class, 'event_volunteer_roster');
+    }
 }
