@@ -210,16 +210,41 @@ function isUnderMin(tile: Tile) {
   return !tile.group.surplus && tile.group.filled < Number(tile.role.min)
 }
 
+type StaffingGapTone = 'warn' | 'caution' | 'ok' | 'muted'
+
+function staffingGap(tile: Tile): {label: string; tone: StaffingGapTone} {
+  const filled = tile.group.filled
+  const min = Number(tile.role.min)
+  const best = Number(tile.role.best)
+
+  if (filled < min) {
+    const missing = min - filled
+    return {
+      label: missing === 1 ? '1 fehlt' : `${missing} fehlen`,
+      tone: 'warn',
+    }
+  }
+  if (filled < best) {
+    return {label: `${best - filled} bis ideal`, tone: 'caution'}
+  }
+  if (filled === best) {
+    return {label: 'Ideal', tone: 'ok'}
+  }
+  return {label: `${filled - best} mehr als ideal`, tone: 'muted'}
+}
+
+function gapStatusClass(tile: Tile) {
+  return `staffing-status__gap--${staffingGap(tile).tone}`
+}
+
+function boundsLabel(role: Role) {
+  return `min ${role.min} · ideal ${role.best} · max ${role.max}`
+}
+
 function slotPositions(role: Role) {
   const max = Number(role.max)
   if (!Number.isInteger(max) || max < 1) return []
   return Array.from({length: max}, (_, i) => i + 1)
-}
-
-function slotBarClass(pos: number, role: Role) {
-  if (pos < role.min) return 'staffing-slot__bar--low'
-  if (pos === role.best) return 'staffing-slot__bar--best'
-  return 'staffing-slot__bar--mid'
 }
 
 function apiError(e: any, fallback: string) {
@@ -339,11 +364,11 @@ async function createLocalRole() {
   const max = Number(newRoleMax.value)
   if (!label) return
   if (!Number.isInteger(min) || !Number.isInteger(best) || !Number.isInteger(max)) {
-    showGlassToast('Bitte min, best und max eintragen.', 'info')
+    showGlassToast('Bitte min, ideal und max eintragen.', 'info')
     return
   }
   if (min > best || best > max) {
-    showGlassToast('Es muss min ≤ best ≤ max gelten.', 'info')
+    showGlassToast('Es muss min ≤ ideal ≤ max gelten.', 'info')
     return
   }
   isSaving.value = true
@@ -377,7 +402,7 @@ async function persistLocalRole(role: Role) {
     return
   }
   if (role.min > role.best || role.best > role.max) {
-    showGlassToast('Es muss min ≤ best ≤ max gelten.', 'info')
+    showGlassToast('Es muss min ≤ ideal ≤ max gelten.', 'info')
     await load()
     return
   }
@@ -538,56 +563,63 @@ watch(eventId, () => load(), {immediate: true})
             </template>
 
             <div v-if="!tile.group.surplus" class="staffing-meta">
-              <div
-                  class="staffing-slots"
-                  :title="`min ${tile.role.min} · best ${tile.role.best} · max ${tile.role.max}`"
-              >
-                <div
-                    v-for="pos in slotPositions(tile.role)"
-                    :key="`${tile.key}-slot-${pos}`"
-                    class="staffing-slot"
-                >
-                  <i
-                      class="staffing-slot__icon"
-                      :class="pos <= tile.group.filled ? 'bi bi-person-fill staffing-slot__icon--filled' : 'bi bi-person'"
-                  />
-                  <span class="staffing-slot__bar" :class="slotBarClass(pos, tile.role)"/>
-                </div>
+              <div class="staffing-status__primary">
+                <span class="staffing-status__assigned">{{ tile.group.filled }} zugewiesen</span>
+                <span class="staffing-status__sep" aria-hidden="true">·</span>
+                <span class="staffing-status__gap" :class="gapStatusClass(tile)">
+                  {{ staffingGap(tile).label }}
+                </span>
               </div>
 
-              <div v-if="tile.role.is_local" class="staffing-bounds">
-                <label class="staffing-bounds__field">
-                  <span>min</span>
-                  <input
-                      v-model.number="tile.role.min"
-                      class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                      type="number"
-                      min="1"
-                      @blur="persistLocalRole(tile.role)"
+              <div class="staffing-status__secondary">
+                <div class="staffing-slots" aria-hidden="true">
+                  <i
+                      v-for="pos in slotPositions(tile.role)"
+                      :key="`${tile.key}-slot-${pos}`"
+                      class="staffing-slot__icon bi"
+                      :class="pos <= tile.group.filled ? 'bi-person-fill staffing-slot__icon--filled' : 'bi-person'"
                   />
-                </label>
-                <label class="staffing-bounds__field">
-                  <span>best</span>
-                  <input
-                      v-model.number="tile.role.best"
-                      class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                      type="number"
-                      min="1"
-                      @blur="persistLocalRole(tile.role)"
-                  />
-                </label>
-                <label class="staffing-bounds__field">
-                  <span>max</span>
-                  <input
-                      v-model.number="tile.role.max"
-                      class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                      type="number"
-                      min="1"
-                      @blur="persistLocalRole(tile.role)"
-                  />
-                </label>
+                </div>
+
+                <div class="staffing-status__bounds">
+                  <div v-if="tile.role.is_local" class="staffing-bounds">
+                    <label class="staffing-bounds__field">
+                      <span>min</span>
+                      <input
+                          v-model.number="tile.role.min"
+                          class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
+                          type="number"
+                          min="1"
+                          @blur="persistLocalRole(tile.role)"
+                      />
+                    </label>
+                    <label class="staffing-bounds__field">
+                      <span>ideal</span>
+                      <input
+                          v-model.number="tile.role.best"
+                          class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
+                          type="number"
+                          min="1"
+                          @blur="persistLocalRole(tile.role)"
+                      />
+                    </label>
+                    <label class="staffing-bounds__field">
+                      <span>max</span>
+                      <input
+                          v-model.number="tile.role.max"
+                          class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
+                          type="number"
+                          min="1"
+                          @blur="persistLocalRole(tile.role)"
+                      />
+                    </label>
+                  </div>
+                  <template v-else>
+                    <span class="staffing-bounds-text">{{ boundsLabel(tile.role) }}</span>
+                    <InfoPopover v-if="tile.role.ui_description" :text="tile.role.ui_description"/>
+                  </template>
+                </div>
               </div>
-              <InfoPopover v-else :text="tile.role.ui_description"/>
             </div>
 
             <p v-if="tile.group.surplus" class="staffing-surplus">
@@ -663,7 +695,7 @@ watch(eventId, () => load(), {immediate: true})
                     />
                   </label>
                   <label class="staffing-bounds__field">
-                    <span>best</span>
+                    <span>ideal</span>
                     <input
                         v-model.number="newRoleBest"
                         :disabled="isSaving"
@@ -685,7 +717,7 @@ watch(eventId, () => load(), {immediate: true})
                     />
                   </label>
                 </div>
-                <p class="item-card__hint">min ≤ best ≤ max — wie viele Personen diese Rolle braucht.</p>
+                <p class="item-card__hint">min ≤ ideal ≤ max — wie viele Personen diese Rolle braucht.</p>
               </div>
             </transition>
           </ItemComposer>
@@ -888,55 +920,89 @@ watch(eventId, () => load(), {immediate: true})
 
 .staffing-meta {
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.staffing-status__primary {
+  display: flex;
   flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.staffing-status__assigned {
+  color: var(--color-text);
+}
+
+.staffing-status__sep {
+  color: var(--color-text-subtle);
+  font-weight: 400;
+}
+
+.staffing-status__gap {
+  font-weight: 600;
+}
+
+.staffing-status__gap--warn {
+  color: #b91c1c;
+}
+
+.staffing-status__gap--caution {
+  color: #a16207;
+}
+
+.staffing-status__gap--ok {
+  color: #15803d;
+  font-weight: 500;
+}
+
+.staffing-status__gap--muted {
+  color: var(--color-text-subtle);
+  font-weight: 500;
+}
+
+.staffing-status__secondary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
+}
+
+.staffing-status__bounds {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.staffing-bounds-text {
+  font-size: 0.7rem;
+  color: var(--color-text-subtle);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
 }
 
 .staffing-slots {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.3rem 0.4rem;
-  flex: 1 1 7rem;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
-.staffing-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.15rem;
-  width: 1.05rem;
-}
-
 .staffing-slot__icon {
-  font-size: 1rem;
+  font-size: 0.85rem;
   line-height: 1;
-  color: var(--color-text-subtle);
+  color: color-mix(in srgb, var(--color-text-subtle) 30%, transparent);
 }
 
 .staffing-slot__icon--filled {
   color: var(--color-text);
-}
-
-.staffing-slot__bar {
-  display: block;
-  width: 100%;
-  height: 3px;
-  border-radius: 999px;
-}
-
-.staffing-slot__bar--low {
-  background: #dc2626;
-}
-
-.staffing-slot__bar--mid {
-  background: #eab308;
-}
-
-.staffing-slot__bar--best {
-  background: #16a34a;
 }
 
 .staffing-bounds {
