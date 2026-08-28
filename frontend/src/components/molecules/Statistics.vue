@@ -807,18 +807,8 @@ async function reloadStats() {
   ])
   data.value = plansRes.data
   totals.value = totalsRes.data
-  
-  // Reset DRAHT check state (don't auto-start)
-  drahtIssues.value.clear()
-  contactEmails.value = {}
-  drahtEnrollments.value = new Map()
-  drahtCheckState.value = {
-    isRunning: false,
-    checked: 0,
-    total: 0,
-    problems: 0,
-    completed: false
-  }
+  // Keep DRAHT enrollments / issues / emails from the last check — they are
+  // client-only and would otherwise vanish after plan delete or orphan cleanup.
 }
 
 async function confirmModal() {

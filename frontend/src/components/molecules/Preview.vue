@@ -7,6 +7,7 @@ import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import axios from 'axios'
 import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility'
 import { programLogoSrc } from '@/utils/images'
 import { getProgramTheme } from '@/utils/programTheme'
 
@@ -46,7 +47,8 @@ type RobotGameData = {
 }
 
 const route = useRoute()
-const { isAdmin, initializeUserRoles } = useAuth()
+const { initializeUserRoles } = useAuth()
+const { showAdminInline } = useAdminInlineVisibility()
 
 // Ensure roles are initialized
 onMounted(() => {
@@ -69,7 +71,6 @@ const effectivePlanId = computed(() => {
 })
 
 const view = ref<'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'activities'>(props.initialView as any)
-const showAdminSegment = ref(false)
 
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -286,6 +287,11 @@ watch(selectedFirstProgram, (program, prev) => {
     load()
   }
 })
+watch(showAdminInline, (visible) => {
+  if (!visible && (view.value === 'activities' || view.value === 'quality')) {
+    setView('overview')
+  }
+})
 
 onMounted(async () => {
   await loadMatchPlanMeta()
@@ -312,13 +318,6 @@ function openQuality(programId?: number) {
     selectedFirstProgram.value = matchPlanPrograms.value[0]
   }
   setView('quality')
-}
-
-function toggleAdminSegment() {
-  showAdminSegment.value = !showAdminSegment.value
-  if (!showAdminSegment.value && (view.value === 'activities' || view.value === 'quality')) {
-    setView('overview')
-  }
 }
 
 // Helper functions for Match-Plan view
@@ -393,21 +392,17 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           >Match-Plan</button>
         </div>
 
-        <div v-if="isAdmin" class="glass-segment">
-          <button
-            type="button"
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': showAdminSegment}"
-            :aria-pressed="showAdminSegment"
-            :aria-label="showAdminSegment ? 'Admin-Ansichten ausblenden' : 'Admin-Ansichten einblenden'"
+        <div v-if="showAdminInline" class="glass-segment">
+          <span
+            class="glass-segment__btn pointer-events-none opacity-80"
             title="Admin"
-            @click="toggleAdminSegment"
+            aria-hidden="true"
           >
             <i class="bi bi-shield-lock" aria-hidden="true"/>
-          </button>
+          </span>
         </div>
 
-        <div v-if="isAdmin && showAdminSegment" class="glass-segment">
+        <div v-if="showAdminInline" class="glass-segment">
           <button
             type="button"
             class="glass-segment__btn"

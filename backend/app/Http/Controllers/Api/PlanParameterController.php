@@ -49,12 +49,13 @@ class PlanParameterController extends Controller
     {
         $plan = Plan::find($planId);
         $event = Event::find($plan->event);
+        $isAdmin = (bool) (request()->user()?->isFlowAdmin());
 
         // Fetch all parameters using Eloquent relationships
         $parameters = MParameter::with(['planParamValues' => function($query) use ($planId) {
                 $query->where('plan', $planId);
             }, 'firstProgram'])
-            ->where('context', '!=', 'protected')
+            ->when(! $isAdmin, fn ($q) => $q->where('context', '!=', 'protected'))
             ->get()
             ->map(function ($param) {
                 // Get the user-set value if available
@@ -248,7 +249,18 @@ class PlanParameterController extends Controller
 
     private function assertParameterAllowedForPlan(int $planId, int $parameterId): void
     {
-        $programId = (int) (DB::table('m_parameter')->where('id', $parameterId)->value('first_program') ?? 0);
+        $row = DB::table('m_parameter')->where('id', $parameterId)->first(['first_program', 'context']);
+        if (! $row) {
+            return;
+        }
+
+        if (($row->context ?? null) === 'protected' && ! request()->user()?->isFlowAdmin()) {
+            abort(response()->json([
+                'error' => 'Forbidden - admin role required for protected parameters',
+            ], 403));
+        }
+
+        $programId = (int) ($row->first_program ?? 0);
         if ($programId <= 0) {
             return;
         }

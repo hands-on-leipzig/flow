@@ -177,6 +177,22 @@ const expertParamsByProgramId = computed(() => {
   return map
 })
 
+const protectedParamsByProgramId = computed(() => {
+  const ids = attachedProgramIds.value
+  const map: Record<number, Parameter[]> = {}
+  for (const param of parameters.value) {
+    if (param.context !== 'protected' || param.level === 3) continue
+    const id = Number(param.first_program || 0)
+    if (!ids.has(id)) continue
+    if (!map[id]) map[id] = []
+    map[id].push(param)
+  }
+  for (const list of Object.values(map)) {
+    list.sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))
+  }
+  return map
+})
+
 function isTimeParam(param: Parameter) {
   return (
     (param.type === 'time' || (param.name && param.name.toLowerCase().includes('duration'))) &&
@@ -184,23 +200,23 @@ function isTimeParam(param: Parameter) {
   )
 }
 
-const finaleInputParams = computed(() =>
-  parameters.value
-    .filter((p: Parameter) =>
-      p.level === 3 &&
-      p.context === 'input' &&
-      !isSpecial(p) &&
-      isAttachedProgramParam(p)
-    )
-    .sort((a: Parameter, b: Parameter) => (a.sequence || 0) - (b.sequence || 0))
-)
-
 const finaleExpertParams = computed(() =>
   parameters.value
     .filter((p: Parameter) =>
       p.level === 3 &&
       p.context === 'expert' &&
       !isTimeParam(p) &&
+      !isSpecial(p) &&
+      isAttachedProgramParam(p)
+    )
+    .sort((a: Parameter, b: Parameter) => (a.sequence || 0) - (b.sequence || 0))
+)
+
+const finaleProtectedParams = computed(() =>
+  parameters.value
+    .filter((p: Parameter) =>
+      p.level === 3 &&
+      p.context === 'protected' &&
       !isSpecial(p) &&
       isAttachedProgramParam(p)
     )
@@ -564,8 +580,9 @@ export function useScheduleWorkspace() {
     disabledMap,
     paramMap,
     expertParamsByProgramId,
-    finaleInputParams,
+    protectedParamsByProgramId,
     finaleExpertParams,
+    finaleProtectedParams,
     PLAN_PREVIEW_CHANNEL,
     ensureLoaded,
     reloadForEventChange,
