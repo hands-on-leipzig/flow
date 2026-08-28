@@ -297,6 +297,10 @@ function isTileFilterActive(key: TileFilterKey) {
   return activeTileFilters.value.has(key)
 }
 
+function filterHasUnderMin(key: TileFilterKey) {
+  return tiles.value.some((tile) => tileFilterKey(tile) === key && isUnderMin(tile))
+}
+
 function toggleTileFilter(key: TileFilterKey) {
   const next = new Set(activeTileFilters.value)
   if (next.has(key)) next.delete(key)
@@ -695,7 +699,12 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
               :class="{'staffing-filter--active': isTileFilterActive('cross')}"
               @click="toggleTileFilter('cross')"
           >
-            Übergreifend
+            <span class="staffing-filter__label">Übergreifend</span>
+            <span
+                v-if="filterHasUnderMin('cross')"
+                class="staffing-need-dot"
+                title="Unter Min"
+            />
           </button>
           <button
               v-for="program in programFilters"
@@ -711,7 +720,12 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
                 :alt="programDisplayName(program)"
                 class="staffing-filter__logo"
             />
-            {{ programDisplayName(program) }}
+            <span class="staffing-filter__label">{{ programDisplayName(program) }}</span>
+            <span
+                v-if="filterHasUnderMin(`program:${programId(program)}`)"
+                class="staffing-need-dot"
+                title="Unter Min"
+            />
           </button>
           <button
               type="button"
@@ -719,7 +733,12 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
               :class="{'staffing-filter--active': isTileFilterActive('local')}"
               @click="toggleTileFilter('local')"
           >
-            Zusätzlich
+            <span class="staffing-filter__label">Zusätzlich</span>
+            <span
+                v-if="filterHasUnderMin('local')"
+                class="staffing-need-dot"
+                title="Unter Min"
+            />
           </button>
         </div>
 
