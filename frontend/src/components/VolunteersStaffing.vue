@@ -134,14 +134,6 @@ const unassignedPeople = computed(() =>
 const rosterPool = ref<Person[]>([])
 const searchDisplayPool = ref<Person[]>([])
 
-watch(unassignedPeople, (people) => {
-  rosterPool.value = [...people]
-}, {immediate: true})
-
-watch(personSearchMatches, (matches) => {
-  searchDisplayPool.value = [...matches]
-}, {immediate: true})
-
 const rosterPersonIds = computed(() => new Set(roster.value.map((entry) => entry.person.id)))
 
 const personSearchMatches = computed(() => {
@@ -158,6 +150,14 @@ const personSearchMatches = computed(() => {
       return a.id - b.id
     })
 })
+
+watch(unassignedPeople, (people) => {
+  rosterPool.value = [...people]
+}, {immediate: true})
+
+watch(personSearchMatches, (matches) => {
+  searchDisplayPool.value = [...matches]
+}, {immediate: true})
 
 const gapSummary = computed(() => {
   let underMin = 0
