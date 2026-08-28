@@ -4,6 +4,7 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
+import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import {validateAndNormalizeMobile} from '@/utils/mobileNumber'
 
 type Person = {
@@ -39,8 +40,10 @@ const draft = ref({
   email: '',
   mobile: '',
 })
+const editingId = ref<number | null>(null)
 const draftMobileError = ref('')
-const mobileErrors = ref<Record<number, string>>({})
+
+const isEditing = computed(() => editingId.value !== null)
 
 function displayName(p: Person) {
   if (p.nickname?.trim()) {
@@ -140,12 +143,10 @@ function clearDraftMobileError() {
   draftMobileError.value = ''
 }
 
-function clearMobileError(personId: number) {
-  if (mobileErrors.value[personId]) {
-    const next = {...mobileErrors.value}
-    delete next[personId]
-    mobileErrors.value = next
-  }
+function resetDraft() {
+  draft.value = {first_name: '', last_name: '', nickname: '', email: '', mobile: ''}
+  draftMobileError.value = ''
+  editingId.value = null
 }
 
 function resolveMobile(raw: string | null | undefined) {
@@ -166,20 +167,21 @@ function onDraftMobileBlur() {
   }
 }
 
-function onPersonMobileBlur(p: Person) {
-  const result = resolveMobile(p.mobile)
-  if (!result.ok) {
-    mobileErrors.value = {...mobileErrors.value, [p.id]: result.error}
-    return
+function startEdit(p: Person) {
+  editingId.value = p.id
+  draft.value = {
+    first_name: p.first_name,
+    last_name: p.last_name,
+    nickname: p.nickname ?? '',
+    email: p.email,
+    mobile: p.mobile ?? '',
   }
-  clearMobileError(p.id)
-  if (result.normalized !== (p.mobile?.trim() || null)) {
-    p.mobile = result.normalized
-  }
-  void savePerson(p)
+  draftMobileError.value = ''
+  error.value = ''
+  document.querySelector('.vol-composer')?.scrollIntoView({behavior: 'smooth', block: 'nearest'})
 }
 
-async function createPerson() {
+async function submitPerson() {
   if (!eventId.value) return
   if (!draft.value.first_name.trim() || !draft.value.last_name.trim() || !draft.value.email.trim()) {
     error.value = 'Vorname, Nachname und E-Mail sind erforderlich.'
@@ -192,46 +194,31 @@ async function createPerson() {
   }
   error.value = ''
   draftMobileError.value = ''
+  const payload = {
+    first_name: draft.value.first_name.trim(),
+    last_name: draft.value.last_name.trim(),
+    nickname: draft.value.nickname.trim() || null,
+    email: draft.value.email.trim(),
+    mobile: mobileResult.normalized,
+  }
   try {
-    await axios.post(`/events/${eventId.value}/volunteers`, {
-      first_name: draft.value.first_name.trim(),
-      last_name: draft.value.last_name.trim(),
-      nickname: draft.value.nickname.trim() || null,
-      email: draft.value.email.trim(),
-      mobile: mobileResult.normalized,
-    })
-    draft.value = {first_name: '', last_name: '', nickname: '', email: '', mobile: ''}
+    if (editingId.value) {
+      await axios.put(`/volunteers/${editingId.value}`, payload)
+      resetDraft()
+      await load()
+      showToast('Gespeichert')
+      return
+    }
+    await axios.post(`/events/${eventId.value}/volunteers`, payload)
+    resetDraft()
     await load()
     showToast('Person angelegt')
   } catch (e: any) {
     const msg = e?.response?.data?.message
       || e?.response?.data?.error
       || (e?.response?.data?.errors ? Object.values(e.response.data.errors).flat().join(' ') : null)
-      || 'Anlegen fehlgeschlagen'
+      || (editingId.value ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen')
     error.value = String(msg)
-  }
-}
-
-async function savePerson(p: Person) {
-  const mobileResult = resolveMobile(p.mobile)
-  if (!mobileResult.ok) {
-    mobileErrors.value = {...mobileErrors.value, [p.id]: mobileResult.error}
-    return
-  }
-  clearMobileError(p.id)
-  error.value = ''
-  try {
-    await axios.put(`/volunteers/${p.id}`, {
-      first_name: p.first_name.trim(),
-      last_name: p.last_name.trim(),
-      nickname: p.nickname?.trim() || null,
-      email: p.email.trim(),
-      mobile: mobileResult.normalized,
-    })
-    await load()
-    showToast('Gespeichert')
-  } catch (e: any) {
-    error.value = e?.response?.data?.error || e?.response?.data?.message || 'Speichern fehlgeschlagen'
   }
 }
 
@@ -240,6 +227,7 @@ async function removePerson(p: Person) {
   error.value = ''
   try {
     await axios.delete(`/volunteers/${p.id}`)
+    if (editingId.value === p.id) resetDraft()
     await load()
     showToast('Gelöscht')
   } catch (e: any) {
@@ -323,7 +311,7 @@ onMounted(() => load())
     <div v-if="error" class="glass-alert-warning vol-page__alert">{{ error }}</div>
     <div v-if="toast" class="vol-page__toast">{{ toast }}</div>
 
-    <section class="glass-card liquid-surface-inner vol-tile">
+    <section class="glass-card liquid-surface-inner vol-tile vol-composer" :class="{'vol-composer--edit': isEditing}">
       <div class="vol-table-frame">
         <table class="vol-table">
           <colgroup>
@@ -382,7 +370,21 @@ onMounted(() => load())
                 />
               </td>
               <td class="vol-table__actions">
-                <button type="button" class="glass-btn-accent" @click="createPerson">Anlegen</button>
+                <button
+                    v-if="isEditing"
+                    type="button"
+                    class="glass-btn-secondary vol-composer__cancel"
+                    @click="resetDraft"
+                >
+                  Abbrechen
+                </button>
+                <button
+                    type="button"
+                    :class="isEditing ? 'glass-btn-secondary vol-composer__save' : 'glass-btn-accent'"
+                    @click="submitPerson"
+                >
+                  {{ isEditing ? 'Sichern' : 'Anlegen' }}
+                </button>
               </td>
             </tr>
           </tbody>
@@ -449,7 +451,12 @@ onMounted(() => load())
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in filtered" :key="p.id" class="glass-table-row--hover">
+            <tr
+                v-for="p in filtered"
+                :key="p.id"
+                class="glass-table-row--hover"
+                :class="{'vol-table__row--editing': editingId === p.id}"
+            >
               <td class="vol-table__roster">
                 <button
                     type="button"
@@ -467,54 +474,22 @@ onMounted(() => load())
                   <span class="vol-roster-icon__tip glass-dropdown" role="tooltip">{{ rosterIconTooltip(p) }}</span>
                 </button>
               </td>
-              <td>
-                <input
-                    v-model="p.first_name"
-                    class="glass-input glass-input--sm"
-                    @blur="savePerson(p)"
-                />
-              </td>
-              <td>
-                <input
-                    v-model="p.last_name"
-                    class="glass-input glass-input--sm"
-                    @blur="savePerson(p)"
-                />
-              </td>
-              <td>
-                <input
-                    v-model="p.nickname"
-                    class="glass-input glass-input--sm"
-                    placeholder="—"
-                    @blur="savePerson(p)"
-                />
-              </td>
-              <td>
-                <input
-                    v-model="p.email"
-                    class="glass-input glass-input--sm"
-                    type="email"
-                    @blur="savePerson(p)"
-                />
-              </td>
-              <td>
-                <input
-                    v-model="p.mobile"
-                    :class="mobileInputClass(mobileErrors[p.id])"
-                    type="tel"
-                    inputmode="tel"
-                    autocomplete="tel"
-                    placeholder="0170 … oder +49 170 …"
-                    :aria-invalid="mobileErrors[p.id] ? true : undefined"
-                    :title="mobileErrors[p.id] || undefined"
-                    @input="clearMobileError(p.id)"
-                    @blur="onPersonMobileBlur(p)"
-                />
-              </td>
+              <td>{{ p.first_name }}</td>
+              <td>{{ p.last_name }}</td>
+              <td>{{ p.nickname?.trim() || '—' }}</td>
+              <td>{{ p.email }}</td>
+              <td>{{ p.mobile?.trim() || '—' }}</td>
               <td class="vol-table__actions">
-                <button type="button" class="glass-btn-secondary" @click="removePerson(p)">
-                  Löschen
+                <button
+                    type="button"
+                    class="vol-icon-btn"
+                    aria-label="Bearbeiten"
+                    title="Bearbeiten"
+                    @click="startEdit(p)"
+                >
+                  <i class="bi bi-pencil" aria-hidden="true"/>
                 </button>
+                <IconDangerButton label="Person löschen" @click="removePerson(p)"/>
               </td>
             </tr>
           </tbody>
@@ -599,7 +574,7 @@ onMounted(() => load())
 .vol-col--nick { width: 12%; }
 .vol-col--email { width: 22%; }
 .vol-col--mobile { width: 14%; }
-.vol-col--actions { width: 6.5rem; }
+.vol-col--actions { width: 10rem; }
 
 .vol-table th,
 .vol-table td {
@@ -694,7 +669,47 @@ onMounted(() => load())
   opacity: 0.35;
 }
 .vol-table__actions {
+  display: flex;
+  gap: 0.2rem;
+  align-items: center;
+  justify-content: flex-end;
   white-space: nowrap;
+}
+.vol-composer--edit {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent),
+    0 10px 24px rgba(15, 23, 42, 0.06);
+}
+.vol-composer__save {
+  min-width: 5.25rem;
+}
+.vol-composer__cancel {
+  padding-inline: 0.65rem;
+  font-size: 0.8125rem;
+}
+.vol-table__row--editing td {
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+.vol-icon-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.vol-icon-btn .bi {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+.vol-icon-btn:hover:not(:disabled) {
+  color: var(--color-accent);
+  background: var(--color-accent-muted);
 }
 .vol-table .glass-input {
   width: 100%;
