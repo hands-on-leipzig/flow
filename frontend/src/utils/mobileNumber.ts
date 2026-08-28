@@ -5,10 +5,19 @@ export type MobileNumberResult =
 const ALLOWED_CHARS = /^[0-9+\s\-/().]+$/
 const DE_COUNTRY_CODE = '49'
 
+function isMobilePlaceholder(value: string): boolean {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return true
+  if (['-', '--', '---', '...', '…', 'n/a', 'na', 'k.a.', 'k. a.', 'none', 'null'].includes(normalized)) {
+    return true
+  }
+  return /^[-–—.…]+$/.test(normalized)
+}
+
 /** Soft validation + normalization for German mobile numbers (DE only for now). */
 export function validateAndNormalizeMobile(raw: string | null | undefined): MobileNumberResult {
   const trimmed = (raw ?? '').trim()
-  if (!trimmed) return {ok: true, normalized: null}
+  if (!trimmed || isMobilePlaceholder(trimmed)) return {ok: true, normalized: null}
 
   if (!ALLOWED_CHARS.test(trimmed)) {
     return {ok: false, error: 'Ungültige Mobilnummer'}

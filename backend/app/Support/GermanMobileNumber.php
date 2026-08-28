@@ -10,7 +10,7 @@ class GermanMobileNumber
     public static function validateAndNormalize(?string $raw): array
     {
         $trimmed = trim((string) $raw);
-        if ($trimmed === '') {
+        if ($trimmed === '' || self::isEmptyPlaceholder($trimmed)) {
             return ['ok' => true, 'normalized' => null];
         }
 
@@ -53,5 +53,19 @@ class GermanMobileNumber
         }
 
         return '+49 '.$national;
+    }
+
+    private static function isEmptyPlaceholder(string $value): bool
+    {
+        $normalized = strtolower(trim($value));
+        if ($normalized === '') {
+            return true;
+        }
+
+        if (in_array($normalized, ['-', '--', '---', '...', '…', 'n/a', 'na', 'k.a.', 'k. a.', 'none', 'null'], true)) {
+            return true;
+        }
+
+        return (bool) preg_match('/^[-–—.…]+$/u', $normalized);
     }
 }

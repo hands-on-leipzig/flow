@@ -14,6 +14,7 @@ import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
+import {compareStaffingTiles, staffingSortableFromTile} from '@/utils/volunteerStaffingSort'
 
 defineOptions({name: 'VolunteersStaffing'})
 
@@ -109,7 +110,13 @@ const tiles = computed<Tile[]>(() => {
         name: groupTitle(role, group),
       })),
   )
-  return [...list].sort(compareTiles)
+  return [...list].sort((a, b) =>
+    compareStaffingTiles(
+      staffingSortableFromTile(a),
+      staffingSortableFromTile(b),
+      eventStore.selectedEvent?.programs,
+    ),
+  )
 })
 
 const filteredTiles = computed(() => {
@@ -246,40 +253,6 @@ function searchChipIconClass(person: Person) {
 function groupTitle(role: Role, group: Group) {
   if (role.groups.length <= 1 && !group.surplus) return role.label
   return `${role.label} ${group.group_index}`
-}
-
-function firstProgramSequence(program: number | null) {
-  if (program == null) return -1
-  const row = eventStore.selectedEvent?.programs?.find((p) => programId(p) === program)
-  return row?.sequence ?? Number.MAX_SAFE_INTEGER
-}
-
-function compareTiles(a: Tile, b: Tile) {
-  if (a.role.is_local !== b.role.is_local) {
-    return a.role.is_local ? 1 : -1
-  }
-
-  if (a.role.is_local) {
-    const byName = a.name.localeCompare(b.name, 'de')
-    if (byName !== 0) return byName
-    return a.group.group_index - b.group.group_index
-  }
-
-  const aNoProgram = a.role.first_program == null
-  const bNoProgram = b.role.first_program == null
-  if (aNoProgram !== bNoProgram) return aNoProgram ? -1 : 1
-
-  const byProgram = firstProgramSequence(a.role.first_program) - firstProgramSequence(b.role.first_program)
-  if (byProgram !== 0) return byProgram
-
-  if (a.role.sequence !== b.role.sequence) return a.role.sequence - b.role.sequence
-
-  const byLabel = a.role.label.localeCompare(b.role.label, 'de')
-  if (byLabel !== 0) return byLabel
-
-  if (a.role.id !== b.role.id) return a.role.id - b.role.id
-
-  return a.group.group_index - b.group.group_index
 }
 
 function buildTileFilterKeys(): TileFilterKey[] {

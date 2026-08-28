@@ -4,6 +4,9 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
+import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
+import {compareRosterEntriesByStaffingRole} from '@/utils/volunteerStaffingSort'
 
 type Person = {
   id: number
@@ -16,9 +19,20 @@ type Person = {
   on_roster?: boolean
 }
 
+type RosterAssignment = {
+  tile_name: string
+  label: string
+  role_id: number
+  first_program: number | null
+  is_local: boolean
+  sequence: number
+  group_index: number
+}
+
 type RosterEntry = {
   id: number
   has_assignment: boolean
+  assignments?: RosterAssignment[]
   created_at: string | null
   person: Person
 }
@@ -43,7 +57,14 @@ const addingId = ref<number | null>(null)
 const removeTarget = ref<RosterEntry | null>(null)
 const error = ref('')
 const toast = ref('')
+const sortKey = ref<'name' | 'role'>('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
+
+type AssignmentFilterKey = 'cross' | 'local' | `program:${number}`
+
+const activeAssignmentFilters = ref<Set<AssignmentFilterKey>>(new Set())
+
+const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
 
 const rosterPersonIds = computed(() => new Set(roster.value.map((r) => r.person.id)))
 
@@ -64,16 +85,45 @@ const personSearchMatches = computed(() => {
 
 const sortedRoster = computed(() => {
   const dir = sortDir.value === 'asc' ? 1 : -1
+  const key = sortKey.value
+  const programs = eventStore.selectedEvent?.programs
   return [...roster.value].sort((a, b) => {
-    const av = displayName(a.person).toLocaleLowerCase('de')
-    const bv = displayName(b.person).toLocaleLowerCase('de')
-    if (av < bv) return -1 * dir
-    if (av > bv) return 1 * dir
+    if (key === 'role') {
+      const cmp = compareRosterEntriesByStaffingRole(a, b, programs)
+      if (cmp !== 0) return cmp * dir
+    } else {
+      const av = displayName(a.person).toLocaleLowerCase('de')
+      const bv = displayName(b.person).toLocaleLowerCase('de')
+      if (av < bv) return -1 * dir
+      if (av > bv) return 1 * dir
+    }
+    const aName = displayName(a.person).toLocaleLowerCase('de')
+    const bName = displayName(b.person).toLocaleLowerCase('de')
+    if (aName < bName) return -1
+    if (aName > bName) return 1
     return a.person.id - b.person.id
   })
 })
 
-const visibleRosterPeople = computed(() => sortedRoster.value.map((entry) => entry.person))
+function assignmentFilterKey(assignment: RosterAssignment): AssignmentFilterKey {
+  if (assignment.is_local) return 'local'
+  if (assignment.first_program == null) return 'cross'
+  return `program:${assignment.first_program}`
+}
+
+function entryMatchesFilters(entry: RosterEntry) {
+  const assignments = entry.assignments ?? []
+  if (!assignments.length) return true
+  if (activeAssignmentFilters.value.size === 0) return false
+  return assignments.some((assignment) => activeAssignmentFilters.value.has(assignmentFilterKey(assignment)))
+}
+
+const filteredRoster = computed(() => {
+  if (activeAssignmentFilters.value.size === 0) return []
+  return sortedRoster.value.filter(entryMatchesFilters)
+})
+
+const visibleRosterPeople = computed(() => filteredRoster.value.map((entry) => entry.person))
 
 const removeMessage = computed(() => {
   const entry = removeTarget.value
@@ -113,6 +163,55 @@ function onSearchChipClick(person: Person) {
   addToRoster(person)
 }
 
+function assignmentLogoSrc(assignment: RosterAssignment) {
+  if (!assignment.first_program) return ''
+  return programLogoSrc({
+    first_program: assignment.first_program,
+    name: programNameForId(eventStore.selectedEvent, assignment.first_program),
+  })
+}
+
+function assignmentLogoAlt(assignment: RosterAssignment) {
+  if (!assignment.first_program) return ''
+  return programLogoAlt({
+    first_program: assignment.first_program,
+    name: programNameForId(eventStore.selectedEvent, assignment.first_program),
+  })
+}
+
+function buildAssignmentFilterKeys(): AssignmentFilterKey[] {
+  const keys: AssignmentFilterKey[] = ['cross', 'local']
+  for (const program of programFilters.value) {
+    const id = programId(program)
+    if (id > 0) keys.push(`program:${id}`)
+  }
+  return keys
+}
+
+function syncAssignmentFilters() {
+  const keys = buildAssignmentFilterKeys()
+  const kept = keys.filter((key) => activeAssignmentFilters.value.has(key))
+  activeAssignmentFilters.value = kept.length > 0 ? new Set(kept) : new Set(keys)
+}
+
+function isAssignmentFilterActive(key: AssignmentFilterKey) {
+  return activeAssignmentFilters.value.has(key)
+}
+
+function toggleAssignmentFilter(key: AssignmentFilterKey) {
+  const next = new Set(activeAssignmentFilters.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  activeAssignmentFilters.value = next
+}
+
+function programFilterLogo(program: {first_program?: number; id?: number; name?: string | null}) {
+  return programLogoSrc({
+    first_program: programId(program),
+    name: program.name ?? programNameForId(eventStore.selectedEvent, programId(program)),
+  })
+}
+
 function placeholderFields(_entry: RosterEntry): RosterFormFields {
   return {
     t_shirt_size: null,
@@ -129,11 +228,17 @@ function rosterIconTooltip(entry: RosterEntry) {
   return 'Von Helferliste entfernen'
 }
 
-function toggleSort() {
-  sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+function toggleSort(key: 'name' | 'role') {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortKey.value = key
+    sortDir.value = 'asc'
+  }
 }
 
-function sortIcon() {
+function sortIcon(key: 'name' | 'role') {
+  if (sortKey.value !== key) return 'bi-arrow-down-up'
   return sortDir.value === 'asc' ? 'bi-sort-up' : 'bi-sort-down'
 }
 
@@ -201,6 +306,7 @@ function showToast(msg: string) {
   }, 2200)
 }
 
+watch(eventId, () => syncAssignmentFilters(), {immediate: true})
 watch(eventId, () => load(), {immediate: true})
 onMounted(() => load())
 </script>
@@ -252,14 +358,51 @@ onMounted(() => load())
     </section>
 
     <section class="glass-card liquid-surface-inner vol-tile">
+      <div v-if="roster.length && !loading" class="roster-filters">
+        <button
+            type="button"
+            class="roster-filter"
+            :class="{'roster-filter--active': isAssignmentFilterActive('cross')}"
+            @click="toggleAssignmentFilter('cross')"
+        >
+          <span class="roster-filter__label">Übergreifend</span>
+        </button>
+        <button
+            v-for="program in programFilters"
+            :key="`filter-program-${programId(program)}`"
+            type="button"
+            class="roster-filter"
+            :class="{'roster-filter--active': isAssignmentFilterActive(`program:${programId(program)}`)}"
+            @click="toggleAssignmentFilter(`program:${programId(program)}`)"
+        >
+          <img
+              v-if="programFilterLogo(program)"
+              :src="programFilterLogo(program)"
+              :alt="programDisplayName(program)"
+              class="roster-filter__logo"
+          >
+          <span class="roster-filter__label">{{ programDisplayName(program) }}</span>
+        </button>
+        <button
+            type="button"
+            class="roster-filter"
+            :class="{'roster-filter--active': isAssignmentFilterActive('local')}"
+            @click="toggleAssignmentFilter('local')"
+        >
+          <span class="roster-filter__label">Zusätzlich</span>
+        </button>
+      </div>
+
       <p v-if="loading" class="vol-muted">Laden…</p>
       <p v-else-if="!roster.length" class="vol-muted">Noch niemand angemeldet.</p>
+      <p v-else-if="!filteredRoster.length" class="vol-muted">Keine Helfer für die gewählten Filter.</p>
 
       <div v-else class="vol-table-frame vol-table-frame--scroll">
         <table class="vol-table">
           <colgroup>
             <col class="vol-col--roster"/>
             <col class="vol-col--name"/>
+            <col class="vol-col--role"/>
             <col class="vol-col--tshirt"/>
             <col class="vol-col--meal"/>
             <col class="vol-col--eve"/>
@@ -269,9 +412,25 @@ onMounted(() => load())
             <tr>
               <th class="vol-table__roster" scope="col"><span class="sr-only">Helferliste</span></th>
               <th scope="col">
-                <button type="button" class="vol-sort vol-sort--active" @click="toggleSort">
+                <button
+                    type="button"
+                    class="vol-sort"
+                    :class="{'vol-sort--active': sortKey === 'name'}"
+                    @click="toggleSort('name')"
+                >
                   Name
-                  <i class="bi" :class="sortIcon()" aria-hidden="true"/>
+                  <i class="bi" :class="sortIcon('name')" aria-hidden="true"/>
+                </button>
+              </th>
+              <th scope="col">
+                <button
+                    type="button"
+                    class="vol-sort"
+                    :class="{'vol-sort--active': sortKey === 'role'}"
+                    @click="toggleSort('role')"
+                >
+                  Rolle
+                  <i class="bi" :class="sortIcon('role')" aria-hidden="true"/>
                 </button>
               </th>
               <th scope="col">T-Shirt Größe</th>
@@ -281,7 +440,7 @@ onMounted(() => load())
             </tr>
           </thead>
           <tbody>
-            <tr v-for="entry in sortedRoster" :key="entry.id" class="glass-table-row--hover">
+            <tr v-for="entry in filteredRoster" :key="entry.id" class="glass-table-row--hover">
               <td class="vol-table__roster">
                 <button
                     type="button"
@@ -297,6 +456,24 @@ onMounted(() => load())
                 </button>
               </td>
               <td class="vol-table__name">{{ displayName(entry.person) }}</td>
+              <td class="vol-table__role">
+                <div v-if="entry.assignments?.length" class="vol-table__assignments">
+                  <div
+                      v-for="(assignment, idx) in entry.assignments"
+                      :key="`${entry.id}-assignment-${idx}`"
+                      class="vol-table__assignment"
+                  >
+                    <img
+                        v-if="assignmentLogoSrc(assignment)"
+                        :src="assignmentLogoSrc(assignment)"
+                        :alt="assignmentLogoAlt(assignment)"
+                        class="vol-table__assignment-icon"
+                    >
+                    <span>{{ assignment.tile_name }}</span>
+                  </div>
+                </div>
+                <span v-else>—</span>
+              </td>
               <td class="vol-table__placeholder">{{ placeholderFields(entry).t_shirt_size ?? '—' }}</td>
               <td class="vol-table__placeholder">{{ placeholderFields(entry).meal ?? '—' }}</td>
               <td class="vol-table__placeholder">{{ placeholderFields(entry).eve_meeting ?? '—' }}</td>
@@ -380,6 +557,47 @@ onMounted(() => load())
 }
 .vol-muted { opacity: 0.7; font-size: 0.9rem; margin: 0; }
 
+.roster-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.roster-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--liquid-border-soft);
+  border-radius: var(--radius);
+  background: var(--liquid-tile-bg-inner);
+  box-shadow: var(--liquid-shadow-inset);
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.roster-filter:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.roster-filter--active {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-muted) 55%, var(--liquid-tile-bg-inner));
+  color: var(--color-text);
+}
+
+.roster-filter__logo {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
 .vol-table-frame {
   width: 100%;
   scrollbar-gutter: stable;
@@ -399,10 +617,11 @@ onMounted(() => load())
   font-size: 0.875rem;
 }
 .vol-col--roster { width: 2.75rem; }
-.vol-col--name { width: 24%; }
-.vol-col--tshirt { width: 12%; }
-.vol-col--meal { width: 12%; }
-.vol-col--eve { width: 14%; }
+.vol-col--name { width: 20%; }
+.vol-col--role { width: 18%; }
+.vol-col--tshirt { width: 11%; }
+.vol-col--meal { width: 11%; }
+.vol-col--eve { width: 13%; }
 .vol-col--notes { width: auto; }
 
 .vol-table th,
@@ -430,6 +649,26 @@ onMounted(() => load())
 .vol-table td.vol-table__roster { text-align: center; }
 .vol-table__name {
   font-weight: 600;
+}
+.vol-table__role {
+  color: var(--color-text-muted);
+}
+.vol-table__assignments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.vol-table__assignment {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.vol-table__assignment-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  object-fit: contain;
 }
 .vol-table__placeholder {
   color: var(--color-text-muted);
