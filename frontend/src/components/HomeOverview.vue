@@ -297,15 +297,7 @@ watch(
         </div>
 
         <div class="glass-card liquid-surface-inner">
-          <div class="flex items-center justify-between gap-2 mb-3">
-            <h2 class="glass-card__title !mb-0">Helfer:innen</h2>
-            <RouterLink
-                to="/plan/volunteers/staffing"
-                class="text-xs font-medium text-[var(--color-accent)] hover:underline no-underline"
-            >
-              Zur Zuordnung →
-            </RouterLink>
-          </div>
+          <h2 class="glass-card__title">Helfer:innen</h2>
 
           <div
               v-if="!hasPlan && !loading"
@@ -328,9 +320,27 @@ watch(
               :scopes="staffingSummary"
               :programs="programList"
               :loading="loading"
-              layout="list"
-              @select="goTo('/volunteers/staffing')"
+              layout="teams"
           />
+
+          <RouterLink
+              to="/plan/volunteers/staffing"
+              class="mt-2 flex items-start gap-2 rounded-lg px-3 py-2 liquid-surface-inner hover:bg-[var(--color-bg-hover)] transition-colors no-underline text-inherit"
+          >
+            <div
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]"
+                aria-hidden="true"
+            >
+              <i class="bi bi-diagram-3 text-lg"/>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="font-medium flex items-center justify-between gap-2">
+                <span>Zur Zuordnung</span>
+                <i class="bi bi-chevron-right text-[var(--color-text-subtle)]" aria-hidden="true"/>
+              </div>
+              <span class="text-sm text-[var(--color-text-muted)]">Rollen zuweisen und prüfen</span>
+            </div>
+          </RouterLink>
         </div>
 
         <div class="glass-card liquid-surface-inner">

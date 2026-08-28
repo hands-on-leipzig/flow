@@ -10,11 +10,12 @@ type StaffingScope = {
 }
 
 export function buildStaffingFilterKeys(programs: ReadonlyArray<ProgramRef>): StaffingFilterKey[] {
-  const keys: StaffingFilterKey[] = ['cross', 'local']
+  const keys: StaffingFilterKey[] = ['cross']
   for (const program of programs) {
     const id = programId(program)
     if (id > 0) keys.push(`program:${id}`)
   }
+  keys.push('local')
   return keys
 }
 

@@ -9,7 +9,7 @@ import {programIdFromSummaryKey, type StaffingScopeSummary} from '@/utils/volunt
 const props = defineProps<{
   scopes: ReadonlyArray<StaffingScopeSummary>
   programs: ReadonlyArray<EventProgramRef>
-  layout?: 'list' | 'bar'
+  layout?: 'list' | 'bar' | 'teams'
   loading?: boolean
 }>()
 
@@ -45,10 +45,66 @@ function missingLabel(count: number) {
 function onSelect(key: StaffingFilterKey) {
   emit('select', key)
 }
+
+function scopeIconClass(key: StaffingFilterKey) {
+  if (key === 'cross') return 'bi-diagram-3'
+  if (key === 'local') return 'bi-plus-lg'
+  return ''
+}
 </script>
 
 <template>
   <div
+      v-if="layout === 'teams'"
+      class="vol-staffing-summary vol-staffing-summary--teams space-y-2"
+  >
+    <p v-if="loading" class="vol-staffing-summary__muted">Lade Zuordnung…</p>
+    <template v-else>
+      <div
+          v-for="scope in scopes"
+          :key="scope.key"
+          class="flex items-start gap-2 rounded-lg px-3 py-2 liquid-surface-inner"
+      >
+        <ProgramLogo
+            v-if="scopeProgram(scope.key)"
+            :program="scopeProgram(scope.key)!"
+            size="lg"
+        />
+        <div
+            v-else
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]"
+            aria-hidden="true"
+        >
+          <i class="bi text-lg" :class="scopeIconClass(scope.key)"/>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="font-medium flex items-center justify-between gap-2">
+            <span>{{ scope.assigned }} zugeordnet</span>
+            <span
+                v-if="scope.missing_min > 0"
+                class="text-sm font-semibold text-[color-mix(in_srgb,var(--color-warning,#f59e0b)_88%,#111)]"
+            >
+              {{ missingLabel(scope.missing_min) }}
+            </span>
+          </div>
+          <span class="text-sm text-[var(--color-text-muted)] inline-flex items-center gap-1.5">
+            {{ scopeLabel(scope.key) }}
+            <span
+                v-if="scope.missing_min > 0"
+                class="inline-block h-2 w-2 rounded-full bg-[color-mix(in_srgb,var(--color-warning,#f59e0b)_75%,transparent)] shrink-0"
+                title="Unter Mindestempfehlung"
+                aria-label="Unter Mindestempfehlung"
+            />
+          </span>
+        </div>
+      </div>
+      <p v-if="scopes.length === 0" class="text-sm text-[var(--color-text-subtle)]">
+        Keine Rollen-Daten verfügbar
+      </p>
+    </template>
+  </div>
+  <div
+      v-else
       class="vol-staffing-summary"
       :class="{
         'vol-staffing-summary--list': layout === 'list',
