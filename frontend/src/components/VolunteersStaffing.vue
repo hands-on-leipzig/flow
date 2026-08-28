@@ -74,7 +74,6 @@ const pool = ref<Person[]>([])
 const personSearch = ref('')
 const planId = ref<number | null>(null)
 const loading = ref(false)
-const syncing = ref(false)
 const isSaving = ref(false)
 
 const isDragging = ref(false)
@@ -522,25 +521,6 @@ async function ensureOnRoster(person: Person) {
   })
 }
 
-async function syncFromPlan() {
-  if (!eventId.value) return
-  syncing.value = true
-  try {
-    const {data} = await axios.post(`/events/${eventId.value}/staffing/sync`)
-    const s = data.stats || {}
-    showGlassToast(
-      `Abgleich: ${s.roles ?? 0} Rollen, +${s.groups_created ?? 0} Gruppen`
-        + (s.skipped?.length ? ` (${s.skipped.length} übersprungen)` : ''),
-      'success',
-    )
-    await load()
-  } catch (e: any) {
-    showGlassToast(apiError(e, 'Abgleich fehlgeschlagen'), 'error')
-  } finally {
-    syncing.value = false
-  }
-}
-
 function onDragStart(event: any, groupId: number | null) {
   isDragging.value = true
   dragSourceGroupId.value = groupId
@@ -756,14 +736,6 @@ onBeforeUnmount(() => {
       </div>
       <div class="vol-page__actions">
         <VolunteerEmailOutreach scope="roster" :people="visibleTilePeople"/>
-        <button
-            type="button"
-            class="glass-btn-accent"
-            :disabled="syncing || !planId"
-            @click="syncFromPlan"
-        >
-          {{ syncing ? 'Abgleichen…' : 'Mit Plan abgleichen' }}
-        </button>
       </div>
     </header>
 
@@ -782,7 +754,7 @@ onBeforeUnmount(() => {
     <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-5">
       <div class="lg:col-span-3 order-2 lg:order-1">
         <p v-if="!tiles.length" class="text-sm text-[var(--color-text-subtle)] mb-3">
-          Noch keine Rollen. Mit Plan abgleichen — oder links eine eigene Rolle anlegen.
+          Noch keine Rollen. Rollen werden beim Erzeugen des Ablaufs angelegt — oder links eine eigene Rolle anlegen.
         </p>
 
         <div v-if="tiles.length" class="staffing-filters glass-card liquid-surface-inner">
