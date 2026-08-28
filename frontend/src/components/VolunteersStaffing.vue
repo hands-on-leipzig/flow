@@ -508,7 +508,7 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
     <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-5">
       <div class="lg:col-span-3 order-2 lg:order-1">
         <p v-if="!tiles.length" class="text-sm text-[var(--color-text-subtle)] mb-3">
-          Noch keine Rollen. Rollen werden beim Erzeugen des Ablaufs angelegt — oder links eine eigene Rolle anlegen.
+          Noch keine Rollen verfügbar. Rollen werden nach jedem Generieren des Veranstaltungsplans aktualisiert.
         </p>
 
         <VolunteerStaffingFilterBar
