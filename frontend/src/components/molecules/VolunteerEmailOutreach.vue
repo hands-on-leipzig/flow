@@ -4,8 +4,19 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
 
+export type VolunteerOutreachPerson = {
+  first_name: string
+  last_name: string
+  nickname: string | null
+  email: string
+  mobile?: string | null
+  updated_at?: string | null
+}
+
 const props = defineProps<{
   scope: 'pool' | 'roster'
+  /** When set, outreach uses this list instead of loading the full pool/roster. */
+  people?: VolunteerOutreachPerson[]
 }>()
 
 const eventStore = useEventStore()
@@ -13,22 +24,62 @@ const eventId = computed(() => eventStore.selectedEvent?.id)
 const open = ref(false)
 const busy = ref(false)
 
+const usesCustomPeople = computed(() => props.people !== undefined)
+
 function close() {
   open.value = false
 }
 
-async function fetchEmails(): Promise<string[]> {
+function uniqueEmails(people: VolunteerOutreachPerson[]): string[] {
+  const seen = new Set<string>()
+  const emails: string[] = []
+  for (const person of people) {
+    const email = person.email?.trim()
+    if (!email) continue
+    const key = email.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    emails.push(email)
+  }
+  return emails
+}
+
+async function loadPeople(): Promise<VolunteerOutreachPerson[]> {
+  if (usesCustomPeople.value) return props.people ?? []
   if (!eventId.value) return []
   if (props.scope === 'pool') {
     const {data} = await axios.get(`/events/${eventId.value}/volunteers`)
-    return (data.people ?? [])
-      .map((p: {email?: string}) => p.email?.trim())
-      .filter(Boolean)
+    return data.people ?? []
   }
   const {data} = await axios.get(`/events/${eventId.value}/volunteer-roster`)
-  return (data.roster ?? [])
-    .map((row: {person?: {email?: string}}) => row.person?.email?.trim())
-    .filter(Boolean)
+  return (data.roster ?? []).map((row: {person: VolunteerOutreachPerson}) => row.person)
+}
+
+async function fetchEmails(): Promise<string[]> {
+  return uniqueEmails(await loadPeople())
+}
+
+function downloadCsvBlob(people: VolunteerOutreachPerson[]) {
+  const header = ['first_name', 'last_name', 'nickname', 'email', 'mobile', 'updated_at']
+  const lines = [
+    header.join(';'),
+    ...people.map((person) => header.map((col) => csvCell(person[col as keyof VolunteerOutreachPerson])).join(';')),
+  ]
+  const blob = new Blob(['\uFEFF', lines.join('\n')], {type: 'text/csv;charset=utf-8'})
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = props.scope === 'roster'
+    ? `helfer-anmeldung-${eventId.value}.csv`
+    : `helfer-pool-${eventId.value}.csv`
+  link.click()
+  window.URL.revokeObjectURL(url)
+}
+
+function csvCell(value: string | null | undefined) {
+  const raw = value ?? ''
+  if (/[;"\n]/.test(raw)) return `"${raw.replace(/"/g, '""')}"`
+  return raw
 }
 
 async function copyEmails() {
@@ -70,6 +121,16 @@ async function downloadCsv() {
   if (!eventId.value || busy.value) return
   busy.value = true
   try {
+    if (usesCustomPeople.value) {
+      const people = await loadPeople()
+      if (!people.length) {
+        showGlassToast('Keine E-Mails', 'info')
+        return
+      }
+      downloadCsvBlob(people)
+      close()
+      return
+    }
     const {data} = await axios.get(`/events/${eventId.value}/volunteers/export`, {
       params: {scope: props.scope},
       responseType: 'blob',

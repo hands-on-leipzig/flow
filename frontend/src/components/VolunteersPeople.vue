@@ -255,7 +255,7 @@ onMounted(() => load())
         <h1 class="vol-page__title">Personen</h1>
         <p class="vol-page__sub">Saison-übergreifende Kontaktliste</p>
       </div>
-      <VolunteerEmailOutreach scope="pool"/>
+      <VolunteerEmailOutreach scope="pool" :people="filtered"/>
     </header>
 
     <div v-if="error" class="glass-alert-warning vol-page__alert">{{ error }}</div>

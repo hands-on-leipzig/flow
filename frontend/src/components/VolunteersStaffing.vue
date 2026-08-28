@@ -117,6 +117,16 @@ const filteredTiles = computed(() => {
   return tiles.value.filter((tile) => activeTileFilters.value.has(tileFilterKey(tile)))
 })
 
+const visibleTilePeople = computed(() => {
+  const byId = new Map<number, Person>()
+  for (const tile of filteredTiles.value) {
+    for (const person of tile.group.people) {
+      if (!byId.has(person.id)) byId.set(person.id, person)
+    }
+  }
+  return [...byId.values()].sort(sortPeople)
+})
+
 const assignedIds = computed(() => {
   const ids = new Set<number>()
   for (const role of roles.value) {
@@ -662,7 +672,7 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
         <p class="vol-page__sub">Zuordnung der Helfer:innen auf die Rollen im Veranstaltungsplan</p>
       </div>
       <div class="vol-page__actions">
-        <VolunteerEmailOutreach scope="roster"/>
+        <VolunteerEmailOutreach scope="roster" :people="visibleTilePeople"/>
         <button
             type="button"
             class="glass-btn-accent"

@@ -73,6 +73,8 @@ const sortedRoster = computed(() => {
   })
 })
 
+const visibleRosterPeople = computed(() => sortedRoster.value.map((entry) => entry.person))
+
 const removeMessage = computed(() => {
   const entry = removeTarget.value
   if (!entry) return ''
@@ -210,7 +212,7 @@ onMounted(() => load())
         <h1 class="vol-page__title">Helferliste</h1>
         <p class="vol-page__sub">Alle Helfer für diese Veranstaltung</p>
       </div>
-      <VolunteerEmailOutreach scope="roster"/>
+      <VolunteerEmailOutreach scope="roster" :people="visibleRosterPeople"/>
     </header>
 
     <div v-if="error" class="glass-alert-warning vol-page__alert">{{ error }}</div>
