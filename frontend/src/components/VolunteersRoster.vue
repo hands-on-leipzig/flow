@@ -599,7 +599,7 @@ onBeforeUnmount(() => {
           v-model="personSearch"
           type="search"
           class="glass-input glass-input--sm vol-search-tile__input"
-          placeholder="Personen zum Hinzufügen auf die Liste suchen…"
+          placeholder="Personen zum Hinzufügen zur Liste suchen…"
           autocomplete="off"
       />
       <div v-if="personSearch.trim()" class="vol-search-results">
