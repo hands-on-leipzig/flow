@@ -12,6 +12,7 @@ import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import VolunteerStaffingBoundsPopover from '@/components/volunteers/VolunteerStaffingBoundsPopover.vue'
+import VolunteerOpenPositions from '@/components/volunteers/VolunteerOpenPositions.vue'
 import VolunteerStaffingTile from '@/components/volunteers/VolunteerStaffingTile.vue'
 import {eventPrograms} from '@/utils/eventPrograms'
 import {compareStaffingTiles, staffingSortableFromTile} from '@/utils/volunteerStaffingSort'
@@ -694,6 +695,8 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
             </div>
           </template>
         </div>
+
+        <VolunteerOpenPositions :tiles="tiles"/>
       </div>
     </div>
 
