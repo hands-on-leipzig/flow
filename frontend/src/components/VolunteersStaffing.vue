@@ -32,6 +32,7 @@ import {
   type StaffingTile,
 } from '@/volunteers/staffingTypes'
 import {computeStaffingSummary} from '@/utils/volunteerStaffingSummary'
+import {type OpenPositionApiScope} from '@/utils/volunteerOpenPositions'
 
 defineOptions({name: 'VolunteersStaffing'})
 
@@ -44,6 +45,7 @@ const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const roles = ref<Role[]>([])
+const openPositions = ref<OpenPositionApiScope[]>([])
 const roster = ref<{person: Person; has_assignment: boolean}[]>([])
 const pool = ref<Person[]>([])
 const personSearch = ref('')
@@ -272,6 +274,7 @@ async function load() {
       axios.get(`/events/${eventId.value}/volunteers`),
     ])
     roles.value = staffingRes.data.roles ?? []
+    openPositions.value = staffingRes.data.open_positions ?? []
     planId.value = staffingRes.data.plan_id ?? null
     roster.value = rosterRes.data.roster ?? []
     pool.value = poolRes.data.people ?? []
@@ -696,7 +699,7 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
           </template>
         </div>
 
-        <VolunteerOpenPositions :tiles="tiles"/>
+        <VolunteerOpenPositions :open-positions="openPositions"/>
       </div>
     </div>
 

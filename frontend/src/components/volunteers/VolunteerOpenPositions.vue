@@ -5,27 +5,27 @@ import {useEventStore} from '@/stores/event'
 import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
 import {type StaffingFilterKey} from '@/utils/volunteerStaffingFilters'
 import {
-  computeOpenPositions,
   openPositionsCriticalCount,
-  openPositionsNiceCount,
+  openPositionsFromApi,
+  openPositionsRecommendedCount,
+  type OpenPositionApiScope,
   type OpenPositionEntry,
   type OpenPositionScopeGroup,
 } from '@/utils/volunteerOpenPositions'
-import type {StaffingTile} from '@/volunteers/staffingTypes'
 
 const props = defineProps<{
-  tiles: ReadonlyArray<StaffingTile>
+  openPositions: ReadonlyArray<OpenPositionApiScope> | null | undefined
 }>()
 
 const eventStore = useEventStore()
 
 const programs = computed(() => eventPrograms(eventStore.selectedEvent))
 
-const scopes = computed(() => computeOpenPositions(props.tiles, programs.value))
+const scopes = computed(() => openPositionsFromApi(props.openPositions, programs.value))
 
 const hasCritical = computed(() => openPositionsCriticalCount(scopes.value) > 0)
-const hasNice = computed(() => openPositionsNiceCount(scopes.value) > 0)
-const isEmpty = computed(() => !hasCritical.value && !hasNice.value)
+const hasRecommended = computed(() => openPositionsRecommendedCount(scopes.value) > 0)
+const isEmpty = computed(() => !hasCritical.value && !hasRecommended.value)
 
 function scopeLabel(key: StaffingFilterKey) {
   if (key === 'cross') return 'Übergreifend'
@@ -37,12 +37,12 @@ function scopeLabel(key: StaffingFilterKey) {
 }
 
 function scopesWithEntries(
-  section: 'critical' | 'nice',
+  section: 'critical' | 'recommended',
 ): Array<OpenPositionScopeGroup & {entries: OpenPositionEntry[]}> {
   return scopes.value
     .map((scope) => ({
       ...scope,
-      entries: section === 'critical' ? scope.critical : scope.nice,
+      entries: section === 'critical' ? scope.critical : scope.recommended,
     }))
     .filter((scope) => scope.entries.length > 0)
 }
@@ -94,13 +94,13 @@ function scopesWithEntries(
         <h3 class="staffing-open-positions__heading staffing-open-positions__heading--recommended">
           Zusätzlich empfohlen
         </h3>
-        <p v-if="!hasNice" class="staffing-sidebar-muted staffing-open-positions__empty">
+        <p v-if="!hasRecommended" class="staffing-sidebar-muted staffing-open-positions__empty">
           Idealbesetzung erreicht.
         </p>
         <template v-else>
           <div
-              v-for="scope in scopesWithEntries('nice')"
-              :key="`nice-${scope.key}`"
+              v-for="scope in scopesWithEntries('recommended')"
+              :key="`recommended-${scope.key}`"
               class="staffing-open-positions__scope"
           >
             <div class="staffing-open-positions__scope-label">
@@ -110,7 +110,7 @@ function scopesWithEntries(
             <ul class="staffing-open-positions__list">
               <li
                   v-for="entry in scope.entries"
-                  :key="`nice-${scope.key}-${entry.roleId}`"
+                  :key="`recommended-${scope.key}-${entry.roleId}`"
                   class="staffing-open-positions__item"
               >
                 <span class="staffing-open-positions__name">{{ entry.name }}</span>

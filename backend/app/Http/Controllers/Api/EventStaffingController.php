@@ -18,6 +18,15 @@ class EventStaffingController extends Controller
     public function index(Event $event): JsonResponse
     {
         $planId = (int) (DB::table('plan')->where('event', $event->id)->value('id') ?? 0);
+        $event->loadMissing('programs');
+        $programIds = $event->programs
+            ->pluck('first_program')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
 
         $roles = EventStaffingRole::query()
             ->where('event', $event->id)
@@ -81,6 +90,7 @@ class EventStaffingController extends Controller
         return response()->json([
             'plan_id' => $planId ?: null,
             'roles' => $payload,
+            'open_positions' => $this->sync->openPositionsByScope($event->id, $programIds),
         ]);
     }
 

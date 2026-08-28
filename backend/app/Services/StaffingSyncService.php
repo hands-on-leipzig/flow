@@ -185,6 +185,94 @@ class StaffingSyncService
     }
 
     /**
+     * Open staffing gaps per scope, aggregated per role across groups.
+     *
+     * Critical: sum(min - filled) per group where filled < min.
+     * Recommended: sum(best - min) per group where filled < best and best > min.
+     *
+     * @param  list<int>  $programIds  attached event first_program ids
+     * @return list<array{
+     *     key: string,
+     *     critical: list<array{role_id: int, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>,
+     *     recommended: list<array{role_id: int, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>
+     * }>
+     */
+    public function openPositionsByScope(int $eventId, array $programIds): array
+    {
+        $sortedPrograms = $programIds;
+        sort($sortedPrograms);
+
+        $orderedKeys = ['cross'];
+        foreach ($sortedPrograms as $programId) {
+            $orderedKeys[] = 'program:'.$programId;
+        }
+        $orderedKeys[] = 'local';
+
+        $accumulators = [];
+        foreach ($orderedKeys as $key) {
+            $accumulators[$key] = ['critical' => [], 'recommended' => []];
+        }
+
+        $roles = EventStaffingRole::query()
+            ->where('event', $eventId)
+            ->with(['catalogRole', 'groups.assignments'])
+            ->get();
+
+        foreach ($roles as $role) {
+            $scopeKey = $this->scopeKeyForRole($role);
+            if (! isset($accumulators[$scopeKey])) {
+                continue;
+            }
+
+            $min = (int) $role->min;
+            $best = (int) $role->best;
+            $meta = $this->openPositionRoleMeta($role);
+
+            foreach ($role->groups as $group) {
+                if ($group->surplus) {
+                    continue;
+                }
+
+                $filled = $group->assignments->count();
+
+                if ($filled < $min) {
+                    $this->accumulateOpenPosition(
+                        $accumulators[$scopeKey]['critical'],
+                        $role->id,
+                        $meta,
+                        $min - $filled,
+                    );
+                }
+                if ($filled < $best && $best > $min) {
+                    $this->accumulateOpenPosition(
+                        $accumulators[$scopeKey]['recommended'],
+                        $role->id,
+                        $meta,
+                        $best - $min,
+                    );
+                }
+            }
+        }
+
+        $result = [];
+        foreach ($orderedKeys as $key) {
+            $critical = $this->finalizeOpenPositionEntries($accumulators[$key]['critical']);
+            $recommended = $this->finalizeOpenPositionEntries($accumulators[$key]['recommended']);
+            if ($critical === [] && $recommended === []) {
+                continue;
+            }
+
+            $result[] = [
+                'key' => $key,
+                'critical' => $critical,
+                'recommended' => $recommended,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * Nav red-dot: surplus group with people, or non-surplus group below min (catalog + local).
      */
     public function staffingOk(int $eventId): bool
@@ -229,6 +317,65 @@ class StaffingSyncService
         }
 
         return 'program:'.(int) $firstProgram;
+    }
+
+    /**
+     * @return array{role_id: int, label: string, sequence: int, first_program: int|null, is_local: bool}
+     */
+    private function openPositionRoleMeta(EventStaffingRole $role): array
+    {
+        $label = trim($role->label ?: ($role->catalogRole?->name ?? '')) ?: 'Unbenannt';
+        $firstProgram = null;
+        if (! $role->isLocal() && $role->catalogRole?->first_program !== null) {
+            $firstProgram = (int) $role->catalogRole->first_program;
+        }
+
+        return [
+            'role_id' => (int) $role->id,
+            'label' => $label,
+            'sequence' => (int) $role->sequence,
+            'first_program' => $firstProgram,
+            'is_local' => $role->isLocal(),
+        ];
+    }
+
+    /**
+     * @param  array<int, array{role_id: int, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>  $byRole
+     */
+    private function accumulateOpenPosition(array &$byRole, int $roleId, array $meta, int $amount): void
+    {
+        if (! isset($byRole[$roleId])) {
+            $byRole[$roleId] = [...$meta, 'wanted' => 0];
+        }
+
+        $byRole[$roleId]['wanted'] += $amount;
+    }
+
+    /**
+     * @param  array<int, array{role_id: int, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>  $byRole
+     * @return list<array{role_id: int, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>
+     */
+    private function finalizeOpenPositionEntries(array $byRole): array
+    {
+        $entries = array_values(array_filter(
+            $byRole,
+            fn (array $entry) => (int) ($entry['wanted'] ?? 0) > 0,
+        ));
+
+        usort($entries, function (array $a, array $b): int {
+            if ($a['sequence'] !== $b['sequence']) {
+                return $a['sequence'] <=> $b['sequence'];
+            }
+
+            $byLabel = strcasecmp($a['label'], $b['label']);
+            if ($byLabel !== 0) {
+                return $byLabel;
+            }
+
+            return $a['role_id'] <=> $b['role_id'];
+        });
+
+        return $entries;
     }
 
     /**

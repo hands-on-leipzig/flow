@@ -3211,6 +3211,7 @@ class PlanExportController extends Controller
                 'room_mapping_ok' => false,
                 'staffing_ok' => true,
                 'staffing_summary' => $staffingSync->summaryByScope((int) $eventId, $programIds),
+                'open_positions' => $staffingSync->openPositionsByScope((int) $eventId, $programIds),
                 'room_mapping_details' => [
                     'activities_ok' => false,
                     'teams_ok' => false,
@@ -3299,6 +3300,7 @@ class PlanExportController extends Controller
             'room_mapping_ok' => ! $hasUnmappedRooms && $allTeamsHaveRooms,
             'staffing_ok' => $staffingSync->staffingOk((int) $eventId),
             'staffing_summary' => $staffingSync->summaryByScope((int) $eventId, $programIds),
+            'open_positions' => $staffingSync->openPositionsByScope((int) $eventId, $programIds),
             'room_mapping_details' => [
                 'activities_ok' => ! $hasUnmappedRooms,
                 'teams_ok' => $allTeamsHaveRooms,

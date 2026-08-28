@@ -196,6 +196,60 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertSame(0, $summary['local']['roles']);
     }
 
+    public function test_open_positions_aggregates_critical_and_recommended_per_role(): void
+    {
+        $this->seedChallengeEvent(lanes: 2);
+        DB::table('m_staffing_rule')->where('m_role', 4)->update(['min' => 2, 'best' => 4, 'max' => 5]);
+        $this->sync->syncForEvent(1);
+
+        $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
+        $groups = EventStaffingGroup::query()
+            ->where('event_staffing_role', $role->id)
+            ->orderBy('group_index')
+            ->get();
+
+        EventStaffingAssignment::create([
+            'event_staffing_group' => $groups[0]->id,
+            'volunteer_person' => 1,
+            'created_at' => now(),
+        ]);
+
+        $openPositions = collect($this->sync->openPositionsByScope(1, [FirstProgram::CHALLENGE->value]))
+            ->keyBy('key');
+
+        $challenge = $openPositions['program:'.FirstProgram::CHALLENGE->value];
+        $this->assertCount(1, $challenge['critical']);
+        $this->assertSame('Jury', $challenge['critical'][0]['label']);
+        $this->assertSame(3, $challenge['critical'][0]['wanted']);
+        $this->assertCount(1, $challenge['recommended']);
+        $this->assertSame('Jury', $challenge['recommended'][0]['label']);
+        $this->assertSame(4, $challenge['recommended'][0]['wanted']);
+        $this->assertArrayNotHasKey('cross', $openPositions->all());
+    }
+
+    public function test_open_positions_skips_surplus_groups(): void
+    {
+        $this->seedChallengeEvent(lanes: 2);
+        $this->sync->syncForEvent(1);
+
+        $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
+        $group = EventStaffingGroup::query()
+            ->where('event_staffing_role', $role->id)
+            ->where('group_index', 2)
+            ->firstOrFail();
+        $group->surplus = true;
+        $group->save();
+
+        DB::table('plan_param_value')->where('parameter', 50)->update(['set_value' => '1']);
+        $this->sync->syncForEvent(1);
+
+        $openPositions = $this->sync->openPositionsByScope(1, [FirstProgram::CHALLENGE->value]);
+        $challenge = collect($openPositions)->firstWhere('key', 'program:'.FirstProgram::CHALLENGE->value);
+        $this->assertNotNull($challenge);
+        $this->assertSame(2, $challenge['critical'][0]['wanted']);
+        $this->assertSame(1, $challenge['recommended'][0]['wanted']);
+    }
+
     private function createSchema(): void
     {
         Schema::dropAllTables();
