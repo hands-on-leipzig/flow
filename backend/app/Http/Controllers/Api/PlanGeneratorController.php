@@ -65,6 +65,16 @@ class PlanGeneratorController extends Controller
                     if ($eventId) {
                         app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
                         app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+                        if (config('staffing.sync_after_generate')) {
+                            try {
+                                app(\App\Services\StaffingSyncService::class)->syncForEvent((int) $eventId);
+                            } catch (\Throwable $staffingError) {
+                                Log::warning('Staffing sync after generation failed', [
+                                    'plan_id' => $planId,
+                                    'error' => $staffingError->getMessage(),
+                                ]);
+                            }
+                        }
                     }
                 } catch (\Throwable $attentionError) {
                     Log::warning('Attention update after generation failed', [
@@ -139,6 +149,16 @@ class PlanGeneratorController extends Controller
             if ($eventId) {
                 app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
                 app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+                if (config('staffing.sync_after_generate')) {
+                    try {
+                        app(\App\Services\StaffingSyncService::class)->syncForEvent((int) $eventId);
+                    } catch (\Throwable $staffingError) {
+                        Log::warning('Staffing sync after lite generation failed', [
+                            'plan_id' => $planId,
+                            'error' => $staffingError->getMessage(),
+                        ]);
+                    }
+                }
             }
 
             return response()->json([

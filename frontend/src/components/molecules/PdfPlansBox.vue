@@ -2,7 +2,7 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useEventStore } from '@/stores/event'
 import { usePdfExport } from '@/composables/usePdfExport'
-import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
@@ -840,11 +840,7 @@ const eventTitleNormalized = computed(() => {
               class="pdf-plans__option-group"
             >
               <h5 class="pdf-plans__option-heading">
-                <img
-                  :src="programLogoSrc(group.program)"
-                  :alt="programLogoAlt(group.program)"
-                  class="w-5 h-5 flex-shrink-0"
-                />
+                <ProgramLogo :program="group.program" size="sm"/>
                 <span>{{ programDisplayName(group.program) }}</span>
               </h5>
               <label
@@ -898,11 +894,7 @@ const eventTitleNormalized = computed(() => {
               class="pdf-plans__option-group"
             >
               <h5 class="pdf-plans__option-heading">
-                <img
-                  :src="programLogoSrc(program)"
-                  :alt="programLogoAlt(program)"
-                  class="w-5 h-5 flex-shrink-0"
-                />
+                <ProgramLogo :program="program" size="sm"/>
                 <span>{{ programDisplayName(program) }}</span>
               </h5>
               <label class="pdf-plans__option">
@@ -1126,11 +1118,7 @@ const eventTitleNormalized = computed(() => {
               class="bg-[var(--color-bg-muted)] rounded p-3"
             >
               <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-                <img
-                  :src="programLogoSrc(program)"
-                  :alt="programLogoAlt(program)"
-                  class="w-6 h-6 flex-shrink-0"
-                />
+                <ProgramLogo :program="program" size="base"/>
                 <span>FIRST LEGO League {{ programDisplayName(program) }}</span>
               </h5>
               <div class="space-y-0.5">
@@ -1222,10 +1210,11 @@ const eventTitleNormalized = computed(() => {
                       <td class="px-3 py-2">{{ vol.name }}</td>
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
-                        <img
-                          :src="programLogoSrc(catalogNameFromCode(vol.program))"
-                          :alt="programLogoAlt(catalogNameFromCode(vol.program))"
-                          class="w-5 h-5 inline-block"
+                        <ProgramLogo
+                            :program="catalogNameFromCode(vol.program)"
+                            size="sm"
+                            decorative
+                            class="inline-block"
                         />
                       </td>
                     </tr>
@@ -1233,10 +1222,11 @@ const eventTitleNormalized = computed(() => {
                       <td class="px-3 py-2">{{ vol.name }}</td>
                       <td class="px-3 py-2">{{ vol.role }}</td>
                       <td class="px-3 py-2">
-                        <img
-                          :src="programLogoSrc(catalogNameFromCode(vol.program))"
-                          :alt="programLogoAlt(catalogNameFromCode(vol.program))"
-                          class="w-5 h-5 inline-block"
+                        <ProgramLogo
+                            :program="catalogNameFromCode(vol.program)"
+                            size="sm"
+                            decorative
+                            class="inline-block"
                         />
                       </td>
                     </tr>

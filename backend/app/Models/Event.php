@@ -80,4 +80,14 @@ class Event extends Model
         return $this->hasOne(EventCalendar::class, 'event');
     }
 
+    public function volunteerRoster()
+    {
+        return $this->hasMany(EventVolunteerRoster::class, 'event');
+    }
+
+    public function staffingRoles()
+    {
+        return $this->hasMany(EventStaffingRole::class, 'event');
+    }
+
 }

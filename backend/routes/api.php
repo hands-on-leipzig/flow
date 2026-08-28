@@ -31,6 +31,11 @@ use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
+use App\Http\Controllers\Api\VolunteerPersonController;
+use App\Http\Controllers\Api\EventVolunteerFieldController;
+use App\Http\Controllers\Api\EventVolunteerRosterController;
+use App\Http\Controllers\Api\EventStaffingController;
+use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Models\Event;
 use App\Services\SeasonService;
 use Illuminate\Http\Request;
@@ -252,6 +257,31 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);
     Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
     Route::delete('/teams/{team}', [TeamController::class, 'destroy']);
+
+    // Volunteer staffing (pool + roster)
+    Route::get('/events/{event}/volunteers', [VolunteerPersonController::class, 'index']);
+    Route::post('/events/{event}/volunteers', [VolunteerPersonController::class, 'store']);
+    Route::post('/events/{event}/volunteers/import', [VolunteerPersonController::class, 'import']);
+    Route::get('/events/{event}/volunteers/export', [VolunteerPersonController::class, 'exportCsv']);
+    Route::put('/volunteers/{volunteer}', [VolunteerPersonController::class, 'update']);
+    Route::delete('/volunteers/{volunteer}', [VolunteerPersonController::class, 'destroy']);
+    Route::get('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'index']);
+    Route::post('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'store']);
+    Route::patch('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'update']);
+    Route::delete('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'destroy']);
+    Route::get('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'index']);
+    Route::get('/events/{event}/volunteer-roster/export', [EventVolunteerRosterController::class, 'exportCsv']);
+    Route::post('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'store']);
+    Route::patch('/events/{event}/volunteer-roster/{volunteer}/detail', [EventVolunteerRosterController::class, 'updateDetail']);
+    Route::patch('/events/{event}/volunteer-roster/{volunteer}/custom', [EventVolunteerRosterController::class, 'updateCustom']);
+    Route::delete('/events/{event}/volunteer-roster/{volunteer}', [EventVolunteerRosterController::class, 'destroy']);
+    Route::get('/events/{event}/staffing', [EventStaffingController::class, 'index']);
+    Route::post('/events/{event}/staffing/sync', [EventStaffingController::class, 'sync']);
+    Route::post('/events/{event}/staffing/groups/{group}/assignments', [EventStaffingAssignmentController::class, 'store']);
+    Route::delete('/events/{event}/staffing/groups/{group}/assignments/{volunteer}', [EventStaffingAssignmentController::class, 'destroy']);
+    Route::post('/events/{event}/staffing/local-roles', [EventStaffingAssignmentController::class, 'storeLocalRole']);
+    Route::put('/events/{event}/staffing/local-roles/{role}', [EventStaffingAssignmentController::class, 'updateLocalRole']);
+    Route::delete('/events/{event}/staffing/local-roles/{role}', [EventStaffingAssignmentController::class, 'destroyLocalRole']);
 
     Route::prefix('logos')->group(function () {
         Route::get('/', [LogoController::class, 'index']);

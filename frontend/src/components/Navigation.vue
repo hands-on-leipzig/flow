@@ -50,7 +50,8 @@ const readiness = ref({
   explore_teams_ok: true,
   challenge_teams_ok: true,
   future_8_teams_ok: true,
-  room_mapping_ok: true
+  room_mapping_ok: true,
+  staffing_ok: true,
 })
 
 async function checkDataReadiness() {
@@ -62,6 +63,7 @@ async function checkDataReadiness() {
       challenge_teams_ok: !!data.challenge_teams_ok,
       future_8_teams_ok: data.future_8_teams_ok !== false,
       room_mapping_ok: !!data.room_mapping_ok,
+      staffing_ok: data.staffing_ok !== false,
     }
   } else {
     readiness.value = {
@@ -69,6 +71,7 @@ async function checkDataReadiness() {
       challenge_teams_ok: false,
       future_8_teams_ok: false,
       room_mapping_ok: false,
+      staffing_ok: false,
     }
   }
 }
@@ -94,7 +97,7 @@ const teamNavChildren = computed<NavChild[]>(() => {
     name: programDisplayName(program),
     path: teamPathFor(program),
     icon: 'bi-people',
-    iconSrc: programLogoSrc(program.name),
+    iconSrc: programLogoSrc(program),
   }))
 })
 
@@ -135,6 +138,16 @@ const navEntries = computed<NavEntry[]>(() => [
     children: teamNavChildren.value,
   },
   {name: 'Räume', path: '/plan/rooms', icon: 'bi-door-open'},
+  {
+    name: 'Helfer:innen',
+    path: '/plan/volunteers',
+    icon: 'bi-person-heart',
+    children: [
+      {name: 'Personen', path: '/plan/volunteers', icon: 'bi-person-lines-fill'},
+      {name: 'Helferliste', path: '/plan/volunteers/roster', icon: 'bi-clipboard-check'},
+      {name: 'Zuordnung', path: '/plan/volunteers/staffing', icon: 'bi-diagram-3'},
+    ],
+  },
   {
     name: 'Ausgabe',
     path: '/plan/publish',
@@ -230,6 +243,7 @@ watch(
           challenge_teams_ok: !!newVal.challenge_teams_ok,
           future_8_teams_ok: newVal.future_8_teams_ok !== false,
           room_mapping_ok: !!newVal.room_mapping_ok,
+          staffing_ok: newVal.staffing_ok !== false,
         }
       }
     },
@@ -270,6 +284,8 @@ function hasWarning(tabPath: string): boolean {
         || !readiness.value.future_8_teams_ok
     case '/plan/rooms':
       return !readiness.value.room_mapping_ok
+    case '/plan/volunteers/staffing':
+      return !readiness.value.staffing_ok
     default:
       return false
   }

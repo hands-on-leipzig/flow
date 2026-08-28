@@ -4,12 +4,14 @@ namespace App\Jobs;
 
 use App\Services\PlanGeneratorService;
 use App\Services\EventAttentionService;
+use App\Services\StaffingSyncService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class GeneratePlanJob implements ShouldQueue
 {
@@ -41,6 +43,18 @@ class GeneratePlanJob implements ShouldQueue
         if ($eventId) {
             app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
             app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+
+            if (config('staffing.sync_after_generate')) {
+                try {
+                    app(StaffingSyncService::class)->syncForEvent((int) $eventId);
+                } catch (\Throwable $e) {
+                    Log::error('Staffing sync after generation failed', [
+                        'event' => $eventId,
+                        'plan' => $this->planId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
         }
     }
 }

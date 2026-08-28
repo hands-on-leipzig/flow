@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {eventPrograms, programDisplayName, programId} from '@/utils/eventPrograms'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import {eventPrograms, programDisplayName, programId, resolveProgramRef} from '@/utils/eventPrograms'
 import {useEventStore} from '@/stores/event'
 
 const EXPLORE_ID = 2
@@ -98,17 +98,18 @@ watch(
 )
 
 const exploreLabel = computed(() => programDisplayName('EXPLORE') || 'Explore')
+const exploreProgram = computed(() => resolveProgramRef(eventStore.selectedEvent, EXPLORE_ID))
 </script>
 
 <template>
   <section class="integration-tile glass-card liquid-surface-inner">
     <header class="integration-tile__header">
       <div class="integration-tile__logos">
-        <img
-            :src="programLogoSrc('EXPLORE')"
-            :alt="programLogoAlt('EXPLORE')"
-            class="integration-tile__logo"
-        >
+        <ProgramLogo
+            v-if="exploreProgram"
+            :program="exploreProgram"
+            size="section"
+        />
       </div>
       <h2 class="glass-card__title !mb-0">
         {{ exploreLabel }} und andere Programme

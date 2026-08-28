@@ -6,16 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class MRole extends Model
 {
-    // Tabelle
     protected $table = 'm_role';
 
-    // Primärschlüssel
     protected $primaryKey = 'id';
 
-    // Keine Timestamps (created_at/updated_at)
     public $timestamps = false;
 
-    // Mass-Assignment Felder
     protected $fillable = [
         'name',
         'name_short',
@@ -26,6 +22,18 @@ class MRole extends Model
         'differentiation_source',
         'differentiation_parameter',
         'preview_matrix',
-        'pdf_export' => 'boolean',
+        'pdf_export',
+        'staffable',
     ];
+
+    protected $casts = [
+        'preview_matrix' => 'boolean',
+        'pdf_export' => 'boolean',
+        'staffable' => 'boolean',
+    ];
+
+    public function staffingRule()
+    {
+        return $this->hasOne(MStaffingRule::class, 'm_role');
+    }
 }

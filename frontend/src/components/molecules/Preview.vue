@@ -8,7 +8,7 @@ import axios from 'axios'
 import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility'
-import { programLogoSrc } from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getProgramTheme } from '@/utils/programTheme'
 
 const FIRST_PROGRAM = {
@@ -114,7 +114,7 @@ const overviewHtml = ref<string>('')
 /** Rollen / Teams grid HTML (Überblick-style). */
 const rolesHtml = ref<string>('')
 const teamsHtml = ref<string>('')
-type PreviewProgramFilter = { id: number; label: string; logo: string }
+type PreviewProgramFilter = { id: number; label: string }
 const rolesPrograms = ref<PreviewProgramFilter[]>([])
 const teamsPrograms = ref<PreviewProgramFilter[]>([])
 /** Program id → visible (default true). */
@@ -135,10 +135,9 @@ const teamsHiddenProgramIds = computed(() =>
 
 function mapPreviewPrograms(raw: unknown): PreviewProgramFilter[] {
   if (!Array.isArray(raw)) return []
-  return raw.map((p: { id: number; label: string; logo: string }) => ({
+  return raw.map((p: { id: number; label: string }) => ({
     id: Number(p.id),
     label: String(p.label ?? ''),
-    logo: String(p.logo ?? ''),
   }))
 }
 
@@ -445,7 +444,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
         :aria-pressed="rolesProgramOn[p.id] !== false"
         @click="toggleRolesProgram(p.id)"
       >
-        <img :src="p.logo" alt="" class="preview-program-choice__logo" />
+        <ProgramLogo :program="p.id" size="sm" decorative class="preview-program-choice__logo" />
         <span>{{ p.label }}</span>
       </button>
     </div>
@@ -463,7 +462,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
         :aria-pressed="teamsProgramOn[p.id] !== false"
         @click="toggleTeamsProgram(p.id)"
       >
-        <img :src="p.logo" alt="" class="preview-program-choice__logo" />
+        <ProgramLogo :program="p.id" size="sm" decorative class="preview-program-choice__logo" />
         <span>{{ p.label }}</span>
       </button>
     </div>
@@ -481,10 +480,11 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
         :aria-pressed="selectedFirstProgram === programId"
         @click="selectMatchPlanProgram(programId)"
       >
-        <img
+        <ProgramLogo
           v-if="themeForProgram(programId).catalogName"
-          :src="programLogoSrc(themeForProgram(programId).catalogName)"
-          alt=""
+          :program="programId"
+          size="sm"
+          decorative
           class="preview-program-choice__logo"
         />
         <span>{{ matchPlanProgramLabel(programId) }}</span>

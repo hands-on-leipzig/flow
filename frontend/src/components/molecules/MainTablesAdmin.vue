@@ -85,7 +85,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-[var(--color-border)]">
-                <tr v-for="(record, index) in tableData" :key="record.id || index">
+                <tr v-for="(record, index) in tableData" :key="getRecordKey(record) ?? index">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div v-if="editingRecord === index" class="flex space-x-2">
                       <button
@@ -134,13 +134,41 @@
                       <option value="window">window — Zeitfenster / Rahmen</option>
                       <option value="info">info — Kontext / optional</option>
                     </select>
+                    <select
+                      v-else-if="editingRecord === index && isStaffingRoleColumn(column) && isNewRecord(index)"
+                      v-model="editingData[column]"
+                      class="glass-input liquid-surface-control !px-3 !py-2 w-full"
+                    >
+                      <option value="">Rolle wählen…</option>
+                      <option
+                        v-for="role in staffingRoleOptions"
+                        :key="role.id"
+                        :value="role.id"
+                      >
+                        {{ role.id }} — {{ role.name }}
+                      </option>
+                    </select>
+                    <textarea
+                      v-else-if="editingRecord === index && column === 'ui_description'"
+                      v-model="editingData[column]"
+                      rows="2"
+                      class="glass-input liquid-surface-control !px-3 !py-2 w-full min-w-[16rem]"
+                    />
+                    <input
+                      v-else-if="editingRecord === index && isStaffingRoleColumn(column) && !isNewRecord(index)"
+                      :value="formatStaffingRole(record[column])"
+                      type="text"
+                      disabled
+                      class="glass-input liquid-surface-control !px-3 !py-2 w-full opacity-70"
+                    />
                     <input
                       v-else-if="editingRecord === index"
                       v-model="editingData[column]"
                       :type="getInputType(column)"
                       class="glass-input liquid-surface-control !px-3 !py-2 w-full"
                     />
-                    <span v-else>{{ record[column] || '-' }}</span>
+                    <span v-else-if="isStaffingRoleColumn(column)">{{ formatStaffingRole(record[column]) }}</span>
+                    <span v-else>{{ record[column] ?? '-' }}</span>
                   </td>
                 </tr>
               </tbody>
@@ -210,6 +238,8 @@ const editingRecord = ref(null)
 const editingData = ref({})
 const creatingPR = ref(false)
 const recordToDelete = ref(null)
+const primaryKey = ref('id')
+const roleCatalog = ref([])
 
 const availableTables = ref([
   { name: 'm_activity_type', displayName: 'Activity Types', recordCount: 0 },
@@ -218,6 +248,7 @@ const availableTables = ref([
   { name: 'm_level', displayName: 'Levels', recordCount: 0 },
   { name: 'm_parameter', displayName: 'Parameters', recordCount: 0 },
   { name: 'm_role', displayName: 'Roles', recordCount: 0 },
+  { name: 'm_staffing_rule', displayName: 'Staffing Rules', recordCount: 0 },
   { name: 'm_room_type', displayName: 'Room Types', recordCount: 0 },
   { name: 'm_room_type_group', displayName: 'Room Type Groups', recordCount: 0 },
   { name: 'm_season', displayName: 'Seasons', recordCount: 0 },
@@ -235,21 +266,38 @@ const loadTableData = async () => {
 
   loading.value = true
   try {
+    if (selectedTable.value === 'm_staffing_rule') {
+      await loadRoleCatalog()
+    }
+
     const response = await axios.get(`/admin/main-tables/${selectedTable.value}`)
     tableData.value = response.data.data || []
+    primaryKey.value = response.data.primary_key || 'id'
 
     if (tableData.value.length > 0) {
       tableColumns.value = Object.keys(tableData.value[0])
     } else {
       const columnsResponse = await axios.get(`/admin/main-tables/${selectedTable.value}/columns`)
       tableColumns.value = columnsResponse.data.columns || []
+      primaryKey.value = columnsResponse.data.primary_key || 'id'
     }
   } catch (error) {
     console.error('Error loading table data:', error)
     tableData.value = []
     tableColumns.value = []
+    primaryKey.value = 'id'
   } finally {
     loading.value = false
+  }
+}
+
+const loadRoleCatalog = async () => {
+  try {
+    const response = await axios.get('/admin/main-tables/m_role')
+    roleCatalog.value = response.data.data || []
+  } catch (error) {
+    console.error('Error loading role catalog:', error)
+    roleCatalog.value = []
   }
 }
 
@@ -288,18 +336,23 @@ const cancelEdit = () => {
 const saveRecord = async (index) => {
   try {
     const record = tableData.value[index]
-    const isNew = !record.id
+    const recordKey = getRecordKey(record)
+    const isNew = recordKey === null || recordKey === undefined || recordKey === ''
 
     if (isNew) {
       const response = await axios.post(`/admin/main-tables/${selectedTable.value}`, editingData.value)
       tableData.value[index] = response.data.data
     } else {
-      const response = await axios.put(`/admin/main-tables/${selectedTable.value}/${record.id}`, editingData.value)
+      const response = await axios.put(
+        `/admin/main-tables/${selectedTable.value}/${recordKey}`,
+        editingData.value
+      )
       tableData.value[index] = response.data.data
     }
 
     editingRecord.value = null
     editingData.value = {}
+    await loadTableCounts()
   } catch (error) {
     console.error('Error saving record:', error)
     showGlassToast('Fehler beim Speichern des Datensatzes: ' + (error.response?.data?.message || error.message), 'error')
@@ -308,7 +361,7 @@ const saveRecord = async (index) => {
 
 const confirmDeleteRecord = (index) => {
   const record = tableData.value[index]
-  recordToDelete.value = { index, id: record.id || null }
+  recordToDelete.value = { index, key: getRecordKey(record) }
 }
 
 const cancelDeleteRecord = () => {
@@ -323,12 +376,13 @@ const deleteRecord = async () => {
   if (!recordToDelete.value) return
 
   try {
-    const { index, id } = recordToDelete.value
-    if (id) {
-      await axios.delete(`/admin/main-tables/${selectedTable.value}/${id}`)
+    const { index, key } = recordToDelete.value
+    if (key !== null && key !== undefined && key !== '') {
+      await axios.delete(`/admin/main-tables/${selectedTable.value}/${key}`)
     }
     tableData.value.splice(index, 1)
     recordToDelete.value = null
+    await loadTableCounts()
   } catch (error) {
     console.error('Error deleting record:', error)
     showGlassToast('Fehler beim Löschen des Datensatzes: ' + (error.response?.data?.message || error.message), 'error')
@@ -362,7 +416,41 @@ const getTableDisplayName = (tableName) => {
   return table ? table.displayName : tableName
 }
 
+const getRecordKey = (record) => {
+  if (!record) return null
+  const key = record[primaryKey.value]
+  return key === undefined || key === null || key === '' ? null : key
+}
+
+const isNewRecord = (index) => {
+  const record = tableData.value[index]
+  return getRecordKey(record) === null
+}
+
+const isStaffingRoleColumn = (column) => {
+  return selectedTable.value === 'm_staffing_rule' && column === 'm_role'
+}
+
+const staffingRoleOptions = computed(() => {
+  const usedRoleIds = new Set(
+    tableData.value
+      .map((record) => record.m_role)
+      .filter((value) => value !== null && value !== undefined && value !== '')
+  )
+
+  return roleCatalog.value.filter((role) => !usedRoleIds.has(role.id))
+})
+
+const formatStaffingRole = (roleId) => {
+  if (roleId === null || roleId === undefined || roleId === '') return '-'
+  const role = roleCatalog.value.find((entry) => Number(entry.id) === Number(roleId))
+  return role ? `${role.id} — ${role.name}` : roleId
+}
+
 const getInputType = (column) => {
+  if (column === 'min' || column === 'best' || column === 'max') {
+    return 'number'
+  }
   if (column.includes('id') || column.includes('sequence') || column.includes('year')) {
     return 'number'
   }

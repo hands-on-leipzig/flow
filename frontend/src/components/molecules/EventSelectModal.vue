@@ -6,7 +6,8 @@ import dayjs from 'dayjs'
 import {useEventStore} from '@/stores/event'
 import {useAuth} from '@/composables/useAuth'
 import {showGlassToast} from '@/composables/useGlassToast'
-import {programLogoAlt, programLogoSrc, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import {seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {getAbbreviatedCompetitionType, cleanEventName} from '@/utils/eventTitle'
 import {eventPrograms} from '@/utils/eventPrograms'
 
@@ -341,13 +342,14 @@ onBeforeUnmount(() => {
 
               <div class="event-modal__item-aside">
                 <div class="event-modal__programs">
-                  <img
+                  <ProgramLogo
                       v-for="program in eventPrograms(ev)"
                       :key="program.first_program"
-                      :src="programLogoSrc(program)"
-                      :alt="programLogoAlt(program.name || program)"
+                      :event="ev"
+                      :program="program"
                       class="event-modal__program"
-                      :title="program.name"
+                      decorative
+                      :title="program.name ?? undefined"
                   />
                 </div>
                 <span v-if="isSelected(ev)" class="event-modal__check" title="Aktuell ausgewählt">
