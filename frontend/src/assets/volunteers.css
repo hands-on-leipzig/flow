@@ -147,6 +147,34 @@
   opacity: 0.85;
 }
 
+.vol-staffing-scope-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: var(--radius);
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+}
+
+.vol-staffing-scope-icon--chip {
+  width: 1rem;
+  height: 1rem;
+  font-size: 0.75rem;
+}
+
+.vol-staffing-scope-icon--base {
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.vol-staffing-scope-icon--lg {
+  width: 2.25rem;
+  height: 2.25rem;
+  font-size: 1.1rem;
+}
+
 .vol-staffing-filter__dot {
   flex-shrink: 0;
   width: 0.5rem;

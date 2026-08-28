@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import draggable from 'vuedraggable'
-import {useEventStore} from '@/stores/event'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
-import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
-import {programNameForId} from '@/utils/eventPrograms'
+import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
 import {volunteerDisplayName, type VolunteerPersonRef} from '@/utils/volunteerPerson'
 import {
   boundsLabel,
@@ -35,21 +33,11 @@ const emit = defineEmits<{
   unassign: [group: StaffingGroup, person: VolunteerPersonRef]
 }>()
 
-const eventStore = useEventStore()
-
 function dropGroup(group: StaffingGroup) {
   return {
     name: 'staffing-people',
     pull: true,
     put: !group.surplus && group.filled < group.max,
-  }
-}
-
-function roleProgramRef(role: StaffingRole) {
-  if (!role.first_program) return null
-  return {
-    first_program: role.first_program,
-    name: programNameForId(eventStore.selectedEvent, role.first_program),
   }
 }
 
@@ -63,11 +51,8 @@ function gapStatusClass(tile: StaffingTile) {
       :inactive="tile.group.surplus"
       :class="{'staffing-tile--surplus': tile.group.surplus}"
   >
-    <template v-if="roleProgramRef(tile.role)" #leading>
-      <ProgramLogo
-          :program="roleProgramRef(tile.role)!"
-          size="base"
-      />
+    <template #leading>
+      <StaffingScopeLeading :role="tile.role" size="base"/>
     </template>
     <template #title>
       <div class="staffing-title">

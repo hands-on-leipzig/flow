@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import {RouterLink} from 'vue-router'
-import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
 import {useEventStore} from '@/stores/event'
 import {programDisplayName, programId, programNameForId, type EventProgramRef} from '@/utils/eventPrograms'
 import {type StaffingFilterKey} from '@/utils/volunteerStaffingFilters'
@@ -27,13 +27,6 @@ const visibleScopes = computed(() =>
   props.scopes.filter((scope) => scope.key !== 'local' || (scope.roles ?? 0) > 0),
 )
 
-function scopeProgram(key: StaffingFilterKey) {
-  const id = programIdFromSummaryKey(key)
-  if (!id) return null
-  const program = props.programs.find((row) => programId(row) === id)
-  return program ?? {first_program: id, name: programNameForId(eventStore.selectedEvent, id)}
-}
-
 function scopeLabel(key: StaffingFilterKey) {
   if (key === 'cross') return 'Übergreifend'
   if (key === 'local') return 'Zusätzlich'
@@ -56,12 +49,6 @@ function scopeStatus(scope: StaffingScopeSummary) {
 function onSelect(key: StaffingFilterKey) {
   emit('select', key)
 }
-
-function scopeIconClass(key: StaffingFilterKey) {
-  if (key === 'cross') return 'bi-intersect'
-  if (key === 'local') return 'bi-plus-lg'
-  return ''
-}
 </script>
 
 <template>
@@ -79,18 +66,7 @@ function scopeIconClass(key: StaffingFilterKey) {
           class="flex items-center gap-2 rounded-lg px-3 py-1.5 liquid-surface-inner"
           :class="linkTo ? 'hover:bg-[var(--color-bg-hover)] transition-colors no-underline text-inherit' : ''"
       >
-        <ProgramLogo
-            v-if="scopeProgram(scope.key)"
-            :program="scopeProgram(scope.key)!"
-            size="lg"
-        />
-        <div
-            v-else
-            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[var(--color-bg-muted)] text-[var(--color-text-muted)]"
-            aria-hidden="true"
-        >
-          <i class="bi text-lg" :class="scopeIconClass(scope.key)"/>
-        </div>
+        <StaffingScopeLeading :filter-key="scope.key" size="lg"/>
         <div class="min-w-0 flex-1">
           <div class="font-medium flex items-center justify-between gap-2">
             <span class="inline-flex items-center gap-1.5 min-w-0">
@@ -138,12 +114,7 @@ function scopeIconClass(key: StaffingFilterKey) {
           @click="layout === 'list' && onSelect(scope.key)"
       >
         <div class="vol-staffing-summary__label">
-          <ProgramLogo
-              v-if="scopeProgram(scope.key)"
-              :program="scopeProgram(scope.key)!"
-              size="chip"
-              decorative
-          />
+          <StaffingScopeLeading :filter-key="scope.key" size="chip" :boxed="false"/>
           <span>{{ scopeLabel(scope.key) }}</span>
         </div>
         <div class="vol-staffing-summary__nums tabular-nums">

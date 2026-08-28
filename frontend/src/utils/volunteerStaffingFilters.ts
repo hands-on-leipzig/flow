@@ -49,3 +49,13 @@ export function staffingFilterKeyFromScope(scope: StaffingScope): StaffingFilter
   if (scope.first_program == null) return 'cross'
   return `program:${scope.first_program}`
 }
+
+export function staffingScopeIconClass(key: StaffingFilterKey): string | null {
+  if (key === 'cross') return 'bi-intersect'
+  if (key === 'local') return 'bi-star'
+  return null
+}
+
+export function staffingScopeIconFromRole(scope: StaffingScope): string | null {
+  return staffingScopeIconClass(staffingFilterKeyFromScope(scope))
+}
