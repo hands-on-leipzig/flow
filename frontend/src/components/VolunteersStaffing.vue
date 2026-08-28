@@ -11,6 +11,7 @@ import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
+import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {programNameForId} from '@/utils/eventPrograms'
 
@@ -462,14 +463,17 @@ watch(eventId, () => load(), {immediate: true})
           </span>
         </p>
       </div>
-      <button
-          type="button"
-          class="glass-btn-accent"
-          :disabled="syncing || !planId"
-          @click="syncFromPlan"
-      >
-        {{ syncing ? 'Abgleichen…' : 'Mit Plan abgleichen' }}
-      </button>
+      <div class="vol-page__actions">
+        <VolunteerEmailOutreach scope="roster"/>
+        <button
+            type="button"
+            class="glass-btn-accent"
+            :disabled="syncing || !planId"
+            @click="syncFromPlan"
+        >
+          {{ syncing ? 'Abgleichen…' : 'Mit Plan abgleichen' }}
+        </button>
+      </div>
     </header>
 
     <div v-if="!planId && !loading" class="glass-alert-warning">
@@ -824,6 +828,14 @@ watch(eventId, () => load(), {immediate: true})
   gap: 1rem;
   align-items: flex-start;
   flex-wrap: wrap;
+}
+
+.vol-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .vol-page__title {

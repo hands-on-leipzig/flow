@@ -2,6 +2,7 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
+import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 
 type RecentAssignment = { event_id: number; role: string; year: string | null }
 
@@ -190,6 +191,7 @@ onMounted(() => load())
         <h1 class="vol-page__title">Personen</h1>
         <p class="vol-page__sub">Saison-übergreifende Kontaktliste</p>
       </div>
+      <VolunteerEmailOutreach scope="pool"/>
     </header>
 
     <div v-if="error" class="glass-alert-warning vol-page__alert">{{ error }}</div>
@@ -376,7 +378,7 @@ onMounted(() => load())
   gap: 1rem;
   padding: 0.5rem 0 2rem;
 }
-.vol-page__header { display: flex; justify-content: space-between; gap: 1rem; }
+.vol-page__header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
 .vol-page__title { font-size: 1.5rem; font-weight: 650; margin: 0; }
 .vol-page__sub { margin: 0.25rem 0 0; opacity: 0.75; }
 .vol-page__alert { padding: 0.75rem 1rem; border-radius: 0.75rem; }
