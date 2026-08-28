@@ -15,17 +15,11 @@ import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreac
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
 import {compareStaffingTiles, staffingSortableFromTile} from '@/utils/volunteerStaffingSort'
+import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 
 defineOptions({name: 'VolunteersStaffing'})
 
-type Person = {
-  id: number
-  first_name: string
-  last_name: string
-  nickname: string | null
-  email: string
-  mobile?: string | null
-}
+type Person = VolunteerPersonRef
 
 type Group = {
   id: number
@@ -179,10 +173,10 @@ const personSearchMatches = computed(() => {
   if (!q) return []
 
   return pool.value
-    .filter((p) => searchHaystack(p).includes(q))
+    .filter((p) => volunteerSearchHaystack(p).includes(q))
     .sort((a, b) => {
-      const av = displayName(a).toLocaleLowerCase('de')
-      const bv = displayName(b).toLocaleLowerCase('de')
+      const av = volunteerDisplayName(a).toLocaleLowerCase('de')
+      const bv = volunteerDisplayName(b).toLocaleLowerCase('de')
       if (av < bv) return -1
       if (av > bv) return 1
       return a.id - b.id
@@ -218,24 +212,6 @@ function sortPeople(a: Person, b: Person) {
   const last = a.last_name.localeCompare(b.last_name, 'de')
   if (last !== 0) return last
   return a.first_name.localeCompare(b.first_name, 'de')
-}
-
-function displayName(person: Person) {
-  if (person.nickname?.trim()) return `${person.first_name} „${person.nickname}“ ${person.last_name}`
-  return `${person.first_name} ${person.last_name}`
-}
-
-function searchHaystack(person: Person) {
-  return [
-    person.first_name,
-    person.last_name,
-    person.nickname,
-    person.email,
-    person.mobile,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase()
 }
 
 function isOnRoster(person: Person) {
@@ -924,7 +900,7 @@ onBeforeUnmount(() => {
                 <template #item="{element: person}">
                   <span class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move">
                     <i class="bi bi-person-fill text-[var(--color-text-subtle)]"/>
-                    <span class="px-1.5 py-1 truncate max-w-[10rem]">{{ displayName(person) }}</span>
+                    <span class="px-1.5 py-1 truncate max-w-[10rem]">{{ volunteerDisplayName(person) }}</span>
                     <button
                         type="button"
                         class="ml-0.5 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] pr-1"
@@ -1027,7 +1003,7 @@ onBeforeUnmount(() => {
                           :class="searchChipIconClass(person)"
                           aria-hidden="true"
                       />
-                      <span class="staffing-search-chip__label">{{ displayName(person) }}</span>
+                      <span class="staffing-search-chip__label">{{ volunteerDisplayName(person) }}</span>
                     </span>
                   </template>
                 </draggable>
@@ -1050,7 +1026,7 @@ onBeforeUnmount(() => {
                       :class="searchChipIconClass(person)"
                       aria-hidden="true"
                   />
-                  <span class="staffing-search-chip__label">{{ displayName(person) }}</span>
+                  <span class="staffing-search-chip__label">{{ volunteerDisplayName(person) }}</span>
                 </button>
               </div>
             </div>
@@ -1079,7 +1055,7 @@ onBeforeUnmount(() => {
               <template #item="{element: person}">
                 <span class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move">
                   <i class="bi bi-person-fill text-[var(--color-text-subtle)]"/>
-                  <span class="px-1.5 py-1">{{ displayName(person) }}</span>
+                  <span class="px-1.5 py-1">{{ volunteerDisplayName(person) }}</span>
                 </span>
               </template>
             </draggable>
@@ -1093,7 +1069,7 @@ onBeforeUnmount(() => {
                   @click="openAssignModal(person)"
               >
                 <i class="bi bi-person-fill text-[var(--color-text-subtle)]"/>
-                <span class="px-1.5 py-1">{{ displayName(person) }}</span>
+                <span class="px-1.5 py-1">{{ volunteerDisplayName(person) }}</span>
               </button>
             </div>
           </template>
@@ -1183,7 +1159,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
         <div class="text-xs text-[var(--color-text-muted)] mb-3 truncate">
-          {{ displayName(pickPerson) }}
+          {{ volunteerDisplayName(pickPerson) }}
         </div>
         <div class="space-y-2">
           <button
@@ -1208,40 +1184,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.vol-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 0.5rem 0 2rem;
-}
-
-.vol-page__header {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: flex-start;
-  flex-wrap: wrap;
-}
-
-.vol-page__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
-}
-
-.vol-page__title {
-  font-size: 1.5rem;
-  font-weight: 650;
-  margin: 0;
-}
-
-.vol-page__sub {
-  margin: 0.25rem 0 0;
-  opacity: 0.75;
-}
-
 .staffing-filters {
   display: flex;
   flex-wrap: wrap;

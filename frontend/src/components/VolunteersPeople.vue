@@ -10,17 +10,9 @@ import {validateAndNormalizeMobile} from '@/utils/mobileNumber'
 import {formatDateTime} from '@/utils/dateTimeFormat'
 import {PERSON_TABLE_COLUMNS} from '@/volunteers/columns/personColumns'
 import type {VolunteerTableColumn} from '@/volunteers/columns/types'
+import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 
-type Person = {
-  id: number
-  first_name: string
-  last_name: string
-  nickname: string | null
-  email: string
-  mobile: string | null
-  updated_at: string | null
-  on_roster?: boolean
-}
+type Person = VolunteerPersonRef
 
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
@@ -73,27 +65,6 @@ function isSortableColumn(key: string): key is SortKey {
   return key === 'first_name' || key === 'last_name'
 }
 
-function displayName(p: Person) {
-  if (p.nickname?.trim()) {
-    return `${p.first_name} „${p.nickname}“ ${p.last_name}`
-  }
-  return `${p.first_name} ${p.last_name}`
-}
-
-function searchHaystack(p: Person) {
-  return [
-    p.first_name,
-    p.last_name,
-    p.nickname,
-    p.email,
-    p.mobile,
-    p.updated_at?.slice(0, 10),
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase()
-}
-
 function toggleSort(key: SortKey) {
   if (sortKey.value === key) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
@@ -115,7 +86,7 @@ const filtered = computed(() => {
   }
   const q = search.value.trim().toLowerCase()
   if (q) {
-    list = list.filter((p) => searchHaystack(p).includes(q))
+    list = list.filter((p) => volunteerSearchHaystack(p).includes(q))
   }
   const key = sortKey.value
   const dir = sortDir.value === 'asc' ? 1 : -1
@@ -137,7 +108,7 @@ const filtered = computed(() => {
 const removeFromRosterMessage = computed(() => {
   const p = removeFromRosterTarget.value
   if (!p) return ''
-  const base = `${displayName(p)} wird von der Helferliste dieser Veranstaltung entfernt.`
+  const base = `${volunteerDisplayName(p)} wird von der Helferliste dieser Veranstaltung entfernt.`
   if (assignedIds.value.has(p.id)) {
     return `${base} Bestehende Zuordnungen werden ebenfalls entfernt.`
   }
@@ -261,7 +232,7 @@ function deletePersonLabel(p: Person) {
 
 async function removePerson(p: Person) {
   if (p.on_roster) return
-  if (!confirm(`${displayName(p)} wirklich löschen?`)) return
+  if (!confirm(`${volunteerDisplayName(p)} wirklich löschen?`)) return
   error.value = ''
   try {
     await axios.delete(`/volunteers/${p.id}`)
@@ -582,114 +553,11 @@ onMounted(() => load())
 </template>
 
 <style scoped>
-.vol-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 0.5rem 0 2rem;
-}
-.vol-page__header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
-.vol-page__actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  flex-shrink: 0;
-}
-.vol-upload-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  flex-shrink: 0;
-}
-.vol-upload-trigger--active {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
-    0 8px 18px rgba(15, 23, 42, 0.08);
-}
-.vol-page__title { font-size: 1.5rem; font-weight: 650; margin: 0; }
-.vol-page__sub { margin: 0.25rem 0 0; opacity: 0.75; }
-.vol-page__alert { padding: 0.75rem 1rem; border-radius: 0.75rem; }
-.vol-page__toast {
-  padding: 0.65rem 1rem;
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, #15803d 12%, var(--color-bg-muted));
-  border: 1px solid color-mix(in srgb, #15803d 30%, var(--color-border));
-  font-size: 0.9rem;
-}
-.vol-tile {
-  padding: 1rem;
-}
-.vol-toolbar {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-.vol-toolbar__search { flex: 1; min-width: 0; }
-.vol-roster-filter {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  flex-shrink: 0;
-  padding: 0.4rem 0.65rem;
-  border: 1px solid var(--liquid-border-soft);
-  border-radius: var(--radius);
-  background: var(--liquid-tile-bg-inner);
-  box-shadow: var(--liquid-shadow-inset);
-  color: var(--color-text-muted);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.2;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-}
-.vol-roster-filter:hover {
-  background: var(--color-bg-hover);
-  color: var(--color-text);
-}
-.vol-roster-filter--active {
-  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent-muted) 55%, var(--liquid-tile-bg-inner));
-  color: var(--color-text);
-}
-.vol-roster-filter--active .vol-roster-filter__icon {
-  color: var(--color-accent);
-}
-.vol-roster-filter__icon {
-  font-size: 0.95rem;
-  line-height: 1;
-}
-.vol-toolbar__count {
-  opacity: 0.6;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.vol-muted { opacity: 0.7; font-size: 0.9rem; margin: 0; }
-
 .vol-input--invalid {
   border-color: color-mix(in srgb, var(--color-danger, #dc2626) 72%, var(--color-border-strong));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-danger, #dc2626) 35%, transparent);
 }
 
-.vol-table-frame {
-  width: 100%;
-  scrollbar-gutter: stable;
-}
-.vol-table-frame--scroll {
-  max-height: min(62vh, 36rem);
-  overflow: auto;
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, var(--liquid-border-soft));
-  background: color-mix(in srgb, #ffffff 70%, transparent);
-}
-.vol-table {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 0.875rem;
-}
-.vol-col--roster { width: 2.75rem; }
 .vol-col--first { width: 13%; }
 .vol-col--last { width: 13%; }
 .vol-col--nick { width: 11%; }
@@ -698,103 +566,13 @@ onMounted(() => load())
 .vol-col--updated { width: 11%; }
 .vol-col--actions { width: 10rem; }
 
-.vol-table th,
-.vol-table td {
-  padding: 0.4rem 0.45rem;
-  text-align: left;
-  vertical-align: middle;
-  border-bottom: 1px solid var(--color-border);
-}
-.vol-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
-  backdrop-filter: blur(8px);
-}
 .vol-table__updated {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   font-size: 0.8125rem;
   color: var(--color-text-muted);
 }
-.vol-table__roster {
-  text-align: center;
-}
-.vol-table th.vol-table__roster,
-.vol-table td.vol-table__roster {
-  text-align: center;
-}
-.vol-roster-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  width: 2rem;
-  height: 2rem;
-  margin: 0 auto;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  cursor: pointer;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-.vol-roster-icon__tip {
-  position: absolute;
-  top: 50%;
-  left: calc(100% + 0.45rem);
-  z-index: 30;
-  width: max-content;
-  max-width: 12rem;
-  padding: 0.5rem 0.65rem;
-  font-size: 0.8125rem;
-  font-weight: 400;
-  line-height: 1.4;
-  color: var(--color-text-muted);
-  text-align: left;
-  white-space: normal;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(-50%) translateX(-2px);
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-.vol-roster-icon:hover .vol-roster-icon__tip,
-.vol-roster-icon:focus-visible .vol-roster-icon__tip {
-  opacity: 1;
-  transform: translateY(-50%) translateX(0);
-}
-.vol-roster-icon--on {
-  color: var(--color-accent);
-}
-.vol-roster-icon--on:hover:not(:disabled) {
-  background: var(--color-accent-muted);
-}
-.vol-roster-icon--off {
-  color: var(--color-text-muted);
-}
-.vol-roster-icon--off .vol-roster-icon__glyph {
-  opacity: 0.45;
-}
-.vol-roster-icon--off:hover:not(:disabled) {
-  color: var(--color-text);
-  background: var(--color-bg-hover);
-}
-.vol-roster-icon--off:hover:not(:disabled) .vol-roster-icon__glyph {
-  opacity: 0.85;
-}
-.vol-roster-icon:disabled {
-  cursor: not-allowed;
-}
-.vol-roster-icon:disabled .vol-roster-icon__glyph {
-  opacity: 0.35;
-}
+
 .vol-table__actions {
   display: flex;
   gap: 0.2rem;
@@ -802,78 +580,28 @@ onMounted(() => load())
   justify-content: flex-end;
   white-space: nowrap;
 }
+
 .vol-composer--edit {
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent),
     0 10px 24px rgba(15, 23, 42, 0.06);
 }
+
 .vol-composer__save {
   min-width: 5.25rem;
 }
+
 .vol-composer__cancel {
   padding-inline: 0.65rem;
   font-size: 0.8125rem;
 }
+
 .vol-table__row--editing td {
   background: color-mix(in srgb, var(--color-accent) 7%, transparent);
 }
-.vol-icon-btn {
-  width: 2.25rem;
-  height: 2.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-.vol-icon-btn .bi {
-  font-size: 1.05rem;
-  line-height: 1;
-}
-.vol-icon-btn:hover:not(:disabled) {
-  color: var(--color-accent);
-  background: var(--color-accent-muted);
-}
+
 .vol-table .glass-input {
   width: 100%;
   min-width: 0;
-}
-.vol-sort {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  cursor: pointer;
-}
-.vol-sort .bi {
-  font-size: 0.9rem;
-  opacity: 0.45;
-}
-.vol-sort:hover .bi,
-.vol-sort--active .bi {
-  opacity: 1;
-  color: var(--color-accent);
-}
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 </style>

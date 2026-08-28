@@ -11,6 +11,7 @@ import {compareRosterEntriesByStaffingRole} from '@/utils/volunteerStaffingSort'
 import {flowFilename} from '@/utils/flowFilename'
 import {ROSTER_TABLE_COLUMNS, type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {rosterEntryHasUnsetField} from '@/utils/volunteerRosterUnset'
+import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 
 const T_SHIRT_CUTS = [
   {value: 'maenner', label: 'Männer'},
@@ -34,16 +35,7 @@ type RosterDetail = {
   updated_at: string | null
 }
 
-type Person = {
-  id: number
-  first_name: string
-  last_name: string
-  nickname: string | null
-  email: string
-  mobile: string | null
-  updated_at: string | null
-  on_roster?: boolean
-}
+type Person = VolunteerPersonRef
 
 type RosterAssignment = {
   tile_name: string
@@ -108,10 +100,10 @@ const personSearchMatches = computed(() => {
   if (!q) return []
 
   return pool.value
-    .filter((p) => searchHaystack(p).includes(q))
+    .filter((p) => volunteerSearchHaystack(p).includes(q))
     .sort((a, b) => {
-      const av = displayName(a).toLocaleLowerCase('de')
-      const bv = displayName(b).toLocaleLowerCase('de')
+      const av = volunteerDisplayName(a).toLocaleLowerCase('de')
+      const bv = volunteerDisplayName(b).toLocaleLowerCase('de')
       if (av < bv) return -1
       if (av > bv) return 1
       return a.id - b.id
@@ -127,13 +119,13 @@ const sortedRoster = computed(() => {
       const cmp = compareRosterEntriesByStaffingRole(a, b, programs)
       if (cmp !== 0) return cmp * dir
     } else {
-      const av = displayName(a.person).toLocaleLowerCase('de')
-      const bv = displayName(b.person).toLocaleLowerCase('de')
+      const av = volunteerDisplayName(a.person).toLocaleLowerCase('de')
+      const bv = volunteerDisplayName(b.person).toLocaleLowerCase('de')
       if (av < bv) return -1 * dir
       if (av > bv) return 1 * dir
     }
-    const aName = displayName(a.person).toLocaleLowerCase('de')
-    const bName = displayName(b.person).toLocaleLowerCase('de')
+    const aName = volunteerDisplayName(a.person).toLocaleLowerCase('de')
+    const bName = volunteerDisplayName(b.person).toLocaleLowerCase('de')
     if (aName < bName) return -1
     if (aName > bName) return 1
     return a.person.id - b.person.id
@@ -172,7 +164,7 @@ const visibleRosterPeople = computed(() => filteredRoster.value.map((entry) => e
 const removeMessage = computed(() => {
   const entry = removeTarget.value
   if (!entry) return ''
-  const base = `${displayName(entry.person)} wird von der Helferliste dieser Veranstaltung entfernt.`
+  const base = `${volunteerDisplayName(entry.person)} wird von der Helferliste dieser Veranstaltung entfernt.`
   if (entry.has_assignment) {
     return `${base} Bestehende Zuordnungen werden ebenfalls entfernt.`
   }
@@ -192,25 +184,6 @@ function columnColClass(key: string) {
 
 function isSortableRosterColumn(key: string): key is 'name' | 'role' {
   return key === 'name' || key === 'role'
-}
-
-function displayName(p: Person) {
-  if (p.nickname?.trim()) return `${p.first_name} „${p.nickname}“ ${p.last_name}`
-  return `${p.first_name} ${p.last_name}`
-}
-
-function searchHaystack(p: Person) {
-  return [
-    p.first_name,
-    p.last_name,
-    p.nickname,
-    p.email,
-    p.mobile,
-    p.updated_at?.slice(0, 10),
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase()
 }
 
 function isOnRoster(person: Person) {
@@ -531,7 +504,7 @@ async function addToRoster(person: Person) {
       volunteer_person: person.id,
     })
     await load()
-    showToast(`${displayName(person)} zur Helferliste hinzugefügt`)
+    showToast(`${volunteerDisplayName(person)} zur Helferliste hinzugefügt`)
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Hinzufügen fehlgeschlagen'
   } finally {
@@ -660,7 +633,7 @@ onBeforeUnmount(() => {
                 :class="isOnRoster(person) ? 'bi-clipboard-check-fill vol-search-chip__icon--roster' : 'bi-person-fill'"
                 aria-hidden="true"
             />
-            <span class="vol-search-chip__label">{{ displayName(person) }}</span>
+            <span class="vol-search-chip__label">{{ volunteerDisplayName(person) }}</span>
           </button>
         </div>
       </div>
@@ -769,7 +742,7 @@ onBeforeUnmount(() => {
                 </button>
               </td>
               <template v-for="column in tableColumns" :key="`${entry.id}-${column.key}`">
-                <td v-if="column.key === 'name'" class="vol-table__name">{{ displayName(entry.person) }}</td>
+                <td v-if="column.key === 'name'" class="vol-table__name">{{ volunteerDisplayName(entry.person) }}</td>
                 <td v-else-if="column.key === 'role'" class="vol-table__role">
                   <div v-if="entry.assignments?.length" class="vol-table__assignments">
                     <div
@@ -1002,43 +975,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.vol-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding: 0.5rem 0 2rem;
-}
-.vol-page__header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
-.vol-page__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  justify-content: flex-end;
-  flex-shrink: 0;
-}
-.vol-upload-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  flex-shrink: 0;
-}
-.vol-upload-trigger--active {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
-    0 8px 18px rgba(15, 23, 42, 0.08);
-}
-.vol-page__title { font-size: 1.5rem; font-weight: 650; margin: 0; }
-.vol-page__sub { margin: 0.25rem 0 0; opacity: 0.75; }
-.vol-page__alert { padding: 0.75rem 1rem; border-radius: 0.75rem; }
-.vol-page__toast {
-  padding: 0.65rem 1rem;
-  border-radius: 0.75rem;
-  background: color-mix(in srgb, #15803d 12%, var(--color-bg-muted));
-  border: 1px solid color-mix(in srgb, #15803d 30%, var(--color-border));
-  font-size: 0.9rem;
-}
-.vol-tile { padding: 1rem; }
 .vol-search-tile {
   display: flex;
   flex-direction: column;
@@ -1078,7 +1014,6 @@ onBeforeUnmount(() => {
   opacity: 0.55;
   cursor: not-allowed;
 }
-.vol-muted { opacity: 0.7; font-size: 0.9rem; margin: 0; }
 
 .roster-filters {
   display: flex;
@@ -1098,9 +1033,6 @@ onBeforeUnmount(() => {
 
 .roster-filters__count {
   margin-left: auto;
-  opacity: 0.6;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .roster-filter {
@@ -1148,25 +1080,6 @@ onBeforeUnmount(() => {
   opacity: 1;
 }
 
-.vol-table-frame {
-  width: 100%;
-  scrollbar-gutter: stable;
-}
-.vol-table-frame--scroll {
-  max-height: min(62vh, 36rem);
-  overflow: auto;
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, var(--liquid-border-soft));
-  background: color-mix(in srgb, #ffffff 70%, transparent);
-}
-.vol-table {
-  width: 100%;
-  table-layout: fixed;
-  border-collapse: separate;
-  border-spacing: 0;
-  font-size: 0.875rem;
-}
-.vol-col--roster { width: 2.75rem; }
 .vol-col--name { width: 20%; }
 .vol-col--role { width: 18%; }
 .vol-col--tshirt { width: 11%; }
@@ -1174,29 +1087,6 @@ onBeforeUnmount(() => {
 .vol-col--notes { width: auto; }
 .vol-col--custom { width: 11%; }
 
-.vol-table th,
-.vol-table td {
-  padding: 0.4rem 0.45rem;
-  text-align: left;
-  vertical-align: middle;
-  border-bottom: 1px solid var(--color-border);
-}
-.vol-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  font-size: 0.75rem;
-  font-weight: 650;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
-  backdrop-filter: blur(8px);
-}
-.vol-table tbody tr:last-child td { border-bottom: none; }
-.vol-table__roster { text-align: center; }
-.vol-table th.vol-table__roster,
-.vol-table td.vol-table__roster { text-align: center; }
 .vol-table__name {
   font-weight: 600;
 }
@@ -1339,94 +1229,5 @@ onBeforeUnmount(() => {
 .vol-tristate .glass-segment__btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.vol-roster-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  width: 2rem;
-  height: 2rem;
-  margin: 0 auto;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  cursor: pointer;
-  font-size: 1.1rem;
-  line-height: 1;
-}
-.vol-roster-icon__tip {
-  position: absolute;
-  top: 50%;
-  left: calc(100% + 0.45rem);
-  z-index: 30;
-  width: max-content;
-  max-width: 12rem;
-  padding: 0.5rem 0.65rem;
-  font-size: 0.8125rem;
-  font-weight: 400;
-  line-height: 1.4;
-  color: var(--color-text-muted);
-  text-align: left;
-  white-space: normal;
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(-50%) translateX(-2px);
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-.vol-roster-icon:hover .vol-roster-icon__tip,
-.vol-roster-icon:focus-visible .vol-roster-icon__tip {
-  opacity: 1;
-  transform: translateY(-50%) translateX(0);
-}
-.vol-roster-icon--on {
-  color: var(--color-accent);
-}
-.vol-roster-icon--on:hover:not(:disabled) {
-  background: var(--color-accent-muted);
-}
-.vol-roster-icon:disabled {
-  cursor: not-allowed;
-}
-.vol-roster-icon:disabled .vol-roster-icon__glyph {
-  opacity: 0.35;
-}
-
-.vol-sort {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  cursor: pointer;
-}
-.vol-sort .bi {
-  font-size: 0.9rem;
-  opacity: 0.45;
-}
-.vol-sort:hover .bi,
-.vol-sort--active .bi {
-  opacity: 1;
-  color: var(--color-accent);
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 </style>

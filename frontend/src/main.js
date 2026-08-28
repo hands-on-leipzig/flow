@@ -4,6 +4,7 @@ import {createRouter, createWebHistory} from 'vue-router'
 import axios from 'axios'
 import './assets/main.css'
 import './assets/glass-layout.css'
+import './assets/volunteers.css'
 import keycloak from "@/keycloak.js";
 import Schedule from "@/components/Schedule.vue";
 import ScheduleGeneral from "@/components/ScheduleGeneral.vue";
