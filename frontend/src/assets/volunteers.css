@@ -175,6 +175,14 @@
   font-size: 1.1rem;
 }
 
+.vol-staffing-filter__label {
+  min-width: 0;
+}
+
+.vol-staffing-filter__assigned {
+  font-variant-numeric: tabular-nums;
+}
+
 .vol-staffing-filter__dot {
   flex-shrink: 0;
   width: 0.5rem;

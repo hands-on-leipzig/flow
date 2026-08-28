@@ -11,7 +11,6 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
-import VolunteerStaffingSummary from '@/components/volunteers/VolunteerStaffingSummary.vue'
 import VolunteerStaffingBoundsPopover from '@/components/volunteers/VolunteerStaffingBoundsPopover.vue'
 import VolunteerStaffingTile from '@/components/volunteers/VolunteerStaffingTile.vue'
 import {eventPrograms} from '@/utils/eventPrograms'
@@ -503,19 +502,12 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
           Noch keine Rollen. Rollen werden beim Erzeugen des Ablaufs angelegt — oder links eine eigene Rolle anlegen.
         </p>
 
-        <VolunteerStaffingSummary
-            v-if="planId"
-            class="mb-4"
-            :scopes="staffingSummary"
-            :programs="programFilters"
-            layout="bar"
-        />
-
         <VolunteerStaffingFilterBar
             v-if="tiles.length"
             card
             :active-filters="activeTileFilters"
             :programs="programFilters"
+            :scopes="staffingSummary"
             :has-attention="filterHasAttention"
             @toggle="onToggleTileFilter"
         />
@@ -668,7 +660,7 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
             Noch niemand auf der Helferliste — unter Helferliste Personen hinzufügen.
           </p>
           <p v-else-if="!unassignedPeople.length" class="staffing-sidebar-muted">
-            Alle auf der Helferliste sind zugewiesen.
+            Alle auf der Helferliste sind zugeordnet.
           </p>
 
           <template v-else>

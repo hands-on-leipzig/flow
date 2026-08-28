@@ -5,12 +5,14 @@ import {
   isStaffingFilterActive,
   type StaffingFilterKey,
 } from '@/utils/volunteerStaffingFilters'
+import type {StaffingScopeSummary} from '@/utils/volunteerStaffingSummary'
 
 type ProgramRef = {first_program?: number; id?: number; name?: string | null}
 
 const props = defineProps<{
   activeFilters: Set<StaffingFilterKey>
   programs: ReadonlyArray<ProgramRef>
+  scopes?: ReadonlyArray<StaffingScopeSummary>
   card?: boolean
   hasAttention?: (key: StaffingFilterKey) => boolean
 }>()
@@ -26,6 +28,10 @@ function isActive(key: StaffingFilterKey) {
 function onToggle(key: StaffingFilterKey) {
   emit('toggle', key)
 }
+
+function assignedCount(key: StaffingFilterKey) {
+  return props.scopes?.find((scope) => scope.key === key)?.assigned
+}
 </script>
 
 <template>
@@ -40,7 +46,9 @@ function onToggle(key: StaffingFilterKey) {
         @click="onToggle('cross')"
     >
       <StaffingScopeLeading filter-key="cross" size="chip" :boxed="false"/>
-      <span class="vol-staffing-filter__label">Übergreifend</span>
+      <span class="vol-staffing-filter__label">
+        Übergreifend<span v-if="scopes" class="vol-staffing-filter__assigned"> ({{ assignedCount('cross') }})</span>
+      </span>
       <span
           v-if="hasAttention?.('cross')"
           class="vol-staffing-filter__dot"
@@ -60,7 +68,9 @@ function onToggle(key: StaffingFilterKey) {
           size="chip"
           :boxed="false"
       />
-      <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
+      <span class="vol-staffing-filter__label">
+        {{ programDisplayName(program) }}<span v-if="scopes" class="vol-staffing-filter__assigned"> ({{ assignedCount(`program:${programId(program)}`) }})</span>
+      </span>
       <span
           v-if="hasAttention?.(`program:${programId(program)}`)"
           class="vol-staffing-filter__dot"
@@ -74,7 +84,9 @@ function onToggle(key: StaffingFilterKey) {
         @click="onToggle('local')"
     >
       <StaffingScopeLeading filter-key="local" size="chip" :boxed="false"/>
-      <span class="vol-staffing-filter__label">Zusätzlich</span>
+      <span class="vol-staffing-filter__label">
+        Zusätzlich<span v-if="scopes" class="vol-staffing-filter__assigned"> ({{ assignedCount('local') }})</span>
+      </span>
       <span
           v-if="hasAttention?.('local')"
           class="vol-staffing-filter__dot"
