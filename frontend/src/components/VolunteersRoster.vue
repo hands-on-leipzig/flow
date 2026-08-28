@@ -546,11 +546,13 @@ onBeforeUnmount(() => {
       <div class="vol-page__actions">
         <button
             type="button"
-            class="glass-btn-secondary"
+            class="glass-btn-secondary vol-upload-trigger"
+            :class="{'vol-upload-trigger--active': exportBusy}"
             :disabled="!eventId || exportBusy || !roster.length"
             @click="downloadCsv"
         >
-          {{ exportBusy ? 'Export…' : 'CSV' }}
+          <i class="bi bi-download" aria-hidden="true"/>
+          {{ exportBusy ? 'Export…' : 'Download' }}
         </button>
         <VolunteerEmailOutreach scope="roster" :people="visibleRosterPeople"/>
       </div>
@@ -899,6 +901,18 @@ onBeforeUnmount(() => {
   gap: 0.5rem;
   align-items: center;
   justify-content: flex-end;
+  flex-shrink: 0;
+}
+.vol-upload-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+.vol-upload-trigger--active {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 45%, transparent),
+    0 8px 18px rgba(15, 23, 42, 0.08);
 }
 .vol-page__title { font-size: 1.5rem; font-weight: 650; margin: 0; }
 .vol-page__sub { margin: 0.25rem 0 0; opacity: 0.75; }
