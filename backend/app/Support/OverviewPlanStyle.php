@@ -26,6 +26,30 @@ final class OverviewPlanStyle
     /** Slightly stronger light mix for Robot-Game / Game (same border hue). */
     public const FIELD_TINT = 0.18;
 
+    /** Teams-grid slot block cell fill. */
+    public const SLOT_TINT = '#fce4ec';
+
+    /**
+     * Teams-grid style key for a slot assignment (pale pink fill, program border).
+     */
+    public static function slotStyleColumn(int $programId): string
+    {
+        return match ($programId) {
+            FirstProgram::EXPLORE->value => 'Slot-Explore',
+            FirstProgram::CHALLENGE->value => 'Slot-Challenge',
+            FirstProgram::FUTURE_8->value => 'Slot-Future 8+',
+            default => 'Slot',
+        };
+    }
+
+    /**
+     * @return array{bg: string, border: string}
+     */
+    public static function slotCellColors(int $programId): array
+    {
+        return self::cellColors(self::slotStyleColumn($programId));
+    }
+
     /**
      * Allgemein-* column for a first_program id. Future 8+ is Allgemein-4, not Allgemein-8.
      */
@@ -97,6 +121,10 @@ final class OverviewPlanStyle
             'Allgemein-2' => ['bg' => self::GRAY_TINT, 'border' => $exploreBorder],
             'Allgemein-3' => ['bg' => self::GRAY_TINT, 'border' => $challengeBorder],
             'Allgemein-4' => ['bg' => self::GRAY_TINT, 'border' => $future8Border],
+            'Slot-Explore' => ['bg' => self::SLOT_TINT, 'border' => $exploreBorder],
+            'Slot-Challenge' => ['bg' => self::SLOT_TINT, 'border' => $challengeBorder],
+            'Slot-Future 8+' => ['bg' => self::SLOT_TINT, 'border' => $future8Border],
+            'Slot' => ['bg' => self::SLOT_TINT, 'border' => self::GRAY_BORDER],
             default => ['bg' => self::GRAY_TINT, 'border' => self::GRAY_BORDER],
         };
     }

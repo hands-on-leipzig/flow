@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\FirstProgram;
+use App\Support\OverviewPlanStyle;
 use App\Support\PlanParameter;
 use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
@@ -59,13 +60,16 @@ class TeamsPreviewGridService
             freeBlocks: false,
         );
 
+        $slotAssignmentPrograms = $this->loadSlotAssignmentPrograms($planId);
+
         $activities = $raw->filter(function ($a) {
             return (int) ($a->team ?? 0) > 0
                 || (int) ($a->table_1_team ?? 0) > 0
-                || (int) ($a->table_2_team ?? 0) > 0;
+                || (int) ($a->table_2_team ?? 0) > 0
+                || (int) ($a->slot_team ?? 0) > 0;
         });
 
-        $placed = $this->placeActivities($activities, $byProgramTeam, $programIds);
+        $placed = $this->placeActivities($activities, $byProgramTeam, $programIds, $slotAssignmentPrograms);
         $eventsByDay = $this->bucketByDay($placed);
 
         return [
@@ -216,28 +220,129 @@ class TeamsPreviewGridService
     }
 
     /**
+     * @return array<string, int>  "extraBlock:teamNo:start" => first_program
+     */
+    private function loadSlotAssignmentPrograms(int $planId): array
+    {
+        $rows = DB::table('slot_block_team as sbt')
+            ->join('extra_block as eb', 'eb.id', '=', 'sbt.extra_block')
+            ->where('eb.plan', $planId)
+            ->where('eb.type', 'slot')
+            ->whereNotNull('sbt.start')
+            ->select([
+                'sbt.extra_block',
+                'sbt.first_program',
+                'sbt.team_number_plan',
+                'sbt.start',
+            ])
+            ->get();
+
+        $map = [];
+        foreach ($rows as $row) {
+            $teamNo = (int) ($row->team_number_plan ?? 0);
+            if ($teamNo < 1) {
+                continue;
+            }
+            $key = $this->slotAssignmentKey(
+                (int) $row->extra_block,
+                $teamNo,
+                $row->start
+            );
+            $map[$key] = (int) $row->first_program;
+        }
+
+        return $map;
+    }
+
+    private function slotAssignmentKey(int $extraBlockId, int $teamNumberPlan, mixed $start): string
+    {
+        return $extraBlockId.':'.$teamNumberPlan.':'.$this->normalizeDateTimeKey($start);
+    }
+
+    private function normalizeDateTimeKey(mixed $value): string
+    {
+        $s = is_string($value) ? $value : (string) $value;
+        $s = preg_replace('/T/', ' ', $s, 1) ?? $s;
+        if (strlen($s) === 16) {
+            $s .= ':00';
+        }
+
+        return $s;
+    }
+
+    private function resolveSlotProgramId(object $activity, array $slotAssignmentPrograms): int
+    {
+        $blockId = (int) ($activity->extra_block_id ?? 0);
+        $teamNo = (int) ($activity->slot_team ?? 0);
+        if ($blockId > 0 && $teamNo > 0) {
+            $key = $this->slotAssignmentKey($blockId, $teamNo, $activity->start_time ?? null);
+            if (isset($slotAssignmentPrograms[$key])) {
+                return (int) $slotAssignmentPrograms[$key];
+            }
+        }
+
+        return (int) ($activity->activity_first_program_id ?? 0);
+    }
+
+    private function isSlotBlockActivity(object $activity): bool
+    {
+        $code = (string) ($activity->activity_type_code ?? '');
+
+        return str_contains($code, '_slot_block');
+    }
+
+    /**
      * @param  Collection<int, object>  $activities
      * @param  array<string, string>  $byProgramTeam  "programId:teamNo" => column key
      * @param  list<int>  $programIds
+     * @param  array<string, int>  $slotAssignmentPrograms
      * @return list<array{column_key: string, start: Carbon, end: Carbon, text: string, rowspan: int, style_column: string}>
      */
-    private function placeActivities(Collection $activities, array $byProgramTeam, array $programIds): array
-    {
+    private function placeActivities(
+        Collection $activities,
+        array $byProgramTeam,
+        array $programIds,
+        array $slotAssignmentPrograms,
+    ): array {
         $on = array_fill_keys($programIds, true);
         $placed = [];
 
         foreach ($activities as $a) {
-            $programId = (int) ($a->activity_first_program_id ?? 0);
-            if ($programId < 1 || ! isset($on[$programId])) {
-                continue;
-            }
-
             $code = (string) ($a->activity_type_code ?? '');
             $start = Carbon::parse($a->start_time);
             $end = Carbon::parse($a->end_time);
             $duration = max(self::SLOT_MINUTES, (int) $start->diffInMinutes($end));
             $rowspan = max(1, (int) ceil($duration / self::SLOT_MINUTES));
             $gridStart = $start->copy()->minute((int) (floor($start->minute / self::SLOT_MINUTES) * self::SLOT_MINUTES))->second(0);
+
+            $slotTeam = (int) ($a->slot_team ?? 0);
+            if ($slotTeam > 0 && $this->isSlotBlockActivity($a)) {
+                $programId = $this->resolveSlotProgramId($a, $slotAssignmentPrograms);
+                if ($programId < 1 || ! isset($on[$programId])) {
+                    continue;
+                }
+
+                $columnKey = $byProgramTeam[$programId.':'.$slotTeam] ?? null;
+                if ($columnKey === null) {
+                    continue;
+                }
+
+                $placed[] = [
+                    'column_key' => $columnKey,
+                    'start' => $gridStart->copy(),
+                    'end' => $end->copy(),
+                    'text' => 'S',
+                    'rowspan' => $rowspan,
+                    'style_column' => OverviewPlanStyle::slotStyleColumn($programId),
+                ];
+
+                continue;
+            }
+
+            $programId = (int) ($a->activity_first_program_id ?? 0);
+            if ($programId < 1 || ! isset($on[$programId])) {
+                continue;
+            }
 
             $programStyle = $this->styleColumnForProgram($programId);
 
