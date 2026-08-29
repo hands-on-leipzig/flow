@@ -424,7 +424,7 @@ const scopeChangeMessage = computed(() => {
       >
         <div class="slot-block__meta">
           <label class="slot-block__duration">
-            <span>Min.</span>
+            <span>Dauer pro Team</span>
             <input
                 :value="newBlockDuration"
                 :disabled="!planId"
@@ -500,7 +500,7 @@ const scopeChangeMessage = computed(() => {
 
         <div class="slot-block__meta slot-block__meta--block" @click.stop>
           <label class="slot-block__duration">
-            <span>Min.</span>
+            <span>Dauer pro Team</span>
             <input
                 :value="b.duration"
                 :disabled="b.active === false"

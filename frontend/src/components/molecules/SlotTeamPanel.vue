@@ -166,6 +166,14 @@ function effectiveStart(row: TeamRow): string | null {
   return row.start
 }
 
+/** Saved or committed draft only — not the in-progress input value while typing. */
+function startForSort(row: TeamRow): string | null {
+  if (editingTeamId.value === rowEditKey(row)) {
+    return row.start ?? null
+  }
+  return effectiveStart(row)
+}
+
 function isRowDirty(row: TeamRow): boolean {
   if (!(row.row_key in draftStarts.value)) return false
   const draft = draftStarts.value[row.row_key] ?? null
@@ -186,8 +194,8 @@ function wallTimeSortKey(s: string | null): string {
 }
 
 function compareRows(a: TeamRow, b: TeamRow): number {
-  const aStart = effectiveStart(a)
-  const bStart = effectiveStart(b)
+  const aStart = startForSort(a)
+  const bStart = startForSort(b)
   if (!aStart && !bStart) {
     if (a.first_program !== b.first_program) return a.first_program - b.first_program
     return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
@@ -285,27 +293,24 @@ function beginEditStart(row: TeamRow) {
   editingTeamId.value = rowEditKey(row)
   const current = effectiveStart(row)
   editingStartLocal.value = current ? dbToLocalInput(current) : defaultStartLocal()
-  if (!current) {
-    setDraft(row, editingStartLocal.value)
-  }
 }
 
-function cancelEditStart(row: TeamRow) {
-  if (editingTeamId.value === rowEditKey(row)) {
-    editingTeamId.value = null
-    editingStartLocal.value = ''
-  }
+function commitTeamStartEdit(row: TeamRow) {
+  if (editingTeamId.value !== rowEditKey(row)) return
+  setDraft(row, editingStartLocal.value)
+  editingTeamId.value = null
+  editingStartLocal.value = ''
 }
 
 function onTeamStartInput(row: TeamRow, value: string) {
   editingTeamId.value = rowEditKey(row)
   editingStartLocal.value = value
-  setDraft(row, value)
 }
 
 function clearTeamStart(row: TeamRow) {
   setDraft(row, '')
-  cancelEditStart(row)
+  editingTeamId.value = null
+  editingStartLocal.value = ''
 }
 
 function inputValue(row: TeamRow): string {
@@ -416,7 +421,7 @@ function formatTooltipDate(slotDate: string | null): string {
             @click="chronoSorted = !chronoSorted"
         >
           <i class="bi bi-sort-down" aria-hidden="true"/>
-          {{ chronoSorted ? 'Plan-Reihenfolge' : 'Chronologisch' }}
+          {{ chronoSorted ? 'Teams' : 'Chronologisch' }}
         </button>
         <button
             type="button"
@@ -424,7 +429,7 @@ function formatTooltipDate(slotDate: string | null): string {
             :disabled="!blockId || !hasUnsavedChanges || saving || !blockActive"
             @click="saveAssignments"
         >
-          {{ saving ? 'Speichere…' : 'Zuordnungen speichern' }}
+          {{ saving ? 'Speichere…' : 'Speichern und Plan aktualisieren' }}
         </button>
       </div>
     </div>
@@ -439,7 +444,7 @@ function formatTooltipDate(slotDate: string | null): string {
               @click="chronoSorted = !chronoSorted"
           >
             <i class="bi bi-sort-down" aria-hidden="true"/>
-            {{ chronoSorted ? 'Plan-Reihenfolge' : 'Chronologisch' }}
+            {{ chronoSorted ? 'Teams' : 'Chronologisch' }}
           </button>
           <button
               type="button"
@@ -447,7 +452,7 @@ function formatTooltipDate(slotDate: string | null): string {
               :disabled="!blockId || !hasUnsavedChanges || saving || !blockActive"
               @click="saveAssignments"
           >
-            {{ saving ? 'Speichere…' : 'Zuordnungen speichern' }}
+            {{ saving ? 'Speichere…' : 'Speichern und Plan aktualisieren' }}
           </button>
         </div>
       </div>
@@ -571,6 +576,8 @@ function formatTooltipDate(slotDate: string | null): string {
                       max="23:55"
                       step="300"
                       @input="onTeamStartInput(row, ($event.target as HTMLInputElement).value)"
+                      @blur="commitTeamStartEdit(row)"
+                      @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
                   />
                   <IconDangerButton
                       v-if="effectiveStart(row)"
