@@ -6046,16 +6046,6 @@
             "calibration": 0,
             "note": null,
             "alert_level": null
-        },
-        {
-            "id": 181,
-            "first_program": 8,
-            "teams": 2,
-            "lanes": 1,
-            "tables": 2,
-            "calibration": 0,
-            "note": null,
-            "alert_level": null
         }
     ],
     "m_visibility": [
@@ -8946,7 +8936,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-08-29T13:09:04.907284Z",
+        "exported_at": "2026-08-29T16:02:11.797510Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",

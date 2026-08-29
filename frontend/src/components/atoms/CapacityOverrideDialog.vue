@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 
+const GAP_PX = 6
+const PANEL_WIDTH_PX = 264
+
 const props = defineProps<{
   /** Effective capacity currently shown (override or DRAHT). */
   capacity: number
@@ -14,8 +17,12 @@ const emit = defineEmits<{
 
 const open = ref(false)
 const draft = ref('')
-const rootRef = ref<HTMLElement | null>(null)
+/** Show range error only after a failed apply (not while typing). */
+const showApplyError = ref(false)
+const triggerRef = ref<HTMLElement | null>(null)
+const panelRef = ref<HTMLElement | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
+const panelStyle = ref<Record<string, string>>({})
 
 const minBound = computed(() => Math.min(props.min, props.max))
 const maxBound = computed(() => Math.max(props.min, props.max))
@@ -31,12 +38,11 @@ const valid = computed(() => {
 })
 
 const errorText = computed(() => {
-  if (draft.value.trim() === '') return `Wert zwischen ${minBound.value} und ${maxBound.value} eingeben.`
-  if (!Number.isFinite(parsed.value)) return 'Bitte eine ganze Zahl eingeben.'
-  if (parsed.value < minBound.value || parsed.value > maxBound.value) {
-    return `Erlaubt: ${minBound.value}–${maxBound.value}.`
+  if (!showApplyError.value) return ''
+  if (draft.value.trim() === '' || !Number.isFinite(parsed.value)) {
+    return `Wert zwischen ${minBound.value} und ${maxBound.value} eingeben.`
   }
-  return ''
+  return `Erlaubt: ${minBound.value}–${maxBound.value}.`
 })
 
 function initialDraftValue(): number {
@@ -48,9 +54,34 @@ function initialDraftValue(): number {
   return rounded
 }
 
+function updatePanelPosition() {
+  const trigger = triggerRef.value
+  if (!trigger) return
+  const rect = trigger.getBoundingClientRect()
+  const accent = getComputedStyle(trigger).getPropertyValue('--program-accent').trim()
+  const width = Math.min(PANEL_WIDTH_PX, window.innerWidth - 16)
+  let left = Math.round(rect.right - width)
+  left = Math.max(8, Math.min(left, window.innerWidth - width - 8))
+  let top = Math.round(rect.bottom + GAP_PX)
+  const panel = panelRef.value
+  const height = panel?.offsetHeight || 220
+  if (top + height > window.innerHeight - 8) {
+    top = Math.max(8, Math.round(rect.top - height - GAP_PX))
+  }
+  panelStyle.value = {
+    left: `${left}px`,
+    top: `${top}px`,
+    width: `${width}px`,
+    ...(accent ? {'--program-accent': accent} : {}),
+  }
+}
+
 async function openDialog() {
   open.value = true
+  showApplyError.value = false
   draft.value = String(initialDraftValue())
+  await nextTick()
+  updatePanelPosition()
   await nextTick()
   inputRef.value?.focus()
   inputRef.value?.select()
@@ -58,6 +89,7 @@ async function openDialog() {
 
 function closeDialog() {
   open.value = false
+  showApplyError.value = false
 }
 
 function toggle() {
@@ -66,13 +98,33 @@ function toggle() {
 }
 
 function apply() {
-  if (!valid.value) return
+  if (!valid.value) {
+    showApplyError.value = true
+    void nextTick().then(() => updatePanelPosition())
+    return
+  }
   emit('apply', parsed.value)
+  closeDialog()
+}
+
+function eventPathContains(e: Event, el: HTMLElement | null): boolean {
+  if (!el) return false
+  const path = typeof e.composedPath === 'function' ? e.composedPath() : []
+  if (path.includes(el)) return true
+  const target = e.target
+  return target instanceof Node && el.contains(target)
+}
+
+function onDocPointerDown(e: PointerEvent) {
+  if (!open.value) return
+  if (eventPathContains(e, triggerRef.value)) return
+  if (eventPathContains(e, panelRef.value)) return
   closeDialog()
 }
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
+    e.preventDefault()
     e.stopPropagation()
     closeDialog()
   } else if (e.key === 'Enter') {
@@ -81,25 +133,41 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-function onDocPointerDown(e: PointerEvent) {
+function onDraftInput() {
+  if (showApplyError.value) showApplyError.value = false
+}
+
+function onReposition() {
   if (!open.value) return
-  const root = rootRef.value
-  if (root && !root.contains(e.target as Node)) closeDialog()
+  updatePanelPosition()
 }
 
 watch(open, (isOpen) => {
-  if (isOpen) document.addEventListener('pointerdown', onDocPointerDown, true)
-  else document.removeEventListener('pointerdown', onDocPointerDown, true)
+  if (isOpen) {
+    document.addEventListener('pointerdown', onDocPointerDown, true)
+    document.addEventListener('keydown', onKeydown, true)
+    window.addEventListener('resize', onReposition)
+    window.addEventListener('scroll', onReposition, true)
+  } else {
+    document.removeEventListener('pointerdown', onDocPointerDown, true)
+    document.removeEventListener('keydown', onKeydown, true)
+    window.removeEventListener('resize', onReposition)
+    window.removeEventListener('scroll', onReposition, true)
+  }
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocPointerDown, true)
+  document.removeEventListener('keydown', onKeydown, true)
+  window.removeEventListener('resize', onReposition)
+  window.removeEventListener('scroll', onReposition, true)
 })
 </script>
 
 <template>
-  <div ref="rootRef" class="capacity-override">
+  <div class="capacity-override">
     <button
+        ref="triggerRef"
         type="button"
         class="capacity-override__trigger"
         title="Kapazität testweise übersteuern"
@@ -110,47 +178,52 @@ onBeforeUnmount(() => {
       <i class="bi bi-sliders" aria-hidden="true"/>
     </button>
 
-    <div
-        v-if="open"
-        class="capacity-override__panel liquid-surface-inner"
-        role="dialog"
-        aria-label="Kapazität testweise übersteuern"
-        @keydown="onKeydown"
-    >
-      <p class="capacity-override__title">Kapazität testweise übersteuern.</p>
-      <label class="capacity-override__field">
-        <span class="sr-only">Kapazität</span>
-        <input
-            ref="inputRef"
-            v-model="draft"
-            class="capacity-override__input"
-            type="number"
-            inputmode="numeric"
-            :min="minBound"
-            :max="maxBound"
-            step="1"
-            @keydown="onKeydown"
-        />
-      </label>
-      <p v-if="errorText && !valid" class="capacity-override__error">{{ errorText }}</p>
-      <p class="capacity-override__note">
-        Beim nächsten Öffnen dieser Seite wird wieder der offizielle Wert genommen.<br>
-        Um den zu Ändern, bitte in der Geschäftsstelle melden.
-      </p>
-      <div class="capacity-override__actions">
-        <button type="button" class="glass-btn-secondary !px-2.5 !py-1 !text-xs" @click="closeDialog">
-          Abbrechen
-        </button>
-        <button
-            type="button"
-            class="glass-btn-accent !px-2.5 !py-1 !text-xs"
-            :disabled="!valid"
-            @click="apply"
-        >
-          Übernehmen
-        </button>
+    <Teleport to="body">
+      <div
+          v-if="open"
+          ref="panelRef"
+          class="capacity-override__panel liquid-surface-inner"
+          role="dialog"
+          aria-label="Kapazität testweise übersteuern"
+          :style="panelStyle"
+      >
+        <p class="capacity-override__title">Kapazität testweise übersteuern.</p>
+        <label class="capacity-override__field">
+          <span class="sr-only">Kapazität</span>
+          <input
+              ref="inputRef"
+              v-model="draft"
+              class="capacity-override__input"
+              type="number"
+              inputmode="numeric"
+              step="1"
+              @input="onDraftInput"
+          />
+        </label>
+        <p class="capacity-override__hint">Erlaubt: {{ minBound }}–{{ maxBound }}</p>
+        <p v-if="errorText" class="capacity-override__error">{{ errorText }}</p>
+        <p class="capacity-override__note">
+          Beim nächsten Öffnen dieser Seite wird wieder der offizielle Wert genommen.<br>
+          Um den zu Ändern, bitte in der Geschäftsstelle melden.
+        </p>
+        <div class="capacity-override__actions">
+          <button
+              type="button"
+              class="glass-btn-secondary !px-2.5 !py-1 !text-xs"
+              @pointerdown.stop.prevent="closeDialog"
+          >
+            Abbrechen
+          </button>
+          <button
+              type="button"
+              class="glass-btn-accent !px-2.5 !py-1 !text-xs"
+              @pointerdown.stop.prevent="apply"
+          >
+            Übernehmen
+          </button>
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -188,12 +261,9 @@ onBeforeUnmount(() => {
 }
 
 .capacity-override__panel {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  right: 0;
-  z-index: 40;
-  width: 16.5rem;
-  max-width: min(16.5rem, calc(100vw - 2rem));
+  position: fixed;
+  z-index: 4000;
+  max-width: calc(100vw - 1rem);
   padding: 0.75rem 0.85rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -230,6 +300,13 @@ onBeforeUnmount(() => {
 .capacity-override__input:focus {
   outline: 2px solid color-mix(in srgb, var(--program-accent, var(--color-accent)) 40%, transparent);
   outline-offset: 1px;
+}
+
+.capacity-override__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.3;
 }
 
 .capacity-override__error {
