@@ -4,8 +4,10 @@ import {computed, ref, watch} from 'vue'
 const props = defineProps<{
   planTeams: number
   registeredTeams: number
+  /** Venue capacity (DRAHT or override) — label + enrolled fill only. */
   capacity: number
   minTeams: number
+  /** Hard ceiling for the plan slider (parent already applies capacity). */
   maxTeams: number
   onUpdate: (value: number) => void
 }>()
@@ -14,19 +16,19 @@ const trackRef = ref<HTMLElement | null>(null)
 const dragging = ref(false)
 
 const maxPlan = computed(() => {
-  if (props.capacity > 0) return Math.min(props.maxTeams, props.capacity)
-  return props.maxTeams
+  const maxT = Number(props.maxTeams)
+  if (!Number.isFinite(maxT) || maxT <= 0) return Math.max(1, Number(props.minTeams) || 1)
+  return maxT
 })
+
+const scale = computed(() => Math.max(maxPlan.value, 1))
 
 const fillPct = computed(() => {
   if (props.capacity <= 0) return 0
   return (props.registeredTeams / props.capacity) * 100
 })
 
-const handlePct = computed(() => {
-  if (props.capacity <= 0) return 0
-  return Math.min(100, (props.planTeams / props.capacity) * 100)
-})
+const handlePct = computed(() => Math.min(100, (props.planTeams / scale.value) * 100))
 
 const labelOnLeft = computed(() => handlePct.value > 50)
 
@@ -40,11 +42,11 @@ function clampPlan(value: number): number {
 
 function valueFromClientX(clientX: number): number {
   const track = trackRef.value
-  if (!track || props.capacity <= 0) return props.planTeams
+  if (!track) return props.planTeams
   const rect = track.getBoundingClientRect()
   if (rect.width <= 0) return props.planTeams
   const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-  return clampPlan(ratio * props.capacity)
+  return clampPlan(ratio * scale.value)
 }
 
 function commit(value: number) {
@@ -53,9 +55,8 @@ function commit(value: number) {
 }
 
 watch(
-    () => [props.planTeams, props.capacity, props.minTeams, props.maxTeams] as const,
+    () => [props.planTeams, props.minTeams, props.maxTeams] as const,
     () => {
-      if (props.capacity <= 0) return
       const next = clampPlan(props.planTeams)
       if (next !== props.planTeams) commit(next)
     },
@@ -78,6 +79,30 @@ function onPointerMove(event: PointerEvent) {
 function onPointerUp() {
   dragging.value = false
 }
+
+function onTrackPointerDown(event: PointerEvent) {
+  if (event.button !== 0) return
+  event.preventDefault()
+  dragging.value = true
+  ;(event.currentTarget as HTMLElement).setPointerCapture?.(event.pointerId)
+  commit(valueFromClientX(event.clientX))
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
+    event.preventDefault()
+    commit(clampPlan(props.planTeams - 1))
+  } else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    commit(clampPlan(props.planTeams + 1))
+  } else if (event.key === 'Home') {
+    event.preventDefault()
+    commit(clampPlan(props.minTeams))
+  } else if (event.key === 'End') {
+    event.preventDefault()
+    commit(clampPlan(maxPlan.value))
+  }
+}
 </script>
 
 <template>
@@ -85,7 +110,10 @@ function onPointerUp() {
     <div
         ref="trackRef"
         class="plan-bar__track liquid-surface-inner"
-        aria-hidden="true"
+        @pointerdown="onTrackPointerDown"
+        @pointermove="onPointerMove"
+        @pointerup="onPointerUp"
+        @pointercancel="onPointerUp"
     >
       <div class="plan-bar__plan" :style="{ width: handlePct + '%' }"/>
       <div
@@ -110,6 +138,7 @@ function onPointerUp() {
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"
         @pointercancel="onPointerUp"
+        @keydown="onKeydown"
     >
       <div class="plan-bar__needle">
         <span class="plan-bar__triangle"/>
@@ -138,6 +167,8 @@ function onPointerUp() {
   position: relative;
   height: 2.15rem;
   overflow: hidden;
+  cursor: pointer;
+  touch-action: none;
 }
 
 .plan-bar__plan {
