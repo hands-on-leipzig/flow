@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
 import {useAnchoredPanel} from '@/composables/useAnchoredPanel'
 import {useInfoPopover} from '@/composables/useInfoPopover'
 import {programDisplayName, programId, type EventProgramRef} from '@/utils/eventPrograms'
@@ -13,10 +14,13 @@ const props = withDefaults(
     programs: EventProgramRef[]
     disabled?: boolean
     size?: 'sm' | 'md'
+    /** Match height of glass-input--sm date/time fields on block rows */
+    matchInputHeight?: boolean
   }>(),
   {
     disabled: false,
     size: 'sm',
+    matchInputHeight: false,
   },
 )
 
@@ -74,7 +78,10 @@ function selectValue(value: number) {
         ref="buttonRef"
         type="button"
         class="extra-block-program-picker__trigger"
-        :class="{'extra-block-program-picker__trigger--disabled': disabled}"
+        :class="{
+          'extra-block-program-picker__trigger--disabled': disabled,
+          'glass-input glass-input--sm liquid-surface-control extra-block-program-picker__trigger--field': matchInputHeight,
+        }"
         :disabled="disabled"
         title="Programm-Bereich wählen"
         aria-label="Programm-Bereich wählen"
@@ -90,8 +97,8 @@ function selectValue(value: number) {
           <circle cx="12" cy="12" r="3"/>
         </svg>
       </span>
-      <span v-if="normalizedValue === JOINT_FP" class="extra-block-program-picker__joint" title="Übergreifend">
-        G
+      <span v-if="normalizedValue === JOINT_FP" class="extra-block-program-picker__scope-icon" title="Übergreifend">
+        <StaffingScopeLeading filter-key="cross" size="chip" :boxed="false"/>
       </span>
       <ProgramLogo
           v-else
@@ -125,8 +132,8 @@ function selectValue(value: number) {
                 :checked="normalizedValue === option.value"
                 @change="selectValue(option.value)"
             />
-            <span v-if="option.value === JOINT_FP" class="extra-block-program-picker__joint extra-block-program-picker__joint--list">
-              G
+            <span v-if="option.value === JOINT_FP" class="extra-block-program-picker__scope-icon">
+              <StaffingScopeLeading filter-key="cross" size="chip" :boxed="false"/>
             </span>
             <ProgramLogo
                 v-else-if="option.program"
@@ -147,20 +154,31 @@ function selectValue(value: number) {
   flex-shrink: 0;
 }
 
-.extra-block-program-picker__trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
+.extra-block-program-picker__trigger:not(.extra-block-program-picker__trigger--field) {
   padding: 0.15rem 0.35rem;
   border-radius: 0.5rem;
   border: 1px solid var(--color-border);
   background: var(--color-bg);
+}
+
+.extra-block-program-picker__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
   color: var(--color-text-muted);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.extra-block-program-picker__trigger:hover:not(.extra-block-program-picker__trigger--disabled) {
+.extra-block-program-picker__trigger--field {
+  gap: 0.35rem;
+  padding: var(--field-padding-y-sm) var(--field-padding-x-sm);
+  min-height: var(--field-min-height-sm);
+  width: auto;
+  margin: 0;
+}
+
+.extra-block-program-picker__trigger:not(.extra-block-program-picker__trigger--field):hover:not(.extra-block-program-picker__trigger--disabled) {
   background: var(--color-bg-hover);
   border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
 }
@@ -181,22 +199,12 @@ function selectValue(value: number) {
   height: 100%;
 }
 
-.extra-block-program-picker__joint {
+.extra-block-program-picker__scope-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
-  color: var(--color-accent);
-  font-size: 0.65rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.extra-block-program-picker__joint--list {
   flex-shrink: 0;
+  color: var(--color-text-muted);
 }
 
 .extra-block-program-picker__panel {

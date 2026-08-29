@@ -380,9 +380,6 @@ function setBlockFirstProgram(block: ExtraBlock, value: number) {
   saveBlock(block)
 }
 
-function setComposerFirstProgram(value: number) {
-  newFirstProgram.value = value
-}
 // --- Actions ---
 async function createCustom() {
   if (isCreating.value || !props.planId) return
@@ -654,12 +651,6 @@ const hasBlocksOutsideEventDates = computed(() => {
                 step="300"
                 aria-label="Endzeit"
             />
-            <ExtraBlockProgramPicker
-                :model-value="newFirstProgram"
-                :programs="attachedPrograms"
-                :disabled="isCreating || !planId"
-                @update:model-value="setComposerFirstProgram"
-            />
           </div>
           <transition name="fade">
             <div v-if="newBlockName.trim().length > 0" class="free-block__composer-extra">
@@ -715,7 +706,7 @@ const hasBlocksOutsideEventDates = computed(() => {
             />
           </template>
 
-          <div class="free-block__when">
+          <div class="free-block__when free-block__when--block">
             <input
                 :value="extractDate(b.start || b.end)"
                 :disabled="b.active === false"
@@ -751,6 +742,7 @@ const hasBlocksOutsideEventDates = computed(() => {
                 :model-value="b.first_program"
                 :programs="attachedPrograms"
                 :disabled="b.active === false"
+                match-input-height
                 @update:model-value="setBlockFirstProgram(b, $event)"
             />
           </div>
@@ -811,8 +803,19 @@ const hasBlocksOutsideEventDates = computed(() => {
   gap: 0.5rem;
 }
 
-.free-block__when :deep(.extra-block-program-picker) {
+.free-block__when--block {
+  align-items: stretch;
+}
+
+.free-block__when--block :deep(.extra-block-program-picker) {
   margin-left: auto;
+  display: flex;
+  align-items: stretch;
+}
+
+.free-block__when--block :deep(.extra-block-program-picker__trigger--field) {
+  height: auto;
+  align-self: stretch;
 }
 
 .free-block__date.glass-input,
