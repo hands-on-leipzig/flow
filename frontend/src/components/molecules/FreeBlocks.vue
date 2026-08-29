@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
+import {computed, nextTick, ref, watch} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
@@ -8,26 +8,22 @@ import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import ExtraBlockProgramPicker from '@/components/atoms/ExtraBlockProgramPicker.vue'
-import {useDebouncedSave} from '@/composables/useDebouncedSave'
+import {useExtraBlockDebouncedSave} from '@/composables/useExtraBlockDebouncedSave'
+import {pollPlanUntilReady} from '@/composables/usePlanGeneratorPoll'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
-import {DEBOUNCE_DELAY} from '@/constants/extraBlocks'
+import type {FreeExtraBlock} from '@/types/extraBlock'
+import {parseExtraBlockSaveError} from '@/utils/extraBlockApiErrors'
+import {
+  combineDateTime,
+  extractDate,
+  extractTime,
+  normalizeTime,
+  timeToMinutes,
+  type Maybe,
+} from '@/utils/extraBlockDateTime'
+import {blockRowKey, nextClientKey, orderDebouncedUpdates} from '@/utils/extraBlockSaveKeys'
 
-type Maybe<T> = T | null | undefined
-
-type ExtraBlock = {
-  id?: number
-  /** Client-only id for drafts not yet persisted */
-  _clientKey?: string
-  plan: number
-  first_program: number | null | 0
-  name: string
-  description: string
-  link?: string | null
-  active?: boolean
-  start?: string | null
-  end?: string | null
-  room?: number | null
-}
+const SAVE_PREFIX = 'extra_block'
 
 const props = defineProps<{
   planId: number | null
@@ -39,47 +35,22 @@ const emit = defineEmits<{
   (e: 'changed'): void
 }>()
 
-// --- State ---
-const blocks = ref<ExtraBlock[]>([])
-const blockToDelete = ref<ExtraBlock | null>(null)
+const blocks = ref<FreeExtraBlock[]>([])
+const blockToDelete = ref<FreeExtraBlock | null>(null)
+
+const {attachedPrograms} = useScheduleWorkspace()
 
 const {
-  attachedPrograms,
   isGenerating,
   generatorError,
   errorDetails,
-  countdownSeconds,
-  registerExtraBlockImmediateFlush,
-} = useScheduleWorkspace()
-
-const {scheduleUpdate, cancelUpdate, immediateFlush: flushPendingBlockSavesNow} = useDebouncedSave({
-  delay: DEBOUNCE_DELAY,
-  isGenerating: () => isGenerating.value,
-  onShowToast: (countdown) => {
-    countdownSeconds.value = countdown
-  },
-  onHideToast: () => {
-    countdownSeconds.value = null
-  },
-  onCountdownUpdate: (seconds) => {
-    countdownSeconds.value = seconds
-  },
-  onSave: async (updates) => {
-    await flushUpdates(updates)
-  },
+  scheduleBlockSave,
+  cancelPendingBlockSave,
+  scheduleBlockDelete,
+} = useExtraBlockDebouncedSave({
+  keyPrefix: SAVE_PREFIX,
+  onFlush: flushUpdates,
 })
-
-onMounted(() => {
-  registerExtraBlockImmediateFlush(() => flushPendingBlockSavesNow())
-  if (props.planId != null) loadBlocks()
-})
-
-onUnmounted(() => {
-  registerExtraBlockImmediateFlush(null)
-})
-
-// --- Batch save system (save on countdown) ---
-// Note: Block changes trigger debounce immediately, blocks are saved to DB when countdown reaches 0 or is clicked
 
 function compareDateTime(a: Maybe<string>, b: Maybe<string>): number {
   const left = a ? a.replace('T', ' ') : ''
@@ -90,38 +61,15 @@ function compareDateTime(a: Maybe<string>, b: Maybe<string>): number {
   return left.localeCompare(right)
 }
 
-function compareBlocks(a: ExtraBlock, b: ExtraBlock): number {
+function compareBlocks(a: FreeExtraBlock, b: FreeExtraBlock): number {
   const byStart = compareDateTime(a.start, b.start)
   if (byStart !== 0) return byStart
   return compareDateTime(a.end, b.end)
 }
 
-const customBlocks = computed(() => blocks.value)
+const sortedBlocks = computed(() => blocks.value.slice().sort(compareBlocks))
 
-const sortedBlocks = computed(() => customBlocks.value.slice().sort(compareBlocks))
-
-let draftBlockSeq = 0
-
-function nextClientKey(): string {
-  draftBlockSeq += 1
-  return `draft-${draftBlockSeq}`
-}
-
-function blockRowKey(block: ExtraBlock): string {
-  if (block.id != null) return `id-${block.id}`
-  if (block._clientKey) return block._clientKey
-  return JSON.stringify(block)
-}
-
-function blockSaveKey(block: ExtraBlock): string {
-  if (block.id) return `extra_block_update_${block.id}`
-  if (!block._clientKey) {
-    block._clientKey = nextClientKey()
-  }
-  return `extra_block_add_${block._clientKey}`
-}
-
-function toApiPayload(block: ExtraBlock) {
+function toApiPayload(block: FreeExtraBlock) {
   const payload: Record<string, unknown> = {
     plan: block.plan,
     first_program: block.first_program,
@@ -137,31 +85,20 @@ function toApiPayload(block: ExtraBlock) {
   return payload
 }
 
-function scheduleBlockSave(block: ExtraBlock) {
-  scheduleUpdate(blockSaveKey(block), {...block})
-}
-
-function cancelPendingBlockSave(block: ExtraBlock) {
-  cancelUpdate(blockSaveKey(block))
-}
-
-// --- Lifecycle ---
-watch(() => props.planId, v => {
-  if (v != null) loadBlocks()
+watch(() => props.planId, (v) => {
+  if (v != null) void loadBlocks()
 }, {immediate: true})
 
-// --- Load blocks ---
 async function loadBlocks() {
   const pid = props.planId
   if (!pid) return
-  const {data} = await axios.get<ExtraBlock[]>(`/plans/${pid}/extra-blocks`, {
+  const {data} = await axios.get<FreeExtraBlock[]>(`/plans/${pid}/extra-blocks`, {
     params: {type: 'free'},
   })
   blocks.value = Array.isArray(data) ? data : []
 }
 
-// --- Central Flush Logic ---
-async function flushUpdates(updates: Record<string, any>) {
+async function flushUpdates(updates: Record<string, unknown>) {
   if (!props.planId) return
 
   generatorError.value = null
@@ -169,20 +106,12 @@ async function flushUpdates(updates: Record<string, any>) {
   isGenerating.value = true
 
   try {
-    const entries = Object.entries(updates)
-    const ordered = [
-      ...entries.filter(([name]) => name.startsWith('extra_block_delete')),
-      ...entries.filter(([name]) => name.startsWith('extra_block_add')),
-      ...entries.filter(([name]) => name.startsWith('extra_block_update')),
-    ]
-
-    for (const [name, value] of ordered) {
-      if (name.startsWith('extra_block_update') && value) {
+    for (const [name, value] of orderDebouncedUpdates(updates, SAVE_PREFIX)) {
+      if (name.startsWith(`${SAVE_PREFIX}_update`) && value) {
         const response = await axios.post(
           `/plans/${props.planId}/extra-blocks`,
-          toApiPayload(value as ExtraBlock),
+          toApiPayload(value as FreeExtraBlock),
         )
-
         if (response.data?.error) {
           generatorError.value = response.data.error
           errorDetails.value = response.data.details || null
@@ -191,9 +120,8 @@ async function flushUpdates(updates: Record<string, any>) {
           return
         }
       }
-      if (name.startsWith('extra_block_delete') && value?.id) {
-        const deleteResponse = await axios.delete(`/extra-blocks/${value.id}`)
-
+      if (name.startsWith(`${SAVE_PREFIX}_delete`) && value && (value as FreeExtraBlock).id) {
+        const deleteResponse = await axios.delete(`/extra-blocks/${(value as FreeExtraBlock).id}`)
         if (deleteResponse.data?.error) {
           generatorError.value = deleteResponse.data.error
           errorDetails.value = deleteResponse.data.details || null
@@ -202,16 +130,15 @@ async function flushUpdates(updates: Record<string, any>) {
           return
         }
       }
-      if (name.startsWith('extra_block_add') && value) {
-        if (value._clientKey && !blocks.value.some((b) => b._clientKey === value._clientKey)) {
+      if (name.startsWith(`${SAVE_PREFIX}_add`) && value) {
+        const block = value as FreeExtraBlock
+        if (block._clientKey && !blocks.value.some((b) => b._clientKey === block._clientKey)) {
           continue
         }
-
         const response = await axios.post(
           `/plans/${props.planId}/extra-blocks`,
-          toApiPayload(value as ExtraBlock),
+          toApiPayload(block),
         )
-
         if (response.data?.error) {
           generatorError.value = response.data.error
           errorDetails.value = response.data.details || null
@@ -219,130 +146,23 @@ async function flushUpdates(updates: Record<string, any>) {
           await loadBlocks()
           return
         }
-
         const saved = response.data?.block || response.data
-        if (value._clientKey && saved?.id) {
-          const idx = blocks.value.findIndex((b) => b._clientKey === value._clientKey)
-          if (idx !== -1) {
-            blocks.value[idx] = saved
-          }
+        if (block._clientKey && saved?.id) {
+          const idx = blocks.value.findIndex((b) => b._clientKey === block._clientKey)
+          if (idx !== -1) blocks.value[idx] = saved
         }
       }
     }
     await loadBlocks()
-    await pollUntilReady(props.planId)
+    await pollPlanUntilReady(props.planId, isGenerating, generatorError, errorDetails)
     emit('changed')
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error flushing updates:', error)
     isGenerating.value = false
-
-    // Extract error message from response
-    let errorMessage = 'Fehler beim Speichern der Blöcke'
-    let details: string | null = null
-
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status
-      const errorData = error.response?.data
-
-      if (status === 422) {
-        errorMessage = errorData?.error || 'Die aktuelle Konfiguration wird nicht unterstützt'
-        details = errorData?.details || errorData?.message || 'Ungültige Block-Kombination'
-      } else if (status === 404) {
-        errorMessage = 'Block oder Plan nicht gefunden'
-        details = errorData?.error || errorData?.details || `Plan ${props.planId} existiert nicht`
-      } else if (status === 500) {
-        errorMessage = errorData?.error || 'Fehler bei der Block-Speicherung'
-        details = errorData?.details || errorData?.message || 'Interner Serverfehler'
-      } else if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
-        errorMessage = 'Verbindungsfehler'
-        details = 'Bitte überprüfe deine Internetverbindung.'
-      } else {
-        errorMessage = errorData?.error || errorData?.message || error.message || errorMessage
-      }
-    } else if (error instanceof Error) {
-      errorMessage = error.message
-    }
-
-    generatorError.value = errorMessage
-    errorDetails.value = details
+    const parsed = parseExtraBlockSaveError(error, 'Fehler beim Speichern der Blöcke')
+    generatorError.value = parsed.message
+    errorDetails.value = parsed.details
   }
-}
-
-// Poll for generator status until ready
-async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 1000) {
-  // Give backend a moment to set status to RUNNING
-  await new Promise(resolve => setTimeout(resolve, 200))
-
-  // isGenerating is already set to true in flushUpdates
-  const start = Date.now()
-
-  try {
-    while (Date.now() - start < timeoutMs) {
-      const res = await axios.get(`/plans/${planId}/status`)
-      const status = res.data.status
-
-      if (status === 'done') {
-        isGenerating.value = false
-        return
-      }
-
-      // Check for failed status
-      if (status === 'failed') {
-        isGenerating.value = false
-        generatorError.value = 'Die Generierung ist fehlgeschlagen'
-        errorDetails.value = 'Der Plan konnte nicht generiert werden. Bitte überprüfe die Block-Einstellungen.'
-        return
-      }
-
-      // Keep polling if still running
-      await new Promise(resolve => setTimeout(resolve, intervalMs))
-    }
-
-    throw new Error('Timeout: Plan generation took too long')
-  } catch (error: any) {
-    isGenerating.value = false
-
-    if (error instanceof Error && error.message.includes('Timeout')) {
-      generatorError.value = 'Zeitüberschreitung'
-      errorDetails.value = 'Die Generierung dauert zu lange. Bitte versuche es erneut.'
-    } else if (axios.isAxiosError(error)) {
-      if (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
-        generatorError.value = 'Verbindungsfehler'
-        errorDetails.value = 'Bitte überprüfe deine Internetverbindung.'
-      } else {
-        generatorError.value = 'Fehler beim Abrufen des Generator-Status'
-        errorDetails.value = error.message || 'Unbekannter Fehler'
-      }
-    } else {
-      generatorError.value = 'Fehler bei der Plan-Generierung'
-      errorDetails.value = error?.message || 'Unbekannter Fehler'
-    }
-  }
-}
-
-// --- Helpers ---
-// Extract date (YYYY-MM-DD) from datetime string
-function extractDate(dt: Maybe<string>): string {
-  if (!dt) return ''
-  // Handle formats: "YYYY-MM-DD HH:mm:ss" or "YYYY-MM-DDTHH:mm:ss"
-  const datePart = dt.replace('T', ' ').split(' ')[0]
-  return datePart
-}
-
-// Extract time (HH:mm) from datetime string
-function extractTime(dt: Maybe<string>): string {
-  if (!dt) return ''
-  // Handle formats: "YYYY-MM-DD HH:mm:ss" or "YYYY-MM-DDTHH:mm:ss"
-  const timePart = dt.replace('T', ' ').split(' ')[1]
-  if (!timePart) return ''
-  return timePart.slice(0, 5) // Get HH:mm
-}
-
-// Combine date and time back to datetime string format
-function combineDateTime(date: string, time: string): string | null {
-  if (!date || !time) return null
-  // Ensure date is in YYYY-MM-DD format and time is in HH:mm format
-  return `${date} ${time}:00`
 }
 
 const newBlockName = ref('')
@@ -375,12 +195,11 @@ watch(() => props.eventDate, () => {
   }
 }, {immediate: true})
 
-function setBlockFirstProgram(block: ExtraBlock, value: number) {
+function setBlockFirstProgram(block: FreeExtraBlock, value: number) {
   block.first_program = value
-  saveBlock(block)
+  scheduleBlockSave(block)
 }
 
-// --- Actions ---
 function createCustom() {
   if (!props.planId) return
   const name = newBlockName.value.trim()
@@ -390,7 +209,7 @@ function createCustom() {
   const start = combineDateTime(dateStr, newBlockStart.value || '06:00') || `${dateStr} 06:00:00`
   const end = combineDateTime(dateStr, newBlockEnd.value || '07:00') || `${dateStr} 07:00:00`
 
-  const block: ExtraBlock = {
+  const block: FreeExtraBlock = {
     _clientKey: nextClientKey(),
     plan: props.planId,
     first_program: newFirstProgram.value,
@@ -408,7 +227,7 @@ function createCustom() {
   void nextTick(() => composerRef.value?.focusTitle?.())
 }
 
-function confirmDeleteBlock(block: ExtraBlock) {
+function confirmDeleteBlock(block: FreeExtraBlock) {
   blockToDelete.value = block
 }
 
@@ -427,133 +246,68 @@ function deleteBlock() {
     return b !== block
   })
   if (block.id) {
-    scheduleUpdate(`extra_block_delete_${block.id}`, block)
+    scheduleBlockDelete(block as FreeExtraBlock & {id: number})
   }
 }
 
-// Update local state and trigger debounce (no DB save until countdown)
-function saveBlock(block: ExtraBlock) {
-  scheduleBlockSave(block)
-}
-
-function toggleActive(block: ExtraBlock, active: boolean) {
+function toggleActive(block: FreeExtraBlock, active: boolean) {
   block.active = active
   scheduleBlockSave(block)
 }
 
-// Handle date change (updates both start and end with the same date)
-function handleDateChange(block: ExtraBlock, date: string) {
+function handleDateChange(block: FreeExtraBlock, date: string) {
   const startTime = extractTime(block.start || '')
   const endTime = extractTime(block.end || '')
-
   block.start = combineDateTime(date, startTime || '00:00')
   block.end = combineDateTime(date, endTime || '00:00')
-  saveBlock(block)
+  scheduleBlockSave(block)
 }
 
-/**
- * Converts time string (HH:MM) to minutes since midnight.
- */
-function timeToMinutes(timeString: string): number {
-  if (!timeString || typeof timeString !== 'string') return 0
-  const [hours, minutes] = timeString.split(':').map(Number)
-  return (hours || 0) * 60 + (minutes || 0)
-}
-
-/**
- * Normalizes time: rounds to 5-minute intervals and clamps to 00:05-23:55
- */
-function normalizeTime(time: string): string {
-  if (!time || typeof time !== 'string' || !time.includes(':')) return '00:05'
-
-  const [hours, minutes] = time.split(':').map(Number)
-  if (isNaN(hours) || isNaN(minutes)) return '00:05'
-
-  // Round to nearest 5 minutes
-  const roundedMinutes = Math.round(minutes / 5) * 5
-  let totalMinutes = hours * 60 + roundedMinutes
-
-  // Clamp to 00:05 - 23:55
-  const minMinutes = 5 // 00:05
-  const maxMinutes = 23 * 60 + 55 // 23:55
-
-  if (totalMinutes < minMinutes) totalMinutes = minMinutes
-  if (totalMinutes > maxMinutes) totalMinutes = maxMinutes
-
-  // Convert back to hours and minutes
-  const finalHours = Math.floor(totalMinutes / 60)
-  const finalMinutes = totalMinutes % 60
-
-  return `${String(finalHours).padStart(2, '0')}:${String(finalMinutes).padStart(2, '0')}`
-}
-
-// Handle start time change (called on blur)
-function handleStartTimeChange(block: ExtraBlock, time: string) {
+function handleStartTimeChange(block: FreeExtraBlock, time: string) {
   const date = extractDate(block.start || block.end || '')
   if (!date || !time) return
 
-  // Normalize start time (round to 5 min, clamp to 00:05-23:55)
   const normalizedStart = normalizeTime(time)
   const startMinutes = timeToMinutes(normalizedStart)
-
-  // Get current end time from block (use current state, not stale)
   const currentEnd = extractTime(block.end || '')
   const normalizedEnd = currentEnd ? normalizeTime(currentEnd) : '23:55'
   let endMinutes = timeToMinutes(normalizedEnd)
 
-  // If start >= end, set end = start + 5 min (capped at 23:55)
   if (startMinutes >= endMinutes) {
-    endMinutes = Math.min(startMinutes + 5, 23 * 60 + 55) // Cap at 23:55
+    endMinutes = Math.min(startMinutes + 5, 23 * 60 + 55)
     const endHours = Math.floor(endMinutes / 60)
     const endMins = endMinutes % 60
     const newEnd = `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`
-
-    // Update block immediately (for UI reactivity)
     block.start = combineDateTime(date, normalizedStart)
     block.end = combineDateTime(date, newEnd)
   } else {
-    // Update block immediately (for UI reactivity)
     block.start = combineDateTime(date, normalizedStart)
     block.end = combineDateTime(date, normalizedEnd)
   }
-
-  // Trigger debounce with current block state (this will overwrite any pending update)
   scheduleBlockSave(block)
 }
 
-// Handle end time change (called on blur)
-function handleEndTimeChange(block: ExtraBlock, time: string) {
+function handleEndTimeChange(block: FreeExtraBlock, time: string) {
   const date = extractDate(block.start || block.end || '')
   if (!date || !time) return
 
-  // Normalize end time (round to 5 min, clamp to 00:05-23:55)
   const normalizedEnd = normalizeTime(time)
   const endMinutes = timeToMinutes(normalizedEnd)
-
-  // Get current start time from block (use current state, not stale)
   const currentStart = extractTime(block.start || '')
   const normalizedStart = currentStart ? normalizeTime(currentStart) : '00:05'
   const startMinutes = timeToMinutes(normalizedStart)
 
-  // Ensure end >= start (if not, adjust start down)
   if (endMinutes < startMinutes) {
-    // This shouldn't happen if user is editing end, but handle it gracefully
-    // Set start to end - 5 min (min 00:05)
     const newStartMinutes = Math.max(endMinutes - 5, 5)
     const startHours = Math.floor(newStartMinutes / 60)
     const startMins = newStartMinutes % 60
     const newStart = `${String(startHours).padStart(2, '0')}:${String(startMins).padStart(2, '0')}`
-
-    // Update block immediately (for UI reactivity)
     block.start = combineDateTime(date, newStart)
     block.end = combineDateTime(date, normalizedEnd)
   } else {
-    // Update block immediately (for UI reactivity)
     block.start = combineDateTime(date, normalizedStart)
     block.end = combineDateTime(date, normalizedEnd)
   }
-
-  // Trigger debounce with current block state (this will overwrite any pending update)
   scheduleBlockSave(block)
 }
 
@@ -563,8 +317,7 @@ const deleteMessage = computed(() => {
   return `„${name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
 
-// Check if a block is outside the event date range
-function isBlockOutsideEventDates(block: ExtraBlock): boolean {
+function isBlockOutsideEventDates(block: FreeExtraBlock): boolean {
   if (!props.eventDate) return false
   if (!props.eventDays || props.eventDays < 1) return false
 
@@ -575,18 +328,16 @@ function isBlockOutsideEventDates(block: ExtraBlock): boolean {
   const eventEndDate = eventStartDate.add(props.eventDays - 1, 'day')
   const blockDate = dayjs(blockDateStr)
 
-  // Check if block date is before event start or after event end
   return blockDate.isBefore(eventStartDate, 'day') || blockDate.isAfter(eventEndDate, 'day')
 }
 
-const hasBlocksOutsideEventDates = computed(() => {
-  return sortedBlocks.value.some(block => isBlockOutsideEventDates(block))
-})
+const hasBlocksOutsideEventDates = computed(() =>
+  sortedBlocks.value.some((block) => isBlockOutsideEventDates(block)),
+)
 </script>
 
 <template>
   <div class="space-y-8 relative">
-    <!-- CUSTOM BLOCKS -->
     <div class="free-blocks">
       <div v-if="hasBlocksOutsideEventDates" class="glass-alert-warning">
         Freie Blöcke an Tagen außerhalb der Veranstaltung werden in den Plänen nicht angezeigt.
@@ -751,7 +502,6 @@ const hasBlocksOutsideEventDates = computed(() => {
         @confirm="deleteBlock"
         @cancel="cancelDeleteBlock"
     />
-
   </div>
 </template>
 

@@ -227,22 +227,17 @@ class ExtraBlockController extends Controller
             ->where('type', 'slot')
             ->orderBy('name')
             ->get()
-            ->map(function (ExtraBlock $b) {
-                $flags = $this->flagsFromFirstProgram($b->first_program);
-
-                return [
-                    'id' => $b->id,
-                    'plan' => $b->plan,
-                    'name' => $b->name,
-                    'description' => $b->description,
-                    'link' => $b->link,
-                    'duration' => $b->duration,
-                    'active' => (bool) $b->active,
-                    'room' => $b->room,
-                    'for_explore' => $flags['for_explore'],
-                    'for_challenge' => $flags['for_challenge'],
-                ];
-            });
+            ->map(fn (ExtraBlock $b) => [
+                'id' => $b->id,
+                'plan' => $b->plan,
+                'name' => $b->name,
+                'description' => $b->description,
+                'link' => $b->link,
+                'duration' => $b->duration,
+                'first_program' => (int) $b->first_program,
+                'active' => (bool) $b->active,
+                'room' => $b->room,
+            ]);
 
         return response()->json($blocks);
     }
@@ -252,15 +247,11 @@ class ExtraBlockController extends Controller
         Plan::findOrFail($planId);
 
         $validated = $request->validated();
-        $firstProgram = $this->firstProgramFromFlags(
-            $validated['for_explore'],
-            $validated['for_challenge']
-        );
 
         $block = ExtraBlock::create([
             'plan' => $planId,
             'type' => 'slot',
-            'first_program' => $firstProgram,
+            'first_program' => $validated['first_program'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'link' => $validated['link'] ?? null,
@@ -277,10 +268,9 @@ class ExtraBlockController extends Controller
             'description' => $block->description,
             'link' => $block->link,
             'duration' => $block->duration,
+            'first_program' => (int) $block->first_program,
             'active' => (bool) $block->active,
             'room' => $block->room,
-            'for_explore' => $validated['for_explore'],
-            'for_challenge' => $validated['for_challenge'],
         ], 201);
     }
 
@@ -291,17 +281,8 @@ class ExtraBlockController extends Controller
 
         $validated = $request->validated();
 
-        if (array_key_exists('for_explore', $validated) || array_key_exists('for_challenge', $validated)) {
-            $fe = array_key_exists('for_explore', $validated) ? $validated['for_explore'] : $this->flagsFromFirstProgram($block->first_program)['for_explore'];
-            $fc = array_key_exists('for_challenge', $validated) ? $validated['for_challenge'] : $this->flagsFromFirstProgram($block->first_program)['for_challenge'];
-            $block->first_program = $this->firstProgramFromFlags((bool) $fe, (bool) $fc);
-            unset($validated['for_explore'], $validated['for_challenge']);
-        }
-
         $block->fill($validated);
         $block->save();
-
-        $flags = $this->flagsFromFirstProgram($block->first_program);
 
         return response()->json([
             'id' => $block->id,
@@ -310,10 +291,9 @@ class ExtraBlockController extends Controller
             'description' => $block->description,
             'link' => $block->link,
             'duration' => $block->duration,
+            'first_program' => (int) $block->first_program,
             'active' => (bool) $block->active,
             'room' => $block->room,
-            'for_explore' => $flags['for_explore'],
-            'for_challenge' => $flags['for_challenge'],
         ]);
     }
 
