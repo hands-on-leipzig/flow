@@ -4,7 +4,7 @@
 
 ✅ **Master Migration**: Cleaned and ready (`2025_01_01_000000_create_master_tables.php`)
 - Contains all 46 reviewed tables
-- Removed obsolete tables (`plan_extra_block`, `q_plan_match`)
+- Removed obsolete junction tables and legacy match quality tables
 - All cascade delete chains verified
 - All foreign key rules verified
 

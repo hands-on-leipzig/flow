@@ -14,6 +14,7 @@ import {eventPrograms, programDisplayName, firstTeamsPath, teamPathFor, programC
 import {staffingSummaryFromReadiness, type StaffingScopeSummary} from '@/utils/volunteerStaffingSummary'
 import VolunteerStaffingSummary from '@/components/volunteers/VolunteerStaffingSummary.vue'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
+import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
 
 defineOptions({name: 'HomeOverview'})
 
@@ -241,6 +242,8 @@ watch(
     </div>
 
     <EventSelectModal :open="showEventModal" @close="showEventModal = false"/>
+
+    <PublicLinkStrip/>
 
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
       <div class="xl:col-span-1 space-y-4 order-2 xl:order-1">

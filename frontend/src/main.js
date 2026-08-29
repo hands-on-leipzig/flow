@@ -83,7 +83,7 @@ const routes = [
                     {path: 'protected', name: 'schedule-protected', component: ScheduleProtected},
                     {path: 'blocks', redirect: {name: 'schedule-free'}},
                     {path: 'free', name: 'schedule-free', component: ScheduleFreeActivities},
-                    {path: 'slots', name: 'schedule-slots', component: () => import('@/components/Slots.vue')},
+                    {path: 'slots', name: 'schedule-slots', component: () => import('@/components/ScheduleSlotActivities.vue')},
                 ],
             },
             {

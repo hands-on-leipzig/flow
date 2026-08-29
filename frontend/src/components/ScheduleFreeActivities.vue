@@ -8,9 +8,6 @@ defineOptions({ name: 'ScheduleFreeActivities' })
 const {
   selectedEvent,
   selectedPlanId,
-  showExplore,
-  showChallenge,
-  showFuture,
   previewReload,
 } = useScheduleWorkspace()
 
@@ -28,9 +25,6 @@ function onFreeBlocksChanged() {
         :plan-id="selectedPlanId"
         :event-date="selectedEvent?.date"
         :event-days="selectedEvent?.days"
-        :show-explore="showExplore"
-        :show-challenge="showChallenge"
-        :show-future="showFuture"
         @changed="onFreeBlocksChanged"
     />
   </div>

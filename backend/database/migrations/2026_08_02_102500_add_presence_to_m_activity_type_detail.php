@@ -23,7 +23,6 @@ return new class extends Migration
         $windowCodes = [
             'c_lunch_break',
             'c_free_block', 'e_free_block', 'g_free_block',
-            'c_inserted_block', 'e_inserted_block', 'g_inserted_block',
             'c_slot_block', 'e_slot_block', 'g_slot_block',
             'g_opening', 'c_opening', 'e_opening', 'c_opening_day_1',
             'g_party_teams', 'g_party_volunteers',

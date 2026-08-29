@@ -13,6 +13,14 @@ class StoreSlotExtraBlockRequest extends FormRequest
 
     public function rules(): array
     {
+        $allowedPrograms = implode(',', [
+            \App\Enums\FirstProgram::JOINT->value,
+            \App\Enums\FirstProgram::DISCOVER->value,
+            \App\Enums\FirstProgram::EXPLORE->value,
+            \App\Enums\FirstProgram::CHALLENGE->value,
+            \App\Enums\FirstProgram::FUTURE_8->value,
+        ]);
+
         return [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
@@ -22,8 +30,7 @@ class StoreSlotExtraBlockRequest extends FormRequest
                     $fail('Dauer nur in 5-Minuten-Schritten.');
                 }
             }],
-            'for_explore' => 'required|boolean',
-            'for_challenge' => 'required|boolean',
+            'first_program' => "required|integer|in:{$allowedPrograms}",
             'active' => 'sometimes|boolean',
         ];
     }

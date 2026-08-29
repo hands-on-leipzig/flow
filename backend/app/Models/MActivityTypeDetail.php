@@ -29,7 +29,10 @@ class MActivityTypeDetail extends Model
         'link',
         'link_text',
         'activity_type',
+        'public_time',
     ];
 
-    // Optional: Define relationship to groups or activities if needed later
+    protected $casts = [
+        'public_time' => 'boolean',
+    ];
 }

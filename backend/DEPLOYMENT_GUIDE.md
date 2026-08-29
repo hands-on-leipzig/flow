@@ -27,7 +27,7 @@ php artisan migrate
 
 This will:
 - Create `s_generator` table
-- Add missing columns (`m_room_type.level`, `activity.plan_extra_block`)
+- Add missing columns (`m_room_type.level`, etc.)
 - Remove obsolete columns (`event.enddate`)
 - Update foreign key constraints
 
@@ -46,7 +46,7 @@ php artisan tinker
 # Export main tables from dev
 mysqldump -u dev_user -p dev_database \
   --tables m_activity_type m_activity_type_detail m_first_program \
-  m_insert_point m_level m_parameter m_role m_room_type \
+  m_level m_parameter m_role m_room_type \
   m_room_type_group m_season m_supported_plan m_visibility \
   --no-create-info --single-transaction > main_tables.sql
 
@@ -72,7 +72,7 @@ mysqldump -u prod_user -p prod_database > prod_backup_$(date +%Y%m%d_%H%M%S).sql
 # Create backup of specific tables (optional)
 mysqldump -u prod_user -p prod_database \
   --tables activity activity_group event event_logo extra_block \
-  logo plan plan_extra_block plan_param_value regional_partner \
+  logo plan plan_param_value regional_partner \
   room room_type_room table_event team team_plan user user_regional_partner \
   > prod_data_backup_$(date +%Y%m%d_%H%M%S).sql
 ```
@@ -126,7 +126,6 @@ These tables will be truncated and refreshed with dev data:
 - `m_activity_type`
 - `m_activity_type_detail`
 - `m_first_program`
-- `m_insert_point`
 - `m_level`
 - `m_parameter`
 - `m_role`
@@ -146,7 +145,6 @@ These tables will keep their existing data:
 - `extra_block`
 - `logo`
 - `plan`
-- `plan_extra_block`
 - `plan_param_value`
 - `regional_partner`
 - `room`

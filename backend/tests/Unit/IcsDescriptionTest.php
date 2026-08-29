@@ -72,6 +72,24 @@ class IcsDescriptionTest extends TestCase
         $this->assertStringNotContainsString('Vollständiger Zeitplan', $text);
     }
 
+    public function test_teams_lanes_format(): void
+    {
+        $text = IcsDescription::fromPublicPayload([
+            'teams' => [
+                'lanes' => [
+                    [
+                        'name' => 'Explore',
+                        'teams' => [
+                            ['ref' => '1234', 'name' => 'Robo'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertStringContainsString("Explore\n1234 · Robo", $text);
+    }
+
     public function test_teams_follow_payload_keys_including_unknown_programs(): void
     {
         $text = IcsDescription::fromPublicPayload([

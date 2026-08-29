@@ -57,7 +57,7 @@ class RolesPreviewGridService
 
         $raw = $this->activities->fetchActivities(
             plan: $planId,
-            roles: [],
+            roles: $this->previewRoleIds($rolesByProgram),
             includeActivityMeta: true,
             freeBlocks: false,
         );
@@ -128,6 +128,22 @@ class RolesPreviewGridService
         });
 
         return $roles->groupBy(fn ($r) => (int) $r->first_program)->all();
+    }
+
+    /**
+     * @param  array<int, Collection<int, object>>  $rolesByProgram
+     * @return list<int>
+     */
+    private function previewRoleIds(array $rolesByProgram): array
+    {
+        $ids = [];
+        foreach ($rolesByProgram as $roles) {
+            foreach ($roles as $role) {
+                $ids[] = (int) $role->id;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**

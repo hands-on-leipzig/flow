@@ -37,7 +37,6 @@ function freshTestDatabase()
         'extra_block',
         'logo',
         'plan',
-        'plan_extra_block',
         'plan_param_value',
         'regional_partner',
         'room',

@@ -12,20 +12,17 @@ use App\Models\Plan;
 use App\Models\SlotBlockTeam;
 use App\Services\EventAttentionService;
 use App\Services\ExtraBlockCleanupService;
-use App\Services\SlotBlockPlanSyncService;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 class ExtraBlockController extends Controller
 {
     public function __construct(
         private ExtraBlockCleanupService $extraBlockCleanup,
-        private SlotBlockPlanSyncService $slotBlockPlanSync,
     ) {}
 
     /**
@@ -76,8 +73,8 @@ class ExtraBlockController extends Controller
             'end' => 'nullable|date|after_or_equal:start',
             'room' => 'nullable|integer|exists:room,id',
             'active' => 'nullable|boolean',
+            'public_time' => 'nullable|boolean',
             'type' => 'nullable|string|in:free,slot',
-            'skip_regeneration' => 'nullable|boolean',
         ]);
 
         if (($validated['type'] ?? '') === 'slot') {
@@ -97,57 +94,50 @@ class ExtraBlockController extends Controller
             $validated['type'] = 'free';
         }
 
-        $skipRegeneration = $validated['skip_regeneration'] ?? false;
-        unset($validated['skip_regeneration']);
-
         $block = ExtraBlock::updateOrCreate(
             ['id' => $validated['id'] ?? null],
             $validated
         );
 
-        if (! $skipRegeneration) {
-            try {
-                $generator = app(PlanGeneratorController::class);
-                $response = $generator->generateLite($planId);
+        try {
+            $generator = app(PlanGeneratorController::class);
+            $response = $generator->generateLite($planId);
 
-                if ($response->getStatusCode() !== 200) {
-                    $responseData = $response->getData(true);
-                    Log::error("Fehler bei der Lite-Regeneration des Plans {$planId}", [
-                        'status' => $response->getStatusCode(),
-                        'error' => $responseData['error'] ?? 'Unknown error',
-                        'details' => $responseData['details'] ?? null,
-                    ]);
-
-                    return response()->json([
-                        'block' => $block,
-                        'skip_regeneration' => $skipRegeneration,
-                        'error' => $responseData['error'] ?? 'Fehler bei der Lite-Generierung',
-                        'details' => $responseData['details'] ?? $responseData['message'] ?? null,
-                    ], $response->getStatusCode());
-                }
-            } catch (\Throwable $e) {
-                Log::error("Fehler bei der Regeneration des Plans {$planId}: ".$e->getMessage(), [
-                    'trace' => $e->getTraceAsString(),
+            if ($response->getStatusCode() !== 200) {
+                $responseData = $response->getData(true);
+                Log::error("Fehler bei der Lite-Regeneration des Plans {$planId}", [
+                    'status' => $response->getStatusCode(),
+                    'error' => $responseData['error'] ?? 'Unknown error',
+                    'details' => $responseData['details'] ?? null,
                 ]);
-
-                $errorMessage = 'Fehler bei der Lite-Generierung';
-                $details = $e->getMessage();
-
-                if (str_contains($e->getMessage(), "Parameter '")) {
-                    $errorMessage = 'Ungültiger Parameterwert';
-                } elseif (str_contains($e->getMessage(), 'not found') || str_contains($e->getMessage(), 'existiert nicht')) {
-                    $errorMessage = 'Fehlende Daten';
-                } elseif (str_contains($e->getMessage(), 'FreeBlockGenerator') || str_contains($e->getMessage(), 'freien Aktivitäten')) {
-                    $errorMessage = 'Fehler beim Einfügen der freien Blöcke';
-                }
 
                 return response()->json([
                     'block' => $block,
-                    'skip_regeneration' => $skipRegeneration,
-                    'error' => $errorMessage,
-                    'details' => $details,
-                ], 500);
+                    'error' => $responseData['error'] ?? 'Fehler bei der Lite-Generierung',
+                    'details' => $responseData['details'] ?? $responseData['message'] ?? null,
+                ], $response->getStatusCode());
             }
+        } catch (\Throwable $e) {
+            Log::error("Fehler bei der Regeneration des Plans {$planId}: ".$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $errorMessage = 'Fehler bei der Lite-Generierung';
+            $details = $e->getMessage();
+
+            if (str_contains($e->getMessage(), "Parameter '")) {
+                $errorMessage = 'Ungültiger Parameterwert';
+            } elseif (str_contains($e->getMessage(), 'not found') || str_contains($e->getMessage(), 'existiert nicht')) {
+                $errorMessage = 'Fehlende Daten';
+            } elseif (str_contains($e->getMessage(), 'FreeBlockGenerator') || str_contains($e->getMessage(), 'freien Aktivitäten')) {
+                $errorMessage = 'Fehler beim Einfügen der freien Blöcke';
+            }
+
+            return response()->json([
+                'block' => $block,
+                'error' => $errorMessage,
+                'details' => $details,
+            ], 500);
         }
 
         $plan = Plan::find($planId);
@@ -157,7 +147,6 @@ class ExtraBlockController extends Controller
 
         return response()->json([
             'block' => $block,
-            'skip_regeneration' => $skipRegeneration,
         ]);
     }
 
@@ -220,13 +209,6 @@ class ExtraBlockController extends Controller
 
     // --- Slot blocks (type=slot) under unified extra-block API ---
 
-    public function slotApplyToPlan(int $planId): JsonResponse
-    {
-        $result = $this->slotBlockPlanSync->applyToPlan($planId);
-
-        return response()->json($result);
-    }
-
     public function slotIndex(int $planId): JsonResponse
     {
         Plan::findOrFail($planId);
@@ -236,22 +218,17 @@ class ExtraBlockController extends Controller
             ->where('type', 'slot')
             ->orderBy('name')
             ->get()
-            ->map(function (ExtraBlock $b) {
-                $flags = $this->flagsFromFirstProgram($b->first_program);
-
-                return [
-                    'id' => $b->id,
-                    'plan' => $b->plan,
-                    'name' => $b->name,
-                    'description' => $b->description,
-                    'link' => $b->link,
-                    'duration' => $b->duration,
-                    'active' => (bool) $b->active,
-                    'room' => $b->room,
-                    'for_explore' => $flags['for_explore'],
-                    'for_challenge' => $flags['for_challenge'],
-                ];
-            });
+            ->map(fn (ExtraBlock $b) => [
+                'id' => $b->id,
+                'plan' => $b->plan,
+                'name' => $b->name,
+                'description' => $b->description,
+                'link' => $b->link,
+                'duration' => $b->duration,
+                'first_program' => (int) $b->first_program,
+                'active' => (bool) $b->active,
+                'room' => $b->room,
+            ]);
 
         return response()->json($blocks);
     }
@@ -261,15 +238,11 @@ class ExtraBlockController extends Controller
         Plan::findOrFail($planId);
 
         $validated = $request->validated();
-        $firstProgram = $this->firstProgramFromFlags(
-            $validated['for_explore'],
-            $validated['for_challenge']
-        );
 
         $block = ExtraBlock::create([
             'plan' => $planId,
             'type' => 'slot',
-            'first_program' => $firstProgram,
+            'first_program' => $validated['first_program'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'link' => $validated['link'] ?? null,
@@ -286,10 +259,9 @@ class ExtraBlockController extends Controller
             'description' => $block->description,
             'link' => $block->link,
             'duration' => $block->duration,
+            'first_program' => (int) $block->first_program,
             'active' => (bool) $block->active,
             'room' => $block->room,
-            'for_explore' => $validated['for_explore'],
-            'for_challenge' => $validated['for_challenge'],
         ], 201);
     }
 
@@ -300,17 +272,17 @@ class ExtraBlockController extends Controller
 
         $validated = $request->validated();
 
-        if (array_key_exists('for_explore', $validated) || array_key_exists('for_challenge', $validated)) {
-            $fe = array_key_exists('for_explore', $validated) ? $validated['for_explore'] : $this->flagsFromFirstProgram($block->first_program)['for_explore'];
-            $fc = array_key_exists('for_challenge', $validated) ? $validated['for_challenge'] : $this->flagsFromFirstProgram($block->first_program)['for_challenge'];
-            $block->first_program = $this->firstProgramFromFlags((bool) $fe, (bool) $fc);
-            unset($validated['for_explore'], $validated['for_challenge']);
+        $previousFirstProgram = (int) $block->first_program;
+        $block->fill($validated);
+
+        if (
+            array_key_exists('first_program', $validated)
+            && (int) $validated['first_program'] !== $previousFirstProgram
+        ) {
+            SlotBlockTeam::query()->where('extra_block', $block->id)->delete();
         }
 
-        $block->fill($validated);
         $block->save();
-
-        $flags = $this->flagsFromFirstProgram($block->first_program);
 
         return response()->json([
             'id' => $block->id,
@@ -319,10 +291,9 @@ class ExtraBlockController extends Controller
             'description' => $block->description,
             'link' => $block->link,
             'duration' => $block->duration,
+            'first_program' => (int) $block->first_program,
             'active' => (bool) $block->active,
             'room' => $block->room,
-            'for_explore' => $flags['for_explore'],
-            'for_challenge' => $flags['for_challenge'],
         ]);
     }
 
@@ -333,6 +304,41 @@ class ExtraBlockController extends Controller
         $this->extraBlockCleanup->beforeDelete($block);
         $block->delete();
 
+        try {
+            $generator = app(PlanGeneratorController::class);
+            $response = $generator->generateLite($planId);
+
+            if ($response->getStatusCode() !== 200) {
+                $responseData = $response->getData(true);
+                Log::error("Fehler bei der Lite-Regeneration des Plans {$planId} nach Slot-Block-Löschung", [
+                    'status' => $response->getStatusCode(),
+                    'error' => $responseData['error'] ?? 'Unknown error',
+                    'details' => $responseData['details'] ?? null,
+                ]);
+
+                return response()->json([
+                    'message' => 'deleted',
+                    'error' => $responseData['error'] ?? 'Fehler bei der Lite-Generierung',
+                    'details' => $responseData['details'] ?? $responseData['message'] ?? null,
+                ], $response->getStatusCode());
+            }
+        } catch (\Throwable $e) {
+            Log::error("Fehler bei der Regeneration des Plans {$planId} nach Slot-Block-Löschung: ".$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'deleted',
+                'error' => 'Fehler bei der Lite-Generierung',
+                'details' => $e->getMessage(),
+            ], 500);
+        }
+
+        $plan = Plan::find($planId);
+        if ($plan) {
+            app(EventAttentionService::class)->updateEventAttentionStatus($plan->event);
+        }
+
         return response()->json(['message' => 'deleted']);
     }
 
@@ -341,38 +347,12 @@ class ExtraBlockController extends Controller
         $block = ExtraBlock::where('plan', $planId)->findOrFail($extraBlock);
         $this->assertSlotBlock($block, $planId);
         $params = PlanParameter::load($planId);
-        $eTransfer = (int) $params->get('e_duration_transfer');
-        $cTransfer = (int) $params->get('c_duration_transfer');
-
-        $fp = (int) $block->first_program;
+        $presence = ProgramPresence::forPlan($planId, $params);
 
         $assignments = SlotBlockTeam::query()
             ->where('extra_block', $extraBlock)
             ->get()
             ->keyBy(fn (SlotBlockTeam $row) => ((int) $row->first_program).':'.((int) $row->team_number_plan));
-
-        $teamLookup = DB::table('team_plan as tp')
-            ->join('team as t', 't.id', '=', 'tp.team')
-            ->where('tp.plan', $planId)
-            ->select([
-                'tp.team_number_plan',
-                't.id as team_id',
-                't.team_number_hot',
-                't.name as team_name',
-                't.first_program',
-            ])
-            ->get()
-            ->groupBy(function ($row) {
-                $fp = (int) $row->first_program;
-                $program = match ($fp) {
-                    FirstProgram::CHALLENGE->value => FirstProgram::CHALLENGE->value,
-                    FirstProgram::FUTURE_8->value => FirstProgram::FUTURE_8->value,
-                    default => FirstProgram::EXPLORE->value,
-                };
-
-                return $program.':'.((int) $row->team_number_plan);
-            })
-            ->map(fn ($rows) => $rows->first());
 
         $rows = collect();
         foreach ($this->assignmentRangesForBlock($block, $params) as $range) {
@@ -381,7 +361,6 @@ class ExtraBlockController extends Controller
                 $key = $program.':'.$teamNo;
                 /** @var SlotBlockTeam|null $assignment */
                 $assignment = $assignments->get($key);
-                $lookup = $teamLookup->get($key);
 
                 $start = null;
                 if ($assignment?->start) {
@@ -392,7 +371,7 @@ class ExtraBlockController extends Controller
 
                 $collision = null;
                 if ($start !== null) {
-                    $transfer = $this->transferDurationForProgram($program, $eTransfer, $cTransfer);
+                    $transfer = $this->transferDurationForProgramOnPlan($params, $presence, $program);
                     $collision = $this->evaluateTeamCollisionForSlot(
                         $planId,
                         $teamNo,
@@ -404,13 +383,9 @@ class ExtraBlockController extends Controller
                     );
                 }
 
-                $placeholderName = sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', $teamNo);
                 $rows->push([
                     'row_key' => $key,
-                    'team_id' => $lookup->team_id ?? null,
                     'team_number_plan' => $teamNo,
-                    'team_number_hot' => $lookup->team_number_hot ?? null,
-                    'team_name' => $lookup->team_name ?? $placeholderName,
                     'first_program' => $program,
                     'start' => $start,
                     'collision_status' => $collision['status'] ?? null,
@@ -446,10 +421,12 @@ class ExtraBlockController extends Controller
             })
             ->values();
 
+        $legendTransfers = $this->legendTransferDurations($params, $presence);
+
         return response()->json([
             'teams' => $rows,
-            'e_duration_transfer' => $eTransfer,
-            'c_duration_transfer' => $cTransfer,
+            'e_duration_transfer' => $legendTransfers['e_duration_transfer'],
+            'c_duration_transfer' => $legendTransfers['c_duration_transfer'],
         ]);
     }
 
@@ -464,6 +441,7 @@ class ExtraBlockController extends Controller
         }
 
         $params = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $params);
         $isAllowedProgram = $this->blockAllowsProgram((int) $block->first_program, $programId);
         if (! $isAllowedProgram) {
             abort(422, 'Program not applicable for this slot block');
@@ -512,9 +490,7 @@ class ExtraBlockController extends Controller
             ? $row->start->format('Y-m-d H:i:s')
             : (string) $row->getRawOriginal('start');
 
-        $eTransfer = (int) $params->get('e_duration_transfer');
-        $cTransfer = (int) $params->get('c_duration_transfer');
-        $transfer = $this->transferDurationForProgram($programId, $eTransfer, $cTransfer);
+        $transfer = $this->transferDurationForProgramOnPlan($params, $presence, $programId);
         $collision = $this->evaluateTeamCollisionForSlot(
             $planId,
             $teamNumberPlan,
@@ -547,16 +523,13 @@ class ExtraBlockController extends Controller
         }
 
         $params = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $params);
         $maxTeams = $this->maxTeamsForProgram($programId, $params);
         if ($teamNumberPlan < 1 || $teamNumberPlan > $maxTeams) {
             abort(422, 'Team number out of configured plan range');
         }
 
-        $transfer = $this->transferDurationForProgram(
-            $programId,
-            (int) $params->get('e_duration_transfer'),
-            (int) $params->get('c_duration_transfer')
-        );
+        $transfer = $this->transferDurationForProgramOnPlan($params, $presence, $programId);
 
         $assignment = SlotBlockTeam::query()
             ->where('extra_block', $extraBlock)
@@ -580,11 +553,10 @@ class ExtraBlockController extends Controller
             ->where('ag.plan', $planId)
             ->where('atd.first_program', $programId)
             ->whereExists(function ($q) use ($programId) {
-                $roleId = $programId === FirstProgram::CHALLENGE->value ? 3 : 8;
                 $q->select(DB::raw(1))
                     ->from('m_visibility as mv')
                     ->whereColumn('mv.activity_type_detail', 'atd.id')
-                    ->where('mv.role', $roleId);
+                    ->where('mv.role', $this->visibilityRoleForProgram($programId));
             })
             ->where(function ($q) use ($teamNumberPlan) {
                 $q->where('a.jury_team', $teamNumberPlan)
@@ -652,15 +624,61 @@ class ExtraBlockController extends Controller
             })
             ->values();
 
+        $teamMeta = $this->teamMetaForPlanSlot($planId, $programId, $teamNumberPlan);
+
         return response()->json([
             'first_program' => $programId,
             'team_number_plan' => $teamNumberPlan,
+            'team_number_hot' => $teamMeta['team_number_hot'],
+            'team_name' => $teamMeta['team_name'],
             'slot_start' => $slotStart,
             'slot_date' => $slotDate,
             'slot_duration' => (int) $block->duration,
             'transfer_minutes' => $transfer,
             'activities' => $rows,
         ]);
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function teamFirstProgramsForSlotAssignment(int $assignmentProgramId): array
+    {
+        return match ($assignmentProgramId) {
+            FirstProgram::CHALLENGE->value => [FirstProgram::CHALLENGE->value],
+            FirstProgram::FUTURE_8->value => [FirstProgram::FUTURE_8->value],
+            FirstProgram::EXPLORE->value => [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value],
+            default => [$assignmentProgramId],
+        };
+    }
+
+    private function teamMetaForPlanSlot(int $planId, int $programId, int $teamNumberPlan): array
+    {
+        $row = DB::table('team_plan as tp')
+            ->join('team as t', 't.id', '=', 'tp.team')
+            ->where('tp.plan', $planId)
+            ->where('tp.team_number_plan', $teamNumberPlan)
+            ->whereIn('t.first_program', $this->teamFirstProgramsForSlotAssignment($programId))
+            ->select([
+                't.team_number_hot',
+                't.name as team_name',
+            ])
+            ->first();
+
+        if ($row !== null) {
+            return [
+                'team_number_hot' => $row->team_number_hot,
+                'team_name' => $row->team_name,
+            ];
+        }
+
+        return [
+            'team_number_hot' => null,
+            'team_name' => sprintf(
+                'T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!',
+                $teamNumberPlan
+            ),
+        ];
     }
 
     private function blockAllowsProgram(int $blockFirstProgram, int $programId): bool
@@ -765,11 +783,51 @@ class ExtraBlockController extends Controller
         return ['status' => 'green', 'gap_minutes' => $gap];
     }
 
-    private function transferDurationForProgram(int $teamFirstProgram, int $eTransfer, int $cTransfer): int
+    /**
+     * @return array{e_duration_transfer: ?int, c_duration_transfer: ?int}
+     */
+    private function legendTransferDurations(PlanParameter $params, ProgramPresence $presence): array
     {
-        return in_array($teamFirstProgram, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)
-            ? $eTransfer
-            : $cTransfer;
+        return [
+            'e_duration_transfer' => $presence->exploreOn()
+                ? (int) $params->get('e_duration_transfer')
+                : null,
+            'c_duration_transfer' => $presence->challengeShapedOn(FirstProgram::CHALLENGE->value)
+                ? (int) $params->get('c_duration_transfer')
+                : null,
+        ];
+    }
+
+    private function transferDurationForProgramOnPlan(
+        PlanParameter $params,
+        ProgramPresence $presence,
+        int $programId
+    ): int {
+        if (in_array($programId, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)) {
+            if (! $presence->exploreOn()) {
+                throw new \InvalidArgumentException('Explore transfer requested for program not on plan');
+            }
+
+            return (int) $params->get('e_duration_transfer');
+        }
+
+        if ($programId === FirstProgram::CHALLENGE->value) {
+            if (! $presence->challengeShapedOn(FirstProgram::CHALLENGE->value)) {
+                throw new \InvalidArgumentException('Challenge transfer requested for program not on plan');
+            }
+
+            return (int) $params->get('c_duration_transfer');
+        }
+
+        if ($programId === FirstProgram::FUTURE_8->value) {
+            if (! $presence->challengeShapedOn(FirstProgram::FUTURE_8->value)) {
+                throw new \InvalidArgumentException('Future 8 transfer requested for program not on plan');
+            }
+
+            return (int) $params->get('f8_duration_transfer');
+        }
+
+        throw new \InvalidArgumentException("Unsupported program for transfer duration: {$programId}");
     }
 
     private function visibilityRoleForProgram(int $teamFirstProgram): int
@@ -870,37 +928,5 @@ class ExtraBlockController extends Controller
         if ((int) $block->plan !== $planId || $block->type !== 'slot') {
             abort(404);
         }
-    }
-
-    private function firstProgramFromFlags(bool $forExplore, bool $forChallenge): int
-    {
-        if ($forExplore && $forChallenge) {
-            return FirstProgram::JOINT->value;
-        }
-        if ($forExplore) {
-            return FirstProgram::EXPLORE->value;
-        }
-        if ($forChallenge) {
-            return FirstProgram::CHALLENGE->value;
-        }
-        throw ValidationException::withMessages([
-            'for_explore' => ['Mindestens Explore oder Challenge muss aktiviert sein.'],
-        ]);
-    }
-
-    private function flagsFromFirstProgram(?int $fp): array
-    {
-        $fp = (int) $fp;
-        if ($fp === FirstProgram::JOINT->value) {
-            return ['for_explore' => true, 'for_challenge' => true];
-        }
-        if ($fp === FirstProgram::EXPLORE->value) {
-            return ['for_explore' => true, 'for_challenge' => false];
-        }
-        if ($fp === FirstProgram::CHALLENGE->value) {
-            return ['for_explore' => false, 'for_challenge' => true];
-        }
-
-        return ['for_explore' => false, 'for_challenge' => false];
     }
 }

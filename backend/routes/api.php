@@ -218,7 +218,6 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
 
-    Route::post('/plans/{planId}/extra-blocks/slot/apply-to-plan', [ExtraBlockController::class, 'slotApplyToPlan']);
     Route::get('/plans/{planId}/extra-blocks/slot', [ExtraBlockController::class, 'slotIndex']);
     Route::post('/plans/{planId}/extra-blocks/slot', [ExtraBlockController::class, 'slotStore']);
     Route::get('/plans/{planId}/extra-blocks/slot/{extraBlock}/teams', [ExtraBlockController::class, 'slotTeamAssignments']);
@@ -380,7 +379,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
-        Route::get('/times/{planId}', [PublishController::class, 'importantTimes']); // Wichtige Zeiten für Aussenkommunikation
         Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
         Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
     });

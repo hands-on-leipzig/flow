@@ -49,30 +49,34 @@ function handleClick() {
 </script>
 
 <template>
-  <div v-show="visible"
-       class="fixed top-4 right-4 z-50 min-w-48">
-    <button
-      :class="[
-        'w-full rounded-lg shadow-lg px-4 py-3 font-medium transition-colors flex items-center justify-center gap-3',
-        buttonClass
-      ]"
-      :disabled="!isClickable"
-      @click="handleClick"
+  <Teleport to="body">
+    <div
+        v-show="visible"
+        class="schedule-toast fixed top-4 right-4 z-[200] min-w-48"
     >
-      <div v-if="isGenerating" class="flex items-center gap-2">
-        <div class="w-3 h-3 bg-gray-600 rounded-full animate-pulse"></div>
-        <span>{{ busyLabel }}</span>
-      </div>
-      <template v-else-if="displayCountdownText !== null">
-        <span class="text-2xl font-bold font-mono">{{ displayCountdownText }}</span>
-        <span>{{ actionLabel }}</span>
-      </template>
-      <template v-else>
-        <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-        <span>{{ message }}</span>
-      </template>
-    </button>
-  </div>
+      <button
+          :class="[
+            'w-full rounded-lg shadow-lg px-4 py-3 font-medium transition-colors flex items-center justify-center gap-3',
+            buttonClass,
+          ]"
+          :disabled="!isClickable"
+          @click="handleClick"
+      >
+        <div v-if="isGenerating" class="flex items-center gap-2">
+          <div class="w-3 h-3 bg-gray-600 rounded-full animate-pulse"/>
+          <span>{{ busyLabel }}</span>
+        </div>
+        <template v-else-if="displayCountdownText !== null">
+          <span class="text-2xl font-bold font-mono">{{ displayCountdownText }}</span>
+          <span>{{ actionLabel }}</span>
+        </template>
+        <template v-else>
+          <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"/>
+          <span>{{ message }}</span>
+        </template>
+      </button>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>

@@ -146,17 +146,8 @@ async function saveBlockField(blockId: number, field: string, value: any) {
   // Update local state
   block[field] = value
   
-  // Save to DB immediately
+  // Save to DB immediately (all writes trigger debounced generateLite via useExtraBlockDebouncedSave)
   const blockData = { id: blockId, [field]: value }
-  
-  // Determine if this triggers generator
-  const timingFields = ['buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
-  const toggleFields = ['active']
-  const needsGenerator = timingFields.includes(field) || toggleFields.includes(field)
-  
-  if (!needsGenerator) {
-    blockData.skip_regeneration = true
-  }
   
   try {
     await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
@@ -303,7 +294,7 @@ async function updateParams(params: Array<{ name: string, value: any }>, afterUp
 ## Notes
 
 - Block changes go to `ExtraBlockController::storeOrUpdate()` (different from parameter controller)
-- Backend already supports `skip_regeneration` flag for non-timing changes
+- Extra-block saves use debounced `generateLite` (no `skip_regeneration`)
 - Generator trigger should use same 60-second debounce as parameters
 - Consider adding visual feedback for immediate saves (subtle indicator vs countdown)
 

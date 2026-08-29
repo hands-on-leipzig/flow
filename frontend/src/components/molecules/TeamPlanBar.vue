@@ -56,8 +56,8 @@ watch(
     () => [props.planTeams, props.capacity, props.minTeams, props.maxTeams] as const,
     () => {
       if (props.capacity <= 0) return
-      if (props.planTeams <= props.capacity) return
-      commit(clampPlan(props.planTeams))
+      const next = clampPlan(props.planTeams)
+      if (next !== props.planTeams) commit(next)
     },
     {immediate: true}
 )

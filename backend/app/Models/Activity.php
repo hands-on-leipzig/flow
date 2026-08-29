@@ -25,6 +25,11 @@ class Activity extends Model
         'extra_block',
         'slot_team', // team_number_plan (same semantics as jury_team / table_*_team)
         'explore_group',
+        'public_time',
+    ];
+
+    protected $casts = [
+        'public_time' => 'boolean',
     ];
 
     // Define relationship to ActivityGroup

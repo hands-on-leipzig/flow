@@ -44,18 +44,23 @@ class FreeBlockGenerator
                 ->where('active', true)
                 ->where('type', 'free')
                 ->whereNotNull('start')
-                ->get(['id', 'first_program', 'start', 'end']);
+                ->get(['id', 'first_program', 'start', 'end', 'public_time']);
 
             foreach ($blocks as $block) {
-                $blockProgram = (int) $block->first_program;
+                $blockProgram = (int) ($block->first_program ?? FirstProgram::JOINT->value);
 
                 if ($blockProgram !== FirstProgram::JOINT->value && ! $presence->programOn($blockProgram)) {
                     continue;
                 }
 
                 if ($blockProgram === FirstProgram::JOINT->value) {
-                    $anyOn = $presence->exploreOn()
-                        || $presence->leadProgramId() !== null;
+                    $anyOn = false;
+                    foreach ($presence->attachedIds() as $programId) {
+                        if ($presence->programOn($programId)) {
+                            $anyOn = true;
+                            break;
+                        }
+                    }
                     if (! $anyOn) {
                         continue;
                     }
@@ -65,6 +70,7 @@ class FreeBlockGenerator
 
                 // Resolve activity_type_detail id
                 $activityTypeDetailId = (int) (MActivityTypeDetail::where('code', $code)->value('id'));
+                $atdPublicTime = (bool) MActivityTypeDetail::where('id', $activityTypeDetailId)->value('public_time');
 
                 // Create group first
                 $groupId = $this->writer->insertActivityGroup($code);
@@ -76,6 +82,7 @@ class FreeBlockGenerator
                     'start' => $block->start,
                     'end' => $block->end,
                     'extra_block' => $block->id,
+                    'public_time' => (bool) ($block->public_time ?? false) || $atdPublicTime,
                 ]);
             }
 
