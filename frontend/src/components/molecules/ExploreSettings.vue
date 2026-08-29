@@ -216,6 +216,17 @@ const registeredTeams = computed(() => Number(event.value?.drahtTeamsExplore || 
 const drahtCapacity = computed(() => Number(event.value?.drahtCapacityExplore || 0))
 const capacityOverride = ref<number | null>(null)
 const effectiveCapacity = computed(() => capacityOverride.value ?? drahtCapacity.value)
+/** Slider ceiling: catalog max, capped by effective (DRAHT or override) capacity. */
+const planMax = computed(() => {
+  const maxT = teamLimits.value.max
+  const cap = Number(effectiveCapacity.value)
+  if (Number.isFinite(cap) && cap > 0) return Math.min(maxT, Math.round(cap))
+  return maxT
+})
+
+function applyCapacityOverride(value: number) {
+  capacityOverride.value = value
+}
 
 onDeactivated(() => {
   capacityOverride.value = null
@@ -288,7 +299,7 @@ watch(
           :capacity="effectiveCapacity"
           :min="teamLimits.min"
           :max="teamLimits.max"
-          @apply="capacityOverride = $event"
+          @apply="applyCapacityOverride"
       />
     </template>
     <TeamPlanBar
@@ -296,7 +307,7 @@ watch(
         :registered-teams="registeredTeams"
         :capacity="effectiveCapacity"
         :min-teams="teamLimits.min"
-        :max-teams="teamLimits.max"
+        :max-teams="planMax"
         :on-update="(value) => updateByName('e_teams', value)"
     />
 
