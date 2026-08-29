@@ -47,6 +47,8 @@ const {
   scheduleBlockSave,
   cancelPendingBlockSave,
   scheduleBlockDelete,
+  setOriginals,
+  blockSaveKey,
 } = useExtraBlockDebouncedSave({
   keyPrefix: SAVE_PREFIX,
   onFlush: flushUpdates,
@@ -96,6 +98,9 @@ async function loadBlocks() {
     params: {type: 'free'},
   })
   blocks.value = Array.isArray(data) ? data : []
+  setOriginals(Object.fromEntries(
+    blocks.value.map((b) => [blockSaveKey(b), toApiPayload(b)]),
+  ))
 }
 
 async function flushUpdates(updates: Record<string, unknown>) {

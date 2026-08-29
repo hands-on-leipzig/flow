@@ -52,6 +52,8 @@ const {
   scheduleBlockSave,
   cancelPendingBlockSave,
   scheduleBlockDelete,
+  setOriginals,
+  blockSaveKey,
 } = useExtraBlockDebouncedSave({
   keyPrefix: SAVE_PREFIX,
   onFlush: flushUpdates,
@@ -137,6 +139,9 @@ async function loadBlocks() {
   const validIds = new Set(blocks.value.map((b) => b.id).filter((id): id is number => id != null))
   expandedTeamBlocks.value = new Set([...expandedTeamBlocks.value].filter((id) => validIds.has(id)))
   teamDraftDirtyIds.value = new Set([...teamDraftDirtyIds.value].filter((id) => validIds.has(id)))
+  setOriginals(Object.fromEntries(
+    blocks.value.map((b) => [blockSaveKey(b), toApiPayload(b)]),
+  ))
 }
 
 async function flushUpdates(updates: Record<string, unknown>) {
@@ -200,7 +205,6 @@ async function flushUpdates(updates: Record<string, unknown>) {
     }
 
     await loadBlocks()
-    await reloadTeamPanels()
 
     if (needsLite) {
       const ok = await runGenerateLite(
@@ -211,6 +215,7 @@ async function flushUpdates(updates: Record<string, unknown>) {
       )
       if (ok) emit('changed')
     }
+    await reloadTeamPanels()
   } catch (error: unknown) {
     console.error('Error flushing slot updates:', error)
     isGenerating.value = false
@@ -365,7 +370,6 @@ async function applyScopeChange(block: SlotExtraBlock, firstProgram: number) {
       })
     }
     onTeamDraftChanged(blockId, false)
-    await reloadTeamPanels(blockId)
 
     const ok = await runGenerateLite(
       props.planId,
@@ -374,6 +378,7 @@ async function applyScopeChange(block: SlotExtraBlock, firstProgram: number) {
       errorDetails,
     )
     if (ok) emit('changed')
+    await reloadTeamPanels(blockId)
   } catch (error: unknown) {
     isGenerating.value = false
     const parsed = parseExtraBlockSaveError(error, 'Fehler beim Ändern der Programm-Zuordnung')

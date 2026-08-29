@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import { usePlanCacheStore } from '@/stores/planCache'
@@ -225,9 +225,22 @@ const finaleProtectedParams = computed(() =>
 
 let saveApi: ReturnType<typeof useDebouncedSave> | null = null
 let extraBlockImmediateFlush: (() => Promise<void>) | null = null
+let extraBlockDebounceApi: {
+  freeze: () => void
+  unfreeze: () => void
+} | null = null
+const extraBlockPendingCount = ref(0)
 
 function registerExtraBlockImmediateFlush(fn: (() => Promise<void>) | null) {
   extraBlockImmediateFlush = fn
+}
+
+function registerExtraBlockDebounceApi(api: typeof extraBlockDebounceApi) {
+  extraBlockDebounceApi = api
+}
+
+function setExtraBlockPendingCount(count: number) {
+  extraBlockPendingCount.value = count
 }
 
 async function immediateFlushAll() {
@@ -238,8 +251,18 @@ async function immediateFlushAll() {
 }
 
 const toastAction = computed<'generate' | 'update'>(() =>
-  getSaveApi().pendingCount.value > 0 ? 'generate' : 'update',
+  getSaveApi().pendingCount.value > 0 || extraBlockPendingCount.value > 0 ? 'generate' : 'update',
 )
+
+watch(isGenerating, (generating) => {
+  if (generating) {
+    getSaveApi().freeze()
+    extraBlockDebounceApi?.freeze()
+  } else {
+    getSaveApi().unfreeze()
+    extraBlockDebounceApi?.unfreeze()
+  }
+})
 
 function getSaveApi() {
   if (saveApi) return saveApi
@@ -608,6 +631,8 @@ export function useScheduleWorkspace() {
     updateTableName,
     immediateFlush: immediateFlushAll,
     registerExtraBlockImmediateFlush,
+    registerExtraBlockDebounceApi,
+    setExtraBlockPendingCount,
     toastAction,
     openPlanPopout,
     focusPlanPopout,
