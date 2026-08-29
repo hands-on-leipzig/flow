@@ -33,7 +33,7 @@ const {
   visibilityMap,
   disabledMap,
   handleParamUpdate,
-  handleBlockUpdates,
+  scheduleBlockTrigger,
 } = useScheduleWorkspace()
 const blocks = ref<AfternoonBlock[]>([])
 const lastSavedIds = ref<number[]>([])
@@ -240,7 +240,7 @@ async function saveOrder() {
       blocks.value = response.data.blocks
     }
     lastSavedIds.value = orderedIdsForSave()
-    handleBlockUpdates([{name: 'afternoon_order', value: lastSavedIds.value.join(',')}])
+    scheduleBlockTrigger('afternoon_order', lastSavedIds.value.join(','))
   } catch (error) {
     console.error('Failed to save afternoon block order:', error)
   }

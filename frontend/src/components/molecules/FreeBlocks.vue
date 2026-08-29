@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {computed, nextTick, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
@@ -8,11 +8,10 @@ import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import ExtraBlockProgramPicker from '@/components/atoms/ExtraBlockProgramPicker.vue'
-import {useExtraBlockDebouncedSave} from '@/composables/useExtraBlockDebouncedSave'
-import {pollPlanUntilReady} from '@/composables/usePlanGeneratorPoll'
+import CommitInput from '@/components/atoms/CommitInput.vue'
+import {flushFreeBlockUpdates} from '@/composables/useScheduleFlush'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import type {FreeExtraBlock} from '@/types/extraBlock'
-import {parseExtraBlockSaveError} from '@/utils/extraBlockApiErrors'
 import {
   combineDateTime,
   extractDate,
@@ -21,7 +20,7 @@ import {
   timeToMinutes,
   type Maybe,
 } from '@/utils/extraBlockDateTime'
-import {blockRowKey, nextClientKey, orderDebouncedUpdates} from '@/utils/extraBlockSaveKeys'
+import {blockRowKey, createBlockSaveKeys, nextClientKey} from '@/utils/extraBlockSaveKeys'
 
 const SAVE_PREFIX = 'extra_block'
 
@@ -38,21 +37,30 @@ const emit = defineEmits<{
 const blocks = ref<FreeExtraBlock[]>([])
 const blockToDelete = ref<FreeExtraBlock | null>(null)
 
-const {attachedPrograms} = useScheduleWorkspace()
+const {blockSaveKey, blockDeleteKey} = createBlockSaveKeys(SAVE_PREFIX)
 
 const {
+  attachedPrograms,
   isGenerating,
   generatorError,
   errorDetails,
-  scheduleBlockSave,
-  cancelPendingBlockSave,
-  scheduleBlockDelete,
-  setOriginals,
-  blockSaveKey,
-} = useExtraBlockDebouncedSave({
-  keyPrefix: SAVE_PREFIX,
-  onFlush: flushUpdates,
-})
+  scheduleExtraBlockUpdate,
+  cancelExtraBlockUpdate,
+  setSaveOriginals,
+  registerFreeBlockFlushHandler,
+} = useScheduleWorkspace()
+
+function scheduleBlockSave(block: FreeExtraBlock) {
+  scheduleExtraBlockUpdate(blockSaveKey(block), {...block})
+}
+
+function cancelPendingBlockSave(block: FreeExtraBlock) {
+  cancelExtraBlockUpdate(blockSaveKey(block))
+}
+
+function scheduleBlockDelete(block: FreeExtraBlock & {id: number}) {
+  scheduleExtraBlockUpdate(blockDeleteKey(block.id), {...block})
+}
 
 function compareDateTime(a: Maybe<string>, b: Maybe<string>): number {
   const left = a ? a.replace('T', ' ') : ''
@@ -98,77 +106,30 @@ async function loadBlocks() {
     params: {type: 'free'},
   })
   blocks.value = Array.isArray(data) ? data : []
-  setOriginals(Object.fromEntries(
+  setSaveOriginals(Object.fromEntries(
     blocks.value.map((b) => [blockSaveKey(b), toApiPayload(b)]),
   ))
 }
 
-async function flushUpdates(updates: Record<string, unknown>) {
-  if (!props.planId) return
+onMounted(() => {
+  registerFreeBlockFlushHandler(async (updates, options) => {
+    if (!props.planId) return false
+    return flushFreeBlockUpdates(updates, {
+      planId: props.planId,
+      blocks,
+      loadBlocks,
+      toApiPayload,
+      isGenerating,
+      generatorError,
+      errorDetails,
+      onChanged: () => emit('changed'),
+    }, options)
+  })
+})
 
-  generatorError.value = null
-  errorDetails.value = null
-  isGenerating.value = true
-
-  try {
-    for (const [name, value] of orderDebouncedUpdates(updates, SAVE_PREFIX)) {
-      if (name.startsWith(`${SAVE_PREFIX}_update`) && value) {
-        const response = await axios.post(
-          `/plans/${props.planId}/extra-blocks`,
-          toApiPayload(value as FreeExtraBlock),
-        )
-        if (response.data?.error) {
-          generatorError.value = response.data.error
-          errorDetails.value = response.data.details || null
-          isGenerating.value = false
-          await loadBlocks()
-          return
-        }
-      }
-      if (name.startsWith(`${SAVE_PREFIX}_delete`) && value && (value as FreeExtraBlock).id) {
-        const deleteResponse = await axios.delete(`/extra-blocks/${(value as FreeExtraBlock).id}`)
-        if (deleteResponse.data?.error) {
-          generatorError.value = deleteResponse.data.error
-          errorDetails.value = deleteResponse.data.details || null
-          isGenerating.value = false
-          await loadBlocks()
-          return
-        }
-      }
-      if (name.startsWith(`${SAVE_PREFIX}_add`) && value) {
-        const block = value as FreeExtraBlock
-        if (block._clientKey && !blocks.value.some((b) => b._clientKey === block._clientKey)) {
-          continue
-        }
-        const response = await axios.post(
-          `/plans/${props.planId}/extra-blocks`,
-          toApiPayload(block),
-        )
-        if (response.data?.error) {
-          generatorError.value = response.data.error
-          errorDetails.value = response.data.details || null
-          isGenerating.value = false
-          await loadBlocks()
-          return
-        }
-        const saved = response.data?.block || response.data
-        if (block._clientKey && saved?.id) {
-          const idx = blocks.value.findIndex((b) => b._clientKey === block._clientKey)
-          if (idx !== -1) blocks.value[idx] = saved
-        }
-      }
-    }
-    await loadBlocks()
-    await pollPlanUntilReady(props.planId, isGenerating, generatorError, errorDetails)
-    emit('changed')
-  } catch (error: unknown) {
-    console.error('Error flushing updates:', error)
-    isGenerating.value = false
-    const parsed = parseExtraBlockSaveError(error, 'Fehler beim Speichern der Blöcke')
-    generatorError.value = parsed.message
-    errorDetails.value = parsed.details
-  }
-}
+onUnmounted(() => {
+  registerFreeBlockFlushHandler(null)
+})
 
 const newBlockName = ref('')
 const newBlockDescription = ref('')
@@ -265,6 +226,21 @@ function handleDateChange(block: FreeExtraBlock, date: string) {
   const endTime = extractTime(block.end || '')
   block.start = combineDateTime(date, startTime || '00:00')
   block.end = combineDateTime(date, endTime || '00:00')
+  scheduleBlockSave(block)
+}
+
+function commitBlockName(block: FreeExtraBlock, name: string) {
+  block.name = name
+  scheduleBlockSave(block)
+}
+
+function commitBlockDescription(block: FreeExtraBlock, description: string) {
+  block.description = description
+  scheduleBlockSave(block)
+}
+
+function commitBlockLink(block: FreeExtraBlock, link: string) {
+  block.link = link.trim() || null
   scheduleBlockSave(block)
 }
 
@@ -420,13 +396,13 @@ const hasBlocksOutsideEventDates = computed(() =>
             />
           </template>
           <template #title>
-            <input
-                :value="b.name"
+            <CommitInput
+                :model-value="b.name"
                 :disabled="b.active === false"
-                class="item-card__title glass-input glass-input--sm liquid-surface-control"
                 type="text"
                 placeholder="Titel"
-                @input="(e) => { b.name = (e.target as HTMLInputElement).value; scheduleBlockSave(b) }"
+                input-class="item-card__title glass-input glass-input--sm liquid-surface-control"
+                @commit="commitBlockName(b, $event)"
             />
           </template>
           <template #trailing>
@@ -444,29 +420,27 @@ const hasBlocksOutsideEventDates = computed(() =>
                 type="date"
                 @change="handleDateChange(b, ($event.target as HTMLInputElement).value)"
             />
-            <input
-                :value="extractTime(b.start)"
+            <CommitInput
+                :model-value="extractTime(b.start)"
                 :disabled="b.active === false"
-                class="glass-input glass-input--sm liquid-surface-control free-block__time"
                 type="time"
                 min="00:05"
                 max="23:55"
                 step="300"
                 aria-label="Startzeit"
-                @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) { b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start; scheduleBlockSave(b) } }"
-                @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
+                input-class="glass-input glass-input--sm liquid-surface-control free-block__time"
+                @commit="handleStartTimeChange(b, $event)"
             />
-            <input
-                :value="extractTime(b.end)"
+            <CommitInput
+                :model-value="extractTime(b.end)"
                 :disabled="b.active === false"
-                class="glass-input glass-input--sm liquid-surface-control free-block__time"
                 type="time"
                 min="00:05"
                 max="23:55"
                 step="300"
                 aria-label="Endzeit"
-                @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) { b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end; scheduleBlockSave(b) } }"
-                @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
+                input-class="glass-input glass-input--sm liquid-surface-control free-block__time"
+                @commit="handleEndTimeChange(b, $event)"
             />
             <ExtraBlockProgramPicker
                 :model-value="b.first_program"
@@ -477,21 +451,21 @@ const hasBlocksOutsideEventDates = computed(() =>
             />
           </div>
 
-          <input
-              :value="b.description"
+          <CommitInput
+              :model-value="b.description ?? ''"
               :disabled="b.active === false"
-              class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
               type="text"
               placeholder="Beschreibung"
-              @input="(e) => { b.description = (e.target as HTMLInputElement).value; scheduleBlockSave(b) }"
+              input-class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+              @commit="commitBlockDescription(b, $event)"
           />
-          <input
-              :value="b.link ?? ''"
+          <CommitInput
+              :model-value="b.link ?? ''"
               :disabled="b.active === false"
-              class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
               type="url"
               placeholder="https://example.com"
-              @input="(e) => { b.link = (e.target as HTMLInputElement).value; scheduleBlockSave(b) }"
+              input-class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
+              @commit="commitBlockLink(b, $event)"
           />
         </ItemCard>
       </div>

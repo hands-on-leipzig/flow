@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {computed, nextTick, ref, watch, type ComponentPublicInstance} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, ref, watch, type ComponentPublicInstance} from 'vue'
 import axios from 'axios'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
@@ -7,8 +7,9 @@ import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import ExtraBlockProgramPicker from '@/components/atoms/ExtraBlockProgramPicker.vue'
+import CommitInput from '@/components/atoms/CommitInput.vue'
 import SlotTeamPanel, {type TeamSavePayload} from '@/components/molecules/SlotTeamPanel.vue'
-import {useExtraBlockDebouncedSave} from '@/composables/useExtraBlockDebouncedSave'
+import {flushSlotBlockUpdates} from '@/composables/useScheduleFlush'
 import {runGenerateLite} from '@/composables/usePlanGeneratorPoll'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import type {SlotExtraBlock} from '@/types/extraBlock'
@@ -20,7 +21,7 @@ import {
   SLOT_DURATION_MIN,
   SLOT_DURATION_STEP,
 } from '@/utils/extraBlockDuration'
-import {blockRowKey, nextClientKey, orderDebouncedUpdates} from '@/utils/extraBlockSaveKeys'
+import {blockRowKey, createBlockSaveKeys, nextClientKey} from '@/utils/extraBlockSaveKeys'
 
 const SAVE_PREFIX = 'slot_block'
 
@@ -43,21 +44,30 @@ const teamPanelRefs = new Map<number, InstanceType<typeof SlotTeamPanel>>()
 const teamDraftDirtyIds = ref<Set<number>>(new Set())
 const savingAssignmentsFor = ref<number | null>(null)
 
-const {attachedPrograms} = useScheduleWorkspace()
+const {blockSaveKey, blockDeleteKey} = createBlockSaveKeys(SAVE_PREFIX)
 
 const {
+  attachedPrograms,
   isGenerating,
   generatorError,
   errorDetails,
-  scheduleBlockSave,
-  cancelPendingBlockSave,
-  scheduleBlockDelete,
-  setOriginals,
-  blockSaveKey,
-} = useExtraBlockDebouncedSave({
-  keyPrefix: SAVE_PREFIX,
-  onFlush: flushUpdates,
-})
+  scheduleExtraBlockUpdate,
+  cancelExtraBlockUpdate,
+  setSaveOriginals,
+  registerSlotBlockFlushHandler,
+} = useScheduleWorkspace()
+
+function scheduleBlockSave(block: SlotExtraBlock) {
+  scheduleExtraBlockUpdate(blockSaveKey(block), {...block})
+}
+
+function cancelPendingBlockSave(block: SlotExtraBlock) {
+  cancelExtraBlockUpdate(blockSaveKey(block))
+}
+
+function scheduleBlockDelete(block: SlotExtraBlock & {id: number}) {
+  scheduleExtraBlockUpdate(blockDeleteKey(block.id), {...block})
+}
 
 const sortedBlocks = computed(() =>
   blocks.value.slice().sort((a, b) =>
@@ -139,92 +149,31 @@ async function loadBlocks() {
   const validIds = new Set(blocks.value.map((b) => b.id).filter((id): id is number => id != null))
   expandedTeamBlocks.value = new Set([...expandedTeamBlocks.value].filter((id) => validIds.has(id)))
   teamDraftDirtyIds.value = new Set([...teamDraftDirtyIds.value].filter((id) => validIds.has(id)))
-  setOriginals(Object.fromEntries(
+  setSaveOriginals(Object.fromEntries(
     blocks.value.map((b) => [blockSaveKey(b), toApiPayload(b)]),
   ))
 }
 
-async function flushUpdates(updates: Record<string, unknown>) {
-  if (!props.planId) return
+onMounted(() => {
+  registerSlotBlockFlushHandler(async (updates, options) => {
+    if (!props.planId) return false
+    return flushSlotBlockUpdates(updates, {
+      planId: props.planId,
+      blocks,
+      loadBlocks,
+      reloadTeamPanels,
+      toApiPayload,
+      isGenerating,
+      generatorError,
+      errorDetails,
+      onChanged: () => emit('changed'),
+    }, options)
+  })
+})
 
-  generatorError.value = null
-  errorDetails.value = null
-  let needsLite = false
-
-  try {
-    const ordered = orderDebouncedUpdates(updates, SAVE_PREFIX)
-
-    for (const [name, value] of ordered) {
-      if (name.startsWith(`${SAVE_PREFIX}_delete`) && value && (value as SlotExtraBlock).id) {
-        const block = value as SlotExtraBlock
-        const deleteResponse = await axios.delete(
-          `/plans/${props.planId}/extra-blocks/slot/${block.id}`,
-        )
-        if (deleteResponse.data?.error) {
-          generatorError.value = deleteResponse.data.error
-          errorDetails.value = deleteResponse.data.details || null
-          await loadBlocks()
-          return
-        }
-        // Backend slotDestroy already runs generateLite.
-        emit('changed')
-      }
-
-      if (name.startsWith(`${SAVE_PREFIX}_add`) && value) {
-        const block = value as SlotExtraBlock
-        if (block._clientKey && !blocks.value.some((b) => b._clientKey === block._clientKey)) {
-          continue
-        }
-        const response = await axios.post(
-          `/plans/${props.planId}/extra-blocks/slot`,
-          toApiPayload(block),
-        )
-        const saved = response.data
-        if (block._clientKey && saved?.id) {
-          const idx = blocks.value.findIndex((b) => b._clientKey === block._clientKey)
-          if (idx !== -1) {
-            blocks.value[idx] = {
-              ...blocks.value[idx],
-              ...saved,
-              duration: normalizeDurationMinutes(saved.duration),
-            }
-            expandedTeamBlocks.value = new Set([...expandedTeamBlocks.value, saved.id])
-          }
-        }
-        needsLite = true
-      }
-
-      if (name.startsWith(`${SAVE_PREFIX}_update`) && value && (value as SlotExtraBlock).id) {
-        const block = value as SlotExtraBlock
-        await axios.put(
-          `/plans/${props.planId}/extra-blocks/slot/${block.id}`,
-          toApiPayload(block),
-        )
-        needsLite = true
-      }
-    }
-
-    await loadBlocks()
-
-    if (needsLite) {
-      const ok = await runGenerateLite(
-        props.planId,
-        isGenerating,
-        generatorError,
-        errorDetails,
-      )
-      if (ok) emit('changed')
-    }
-    await reloadTeamPanels()
-  } catch (error: unknown) {
-    console.error('Error flushing slot updates:', error)
-    isGenerating.value = false
-    const parsed = parseExtraBlockSaveError(error, 'Fehler beim Speichern der Slots')
-    generatorError.value = parsed.message
-    errorDetails.value = parsed.details
-    await loadBlocks()
-  }
-}
+onUnmounted(() => {
+  registerSlotBlockFlushHandler(null)
+})
 
 async function saveAssignments(payloads: TeamSavePayload[]) {
   if (!props.planId || !payloads.length || savingAssignmentsFor.value != null) return
@@ -389,7 +338,22 @@ async function applyScopeChange(block: SlotExtraBlock, firstProgram: number) {
   }
 }
 
-function onDurationInput(block: SlotExtraBlock, el: HTMLInputElement) {
+function commitBlockName(block: SlotExtraBlock, name: string) {
+  block.name = name
+  scheduleBlockSave(block)
+}
+
+function commitBlockDescription(block: SlotExtraBlock, description: string) {
+  block.description = description
+  scheduleBlockSave(block)
+}
+
+function commitBlockLink(block: SlotExtraBlock, link: string) {
+  block.link = link.trim() || null
+  scheduleBlockSave(block)
+}
+
+function commitDuration(block: SlotExtraBlock, el: HTMLInputElement) {
   const v = normalizeDurationMinutes(Number(el.value) || SLOT_DURATION_MIN)
   el.value = String(v)
   if (v === block.duration) return
@@ -397,7 +361,7 @@ function onDurationInput(block: SlotExtraBlock, el: HTMLInputElement) {
   scheduleBlockSave(block)
 }
 
-function onNewDurationInput(el: HTMLInputElement) {
+function onNewDurationChange(el: HTMLInputElement) {
   const v = normalizeDurationMinutes(Number(el.value) || SLOT_DURATION_MIN)
   el.value = String(v)
   newBlockDuration.value = v
@@ -441,7 +405,7 @@ const scopeChangeMessage = computed(() => {
                 inputmode="none"
                 @keydown="onDurationKeydown"
                 @paste.prevent
-                @input="onNewDurationInput($event.target as HTMLInputElement)"
+                @change="onNewDurationChange($event.target as HTMLInputElement)"
             />
           </label>
           <ExtraBlockProgramPicker
@@ -486,14 +450,14 @@ const scopeChangeMessage = computed(() => {
           />
         </template>
         <template #title>
-          <input
-              :value="b.name"
+          <CommitInput
+              :model-value="b.name"
               :disabled="b.active === false"
-              class="item-card__title glass-input glass-input--sm liquid-surface-control"
               type="text"
               placeholder="Titel"
+              input-class="item-card__title glass-input glass-input--sm liquid-surface-control"
               @click.stop
-              @input="(e) => { b.name = (e.target as HTMLInputElement).value; scheduleBlockSave(b) }"
+              @commit="commitBlockName(b, $event)"
           />
         </template>
         <template #trailing>
@@ -517,7 +481,7 @@ const scopeChangeMessage = computed(() => {
                 inputmode="none"
                 @keydown="onDurationKeydown"
                 @paste.prevent
-                @input="onDurationInput(b, $event.target as HTMLInputElement)"
+                @change="commitDuration(b, $event.target as HTMLInputElement)"
             />
           </label>
           <ExtraBlockProgramPicker
@@ -529,23 +493,23 @@ const scopeChangeMessage = computed(() => {
           />
         </div>
 
-        <input
-            :value="b.description"
+        <CommitInput
+            :model-value="b.description ?? ''"
             :disabled="b.active === false"
-            class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
             type="text"
             placeholder="Beschreibung"
+            input-class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
             @click.stop
-            @input="(e) => { b.description = (e.target as HTMLInputElement).value; scheduleBlockSave(b) }"
+            @commit="commitBlockDescription(b, $event)"
         />
-        <input
-            :value="b.link ?? ''"
+        <CommitInput
+            :model-value="b.link ?? ''"
             :disabled="b.active === false"
-            class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
             type="url"
             placeholder="https://example.com"
+            input-class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
             @click.stop
-            @input="(e) => { b.link = (e.target as HTMLInputElement).value; scheduleBlockSave(b) }"
+            @commit="commitBlockLink(b, $event)"
         />
 
         <div class="slot-block__teams" @click.stop>
