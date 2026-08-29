@@ -24,6 +24,7 @@ function onSlotBlocksChanged() {
         v-if="selectedPlanId"
         :plan-id="selectedPlanId"
         :event-date="selectedEvent?.date"
+        :event-days="selectedEvent?.days"
         @changed="onSlotBlocksChanged"
     />
   </div>

@@ -2,10 +2,12 @@
 import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
+import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import {programDisplayName, programNameForId} from '@/utils/eventPrograms'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {
+  combineDateTime,
   datetimeLocalToDb,
   eventBaseDateYmd,
   wallTimeHm,
@@ -53,6 +55,7 @@ const props = withDefaults(defineProps<{
   blockFirstProgram: number
   blockActive: boolean
   eventDate?: string
+  eventDays?: number
   saving?: boolean
   /** Render inside slot block tile (no outer collapse toggle). */
   embedded?: boolean
@@ -69,8 +72,8 @@ const teams = ref<TeamRow[]>([])
 const loadingTeams = ref(false)
 const loadError = ref<string | null>(null)
 let loadTeamsSeq = 0
-const eDurationTransfer = ref(0)
-const cDurationTransfer = ref(0)
+const eDurationTransfer = ref<number | null>(null)
+const cDurationTransfer = ref<number | null>(null)
 const expanded = ref(!props.embedded)
 const chronoSorted = ref(false)
 const draftStarts = ref<Record<string, string | null>>({})
@@ -80,12 +83,29 @@ const tooltipHover = ref<Record<string, TeamHoverData | 'loading'>>({})
 
 const {selectedEvent} = useScheduleWorkspace()
 
+const isSingleDayEvent = computed(() => (props.eventDays ?? 1) <= 1)
+
 function rowEditKey(row: TeamRow): string {
   return `${row.first_program}:${row.team_number_plan ?? 0}`
 }
 
 function defaultStartLocal(): string {
-  return `${eventBaseDateYmd(props.eventDate)}T09:00`
+  return isSingleDayEvent.value ? '09:00' : `${eventBaseDateYmd(props.eventDate)}T09:00`
+}
+
+function localInputToDb(value: string): string | null {
+  const v = value?.trim()
+  if (!v) return null
+  if (isSingleDayEvent.value) {
+    if (v.includes('T')) return datetimeLocalToDb(v)
+    return combineDateTime(eventBaseDateYmd(props.eventDate), v)
+  }
+  return datetimeLocalToDb(v)
+}
+
+function dbToLocalInput(start: string | null): string {
+  if (!start) return ''
+  return isSingleDayEvent.value ? wallTimeHm(start) : wallTimeToDatetimeLocal(start)
 }
 
 function resetDrafts() {
@@ -108,13 +128,13 @@ async function loadTeams() {
   try {
     const {data} = await axios.get<{
       teams: TeamRow[]
-      e_duration_transfer?: number
-      c_duration_transfer?: number
+      e_duration_transfer?: number | null
+      c_duration_transfer?: number | null
     }>(`/plans/${props.planId}/extra-blocks/slot/${props.blockId}/teams`)
     if (seq !== loadTeamsSeq) return
     teams.value = data?.teams ?? []
-    eDurationTransfer.value = Number(data?.e_duration_transfer ?? 0) || 0
-    cDurationTransfer.value = Number(data?.c_duration_transfer ?? 0) || 0
+    eDurationTransfer.value = data?.e_duration_transfer ?? null
+    cDurationTransfer.value = data?.c_duration_transfer ?? null
     resetDrafts()
   } catch {
     if (seq !== loadTeamsSeq) return
@@ -252,7 +272,7 @@ function collisionTitle(row: TeamRow): string {
 function setDraft(row: TeamRow, localValue: string) {
   draftStarts.value = {
     ...draftStarts.value,
-    [row.row_key]: localValue ? datetimeLocalToDb(localValue) : null,
+    [row.row_key]: localValue ? localInputToDb(localValue) : null,
   }
 }
 
@@ -260,7 +280,7 @@ function beginEditStart(row: TeamRow) {
   if (!props.blockActive) return
   editingTeamId.value = rowEditKey(row)
   const current = effectiveStart(row)
-  editingStartLocal.value = current ? wallTimeToDatetimeLocal(current) : defaultStartLocal()
+  editingStartLocal.value = current ? dbToLocalInput(current) : defaultStartLocal()
   if (!current) {
     setDraft(row, editingStartLocal.value)
   }
@@ -288,8 +308,7 @@ function inputValue(row: TeamRow): string {
   if (editingTeamId.value === rowEditKey(row)) {
     return editingStartLocal.value
   }
-  const start = effectiveStart(row)
-  return start ? wallTimeToDatetimeLocal(start) : ''
+  return dbToLocalInput(effectiveStart(row))
 }
 
 function showTimeInput(row: TeamRow): boolean {
@@ -431,7 +450,9 @@ function formatTooltipDate(slotDate: string | null): string {
 
       <div class="slot-teams__legend">
         <span><i class="dot dot--red"/>Konflikt</span>
-        <span><i class="dot dot--yellow"/>Transfer &lt; E{{ eDurationTransfer }}/C{{ cDurationTransfer }}</span>
+        <span
+            v-if="eDurationTransfer != null || cDurationTransfer != null"
+        ><i class="dot dot--yellow"/>Transfer &lt;<template v-if="eDurationTransfer != null"> E{{ eDurationTransfer }}</template><template v-if="eDurationTransfer != null && cDurationTransfer != null">/</template><template v-if="cDurationTransfer != null"> C{{ cDurationTransfer }}</template></span>
         <span><i class="dot dot--green"/>OK</span>
         <span><i class="dot dot--draft"/>Entwurf</span>
       </div>
@@ -489,7 +510,10 @@ function formatTooltipDate(slotDate: string | null): string {
                     </p>
                     <hr class="slot-team__hover-divider">
                     <p class="text-xs font-semibold mb-1">
-                      Aktivitäten · {{ formatTooltipDate(hoverData(row)!.slot_date) }}
+                      <template v-if="isSingleDayEvent">Aktivitäten</template>
+                      <template v-else>
+                        Aktivitäten · {{ formatTooltipDate(hoverData(row)!.slot_date) }}
+                      </template>
                     </p>
                     <p
                         v-if="!hoverData(row)!.activities.length"
@@ -533,23 +557,22 @@ function formatTooltipDate(slotDate: string | null): string {
                 </button>
                 <template v-else>
                   <input
-                      type="datetime-local"
+                      :type="isSingleDayEvent ? 'time' : 'datetime-local'"
                       :disabled="!blockActive"
                       class="slot-team__datetime glass-input glass-input--sm liquid-surface-control"
                       :class="{'slot-team__datetime--dirty': isRowDirty(row)}"
                       :value="inputValue(row)"
+                      min="00:05"
+                      max="23:55"
+                      step="300"
                       @input="onTeamStartInput(row, ($event.target as HTMLInputElement).value)"
                   />
-                  <button
+                  <IconDangerButton
                       v-if="effectiveStart(row)"
-                      type="button"
-                      class="slot-team__clear"
+                      label="Zuweisung entfernen"
                       :disabled="!blockActive"
-                      title="Zuweisung entfernen"
                       @click="clearTeamStart(row)"
-                  >
-                    <i class="bi bi-trash-fill" aria-hidden="true"/>
-                  </button>
+                  />
                 </template>
               </div>
             </div>
@@ -622,6 +645,12 @@ function formatTooltipDate(slotDate: string | null): string {
   gap: 0.65rem 1rem;
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+.slot-teams__legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .slot-teams__loading {
@@ -749,21 +778,6 @@ function formatTooltipDate(slotDate: string | null): string {
 
 .slot-team__datetime--dirty {
   border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
-}
-
-.slot-team__clear {
-  flex-shrink: 0;
-  padding: 0.35rem 0.5rem;
-  border: none;
-  background: transparent;
-  color: var(--color-danger, #dc2626);
-  cursor: pointer;
-  border-radius: 6px;
-}
-
-.slot-team__clear:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .dot {

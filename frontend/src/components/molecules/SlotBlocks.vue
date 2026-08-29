@@ -27,6 +27,7 @@ const SAVE_PREFIX = 'slot_block'
 const props = defineProps<{
   planId: number | null
   eventDate?: string
+  eventDays?: number
 }>()
 
 const emit = defineEmits<{
@@ -523,6 +524,7 @@ const scopeChangeMessage = computed(() => {
                 :block-first-program="b.first_program ?? 0"
                 :block-active="b.active !== false"
                 :event-date="eventDate"
+                :event-days="eventDays"
                 :saving="savingAssignmentsFor === b.id"
                 @draft-changed="(dirty) => onTeamDraftChanged(b.id!, dirty)"
                 @save-assignments="saveAssignments"

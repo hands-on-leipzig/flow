@@ -356,8 +356,7 @@ class ExtraBlockController extends Controller
         $block = ExtraBlock::where('plan', $planId)->findOrFail($extraBlock);
         $this->assertSlotBlock($block, $planId);
         $params = PlanParameter::load($planId);
-        $eTransfer = (int) $params->get('e_duration_transfer');
-        $cTransfer = (int) $params->get('c_duration_transfer');
+        $presence = ProgramPresence::forPlan($planId, $params);
 
         $assignments = SlotBlockTeam::query()
             ->where('extra_block', $extraBlock)
@@ -381,7 +380,7 @@ class ExtraBlockController extends Controller
 
                 $collision = null;
                 if ($start !== null) {
-                    $transfer = $this->transferDurationForProgram($program, $eTransfer, $cTransfer);
+                    $transfer = $this->transferDurationForProgramOnPlan($params, $presence, $program);
                     $collision = $this->evaluateTeamCollisionForSlot(
                         $planId,
                         $teamNo,
@@ -431,10 +430,12 @@ class ExtraBlockController extends Controller
             })
             ->values();
 
+        $legendTransfers = $this->legendTransferDurations($params, $presence);
+
         return response()->json([
             'teams' => $rows,
-            'e_duration_transfer' => $eTransfer,
-            'c_duration_transfer' => $cTransfer,
+            'e_duration_transfer' => $legendTransfers['e_duration_transfer'],
+            'c_duration_transfer' => $legendTransfers['c_duration_transfer'],
         ]);
     }
 
@@ -449,6 +450,7 @@ class ExtraBlockController extends Controller
         }
 
         $params = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $params);
         $isAllowedProgram = $this->blockAllowsProgram((int) $block->first_program, $programId);
         if (! $isAllowedProgram) {
             abort(422, 'Program not applicable for this slot block');
@@ -497,9 +499,7 @@ class ExtraBlockController extends Controller
             ? $row->start->format('Y-m-d H:i:s')
             : (string) $row->getRawOriginal('start');
 
-        $eTransfer = (int) $params->get('e_duration_transfer');
-        $cTransfer = (int) $params->get('c_duration_transfer');
-        $transfer = $this->transferDurationForProgram($programId, $eTransfer, $cTransfer);
+        $transfer = $this->transferDurationForProgramOnPlan($params, $presence, $programId);
         $collision = $this->evaluateTeamCollisionForSlot(
             $planId,
             $teamNumberPlan,
@@ -532,16 +532,13 @@ class ExtraBlockController extends Controller
         }
 
         $params = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $params);
         $maxTeams = $this->maxTeamsForProgram($programId, $params);
         if ($teamNumberPlan < 1 || $teamNumberPlan > $maxTeams) {
             abort(422, 'Team number out of configured plan range');
         }
 
-        $transfer = $this->transferDurationForProgram(
-            $programId,
-            (int) $params->get('e_duration_transfer'),
-            (int) $params->get('c_duration_transfer')
-        );
+        $transfer = $this->transferDurationForProgramOnPlan($params, $presence, $programId);
 
         $assignment = SlotBlockTeam::query()
             ->where('extra_block', $extraBlock)
@@ -790,11 +787,51 @@ class ExtraBlockController extends Controller
         return ['status' => 'green', 'gap_minutes' => $gap];
     }
 
-    private function transferDurationForProgram(int $teamFirstProgram, int $eTransfer, int $cTransfer): int
+    /**
+     * @return array{e_duration_transfer: ?int, c_duration_transfer: ?int}
+     */
+    private function legendTransferDurations(PlanParameter $params, ProgramPresence $presence): array
     {
-        return in_array($teamFirstProgram, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)
-            ? $eTransfer
-            : $cTransfer;
+        return [
+            'e_duration_transfer' => $presence->exploreOn()
+                ? (int) $params->get('e_duration_transfer')
+                : null,
+            'c_duration_transfer' => $presence->challengeShapedOn(FirstProgram::CHALLENGE->value)
+                ? (int) $params->get('c_duration_transfer')
+                : null,
+        ];
+    }
+
+    private function transferDurationForProgramOnPlan(
+        PlanParameter $params,
+        ProgramPresence $presence,
+        int $programId
+    ): int {
+        if (in_array($programId, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)) {
+            if (! $presence->exploreOn()) {
+                throw new \InvalidArgumentException('Explore transfer requested for program not on plan');
+            }
+
+            return (int) $params->get('e_duration_transfer');
+        }
+
+        if ($programId === FirstProgram::CHALLENGE->value) {
+            if (! $presence->challengeShapedOn(FirstProgram::CHALLENGE->value)) {
+                throw new \InvalidArgumentException('Challenge transfer requested for program not on plan');
+            }
+
+            return (int) $params->get('c_duration_transfer');
+        }
+
+        if ($programId === FirstProgram::FUTURE_8->value) {
+            if (! $presence->challengeShapedOn(FirstProgram::FUTURE_8->value)) {
+                throw new \InvalidArgumentException('Future 8 transfer requested for program not on plan');
+            }
+
+            return (int) $params->get('f8_duration_transfer');
+        }
+
+        throw new \InvalidArgumentException("Unsupported program for transfer duration: {$programId}");
     }
 
     private function visibilityRoleForProgram(int $teamFirstProgram): int
