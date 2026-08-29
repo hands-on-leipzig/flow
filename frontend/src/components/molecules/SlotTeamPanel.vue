@@ -72,8 +72,6 @@ const teams = ref<TeamRow[]>([])
 const loadingTeams = ref(false)
 const loadError = ref<string | null>(null)
 let loadTeamsSeq = 0
-const eDurationTransfer = ref<number | null>(null)
-const cDurationTransfer = ref<number | null>(null)
 const expanded = ref(!props.embedded)
 const chronoSorted = ref(false)
 const draftStarts = ref<Record<string, string | null>>({})
@@ -128,13 +126,9 @@ async function loadTeams() {
   try {
     const {data} = await axios.get<{
       teams: TeamRow[]
-      e_duration_transfer?: number | null
-      c_duration_transfer?: number | null
     }>(`/plans/${props.planId}/extra-blocks/slot/${props.blockId}/teams`)
     if (seq !== loadTeamsSeq) return
     teams.value = data?.teams ?? []
-    eDurationTransfer.value = data?.e_duration_transfer ?? null
-    cDurationTransfer.value = data?.c_duration_transfer ?? null
     resetDrafts()
   } catch {
     if (seq !== loadTeamsSeq) return
@@ -459,9 +453,7 @@ function formatTooltipDate(slotDate: string | null): string {
 
       <div class="slot-teams__legend">
         <span><i class="dot dot--red"/>Konflikt</span>
-        <span
-            v-if="eDurationTransfer != null || cDurationTransfer != null"
-        ><i class="dot dot--yellow"/>Transfer &lt;<template v-if="eDurationTransfer != null"> E{{ eDurationTransfer }}</template><template v-if="eDurationTransfer != null && cDurationTransfer != null">/</template><template v-if="cDurationTransfer != null"> C{{ cDurationTransfer }}</template></span>
+        <span><i class="dot dot--yellow"/>Wenig Wechselzeit</span>
         <span><i class="dot dot--green"/>OK</span>
         <span><i class="dot dot--draft"/>Entwurf</span>
       </div>
