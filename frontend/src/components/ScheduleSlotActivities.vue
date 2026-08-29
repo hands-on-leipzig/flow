@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import FreeBlocks from '@/components/molecules/FreeBlocks.vue'
-import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
-import { notifyPlanPreviewReload } from '@/utils/planPreviewSync'
+import SlotBlocks from '@/components/molecules/SlotBlocks.vue'
+import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
+import {notifyPlanPreviewReload} from '@/utils/planPreviewSync'
 
-defineOptions({ name: 'ScheduleFreeActivities' })
+defineOptions({name: 'ScheduleSlotActivities'})
 
 const {
   selectedEvent,
@@ -11,7 +11,7 @@ const {
   previewReload,
 } = useScheduleWorkspace()
 
-function onFreeBlocksChanged() {
+function onSlotBlocksChanged() {
   if (!selectedPlanId.value) return
   previewReload.value += 1
   notifyPlanPreviewReload(selectedPlanId.value)
@@ -19,19 +19,19 @@ function onFreeBlocksChanged() {
 </script>
 
 <template>
-  <div class="schedule-free flex flex-col min-w-0 pb-2">
-    <FreeBlocks
+  <div class="schedule-slots flex flex-col min-w-0 pb-2">
+    <SlotBlocks
         v-if="selectedPlanId"
         :plan-id="selectedPlanId"
         :event-date="selectedEvent?.date"
         :event-days="selectedEvent?.days"
-        @changed="onFreeBlocksChanged"
+        @changed="onSlotBlocksChanged"
     />
   </div>
 </template>
 
 <style scoped>
-.schedule-free {
+.schedule-slots {
   gap: 1.15rem;
 }
 </style>

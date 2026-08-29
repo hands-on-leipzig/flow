@@ -350,7 +350,7 @@ function updateMTablesToInt(): void
         $mTableMigrations = [
             '2025_01_01_000000_create_master_tables',
             '2025_08_05_151326_add_disable_option_to_visibility_enum',
-            '2025_10_14_124139_modify_m_insert_point_table',
+            // insert-point catalog removed 2026-08
             // '2025_10_21_120706_create_m_news_table', // Deprecated - news table now in master migration
             '2025_11_08_230638_update_m_activity_type_overview_plan_column_not_null',
             '2025_11_08_230644_add_jury_rounds_to_m_supported_plan',

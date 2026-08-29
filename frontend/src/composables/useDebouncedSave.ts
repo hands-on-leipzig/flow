@@ -176,14 +176,14 @@ export function useDebouncedSave(options: DebouncedSaveOptions) {
     // Stop countdown
     stopCountdown()
 
-    // Hide toast
-    options.onHideToast?.()
-    options.onCountdownUpdate?.(null)
-
     // Check if there are any updates
     if (Object.keys(pendingUpdates.value).length === 0) {
       return
     }
+
+    // Hide toast only when this debouncer actually flushes
+    options.onHideToast?.()
+    options.onCountdownUpdate?.(null)
 
     // Copy and clear pending updates
     const updates = { ...pendingUpdates.value }
@@ -277,6 +277,23 @@ export function useDebouncedSave(options: DebouncedSaveOptions) {
   }
 
   /**
+   * Drop one pending update (e.g. draft deleted before save).
+   */
+  function cancelUpdate(key: string) {
+    if (!(key in pendingUpdates.value)) return
+    delete pendingUpdates.value[key]
+    if (Object.keys(pendingUpdates.value).length === 0) {
+      if (timeoutId.value) {
+        clearTimeout(timeoutId.value)
+        timeoutId.value = null
+      }
+      stopCountdown()
+      options.onHideToast?.()
+      options.onCountdownUpdate?.(null)
+    }
+  }
+
+  /**
    * Clear all pending updates without saving
    */
   function clearPending() {
@@ -314,6 +331,8 @@ export function useDebouncedSave(options: DebouncedSaveOptions) {
     setOriginals,
     /** Clear all pending updates */
     clearPending,
+    /** Drop a single pending update */
+    cancelUpdate,
     /** Freeze countdown (e.g., during generation) */
     freeze,
     /** Unfreeze countdown and resume */

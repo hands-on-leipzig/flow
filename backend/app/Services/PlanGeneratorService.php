@@ -11,6 +11,7 @@ use App\Support\Helpers;
 use App\Jobs\GeneratePlanJob;
 use App\Enums\FirstProgram;
 use App\Enums\GeneratorStatus;
+use App\Support\ExtraBlockActivityTypeCode;
 
 class PlanGeneratorService
 {
@@ -297,7 +298,7 @@ class PlanGeneratorService
             $groupIds = DB::table('activity_group AS ag')
                 ->join('m_activity_type_detail AS atd', 'ag.activity_type_detail', '=', 'atd.id')
                 ->where('ag.plan', $planId)
-                ->whereIn('atd.code', ['c_free_block', 'e_free_block', 'g_free_block'])
+                ->whereIn('atd.code', ExtraBlockActivityTypeCode::allFreeCodes())
                 ->pluck('ag.id');
 
             // Schritt 2: Löschen – Activities hängen per FK dran und gehen mit weg
@@ -311,6 +312,9 @@ class PlanGeneratorService
             $params = \App\Support\PlanParameter::load($planId);
             $writer = new \App\Core\ActivityWriter($planId, $params);
             (new \App\Core\FreeBlockGenerator($writer, $params))->insertFreeActivities();
+
+            // Schritt 4: Slot-Blöcke materialisieren
+            app(SlotBlockPlanSyncService::class)->applyToPlan($planId);
 
             // Set generator status to DONE
             // Note: finalize() also updates s_generator table, but lite generation doesn't create an entry

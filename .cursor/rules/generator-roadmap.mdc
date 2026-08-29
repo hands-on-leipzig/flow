@@ -27,7 +27,7 @@ Challenge `main()` aligns judging rounds with RG (test round 0, then 1–3). Exp
 
 ### First cleanup (done)
 
-Inserted extra-block **content** is gone; **pauses** stay (`addMinutes`). Live DB migrated (no `m_insert_point`, no buffers, `extra_block.type` is `free`/`slot`).
+Inserted extra-block **content** is gone; **pauses** stay (`addMinutes`). Live DB migrated (no insert-point catalog, no buffers, `extra_block.type` is `free`/`slot`).
 
 ### Open program combinations (done)
 

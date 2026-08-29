@@ -47,15 +47,20 @@ class FreeBlockGenerator
                 ->get(['id', 'first_program', 'start', 'end']);
 
             foreach ($blocks as $block) {
-                $blockProgram = (int) $block->first_program;
+                $blockProgram = (int) ($block->first_program ?? FirstProgram::JOINT->value);
 
                 if ($blockProgram !== FirstProgram::JOINT->value && ! $presence->programOn($blockProgram)) {
                     continue;
                 }
 
                 if ($blockProgram === FirstProgram::JOINT->value) {
-                    $anyOn = $presence->exploreOn()
-                        || $presence->leadProgramId() !== null;
+                    $anyOn = false;
+                    foreach ($presence->attachedIds() as $programId) {
+                        if ($presence->programOn($programId)) {
+                            $anyOn = true;
+                            break;
+                        }
+                    }
                     if (! $anyOn) {
                         continue;
                     }

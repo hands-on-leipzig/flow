@@ -1,9 +1,14 @@
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 import { usePlanCacheStore } from '@/stores/planCache'
 import { useDebouncedSave } from '@/composables/useDebouncedSave'
-import { DEBOUNCE_DELAY } from '@/constants/extraBlocks'
+import {
+  executeScheduleFlush,
+  scheduleChangeDetection,
+  toastActionFromKeys,
+} from '@/composables/useScheduleFlush'
+import { SCHEDULE_SAVE_DEBOUNCE_MS } from '@/constants/scheduleSave'
 import { buildLanesIndex, type LanesIndex, type LaneRow } from '@/utils/lanesIndex'
 import FllEvent from '@/models/FllEvent'
 import { Parameter, ParameterCondition } from '@/models/Parameter'
@@ -225,10 +230,46 @@ const finaleProtectedParams = computed(() =>
 
 let saveApi: ReturnType<typeof useDebouncedSave> | null = null
 
+type ExtraBlockFlushHandler = (
+  updates: Record<string, unknown>,
+  options: {skipPostGeneration: boolean},
+) => Promise<boolean>
+
+let freeBlockFlushHandler: ExtraBlockFlushHandler | null = null
+let slotBlockFlushHandler: ExtraBlockFlushHandler | null = null
+
+function registerFreeBlockFlushHandler(handler: ExtraBlockFlushHandler | null) {
+  freeBlockFlushHandler = handler
+}
+
+function registerSlotBlockFlushHandler(handler: ExtraBlockFlushHandler | null) {
+  slotBlockFlushHandler = handler
+}
+
+async function immediateFlushAll() {
+  await getSaveApi().immediateFlush()
+}
+
+/** Preserved when pending clears at flush start (while isGenerating). */
+const activeFlushAction = ref<'generate' | 'update'>('generate')
+
+/** Ablauf params → full generate; extra activities → lite update only. */
+const toastAction = computed<'generate' | 'update'>(() => {
+  const keys = Object.keys(getSaveApi().pendingUpdates.value)
+  if (keys.length > 0) return toastActionFromKeys(keys)
+  if (isGenerating.value) return activeFlushAction.value
+  return 'update'
+})
+
+watch(isGenerating, (generating) => {
+  if (generating) getSaveApi().freeze()
+  else getSaveApi().unfreeze()
+})
+
 function getSaveApi() {
   if (saveApi) return saveApi
   saveApi = useDebouncedSave({
-    delay: DEBOUNCE_DELAY,
+    delay: SCHEDULE_SAVE_DEBOUNCE_MS,
     isGenerating: () => isGenerating.value,
     onShowToast: (countdown) => {
       countdownSeconds.value = countdown
@@ -239,21 +280,35 @@ function getSaveApi() {
     onCountdownUpdate: (seconds) => {
       countdownSeconds.value = seconds
     },
-    changeDetection: (_key, newValue, oldValue) => {
-      return String(oldValue ?? '') !== String(newValue ?? '')
-    },
+    changeDetection: scheduleChangeDetection,
     onSave: async (updates) => {
-      const updateArray = Object.entries(updates).map(([name, value]) => ({ name, value }))
-      await updateParams(updateArray)
+      activeFlushAction.value = toastActionFromKeys(Object.keys(updates))
+      await executeScheduleFlush(updates, {
+        planId: selectedPlanId.value,
+        paramMapByName: paramMapByName.value,
+        isGenerating,
+        generatorError,
+        errorDetails,
+        loading,
+        setOriginal: (key, value) => getSaveApi().setOriginal(key, value),
+        runFullGenerate: runGeneratorOnce,
+        refreshReadiness: async () => {
+          if (eventStore().selectedEvent?.id) {
+            await eventStore().refreshReadiness(eventStore().selectedEvent!.id)
+          }
+        },
+        freeBlockFlush: freeBlockFlushHandler
+          ? (pending, options) => freeBlockFlushHandler!(pending, options)
+          : undefined,
+        slotBlockFlush: slotBlockFlushHandler
+          ? (pending, options) => slotBlockFlushHandler!(pending, options)
+          : undefined,
+      })
     },
   })
   return saveApi
 }
 
-function normalizeValue(value: any, type: string | undefined) {
-  if (type === 'boolean') return value ? 1 : 0
-  return value
-}
 
 async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 1000) {
   const start = Date.now()
@@ -274,6 +329,7 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
 async function runGeneratorOnce() {
   if (!selectedPlanId.value) return
 
+  activeFlushAction.value = 'generate'
   generatorError.value = null
   errorDetails.value = null
   isGenerating.value = true
@@ -329,53 +385,6 @@ async function runGeneratorOnce() {
   } finally {
     isGenerating.value = false
     getSaveApi().unfreeze()
-  }
-}
-
-async function updateParams(params: Array<{ name: string; value: any }>, afterUpdate?: () => Promise<void>) {
-  if (!selectedPlanId.value) return
-
-  loading.value = true
-  let needsRegeneration = false
-
-  const paramUpdates = params.filter(p => !p.name.startsWith('block_'))
-  const blockGeneratorTriggers = params.filter(p => p.name.startsWith('block_'))
-
-  if (blockGeneratorTriggers.length > 0) {
-    isGenerating.value = true
-  }
-
-  try {
-    if (paramUpdates.length > 0) {
-      await axios.post(`/plans/${selectedPlanId.value}/parameters`, {
-        parameters: paramUpdates.map(({ name, value }) => {
-          const p = paramMapByName.value[name]
-          return {
-            id: p?.id,
-            value: normalizeValue(value, p?.type)?.toString() ?? '',
-          }
-        }),
-      })
-      paramUpdates.forEach(({ name, value }) => getSaveApi().setOriginal(name, value))
-    }
-
-    if (blockGeneratorTriggers.length > 0) {
-      needsRegeneration = true
-    }
-  } catch (error) {
-    if (import.meta.env.DEV) console.error('Error saving parameters:', error)
-    loading.value = false
-    return
-  }
-  loading.value = false
-
-  if (needsRegeneration || paramUpdates.length > 0) {
-    await runGeneratorOnce()
-    if (eventStore().selectedEvent?.id) {
-      await eventStore().refreshReadiness(eventStore().selectedEvent!.id)
-    }
-  } else if (afterUpdate) {
-    await afterUpdate()
   }
 }
 
@@ -493,11 +502,25 @@ function handleParamUpdate(param: { name: string; value: any }) {
   getSaveApi().scheduleUpdate(param.name, param.value)
 }
 
+function scheduleBlockTrigger(name: string, value: unknown) {
+  const prefixedName = name.startsWith('block_') ? name : `block_${name}`
+  getSaveApi().scheduleUpdate(prefixedName, value)
+}
+
 function handleBlockUpdates(updates: Array<{ name: string; value: any; triggerGenerator?: boolean }>) {
-  updates.forEach(update => {
-    const prefixedName = update.name.startsWith('block_') ? update.name : `block_${update.name}`
-    getSaveApi().scheduleUpdate(prefixedName, update.value)
-  })
+  updates.forEach((update) => scheduleBlockTrigger(update.name, update.value))
+}
+
+function scheduleExtraBlockUpdate(key: string, value: unknown) {
+  getSaveApi().scheduleUpdate(key, value)
+}
+
+function cancelExtraBlockUpdate(key: string) {
+  getSaveApi().cancelUpdate(key)
+}
+
+function setSaveOriginals(values: Record<string, unknown>) {
+  getSaveApi().setOriginals(values)
 }
 
 function openPlanPopout() {
@@ -588,9 +611,16 @@ export function useScheduleWorkspace() {
     reloadForEventChange,
     handleParamUpdate,
     handleBlockUpdates,
+    scheduleBlockTrigger,
+    scheduleExtraBlockUpdate,
+    cancelExtraBlockUpdate,
+    setSaveOriginals,
+    registerFreeBlockFlushHandler,
+    registerSlotBlockFlushHandler,
     updatePlanLock,
     updateTableName,
-    immediateFlush: api.immediateFlush,
+    immediateFlush: immediateFlushAll,
+    toastAction,
     openPlanPopout,
     focusPlanPopout,
     dockPlanPopout,

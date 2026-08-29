@@ -85,8 +85,6 @@ m_parameter.first_program → m_first_program.id (RESTRICT) -- Line 114
 m_activity_type.first_program → m_first_program.id (RESTRICT) -- Line 144
 m_activity_type_detail.activity_type → m_activity_type.id (RESTRICT) -- Line 163
 m_activity_type_detail.first_program → m_first_program.id (RESTRICT) -- Line 164
-m_insert_point.first_program → m_first_program.id (RESTRICT) -- Line 180
-m_insert_point.level → m_level.id (RESTRICT)          -- Line 181
 m_role.first_program → m_first_program.id (RESTRICT)   -- Line 201
 m_supported_plan.first_program → m_first_program.id (RESTRICT) -- Line 231
 ```
@@ -110,8 +108,10 @@ These will delete operational data when m-table records are removed:
 room_type_room.room_type → m_room_type.id (CASCADE)           -- Line 408
 activity.room_type → m_room_type.id (CASCADE)                 -- Line 593
 plan_param_value.parameter → m_parameter.id (CASCADE)         -- Line 519
-extra_block.insert_point → m_insert_point.id (CASCADE)        -- Line 558
 activity_group.activity_type_detail → m_activity_type_detail.id (CASCADE) -- Line 570
+```
+
+Note: legacy insert-point and plan-extra-block tables were removed in 2026; `extra_block` uses `type` (`free`|`slot`) and `first_program` only.
 activity.activity_type_detail → m_activity_type_detail.id (CASCADE) -- Line 594
 news_user.news_id → m_news.id (CASCADE)                       -- Line 365
 ```

@@ -19,22 +19,15 @@ use Illuminate\Support\Facades\DB;
 class SlotBlockPlanSyncService
 {
     /**
-     * @return array<int, array{program: int, code: string}>
+     * @return array<int, array{program: ?int, code: string}>
      */
     private function materializationTargetsForFirstProgram(int $firstProgram): array
     {
-        // Joint slot blocks are materialized as two groups: Explore + Challenge.
         if ($firstProgram === FirstProgram::JOINT->value) {
-            return [
-                [
-                    'program' => FirstProgram::EXPLORE->value,
-                    'code' => ExtraBlockActivityTypeCode::forSlot(FirstProgram::EXPLORE->value),
-                ],
-                [
-                    'program' => FirstProgram::CHALLENGE->value,
-                    'code' => ExtraBlockActivityTypeCode::forSlot(FirstProgram::CHALLENGE->value),
-                ],
-            ];
+            return [[
+                'program' => null,
+                'code' => ExtraBlockActivityTypeCode::forSlot(FirstProgram::JOINT->value),
+            ]];
         }
 
         return [[
@@ -90,9 +83,9 @@ class SlotBlockPlanSyncService
                 ->get(['id', 'first_program', 'duration']);
 
             foreach ($blocks as $block) {
-                $fp = (int) $block->first_program;
+                $fp = (int) ($block->first_program ?? FirstProgram::JOINT->value);
                 foreach ($this->materializationTargetsForFirstProgram($fp) as $target) {
-                    $targetProgram = (int) $target['program'];
+                    $targetProgram = $target['program'];
                     $code = $target['code'];
                     $activityTypeDetailId = (int) (MActivityTypeDetail::where('code', $code)->value('id'));
                     if ($activityTypeDetailId <= 0) {
@@ -108,8 +101,11 @@ class SlotBlockPlanSyncService
 
                     $q = DB::table('slot_block_team as sbt')
                         ->where('sbt.extra_block', (int) $block->id)
-                        ->where('sbt.first_program', $targetProgram)
                         ->whereNotNull('sbt.start');
+
+                    if ($targetProgram !== null) {
+                        $q->where('sbt.first_program', $targetProgram);
+                    }
 
                     $rows = $q->select([
                         'sbt.team_number_plan as team_number_plan',
