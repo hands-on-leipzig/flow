@@ -42,7 +42,6 @@ const emit = defineEmits<{
 // --- State ---
 const blocks = ref<ExtraBlock[]>([])
 const blockToDelete = ref<ExtraBlock | null>(null)
-const saving = ref(false)
 
 const {
   attachedPrograms,
@@ -53,7 +52,7 @@ const {
   registerExtraBlockImmediateFlush,
 } = useScheduleWorkspace()
 
-const {scheduleUpdate, immediateFlush} = useDebouncedSave({
+const {scheduleUpdate, cancelUpdate, immediateFlush: flushPendingBlockSavesNow} = useDebouncedSave({
   delay: DEBOUNCE_DELAY,
   isGenerating: () => isGenerating.value,
   onShowToast: (countdown) => {
@@ -71,7 +70,7 @@ const {scheduleUpdate, immediateFlush} = useDebouncedSave({
 })
 
 onMounted(() => {
-  registerExtraBlockImmediateFlush(immediateFlush)
+  registerExtraBlockImmediateFlush(() => flushPendingBlockSavesNow())
   if (props.planId != null) loadBlocks()
 })
 
@@ -142,6 +141,10 @@ function scheduleBlockSave(block: ExtraBlock) {
   scheduleUpdate(blockSaveKey(block), {...block})
 }
 
+function cancelPendingBlockSave(block: ExtraBlock) {
+  cancelUpdate(blockSaveKey(block))
+}
+
 // --- Lifecycle ---
 watch(() => props.planId, v => {
   if (v != null) loadBlocks()
@@ -157,76 +160,6 @@ async function loadBlocks() {
   blocks.value = Array.isArray(data) ? data : []
 }
 
-// Save all enabled blocks to DB (called when countdown triggers)
-async function saveAllEnabledBlocks() {
-  if (!props.planId) return
-
-  // Get all enabled blocks (including newly created ones without ID)
-  const enabledBlocks = blocks.value.filter(b => b.active !== false && b.plan === props.planId)
-  if (enabledBlocks.length === 0) return
-
-  try {
-    saving.value = true
-
-    // Save all enabled blocks
-    for (const block of enabledBlocks) {
-      const blockData: any = {
-        plan: block.plan,
-        first_program: block.first_program,
-        name: block.name,
-        description: block.description,
-        link: block.link,
-        start: block.start,
-        end: block.end,
-        room: block.room,
-        active: block.active
-      }
-
-      // Only include id if block already exists in DB
-      if (block.id) {
-        blockData.id = block.id
-      }
-
-      const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
-      const saved = response.data?.block || response.data
-
-      // Check if response contains error from generateLite
-      if (response.data?.error) {
-        generatorError.value = response.data.error
-        errorDetails.value = response.data.details || null
-        isGenerating.value = false
-        await loadBlocks() // Still reload blocks even on error
-        throw new Error(response.data.error) // Re-throw so caller can handle it
-      }
-
-      if (saved?.id) {
-        const index = blocks.value.findIndex(b =>
-            (b.id && b.id === saved.id) ||
-            (!b.id && !saved.id && b.plan === saved.plan &&
-                b.start === saved.start && b.end === saved.end)
-        )
-        if (index !== -1) {
-          blocks.value[index] = saved
-        } else {
-          blocks.value.push(saved)
-        }
-      }
-    }
-
-    emit('changed')
-  } catch (error) {
-    console.error('Failed to save blocks:', error)
-    throw error // Re-throw so caller can handle it
-  } finally {
-    saving.value = false
-  }
-}
-
-// Expose functions to parent
-defineExpose({
-  saveAllEnabledBlocks
-})
-
 // --- Central Flush Logic ---
 async function flushUpdates(updates: Record<string, any>) {
   if (!props.planId) return
@@ -236,7 +169,14 @@ async function flushUpdates(updates: Record<string, any>) {
   isGenerating.value = true
 
   try {
-    for (const [name, value] of Object.entries(updates)) {
+    const entries = Object.entries(updates)
+    const ordered = [
+      ...entries.filter(([name]) => name.startsWith('extra_block_delete')),
+      ...entries.filter(([name]) => name.startsWith('extra_block_add')),
+      ...entries.filter(([name]) => name.startsWith('extra_block_update')),
+    ]
+
+    for (const [name, value] of ordered) {
       if (name.startsWith('extra_block_update') && value) {
         const response = await axios.post(
           `/plans/${props.planId}/extra-blocks`,
@@ -480,6 +420,7 @@ function deleteBlock() {
   if (!blockToDelete.value) return
   const block = blockToDelete.value
   blockToDelete.value = null
+  cancelPendingBlockSave(block)
   blocks.value = blocks.value.filter((b) => {
     if (block.id) return b.id !== block.id
     if (block._clientKey) return b._clientKey !== block._clientKey
@@ -729,8 +670,7 @@ const hasBlocksOutsideEventDates = computed(() => {
                 class="item-card__title glass-input glass-input--sm liquid-surface-control"
                 type="text"
                 placeholder="Titel"
-                @input="(e) => { b.name = (e.target as HTMLInputElement).value }"
-                @blur="saveBlock(b)"
+                @input="(e) => { b.name = (e.target as HTMLInputElement).value; scheduleBlockSave(b) }"
             />
           </template>
           <template #trailing>
@@ -757,7 +697,7 @@ const hasBlocksOutsideEventDates = computed(() => {
                 max="23:55"
                 step="300"
                 aria-label="Startzeit"
-                @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start }"
+                @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) { b.start = combineDateTime(date, (e.target as HTMLInputElement).value) || b.start; scheduleBlockSave(b) } }"
                 @blur="handleStartTimeChange(b, ($event.target as HTMLInputElement).value)"
             />
             <input
@@ -769,7 +709,7 @@ const hasBlocksOutsideEventDates = computed(() => {
                 max="23:55"
                 step="300"
                 aria-label="Endzeit"
-                @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
+                @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) { b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end; scheduleBlockSave(b) } }"
                 @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
             />
             <ExtraBlockProgramPicker
@@ -787,8 +727,7 @@ const hasBlocksOutsideEventDates = computed(() => {
               class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
               type="text"
               placeholder="Beschreibung"
-              @input="(e) => { b.description = (e.target as HTMLInputElement).value }"
-              @blur="saveBlock(b)"
+              @input="(e) => { b.description = (e.target as HTMLInputElement).value; scheduleBlockSave(b) }"
           />
           <input
               :value="b.link ?? ''"
@@ -796,8 +735,7 @@ const hasBlocksOutsideEventDates = computed(() => {
               class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
               type="url"
               placeholder="https://example.com"
-              @input="(e) => { b.link = (e.target as HTMLInputElement).value }"
-              @blur="saveBlock(b)"
+              @input="(e) => { b.link = (e.target as HTMLInputElement).value; scheduleBlockSave(b) }"
           />
         </ItemCard>
       </div>

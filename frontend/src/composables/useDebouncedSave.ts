@@ -277,6 +277,23 @@ export function useDebouncedSave(options: DebouncedSaveOptions) {
   }
 
   /**
+   * Drop one pending update (e.g. draft deleted before save).
+   */
+  function cancelUpdate(key: string) {
+    if (!(key in pendingUpdates.value)) return
+    delete pendingUpdates.value[key]
+    if (Object.keys(pendingUpdates.value).length === 0) {
+      if (timeoutId.value) {
+        clearTimeout(timeoutId.value)
+        timeoutId.value = null
+      }
+      stopCountdown()
+      options.onHideToast?.()
+      options.onCountdownUpdate?.(null)
+    }
+  }
+
+  /**
    * Clear all pending updates without saving
    */
   function clearPending() {
@@ -314,6 +331,8 @@ export function useDebouncedSave(options: DebouncedSaveOptions) {
     setOriginals,
     /** Clear all pending updates */
     clearPending,
+    /** Drop a single pending update */
+    cancelUpdate,
     /** Freeze countdown (e.g., during generation) */
     freeze,
     /** Unfreeze countdown and resume */
