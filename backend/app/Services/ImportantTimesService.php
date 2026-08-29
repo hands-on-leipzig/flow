@@ -103,12 +103,12 @@ final class ImportantTimesService
             ->whereIn('id', $attachedProgramIds)
             ->orderBy('sequence')
             ->orderBy('id')
-            ->get(['id', 'name', 'sequence', 'color_hex']);
+            ->get(['id', 'name', 'display_name', 'sequence', 'color_hex']);
 
         $shells = [];
         foreach ($rows as $row) {
             $shells[(int) $row->id] = [
-                'name' => (string) $row->name,
+                'name' => (string) ($row->display_name ?: $row->name),
                 'sequence' => (int) $row->sequence,
                 'color_hex' => $row->color_hex !== null ? (string) $row->color_hex : null,
             ];
@@ -134,7 +134,7 @@ final class ImportantTimesService
             ->orderBy('a.start')
             ->get([
                 'a.start as start',
-                DB::raw('COALESCE(peb.name, atd.name_preview, atd.name) as label'),
+                'atd.name as label',
                 DB::raw('COALESCE(peb.first_program, atd.first_program) as first_program'),
             ]);
     }

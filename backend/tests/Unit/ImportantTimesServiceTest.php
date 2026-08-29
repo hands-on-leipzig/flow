@@ -117,6 +117,7 @@ class ImportantTimesServiceTest extends TestCase
         Schema::create('m_first_program', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('display_name')->nullable();
             $table->integer('sequence');
             $table->string('color_hex')->nullable();
         });
@@ -154,8 +155,8 @@ class ImportantTimesServiceTest extends TestCase
         });
 
         DB::table('m_first_program')->insert([
-            ['id' => FirstProgram::EXPLORE->value, 'name' => 'EXPLORE', 'sequence' => 1, 'color_hex' => '00A651'],
-            ['id' => FirstProgram::CHALLENGE->value, 'name' => 'CHALLENGE', 'sequence' => 2, 'color_hex' => 'ED1C24'],
+            ['id' => FirstProgram::EXPLORE->value, 'name' => 'EXPLORE', 'display_name' => 'Explore', 'sequence' => 1, 'color_hex' => '00A651'],
+            ['id' => FirstProgram::CHALLENGE->value, 'name' => 'CHALLENGE', 'display_name' => 'Challenge', 'sequence' => 2, 'color_hex' => 'ED1C24'],
         ]);
 
         DB::table('m_activity_type_detail')->insert([

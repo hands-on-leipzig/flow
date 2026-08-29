@@ -797,19 +797,17 @@ onMounted(async () => {
 }
 
 .pe-timeline__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.5rem;
+  column-gap: 0.75rem;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
 }
 
 .pe-timeline__label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: color-mix(in srgb, var(--pe-program) 75%, var(--color-text));
+  min-width: 0;
 }
 
 .pe-timeline__time {
@@ -817,6 +815,8 @@ onMounted(async () => {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--color-text);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .pe-timeline__desc {
