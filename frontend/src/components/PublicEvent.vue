@@ -4,7 +4,6 @@ import {useRoute} from 'vue-router'
 import axios from 'axios'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {imageUrl} from '@/utils/images'
-import {PROGRAM_COLOR_HEX} from '@/utils/programTheme'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
 import {formatTimeOnly} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
@@ -153,24 +152,12 @@ const showInteractiveSchedule = computed(() =>
   !loading.value && !error.value && event.value && isContentVisible(4) && !!publicPlanId.value
 )
 
-const exploreColor = computed(() => {
-  if (!scheduleInfo.value?.teams?.explore?.color_hex) return PROGRAM_COLOR_HEX.EXPLORE
-  return `#${scheduleInfo.value.teams.explore.color_hex}`
+const teamLanes = computed(() => {
+  const lanes = scheduleInfo.value?.teams?.lanes
+  return Array.isArray(lanes) ? lanes : []
 })
 
-const challengeColor = computed(() => {
-  if (!scheduleInfo.value?.teams?.challenge?.color_hex) return PROGRAM_COLOR_HEX.CHALLENGE
-  return `#${scheduleInfo.value.teams.challenge.color_hex}`
-})
-
-const hasTeamsSection = computed(() => {
-  const teams = scheduleInfo.value?.teams
-  if (!teams) return false
-  return (
-    (teams.explore?.list?.length > 0 || teams.explore?.registered > 0) ||
-    (teams.challenge?.list?.length > 0 || teams.challenge?.registered > 0)
-  )
-})
+const hasTeamsSection = computed(() => teamLanes.value.length > 0)
 
 const exploreProgram = computed(() => resolveProgramRef(event.value, 'EXPLORE'))
 const challengeProgram = computed(() => resolveProgramRef(event.value, 'CHALLENGE'))
@@ -350,135 +337,35 @@ onMounted(async () => {
       >
         <h2 class="glass-card__title">Angemeldete Teams</h2>
 
-        <div v-if="scheduleInfo.teams?.explore?.registered > 0" class="pe-teams-block">
+        <div
+            class="pe-timeline-grid pe-teams-grid"
+            :style="{ '--pe-lane-count': teamLanes.length }"
+        >
           <div
-              v-if="scheduleInfo.teams.explore.list"
-              class="pe-teams-table-wrap"
-              :style="{ '--pe-program': exploreColor }"
+              v-for="lane in teamLanes"
+              :key="lane.program_id"
+              class="pe-program"
+              :style="{ '--pe-program': laneColor(lane) }"
           >
-            <table class="pe-teams-table">
-              <colgroup>
-                <col style="width: 15%;">
-                <col style="width: 28.33%;">
-                <col style="width: 28.33%;">
-                <col style="width: 28.34%;">
-              </colgroup>
-              <thead>
-              <tr>
-                <th colspan="4">
-                  <ProgramLogo
-                      v-if="exploreProgram"
-                      :event="event"
-                      :program="exploreProgram"
-                      orientation="h"
-                      class="pe-teams-table__brand"
-                  />
-                </th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr
-                  v-for="team in scheduleInfo.teams.explore.list"
-                  :key="team.team_number_hot"
+            <h3 class="pe-program__title">
+              <ProgramLogo
+                  v-if="laneProgramRef(lane)"
+                  :event="event"
+                  :program="laneProgramRef(lane)"
+                  class="pe-program__logo"
+              />
+              <span>{{ lane.name }}</span>
+            </h3>
+            <ul class="pe-team-list">
+              <li
+                  v-for="(team, index) in lane.teams"
+                  :key="`${lane.program_id}-${team.ref ?? index}`"
+                  class="pe-team-list__item"
               >
-                <td class="pe-teams-table__num">{{ team.team_number_hot || '-' }}</td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-people-fill" aria-hidden="true"/>
-                    {{ team.name }}
-                  </span>
-                </td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-building-fill" aria-hidden="true"/>
-                    {{ team.organization || '-' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-pin-map-fill" aria-hidden="true"/>
-                    {{ team.location || '-' }}
-                  </span>
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-else class="pe-teams-count glass-chip liquid-surface-inner">
-            <ProgramLogo
-                v-if="exploreProgram"
-                :event="event"
-                :program="exploreProgram"
-                orientation="h"
-                class="pe-teams-count__logo"
-            />
-            <span>{{ scheduleInfo.teams.explore.registered }} Team(s) angemeldet</span>
-          </div>
-        </div>
-
-        <div v-if="scheduleInfo.teams?.challenge?.registered > 0" class="pe-teams-block">
-          <div
-              v-if="scheduleInfo.teams.challenge.list"
-              class="pe-teams-table-wrap"
-              :style="{ '--pe-program': challengeColor }"
-          >
-            <table class="pe-teams-table">
-              <colgroup>
-                <col style="width: 15%;">
-                <col style="width: 28.33%;">
-                <col style="width: 28.33%;">
-                <col style="width: 28.34%;">
-              </colgroup>
-              <thead>
-              <tr>
-                <th colspan="4">
-                  <ProgramLogo
-                      v-if="challengeProgram"
-                      :event="event"
-                      :program="challengeProgram"
-                      orientation="h"
-                      class="pe-teams-table__brand"
-                  />
-                </th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr
-                  v-for="team in scheduleInfo.teams.challenge.list"
-                  :key="team.team_number_hot || team.name"
-              >
-                <td class="pe-teams-table__num">{{ team.team_number_hot || '-' }}</td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-people-fill" aria-hidden="true"/>
-                    {{ team.name }}
-                  </span>
-                </td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-building-fill" aria-hidden="true"/>
-                    {{ team.organization || '-' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-pin-map-fill" aria-hidden="true"/>
-                    {{ team.location || '-' }}
-                  </span>
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-else class="pe-teams-count glass-chip liquid-surface-inner">
-            <ProgramLogo
-                v-if="challengeProgram"
-                :event="event"
-                :program="challengeProgram"
-                orientation="h"
-                class="pe-teams-count__logo"
-            />
-            <span>{{ scheduleInfo.teams.challenge.registered }} Team(s) angemeldet</span>
+                <span class="pe-team-list__ref">{{ team.ref || '–' }}</span>
+                <span class="pe-team-list__name">{{ team.name }}</span>
+              </li>
+            </ul>
           </div>
         </div>
       </section>
@@ -904,95 +791,47 @@ onMounted(async () => {
   color: var(--color-text-muted);
 }
 
-.pe-teams-block + .pe-teams-block {
-  margin-top: 1.25rem;
+.pe-teams-grid {
+  margin-top: 0.25rem;
 }
 
-.pe-teams-table-wrap {
-  --pe-program: var(--color-accent);
-  overflow-x: auto;
-  border-radius: var(--radius-lg, 1rem);
-  border: 1px solid color-mix(in srgb, var(--pe-program) 35%, var(--color-border-strong));
-  background: color-mix(in srgb, #ffffff 90%, transparent);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--pe-program) 12%, transparent);
+.pe-team-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
-.pe-teams-table {
-  width: 100%;
-  min-width: 36rem;
-  table-layout: fixed;
-  border-collapse: collapse;
-}
-
-.pe-teams-table thead th {
-  padding: 0.75rem 1rem;
-  text-align: right;
-  border-bottom: 1px solid color-mix(in srgb, var(--pe-program) 22%, transparent);
-  background: color-mix(in srgb, var(--pe-program) 7%, #ffffff);
-}
-
-.pe-teams-table__brand {
-  height: 3rem;
-  width: auto;
-  object-fit: contain;
-  margin-left: auto;
-}
-
-@media (min-width: 768px) {
-  .pe-teams-table__brand {
-    height: 4rem;
-  }
-}
-
-.pe-teams-table tbody tr {
+.pe-team-list__item {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  column-gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
   border-top: 1px solid color-mix(in srgb, var(--pe-program) 14%, transparent);
 }
 
-.pe-teams-table tbody tr:first-child {
+.pe-team-list__item:first-child {
   border-top: none;
+  padding-top: 0;
 }
 
-.pe-teams-table tbody tr:hover {
-  background: color-mix(in srgb, var(--pe-program) 8%, transparent);
-}
-
-.pe-teams-table td {
-  padding: 0.7rem 0.9rem;
-  font-size: 0.9rem;
-  color: var(--color-text);
-  vertical-align: middle;
-  word-break: break-word;
-}
-
-.pe-teams-table__num {
+.pe-team-list__ref {
+  font-size: 0.85rem;
   font-weight: 700;
-  text-align: center;
-  color: var(--pe-program) !important;
+  font-variant-numeric: tabular-nums;
+  color: var(--pe-program);
+  text-align: right;
   white-space: nowrap;
 }
 
-.pe-teams-table__cell {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 0.45rem;
-}
-
-.pe-teams-table__cell i {
-  color: var(--color-text-subtle);
-  margin-top: 0.15rem;
-  flex-shrink: 0;
-}
-
-.pe-teams-count {
-  display: flex !important;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.pe-teams-count__logo {
-  height: 2.25rem;
-  width: auto;
-  object-fit: contain;
+.pe-team-list__name {
+  font-size: 0.9rem;
+  font-weight: 550;
+  color: var(--color-text);
+  min-width: 0;
 }
 
 .pe-logos {

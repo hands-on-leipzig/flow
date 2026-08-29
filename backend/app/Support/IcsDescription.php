@@ -96,7 +96,11 @@ final class IcsDescription
             return '';
         }
 
-        $sections = [];
+        if (isset($teams['lanes']) && is_array($teams['lanes'])) {
+            return self::formatTeamSections($teams['lanes'], true);
+        }
+
+        $legacy = [];
         foreach ($teams as $key => $group) {
             if (! is_array($group)) {
                 continue;
@@ -105,7 +109,33 @@ final class IcsDescription
             if (! is_array($list) || $list === []) {
                 continue;
             }
-            $heading = self::PLAN_HEADINGS[(string) $key] ?? self::headingFromKey((string) $key);
+            $legacy[] = [
+                'name' => self::PLAN_HEADINGS[(string) $key] ?? self::headingFromKey((string) $key),
+                'teams' => $list,
+            ];
+        }
+
+        return self::formatTeamSections($legacy, false);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $sections
+     */
+    private static function formatTeamSections(array $sections, bool $useLaneTeamsKey): string
+    {
+        $blocks = [];
+        foreach ($sections as $section) {
+            if (! is_array($section)) {
+                continue;
+            }
+            $list = $useLaneTeamsKey ? ($section['teams'] ?? null) : ($section['teams'] ?? $section['list'] ?? null);
+            if (! is_array($list) || $list === []) {
+                continue;
+            }
+            $heading = self::oneLine($section['name'] ?? null);
+            if ($heading === '') {
+                $heading = 'Programm';
+            }
             $lines = [];
             foreach ($list as $team) {
                 if (! is_array($team)) {
@@ -117,11 +147,11 @@ final class IcsDescription
                 }
             }
             if ($lines !== []) {
-                $sections[] = $heading."\n".implode("\n", $lines);
+                $blocks[] = $heading."\n".implode("\n", $lines);
             }
         }
 
-        return implode("\n\n", $sections);
+        return implode("\n\n", $blocks);
     }
 
     /**
@@ -129,7 +159,7 @@ final class IcsDescription
      */
     private static function formatTeamLine(array $team): string
     {
-        $number = self::string($team['team_number_hot'] ?? $team['ref'] ?? null);
+        $number = self::string($team['ref'] ?? $team['team_number_hot'] ?? null);
         $name = self::string($team['name'] ?? null);
         $org = self::string($team['organization'] ?? null);
         $place = self::string($team['location'] ?? null);
