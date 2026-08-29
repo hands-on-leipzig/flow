@@ -16,6 +16,8 @@ type Maybe<T> = T | null | undefined
 
 type ExtraBlock = {
   id?: number
+  /** Client-only id for drafts not yet persisted */
+  _clientKey?: string
   plan: number
   first_program: number | null | 0
   name: string
@@ -98,6 +100,47 @@ function compareBlocks(a: ExtraBlock, b: ExtraBlock): number {
 const customBlocks = computed(() => blocks.value)
 
 const sortedBlocks = computed(() => customBlocks.value.slice().sort(compareBlocks))
+
+let draftBlockSeq = 0
+
+function nextClientKey(): string {
+  draftBlockSeq += 1
+  return `draft-${draftBlockSeq}`
+}
+
+function blockRowKey(block: ExtraBlock): string {
+  if (block.id != null) return `id-${block.id}`
+  if (block._clientKey) return block._clientKey
+  return JSON.stringify(block)
+}
+
+function blockSaveKey(block: ExtraBlock): string {
+  if (block.id) return `extra_block_update_${block.id}`
+  if (!block._clientKey) {
+    block._clientKey = nextClientKey()
+  }
+  return `extra_block_add_${block._clientKey}`
+}
+
+function toApiPayload(block: ExtraBlock) {
+  const payload: Record<string, unknown> = {
+    plan: block.plan,
+    first_program: block.first_program,
+    name: block.name,
+    description: block.description,
+    link: block.link,
+    start: block.start,
+    end: block.end,
+    room: block.room,
+    active: block.active,
+  }
+  if (block.id) payload.id = block.id
+  return payload
+}
+
+function scheduleBlockSave(block: ExtraBlock) {
+  scheduleUpdate(blockSaveKey(block), {...block})
+}
 
 // --- Lifecycle ---
 watch(() => props.planId, v => {
@@ -195,7 +238,10 @@ async function flushUpdates(updates: Record<string, any>) {
   try {
     for (const [name, value] of Object.entries(updates)) {
       if (name.startsWith('extra_block_update') && value) {
-        const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
+        const response = await axios.post(
+          `/plans/${props.planId}/extra-blocks`,
+          toApiPayload(value as ExtraBlock),
+        )
 
         if (response.data?.error) {
           generatorError.value = response.data.error
@@ -216,8 +262,15 @@ async function flushUpdates(updates: Record<string, any>) {
           return
         }
       }
-      if (name === 'extra_block_add' && value) {
-        const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
+      if (name.startsWith('extra_block_add') && value) {
+        if (value._clientKey && !blocks.value.some((b) => b._clientKey === value._clientKey)) {
+          continue
+        }
+
+        const response = await axios.post(
+          `/plans/${props.planId}/extra-blocks`,
+          toApiPayload(value as ExtraBlock),
+        )
 
         if (response.data?.error) {
           generatorError.value = response.data.error
@@ -225,6 +278,14 @@ async function flushUpdates(updates: Record<string, any>) {
           isGenerating.value = false
           await loadBlocks()
           return
+        }
+
+        const saved = response.data?.block || response.data
+        if (value._clientKey && saved?.id) {
+          const idx = blocks.value.findIndex((b) => b._clientKey === value._clientKey)
+          if (idx !== -1) {
+            blocks.value[idx] = saved
+          }
         }
       }
     }
@@ -352,7 +413,6 @@ const newBlockStart = ref('06:00')
 const newBlockEnd = ref('07:00')
 const newFirstProgram = ref(0)
 const composerRef = ref<{ focusTitle?: () => void } | null>(null)
-const isCreating = ref(false)
 
 function defaultBlockDate(): string {
   if (props.eventDate) return dayjs(props.eventDate).format('YYYY-MM-DD')
@@ -381,50 +441,31 @@ function setBlockFirstProgram(block: ExtraBlock, value: number) {
 }
 
 // --- Actions ---
-async function createCustom() {
-  if (isCreating.value || !props.planId) return
+function createCustom() {
+  if (!props.planId) return
   const name = newBlockName.value.trim()
   if (!name) return
 
-  isCreating.value = true
-  isGenerating.value = true
   const dateStr = newBlockDate.value || defaultBlockDate()
   const start = combineDateTime(dateStr, newBlockStart.value || '06:00') || `${dateStr} 06:00:00`
   const end = combineDateTime(dateStr, newBlockEnd.value || '07:00') || `${dateStr} 07:00:00`
 
-  try {
-    const response = await axios.post(`/plans/${props.planId}/extra-blocks`, {
-      plan: props.planId,
-      first_program: newFirstProgram.value,
-      name,
-      description: newBlockDescription.value,
-      link: newBlockLink.value.trim() || null,
-      active: true,
-      start,
-      end,
-    })
-
-    if (response.data?.error) {
-      generatorError.value = response.data.error
-      errorDetails.value = response.data.details || null
-      isGenerating.value = false
-      return
-    }
-
-    resetComposer()
-    await loadBlocks()
-    await pollUntilReady(props.planId)
-    emit('changed')
-    await nextTick()
-    composerRef.value?.focusTitle?.()
-  } catch (error: any) {
-    console.error('Failed to create block:', error)
-    generatorError.value = 'Fehler beim Erstellen des Blocks'
-    errorDetails.value = error.message || 'Unbekannter Fehler'
-    isGenerating.value = false
-  } finally {
-    isCreating.value = false
+  const block: ExtraBlock = {
+    _clientKey: nextClientKey(),
+    plan: props.planId,
+    first_program: newFirstProgram.value,
+    name,
+    description: newBlockDescription.value,
+    link: newBlockLink.value.trim() || null,
+    active: true,
+    start,
+    end,
   }
+
+  blocks.value.push(block)
+  resetComposer()
+  scheduleBlockSave(block)
+  void nextTick(() => composerRef.value?.focusTitle?.())
 }
 
 function confirmDeleteBlock(block: ExtraBlock) {
@@ -436,32 +477,27 @@ function cancelDeleteBlock() {
 }
 
 function deleteBlock() {
-  if (!blockToDelete.value?.id) return
+  if (!blockToDelete.value) return
   const block = blockToDelete.value
   blockToDelete.value = null
-  blocks.value = blocks.value.filter((b) => b.id !== block.id)
-  scheduleUpdate(`extra_block_delete_${block.id}`, block)
+  blocks.value = blocks.value.filter((b) => {
+    if (block.id) return b.id !== block.id
+    if (block._clientKey) return b._clientKey !== block._clientKey
+    return b !== block
+  })
+  if (block.id) {
+    scheduleUpdate(`extra_block_delete_${block.id}`, block)
+  }
 }
 
 // Update local state and trigger debounce (no DB save until countdown)
 function saveBlock(block: ExtraBlock) {
-  // Only save blocks that already exist in the database (have an ID)
-  // New blocks are saved immediately on creation, so this should only be called for existing blocks
-  if (!block.id) {
-    console.warn('Attempted to save block without ID - this should not happen')
-    return
-  }
-
-  // Create a new object copy to avoid reference issues during countdown
-  // This ensures each update captures the current state independently
-  // Note: DB save will happen when countdown reaches 0 or is clicked
-  scheduleUpdate(`extra_block_update_${block.id}`, {...block})
+  scheduleBlockSave(block)
 }
 
 function toggleActive(block: ExtraBlock, active: boolean) {
-  if (!block.id) return
   block.active = active
-  scheduleUpdate(`extra_block_update_${block.id}`, {...block, active})
+  scheduleBlockSave(block)
 }
 
 // Handle date change (updates both start and end with the same date)
@@ -541,7 +577,7 @@ function handleStartTimeChange(block: ExtraBlock, time: string) {
   }
 
   // Trigger debounce with current block state (this will overwrite any pending update)
-  scheduleUpdate(`extra_block_update_${block.id}`, {...block})
+  scheduleBlockSave(block)
 }
 
 // Handle end time change (called on blur)
@@ -577,7 +613,7 @@ function handleEndTimeChange(block: ExtraBlock, time: string) {
   }
 
   // Trigger debounce with current block state (this will overwrite any pending update)
-  scheduleUpdate(`extra_block_update_${block.id}`, {...block})
+  scheduleBlockSave(block)
 }
 
 const deleteMessage = computed(() => {
@@ -619,7 +655,7 @@ const hasBlocksOutsideEventDates = computed(() => {
         <ItemComposer
             ref="composerRef"
             v-model:title="newBlockName"
-            :disabled="isCreating || !planId"
+            :disabled="!planId"
             title-placeholder="Neuer Block z. B. Mittagessen"
             empty-hint="Eigener Eintrag im Plan, ohne den generierten Ablauf zu ändern."
             @commit="createCustom"
@@ -627,13 +663,13 @@ const hasBlocksOutsideEventDates = computed(() => {
           <div class="free-block__when">
             <input
                 v-model="newBlockDate"
-                :disabled="isCreating || !planId"
+                :disabled="!planId"
                 class="glass-input glass-input--sm liquid-surface-control free-block__date"
                 type="date"
             />
             <input
                 v-model="newBlockStart"
-                :disabled="isCreating || !planId"
+                :disabled="!planId"
                 class="glass-input glass-input--sm liquid-surface-control free-block__time"
                 type="time"
                 min="00:05"
@@ -643,7 +679,7 @@ const hasBlocksOutsideEventDates = computed(() => {
             />
             <input
                 v-model="newBlockEnd"
-                :disabled="isCreating || !planId"
+                :disabled="!planId"
                 class="glass-input glass-input--sm liquid-surface-control free-block__time"
                 type="time"
                 min="00:05"
@@ -656,14 +692,14 @@ const hasBlocksOutsideEventDates = computed(() => {
             <div v-if="newBlockName.trim().length > 0" class="free-block__composer-extra">
               <input
                   v-model="newBlockDescription"
-                  :disabled="isCreating || !planId"
+                  :disabled="!planId"
                   class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
                   type="text"
                   placeholder="Beschreibung"
               />
               <input
                   v-model="newBlockLink"
-                  :disabled="isCreating || !planId"
+                  :disabled="!planId"
                   class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
                   type="url"
                   placeholder="https://example.com"
@@ -674,7 +710,7 @@ const hasBlocksOutsideEventDates = computed(() => {
 
         <ItemCard
             v-for="b in sortedBlocks"
-            :key="b.id ?? JSON.stringify(b)"
+            :key="blockRowKey(b)"
             :inactive="b.active === false"
             :class="{
               'free-block--warning': b.active !== false && isBlockOutsideEventDates(b),
@@ -683,7 +719,6 @@ const hasBlocksOutsideEventDates = computed(() => {
           <template #leading>
             <ToggleSwitch
                 :model-value="b.active !== false"
-                :disabled="!b.id"
                 @update:modelValue="toggleActive(b, $event)"
             />
           </template>
@@ -700,7 +735,6 @@ const hasBlocksOutsideEventDates = computed(() => {
           </template>
           <template #trailing>
             <IconDangerButton
-                v-if="b.id"
                 label="Block löschen"
                 @click="confirmDeleteBlock(b)"
             />
