@@ -194,7 +194,7 @@ async function flushUpdates(updates: Record<string, any>) {
 
   try {
     for (const [name, value] of Object.entries(updates)) {
-      if (name === 'extra_block_update' && value) {
+      if (name.startsWith('extra_block_update') && value) {
         const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
 
         if (response.data?.error) {
@@ -205,7 +205,7 @@ async function flushUpdates(updates: Record<string, any>) {
           return
         }
       }
-      if (name === 'extra_block_delete' && value?.id) {
+      if (name.startsWith('extra_block_delete') && value?.id) {
         const deleteResponse = await axios.delete(`/extra-blocks/${value.id}`)
 
         if (deleteResponse.data?.error) {
@@ -435,12 +435,12 @@ function cancelDeleteBlock() {
   blockToDelete.value = null
 }
 
-async function deleteBlock() {
+function deleteBlock() {
   if (!blockToDelete.value?.id) return
-  scheduleUpdate('extra_block_delete', blockToDelete.value)
+  const block = blockToDelete.value
   blockToDelete.value = null
-  // Immediately flush to delete the block and refresh the list
-  await immediateFlush()
+  blocks.value = blocks.value.filter((b) => b.id !== block.id)
+  scheduleUpdate(`extra_block_delete_${block.id}`, block)
 }
 
 // Update local state and trigger debounce (no DB save until countdown)
@@ -455,13 +455,13 @@ function saveBlock(block: ExtraBlock) {
   // Create a new object copy to avoid reference issues during countdown
   // This ensures each update captures the current state independently
   // Note: DB save will happen when countdown reaches 0 or is clicked
-  scheduleUpdate('extra_block_update', {...block})
+  scheduleUpdate(`extra_block_update_${block.id}`, {...block})
 }
 
 function toggleActive(block: ExtraBlock, active: boolean) {
   if (!block.id) return
   block.active = active
-  scheduleUpdate('extra_block_update', {...block, active})
+  scheduleUpdate(`extra_block_update_${block.id}`, {...block, active})
 }
 
 // Handle date change (updates both start and end with the same date)
@@ -541,7 +541,7 @@ function handleStartTimeChange(block: ExtraBlock, time: string) {
   }
 
   // Trigger debounce with current block state (this will overwrite any pending update)
-  scheduleUpdate('extra_block_update', {...block})
+  scheduleUpdate(`extra_block_update_${block.id}`, {...block})
 }
 
 // Handle end time change (called on blur)
@@ -577,7 +577,7 @@ function handleEndTimeChange(block: ExtraBlock, time: string) {
   }
 
   // Trigger debounce with current block state (this will overwrite any pending update)
-  scheduleUpdate('extra_block_update', {...block})
+  scheduleUpdate(`extra_block_update_${block.id}`, {...block})
 }
 
 const deleteMessage = computed(() => {
