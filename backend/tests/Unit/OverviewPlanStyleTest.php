@@ -81,7 +81,7 @@ class OverviewPlanStyleTest extends TestCase
         $this->assertSame(OverviewPlanStyle::LIVE_CHALLENGE_BORDER, $colors['border']);
     }
 
-    public function test_slot_cells_use_pale_pint_fill_and_program_border(): void
+    public function test_slot_cells_use_pale_orange_fill_and_border(): void
     {
         $explore = '#00A651';
         $challenge = '#ED1C24';
@@ -93,10 +93,10 @@ class OverviewPlanStyleTest extends TestCase
 
         $slotExplore = OverviewPlanStyle::cellColorsFromCatalog('Slot-Explore', $explore, $challenge, $future8);
         $this->assertSame(OverviewPlanStyle::SLOT_TINT, $slotExplore['bg']);
-        $this->assertSame($explore, $slotExplore['border']);
+        $this->assertSame(OverviewPlanStyle::SLOT_BORDER, $slotExplore['border']);
 
         $slotChallenge = OverviewPlanStyle::cellColorsFromCatalog('Slot-Challenge', $explore, $challenge, $future8);
         $this->assertSame(OverviewPlanStyle::SLOT_TINT, $slotChallenge['bg']);
-        $this->assertSame($challenge, $slotChallenge['border']);
+        $this->assertSame(OverviewPlanStyle::SLOT_BORDER, $slotChallenge['border']);
     }
 }

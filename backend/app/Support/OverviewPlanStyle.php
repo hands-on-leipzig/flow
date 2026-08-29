@@ -27,10 +27,13 @@ final class OverviewPlanStyle
     public const FIELD_TINT = 0.18;
 
     /** Teams-grid slot block cell fill. */
-    public const SLOT_TINT = '#fce4ec';
+    public const SLOT_TINT = '#fff3e0';
+
+    /** Teams-grid slot block left border (darker orange for contrast on SLOT_TINT). */
+    public const SLOT_BORDER = '#ffb74d';
 
     /**
-     * Teams-grid style key for a slot assignment (pale pink fill, program border).
+     * Teams-grid style key for a slot assignment (pale orange fill and border).
      */
     public static function slotStyleColumn(int $programId): string
     {
@@ -121,10 +124,10 @@ final class OverviewPlanStyle
             'Allgemein-2' => ['bg' => self::GRAY_TINT, 'border' => $exploreBorder],
             'Allgemein-3' => ['bg' => self::GRAY_TINT, 'border' => $challengeBorder],
             'Allgemein-4' => ['bg' => self::GRAY_TINT, 'border' => $future8Border],
-            'Slot-Explore' => ['bg' => self::SLOT_TINT, 'border' => $exploreBorder],
-            'Slot-Challenge' => ['bg' => self::SLOT_TINT, 'border' => $challengeBorder],
-            'Slot-Future 8+' => ['bg' => self::SLOT_TINT, 'border' => $future8Border],
-            'Slot' => ['bg' => self::SLOT_TINT, 'border' => self::GRAY_BORDER],
+            'Slot-Explore' => ['bg' => self::SLOT_TINT, 'border' => self::SLOT_BORDER],
+            'Slot-Challenge' => ['bg' => self::SLOT_TINT, 'border' => self::SLOT_BORDER],
+            'Slot-Future 8+' => ['bg' => self::SLOT_TINT, 'border' => self::SLOT_BORDER],
+            'Slot' => ['bg' => self::SLOT_TINT, 'border' => self::SLOT_BORDER],
             default => ['bg' => self::GRAY_TINT, 'border' => self::GRAY_BORDER],
         };
     }
