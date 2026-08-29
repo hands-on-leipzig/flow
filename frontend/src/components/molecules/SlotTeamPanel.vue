@@ -3,7 +3,7 @@ import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
-import {programNameForId} from '@/utils/eventPrograms'
+import {programDisplayName, programNameForId} from '@/utils/eventPrograms'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {
   datetimeLocalToDb,
@@ -40,21 +40,28 @@ export type TeamSavePayload = {
   start: string | null
 }
 
+const JOINT_FP = 0
+
 const props = defineProps<{
   planId: number
   blockId: number | null
+  blockFirstProgram: number
   blockActive: boolean
   eventDate?: string
+  saving?: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'schedule-team-save', payload: TeamSavePayload): void
+  (e: 'save-assignments', payloads: TeamSavePayload[]): void
 }>()
 
 const teams = ref<TeamRow[]>([])
 const loadingTeams = ref(false)
 const eDurationTransfer = ref(0)
 const cDurationTransfer = ref(0)
+const expanded = ref(true)
+const chronoSorted = ref(false)
+const draftStarts = ref<Record<string, string | null>>({})
 const editingTeamId = ref<string | null>(null)
 const editingStartLocal = ref('')
 const tooltipOpenKey = ref<string | null>(null)
@@ -65,6 +72,8 @@ const tooltipActivities = ref<Record<string, {
   activities: TeamActivityLine[]
 }>>({})
 
+const {selectedEvent} = useScheduleWorkspace()
+
 function rowEditKey(row: TeamRow): string {
   return `${row.first_program}:${row.team_number_plan ?? 0}`
 }
@@ -73,9 +82,17 @@ function defaultStartLocal(): string {
   return `${eventBaseDateYmd(props.eventDate)}T09:00`
 }
 
+function resetDrafts() {
+  draftStarts.value = {}
+  chronoSorted.value = false
+  editingTeamId.value = null
+  editingStartLocal.value = ''
+}
+
 async function loadTeams() {
   if (!props.blockId) {
     teams.value = []
+    resetDrafts()
     return
   }
   loadingTeams.value = true
@@ -88,6 +105,7 @@ async function loadTeams() {
     teams.value = data?.teams ?? []
     eDurationTransfer.value = Number(data?.e_duration_transfer ?? 0) || 0
     cDurationTransfer.value = Number(data?.c_duration_transfer ?? 0) || 0
+    resetDrafts()
   } finally {
     loadingTeams.value = false
   }
@@ -96,13 +114,80 @@ async function loadTeams() {
 watch(() => props.blockId, () => {
   tooltipActivities.value = {}
   tooltipOpenKey.value = null
-  editingTeamId.value = null
   void loadTeams()
 }, {immediate: true})
 
-defineExpose({reload: loadTeams})
+defineExpose({reload: loadTeams, hasUnsavedDrafts: () => hasUnsavedChanges.value})
 
-const {selectedEvent} = useScheduleWorkspace()
+function effectiveStart(row: TeamRow): string | null {
+  if (row.row_key in draftStarts.value) {
+    return draftStarts.value[row.row_key]
+  }
+  return row.start
+}
+
+function isRowDirty(row: TeamRow): boolean {
+  if (!(row.row_key in draftStarts.value)) return false
+  const draft = draftStarts.value[row.row_key] ?? null
+  const saved = row.start ?? null
+  return draft !== saved
+}
+
+const hasUnsavedChanges = computed(() => teams.value.some(isRowDirty))
+
+function wallTimeSortKey(s: string | null): string {
+  if (!s) return 'z'
+  const m = String(s).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/)
+  return m ? `${m[1]}${m[2]}${m[3]}` : s
+}
+
+function compareRows(a: TeamRow, b: TeamRow): number {
+  const aStart = effectiveStart(a)
+  const bStart = effectiveStart(b)
+  if (!aStart && !bStart) {
+    if (a.first_program !== b.first_program) return a.first_program - b.first_program
+    return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
+  }
+  if (!aStart) return 1
+  if (!bStart) return -1
+  const byTime = wallTimeSortKey(aStart).localeCompare(wallTimeSortKey(bStart))
+  if (byTime !== 0) return byTime
+  if (a.first_program !== b.first_program) return a.first_program - b.first_program
+  return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
+}
+
+const displayRows = computed(() => {
+  const rows = teams.value.slice()
+  if (chronoSorted.value) {
+    return rows.sort(compareRows)
+  }
+  return rows
+})
+
+const groupedRows = computed(() => {
+  const rows = displayRows.value
+  if (Number(props.blockFirstProgram) !== JOINT_FP) {
+    return [{programId: Number(props.blockFirstProgram), label: groupLabel(Number(props.blockFirstProgram)), rows}]
+  }
+  const byProgram = new Map<number, TeamRow[]>()
+  for (const row of rows) {
+    const fp = row.first_program
+    if (!byProgram.has(fp)) byProgram.set(fp, [])
+    byProgram.get(fp)!.push(row)
+  }
+  return [...byProgram.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([programId, groupRows]) => ({
+      programId,
+      label: groupLabel(programId),
+      rows: groupRows,
+    }))
+})
+
+function groupLabel(programId: number): string {
+  const name = programNameForId(selectedEvent.value, programId)
+  return programDisplayName({first_program: programId, name: name ?? undefined}) || `Programm ${programId}`
+}
 
 function programIcon(fp: number): { src: string; alt: string } {
   const name = programNameForId(selectedEvent.value, fp)
@@ -114,7 +199,9 @@ function formatPlanTeamNo(n: number | null | undefined): string {
   return `T${String(Math.floor(Number(n))).padStart(2, '0')}`
 }
 
-function collisionDotClass(status: TeamRow['collision_status']): string {
+function collisionDotClass(row: TeamRow): string {
+  if (isRowDirty(row)) return 'dot--draft'
+  const status = row.collision_status
   if (status === 'red') return 'dot--red'
   if (status === 'yellow') return 'dot--yellow'
   if (status === 'green') return 'dot--green'
@@ -129,7 +216,8 @@ function lineStatusClass(status: TeamActivityLine['status']): string {
 }
 
 function collisionTitle(row: TeamRow): string {
-  if (!row.start) return 'Keine Startzeit zugewiesen'
+  if (isRowDirty(row)) return 'Entwurf — speichern für Konfliktprüfung'
+  if (!effectiveStart(row)) return 'Keine Startzeit zugewiesen'
   if (row.collision_status === 'red') return 'Kollision: Überschneidung mit anderer Aktivität'
   if (row.collision_status === 'yellow') {
     if (row.collision_gap_minutes != null) {
@@ -141,12 +229,20 @@ function collisionTitle(row: TeamRow): string {
   return 'Prüfung ausstehend'
 }
 
+function setDraft(row: TeamRow, localValue: string) {
+  draftStarts.value = {
+    ...draftStarts.value,
+    [row.row_key]: localValue ? datetimeLocalToDb(localValue) : null,
+  }
+}
+
 function beginEditStart(row: TeamRow) {
   if (!props.blockActive) return
   editingTeamId.value = rowEditKey(row)
-  editingStartLocal.value = row.start ? wallTimeToDatetimeLocal(row.start) : defaultStartLocal()
-  if (!row.start) {
-    scheduleTeamSave(row, editingStartLocal.value)
+  const current = effectiveStart(row)
+  editingStartLocal.value = current ? wallTimeToDatetimeLocal(current) : defaultStartLocal()
+  if (!current) {
+    setDraft(row, editingStartLocal.value)
   }
 }
 
@@ -157,28 +253,40 @@ function cancelEditStart(row: TeamRow) {
   }
 }
 
-function scheduleTeamSave(row: TeamRow, value: string) {
-  if (!props.blockId || !row.team_number_plan) return
-  emit('schedule-team-save', {
-    blockId: props.blockId,
-    first_program: row.first_program,
-    team_number_plan: row.team_number_plan,
-    start: value ? datetimeLocalToDb(value) : null,
-  })
-}
-
 function onTeamStartInput(row: TeamRow, value: string) {
   editingTeamId.value = rowEditKey(row)
   editingStartLocal.value = value
-  scheduleTeamSave(row, value)
+  setDraft(row, value)
 }
 
 function clearTeamStart(row: TeamRow) {
-  scheduleTeamSave(row, '')
-  row.start = null
-  row.collision_status = null
-  row.collision_gap_minutes = null
+  setDraft(row, '')
   cancelEditStart(row)
+}
+
+function inputValue(row: TeamRow): string {
+  if (editingTeamId.value === rowEditKey(row)) {
+    return editingStartLocal.value
+  }
+  const start = effectiveStart(row)
+  return start ? wallTimeToDatetimeLocal(start) : ''
+}
+
+function showTimeInput(row: TeamRow): boolean {
+  return !!effectiveStart(row) || editingTeamId.value === rowEditKey(row)
+}
+
+function saveAssignments() {
+  if (!props.blockId || !hasUnsavedChanges.value) return
+  const payloads: TeamSavePayload[] = teams.value
+    .filter(isRowDirty)
+    .map((row) => ({
+      blockId: props.blockId!,
+      first_program: row.first_program,
+      team_number_plan: row.team_number_plan!,
+      start: draftStarts.value[row.row_key] ?? null,
+    }))
+  emit('save-assignments', payloads)
 }
 
 async function openTooltip(row: TeamRow) {
@@ -224,124 +332,179 @@ function formatTooltipDate(slotDate: string | null): string {
   if (!m) return String(slotDate)
   return `${m[3]}.${m[2]}.${m[1]}`
 }
-
-const hasTeams = computed(() => teams.value.length > 0)
 </script>
 
 <template>
   <div class="slot-teams" :class="{'slot-teams--inactive': !blockActive}">
-    <div class="slot-teams__legend">
-      <span><i class="dot dot--red"/>Konflikt</span>
-      <span><i class="dot dot--yellow"/>Transfer &lt; E{{ eDurationTransfer }}/C{{ cDurationTransfer }}</span>
-      <span><i class="dot dot--green"/>OK</span>
-    </div>
-
-    <div v-if="loadingTeams" class="slot-teams__loading">
-      <LoaderFlow class="scale-75"/>
-      <span class="text-sm">Lade Teams…</span>
-    </div>
-
-    <div v-else-if="!blockId" class="text-sm text-[var(--color-text-subtle)]">
-      Oben einen Slot auswählen.
-    </div>
-
-    <div v-else-if="!hasTeams" class="text-sm text-[var(--color-text-subtle)] py-4 text-center">
-      Keine Teams im Plan für diesen Slot-Typ.
-    </div>
-
-    <div v-else class="slot-teams__list">
-      <div v-for="row in teams" :key="row.row_key" class="slot-team">
-        <div class="slot-team__top">
-          <img
-              :src="programIcon(row.first_program).src"
-              :alt="programIcon(row.first_program).alt"
-              class="w-6 h-6 flex-shrink-0"
-          />
-          <div class="min-w-0 flex-1">
-            <div class="flex items-baseline gap-2 min-w-0">
-              <div
-                  class="relative"
-                  @mouseenter="openTooltip(row)"
-                  @mouseleave="closeTooltip(row)"
-              >
-                <button
-                    type="button"
-                    class="font-semibold tabular-nums underline decoration-dotted underline-offset-2 hover:text-[var(--color-accent)]"
-                    @focus="openTooltip(row)"
-                    @blur="closeTooltip(row)"
-                >
-                  {{ formatPlanTeamNo(row.team_number_plan) }}
-                </button>
-                <div v-if="tooltipOpenKey === row.row_key" class="slot-tooltip glass-dropdown">
-                  <p class="text-xs font-semibold mb-2">
-                    Aktivitäten · {{ formatTooltipDate(tooltipActivities[row.row_key]?.slot_date ?? null) }}
-                  </p>
-                  <p v-if="tooltipLoadingKey === row.row_key" class="text-xs text-[var(--color-text-subtle)]">Lade…</p>
-                  <p
-                      v-else-if="!(tooltipActivities[row.row_key]?.activities?.length)"
-                      class="text-xs text-[var(--color-text-subtle)]"
-                  >
-                    Keine team-spezifischen Aktivitäten.
-                  </p>
-                  <ul v-else class="space-y-1">
-                    <li
-                        v-for="act in tooltipActivities[row.row_key].activities"
-                        :key="act.id"
-                        class="text-xs"
-                        :class="lineStatusClass(act.status)"
-                    >
-                      <span class="font-mono">{{ wallTimeHm(act.start) }}-{{ wallTimeHm(act.end) }}</span>
-                      · {{ act.label }}
-                    </li>
-                  </ul>
-                </div>
-              </div>
-              <span class="text-xs text-[var(--color-text-muted)] tabular-nums">
-                {{ row.team_number_hot ?? '–' }}
-              </span>
-            </div>
-            <p class="text-sm truncate">{{ row.team_name }}</p>
-          </div>
-          <span
-              v-if="row.start"
-              class="dot"
-              :class="collisionDotClass(row.collision_status ?? null)"
-              :title="collisionTitle(row)"
-          />
-        </div>
-
-        <div class="slot-team__time">
-          <button
-              v-if="!row.start && editingTeamId !== rowEditKey(row)"
-              type="button"
-              class="glass-btn-secondary w-full !justify-start !text-sm !py-1.5 !text-[var(--color-text-subtle)]"
-              :disabled="!blockActive"
-              @click="beginEditStart(row)"
-          >
-            <i class="bi bi-clock" aria-hidden="true"/>
-            Start setzen…
-          </button>
-          <template v-else>
-            <input
-                type="datetime-local"
-                :disabled="!blockActive"
-                class="slot-team__datetime glass-input glass-input--sm liquid-surface-control"
-                :value="editingTeamId === rowEditKey(row) ? editingStartLocal : wallTimeToDatetimeLocal(row.start)"
-                @input="onTeamStartInput(row, ($event.target as HTMLInputElement).value)"
-            />
-            <button
-                v-if="row.start"
-                type="button"
-                class="slot-team__clear"
-                :disabled="!blockActive"
-                title="Zuweisung entfernen"
-                @click="clearTeamStart(row)"
-            >
-              <i class="bi bi-trash-fill" aria-hidden="true"/>
-            </button>
-          </template>
-        </div>
+    <div class="slot-teams__toolbar">
+      <button
+          type="button"
+          class="slot-teams__toggle glass-btn-secondary !text-xs !py-1.5 !px-2.5"
+          :disabled="!blockId"
+          @click="expanded = !expanded"
+      >
+        <i class="bi" :class="expanded ? 'bi-chevron-down' : 'bi-chevron-right'" aria-hidden="true"/>
+        Team-Zuordnungen
+        <span v-if="hasUnsavedChanges" class="slot-teams__dirty">· Entwurf</span>
+      </button>
+      <div class="slot-teams__actions">
+        <button
+            type="button"
+            class="glass-btn-secondary !text-xs !py-1.5 !px-2.5"
+            :disabled="!blockId || !teams.length"
+            @click="chronoSorted = !chronoSorted"
+        >
+          <i class="bi bi-sort-down" aria-hidden="true"/>
+          {{ chronoSorted ? 'Plan-Reihenfolge' : 'Chronologisch' }}
+        </button>
+        <button
+            type="button"
+            class="glass-btn-accent !text-xs !py-1.5 !px-2.5 disabled:opacity-60"
+            :disabled="!blockId || !hasUnsavedChanges || saving || !blockActive"
+            @click="saveAssignments"
+        >
+          {{ saving ? 'Speichere…' : 'Zuordnungen speichern' }}
+        </button>
       </div>
+    </div>
+
+    <div v-if="expanded" class="slot-teams__body">
+      <div class="slot-teams__legend">
+        <span><i class="dot dot--red"/>Konflikt</span>
+        <span><i class="dot dot--yellow"/>Transfer &lt; E{{ eDurationTransfer }}/C{{ cDurationTransfer }}</span>
+        <span><i class="dot dot--green"/>OK</span>
+        <span><i class="dot dot--draft"/>Entwurf</span>
+      </div>
+
+      <div v-if="loadingTeams" class="slot-teams__loading">
+        <LoaderFlow class="scale-75"/>
+        <span class="text-sm">Lade Teams…</span>
+      </div>
+
+      <div v-else-if="!blockId" class="text-sm text-[var(--color-text-subtle)]">
+        Oben einen Slot auswählen.
+      </div>
+
+      <div v-else-if="!teams.length" class="text-sm text-[var(--color-text-subtle)] py-4 text-center">
+        Keine Teams im Plan für diesen Slot-Typ.
+      </div>
+
+      <template v-else>
+        <section
+            v-for="group in groupedRows"
+            :key="group.programId"
+            class="slot-teams__group"
+        >
+          <h3
+              v-if="groupedRows.length > 1"
+              class="slot-teams__group-heading"
+          >
+            <img
+                :src="programIcon(group.programId).src"
+                :alt="programIcon(group.programId).alt"
+                class="w-5 h-5"
+            />
+            {{ group.label }}
+          </h3>
+
+          <div class="slot-teams__list">
+            <div v-for="row in group.rows" :key="row.row_key" class="slot-team">
+              <div class="slot-team__top">
+                <img
+                    v-if="groupedRows.length === 1"
+                    :src="programIcon(row.first_program).src"
+                    :alt="programIcon(row.first_program).alt"
+                    class="w-6 h-6 flex-shrink-0"
+                />
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-baseline gap-2 min-w-0">
+                    <div
+                        class="relative"
+                        @mouseenter="openTooltip(row)"
+                        @mouseleave="closeTooltip(row)"
+                    >
+                      <button
+                          type="button"
+                          class="font-semibold tabular-nums underline decoration-dotted underline-offset-2 hover:text-[var(--color-accent)]"
+                          @focus="openTooltip(row)"
+                          @blur="closeTooltip(row)"
+                      >
+                        {{ formatPlanTeamNo(row.team_number_plan) }}
+                      </button>
+                      <div v-if="tooltipOpenKey === row.row_key" class="slot-tooltip glass-dropdown">
+                        <p class="text-xs font-semibold mb-2">
+                          Aktivitäten · {{ formatTooltipDate(tooltipActivities[row.row_key]?.slot_date ?? null) }}
+                        </p>
+                        <p v-if="tooltipLoadingKey === row.row_key" class="text-xs text-[var(--color-text-subtle)]">Lade…</p>
+                        <p
+                            v-else-if="!(tooltipActivities[row.row_key]?.activities?.length)"
+                            class="text-xs text-[var(--color-text-subtle)]"
+                        >
+                          Keine team-spezifischen Aktivitäten.
+                        </p>
+                        <ul v-else class="space-y-1">
+                          <li
+                              v-for="act in tooltipActivities[row.row_key].activities"
+                              :key="act.id"
+                              class="text-xs"
+                              :class="lineStatusClass(act.status)"
+                          >
+                            <span class="font-mono">{{ wallTimeHm(act.start) }}-{{ wallTimeHm(act.end) }}</span>
+                            · {{ act.label }}
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                    <span class="text-xs text-[var(--color-text-muted)] tabular-nums">
+                      {{ row.team_number_hot ?? '–' }}
+                    </span>
+                  </div>
+                  <p class="text-sm truncate">{{ row.team_name }}</p>
+                </div>
+                <span
+                    v-if="effectiveStart(row)"
+                    class="dot"
+                    :class="collisionDotClass(row)"
+                    :title="collisionTitle(row)"
+                />
+              </div>
+
+              <div class="slot-team__time">
+                <button
+                    v-if="!showTimeInput(row)"
+                    type="button"
+                    class="glass-btn-secondary w-full !justify-start !text-sm !py-1.5 !text-[var(--color-text-subtle)]"
+                    :disabled="!blockActive"
+                    @click="beginEditStart(row)"
+                >
+                  <i class="bi bi-clock" aria-hidden="true"/>
+                  Start setzen…
+                </button>
+                <template v-else>
+                  <input
+                      type="datetime-local"
+                      :disabled="!blockActive"
+                      class="slot-team__datetime glass-input glass-input--sm liquid-surface-control"
+                      :class="{'slot-team__datetime--dirty': isRowDirty(row)}"
+                      :value="inputValue(row)"
+                      @input="onTeamStartInput(row, ($event.target as HTMLInputElement).value)"
+                  />
+                  <button
+                      v-if="effectiveStart(row)"
+                      type="button"
+                      class="slot-team__clear"
+                      :disabled="!blockActive"
+                      title="Zuweisung entfernen"
+                      @click="clearTeamStart(row)"
+                  >
+                    <i class="bi bi-trash-fill" aria-hidden="true"/>
+                  </button>
+                </template>
+              </div>
+            </div>
+          </div>
+        </section>
+      </template>
     </div>
   </div>
 </template>
@@ -350,11 +513,42 @@ const hasTeams = computed(() => teams.value.length > 0)
 .slot-teams {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.55rem;
 }
 
 .slot-teams--inactive {
   opacity: 0.6;
+}
+
+.slot-teams__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.slot-teams__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.slot-teams__dirty {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.slot-teams__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.slot-teams__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
 }
 
 .slot-teams__legend {
@@ -371,6 +565,22 @@ const hasTeams = computed(() => teams.value.length > 0)
   gap: 0.5rem;
   color: var(--color-text-subtle);
   padding: 1rem 0;
+}
+
+.slot-teams__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.slot-teams__group-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
 }
 
 .slot-teams__list {
@@ -403,6 +613,10 @@ const hasTeams = computed(() => teams.value.length > 0)
 .slot-team__datetime {
   flex: 1;
   min-width: 0;
+}
+
+.slot-team__datetime--dirty {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
 }
 
 .slot-team__clear {
@@ -441,4 +655,8 @@ const hasTeams = computed(() => teams.value.length > 0)
 .dot--red { background: #dc2626; }
 .dot--yellow { background: #ca8a04; }
 .dot--green { background: #16a34a; }
+.dot--draft {
+  background: transparent;
+  border: 2px solid var(--color-accent);
+}
 </style>

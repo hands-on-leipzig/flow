@@ -281,7 +281,16 @@ class ExtraBlockController extends Controller
 
         $validated = $request->validated();
 
+        $previousFirstProgram = (int) $block->first_program;
         $block->fill($validated);
+
+        if (
+            array_key_exists('first_program', $validated)
+            && (int) $validated['first_program'] !== $previousFirstProgram
+        ) {
+            SlotBlockTeam::query()->where('extra_block', $block->id)->delete();
+        }
+
         $block->save();
 
         return response()->json([

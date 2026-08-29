@@ -9,7 +9,7 @@ import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import ExtraBlockProgramPicker from '@/components/atoms/ExtraBlockProgramPicker.vue'
 import SlotTeamPanel, {type TeamSavePayload} from '@/components/molecules/SlotTeamPanel.vue'
 import {useExtraBlockDebouncedSave} from '@/composables/useExtraBlockDebouncedSave'
-import {pollPlanUntilReady} from '@/composables/usePlanGeneratorPoll'
+import {runGenerateLite} from '@/composables/usePlanGeneratorPoll'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import type {SlotExtraBlock} from '@/types/extraBlock'
 import {parseExtraBlockSaveError} from '@/utils/extraBlockApiErrors'
@@ -35,25 +35,17 @@ const emit = defineEmits<{
 
 const blocks = ref<SlotExtraBlock[]>([])
 const blockToDelete = ref<SlotExtraBlock | null>(null)
+const pendingScopeChange = ref<{block: SlotExtraBlock; value: number} | null>(null)
 const selectedId = ref<number | null>(null)
 const teamPanelRef = ref<InstanceType<typeof SlotTeamPanel> | null>(null)
+const savingAssignments = ref(false)
 
 const {attachedPrograms} = useScheduleWorkspace()
-
-const applying = ref(false)
-const applyError = ref<string | null>(null)
-const applyResult = ref<{
-  removed_activities: number
-  removed_groups: number
-  created_groups: number
-  created_activities: number
-} | null>(null)
 
 const {
   isGenerating,
   generatorError,
   errorDetails,
-  scheduleUpdate,
   scheduleBlockSave,
   cancelPendingBlockSave,
   scheduleBlockDelete,
@@ -90,10 +82,6 @@ function toApiPayload(block: SlotExtraBlock) {
   }
 }
 
-function teamSaveKey(payload: TeamSavePayload): string {
-  return `${SAVE_PREFIX}_team_${payload.blockId}_${payload.first_program}_${payload.team_number_plan}`
-}
-
 watch(() => props.planId, (v) => {
   if (v != null) void loadBlocks()
 }, {immediate: true})
@@ -122,7 +110,7 @@ async function flushUpdates(updates: Record<string, unknown>) {
 
   generatorError.value = null
   errorDetails.value = null
-  let needsPoll = false
+  let needsLite = false
 
   try {
     const ordered = orderDebouncedUpdates(updates, SAVE_PREFIX)
@@ -139,7 +127,8 @@ async function flushUpdates(updates: Record<string, unknown>) {
           await loadBlocks()
           return
         }
-        needsPoll = true
+        // Backend slotDestroy already runs generateLite.
+        emit('changed')
       }
 
       if (name.startsWith(`${SAVE_PREFIX}_add`) && value) {
@@ -155,10 +144,15 @@ async function flushUpdates(updates: Record<string, unknown>) {
         if (block._clientKey && saved?.id) {
           const idx = blocks.value.findIndex((b) => b._clientKey === block._clientKey)
           if (idx !== -1) {
-            blocks.value[idx] = {...blocks.value[idx], ...saved, duration: normalizeDurationMinutes(saved.duration)}
+            blocks.value[idx] = {
+              ...blocks.value[idx],
+              ...saved,
+              duration: normalizeDurationMinutes(saved.duration),
+            }
             selectedId.value = saved.id
           }
         }
+        needsLite = true
       }
 
       if (name.startsWith(`${SAVE_PREFIX}_update`) && value && (value as SlotExtraBlock).id) {
@@ -167,24 +161,21 @@ async function flushUpdates(updates: Record<string, unknown>) {
           `/plans/${props.planId}/extra-blocks/slot/${block.id}`,
           toApiPayload(block),
         )
-      }
-
-      if (name.startsWith(`${SAVE_PREFIX}_team_`) && value) {
-        const payload = value as TeamSavePayload
-        await axios.patch(
-          `/plans/${props.planId}/extra-blocks/slot/${payload.blockId}/teams/${payload.first_program}/${payload.team_number_plan}`,
-          {start: payload.start},
-        )
+        needsLite = true
       }
     }
 
     await loadBlocks()
     await teamPanelRef.value?.reload()
 
-    if (needsPoll) {
-      isGenerating.value = true
-      await pollPlanUntilReady(props.planId, isGenerating, generatorError, errorDetails)
-      emit('changed')
+    if (needsLite) {
+      const ok = await runGenerateLite(
+        props.planId,
+        isGenerating,
+        generatorError,
+        errorDetails,
+      )
+      if (ok) emit('changed')
     }
   } catch (error: unknown) {
     console.error('Error flushing slot updates:', error)
@@ -193,6 +184,40 @@ async function flushUpdates(updates: Record<string, unknown>) {
     generatorError.value = parsed.message
     errorDetails.value = parsed.details
     await loadBlocks()
+  }
+}
+
+async function saveAssignments(payloads: TeamSavePayload[]) {
+  if (!props.planId || !payloads.length || savingAssignments.value) return
+
+  savingAssignments.value = true
+  generatorError.value = null
+  errorDetails.value = null
+
+  try {
+    for (const payload of payloads) {
+      await axios.patch(
+        `/plans/${props.planId}/extra-blocks/slot/${payload.blockId}/teams/${payload.first_program}/${payload.team_number_plan}`,
+        {start: payload.start},
+      )
+    }
+
+    const ok = await runGenerateLite(
+      props.planId,
+      isGenerating,
+      generatorError,
+      errorDetails,
+    )
+    await teamPanelRef.value?.reload()
+    if (ok) emit('changed')
+  } catch (error: unknown) {
+    isGenerating.value = false
+    const parsed = parseExtraBlockSaveError(error, 'Fehler beim Speichern der Zuordnungen')
+    generatorError.value = parsed.message
+    errorDetails.value = parsed.details
+    await teamPanelRef.value?.reload()
+  } finally {
+    savingAssignments.value = false
   }
 }
 
@@ -213,7 +238,6 @@ function createBlock() {
   }
 
   blocks.value.push(block)
-  selectedId.value = null
   resetComposer()
   scheduleBlockSave(block)
   void nextTick(() => composerRef.value?.focusTitle?.())
@@ -263,8 +287,25 @@ function toggleActive(block: SlotExtraBlock, active: boolean) {
 }
 
 function setBlockFirstProgram(block: SlotExtraBlock, value: number) {
+  if (block.id && Number(block.first_program) !== Number(value)) {
+    pendingScopeChange.value = {block, value}
+    return
+  }
   block.first_program = value
   scheduleBlockSave(block)
+}
+
+function cancelScopeChange() {
+  pendingScopeChange.value = null
+}
+
+function confirmScopeChange() {
+  const pending = pendingScopeChange.value
+  if (!pending) return
+  pending.block.first_program = pending.value
+  pendingScopeChange.value = null
+  scheduleBlockSave(pending.block)
+  void teamPanelRef.value?.reload()
 }
 
 function onDurationInput(block: SlotExtraBlock, el: HTMLInputElement) {
@@ -281,61 +322,21 @@ function onNewDurationInput(el: HTMLInputElement) {
   newBlockDuration.value = v
 }
 
-function scheduleTeamSave(payload: TeamSavePayload) {
-  scheduleUpdate(teamSaveKey(payload), payload)
-}
-
-async function applySlotsToPlan() {
-  if (!props.planId || applying.value) return
-  applying.value = true
-  applyError.value = null
-  applyResult.value = null
-  try {
-    const {data} = await axios.post(`/plans/${props.planId}/extra-blocks/slot/apply-to-plan`)
-    applyResult.value = data
-    emit('changed')
-    await teamPanelRef.value?.reload()
-  } catch (e: unknown) {
-    const err = e as {response?: {data?: {message?: string}}; message?: string}
-    applyError.value = err?.response?.data?.message || err?.message || 'Übernahme fehlgeschlagen'
-  } finally {
-    applying.value = false
-  }
-}
-
 const deleteMessage = computed(() => {
   if (!blockToDelete.value) return ''
   const name = (blockToDelete.value.name || '').trim() || 'Unbenannt'
   return `„${name}“ und alle Team-Zeiten dazu wirklich löschen?`
 })
+
+const scopeChangeMessage = computed(() => {
+  if (!pendingScopeChange.value) return ''
+  const name = (pendingScopeChange.value.block.name || '').trim() || 'Unbenannt'
+  return `Programm-Zuordnung für „${name}“ ändern? Alle gespeicherten Team-Startzeiten für diesen Slot werden gelöscht.`
+})
 </script>
 
 <template>
   <div class="slot-blocks space-y-6">
-    <section class="slot-blocks__apply">
-      <button
-          type="button"
-          class="glass-btn-accent w-full !text-sm !py-2.5 !px-3 disabled:opacity-60 disabled:cursor-not-allowed"
-          :disabled="applying || !planId"
-          @click="applySlotsToPlan"
-      >
-        <span v-if="!applying">Zuordnungen in den Plan übernehmen</span>
-        <span v-else>Übernehme…</span>
-      </button>
-      <p class="text-xs text-[var(--color-text-muted)] leading-snug">
-        Ersetzt bisherige Slot-Zuordnungen im Plan. Konflikte werden dabei nicht geprüft.
-      </p>
-      <p v-if="applyError" class="glass-alert-error text-xs !py-2 !px-2.5">{{ applyError }}</p>
-      <p
-          v-else-if="applyResult"
-          class="text-xs rounded-[var(--radius)] border border-[var(--color-border)] px-2.5 py-2 text-[var(--color-text)]"
-          style="background: color-mix(in srgb, #16a34a 10%, var(--color-bg-muted));"
-      >
-        OK: −{{ applyResult.removed_groups }}/{{ applyResult.removed_activities }} ·
-        +{{ applyResult.created_groups }}/{{ applyResult.created_activities }}
-      </p>
-    </section>
-
     <div class="slot-blocks__list">
       <ItemComposer
           ref="composerRef"
@@ -470,16 +471,15 @@ const deleteMessage = computed(() => {
     </div>
 
     <section v-if="planId" class="slot-blocks__teams">
-      <h2 class="slot-blocks__teams-heading">
-        {{ selectedBlock ? `Teams · ${selectedBlock.name}` : 'Teams' }}
-      </h2>
       <SlotTeamPanel
           ref="teamPanelRef"
           :plan-id="planId"
           :block-id="selectedId"
+          :block-first-program="selectedBlock?.first_program ?? 0"
           :block-active="selectedBlock?.active !== false"
           :event-date="eventDate"
-          @schedule-team-save="scheduleTeamSave"
+          :saving="savingAssignments"
+          @save-assignments="saveAssignments"
       />
     </section>
 
@@ -493,27 +493,25 @@ const deleteMessage = computed(() => {
         @confirm="deleteBlock"
         @cancel="cancelDeleteBlock"
     />
+
+    <ConfirmationModal
+        :show="!!pendingScopeChange"
+        title="Programm-Zuordnung ändern"
+        :message="scopeChangeMessage"
+        type="warning"
+        confirm-text="Ändern und Zeiten löschen"
+        cancel-text="Abbrechen"
+        @confirm="confirmScopeChange"
+        @cancel="cancelScopeChange"
+    />
   </div>
 </template>
 
 <style scoped>
-.slot-blocks__apply {
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
 .slot-blocks__list {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-}
-
-.slot-blocks__teams-heading {
-  margin: 0 0 0.65rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
 }
 
 .slot-block__meta {

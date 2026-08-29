@@ -2,6 +2,35 @@ import {type Ref} from 'vue'
 import axios from 'axios'
 import {parseExtraBlockSaveError} from '@/utils/extraBlockApiErrors'
 
+export async function runGenerateLite(
+  planId: number,
+  isGenerating: Ref<boolean>,
+  generatorError: Ref<string | null>,
+  errorDetails: Ref<string | null>,
+): Promise<boolean> {
+  generatorError.value = null
+  errorDetails.value = null
+  isGenerating.value = true
+
+  try {
+    const response = await axios.post(`/plans/${planId}/generate-lite`)
+    if (response.data?.error) {
+      isGenerating.value = false
+      generatorError.value = response.data.error
+      errorDetails.value = response.data.details || null
+      return false
+    }
+    await pollPlanUntilReady(planId, isGenerating, generatorError, errorDetails)
+    return !generatorError.value
+  } catch (error: unknown) {
+    isGenerating.value = false
+    const parsed = parseExtraBlockSaveError(error, 'Fehler bei der Lite-Generierung')
+    generatorError.value = parsed.message
+    errorDetails.value = parsed.details
+    return false
+  }
+}
+
 export async function pollPlanUntilReady(
   planId: number,
   isGenerating: Ref<boolean>,
