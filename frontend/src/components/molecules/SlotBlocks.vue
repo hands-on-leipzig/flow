@@ -333,10 +333,55 @@ function cancelScopeChange() {
 function confirmScopeChange() {
   const pending = pendingScopeChange.value
   if (!pending) return
-  pending.block.first_program = pending.value
+  void applyScopeChange(pending.block, pending.value)
+}
+
+async function applyScopeChange(block: SlotExtraBlock, firstProgram: number) {
+  if (!props.planId) return
+
+  const blockId = block.id
+  block.first_program = firstProgram
   pendingScopeChange.value = null
-  scheduleBlockSave(pending.block)
-  if (pending.block.id) void reloadTeamPanels(pending.block.id)
+  cancelPendingBlockSave(block)
+
+  if (!blockId) {
+    scheduleBlockSave(block)
+    return
+  }
+
+  generatorError.value = null
+  errorDetails.value = null
+
+  try {
+    const {data} = await axios.put(
+      `/plans/${props.planId}/extra-blocks/slot/${blockId}`,
+      toApiPayload(block),
+    )
+    if (data?.id) {
+      Object.assign(block, {
+        ...data,
+        duration: normalizeDurationMinutes(data.duration),
+        first_program: data.first_program ?? firstProgram,
+      })
+    }
+    onTeamDraftChanged(blockId, false)
+    await reloadTeamPanels(blockId)
+
+    const ok = await runGenerateLite(
+      props.planId,
+      isGenerating,
+      generatorError,
+      errorDetails,
+    )
+    if (ok) emit('changed')
+  } catch (error: unknown) {
+    isGenerating.value = false
+    const parsed = parseExtraBlockSaveError(error, 'Fehler beim Ändern der Programm-Zuordnung')
+    generatorError.value = parsed.message
+    errorDetails.value = parsed.details
+    await loadBlocks()
+    await reloadTeamPanels(blockId)
+  }
 }
 
 function onDurationInput(block: SlotExtraBlock, el: HTMLInputElement) {

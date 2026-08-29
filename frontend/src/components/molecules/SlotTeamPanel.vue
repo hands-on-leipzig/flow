@@ -145,10 +145,14 @@ async function loadTeams() {
   }
 }
 
-watch(() => props.blockId, () => {
-  tooltipHover.value = {}
-  void loadTeams()
-}, {immediate: true})
+watch(
+  () => [props.blockId, props.blockFirstProgram] as const,
+  () => {
+    tooltipHover.value = {}
+    void loadTeams()
+  },
+  {immediate: true},
+)
 
 defineExpose({
   reload: loadTeams,
@@ -504,6 +508,7 @@ function formatTooltipDate(slotDate: string | null): string {
                 <div class="slot-team__hover glass-dropdown">
                   <p v-if="isHoverLoading(row)" class="text-xs text-[var(--color-text-subtle)]">Lade…</p>
                   <template v-else-if="hoverData(row)">
+                    <p class="slot-team__hover-program">{{ groupLabel(row.first_program) }}</p>
                     <p class="slot-team__hover-name">{{ hoverData(row)!.team_name || '–' }}</p>
                     <p v-if="hoverData(row)!.team_number_hot" class="slot-team__hover-hot tabular-nums">
                       DRAHT {{ hoverData(row)!.team_number_hot }}
@@ -725,6 +730,15 @@ function formatTooltipDate(slotDate: string | null): string {
 
 .slot-team__label-wrap:hover .slot-team__hover {
   display: block;
+}
+
+.slot-team__hover-program {
+  margin: 0 0 0.2rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
 }
 
 .slot-team__hover-name {

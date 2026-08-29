@@ -562,11 +562,10 @@ class ExtraBlockController extends Controller
             ->where('ag.plan', $planId)
             ->where('atd.first_program', $programId)
             ->whereExists(function ($q) use ($programId) {
-                $roleId = $programId === FirstProgram::CHALLENGE->value ? 3 : 8;
                 $q->select(DB::raw(1))
                     ->from('m_visibility as mv')
                     ->whereColumn('mv.activity_type_detail', 'atd.id')
-                    ->where('mv.role', $roleId);
+                    ->where('mv.role', $this->visibilityRoleForProgram($programId));
             })
             ->where(function ($q) use ($teamNumberPlan) {
                 $q->where('a.jury_team', $teamNumberPlan)
@@ -649,31 +648,37 @@ class ExtraBlockController extends Controller
         ]);
     }
 
+    /**
+     * @return list<int>
+     */
+    private function teamFirstProgramsForSlotAssignment(int $assignmentProgramId): array
+    {
+        return match ($assignmentProgramId) {
+            FirstProgram::CHALLENGE->value => [FirstProgram::CHALLENGE->value],
+            FirstProgram::FUTURE_8->value => [FirstProgram::FUTURE_8->value],
+            FirstProgram::EXPLORE->value => [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value],
+            default => [$assignmentProgramId],
+        };
+    }
+
     private function teamMetaForPlanSlot(int $planId, int $programId, int $teamNumberPlan): array
     {
-        $teams = DB::table('team_plan as tp')
+        $row = DB::table('team_plan as tp')
             ->join('team as t', 't.id', '=', 'tp.team')
             ->where('tp.plan', $planId)
             ->where('tp.team_number_plan', $teamNumberPlan)
+            ->whereIn('t.first_program', $this->teamFirstProgramsForSlotAssignment($programId))
             ->select([
                 't.team_number_hot',
                 't.name as team_name',
-                't.first_program',
             ])
-            ->get();
+            ->first();
 
-        foreach ($teams as $row) {
-            $mapped = match ((int) $row->first_program) {
-                FirstProgram::CHALLENGE->value => FirstProgram::CHALLENGE->value,
-                FirstProgram::FUTURE_8->value => FirstProgram::FUTURE_8->value,
-                default => FirstProgram::EXPLORE->value,
-            };
-            if ($mapped === $programId) {
-                return [
-                    'team_number_hot' => $row->team_number_hot,
-                    'team_name' => $row->team_name,
-                ];
-            }
+        if ($row !== null) {
+            return [
+                'team_number_hot' => $row->team_number_hot,
+                'team_name' => $row->team_name,
+            ];
         }
 
         return [
