@@ -424,10 +424,16 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <p
-      v-if="view === 'roles' || view === 'teams'"
+      v-if="view === 'roles'"
       class="glass-settings-hint !mt-0 !mb-0"
     >
-      Freie Blöcke werden hier nicht angezeigt, weil sie den Ablauf nicht beeinflussen.
+      Freie Blöcke werden hier nicht angezeigt, weil sie vom generierten Ablauf unabhängig sind.
+    </p>
+    <p
+      v-else-if="view === 'teams'"
+      class="glass-settings-hint !mt-0 !mb-0"
+    >
+      Zusätzliche Blöcke werden hier nicht angezeigt, weil sie für alle Teams gleich sind.
     </p>
 
     <!-- Program filters (glass-choice), above content -->
