@@ -29,6 +29,7 @@ const {
   previewReload,
   planPopoutOpen,
   immediateFlush,
+  toastAction,
   ensureLoaded,
   reloadForEventChange,
   openPlanPopout,
@@ -109,6 +110,7 @@ watch(
     <template v-else>
       <ScheduleToast
           v-if="!planLocked"
+          :action="toastAction"
           :is-generating="isGenerating"
           :countdown="countdownSeconds"
           :on-immediate-save="immediateFlush"

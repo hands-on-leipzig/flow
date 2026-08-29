@@ -224,6 +224,22 @@ const finaleProtectedParams = computed(() =>
 )
 
 let saveApi: ReturnType<typeof useDebouncedSave> | null = null
+let extraBlockImmediateFlush: (() => Promise<void>) | null = null
+
+function registerExtraBlockImmediateFlush(fn: (() => Promise<void>) | null) {
+  extraBlockImmediateFlush = fn
+}
+
+async function immediateFlushAll() {
+  if (extraBlockImmediateFlush) {
+    await extraBlockImmediateFlush()
+  }
+  await getSaveApi().immediateFlush()
+}
+
+const toastAction = computed<'generate' | 'update'>(() =>
+  getSaveApi().pendingCount.value > 0 ? 'generate' : 'update',
+)
 
 function getSaveApi() {
   if (saveApi) return saveApi
@@ -590,7 +606,9 @@ export function useScheduleWorkspace() {
     handleBlockUpdates,
     updatePlanLock,
     updateTableName,
-    immediateFlush: api.immediateFlush,
+    immediateFlush: immediateFlushAll,
+    registerExtraBlockImmediateFlush,
+    toastAction,
     openPlanPopout,
     focusPlanPopout,
     dockPlanPopout,

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {computed, nextTick, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
@@ -7,10 +7,10 @@ import ConfirmationModal from './ConfirmationModal.vue'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
-import {programLogoSrc, programLogoAlt} from '@/utils/images'
-import {useDebouncedSave} from "@/composables/useDebouncedSave";
-import {TIMING_FIELDS, DEBOUNCE_DELAY} from "@/constants/extraBlocks";
-import ScheduleToast from "@/components/atoms/ScheduleToast.vue";
+import ExtraBlockProgramPicker from '@/components/atoms/ExtraBlockProgramPicker.vue'
+import {useDebouncedSave} from '@/composables/useDebouncedSave'
+import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
+import {DEBOUNCE_DELAY} from '@/constants/extraBlocks'
 
 type Maybe<T> = T | null | undefined
 
@@ -29,9 +29,6 @@ type ExtraBlock = {
 
 const props = defineProps<{
   planId: number | null
-  showExplore?: boolean
-  showChallenge?: boolean
-  showFuture?: boolean
   eventDate?: string
   eventDays?: number
 }>()
@@ -45,16 +42,16 @@ const blocks = ref<ExtraBlock[]>([])
 const blockToDelete = ref<ExtraBlock | null>(null)
 const saving = ref(false)
 
-// Generator state (must be declared before useDebouncedSave)
-const isGenerating = ref(false)
-const generatorError = ref<string | null>(null)
-const errorDetails = ref<string | null>(null)
+const {
+  attachedPrograms,
+  isGenerating,
+  generatorError,
+  errorDetails,
+  countdownSeconds,
+  registerExtraBlockImmediateFlush,
+} = useScheduleWorkspace()
 
-// --- Debounced Saving ---
-const savingToast = ref(null)
-const countdownSeconds = ref<number | null>(null)
-
-const {scheduleUpdate, flush, immediateFlush} = useDebouncedSave({
+const {scheduleUpdate, immediateFlush} = useDebouncedSave({
   delay: DEBOUNCE_DELAY,
   isGenerating: () => isGenerating.value,
   onShowToast: (countdown) => {
@@ -68,7 +65,16 @@ const {scheduleUpdate, flush, immediateFlush} = useDebouncedSave({
   },
   onSave: async (updates) => {
     await flushUpdates(updates)
-  }
+  },
+})
+
+onMounted(() => {
+  registerExtraBlockImmediateFlush(immediateFlush)
+  if (props.planId != null) loadBlocks()
+})
+
+onUnmounted(() => {
+  registerExtraBlockImmediateFlush(null)
 })
 
 // --- Batch save system (save on countdown) ---
@@ -91,26 +97,12 @@ function compareBlocks(a: ExtraBlock, b: ExtraBlock): number {
 
 const customBlocks = computed(() => blocks.value)
 
-const visibleCustomBlocks = computed(() => {
-  return customBlocks.value.filter(block => {
-    const allOff = props.showExplore === false && props.showChallenge === false && props.showFuture === false
-    if (allOff) return true
-    if (props.showExplore === false && (block.first_program === 2 || block.first_program === 0)) return false
-    if (props.showChallenge === false && (block.first_program === 3 || block.first_program === 0)) return false
-    if (props.showFuture === false && (block.first_program === 8 || block.first_program === 0)) return false
-    return true
-  }).slice().sort(compareBlocks)
-})
+const sortedBlocks = computed(() => customBlocks.value.slice().sort(compareBlocks))
 
 // --- Lifecycle ---
-onMounted(() => {
-  if (props.planId != null) loadBlocks()
-})
 watch(() => props.planId, v => {
   if (v != null) loadBlocks()
 }, {immediate: true})
-
-// Cleanup handled by composable
 
 // --- Load blocks ---
 async function loadBlocks() {
@@ -152,13 +144,7 @@ async function saveAllEnabledBlocks() {
         blockData.id = block.id
       }
 
-      // Check if this block has timing changes (start/end times)
-      const hasTimingChanges = block.start || block.end
-
-      const response = await axios.post(`/plans/${props.planId}/extra-blocks`, {
-        ...blockData,
-        skip_regeneration: !hasTimingChanges
-      })
+      const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
       const saved = response.data?.block || response.data
 
       // Check if response contains error from generateLite
@@ -202,85 +188,48 @@ defineExpose({
 async function flushUpdates(updates: Record<string, any>) {
   if (!props.planId) return
 
-  // Clear previous errors
   generatorError.value = null
   errorDetails.value = null
-
-  // Determine if regeneration is needed before making API calls
-  let needsRegeneration = false
-  for (const [name, value] of Object.entries(updates)) {
-    if (name === 'extra_block_update' && value) {
-      const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f) || f === 'start' || f === 'end')
-      if (hasTimingChanges) {
-        needsRegeneration = true
-        break
-      }
-    }
-    if (name === 'extra_block_delete' || name === 'extra_block_add') {
-      needsRegeneration = true
-      break
-    }
-  }
-
-  // Set generating state immediately if regeneration will be needed
-  // This ensures the UI shows "Plan wird generiert" right away
-  if (needsRegeneration) {
-    isGenerating.value = true
-  }
+  isGenerating.value = true
 
   try {
     for (const [name, value] of Object.entries(updates)) {
       if (name === 'extra_block_update' && value) {
-        const hasTimingChanges = Object.keys(value).some(f => TIMING_FIELDS.includes(f) || f === 'start' || f === 'end')
-        const blockData = {...value}
-        if (!hasTimingChanges) {
-          blockData.skip_regeneration = true
-        }
-        const response = await axios.post(`/plans/${props.planId}/extra-blocks`, blockData)
+        const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
 
-        // Check if response contains error from generateLite
         if (response.data?.error) {
           generatorError.value = response.data.error
           errorDetails.value = response.data.details || null
           isGenerating.value = false
-          await loadBlocks() // Still reload blocks even on error
-          return // Stop processing further updates
+          await loadBlocks()
+          return
         }
       }
       if (name === 'extra_block_delete' && value?.id) {
         const deleteResponse = await axios.delete(`/extra-blocks/${value.id}`)
 
-        // Check if response contains error from generateLite
         if (deleteResponse.data?.error) {
           generatorError.value = deleteResponse.data.error
           errorDetails.value = deleteResponse.data.details || null
           isGenerating.value = false
-          await loadBlocks() // Still reload blocks even on error
-          return // Stop processing further updates
+          await loadBlocks()
+          return
         }
       }
       if (name === 'extra_block_add' && value) {
         const response = await axios.post(`/plans/${props.planId}/extra-blocks`, value)
 
-        // Check if response contains error from generateLite
         if (response.data?.error) {
           generatorError.value = response.data.error
           errorDetails.value = response.data.details || null
           isGenerating.value = false
-          await loadBlocks() // Still reload blocks even on error
-          return // Stop processing further updates
+          await loadBlocks()
+          return
         }
       }
     }
     await loadBlocks()
-
-    // Poll for generator status if regeneration was triggered
-    if (needsRegeneration) {
-      await pollUntilReady(props.planId)
-    } else {
-      // No regeneration needed, ensure generating state is off
-      isGenerating.value = false
-    }
+    await pollUntilReady(props.planId)
     emit('changed')
   } catch (error: any) {
     console.error('Error flushing updates:', error)
@@ -426,20 +375,14 @@ watch(() => props.eventDate, () => {
   }
 }, {immediate: true})
 
-function cycleFirstProgram(current: number | null | undefined, program: 2 | 3): number {
-  const value = current ?? 0
-  if (program === 2) {
-    if (value === 2) return 3
-    if (value === 3) return 0
-    if (value === 0) return 3
-    return 2
-  }
-  if (value === 3) return 2
-  if (value === 2) return 0
-  if (value === 0) return 2
-  return 3
+function setBlockFirstProgram(block: ExtraBlock, value: number) {
+  block.first_program = value
+  saveBlock(block)
 }
 
+function setComposerFirstProgram(value: number) {
+  newFirstProgram.value = value
+}
 // --- Actions ---
 async function createCustom() {
   if (isCreating.value || !props.planId) return
@@ -521,17 +464,7 @@ function saveBlock(block: ExtraBlock) {
 function toggleActive(block: ExtraBlock, active: boolean) {
   if (!block.id) return
   block.active = active
-  // Ensure toggle change is caught by debouncer with countdown
   scheduleUpdate('extra_block_update', {...block, active})
-}
-
-function toggleProgram(block: ExtraBlock, program: 2 | 3) {
-  block.first_program = cycleFirstProgram(block.first_program, program)
-  saveBlock(block)
-}
-
-function toggleComposerProgram(program: 2 | 3) {
-  newFirstProgram.value = cycleFirstProgram(newFirstProgram.value, program)
 }
 
 // Handle date change (updates both start and end with the same date)
@@ -673,40 +606,12 @@ function isBlockOutsideEventDates(block: ExtraBlock): boolean {
 }
 
 const hasBlocksOutsideEventDates = computed(() => {
-  return visibleCustomBlocks.value.some(block => isBlockOutsideEventDates(block))
+  return sortedBlocks.value.some(block => isBlockOutsideEventDates(block))
 })
 </script>
 
 <template>
   <div class="space-y-8 relative">
-    <!-- Error Alert Banner -->
-    <div v-if="generatorError" class="glass-alert-error">
-      <div class="flex items-start justify-between">
-        <div class="flex-1">
-          <div class="flex items-center">
-            <svg class="h-5 w-5 text-red-500 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fill-rule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clip-rule="evenodd"/>
-            </svg>
-            <h3 class="text-red-700 font-semibold text-lg">{{ generatorError }}</h3>
-          </div>
-          <p v-if="errorDetails" class="mt-2 text-red-600 text-sm">{{ errorDetails }}</p>
-        </div>
-        <button
-            @click="generatorError = null; errorDetails = null"
-            class="ml-4 text-red-500 hover:text-red-700 focus:outline-none"
-            aria-label="Fehler schließen"
-        >
-          <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd"
-                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                  clip-rule="evenodd"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-
     <!-- CUSTOM BLOCKS -->
     <div class="free-blocks">
       <div v-if="hasBlocksOutsideEventDates" class="glass-alert-warning">
@@ -749,28 +654,12 @@ const hasBlocksOutsideEventDates = computed(() => {
                 step="300"
                 aria-label="Endzeit"
             />
-            <div class="free-block__programs">
-              <img
-                  :src="programLogoSrc('EXPLORE')"
-                  :alt="programLogoAlt('EXPLORE')"
-                  class="free-block__logo"
-                  :class="{
-                    'free-block__logo--off': !(newFirstProgram === 2 || newFirstProgram === 0),
-                  }"
-                  title="FIRST LEGO League Explore"
-                  @click="toggleComposerProgram(2)"
-              />
-              <img
-                  :src="programLogoSrc('CHALLENGE')"
-                  :alt="programLogoAlt('CHALLENGE')"
-                  class="free-block__logo"
-                  :class="{
-                    'free-block__logo--off': !(newFirstProgram === 3 || newFirstProgram === 0),
-                  }"
-                  title="FIRST LEGO League Challenge"
-                  @click="toggleComposerProgram(3)"
-              />
-            </div>
+            <ExtraBlockProgramPicker
+                :model-value="newFirstProgram"
+                :programs="attachedPrograms"
+                :disabled="isCreating || !planId"
+                @update:model-value="setComposerFirstProgram"
+            />
           </div>
           <transition name="fade">
             <div v-if="newBlockName.trim().length > 0" class="free-block__composer-extra">
@@ -793,7 +682,7 @@ const hasBlocksOutsideEventDates = computed(() => {
         </ItemComposer>
 
         <ItemCard
-            v-for="b in visibleCustomBlocks"
+            v-for="b in sortedBlocks"
             :key="b.id ?? JSON.stringify(b)"
             :inactive="b.active === false"
             :class="{
@@ -858,30 +747,12 @@ const hasBlocksOutsideEventDates = computed(() => {
                 @input="(e) => { const date = extractDate(b.start || b.end || ''); if (date) b.end = combineDateTime(date, (e.target as HTMLInputElement).value) || b.end }"
                 @blur="handleEndTimeChange(b, ($event.target as HTMLInputElement).value)"
             />
-            <div class="free-block__programs">
-              <img
-                  :src="programLogoSrc('EXPLORE')"
-                  :alt="programLogoAlt('EXPLORE')"
-                  class="free-block__logo"
-                  :class="{
-                    'free-block__logo--off': b.active === false || !(b.first_program === 2 || b.first_program === 0),
-                    'free-block__logo--disabled': b.active === false,
-                  }"
-                  title="FIRST LEGO League Explore"
-                  @click="b.active !== false && toggleProgram(b, 2)"
-              />
-              <img
-                  :src="programLogoSrc('CHALLENGE')"
-                  :alt="programLogoAlt('CHALLENGE')"
-                  class="free-block__logo"
-                  :class="{
-                    'free-block__logo--off': b.active === false || !(b.first_program === 3 || b.first_program === 0),
-                    'free-block__logo--disabled': b.active === false,
-                  }"
-                  title="FIRST LEGO League Challenge"
-                  @click="b.active !== false && toggleProgram(b, 3)"
-              />
-            </div>
+            <ExtraBlockProgramPicker
+                :model-value="b.first_program"
+                :programs="attachedPrograms"
+                :disabled="b.active === false"
+                @update:model-value="setBlockFirstProgram(b, $event)"
+            />
           </div>
 
           <input
@@ -917,14 +788,6 @@ const hasBlocksOutsideEventDates = computed(() => {
         @cancel="cancelDeleteBlock"
     />
 
-    <ScheduleToast
-        ref="savingToast"
-        action="update"
-        :is-generating="isGenerating"
-        :countdown="countdownSeconds"
-        :on-immediate-save="immediateFlush"
-        message="Block-Änderungen werden gespeichert..."
-    />
   </div>
 </template>
 
@@ -941,40 +804,15 @@ const hasBlocksOutsideEventDates = computed(() => {
   gap: 0.55rem;
 }
 
-.free-block__programs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
-}
-
-.free-block__logo {
-  width: 2rem;
-  height: 2rem;
-  flex-shrink: 0;
-  object-fit: contain;
-  cursor: pointer;
-  transition: opacity 0.15s ease, transform 0.15s ease, filter 0.15s ease;
-}
-
-.free-block__logo:hover:not(.free-block__logo--disabled) {
-  transform: scale(1.08);
-}
-
-.free-block__logo--off {
-  opacity: 0.3;
-  filter: grayscale(1);
-}
-
-.free-block__logo--disabled {
-  cursor: not-allowed;
-}
-
 .free-block__when {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
+}
+
+.free-block__when :deep(.extra-block-program-picker) {
+  margin-left: auto;
 }
 
 .free-block__date.glass-input,

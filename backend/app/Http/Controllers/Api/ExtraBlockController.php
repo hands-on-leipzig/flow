@@ -77,7 +77,6 @@ class ExtraBlockController extends Controller
             'room' => 'nullable|integer|exists:room,id',
             'active' => 'nullable|boolean',
             'type' => 'nullable|string|in:free,slot',
-            'skip_regeneration' => 'nullable|boolean',
         ]);
 
         if (($validated['type'] ?? '') === 'slot') {
@@ -97,57 +96,50 @@ class ExtraBlockController extends Controller
             $validated['type'] = 'free';
         }
 
-        $skipRegeneration = $validated['skip_regeneration'] ?? false;
-        unset($validated['skip_regeneration']);
-
         $block = ExtraBlock::updateOrCreate(
             ['id' => $validated['id'] ?? null],
             $validated
         );
 
-        if (! $skipRegeneration) {
-            try {
-                $generator = app(PlanGeneratorController::class);
-                $response = $generator->generateLite($planId);
+        try {
+            $generator = app(PlanGeneratorController::class);
+            $response = $generator->generateLite($planId);
 
-                if ($response->getStatusCode() !== 200) {
-                    $responseData = $response->getData(true);
-                    Log::error("Fehler bei der Lite-Regeneration des Plans {$planId}", [
-                        'status' => $response->getStatusCode(),
-                        'error' => $responseData['error'] ?? 'Unknown error',
-                        'details' => $responseData['details'] ?? null,
-                    ]);
-
-                    return response()->json([
-                        'block' => $block,
-                        'skip_regeneration' => $skipRegeneration,
-                        'error' => $responseData['error'] ?? 'Fehler bei der Lite-Generierung',
-                        'details' => $responseData['details'] ?? $responseData['message'] ?? null,
-                    ], $response->getStatusCode());
-                }
-            } catch (\Throwable $e) {
-                Log::error("Fehler bei der Regeneration des Plans {$planId}: ".$e->getMessage(), [
-                    'trace' => $e->getTraceAsString(),
+            if ($response->getStatusCode() !== 200) {
+                $responseData = $response->getData(true);
+                Log::error("Fehler bei der Lite-Regeneration des Plans {$planId}", [
+                    'status' => $response->getStatusCode(),
+                    'error' => $responseData['error'] ?? 'Unknown error',
+                    'details' => $responseData['details'] ?? null,
                 ]);
-
-                $errorMessage = 'Fehler bei der Lite-Generierung';
-                $details = $e->getMessage();
-
-                if (str_contains($e->getMessage(), "Parameter '")) {
-                    $errorMessage = 'Ungültiger Parameterwert';
-                } elseif (str_contains($e->getMessage(), 'not found') || str_contains($e->getMessage(), 'existiert nicht')) {
-                    $errorMessage = 'Fehlende Daten';
-                } elseif (str_contains($e->getMessage(), 'FreeBlockGenerator') || str_contains($e->getMessage(), 'freien Aktivitäten')) {
-                    $errorMessage = 'Fehler beim Einfügen der freien Blöcke';
-                }
 
                 return response()->json([
                     'block' => $block,
-                    'skip_regeneration' => $skipRegeneration,
-                    'error' => $errorMessage,
-                    'details' => $details,
-                ], 500);
+                    'error' => $responseData['error'] ?? 'Fehler bei der Lite-Generierung',
+                    'details' => $responseData['details'] ?? $responseData['message'] ?? null,
+                ], $response->getStatusCode());
             }
+        } catch (\Throwable $e) {
+            Log::error("Fehler bei der Regeneration des Plans {$planId}: ".$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            $errorMessage = 'Fehler bei der Lite-Generierung';
+            $details = $e->getMessage();
+
+            if (str_contains($e->getMessage(), "Parameter '")) {
+                $errorMessage = 'Ungültiger Parameterwert';
+            } elseif (str_contains($e->getMessage(), 'not found') || str_contains($e->getMessage(), 'existiert nicht')) {
+                $errorMessage = 'Fehlende Daten';
+            } elseif (str_contains($e->getMessage(), 'FreeBlockGenerator') || str_contains($e->getMessage(), 'freien Aktivitäten')) {
+                $errorMessage = 'Fehler beim Einfügen der freien Blöcke';
+            }
+
+            return response()->json([
+                'block' => $block,
+                'error' => $errorMessage,
+                'details' => $details,
+            ], 500);
         }
 
         $plan = Plan::find($planId);
@@ -157,7 +149,6 @@ class ExtraBlockController extends Controller
 
         return response()->json([
             'block' => $block,
-            'skip_regeneration' => $skipRegeneration,
         ]);
     }
 
@@ -332,6 +323,41 @@ class ExtraBlockController extends Controller
         $this->assertSlotBlock($block, $planId);
         $this->extraBlockCleanup->beforeDelete($block);
         $block->delete();
+
+        try {
+            $generator = app(PlanGeneratorController::class);
+            $response = $generator->generateLite($planId);
+
+            if ($response->getStatusCode() !== 200) {
+                $responseData = $response->getData(true);
+                Log::error("Fehler bei der Lite-Regeneration des Plans {$planId} nach Slot-Block-Löschung", [
+                    'status' => $response->getStatusCode(),
+                    'error' => $responseData['error'] ?? 'Unknown error',
+                    'details' => $responseData['details'] ?? null,
+                ]);
+
+                return response()->json([
+                    'message' => 'deleted',
+                    'error' => $responseData['error'] ?? 'Fehler bei der Lite-Generierung',
+                    'details' => $responseData['details'] ?? $responseData['message'] ?? null,
+                ], $response->getStatusCode());
+            }
+        } catch (\Throwable $e) {
+            Log::error("Fehler bei der Regeneration des Plans {$planId} nach Slot-Block-Löschung: ".$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'message' => 'deleted',
+                'error' => 'Fehler bei der Lite-Generierung',
+                'details' => $e->getMessage(),
+            ], 500);
+        }
+
+        $plan = Plan::find($planId);
+        if ($plan) {
+            app(EventAttentionService::class)->updateEventAttentionStatus($plan->event);
+        }
 
         return response()->json(['message' => 'deleted']);
     }

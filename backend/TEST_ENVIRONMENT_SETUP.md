@@ -76,7 +76,7 @@ If you have a working dev database:
 # Export main tables from dev
 mysqldump -u dev_user -p dev_database \
   --tables m_activity_type m_activity_type_detail m_first_program \
-  m_insert_point m_level m_parameter m_role m_room_type \
+  m_level m_parameter m_role m_room_type \
   m_room_type_group m_season m_supported_plan m_visibility \
   --no-create-info --single-transaction > main_tables.sql
 

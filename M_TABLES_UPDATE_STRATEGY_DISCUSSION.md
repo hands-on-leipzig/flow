@@ -182,7 +182,6 @@ $mTableOrder = [
     'm_room_type',           // Depends on: m_room_type_group, m_level
     'm_activity_type',       // Depends on: m_first_program
     'm_activity_type_detail', // Depends on: m_activity_type, m_first_program
-    'm_insert_point',        // Depends on: m_first_program, m_level
     'm_role',                 // Depends on: m_first_program
     'm_visibility',           // Depends on: m_activity_type_detail, m_role
     'm_supported_plan',       // Depends on: m_first_program

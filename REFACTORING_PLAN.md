@@ -150,7 +150,7 @@ async function saveBlockField(blockId: number, field: string, value: any) {
   const blockData = { id: blockId, [field]: value }
   
   // Determine if this triggers generator
-  const timingFields = ['buffer_before', 'duration', 'buffer_after', 'insert_point', 'first_program']
+  const timingFields = ['start', 'end', 'duration', 'first_program']
   const toggleFields = ['active']
   const needsGenerator = timingFields.includes(field) || toggleFields.includes(field)
   

@@ -33,7 +33,6 @@ $tablesToCheck = [
     'team_plan' => [],
     'plan_param_value' => [],
     'extra_block' => [],
-    'plan_extra_block' => [],
     'activity_group' => [],
     'activity' => [],
     'logo' => [],
