@@ -62,10 +62,13 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'save-assignments', payloads: TeamSavePayload[]): void
+  (e: 'draft-changed', dirty: boolean): void
 }>()
 
 const teams = ref<TeamRow[]>([])
 const loadingTeams = ref(false)
+const loadError = ref<string | null>(null)
+let loadTeamsSeq = 0
 const eDurationTransfer = ref(0)
 const cDurationTransfer = ref(0)
 const expanded = ref(!props.embedded)
@@ -95,22 +98,30 @@ function resetDrafts() {
 async function loadTeams() {
   if (!props.blockId) {
     teams.value = []
+    loadError.value = null
     resetDrafts()
     return
   }
+  const seq = ++loadTeamsSeq
   loadingTeams.value = true
+  loadError.value = null
   try {
     const {data} = await axios.get<{
       teams: TeamRow[]
       e_duration_transfer?: number
       c_duration_transfer?: number
     }>(`/plans/${props.planId}/extra-blocks/slot/${props.blockId}/teams`)
+    if (seq !== loadTeamsSeq) return
     teams.value = data?.teams ?? []
     eDurationTransfer.value = Number(data?.e_duration_transfer ?? 0) || 0
     cDurationTransfer.value = Number(data?.c_duration_transfer ?? 0) || 0
     resetDrafts()
+  } catch {
+    if (seq !== loadTeamsSeq) return
+    teams.value = []
+    loadError.value = 'Teams konnten nicht geladen werden.'
   } finally {
-    loadingTeams.value = false
+    if (seq === loadTeamsSeq) loadingTeams.value = false
   }
 }
 
@@ -139,6 +150,10 @@ function isRowDirty(row: TeamRow): boolean {
 }
 
 const hasUnsavedChanges = computed(() => teams.value.some(isRowDirty))
+
+watch(hasUnsavedChanges, (dirty) => {
+  emit('draft-changed', dirty)
+}, {immediate: true})
 
 function wallTimeSortKey(s: string | null): string {
   if (!s) return 'z'
@@ -424,6 +439,10 @@ function formatTooltipDate(slotDate: string | null): string {
       <div v-if="loadingTeams" class="slot-teams__loading">
         <LoaderFlow class="scale-75"/>
         <span class="text-sm">Lade Teams…</span>
+      </div>
+
+      <div v-else-if="loadError" class="text-sm text-red-700 py-2">
+        {{ loadError }}
       </div>
 
       <div v-else-if="!blockId" class="text-sm text-[var(--color-text-subtle)]">

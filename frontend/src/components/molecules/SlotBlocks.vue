@@ -37,7 +37,9 @@ const blocks = ref<SlotExtraBlock[]>([])
 const blockToDelete = ref<SlotExtraBlock | null>(null)
 const pendingScopeChange = ref<{block: SlotExtraBlock; value: number} | null>(null)
 const expandedTeamBlocks = ref<Set<number>>(new Set())
-const teamPanelRefs = ref<Map<number, InstanceType<typeof SlotTeamPanel>>>(new Map())
+/** Non-reactive: updating a ref here remounted SlotTeamPanel in a load loop. */
+const teamPanelRefs = new Map<number, InstanceType<typeof SlotTeamPanel>>()
+const teamDraftDirtyIds = ref<Set<number>>(new Set())
 const savingAssignmentsFor = ref<number | null>(null)
 
 const {attachedPrograms} = useScheduleWorkspace()
@@ -62,18 +64,16 @@ const sortedBlocks = computed(() =>
 
 function setTeamPanelRef(blockId: number | undefined, el: Element | ComponentPublicInstance | null) {
   if (!blockId) return
-  const next = new Map(teamPanelRefs.value)
-  if (el) next.set(blockId, el as InstanceType<typeof SlotTeamPanel>)
-  else next.delete(blockId)
-  teamPanelRefs.value = next
+  if (el) teamPanelRefs.set(blockId, el as InstanceType<typeof SlotTeamPanel>)
+  else teamPanelRefs.delete(blockId)
 }
 
 async function reloadTeamPanels(blockId?: number) {
   if (blockId != null) {
-    await teamPanelRefs.value.get(blockId)?.reload()
+    await teamPanelRefs.get(blockId)?.reload()
     return
   }
-  await Promise.all([...teamPanelRefs.value.values()].map((panel) => panel.reload()))
+  await Promise.all([...teamPanelRefs.values()].map((panel) => panel.reload()))
 }
 
 function isTeamsExpanded(block: SlotExtraBlock): boolean {
@@ -81,8 +81,14 @@ function isTeamsExpanded(block: SlotExtraBlock): boolean {
 }
 
 function teamsToggleDirty(block: SlotExtraBlock): boolean {
-  if (!block.id) return false
-  return teamPanelRefs.value.get(block.id)?.hasUnsavedDrafts?.() ?? false
+  return block.id != null && teamDraftDirtyIds.value.has(block.id)
+}
+
+function onTeamDraftChanged(blockId: number, dirty: boolean) {
+  const next = new Set(teamDraftDirtyIds.value)
+  if (dirty) next.add(blockId)
+  else next.delete(blockId)
+  teamDraftDirtyIds.value = next
 }
 
 function toggleTeams(block: SlotExtraBlock) {
@@ -129,6 +135,7 @@ async function loadBlocks() {
 
   const validIds = new Set(blocks.value.map((b) => b.id).filter((id): id is number => id != null))
   expandedTeamBlocks.value = new Set([...expandedTeamBlocks.value].filter((id) => validIds.has(id)))
+  teamDraftDirtyIds.value = new Set([...teamDraftDirtyIds.value].filter((id) => validIds.has(id)))
 }
 
 async function flushUpdates(updates: Record<string, unknown>) {
@@ -509,7 +516,7 @@ const scopeChangeMessage = computed(() => {
 
           <div v-if="b.id && isTeamsExpanded(b)" class="slot-block__teams-panel">
             <SlotTeamPanel
-                :ref="(el) => setTeamPanelRef(b.id, el as Element | null)"
+                :ref="(el) => setTeamPanelRef(b.id, el)"
                 embedded
                 :plan-id="planId!"
                 :block-id="b.id"
@@ -517,6 +524,7 @@ const scopeChangeMessage = computed(() => {
                 :block-active="b.active !== false"
                 :event-date="eventDate"
                 :saving="savingAssignmentsFor === b.id"
+                @draft-changed="(dirty) => onTeamDraftChanged(b.id!, dirty)"
                 @save-assignments="saveAssignments"
             />
           </div>
