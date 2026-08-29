@@ -65,7 +65,7 @@ function populateTestData()
             
             // Automatically generate link and QR code for new events
             try {
-                $publishController = new \App\Http\Controllers\Api\PublishController(app(\App\Services\ActivityFetcherService::class));
+                $publishController = new \App\Http\Controllers\Api\PublishController();
                 $publishController->linkAndQRcode($event->id);
                 echo "  ✓ Generated link and QR code for event: {$event->name}\n";
             } catch (\Exception $e) {

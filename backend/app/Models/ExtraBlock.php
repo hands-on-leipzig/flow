@@ -26,6 +26,7 @@ class ExtraBlock extends Model
         'room',
         'active',
         'type',
+        'public_time',
     ];
 
     protected $casts = [
@@ -33,6 +34,7 @@ class ExtraBlock extends Model
         'start' => 'datetime',
         'end' => 'datetime',
         'active' => 'boolean',
+        'public_time' => 'boolean',
     ];
 
     public function plan()

@@ -2,11 +2,12 @@
 import {ref, computed, onMounted} from 'vue'
 import {useRoute} from 'vue-router'
 import axios from 'axios'
+import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {imageUrl} from '@/utils/images'
-import {PROGRAM_COLOR_HEX} from '@/utils/programTheme'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
-import {formatTimeOnly} from '@/utils/dateTimeFormat'
+import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
+import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
 
@@ -17,6 +18,25 @@ const loading = ref(true)
 const error = ref(null)
 const publicPlanId = ref(null)
 const eventLogos = ref([])
+
+const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
+const headingPlace = computed(() => cleanEventName(event.value) || event.value?.name || '—')
+const headingDate = computed(() => {
+  if (!event.value?.date) return ''
+  const start = dayjs(event.value.date)
+  if (!start.isValid()) return ''
+  if ((event.value.days || 1) > 1) {
+    const end = start.add(event.value.days - 1, 'day')
+    return `${start.format('DD.MM.YYYY')}–${end.format('DD.MM.YYYY')}`
+  }
+  return start.format('DD.MM.YYYY')
+})
+
+const heroTitle = computed(() => {
+  const parts = [headingType.value, headingPlace.value]
+  if (headingDate.value) parts.push(headingDate.value)
+  return parts.join(' · ')
+})
 
 const loadEvent = async () => {
   try {
@@ -103,107 +123,50 @@ const formatDateOnly = (dateString, daysToAdd = 0) => {
   })
 }
 
-function toLocalDateString(dateInput) {
-  if (!dateInput) return ''
-  const d = new Date(dateInput)
-  if (isNaN(d.getTime())) return ''
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function formatShortWeekday(dateInput) {
-  if (!dateInput) return ''
-  const d = new Date(dateInput)
-  if (isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('de-DE', {weekday: 'short'}).format(d)
-}
-
-function eventSpansMultipleDays(plan) {
-  if (!plan) return false
-  const dates = new Set()
-  const add = (arr) => {
-    if (!Array.isArray(arr)) return
-    arr.forEach((item) => {
-      if (item?.value) dates.add(toLocalDateString(item.value))
-    })
-  }
-  add(plan.explore_morning)
-  add(plan.explore_afternoon)
-  add(plan.explore)
-  add(plan.challenge)
-  return dates.size > 1
-}
-
-function getTimeDisplay(isoDateTime, showWeekday) {
-  if (!isoDateTime) return ''
-  const timeOnly = formatTimeOnly(isoDateTime, true)
-  if (showWeekday) {
-    const wd = formatShortWeekday(isoDateTime)
-    return wd ? `${wd}, ${timeOnly}` : timeOnly
-  }
-  return timeOnly
-}
-
 function mapTimelineItems(items) {
   if (!Array.isArray(items) || items.length === 0) return []
-  const showWeekday = eventSpansMultipleDays(scheduleInfo.value?.plan)
   return items.map(item => {
-    const timestamp = new Date(item.value).getTime()
-    let type = 'briefing'
-    const labelLower = item.label?.toLowerCase() || ''
-    if (labelLower.includes('eröffnung') || labelLower.includes('opening') || labelLower.includes('beginn')) {
-      type = 'opening'
-    } else if (labelLower.includes('ende') || labelLower.includes('end')) {
-      type = 'end'
-    }
+    const timestamp = parseBerlinWallTime(item.value) ?? 0
     return {
-      time: formatTimeOnly(item.value, true),
-      timeDisplay: getTimeDisplay(item.value, showWeekday),
+      time: formatBerlinTimeOnly(item.value),
+      timeDisplay: formatBerlinTimeOnly(item.value),
       label: item.label || '',
-      type,
+      joint: item.joint === true,
       timestamp,
       description: item.description || null
     }
   }).sort((a, b) => a.timestamp - b.timestamp)
 }
 
-const getExploreMorningTimelineItems = () => mapTimelineItems(scheduleInfo.value?.plan?.explore_morning)
-const getExploreAfternoonTimelineItems = () => mapTimelineItems(scheduleInfo.value?.plan?.explore_afternoon)
-const getExploreSingleTimelineItems = () => mapTimelineItems(scheduleInfo.value?.plan?.explore)
-const getChallengeTimelineItems = () => mapTimelineItems(scheduleInfo.value?.plan?.challenge)
-
-const timelineMinHeight = computed(() => {
-  const morningItems = getExploreMorningTimelineItems()
-  const afternoonItems = getExploreAfternoonTimelineItems()
-  const singleItems = getExploreSingleTimelineItems()
-  const challengeItems = getChallengeTimelineItems()
-  const maxExploreItems = Math.max(morningItems.length, afternoonItems.length, singleItems.length)
-  const maxItems = Math.max(maxExploreItems, challengeItems.length)
-  return `${maxItems * 70}px`
+const planLanes = computed(() => {
+  const lanes = scheduleInfo.value?.plan?.lanes
+  return Array.isArray(lanes) ? lanes : []
 })
 
-const combinedExploreHeight = computed(() => {
-  const itemHeight = 70
-  const headerHeight = 80
-  const sectionSpacing = 16
-  const morningItems = getExploreMorningTimelineItems()
-  const afternoonItems = getExploreAfternoonTimelineItems()
-  const singleItems = getExploreSingleTimelineItems()
+const planLastChangeDisplay = computed(() => {
+  const raw = scheduleInfo.value?.plan?.last_change
+  return raw ? formatBerlinDateTimeFromUtc(raw) : ''
+})
 
-  let height = 0
-  if (morningItems.length > 0 && afternoonItems.length > 0) {
-    height = headerHeight + (morningItems.length * itemHeight) + sectionSpacing + headerHeight + (afternoonItems.length * itemHeight)
-  } else if (singleItems.length > 0) {
-    height = headerHeight + (singleItems.length * itemHeight)
-  } else {
-    const items = morningItems.length > 0 ? morningItems : afternoonItems
-    if (items.length > 0) {
-      height = headerHeight + (items.length * itemHeight)
-    }
-  }
-  return `${height}px`
+function laneColor(lane) {
+  if (!lane?.color_hex) return 'var(--color-accent)'
+  return `#${lane.color_hex}`
+}
+
+function laneProgramRef(lane) {
+  return resolveProgramRef(event.value, lane.program_id)
+}
+
+function laneTimelineItems(lane) {
+  return mapTimelineItems(lane?.times)
+}
+
+const timelineMinHeight = computed(() => {
+  const maxItems = planLanes.value.reduce(
+    (max, lane) => Math.max(max, lane.times?.length ?? 0),
+    0,
+  )
+  return `${maxItems * 70}px`
 })
 
 const isContentVisible = (level) => {
@@ -215,24 +178,12 @@ const showInteractiveSchedule = computed(() =>
   !loading.value && !error.value && event.value && isContentVisible(4) && !!publicPlanId.value
 )
 
-const exploreColor = computed(() => {
-  if (!scheduleInfo.value?.teams?.explore?.color_hex) return PROGRAM_COLOR_HEX.EXPLORE
-  return `#${scheduleInfo.value.teams.explore.color_hex}`
+const teamLanes = computed(() => {
+  const lanes = scheduleInfo.value?.teams?.lanes
+  return Array.isArray(lanes) ? lanes : []
 })
 
-const challengeColor = computed(() => {
-  if (!scheduleInfo.value?.teams?.challenge?.color_hex) return PROGRAM_COLOR_HEX.CHALLENGE
-  return `#${scheduleInfo.value.teams.challenge.color_hex}`
-})
-
-const hasTeamsSection = computed(() => {
-  const teams = scheduleInfo.value?.teams
-  if (!teams) return false
-  return (
-    (teams.explore?.list?.length > 0 || teams.explore?.registered > 0) ||
-    (teams.challenge?.list?.length > 0 || teams.challenge?.registered > 0)
-  )
-})
+const hasTeamsSection = computed(() => teamLanes.value.length > 0)
 
 const exploreProgram = computed(() => resolveProgramRef(event.value, 'EXPLORE'))
 const challengeProgram = computed(() => resolveProgramRef(event.value, 'CHALLENGE'))
@@ -304,157 +255,76 @@ onMounted(async () => {
             alt="FLOW Logo"
             class="pe-hero__logo"
         />
-        <h1 class="pe-hero__title">{{ event.name }}</h1>
+        <h1 class="pe-hero__title">{{ heroTitle }}</h1>
       </header>
 
-      <!-- Zeitplan -->
+      <!-- Zeitplan (Basis) / Wichtige Zeiten (Ablauf+) -->
       <section class="glass-card liquid-surface-inner pe-section">
-        <h2 class="glass-card__title">Zeitplan</h2>
+        <template v-if="!isContentVisible(3)">
+          <h2 class="glass-card__title">Zeitplan</h2>
+          <p class="pe-muted">
+            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
+            wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
+            zu erhalten.
+          </p>
+        </template>
 
-        <div
-            v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
-            class="pe-timeline-grid"
-        >
-          <div class="pe-timeline-col">
-            <div
-                v-if="getExploreMorningTimelineItems().length > 0"
-                class="pe-program"
-                :style="{ '--pe-program': exploreColor }"
-            >
-              <h3 class="pe-program__title">
-                <ProgramLogo
-                    v-if="exploreProgram"
-                    :event="event"
-                    :program="exploreProgram"
-                    class="pe-program__logo"
-                />
-                <span><em>FIRST</em> LEGO League Explore · Vormittag</span>
-              </h3>
-              <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
-                <div
-                    v-for="(item, index) in getExploreMorningTimelineItems()"
-                    :key="'em-' + index"
-                    class="pe-timeline__item"
-                    :data-type="item.type"
-                >
-                  <div class="pe-timeline__dot"/>
-                  <div class="pe-timeline__card">
-                    <div class="pe-timeline__row">
-                      <span class="pe-timeline__label">{{ item.label }}</span>
-                      <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
-                    </div>
-                    <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-                v-if="getExploreAfternoonTimelineItems().length > 0"
-                class="pe-program"
-                :style="{ '--pe-program': exploreColor }"
-            >
-              <h3 class="pe-program__title">
-                <ProgramLogo
-                    v-if="exploreProgram"
-                    :event="event"
-                    :program="exploreProgram"
-                    class="pe-program__logo"
-                />
-                <span><em>FIRST</em> LEGO League Explore · Nachmittag</span>
-              </h3>
-              <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
-                <div
-                    v-for="(item, index) in getExploreAfternoonTimelineItems()"
-                    :key="'ea-' + index"
-                    class="pe-timeline__item"
-                    :data-type="item.type"
-                >
-                  <div class="pe-timeline__dot"/>
-                  <div class="pe-timeline__card">
-                    <div class="pe-timeline__row">
-                      <span class="pe-timeline__label">{{ item.label }}</span>
-                      <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
-                    </div>
-                    <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-                v-else-if="getExploreSingleTimelineItems().length > 0"
-                class="pe-program"
-                :style="{ '--pe-program': exploreColor }"
-            >
-              <h3 class="pe-program__title">
-                <ProgramLogo
-                    v-if="exploreProgram"
-                    :event="event"
-                    :program="exploreProgram"
-                    class="pe-program__logo"
-                />
-                <span><em>FIRST</em> LEGO League Explore</span>
-              </h3>
-              <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
-                <div
-                    v-for="(item, index) in getExploreSingleTimelineItems()"
-                    :key="'es-' + index"
-                    class="pe-timeline__item"
-                    :data-type="item.type"
-                >
-                  <div class="pe-timeline__dot"/>
-                  <div class="pe-timeline__card">
-                    <div class="pe-timeline__row">
-                      <span class="pe-timeline__label">{{ item.label }}</span>
-                      <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
-                    </div>
-                    <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <template v-else>
+          <h2 class="glass-card__title">
+            <template v-if="planLastChangeDisplay">
+              Wichtige Zeiten - Stand {{ planLastChangeDisplay }}.
+            </template>
+            <template v-else>
+              Wichtige Zeiten
+            </template>
+          </h2>
 
           <div
-              v-if="getChallengeTimelineItems().length > 0"
-              class="pe-program"
-              :style="{ '--pe-program': challengeColor, minHeight: combinedExploreHeight }"
+              v-if="planLanes.length > 0"
+              class="pe-timeline-grid"
+              :style="{ '--pe-lane-count': planLanes.length }"
           >
-            <h3 class="pe-program__title">
-              <ProgramLogo
-                  v-if="challengeProgram"
-                  :event="event"
-                  :program="challengeProgram"
-                  class="pe-program__logo"
-              />
-              <span><em>FIRST</em> LEGO League Challenge</span>
-            </h3>
-            <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
-              <div
-                  v-for="(item, index) in getChallengeTimelineItems()"
-                  :key="'c-' + index"
-                  class="pe-timeline__item"
-                  :data-type="item.type"
-              >
-                <div class="pe-timeline__dot"/>
-                <div class="pe-timeline__card">
-                  <div class="pe-timeline__row">
-                    <span class="pe-timeline__label">{{ item.label }}</span>
-                    <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
+            <div
+                v-for="lane in planLanes"
+                :key="lane.program_id"
+                class="pe-program"
+                :style="{ '--pe-program': laneColor(lane) }"
+            >
+              <h3 class="pe-program__title">
+                <ProgramLogo
+                    v-if="laneProgramRef(lane)"
+                    :event="event"
+                    :program="laneProgramRef(lane)"
+                    class="pe-program__logo"
+                />
+                <span>{{ lane.name }}</span>
+              </h3>
+              <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
+                <div
+                    v-for="(item, index) in laneTimelineItems(lane)"
+                    :key="`${lane.program_id}-${index}`"
+                    class="pe-timeline__item"
+                    :data-joint="item.joint ? 'true' : 'false'"
+                >
+                  <div class="pe-timeline__dot"/>
+                  <div class="pe-timeline__card">
+                    <div class="pe-timeline__row">
+                      <span class="pe-timeline__label">{{ item.label }}</span>
+                      <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
+                    </div>
+                    <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
                   </div>
-                  <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <p v-else class="pe-muted">
-          Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
-          wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
-          zu erhalten.
-        </p>
+          <p v-else class="pe-muted">
+            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
+            wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
+            zu erhalten.
+          </p>
+        </template>
       </section>
 
       <!-- Allgemeine Infos -->
@@ -511,135 +381,35 @@ onMounted(async () => {
       >
         <h2 class="glass-card__title">Angemeldete Teams</h2>
 
-        <div v-if="scheduleInfo.teams?.explore?.registered > 0" class="pe-teams-block">
+        <div
+            class="pe-timeline-grid pe-teams-grid"
+            :style="{ '--pe-lane-count': teamLanes.length }"
+        >
           <div
-              v-if="scheduleInfo.teams.explore.list"
-              class="pe-teams-table-wrap"
-              :style="{ '--pe-program': exploreColor }"
+              v-for="lane in teamLanes"
+              :key="lane.program_id"
+              class="pe-program"
+              :style="{ '--pe-program': laneColor(lane) }"
           >
-            <table class="pe-teams-table">
-              <colgroup>
-                <col style="width: 15%;">
-                <col style="width: 28.33%;">
-                <col style="width: 28.33%;">
-                <col style="width: 28.34%;">
-              </colgroup>
-              <thead>
-              <tr>
-                <th colspan="4">
-                  <ProgramLogo
-                      v-if="exploreProgram"
-                      :event="event"
-                      :program="exploreProgram"
-                      orientation="h"
-                      class="pe-teams-table__brand"
-                  />
-                </th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr
-                  v-for="team in scheduleInfo.teams.explore.list"
-                  :key="team.team_number_hot"
+            <h3 class="pe-program__title">
+              <ProgramLogo
+                  v-if="laneProgramRef(lane)"
+                  :event="event"
+                  :program="laneProgramRef(lane)"
+                  class="pe-program__logo"
+              />
+              <span>{{ lane.name }}</span>
+            </h3>
+            <ul class="pe-team-list">
+              <li
+                  v-for="(team, index) in lane.teams"
+                  :key="`${lane.program_id}-${team.ref ?? index}`"
+                  class="pe-team-list__item"
               >
-                <td class="pe-teams-table__num">{{ team.team_number_hot || '-' }}</td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-people-fill" aria-hidden="true"/>
-                    {{ team.name }}
-                  </span>
-                </td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-building-fill" aria-hidden="true"/>
-                    {{ team.organization || '-' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-pin-map-fill" aria-hidden="true"/>
-                    {{ team.location || '-' }}
-                  </span>
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-else class="pe-teams-count glass-chip liquid-surface-inner">
-            <ProgramLogo
-                v-if="exploreProgram"
-                :event="event"
-                :program="exploreProgram"
-                orientation="h"
-                class="pe-teams-count__logo"
-            />
-            <span>{{ scheduleInfo.teams.explore.registered }} Team(s) angemeldet</span>
-          </div>
-        </div>
-
-        <div v-if="scheduleInfo.teams?.challenge?.registered > 0" class="pe-teams-block">
-          <div
-              v-if="scheduleInfo.teams.challenge.list"
-              class="pe-teams-table-wrap"
-              :style="{ '--pe-program': challengeColor }"
-          >
-            <table class="pe-teams-table">
-              <colgroup>
-                <col style="width: 15%;">
-                <col style="width: 28.33%;">
-                <col style="width: 28.33%;">
-                <col style="width: 28.34%;">
-              </colgroup>
-              <thead>
-              <tr>
-                <th colspan="4">
-                  <ProgramLogo
-                      v-if="challengeProgram"
-                      :event="event"
-                      :program="challengeProgram"
-                      orientation="h"
-                      class="pe-teams-table__brand"
-                  />
-                </th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr
-                  v-for="team in scheduleInfo.teams.challenge.list"
-                  :key="team.team_number_hot || team.name"
-              >
-                <td class="pe-teams-table__num">{{ team.team_number_hot || '-' }}</td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-people-fill" aria-hidden="true"/>
-                    {{ team.name }}
-                  </span>
-                </td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-building-fill" aria-hidden="true"/>
-                    {{ team.organization || '-' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-pin-map-fill" aria-hidden="true"/>
-                    {{ team.location || '-' }}
-                  </span>
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-          <div v-else class="pe-teams-count glass-chip liquid-surface-inner">
-            <ProgramLogo
-                v-if="challengeProgram"
-                :event="event"
-                :program="challengeProgram"
-                orientation="h"
-                class="pe-teams-count__logo"
-            />
-            <span>{{ scheduleInfo.teams.challenge.registered }} Team(s) angemeldet</span>
+                <span class="pe-team-list__ref">{{ team.ref || '–' }}</span>
+                <span class="pe-team-list__name">{{ team.name }}</span>
+              </li>
+            </ul>
           </div>
         </div>
       </section>
@@ -854,7 +624,7 @@ onMounted(async () => {
 
 @media (min-width: 768px) {
   .pe-timeline-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(var(--pe-lane-count, 1), minmax(0, 1fr));
     gap: 1.25rem;
   }
 }
@@ -934,6 +704,11 @@ onMounted(async () => {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--pe-program) 18%, transparent);
 }
 
+.pe-timeline__item[data-joint='true'] .pe-timeline__dot {
+  border-color: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.22);
+}
+
 .pe-timeline__item[data-type='opening'] .pe-timeline__dot {
   border-color: #16a34a;
   box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
@@ -953,19 +728,17 @@ onMounted(async () => {
 }
 
 .pe-timeline__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.5rem;
+  column-gap: 0.75rem;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
 }
 
 .pe-timeline__label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: color-mix(in srgb, var(--pe-program) 75%, var(--color-text));
+  min-width: 0;
 }
 
 .pe-timeline__time {
@@ -973,6 +746,8 @@ onMounted(async () => {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--color-text);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .pe-timeline__desc {
@@ -1060,95 +835,47 @@ onMounted(async () => {
   color: var(--color-text-muted);
 }
 
-.pe-teams-block + .pe-teams-block {
-  margin-top: 1.25rem;
+.pe-teams-grid {
+  margin-top: 0.25rem;
 }
 
-.pe-teams-table-wrap {
-  --pe-program: var(--color-accent);
-  overflow-x: auto;
-  border-radius: var(--radius-lg, 1rem);
-  border: 1px solid color-mix(in srgb, var(--pe-program) 35%, var(--color-border-strong));
-  background: color-mix(in srgb, #ffffff 90%, transparent);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--pe-program) 12%, transparent);
+.pe-team-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
-.pe-teams-table {
-  width: 100%;
-  min-width: 36rem;
-  table-layout: fixed;
-  border-collapse: collapse;
-}
-
-.pe-teams-table thead th {
-  padding: 0.75rem 1rem;
-  text-align: right;
-  border-bottom: 1px solid color-mix(in srgb, var(--pe-program) 22%, transparent);
-  background: color-mix(in srgb, var(--pe-program) 7%, #ffffff);
-}
-
-.pe-teams-table__brand {
-  height: 3rem;
-  width: auto;
-  object-fit: contain;
-  margin-left: auto;
-}
-
-@media (min-width: 768px) {
-  .pe-teams-table__brand {
-    height: 4rem;
-  }
-}
-
-.pe-teams-table tbody tr {
+.pe-team-list__item {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  column-gap: 0.75rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
   border-top: 1px solid color-mix(in srgb, var(--pe-program) 14%, transparent);
 }
 
-.pe-teams-table tbody tr:first-child {
+.pe-team-list__item:first-child {
   border-top: none;
+  padding-top: 0;
 }
 
-.pe-teams-table tbody tr:hover {
-  background: color-mix(in srgb, var(--pe-program) 8%, transparent);
-}
-
-.pe-teams-table td {
-  padding: 0.7rem 0.9rem;
-  font-size: 0.9rem;
-  color: var(--color-text);
-  vertical-align: middle;
-  word-break: break-word;
-}
-
-.pe-teams-table__num {
+.pe-team-list__ref {
+  font-size: 0.85rem;
   font-weight: 700;
-  text-align: center;
-  color: var(--pe-program) !important;
+  font-variant-numeric: tabular-nums;
+  color: var(--pe-program);
+  text-align: right;
   white-space: nowrap;
 }
 
-.pe-teams-table__cell {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 0.45rem;
-}
-
-.pe-teams-table__cell i {
-  color: var(--color-text-subtle);
-  margin-top: 0.15rem;
-  flex-shrink: 0;
-}
-
-.pe-teams-count {
-  display: flex !important;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.pe-teams-count__logo {
-  height: 2.25rem;
-  width: auto;
-  object-fit: contain;
+.pe-team-list__name {
+  font-size: 0.9rem;
+  font-weight: 550;
+  color: var(--color-text);
+  min-width: 0;
 }
 
 .pe-logos {

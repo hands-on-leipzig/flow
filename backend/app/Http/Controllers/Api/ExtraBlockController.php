@@ -73,6 +73,7 @@ class ExtraBlockController extends Controller
             'end' => 'nullable|date|after_or_equal:start',
             'room' => 'nullable|integer|exists:room,id',
             'active' => 'nullable|boolean',
+            'public_time' => 'nullable|boolean',
             'type' => 'nullable|string|in:free,slot',
         ]);
 

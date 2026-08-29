@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Event;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Public scheduleInformation JSON from already-fetched DRAHT data and optional plan times.
@@ -17,9 +18,6 @@ final class PublicSchedulePayload
      */
     public static function from(Event $event, array $drahtData, int $level, ?array $plan = null): array
     {
-        $exploreColor = ProgramCatalog::colorHex('EXPLORE', '00A651');
-        $challengeColor = ProgramCatalog::colorHex('CHALLENGE', 'ED1C24');
-
         $data = [
             'event_id' => $event->id,
             'level' => $level,
@@ -29,32 +27,7 @@ final class PublicSchedulePayload
             'address' => $drahtData['address'] ?? null,
             'contact' => $drahtData['contact'] ?? [],
             'teams' => [
-                'explore' => [
-                    'capacity' => $drahtData['capacity_explore'] ?? 0,
-                    'registered' => count($drahtData['teams_explore'] ?? []),
-                    'color_hex' => $exploreColor,
-                    'list' => $level >= 1 ? array_map(function ($team) {
-                        return [
-                            'team_number_hot' => $team['ref'] ?? null,
-                            'name' => $team['name'] ?? '',
-                            'organization' => $team['organization'] ?? '',
-                            'location' => $team['location'] ?? '',
-                        ];
-                    }, array_values($drahtData['teams_explore'] ?? [])) : [],
-                ],
-                'challenge' => [
-                    'capacity' => $drahtData['capacity_challenge'] ?? 0,
-                    'registered' => count($drahtData['teams_challenge'] ?? []),
-                    'color_hex' => $challengeColor,
-                    'list' => $level >= 1 ? array_map(function ($team) {
-                        return [
-                            'team_number_hot' => $team['ref'] ?? null,
-                            'name' => $team['name'] ?? '',
-                            'organization' => $team['organization'] ?? '',
-                            'location' => $team['location'] ?? '',
-                        ];
-                    }, array_values($drahtData['teams_challenge'] ?? [])) : [],
-                ],
+                'lanes' => self::buildTeamLanes($event, $drahtData, $level),
             ],
         ];
 
@@ -63,5 +36,98 @@ final class PublicSchedulePayload
         }
 
         return $data;
+    }
+
+    /**
+     * @param  array<string, mixed>  $drahtData
+     * @return list<array{program_id: int, name: string, sequence: int, color_hex: string|null, teams: list<array{ref: string|null, name: string}>}>
+     */
+    private static function buildTeamLanes(Event $event, array $drahtData, int $level): array
+    {
+        $event->loadMissing('programs');
+
+        $programIds = $event->programs
+            ->pluck('first_program')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->values()
+            ->all();
+
+        if ($programIds === []) {
+            return [];
+        }
+
+        $drahtByProgram = [];
+        foreach ($drahtData['programs'] ?? [] as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $firstProgram = (int) ($row['first_program'] ?? 0);
+            if ($firstProgram > 0) {
+                $drahtByProgram[$firstProgram] = $row;
+            }
+        }
+
+        $catalogRows = DB::table('m_first_program')
+            ->whereIn('id', $programIds)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get(['id', 'name', 'display_name', 'sequence', 'color_hex']);
+
+        $lanes = [];
+        foreach ($catalogRows as $catalog) {
+            $programId = (int) $catalog->id;
+            $rawTeams = $drahtByProgram[$programId]['teams'] ?? [];
+            if (! is_array($rawTeams)) {
+                continue;
+            }
+
+            $teams = $level >= 1 ? self::normalizeTeams($rawTeams) : [];
+            if ($teams === []) {
+                continue;
+            }
+
+            $lanes[] = [
+                'program_id' => $programId,
+                'name' => (string) ($catalog->display_name ?: $catalog->name),
+                'sequence' => (int) $catalog->sequence,
+                'color_hex' => $catalog->color_hex !== null
+                    ? (string) $catalog->color_hex
+                    : ProgramCatalog::colorHex((string) $catalog->name),
+                'teams' => $teams,
+            ];
+        }
+
+        usort(
+            $lanes,
+            fn (array $a, array $b) => ($a['sequence'] <=> $b['sequence']) ?: ($a['program_id'] <=> $b['program_id'])
+        );
+
+        return $lanes;
+    }
+
+    /**
+     * @return list<array{ref: string|null, name: string}>
+     */
+    private static function normalizeTeams(array $rawTeams): array
+    {
+        $teams = [];
+        foreach (array_values($rawTeams) as $team) {
+            if (! is_array($team)) {
+                continue;
+            }
+            $name = trim((string) ($team['name'] ?? ''));
+            $ref = $team['ref'] ?? $team['number'] ?? null;
+            $ref = $ref === null || $ref === '' ? null : (string) $ref;
+            if ($ref === null && $name === '') {
+                continue;
+            }
+            $teams[] = [
+                'ref' => $ref,
+                'name' => $name,
+            ];
+        }
+
+        return $teams;
     }
 }
