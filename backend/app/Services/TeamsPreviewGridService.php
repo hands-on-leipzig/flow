@@ -55,7 +55,7 @@ class TeamsPreviewGridService
 
         $raw = $this->activities->fetchActivities(
             plan: $planId,
-            roles: [],
+            roles: $this->previewRoleIds($rolesByProgram),
             includeActivityMeta: true,
             freeBlocks: false,
         );
@@ -124,6 +124,22 @@ class TeamsPreviewGridService
         }
 
         return $byProgram;
+    }
+
+    /**
+     * @param  array<int, object|null>  $rolesByProgram
+     * @return list<int>
+     */
+    private function previewRoleIds(array $rolesByProgram): array
+    {
+        $ids = [];
+        foreach ($rolesByProgram as $role) {
+            if ($role !== null) {
+                $ids[] = (int) $role->id;
+            }
+        }
+
+        return $ids;
     }
 
     /**
