@@ -93,6 +93,29 @@ class ImportantTimesServiceTest extends TestCase
         $this->assertSame(FirstProgram::CHALLENGE->value, $payload['lanes'][0]['program_id']);
     }
 
+    public function test_free_block_uses_block_name_for_label(): void
+    {
+        $planId = $this->seedPlan();
+        $blockId = DB::table('extra_block')->insertGetId([
+            'plan' => $planId,
+            'first_program' => FirstProgram::CHALLENGE->value,
+            'name' => 'Mittagspause',
+            'type' => 'free',
+        ]);
+        $groupId = DB::table('activity_group')->insertGetId(['plan' => $planId]);
+        DB::table('activity')->insert([
+            'activity_group' => $groupId,
+            'activity_type_detail' => 101,
+            'start' => '2026-03-15 12:00:00',
+            'extra_block' => $blockId,
+            'public_time' => true,
+        ]);
+
+        $payload = $this->service->buildPayload($planId, '2026-03-15 08:00:00');
+
+        $this->assertSame('Mittagspause', $payload['lanes'][0]['times'][0]['label']);
+    }
+
     private function createSchema(): void
     {
         Schema::dropAllTables();

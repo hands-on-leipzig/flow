@@ -2,10 +2,12 @@
 import {ref, computed, onMounted} from 'vue'
 import {useRoute} from 'vue-router'
 import axios from 'axios'
+import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {imageUrl} from '@/utils/images'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
-import {formatTimeOnly} from '@/utils/dateTimeFormat'
+import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
+import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
 
@@ -16,6 +18,25 @@ const loading = ref(true)
 const error = ref(null)
 const publicPlanId = ref(null)
 const eventLogos = ref([])
+
+const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
+const headingPlace = computed(() => cleanEventName(event.value) || event.value?.name || '—')
+const headingDate = computed(() => {
+  if (!event.value?.date) return ''
+  const start = dayjs(event.value.date)
+  if (!start.isValid()) return ''
+  if ((event.value.days || 1) > 1) {
+    const end = start.add(event.value.days - 1, 'day')
+    return `${start.format('DD.MM.YYYY')}–${end.format('DD.MM.YYYY')}`
+  }
+  return start.format('DD.MM.YYYY')
+})
+
+const heroTitle = computed(() => {
+  const parts = [headingType.value, headingPlace.value]
+  if (headingDate.value) parts.push(headingDate.value)
+  return parts.join(' · ')
+})
 
 const loadEvent = async () => {
   try {
@@ -105,10 +126,10 @@ const formatDateOnly = (dateString, daysToAdd = 0) => {
 function mapTimelineItems(items) {
   if (!Array.isArray(items) || items.length === 0) return []
   return items.map(item => {
-    const timestamp = new Date(item.value).getTime()
+    const timestamp = parseBerlinWallTime(item.value) ?? 0
     return {
-      time: formatTimeOnly(item.value, true),
-      timeDisplay: formatTimeOnly(item.value, true),
+      time: formatBerlinTimeOnly(item.value),
+      timeDisplay: formatBerlinTimeOnly(item.value),
       label: item.label || '',
       joint: item.joint === true,
       timestamp,
@@ -120,6 +141,11 @@ function mapTimelineItems(items) {
 const planLanes = computed(() => {
   const lanes = scheduleInfo.value?.plan?.lanes
   return Array.isArray(lanes) ? lanes : []
+})
+
+const planLastChangeDisplay = computed(() => {
+  const raw = scheduleInfo.value?.plan?.last_change
+  return raw ? formatBerlinDateTimeFromUtc(raw) : ''
 })
 
 function laneColor(lane) {
@@ -229,58 +255,76 @@ onMounted(async () => {
             alt="FLOW Logo"
             class="pe-hero__logo"
         />
-        <h1 class="pe-hero__title">{{ event.name }}</h1>
+        <h1 class="pe-hero__title">{{ heroTitle }}</h1>
       </header>
 
-      <!-- Zeitplan -->
+      <!-- Zeitplan (Basis) / Wichtige Zeiten (Ablauf+) -->
       <section class="glass-card liquid-surface-inner pe-section">
-        <h2 class="glass-card__title">Zeitplan</h2>
+        <template v-if="!isContentVisible(3)">
+          <h2 class="glass-card__title">Zeitplan</h2>
+          <p class="pe-muted">
+            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
+            wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
+            zu erhalten.
+          </p>
+        </template>
 
-        <div
-            v-if="(isContentVisible(2) || isContentVisible(3)) && planLanes.length > 0"
-            class="pe-timeline-grid"
-            :style="{ '--pe-lane-count': planLanes.length }"
-        >
+        <template v-else>
+          <h2 class="glass-card__title">
+            <template v-if="planLastChangeDisplay">
+              Wichtige Zeiten - Stand {{ planLastChangeDisplay }}.
+            </template>
+            <template v-else>
+              Wichtige Zeiten
+            </template>
+          </h2>
+
           <div
-              v-for="lane in planLanes"
-              :key="lane.program_id"
-              class="pe-program"
-              :style="{ '--pe-program': laneColor(lane) }"
+              v-if="planLanes.length > 0"
+              class="pe-timeline-grid"
+              :style="{ '--pe-lane-count': planLanes.length }"
           >
-            <h3 class="pe-program__title">
-              <ProgramLogo
-                  v-if="laneProgramRef(lane)"
-                  :event="event"
-                  :program="laneProgramRef(lane)"
-                  class="pe-program__logo"
-              />
-              <span>{{ lane.name }}</span>
-            </h3>
-            <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
-              <div
-                  v-for="(item, index) in laneTimelineItems(lane)"
-                  :key="`${lane.program_id}-${index}`"
-                  class="pe-timeline__item"
-                  :data-joint="item.joint ? 'true' : 'false'"
-              >
-                <div class="pe-timeline__dot"/>
-                <div class="pe-timeline__card">
-                  <div class="pe-timeline__row">
-                    <span class="pe-timeline__label">{{ item.label }}</span>
-                    <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
+            <div
+                v-for="lane in planLanes"
+                :key="lane.program_id"
+                class="pe-program"
+                :style="{ '--pe-program': laneColor(lane) }"
+            >
+              <h3 class="pe-program__title">
+                <ProgramLogo
+                    v-if="laneProgramRef(lane)"
+                    :event="event"
+                    :program="laneProgramRef(lane)"
+                    class="pe-program__logo"
+                />
+                <span>{{ lane.name }}</span>
+              </h3>
+              <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
+                <div
+                    v-for="(item, index) in laneTimelineItems(lane)"
+                    :key="`${lane.program_id}-${index}`"
+                    class="pe-timeline__item"
+                    :data-joint="item.joint ? 'true' : 'false'"
+                >
+                  <div class="pe-timeline__dot"/>
+                  <div class="pe-timeline__card">
+                    <div class="pe-timeline__row">
+                      <span class="pe-timeline__label">{{ item.label }}</span>
+                      <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
+                    </div>
+                    <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
                   </div>
-                  <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <p v-else-if="isContentVisible(2) || isContentVisible(3)" class="pe-muted">
-          Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
-          wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
-          zu erhalten.
-        </p>
+          <p v-else class="pe-muted">
+            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
+            wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
+            zu erhalten.
+          </p>
+        </template>
       </section>
 
       <!-- Allgemeine Infos -->

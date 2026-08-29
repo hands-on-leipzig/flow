@@ -134,7 +134,7 @@ final class ImportantTimesService
             ->orderBy('a.start')
             ->get([
                 'a.start as start',
-                'atd.name as label',
+                DB::raw("CASE WHEN peb.type = 'free' THEN COALESCE(peb.name, atd.name) ELSE atd.name END as label"),
                 DB::raw('COALESCE(peb.first_program, atd.first_program) as first_program'),
             ]);
     }

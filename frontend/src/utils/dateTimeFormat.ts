@@ -108,6 +108,27 @@ export function formatBerlinTimeOnly(value: string | Date | number | null | unde
   }).format(new Date(ms))
 }
 
+/** plan.last_change etc.: UTC in DB → Anzeige Europe/Berlin (wie Überblick-PDF). */
+export function formatBerlinDateTimeFromUtc(
+  value: string | Date | number | null | undefined
+): string {
+  if (value == null || value === '') return ''
+  let ms: number
+  if (value instanceof Date) {
+    ms = value.getTime()
+  } else if (typeof value === 'number') {
+    ms = value
+  } else {
+    const trimmed = String(value).trim()
+    const hasTZ = /Z|[+\-]\d{2}:?\d{2}$/.test(trimmed)
+    ms = Date.parse(hasTZ ? trimmed : `${trimmed.replace(' ', 'T')}Z`)
+  }
+  if (Number.isNaN(ms)) return ''
+  const p = berlinParts(ms)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(p.day)}.${pad(p.month)}.${p.year} ${pad(p.hour)}:${pad(p.minute)}`
+}
+
 /**
  * Uhrzeit (HH:mm) formatieren, 24h.
  * Erwartet:
