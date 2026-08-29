@@ -103,107 +103,45 @@ const formatDateOnly = (dateString, daysToAdd = 0) => {
   })
 }
 
-function toLocalDateString(dateInput) {
-  if (!dateInput) return ''
-  const d = new Date(dateInput)
-  if (isNaN(d.getTime())) return ''
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function formatShortWeekday(dateInput) {
-  if (!dateInput) return ''
-  const d = new Date(dateInput)
-  if (isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat('de-DE', {weekday: 'short'}).format(d)
-}
-
-function eventSpansMultipleDays(plan) {
-  if (!plan) return false
-  const dates = new Set()
-  const add = (arr) => {
-    if (!Array.isArray(arr)) return
-    arr.forEach((item) => {
-      if (item?.value) dates.add(toLocalDateString(item.value))
-    })
-  }
-  add(plan.explore_morning)
-  add(plan.explore_afternoon)
-  add(plan.explore)
-  add(plan.challenge)
-  return dates.size > 1
-}
-
-function getTimeDisplay(isoDateTime, showWeekday) {
-  if (!isoDateTime) return ''
-  const timeOnly = formatTimeOnly(isoDateTime, true)
-  if (showWeekday) {
-    const wd = formatShortWeekday(isoDateTime)
-    return wd ? `${wd}, ${timeOnly}` : timeOnly
-  }
-  return timeOnly
-}
-
 function mapTimelineItems(items) {
   if (!Array.isArray(items) || items.length === 0) return []
-  const showWeekday = eventSpansMultipleDays(scheduleInfo.value?.plan)
   return items.map(item => {
     const timestamp = new Date(item.value).getTime()
-    let type = 'briefing'
-    const labelLower = item.label?.toLowerCase() || ''
-    if (labelLower.includes('eröffnung') || labelLower.includes('opening') || labelLower.includes('beginn')) {
-      type = 'opening'
-    } else if (labelLower.includes('ende') || labelLower.includes('end')) {
-      type = 'end'
-    }
     return {
       time: formatTimeOnly(item.value, true),
-      timeDisplay: getTimeDisplay(item.value, showWeekday),
+      timeDisplay: formatTimeOnly(item.value, true),
       label: item.label || '',
-      type,
+      joint: item.joint === true,
       timestamp,
       description: item.description || null
     }
   }).sort((a, b) => a.timestamp - b.timestamp)
 }
 
-const getExploreMorningTimelineItems = () => mapTimelineItems(scheduleInfo.value?.plan?.explore_morning)
-const getExploreAfternoonTimelineItems = () => mapTimelineItems(scheduleInfo.value?.plan?.explore_afternoon)
-const getExploreSingleTimelineItems = () => mapTimelineItems(scheduleInfo.value?.plan?.explore)
-const getChallengeTimelineItems = () => mapTimelineItems(scheduleInfo.value?.plan?.challenge)
-
-const timelineMinHeight = computed(() => {
-  const morningItems = getExploreMorningTimelineItems()
-  const afternoonItems = getExploreAfternoonTimelineItems()
-  const singleItems = getExploreSingleTimelineItems()
-  const challengeItems = getChallengeTimelineItems()
-  const maxExploreItems = Math.max(morningItems.length, afternoonItems.length, singleItems.length)
-  const maxItems = Math.max(maxExploreItems, challengeItems.length)
-  return `${maxItems * 70}px`
+const planLanes = computed(() => {
+  const lanes = scheduleInfo.value?.plan?.lanes
+  return Array.isArray(lanes) ? lanes : []
 })
 
-const combinedExploreHeight = computed(() => {
-  const itemHeight = 70
-  const headerHeight = 80
-  const sectionSpacing = 16
-  const morningItems = getExploreMorningTimelineItems()
-  const afternoonItems = getExploreAfternoonTimelineItems()
-  const singleItems = getExploreSingleTimelineItems()
+function laneColor(lane) {
+  if (!lane?.color_hex) return 'var(--color-accent)'
+  return `#${lane.color_hex}`
+}
 
-  let height = 0
-  if (morningItems.length > 0 && afternoonItems.length > 0) {
-    height = headerHeight + (morningItems.length * itemHeight) + sectionSpacing + headerHeight + (afternoonItems.length * itemHeight)
-  } else if (singleItems.length > 0) {
-    height = headerHeight + (singleItems.length * itemHeight)
-  } else {
-    const items = morningItems.length > 0 ? morningItems : afternoonItems
-    if (items.length > 0) {
-      height = headerHeight + (items.length * itemHeight)
-    }
-  }
-  return `${height}px`
+function laneProgramRef(lane) {
+  return resolveProgramRef(event.value, lane.program_id)
+}
+
+function laneTimelineItems(lane) {
+  return mapTimelineItems(lane?.times)
+}
+
+const timelineMinHeight = computed(() => {
+  const maxItems = planLanes.value.reduce(
+    (max, lane) => Math.max(max, lane.times?.length ?? 0),
+    0,
+  )
+  return `${maxItems * 70}px`
 })
 
 const isContentVisible = (level) => {
@@ -312,130 +250,31 @@ onMounted(async () => {
         <h2 class="glass-card__title">Zeitplan</h2>
 
         <div
-            v-if="(isContentVisible(2) || isContentVisible(3)) && scheduleInfo?.plan"
+            v-if="(isContentVisible(2) || isContentVisible(3)) && planLanes.length > 0"
             class="pe-timeline-grid"
+            :style="{ '--pe-lane-count': planLanes.length }"
         >
-          <div class="pe-timeline-col">
-            <div
-                v-if="getExploreMorningTimelineItems().length > 0"
-                class="pe-program"
-                :style="{ '--pe-program': exploreColor }"
-            >
-              <h3 class="pe-program__title">
-                <ProgramLogo
-                    v-if="exploreProgram"
-                    :event="event"
-                    :program="exploreProgram"
-                    class="pe-program__logo"
-                />
-                <span><em>FIRST</em> LEGO League Explore · Vormittag</span>
-              </h3>
-              <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
-                <div
-                    v-for="(item, index) in getExploreMorningTimelineItems()"
-                    :key="'em-' + index"
-                    class="pe-timeline__item"
-                    :data-type="item.type"
-                >
-                  <div class="pe-timeline__dot"/>
-                  <div class="pe-timeline__card">
-                    <div class="pe-timeline__row">
-                      <span class="pe-timeline__label">{{ item.label }}</span>
-                      <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
-                    </div>
-                    <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-                v-if="getExploreAfternoonTimelineItems().length > 0"
-                class="pe-program"
-                :style="{ '--pe-program': exploreColor }"
-            >
-              <h3 class="pe-program__title">
-                <ProgramLogo
-                    v-if="exploreProgram"
-                    :event="event"
-                    :program="exploreProgram"
-                    class="pe-program__logo"
-                />
-                <span><em>FIRST</em> LEGO League Explore · Nachmittag</span>
-              </h3>
-              <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
-                <div
-                    v-for="(item, index) in getExploreAfternoonTimelineItems()"
-                    :key="'ea-' + index"
-                    class="pe-timeline__item"
-                    :data-type="item.type"
-                >
-                  <div class="pe-timeline__dot"/>
-                  <div class="pe-timeline__card">
-                    <div class="pe-timeline__row">
-                      <span class="pe-timeline__label">{{ item.label }}</span>
-                      <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
-                    </div>
-                    <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-                v-else-if="getExploreSingleTimelineItems().length > 0"
-                class="pe-program"
-                :style="{ '--pe-program': exploreColor }"
-            >
-              <h3 class="pe-program__title">
-                <ProgramLogo
-                    v-if="exploreProgram"
-                    :event="event"
-                    :program="exploreProgram"
-                    class="pe-program__logo"
-                />
-                <span><em>FIRST</em> LEGO League Explore</span>
-              </h3>
-              <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
-                <div
-                    v-for="(item, index) in getExploreSingleTimelineItems()"
-                    :key="'es-' + index"
-                    class="pe-timeline__item"
-                    :data-type="item.type"
-                >
-                  <div class="pe-timeline__dot"/>
-                  <div class="pe-timeline__card">
-                    <div class="pe-timeline__row">
-                      <span class="pe-timeline__label">{{ item.label }}</span>
-                      <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
-                    </div>
-                    <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <div
-              v-if="getChallengeTimelineItems().length > 0"
+              v-for="lane in planLanes"
+              :key="lane.program_id"
               class="pe-program"
-              :style="{ '--pe-program': challengeColor, minHeight: combinedExploreHeight }"
+              :style="{ '--pe-program': laneColor(lane) }"
           >
             <h3 class="pe-program__title">
               <ProgramLogo
-                  v-if="challengeProgram"
+                  v-if="laneProgramRef(lane)"
                   :event="event"
-                  :program="challengeProgram"
+                  :program="laneProgramRef(lane)"
                   class="pe-program__logo"
               />
-              <span><em>FIRST</em> LEGO League Challenge</span>
+              <span>{{ lane.name }}</span>
             </h3>
             <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
               <div
-                  v-for="(item, index) in getChallengeTimelineItems()"
-                  :key="'c-' + index"
+                  v-for="(item, index) in laneTimelineItems(lane)"
+                  :key="`${lane.program_id}-${index}`"
                   class="pe-timeline__item"
-                  :data-type="item.type"
+                  :data-joint="item.joint ? 'true' : 'false'"
               >
                 <div class="pe-timeline__dot"/>
                 <div class="pe-timeline__card">
@@ -450,7 +289,7 @@ onMounted(async () => {
           </div>
         </div>
 
-        <p v-else class="pe-muted">
+        <p v-else-if="isContentVisible(2) || isContentVisible(3)" class="pe-muted">
           Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
           wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
           zu erhalten.
@@ -854,7 +693,7 @@ onMounted(async () => {
 
 @media (min-width: 768px) {
   .pe-timeline-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(var(--pe-lane-count, 1), minmax(0, 1fr));
     gap: 1.25rem;
   }
 }
@@ -932,6 +771,11 @@ onMounted(async () => {
   background: #fff;
   border: 2px solid var(--pe-program);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--pe-program) 18%, transparent);
+}
+
+.pe-timeline__item[data-joint='true'] .pe-timeline__dot {
+  border-color: #9ca3af;
+  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.22);
 }
 
 .pe-timeline__item[data-type='opening'] .pe-timeline__dot {

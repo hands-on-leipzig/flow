@@ -17,6 +17,7 @@ export type FreeExtraBlock = ExtraBlockBase & {
   start?: string | null
   end?: string | null
   room?: number | null
+  public_time?: boolean
 }
 
 export type SlotExtraBlock = ExtraBlockBase & {

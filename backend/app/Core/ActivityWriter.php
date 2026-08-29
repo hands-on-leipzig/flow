@@ -4,6 +4,7 @@ namespace App\Core;
 
 use App\Models\Activity;
 use App\Models\ActivityGroup;
+use App\Models\ExtraBlock;
 use App\Models\MActivityTypeDetail;
 use App\Models\MRoomType;
 use App\Enums\FirstProgram;
@@ -27,6 +28,9 @@ class ActivityWriter
     /** @var array<int,?int> */
     private array $activityTypeDetailFirstProgramMap = [];
 
+    /** @var array<int,bool> */
+    private array $activityTypeDetailPublicTimeMap = [];
+
     public function __construct(int $planId, PlanParameter $params)
     {
         $this->planId = $planId;
@@ -43,6 +47,10 @@ class ActivityWriter
             ->pluck('first_program', 'id')
             ->map(fn($fp) => $fp ? (int) $fp : null)
             ->toArray();
+
+        $this->activityTypeDetailPublicTimeMap = $details
+            ->mapWithKeys(fn ($d) => [(int) $d->id => (bool) ($d->public_time ?? false)])
+            ->all();
 
         $this->roomTypeMap = MRoomType::all()
             ->pluck('id', 'code')
@@ -120,6 +128,7 @@ class ActivityWriter
             'table_2_team'         => $table2Team,
             'extra_block'          => $extraBlockId,
             'explore_group'        => $exploreGroupValue,
+            'public_time'          => $this->resolvePublicTime($activityTypeDetailId, $extraBlockId),
         ]);
 
         return $activity->id;
@@ -177,6 +186,7 @@ class ActivityWriter
                 'table_2_team'         => $act['table2Team'] ?? null,
                 'extra_block'          => $act['extraBlockId'] ?? null,
                 'explore_group'        => $exploreGroupValue,
+                'public_time'          => $this->resolvePublicTime($activityTypeDetailId, $act['extraBlockId'] ?? null),
             ];
         }
 
@@ -193,6 +203,18 @@ class ActivityWriter
     private function activityTypeDetailIdFromCode(string $code): ?int
     {
         return $this->activityTypeDetailMap[strtolower($code)] ?? null;
+    }
+
+    private function resolvePublicTime(int $activityTypeDetailId, ?int $extraBlockId = null): bool
+    {
+        if ($extraBlockId !== null) {
+            $fromBlock = (bool) ExtraBlock::where('id', $extraBlockId)->value('public_time');
+            if ($fromBlock) {
+                return true;
+            }
+        }
+
+        return $this->activityTypeDetailPublicTimeMap[$activityTypeDetailId] ?? false;
     }
 
     private function resolveRoomType(int $activityTypeDetailId, ?int $juryLane, ?int $exploreGroup = null): ?int
