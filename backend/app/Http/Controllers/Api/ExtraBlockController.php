@@ -359,35 +359,10 @@ class ExtraBlockController extends Controller
         $eTransfer = (int) $params->get('e_duration_transfer');
         $cTransfer = (int) $params->get('c_duration_transfer');
 
-        $fp = (int) $block->first_program;
-
         $assignments = SlotBlockTeam::query()
             ->where('extra_block', $extraBlock)
             ->get()
             ->keyBy(fn (SlotBlockTeam $row) => ((int) $row->first_program).':'.((int) $row->team_number_plan));
-
-        $teamLookup = DB::table('team_plan as tp')
-            ->join('team as t', 't.id', '=', 'tp.team')
-            ->where('tp.plan', $planId)
-            ->select([
-                'tp.team_number_plan',
-                't.id as team_id',
-                't.team_number_hot',
-                't.name as team_name',
-                't.first_program',
-            ])
-            ->get()
-            ->groupBy(function ($row) {
-                $fp = (int) $row->first_program;
-                $program = match ($fp) {
-                    FirstProgram::CHALLENGE->value => FirstProgram::CHALLENGE->value,
-                    FirstProgram::FUTURE_8->value => FirstProgram::FUTURE_8->value,
-                    default => FirstProgram::EXPLORE->value,
-                };
-
-                return $program.':'.((int) $row->team_number_plan);
-            })
-            ->map(fn ($rows) => $rows->first());
 
         $rows = collect();
         foreach ($this->assignmentRangesForBlock($block, $params) as $range) {
@@ -396,7 +371,6 @@ class ExtraBlockController extends Controller
                 $key = $program.':'.$teamNo;
                 /** @var SlotBlockTeam|null $assignment */
                 $assignment = $assignments->get($key);
-                $lookup = $teamLookup->get($key);
 
                 $start = null;
                 if ($assignment?->start) {
@@ -419,13 +393,9 @@ class ExtraBlockController extends Controller
                     );
                 }
 
-                $placeholderName = sprintf('T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!', $teamNo);
                 $rows->push([
                     'row_key' => $key,
-                    'team_id' => $lookup->team_id ?? null,
                     'team_number_plan' => $teamNo,
-                    'team_number_hot' => $lookup->team_number_hot ?? null,
-                    'team_name' => $lookup->team_name ?? $placeholderName,
                     'first_program' => $program,
                     'start' => $start,
                     'collision_status' => $collision['status'] ?? null,
@@ -667,15 +637,55 @@ class ExtraBlockController extends Controller
             })
             ->values();
 
+        $teamMeta = $this->teamMetaForPlanSlot($planId, $programId, $teamNumberPlan);
+
         return response()->json([
             'first_program' => $programId,
             'team_number_plan' => $teamNumberPlan,
+            'team_number_hot' => $teamMeta['team_number_hot'],
+            'team_name' => $teamMeta['team_name'],
             'slot_start' => $slotStart,
             'slot_date' => $slotDate,
             'slot_duration' => (int) $block->duration,
             'transfer_minutes' => $transfer,
             'activities' => $rows,
         ]);
+    }
+
+    private function teamMetaForPlanSlot(int $planId, int $programId, int $teamNumberPlan): array
+    {
+        $teams = DB::table('team_plan as tp')
+            ->join('team as t', 't.id', '=', 'tp.team')
+            ->where('tp.plan', $planId)
+            ->where('tp.team_number_plan', $teamNumberPlan)
+            ->select([
+                't.team_number_hot',
+                't.name as team_name',
+                't.first_program',
+            ])
+            ->get();
+
+        foreach ($teams as $row) {
+            $mapped = match ((int) $row->first_program) {
+                FirstProgram::CHALLENGE->value => FirstProgram::CHALLENGE->value,
+                FirstProgram::FUTURE_8->value => FirstProgram::FUTURE_8->value,
+                default => FirstProgram::EXPLORE->value,
+            };
+            if ($mapped === $programId) {
+                return [
+                    'team_number_hot' => $row->team_number_hot,
+                    'team_name' => $row->team_name,
+                ];
+            }
+        }
+
+        return [
+            'team_number_hot' => null,
+            'team_name' => sprintf(
+                'T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!',
+                $teamNumberPlan
+            ),
+        ];
     }
 
     private function blockAllowsProgram(int $blockFirstProgram, int $programId): bool

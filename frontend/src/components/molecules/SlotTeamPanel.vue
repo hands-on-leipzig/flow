@@ -14,14 +14,19 @@ import {
 
 export type TeamRow = {
   row_key: string
-  team_id: number | null
   team_number_plan: number | null
-  team_number_hot: string | null
-  team_name: string
   first_program: number
   start: string | null
   collision_status?: 'red' | 'yellow' | 'green' | null
   collision_gap_minutes?: number | null
+}
+
+export type TeamHoverData = {
+  team_number_hot: string | null
+  team_name: string | null
+  slot_start: string | null
+  slot_date: string | null
+  activities: TeamActivityLine[]
 }
 
 export type TeamActivityLine = {
@@ -42,14 +47,18 @@ export type TeamSavePayload = {
 
 const JOINT_FP = 0
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   planId: number
   blockId: number | null
   blockFirstProgram: number
   blockActive: boolean
   eventDate?: string
   saving?: boolean
-}>()
+  /** Render inside slot block tile (no outer collapse toggle). */
+  embedded?: boolean
+}>(), {
+  embedded: false,
+})
 
 const emit = defineEmits<{
   (e: 'save-assignments', payloads: TeamSavePayload[]): void
@@ -59,18 +68,12 @@ const teams = ref<TeamRow[]>([])
 const loadingTeams = ref(false)
 const eDurationTransfer = ref(0)
 const cDurationTransfer = ref(0)
-const expanded = ref(true)
+const expanded = ref(!props.embedded)
 const chronoSorted = ref(false)
 const draftStarts = ref<Record<string, string | null>>({})
 const editingTeamId = ref<string | null>(null)
 const editingStartLocal = ref('')
-const tooltipOpenKey = ref<string | null>(null)
-const tooltipLoadingKey = ref<string | null>(null)
-const tooltipActivities = ref<Record<string, {
-  slot_start: string | null
-  slot_date: string | null
-  activities: TeamActivityLine[]
-}>>({})
+const tooltipHover = ref<Record<string, TeamHoverData | 'loading'>>({})
 
 const {selectedEvent} = useScheduleWorkspace()
 
@@ -112,12 +115,14 @@ async function loadTeams() {
 }
 
 watch(() => props.blockId, () => {
-  tooltipActivities.value = {}
-  tooltipOpenKey.value = null
+  tooltipHover.value = {}
   void loadTeams()
 }, {immediate: true})
 
-defineExpose({reload: loadTeams, hasUnsavedDrafts: () => hasUnsavedChanges.value})
+defineExpose({
+  reload: loadTeams,
+  hasUnsavedDrafts: () => hasUnsavedChanges.value,
+})
 
 function effectiveStart(row: TeamRow): string | null {
   if (row.row_key in draftStarts.value) {
@@ -289,41 +294,53 @@ function saveAssignments() {
   emit('save-assignments', payloads)
 }
 
-async function openTooltip(row: TeamRow) {
-  if (!props.blockId) return
+async function openTeamHover(row: TeamRow) {
+  if (!props.blockId || !row.team_number_plan) return
   const key = row.row_key
-  tooltipOpenKey.value = key
-  if (tooltipActivities.value[key]) return
+  if (tooltipHover.value[key] && tooltipHover.value[key] !== 'loading') return
 
-  tooltipLoadingKey.value = key
+  tooltipHover.value = {...tooltipHover.value, [key]: 'loading'}
   try {
     const {data} = await axios.get<{
+      team_number_hot: string | null
+      team_name: string | null
       slot_start: string | null
       slot_date: string | null
       activities: TeamActivityLine[]
     }>(
       `/plans/${props.planId}/extra-blocks/slot/${props.blockId}/teams/${row.first_program}/${row.team_number_plan}/activities`,
     )
-    tooltipActivities.value = {
-      ...tooltipActivities.value,
+    tooltipHover.value = {
+      ...tooltipHover.value,
       [key]: {
+        team_number_hot: data?.team_number_hot ?? null,
+        team_name: data?.team_name ?? null,
         slot_start: data?.slot_start ?? null,
         slot_date: data?.slot_date ?? null,
         activities: data?.activities ?? [],
       },
     }
   } catch {
-    tooltipActivities.value = {
-      ...tooltipActivities.value,
-      [key]: {slot_start: null, slot_date: null, activities: []},
+    tooltipHover.value = {
+      ...tooltipHover.value,
+      [key]: {
+        team_number_hot: null,
+        team_name: null,
+        slot_start: null,
+        slot_date: null,
+        activities: [],
+      },
     }
-  } finally {
-    if (tooltipLoadingKey.value === key) tooltipLoadingKey.value = null
   }
 }
 
-function closeTooltip(row: TeamRow) {
-  if (tooltipOpenKey.value === row.row_key) tooltipOpenKey.value = null
+function hoverData(row: TeamRow): TeamHoverData | null {
+  const v = tooltipHover.value[row.row_key]
+  return v && v !== 'loading' ? v : null
+}
+
+function isHoverLoading(row: TeamRow): boolean {
+  return tooltipHover.value[row.row_key] === 'loading'
 }
 
 function formatTooltipDate(slotDate: string | null): string {
@@ -335,8 +352,14 @@ function formatTooltipDate(slotDate: string | null): string {
 </script>
 
 <template>
-  <div class="slot-teams" :class="{'slot-teams--inactive': !blockActive}">
-    <div class="slot-teams__toolbar">
+  <div
+      class="slot-teams"
+      :class="{
+        'slot-teams--inactive': !blockActive,
+        'slot-teams--embedded': embedded,
+      }"
+  >
+    <div v-if="!embedded" class="slot-teams__toolbar">
       <button
           type="button"
           class="slot-teams__toggle glass-btn-secondary !text-xs !py-1.5 !px-2.5"
@@ -368,7 +391,29 @@ function formatTooltipDate(slotDate: string | null): string {
       </div>
     </div>
 
-    <div v-if="expanded" class="slot-teams__body">
+    <div v-if="embedded || expanded" class="slot-teams__body">
+      <div v-if="embedded" class="slot-teams__toolbar slot-teams__toolbar--embedded">
+        <div class="slot-teams__actions">
+          <button
+              type="button"
+              class="glass-btn-secondary !text-xs !py-1.5 !px-2.5"
+              :disabled="!blockId || !teams.length"
+              @click="chronoSorted = !chronoSorted"
+          >
+            <i class="bi bi-sort-down" aria-hidden="true"/>
+            {{ chronoSorted ? 'Plan-Reihenfolge' : 'Chronologisch' }}
+          </button>
+          <button
+              type="button"
+              class="glass-btn-accent !text-xs !py-1.5 !px-2.5 disabled:opacity-60"
+              :disabled="!blockId || !hasUnsavedChanges || saving || !blockActive"
+              @click="saveAssignments"
+          >
+            {{ saving ? 'Speichere…' : 'Zuordnungen speichern' }}
+          </button>
+        </div>
+      </div>
+
       <div class="slot-teams__legend">
         <span><i class="dot dot--red"/>Konflikt</span>
         <span><i class="dot dot--yellow"/>Transfer &lt; E{{ eDurationTransfer }}/C{{ cDurationTransfer }}</span>
@@ -382,7 +427,7 @@ function formatTooltipDate(slotDate: string | null): string {
       </div>
 
       <div v-else-if="!blockId" class="text-sm text-[var(--color-text-subtle)]">
-        Oben einen Slot auswählen.
+        Slot zuerst speichern, dann Teams zuordnen.
       </div>
 
       <div v-else-if="!teams.length" class="text-sm text-[var(--color-text-subtle)] py-4 text-center">
@@ -408,77 +453,64 @@ function formatTooltipDate(slotDate: string | null): string {
           </h3>
 
           <div class="slot-teams__list">
-            <div v-for="row in group.rows" :key="row.row_key" class="slot-team">
-              <div class="slot-team__top">
-                <img
-                    v-if="groupedRows.length === 1"
-                    :src="programIcon(row.first_program).src"
-                    :alt="programIcon(row.first_program).alt"
-                    class="w-6 h-6 flex-shrink-0"
-                />
-                <div class="min-w-0 flex-1">
-                  <div class="flex items-baseline gap-2 min-w-0">
-                    <div
-                        class="relative"
-                        @mouseenter="openTooltip(row)"
-                        @mouseleave="closeTooltip(row)"
+            <div v-for="row in group.rows" :key="row.row_key" class="slot-team slot-team--compact">
+              <div
+                  class="slot-team__label-wrap"
+                  @mouseenter="openTeamHover(row)"
+              >
+                <span class="slot-team__plan-no tabular-nums">
+                  {{ formatPlanTeamNo(row.team_number_plan) }}
+                </span>
+                <div class="slot-team__hover glass-dropdown">
+                  <p v-if="isHoverLoading(row)" class="text-xs text-[var(--color-text-subtle)]">Lade…</p>
+                  <template v-else-if="hoverData(row)">
+                    <p class="slot-team__hover-name">{{ hoverData(row)!.team_name || '–' }}</p>
+                    <p v-if="hoverData(row)!.team_number_hot" class="slot-team__hover-hot tabular-nums">
+                      DRAHT {{ hoverData(row)!.team_number_hot }}
+                    </p>
+                    <hr class="slot-team__hover-divider">
+                    <p class="text-xs font-semibold mb-1">
+                      Aktivitäten · {{ formatTooltipDate(hoverData(row)!.slot_date) }}
+                    </p>
+                    <p
+                        v-if="!hoverData(row)!.activities.length"
+                        class="text-xs text-[var(--color-text-subtle)]"
                     >
-                      <button
-                          type="button"
-                          class="font-semibold tabular-nums underline decoration-dotted underline-offset-2 hover:text-[var(--color-accent)]"
-                          @focus="openTooltip(row)"
-                          @blur="closeTooltip(row)"
+                      Keine team-spezifischen Aktivitäten.
+                    </p>
+                    <ul v-else class="slot-team__hover-acts">
+                      <li
+                          v-for="act in hoverData(row)!.activities"
+                          :key="act.id"
+                          class="text-xs"
+                          :class="lineStatusClass(act.status)"
                       >
-                        {{ formatPlanTeamNo(row.team_number_plan) }}
-                      </button>
-                      <div v-if="tooltipOpenKey === row.row_key" class="slot-tooltip glass-dropdown">
-                        <p class="text-xs font-semibold mb-2">
-                          Aktivitäten · {{ formatTooltipDate(tooltipActivities[row.row_key]?.slot_date ?? null) }}
-                        </p>
-                        <p v-if="tooltipLoadingKey === row.row_key" class="text-xs text-[var(--color-text-subtle)]">Lade…</p>
-                        <p
-                            v-else-if="!(tooltipActivities[row.row_key]?.activities?.length)"
-                            class="text-xs text-[var(--color-text-subtle)]"
-                        >
-                          Keine team-spezifischen Aktivitäten.
-                        </p>
-                        <ul v-else class="space-y-1">
-                          <li
-                              v-for="act in tooltipActivities[row.row_key].activities"
-                              :key="act.id"
-                              class="text-xs"
-                              :class="lineStatusClass(act.status)"
-                          >
-                            <span class="font-mono">{{ wallTimeHm(act.start) }}-{{ wallTimeHm(act.end) }}</span>
-                            · {{ act.label }}
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <span class="text-xs text-[var(--color-text-muted)] tabular-nums">
-                      {{ row.team_number_hot ?? '–' }}
-                    </span>
-                  </div>
-                  <p class="text-sm truncate">{{ row.team_name }}</p>
+                        <span class="font-mono">{{ wallTimeHm(act.start) }}-{{ wallTimeHm(act.end) }}</span>
+                        · {{ act.label }}
+                      </li>
+                    </ul>
+                  </template>
                 </div>
-                <span
-                    v-if="effectiveStart(row)"
-                    class="dot"
-                    :class="collisionDotClass(row)"
-                    :title="collisionTitle(row)"
-                />
               </div>
+
+              <span
+                  class="dot slot-team__dot"
+                  :class="[
+                    collisionDotClass(row),
+                    {'dot--empty': !effectiveStart(row) && !isRowDirty(row)},
+                  ]"
+                  :title="effectiveStart(row) || isRowDirty(row) ? collisionTitle(row) : ''"
+              />
 
               <div class="slot-team__time">
                 <button
                     v-if="!showTimeInput(row)"
                     type="button"
-                    class="glass-btn-secondary w-full !justify-start !text-sm !py-1.5 !text-[var(--color-text-subtle)]"
+                    class="slot-team__set glass-btn-secondary !text-xs !py-1 !px-2"
                     :disabled="!blockActive"
                     @click="beginEditStart(row)"
                 >
                   <i class="bi bi-clock" aria-hidden="true"/>
-                  Start setzen…
                 </button>
                 <template v-else>
                   <input
@@ -514,6 +546,20 @@ function formatTooltipDate(slotDate: string | null): string {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+}
+
+.slot-teams--embedded {
+  gap: 0.45rem;
+}
+
+.slot-teams__toolbar--embedded {
+  justify-content: flex-end;
+  margin-bottom: 0.15rem;
+}
+
+.slot-teams__toolbar--embedded .slot-teams__actions {
+  width: 100%;
+  justify-content: flex-end;
 }
 
 .slot-teams--inactive {
@@ -586,28 +632,95 @@ function formatTooltipDate(slotDate: string | null): string {
 .slot-teams__list {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.3rem;
 }
 
-.slot-team {
+.slot-team--compact {
+  display: grid;
+  grid-template-columns: 3.25rem auto 1fr;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, transparent);
+  border-radius: 8px;
+}
+
+.slot-team__label-wrap {
+  position: relative;
+  justify-self: start;
+}
+
+.slot-team__plan-no {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-text);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  cursor: default;
+}
+
+.slot-team__label-wrap:hover .slot-team__plan-no {
+  color: var(--color-accent);
+}
+
+.slot-team__hover {
+  display: none;
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  top: calc(100% + 4px);
+  min-width: 14rem;
+  max-width: 20rem;
+  padding: 0.55rem 0.65rem;
+}
+
+.slot-team__label-wrap:hover .slot-team__hover {
+  display: block;
+}
+
+.slot-team__hover-name {
+  margin: 0 0 0.15rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.slot-team__hover-hot {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.slot-team__hover-divider {
+  margin: 0.45rem 0;
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+}
+
+.slot-team__hover-acts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.55rem 0.65rem;
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
-  border-radius: 10px;
+  gap: 0.2rem;
 }
 
-.slot-team__top {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.55rem;
+.slot-team__dot {
+  justify-self: center;
 }
 
 .slot-team__time {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.slot-team__set {
+  min-width: 2rem;
+  justify-content: center;
 }
 
 .slot-team__datetime {
@@ -634,16 +747,6 @@ function formatTooltipDate(slotDate: string | null): string {
   cursor: not-allowed;
 }
 
-.slot-tooltip {
-  position: absolute;
-  z-index: 30;
-  left: 0;
-  top: calc(100% + 4px);
-  min-width: 14rem;
-  max-width: 20rem;
-  padding: 0.55rem 0.65rem;
-}
-
 .dot {
   display: inline-block;
   width: 0.55rem;
@@ -658,5 +761,9 @@ function formatTooltipDate(slotDate: string | null): string {
 .dot--draft {
   background: transparent;
   border: 2px solid var(--color-accent);
+}
+
+.dot--empty {
+  visibility: hidden;
 }
 </style>

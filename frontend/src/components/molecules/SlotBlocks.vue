@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import {computed, nextTick, ref, watch} from 'vue'
+import {computed, nextTick, ref, watch, type ComponentPublicInstance} from 'vue'
 import axios from 'axios'
 import ToggleSwitch from '../atoms/ToggleSwitch.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
@@ -36,9 +36,9 @@ const emit = defineEmits<{
 const blocks = ref<SlotExtraBlock[]>([])
 const blockToDelete = ref<SlotExtraBlock | null>(null)
 const pendingScopeChange = ref<{block: SlotExtraBlock; value: number} | null>(null)
-const selectedId = ref<number | null>(null)
-const teamPanelRef = ref<InstanceType<typeof SlotTeamPanel> | null>(null)
-const savingAssignments = ref(false)
+const expandedTeamBlocks = ref<Set<number>>(new Set())
+const teamPanelRefs = ref<Map<number, InstanceType<typeof SlotTeamPanel>>>(new Map())
+const savingAssignmentsFor = ref<number | null>(null)
 
 const {attachedPrograms} = useScheduleWorkspace()
 
@@ -60,9 +60,38 @@ const sortedBlocks = computed(() =>
   ),
 )
 
-const selectedBlock = computed(() =>
-  blocks.value.find((b) => b.id === selectedId.value) ?? null,
-)
+function setTeamPanelRef(blockId: number | undefined, el: Element | ComponentPublicInstance | null) {
+  if (!blockId) return
+  const next = new Map(teamPanelRefs.value)
+  if (el) next.set(blockId, el as InstanceType<typeof SlotTeamPanel>)
+  else next.delete(blockId)
+  teamPanelRefs.value = next
+}
+
+async function reloadTeamPanels(blockId?: number) {
+  if (blockId != null) {
+    await teamPanelRefs.value.get(blockId)?.reload()
+    return
+  }
+  await Promise.all([...teamPanelRefs.value.values()].map((panel) => panel.reload()))
+}
+
+function isTeamsExpanded(block: SlotExtraBlock): boolean {
+  return block.id != null && expandedTeamBlocks.value.has(block.id)
+}
+
+function teamsToggleDirty(block: SlotExtraBlock): boolean {
+  if (!block.id) return false
+  return teamPanelRefs.value.get(block.id)?.hasUnsavedDrafts?.() ?? false
+}
+
+function toggleTeams(block: SlotExtraBlock) {
+  if (!block.id) return
+  const next = new Set(expandedTeamBlocks.value)
+  if (next.has(block.id)) next.delete(block.id)
+  else next.add(block.id)
+  expandedTeamBlocks.value = next
+}
 
 const newBlockName = ref('')
 const newBlockDescription = ref('')
@@ -98,11 +127,8 @@ async function loadBlocks() {
     }))
     : []
 
-  if (selectedId.value && !blocks.value.some((b) => b.id === selectedId.value)) {
-    selectedId.value = blocks.value[0]?.id ?? null
-  } else if (!selectedId.value && blocks.value.length) {
-    selectedId.value = blocks.value[0].id ?? null
-  }
+  const validIds = new Set(blocks.value.map((b) => b.id).filter((id): id is number => id != null))
+  expandedTeamBlocks.value = new Set([...expandedTeamBlocks.value].filter((id) => validIds.has(id)))
 }
 
 async function flushUpdates(updates: Record<string, unknown>) {
@@ -149,7 +175,7 @@ async function flushUpdates(updates: Record<string, unknown>) {
               ...saved,
               duration: normalizeDurationMinutes(saved.duration),
             }
-            selectedId.value = saved.id
+            expandedTeamBlocks.value = new Set([...expandedTeamBlocks.value, saved.id])
           }
         }
         needsLite = true
@@ -166,7 +192,7 @@ async function flushUpdates(updates: Record<string, unknown>) {
     }
 
     await loadBlocks()
-    await teamPanelRef.value?.reload()
+    await reloadTeamPanels()
 
     if (needsLite) {
       const ok = await runGenerateLite(
@@ -188,9 +214,10 @@ async function flushUpdates(updates: Record<string, unknown>) {
 }
 
 async function saveAssignments(payloads: TeamSavePayload[]) {
-  if (!props.planId || !payloads.length || savingAssignments.value) return
+  if (!props.planId || !payloads.length || savingAssignmentsFor.value != null) return
 
-  savingAssignments.value = true
+  const blockId = payloads[0]?.blockId
+  savingAssignmentsFor.value = blockId ?? null
   generatorError.value = null
   errorDetails.value = null
 
@@ -208,16 +235,16 @@ async function saveAssignments(payloads: TeamSavePayload[]) {
       generatorError,
       errorDetails,
     )
-    await teamPanelRef.value?.reload()
+    await reloadTeamPanels(blockId)
     if (ok) emit('changed')
   } catch (error: unknown) {
     isGenerating.value = false
     const parsed = parseExtraBlockSaveError(error, 'Fehler beim Speichern der Zuordnungen')
     generatorError.value = parsed.message
     errorDetails.value = parsed.details
-    await teamPanelRef.value?.reload()
+    await reloadTeamPanels(blockId)
   } finally {
-    savingAssignments.value = false
+    savingAssignmentsFor.value = null
   }
 }
 
@@ -251,10 +278,6 @@ function resetComposer() {
   newFirstProgram.value = 0
 }
 
-function selectBlock(block: SlotExtraBlock) {
-  if (block.id) selectedId.value = block.id
-}
-
 function confirmDeleteBlock(block: SlotExtraBlock) {
   blockToDelete.value = block
 }
@@ -273,10 +296,10 @@ function deleteBlock() {
     if (block._clientKey) return b._clientKey !== block._clientKey
     return b !== block
   })
-  if (selectedId.value === block.id) {
-    selectedId.value = blocks.value[0]?.id ?? null
-  }
   if (block.id) {
+    const next = new Set(expandedTeamBlocks.value)
+    next.delete(block.id)
+    expandedTeamBlocks.value = next
     scheduleBlockDelete(block as SlotExtraBlock & {id: number})
   }
 }
@@ -305,7 +328,7 @@ function confirmScopeChange() {
   pending.block.first_program = pending.value
   pendingScopeChange.value = null
   scheduleBlockSave(pending.block)
-  void teamPanelRef.value?.reload()
+  if (pending.block.id) void reloadTeamPanels(pending.block.id)
 }
 
 function onDurationInput(block: SlotExtraBlock, el: HTMLInputElement) {
@@ -394,9 +417,8 @@ const scopeChangeMessage = computed(() => {
           v-for="b in sortedBlocks"
           :key="blockRowKey(b)"
           :inactive="b.active === false"
-          interactive
-          :selected="b.id === selectedId"
-          @click="selectBlock(b)"
+          :selected="isTeamsExpanded(b)"
+          :class="{'slot-block--teams-open': isTeamsExpanded(b)}"
       >
         <template #leading>
           <ToggleSwitch
@@ -467,21 +489,40 @@ const scopeChangeMessage = computed(() => {
             @click.stop
             @input="(e) => { b.link = (e.target as HTMLInputElement).value; scheduleBlockSave(b) }"
         />
+
+        <div class="slot-block__teams" @click.stop>
+          <button
+              type="button"
+              class="slot-block__teams-toggle glass-btn-secondary w-full !justify-start !text-sm !py-2"
+              :disabled="!b.id || b.active === false"
+              :title="!b.id ? 'Slot zuerst speichern' : undefined"
+              @click="toggleTeams(b)"
+          >
+            <i
+                class="bi"
+                :class="isTeamsExpanded(b) ? 'bi-chevron-down' : 'bi-chevron-right'"
+                aria-hidden="true"
+            />
+            Team-Zuordnungen
+            <span v-if="teamsToggleDirty(b)" class="slot-block__teams-dirty">· Entwurf</span>
+          </button>
+
+          <div v-if="b.id && isTeamsExpanded(b)" class="slot-block__teams-panel">
+            <SlotTeamPanel
+                :ref="(el) => setTeamPanelRef(b.id, el as Element | null)"
+                embedded
+                :plan-id="planId!"
+                :block-id="b.id"
+                :block-first-program="b.first_program ?? 0"
+                :block-active="b.active !== false"
+                :event-date="eventDate"
+                :saving="savingAssignmentsFor === b.id"
+                @save-assignments="saveAssignments"
+            />
+          </div>
+        </div>
       </ItemCard>
     </div>
-
-    <section v-if="planId" class="slot-blocks__teams">
-      <SlotTeamPanel
-          ref="teamPanelRef"
-          :plan-id="planId"
-          :block-id="selectedId"
-          :block-first-program="selectedBlock?.first_program ?? 0"
-          :block-active="selectedBlock?.active !== false"
-          :event-date="eventDate"
-          :saving="savingAssignments"
-          @save-assignments="saveAssignments"
-      />
-    </section>
 
     <ConfirmationModal
         :show="!!blockToDelete"
@@ -558,5 +599,33 @@ const scopeChangeMessage = computed(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.slot-block--teams-open {
+  border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+}
+
+.slot-block__teams {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
+}
+
+.slot-block__teams-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.slot-block__teams-dirty {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.slot-block__teams-panel {
+  padding-top: 0.15rem;
 }
 </style>
