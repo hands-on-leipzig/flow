@@ -17,6 +17,8 @@ const emit = defineEmits<{
 
 const open = ref(false)
 const draft = ref('')
+/** Show range error only after a failed apply (not while typing). */
+const showApplyError = ref(false)
 const triggerRef = ref<HTMLElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 const inputRef = ref<HTMLInputElement | null>(null)
@@ -36,12 +38,11 @@ const valid = computed(() => {
 })
 
 const errorText = computed(() => {
-  if (draft.value.trim() === '') return `Wert zwischen ${minBound.value} und ${maxBound.value} eingeben.`
-  if (!Number.isFinite(parsed.value)) return 'Bitte eine ganze Zahl eingeben.'
-  if (parsed.value < minBound.value || parsed.value > maxBound.value) {
-    return `Erlaubt: ${minBound.value}–${maxBound.value}.`
+  if (!showApplyError.value) return ''
+  if (draft.value.trim() === '' || !Number.isFinite(parsed.value)) {
+    return `Wert zwischen ${minBound.value} und ${maxBound.value} eingeben.`
   }
-  return ''
+  return `Erlaubt: ${minBound.value}–${maxBound.value}.`
 })
 
 function initialDraftValue(): number {
@@ -77,6 +78,7 @@ function updatePanelPosition() {
 
 async function openDialog() {
   open.value = true
+  showApplyError.value = false
   draft.value = String(initialDraftValue())
   await nextTick()
   updatePanelPosition()
@@ -87,6 +89,7 @@ async function openDialog() {
 
 function closeDialog() {
   open.value = false
+  showApplyError.value = false
 }
 
 function toggle() {
@@ -95,7 +98,11 @@ function toggle() {
 }
 
 function apply() {
-  if (!valid.value) return
+  if (!valid.value) {
+    showApplyError.value = true
+    void nextTick().then(() => updatePanelPosition())
+    return
+  }
   emit('apply', parsed.value)
   closeDialog()
 }
@@ -117,12 +124,17 @@ function onDocPointerDown(e: PointerEvent) {
 
 function onKeydown(e: KeyboardEvent) {
   if (e.key === 'Escape') {
+    e.preventDefault()
     e.stopPropagation()
     closeDialog()
   } else if (e.key === 'Enter') {
     e.preventDefault()
     apply()
   }
+}
+
+function onDraftInput() {
+  if (showApplyError.value) showApplyError.value = false
 }
 
 function onReposition() {
@@ -133,10 +145,12 @@ function onReposition() {
 watch(open, (isOpen) => {
   if (isOpen) {
     document.addEventListener('pointerdown', onDocPointerDown, true)
+    document.addEventListener('keydown', onKeydown, true)
     window.addEventListener('resize', onReposition)
     window.addEventListener('scroll', onReposition, true)
   } else {
     document.removeEventListener('pointerdown', onDocPointerDown, true)
+    document.removeEventListener('keydown', onKeydown, true)
     window.removeEventListener('resize', onReposition)
     window.removeEventListener('scroll', onReposition, true)
   }
@@ -144,6 +158,7 @@ watch(open, (isOpen) => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', onDocPointerDown, true)
+  document.removeEventListener('keydown', onKeydown, true)
   window.removeEventListener('resize', onReposition)
   window.removeEventListener('scroll', onReposition, true)
 })
@@ -171,7 +186,6 @@ onBeforeUnmount(() => {
           role="dialog"
           aria-label="Kapazität testweise übersteuern"
           :style="panelStyle"
-          @keydown="onKeydown"
       >
         <p class="capacity-override__title">Kapazität testweise übersteuern.</p>
         <label class="capacity-override__field">
@@ -182,26 +196,28 @@ onBeforeUnmount(() => {
               class="capacity-override__input"
               type="number"
               inputmode="numeric"
-              :min="minBound"
-              :max="maxBound"
               step="1"
-              @keydown="onKeydown"
+              @input="onDraftInput"
           />
         </label>
-        <p v-if="errorText && !valid" class="capacity-override__error">{{ errorText }}</p>
+        <p class="capacity-override__hint">Erlaubt: {{ minBound }}–{{ maxBound }}</p>
+        <p v-if="errorText" class="capacity-override__error">{{ errorText }}</p>
         <p class="capacity-override__note">
           Beim nächsten Öffnen dieser Seite wird wieder der offizielle Wert genommen.<br>
           Um den zu Ändern, bitte in der Geschäftsstelle melden.
         </p>
         <div class="capacity-override__actions">
-          <button type="button" class="glass-btn-secondary !px-2.5 !py-1 !text-xs" @click="closeDialog">
+          <button
+              type="button"
+              class="glass-btn-secondary !px-2.5 !py-1 !text-xs"
+              @pointerdown.stop.prevent="closeDialog"
+          >
             Abbrechen
           </button>
           <button
               type="button"
               class="glass-btn-accent !px-2.5 !py-1 !text-xs"
-              :disabled="!valid"
-              @click="apply"
+              @pointerdown.stop.prevent="apply"
           >
             Übernehmen
           </button>
@@ -271,7 +287,7 @@ onBeforeUnmount(() => {
 .capacity-override__input {
   width: 4.25rem;
   box-sizing: border-box;
-  padding: 0.35rem 0.45rem;
+  padding: 0.35rem 0.2rem 0.35rem 0.45rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-bg, #fff);
@@ -279,20 +295,18 @@ onBeforeUnmount(() => {
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  /* Native spin buttons break outside-click handling in some browsers. */
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.capacity-override__input::-webkit-outer-spin-button,
-.capacity-override__input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
 }
 
 .capacity-override__input:focus {
   outline: 2px solid color-mix(in srgb, var(--program-accent, var(--color-accent)) 40%, transparent);
   outline-offset: 1px;
+}
+
+.capacity-override__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  line-height: 1.3;
 }
 
 .capacity-override__error {
