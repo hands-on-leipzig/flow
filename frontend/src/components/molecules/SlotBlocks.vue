@@ -387,7 +387,7 @@ const scopeChangeMessage = computed(() => {
           ref="composerRef"
           v-model:title="newBlockName"
           :disabled="!planId"
-          title-placeholder="Neuer Slot z. B. Führung"
+          title-placeholder="Neuer Slot z.B. Besichtigung Sternwarte"
           empty-hint="Zeitfenster pro Team, unabhängig vom generierten Ablauf."
           @commit="createBlock"
       >
