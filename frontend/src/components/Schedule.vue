@@ -267,19 +267,24 @@ watch(
                   </div>
                 </div>
 
-                <div class="flex-1 min-h-0 min-w-0 overflow-hidden">
-                  <div v-if="isGenerating" class="flex items-center justify-start h-full w-full flex-col text-[var(--color-text-muted)]">
-                    <LoaderFlow/>
-                    <LoaderText/>
-                  </div>
+                <div class="flex-1 min-h-0 min-w-0 overflow-hidden relative">
                   <Preview
-                      v-else-if="selectedPlanId"
-                      :key="`${selectedPlanId}-${previewReload}`"
+                      v-if="selectedPlanId"
+                      :key="selectedPlanId"
                       class="w-full h-full min-h-0"
                       :plan-id="selectedPlanId as number"
                       :reload="previewReload"
                       initial-view="overview"
                   />
+                  <div
+                      v-if="isGenerating && selectedPlanId"
+                      class="schedule-workspace__preview-busy"
+                      aria-live="polite"
+                      aria-busy="true"
+                  >
+                    <LoaderFlow/>
+                    <LoaderText/>
+                  </div>
                 </div>
               </div>
             </section>
@@ -380,5 +385,19 @@ watch(
     flex: 1 1 auto !important;
     max-height: 50vh;
   }
+}
+
+.schedule-workspace__preview-busy {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, #ffffff 82%, transparent);
+  backdrop-filter: blur(1px);
+  pointer-events: none;
 }
 </style>

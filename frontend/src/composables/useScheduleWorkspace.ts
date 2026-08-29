@@ -224,43 +224,44 @@ const finaleProtectedParams = computed(() =>
 )
 
 let saveApi: ReturnType<typeof useDebouncedSave> | null = null
-let extraBlockImmediateFlush: (() => Promise<void>) | null = null
-let extraBlockDebounceApi: {
-  freeze: () => void
-  unfreeze: () => void
-} | null = null
-const extraBlockPendingCount = ref(0)
-
-function registerExtraBlockImmediateFlush(fn: (() => Promise<void>) | null) {
-  extraBlockImmediateFlush = fn
+const extraBlockImmediateFlushes = new Map<string, () => Promise<void>>()
+const extraBlockDebounceApis = new Map<string, {freeze: () => void; unfreeze: () => void}>()
+function registerExtraBlockImmediateFlush(key: string, fn: (() => Promise<void>) | null) {
+  if (fn) extraBlockImmediateFlushes.set(key, fn)
+  else extraBlockImmediateFlushes.delete(key)
 }
 
-function registerExtraBlockDebounceApi(api: typeof extraBlockDebounceApi) {
-  extraBlockDebounceApi = api
-}
-
-function setExtraBlockPendingCount(count: number) {
-  extraBlockPendingCount.value = count
+function registerExtraBlockDebounceApi(
+  key: string,
+  api: {freeze: () => void; unfreeze: () => void} | null,
+) {
+  if (api) extraBlockDebounceApis.set(key, api)
+  else extraBlockDebounceApis.delete(key)
 }
 
 async function immediateFlushAll() {
-  if (extraBlockImmediateFlush) {
-    await extraBlockImmediateFlush()
+  for (const flush of extraBlockImmediateFlushes.values()) {
+    await flush()
   }
   await getSaveApi().immediateFlush()
 }
 
+/** Ablauf params → full generate; extra activities → lite update only. */
 const toastAction = computed<'generate' | 'update'>(() =>
-  getSaveApi().pendingCount.value > 0 || extraBlockPendingCount.value > 0 ? 'generate' : 'update',
+  getSaveApi().pendingCount.value > 0 ? 'generate' : 'update',
 )
 
 watch(isGenerating, (generating) => {
   if (generating) {
     getSaveApi().freeze()
-    extraBlockDebounceApi?.freeze()
+    for (const api of extraBlockDebounceApis.values()) {
+      api.freeze()
+    }
   } else {
     getSaveApi().unfreeze()
-    extraBlockDebounceApi?.unfreeze()
+    for (const api of extraBlockDebounceApis.values()) {
+      api.unfreeze()
+    }
   }
 })
 
@@ -632,7 +633,6 @@ export function useScheduleWorkspace() {
     immediateFlush: immediateFlushAll,
     registerExtraBlockImmediateFlush,
     registerExtraBlockDebounceApi,
-    setExtraBlockPendingCount,
     toastAction,
     openPlanPopout,
     focusPlanPopout,

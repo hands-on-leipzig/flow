@@ -176,14 +176,14 @@ export function useDebouncedSave(options: DebouncedSaveOptions) {
     // Stop countdown
     stopCountdown()
 
-    // Hide toast
-    options.onHideToast?.()
-    options.onCountdownUpdate?.(null)
-
     // Check if there are any updates
     if (Object.keys(pendingUpdates.value).length === 0) {
       return
     }
+
+    // Hide toast only when this debouncer actually flushes
+    options.onHideToast?.()
+    options.onCountdownUpdate?.(null)
 
     // Copy and clear pending updates
     const updates = { ...pendingUpdates.value }

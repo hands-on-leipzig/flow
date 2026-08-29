@@ -1,4 +1,4 @@
-import {onMounted, onUnmounted, watch} from 'vue'
+import {onMounted, onUnmounted} from 'vue'
 import {useDebouncedSave} from '@/composables/useDebouncedSave'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {DEBOUNCE_DELAY} from '@/constants/extraBlocks'
@@ -16,7 +16,6 @@ export function useExtraBlockDebouncedSave(options: {
     countdownSeconds,
     registerExtraBlockImmediateFlush,
     registerExtraBlockDebounceApi,
-    setExtraBlockPendingCount,
   } = useScheduleWorkspace()
 
   const {blockSaveKey, blockDeleteKey} = createBlockSaveKeys(options.keyPrefix)
@@ -47,19 +46,14 @@ export function useExtraBlockDebouncedSave(options: {
     onSave: options.onFlush,
   })
 
-  watch(pendingCount, (count) => {
-    setExtraBlockPendingCount(count)
-  }, {immediate: true})
-
   onMounted(() => {
-    registerExtraBlockImmediateFlush(() => immediateFlush())
-    registerExtraBlockDebounceApi({freeze, unfreeze})
+    registerExtraBlockImmediateFlush(options.keyPrefix, () => immediateFlush())
+    registerExtraBlockDebounceApi(options.keyPrefix, {freeze, unfreeze})
   })
 
   onUnmounted(() => {
-    registerExtraBlockImmediateFlush(null)
-    registerExtraBlockDebounceApi(null)
-    setExtraBlockPendingCount(0)
+    registerExtraBlockImmediateFlush(options.keyPrefix, null)
+    registerExtraBlockDebounceApi(options.keyPrefix, null)
   })
 
   function scheduleBlockSave(block: DraftableBlock & Record<string, unknown>) {
