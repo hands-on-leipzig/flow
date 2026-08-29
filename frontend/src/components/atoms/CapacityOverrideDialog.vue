@@ -39,12 +39,18 @@ const errorText = computed(() => {
   return ''
 })
 
+function initialDraftValue(): number {
+  const current = Number(props.capacity)
+  if (!Number.isFinite(current) || current <= 0) return minBound.value
+  const rounded = Math.round(current)
+  if (rounded < minBound.value) return minBound.value
+  if (rounded > maxBound.value) return maxBound.value
+  return rounded
+}
+
 async function openDialog() {
   open.value = true
-  const current = Number(props.capacity)
-  draft.value = Number.isFinite(current) && current > 0
-      ? String(Math.round(current))
-      : String(minBound.value)
+  draft.value = String(initialDraftValue())
   await nextTick()
   inputRef.value?.focus()
   inputRef.value?.select()
