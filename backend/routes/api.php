@@ -218,7 +218,6 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/plans/{id}/extra-blocks', [ExtraBlockController::class, 'storeOrUpdate']);
     Route::delete('/extra-blocks/{id}', [ExtraBlockController::class, 'delete']);
 
-    Route::post('/plans/{planId}/extra-blocks/slot/apply-to-plan', [ExtraBlockController::class, 'slotApplyToPlan']);
     Route::get('/plans/{planId}/extra-blocks/slot', [ExtraBlockController::class, 'slotIndex']);
     Route::post('/plans/{planId}/extra-blocks/slot', [ExtraBlockController::class, 'slotStore']);
     Route::get('/plans/{planId}/extra-blocks/slot/{extraBlock}/teams', [ExtraBlockController::class, 'slotTeamAssignments']);

@@ -12,20 +12,17 @@ use App\Models\Plan;
 use App\Models\SlotBlockTeam;
 use App\Services\EventAttentionService;
 use App\Services\ExtraBlockCleanupService;
-use App\Services\SlotBlockPlanSyncService;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\ValidationException;
 
 class ExtraBlockController extends Controller
 {
     public function __construct(
         private ExtraBlockCleanupService $extraBlockCleanup,
-        private SlotBlockPlanSyncService $slotBlockPlanSync,
     ) {}
 
     /**
@@ -210,13 +207,6 @@ class ExtraBlockController extends Controller
     }
 
     // --- Slot blocks (type=slot) under unified extra-block API ---
-
-    public function slotApplyToPlan(int $planId): JsonResponse
-    {
-        $result = $this->slotBlockPlanSync->applyToPlan($planId);
-
-        return response()->json($result);
-    }
 
     public function slotIndex(int $planId): JsonResponse
     {
@@ -937,37 +927,5 @@ class ExtraBlockController extends Controller
         if ((int) $block->plan !== $planId || $block->type !== 'slot') {
             abort(404);
         }
-    }
-
-    private function firstProgramFromFlags(bool $forExplore, bool $forChallenge): int
-    {
-        if ($forExplore && $forChallenge) {
-            return FirstProgram::JOINT->value;
-        }
-        if ($forExplore) {
-            return FirstProgram::EXPLORE->value;
-        }
-        if ($forChallenge) {
-            return FirstProgram::CHALLENGE->value;
-        }
-        throw ValidationException::withMessages([
-            'for_explore' => ['Mindestens Explore oder Challenge muss aktiviert sein.'],
-        ]);
-    }
-
-    private function flagsFromFirstProgram(?int $fp): array
-    {
-        $fp = (int) $fp;
-        if ($fp === FirstProgram::JOINT->value) {
-            return ['for_explore' => true, 'for_challenge' => true];
-        }
-        if ($fp === FirstProgram::EXPLORE->value) {
-            return ['for_explore' => true, 'for_challenge' => false];
-        }
-        if ($fp === FirstProgram::CHALLENGE->value) {
-            return ['for_explore' => false, 'for_challenge' => true];
-        }
-
-        return ['for_explore' => false, 'for_challenge' => false];
     }
 }
