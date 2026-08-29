@@ -16,16 +16,25 @@ const props = withDefaults(
     size?: 'sm' | 'md'
     /** Match height of glass-input--sm date/time fields on block rows */
     matchInputHeight?: boolean
+    /**
+     * Free blocks only: show “öffentlich zeigen” in the panel and an !
+     * before the eye when enabled. Omit for slot blocks.
+     */
+    showPublicTime?: boolean
+    publicTime?: boolean
   }>(),
   {
     disabled: false,
     size: 'sm',
     matchInputHeight: false,
+    showPublicTime: false,
+    publicTime: false,
   },
 )
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: number): void
+  (e: 'update:publicTime', value: boolean): void
 }>()
 
 const popoverId = `extra-block-program-${Math.random().toString(36).slice(2, 11)}`
@@ -37,7 +46,7 @@ const {panelRef, panelStyle} = useAnchoredPanel({
   isOpen: open,
   anchor: buttonRef,
   fallbackWidth: 220,
-  fallbackHeight: 160,
+  fallbackHeight: props.showPublicTime ? 210 : 160,
   onClose: close,
 })
 
@@ -70,6 +79,10 @@ function selectValue(value: number) {
   emit('update:modelValue', value)
   close()
 }
+
+function setPublicTime(enabled: boolean) {
+  emit('update:publicTime', enabled)
+}
 </script>
 
 <template>
@@ -83,10 +96,15 @@ function selectValue(value: number) {
           'glass-input glass-input--sm liquid-surface-control extra-block-program-picker__trigger--field': matchInputHeight,
         }"
         :disabled="disabled"
-        title="Programm-Bereich wählen"
-        aria-label="Programm-Bereich wählen"
+        :title="showPublicTime && publicTime ? 'Programm-Bereich · öffentlich gezeigt' : 'Programm-Bereich wählen'"
+        :aria-label="showPublicTime && publicTime ? 'Programm-Bereich, öffentlich gezeigt' : 'Programm-Bereich wählen'"
         @click.stop="handleToggle"
     >
+      <span
+          v-if="showPublicTime && publicTime"
+          class="extra-block-program-picker__bang"
+          aria-hidden="true"
+      >!</span>
       <span class="extra-block-program-picker__eye" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
           <path
@@ -127,7 +145,7 @@ function selectValue(value: number) {
           >
             <input
                 type="radio"
-                name="extra-block-program-scope"
+                :name="`extra-block-program-scope-${popoverId}`"
                 :value="option.value"
                 :checked="normalizedValue === option.value"
                 @change="selectValue(option.value)"
@@ -143,6 +161,19 @@ function selectValue(value: number) {
             <span class="extra-block-program-picker__label">{{ option.label }}</span>
           </label>
         </fieldset>
+
+        <label
+            v-if="showPublicTime"
+            class="extra-block-program-picker__public"
+        >
+          <input
+              type="checkbox"
+              :checked="publicTime"
+              :disabled="disabled"
+              @change="setPublicTime(($event.target as HTMLInputElement).checked)"
+          />
+          <span>öffentlich zeigen</span>
+        </label>
       </div>
     </Teleport>
   </div>
@@ -186,6 +217,16 @@ function selectValue(value: number) {
 .extra-block-program-picker__trigger--disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.extra-block-program-picker__bang {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--color-accent);
 }
 
 .extra-block-program-picker__eye {
@@ -243,5 +284,22 @@ function selectValue(value: number) {
 
 .extra-block-program-picker__label {
   min-width: 0;
+}
+
+.extra-block-program-picker__public {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--color-border);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  color: var(--color-text);
+}
+
+.extra-block-program-picker__public input {
+  margin: 0;
+  flex-shrink: 0;
 }
 </style>

@@ -90,6 +90,7 @@ function toApiPayload(block: FreeExtraBlock) {
     end: block.end,
     room: block.room,
     active: block.active,
+    public_time: block.public_time === true,
   }
   if (block.id) payload.id = block.id
   return payload
@@ -166,6 +167,11 @@ function setBlockFirstProgram(block: FreeExtraBlock, value: number) {
   scheduleBlockSave(block)
 }
 
+function setBlockPublicTime(block: FreeExtraBlock, enabled: boolean) {
+  block.public_time = enabled
+  scheduleBlockSave(block)
+}
+
 function createCustom() {
   if (!props.planId) return
   const name = newBlockName.value.trim()
@@ -183,6 +189,7 @@ function createCustom() {
     description: newBlockDescription.value,
     link: newBlockLink.value.trim() || null,
     active: true,
+    public_time: false,
     start,
     end,
   }
@@ -446,8 +453,11 @@ const hasBlocksOutsideEventDates = computed(() =>
                 :model-value="b.first_program"
                 :programs="attachedPrograms"
                 :disabled="b.active === false"
+                :public-time="b.public_time === true"
+                show-public-time
                 match-input-height
                 @update:model-value="setBlockFirstProgram(b, $event)"
+                @update:public-time="setBlockPublicTime(b, $event)"
             />
           </div>
 
