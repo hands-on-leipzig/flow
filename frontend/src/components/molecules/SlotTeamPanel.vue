@@ -123,6 +123,7 @@ async function loadTeams() {
   const seq = ++loadTeamsSeq
   loadingTeams.value = true
   loadError.value = null
+  tooltipHover.value = {}
   try {
     const {data} = await axios.get<{
       teams: TeamRow[]
@@ -187,6 +188,11 @@ function wallTimeSortKey(s: string | null): string {
   return m ? `${m[1]}${m[2]}${m[3]}` : s
 }
 
+function comparePlanOrder(a: TeamRow, b: TeamRow): number {
+  if (a.first_program !== b.first_program) return a.first_program - b.first_program
+  return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
+}
+
 function compareRows(a: TeamRow, b: TeamRow): number {
   const aStart = startForSort(a)
   const bStart = startForSort(b)
@@ -204,10 +210,8 @@ function compareRows(a: TeamRow, b: TeamRow): number {
 
 const displayRows = computed(() => {
   const rows = teams.value.slice()
-  if (chronoSorted.value) {
-    return rows.sort(compareRows)
-  }
-  return rows
+  const compare = chronoSorted.value ? compareRows : comparePlanOrder
+  return rows.sort(compare)
 })
 
 const groupedRows = computed(() => {
@@ -721,7 +725,7 @@ function formatTooltipDate(slotDate: string | null): string {
   position: absolute;
   z-index: 30;
   left: 0;
-  top: calc(100% + 4px);
+  bottom: calc(100% + 4px);
   min-width: 14rem;
   max-width: 20rem;
   padding: 0.55rem 0.65rem;

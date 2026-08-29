@@ -661,8 +661,9 @@ const scopeChangeMessage = computed(() => {
   opacity: 0;
 }
 
-.slot-block--teams-open {
+:deep(.slot-block--teams-open) {
   border-color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+  overflow: visible;
 }
 
 .slot-block__teams {
