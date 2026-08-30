@@ -121,7 +121,7 @@ onMounted(async () => {
           class="pub__left"
           :style="{ flex: `0 0 ${leftWidth}%` }"
       >
-        <PublicLinkStrip/>
+        <PublicLinkStrip on-publish-page/>
 
         <section class="pub__tile glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Sichtbarkeit</h2>
