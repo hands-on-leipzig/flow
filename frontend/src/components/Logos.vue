@@ -26,6 +26,31 @@ const logoToDelete = ref(null)
 const isUploading = ref(false)
 const isDragging = ref(false)
 const leftWidth = ref(50)
+const zoomLogo = ref(null)
+const zoomStyle = ref({})
+
+function showLogoZoom(event, logo) {
+  if (isDragging.value) return
+  const rect = event.currentTarget.getBoundingClientRect()
+  const spaceAbove = rect.top
+  const preferAbove = spaceAbove > 180
+  zoomLogo.value = logo
+  zoomStyle.value = preferAbove
+      ? {
+          left: `${Math.max(8, rect.left)}px`,
+          bottom: `${window.innerHeight - rect.top + 8}px`,
+          top: 'auto',
+        }
+      : {
+          left: `${Math.max(8, rect.left)}px`,
+          top: `${rect.bottom + 8}px`,
+          bottom: 'auto',
+        }
+}
+
+function hideLogoZoom() {
+  zoomLogo.value = null
+}
 
 const fetchLogos = async ({force = false} = {}) => {
   if (force) planCache.invalidateLogos()
@@ -303,6 +328,7 @@ const aushangPreview = computed(() => {
 
 async function onManageReorderEnd() {
   isDragging.value = false
+  hideLogoZoom()
   const eventId = currentEventId.value
   if (!eventId) return
 
@@ -397,7 +423,7 @@ onMounted(async () => {
                 item-key="id"
                 filter="input, button, a, .no-drag"
                 :prevent-on-filter="true"
-                @start="isDragging = true"
+                @start="isDragging = true; hideLogoZoom()"
                 @end="onManageReorderEnd"
             >
               <template #item="{ element: logo }">
@@ -435,21 +461,25 @@ onMounted(async () => {
                   </template>
 
                   <div class="logo-card__body">
-                    <input
-                        v-model="logo.link"
-                        type="url"
-                        placeholder="https://domain.tld"
-                        class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
-                        @change="updateLogo(logo)"
-                    />
                     <button
                         type="button"
                         class="logo-card__art no-drag"
                         title="Vorschau"
                         @click="openLogoPreview(logo)"
+                        @mouseenter="showLogoZoom($event, logo)"
+                        @mouseleave="hideLogoZoom"
+                        @focus="showLogoZoom($event, logo)"
+                        @blur="hideLogoZoom"
                     >
                       <img :src="logo.url" alt="" class="logo-card__img"/>
                     </button>
+                    <input
+                        v-model="logo.link"
+                        type="url"
+                        placeholder="https://domain.tld"
+                        class="glass-input glass-input--sm liquid-surface-control logo-card__link-input"
+                        @change="updateLogo(logo)"
+                    />
                   </div>
                 </ItemCard>
               </template>
@@ -594,6 +624,17 @@ onMounted(async () => {
       </div>
     </template>
 
+    <Teleport to="body">
+      <div
+          v-if="zoomLogo && !isDragging"
+          class="logo-card__zoom"
+          :style="zoomStyle"
+          aria-hidden="true"
+      >
+        <img :src="zoomLogo.url" alt="" class="logo-card__zoom-img"/>
+      </div>
+    </Teleport>
+
     <div
         v-if="selectedLogoForPreview"
         class="glass-scrim fixed inset-0 flex items-center justify-center z-50 p-4"
@@ -711,37 +752,63 @@ onMounted(async () => {
 .logo-manage-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .logo-card__body {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+}
+
+.logo-card__link-input {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .logo-card__art {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  min-height: 6.5rem;
-  height: 6.5rem;
+  width: 3.25rem;
+  height: 2.5rem;
+  flex-shrink: 0;
   border: none;
   border-radius: calc(var(--radius) - 2px);
   background: var(--color-bg-muted);
   overflow: hidden;
-  padding: 0.5rem;
-  cursor: pointer;
-}
-
-.logo-card__art:hover {
-  opacity: 0.9;
+  padding: 0.2rem;
+  cursor: zoom-in;
 }
 
 .logo-card__img {
   width: 100%;
   height: 100%;
+  object-fit: contain;
+}
+
+/* Teleported hover zoom — fixed, above overflow clips */
+.logo-card__zoom {
+  position: fixed;
+  z-index: 10050;
+  padding: 0.45rem;
+  border-radius: var(--radius);
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 45%, transparent);
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.14),
+    0 4px 10px rgba(15, 23, 42, 0.08);
+  pointer-events: none;
+}
+
+.logo-card__zoom-img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(20rem, 70vw);
+  max-height: min(12rem, 50vh);
   object-fit: contain;
 }
 
