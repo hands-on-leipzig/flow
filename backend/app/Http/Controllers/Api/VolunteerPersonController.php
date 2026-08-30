@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Export\Spreadsheet\SpreadsheetResponse;
+use App\Export\Volunteers\VolunteerPersonSpreadsheetSource;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventStaffingAssignment;
@@ -9,13 +11,14 @@ use App\Models\EventVolunteerRoster;
 use App\Models\VolunteerPerson;
 use App\Services\VolunteerPersonImportService;
 use App\Support\GermanMobileNumber;
+use App\Support\PersonIdsFilter;
 use App\Support\VolunteerPersonColumns;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class VolunteerPersonController extends Controller
 {
@@ -171,39 +174,20 @@ class VolunteerPersonController extends Controller
         return response()->json($result);
     }
 
-    public function exportCsv(Request $request, Event $event): StreamedResponse
+    public function exportXlsx(Request $request, Event $event): Response
     {
         $scope = $request->query('scope', 'pool'); // pool | roster
-        $filename = $scope === 'roster'
-            ? 'helfer-anmeldung-'.$event->id.'.csv'
-            : 'helfer-pool-'.$event->regional_partner.'.csv';
-
-        $query = VolunteerPerson::query()
-            ->where('regional_partner', $event->regional_partner)
-            ->orderBy('last_name')
-            ->orderBy('first_name');
-
-        if ($scope === 'roster') {
-            $query->whereIn('id', EventVolunteerRoster::query()
-                ->where('event', $event->id)
-                ->select('volunteer_person'));
+        if (! in_array($scope, ['pool', 'roster'], true)) {
+            $scope = 'pool';
         }
 
-        $rows = $query->get();
-
-        $header = VolunteerPersonColumns::exportLabels();
-
-        return response()->streamDownload(function () use ($rows, $header) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, $header, ';');
-            foreach ($rows as $person) {
-                fputcsv($out, VolunteerPersonColumns::exportValues($person), ';');
-            }
-            fclose($out);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return SpreadsheetResponse::download(
+            (new VolunteerPersonSpreadsheetSource(
+                $event,
+                $scope,
+                PersonIdsFilter::parse($request),
+            ))->document()
+        );
     }
 
     private function serializePerson(VolunteerPerson $person, ?bool $onRoster, ?int $eventId): array

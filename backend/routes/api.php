@@ -6,6 +6,10 @@ use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\EventStaffingAssignmentController;
+use App\Http\Controllers\Api\EventStaffingController;
+use App\Http\Controllers\Api\EventVolunteerFieldController;
+use App\Http\Controllers\Api\EventVolunteerRosterController;
 use App\Http\Controllers\Api\EventWorkspaceController;
 use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LabelController;
@@ -15,7 +19,6 @@ use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanActivityController;
-use App\Http\Controllers\Api\PublicPlanController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanExportController;
 use App\Http\Controllers\Api\PlanGeneratorController;
@@ -23,6 +26,7 @@ use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\ProgramController;
+use App\Http\Controllers\Api\PublicPlanController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
@@ -33,17 +37,13 @@ use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\VolunteerPersonController;
-use App\Http\Controllers\Api\EventVolunteerFieldController;
-use App\Http\Controllers\Api\EventVolunteerRosterController;
-use App\Http\Controllers\Api\EventStaffingController;
-use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Models\Event;
 use App\Services\SeasonService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/ping', fn() => ['pong' => true]);
+Route::get('/ping', fn () => ['pong' => true]);
 
 Route::get('/profile', function (Illuminate\Http\Request $request) {
     return response()->json([
@@ -90,7 +90,7 @@ Route::middleware(['keycloak'])->group(function () {
         ]);
     });
 
-    Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
+    Route::get('/user', fn (Request $r) => $r->input('keycloak_user'));
     Route::get('/user/me', [UserAccessController::class, 'me']);
     Route::get('/user/access', [UserAccessController::class, 'overview']);
     Route::get('/user/access/events/{eventId}/users', [UserAccessController::class, 'eventUsers']);
@@ -99,7 +99,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::delete('/user/access/grants', [UserAccessController::class, 'revoke']);
     Route::get('/user/regional-partners', function (Request $request) {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['regional_partners' => []]);
         }
 
@@ -114,13 +114,13 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/user/selected-event', function (Request $request) {
         $user = $request->user();
         $eventId = $user?->selection_event;
-        if (!$eventId) {
+        if (! $eventId) {
             return response()->json(['selected_event' => null]);
         }
 
         $event = Event::find($eventId);
         // Past seasons are allowed (view/switch via event modal). Only clear if missing or no access.
-        if (!$event || !$user->hasEventAccess($event->id)) {
+        if (! $event || ! $user->hasEventAccess($event->id)) {
             $user->selection_event = null;
             $user->selection_regional_partner = null;
             $user->save();
@@ -154,7 +154,7 @@ Route::middleware(['keycloak'])->group(function () {
         $user = $request->user();
         $event = Event::find($validated['event']);
 
-        if (!$event) {
+        if (! $event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
 
@@ -164,7 +164,7 @@ Route::middleware(['keycloak'])->group(function () {
             ], 422);
         }
 
-        if (!$user->hasEventAccess($event->id)) {
+        if (! $user->hasEventAccess($event->id)) {
             return response()->json(['error' => 'Forbidden - no access to this event'], 403);
         }
 
@@ -263,7 +263,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/volunteers', [VolunteerPersonController::class, 'index']);
     Route::post('/events/{event}/volunteers', [VolunteerPersonController::class, 'store']);
     Route::post('/events/{event}/volunteers/import', [VolunteerPersonController::class, 'import']);
-    Route::get('/events/{event}/volunteers/export', [VolunteerPersonController::class, 'exportCsv']);
+    Route::get('/events/{event}/volunteers/export', [VolunteerPersonController::class, 'exportXlsx']);
     Route::put('/volunteers/{volunteer}', [VolunteerPersonController::class, 'update']);
     Route::delete('/volunteers/{volunteer}', [VolunteerPersonController::class, 'destroy']);
     Route::get('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'index']);
@@ -271,7 +271,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::patch('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'update']);
     Route::delete('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'destroy']);
     Route::get('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'index']);
-    Route::get('/events/{event}/volunteer-roster/export', [EventVolunteerRosterController::class, 'exportCsv']);
+    Route::get('/events/{event}/volunteer-roster/export', [EventVolunteerRosterController::class, 'exportXlsx']);
     Route::post('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'store']);
     Route::patch('/events/{event}/volunteer-roster/{volunteer}/detail', [EventVolunteerRosterController::class, 'updateDetail']);
     Route::patch('/events/{event}/volunteer-roster/{volunteer}/custom', [EventVolunteerRosterController::class, 'updateCustom']);

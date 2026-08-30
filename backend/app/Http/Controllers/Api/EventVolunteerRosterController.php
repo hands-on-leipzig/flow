@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Export\Spreadsheet\SpreadsheetResponse;
+use App\Export\Volunteers\VolunteerRosterSpreadsheetSource;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventStaffingAssignment;
@@ -10,6 +12,7 @@ use App\Models\EventVolunteerFieldValue;
 use App\Models\EventVolunteerRoster;
 use App\Models\EventVolunteerRosterDetail;
 use App\Models\VolunteerPerson;
+use App\Support\PersonIdsFilter;
 use App\Support\VolunteerRosterColumns;
 use App\Support\VolunteerRosterCustomFields;
 use App\Support\VolunteerRosterDetailFields;
@@ -17,7 +20,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class EventVolunteerRosterController extends Controller
 {
@@ -200,59 +203,14 @@ class EventVolunteerRosterController extends Controller
         ]);
     }
 
-    public function exportCsv(Request $request, Event $event): StreamedResponse
+    public function exportXlsx(Request $request, Event $event): Response
     {
-        $customFields = VolunteerRosterColumns::customFieldsForEvent($event->id);
-
-        $query = EventVolunteerRoster::query()
-            ->where('event', $event->id)
-            ->with(['person', 'detail', 'fieldValues.field']);
-
-        $personIds = $this->parsePersonIdsFilter($request);
-        if ($personIds !== null) {
-            $query->whereIn('volunteer_person', $personIds);
-        }
-
-        $rows = $query
-            ->get()
-            ->sortBy(fn (EventVolunteerRoster $row) => [
-                mb_strtolower($row->person?->last_name ?? ''),
-                mb_strtolower($row->person?->first_name ?? ''),
-            ])
-            ->values();
-
-        $assignmentsByPerson = $this->assignmentsByPerson($event->id);
-        $programNames = $this->programNameMap();
-        $header = VolunteerRosterColumns::exportLabelsForEvent($event->id);
-
-        return response()->streamDownload(function () use ($rows, $assignmentsByPerson, $programNames, $header, $event, $customFields) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, $header, ';');
-
-            foreach ($rows as $row) {
-                if (! $row->person) {
-                    continue;
-                }
-
-                $assignments = $assignmentsByPerson[$row->person->id] ?? [];
-                fputcsv(
-                    $out,
-                    VolunteerRosterColumns::exportValuesForEvent(
-                        $event->id,
-                        $row,
-                        $assignments,
-                        $programNames,
-                        $this->customValuesForRow($row, $customFields),
-                    ),
-                    ';'
-                );
-            }
-
-            fclose($out);
-        }, 'helferliste-'.$event->id.'.csv', [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return SpreadsheetResponse::download(
+            (new VolunteerRosterSpreadsheetSource(
+                $event,
+                PersonIdsFilter::parse($request),
+            ))->document()
+        );
     }
 
     public function destroy(Event $event, VolunteerPerson $volunteer): JsonResponse
@@ -288,40 +246,6 @@ class EventVolunteerRosterController extends Controller
         }
 
         return $payload;
-    }
-
-    /**
-     * @return list<int>|null  null = no filter (export all); empty list = export none
-     */
-    private function parsePersonIdsFilter(Request $request): ?array
-    {
-        if (! $request->has('person_ids')) {
-            return null;
-        }
-
-        $raw = $request->query('person_ids');
-        $parts = is_array($raw) ? $raw : explode(',', (string) $raw);
-
-        $ids = [];
-        foreach ($parts as $part) {
-            $id = (int) trim((string) $part);
-            if ($id > 0) {
-                $ids[$id] = $id;
-            }
-        }
-
-        return array_values($ids);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function programNameMap(): array
-    {
-        return DB::table('m_first_program')
-            ->pluck('name', 'id')
-            ->map(fn ($name) => (string) $name)
-            ->all();
     }
 
     /**

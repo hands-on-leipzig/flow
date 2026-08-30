@@ -113,6 +113,7 @@ final class VolunteerRosterColumns
      * @param  list<array{first_program: ?int, is_local: bool, label: string}>  $assignments
      * @param  array<int, string>  $programNames
      * @param  array<string, mixed>  $customValues
+     * @param  Collection<int, EventVolunteerField>|null  $customFields  When null, loaded for the event
      * @return list<string>
      */
     public static function exportValuesForEvent(
@@ -121,6 +122,7 @@ final class VolunteerRosterColumns
         array $assignments,
         array $programNames,
         array $customValues,
+        ?Collection $customFields = null,
     ): array {
         $person = $row->person;
         if (! $person) {
@@ -129,6 +131,7 @@ final class VolunteerRosterColumns
 
         /** @var EventVolunteerRosterDetail|null $detail */
         $detail = $row->detail;
+        $customFields ??= self::customFieldsForEvent($eventId);
 
         $values = VolunteerPersonColumns::exportValues($person);
         $values = array_merge($values, self::assignmentPairValues($assignments[0] ?? null, $programNames));
@@ -138,7 +141,7 @@ final class VolunteerRosterColumns
             VolunteerRosterDetailFields::exportMealLabel($detail?->meal),
         ]);
 
-        foreach (self::customFieldsForEvent($eventId) as $field) {
+        foreach ($customFields as $field) {
             $apiValue = $customValues[$field->field_key] ?? null;
             $stored = $apiValue === null ? null : (string) (is_bool($apiValue) ? ($apiValue ? '1' : '0') : $apiValue);
             $values[] = VolunteerRosterCustomFields::exportValue($field, $stored);

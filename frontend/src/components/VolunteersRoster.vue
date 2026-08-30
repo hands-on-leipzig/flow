@@ -138,7 +138,7 @@ function closeShirtPopup() {
   shirtAnchorEl.value = null
 }
 
-async function downloadCsv() {
+async function downloadExcel() {
   if (!eventId.value || exportBusy.value || !filteredRoster.value.length) return
   exportBusy.value = true
   try {
@@ -150,7 +150,8 @@ async function downloadCsv() {
     const url = window.URL.createObjectURL(response.data)
     const link = document.createElement('a')
     link.href = url
-    link.download = flowFilename('Helferliste', 'csv', eventStore.selectedEvent?.date)
+    link.download = response.headers['x-filename']
+      || flowFilename('Helferliste', 'xlsx', eventStore.selectedEvent?.date)
     link.click()
     window.URL.revokeObjectURL(url)
   } catch {
@@ -248,7 +249,7 @@ onMounted(() => load())
             class="glass-btn-secondary vol-upload-trigger"
             :class="{'vol-upload-trigger--active': exportBusy}"
             :disabled="!eventId || exportBusy || !filteredRoster.length"
-            @click="downloadCsv"
+            @click="downloadExcel"
         >
           <i class="bi bi-download" aria-hidden="true"/>
           {{ exportBusy ? 'Export…' : 'Download' }}

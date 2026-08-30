@@ -6,6 +6,7 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import {flowFilename} from '@/utils/flowFilename'
 
 export type VolunteerOutreachPerson = {
+  id: number
   first_name: string
   last_name: string
   email: string
@@ -28,9 +29,9 @@ const busy = ref(false)
 
 const usesCustomPeople = computed(() => props.people !== undefined)
 
-function csvFilename() {
+function excelFilename() {
   const name = props.scope === 'roster' ? 'Helferliste' : 'Personen'
-  return flowFilename(name, 'csv', eventDate.value)
+  return flowFilename(name, 'xlsx', eventDate.value)
 }
 
 function close() {
@@ -64,27 +65,6 @@ async function loadPeople(): Promise<VolunteerOutreachPerson[]> {
 
 async function fetchEmails(): Promise<string[]> {
   return uniqueEmails(await loadPeople())
-}
-
-function downloadCsvBlob(people: VolunteerOutreachPerson[]) {
-  const header = ['first_name', 'last_name', 'email', 'mobile', 'organization', 'updated_at']
-  const lines = [
-    header.join(';'),
-    ...people.map((person) => header.map((col) => csvCell(person[col as keyof VolunteerOutreachPerson])).join(';')),
-  ]
-  const blob = new Blob(['\uFEFF', lines.join('\n')], {type: 'text/csv;charset=utf-8'})
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = csvFilename()
-  link.click()
-  window.URL.revokeObjectURL(url)
-}
-
-function csvCell(value: string | null | undefined) {
-  const raw = value ?? ''
-  if (/[;"\n]/.test(raw)) return `"${raw.replace(/"/g, '""')}"`
-  return raw
 }
 
 async function copyEmails() {
@@ -122,28 +102,29 @@ async function openMailto() {
   }
 }
 
-async function downloadCsv() {
+async function downloadExcel() {
   if (!eventId.value || busy.value) return
   busy.value = true
   try {
-    if (usesCustomPeople.value) {
-      const people = await loadPeople()
-      if (!people.length) {
-        showGlassToast('Keine E-Mails', 'info')
-        return
-      }
-      downloadCsvBlob(people)
-      close()
+    const people = await loadPeople()
+    if (!people.length) {
+      showGlassToast('Keine Personen', 'info')
       return
     }
+
+    const params: Record<string, string> = {scope: props.scope}
+    if (usesCustomPeople.value) {
+      params.person_ids = people.map((person) => person.id).filter((id) => id > 0).join(',')
+    }
+
     const response = await axios.get(`/events/${eventId.value}/volunteers/export`, {
-      params: {scope: props.scope},
+      params,
       responseType: 'blob',
     })
     const url = window.URL.createObjectURL(response.data)
     const link = document.createElement('a')
     link.href = url
-    link.download = response.headers['x-filename'] || csvFilename()
+    link.download = response.headers['x-filename'] || excelFilename()
     link.click()
     window.URL.revokeObjectURL(url)
     close()
@@ -203,10 +184,10 @@ async function downloadCsv() {
               type="button"
               class="vol-email-dialog__btn"
               :disabled="busy"
-              @click="downloadCsv"
+              @click="downloadExcel"
           >
-            <i class="bi bi-filetype-csv" aria-hidden="true"/>
-            Download Excel *.csv
+            <i class="bi bi-file-earmark-excel" aria-hidden="true"/>
+            Download Excel
           </button>
         </div>
       </div>
