@@ -100,7 +100,7 @@ watch(() => props.eventId, () => resetInput())
     <h2 class="vol-import__title">Mehrere Personen einfügen</h2>
     <p class="vol-import__hint">
       Format: {{ personImportFormatHint() }}.
-      Spalten durch Tab, Komma oder Semikolon. Spitzname und Mobil optional; E-Mail Pflicht.
+      Spalten durch Tab, Komma oder Semikolon. Mobil und Organisation optional; E-Mail Pflicht.
     </p>
     <p class="vol-import__hint">
       Die E-Mail ist der Schlüssel — doppelte Adressen werden übersprungen.
@@ -110,7 +110,7 @@ watch(() => props.eventId, () => resetInput())
         v-model="inputText"
         class="vol-import__textarea"
         rows="6"
-        placeholder="Max&#9;Mustermann&#9;&#9;max@example.de&#9;0170 1234567&#10;Anna&#9;Schmidt&#9;&#9;anna@example.de&#9;"
+        placeholder="Max&#9;Mustermann&#9;max@example.de&#9;0170 1234567&#9;Musterverein&#10;Anna&#9;Schmidt&#9;anna@example.de&#9;&#9;"
         @input="updatePreview"
     />
 
@@ -127,9 +127,9 @@ watch(() => props.eventId, () => resetInput())
             <tr v-for="(row, idx) in previewRows" :key="`preview-${idx}`">
               <td>{{ row.first_name }}</td>
               <td>{{ row.last_name }}</td>
-              <td>{{ row.nickname || '—' }}</td>
               <td>{{ row.email }}</td>
               <td>{{ row.mobile || '—' }}</td>
+              <td>{{ row.organization || '—' }}</td>
             </tr>
           </tbody>
         </table>

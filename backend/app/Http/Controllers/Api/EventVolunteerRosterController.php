@@ -56,9 +56,9 @@ class EventVolunteerRosterController extends Controller
                     'id' => $person->id,
                     'first_name' => $person->first_name,
                     'last_name' => $person->last_name,
-                    'nickname' => $person->nickname,
                     'email' => $person->email,
                     'mobile' => $person->mobile,
+                    'organization' => $person->organization,
                     'updated_at' => optional($person->updated_at)?->toIso8601String(),
                 ],
             ];

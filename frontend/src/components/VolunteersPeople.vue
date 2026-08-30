@@ -36,9 +36,9 @@ const importOpen = ref(false)
 const draft = ref({
   first_name: '',
   last_name: '',
-  nickname: '',
   email: '',
   mobile: '',
+  organization: '',
 })
 const editingId = ref<number | null>(null)
 const draftMobileError = ref('')
@@ -54,9 +54,9 @@ function columnColClass(key: string) {
   const classes: Record<string, string> = {
     first_name: 'vol-col--first',
     last_name: 'vol-col--last',
-    nickname: 'vol-col--nick',
     email: 'vol-col--email',
     mobile: 'vol-col--mobile',
+    organization: 'vol-col--org',
     updated_at: 'vol-col--updated',
   }
   return classes[key] ?? ''
@@ -153,7 +153,7 @@ function clearDraftMobileError() {
 }
 
 function resetDraft() {
-  draft.value = {first_name: '', last_name: '', nickname: '', email: '', mobile: ''}
+  draft.value = {first_name: '', last_name: '', email: '', mobile: '', organization: ''}
   draftMobileError.value = ''
   editingId.value = null
 }
@@ -181,9 +181,9 @@ function startEdit(p: Person) {
   draft.value = {
     first_name: p.first_name,
     last_name: p.last_name,
-    nickname: p.nickname ?? '',
     email: p.email,
     mobile: p.mobile ?? '',
+    organization: p.organization ?? '',
   }
   draftMobileError.value = ''
   document.querySelector('.vol-composer')?.scrollIntoView({behavior: 'smooth', block: 'nearest'})
@@ -204,9 +204,9 @@ async function submitPerson() {
   const payload = {
     first_name: draft.value.first_name.trim(),
     last_name: draft.value.last_name.trim(),
-    nickname: draft.value.nickname.trim() || null,
     email: draft.value.email.trim(),
     mobile: mobileResult.normalized,
+    organization: draft.value.organization.trim() || null,
   }
   try {
     if (editingId.value) {
@@ -364,13 +364,6 @@ onMounted(() => load())
               </td>
               <td>
                 <input
-                    v-model="draft.nickname"
-                    class="glass-input glass-input--sm"
-                    placeholder="Spitzname"
-                />
-              </td>
-              <td>
-                <input
                     v-model="draft.email"
                     class="glass-input glass-input--sm"
                     type="email"
@@ -389,6 +382,13 @@ onMounted(() => load())
                     :title="draftMobileError || undefined"
                     @input="clearDraftMobileError"
                     @blur="onDraftMobileBlur"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="draft.organization"
+                    class="glass-input glass-input--sm"
+                    placeholder="Organisation"
                 />
               </td>
               <td class="vol-table__updated"/>
@@ -509,9 +509,9 @@ onMounted(() => load())
               </td>
               <td>{{ p.first_name }}</td>
               <td>{{ p.last_name }}</td>
-              <td>{{ p.nickname?.trim() || '—' }}</td>
               <td>{{ p.email }}</td>
               <td>{{ p.mobile?.trim() || '—' }}</td>
+              <td>{{ p.organization?.trim() || '—' }}</td>
               <td class="vol-table__updated">{{ formatUpdatedAt(p.updated_at) }}</td>
               <td class="vol-table__actions">
                 <button

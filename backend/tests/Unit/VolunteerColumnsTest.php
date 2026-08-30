@@ -39,9 +39,9 @@ class VolunteerColumnsTest extends TestCase
             [
                 'Vorname',
                 'Nachname',
-                'Spitzname',
                 'E-Mail',
                 'Mobil',
+                'Organisation',
                 'Letzte Änderung',
             ],
             VolunteerPersonColumns::exportLabels(),
@@ -53,7 +53,7 @@ class VolunteerColumnsTest extends TestCase
         $keys = array_column(VolunteerPersonColumns::tablePayload(), 'key');
 
         $this->assertSame(
-            ['first_name', 'last_name', 'nickname', 'email', 'mobile', 'updated_at'],
+            ['first_name', 'last_name', 'email', 'mobile', 'organization', 'updated_at'],
             $keys,
         );
     }
@@ -93,9 +93,9 @@ class VolunteerColumnsTest extends TestCase
             [
                 'Vorname',
                 'Nachname',
-                'Spitzname',
                 'E-Mail',
                 'Mobil',
+                'Organisation',
                 'Letzte Änderung',
                 'Zuordnung 1 Programm',
                 'Zuordnung 1 Rolle',

@@ -12,9 +12,9 @@ final class VolunteerPersonColumns
     private const DEFINITIONS = [
         ['key' => 'first_name', 'label' => 'Vorname', 'table' => true, 'export' => true, 'sortable' => true],
         ['key' => 'last_name', 'label' => 'Nachname', 'table' => true, 'export' => true, 'sortable' => true],
-        ['key' => 'nickname', 'label' => 'Spitzname', 'table' => true, 'export' => true],
         ['key' => 'email', 'label' => 'E-Mail', 'table' => true, 'export' => true],
         ['key' => 'mobile', 'label' => 'Mobil', 'table' => true, 'export' => true],
+        ['key' => 'organization', 'label' => 'Organisation', 'table' => true, 'export' => true],
         ['key' => 'updated_at', 'label' => 'Letzte Änderung', 'table' => true, 'export' => true],
     ];
 
@@ -50,9 +50,9 @@ final class VolunteerPersonColumns
         return [
             $person->first_name,
             $person->last_name,
-            $person->nickname ?? '',
             $person->email,
             $person->mobile ?? '',
+            $person->organization ?? '',
             optional($person->updated_at)?->toIso8601String() ?? '',
         ];
     }
