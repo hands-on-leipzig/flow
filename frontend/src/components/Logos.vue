@@ -32,19 +32,19 @@ const zoomStyle = ref({})
 function showLogoZoom(event, logo) {
   if (isDragging.value) return
   const rect = event.currentTarget.getBoundingClientRect()
-  const spaceAbove = rect.top
-  const preferAbove = spaceAbove > 180
+  const spaceBelow = window.innerHeight - rect.bottom
+  const preferBelow = spaceBelow > 120
   zoomLogo.value = logo
-  zoomStyle.value = preferAbove
+  zoomStyle.value = preferBelow
       ? {
-          left: `${Math.max(8, rect.left)}px`,
-          bottom: `${window.innerHeight - rect.top + 8}px`,
-          top: 'auto',
-        }
-      : {
           left: `${Math.max(8, rect.left)}px`,
           top: `${rect.bottom + 8}px`,
           bottom: 'auto',
+        }
+      : {
+          left: `${Math.max(8, rect.left)}px`,
+          bottom: `${window.innerHeight - rect.top + 8}px`,
+          top: 'auto',
         }
 }
 
@@ -54,7 +54,45 @@ function hideLogoZoom() {
 
 const fetchLogos = async ({force = false} = {}) => {
   if (force) planCache.invalidateLogos()
-  logos.value = await planCache.getLogos()
+  const data = await planCache.getLogos()
+  const eventId = currentEventId.value
+  const previousIds = logos.value.map((logo) => logo.id)
+
+  if (previousIds.length === 0) {
+    // First load: assigned by sort_order, then the rest (stable). Later toggles keep list order.
+    logos.value = orderLogosForInitialManage(data, eventId)
+    return
+  }
+
+  // Keep the user's list order; only refresh logo payloads (and append new ids).
+  const byId = new Map(data.map((logo) => [logo.id, logo]))
+  const next = []
+  for (const id of previousIds) {
+    const logo = byId.get(id)
+    if (logo) {
+      next.push(logo)
+      byId.delete(id)
+    }
+  }
+  for (const logo of byId.values()) {
+    next.push(logo)
+  }
+  logos.value = next
+}
+
+/** Initial manage order only — never used to reshuffle after toggle. */
+function orderLogosForInitialManage(list, eventId) {
+  if (!eventId) return list
+  return [...list].sort((a, b) => {
+    const aEvent = (a.events || []).find((e) => e.id === eventId)
+    const bEvent = (b.events || []).find((e) => e.id === eventId)
+    if (aEvent && bEvent) {
+      return (aEvent.pivot?.sort_order || 0) - (bEvent.pivot?.sort_order || 0)
+    }
+    if (aEvent && !bEvent) return -1
+    if (!aEvent && bEvent) return 1
+    return (a.id || 0) - (b.id || 0)
+  })
 }
 
 const uploadLogo = async () => {
@@ -147,6 +185,19 @@ const toggleEventLogo = async (logo) => {
       event_id: currentEvent.id
     })
     await fetchLogos({force: true})
+    // Keep visual list order; renumber assigned sort_order to match it.
+    const assignedInOrder = logos.value.filter((item) =>
+        (item.events || []).some((e) => e.id === currentEvent.id)
+    )
+    applyLocalSortOrder(assignedInOrder, currentEvent.id)
+    planCache.invalidateLogos()
+    await axios.post('/logos/update-sort-order', {
+      event_id: currentEvent.id,
+      logo_orders: assignedInOrder.map((item, index) => ({
+        logo_id: item.id,
+        sort_order: index,
+      })),
+    })
   } catch (error) {
     console.error('Error toggling logo event:', error)
   }
@@ -248,35 +299,13 @@ const closeLogoPreview = () => {
   selectedLogoForPreview.value = null
 }
 
-const sortedLogos = computed(() => {
-  const currentEvent = selectedEvent.value || eventStore.selectedEvent
-  if (!currentEvent) {
-    return logos.value
-  }
-
-  return [...logos.value].sort((a, b) => {
-    const aEvent = a.events.find(e => e.id === currentEvent.id)
-    const bEvent = b.events.find(e => e.id === currentEvent.id)
-
-    if (aEvent && bEvent) {
-      const aOrder = aEvent.pivot?.sort_order || 0
-      const bOrder = bEvent.pivot?.sort_order || 0
-      return aOrder - bOrder
-    }
-
-    if (aEvent && !bEvent) return -1
-    if (!aEvent && bEvent) return 1
-
-    return 0
-  })
-})
-
-/** Full manage list (assigned first) — writable for vuedraggable. */
+/** Manage list order is logos.value — drag reorders; toggle must not reshuffle. */
 const manageLogosList = computed({
   get() {
-    return sortedLogos.value
+    return logos.value
   },
   set(ordered) {
+    logos.value = ordered
     const eventId = currentEventId.value
     if (!eventId) return
     const assignedInOrder = ordered.filter((logo) =>
@@ -286,11 +315,11 @@ const manageLogosList = computed({
   },
 })
 
-/** Assigned logos only — drives right-side usage previews. */
+/** Assigned logos in manage-list order — drives right-side usage previews. */
 const assignedLogosList = computed(() => {
   const eventId = currentEventId.value
   if (!eventId) return []
-  return sortedLogos.value.filter((logo) =>
+  return logos.value.filter((logo) =>
       (logo.events || []).some((e) => e.id === eventId)
   )
 })
