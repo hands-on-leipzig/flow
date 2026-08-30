@@ -7,6 +7,7 @@ import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {useAuth} from '@/composables/useAuth'
+import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 
@@ -22,6 +23,7 @@ const detailLevel = ref(0)
 const showQr = ref(false)
 const iframeKey = ref(0)
 const iframeLoading = ref(true)
+const leftWidth = ref(32)
 
 const levels = [
   {id: 0, short: 'Basis', name: 'Planung und Anmeldung', hint: 'Datum, Ort, Kontakt, Teams'},
@@ -148,10 +150,13 @@ onMounted(async () => {
     </header>
 
     <div class="pub__shell">
-      <aside class="glass-card liquid-surface-inner pub__controls">
-        <div class="pub__section">
+      <section
+          class="pub__left"
+          :style="{ flex: `0 0 ${leftWidth}%` }"
+      >
+        <section class="pub__tile glass-card liquid-surface-inner">
           <div class="pub__label-row">
-            <span class="pub__label">Link</span>
+            <h2 class="glass-card__heading !mb-0">Link</h2>
             <button
                 v-if="qrSrc"
                 type="button"
@@ -211,10 +216,10 @@ onMounted(async () => {
           <div v-if="showQr && qrSrc" class="pub__qr-box liquid-surface-inner">
             <img :src="qrSrc" alt="QR-Code zur öffentlichen Seite" class="pub__qr"/>
           </div>
-        </div>
+        </section>
 
-        <div class="pub__section">
-          <span class="pub__label">Sichtbarkeit</span>
+        <section class="pub__tile glass-card liquid-surface-inner">
+          <h2 class="glass-card__heading">Sichtbarkeit</h2>
           <div class="pub__levels" role="radiogroup" aria-label="Sichtbarkeitsstufe">
             <button
                 v-for="level in levels"
@@ -232,12 +237,20 @@ onMounted(async () => {
               </span>
               <span class="pub__level-copy">
                 <span class="pub__level-name">{{ level.name }}</span>
-                <span class="pub__level-hint">{{ level.hint }}</span>
+                <span class="glass-settings-hint !mb-0">{{ level.hint }}</span>
               </span>
             </button>
           </div>
-        </div>
-      </aside>
+        </section>
+      </section>
+
+      <PanelSplitter
+          v-model="leftWidth"
+          class="hidden md:flex pub__splitter"
+          :min="24"
+          :max="48"
+          storage-key="flow-publish-split"
+      />
 
       <section
           class="glass-card liquid-surface-inner pub__preview"
@@ -299,6 +312,38 @@ onMounted(async () => {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
+.pub__shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: stretch;
+  flex: 1;
+  min-height: min(64vh, 42rem);
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .pub__shell {
+    flex-direction: row;
+    gap: 0.55rem;
+  }
+}
+
+.pub__left {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+@media (max-width: 767px) {
+  .pub__left {
+    flex: 1 1 auto !important;
+  }
+}
+
 .pub__intro {
   display: flex;
   flex-direction: column;
@@ -312,32 +357,28 @@ onMounted(async () => {
   letter-spacing: -0.02em;
 }
 
-.pub__shell {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-  align-items: stretch;
-  flex: 1;
-  min-height: min(64vh, 42rem);
-}
-
-@media (min-width: 960px) {
-  .pub__shell {
-    grid-template-columns: minmax(17rem, 20.5rem) minmax(0, 1fr);
-  }
-}
-
-.pub__controls {
+.pub__tile {
   display: flex;
   flex-direction: column;
-  gap: 1.35rem;
+  gap: 0.65rem;
+}
+
+.pub__preview {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 28rem;
   min-width: 0;
+  padding: 0 !important;
+  overflow: hidden;
 }
 
-.pub__section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
+@media (min-width: 768px) {
+  .pub__preview {
+    min-height: 0;
+    height: auto;
+    align-self: stretch;
+  }
 }
 
 .pub__label-row {
@@ -345,14 +386,6 @@ onMounted(async () => {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-}
-
-.pub__label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-subtle);
 }
 
 .pub__qr-toggle {
@@ -486,28 +519,6 @@ onMounted(async () => {
   font-weight: 700;
   color: var(--color-text);
   line-height: 1.25;
-}
-
-.pub__level-hint {
-  font-size: 0.76rem;
-  color: var(--color-text-muted);
-  line-height: 1.3;
-}
-
-.pub__preview {
-  display: flex;
-  flex-direction: column;
-  min-height: 28rem;
-  min-width: 0;
-  padding: 0 !important;
-  overflow: hidden;
-}
-
-@media (min-width: 960px) {
-  .pub__preview {
-    min-height: 0;
-    height: 100%;
-  }
 }
 
 .pub__preview-bar {
