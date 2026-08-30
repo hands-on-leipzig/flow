@@ -2,12 +2,12 @@
 
 namespace App\Export\Spreadsheet;
 
+use Carbon\Carbon;
 use DateTimeInterface;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Table;
 use PhpOffice\PhpSpreadsheet\Worksheet\Table\TableStyle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -88,7 +88,7 @@ final class PhpSpreadsheetWriter implements SpreadsheetWriter
     {
         $table = new Table([1, 1, $colCount, $lastRow], $this->uniqueTableName($sheetTitle));
         $style = new TableStyle;
-        $style->setTheme(TableStyle::TABLE_STYLE_MEDIUM2);
+        $style->setTheme(TableStyle::TABLE_STYLE_MEDIUM7);
         $style->setShowRowStripes(true);
         $table->setStyle($style);
         $worksheet->addTable($table);
@@ -154,16 +154,35 @@ final class PhpSpreadsheetWriter implements SpreadsheetWriter
         mixed $value,
     ): void {
         $cell = $worksheet->getCell([$columnIndex, $rowNumber]);
+        $dateTime = $this->normalizeDateTime($value);
 
-        if ($value instanceof DateTimeInterface) {
-            $cell->setValue(ExcelDate::PHPToExcel($value));
-            $cell->getStyle()->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_DATE_DATETIME);
+        if ($dateTime === null) {
+            $cell->setValueExplicit($value === null || $value === '' ? '' : (string) $value, DataType::TYPE_STRING);
 
             return;
         }
 
-        // Fallback: keep as formula-safe string when not a DateTimeInterface
-        $cell->setValueExplicit((string) $value, DataType::TYPE_STRING);
+        // Excel serial + local display; Europe/Berlin matches FlowFilename / DE users
+        $local = Carbon::instance($dateTime)->timezone('Europe/Berlin');
+        $cell->setValue(ExcelDate::PHPToExcel($local));
+        $cell->getStyle()->getNumberFormat()->setFormatCode('DD.MM.YYYY HH:MM');
+    }
+
+    private function normalizeDateTime(mixed $value): ?DateTimeInterface
+    {
+        if ($value instanceof DateTimeInterface) {
+            return $value;
+        }
+
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function safeSheetTitle(string $title): string

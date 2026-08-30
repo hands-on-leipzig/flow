@@ -15,7 +15,7 @@ final class VolunteerPersonColumns
         ['key' => 'email', 'label' => 'E-Mail', 'table' => true, 'export' => true],
         ['key' => 'mobile', 'label' => 'Mobil', 'table' => true, 'export' => true],
         ['key' => 'organization', 'label' => 'Organisation', 'table' => true, 'export' => true],
-        ['key' => 'updated_at', 'label' => 'Letzte Änderung', 'table' => true, 'export' => true],
+        ['key' => 'updated_at', 'label' => 'Letzte Änderung', 'table' => true, 'export' => true, 'type' => 'datetime'],
     ];
 
     /**
@@ -43,7 +43,7 @@ final class VolunteerPersonColumns
     }
 
     /**
-     * @return list<string>
+     * @return list<mixed>
      */
     public static function exportValues(VolunteerPerson $person): array
     {
@@ -53,7 +53,7 @@ final class VolunteerPersonColumns
             $person->email,
             $person->mobile ?? '',
             $person->organization ?? '',
-            optional($person->updated_at)?->toIso8601String() ?? '',
+            $person->updated_at,
         ];
     }
 }

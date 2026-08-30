@@ -34,7 +34,7 @@ final class VolunteerPersonSpreadsheetSource implements SpreadsheetSource
             $columns[] = new SpreadsheetColumn(
                 $definition['key'],
                 $definition['label'],
-                SpreadsheetColumnType::String,
+                SpreadsheetColumnType::fromDefinition($definition['type'] ?? null),
             );
         }
 

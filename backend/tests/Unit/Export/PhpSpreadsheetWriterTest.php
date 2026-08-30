@@ -87,4 +87,45 @@ class PhpSpreadsheetWriterTest extends TestCase
             @unlink($tmp);
         }
     }
+
+    #[Test]
+    public function it_writes_datetimes_as_excel_serial_values(): void
+    {
+        $when = \Carbon\Carbon::parse('2026-08-30 15:45:00', 'UTC');
+
+        $document = new SpreadsheetDocument(
+            'Dates',
+            '30.08.26',
+            [
+                new SpreadsheetSheet(
+                    'Dates',
+                    [
+                        new SpreadsheetColumn('changed', 'Letzte Änderung', SpreadsheetColumnType::Date),
+                    ],
+                    [
+                        [$when],
+                        ['2026-08-30T17:45:00+02:00'],
+                    ],
+                ),
+            ],
+        );
+
+        $binary = (new PhpSpreadsheetWriter)->write($document);
+        $tmp = tempnam(sys_get_temp_dir(), 'flow-xlsx-date-');
+        $this->assertNotFalse($tmp);
+        file_put_contents($tmp, $binary);
+
+        try {
+            $sheet = IOFactory::load($tmp)->getActiveSheet();
+            $cell = $sheet->getCell('A2');
+            $this->assertSame(DataType::TYPE_NUMERIC, $cell->getDataType());
+            $this->assertSame('DD.MM.YYYY HH:MM', $cell->getStyle()->getNumberFormat()->getFormatCode());
+            $this->assertIsFloat($cell->getValue());
+
+            $parsed = $sheet->getCell('A3');
+            $this->assertSame(DataType::TYPE_NUMERIC, $parsed->getDataType());
+        } finally {
+            @unlink($tmp);
+        }
+    }
 }
