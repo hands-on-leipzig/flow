@@ -15,6 +15,8 @@ import {staffingSummaryFromReadiness, type StaffingScopeSummary} from '@/utils/v
 import VolunteerStaffingSummary from '@/components/volunteers/VolunteerStaffingSummary.vue'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
 import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
+import {apiError} from '@/utils/apiError'
 
 defineOptions({name: 'HomeOverview'})
 
@@ -138,6 +140,28 @@ async function loadOverviewData() {
   const eventId = event.value.id
 
   try {
+    let ensure: {
+      plan_id?: number
+      existing?: boolean
+      generated?: boolean
+      staffing_synced?: boolean
+      locked?: boolean
+    } | null = null
+
+    try {
+      const {data} = await axios.post(`/events/${eventId}/ensure-workspace`)
+      ensure = data
+      planCache.invalidatePlan()
+      if (ensure?.generated || ensure?.staffing_synced) {
+        const parts: string[] = []
+        if (ensure.generated) parts.push('Ablauf wurde erzeugt')
+        if (ensure.staffing_synced) parts.push('Helfer-Rollen wurden angelegt')
+        showGlassToast(parts.join('. ') + '.', 'success')
+      }
+    } catch (e: unknown) {
+      showGlassToast(apiError(e, 'Workspace konnte nicht vorbereitet werden'), 'error')
+    }
+
     const [drahtRes, planRes, publishRes] = await Promise.allSettled([
       planCache.getDrahtData(eventId),
       planCache.getPlan(eventId),
@@ -160,7 +184,13 @@ async function loadOverviewData() {
       }))
     }
 
-    hasPlan.value = planRes.status === 'fulfilled' && !!planRes.value?.id
+    // "Ablauf bereit" = activity_group exists (existing), not merely a plan row
+    if (ensure && typeof ensure.existing === 'boolean') {
+      hasPlan.value = ensure.existing
+    } else {
+      hasPlan.value =
+          planRes.status === 'fulfilled' && !!(planRes.value?.existing ?? planRes.value?.id)
+    }
     publicationLevel.value =
         publishRes.status === 'fulfilled' ? (publishRes.value.data?.level ?? 1) : null
   } finally {
