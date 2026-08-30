@@ -335,7 +335,44 @@ class PublishController extends Controller
             $plan = $this->importantTimesPayload($eventId);
         }
 
-        return response()->json(\App\Support\PublicSchedulePayload::from($event, $drahtData, $level, $plan));
+        $payload = \App\Support\PublicSchedulePayload::from($event, $drahtData, $level, $plan);
+
+        if ($level < 4 && (bool) $event->public_helper_search) {
+            $payload['helper_search'] = \App\Support\PublicHelperSearchPayload::forEvent($event);
+        }
+
+        return response()->json($payload);
+    }
+
+    public function getPublicHelperSearch(int $eventId): JsonResponse
+    {
+        $event = Event::find($eventId);
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        return response()->json([
+            'event_id' => $eventId,
+            'public_helper_search' => (bool) $event->public_helper_search,
+        ]);
+    }
+
+    public function setPublicHelperSearch(int $eventId, Request $request): JsonResponse
+    {
+        $event = Event::find($eventId);
+        if (!$event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        $enabled = $request->boolean('public_helper_search');
+        $event->public_helper_search = $enabled;
+        $event->save();
+
+        return response()->json([
+            'success' => true,
+            'event_id' => $eventId,
+            'public_helper_search' => (bool) $event->public_helper_search,
+        ]);
     }
 
     /**

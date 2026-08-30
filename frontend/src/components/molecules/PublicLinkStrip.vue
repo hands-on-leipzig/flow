@@ -3,31 +3,23 @@ import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
-import {useAnchoredPanel} from '@/composables/useAnchoredPanel'
-import {useInfoPopover} from '@/composables/useInfoPopover'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {flowFilename} from '@/utils/flowFilename'
 
 defineOptions({name: 'PublicLinkStrip'})
+
+const props = withDefaults(defineProps<{
+  /** On Veröffentlichung: say “hier” instead of linking to this screen. */
+  onPublishPage?: boolean
+}>(), {
+  onPublishPage: false,
+})
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 
 const linkLoading = ref(false)
 const showQrModal = ref(false)
-
-const popoverId = 'public-link-strip-help'
-const {toggle, isOpen, close} = useInfoPopover()
-const helpOpen = computed(() => isOpen(popoverId))
-const helpButtonRef = ref<HTMLElement | null>(null)
-
-const {panelRef, panelStyle} = useAnchoredPanel({
-  isOpen: helpOpen,
-  anchor: helpButtonRef,
-  fallbackWidth: 288,
-  fallbackHeight: 120,
-  onClose: close,
-})
 
 function normalizeLink(raw: string | null | undefined): string {
   if (!raw) return ''
@@ -99,10 +91,6 @@ function openQrModal() {
   showQrModal.value = true
 }
 
-function toggleHelp() {
-  toggle(popoverId)
-}
-
 watch(
     () => event.value?.id,
     (id) => {
@@ -118,19 +106,7 @@ onMounted(() => {
 <template>
   <div class="glass-card liquid-surface-inner public-link-strip">
     <div class="public-link-strip__row">
-      <div class="public-link-strip__label-group shrink-0">
-        <h2 class="glass-card__title !mb-0">Öffentlicher Link</h2>
-        <button
-            ref="helpButtonRef"
-            type="button"
-            class="public-link-strip__info"
-            title="Mehr Informationen"
-            aria-label="Mehr Informationen zum öffentlichen Link"
-            @click.stop="toggleHelp"
-        >
-          ⓘ
-        </button>
-      </div>
+      <h2 class="glass-card__title !mb-0 shrink-0">Öffentlicher Link</h2>
 
       <a
           v-if="publicUrl && !linkLoading"
@@ -180,24 +156,16 @@ onMounted(() => {
       </div>
     </div>
 
-    <Teleport to="body">
-      <div
-          v-if="helpOpen"
-          ref="panelRef"
-          class="public-link-strip__help-panel"
-          :style="panelStyle"
-          role="tooltip"
-      >
-        Dieser Link führt zum öffentlichen Zeitplan. Was angezeigt wird, wird unter
-        <RouterLink
-            to="/plan/publish"
-            class="public-link-strip__help-link"
-            @click="close"
-        >Ausgabe → Veröffentlichung</RouterLink>
-        festgelegt. Der Link bleibt unverändert — er sollte immer verwendet werden, wenn es um Ablauf und Zeiten geht,
-        damit niemand veraltete Informationen erhält.
-      </div>
-    </Teleport>
+    <p class="public-link-strip__hint glass-settings-hint !mb-0">
+      Dieser Link führt zum öffentlichen Zeitplan. Was angezeigt wird, wird
+      <template v-if="props.onPublishPage"><strong>hier</strong></template>
+      <template v-else>
+        unter
+        <RouterLink to="/plan/publish" class="public-link-strip__hint-link">Ausgabe → Veröffentlichung</RouterLink>
+      </template>
+      festgelegt. Der Link bleibt unverändert — er sollte immer verwendet werden, wenn es um Ablauf und Zeiten geht,
+      damit niemand veraltete Informationen erhält.
+    </p>
 
     <Teleport to="body">
       <div
@@ -236,6 +204,9 @@ onMounted(() => {
 
 <style scoped>
 .public-link-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
   padding: 0.55rem 0.75rem;
 }
 
@@ -244,26 +215,6 @@ onMounted(() => {
   align-items: center;
   gap: 0.65rem;
   min-width: 0;
-}
-
-.public-link-strip__label-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.public-link-strip__info {
-  border: none;
-  background: transparent;
-  padding: 0;
-  line-height: 1;
-  font-size: 0.9rem;
-  color: var(--color-text-subtle);
-  cursor: pointer;
-}
-
-.public-link-strip__info:hover {
-  color: var(--color-accent);
 }
 
 .public-link-strip__actions {
@@ -282,27 +233,17 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-.public-link-strip__help-panel {
-  z-index: 4000;
-  width: 18rem;
-  max-width: calc(100vw - 1rem);
-  padding: 0.55rem 0.7rem;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: #fff;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
-  font-size: 0.875rem;
+.public-link-strip__hint {
   line-height: 1.45;
-  color: var(--color-text-muted);
 }
 
-.public-link-strip__help-link {
+.public-link-strip__hint-link {
   color: var(--color-accent);
   font-weight: 600;
   text-decoration: none;
 }
 
-.public-link-strip__help-link:hover {
+.public-link-strip__hint-link:hover {
   text-decoration: underline;
 }
 

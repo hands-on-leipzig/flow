@@ -1,13 +1,17 @@
 <script setup>
 import {ref, onMounted, computed} from 'vue'
 import axios from 'axios'
+import draggable from 'vuedraggable'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
+import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {programLogoSrc, seasonLogoSrc} from '@/utils/images'
+import {buildAushangRows} from '@/utils/logoPreviewLayout'
 
 defineOptions({name: 'Logos'})
 
@@ -20,16 +24,75 @@ const fileInput = ref(null)
 const selectedLogoForPreview = ref(null)
 const logoToDelete = ref(null)
 const isUploading = ref(false)
-
-// Drag and drop state
-const draggedLogo = ref(null)
-const draggedOverLogo = ref(null)
-const dropPosition = ref(null) // 'before' or 'after'
 const isDragging = ref(false)
+const leftWidth = ref(50)
+const zoomLogo = ref(null)
+const zoomStyle = ref({})
+
+function showLogoZoom(event, logo) {
+  if (isDragging.value) return
+  const rect = event.currentTarget.getBoundingClientRect()
+  const spaceBelow = window.innerHeight - rect.bottom
+  const preferBelow = spaceBelow > 120
+  zoomLogo.value = logo
+  zoomStyle.value = preferBelow
+      ? {
+          left: `${Math.max(8, rect.left)}px`,
+          top: `${rect.bottom + 8}px`,
+          bottom: 'auto',
+        }
+      : {
+          left: `${Math.max(8, rect.left)}px`,
+          bottom: `${window.innerHeight - rect.top + 8}px`,
+          top: 'auto',
+        }
+}
+
+function hideLogoZoom() {
+  zoomLogo.value = null
+}
 
 const fetchLogos = async ({force = false} = {}) => {
   if (force) planCache.invalidateLogos()
-  logos.value = await planCache.getLogos()
+  const data = await planCache.getLogos()
+  const eventId = currentEventId.value
+  const previousIds = logos.value.map((logo) => logo.id)
+
+  if (previousIds.length === 0) {
+    // First load: assigned by sort_order, then the rest (stable). Later toggles keep list order.
+    logos.value = orderLogosForInitialManage(data, eventId)
+    return
+  }
+
+  // Keep the user's list order; only refresh logo payloads (and append new ids).
+  const byId = new Map(data.map((logo) => [logo.id, logo]))
+  const next = []
+  for (const id of previousIds) {
+    const logo = byId.get(id)
+    if (logo) {
+      next.push(logo)
+      byId.delete(id)
+    }
+  }
+  for (const logo of byId.values()) {
+    next.push(logo)
+  }
+  logos.value = next
+}
+
+/** Initial manage order only — never used to reshuffle after toggle. */
+function orderLogosForInitialManage(list, eventId) {
+  if (!eventId) return list
+  return [...list].sort((a, b) => {
+    const aEvent = (a.events || []).find((e) => e.id === eventId)
+    const bEvent = (b.events || []).find((e) => e.id === eventId)
+    if (aEvent && bEvent) {
+      return (aEvent.pivot?.sort_order || 0) - (bEvent.pivot?.sort_order || 0)
+    }
+    if (aEvent && !bEvent) return -1
+    if (!aEvent && bEvent) return 1
+    return (a.id || 0) - (b.id || 0)
+  })
 }
 
 const uploadLogo = async () => {
@@ -41,7 +104,6 @@ const uploadLogo = async () => {
     return
   }
 
-  // Validate file
   if (uploadFile.value.size > 2 * 1024 * 1024) {
     showGlassToast('Datei ist zu groß. Maximum: 2MB', 'error')
     return
@@ -64,20 +126,17 @@ const uploadLogo = async () => {
 
     await fetchLogos({force: true})
 
-    // Automatically toggle the uploaded logo on for the current event
     if (currentEvent?.id && uploadedLogo?.id) {
       try {
         await axios.post(`/logos/${uploadedLogo.id}/toggle-event`, {
           event_id: currentEvent.id
         })
-        await fetchLogos({force: true}) // Refresh to update the toggle state
+        await fetchLogos({force: true})
       } catch (toggleError) {
         console.error('Error toggling logo after upload:', toggleError)
-        // Don't fail the whole operation if toggle fails
       }
     }
 
-    // Clear the file input after successful upload
     uploadFile.value = null
     if (fileInput.value) {
       fileInput.value.value = ''
@@ -96,15 +155,12 @@ const uploadLogo = async () => {
 
 const updateLogo = async (logo) => {
   try {
-    // Normalize link to always start with https://
     let normalizedLink = logo.link
     if (normalizedLink && normalizedLink.trim()) {
       normalizedLink = normalizedLink.trim()
-      // If it doesn't start with http:// or https://, prepend https://
       if (!normalizedLink.match(/^https?:\/\//i)) {
         normalizedLink = 'https://' + normalizedLink
       }
-      // Update the logo object to reflect the normalized link
       logo.link = normalizedLink
     }
 
@@ -129,6 +185,19 @@ const toggleEventLogo = async (logo) => {
       event_id: currentEvent.id
     })
     await fetchLogos({force: true})
+    // Keep visual list order; renumber assigned sort_order to match it.
+    const assignedInOrder = logos.value.filter((item) =>
+        (item.events || []).some((e) => e.id === currentEvent.id)
+    )
+    applyLocalSortOrder(assignedInOrder, currentEvent.id)
+    planCache.invalidateLogos()
+    await axios.post('/logos/update-sort-order', {
+      event_id: currentEvent.id,
+      logo_orders: assignedInOrder.map((item, index) => ({
+        logo_id: item.id,
+        sort_order: index,
+      })),
+    })
   } catch (error) {
     console.error('Error toggling logo event:', error)
   }
@@ -177,7 +246,6 @@ const deleteLogo = async () => {
     logoToDelete.value = null
   } catch (error) {
     console.error('Error deleting logo:', error)
-    // Use translated error message from backend
     const errorMessage = error.response?.data?.message || 'Ein Fehler ist aufgetreten.'
     const errorDetails = error.response?.data?.details || null
 
@@ -186,74 +254,12 @@ const deleteLogo = async () => {
     } else {
       showGlassToast(errorMessage, 'error')
     }
-    // Keep modal open on error so user can try again or cancel
-  }
-}
-
-const clearDragState = () => {
-  draggedLogo.value = null
-  draggedOverLogo.value = null
-  dropPosition.value = null
-  isDragging.value = false
-}
-
-// Drag and drop methods
-const handleDragStart = (event, logo) => {
-  // Prevent dragging if starting from an interactive element
-  if (event.target.closest('input, button, label, img')) {
-    event.preventDefault()
-    return false
-  }
-
-  draggedLogo.value = logo
-  isDragging.value = true
-  event.dataTransfer.effectAllowed = 'move'
-  event.dataTransfer.setData('text/plain', logo.id.toString())
-  event.dataTransfer.setData('application/json', JSON.stringify({logoId: logo.id}))
-
-  const elem = event.currentTarget
-  elem.style.opacity = '0.5'
-  elem.style.transform = 'rotate(5deg) scale(1.05)'
-
-  return true
-}
-
-const handleDragEnd = (event) => {
-  if (event.currentTarget?.style) {
-    event.currentTarget.style.opacity = ''
-    event.currentTarget.style.transform = ''
-  }
-  clearDragState()
-}
-
-const handleDragOver = (event) => {
-  event.preventDefault()
-  event.dataTransfer.dropEffect = 'move'
-}
-
-const handleDragEnter = (event, logo) => {
-  event.preventDefault()
-  draggedOverLogo.value = logo
-
-  // Determine drop position based on mouse position
-  const rect = event.currentTarget.getBoundingClientRect()
-  const mouseY = event.clientY
-  const centerY = rect.top + rect.height / 2
-
-  dropPosition.value = mouseY < centerY ? 'before' : 'after'
-}
-
-const handleDragLeave = (event) => {
-  // Only clear if we're actually leaving the element (not just moving to a child)
-  if (!event.currentTarget.contains(event.relatedTarget)) {
-    draggedOverLogo.value = null
-    dropPosition.value = null
   }
 }
 
 /** Apply sort_order locally so the list updates before the API round-trip. */
-const applyLocalSortOrder = (orderedLogos, eventId) => {
-  const orderById = new Map(orderedLogos.map((logo, index) => [logo.id, index]))
+const applyLocalSortOrder = (orderedAssigned, eventId) => {
+  const orderById = new Map(orderedAssigned.map((logo, index) => [logo.id, index]))
   logos.value = logos.value.map((logo) => {
     const nextOrder = orderById.get(logo.id)
     if (nextOrder === undefined) return logo
@@ -271,71 +277,6 @@ const applyLocalSortOrder = (orderedLogos, eventId) => {
       }),
     }
   })
-}
-
-const handleDrop = async (event, targetLogo) => {
-  event.preventDefault()
-  event.stopPropagation()
-
-  if (!draggedLogo.value || !targetLogo || draggedLogo.value.id === targetLogo.id) {
-    return
-  }
-
-  const currentEvent = selectedEvent.value || eventStore.selectedEvent
-  if (!currentEvent) {
-    showGlassToast('Bitte wähle zuerst ein Event aus.', 'info')
-    return
-  }
-
-  const assignedLogos = sortedLogos.value.filter(logo =>
-      logo.events.some(e => e.id === currentEvent.id)
-  )
-
-  const draggedIndex = assignedLogos.findIndex(logo => logo.id === draggedLogo.value.id)
-  const targetIndex = assignedLogos.findIndex(logo => logo.id === targetLogo.id)
-  const position = dropPosition.value
-
-  if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
-    return
-  }
-
-  const newOrder = [...assignedLogos]
-  const [draggedItem] = newOrder.splice(draggedIndex, 1)
-
-  let insertIndex
-  if (draggedIndex < targetIndex) {
-    const adjustedTargetIndex = targetIndex - 1
-    // Same insert for before/after when moving forward (legacy behaviour)
-    insertIndex = adjustedTargetIndex + 1
-  } else if (position === 'after') {
-    insertIndex = targetIndex + 1
-  } else {
-    insertIndex = targetIndex
-  }
-
-  insertIndex = Math.max(0, Math.min(insertIndex, newOrder.length))
-  newOrder.splice(insertIndex, 0, draggedItem)
-
-  // Optimistic UI: reorder immediately, then persist
-  applyLocalSortOrder(newOrder, currentEvent.id)
-  clearDragState()
-  planCache.invalidateLogos()
-
-  const logoOrders = newOrder.map((logo, index) => ({
-    logo_id: logo.id,
-    sort_order: index,
-  }))
-
-  try {
-    await axios.post('/logos/update-sort-order', {
-      event_id: currentEvent.id,
-      logo_orders: logoOrders,
-    })
-  } catch (error) {
-    console.error('Error updating logo order:', error)
-    showGlassToast('Fehler beim Aktualisieren der Reihenfolge: ' + error.message, 'error')
-    await fetchLogos({force: true})
-  }
 }
 
 const handleFileChange = (e) => {
@@ -358,74 +299,85 @@ const closeLogoPreview = () => {
   selectedLogoForPreview.value = null
 }
 
-
-// Sort logos by their sort_order for the current event
-const sortedLogos = computed(() => {
-  const currentEvent = selectedEvent.value || eventStore.selectedEvent
-  if (!currentEvent) {
+/** Manage list order is logos.value — drag reorders; toggle must not reshuffle. */
+const manageLogosList = computed({
+  get() {
     return logos.value
-  }
-
-  return [...logos.value].sort((a, b) => {
-    const aEvent = a.events.find(e => e.id === currentEvent.id)
-    const bEvent = b.events.find(e => e.id === currentEvent.id)
-
-    // If both logos are assigned to the current event, sort by sort_order
-    if (aEvent && bEvent) {
-      const aOrder = aEvent.pivot?.sort_order || 0
-      const bOrder = bEvent.pivot?.sort_order || 0
-      return aOrder - bOrder
-    }
-
-    // If only one is assigned, put assigned ones first
-    if (aEvent && !bEvent) return -1
-    if (!aEvent && bEvent) return 1
-
-    // If neither is assigned, maintain original order
-    return 0
-  })
+  },
+  set(ordered) {
+    logos.value = ordered
+    const eventId = currentEventId.value
+    if (!eventId) return
+    const assignedInOrder = ordered.filter((logo) =>
+        (logo.events || []).some((e) => e.id === eventId)
+    )
+    applyLocalSortOrder(assignedInOrder, eventId)
+  },
 })
 
-// Computed property to determine which logos should move to make space
-const logosWithSpaceMaking = computed(() => {
-  if (!isDragging.value || !draggedOverLogo.value || !dropPosition.value) {
-    return sortedLogos.value
-  }
-
-  const currentEvent = selectedEvent.value || eventStore.selectedEvent
-  if (!currentEvent) return sortedLogos.value
-
-  const assignedLogos = sortedLogos.value.filter(logo =>
-      logo.events.some(e => e.id === currentEvent.id)
+/** Assigned logos in manage-list order — drives right-side usage previews. */
+const assignedLogosList = computed(() => {
+  const eventId = currentEventId.value
+  if (!eventId) return []
+  return logos.value.filter((logo) =>
+      (logo.events || []).some((e) => e.id === eventId)
   )
-
-  const targetIndex = assignedLogos.findIndex(logo => logo.id === draggedOverLogo.value.id)
-  if (targetIndex === -1) return sortedLogos.value
-
-  // Create a visual representation where logos move to make space
-  const result = [...sortedLogos.value]
-
-  if (dropPosition.value === 'before') {
-    // Move logos to the right to make space before the target
-    for (let i = 0; i < targetIndex; i++) {
-      const logo = result.find(l => l.id === assignedLogos[i].id)
-      if (logo) {
-        logo._spaceMakingOffset = 'translateX(20px)'
-      }
-    }
-  } else {
-    // Move logos to the left to make space after the target
-    for (let i = targetIndex + 1; i < assignedLogos.length; i++) {
-      const logo = result.find(l => l.id === assignedLogos[i].id)
-      if (logo) {
-        logo._spaceMakingOffset = 'translateX(-20px)'
-      }
-    }
-  }
-
-  return result
 })
 
+/** First assigned logo — Namensaufkleber organizer slot. */
+const firstAssignedLogo = computed(() => assignedLogosList.value[0] ?? null)
+
+const seasonName = computed(() =>
+    selectedEvent.value?.season_rel?.name
+    || selectedEvent.value?.seasonRel?.name
+    || null
+)
+
+const nameTagSeasonLogoSrc = computed(() => seasonLogoSrc(seasonName.value, 'h'))
+const nameTagProgramLogoSrc = computed(() => programLogoSrc('CHALLENGE', 'h'))
+
+/** Fit Blade pixel sizes into the A4 landscape preview (~45% of PDF scale). */
+const AUSHANG_PREVIEW_SCALE = 0.45
+
+const aushangPreview = computed(() => {
+  const built = buildAushangRows(assignedLogosList.value.map((logo) => logo.url))
+  const scale = AUSHANG_PREVIEW_SCALE
+  return {
+    layout: {
+      ...built.layout,
+      logoSize: Math.round(built.layout.logoSize * scale),
+      singleRowMinHeight: Math.round(built.layout.singleRowMinHeight * scale),
+    },
+    rows: built.rows.map((row) => ({
+      ...row,
+      minHeight: row.minHeight != null ? Math.round(row.minHeight * scale) : undefined,
+    })),
+  }
+})
+
+async function onManageReorderEnd() {
+  isDragging.value = false
+  hideLogoZoom()
+  const eventId = currentEventId.value
+  if (!eventId) return
+
+  const ordered = assignedLogosList.value
+  planCache.invalidateLogos()
+
+  try {
+    await axios.post('/logos/update-sort-order', {
+      event_id: eventId,
+      logo_orders: ordered.map((logo, index) => ({
+        logo_id: logo.id,
+        sort_order: index,
+      })),
+    })
+  } catch (error) {
+    console.error('Error updating logo order:', error)
+    showGlassToast('Fehler beim Aktualisieren der Reihenfolge: ' + error.message, 'error')
+    await fetchLogos({force: true})
+  }
+}
 
 onMounted(async () => {
   if (!eventStore.selectedEvent) {
@@ -437,7 +389,6 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-5">
-    <!-- No event selected warning -->
     <div
         v-if="!selectedEvent && !eventStore.selectedEvent"
         class="glass-alert-warning flex items-start gap-2"
@@ -450,11 +401,21 @@ onMounted(async () => {
     </div>
 
     <template v-else>
-      <!-- Split Layout: Left (List) and Right (Sortable) -->
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <!-- Left Side: All Logos List -->
-        <div class="glass-card liquid-surface-inner">
+      <div class="logos-workspace">
+        <div class="logos-workspace__split">
+          <!-- Left: manage + sort -->
+          <section
+              class="logos-workspace__pane logos-workspace__left"
+              :style="{ flex: `0 0 ${leftWidth}%` }"
+          >
+            <div class="glass-card liquid-surface-inner logos-workspace__card">
           <h2 class="glass-card__heading">Logos verwalten</h2>
+          <p class="glass-settings-hint !mb-1">
+            Logos werden in dieser Reihenfolge angezeigt.
+          </p>
+          <p class="glass-settings-hint !mb-4">
+            Das erste Logo wird für die Namensaufkleber verwendet.
+          </p>
 
           <div class="space-y-2">
             <div
@@ -485,148 +446,224 @@ onMounted(async () => {
               </ItemCard>
             </div>
 
-            <ItemCard
-                v-for="logo in logos"
-                :key="logo.id"
-                :inactive="!isLogoOnEvent(logo)"
+            <draggable
+                v-model="manageLogosList"
+                class="logo-manage-list"
+                item-key="id"
+                filter="input, button, a, .no-drag"
+                :prevent-on-filter="true"
+                @start="isDragging = true; hideLogoZoom()"
+                @end="onManageReorderEnd"
             >
-              <template #leading>
-                <ToggleSwitch
-                    :model-value="isLogoOnEvent(logo)"
-                    :disabled="!currentEventId"
-                    @update:modelValue="toggleEventLogo(logo)"
-                />
-              </template>
-              <template #title>
-                <input
-                    v-model="logo.title"
-                    type="text"
-                    placeholder="Titel"
-                    class="item-card__title glass-input glass-input--sm liquid-surface-control"
-                    @change="updateLogo(logo)"
-                />
-              </template>
-              <template #trailing>
-                <IconDangerButton label="Logo löschen" @click="confirmDeleteLogo(logo)"/>
-              </template>
-
-              <div class="logo-card__body">
-                <button
-                    type="button"
-                    class="logo-card__thumb"
-                    title="Vorschau"
-                    @click="openLogoPreview(logo)"
+              <template #item="{ element: logo }">
+                <ItemCard
+                    interactive
+                    class="cursor-move"
+                    :inactive="!isLogoOnEvent(logo)"
+                    :class="{ 'opacity-55': isDragging }"
                 >
-                  <img :src="logo.url" alt="" class="h-full w-full object-contain p-1"/>
-                </button>
-                <input
-                    v-model="logo.link"
-                    type="url"
-                    placeholder="https://domain.tld"
-                    class="glass-input glass-input--sm liquid-surface-control w-full min-w-0"
-                    @change="updateLogo(logo)"
-                />
-              </div>
-            </ItemCard>
-          </div>
-        </div>
+                  <template #leading>
+                    <div
+                        class="text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5"
+                        title="Ziehen zum Sortieren"
+                        aria-hidden="true"
+                    >
+                      ⋮⋮
+                    </div>
+                    <ToggleSwitch
+                        :model-value="isLogoOnEvent(logo)"
+                        :disabled="!currentEventId"
+                        @update:modelValue="toggleEventLogo(logo)"
+                    />
+                  </template>
+                  <template #title>
+                    <input
+                        v-model="logo.title"
+                        type="text"
+                        placeholder="Titel"
+                        class="item-card__title glass-input glass-input--sm liquid-surface-control"
+                        @change="updateLogo(logo)"
+                    />
+                  </template>
+                  <template #trailing>
+                    <IconDangerButton label="Logo löschen" @click="confirmDeleteLogo(logo)"/>
+                  </template>
 
-        <!-- Right Side: Assigned Logos (Sortable) -->
-        <div class="glass-card liquid-surface-inner">
-          <h2 class="glass-card__heading">Logos in Verwendung</h2>
-          <p class="glass-settings-hint !mb-1">
-            Logos werden in dieser Reihenfolge angezeigt.
-          </p>
+                  <div class="logo-card__body">
+                    <button
+                        type="button"
+                        class="logo-card__art no-drag"
+                        title="Vorschau"
+                        @click="openLogoPreview(logo)"
+                        @mouseenter="showLogoZoom($event, logo)"
+                        @mouseleave="hideLogoZoom"
+                        @focus="showLogoZoom($event, logo)"
+                        @blur="hideLogoZoom"
+                    >
+                      <img :src="logo.url" alt="" class="logo-card__img"/>
+                    </button>
+                    <input
+                        v-model="logo.link"
+                        type="url"
+                        placeholder="https://domain.tld"
+                        class="glass-input glass-input--sm liquid-surface-control logo-card__link-input"
+                        @change="updateLogo(logo)"
+                    />
+                  </div>
+                </ItemCard>
+              </template>
+            </draggable>
+          </div>
+            </div>
+          </section>
+
+          <PanelSplitter
+              v-model="leftWidth"
+              class="hidden lg:flex logos-workspace__splitter"
+              :min="32"
+              :max="68"
+              storage-key="flow-logos-split"
+          />
+
+          <!-- Right: usage previews -->
+          <section class="logos-workspace__pane logos-workspace__right">
+            <div class="glass-card liquid-surface-inner logos-workspace__card">
+          <h2 class="glass-card__heading">Vorschau</h2>
           <p class="glass-settings-hint !mb-4">
-            Das erste Logo wird für die Namensaufkleber verwendet.
+            So erscheinen die aktiven Logos auf dem öffentlichen Plan und in den PDFs.
           </p>
 
-          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            <ItemCard
-                v-for="logo in logosWithSpaceMaking.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id)))"
-                :key="logo.id"
-                interactive
-                class="relative transition-all duration-300 ease-out"
-                :class="{
-                  'opacity-50 scale-105 rotate-2': draggedLogo?.id === logo.id,
-                  'ring-2 ring-[var(--color-accent)] bg-[var(--color-accent-muted)]': draggedOverLogo?.id === logo.id,
-                  'cursor-move': !isDragging,
-                  'cursor-grabbing': draggedLogo?.id === logo.id && isDragging
-                }"
-                :style="{ transform: (logo._spaceMakingOffset ? logo._spaceMakingOffset + ' ' : '') }"
-                :draggable="true"
-                @dragstart="handleDragStart($event, logo)"
-                @dragend="handleDragEnd($event)"
-                @dragover.prevent="handleDragOver($event)"
-                @dragenter.prevent="handleDragEnter($event, logo)"
-                @dragleave="handleDragLeave($event)"
-                @drop.prevent="handleDrop($event, logo)"
-            >
-              <template #leading>
-                <div
-                    class="text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5"
-                    title="Ziehen zum Sortieren"
-                    aria-hidden="true"
-                >
-                  ⋮⋮
-                </div>
-              </template>
-              <template #title>
-                <span class="item-card__title font-semibold truncate flex items-center min-h-[var(--field-min-height-sm)]">
-                  {{ logo.title || 'Ohne Titel' }}
-                </span>
-              </template>
-
-              <div
-                  v-if="isDragging && draggedOverLogo?.id === logo.id"
-                  class="absolute inset-0 border-2 border-dashed border-[var(--color-accent)] bg-[var(--color-accent-muted)]/60 rounded-[var(--radius)] flex items-center justify-center logo-drop-pulse"
-                  :class="{
-                    'border-t-4': dropPosition === 'before',
-                    'border-b-4': dropPosition === 'after'
-                  }"
-              >
-                <div class="text-[var(--color-accent)] font-semibold text-sm">
-                  {{ dropPosition === 'before' ? '↑ Hier ablegen' : '↓ Hier ablegen' }}
-                </div>
-              </div>
-
-              <button
-                  type="button"
-                  class="logo-card__thumb mx-auto"
-                  title="Vorschau"
-                  @click.stop="openLogoPreview(logo)"
-              >
-                <img
-                    :src="logo.url"
-                    alt=""
-                    class="h-full w-full object-contain p-1"
-                    draggable="false"
-                    @mousedown.stop
-                    @dragstart.stop
-                />
-              </button>
-
-              <div
-                  v-if="logo.link"
-                  class="text-xs text-[var(--color-accent)] truncate text-center"
-                  :title="logo.link"
-              >
-                {{ logo.link }}
-              </div>
-            </ItemCard>
+          <div v-if="assignedLogosList.length === 0" class="text-sm text-[var(--color-text-subtle)] italic">
+            Keine Logos aktiv. Aktiviere Logos links, um die Vorschau zu sehen.
           </div>
 
-          <p
-              v-if="sortedLogos.filter(logo => logo.events.some(e => e.id === (selectedEvent?.id || eventStore.selectedEvent?.id))).length === 0"
-              class="text-sm text-[var(--color-text-subtle)] italic mt-3"
-          >
-            Keine Logos in Verwendung. Aktiviere Logos links, um sie hier zu sortieren.
-          </p>
+          <div v-else class="logo-preview-stack">
+            <!-- Öffentlicher Plan — same glass chip footer as PublicEvent -->
+            <section class="logo-preview-panel liquid-surface-inner">
+              <h3 class="logo-preview-panel__title">Öffentlicher Plan</h3>
+              <div class="logo-public-stage pe-page" aria-label="Öffentlicher-Plan-Vorschau">
+                <div class="logo-public-stage__content">
+                  <footer class="pe-logos glass-card liquid-surface-inner">
+                    <div class="pe-logos__grid">
+                      <div
+                          v-for="logo in assignedLogosList"
+                          :key="`public-${logo.id}`"
+                          class="pe-logos__item"
+                          :class="{ 'pe-logos__item--static': !logo.link }"
+                      >
+                        <img :alt="logo.title || 'Logo'" :src="logo.url"/>
+                      </div>
+                    </div>
+                  </footer>
+                </div>
+              </div>
+            </section>
+
+            <!-- PDF footer strip — white page rectangle -->
+            <section class="logo-preview-panel liquid-surface-inner">
+              <h3 class="logo-preview-panel__title">Fußzeile (PDFs)</h3>
+              <div class="logo-paper logo-paper--footer" aria-label="Fußzeilen-Vorschau">
+                <div class="logo-footer-strip">
+                  <div
+                      v-for="logo in assignedLogosList"
+                      :key="`footer-${logo.id}`"
+                      class="logo-footer-strip__cell"
+                  >
+                    <img :src="logo.url" :alt="logo.title || 'Logo'" class="logo-footer-strip__img"/>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- QR Aushang — DIN A4 landscape paper -->
+            <section class="logo-preview-panel liquid-surface-inner">
+              <h3 class="logo-preview-panel__title">Aushang mit QR-Code</h3>
+              <div class="logo-paper logo-paper--a4-landscape" aria-label="Aushang-Logo-Vorschau">
+                <div class="logo-aushang-stage">
+                  <div class="logo-aushang-qr-placeholder" aria-hidden="true">
+                    <div class="logo-aushang-qr-placeholder__box"/>
+                    <span>Online Zeitplan</span>
+                  </div>
+                  <div class="logo-aushang-logos">
+                    <div
+                        v-for="(row, rowIndex) in aushangPreview.rows"
+                        :key="`aushang-row-${rowIndex}`"
+                        class="logo-aushang-row"
+                        :class="{ 'logo-aushang-row--spaced': rowIndex > 0 }"
+                        :style="row.minHeight ? { minHeight: `${row.minHeight}px` } : undefined"
+                    >
+                      <div
+                          v-for="(cell, cellIndex) in row.cells"
+                          :key="`aushang-cell-${rowIndex}-${cellIndex}`"
+                          class="logo-aushang-cell"
+                          :style="{ width: `${cell.widthPercent}%` }"
+                      >
+                        <img
+                            v-if="cell.type === 'logo'"
+                            :src="cell.url"
+                            alt=""
+                            class="logo-aushang-img"
+                            :style="{
+                              maxWidth: `${aushangPreview.layout.logoSize}px`,
+                              maxHeight: `${aushangPreview.layout.logoSize}px`,
+                            }"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Namensaufkleber — first organizer logo only -->
+            <section class="logo-preview-panel liquid-surface-inner">
+              <h3 class="logo-preview-panel__title">Namensaufkleber</h3>
+              <p class="logo-preview-panel__hint">
+                Nur das erste Logo (Programm + Saison + Veranstalter).
+              </p>
+              <div class="logo-nametag" aria-label="Namensaufkleber-Vorschau">
+                <div class="logo-nametag__text">
+                  <div class="logo-nametag__person">Max Mustermann</div>
+                  <div class="logo-nametag__team">Team Beispiel</div>
+                </div>
+                <div class="logo-nametag__logos">
+                  <img
+                      :src="nameTagProgramLogoSrc"
+                      alt="Programm"
+                      class="logo-nametag__logo"
+                  />
+                  <img
+                      :src="nameTagSeasonLogoSrc"
+                      alt="Saison"
+                      class="logo-nametag__logo"
+                  />
+                  <img
+                      v-if="firstAssignedLogo"
+                      :src="firstAssignedLogo.url"
+                      :alt="firstAssignedLogo.title || 'Veranstalter'"
+                      class="logo-nametag__logo"
+                  />
+                </div>
+              </div>
+            </section>
+          </div>
+            </div>
+          </section>
         </div>
       </div>
     </template>
 
-    <!-- Logo Preview Modal -->
+    <Teleport to="body">
+      <div
+          v-if="zoomLogo && !isDragging"
+          class="logo-card__zoom"
+          :style="zoomStyle"
+          aria-hidden="true"
+      >
+        <img :src="zoomLogo.url" alt="" class="logo-card__zoom-img"/>
+      </div>
+    </Teleport>
+
     <div
         v-if="selectedLogoForPreview"
         class="glass-scrim fixed inset-0 flex items-center justify-center z-50 p-4"
@@ -682,6 +719,54 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.logos-workspace {
+  min-height: 0;
+  min-width: 0;
+}
+
+.logos-workspace__split {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .logos-workspace__split {
+    flex-direction: row;
+    gap: 0.55rem;
+    align-items: stretch;
+  }
+
+  .logos-workspace__left {
+    min-width: 0;
+  }
+
+  .logos-workspace__right {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .logos-workspace__card {
+    height: 100%;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 1023px) {
+  .logos-workspace__left {
+    flex: 1 1 auto !important;
+  }
+}
+
+.logos-workspace__pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
 .logo-composer {
   cursor: pointer;
 }
@@ -693,38 +778,303 @@ onMounted(async () => {
   cursor: pointer;
 }
 
-.logo-card__body {
+.logo-manage-list {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
-.logo-card__thumb {
-  width: 3rem;
-  height: 3rem;
-  flex-shrink: 0;
-  border-radius: calc(var(--radius) - 2px);
-  background: var(--color-bg-muted);
+.logo-card__body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.logo-card__link-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.logo-card__art {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 3.25rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  border: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--color-bg-muted);
+  overflow: hidden;
+  padding: 0.2rem;
+  cursor: zoom-in;
+}
+
+.logo-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Teleported hover zoom — fixed, above overflow clips */
+.logo-card__zoom {
+  position: fixed;
+  z-index: 10050;
+  padding: 0.45rem;
+  border-radius: var(--radius);
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 45%, transparent);
+  box-shadow:
+    0 12px 28px rgba(15, 23, 42, 0.14),
+    0 4px 10px rgba(15, 23, 42, 0.08);
+  pointer-events: none;
+}
+
+.logo-card__zoom-img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(20rem, 70vw);
+  max-height: min(12rem, 50vh);
+  object-fit: contain;
+}
+
+.logo-preview-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.logo-preview-panel {
+  padding: 0.85rem 1rem 1rem;
+  border-radius: var(--radius-lg);
+}
+
+.logo-preview-panel__title {
+  margin: 0 0 0.65rem;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+}
+
+.logo-preview-panel__hint {
+  margin: -0.35rem 0 0.65rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+/* Public plan: orbit canvas + pe-logos chip footer (mirrors PublicEvent) */
+.logo-public-stage {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+}
+
+.logo-public-stage__content {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1rem 0.85rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.logo-public-stage :deep(.pe-logos) {
+  margin-top: 0;
+}
+
+.logo-public-stage :deep(.pe-logos__grid) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem 1.25rem;
+}
+
+.logo-public-stage :deep(.pe-logos__item) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: calc(var(--radius-lg, 1rem) - 2px);
+  background: color-mix(in srgb, #ffffff 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+}
+
+.logo-public-stage :deep(.pe-logos__item img) {
+  height: 2.5rem;
+  max-width: 7rem;
+  object-fit: contain;
+}
+
+@media (min-width: 768px) {
+  .logo-public-stage :deep(.pe-logos__item img) {
+    height: 3rem;
+    max-width: 8.5rem;
+  }
+}
+
+/* White paper surfaces for PDF-like previews */
+.logo-paper {
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.08),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.logo-paper--footer {
+  border-radius: 2px;
+  padding: 0.35rem 0.5rem 0.45rem;
+}
+
+.logo-paper--a4-landscape {
+  width: 100%;
+  aspect-ratio: 297 / 210;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
-.logo-card__thumb:hover {
-  opacity: 0.85;
+.logo-nametag {
+  width: 15rem;
+  height: 9.375rem;
+  margin: 0 auto;
+  padding: 0.7rem 0.75rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
 }
 
-.logo-drop-pulse {
-  animation: logo-drop-pulse 1.5s ease-in-out infinite;
+.logo-nametag__person {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111;
 }
 
-@keyframes logo-drop-pulse {
-  0%, 100% {
-    opacity: 0.75;
-  }
-  50% {
-    opacity: 1;
-  }
+.logo-nametag__team {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  color: #333;
+}
+
+.logo-nametag__logos {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-height: 2.1rem;
+}
+
+.logo-nametag__logo {
+  max-width: 3.1rem;
+  max-height: 2.1rem;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.logo-footer-strip {
+  display: flex;
+  width: 100%;
+  align-items: stretch;
+  background: #fff;
+}
+
+.logo-footer-strip__cell {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  min-height: 80px;
+  height: 80px;
+}
+
+.logo-footer-strip__img {
+  max-width: 80px;
+  max-height: 80px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.logo-aushang-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.65rem 0.75rem 0.5rem;
+  overflow: hidden;
+}
+
+.logo-aushang-qr-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0 0.15rem;
+  color: #666;
+  font-size: 0.75rem;
+}
+
+.logo-aushang-qr-placeholder__box {
+  width: 4.75rem;
+  height: 4.75rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      #fff,
+      #fff 4px,
+      #f3f4f6 4px,
+      #f3f4f6 8px
+    );
+}
+
+.logo-aushang-logos {
+  margin-top: auto;
+  padding: 6px 8px 2px;
+  border-top: 1px solid #eee;
+}
+
+.logo-aushang-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+}
+
+.logo-aushang-row--spaced {
+  margin-top: 6px;
+}
+
+.logo-aushang-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.logo-aushang-img {
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: inline-block;
 }
 </style>

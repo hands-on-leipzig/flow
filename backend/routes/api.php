@@ -379,6 +379,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
+        Route::get('/helper-search/{eventId}', [PublishController::class, 'getPublicHelperSearch']);
+        Route::post('/helper-search/{eventId}', [PublishController::class, 'setPublicHelperSearch']);
         Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
         Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
     });

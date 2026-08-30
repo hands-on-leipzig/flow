@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import {computed} from 'vue'
+import {RouterLink} from 'vue-router'
 import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
+import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import {useEventStore} from '@/stores/event'
+import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
 import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
 import {type StaffingFilterKey} from '@/utils/volunteerStaffingFilters'
 import {
@@ -18,6 +21,13 @@ const props = defineProps<{
 }>()
 
 const eventStore = useEventStore()
+const eventId = computed(() => eventStore.selectedEvent?.id ?? null)
+
+const {
+  enabled: helperSearchEnabled,
+  loading: helperSearchLoading,
+  setEnabled: setHelperSearchEnabled,
+} = usePublicHelperSearch(eventId)
 
 const programs = computed(() => eventPrograms(eventStore.selectedEvent))
 
@@ -46,11 +56,36 @@ function scopesWithEntries(
     }))
     .filter((scope) => scope.entries.length > 0)
 }
+
+async function onHelperSearchToggle(next: boolean) {
+  try {
+    await setHelperSearchEnabled(next)
+  } catch {
+    // toast from composable
+  }
+}
 </script>
 
 <template>
   <div class="glass-card liquid-surface-inner staffing-sidebar-tile staffing-open-positions">
     <h2 class="glass-card__heading !mb-3 !text-sm md:!text-base">Offene Positionen</h2>
+
+    <section class="staffing-open-positions__publish">
+      <div class="staffing-open-positions__publish-row">
+        <span class="staffing-open-positions__publish-label">Suche nach Helfer:innen</span>
+        <ToggleSwitch
+            :model-value="helperSearchEnabled"
+            :disabled="helperSearchLoading || !eventId"
+            @update:modelValue="onHelperSearchToggle"
+        />
+      </div>
+      <p class="glass-settings-hint !mb-0 staffing-open-positions__publish-hint">
+        Offene Positionen können auf dem öffentlichen Plan erscheinen. Einstellungen unter
+        <RouterLink to="/plan/publish" class="staffing-open-positions__publish-link">
+          Ausgabe → Veröffentlichung
+        </RouterLink>.
+      </p>
+    </section>
 
     <p v-if="isEmpty" class="staffing-sidebar-muted">
       Alle Rollen sind ideal besetzt.
@@ -127,6 +162,42 @@ function scopesWithEntries(
 </template>
 
 <style scoped>
+.staffing-open-positions__publish {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--liquid-border-soft);
+}
+
+.staffing-open-positions__publish-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.staffing-open-positions__publish-label {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.staffing-open-positions__publish-hint {
+  line-height: 1.45;
+}
+
+.staffing-open-positions__publish-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.staffing-open-positions__publish-link:hover {
+  text-decoration: underline;
+}
+
 .staffing-open-positions__section + .staffing-open-positions__section {
   margin-top: 0.85rem;
   padding-top: 0.85rem;
