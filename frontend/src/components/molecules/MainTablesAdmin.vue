@@ -178,17 +178,27 @@
         <div v-else class="main-tables-admin__panel glass-card liquid-surface-inner">
           <div class="main-tables-admin__panel-toolbar">
             <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
-              {{ getTableDisplayName(selectedTable) }} — {{ tableData.length }} Datensätze
+              {{ getTableDisplayName(selectedTable) }} —
+              {{ filteredTableData.length }}{{ listFilter.trim() ? ` / ${tableData.length}` : '' }} Datensätze
             </h3>
-            <button
-              type="button"
-              class="glass-btn-accent !px-3 !py-2 !text-sm inline-flex items-center gap-2 shrink-0"
-              :disabled="loading || schemaLoading"
-              @click="startCreate"
-            >
-              <i class="bi bi-plus-lg" aria-hidden="true"/>
-              Neu
-            </button>
+            <div class="flex items-center gap-2 shrink-0 flex-wrap">
+              <input
+                v-model="listFilter"
+                type="search"
+                class="main-tables-admin__filter"
+                placeholder="Filter…"
+                aria-label="Tabelle filtern"
+              />
+              <button
+                type="button"
+                class="glass-btn-accent !px-3 !py-2 !text-sm inline-flex items-center gap-2"
+                :disabled="loading || schemaLoading"
+                @click="startCreate"
+              >
+                <i class="bi bi-plus-lg" aria-hidden="true"/>
+                Neu
+              </button>
+            </div>
           </div>
 
           <div v-if="loading" class="p-6 text-[var(--color-text-subtle)]">Laden…</div>
@@ -207,15 +217,15 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-[var(--color-border)]">
-                <tr v-if="!tableData.length">
+                <tr v-if="!filteredTableData.length">
                   <td
                     class="px-6 py-8 text-center text-[var(--color-text-subtle)]"
                     :colspan="tableColumns.length + 1"
                   >
-                    Keine Datensätze
+                    {{ tableData.length ? 'Kein Treffer' : 'Keine Datensätze' }}
                   </td>
                 </tr>
-                <tr v-for="record in tableData" :key="String(record[primaryKey])">
+                <tr v-for="record in filteredTableData" :key="String(record[primaryKey])">
                   <td class="px-4 py-3 whitespace-nowrap text-sm">
                     <div class="flex items-center gap-2">
                       <button
@@ -296,6 +306,7 @@ const viewMode = ref('list') // list | form
 const formIsCreate = ref(true)
 const formData = ref({})
 const recordToDelete = ref(null)
+const listFilter = ref('')
 
 const formColumns = computed(() => {
   const cols = schema.value?.columns || []
@@ -303,6 +314,16 @@ const formColumns = computed(() => {
     return cols.filter((c) => !c.auto_increment)
   }
   return cols
+})
+
+const filteredTableData = computed(() => {
+  const q = listFilter.value.trim().toLowerCase()
+  if (!q) return tableData.value
+  return tableData.value.filter((record) =>
+    tableColumns.value.some((column) =>
+      String(displayCell(record, column) ?? '').toLowerCase().includes(q),
+    ),
+  )
 })
 
 const deleteRecordMessage = computed(() => {
@@ -352,6 +373,7 @@ async function selectTable(tableName) {
   selectedTable.value = tableName
   viewMode.value = 'list'
   formData.value = {}
+  listFilter.value = ''
   recordToDelete.value = null
   if (tableName === 'm_parameter' || tableName === 'm_visibility') {
     tableData.value = []
@@ -693,6 +715,16 @@ onMounted(() => {
 .main-tables-admin__input:disabled {
   opacity: 0.6;
   background: var(--color-bg-muted, #f5f5f5);
+}
+
+.main-tables-admin__filter {
+  width: min(16rem, 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  background: #fff;
+  color: var(--color-text);
+  font-size: 0.875rem;
 }
 
 .main-tables-admin__textarea {
