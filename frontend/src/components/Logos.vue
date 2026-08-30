@@ -7,6 +7,7 @@ import {usePlanCacheStore} from '@/stores/planCache'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
+import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {programLogoSrc, seasonLogoSrc} from '@/utils/images'
@@ -24,6 +25,7 @@ const selectedLogoForPreview = ref(null)
 const logoToDelete = ref(null)
 const isUploading = ref(false)
 const isDragging = ref(false)
+const leftWidth = ref(50)
 
 const fetchLogos = async ({force = false} = {}) => {
   if (force) planCache.invalidateLogos()
@@ -280,8 +282,8 @@ const seasonName = computed(() =>
 const nameTagSeasonLogoSrc = computed(() => seasonLogoSrc(seasonName.value, 'h'))
 const nameTagProgramLogoSrc = computed(() => programLogoSrc('CHALLENGE', 'h'))
 
-/** Fit Blade pixel sizes into the preview card (~55% of PDF scale). */
-const AUSHANG_PREVIEW_SCALE = 0.55
+/** Fit Blade pixel sizes into the A4 landscape preview (~45% of PDF scale). */
+const AUSHANG_PREVIEW_SCALE = 0.45
 
 const aushangPreview = computed(() => {
   const built = buildAushangRows(assignedLogosList.value.map((logo) => logo.url))
@@ -344,9 +346,14 @@ onMounted(async () => {
     </div>
 
     <template v-else>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <!-- Left: manage + sort -->
-        <div class="glass-card liquid-surface-inner">
+      <div class="logos-workspace">
+        <div class="logos-workspace__split">
+          <!-- Left: manage + sort -->
+          <section
+              class="logos-workspace__pane logos-workspace__left"
+              :style="{ flex: `0 0 ${leftWidth}%` }"
+          >
+            <div class="glass-card liquid-surface-inner logos-workspace__card">
           <h2 class="glass-card__heading">Logos verwalten</h2>
           <p class="glass-settings-hint !mb-1">
             Logos werden in dieser Reihenfolge angezeigt.
@@ -448,10 +455,20 @@ onMounted(async () => {
               </template>
             </draggable>
           </div>
-        </div>
+            </div>
+          </section>
 
-        <!-- Right: usage previews -->
-        <div class="glass-card liquid-surface-inner">
+          <PanelSplitter
+              v-model="leftWidth"
+              class="hidden lg:flex logos-workspace__splitter"
+              :min="32"
+              :max="68"
+              storage-key="flow-logos-split"
+          />
+
+          <!-- Right: usage previews -->
+          <section class="logos-workspace__pane logos-workspace__right">
+            <div class="glass-card liquid-surface-inner logos-workspace__card">
           <h2 class="glass-card__heading">Vorschau</h2>
           <p class="glass-settings-hint !mb-4">
             So erscheinen die aktiven Logos auf dem öffentlichen Plan und in den PDFs.
@@ -462,67 +479,77 @@ onMounted(async () => {
           </div>
 
           <div v-else class="logo-preview-stack">
-            <!-- Öffentlicher Plan (web footer — chip wrap, not PDF strip) -->
+            <!-- Öffentlicher Plan — same glass chip footer as PublicEvent -->
             <section class="logo-preview-panel liquid-surface-inner">
               <h3 class="logo-preview-panel__title">Öffentlicher Plan</h3>
-              <div class="logo-public-footer" aria-label="Öffentlicher-Plan-Vorschau">
-                <div
-                    v-for="logo in assignedLogosList"
-                    :key="`public-${logo.id}`"
-                    class="logo-public-footer__item"
-                    :class="{ 'logo-public-footer__item--link': !!logo.link }"
-                >
-                  <img :src="logo.url" :alt="logo.title || 'Logo'" class="logo-public-footer__img"/>
+              <div class="logo-public-stage pe-page" aria-label="Öffentlicher-Plan-Vorschau">
+                <div class="logo-public-stage__content">
+                  <footer class="pe-logos glass-card liquid-surface-inner">
+                    <div class="pe-logos__grid">
+                      <div
+                          v-for="logo in assignedLogosList"
+                          :key="`public-${logo.id}`"
+                          class="pe-logos__item"
+                          :class="{ 'pe-logos__item--static': !logo.link }"
+                      >
+                        <img :alt="logo.title || 'Logo'" :src="logo.url"/>
+                      </div>
+                    </div>
+                  </footer>
                 </div>
               </div>
             </section>
 
-            <!-- PDF footer strip -->
+            <!-- PDF footer strip — white page rectangle -->
             <section class="logo-preview-panel liquid-surface-inner">
               <h3 class="logo-preview-panel__title">Fußzeile (PDFs)</h3>
-              <div class="logo-footer-strip" aria-label="Fußzeilen-Vorschau">
-                <div
-                    v-for="logo in assignedLogosList"
-                    :key="`footer-${logo.id}`"
-                    class="logo-footer-strip__cell"
-                >
-                  <img :src="logo.url" :alt="logo.title || 'Logo'" class="logo-footer-strip__img"/>
+              <div class="logo-paper logo-paper--footer" aria-label="Fußzeilen-Vorschau">
+                <div class="logo-footer-strip">
+                  <div
+                      v-for="logo in assignedLogosList"
+                      :key="`footer-${logo.id}`"
+                      class="logo-footer-strip__cell"
+                  >
+                    <img :src="logo.url" :alt="logo.title || 'Logo'" class="logo-footer-strip__img"/>
+                  </div>
                 </div>
               </div>
             </section>
 
-            <!-- QR Aushang full area -->
+            <!-- QR Aushang — DIN A4 landscape paper -->
             <section class="logo-preview-panel liquid-surface-inner">
               <h3 class="logo-preview-panel__title">Aushang mit QR-Code</h3>
-              <div class="logo-aushang-stage" aria-label="Aushang-Logo-Vorschau">
-                <div class="logo-aushang-qr-placeholder" aria-hidden="true">
-                  <div class="logo-aushang-qr-placeholder__box"/>
-                  <span>Online Zeitplan</span>
-                </div>
-                <div class="logo-aushang-logos">
-                  <div
-                      v-for="(row, rowIndex) in aushangPreview.rows"
-                      :key="`aushang-row-${rowIndex}`"
-                      class="logo-aushang-row"
-                      :class="{ 'logo-aushang-row--spaced': rowIndex > 0 }"
-                      :style="row.minHeight ? { minHeight: `${row.minHeight}px` } : undefined"
-                  >
+              <div class="logo-paper logo-paper--a4-landscape" aria-label="Aushang-Logo-Vorschau">
+                <div class="logo-aushang-stage">
+                  <div class="logo-aushang-qr-placeholder" aria-hidden="true">
+                    <div class="logo-aushang-qr-placeholder__box"/>
+                    <span>Online Zeitplan</span>
+                  </div>
+                  <div class="logo-aushang-logos">
                     <div
-                        v-for="(cell, cellIndex) in row.cells"
-                        :key="`aushang-cell-${rowIndex}-${cellIndex}`"
-                        class="logo-aushang-cell"
-                        :style="{ width: `${cell.widthPercent}%` }"
+                        v-for="(row, rowIndex) in aushangPreview.rows"
+                        :key="`aushang-row-${rowIndex}`"
+                        class="logo-aushang-row"
+                        :class="{ 'logo-aushang-row--spaced': rowIndex > 0 }"
+                        :style="row.minHeight ? { minHeight: `${row.minHeight}px` } : undefined"
                     >
-                      <img
-                          v-if="cell.type === 'logo'"
-                          :src="cell.url"
-                          alt=""
-                          class="logo-aushang-img"
-                          :style="{
-                            maxWidth: `${aushangPreview.layout.logoSize}px`,
-                            maxHeight: `${aushangPreview.layout.logoSize}px`,
-                          }"
-                      />
+                      <div
+                          v-for="(cell, cellIndex) in row.cells"
+                          :key="`aushang-cell-${rowIndex}-${cellIndex}`"
+                          class="logo-aushang-cell"
+                          :style="{ width: `${cell.widthPercent}%` }"
+                      >
+                        <img
+                            v-if="cell.type === 'logo'"
+                            :src="cell.url"
+                            alt=""
+                            class="logo-aushang-img"
+                            :style="{
+                              maxWidth: `${aushangPreview.layout.logoSize}px`,
+                              maxHeight: `${aushangPreview.layout.logoSize}px`,
+                            }"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -561,6 +588,8 @@ onMounted(async () => {
               </div>
             </section>
           </div>
+            </div>
+          </section>
         </div>
       </div>
     </template>
@@ -620,6 +649,54 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.logos-workspace {
+  min-height: 0;
+  min-width: 0;
+}
+
+.logos-workspace__split {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .logos-workspace__split {
+    flex-direction: row;
+    gap: 0.55rem;
+    align-items: stretch;
+  }
+
+  .logos-workspace__left {
+    min-width: 0;
+  }
+
+  .logos-workspace__right {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .logos-workspace__card {
+    height: 100%;
+    overflow: auto;
+  }
+}
+
+@media (max-width: 1023px) {
+  .logos-workspace__left {
+    flex: 1 1 auto !important;
+  }
+}
+
+.logos-workspace__pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
 .logo-composer {
   cursor: pointer;
 }
@@ -695,7 +772,27 @@ onMounted(async () => {
   line-height: 1.35;
 }
 
-.logo-public-footer {
+/* Public plan: orbit canvas + pe-logos chip footer (mirrors PublicEvent) */
+.logo-public-stage {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+}
+
+.logo-public-stage__content {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1rem 0.85rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.logo-public-stage :deep(.pe-logos) {
+  margin-top: 0;
+}
+
+.logo-public-stage :deep(.pe-logos__grid) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -703,7 +800,7 @@ onMounted(async () => {
   gap: 0.85rem 1.25rem;
 }
 
-.logo-public-footer__item {
+.logo-public-stage :deep(.pe-logos__item) {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -713,21 +810,40 @@ onMounted(async () => {
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
 }
 
-.logo-public-footer__item--link {
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
-}
-
-.logo-public-footer__img {
+.logo-public-stage :deep(.pe-logos__item img) {
   height: 2.5rem;
   max-width: 7rem;
   object-fit: contain;
 }
 
 @media (min-width: 768px) {
-  .logo-public-footer__img {
+  .logo-public-stage :deep(.pe-logos__item img) {
     height: 3rem;
     max-width: 8.5rem;
   }
+}
+
+/* White paper surfaces for PDF-like previews */
+.logo-paper {
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.08),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.logo-paper--footer {
+  border-radius: 2px;
+  padding: 0.35rem 0.5rem 0.45rem;
+}
+
+.logo-paper--a4-landscape {
+  width: 100%;
+  aspect-ratio: 297 / 210;
+  border-radius: 2px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .logo-nametag {
@@ -778,8 +894,7 @@ onMounted(async () => {
   display: flex;
   width: 100%;
   align-items: stretch;
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 80%, transparent);
-  background: color-mix(in srgb, var(--color-bg-muted) 55%, transparent);
+  background: #fff;
 }
 
 .logo-footer-strip__cell {
@@ -801,11 +916,13 @@ onMounted(async () => {
 }
 
 .logo-aushang-stage {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  max-height: 28rem;
-  overflow: auto;
+  justify-content: space-between;
+  padding: 0.65rem 0.75rem 0.5rem;
+  overflow: hidden;
 }
 
 .logo-aushang-qr-placeholder {
@@ -813,29 +930,29 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.75rem 0 0.25rem;
-  color: var(--color-text-subtle);
+  padding: 0.35rem 0 0.15rem;
+  color: #666;
   font-size: 0.75rem;
 }
 
 .logo-aushang-qr-placeholder__box {
-  width: 5.5rem;
-  height: 5.5rem;
-  border-radius: var(--radius);
-  border: 1px dashed color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  width: 4.75rem;
+  height: 4.75rem;
+  border-radius: 4px;
+  border: 1px solid #ccc;
   background:
     repeating-linear-gradient(
       -45deg,
-      transparent,
-      transparent 4px,
-      color-mix(in srgb, var(--color-bg-muted) 70%, transparent) 4px,
-      color-mix(in srgb, var(--color-bg-muted) 70%, transparent) 8px
+      #fff,
+      #fff 4px,
+      #f3f4f6 4px,
+      #f3f4f6 8px
     );
 }
 
 .logo-aushang-logos {
-  margin-top: 4px;
-  padding: 8px 12px 4px;
+  margin-top: auto;
+  padding: 6px 8px 2px;
   border-top: 1px solid #eee;
 }
 
