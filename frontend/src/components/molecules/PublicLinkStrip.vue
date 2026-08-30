@@ -3,6 +3,7 @@ import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
+import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {flowFilename} from '@/utils/flowFilename'
 
@@ -16,9 +17,11 @@ const props = withDefaults(defineProps<{
 })
 
 const eventStore = useEventStore()
+const {showAdminInline} = useAdminInlineVisibility()
 const event = computed(() => eventStore.selectedEvent)
 
 const linkLoading = ref(false)
+const regenerating = ref(false)
 const showQrModal = ref(false)
 
 function normalizeLink(raw: string | null | undefined): string {
@@ -67,6 +70,27 @@ const qrFilename = computed(() => flowFilename('QR_Code', 'png', event.value?.da
 
 const actionsDisabled = computed(() => linkLoading.value || !publicUrl.value)
 
+async function regenerateLinkAndQR() {
+  const id = event.value?.id
+  if (!id || regenerating.value) return
+
+  regenerating.value = true
+  try {
+    const {data} = await axios.post(`/publish/regenerate/${id}`)
+    const baseUrl = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '')
+    if (eventStore.selectedEvent) {
+      eventStore.selectedEvent.link = `${baseUrl}/${data.link}`
+      eventStore.selectedEvent.qrcode = String(data.qrcode || '').replace(/^data:image\/png;base64,/, '')
+      eventStore.selectedEvent.slug = data.link
+    }
+    showGlassToast('Link und QR neu erzeugt', 'success')
+  } catch {
+    showGlassToast('Neu erzeugen fehlgeschlagen', 'error')
+  } finally {
+    regenerating.value = false
+  }
+}
+
 async function copyLink() {
   const link = publicUrl.value
   if (!link) return
@@ -105,9 +129,9 @@ onMounted(() => {
 
 <template>
   <div class="glass-card liquid-surface-inner public-link-strip">
-    <div class="public-link-strip__row">
-      <h2 class="glass-card__title !mb-0 shrink-0">Öffentlicher Link</h2>
+    <h2 class="glass-card__title !mb-0">Öffentlicher Link</h2>
 
+    <div class="public-link-strip__row">
       <a
           v-if="publicUrl && !linkLoading"
           :href="publicUrl"
@@ -154,6 +178,28 @@ onMounted(() => {
           <i class="bi bi-qr-code" aria-hidden="true"/>
         </button>
       </div>
+    </div>
+
+    <div
+        v-if="showAdminInline && event?.id"
+        class="public-link-strip__admin"
+    >
+      <span
+          class="public-link-strip__admin-mark"
+          title="Admin"
+          aria-hidden="true"
+      >
+        <i class="bi bi-shield-lock"/>
+      </span>
+      <button
+          type="button"
+          class="glass-btn-secondary inline-flex items-center gap-1.5"
+          :disabled="regenerating || linkLoading"
+          @click="regenerateLinkAndQR"
+      >
+        <i class="bi bi-arrow-repeat" :class="{'animate-spin': regenerating}" aria-hidden="true"/>
+        {{ regenerating ? '…' : 'Neu erzeugen' }}
+      </button>
     </div>
 
     <p class="public-link-strip__hint glass-settings-hint !mb-0">
@@ -221,6 +267,21 @@ onMounted(() => {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.public-link-strip__admin {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.public-link-strip__admin-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+  line-height: 1;
 }
 
 .public-link-strip__icon-btn {
