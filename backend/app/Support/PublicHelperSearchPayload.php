@@ -8,11 +8,12 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Sanitized open-staffing role names for the public event page.
+ * Always includes cross, local, and every attached program (empty roles when none open).
  */
 final class PublicHelperSearchPayload
 {
     /**
-     * @return array{scopes: list<array{key: string, label: string, roles: list<string>}>}
+     * @return array{scopes: list<array{key: string, label: string, roles: list<string>, program_id: int|null, color_hex: string|null}>}
      */
     public static function forEvent(Event $event): array
     {
@@ -22,43 +23,80 @@ final class PublicHelperSearchPayload
             ->map(fn ($id) => (int) $id)
             ->filter(fn ($id) => $id > 0)
             ->unique()
-            ->sort()
             ->values()
             ->all();
 
-        $programLabels = self::programLabels($programIds);
-        $open = app(StaffingSyncService::class)->openPositionsByScope((int) $event->id, $programIds);
-
-        $scopes = [];
-        foreach ($open as $row) {
+        $catalog = self::programCatalog($programIds);
+        $openByKey = [];
+        foreach (app(StaffingSyncService::class)->openPositionsByScope((int) $event->id, $programIds) as $row) {
             $key = (string) ($row['key'] ?? '');
             if ($key === '') {
                 continue;
             }
-
-            $roles = self::unionRoleLabels(
+            $openByKey[$key] = self::unionRoleLabels(
                 $row['critical'] ?? [],
                 $row['recommended'] ?? [],
             );
-            if ($roles === []) {
-                continue;
-            }
-
-            $scopes[] = [
-                'key' => $key,
-                'label' => self::scopeLabel($key, $programLabels),
-                'roles' => $roles,
-            ];
         }
+
+        $scopes = [];
+        $scopes[] = self::scope(
+            'cross',
+            'Übergreifend',
+            $openByKey['cross'] ?? [],
+            null,
+            null,
+        );
+
+        foreach ($catalog as $programId => $meta) {
+            $key = 'program:'.$programId;
+            $scopes[] = self::scope(
+                $key,
+                $meta['label'],
+                $openByKey[$key] ?? [],
+                $programId,
+                $meta['color_hex'],
+            );
+        }
+
+        $scopes[] = self::scope(
+            'local',
+            'Zusätzlich',
+            $openByKey['local'] ?? [],
+            null,
+            null,
+        );
 
         return ['scopes' => $scopes];
     }
 
     /**
-     * @param  list<int>  $programIds
-     * @return array<int, string>
+     * @param  list<string>  $roles
+     * @return array{key: string, label: string, roles: list<string>, program_id: int|null, color_hex: string|null}
      */
-    private static function programLabels(array $programIds): array
+    private static function scope(
+        string $key,
+        string $label,
+        array $roles,
+        ?int $programId,
+        ?string $colorHex,
+    ): array {
+        return [
+            'key' => $key,
+            'label' => $label,
+            'roles' => $roles,
+            'program_id' => $programId,
+            'color_hex' => $colorHex,
+        ];
+    }
+
+    /**
+     * Catalog order (sequence, id).
+     *
+     * @param  list<int>  $programIds
+     * @return array<int, array{label: string, color_hex: string|null}>
+     */
+    private static function programCatalog(array $programIds): array
     {
         if ($programIds === []) {
             return [];
@@ -66,34 +104,22 @@ final class PublicHelperSearchPayload
 
         $rows = DB::table('m_first_program')
             ->whereIn('id', $programIds)
-            ->get(['id', 'name', 'display_name']);
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get(['id', 'name', 'display_name', 'color_hex']);
 
-        $labels = [];
+        $catalog = [];
         foreach ($rows as $row) {
-            $labels[(int) $row->id] = (string) ($row->display_name ?: $row->name);
+            $id = (int) $row->id;
+            $catalog[$id] = [
+                'label' => (string) ($row->display_name ?: $row->name),
+                'color_hex' => $row->color_hex !== null
+                    ? (string) $row->color_hex
+                    : ProgramCatalog::colorHex((string) $row->name),
+            ];
         }
 
-        return $labels;
-    }
-
-    /**
-     * @param  array<int, string>  $programLabels
-     */
-    private static function scopeLabel(string $key, array $programLabels): string
-    {
-        if ($key === 'cross') {
-            return 'Übergreifend';
-        }
-        if ($key === 'local') {
-            return 'Zusätzlich';
-        }
-        if (str_starts_with($key, 'program:')) {
-            $id = (int) substr($key, strlen('program:'));
-
-            return $programLabels[$id] ?? 'Programm';
-        }
-
-        return $key;
+        return $catalog;
     }
 
     /**

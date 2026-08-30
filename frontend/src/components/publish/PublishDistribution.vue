@@ -204,7 +204,11 @@ onMounted(async () => {
             />
           </div>
           <p class="glass-settings-hint !mb-0">
-            Zeigt offene Positionen aus der Zuordnung auf dem öffentlichen Plan zwischen Allgemeine Infos und Angemeldete Teams.
+            Zeigt offene Positionen aus
+            <RouterLink to="/plan/volunteers/staffing" class="pub__helper-link">
+              Helfer:innen → Zuordnung
+            </RouterLink>
+            auf dem öffentlichen Plan zwischen Allgemeine Infos und Angemeldete Teams.
           </p>
           <p
               v-if="helperSearchEnabled && helperSearchHiddenByLevel"
@@ -330,6 +334,16 @@ onMounted(async () => {
 
 .pub__helper-warn {
   color: var(--color-text-muted);
+}
+
+.pub__helper-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pub__helper-link:hover {
+  text-decoration: underline;
 }
 
 .pub__preview {

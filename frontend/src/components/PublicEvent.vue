@@ -206,11 +206,15 @@ const helperSearchProgramScopes = computed(() => {
   return scopes.filter((s) => typeof s.key === 'string' && s.key.startsWith('program:'))
 })
 
-const helperSearchHasRoles = computed(() => {
-  const scopes = helperSearch.value?.scopes
-  if (!Array.isArray(scopes)) return false
-  return scopes.some((s) => Array.isArray(s.roles) && s.roles.length > 0)
-})
+function helperScopeColor(scope) {
+  if (scope?.color_hex) return `#${scope.color_hex}`
+  return 'var(--color-accent)'
+}
+
+function helperScopeProgramRef(scope) {
+  if (!scope?.program_id) return null
+  return resolveProgramRef(event.value, scope.program_id)
+}
 
 const exploreProgram = computed(() => resolveProgramRef(event.value, 'EXPLORE'))
 const challengeProgram = computed(() => resolveProgramRef(event.value, 'CHALLENGE'))
@@ -408,47 +412,74 @@ onMounted(async () => {
       >
         <h2 class="glass-card__title">Suche nach Helfer:innen</h2>
 
-        <p v-if="!helperSearchHasRoles" class="pe-helper-empty">komplett</p>
-
-        <template v-else>
+        <div
+            class="pe-timeline-grid pe-teams-grid"
+            :style="{ '--pe-lane-count': Math.max(helperSearchPrimaryScopes.length, 1) }"
+        >
           <div
-              v-if="helperSearchPrimaryScopes.length"
-              class="pe-helper-row"
+              v-for="scope in helperSearchPrimaryScopes"
+              :key="scope.key"
+              class="pe-program"
+              :style="{ '--pe-program': helperScopeColor(scope) }"
           >
-            <div
-                v-for="scope in helperSearchPrimaryScopes"
-                :key="scope.key"
-                class="pe-helper-scope liquid-surface-inner"
-            >
-              <h3 class="pe-helper-scope__title">{{ scope.label }}</h3>
-              <ul class="pe-helper-roles">
-                <li
-                    v-for="(role, index) in scope.roles"
-                    :key="`${scope.key}-${index}`"
-                >{{ role }}</li>
-              </ul>
-            </div>
+            <h3 class="pe-program__title">
+              <i
+                  v-if="scope.key === 'cross'"
+                  class="bi bi-intersect pe-program__logo pe-helper-scope-icon"
+                  aria-hidden="true"
+              />
+              <i
+                  v-else-if="scope.key === 'local'"
+                  class="bi bi-star pe-program__logo pe-helper-scope-icon"
+                  aria-hidden="true"
+              />
+              <span>{{ scope.label }}</span>
+            </h3>
+            <ul v-if="scope.roles?.length" class="pe-team-list">
+              <li
+                  v-for="(role, index) in scope.roles"
+                  :key="`${scope.key}-${index}`"
+                  class="pe-team-list__item pe-team-list__item--name-only"
+              >
+                <span class="pe-team-list__name">{{ role }}</span>
+              </li>
+            </ul>
+            <p v-else class="pe-muted pe-helper-scope-empty">komplett</p>
           </div>
+        </div>
 
+        <div
+            v-if="helperSearchProgramScopes.length"
+            class="pe-timeline-grid pe-teams-grid pe-helper-programs"
+            :style="{ '--pe-lane-count': helperSearchProgramScopes.length }"
+        >
           <div
-              v-if="helperSearchProgramScopes.length"
-              class="pe-helper-row"
+              v-for="scope in helperSearchProgramScopes"
+              :key="scope.key"
+              class="pe-program"
+              :style="{ '--pe-program': helperScopeColor(scope) }"
           >
-            <div
-                v-for="scope in helperSearchProgramScopes"
-                :key="scope.key"
-                class="pe-helper-scope liquid-surface-inner"
-            >
-              <h3 class="pe-helper-scope__title">{{ scope.label }}</h3>
-              <ul class="pe-helper-roles">
-                <li
-                    v-for="(role, index) in scope.roles"
-                    :key="`${scope.key}-${index}`"
-                >{{ role }}</li>
-              </ul>
-            </div>
+            <h3 class="pe-program__title">
+              <ProgramLogo
+                  v-if="helperScopeProgramRef(scope)"
+                  :event="event"
+                  :program="helperScopeProgramRef(scope)"
+                  class="pe-program__logo"
+              />
+              <span>{{ scope.label }}</span>
+            </h3>
+            <ul v-if="scope.roles?.length" class="pe-team-list">
+              <li
+                  v-for="(role, index) in scope.roles"
+                  :key="`${scope.key}-${index}`"
+                  class="pe-team-list__item pe-team-list__item--name-only"
+              >
+                <span class="pe-team-list__name">{{ role }}</span>
+              </li>
+            </ul>
+            <p v-else class="pe-muted pe-helper-scope-empty">komplett</p>
           </div>
-        </template>
+        </div>
 
         <p class="pe-helper-cta">Bei Interesse bitte einfach melden.</p>
       </section>
@@ -918,49 +949,22 @@ onMounted(async () => {
   margin-top: 0.25rem;
 }
 
-.pe-helper-empty {
+.pe-helper-programs {
+  margin-top: 1rem;
+}
+
+.pe-helper-scope-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--pe-program);
+}
+
+.pe-helper-scope-empty {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 650;
-  color: var(--color-text);
-}
-
-.pe-helper-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 0.75rem;
-}
-
-.pe-helper-row + .pe-helper-row {
-  margin-top: 0.75rem;
-}
-
-.pe-helper-scope {
-  border-radius: var(--radius-lg, 1rem);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
-  padding: 0.75rem 0.9rem;
-}
-
-.pe-helper-scope__title {
-  margin: 0 0 0.45rem;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.pe-helper-roles {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.pe-helper-roles li {
   font-size: 0.9rem;
-  line-height: 1.35;
-  color: var(--color-text);
 }
 
 .pe-helper-cta {
@@ -985,6 +989,10 @@ onMounted(async () => {
   align-items: baseline;
   padding: 0.35rem 0;
   border-top: 1px solid color-mix(in srgb, var(--pe-program) 14%, transparent);
+}
+
+.pe-team-list__item--name-only {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .pe-team-list__item:first-child {
