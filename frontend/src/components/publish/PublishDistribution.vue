@@ -5,23 +5,33 @@
  */
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
+import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
-import {useAuth} from '@/composables/useAuth'
+import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
+import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
+import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
 
 defineOptions({name: 'PublishDistribution'})
 
 const eventStore = useEventStore()
-const {isAdmin} = useAuth()
 const event = computed(() => eventStore.selectedEvent)
+const eventId = computed(() => event.value?.id ?? null)
 
 const saving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
-const regenerating = ref(false)
+const helperSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const detailLevel = ref(0)
-const showQr = ref(false)
 const iframeKey = ref(0)
 const iframeLoading = ref(true)
+const leftWidth = ref(32)
+
+const {
+  enabled: helperSearchEnabled,
+  loading: helperSearchLoading,
+  setEnabled: setHelperSearchEnabled,
+} = usePublicHelperSearch(eventId)
 
 const levels = [
   {id: 0, short: 'Basis', name: 'Planung und Anmeldung', hint: 'Datum, Ort, Kontakt, Teams'},
@@ -29,13 +39,16 @@ const levels = [
   {id: 2, short: 'Alles', name: 'volle Details', hint: '+ Online-Zeitplan'},
 ]
 
-const qrSrc = computed(() => {
-  const raw = event.value?.qrcode
-  if (!raw) return null
-  return raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`
-})
+const helperSearchHiddenByLevel = computed(() => detailLevel.value === 2)
 
-const publicUrl = computed(() => event.value?.link || '')
+function normalizeLink(raw: string | null | undefined): string {
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) return raw
+  const base = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '')
+  return `${base}/${raw.replace(/^\//, '')}`
+}
+
+const publicUrl = computed(() => normalizeLink(event.value?.link))
 
 const activeLevel = computed(() => levels[detailLevel.value] ?? levels[0])
 
@@ -83,43 +96,24 @@ async function setDetailLevel(level: number) {
   }
 }
 
-async function copyLink() {
-  const link = publicUrl.value
-  if (!link) return
-  try {
-    await navigator.clipboard.writeText(link)
-    showGlassToast('Link kopiert', 'success')
-  } catch {
-    showGlassToast('Link konnte nicht kopiert werden', 'error')
-  }
-}
-
-async function regenerateLinkAndQR() {
-  if (!event.value?.id) return
-  try {
-    regenerating.value = true
-    const {data} = await axios.post(`/publish/regenerate/${event.value.id}`)
-    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin
-    if (eventStore.selectedEvent) {
-      eventStore.selectedEvent.link = `${baseUrl}/${data.link}`
-      eventStore.selectedEvent.qrcode = data.qrcode.replace('data:image/png;base64,', '')
-      eventStore.selectedEvent.slug = data.link
-    }
-    showGlassToast('Link und QR neu erzeugt', 'success')
-    reloadPreview()
-  } catch {
-    showGlassToast('Neu erzeugen fehlgeschlagen', 'error')
-  } finally {
-    regenerating.value = false
-  }
-}
-
 function openPublic() {
   if (publicUrl.value) window.open(publicUrl.value, '_blank', 'noopener')
 }
 
 function onIframeLoad() {
   iframeLoading.value = false
+}
+
+async function onHelperSearchToggle(next: boolean) {
+  try {
+    helperSaving.value?.show()
+    await setHelperSearchEnabled(next)
+    reloadPreview()
+  } catch {
+    // toast from composable
+  } finally {
+    helperSaving.value?.hide()
+  }
 }
 
 watch(
@@ -131,6 +125,10 @@ watch(
     }
 )
 
+watch(publicUrl, (url, prev) => {
+  if (url && url !== prev) reloadPreview()
+})
+
 onMounted(async () => {
   if (event.value?.id) {
     await fetchPublicationLevel()
@@ -141,103 +139,93 @@ onMounted(async () => {
 
 <template>
   <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
+  <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
 
   <div class="pub">
-    <header class="pub__intro">
-      <h1 class="pub__title">Veröffentlichung</h1>
-    </header>
-
     <div class="pub__shell">
-      <aside class="glass-card liquid-surface-inner pub__controls">
-        <div class="pub__section">
-          <div class="pub__label-row">
-            <span class="pub__label">Link</span>
-            <button
-                v-if="qrSrc"
-                type="button"
-                class="glass-btn-secondary pub__qr-toggle"
-                :aria-expanded="showQr"
-                @click="showQr = !showQr"
-            >
-              <i class="bi bi-qr-code" aria-hidden="true"/>
-              QR
-            </button>
-          </div>
+      <section
+          class="pub__left"
+          :style="{ flex: `0 0 ${leftWidth}%` }"
+      >
+        <PublicLinkStrip on-publish-page/>
 
-          <div class="pub__urlbar liquid-surface-inner">
-            <i class="bi bi-link-45deg pub__urlbar-icon" aria-hidden="true"/>
-            <a
-                v-if="publicUrl"
-                :href="publicUrl"
-                target="_blank"
-                rel="noopener"
-                class="pub__url"
-                :title="publicUrl"
-            >{{ publicUrl }}</a>
-            <span v-else class="pub__url pub__url--empty">Kein Link</span>
-          </div>
-
-          <div class="pub__btn-row">
-            <button
-                v-if="publicUrl"
-                type="button"
-                class="glass-btn-accent inline-flex items-center gap-1.5"
-                @click="copyLink"
-            >
-              <i class="bi bi-clipboard" aria-hidden="true"/>
-              Kopieren
-            </button>
-            <button
-                v-if="publicUrl"
-                type="button"
-                class="glass-btn-secondary inline-flex items-center gap-1.5"
-                @click="openPublic"
-            >
-              <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
-              Öffnen
-            </button>
-            <button
-                v-if="isAdmin && event?.id"
-                type="button"
-                class="glass-btn-secondary inline-flex items-center gap-1.5"
-                :disabled="regenerating"
-                @click="regenerateLinkAndQR"
-            >
-              <i class="bi bi-arrow-repeat" aria-hidden="true"/>
-              {{ regenerating ? '…' : 'Neu' }}
-            </button>
-          </div>
-
-          <div v-if="showQr && qrSrc" class="pub__qr-box liquid-surface-inner">
-            <img :src="qrSrc" alt="QR-Code zur öffentlichen Seite" class="pub__qr"/>
-          </div>
-        </div>
-
-        <div class="pub__section">
-          <span class="pub__label">Sichtbarkeit</span>
+        <section class="pub__tile glass-card liquid-surface-inner">
+          <h2 class="glass-card__heading">Sichtbarkeit</h2>
           <div class="pub__levels" role="radiogroup" aria-label="Sichtbarkeitsstufe">
-            <button
+            <div
                 v-for="level in levels"
                 :key="level.id"
-                type="button"
                 role="radio"
+                tabindex="0"
                 class="pub__level liquid-surface-inner"
                 :class="{'is-active': detailLevel === level.id}"
                 :aria-checked="detailLevel === level.id"
                 @click="setDetailLevel(level.id)"
+                @keydown.enter.prevent="setDetailLevel(level.id)"
+                @keydown.space.prevent="setDetailLevel(level.id)"
             >
-              <span class="pub__level-mark" aria-hidden="true">
-                <i v-if="detailLevel === level.id" class="bi bi-check2"/>
-                <span v-else>{{ level.id + 1 }}</span>
-              </span>
-              <span class="pub__level-copy">
-                <span class="pub__level-name">{{ level.name }}</span>
-                <span class="pub__level-hint">{{ level.hint }}</span>
-              </span>
-            </button>
+              <div class="pub__level-main">
+                <span class="pub__level-mark" aria-hidden="true">
+                  <i v-if="detailLevel === level.id" class="bi bi-check2"/>
+                  <span v-else>{{ level.id + 1 }}</span>
+                </span>
+                <span class="pub__level-copy">
+                  <span class="pub__level-name">{{ level.name }}</span>
+                  <span class="glass-settings-hint !mb-0">{{ level.hint }}</span>
+                </span>
+              </div>
+              <div
+                  v-if="level.id === 1"
+                  class="pub__level-explain glass-settings-hint !mb-0"
+              >
+                <p class="pub__level-explain-p">
+                  Die wichtigsten Zeiten werden automatisch aus dem Veranstaltungsplan übernommen.
+                </p>
+                <p class="pub__level-explain-p">
+                  <RouterLink
+                      to="/plan/schedule/free"
+                      class="pub__level-explain-link"
+                      @click.stop
+                  >Zusätzliche Aktivitäten</RouterLink>
+                  z.&nbsp;B. „Check-In“ werden übernommen, wenn sie als „öffentlich zeigen“ gekennzeichnet sind.
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
-      </aside>
+        </section>
+
+        <section class="pub__tile glass-card liquid-surface-inner">
+          <div class="pub__helper-head">
+            <h2 class="glass-card__heading !mb-0">Suche nach Helfer:innen</h2>
+            <ToggleSwitch
+                :model-value="helperSearchEnabled"
+                :disabled="helperSearchLoading || !eventId"
+                @update:modelValue="onHelperSearchToggle"
+            />
+          </div>
+          <p class="glass-settings-hint !mb-0">
+            Zeigt offene Positionen aus
+            <RouterLink to="/plan/volunteers/staffing" class="pub__helper-link">
+              Helfer:innen → Zuordnung
+            </RouterLink>
+            auf dem öffentlichen Plan zwischen Allgemeine Infos und Angemeldete Teams.
+          </p>
+          <p
+              v-if="helperSearchEnabled && helperSearchHiddenByLevel"
+              class="glass-settings-hint !mb-0 pub__helper-warn"
+          >
+            Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
+          </p>
+        </section>
+      </section>
+
+      <PanelSplitter
+          v-model="leftWidth"
+          class="hidden md:flex pub__splitter"
+          :min="24"
+          :max="48"
+          storage-key="flow-publish-split"
+      />
 
       <section
           class="glass-card liquid-surface-inner pub__preview"
@@ -299,123 +287,81 @@ onMounted(async () => {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
-.pub__intro {
+.pub__shell {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-}
-
-.pub__title {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-
-.pub__shell {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: stretch;
   flex: 1;
   min-height: min(64vh, 42rem);
+  min-width: 0;
 }
 
-@media (min-width: 960px) {
+@media (min-width: 768px) {
   .pub__shell {
-    grid-template-columns: minmax(17rem, 20.5rem) minmax(0, 1fr);
+    flex-direction: row;
+    gap: 0.55rem;
   }
 }
 
-.pub__controls {
+.pub__left {
   display: flex;
   flex-direction: column;
-  gap: 1.35rem;
+  gap: 1.15rem;
   min-width: 0;
+  min-height: 0;
+  overflow: auto;
 }
 
-.pub__section {
+@media (max-width: 767px) {
+  .pub__left {
+    flex: 1 1 auto !important;
+  }
+}
+
+.pub__tile {
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.65rem;
 }
 
-.pub__label-row {
+.pub__helper-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
-.pub__label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-subtle);
-}
-
-.pub__qr-toggle {
-  padding: 0.25rem 0.55rem !important;
-  font-size: 0.75rem !important;
-  font-weight: 650;
-  gap: 0.3rem;
-  display: inline-flex;
-  align-items: center;
-}
-
-.pub__urlbar {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-width: 0;
-  padding: 0.55rem 0.7rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, var(--liquid-border-soft));
-}
-
-.pub__urlbar-icon {
-  flex-shrink: 0;
-  color: var(--color-accent);
-}
-
-.pub__url {
-  min-width: 0;
-  flex: 1;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-text);
-  text-decoration: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pub__url:hover { color: var(--color-accent); }
-
-.pub__url--empty {
+.pub__helper-warn {
   color: var(--color-text-muted);
-  font-weight: 500;
 }
 
-.pub__btn-row {
+.pub__helper-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pub__helper-link:hover {
+  text-decoration: underline;
+}
+
+.pub__preview {
+  flex: 1 1 auto;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  flex-direction: column;
+  min-height: 28rem;
+  min-width: 0;
+  padding: 0 !important;
+  overflow: hidden;
 }
 
-.pub__qr-box {
-  display: flex;
-  justify-content: center;
-  padding: 0.75rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, var(--liquid-border-soft));
-}
-
-.pub__qr {
-  width: 7.5rem;
-  height: 7.5rem;
-  object-fit: contain;
+@media (min-width: 768px) {
+  .pub__preview {
+    min-height: 0;
+    height: auto;
+    align-self: stretch;
+  }
 }
 
 .pub__levels {
@@ -426,8 +372,8 @@ onMounted(async () => {
 
 .pub__level {
   display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
+  flex-direction: column;
+  gap: 0.45rem;
   width: 100%;
   text-align: left;
   padding: 0.7rem 0.75rem;
@@ -451,6 +397,12 @@ onMounted(async () => {
     0 8px 18px rgba(15, 23, 42, 0.055),
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.pub__level-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
 }
 
 .pub__level-mark {
@@ -488,26 +440,25 @@ onMounted(async () => {
   line-height: 1.25;
 }
 
-.pub__level-hint {
-  font-size: 0.76rem;
-  color: var(--color-text-muted);
-  line-height: 1.3;
-}
-
-.pub__preview {
+.pub__level-explain {
+  padding-left: calc(1.45rem + 0.65rem);
   display: flex;
   flex-direction: column;
-  min-height: 28rem;
-  min-width: 0;
-  padding: 0 !important;
-  overflow: hidden;
+  gap: 0.35rem;
 }
 
-@media (min-width: 960px) {
-  .pub__preview {
-    min-height: 0;
-    height: 100%;
-  }
+.pub__level-explain-p {
+  margin: 0;
+}
+
+.pub__level-explain-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pub__level-explain-link:hover {
+  text-decoration: underline;
 }
 
 .pub__preview-bar {
@@ -540,46 +491,35 @@ onMounted(async () => {
 }
 
 .pub__preview-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.5rem;
-  border: 0;
-  background: none;
-  font-size: 0.75rem;
-  font-weight: 700;
+  border: none;
+  background: transparent;
   color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 650;
   cursor: pointer;
+  padding: 0.2rem 0.35rem;
 }
 
 .pub__preview-open:hover { text-decoration: underline; }
 
 .pub__frame-wrap {
   position: relative;
-  flex: 1;
-  min-height: 24rem;
-  background: color-mix(in srgb, var(--color-bg-muted) 35%, #fff);
-}
-
-@media (min-width: 960px) {
-  .pub__frame-wrap {
-    min-height: 0;
-  }
-}
-
-.pub__frame {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-height: 24rem;
-  border: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   background: #fff;
 }
 
-@media (min-width: 960px) {
+.pub__frame {
+  width: 100%;
+  height: 100%;
+  min-height: 24rem;
+  border: none;
+  display: block;
+  background: #fff;
+}
+
+@media (min-width: 768px) {
   .pub__frame {
-    position: absolute;
-    inset: 0;
     min-height: 0;
   }
 }
@@ -593,11 +533,11 @@ onMounted(async () => {
   justify-content: center;
   font-size: 0.9rem;
   color: var(--color-text-muted);
-  background: color-mix(in srgb, var(--color-bg-muted) 45%, #fff);
-  z-index: 1;
+  background: color-mix(in srgb, #ffffff 92%, var(--color-bg-muted));
+  pointer-events: none;
 }
 
-.pub__frame-loading {
-  pointer-events: none;
+.pub__frame-empty {
+  pointer-events: auto;
 }
 </style>

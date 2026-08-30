@@ -94,9 +94,9 @@ class VolunteerPersonImportService
                 'regional_partner' => $event->regional_partner,
                 'first_name' => $normalized['first_name'],
                 'last_name' => $normalized['last_name'],
-                'nickname' => $normalized['nickname'],
                 'email' => $email,
                 'mobile' => $validation['mobile'],
+                'organization' => $normalized['organization'],
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
@@ -116,16 +116,16 @@ class VolunteerPersonImportService
 
     /**
      * @param  array<string, mixed>  $row
-     * @return array{first_name: string, last_name: string, nickname: ?string, email: string, mobile: ?string}
+     * @return array{first_name: string, last_name: string, email: string, mobile: ?string, organization: ?string}
      */
     private function normalizeRow(array $row): array
     {
         return [
             'first_name' => trim((string) ($row['first_name'] ?? '')),
             'last_name' => trim((string) ($row['last_name'] ?? '')),
-            'nickname' => $this->nullableTrim($row['nickname'] ?? null),
             'email' => trim((string) ($row['email'] ?? '')),
             'mobile' => $this->nullableTrim($row['mobile'] ?? null),
+            'organization' => $this->nullableTrim($row['organization'] ?? null),
         ];
     }
 
@@ -148,13 +148,13 @@ class VolunteerPersonImportService
         $validator = Validator::make($row, [
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'nickname' => 'nullable|string|max:100',
             'email' => [
                 'required',
                 'email',
                 'max:255',
             ],
             'mobile' => 'nullable|string|max:50',
+            'organization' => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {

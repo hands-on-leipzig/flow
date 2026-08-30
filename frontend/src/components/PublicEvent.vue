@@ -185,6 +185,37 @@ const teamLanes = computed(() => {
 
 const hasTeamsSection = computed(() => teamLanes.value.length > 0)
 
+const helperSearch = computed(() => scheduleInfo.value?.helper_search ?? null)
+
+const showHelperSearchSection = computed(() => {
+  if (!scheduleInfo.value || !helperSearch.value) return false
+  const level = scheduleInfo.value.level
+  return level >= 1 && level < 4
+})
+
+const helperSearchPrimaryScopes = computed(() => {
+  const scopes = helperSearch.value?.scopes
+  if (!Array.isArray(scopes)) return []
+  const byKey = new Map(scopes.map((s) => [s.key, s]))
+  return ['cross', 'local'].map((key) => byKey.get(key)).filter(Boolean)
+})
+
+const helperSearchProgramScopes = computed(() => {
+  const scopes = helperSearch.value?.scopes
+  if (!Array.isArray(scopes)) return []
+  return scopes.filter((s) => typeof s.key === 'string' && s.key.startsWith('program:'))
+})
+
+function helperScopeColor(scope) {
+  if (scope?.color_hex) return `#${scope.color_hex}`
+  return 'var(--color-accent)'
+}
+
+function helperScopeProgramRef(scope) {
+  if (!scope?.program_id) return null
+  return resolveProgramRef(event.value, scope.program_id)
+}
+
 const exploreProgram = computed(() => resolveProgramRef(event.value, 'EXPLORE'))
 const challengeProgram = computed(() => resolveProgramRef(event.value, 'CHALLENGE'))
 
@@ -372,6 +403,85 @@ onMounted(async () => {
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- Suche nach Helfer:innen -->
+      <section
+          v-if="showHelperSearchSection"
+          class="glass-card liquid-surface-inner pe-section"
+      >
+        <h2 class="glass-card__title">Suche nach Helfer:innen</h2>
+
+        <div
+            class="pe-timeline-grid pe-teams-grid"
+            :style="{ '--pe-lane-count': Math.max(helperSearchPrimaryScopes.length, 1) }"
+        >
+          <div
+              v-for="scope in helperSearchPrimaryScopes"
+              :key="scope.key"
+              class="pe-program"
+              :style="{ '--pe-program': helperScopeColor(scope) }"
+          >
+            <h3 class="pe-program__title">
+              <i
+                  v-if="scope.key === 'cross'"
+                  class="bi bi-intersect pe-program__logo pe-helper-scope-icon"
+                  aria-hidden="true"
+              />
+              <i
+                  v-else-if="scope.key === 'local'"
+                  class="bi bi-star pe-program__logo pe-helper-scope-icon"
+                  aria-hidden="true"
+              />
+              <span>{{ scope.label }}</span>
+            </h3>
+            <ul v-if="scope.roles?.length" class="pe-team-list">
+              <li
+                  v-for="(role, index) in scope.roles"
+                  :key="`${scope.key}-${index}`"
+                  class="pe-team-list__item pe-team-list__item--name-only"
+              >
+                <span class="pe-team-list__name">{{ role }}</span>
+              </li>
+            </ul>
+            <p v-else class="pe-muted pe-helper-scope-empty">komplett</p>
+          </div>
+        </div>
+
+        <div
+            v-if="helperSearchProgramScopes.length"
+            class="pe-timeline-grid pe-teams-grid pe-helper-programs"
+            :style="{ '--pe-lane-count': helperSearchProgramScopes.length }"
+        >
+          <div
+              v-for="scope in helperSearchProgramScopes"
+              :key="scope.key"
+              class="pe-program"
+              :style="{ '--pe-program': helperScopeColor(scope) }"
+          >
+            <h3 class="pe-program__title">
+              <ProgramLogo
+                  v-if="helperScopeProgramRef(scope)"
+                  :event="event"
+                  :program="helperScopeProgramRef(scope)"
+                  class="pe-program__logo"
+              />
+              <span>{{ scope.label }}</span>
+            </h3>
+            <ul v-if="scope.roles?.length" class="pe-team-list">
+              <li
+                  v-for="(role, index) in scope.roles"
+                  :key="`${scope.key}-${index}`"
+                  class="pe-team-list__item pe-team-list__item--name-only"
+              >
+                <span class="pe-team-list__name">{{ role }}</span>
+              </li>
+            </ul>
+            <p v-else class="pe-muted pe-helper-scope-empty">komplett</p>
+          </div>
+        </div>
+
+        <p class="pe-helper-cta">Bei Interesse bitte einfach melden.</p>
       </section>
 
       <!-- Teams -->
@@ -839,6 +949,30 @@ onMounted(async () => {
   margin-top: 0.25rem;
 }
 
+.pe-helper-programs {
+  margin-top: 1rem;
+}
+
+.pe-helper-scope-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--pe-program);
+}
+
+.pe-helper-scope-empty {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.pe-helper-cta {
+  margin: 0.85rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
 .pe-team-list {
   list-style: none;
   margin: 0;
@@ -855,6 +989,10 @@ onMounted(async () => {
   align-items: baseline;
   padding: 0.35rem 0;
   border-top: 1px solid color-mix(in srgb, var(--pe-program) 14%, transparent);
+}
+
+.pe-team-list__item--name-only {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .pe-team-list__item:first-child {

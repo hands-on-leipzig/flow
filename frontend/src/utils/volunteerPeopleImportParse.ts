@@ -1,23 +1,23 @@
 export type VolunteerImportRow = {
   first_name: string
   last_name: string
-  nickname: string | null
   email: string
   mobile: string | null
+  organization: string | null
 }
 
 const HEADER_HINTS = new Set([
   'first_name',
   'last_name',
-  'nickname',
   'email',
   'e-mail',
   'mobile',
+  'organization',
   'updated_at',
   'vorname',
   'nachname',
-  'spitzname',
   'mobil',
+  'organisation',
   'letzte änderung',
   'zuordnung 1 programm',
   'zuordnung 1 rolle',
@@ -26,6 +26,9 @@ const HEADER_HINTS = new Set([
   'essen',
   'vorabendtreffen',
   'bemerkungen',
+  // legacy export headers (ignored if present as header row)
+  'nickname',
+  'spitzname',
 ])
 
 function splitLine(line: string): string[] {
@@ -55,6 +58,11 @@ function normalizeImportMobile(value: string | undefined): string | null {
   return trimmed
 }
 
+function normalizeImportOrganization(value: string | undefined): string | null {
+  const trimmed = (value ?? '').trim()
+  return trimmed === '' ? null : trimmed
+}
+
 function parseParts(parts: string[]): VolunteerImportRow | null {
   const cleaned = parts.map((part) => part.trim())
   if (cleaned.filter(Boolean).length < 3) return null
@@ -62,48 +70,35 @@ function parseParts(parts: string[]): VolunteerImportRow | null {
   if (cleaned.length === 3) {
     const [first_name, last_name, email] = cleaned
     if (!first_name || !last_name || !isEmail(email)) return null
-    return {first_name, last_name, nickname: null, email, mobile: null}
+    return {first_name, last_name, email, mobile: null, organization: null}
   }
 
   if (cleaned.length === 4) {
-    const [first_name, last_name, third, fourth] = cleaned
-    if (!first_name || !last_name) return null
-    if (isEmail(third)) {
-      return {
-        first_name,
-        last_name,
-        nickname: null,
-        email: third,
-        mobile: normalizeImportMobile(fourth),
-      }
+    const [first_name, last_name, email, mobile] = cleaned
+    if (!first_name || !last_name || !isEmail(email)) return null
+    return {
+      first_name,
+      last_name,
+      email,
+      mobile: normalizeImportMobile(mobile),
+      organization: null,
     }
-    if (isEmail(fourth)) {
-      return {
-        first_name,
-        last_name,
-        nickname: third || null,
-        email: fourth,
-        mobile: null,
-      }
-    }
-    return null
   }
 
   const first_name = cleaned[0] ?? ''
   const last_name = cleaned[1] ?? ''
-  const email = cleaned.length >= 4 ? cleaned[cleaned.length - 2] : ''
-  const mobile = cleaned.length >= 5 ? cleaned[cleaned.length - 1] : null
-  const nicknameParts = cleaned.slice(2, Math.max(2, cleaned.length - 2))
-  const nickname = nicknameParts.join(' ').trim() || null
+  const email = cleaned[2] ?? ''
+  const mobile = cleaned[3] ?? null
+  const organization = cleaned.slice(4).join(' ').trim() || null
 
   if (!first_name || !last_name || !isEmail(email)) return null
 
   return {
     first_name,
     last_name,
-    nickname,
     email,
     mobile: normalizeImportMobile(mobile ?? undefined),
+    organization: normalizeImportOrganization(organization ?? undefined),
   }
 }
 

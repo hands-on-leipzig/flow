@@ -8,7 +8,7 @@
         :disabled="loading || creatingPR"
         class="glass-btn-accent !px-4 !py-2 !text-sm disabled:opacity-50"
       >
-        {{ creatingPR ? 'PR wird erstellt...' : 'm-Tabellen exportieren' }}
+        {{ creatingPR ? 'PR wird erstellt…' : 'GitHub PR erstellen' }}
       </button>
     </div>
 
@@ -25,14 +25,21 @@
           <span class="main-tables-admin__nav-label">{{ table.displayName }}</span>
           <span class="glass-chip !px-2 !py-0.5 !text-xs shrink-0">{{ table.recordCount }}</span>
         </button>
+        <p v-if="!availableTables.length && !loadingTables" class="text-sm text-[var(--color-text-subtle)] px-2 py-1">
+          Keine m_-Tabellen gefunden.
+        </p>
       </aside>
 
       <section class="main-tables-admin__content min-w-0">
-        <!-- Special UI for m_parameter table -->
-        <div v-if="selectedTable === 'm_parameter'" class="main-tables-admin__panel glass-card liquid-surface-inner">
+        <div v-if="!selectedTable" class="main-tables-admin__panel glass-card liquid-surface-inner flex items-center justify-center">
+          <p class="text-[var(--color-text-subtle)]">Tabelle links auswählen</p>
+        </div>
+
+        <!-- Special UI for m_parameter -->
+        <div v-else-if="selectedTable === 'm_parameter'" class="main-tables-admin__panel glass-card liquid-surface-inner">
           <div class="main-tables-admin__panel-toolbar">
             <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
-              {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
+              {{ getTableDisplayName(selectedTable) }} — Erweiterter Editor
             </h3>
           </div>
           <div class="main-tables-admin__special-body">
@@ -40,11 +47,11 @@
           </div>
         </div>
 
-        <!-- Special UI for m_visibility table -->
+        <!-- Special UI for m_visibility -->
         <div v-else-if="selectedTable === 'm_visibility'" class="main-tables-admin__panel glass-card liquid-surface-inner">
           <div class="main-tables-admin__panel-toolbar">
             <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
-              {{ getTableDisplayName(selectedTable) }} - Erweiterter Editor
+              {{ getTableDisplayName(selectedTable) }} — Erweiterter Editor
             </h3>
           </div>
           <div class="main-tables-admin__special-body">
@@ -52,29 +59,154 @@
           </div>
         </div>
 
-        <!-- Generic Table Content for other tables -->
-        <div v-else-if="selectedTable && tableData.length > 0" class="main-tables-admin__panel glass-card liquid-surface-inner">
+        <!-- Form replaces main pane -->
+        <div v-else-if="viewMode === 'form'" class="main-tables-admin__panel glass-card liquid-surface-inner">
           <div class="main-tables-admin__panel-toolbar">
-            <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
-              {{ getTableDisplayName(selectedTable) }} - {{ tableData.length }} Datensätze
-            </h3>
+            <div class="flex items-center gap-3 min-w-0">
+              <button type="button" class="glass-btn-secondary !px-3 !py-1.5 !text-sm" @click="backToList">
+                ← Zur Liste
+              </button>
+              <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0 truncate">
+                {{ formIsCreate ? 'Neu' : 'Bearbeiten' }} — {{ getTableDisplayName(selectedTable) }}
+              </h3>
+            </div>
             <button
               type="button"
-              @click="addNewRecord"
-              class="glass-btn-accent !px-3 !py-2 !text-sm inline-flex items-center gap-2 shrink-0"
+              class="glass-btn-accent !px-3 !py-2 !text-sm disabled:opacity-50"
+              :disabled="saving"
+              @click="saveForm"
             >
-              <i class="bi bi-plus-lg" aria-hidden="true"/>
-              Neuen Datensatz hinzufügen
+              {{ saving ? 'Speichern…' : 'Speichern' }}
             </button>
           </div>
 
-          <div class="main-tables-admin__table-scroll">
+          <div class="main-tables-admin__form-scroll">
+            <div v-if="schemaLoading" class="p-6 text-[var(--color-text-subtle)]">Schema wird geladen…</div>
+            <form v-else class="main-tables-admin__form" @submit.prevent="saveForm">
+              <div
+                v-for="col in formColumns"
+                :key="col.name"
+                class="main-tables-admin__field"
+              >
+                <label class="main-tables-admin__label" :for="`field-${col.name}`">
+                  {{ col.name }}
+                  <span v-if="!col.nullable" class="text-red-600">*</span>
+                </label>
+                <p class="main-tables-admin__restriction">{{ col.restriction }}</p>
+
+                <!-- FK select -->
+                <select
+                  v-if="foreignKeys[col.name]"
+                  :id="`field-${col.name}`"
+                  v-model="formData[col.name]"
+                  class="main-tables-admin__input"
+                  :disabled="!col.writable || (formIsCreate === false && col.name === primaryKey)"
+                >
+                  <option v-if="col.nullable" :value="null">— null —</option>
+                  <option
+                    v-for="opt in foreignKeys[col.name].options"
+                    :key="String(opt.id)"
+                    :value="opt.id"
+                  >
+                    {{ opt.label }}
+                  </option>
+                </select>
+
+                <!-- Enum -->
+                <select
+                  v-else-if="col.is_enum && col.enum_values"
+                  :id="`field-${col.name}`"
+                  v-model="formData[col.name]"
+                  class="main-tables-admin__input"
+                  :disabled="!col.writable || (!formIsCreate && col.name === primaryKey)"
+                >
+                  <option v-if="col.nullable" :value="null">— null —</option>
+                  <option v-for="v in col.enum_values" :key="v" :value="v">{{ v }}</option>
+                </select>
+
+                <!-- Set multi -->
+                <select
+                  v-else-if="col.is_set && col.enum_values"
+                  :id="`field-${col.name}`"
+                  v-model="formData[col.name]"
+                  class="main-tables-admin__input"
+                  multiple
+                  :disabled="!col.writable"
+                >
+                  <option v-for="v in col.enum_values" :key="v" :value="v">{{ v }}</option>
+                </select>
+
+                <!-- Booleanish -->
+                <select
+                  v-else-if="col.is_booleanish"
+                  :id="`field-${col.name}`"
+                  v-model="formData[col.name]"
+                  class="main-tables-admin__input"
+                  :disabled="!col.writable"
+                >
+                  <option v-if="col.nullable" :value="null">Unset</option>
+                  <option :value="0">0</option>
+                  <option :value="1">1</option>
+                </select>
+
+                <!-- Textarea -->
+                <textarea
+                  v-else-if="isTextarea(col)"
+                  :id="`field-${col.name}`"
+                  v-model="formData[col.name]"
+                  class="main-tables-admin__input main-tables-admin__textarea"
+                  rows="3"
+                  :disabled="!col.writable || (!formIsCreate && col.name === primaryKey)"
+                />
+
+                <!-- Number / date / text -->
+                <input
+                  v-else
+                  :id="`field-${col.name}`"
+                  v-model="formData[col.name]"
+                  class="main-tables-admin__input"
+                  :type="inputTypeFor(col)"
+                  :disabled="!col.writable || (col.auto_increment && formIsCreate) || (!formIsCreate && col.name === primaryKey)"
+                  :maxlength="col.max_length || undefined"
+                />
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Generic list -->
+        <div v-else class="main-tables-admin__panel glass-card liquid-surface-inner">
+          <div class="main-tables-admin__panel-toolbar">
+            <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
+              {{ getTableDisplayName(selectedTable) }} —
+              {{ filteredTableData.length }}{{ listFilter.trim() ? ` / ${tableData.length}` : '' }} Datensätze
+            </h3>
+            <div class="flex items-center gap-2 shrink-0 flex-wrap">
+              <input
+                v-model="listFilter"
+                type="search"
+                class="main-tables-admin__filter"
+                placeholder="Filter…"
+                aria-label="Tabelle filtern"
+              />
+              <button
+                type="button"
+                class="glass-btn-accent !px-3 !py-2 !text-sm inline-flex items-center gap-2"
+                :disabled="loading || schemaLoading"
+                @click="startCreate"
+              >
+                <i class="bi bi-plus-lg" aria-hidden="true"/>
+                Neu
+              </button>
+            </div>
+          </div>
+
+          <div v-if="loading" class="p-6 text-[var(--color-text-subtle)]">Laden…</div>
+          <div v-else class="main-tables-admin__table-scroll">
             <table class="min-w-full divide-y divide-[var(--color-border)]">
               <thead>
                 <tr>
-                  <th class="main-tables-admin__th">
-                    Aktionen
-                  </th>
+                  <th class="main-tables-admin__th">Aktionen</th>
                   <th
                     v-for="column in tableColumns"
                     :key="column"
@@ -85,139 +217,67 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-[var(--color-border)]">
-                <tr v-for="(record, index) in tableData" :key="getRecordKey(record) ?? index">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div v-if="editingRecord === index" class="flex space-x-2">
+                <tr v-if="!filteredTableData.length">
+                  <td
+                    class="px-6 py-8 text-center text-[var(--color-text-subtle)]"
+                    :colspan="tableColumns.length + 1"
+                  >
+                    {{ tableData.length ? 'Kein Treffer' : 'Keine Datensätze' }}
+                  </td>
+                </tr>
+                <tr v-for="record in filteredTableData" :key="String(record[primaryKey])">
+                  <td class="px-4 py-3 whitespace-nowrap text-sm">
+                    <div class="flex items-center gap-2">
                       <button
                         type="button"
-                        @click="saveRecord(index)"
-                        class="text-green-600 hover:text-green-900"
-                      >
-                        Speichern
-                      </button>
-                      <button
-                        type="button"
-                        @click="cancelEdit"
-                        class="text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-                      >
-                        Abbrechen
-                      </button>
-                    </div>
-                    <div v-else class="flex space-x-2">
-                      <button
-                        type="button"
-                        @click="editRecord(index)"
-                        class="text-[var(--color-accent)] hover:opacity-80"
+                        class="text-[var(--color-accent)] hover:underline"
+                        @click="startEdit(record)"
                       >
                         Bearbeiten
                       </button>
                       <button
+                        v-if="record.can_delete"
                         type="button"
-                        @click="confirmDeleteRecord(index)"
-                        class="text-red-600 hover:text-red-900"
+                        class="text-red-600 hover:underline"
+                        @click="askDelete(record)"
                       >
                         Löschen
                       </button>
+                      <span
+                        v-else
+                        class="inline-flex items-center gap-1 text-[var(--color-text-subtle)]"
+                        :title="blockerTitle(record)"
+                      >
+                        <i class="bi bi-lock-fill" aria-hidden="true"/>
+                        gesperrt
+                      </span>
                     </div>
                   </td>
                   <td
                     v-for="column in tableColumns"
                     :key="column"
-                    class="px-6 py-4 whitespace-nowrap text-sm text-[var(--color-text)]"
+                    class="px-4 py-3 text-sm text-[var(--color-text)] max-w-[16rem] truncate"
+                    :title="String(displayCell(record, column) ?? '')"
                   >
-                    <select
-                      v-if="editingRecord === index && column === 'presence'"
-                      v-model="editingData[column]"
-                      class="glass-input liquid-surface-control !px-3 !py-2 w-full"
-                    >
-                      <option value="punctual">punctual — pünktlich da</option>
-                      <option value="window">window — Zeitfenster / Rahmen</option>
-                      <option value="info">info — Kontext / optional</option>
-                    </select>
-                    <select
-                      v-else-if="editingRecord === index && isStaffingRoleColumn(column) && isNewRecord(index)"
-                      v-model="editingData[column]"
-                      class="glass-input liquid-surface-control !px-3 !py-2 w-full"
-                    >
-                      <option value="">Rolle wählen…</option>
-                      <option
-                        v-for="role in staffingRoleOptions"
-                        :key="role.id"
-                        :value="role.id"
-                      >
-                        {{ role.id }} — {{ role.name }}
-                      </option>
-                    </select>
-                    <textarea
-                      v-else-if="editingRecord === index && column === 'ui_description'"
-                      v-model="editingData[column]"
-                      rows="2"
-                      class="glass-input liquid-surface-control !px-3 !py-2 w-full min-w-[16rem]"
-                    />
-                    <input
-                      v-else-if="editingRecord === index && isStaffingRoleColumn(column) && !isNewRecord(index)"
-                      :value="formatStaffingRole(record[column])"
-                      type="text"
-                      disabled
-                      class="glass-input liquid-surface-control !px-3 !py-2 w-full opacity-70"
-                    />
-                    <input
-                      v-else-if="editingRecord === index"
-                      v-model="editingData[column]"
-                      :type="getInputType(column)"
-                      class="glass-input liquid-surface-control !px-3 !py-2 w-full"
-                    />
-                    <span v-else-if="isStaffingRoleColumn(column)">{{ formatStaffingRole(record[column]) }}</span>
-                    <span v-else>{{ record[column] ?? '-' }}</span>
+                    {{ displayCell(record, column) }}
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
-
-        <!-- Empty State -->
-        <div
-          v-else-if="selectedTable && selectedTable !== 'm_parameter' && selectedTable !== 'm_visibility' && tableData.length === 0"
-          class="glass-card liquid-surface-inner text-center py-12"
-        >
-          <h3 class="mt-2 text-sm font-medium text-[var(--color-text)]">Keine Datensätze gefunden</h3>
-          <p class="mt-1 text-sm text-[var(--color-text-subtle)]">Diese Tabelle ist leer.</p>
-          <div class="mt-6">
-            <button
-              type="button"
-              @click="addNewRecord"
-              class="glass-btn-accent !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-            >
-              <i class="bi bi-plus-lg" aria-hidden="true"/>
-              Ersten Datensatz hinzufügen
-            </button>
-          </div>
-        </div>
-
-        <!-- Loading State -->
-        <div
-          v-else-if="loading && selectedTable !== 'm_parameter' && selectedTable !== 'm_visibility'"
-          class="glass-card liquid-surface-inner text-center py-12"
-        >
-          <p class="text-sm text-[var(--color-text-subtle)]">Tabellendaten werden geladen...</p>
-        </div>
-
-        <div v-else-if="!selectedTable" class="glass-card liquid-surface-inner text-center py-12">
-          <p class="text-sm text-[var(--color-text-subtle)]">Tabelle links auswählen.</p>
-        </div>
       </section>
     </div>
 
     <ConfirmationModal
       :show="!!recordToDelete"
-      title="Datensatz löschen"
-      :message="deleteRecordMessage"
       type="danger"
+      title="Datensatz löschen?"
+      :message="deleteRecordMessage"
       confirm-text="Löschen"
       cancel-text="Abbrechen"
-      @confirm="deleteRecord"
-      @cancel="cancelDeleteRecord"
+      @confirm="confirmDelete"
+      @cancel="recordToDelete = null"
     />
   </div>
 </template>
@@ -228,240 +288,281 @@ import axios from 'axios'
 import MParameter from './MParameter.vue'
 import Visibility from './Visibility.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
-import {showGlassToast} from '@/composables/useGlassToast'
+import { showGlassToast } from '@/composables/useGlassToast'
 
 const selectedTable = ref('')
+const availableTables = ref([])
 const tableData = ref([])
 const tableColumns = ref([])
-const loading = ref(false)
-const editingRecord = ref(null)
-const editingData = ref({})
-const creatingPR = ref(false)
-const recordToDelete = ref(null)
+const schema = ref(null)
+const foreignKeys = ref({})
 const primaryKey = ref('id')
-const roleCatalog = ref([])
+const loading = ref(false)
+const loadingTables = ref(false)
+const schemaLoading = ref(false)
+const saving = ref(false)
+const creatingPR = ref(false)
+const viewMode = ref('list') // list | form
+const formIsCreate = ref(true)
+const formData = ref({})
+const recordToDelete = ref(null)
+const listFilter = ref('')
 
-const availableTables = ref([
-  { name: 'm_activity_type', displayName: 'Activity Types', recordCount: 0 },
-  { name: 'm_activity_type_detail', displayName: 'Activity Type Details', recordCount: 0 },
-  { name: 'm_first_program', displayName: 'First Programs', recordCount: 0 },
-  { name: 'm_level', displayName: 'Levels', recordCount: 0 },
-  { name: 'm_parameter', displayName: 'Parameters', recordCount: 0 },
-  { name: 'm_role', displayName: 'Roles', recordCount: 0 },
-  { name: 'm_staffing_rule', displayName: 'Staffing Rules', recordCount: 0 },
-  { name: 'm_room_type', displayName: 'Room Types', recordCount: 0 },
-  { name: 'm_room_type_group', displayName: 'Room Type Groups', recordCount: 0 },
-  { name: 'm_season', displayName: 'Seasons', recordCount: 0 },
-  { name: 'm_supported_plan', displayName: 'Supported Plans', recordCount: 0 },
-  { name: 'm_visibility', displayName: 'Visibility Rules', recordCount: 0 },
-])
+const formColumns = computed(() => {
+  const cols = schema.value?.columns || []
+  if (formIsCreate.value) {
+    return cols.filter((c) => !c.auto_increment)
+  }
+  return cols
+})
 
-const selectTable = (tableName) => {
-  selectedTable.value = tableName
-  loadTableData()
+const filteredTableData = computed(() => {
+  const q = listFilter.value.trim().toLowerCase()
+  if (!q) return tableData.value
+  return tableData.value.filter((record) =>
+    tableColumns.value.some((column) =>
+      String(displayCell(record, column) ?? '').toLowerCase().includes(q),
+    ),
+  )
+})
+
+const deleteRecordMessage = computed(() => {
+  const r = recordToDelete.value
+  if (!r) return ''
+  const parts = [`Datensatz ${primaryKey.value}=${r[primaryKey.value]} wirklich löschen?`]
+  const impact = r.cascade_impact || []
+  if (impact.length) {
+    const detail = impact
+      .map((b) => `${b.table}.${b.column}: ${b.count} (${b.delete_rule})`)
+      .join('; ')
+    parts.push(`Auswirkungen: ${detail}`)
+  }
+  return parts.join(' ')
+})
+
+function apiError(error, fallback) {
+  return error.response?.data?.error
+    || error.response?.data?.message
+    || error.message
+    || fallback
 }
 
-const loadTableData = async () => {
-  if (!selectedTable.value || selectedTable.value === 'm_parameter' || selectedTable.value === 'm_visibility') return
+async function loadTables() {
+  loadingTables.value = true
+  try {
+    const { data } = await axios.get('/admin/main-tables/')
+    availableTables.value = (data.tables || []).map((t) => ({
+      name: t.name,
+      displayName: t.display_name || t.name,
+      recordCount: t.count ?? 0,
+    }))
+  } catch (error) {
+    showGlassToast(apiError(error, 'Tabellenliste fehlgeschlagen'), 'error')
+    availableTables.value = []
+  } finally {
+    loadingTables.value = false
+  }
+}
 
+function getTableDisplayName(tableName) {
+  const table = availableTables.value.find((t) => t.name === tableName)
+  return table ? table.displayName : tableName
+}
+
+async function selectTable(tableName) {
+  selectedTable.value = tableName
+  viewMode.value = 'list'
+  formData.value = {}
+  listFilter.value = ''
+  recordToDelete.value = null
+  if (tableName === 'm_parameter' || tableName === 'm_visibility') {
+    tableData.value = []
+    schema.value = null
+    return
+  }
+  await Promise.all([loadSchema(tableName), loadTableData(tableName)])
+}
+
+async function loadSchema(tableName) {
+  schemaLoading.value = true
+  try {
+    const { data } = await axios.get(`/admin/main-tables/${tableName}/schema`)
+    schema.value = data
+    foreignKeys.value = data.foreign_keys || {}
+    primaryKey.value = data.primary_key || 'id'
+    tableColumns.value = (data.columns || []).map((c) => c.name)
+  } catch (error) {
+    schema.value = null
+    foreignKeys.value = {}
+    showGlassToast(apiError(error, 'Schema laden fehlgeschlagen'), 'error')
+  } finally {
+    schemaLoading.value = false
+  }
+}
+
+async function loadTableData(tableName) {
   loading.value = true
   try {
-    if (selectedTable.value === 'm_staffing_rule') {
-      await loadRoleCatalog()
-    }
-
-    const response = await axios.get(`/admin/main-tables/${selectedTable.value}`)
-    tableData.value = response.data.data || []
-    primaryKey.value = response.data.primary_key || 'id'
-
-    if (tableData.value.length > 0) {
-      tableColumns.value = Object.keys(tableData.value[0])
-    } else {
-      const columnsResponse = await axios.get(`/admin/main-tables/${selectedTable.value}/columns`)
-      tableColumns.value = columnsResponse.data.columns || []
-      primaryKey.value = columnsResponse.data.primary_key || 'id'
-    }
+    const { data } = await axios.get(`/admin/main-tables/${tableName}`)
+    tableData.value = data.data || []
+    primaryKey.value = data.primary_key || primaryKey.value
   } catch (error) {
-    console.error('Error loading table data:', error)
     tableData.value = []
-    tableColumns.value = []
-    primaryKey.value = 'id'
+    showGlassToast(apiError(error, 'Daten laden fehlgeschlagen'), 'error')
   } finally {
     loading.value = false
   }
 }
 
-const loadRoleCatalog = async () => {
-  try {
-    const response = await axios.get('/admin/main-tables/m_role')
-    roleCatalog.value = response.data.data || []
-  } catch (error) {
-    console.error('Error loading role catalog:', error)
-    roleCatalog.value = []
+function displayCell(record, column) {
+  const raw = record[column]
+  if (raw === null || raw === undefined) return 'null'
+  const fk = foreignKeys.value[column]
+  if (fk?.options?.length) {
+    const opt = fk.options.find((o) => String(o.id) === String(raw))
+    return opt ? opt.label : `#${raw}`
   }
+  return raw
 }
 
-const loadTableCounts = async () => {
-  for (const table of availableTables.value) {
-    try {
-      const response = await axios.get(`/admin/main-tables/${table.name}/count`)
-      table.recordCount = response.data.count || 0
-    } catch (error) {
-      console.error(`Error loading count for ${table.name}:`, error)
-      table.recordCount = 0
+function blockerTitle(record) {
+  const blockers = record.blockers || []
+  if (!blockers.length) return 'Löschen gesperrt'
+  return blockers.map((b) => `${b.table}.${b.column}: ${b.count}`).join('\n')
+}
+
+function isTextarea(col) {
+  const t = String(col.sql_type || '').toLowerCase()
+  if (t.includes('text')) return true
+  if (col.max_length && col.max_length > 255) return true
+  return false
+}
+
+function inputTypeFor(col) {
+  const t = String(col.sql_type || '').toLowerCase()
+  if (t.startsWith('date') && !t.includes('time') && !t.includes('datetime')) return 'date'
+  if (t.includes('datetime') || t.includes('timestamp')) return 'datetime-local'
+  if (t === 'time' || t.startsWith('time(')) return 'time'
+  if (t.includes('int') || t.includes('decimal') || t.includes('float') || t.includes('double')) return 'number'
+  return 'text'
+}
+
+function defaultForColumn(col) {
+  if (col.default !== null && col.default !== undefined) {
+    if (col.is_booleanish) {
+      return Number(col.default)
     }
+    return col.default
   }
+  if (col.nullable) return null
+  if (col.is_booleanish) return 0
+  if (col.is_set) return []
+  return ''
 }
 
-const addNewRecord = () => {
-  const newRecord = {}
-  tableColumns.value.forEach((column) => {
-    newRecord[column] = ''
-  })
-  tableData.value.push(newRecord)
-  editingRecord.value = tableData.value.length - 1
-  editingData.value = { ...newRecord }
-}
-
-const editRecord = (index) => {
-  editingRecord.value = index
-  editingData.value = { ...tableData.value[index] }
-}
-
-const cancelEdit = () => {
-  editingRecord.value = null
-  editingData.value = {}
-}
-
-const saveRecord = async (index) => {
-  try {
-    const record = tableData.value[index]
-    const recordKey = getRecordKey(record)
-    const isNew = recordKey === null || recordKey === undefined || recordKey === ''
-
-    if (isNew) {
-      const response = await axios.post(`/admin/main-tables/${selectedTable.value}`, editingData.value)
-      tableData.value[index] = response.data.data
+function startCreate() {
+  if (!schema.value) return
+  formIsCreate.value = true
+  const data = {}
+  for (const col of schema.value.columns) {
+    if (col.auto_increment) continue
+    if (col.is_set) {
+      data[col.name] = []
     } else {
-      const response = await axios.put(
-        `/admin/main-tables/${selectedTable.value}/${recordKey}`,
-        editingData.value
-      )
-      tableData.value[index] = response.data.data
+      data[col.name] = defaultForColumn(col)
     }
-
-    editingRecord.value = null
-    editingData.value = {}
-    await loadTableCounts()
-  } catch (error) {
-    console.error('Error saving record:', error)
-    showGlassToast('Fehler beim Speichern des Datensatzes: ' + (error.response?.data?.message || error.message), 'error')
   }
+  formData.value = data
+  viewMode.value = 'form'
 }
 
-const confirmDeleteRecord = (index) => {
-  const record = tableData.value[index]
-  recordToDelete.value = { index, key: getRecordKey(record) }
+function startEdit(record) {
+  if (!schema.value) return
+  formIsCreate.value = false
+  const data = {}
+  for (const col of schema.value.columns) {
+    let value = record[col.name]
+    if (col.is_set) {
+      value = value ? String(value).split(',').filter(Boolean) : []
+    } else if (col.is_booleanish && value !== null && value !== undefined) {
+      value = Number(value)
+    }
+    data[col.name] = value === undefined ? null : value
+  }
+  formData.value = data
+  viewMode.value = 'form'
 }
 
-const cancelDeleteRecord = () => {
-  recordToDelete.value = null
+function backToList() {
+  viewMode.value = 'list'
+  formData.value = {}
 }
 
-const deleteRecordMessage = computed(() => {
-  return 'Datensatz wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.'
-})
-
-const deleteRecord = async () => {
-  if (!recordToDelete.value) return
-
+async function saveForm() {
+  if (!selectedTable.value || saving.value) return
+  saving.value = true
   try {
-    const { index, key } = recordToDelete.value
-    if (key !== null && key !== undefined && key !== '') {
-      await axios.delete(`/admin/main-tables/${selectedTable.value}/${key}`)
+    const payload = { ...formData.value }
+    // Convert empty strings on nullable handled by API; ensure set arrays stay arrays
+    if (formIsCreate.value) {
+      await axios.post(`/admin/main-tables/${selectedTable.value}`, payload)
+    } else {
+      const id = payload[primaryKey.value]
+      await axios.put(`/admin/main-tables/${selectedTable.value}/${id}`, payload)
     }
-    tableData.value.splice(index, 1)
-    recordToDelete.value = null
-    await loadTableCounts()
+    showGlassToast('Gespeichert', 'success')
+    viewMode.value = 'list'
+    await Promise.all([loadTableData(selectedTable.value), loadTables()])
   } catch (error) {
-    console.error('Error deleting record:', error)
-    showGlassToast('Fehler beim Löschen des Datensatzes: ' + (error.response?.data?.message || error.message), 'error')
-    recordToDelete.value = null
+    showGlassToast(apiError(error, 'Speichern fehlgeschlagen'), 'error')
+  } finally {
+    saving.value = false
   }
 }
 
-const createGitHubPR = async () => {
+function askDelete(record) {
+  recordToDelete.value = record
+}
+
+async function confirmDelete() {
+  const record = recordToDelete.value
+  if (!record || !selectedTable.value) return
+  const id = record[primaryKey.value]
+  try {
+    await axios.delete(`/admin/main-tables/${selectedTable.value}/${id}`)
+    showGlassToast('Gelöscht', 'success')
+    recordToDelete.value = null
+    await Promise.all([loadTableData(selectedTable.value), loadTables()])
+  } catch (error) {
+    showGlassToast(apiError(error, 'Löschen fehlgeschlagen'), 'error')
+    recordToDelete.value = null
+    if (error.response?.status === 409) {
+      await loadTableData(selectedTable.value)
+    }
+  }
+}
+
+async function createGitHubPR() {
   creatingPR.value = true
   try {
     const response = await axios.post('/admin/main-tables/create-pr')
-
-    const message = response.data.success
-      ? `GitHub PR-Erstellung erfolgreich gestartet!\n\n${response.data.message}`
-      : 'Fehler beim Erstellen des GitHub PR'
-    showGlassToast(message, 'error')
-
+    if (response.data.success) {
+      showGlassToast(response.data.message || 'GitHub PR erstellt', 'success')
+    } else {
+      showGlassToast(response.data.error || response.data.message || 'PR fehlgeschlagen', 'error')
+    }
     if (response.data.output) {
       console.log('PR Creation Output:', response.data.output)
     }
   } catch (error) {
-    console.error('Error creating GitHub PR:', error)
-    showGlassToast('Fehler beim Erstellen des GitHub PR: ' + (error.response?.data?.message || error.message), 'error')
+    showGlassToast(apiError(error, 'PR fehlgeschlagen'), 'error')
   } finally {
     creatingPR.value = false
   }
 }
 
-const getTableDisplayName = (tableName) => {
-  const table = availableTables.value.find((t) => t.name === tableName)
-  return table ? table.displayName : tableName
-}
-
-const getRecordKey = (record) => {
-  if (!record) return null
-  const key = record[primaryKey.value]
-  return key === undefined || key === null || key === '' ? null : key
-}
-
-const isNewRecord = (index) => {
-  const record = tableData.value[index]
-  return getRecordKey(record) === null
-}
-
-const isStaffingRoleColumn = (column) => {
-  return selectedTable.value === 'm_staffing_rule' && column === 'm_role'
-}
-
-const staffingRoleOptions = computed(() => {
-  const usedRoleIds = new Set(
-    tableData.value
-      .map((record) => record.m_role)
-      .filter((value) => value !== null && value !== undefined && value !== '')
-  )
-
-  return roleCatalog.value.filter((role) => !usedRoleIds.has(role.id))
-})
-
-const formatStaffingRole = (roleId) => {
-  if (roleId === null || roleId === undefined || roleId === '') return '-'
-  const role = roleCatalog.value.find((entry) => Number(entry.id) === Number(roleId))
-  return role ? `${role.id} — ${role.name}` : roleId
-}
-
-const getInputType = (column) => {
-  if (column === 'min' || column === 'best' || column === 'max') {
-    return 'number'
-  }
-  if (column.includes('id') || column.includes('sequence') || column.includes('year')) {
-    return 'number'
-  }
-  if (column.includes('date') || column.includes('time')) {
-    return 'datetime-local'
-  }
-  return 'text'
-}
-
 onMounted(() => {
-  loadTableCounts()
+  loadTables()
 })
 </script>
 
@@ -566,10 +667,69 @@ onMounted(() => {
   border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
 }
 
-.main-tables-admin__table-scroll {
+.main-tables-admin__table-scroll,
+.main-tables-admin__form-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+}
+
+.main-tables-admin__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  max-width: 40rem;
+}
+
+.main-tables-admin__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.main-tables-admin__label {
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.main-tables-admin__restriction {
+  margin: 0;
+  font-size: 0.72rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--color-text-subtle);
+  line-height: 1.35;
+}
+
+.main-tables-admin__input {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.6rem;
+  background: #fff;
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.main-tables-admin__input:disabled {
+  opacity: 0.6;
+  background: var(--color-bg-muted, #f5f5f5);
+}
+
+.main-tables-admin__filter {
+  width: min(16rem, 100%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  background: #fff;
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.main-tables-admin__textarea {
+  resize: vertical;
+  min-height: 4.5rem;
 }
 
 .main-tables-admin__special-body {
@@ -591,7 +751,7 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 1;
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 1rem;
   text-align: left;
   font-size: 0.75rem;
   font-weight: 600;
@@ -607,10 +767,6 @@ onMounted(() => {
   .main-tables-admin__body {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(10rem, 30%) minmax(0, 1fr);
-  }
-
-  .main-tables-admin__nav {
-    max-height: none;
   }
 }
 </style>

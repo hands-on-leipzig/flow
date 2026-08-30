@@ -3,31 +3,26 @@ import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
-import {useAnchoredPanel} from '@/composables/useAnchoredPanel'
-import {useInfoPopover} from '@/composables/useInfoPopover'
+import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {flowFilename} from '@/utils/flowFilename'
 
 defineOptions({name: 'PublicLinkStrip'})
 
+const props = withDefaults(defineProps<{
+  /** On Veröffentlichung: say “hier” instead of linking to this screen. */
+  onPublishPage?: boolean
+}>(), {
+  onPublishPage: false,
+})
+
 const eventStore = useEventStore()
+const {showAdminInline} = useAdminInlineVisibility()
 const event = computed(() => eventStore.selectedEvent)
 
 const linkLoading = ref(false)
+const regenerating = ref(false)
 const showQrModal = ref(false)
-
-const popoverId = 'public-link-strip-help'
-const {toggle, isOpen, close} = useInfoPopover()
-const helpOpen = computed(() => isOpen(popoverId))
-const helpButtonRef = ref<HTMLElement | null>(null)
-
-const {panelRef, panelStyle} = useAnchoredPanel({
-  isOpen: helpOpen,
-  anchor: helpButtonRef,
-  fallbackWidth: 288,
-  fallbackHeight: 120,
-  onClose: close,
-})
 
 function normalizeLink(raw: string | null | undefined): string {
   if (!raw) return ''
@@ -75,6 +70,27 @@ const qrFilename = computed(() => flowFilename('QR_Code', 'png', event.value?.da
 
 const actionsDisabled = computed(() => linkLoading.value || !publicUrl.value)
 
+async function regenerateLinkAndQR() {
+  const id = event.value?.id
+  if (!id || regenerating.value) return
+
+  regenerating.value = true
+  try {
+    const {data} = await axios.post(`/publish/regenerate/${id}`)
+    const baseUrl = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '')
+    if (eventStore.selectedEvent) {
+      eventStore.selectedEvent.link = `${baseUrl}/${data.link}`
+      eventStore.selectedEvent.qrcode = String(data.qrcode || '').replace(/^data:image\/png;base64,/, '')
+      eventStore.selectedEvent.slug = data.link
+    }
+    showGlassToast('Link und QR neu erzeugt', 'success')
+  } catch {
+    showGlassToast('Neu erzeugen fehlgeschlagen', 'error')
+  } finally {
+    regenerating.value = false
+  }
+}
+
 async function copyLink() {
   const link = publicUrl.value
   if (!link) return
@@ -99,10 +115,6 @@ function openQrModal() {
   showQrModal.value = true
 }
 
-function toggleHelp() {
-  toggle(popoverId)
-}
-
 watch(
     () => event.value?.id,
     (id) => {
@@ -117,21 +129,9 @@ onMounted(() => {
 
 <template>
   <div class="glass-card liquid-surface-inner public-link-strip">
-    <div class="public-link-strip__row">
-      <div class="public-link-strip__label-group shrink-0">
-        <h2 class="glass-card__title !mb-0">Öffentlicher Link</h2>
-        <button
-            ref="helpButtonRef"
-            type="button"
-            class="public-link-strip__info"
-            title="Mehr Informationen"
-            aria-label="Mehr Informationen zum öffentlichen Link"
-            @click.stop="toggleHelp"
-        >
-          ⓘ
-        </button>
-      </div>
+    <h2 class="glass-card__title !mb-0">Öffentlicher Link</h2>
 
+    <div class="public-link-strip__row">
       <a
           v-if="publicUrl && !linkLoading"
           :href="publicUrl"
@@ -180,24 +180,38 @@ onMounted(() => {
       </div>
     </div>
 
-    <Teleport to="body">
-      <div
-          v-if="helpOpen"
-          ref="panelRef"
-          class="public-link-strip__help-panel"
-          :style="panelStyle"
-          role="tooltip"
+    <div
+        v-if="showAdminInline && event?.id"
+        class="public-link-strip__admin"
+    >
+      <span
+          class="public-link-strip__admin-mark"
+          title="Admin"
+          aria-hidden="true"
       >
-        Dieser Link führt zum öffentlichen Zeitplan. Was angezeigt wird, wird unter
-        <RouterLink
-            to="/plan/publish"
-            class="public-link-strip__help-link"
-            @click="close"
-        >Ausgabe → Veröffentlichung</RouterLink>
-        festgelegt. Der Link bleibt unverändert — er sollte immer verwendet werden, wenn es um Ablauf und Zeiten geht,
-        damit niemand veraltete Informationen erhält.
-      </div>
-    </Teleport>
+        <i class="bi bi-shield-lock"/>
+      </span>
+      <button
+          type="button"
+          class="glass-btn-secondary inline-flex items-center gap-1.5"
+          :disabled="regenerating || linkLoading"
+          @click="regenerateLinkAndQR"
+      >
+        <i class="bi bi-arrow-repeat" :class="{'animate-spin': regenerating}" aria-hidden="true"/>
+        {{ regenerating ? '…' : 'Neu erzeugen' }}
+      </button>
+    </div>
+
+    <p class="public-link-strip__hint glass-settings-hint !mb-0">
+      Dieser Link führt zum öffentlichen Zeitplan. Was angezeigt wird, wird
+      <template v-if="props.onPublishPage"><strong>hier</strong></template>
+      <template v-else>
+        unter
+        <RouterLink to="/plan/publish" class="public-link-strip__hint-link">Ausgabe → Veröffentlichung</RouterLink>
+      </template>
+      festgelegt. Der Link bleibt unverändert — er sollte immer verwendet werden, wenn es um Ablauf und Zeiten geht,
+      damit niemand veraltete Informationen erhält.
+    </p>
 
     <Teleport to="body">
       <div
@@ -236,6 +250,9 @@ onMounted(() => {
 
 <style scoped>
 .public-link-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
   padding: 0.55rem 0.75rem;
 }
 
@@ -246,30 +263,25 @@ onMounted(() => {
   min-width: 0;
 }
 
-.public-link-strip__label-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.public-link-strip__info {
-  border: none;
-  background: transparent;
-  padding: 0;
-  line-height: 1;
-  font-size: 0.9rem;
-  color: var(--color-text-subtle);
-  cursor: pointer;
-}
-
-.public-link-strip__info:hover {
-  color: var(--color-accent);
-}
-
 .public-link-strip__actions {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+.public-link-strip__admin {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.public-link-strip__admin-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+  line-height: 1;
 }
 
 .public-link-strip__icon-btn {
@@ -282,27 +294,17 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-.public-link-strip__help-panel {
-  z-index: 4000;
-  width: 18rem;
-  max-width: calc(100vw - 1rem);
-  padding: 0.55rem 0.7rem;
-  border-radius: 8px;
-  border: 1px solid var(--color-border);
-  background: #fff;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
-  font-size: 0.875rem;
+.public-link-strip__hint {
   line-height: 1.45;
-  color: var(--color-text-muted);
 }
 
-.public-link-strip__help-link {
+.public-link-strip__hint-link {
   color: var(--color-accent);
   font-weight: 600;
   text-decoration: none;
 }
 
-.public-link-strip__help-link:hover {
+.public-link-strip__hint-link:hover {
   text-decoration: underline;
 }
 

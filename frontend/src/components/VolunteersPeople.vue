@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
@@ -15,6 +15,22 @@ import {apiError} from '@/utils/apiError'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 
 type Person = VolunteerPersonRef
+
+type PersonDraft = {
+  first_name: string
+  last_name: string
+  email: string
+  mobile: string
+  organization: string
+}
+
+const emptyDraft = (): PersonDraft => ({
+  first_name: '',
+  last_name: '',
+  email: '',
+  mobile: '',
+  organization: '',
+})
 
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
@@ -33,17 +49,13 @@ const removeFromRosterTarget = ref<Person | null>(null)
 const deletePersonTarget = ref<Person | null>(null)
 const importOpen = ref(false)
 
-const draft = ref({
-  first_name: '',
-  last_name: '',
-  nickname: '',
-  email: '',
-  mobile: '',
-})
-const editingId = ref<number | null>(null)
-const draftMobileError = ref('')
+const createDraft = ref<PersonDraft>(emptyDraft())
+const createMobileError = ref('')
 
-const isEditing = computed(() => editingId.value !== null)
+const editingId = ref<number | null>(null)
+const editDraft = ref<PersonDraft>(emptyDraft())
+const editMobileError = ref('')
+const saving = ref(false)
 
 function formatUpdatedAt(value: string | null | undefined) {
   if (!value) return '—'
@@ -54,9 +66,9 @@ function columnColClass(key: string) {
   const classes: Record<string, string> = {
     first_name: 'vol-col--first',
     last_name: 'vol-col--last',
-    nickname: 'vol-col--nick',
     email: 'vol-col--email',
     mobile: 'vol-col--mobile',
+    organization: 'vol-col--org',
     updated_at: 'vol-col--updated',
   }
   return classes[key] ?? ''
@@ -148,83 +160,120 @@ function mobileInputClass(error?: string) {
   return error ? 'glass-input glass-input--sm vol-input--invalid' : 'glass-input glass-input--sm'
 }
 
-function clearDraftMobileError() {
-  draftMobileError.value = ''
-}
-
-function resetDraft() {
-  draft.value = {first_name: '', last_name: '', nickname: '', email: '', mobile: ''}
-  draftMobileError.value = ''
-  editingId.value = null
-}
-
 function resolveMobile(raw: string | null | undefined) {
   const result = validateAndNormalizeMobile(raw)
   if (!result.ok) return {ok: false as const, error: result.error}
   return {ok: true as const, normalized: result.normalized}
 }
 
-function onDraftMobileBlur() {
-  const result = resolveMobile(draft.value.mobile)
+function onCreateMobileBlur() {
+  const result = resolveMobile(createDraft.value.mobile)
   if (!result.ok) {
-    draftMobileError.value = result.error
+    createMobileError.value = result.error
     return
   }
-  draftMobileError.value = ''
+  createMobileError.value = ''
   if (result.normalized !== null) {
-    draft.value.mobile = result.normalized
+    createDraft.value.mobile = result.normalized
   }
+}
+
+function onEditMobileBlur() {
+  const result = resolveMobile(editDraft.value.mobile)
+  if (!result.ok) {
+    editMobileError.value = result.error
+    return
+  }
+  editMobileError.value = ''
+  if (result.normalized !== null) {
+    editDraft.value.mobile = result.normalized
+  }
+}
+
+function resetCreateDraft() {
+  createDraft.value = emptyDraft()
+  createMobileError.value = ''
+}
+
+function cancelEdit() {
+  editingId.value = null
+  editDraft.value = emptyDraft()
+  editMobileError.value = ''
 }
 
 function startEdit(p: Person) {
   editingId.value = p.id
-  draft.value = {
+  editDraft.value = {
     first_name: p.first_name,
     last_name: p.last_name,
-    nickname: p.nickname ?? '',
     email: p.email,
     mobile: p.mobile ?? '',
+    organization: p.organization ?? '',
   }
-  draftMobileError.value = ''
-  document.querySelector('.vol-composer')?.scrollIntoView({behavior: 'smooth', block: 'nearest'})
+  editMobileError.value = ''
 }
 
-async function submitPerson() {
-  if (!eventId.value) return
-  if (!draft.value.first_name.trim() || !draft.value.last_name.trim() || !draft.value.email.trim()) {
+function buildPayload(draft: PersonDraft) {
+  if (!draft.first_name.trim() || !draft.last_name.trim() || !draft.email.trim()) {
     showGlassToast('Vorname, Nachname und E-Mail sind erforderlich.', 'info')
-    return
+    return null
   }
-  const mobileResult = resolveMobile(draft.value.mobile)
+  const mobileResult = resolveMobile(draft.mobile)
   if (!mobileResult.ok) {
-    draftMobileError.value = mobileResult.error
+    return {error: mobileResult.error as string}
+  }
+  return {
+    payload: {
+      first_name: draft.first_name.trim(),
+      last_name: draft.last_name.trim(),
+      email: draft.email.trim(),
+      mobile: mobileResult.normalized,
+      organization: draft.organization.trim() || null,
+    },
+  }
+}
+
+async function submitCreate() {
+  if (!eventId.value || saving.value) return
+  const built = buildPayload(createDraft.value)
+  if (!built) return
+  if ('error' in built) {
+    createMobileError.value = built.error
     return
   }
-  draftMobileError.value = ''
-  const payload = {
-    first_name: draft.value.first_name.trim(),
-    last_name: draft.value.last_name.trim(),
-    nickname: draft.value.nickname.trim() || null,
-    email: draft.value.email.trim(),
-    mobile: mobileResult.normalized,
-  }
+  createMobileError.value = ''
+  saving.value = true
   try {
-    if (editingId.value) {
-      await axios.put(`/volunteers/${editingId.value}`, payload)
-      resetDraft()
-      await load()
-      showGlassToast('Gespeichert', 'success')
-      return
-    }
-    await axios.post(`/events/${eventId.value}/volunteers`, payload)
-    resetDraft()
+    await axios.post(`/events/${eventId.value}/volunteers`, built.payload)
+    resetCreateDraft()
     await load()
     showGlassToast('Person angelegt', 'success')
   } catch (e: unknown) {
-    showGlassToast(
-      apiError(e, editingId.value ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen'),
-      'error',
-    )
+    showGlassToast(apiError(e, 'Anlegen fehlgeschlagen'), 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function saveEdit() {
+  if (!editingId.value || saving.value) return
+  const built = buildPayload(editDraft.value)
+  if (!built) return
+  if ('error' in built) {
+    editMobileError.value = built.error
+    return
+  }
+  editMobileError.value = ''
+  saving.value = true
+  try {
+    await axios.put(`/volunteers/${editingId.value}`, built.payload)
+    cancelEdit()
+    await load()
+    showGlassToast('Gespeichert', 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
+  } finally {
+    saving.value = false
   }
 }
 
@@ -243,7 +292,7 @@ async function confirmDeletePerson() {
   if (!p) return
   try {
     await axios.delete(`/volunteers/${p.id}`)
-    if (editingId.value === p.id) resetDraft()
+    if (editingId.value === p.id) cancelEdit()
     deletePersonTarget.value = null
     await load()
     showGlassToast('Gelöscht', 'success')
@@ -308,8 +357,15 @@ function onPeopleImported() {
   showGlassToast('Import abgeschlossen', 'success')
 }
 
-watch(eventId, () => load(), {immediate: true})
-onMounted(() => load())
+watch([search, notOnRosterOnly], () => {
+  if (editingId.value !== null) cancelEdit()
+})
+
+watch(eventId, () => {
+  cancelEdit()
+  resetCreateDraft()
+  void load()
+}, {immediate: true})
 </script>
 
 <template>
@@ -333,7 +389,7 @@ onMounted(() => load())
       </div>
     </header>
 
-    <section class="glass-card liquid-surface-inner vol-tile vol-composer" :class="{'vol-composer--edit': isEditing}">
+    <section class="glass-card liquid-surface-inner vol-tile vol-composer">
       <div class="vol-table-frame">
         <table class="vol-table">
           <colgroup>
@@ -350,28 +406,21 @@ onMounted(() => load())
               <td class="vol-table__roster"/>
               <td>
                 <input
-                    v-model="draft.first_name"
+                    v-model="createDraft.first_name"
                     class="glass-input glass-input--sm"
                     placeholder="Vorname *"
                 />
               </td>
               <td>
                 <input
-                    v-model="draft.last_name"
+                    v-model="createDraft.last_name"
                     class="glass-input glass-input--sm"
                     placeholder="Nachname *"
                 />
               </td>
               <td>
                 <input
-                    v-model="draft.nickname"
-                    class="glass-input glass-input--sm"
-                    placeholder="Spitzname"
-                />
-              </td>
-              <td>
-                <input
-                    v-model="draft.email"
+                    v-model="createDraft.email"
                     class="glass-input glass-input--sm"
                     type="email"
                     placeholder="E-Mail *"
@@ -379,34 +428,34 @@ onMounted(() => load())
               </td>
               <td>
                 <input
-                    v-model="draft.mobile"
-                    :class="mobileInputClass(draftMobileError)"
+                    v-model="createDraft.mobile"
+                    :class="mobileInputClass(createMobileError)"
                     type="tel"
                     inputmode="tel"
                     autocomplete="tel"
                     placeholder="0170 1234567 oder +49 170 1234567"
-                    :aria-invalid="draftMobileError ? true : undefined"
-                    :title="draftMobileError || undefined"
-                    @input="clearDraftMobileError"
-                    @blur="onDraftMobileBlur"
+                    :aria-invalid="createMobileError ? true : undefined"
+                    :title="createMobileError || undefined"
+                    @input="createMobileError = ''"
+                    @blur="onCreateMobileBlur"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="createDraft.organization"
+                    class="glass-input glass-input--sm"
+                    placeholder="Organisation"
                 />
               </td>
               <td class="vol-table__updated"/>
               <td class="vol-table__actions">
                 <button
-                    v-if="isEditing"
                     type="button"
-                    class="glass-btn-secondary vol-composer__cancel"
-                    @click="resetDraft"
+                    class="glass-btn-accent"
+                    :disabled="saving"
+                    @click="submitCreate"
                 >
-                  Abbrechen
-                </button>
-                <button
-                    type="button"
-                    :class="isEditing ? 'glass-btn-secondary vol-composer__save' : 'glass-btn-accent'"
-                    @click="submitPerson"
-                >
-                  {{ isEditing ? 'Sichern' : 'Anlegen' }}
+                  Anlegen
                 </button>
               </td>
             </tr>
@@ -455,7 +504,7 @@ onMounted(() => load())
             <col class="vol-col--roster"/>
             <col
                 v-for="column in tableColumns"
-                :key="`composer-col-${column.key}`"
+                :key="`list-col-${column.key}`"
                 :class="columnColClass(column.key)"
             />
             <col class="vol-col--actions"/>
@@ -495,7 +544,7 @@ onMounted(() => load())
                     type="button"
                     class="vol-roster-icon"
                     :class="p.on_roster ? 'vol-roster-icon--on' : 'vol-roster-icon--off'"
-                    :disabled="togglingId === p.id"
+                    :disabled="togglingId === p.id || editingId === p.id"
                     :aria-label="rosterIconTooltip(p)"
                     @click="onRosterIconClick(p)"
                 >
@@ -507,28 +556,98 @@ onMounted(() => load())
                   <span class="vol-roster-icon__tip glass-dropdown" role="tooltip">{{ rosterIconTooltip(p) }}</span>
                 </button>
               </td>
-              <td>{{ p.first_name }}</td>
-              <td>{{ p.last_name }}</td>
-              <td>{{ p.nickname?.trim() || '—' }}</td>
-              <td>{{ p.email }}</td>
-              <td>{{ p.mobile?.trim() || '—' }}</td>
-              <td class="vol-table__updated">{{ formatUpdatedAt(p.updated_at) }}</td>
-              <td class="vol-table__actions">
-                <button
-                    type="button"
-                    class="vol-icon-btn"
-                    aria-label="Bearbeiten"
-                    title="Bearbeiten"
-                    @click="startEdit(p)"
-                >
-                  <i class="bi bi-pencil" aria-hidden="true"/>
-                </button>
-                <IconDangerButton
-                    :label="deletePersonLabel(p)"
-                    :disabled="p.on_roster"
-                    @click="requestDeletePerson(p)"
-                />
-              </td>
+              <template v-if="editingId === p.id">
+                <td>
+                  <input
+                      v-model="editDraft.first_name"
+                      class="glass-input glass-input--sm"
+                      placeholder="Vorname *"
+                  />
+                </td>
+                <td>
+                  <input
+                      v-model="editDraft.last_name"
+                      class="glass-input glass-input--sm"
+                      placeholder="Nachname *"
+                  />
+                </td>
+                <td>
+                  <input
+                      v-model="editDraft.email"
+                      class="glass-input glass-input--sm"
+                      type="email"
+                      placeholder="E-Mail *"
+                  />
+                </td>
+                <td>
+                  <input
+                      v-model="editDraft.mobile"
+                      :class="mobileInputClass(editMobileError)"
+                      type="tel"
+                      inputmode="tel"
+                      autocomplete="tel"
+                      placeholder="Mobil"
+                      :aria-invalid="editMobileError ? true : undefined"
+                      :title="editMobileError || undefined"
+                      @input="editMobileError = ''"
+                      @blur="onEditMobileBlur"
+                  />
+                </td>
+                <td>
+                  <input
+                      v-model="editDraft.organization"
+                      class="glass-input glass-input--sm"
+                      placeholder="Organisation"
+                  />
+                </td>
+                <td class="vol-table__updated">{{ formatUpdatedAt(p.updated_at) }}</td>
+                <td class="vol-table__actions">
+                  <button
+                      type="button"
+                      class="vol-icon-btn"
+                      aria-label="Sichern"
+                      title="Sichern"
+                      :disabled="saving"
+                      @click="saveEdit"
+                  >
+                    <i class="bi bi-check-lg" aria-hidden="true"/>
+                  </button>
+                  <button
+                      type="button"
+                      class="vol-icon-btn"
+                      aria-label="Abbrechen"
+                      title="Abbrechen"
+                      :disabled="saving"
+                      @click="cancelEdit"
+                  >
+                    <i class="bi bi-x-lg" aria-hidden="true"/>
+                  </button>
+                </td>
+              </template>
+              <template v-else>
+                <td>{{ p.first_name }}</td>
+                <td>{{ p.last_name }}</td>
+                <td>{{ p.email }}</td>
+                <td>{{ p.mobile?.trim() || '—' }}</td>
+                <td>{{ p.organization?.trim() || '—' }}</td>
+                <td class="vol-table__updated">{{ formatUpdatedAt(p.updated_at) }}</td>
+                <td class="vol-table__actions">
+                  <button
+                      type="button"
+                      class="vol-icon-btn"
+                      aria-label="Bearbeiten"
+                      title="Bearbeiten"
+                      @click="startEdit(p)"
+                  >
+                    <i class="bi bi-pencil" aria-hidden="true"/>
+                  </button>
+                  <IconDangerButton
+                      :label="deletePersonLabel(p)"
+                      :disabled="p.on_roster"
+                      @click="requestDeletePerson(p)"
+                  />
+                </td>
+              </template>
             </tr>
           </tbody>
         </table>
@@ -567,11 +686,11 @@ onMounted(() => load())
 
 .vol-col--first { width: 13%; }
 .vol-col--last { width: 13%; }
-.vol-col--nick { width: 11%; }
 .vol-col--email { width: 20%; }
 .vol-col--mobile { width: 13%; }
+.vol-col--org { width: 14%; }
 .vol-col--updated { width: 11%; }
-.vol-col--actions { width: 10rem; }
+.vol-col--actions { width: 6.5rem; }
 
 .vol-table__updated {
   font-variant-numeric: tabular-nums;
@@ -586,21 +705,6 @@ onMounted(() => load())
   align-items: center;
   justify-content: flex-end;
   white-space: nowrap;
-}
-
-.vol-composer--edit {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent),
-    0 10px 24px rgba(15, 23, 42, 0.06);
-}
-
-.vol-composer__save {
-  min-width: 5.25rem;
-}
-
-.vol-composer__cancel {
-  padding-inline: 0.65rem;
-  font-size: 0.8125rem;
 }
 
 .vol-table__row--editing td {

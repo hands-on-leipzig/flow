@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\EventWorkspaceController;
 use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\LogoController;
@@ -181,6 +182,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::patch('/{id}/lock', [PlanController::class, 'updateLock']);
         Route::post('/sync-team-plan/{eventId}', [PlanController::class, 'syncTeamPlanForEvent']);
         Route::delete('/{id}', [PlanController::class, 'delete']);
+        Route::get('/{planId}/roles', [PlanPreviewController::class, 'planRoles']);
     });
 
     // Preview controller
@@ -274,6 +276,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::patch('/events/{event}/volunteer-roster/{volunteer}/detail', [EventVolunteerRosterController::class, 'updateDetail']);
     Route::patch('/events/{event}/volunteer-roster/{volunteer}/custom', [EventVolunteerRosterController::class, 'updateCustom']);
     Route::delete('/events/{event}/volunteer-roster/{volunteer}', [EventVolunteerRosterController::class, 'destroy']);
+    Route::post('/events/{event}/ensure-workspace', [EventWorkspaceController::class, 'ensure']);
     Route::get('/events/{event}/staffing', [EventStaffingController::class, 'index']);
     Route::post('/events/{event}/staffing/sync', [EventStaffingController::class, 'sync']);
     Route::post('/events/{event}/staffing/groups/{group}/assignments', [EventStaffingAssignmentController::class, 'store']);
@@ -339,10 +342,10 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/', [MainTablesController::class, 'index']);
         Route::get('/export', [MainTablesController::class, 'export']);
         Route::post('/create-pr', [MainTablesController::class, 'createPR']);
-        Route::post('/import', [MainTablesController::class, 'import']);
-        Route::get('/{table}', [MainTablesController::class, 'getTableData']);
+        Route::get('/{table}/schema', [MainTablesController::class, 'schema']);
         Route::get('/{table}/count', [MainTablesController::class, 'getCount']);
         Route::get('/{table}/columns', [MainTablesController::class, 'getTableColumns']);
+        Route::get('/{table}', [MainTablesController::class, 'getTableData']);
         Route::post('/{table}', [MainTablesController::class, 'store']);
         Route::put('/{table}/{id}', [MainTablesController::class, 'update']);
         Route::delete('/{table}/{id}', [MainTablesController::class, 'destroy']);
@@ -379,6 +382,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
+        Route::get('/helper-search/{eventId}', [PublishController::class, 'getPublicHelperSearch']);
+        Route::post('/helper-search/{eventId}', [PublishController::class, 'setPublicHelperSearch']);
         Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
         Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
     });

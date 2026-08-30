@@ -36,9 +36,9 @@ class VolunteerPersonController extends Controller
             $query->where(function ($inner) use ($like) {
                 $inner->where('first_name', 'like', $like)
                     ->orWhere('last_name', 'like', $like)
-                    ->orWhere('nickname', 'like', $like)
                     ->orWhere('email', 'like', $like)
-                    ->orWhere('mobile', 'like', $like);
+                    ->orWhere('mobile', 'like', $like)
+                    ->orWhere('organization', 'like', $like);
             });
         }
 
@@ -62,7 +62,6 @@ class VolunteerPersonController extends Controller
         $validated = $request->validate([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'nickname' => 'nullable|string|max:100',
             'email' => [
                 'required',
                 'email',
@@ -71,6 +70,7 @@ class VolunteerPersonController extends Controller
                     ->where(fn ($q) => $q->where('regional_partner', $event->regional_partner)),
             ],
             'mobile' => 'nullable|string|max:50',
+            'organization' => 'nullable|string|max:255',
         ]);
 
         $mobile = $this->normalizeMobile($validated['mobile'] ?? null);
@@ -79,9 +79,9 @@ class VolunteerPersonController extends Controller
             'regional_partner' => $event->regional_partner,
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
-            'nickname' => $validated['nickname'] ?? null,
             'email' => strtolower(trim($validated['email'])),
             'mobile' => $mobile,
+            'organization' => $this->nullableTrim($validated['organization'] ?? null),
         ]);
 
         return response()->json([
@@ -94,7 +94,6 @@ class VolunteerPersonController extends Controller
         $validated = $request->validate([
             'first_name' => 'sometimes|required|string|max:100',
             'last_name' => 'sometimes|required|string|max:100',
-            'nickname' => 'nullable|string|max:100',
             'email' => [
                 'sometimes',
                 'required',
@@ -105,10 +104,15 @@ class VolunteerPersonController extends Controller
                     ->ignore($volunteer->id),
             ],
             'mobile' => 'nullable|string|max:50',
+            'organization' => 'nullable|string|max:255',
         ]);
 
         if (array_key_exists('mobile', $validated)) {
             $validated['mobile'] = $this->normalizeMobile($validated['mobile']);
+        }
+
+        if (array_key_exists('organization', $validated)) {
+            $validated['organization'] = $this->nullableTrim($validated['organization']);
         }
 
         if (isset($validated['email'])) {
@@ -149,9 +153,9 @@ class VolunteerPersonController extends Controller
             'rows' => 'required|array|max:'.VolunteerPersonImportService::MAX_ROWS,
             'rows.*.first_name' => 'required|string|max:100',
             'rows.*.last_name' => 'required|string|max:100',
-            'rows.*.nickname' => 'nullable|string|max:100',
             'rows.*.email' => 'required|string|max:255',
             'rows.*.mobile' => 'nullable|string|max:50',
+            'rows.*.organization' => 'nullable|string|max:255',
         ]);
 
         $result = $importService->import(
@@ -209,9 +213,9 @@ class VolunteerPersonController extends Controller
             'regional_partner' => $person->regional_partner,
             'first_name' => $person->first_name,
             'last_name' => $person->last_name,
-            'nickname' => $person->nickname,
             'email' => $person->email,
             'mobile' => $person->mobile,
+            'organization' => $person->organization,
             'created_at' => optional($person->created_at)?->toIso8601String(),
             'updated_at' => optional($person->updated_at)?->toIso8601String(),
         ];
@@ -237,6 +241,17 @@ class VolunteerPersonController extends Controller
         }
 
         return $result['normalized'];
+    }
+
+    private function nullableTrim(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 
     /**

@@ -14,9 +14,9 @@ class VolunteerPerson extends Model
         'regional_partner',
         'first_name',
         'last_name',
-        'nickname',
         'email',
         'mobile',
+        'organization',
     ];
 
     public function regionalPartner(): BelongsTo

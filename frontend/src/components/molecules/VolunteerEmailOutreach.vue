@@ -8,9 +8,9 @@ import {flowFilename} from '@/utils/flowFilename'
 export type VolunteerOutreachPerson = {
   first_name: string
   last_name: string
-  nickname: string | null
   email: string
   mobile?: string | null
+  organization?: string | null
   updated_at?: string | null
 }
 
@@ -67,7 +67,7 @@ async function fetchEmails(): Promise<string[]> {
 }
 
 function downloadCsvBlob(people: VolunteerOutreachPerson[]) {
-  const header = ['first_name', 'last_name', 'nickname', 'email', 'mobile', 'updated_at']
+  const header = ['first_name', 'last_name', 'email', 'mobile', 'organization', 'updated_at']
   const lines = [
     header.join(';'),
     ...people.map((person) => header.map((col) => csvCell(person[col as keyof VolunteerOutreachPerson])).join(';')),
