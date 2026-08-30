@@ -66,6 +66,7 @@ final class VolunteerPersonSpreadsheetSource implements SpreadsheetSource
             [
                 new SpreadsheetSheet($stem, $columns, $rows),
             ],
+            (string) ($this->event->name ?? ''),
         );
     }
 }

@@ -13,5 +13,6 @@ final class SpreadsheetDocument
         public readonly string $filenameStem,
         public readonly DateTimeInterface|string|null $date,
         public readonly array $sheets,
+        public readonly string $subject = '',
     ) {}
 }

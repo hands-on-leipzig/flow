@@ -60,6 +60,7 @@ final class PhpSpreadsheetWriter implements SpreadsheetWriter
         }
 
         $spreadsheet->setActiveSheetIndex(0);
+        $this->applyDocumentProperties($spreadsheet, $document);
 
         foreach ($spreadsheet->getAllSheets() as $sheet) {
             $sheet->calculateColumnWidths();
@@ -82,6 +83,16 @@ final class PhpSpreadsheetWriter implements SpreadsheetWriter
             $spreadsheet->disconnectWorksheets();
             @unlink($tmp);
         }
+    }
+
+    private function applyDocumentProperties(Spreadsheet $spreadsheet, SpreadsheetDocument $document): void
+    {
+        $spreadsheet->getProperties()
+            ->setTitle($spreadsheet->getActiveSheet()->getTitle())
+            ->setSubject($document->subject)
+            ->setCreator('FLOW')
+            ->setCompany('HANDS on TECHNOLOGY e.V.')
+            ->setCreated(now()->getTimestamp());
     }
 
     private function applyTable(Worksheet $worksheet, string $sheetTitle, int $colCount, int $lastRow): void

@@ -42,6 +42,7 @@ class PhpSpreadsheetWriterTest extends TestCase
                     ],
                 ),
             ],
+            'Demo Event',
         );
 
         $binary = (new PhpSpreadsheetWriter)->write($document);
@@ -83,6 +84,12 @@ class PhpSpreadsheetWriterTest extends TestCase
 
             $this->assertCount(1, $meta->getTableCollection());
             $this->assertGreaterThan(0, $meta->getColumnDimension('A')->getWidth());
+
+            $props = $loaded->getProperties();
+            $this->assertSame('People', $props->getTitle());
+            $this->assertSame('Demo Event', $props->getSubject());
+            $this->assertSame('FLOW', $props->getCreator());
+            $this->assertSame('HANDS on TECHNOLOGY e.V.', $props->getCompany());
         } finally {
             @unlink($tmp);
         }
