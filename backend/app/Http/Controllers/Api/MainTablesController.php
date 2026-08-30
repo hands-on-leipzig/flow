@@ -3,61 +3,26 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
+use App\Services\MainTableSchemaService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class MainTablesController extends Controller
 {
-    /**
-     * Dynamically discover all m_ tables from the database
-     */
-    private function discoverMTables(): array
-    {
-        try {
-            $databaseName = DB::connection()->getDatabaseName();
-            $tables = DB::select("SHOW TABLES");
-            $tableKey = "Tables_in_{$databaseName}";
-            
-            Log::info("Discovering m_ tables", [
-                'database' => $databaseName,
-                'total_tables' => count($tables)
-            ]);
-            
-            $mTableNames = [];
-            foreach ($tables as $table) {
-                $tableName = $table->$tableKey;
-                if (str_starts_with($tableName, 'm_')) {
-                    $mTableNames[] = $tableName;
-                }
-            }
-            
-            // Sort alphabetically for consistency
-            sort($mTableNames);
-            
-            Log::info("Discovered m_ tables", [
-                'count' => count($mTableNames),
-                'tables' => $mTableNames
-            ]);
-            
-            return $mTableNames;
-        } catch (\Exception $e) {
-            Log::error("Error discovering m_ tables: " . $e->getMessage(), [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            throw $e;
-        }
-    }
+    public function __construct(
+        private readonly MainTableSchemaService $schemaService,
+    ) {}
 
     /**
      * Get all available main tables with their record counts
      */
     public function index(): JsonResponse
     {
-        $tables = $this->discoverMTables();
+        $tables = $this->schemaService->discoverMTables();
 
         $result = [];
         foreach ($tables as $table) {
@@ -66,14 +31,14 @@ class MainTablesController extends Controller
                 $result[] = [
                     'name' => $table,
                     'display_name' => $this->getTableDisplayName($table),
-                    'count' => $count
+                    'count' => $count,
                 ];
             } catch (\Exception $e) {
-                Log::error("Error getting count for table {$table}: " . $e->getMessage());
+                Log::error("Error getting count for table {$table}: ".$e->getMessage());
                 $result[] = [
                     'name' => $table,
                     'display_name' => $this->getTableDisplayName($table),
-                    'count' => 0
+                    'count' => 0,
                 ];
             }
         }
@@ -86,74 +51,97 @@ class MainTablesController extends Controller
      */
     public function getCount(string $table): JsonResponse
     {
+        if (! $this->schemaService->isAllowedTable($table)) {
+            return response()->json(['error' => 'Table not allowed'], 404);
+        }
+
         try {
             $count = DB::table($table)->count();
+
             return response()->json(['count' => $count]);
         } catch (\Exception $e) {
-            Log::error("Error getting count for table {$table}: " . $e->getMessage());
-            return response()->json(['count' => 0]);
+            Log::error("Error getting count for table {$table}: ".$e->getMessage());
+
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 
     /**
-     * Get all data from a specific table
+     * Live schema (columns, FKs with options) — never from migrations.
+     */
+    public function schema(string $table): JsonResponse
+    {
+        if (! $this->schemaService->isAllowedTable($table)) {
+            return response()->json(['error' => 'Table not allowed'], 404);
+        }
+
+        try {
+            return response()->json($this->schemaService->schema($table));
+        } catch (\Exception $e) {
+            Log::error("Error getting schema for table {$table}: ".$e->getMessage());
+
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Get all data from a specific table, with per-row delete impact.
      */
     public function getTableData(string $table): JsonResponse
     {
-        if (!$this->isAllowedTable($table)) {
+        if (! $this->schemaService->isAllowedTable($table)) {
             return response()->json(['error' => 'Table not allowed'], 404);
         }
 
         try {
-            $data = DB::table($table)->get()->toArray();
+            $primaryKey = $this->schemaService->getPrimaryKeyColumn($table);
+            $rows = DB::table($table)->get();
+            $data = [];
+
+            foreach ($rows as $row) {
+                $arr = (array) $row;
+                $id = $arr[$primaryKey] ?? null;
+                $impact = $id !== null
+                    ? $this->schemaService->deleteImpact($table, $id)
+                    : ['can_delete' => false, 'blockers' => [], 'cascade_impact' => []];
+                $arr['can_delete'] = $impact['can_delete'];
+                $arr['blockers'] = $impact['blockers'];
+                $arr['cascade_impact'] = $impact['cascade_impact'];
+                $data[] = $arr;
+            }
+
             return response()->json([
                 'data' => $data,
-                'primary_key' => $this->getPrimaryKeyColumn($table),
+                'primary_key' => $primaryKey,
             ]);
         } catch (\Exception $e) {
-            Log::error("Error getting data for table {$table}: " . $e->getMessage());
-            return response()->json(['data' => []], 500);
+            Log::error("Error getting data for table {$table}: ".$e->getMessage());
+
+            return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 
     /**
-     * Get column structure for a table
+     * Get column structure for a table (legacy; prefer /schema).
      */
     public function getTableColumns(string $table): JsonResponse
     {
-        if (!$this->isAllowedTable($table)) {
+        if (! $this->schemaService->isAllowedTable($table)) {
             return response()->json(['error' => 'Table not allowed'], 404);
         }
 
         try {
-            $columns = DB::getSchemaBuilder()->getColumnListing($table);
+            $schema = $this->schemaService->schema($table);
+
             return response()->json([
-                'columns' => $columns,
-                'primary_key' => $this->getPrimaryKeyColumn($table),
+                'columns' => array_map(static fn ($c) => $c['name'], $schema['columns']),
+                'primary_key' => $schema['primary_key'],
             ]);
         } catch (\Exception $e) {
-            Log::error("Error getting columns for table {$table}: " . $e->getMessage());
-            return response()->json(['columns' => [], 'primary_key' => 'id'], 500);
+            Log::error("Error getting columns for table {$table}: ".$e->getMessage());
+
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-    }
-
-    private function isAllowedTable(string $table): bool
-    {
-        return in_array($table, $this->discoverMTables(), true);
-    }
-
-    private function getPrimaryKeyColumn(string $table): string
-    {
-        static $cache = [];
-
-        if (isset($cache[$table])) {
-            return $cache[$table];
-        }
-
-        $keys = DB::select("SHOW KEYS FROM `{$table}` WHERE Key_name = 'PRIMARY'");
-        $cache[$table] = !empty($keys) ? $keys[0]->Column_name : 'id';
-
-        return $cache[$table];
     }
 
     /**
@@ -161,31 +149,31 @@ class MainTablesController extends Controller
      */
     public function store(Request $request, string $table): JsonResponse
     {
-        if (!$this->isAllowedTable($table)) {
+        if (! $this->schemaService->isAllowedTable($table)) {
             return response()->json(['error' => 'Table not allowed'], 404);
         }
 
         try {
-            $data = $request->all();
-            
-            // Remove empty values
-            $data = array_filter($data, function($value) {
-                return $value !== '' && $value !== null;
-            });
+            $prepared = $this->schemaService->prepareWritePayload($table, $request->all(), true);
+            if (! $prepared['ok']) {
+                return response()->json(['error' => $prepared['error']], 422);
+            }
 
-            $primaryKey = $this->getPrimaryKeyColumn($table);
+            $data = $prepared['data'];
+            $primaryKey = $this->schemaService->getPrimaryKeyColumn($table);
 
             if ($primaryKey === 'id') {
                 $id = DB::table($table)->insertGetId($data);
                 $record = DB::table($table)->where('id', $id)->first();
             } else {
                 DB::table($table)->insert($data);
-                $record = DB::table($table)->where($primaryKey, $data[$primaryKey])->first();
+                $record = DB::table($table)->where($primaryKey, $data[$primaryKey] ?? null)->first();
             }
 
             return response()->json(['data' => $record]);
         } catch (\Exception $e) {
-            Log::error("Error creating record in table {$table}: " . $e->getMessage());
+            Log::error("Error creating record in table {$table}: ".$e->getMessage());
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -195,28 +183,26 @@ class MainTablesController extends Controller
      */
     public function update(Request $request, string $table, string $id): JsonResponse
     {
-        if (!$this->isAllowedTable($table)) {
+        if (! $this->schemaService->isAllowedTable($table)) {
             return response()->json(['error' => 'Table not allowed'], 404);
         }
 
         try {
-            $data = $request->all();
-            $primaryKey = $this->getPrimaryKeyColumn($table);
+            $prepared = $this->schemaService->prepareWritePayload($table, $request->all(), false);
+            if (! $prepared['ok']) {
+                return response()->json(['error' => $prepared['error']], 422);
+            }
 
-            // Never change the primary key on update
-            unset($data[$primaryKey]);
-            
-            // Remove empty values
-            $data = array_filter($data, function($value) {
-                return $value !== '' && $value !== null;
-            });
+            $data = $prepared['data'];
+            $primaryKey = $this->schemaService->getPrimaryKeyColumn($table);
 
             DB::table($table)->where($primaryKey, $id)->update($data);
             $record = DB::table($table)->where($primaryKey, $id)->first();
 
             return response()->json(['data' => $record]);
         } catch (\Exception $e) {
-            Log::error("Error updating record {$id} in table {$table}: " . $e->getMessage());
+            Log::error("Error updating record {$id} in table {$table}: ".$e->getMessage());
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -226,16 +212,29 @@ class MainTablesController extends Controller
      */
     public function destroy(string $table, string $id): JsonResponse
     {
-        if (!$this->isAllowedTable($table)) {
+        if (! $this->schemaService->isAllowedTable($table)) {
             return response()->json(['error' => 'Table not allowed'], 404);
         }
 
         try {
-            $primaryKey = $this->getPrimaryKeyColumn($table);
+            $impact = $this->schemaService->deleteImpact($table, $id);
+            if (! $impact['can_delete']) {
+                return response()->json([
+                    'error' => 'Delete blocked by foreign key references',
+                    'blockers' => $impact['blockers'],
+                ], 409);
+            }
+
+            $primaryKey = $this->schemaService->getPrimaryKeyColumn($table);
             DB::table($table)->where($primaryKey, $id)->delete();
-            return response()->json(['success' => true]);
+
+            return response()->json([
+                'success' => true,
+                'cascade_impact' => $impact['cascade_impact'],
+            ]);
         } catch (\Exception $e) {
-            Log::error("Error deleting record {$id} from table {$table}: " . $e->getMessage());
+            Log::error("Error deleting record {$id} from table {$table}: ".$e->getMessage());
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -246,108 +245,35 @@ class MainTablesController extends Controller
     public function export()
     {
         try {
-            // Dynamically discover all m_ tables from the database
-            $tables = $this->discoverMTables();
-            
+            $tables = $this->schemaService->discoverMTables();
+
             if (empty($tables)) {
                 throw new \Exception('No m_ tables found in the database');
             }
-            
-            Log::info("Exporting m_ tables", ['tables' => $tables, 'count' => count($tables)]);
 
-            $exportData = [];
-            $exportErrors = [];
-            
-            foreach ($tables as $table) {
-                try {
-                    Log::info("Exporting table: {$table}");
-                $data = DB::table($table)->get()->toArray();
-                $exportData[$table] = array_map(function($record) {
-                    return (array) $record;
-                }, $data);
-                    Log::info("Successfully exported {$table}", ['record_count' => count($exportData[$table])]);
-                } catch (\Exception $e) {
-                    $errorMsg = "Failed to export table {$table}: " . $e->getMessage();
-                    Log::error($errorMsg, [
-                        'table' => $table,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
-                    ]);
-                    $exportErrors[] = $errorMsg;
-                    // Still include the table in export with empty array so it's not missing
-                    $exportData[$table] = [];
-                }
-            }
-            
-            // Log any errors but don't fail the export
-            if (!empty($exportErrors)) {
-                Log::warning("Export completed with errors", ['errors' => $exportErrors]);
-            }
-            
-            // Verify all discovered tables are in export data
-            $missingTables = array_diff($tables, array_keys($exportData));
-            if (!empty($missingTables)) {
-                Log::error("Some tables are missing from export data", ['missing' => $missingTables]);
-                // Add missing tables with empty arrays
-                foreach ($missingTables as $missingTable) {
-                    $exportData[$missingTable] = [];
-                }
-            }
+            $exportData = $this->buildExportData($tables);
 
-            // Add metadata
-            $exportData['_metadata'] = [
-                'exported_at' => now()->toISOString(),
-                'tables' => $tables,
-                'version' => '1.0'
-            ];
-
-            // Save to storage for backup/reference
-            $filename = 'main-tables-export-' . now()->format('Y-m-d-H-i-s') . '.json';
+            $filename = 'main-tables-export-'.now()->format('Y-m-d-H-i-s').'.json';
             Storage::put("exports/{$filename}", json_encode($exportData, JSON_PRETTY_PRINT));
 
-            // Also save to database/exports/ for repo (used by update_m_tables_from_json.php during deployment)
-            // Use database_path() which should now work correctly with APP_BASE_PATH set in .env
             $repoPath = database_path('exports');
-            if (!file_exists($repoPath)) {
+            if (! file_exists($repoPath)) {
                 mkdir($repoPath, 0755, true);
             }
-            $filePath = database_path('exports/main-tables-latest.json');
-            file_put_contents($filePath, json_encode($exportData, JSON_PRETTY_PRINT));
+            file_put_contents(
+                database_path('exports/main-tables-latest.json'),
+                json_encode($exportData, JSON_PRETTY_PRINT)
+            );
 
-            // Verify export data structure
-            $exportedTableCount = count(array_filter($exportData, fn($key) => $key !== '_metadata', ARRAY_FILTER_USE_KEY));
-            $expectedTableCount = count($tables);
-            
-            if ($exportedTableCount !== $expectedTableCount) {
-                Log::error("Table count mismatch in export", [
-                    'expected' => $expectedTableCount,
-                    'exported' => $exportedTableCount,
-                    'tables' => $tables,
-                    'export_keys' => array_keys(array_filter($exportData, fn($key) => $key !== '_metadata', ARRAY_FILTER_USE_KEY))
-                ]);
-            }
-
-            Log::info("Main tables exported successfully", [
-                'filename' => $filename,
-                'tables' => $tables,
-                'table_count' => $exportedTableCount,
-                'expected_table_count' => $expectedTableCount,
-                'total_records' => array_sum(array_map('count', array_filter($exportData, fn($key) => $key !== '_metadata', ARRAY_FILTER_USE_KEY))),
-                'errors' => $exportErrors ?? [],
-                'seeder_generated' => true,
-                'note' => 'Use Create GitHub PR button for deployment updates'
-            ]);
-
-            // Return file download
             return response()->streamDownload(function () use ($exportData) {
                 echo json_encode($exportData, JSON_PRETTY_PRINT);
             }, 'main-tables-data.json', [
                 'Content-Type' => 'application/json',
-                'X-Seeder-Generated' => 'true'
+                'X-Seeder-Generated' => 'true',
             ]);
-
         } catch (\Exception $e) {
-            Log::error("Error exporting main tables: " . $e->getMessage());
+            Log::error('Error exporting main tables: '.$e->getMessage());
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
@@ -358,162 +284,83 @@ class MainTablesController extends Controller
     public function createPR(): JsonResponse
     {
         try {
-            // Step 1: First export all m_ tables from database to JSON
-            Log::info("Starting export and PR creation process");
-            
-            // Dynamically discover all m_ tables from the database
-            $tables = $this->discoverMTables();
-            
+            $tables = $this->schemaService->discoverMTables();
+
             if (empty($tables)) {
                 throw new \Exception('No m_ tables found in the database');
             }
-            
-            Log::info("Exporting m_ tables for PR", ['tables' => $tables, 'count' => count($tables)]);
 
-            $exportData = [];
-            $exportErrors = [];
-            
-            foreach ($tables as $table) {
-                try {
-                    Log::info("Exporting table: {$table}");
-                    $data = DB::table($table)->get()->toArray();
-                    $exportData[$table] = array_map(function($record) {
-                        return (array) $record;
-                    }, $data);
-                    Log::info("Successfully exported {$table}", ['record_count' => count($exportData[$table])]);
-                } catch (\Exception $e) {
-                    $errorMsg = "Failed to export table {$table}: " . $e->getMessage();
-                    Log::error($errorMsg, [
-                        'table' => $table,
-                        'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
-                    ]);
-                    $exportErrors[] = $errorMsg;
-                    // Still include the table in export with empty array so it's not missing
-                    $exportData[$table] = [];
-                }
-            }
-            
-            // Log any errors but don't fail the export
-            if (!empty($exportErrors)) {
-                Log::warning("Export completed with errors", ['errors' => $exportErrors]);
-            }
-            
-            // Verify all discovered tables are in export data
-            $missingTables = array_diff($tables, array_keys($exportData));
-            if (!empty($missingTables)) {
-                Log::error("Some tables are missing from export data", ['missing' => $missingTables]);
-                // Add missing tables with empty arrays
-                foreach ($missingTables as $missingTable) {
-                    $exportData[$missingTable] = [];
-                }
-            }
+            $exportData = $this->buildExportData($tables);
 
-            // Add metadata
-            $exportData['_metadata'] = [
-                'exported_at' => now()->toISOString(),
-                'tables' => $tables,
-                'version' => '1.0'
-            ];
-
-            // Save to database/exports/ for repo (used by update_m_tables_from_json.php during deployment)
-            // Use database_path() which should now work correctly with APP_BASE_PATH set in .env
             $repoPath = database_path('exports');
-            if (!file_exists($repoPath)) {
+            if (! file_exists($repoPath)) {
                 mkdir($repoPath, 0755, true);
             }
-            $jsonContent = json_encode($exportData, JSON_PRETTY_PRINT);
-            $filePath = database_path('exports/main-tables-latest.json');
-            file_put_contents($filePath, $jsonContent);
-            
-            Log::info("JSON file saved successfully", [
-                'path' => $filePath,
-                'tables' => $tables,
-                'table_count' => count($tables)
-            ]);
+            file_put_contents(
+                database_path('exports/main-tables-latest.json'),
+                json_encode($exportData, JSON_PRETTY_PRINT)
+            );
 
-            // Step 2: Now create the GitHub PR with the exported JSON
-            \Artisan::call('main-data:create-pr');
-            $output = \Artisan::output();
-            
-            Log::info("Main data export and PR creation completed", [
-                'output' => $output,
-                'tables' => $tables,
-                'errors' => $exportErrors ?? []
-            ]);
+            $exitCode = Artisan::call('main-data:create-pr');
+            $output = Artisan::output();
+
+            if ($exitCode !== 0) {
+                Log::error('Main data PR creation failed', [
+                    'exit_code' => $exitCode,
+                    'output' => $output,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'error' => 'GitHub PR creation failed',
+                    'message' => 'GitHub PR creation failed',
+                    'output' => $output,
+                    'exit_code' => $exitCode,
+                ], 500);
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Export completed and GitHub PR created successfully. Check the command output for details.',
+                'message' => 'Export completed and GitHub PR created successfully.',
                 'output' => $output,
                 'tables_exported' => count($tables),
-                'errors' => $exportErrors ?? []
             ]);
-
         } catch (\Exception $e) {
-            Log::error("Error exporting and creating main data PR: " . $e->getMessage(), [
+            Log::error('Error exporting and creating main data PR: '.$e->getMessage(), [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
 
     /**
-     * Import main tables data
+     * @param  list<string>  $tables
+     * @return array<string, mixed>
      */
-    public function import(Request $request): JsonResponse
+    private function buildExportData(array $tables): array
     {
-        try {
-            $request->validate([
-                'file' => 'required|file|mimes:json'
-            ]);
-
-            $file = $request->file('file');
-            $content = file_get_contents($file->getPathname());
-            $data = json_decode($content, true);
-
-            if (!$data || !isset($data['_metadata'])) {
-                return response()->json(['error' => 'Invalid export file format'], 400);
+        $exportData = [];
+        foreach ($tables as $table) {
+            try {
+                $data = DB::table($table)->get()->toArray();
+                $exportData[$table] = array_map(static fn ($record) => (array) $record, $data);
+            } catch (\Exception $e) {
+                Log::error("Failed to export table {$table}: ".$e->getMessage());
+                $exportData[$table] = [];
             }
-
-            $tables = $data['_metadata']['tables'] ?? [];
-            $importedCounts = [];
-
-            foreach ($tables as $table) {
-                if (isset($data[$table])) {
-                    // Clear existing data
-                    DB::table($table)->truncate();
-                    
-                    // Insert new data
-                    if (!empty($data[$table])) {
-                        DB::table($table)->insert($data[$table]);
-                    }
-                    
-                    $importedCounts[$table] = count($data[$table]);
-                }
-            }
-
-            Log::info("Main tables imported successfully", [
-                'imported_counts' => $importedCounts,
-                'total_records' => array_sum($importedCounts)
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'imported_counts' => $importedCounts,
-                'message' => 'Import completed successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            Log::error("Error importing main tables: " . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
         }
+
+        $exportData['_metadata'] = [
+            'exported_at' => now()->toISOString(),
+            'tables' => $tables,
+            'version' => '1.0',
+        ];
+
+        return $exportData;
     }
 
-    /**
-     * Get display name for a table
-     */
     private function getTableDisplayName(string $table): string
     {
         $displayNames = [
@@ -522,13 +369,14 @@ class MainTablesController extends Controller
             'm_room_type' => 'Room Types',
             'm_room_type_group' => 'Room Type Groups',
             'm_parameter' => 'Parameters',
+            'm_parameter_condition' => 'Parameter Conditions',
             'm_activity_type' => 'Activity Types',
             'm_activity_type_detail' => 'Activity Type Details',
             'm_first_program' => 'First Programs',
             'm_role' => 'Roles',
             'm_staffing_rule' => 'Staffing Rules',
             'm_visibility' => 'Visibility Rules',
-            'm_supported_plan' => 'Supported Plans'
+            'm_supported_plan' => 'Supported Plans',
         ];
 
         return $displayNames[$table] ?? $table;

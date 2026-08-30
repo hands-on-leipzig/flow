@@ -31,6 +31,10 @@ class MParameterController extends Controller
 
     public function updateMparameter(Request $req, int $id)
     {
+        if ($deny = $this->denyUnlessAdmin($req)) {
+            return $deny;
+        }
+
         $data = $req->validate([
             'name'           => 'nullable|string|max:255',
             'ui_label'       => 'nullable|string|max:255',
@@ -53,6 +57,10 @@ class MParameterController extends Controller
 
     public function reorderMparameter(Request $req)
     {
+        if ($deny = $this->denyUnlessAdmin($req)) {
+            return $deny;
+        }
+
         // Erwartet: { order: [ { id, sequence }, ... ] }
         $data = $req->validate([
             'order' => 'required|array|min:1',
@@ -124,6 +132,16 @@ class MParameterController extends Controller
             'updated' => count($changed),
             'skipped' => count($ids) - count($changed),
         ]);
+    }
+
+    private function denyUnlessAdmin(Request $req): \Illuminate\Http\JsonResponse|null
+    {
+        $user = $req->user();
+        if (! $user || ! $user->isFlowAdmin()) {
+            return response()->json(['error' => 'Forbidden - admin role required'], 403);
+        }
+
+        return null;
     }
 
 }
