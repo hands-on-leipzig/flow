@@ -73,6 +73,16 @@ class PhpSpreadsheetWriterTest extends TestCase
             $meta = $loaded->getSheet(1);
             $this->assertSame('Meta', $meta->getTitle());
             $this->assertSame('ok', $meta->getCell('A2')->getValue());
+
+            $this->assertCount(1, $people->getTableCollection());
+            $peopleTable = $people->getTableCollection()[0];
+            $this->assertSame('People', $peopleTable->getName());
+            $this->assertSame('A1:B3', $peopleTable->getRange());
+            $this->assertGreaterThan(0, $people->getColumnDimension('A')->getWidth());
+            $this->assertGreaterThan(0, $people->getColumnDimension('B')->getWidth());
+
+            $this->assertCount(1, $meta->getTableCollection());
+            $this->assertGreaterThan(0, $meta->getColumnDimension('A')->getWidth());
         } finally {
             @unlink($tmp);
         }

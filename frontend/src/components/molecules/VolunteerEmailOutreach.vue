@@ -187,7 +187,7 @@ async function downloadExcel() {
               @click="downloadExcel"
           >
             <i class="bi bi-file-earmark-excel" aria-hidden="true"/>
-            Download Excel
+            Excel download
           </button>
         </div>
       </div>
