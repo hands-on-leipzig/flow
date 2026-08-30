@@ -620,6 +620,8 @@ export function useScheduleWorkspace() {
     updatePlanLock,
     updateTableName,
     immediateFlush: immediateFlushAll,
+    /** Full generate now; does not flush pending debounce edits (policy A). */
+    regeneratePlan: runGeneratorOnce,
     toastAction,
     openPlanPopout,
     focusPlanPopout,

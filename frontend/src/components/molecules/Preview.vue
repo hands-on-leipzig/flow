@@ -8,6 +8,7 @@ import axios from 'axios'
 import { useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility'
+import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getProgramTheme } from '@/utils/programTheme'
 
@@ -49,6 +50,12 @@ type RobotGameData = {
 const route = useRoute()
 const { initializeUserRoles } = useAuth()
 const { showAdminInline } = useAdminInlineVisibility()
+const {
+  selectedPlanId,
+  planLocked,
+  isGenerating,
+  regeneratePlan,
+} = useScheduleWorkspace()
 
 // Ensure roles are initialized
 onMounted(() => {
@@ -69,6 +76,20 @@ const props = withDefaults(defineProps<{
 const effectivePlanId = computed(() => {
   return props.planId ?? Number(route.params.planId)
 })
+
+/** Schedule shell only: workspace plan must match; skip when locked or already generating. */
+const canRegeneratePlan = computed(() => {
+  const planId = effectivePlanId.value
+  if (!planId || !selectedPlanId.value) return false
+  if (Number(selectedPlanId.value) !== Number(planId)) return false
+  if (planLocked.value || isGenerating.value) return false
+  return true
+})
+
+async function onRegeneratePlan() {
+  if (!canRegeneratePlan.value) return
+  await regeneratePlan()
+}
 
 const view = ref<'overview' | 'roles' | 'teams' | 'robot-game' | 'quality' | 'activities'>(props.initialView as any)
 
@@ -415,6 +436,13 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
             :class="{'glass-segment__btn--active': view === 'quality'}"
             @click="openQuality()"
           >Plan-Qualität</button>
+          <button
+            type="button"
+            class="glass-segment__btn"
+            :disabled="!canRegeneratePlan"
+            title="Plan sofort neu generieren (ohne ausstehende Parameter-Änderungen)"
+            @click="onRegeneratePlan"
+          >Neu generieren</button>
         </div>
       </div>
 

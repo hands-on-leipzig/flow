@@ -172,6 +172,10 @@ class VisibilityController extends Controller
      */
     public function toggleVisibility(Request $request)
     {
+        if ($deny = $this->denyUnlessAdmin($request)) {
+            return $deny;
+        }
+
         $validator = Validator::make($request->all(), [
             'role_id' => 'required|integer|exists:m_role,id',
             'activity_type_detail_id' => 'required|integer|exists:m_activity_type_detail,id',
@@ -221,6 +225,10 @@ class VisibilityController extends Controller
      */
     public function bulkToggle(Request $request)
     {
+        if ($deny = $this->denyUnlessAdmin($request)) {
+            return $deny;
+        }
+
         $validator = Validator::make($request->all(), [
             'toggles' => 'required|array',
             'toggles.*.role_id' => 'required|integer|exists:m_role,id',
@@ -260,5 +268,15 @@ class VisibilityController extends Controller
             DB::rollBack();
             return response()->json(['error' => 'Database error'], 500);
         }
+    }
+
+    private function denyUnlessAdmin(Request $request): \Illuminate\Http\JsonResponse|null
+    {
+        $user = $request->user();
+        if (! $user || ! $user->isFlowAdmin()) {
+            return response()->json(['error' => 'Forbidden - admin role required'], 403);
+        }
+
+        return null;
     }
 }

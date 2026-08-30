@@ -340,10 +340,10 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/', [MainTablesController::class, 'index']);
         Route::get('/export', [MainTablesController::class, 'export']);
         Route::post('/create-pr', [MainTablesController::class, 'createPR']);
-        Route::post('/import', [MainTablesController::class, 'import']);
-        Route::get('/{table}', [MainTablesController::class, 'getTableData']);
+        Route::get('/{table}/schema', [MainTablesController::class, 'schema']);
         Route::get('/{table}/count', [MainTablesController::class, 'getCount']);
         Route::get('/{table}/columns', [MainTablesController::class, 'getTableColumns']);
+        Route::get('/{table}', [MainTablesController::class, 'getTableData']);
         Route::post('/{table}', [MainTablesController::class, 'store']);
         Route::put('/{table}/{id}', [MainTablesController::class, 'update']);
         Route::delete('/{table}/{id}', [MainTablesController::class, 'destroy']);
