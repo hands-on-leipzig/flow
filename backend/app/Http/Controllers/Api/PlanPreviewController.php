@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Enums\FirstProgram;
 use App\Http\Controllers\Controller;
 use App\Services\ActivityFetcherService;
+use App\Services\RoleFetcherService;
 use App\Services\RolesPreviewGridService;
 use App\Services\TeamsPreviewGridService;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -16,16 +18,56 @@ class PlanPreviewController extends Controller
 {
     public function __construct(
         private ActivityFetcherService $activities,
+        private RoleFetcherService $roles,
         private PlanExportController $planExport
     ) {}
 
+    /**
+     * Distinct catalog roles that have schedule work in this plan.
+     */
+    public function planRoles(int $planId, Request $request): JsonResponse
+    {
+        $exists = DB::table('plan')->where('id', $planId)->exists();
+        if (! $exists) {
+            return response()->json(['error' => 'Plan not found'], 404);
+        }
+
+        $includePast = filter_var($request->query('include_past', false), FILTER_VALIDATE_BOOLEAN);
+
+        $roles = $this->roles->fetchRoles($planId, $includePast)->map(static function ($role) {
+            return [
+                'id' => (int) $role->id,
+                'name' => $role->name,
+                'name_short' => $role->name_short,
+                'sequence' => (int) $role->sequence,
+                'first_program' => $role->first_program !== null ? (int) $role->first_program : null,
+                'first_program_name' => $role->first_program_name,
+                'color_hex' => $role->color_hex,
+                'logo_stem' => $role->logo_stem,
+                'logo_white' => $role->logo_white,
+                'differentiation_type' => $role->differentiation_type,
+                'differentiation_source' => $role->differentiation_source,
+                'differentiation_parameter' => $role->differentiation_parameter,
+                'preview_matrix' => (int) $role->preview_matrix === 1,
+                'pdf_export' => (int) $role->pdf_export === 1,
+                'staffable' => (int) $role->staffable === 1,
+            ];
+        })->values();
+
+        return response()->json([
+            'plan_id' => $planId,
+            'roles' => $roles,
+        ]);
+    }
+
     public function previewOverview(int $planId)
     {
-        // Dynamically select all roles marked for preview matrix
-        $previewRoles = DB::table('m_role')
-            ->where('preview_matrix', 1)
+        $previewRoles = $this->roles->fetchRoles($planId)
+            ->filter(fn ($role) => (int) $role->preview_matrix === 1)
             ->pluck('id')
-            ->toArray();
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
 
         $data = $this->planExport->getEventOverviewData($planId, $previewRoles, false);
 
