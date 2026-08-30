@@ -53,8 +53,8 @@ class EventStaffingController extends Controller
                         'id' => $p->id,
                         'first_name' => $p->first_name,
                         'last_name' => $p->last_name,
-                        'nickname' => $p->nickname,
                         'email' => $p->email,
+                        'organization' => $p->organization,
                     ]);
 
                 $filled = $people->count();

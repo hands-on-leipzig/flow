@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\EventWorkspaceController;
 use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\LogoController;
@@ -275,6 +276,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::patch('/events/{event}/volunteer-roster/{volunteer}/detail', [EventVolunteerRosterController::class, 'updateDetail']);
     Route::patch('/events/{event}/volunteer-roster/{volunteer}/custom', [EventVolunteerRosterController::class, 'updateCustom']);
     Route::delete('/events/{event}/volunteer-roster/{volunteer}', [EventVolunteerRosterController::class, 'destroy']);
+    Route::post('/events/{event}/ensure-workspace', [EventWorkspaceController::class, 'ensure']);
     Route::get('/events/{event}/staffing', [EventStaffingController::class, 'index']);
     Route::post('/events/{event}/staffing/sync', [EventStaffingController::class, 'sync']);
     Route::post('/events/{event}/staffing/groups/{group}/assignments', [EventStaffingAssignmentController::class, 'store']);
