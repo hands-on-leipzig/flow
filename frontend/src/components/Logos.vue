@@ -9,6 +9,7 @@ import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {programLogoSrc, seasonLogoSrc} from '@/utils/images'
 import {buildAushangRows} from '@/utils/logoPreviewLayout'
 
 defineOptions({name: 'Logos'})
@@ -258,7 +259,7 @@ const manageLogosList = computed({
   },
 })
 
-/** Assigned logos only — drives right-side PDF previews. */
+/** Assigned logos only — drives right-side usage previews. */
 const assignedLogosList = computed(() => {
   const eventId = currentEventId.value
   if (!eventId) return []
@@ -266,6 +267,18 @@ const assignedLogosList = computed(() => {
       (logo.events || []).some((e) => e.id === eventId)
   )
 })
+
+/** First assigned logo — Namensaufkleber organizer slot. */
+const firstAssignedLogo = computed(() => assignedLogosList.value[0] ?? null)
+
+const seasonName = computed(() =>
+    selectedEvent.value?.season_rel?.name
+    || selectedEvent.value?.seasonRel?.name
+    || null
+)
+
+const nameTagSeasonLogoSrc = computed(() => seasonLogoSrc(seasonName.value, 'h'))
+const nameTagProgramLogoSrc = computed(() => programLogoSrc('CHALLENGE', 'h'))
 
 /** Fit Blade pixel sizes into the preview card (~55% of PDF scale). */
 const AUSHANG_PREVIEW_SCALE = 0.55
@@ -437,11 +450,11 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- Right: PDF usage previews -->
+        <!-- Right: usage previews -->
         <div class="glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Vorschau</h2>
           <p class="glass-settings-hint !mb-4">
-            So erscheinen die aktiven Logos in den PDFs.
+            So erscheinen die aktiven Logos auf dem öffentlichen Plan und in den PDFs.
           </p>
 
           <div v-if="assignedLogosList.length === 0" class="text-sm text-[var(--color-text-subtle)] italic">
@@ -449,7 +462,22 @@ onMounted(async () => {
           </div>
 
           <div v-else class="logo-preview-stack">
-            <!-- 1: PDF footer strip -->
+            <!-- Öffentlicher Plan (web footer — chip wrap, not PDF strip) -->
+            <section class="logo-preview-panel liquid-surface-inner">
+              <h3 class="logo-preview-panel__title">Öffentlicher Plan</h3>
+              <div class="logo-public-footer" aria-label="Öffentlicher-Plan-Vorschau">
+                <div
+                    v-for="logo in assignedLogosList"
+                    :key="`public-${logo.id}`"
+                    class="logo-public-footer__item"
+                    :class="{ 'logo-public-footer__item--link': !!logo.link }"
+                >
+                  <img :src="logo.url" :alt="logo.title || 'Logo'" class="logo-public-footer__img"/>
+                </div>
+              </div>
+            </section>
+
+            <!-- PDF footer strip -->
             <section class="logo-preview-panel liquid-surface-inner">
               <h3 class="logo-preview-panel__title">Fußzeile (PDFs)</h3>
               <div class="logo-footer-strip" aria-label="Fußzeilen-Vorschau">
@@ -463,7 +491,7 @@ onMounted(async () => {
               </div>
             </section>
 
-            <!-- 2: QR Aushang full area -->
+            <!-- QR Aushang full area -->
             <section class="logo-preview-panel liquid-surface-inner">
               <h3 class="logo-preview-panel__title">Aushang mit QR-Code</h3>
               <div class="logo-aushang-stage" aria-label="Aushang-Logo-Vorschau">
@@ -497,6 +525,38 @@ onMounted(async () => {
                       />
                     </div>
                   </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Namensaufkleber — first organizer logo only -->
+            <section class="logo-preview-panel liquid-surface-inner">
+              <h3 class="logo-preview-panel__title">Namensaufkleber</h3>
+              <p class="logo-preview-panel__hint">
+                Nur das erste Logo (Programm + Saison + Veranstalter).
+              </p>
+              <div class="logo-nametag" aria-label="Namensaufkleber-Vorschau">
+                <div class="logo-nametag__text">
+                  <div class="logo-nametag__person">Max Mustermann</div>
+                  <div class="logo-nametag__team">Team Beispiel</div>
+                </div>
+                <div class="logo-nametag__logos">
+                  <img
+                      :src="nameTagProgramLogoSrc"
+                      alt="Programm"
+                      class="logo-nametag__logo"
+                  />
+                  <img
+                      :src="nameTagSeasonLogoSrc"
+                      alt="Saison"
+                      class="logo-nametag__logo"
+                  />
+                  <img
+                      v-if="firstAssignedLogo"
+                      :src="firstAssignedLogo.url"
+                      :alt="firstAssignedLogo.title || 'Veranstalter'"
+                      class="logo-nametag__logo"
+                  />
                 </div>
               </div>
             </section>
@@ -625,6 +685,93 @@ onMounted(async () => {
   font-weight: 650;
   letter-spacing: 0.02em;
   color: var(--color-text);
+}
+
+.logo-preview-panel__hint {
+  margin: -0.35rem 0 0.65rem;
+  font-size: 0.75rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+  line-height: 1.35;
+}
+
+.logo-public-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem 1.25rem;
+}
+
+.logo-public-footer__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 0.85rem;
+  border-radius: calc(var(--radius-lg, 1rem) - 2px);
+  background: color-mix(in srgb, #ffffff 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+}
+
+.logo-public-footer__item--link {
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.logo-public-footer__img {
+  height: 2.5rem;
+  max-width: 7rem;
+  object-fit: contain;
+}
+
+@media (min-width: 768px) {
+  .logo-public-footer__img {
+    height: 3rem;
+    max-width: 8.5rem;
+  }
+}
+
+.logo-nametag {
+  width: 15rem;
+  height: 9.375rem;
+  margin: 0 auto;
+  padding: 0.7rem 0.75rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  border-radius: var(--radius);
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+}
+
+.logo-nametag__person {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111;
+}
+
+.logo-nametag__team {
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  line-height: 1.25;
+  color: #333;
+}
+
+.logo-nametag__logos {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-height: 2.1rem;
+}
+
+.logo-nametag__logo {
+  max-width: 3.1rem;
+  max-height: 2.1rem;
+  width: auto;
+  height: auto;
+  object-fit: contain;
 }
 
 .logo-footer-strip {
