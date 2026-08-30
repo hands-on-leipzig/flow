@@ -8,7 +8,6 @@ use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Überblick-style roles preview: 5-minute activity grid, param-driven lane/table columns.
@@ -22,6 +21,7 @@ class RolesPreviewGridService
 
     public function __construct(
         private ActivityFetcherService $activities,
+        private RoleFetcherService $roleFetcher,
     ) {}
 
     /**
@@ -37,7 +37,7 @@ class RolesPreviewGridService
         $presence = ProgramPresence::forPlan($planId, $params);
         $programIds = $this->programsOnPlan($presence);
 
-        $rolesByProgram = $this->loadRoles($programIds);
+        $rolesByProgram = $this->loadRoles($planId, $programIds);
         $programs = $this->buildProgramColumns($programIds, $rolesByProgram, $params);
 
         $flatColumns = [];
@@ -105,27 +105,33 @@ class RolesPreviewGridService
      * @param  list<int>  $programIds
      * @return array<int, Collection<int, object>>
      */
-    private function loadRoles(array $programIds): array
+    private function loadRoles(int $planId, array $programIds): array
     {
         if ($programIds === []) {
             return [];
         }
 
-        $roles = DB::table('m_role')
-            ->where('preview_matrix', 1)
-            ->whereIn('differentiation_parameter', ['lane', 'table'])
-            ->whereIn('first_program', $programIds)
-            ->where('id', '!=', self::LC_ROLE_ID)
-            ->orderBy('first_program')
-            ->orderBy('sequence')
-            ->get();
+        $programIdSet = array_fill_keys($programIds, true);
 
-        // Also drop LC by name_short prefix (defensive)
-        $roles = $roles->filter(function ($role) {
-            $short = strtoupper(trim((string) ($role->name_short ?? '')));
+        $roles = $this->roleFetcher->fetchRoles($planId)
+            ->filter(function ($role) use ($programIdSet) {
+                if ((int) $role->preview_matrix !== 1) {
+                    return false;
+                }
+                if (! in_array($role->differentiation_parameter, ['lane', 'table'], true)) {
+                    return false;
+                }
+                $fp = $role->first_program !== null ? (int) $role->first_program : null;
+                if ($fp === null || ! isset($programIdSet[$fp])) {
+                    return false;
+                }
+                if ((int) $role->id === self::LC_ROLE_ID) {
+                    return false;
+                }
+                $short = strtoupper(trim((string) ($role->name_short ?? '')));
 
-            return ! str_starts_with($short, 'LC');
-        });
+                return ! str_starts_with($short, 'LC');
+            });
 
         return $roles->groupBy(fn ($r) => (int) $r->first_program)->all();
     }

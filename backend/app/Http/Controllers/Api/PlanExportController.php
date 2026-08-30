@@ -12,6 +12,7 @@ use App\Models\Plan;
 use App\Services\ActivityFetcherService;
 use App\Services\EventTitleService;
 use App\Services\PdfLayoutService;
+use App\Services\RoleFetcherService;
 use App\Support\OverviewPlanStyle;
 use App\Support\ProgramCatalog;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -26,16 +27,20 @@ class PlanExportController extends Controller
 
     private ActivityFetcherService $activityFetcher;
 
+    private RoleFetcherService $roleFetcher;
+
     private EventTitleService $eventTitleService;
 
     private PdfLayoutService $pdfLayoutService;
 
     public function __construct(
         ActivityFetcherService $activityFetcher,
+        RoleFetcherService $roleFetcher,
         EventTitleService $eventTitleService,
         PdfLayoutService $pdfLayoutService
     ) {
         $this->activityFetcher = $activityFetcher;
+        $this->roleFetcher = $roleFetcher;
         $this->eventTitleService = $eventTitleService;
         $this->pdfLayoutService = $pdfLayoutService;
     }
@@ -639,61 +644,23 @@ class PlanExportController extends Controller
     }
 
     /**
-     * Helper: Get roles that have actual assignments in a plan
+     * Helper: Get roles that have schedule work in a plan (pdf_export + lane/table).
      *
      * @return array Array of role info with id, name, first_program, differentiation_parameter
      */
     private function getRolesInPlan(int $planId): array
     {
-        // Get all roles with pdf_export enabled and differentiation_parameter = lane or table
-        $roles = MRole::where('pdf_export', true)
-            ->whereIn('differentiation_parameter', ['lane', 'table'])
-            ->orderBy('first_program')
-            ->orderBy('sequence')
-            ->get(['id', 'name', 'first_program', 'differentiation_parameter', 'sequence']);
-
-        // Filter to only roles that have ASSIGNED activities in this plan
-        $rolesWithActivities = [];
-        foreach ($roles as $role) {
-            // Check if there are activities with this role's lane/table actually set
-            $hasAssignments = false;
-
-            if ($role->differentiation_parameter === 'lane') {
-                // Check if any activities have jury_lane set for this role
-                $hasAssignments = DB::table('activity')
-                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-                    ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
-                    ->join('m_visibility', 'm_activity_type_detail.id', '=', 'm_visibility.activity_type_detail')
-                    ->where('activity_group.plan', $planId)
-                    ->where('m_visibility.role', $role->id)
-                    ->whereNotNull('activity.jury_lane')
-                    ->exists();
-            } elseif ($role->differentiation_parameter === 'table') {
-                // Check if any activities have table_1 or table_2 set for this role
-                $hasAssignments = DB::table('activity')
-                    ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-                    ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
-                    ->join('m_visibility', 'm_activity_type_detail.id', '=', 'm_visibility.activity_type_detail')
-                    ->where('activity_group.plan', $planId)
-                    ->where('m_visibility.role', $role->id)
-                    ->where(function ($q) {
-                        $q->whereNotNull('activity.table_1')
-                            ->orWhereNotNull('activity.table_2');
-                    })
-                    ->exists();
-            }
-
-            if ($hasAssignments) {
-                $rolesWithActivities[] = [
-                    'id' => $role->id,
-                    'name' => $role->name,
-                    'first_program' => $role->first_program,
-                    'differentiation_parameter' => $role->differentiation_parameter,
-                ];
-            }
-        }
-
-        return $rolesWithActivities;
+        return $this->roleFetcher->fetchRoles($planId)
+            ->filter(fn ($role) => (int) $role->pdf_export === 1
+                && in_array($role->differentiation_parameter, ['lane', 'table'], true))
+            ->map(fn ($role) => [
+                'id' => (int) $role->id,
+                'name' => $role->name,
+                'first_program' => $role->first_program !== null ? (int) $role->first_program : null,
+                'differentiation_parameter' => $role->differentiation_parameter,
+            ])
+            ->values()
+            ->all();
     }
 
     public function download(string $type, int $eventId, Request $request)
@@ -1110,10 +1077,9 @@ class PlanExportController extends Controller
     {
         Log::info("Starte PDF-Export für Plan $planId");
 
-        $roles = MRole::where('pdf_export', true)
-            ->orderBy('first_program')
-            ->orderBy('sequence')
-            ->get();
+        $roles = $this->roleFetcher->fetchRoles($planId)
+            ->filter(fn ($role) => (int) $role->pdf_export === 1)
+            ->values();
 
         $programGroups = [];
         $allFreeBlocks = collect();
@@ -2844,9 +2810,14 @@ class PlanExportController extends Controller
         $fetcher = app(\App\Services\ActivityFetcherService::class);
         $exploreGrouping = $this->getExploreGroupingConfig($planId);
 
-        // If no role IDs provided, use default set (backward compatibility)
+        // If no role IDs provided, use roles with schedule work that are pdf_export
         if (empty($roleIds)) {
-            $roleIds = [9, 4, 5, 11]; // EXPLORE Jury, CHALLENGE Jury, Referees, Robot Check
+            $roleIds = $this->roleFetcher->fetchRoles($planId)
+                ->filter(fn ($role) => (int) $role->pdf_export === 1)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
         }
 
         // Fetch activities for all selected roles and tag them with their role_id
@@ -3644,11 +3615,10 @@ class PlanExportController extends Controller
             return response()->json(['error' => 'Kein Plan zum Event gefunden'], 404);
         }
 
-        // Get roles with differentiation_parameter 'lane' or 'table'
-        $roles = DB::table('m_role')
-            ->whereIn('differentiation_parameter', ['lane', 'table'])
-            ->select('id', 'name', 'differentiation_parameter')
-            ->get();
+        // Get roles with lane/table differentiation that have schedule work in this plan
+        $roles = $this->roleFetcher->fetchRoles((int) $plan->id)
+            ->filter(fn ($role) => in_array($role->differentiation_parameter, ['lane', 'table'], true))
+            ->values();
 
         $shifts = [];
 
