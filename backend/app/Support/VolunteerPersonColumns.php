@@ -43,17 +43,32 @@ final class VolunteerPersonColumns
     }
 
     /**
+     * @param  list<string>  $exceptKeys
      * @return list<mixed>
      */
-    public static function exportValues(VolunteerPerson $person): array
+    public static function exportValues(VolunteerPerson $person, array $exceptKeys = []): array
     {
-        return [
-            $person->first_name,
-            $person->last_name,
-            $person->email,
-            $person->mobile ?? '',
-            $person->organization ?? '',
-            $person->updated_at,
+        $byKey = [
+            'first_name' => $person->first_name,
+            'last_name' => $person->last_name,
+            'email' => $person->email,
+            'mobile' => $person->mobile ?? '',
+            'organization' => $person->organization ?? '',
+            'updated_at' => $person->updated_at,
         ];
+
+        $values = [];
+        foreach (self::DEFINITIONS as $definition) {
+            if (! ($definition['export'] ?? false)) {
+                continue;
+            }
+            $key = $definition['key'];
+            if (in_array($key, $exceptKeys, true)) {
+                continue;
+            }
+            $values[] = $byKey[$key] ?? '';
+        }
+
+        return $values;
     }
 }

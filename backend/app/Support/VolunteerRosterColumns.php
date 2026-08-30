@@ -80,10 +80,13 @@ final class VolunteerRosterColumns
      */
     public static function exportDefinitionsForEvent(int $eventId): array
     {
-        $definitions = array_map(
-            fn (array $column) => array_merge($column, ['table' => false, 'export' => true]),
-            VolunteerPersonColumns::definitions(),
-        );
+        $definitions = [];
+        foreach (VolunteerPersonColumns::definitions() as $column) {
+            if (($column['key'] ?? '') === 'updated_at') {
+                continue;
+            }
+            $definitions[] = array_merge($column, ['table' => false, 'export' => true]);
+        }
 
         $definitions[] = ['key' => 'zuordnung_1_program', 'label' => 'Zuordnung 1 Programm', 'export' => true];
         $definitions[] = ['key' => 'zuordnung_1_role', 'label' => 'Zuordnung 1 Rolle', 'export' => true];
@@ -133,7 +136,7 @@ final class VolunteerRosterColumns
         $detail = $row->detail;
         $customFields ??= self::customFieldsForEvent($eventId);
 
-        $values = VolunteerPersonColumns::exportValues($person);
+        $values = VolunteerPersonColumns::exportValues($person, ['updated_at']);
         $values = array_merge($values, self::assignmentPairValues($assignments[0] ?? null, $programNames));
         $values = array_merge($values, [
             VolunteerRosterDetailFields::exportLabel($detail?->t_shirt_cut),
