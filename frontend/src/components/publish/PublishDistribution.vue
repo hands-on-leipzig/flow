@@ -5,28 +5,41 @@
  */
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
+import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
+import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
 
 defineOptions({name: 'PublishDistribution'})
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
+const eventId = computed(() => event.value?.id ?? null)
 
 const saving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
+const helperSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const detailLevel = ref(0)
 const iframeKey = ref(0)
 const iframeLoading = ref(true)
 const leftWidth = ref(32)
+
+const {
+  enabled: helperSearchEnabled,
+  loading: helperSearchLoading,
+  setEnabled: setHelperSearchEnabled,
+} = usePublicHelperSearch(eventId)
 
 const levels = [
   {id: 0, short: 'Basis', name: 'Planung und Anmeldung', hint: 'Datum, Ort, Kontakt, Teams'},
   {id: 1, short: 'Ablauf', name: 'Überblick zum Ablauf', hint: '+ wichtige Zeiten'},
   {id: 2, short: 'Alles', name: 'volle Details', hint: '+ Online-Zeitplan'},
 ]
+
+const helperSearchHiddenByLevel = computed(() => detailLevel.value === 2)
 
 function normalizeLink(raw: string | null | undefined): string {
   if (!raw) return ''
@@ -91,6 +104,18 @@ function onIframeLoad() {
   iframeLoading.value = false
 }
 
+async function onHelperSearchToggle(next: boolean) {
+  try {
+    helperSaving.value?.show()
+    await setHelperSearchEnabled(next)
+    reloadPreview()
+  } catch {
+    // toast from composable
+  } finally {
+    helperSaving.value?.hide()
+  }
+}
+
 watch(
     () => event.value?.id,
     async (id) => {
@@ -114,6 +139,7 @@ onMounted(async () => {
 
 <template>
   <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
+  <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
 
   <div class="pub">
     <div class="pub__shell">
@@ -126,26 +152,66 @@ onMounted(async () => {
         <section class="pub__tile glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Sichtbarkeit</h2>
           <div class="pub__levels" role="radiogroup" aria-label="Sichtbarkeitsstufe">
-            <button
+            <div
                 v-for="level in levels"
                 :key="level.id"
-                type="button"
                 role="radio"
+                tabindex="0"
                 class="pub__level liquid-surface-inner"
                 :class="{'is-active': detailLevel === level.id}"
                 :aria-checked="detailLevel === level.id"
                 @click="setDetailLevel(level.id)"
+                @keydown.enter.prevent="setDetailLevel(level.id)"
+                @keydown.space.prevent="setDetailLevel(level.id)"
             >
-              <span class="pub__level-mark" aria-hidden="true">
-                <i v-if="detailLevel === level.id" class="bi bi-check2"/>
-                <span v-else>{{ level.id + 1 }}</span>
-              </span>
-              <span class="pub__level-copy">
-                <span class="pub__level-name">{{ level.name }}</span>
-                <span class="glass-settings-hint !mb-0">{{ level.hint }}</span>
-              </span>
-            </button>
+              <div class="pub__level-main">
+                <span class="pub__level-mark" aria-hidden="true">
+                  <i v-if="detailLevel === level.id" class="bi bi-check2"/>
+                  <span v-else>{{ level.id + 1 }}</span>
+                </span>
+                <span class="pub__level-copy">
+                  <span class="pub__level-name">{{ level.name }}</span>
+                  <span class="glass-settings-hint !mb-0">{{ level.hint }}</span>
+                </span>
+              </div>
+              <div
+                  v-if="level.id === 1"
+                  class="pub__level-explain glass-settings-hint !mb-0"
+              >
+                <p class="pub__level-explain-p">
+                  Die wichtigsten Zeiten werden automatisch aus dem Veranstaltungsplan übernommen.
+                </p>
+                <p class="pub__level-explain-p">
+                  <RouterLink
+                      to="/plan/schedule/free"
+                      class="pub__level-explain-link"
+                      @click.stop
+                  >Zusätzliche Aktivitäten</RouterLink>
+                  z.&nbsp;B. „Check-In“ werden übernommen, wenn sie als „öffentlich zeigen“ gekennzeichnet sind.
+                </p>
+              </div>
+            </div>
           </div>
+        </section>
+
+        <section class="pub__tile glass-card liquid-surface-inner">
+          <div class="pub__helper-head">
+            <h2 class="glass-card__heading !mb-0">Suche nach Helfer:innen</h2>
+            <ToggleSwitch
+                :model-value="helperSearchEnabled"
+                :disabled="helperSearchLoading || !eventId"
+                @update:modelValue="onHelperSearchToggle"
+            />
+          </div>
+          <p class="glass-settings-hint !mb-0">
+            Zeigt offene Positionen aus der Zuordnung auf dem öffentlichen Plan zwischen Allgemeine Infos und Angemeldete Teams.
+          </p>
+          <p
+              v-if="helperSearchEnabled && helperSearchHiddenByLevel"
+              class="glass-settings-hint !mb-0 pub__helper-warn"
+          >
+            Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
+          </p>
         </section>
       </section>
 
@@ -255,6 +321,17 @@ onMounted(async () => {
   gap: 0.65rem;
 }
 
+.pub__helper-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.pub__helper-warn {
+  color: var(--color-text-muted);
+}
+
 .pub__preview {
   flex: 1 1 auto;
   display: flex;
@@ -281,8 +358,8 @@ onMounted(async () => {
 
 .pub__level {
   display: flex;
-  align-items: flex-start;
-  gap: 0.65rem;
+  flex-direction: column;
+  gap: 0.45rem;
   width: 100%;
   text-align: left;
   padding: 0.7rem 0.75rem;
@@ -306,6 +383,12 @@ onMounted(async () => {
     0 8px 18px rgba(15, 23, 42, 0.055),
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
     inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent);
+}
+
+.pub__level-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
 }
 
 .pub__level-mark {
@@ -341,6 +424,27 @@ onMounted(async () => {
   font-weight: 700;
   color: var(--color-text);
   line-height: 1.25;
+}
+
+.pub__level-explain {
+  padding-left: calc(1.45rem + 0.65rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pub__level-explain-p {
+  margin: 0;
+}
+
+.pub__level-explain-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pub__level-explain-link:hover {
+  text-decoration: underline;
 }
 
 .pub__preview-bar {

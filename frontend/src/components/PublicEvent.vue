@@ -185,6 +185,33 @@ const teamLanes = computed(() => {
 
 const hasTeamsSection = computed(() => teamLanes.value.length > 0)
 
+const helperSearch = computed(() => scheduleInfo.value?.helper_search ?? null)
+
+const showHelperSearchSection = computed(() => {
+  if (!scheduleInfo.value || !helperSearch.value) return false
+  const level = scheduleInfo.value.level
+  return level >= 1 && level < 4
+})
+
+const helperSearchPrimaryScopes = computed(() => {
+  const scopes = helperSearch.value?.scopes
+  if (!Array.isArray(scopes)) return []
+  const byKey = new Map(scopes.map((s) => [s.key, s]))
+  return ['cross', 'local'].map((key) => byKey.get(key)).filter(Boolean)
+})
+
+const helperSearchProgramScopes = computed(() => {
+  const scopes = helperSearch.value?.scopes
+  if (!Array.isArray(scopes)) return []
+  return scopes.filter((s) => typeof s.key === 'string' && s.key.startsWith('program:'))
+})
+
+const helperSearchHasRoles = computed(() => {
+  const scopes = helperSearch.value?.scopes
+  if (!Array.isArray(scopes)) return false
+  return scopes.some((s) => Array.isArray(s.roles) && s.roles.length > 0)
+})
+
 const exploreProgram = computed(() => resolveProgramRef(event.value, 'EXPLORE'))
 const challengeProgram = computed(() => resolveProgramRef(event.value, 'CHALLENGE'))
 
@@ -372,6 +399,58 @@ onMounted(async () => {
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- Suche nach Helfer:innen -->
+      <section
+          v-if="showHelperSearchSection"
+          class="glass-card liquid-surface-inner pe-section"
+      >
+        <h2 class="glass-card__title">Suche nach Helfer:innen</h2>
+
+        <p v-if="!helperSearchHasRoles" class="pe-helper-empty">komplett</p>
+
+        <template v-else>
+          <div
+              v-if="helperSearchPrimaryScopes.length"
+              class="pe-helper-row"
+          >
+            <div
+                v-for="scope in helperSearchPrimaryScopes"
+                :key="scope.key"
+                class="pe-helper-scope liquid-surface-inner"
+            >
+              <h3 class="pe-helper-scope__title">{{ scope.label }}</h3>
+              <ul class="pe-helper-roles">
+                <li
+                    v-for="(role, index) in scope.roles"
+                    :key="`${scope.key}-${index}`"
+                >{{ role }}</li>
+              </ul>
+            </div>
+          </div>
+
+          <div
+              v-if="helperSearchProgramScopes.length"
+              class="pe-helper-row"
+          >
+            <div
+                v-for="scope in helperSearchProgramScopes"
+                :key="scope.key"
+                class="pe-helper-scope liquid-surface-inner"
+            >
+              <h3 class="pe-helper-scope__title">{{ scope.label }}</h3>
+              <ul class="pe-helper-roles">
+                <li
+                    v-for="(role, index) in scope.roles"
+                    :key="`${scope.key}-${index}`"
+                >{{ role }}</li>
+              </ul>
+            </div>
+          </div>
+        </template>
+
+        <p class="pe-helper-cta">Bei Interesse bitte einfach melden.</p>
       </section>
 
       <!-- Teams -->
@@ -837,6 +916,57 @@ onMounted(async () => {
 
 .pe-teams-grid {
   margin-top: 0.25rem;
+}
+
+.pe-helper-empty {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.pe-helper-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+}
+
+.pe-helper-row + .pe-helper-row {
+  margin-top: 0.75rem;
+}
+
+.pe-helper-scope {
+  border-radius: var(--radius-lg, 1rem);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  padding: 0.75rem 0.9rem;
+}
+
+.pe-helper-scope__title {
+  margin: 0 0 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.pe-helper-roles {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.pe-helper-roles li {
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: var(--color-text);
+}
+
+.pe-helper-cta {
+  margin: 0.85rem 0 0;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
 }
 
 .pe-team-list {

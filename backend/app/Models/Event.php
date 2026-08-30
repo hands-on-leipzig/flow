@@ -22,12 +22,17 @@ class Event extends Model
         'days',
         'link',
         'qrcode',
+        'public_helper_search',
         'wifi_ssid',
         'wifi_password',
         'wifi_instruction',
         'wifi_qrcode',
         'needs_attention',
         'needs_attention_checked_at'
+    ];
+
+    protected $casts = [
+        'public_helper_search' => 'boolean',
     ];
 
     protected $with = ['programs'];
