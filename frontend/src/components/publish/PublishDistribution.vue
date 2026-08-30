@@ -6,21 +6,18 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
-import {useAuth} from '@/composables/useAuth'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
+import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 
 defineOptions({name: 'PublishDistribution'})
 
 const eventStore = useEventStore()
-const {isAdmin} = useAuth()
 const event = computed(() => eventStore.selectedEvent)
 
 const saving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
-const regenerating = ref(false)
 const detailLevel = ref(0)
-const showQr = ref(false)
 const iframeKey = ref(0)
 const iframeLoading = ref(true)
 const leftWidth = ref(32)
@@ -31,13 +28,14 @@ const levels = [
   {id: 2, short: 'Alles', name: 'volle Details', hint: '+ Online-Zeitplan'},
 ]
 
-const qrSrc = computed(() => {
-  const raw = event.value?.qrcode
-  if (!raw) return null
-  return raw.startsWith('data:') ? raw : `data:image/png;base64,${raw}`
-})
+function normalizeLink(raw: string | null | undefined): string {
+  if (!raw) return ''
+  if (/^https?:\/\//i.test(raw)) return raw
+  const base = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '')
+  return `${base}/${raw.replace(/^\//, '')}`
+}
 
-const publicUrl = computed(() => event.value?.link || '')
+const publicUrl = computed(() => normalizeLink(event.value?.link))
 
 const activeLevel = computed(() => levels[detailLevel.value] ?? levels[0])
 
@@ -85,37 +83,6 @@ async function setDetailLevel(level: number) {
   }
 }
 
-async function copyLink() {
-  const link = publicUrl.value
-  if (!link) return
-  try {
-    await navigator.clipboard.writeText(link)
-    showGlassToast('Link kopiert', 'success')
-  } catch {
-    showGlassToast('Link konnte nicht kopiert werden', 'error')
-  }
-}
-
-async function regenerateLinkAndQR() {
-  if (!event.value?.id) return
-  try {
-    regenerating.value = true
-    const {data} = await axios.post(`/publish/regenerate/${event.value.id}`)
-    const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin
-    if (eventStore.selectedEvent) {
-      eventStore.selectedEvent.link = `${baseUrl}/${data.link}`
-      eventStore.selectedEvent.qrcode = data.qrcode.replace('data:image/png;base64,', '')
-      eventStore.selectedEvent.slug = data.link
-    }
-    showGlassToast('Link und QR neu erzeugt', 'success')
-    reloadPreview()
-  } catch {
-    showGlassToast('Neu erzeugen fehlgeschlagen', 'error')
-  } finally {
-    regenerating.value = false
-  }
-}
-
 function openPublic() {
   if (publicUrl.value) window.open(publicUrl.value, '_blank', 'noopener')
 }
@@ -133,6 +100,10 @@ watch(
     }
 )
 
+watch(publicUrl, (url, prev) => {
+  if (url && url !== prev) reloadPreview()
+})
+
 onMounted(async () => {
   if (event.value?.id) {
     await fetchPublicationLevel()
@@ -145,78 +116,12 @@ onMounted(async () => {
   <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
 
   <div class="pub">
-    <header class="pub__intro">
-      <h1 class="pub__title">Veröffentlichung</h1>
-    </header>
-
     <div class="pub__shell">
       <section
           class="pub__left"
           :style="{ flex: `0 0 ${leftWidth}%` }"
       >
-        <section class="pub__tile glass-card liquid-surface-inner">
-          <div class="pub__label-row">
-            <h2 class="glass-card__heading !mb-0">Link</h2>
-            <button
-                v-if="qrSrc"
-                type="button"
-                class="glass-btn-secondary pub__qr-toggle"
-                :aria-expanded="showQr"
-                @click="showQr = !showQr"
-            >
-              <i class="bi bi-qr-code" aria-hidden="true"/>
-              QR
-            </button>
-          </div>
-
-          <div class="pub__urlbar liquid-surface-inner">
-            <i class="bi bi-link-45deg pub__urlbar-icon" aria-hidden="true"/>
-            <a
-                v-if="publicUrl"
-                :href="publicUrl"
-                target="_blank"
-                rel="noopener"
-                class="pub__url"
-                :title="publicUrl"
-            >{{ publicUrl }}</a>
-            <span v-else class="pub__url pub__url--empty">Kein Link</span>
-          </div>
-
-          <div class="pub__btn-row">
-            <button
-                v-if="publicUrl"
-                type="button"
-                class="glass-btn-accent inline-flex items-center gap-1.5"
-                @click="copyLink"
-            >
-              <i class="bi bi-clipboard" aria-hidden="true"/>
-              Kopieren
-            </button>
-            <button
-                v-if="publicUrl"
-                type="button"
-                class="glass-btn-secondary inline-flex items-center gap-1.5"
-                @click="openPublic"
-            >
-              <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
-              Öffnen
-            </button>
-            <button
-                v-if="isAdmin && event?.id"
-                type="button"
-                class="glass-btn-secondary inline-flex items-center gap-1.5"
-                :disabled="regenerating"
-                @click="regenerateLinkAndQR"
-            >
-              <i class="bi bi-arrow-repeat" aria-hidden="true"/>
-              {{ regenerating ? '…' : 'Neu' }}
-            </button>
-          </div>
-
-          <div v-if="showQr && qrSrc" class="pub__qr-box liquid-surface-inner">
-            <img :src="qrSrc" alt="QR-Code zur öffentlichen Seite" class="pub__qr"/>
-          </div>
-        </section>
+        <PublicLinkStrip/>
 
         <section class="pub__tile glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Sichtbarkeit</h2>
@@ -344,19 +249,6 @@ onMounted(async () => {
   }
 }
 
-.pub__intro {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.pub__title {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-
 .pub__tile {
   display: flex;
   flex-direction: column;
@@ -379,76 +271,6 @@ onMounted(async () => {
     height: auto;
     align-self: stretch;
   }
-}
-
-.pub__label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.pub__qr-toggle {
-  padding: 0.25rem 0.55rem !important;
-  font-size: 0.75rem !important;
-  font-weight: 650;
-  gap: 0.3rem;
-  display: inline-flex;
-  align-items: center;
-}
-
-.pub__urlbar {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-width: 0;
-  padding: 0.55rem 0.7rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, var(--liquid-border-soft));
-}
-
-.pub__urlbar-icon {
-  flex-shrink: 0;
-  color: var(--color-accent);
-}
-
-.pub__url {
-  min-width: 0;
-  flex: 1;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-text);
-  text-decoration: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pub__url:hover { color: var(--color-accent); }
-
-.pub__url--empty {
-  color: var(--color-text-muted);
-  font-weight: 500;
-}
-
-.pub__btn-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-}
-
-.pub__qr-box {
-  display: flex;
-  justify-content: center;
-  padding: 0.75rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, var(--liquid-border-soft));
-}
-
-.pub__qr {
-  width: 7.5rem;
-  height: 7.5rem;
-  object-fit: contain;
 }
 
 .pub__levels {
@@ -551,46 +373,35 @@ onMounted(async () => {
 }
 
 .pub__preview-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  padding: 0.2rem 0.5rem;
-  border: 0;
-  background: none;
-  font-size: 0.75rem;
-  font-weight: 700;
+  border: none;
+  background: transparent;
   color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 650;
   cursor: pointer;
+  padding: 0.2rem 0.35rem;
 }
 
 .pub__preview-open:hover { text-decoration: underline; }
 
 .pub__frame-wrap {
   position: relative;
-  flex: 1;
-  min-height: 24rem;
-  background: color-mix(in srgb, var(--color-bg-muted) 35%, #fff);
-}
-
-@media (min-width: 960px) {
-  .pub__frame-wrap {
-    min-height: 0;
-  }
-}
-
-.pub__frame {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-height: 24rem;
-  border: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   background: #fff;
 }
 
-@media (min-width: 960px) {
+.pub__frame {
+  width: 100%;
+  height: 100%;
+  min-height: 24rem;
+  border: none;
+  display: block;
+  background: #fff;
+}
+
+@media (min-width: 768px) {
   .pub__frame {
-    position: absolute;
-    inset: 0;
     min-height: 0;
   }
 }
@@ -604,11 +415,11 @@ onMounted(async () => {
   justify-content: center;
   font-size: 0.9rem;
   color: var(--color-text-muted);
-  background: color-mix(in srgb, var(--color-bg-muted) 45%, #fff);
-  z-index: 1;
+  background: color-mix(in srgb, #ffffff 92%, var(--color-bg-muted));
+  pointer-events: none;
 }
 
-.pub__frame-loading {
-  pointer-events: none;
+.pub__frame-empty {
+  pointer-events: auto;
 }
 </style>
