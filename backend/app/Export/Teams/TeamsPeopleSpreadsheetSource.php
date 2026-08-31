@@ -58,25 +58,6 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
                 $teamName = (string) ($teamData['name'] ?? '');
                 $organization = (string) ($teamData['organization'] ?? '');
 
-                foreach ($teamData['players'] ?? [] as $player) {
-                    if (! is_array($player)) {
-                        continue;
-                    }
-                    $rows[] = TeamsPeopleColumns::exportValues([
-                        'program' => $programLabel,
-                        'team_number' => $teamNumber,
-                        'team_name' => $teamName,
-                        'role' => 'Teammitglied',
-                        'first_name' => (string) ($player['firstname'] ?? ''),
-                        'last_name' => (string) ($player['name'] ?? ''),
-                        'gender' => (string) ($player['gender'] ?? ''),
-                        'birthday' => TeamsPeopleColumns::formatBirthday($player['birthday'] ?? null),
-                        'email' => '',
-                        'phone' => '',
-                        'organization' => $organization,
-                    ]);
-                }
-
                 foreach ($teamData['coaches'] ?? [] as $coach) {
                     if (is_array($coach)) {
                         $rows[] = TeamsPeopleColumns::exportValues([
@@ -107,6 +88,25 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
                             'organization' => $organization,
                         ]);
                     }
+                }
+
+                foreach ($teamData['players'] ?? [] as $player) {
+                    if (! is_array($player)) {
+                        continue;
+                    }
+                    $rows[] = TeamsPeopleColumns::exportValues([
+                        'program' => $programLabel,
+                        'team_number' => $teamNumber,
+                        'team_name' => $teamName,
+                        'role' => 'Teammitglied',
+                        'first_name' => (string) ($player['firstname'] ?? ''),
+                        'last_name' => (string) ($player['name'] ?? ''),
+                        'gender' => (string) ($player['gender'] ?? ''),
+                        'birthday' => TeamsPeopleColumns::formatBirthday($player['birthday'] ?? null),
+                        'email' => '',
+                        'phone' => '',
+                        'organization' => $organization,
+                    ]);
                 }
             }
         }

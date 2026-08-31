@@ -45,9 +45,17 @@ const merged = computed<TeamSyncEntry[]>(() =>
   mergeTeams(props.teamList as Record<string, unknown>[], visibleRemote.value),
 )
 
-const pendingRows = computed(() =>
-  merged.value.filter((row) => row.status === 'new' && row.draht),
+const upperRows = computed(() =>
+  merged.value.filter(
+    (row) =>
+      row.draht
+      && (row.status === 'new' || row.status === 'conflict'),
+  ),
 )
+
+function upperRowLabel(row: TeamSyncEntry): string {
+  return row.status === 'conflict' ? 'Umbenannt' : 'Neu'
+}
 
 const missingLocalIds = computed(() => {
   const ids = new Set<number>()
@@ -106,14 +114,15 @@ function updateTeamList(value: unknown[]) {
     <template v-if="showSyncButton">
       <h3 class="teams-sync-tables__heading">Änderungen der Anmeldung</h3>
 
-      <ul v-if="pendingRows.length" class="teams-sync-tables__pending list-none p-0 m-0 mb-2">
+      <ul v-if="upperRows.length" class="teams-sync-tables__pending list-none p-0 m-0 mb-2">
         <TeamRow
-            v-for="(row, idx) in pendingRows"
-            :key="`pending-${row.draht?.id ?? row.number ?? idx}`"
+            v-for="(row, idx) in upperRows"
+            :key="`upper-${row.status}-${row.draht?.id ?? row.number ?? idx}`"
             variant="pending"
             :team="row.draht"
             :index="idx"
             :show-jury="showJury"
+            :sync-change-label="upperRowLabel(row)"
             :coach-count="getCoachCount(row.draht)"
             :member-count="getMemberCount(row.draht)"
             :coach-names="getCoachNames(row.draht)"
@@ -153,7 +162,7 @@ function updateTeamList(value: unknown[]) {
         <div>
           <div
               v-if="hasTwoExploreGroups && index === afternoonStartIndex"
-              class="text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wide my-2 pl-1"
+              class="text-xs font-semibold text-[var(--color-text-muted)] tracking-wide my-2 pl-1"
               style="color: #93c5fd;"
           >
             Nachmittag
@@ -223,8 +232,6 @@ function updateTeamList(value: unknown[]) {
   margin: 0 0 0.5rem;
   font-size: 0.8rem;
   font-weight: 650;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--color-text-muted);
 }
 
@@ -236,13 +243,6 @@ function updateTeamList(value: unknown[]) {
   display: flex;
   justify-content: center;
   margin: 0.75rem 0 1rem;
-  padding: 0.65rem;
-  border-radius: var(--radius-lg);
-  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-muted));
-  box-shadow:
-    0 10px 24px rgba(255, 122, 0, 0.12),
-    inset 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
 .teams-sync-tables__sync-btn {

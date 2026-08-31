@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {computed} from 'vue'
 import IconDraggable from '@/components/icons/IconDraggable.vue'
 
 const props = defineProps({
@@ -18,12 +19,16 @@ const props = defineProps({
   expanded: {type: Boolean, default: false},
   peopleData: {type: Object, default: null},
   formatBirthday: {type: Function, required: true},
+  syncChangeLabel: {type: String, default: ''},
 })
 
 const emit = defineEmits(['toggle', 'update-noshow', 'copy'])
 
 const isPending = () => props.variant === 'pending'
 const beyondCapacity = () => props.teamsBeyondCapacity && props.index >= props.planCapacity
+
+const isTagged = computed(() => isPending() || props.missingInDraht)
+const showChangeLabel = computed(() => isPending())
 
 function pendingTeamNumber(team: Record<string, unknown>): string {
   const num = team.number ?? team.ref
@@ -41,42 +46,47 @@ function onCopy(text: string, label: string) {
       :class="[
         'team-row rounded-xl px-3 py-2 md:py-2.5 mb-1.5 border transition-opacity',
         showJury ? 'team-row--with-jury' : '',
-        isPending() ? 'team-row--pending' : '',
+        showChangeLabel ? 'team-row--has-change-label' : '',
+        isTagged ? 'team-row--tagged' : '',
         isPending()
-          ? 'bg-[color-mix(in_srgb,var(--color-bg-muted)_50%,#fff)] border-[var(--color-border)] text-[var(--color-text-muted)]'
+          ? 'text-[var(--color-text-muted)]'
           : [
               'cursor-pointer',
-              beyondCapacity()
+              !isTagged && beyondCapacity()
                 ? 'bg-amber-50 text-amber-950 border-amber-200'
-                : 'bg-white/90 text-[var(--color-text)] border-[var(--color-border)]',
+                : !isTagged ? 'bg-white/90 text-[var(--color-text)] border-[var(--color-border)]' : '',
               team.noshow ? 'opacity-55' : 'opacity-100',
-              missingInDraht ? 'line-through decoration-[var(--color-text-muted)]' : '',
-              !beyondCapacity() && hasMorningBorder ? 'border-l-[6px]' : '',
-              !beyondCapacity() && hasAfternoonBorder ? 'border-l-[6px]' : '',
+              !isTagged && !beyondCapacity() && hasMorningBorder ? 'border-l-[6px]' : '',
+              !isTagged && !beyondCapacity() && hasAfternoonBorder ? 'border-l-[6px]' : '',
             ],
       ]"
-      :style="!isPending() && !beyondCapacity() ? borderStyle : ''"
+      :style="!isPending() && !beyondCapacity() && !isTagged ? borderStyle : ''"
       @click="!isPending() && emit('toggle')"
   >
     <div class="team-row__grid">
-      <span
-          v-if="!isPending()"
-          class="team-row__drag drag-handle cursor-move text-[var(--color-text-muted)] self-center"
-          @click.stop
-      >
-        <IconDraggable/>
-      </span>
-      <span v-else class="team-row__drag hidden md:block" aria-hidden="true"/>
+      <template v-if="!showChangeLabel">
+        <span
+            class="team-row__drag drag-handle cursor-move text-[var(--color-text-muted)] self-center"
+            @click.stop
+        >
+          <IconDraggable/>
+        </span>
 
+        <span
+            v-if="!beyondCapacity() || index < planCapacity"
+            class="team-row__plan text-sm font-semibold tabular-nums"
+            :class="beyondCapacity() ? 'text-amber-950' : 'text-[var(--color-text)]'"
+        >
+          T{{ String(index + 1).padStart(2, '0') }}
+        </span>
+        <span v-else class="team-row__plan text-sm font-semibold tabular-nums text-amber-950">–</span>
+      </template>
       <span
-          v-if="!isPending() && (!beyondCapacity() || index < planCapacity)"
-          class="team-row__plan text-sm font-semibold tabular-nums"
-          :class="beyondCapacity() ? 'text-amber-950' : 'text-[var(--color-text)]'"
+          v-else
+          class="team-row__change-label text-xs font-semibold tracking-wide"
       >
-        T{{ String(index + 1).padStart(2, '0') }}
+        {{ syncChangeLabel }}
       </span>
-      <span v-else-if="!isPending()" class="team-row__plan text-sm font-semibold tabular-nums text-amber-950">–</span>
-      <span v-else class="team-row__plan text-sm tabular-nums text-[var(--color-text-subtle)]">–</span>
 
       <span
           v-if="showJury"
@@ -87,7 +97,10 @@ function onCopy(text: string, label: string) {
 
       <span
           class="team-row__draht-id text-sm tabular-nums font-medium"
-          :class="beyondCapacity() ? 'text-amber-900' : 'text-[var(--color-text-muted)]'"
+          :class="[
+            beyondCapacity() ? 'text-amber-900' : 'text-[var(--color-text-muted)]',
+            missingInDraht ? 'line-through decoration-[var(--color-text-muted)]' : '',
+          ]"
       >
         <template v-if="isPending()">{{ pendingTeamNumber(team) }}</template>
         <template v-else>
@@ -97,7 +110,10 @@ function onCopy(text: string, label: string) {
 
       <span
           class="team-row__name text-sm font-medium truncate min-w-0"
-          :class="beyondCapacity() ? 'text-amber-950' : 'text-[var(--color-text)]'"
+          :class="[
+            beyondCapacity() ? 'text-amber-950' : 'text-[var(--color-text)]',
+            missingInDraht ? 'line-through decoration-[var(--color-text-muted)]' : '',
+          ]"
       >
         {{ isPending() ? (team.name || '–') : team.name }}
       </span>
@@ -105,6 +121,7 @@ function onCopy(text: string, label: string) {
       <span
           v-if="coachNames.length"
           class="team-row__coaches text-sm text-[var(--color-text-muted)] truncate min-w-0"
+          :class="missingInDraht ? 'line-through decoration-[var(--color-text-muted)]' : ''"
           :title="coachNames.join(', ')"
       >
         <i class="bi bi-person-badge shrink-0 opacity-80 mr-1" aria-hidden="true"/>
@@ -258,6 +275,35 @@ function onCopy(text: string, label: string) {
     1.5rem;
 }
 
+.team-row--tagged {
+  border-color: color-mix(in srgb, #b45309 45%, var(--color-border));
+  background: color-mix(in srgb, #b45309 10%, var(--color-bg-muted));
+  color: var(--color-text);
+}
+
+.team-row--has-change-label .team-row__change-label {
+  grid-column: 1 / span 2;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: -0.5rem 0 -0.5rem -0.75rem;
+  padding: 0.5rem 0.35rem;
+  border-radius: calc(var(--radius-lg) - 1px) 0 0 calc(var(--radius-lg) - 1px);
+  border-right: 1px solid color-mix(in srgb, #b45309 25%, var(--color-border));
+  background: color-mix(in srgb, #b45309 14%, var(--color-bg-muted));
+  color: var(--color-text);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .team-row--has-change-label .team-row__change-label {
+    margin-top: -0.625rem;
+    margin-bottom: -0.625rem;
+  }
+}
+
 @media (max-width: 767px) {
   .team-row__grid {
     grid-template-columns: 3rem minmax(0, 1fr);
@@ -286,6 +332,32 @@ function onCopy(text: string, label: string) {
     grid-column: 2;
     grid-row: 2;
     font-size: 0.75rem;
+  }
+
+  .team-row--has-change-label .team-row__change-label {
+    display: flex;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: stretch;
+    margin: -0.5rem 0 -0.5rem -0.75rem;
+    padding: 0.35rem 0.25rem;
+    font-size: 0.65rem;
+    border-radius: calc(var(--radius-lg) - 1px) 0 0 calc(var(--radius-lg) - 1px);
+  }
+
+  .team-row--has-change-label .team-row__draht-id {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .team-row--has-change-label .team-row__name {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .team-row--has-change-label .team-row__coaches {
+    grid-column: 2;
+    grid-row: 2;
   }
 }
 </style>

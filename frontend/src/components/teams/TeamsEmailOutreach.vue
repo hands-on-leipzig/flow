@@ -234,8 +234,6 @@ async function downloadExcel() {
 .teams-email-dialog__legend {
   font-size: 0.75rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--color-text-muted);
   margin-bottom: 0.5rem;
 }

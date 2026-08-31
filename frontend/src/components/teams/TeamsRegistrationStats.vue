@@ -75,7 +75,7 @@ watch(() => event.value?.id, () => {
 
 <template>
   <div class="teams-registration-stats">
-    <h3 class="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">
+    <h3 class="text-xs font-semibold tracking-wide text-[var(--color-text-muted)] mb-2">
       Aktuelle Zahlen aus der Anmeldung
     </h3>
 
