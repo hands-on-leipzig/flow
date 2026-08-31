@@ -67,7 +67,7 @@ const pinError = ref('')
 const token = ref('')
 const unlocking = ref(false)
 
-const view = ref<'home' | 'detail' | 'overview' | 'qr' | 'noshow'>('home')
+const view = ref<'home' | 'detail' | 'qr' | 'noshow'>('home')
 const query = ref('')
 const searching = ref(false)
 const results = ref<SearchHit[]>([])
@@ -82,7 +82,6 @@ const noShowReason = ref('')
 const noShowSource = ref('')
 
 const overview = ref<Overview | null>(null)
-const overviewLoading = ref(false)
 const organizer = ref<{name: string; mobile: string | null} | null>(null)
 const qrDataUrl = ref('')
 const toolsError = ref('')
@@ -253,20 +252,12 @@ async function submitNoShow() {
   }
 }
 
-async function openOverview() {
-  view.value = 'overview'
-  await loadOverview()
-}
-
 async function loadOverview() {
-  overviewLoading.value = true
   try {
     const {data} = await api.get(`/check-in/${slug.value}/overview`)
     overview.value = data
   } catch {
     overview.value = null
-  } finally {
-    overviewLoading.value = false
   }
 }
 
@@ -415,9 +406,6 @@ onMounted(async () => {
         />
       </div>
       <div v-if="unlocked" class="ci-app__tools">
-        <button type="button" class="ci-tool" title="Übersicht" @click="openOverview">
-          <i class="bi bi-bar-chart" aria-hidden="true"/>
-        </button>
         <button type="button" class="ci-tool" title="QR öffentlicher Plan" @click="openQr">
           <i class="bi bi-qr-code" aria-hidden="true"/>
         </button>
@@ -698,80 +686,6 @@ onMounted(async () => {
           <button type="button" class="ci-btn ci-btn--danger" :disabled="actionBusy" @click="submitNoShow">
             No-Show speichern
           </button>
-        </div>
-      </template>
-
-      <template v-else-if="unlocked && view === 'overview'">
-        <div class="ci-panel">
-          <button type="button" class="ci-link" @click="view = 'home'">← Zurück</button>
-          <h1 class="ci-panel__h">Übersicht</h1>
-          <div v-if="overviewLoading" class="ci-muted">Laden…</div>
-          <template v-else-if="overview">
-            <div class="ci-stats">
-              <section class="ci-stats__box">
-                <h2 class="ci-stats__heading">Teams</h2>
-                <ul class="ci-stats__lines">
-                  <li
-                      v-for="(line, i) in homeTeamStats"
-                      :key="`ot-${i}`"
-                      class="ci-stats__line"
-                      :class="{'ci-stats__line--spacer': line.kind === 'spacer'}"
-                  >
-                    <template v-if="line.kind === 'spacer'">
-                      <span class="ci-stats__spacer" aria-hidden="true"/>
-                    </template>
-                    <template v-else-if="line.kind === 'global'">
-                      <span class="ci-stats__label">Gesamt</span>
-                      <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
-                    </template>
-                    <template v-else>
-                      <img
-                          v-if="statsLogo(line)"
-                          class="ci-stats__logo"
-                          :src="statsLogo(line)"
-                          alt=""
-                          aria-hidden="true"
-                      />
-                      <i
-                          v-else-if="statsIcon(line)"
-                          class="bi ci-stats__icon"
-                          :class="statsIcon(line)"
-                          aria-hidden="true"
-                      />
-                      <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
-                    </template>
-                  </li>
-                </ul>
-              </section>
-              <section class="ci-stats__box">
-                <h2 class="ci-stats__heading">Helfer</h2>
-                <ul class="ci-stats__lines">
-                  <li v-for="(line, i) in homeHelperStats" :key="`oh-${i}`" class="ci-stats__line">
-                    <template v-if="line.kind === 'global'">
-                      <span class="ci-stats__label">Gesamt</span>
-                      <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
-                    </template>
-                    <template v-else>
-                      <img
-                          v-if="statsLogo(line)"
-                          class="ci-stats__logo"
-                          :src="statsLogo(line)"
-                          alt=""
-                          aria-hidden="true"
-                      />
-                      <i
-                          v-else-if="statsIcon(line)"
-                          class="bi ci-stats__icon"
-                          :class="statsIcon(line)"
-                          aria-hidden="true"
-                      />
-                      <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
-                    </template>
-                  </li>
-                </ul>
-              </section>
-            </div>
-          </template>
         </div>
       </template>
 
