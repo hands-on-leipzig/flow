@@ -15,6 +15,7 @@ import {staffingSummaryFromReadiness, type StaffingScopeSummary} from '@/utils/v
 import VolunteerStaffingSummary from '@/components/volunteers/VolunteerStaffingSummary.vue'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
 import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
+import AdminDbIdsBox from '@/components/molecules/AdminDbIdsBox.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 
@@ -254,6 +255,7 @@ watch(
           <i class="bi bi-arrow-left-right" aria-hidden="true"/>
           <span class="hidden sm:inline">Wechseln</span>
         </button>
+        <AdminDbIdsBox/>
       </div>
 
       <div v-if="eventSoon" class="glass-chip liquid-surface-inner flex items-center gap-2 !px-3 !py-2">

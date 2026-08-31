@@ -30,6 +30,11 @@ class FlowFilenameTest extends TestCase
             'FLOW_People_Teams_Future_8_(25.08.26).csv',
             FlowFilename::make('People_Teams_Future 8+', 'csv', '25.08.26')
         );
+
+        $this->assertSame(
+            'FLOW_Personen_(25.08.26).xlsx',
+            FlowFilename::make('Personen', 'xlsx', '25.08.26')
+        );
     }
 
     #[Test]

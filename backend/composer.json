@@ -14,6 +14,7 @@
     "guzzlehttp/guzzle": "^7.9",
     "laravel/framework": "^12.0",
     "laravel/tinker": "^2.10.1",
+    "phpoffice/phpspreadsheet": "^5.9",
     "simplesoftwareio/simple-qrcode": "^4.2",
     "tecnickcom/tcpdf": "^6.10"
   },
@@ -77,6 +78,9 @@
     "allow-plugins": {
       "pestphp/pest-plugin": true,
       "php-http/discovery": true
+    },
+    "platform": {
+      "php": "8.2.33"
     }
   },
   "minimum-stability": "stable",

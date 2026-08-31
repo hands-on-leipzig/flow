@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Export\Spreadsheet\SpreadsheetResponse;
+use App\Export\Teams\TeamsPeopleSpreadsheetSource;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Support\ProgramCatalog;
@@ -10,7 +12,10 @@ use App\Models\TeamPlan;
 use App\Models\Plan;
 use App\Http\Controllers\Api\PlanController;
 use App\Services\EventAttentionService;
+use App\Services\TeamJuryAssignmentService;
+use App\Services\TeamSyncService;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -68,9 +73,13 @@ class TeamController extends Controller
 
         $teams = $query->get();
 
+        $plan = Plan::where('event', $event->id)->first();
+        if ($plan) {
+            $this->attachJuryLanes($teams, $plan->id, (int) $program->id);
+        }
+
         // If Explore teams, include e1_teams and e_mode for frontend to determine morning/afternoon split
         if (strcasecmp((string) $program->name, 'EXPLORE') === 0) {
-            $plan = Plan::where('event', $event->id)->first();
             if ($plan) {
                 $e1Teams = DB::table('plan_param_value')
                     ->join('m_parameter', 'plan_param_value.parameter', '=', 'm_parameter.id')
@@ -233,6 +242,55 @@ class TeamController extends Controller
         return response()->json(['message' => 'Team order updated successfully']);
     }
 
+    public function exportPeople(Event $event, DrahtController $drahtController): Response
+    {
+        return SpreadsheetResponse::download(
+            (new TeamsPeopleSpreadsheetSource($event, $drahtController))->document()
+        );
+    }
+
+    public function sync(Request $request, Event $event, TeamSyncService $teamSyncService, DrahtController $drahtController)
+    {
+        $validated = $request->validate([
+            'program' => 'required|string',
+        ]);
+
+        $program = ProgramCatalog::resolve($validated['program']);
+        if (! $program) {
+            return response()->json(['error' => 'Program not found'], 404);
+        }
+
+        $drahtPayload = $drahtController->fetchScheduleData($event);
+        if (! $drahtPayload['ok']) {
+            return response()->json(['error' => 'DRAHT data unavailable'], 422);
+        }
+
+        $programs = collect($drahtPayload['data']['programs'] ?? []);
+        $drahtProgram = $programs->first(
+            fn ($p) => (int) ($p['first_program'] ?? 0) === (int) $program->id
+        ) ?? $programs->first(
+            fn ($p) => strcasecmp((string) ($p['name'] ?? ''), (string) $program->name) === 0
+        );
+
+        if ($drahtProgram === null) {
+            return response()->json(['error' => 'DRAHT program not found'], 422);
+        }
+
+        $drahtTeams = is_array($drahtProgram['teams'] ?? null) ? $drahtProgram['teams'] : [];
+
+        try {
+            $result = $teamSyncService->sync($event, $validated['program'], $drahtTeams);
+
+            return response()->json($result);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => $e->getMessage()], 404);
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'Sync failed'], 422);
+        }
+    }
+
     public function destroy(Team $team)
     {
         try {
@@ -259,6 +317,21 @@ class TeamController extends Controller
                 'error' => $e->getMessage()
             ]);
             return response()->json(['error' => 'Failed to delete team'], 500);
+        }
+    }
+
+    /**
+     * Attach jury_lane from generated plan activities (keyed on team_number_plan, not DRAHT).
+     */
+    private function attachJuryLanes($teams, int $planId, int $firstProgramId): void
+    {
+        $assignments = app(TeamJuryAssignmentService::class)->assignmentsForProgram($planId, $firstProgramId);
+
+        foreach ($teams as $team) {
+            $planNo = (int) ($team->team_number_plan ?? 0);
+            $team->jury_lane = ($planNo > 0 && isset($assignments[$planNo]))
+                ? $assignments[$planNo]
+                : null;
         }
     }
 

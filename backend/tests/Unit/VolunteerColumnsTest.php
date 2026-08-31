@@ -96,7 +96,6 @@ class VolunteerColumnsTest extends TestCase
                 'E-Mail',
                 'Mobil',
                 'Organisation',
-                'Letzte Änderung',
                 'Zuordnung 1 Programm',
                 'Zuordnung 1 Rolle',
                 'T-Shirt Schnitt',

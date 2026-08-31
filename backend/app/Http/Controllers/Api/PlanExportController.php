@@ -13,6 +13,7 @@ use App\Services\ActivityFetcherService;
 use App\Services\EventTitleService;
 use App\Services\PdfLayoutService;
 use App\Services\RoleFetcherService;
+use App\Services\TeamJuryAssignmentService;
 use App\Support\OverviewPlanStyle;
 use App\Support\ProgramCatalog;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -33,16 +34,20 @@ class PlanExportController extends Controller
 
     private PdfLayoutService $pdfLayoutService;
 
+    private TeamJuryAssignmentService $teamJuryAssignmentService;
+
     public function __construct(
         ActivityFetcherService $activityFetcher,
         RoleFetcherService $roleFetcher,
         EventTitleService $eventTitleService,
-        PdfLayoutService $pdfLayoutService
+        PdfLayoutService $pdfLayoutService,
+        TeamJuryAssignmentService $teamJuryAssignmentService
     ) {
         $this->activityFetcher = $activityFetcher;
         $this->roleFetcher = $roleFetcher;
         $this->eventTitleService = $eventTitleService;
         $this->pdfLayoutService = $pdfLayoutService;
+        $this->teamJuryAssignmentService = $teamJuryAssignmentService;
     }
 
     /**
@@ -785,6 +790,15 @@ class PlanExportController extends Controller
             $day2Date = Carbon::parse($event->date)->addDay()->locale('de')->isoFormat('dd, DD.MM.YYYY');
             $exploreGrouping = $this->getExploreGroupingConfig($planId);
 
+            $exploreJuryAssignments = $this->teamJuryAssignmentService->assignmentsForProgram(
+                $planId,
+                FirstProgram::EXPLORE->value
+            );
+            $challengeJuryAssignments = $this->teamJuryAssignmentService->assignmentsForProgram(
+                $planId,
+                FirstProgram::CHALLENGE->value
+            );
+
             // Fetch teams with their assigned rooms and jury/gutachter group assignments
             // Explore teams (first_program = 2)
             $exploreTeams = DB::table('team_plan')
@@ -801,22 +815,11 @@ class PlanExportController extends Controller
                 )
                 ->orderBy('team.name')
                 ->get()
-                ->map(function ($team) use ($planId) {
-                    // Find Gutachter-Gruppe assignment by looking for activities with this team as jury_team
-                    $gutachterGroupNumber = null;
-                    $activity = DB::table('activity')
-                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-                        ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
-                        ->where('activity_group.plan', $planId)
-                        ->where('m_activity_type_detail.first_program', 2) // Explore
-                        ->where('activity.jury_team', $team->team_number_plan)
-                        ->whereNotNull('activity.jury_lane')
-                        ->select('activity.jury_lane')
-                        ->first();
-
-                    if ($activity && $activity->jury_lane) {
-                        $gutachterGroupNumber = $activity->jury_lane;
-                    }
+                ->map(function ($team) use ($exploreJuryAssignments) {
+                    $planNo = (int) ($team->team_number_plan ?? 0);
+                    $gutachterGroupNumber = ($planNo > 0 && isset($exploreJuryAssignments[$planNo]))
+                        ? $exploreJuryAssignments[$planNo]
+                        : null;
 
                     return [
                         'name' => $team->team_name,
@@ -859,22 +862,11 @@ class PlanExportController extends Controller
                 )
                 ->orderBy('team.name')
                 ->get()
-                ->map(function ($team) use ($planId) {
-                    // Find Jury-Gruppe assignment by looking for activities with this team as jury_team
-                    $juryGroupNumber = null;
-                    $activity = DB::table('activity')
-                        ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-                        ->join('m_activity_type_detail', 'activity.activity_type_detail', '=', 'm_activity_type_detail.id')
-                        ->where('activity_group.plan', $planId)
-                        ->where('m_activity_type_detail.first_program', 3) // Challenge
-                        ->where('activity.jury_team', $team->team_number_plan)
-                        ->whereNotNull('activity.jury_lane')
-                        ->select('activity.jury_lane')
-                        ->first();
-
-                    if ($activity && $activity->jury_lane) {
-                        $juryGroupNumber = $activity->jury_lane;
-                    }
+                ->map(function ($team) use ($challengeJuryAssignments) {
+                    $planNo = (int) ($team->team_number_plan ?? 0);
+                    $juryGroupNumber = ($planNo > 0 && isset($challengeJuryAssignments[$planNo]))
+                        ? $challengeJuryAssignments[$planNo]
+                        : null;
 
                     return [
                         'name' => $team->team_name,
