@@ -152,31 +152,32 @@ watch(eventId, () => {
       @cancel="showResetConfirm = false"
   />
 
-  <div class="ci-settings">
+  <div class="ci-settings vol-page">
+    <header class="vol-page__header">
+      <div>
+        <h1 class="vol-page__title">Check-In App</h1>
+        <p class="vol-page__sub">Empfang am Veranstaltungstag. Vorschau rechts ist die echte Rezeptionsansicht.</p>
+      </div>
+    </header>
+
+    <p v-if="settings && !settings.has_slug" class="glass-alert-warning !mb-0 !text-xs">
+      Öffentlicher Link fehlt — bitte zuerst unter Ausgabe → Veröffentlichung erzeugen.
+    </p>
+
     <div class="ci-settings__shell">
       <section class="ci-settings__left" :style="{ flex: `0 0 ${leftWidth}%` }">
         <section class="glass-card liquid-surface-inner ci-settings__tile">
-          <div class="ci-settings__row">
-            <div>
-              <h2 class="glass-card__heading !mb-0">Check-In</h2>
-              <p class="glass-settings-hint !mb-0 mt-1">
-                Empfang am Veranstaltungstag. Vorschau rechts ist die echte Rezeptionsansicht.
-              </p>
+          <div class="ci-settings__access-head">
+            <h2 class="glass-card__heading !mb-0">Zugang zur App</h2>
+            <div class="ci-settings__access-toggle">
+              <span class="ci-settings__toggle-label">{{ settings?.enabled ? 'Geöffnet' : 'Geschlossen' }}</span>
+              <ToggleSwitch
+                  :model-value="!!settings?.enabled"
+                  :disabled="loading || !eventId || !settings?.has_slug"
+                  @update:model-value="onEnabledToggle"
+              />
             </div>
-            <ToggleSwitch
-                :model-value="!!settings?.enabled"
-                :disabled="loading || !eventId || !settings?.has_slug"
-                @update:model-value="onEnabledToggle"
-            />
           </div>
-          <p v-if="settings && !settings.has_slug" class="glass-alert-warning mt-3 !mb-0 !text-xs">
-            Öffentlicher Link fehlt — bitte zuerst unter Ausgabe → Veröffentlichung erzeugen.
-          </p>
-        </section>
-
-        <section class="glass-card liquid-surface-inner ci-settings__tile">
-          <h2 class="glass-card__heading">PIN</h2>
-          <p class="glass-settings-hint">6 Ziffern, unverschleiert. Wird beim Öffnen der Einstellungen erzeugt, falls leer.</p>
           <div class="ci-settings__pin-row">
             <input
                 v-model="pinDraft"
@@ -186,6 +187,7 @@ watch(eventId, () => {
                 autocomplete="off"
                 class="glass-input"
                 :disabled="loading || !eventId"
+                aria-label="PIN"
                 @keydown.enter.prevent="savePin"
             />
             <button
@@ -294,6 +296,27 @@ watch(eventId, () => {
   min-height: min(72vh, 48rem);
 }
 
+.ci-settings__toggle-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.ci-settings__access-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.ci-settings__access-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .ci-settings__shell {
   display: flex;
   flex-direction: column;
@@ -320,13 +343,6 @@ watch(eventId, () => {
 
 .ci-settings__tile {
   padding: 1rem;
-}
-
-.ci-settings__row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
 }
 
 .ci-settings__pin-row {
