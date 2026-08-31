@@ -7,6 +7,7 @@ use App\Models\CheckIn;
 use App\Models\Event;
 use App\Models\Plan;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
@@ -432,25 +433,33 @@ class CheckInService
                     'email' => $row->email,
                     'mobile' => $row->mobile,
                     'organization' => $row->organization,
-                    'first_program' => $row->first_program,
-                    'program_name' => $row->program_name,
-                    'logo_stem' => $row->logo_stem,
+                    'first_program' => null,
+                    'program_name' => null,
+                    'logo_stem' => null,
+                    'is_local' => true,
                     'role_labels' => [],
+                    'scope_picked' => false,
                 ];
             }
             $label = $row->role_label ?: $row->catalog_role_name;
             if ($label && ! in_array($label, $byPerson[$id]->role_labels, true)) {
                 $byPerson[$id]->role_labels[] = $label;
             }
-            if ($byPerson[$id]->first_program === null && $row->first_program !== null) {
-                $byPerson[$id]->first_program = $row->first_program;
+
+            // Same preference as Zuordnung / check-in role pick: catalog (regular) before local.
+            $isLocal = $row->m_role === null;
+            if (! $byPerson[$id]->scope_picked || ($byPerson[$id]->is_local && ! $isLocal)) {
+                $byPerson[$id]->is_local = $isLocal;
+                $byPerson[$id]->first_program = $row->first_program !== null ? (int) $row->first_program : null;
                 $byPerson[$id]->program_name = $row->program_name;
-                $byPerson[$id]->logo_stem = $row->logo_stem;
+                $byPerson[$id]->logo_stem = $row->logo_stem ?: null;
+                $byPerson[$id]->scope_picked = true;
             }
         }
 
         return collect(array_values($byPerson))->map(function ($person) {
             $person->role_labels = implode('||', $person->role_labels);
+            unset($person->scope_picked);
 
             return $person;
         });
@@ -744,7 +753,7 @@ class CheckInService
         $teams = DB::table('team')
             ->leftJoin('m_first_program as fp', 'fp.id', '=', 'team.first_program')
             ->where('team.event', $event->id)
-            ->select('team.id', 'team.first_program', 'fp.name as program_name')
+            ->select('team.id', 'team.first_program', 'fp.name as program_name', 'fp.logo_stem')
             ->get();
 
         $teamRecords = CheckIn::query()
@@ -755,18 +764,6 @@ class CheckInService
             ->map(fn ($id) => (int) $id)
             ->all();
 
-        $teamsByProgram = [];
-        foreach ($teams->groupBy(fn ($t) => $t->first_program ?? 0) as $programId => $group) {
-            $ids = $group->pluck('id')->map(fn ($id) => (int) $id)->all();
-            $checked = count(array_intersect($ids, $teamRecords));
-            $teamsByProgram[] = [
-                'program_id' => $programId ? (int) $programId : null,
-                'program_name' => $group->first()->program_name ?? 'Teams',
-                'checked_in' => $checked,
-                'total' => count($ids),
-            ];
-        }
-
         $helpers = $this->staffedHelpersGrouped($event->id);
         $helperRecords = CheckIn::query()
             ->where('event', $event->id)
@@ -776,44 +773,150 @@ class CheckInService
             ->map(fn ($id) => (int) $id)
             ->all();
 
-        $helpersByProgram = [];
-        $helperGroups = $helpers->groupBy(fn ($h) => $h->first_program ?? 0);
-        foreach ($helperGroups as $programId => $group) {
-            $ids = $group->pluck('id')->map(fn ($id) => (int) $id)->all();
-            $checked = count(array_intersect($ids, $helperRecords));
-            $helpersByProgram[] = [
-                'program_id' => $programId ? (int) $programId : null,
-                'program_name' => $group->first()->program_name ?? 'Helfer:innen',
-                'checked_in' => $checked,
-                'total' => count($ids),
-            ];
-        }
-
-        // Also bucket helpers with null program as shared
-        if ($helpersByProgram === [] && $helpers->isNotEmpty()) {
-            $ids = $helpers->pluck('id')->map(fn ($id) => (int) $id)->all();
-            $helpersByProgram[] = [
-                'program_id' => null,
-                'program_name' => 'Helfer:innen',
-                'checked_in' => count(array_intersect($ids, $helperRecords)),
-                'total' => count($ids),
-            ];
-        }
-
-        $teamTotal = $teams->count();
-        $helperTotal = $helpers->count();
+        $teamLines = $this->teamOverviewLines($teams, $teamRecords);
+        $helperLines = $this->helperOverviewLines($helpers, $helperRecords);
 
         return [
-            'teams' => $teamsByProgram,
-            'helpers' => $helpersByProgram,
+            'teams' => $teamLines,
+            'helpers' => $helperLines,
             'totals' => [
-                'teams_checked_in' => count(array_intersect($teams->pluck('id')->map(fn ($id) => (int) $id)->all(), $teamRecords)),
-                'teams_total' => $teamTotal,
-                'helpers_checked_in' => count(array_intersect($helpers->pluck('id')->map(fn ($id) => (int) $id)->all(), $helperRecords)),
-                'helpers_total' => $helperTotal,
+                'teams_checked_in' => $teamLines[0]['checked_in'] ?? 0,
+                'teams_total' => $teamLines[0]['total'] ?? 0,
+                'helpers_checked_in' => $helperLines[0]['checked_in'] ?? 0,
+                'helpers_total' => $helperLines[0]['total'] ?? 0,
             ],
             'plan_id' => $plan?->id,
         ];
+    }
+
+    /**
+     * Gesamt + program logos (+ Übergreifend only when mixed with programs).
+     *
+     * @param  \Illuminate\Support\Collection<int, object>  $teams
+     * @param  list<int>  $checkedIds
+     * @return list<array{kind: string, program_id: ?int, program_name: string, logo_stem: ?string, checked_in: int, total: int}>
+     */
+    private function teamOverviewLines(Collection $teams, array $checkedIds): array
+    {
+        $allIds = $teams->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $lines = [[
+            'kind' => 'global',
+            'program_id' => null,
+            'program_name' => 'Gesamt',
+            'logo_stem' => null,
+            'checked_in' => count(array_intersect($allIds, $checkedIds)),
+            'total' => count($allIds),
+        ]];
+
+        $cross = null;
+        foreach ($teams->groupBy(fn ($row) => $row->first_program ?? 0) as $programId => $group) {
+            $ids = $group->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $payload = [
+                'program_id' => $programId ? (int) $programId : null,
+                'program_name' => $group->first()->program_name ?? 'Teams',
+                'logo_stem' => $group->first()->logo_stem ?: null,
+                'checked_in' => count(array_intersect($ids, $checkedIds)),
+                'total' => count($ids),
+            ];
+
+            if (! $programId) {
+                $cross = array_merge(['kind' => 'cross'], $payload, ['program_name' => 'Übergreifend']);
+                continue;
+            }
+
+            $lines[] = array_merge(['kind' => 'program'], $payload);
+        }
+
+        if ($cross && $cross['total'] > 0 && count($lines) > 1) {
+            // Match Zuordnung filter order: Übergreifend before programs.
+            array_splice($lines, 1, 0, [$cross]);
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Same scopes as Helfer:innen → Zuordnung: Gesamt, Übergreifend, programs, Zusätzlich.
+     *
+     * @param  \Illuminate\Support\Collection<int, object>  $helpers
+     * @param  list<int>  $checkedIds
+     * @return list<array{kind: string, program_id: ?int, program_name: string, logo_stem: ?string, checked_in: int, total: int}>
+     */
+    private function helperOverviewLines(Collection $helpers, array $checkedIds): array
+    {
+        $allIds = $helpers->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $lines = [[
+            'kind' => 'global',
+            'program_id' => null,
+            'program_name' => 'Gesamt',
+            'logo_stem' => null,
+            'checked_in' => count(array_intersect($allIds, $checkedIds)),
+            'total' => count($allIds),
+        ]];
+
+        $crossIds = [];
+        $localIds = [];
+        $byProgram = [];
+
+        foreach ($helpers as $helper) {
+            $id = (int) $helper->id;
+            if (! empty($helper->is_local)) {
+                $localIds[] = $id;
+                continue;
+            }
+            if ($helper->first_program === null) {
+                $crossIds[] = $id;
+                continue;
+            }
+            $pid = (int) $helper->first_program;
+            if (! isset($byProgram[$pid])) {
+                $byProgram[$pid] = [
+                    'ids' => [],
+                    'program_name' => $helper->program_name ?? 'Programm',
+                    'logo_stem' => $helper->logo_stem ?: null,
+                ];
+            }
+            $byProgram[$pid]['ids'][] = $id;
+            if (! $byProgram[$pid]['logo_stem'] && $helper->logo_stem) {
+                $byProgram[$pid]['logo_stem'] = $helper->logo_stem;
+            }
+        }
+
+        if ($crossIds !== []) {
+            $lines[] = [
+                'kind' => 'cross',
+                'program_id' => null,
+                'program_name' => 'Übergreifend',
+                'logo_stem' => null,
+                'checked_in' => count(array_intersect($crossIds, $checkedIds)),
+                'total' => count($crossIds),
+            ];
+        }
+
+        ksort($byProgram);
+        foreach ($byProgram as $programId => $bucket) {
+            $lines[] = [
+                'kind' => 'program',
+                'program_id' => $programId,
+                'program_name' => $bucket['program_name'],
+                'logo_stem' => $bucket['logo_stem'],
+                'checked_in' => count(array_intersect($bucket['ids'], $checkedIds)),
+                'total' => count($bucket['ids']),
+            ];
+        }
+
+        if ($localIds !== []) {
+            $lines[] = [
+                'kind' => 'local',
+                'program_id' => null,
+                'program_name' => 'Zusätzlich',
+                'logo_stem' => null,
+                'checked_in' => count(array_intersect($localIds, $checkedIds)),
+                'total' => count($localIds),
+            ];
+        }
+
+        return $lines;
     }
 
     public function organizerContact(Event $event): ?array
@@ -847,10 +950,16 @@ class CheckInService
         $t = $overview['totals'];
         $lines[] = sprintf('Teams: %d/%d', $t['teams_checked_in'], $t['teams_total']);
         foreach ($overview['teams'] as $row) {
+            if (($row['kind'] ?? '') === 'global') {
+                continue;
+            }
             $lines[] = sprintf('  %s: %d/%d', $row['program_name'], $row['checked_in'], $row['total']);
         }
         $lines[] = sprintf('Helfer:innen: %d/%d', $t['helpers_checked_in'], $t['helpers_total']);
         foreach ($overview['helpers'] as $row) {
+            if (($row['kind'] ?? '') === 'global') {
+                continue;
+            }
             $lines[] = sprintf('  %s: %d/%d', $row['program_name'], $row['checked_in'], $row['total']);
         }
 

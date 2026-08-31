@@ -37,9 +37,18 @@ type Detail = SearchHit & {
   next_activities?: Array<{start: string | null; room?: string | null; title: string}>
 }
 
+type OverviewLine = {
+  kind: 'global' | 'cross' | 'program' | 'local' | string
+  program_id?: number | null
+  program_name?: string
+  logo_stem?: string | null
+  checked_in: number
+  total: number
+}
+
 type Overview = {
-  teams: Array<{program_name: string; checked_in: number; total: number}>
-  helpers: Array<{program_name: string; checked_in: number; total: number}>
+  teams: OverviewLine[]
+  helpers: OverviewLine[]
   totals: {
     teams_checked_in: number
     teams_total: number
@@ -121,6 +130,8 @@ async function unlock() {
     sessionStorage.setItem(storageKey.value, data.token)
     pin.value = ''
     view.value = 'home'
+    await loadOrganizer()
+    await loadOverview()
   } catch (e: any) {
     const status = e?.response?.status
     if (status === 423) {
@@ -244,6 +255,10 @@ async function submitNoShow() {
 
 async function openOverview() {
   view.value = 'overview'
+  await loadOverview()
+}
+
+async function loadOverview() {
   overviewLoading.value = true
   try {
     const {data} = await api.get(`/check-in/${slug.value}/overview`)
@@ -304,6 +319,7 @@ function backHome() {
   confirmRecheck.value = false
   actionError.value = ''
   void runSearch()
+  void loadOverview()
 }
 
 function statusLabel(hit: {status: string | null; checked_in_at?: string | null}) {
@@ -337,11 +353,27 @@ function roleLabel(hit: {subject_type?: string; subtitle?: string | null; role_l
   return ''
 }
 
+function statsLogo(line: OverviewLine) {
+  if (line.kind === 'global') return imageUrl('/flow/flow.png')
+  if (line.kind === 'program' && line.logo_stem) return programLogoSrc({logo_stem: line.logo_stem})
+  return ''
+}
+
+/** Match Helfer:innen → Zuordnung scope icons (Übergreifend / Zusätzlich). */
+function statsIcon(line: OverviewLine) {
+  if (line.kind === 'cross') return 'bi-intersect'
+  if (line.kind === 'local') return 'bi-star'
+  return ''
+}
+
+const showSearchResults = computed(() => query.value.trim().length >= 2 && results.value.length > 0)
+
 watch(slug, async () => {
   token.value = sessionStorage.getItem(storageKey.value) || ''
   await loadBootstrap()
   if (unlocked.value) {
     await loadOrganizer()
+    await loadOverview()
   }
 })
 
@@ -350,6 +382,7 @@ onMounted(async () => {
   await loadBootstrap()
   if (unlocked.value) {
     await loadOrganizer()
+    await loadOverview()
   }
 })
 </script>
@@ -431,7 +464,7 @@ onMounted(async () => {
           <p v-if="query.trim().length > 0 && query.trim().length < 2" class="ci-muted">Mindestens 2 Zeichen.</p>
           <p v-else-if="searching" class="ci-muted">Suche…</p>
           <p v-else-if="query.trim().length >= 2 && !results.length" class="ci-muted">Keine Treffer.</p>
-          <ul v-else class="ci-list">
+          <ul v-if="showSearchResults" class="ci-list">
             <li v-for="hit in results" :key="`${hit.subject_type}-${hit.subject_id}`">
               <button type="button" class="ci-hit" @click="openDetail(hit)">
                 <span class="ci-hit__row">
@@ -468,6 +501,52 @@ onMounted(async () => {
               </button>
             </li>
           </ul>
+
+          <div class="ci-stats" aria-label="Check-In Stand">
+            <section class="ci-stats__box">
+              <h2 class="ci-stats__heading">Teams</h2>
+              <ul class="ci-stats__lines">
+                <li v-for="(line, i) in (overview?.teams || [])" :key="`t-${i}`" class="ci-stats__line">
+                  <img
+                      v-if="statsLogo(line)"
+                      class="ci-stats__logo"
+                      :src="statsLogo(line)"
+                      alt=""
+                      aria-hidden="true"
+                  />
+                  <i
+                      v-else-if="statsIcon(line)"
+                      class="bi ci-stats__icon"
+                      :class="statsIcon(line)"
+                      aria-hidden="true"
+                  />
+                  <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                </li>
+              </ul>
+            </section>
+            <section class="ci-stats__box">
+              <h2 class="ci-stats__heading">Helfer</h2>
+              <ul class="ci-stats__lines">
+                <li v-for="(line, i) in (overview?.helpers || [])" :key="`h-${i}`" class="ci-stats__line">
+                  <img
+                      v-if="statsLogo(line)"
+                      class="ci-stats__logo"
+                      :src="statsLogo(line)"
+                      alt=""
+                      aria-hidden="true"
+                  />
+                  <i
+                      v-else-if="statsIcon(line)"
+                      class="bi ci-stats__icon"
+                      :class="statsIcon(line)"
+                      aria-hidden="true"
+                  />
+                  <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                </li>
+              </ul>
+            </section>
+          </div>
+
           <p v-if="toolsError" class="ci-muted">{{ toolsError }}</p>
         </div>
       </template>
@@ -589,27 +668,49 @@ onMounted(async () => {
           <h1 class="ci-panel__h">Übersicht</h1>
           <div v-if="overviewLoading" class="ci-muted">Laden…</div>
           <template v-else-if="overview">
-            <div class="ci-card">
-              <div class="ci-card__label">Teams gesamt</div>
-              <div class="ci-card__value">
-                {{ overview.totals.teams_checked_in }} / {{ overview.totals.teams_total }}
-              </div>
-              <ul class="ci-acts">
-                <li v-for="(row, i) in overview.teams" :key="`t-${i}`">
-                  {{ row.program_name }}: {{ row.checked_in }}/{{ row.total }}
-                </li>
-              </ul>
-            </div>
-            <div class="ci-card">
-              <div class="ci-card__label">Helfer:innen gesamt</div>
-              <div class="ci-card__value">
-                {{ overview.totals.helpers_checked_in }} / {{ overview.totals.helpers_total }}
-              </div>
-              <ul class="ci-acts">
-                <li v-for="(row, i) in overview.helpers" :key="`h-${i}`">
-                  {{ row.program_name }}: {{ row.checked_in }}/{{ row.total }}
-                </li>
-              </ul>
+            <div class="ci-stats">
+              <section class="ci-stats__box">
+                <h2 class="ci-stats__heading">Teams</h2>
+                <ul class="ci-stats__lines">
+                  <li v-for="(line, i) in overview.teams" :key="`ot-${i}`" class="ci-stats__line">
+                    <img
+                        v-if="statsLogo(line)"
+                        class="ci-stats__logo"
+                        :src="statsLogo(line)"
+                        alt=""
+                        aria-hidden="true"
+                    />
+                    <i
+                        v-else-if="statsIcon(line)"
+                        class="bi ci-stats__icon"
+                        :class="statsIcon(line)"
+                        aria-hidden="true"
+                    />
+                    <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                  </li>
+                </ul>
+              </section>
+              <section class="ci-stats__box">
+                <h2 class="ci-stats__heading">Helfer</h2>
+                <ul class="ci-stats__lines">
+                  <li v-for="(line, i) in overview.helpers" :key="`oh-${i}`" class="ci-stats__line">
+                    <img
+                        v-if="statsLogo(line)"
+                        class="ci-stats__logo"
+                        :src="statsLogo(line)"
+                        alt=""
+                        aria-hidden="true"
+                    />
+                    <i
+                        v-else-if="statsIcon(line)"
+                        class="bi ci-stats__icon"
+                        :class="statsIcon(line)"
+                        aria-hidden="true"
+                    />
+                    <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                  </li>
+                </ul>
+              </section>
             </div>
           </template>
         </div>
@@ -779,6 +880,72 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.ci-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.ci-stats__box {
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #1a222b;
+  padding: 0.75rem;
+  min-width: 0;
+}
+
+.ci-stats__heading {
+  margin: 0 0 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9aa7b5;
+}
+
+.ci-stats__lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ci-stats__line {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.ci-stats__logo,
+.ci-stats__icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+}
+
+.ci-stats__logo {
+  object-fit: contain;
+}
+
+.ci-stats__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  color: #9aa7b5;
+}
+
+.ci-stats__count {
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .ci-hit {
