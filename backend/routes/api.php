@@ -3,6 +3,8 @@
 use App\Http\Controllers\Api\AfternoonController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
+use App\Http\Controllers\Api\CheckInController;
+use App\Http\Controllers\Api\CockpitController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
@@ -71,6 +73,32 @@ Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']);
 Route::get('/calendar.ics', [CalendarFeedController::class, 'all']); // Public ICS subscription (all events in window)
 Route::get('/calendar/{postfix}.ics', [CalendarFeedController::class, 'postfix'])
     ->where('postfix', '[A-Za-z0-9_]+');
+
+// Check-In reception (PIN session; public)
+Route::prefix('check-in/{slug}')->group(function () {
+    Route::get('/bootstrap', [CheckInController::class, 'bootstrap']);
+    Route::post('/session', [CheckInController::class, 'openSession']);
+    Route::get('/search', [CheckInController::class, 'search']);
+    Route::get('/overview', [CheckInController::class, 'overview']);
+    Route::get('/organizer', [CheckInController::class, 'organizerContact']);
+    Route::get('/share', [CheckInController::class, 'share']);
+    Route::get('/{subjectType}/{subjectId}', [CheckInController::class, 'show'])
+        ->where('subjectType', 'team|volunteer');
+    Route::post('/{subjectType}/{subjectId}/check-in', [CheckInController::class, 'checkIn'])
+        ->where('subjectType', 'team|volunteer');
+    Route::post('/{subjectType}/{subjectId}/no-show', [CheckInController::class, 'noShow'])
+        ->where('subjectType', 'team|volunteer');
+    Route::patch('/{subjectType}/{subjectId}/note', [CheckInController::class, 'updateNote'])
+        ->where('subjectType', 'team|volunteer');
+});
+
+// Cockpit app (PIN session; public)
+Route::prefix('cockpit/{slug}')->group(function () {
+    Route::get('/bootstrap', [CockpitController::class, 'bootstrap']);
+    Route::post('/session', [CockpitController::class, 'openSession']);
+    Route::get('/rounds', [CockpitController::class, 'getRounds']);
+    Route::put('/rounds', [CockpitController::class, 'saveRounds']);
+});
 
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);
@@ -388,6 +416,17 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/helper-search/{eventId}', [PublishController::class, 'setPublicHelperSearch']);
         Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
         Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
+    });
+
+    Route::prefix('events/{event}/check-in')->group(function () {
+        Route::get('/settings', [CheckInController::class, 'getSettings']);
+        Route::put('/settings', [CheckInController::class, 'updateSettings']);
+        Route::post('/reset', [CheckInController::class, 'reset']);
+    });
+
+    Route::prefix('events/{event}/cockpit')->group(function () {
+        Route::get('/settings', [CockpitController::class, 'getSettings']);
+        Route::put('/settings', [CockpitController::class, 'updateSettings']);
     });
 
     Route::prefix('export')->group(function () {
