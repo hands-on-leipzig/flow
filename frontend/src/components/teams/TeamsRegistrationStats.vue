@@ -81,8 +81,8 @@ watch(() => event.value?.id, () => {
 
     <div v-if="loading" class="text-sm text-[var(--color-text-muted)]">Laden…</div>
 
-    <div v-else class="overflow-x-auto">
-      <table class="w-full text-sm border-collapse">
+    <div v-else class="teams-registration-stats__table-wrap overflow-x-auto">
+      <table class="teams-registration-stats__table w-full text-sm border-collapse">
         <thead>
           <tr>
             <th class="text-left font-medium text-[var(--color-text-muted)] py-1 pr-2"/>
@@ -149,9 +149,23 @@ watch(() => event.value?.id, () => {
 
 <style scoped>
 .teams-registration-stats {
-  border-radius: var(--radius);
-  border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-bg-muted) 35%, transparent);
-  padding: 0.75rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--liquid-border);
+  background: var(--liquid-tile-bg);
+  padding: 0.85rem 1rem;
+  box-shadow:
+    0 6px 14px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  height: fit-content;
+}
+
+.teams-registration-stats__table {
+  font-size: 0.8125rem;
+}
+
+.teams-registration-stats__table th,
+.teams-registration-stats__table td {
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
 }
 </style>

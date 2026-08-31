@@ -5,26 +5,19 @@ import {useEventStore} from '@/stores/event'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import TeamsSyncTables from '@/components/teams/TeamsSyncTables.vue'
-import TeamsRegistrationStats from '@/components/teams/TeamsRegistrationStats.vue'
-import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {drahtIdFor, programMatchesSlug} from '@/utils/eventPrograms'
-import {getProgramTheme} from '@/utils/programTheme'
 import {visibleDrahtTeams} from '@/utils/teamSync'
 
 const props = defineProps({
   program: {type: String, required: true},
   remoteTeams: {type: Array, default: () => []},
   remoteCapacity: {type: Number, default: 0},
-  split: {type: Boolean, default: false},
 })
 
 const isExplore = computed(() => programMatchesSlug(props.program, 'explore'))
 const isChallenge = computed(() => programMatchesSlug(props.program, 'challenge'))
 const isFuture8 = computed(() => programMatchesSlug(props.program, 'future_8'))
-
-const programTheme = computed(() => getProgramTheme(props.program))
-const programLabel = computed(() => programTheme.value.shortName)
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -254,122 +247,88 @@ onMounted(async () => {
 <template>
   <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
 
-  <div class="team-list" :class="{'team-list--split': split}">
-    <div class="team-list__main glass-card liquid-surface-inner">
-      <div class="flex items-start sm:items-center gap-2 mb-2">
-        <ProgramLogo :program="program" size="xl"/>
-        <div>
-          <h3 class="text-lg font-semibold">
-            <span class="italic">FIRST</span> LEGO League {{ programLabel }}
-          </h3>
-          <div class="text-sm text-[var(--color-text-subtle)] flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-            <span>
-              <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">
-                Angemeldet: {{ enrolledCount }}
-              </span>,
-              <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">
-                Plan für: {{ planCapacity }}
-              </span>,
-              Kapazität: {{ venueCapacity }}
-            </span>
-            <template v-if="hasTwoExploreGroups">
-              <span class="flex items-center gap-1">
-                <span class="w-6 h-4 rounded" style="background-color: #1e40af;"/>
-                <span style="color: #1e40af;">Vormittag</span>
-              </span>
-              <span class="flex items-center gap-1">
-                <span class="w-6 h-4 rounded" style="background-color: #93c5fd;"/>
-                <span style="color: #93c5fd;">Nachmittag</span>
-              </span>
-            </template>
-          </div>
+  <div class="team-list">
+    <div class="team-list__meta">
+      <ProgramLogo :program="program" size="lg"/>
+      <div class="team-list__meta-text">
+        <p class="team-list__stats text-sm text-[var(--color-text-subtle)]">
+          <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">
+            Angemeldet: {{ enrolledCount }}
+          </span>,
+          <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">
+            Plan für: {{ planCapacity }}
+          </span>,
+          Kapazität: {{ venueCapacity }}
+        </p>
+        <div v-if="hasTwoExploreGroups" class="team-list__legend">
+          <span class="flex items-center gap-1">
+            <span class="w-6 h-4 rounded" style="background-color: #1e40af;"/>
+            <span style="color: #1e40af;">Vormittag</span>
+          </span>
+          <span class="flex items-center gap-1">
+            <span class="w-6 h-4 rounded" style="background-color: #93c5fd;"/>
+            <span style="color: #93c5fd;">Nachmittag</span>
+          </span>
         </div>
-      </div>
-
-      <TeamsSyncTables
-          v-model:team-list="teamList"
-          :program="program"
-          :remote-teams="remoteTeams"
-          :plan-capacity="planCapacity"
-          :teams-beyond-capacity="teamsBeyondCapacity"
-          :has-two-explore-groups="hasTwoExploreGroups"
-          :e1-teams="planParams.e1_teams"
-          :show-jury="true"
-          :syncing="syncing"
-          :get-coach-count="getCoachCount"
-          :get-member-count="getMemberCount"
-          :get-coach-names="getCoachNames"
-          :get-team-people-data="getTeamPeopleData"
-          :is-team-expanded="isTeamExpanded"
-          :get-team-border-style="getTeamBorderStyle"
-          :get-team-group="getTeamGroup"
-          :format-birthday="formatBirthday"
-          @sort="onSort"
-          @update-noshow="updateTeamNoshow"
-          @toggle="toggleTeamExpansion"
-          @copy="copyToClipboard"
-          @sync="runSync"
-      />
-
-      <div v-if="!split" class="mt-4 text-xs text-[var(--color-text-muted)] italic">
-        "No-show" Teams bleiben im Plan, werden aber in allen Ausgaben "durchgestrichen" dargestellt.
       </div>
     </div>
 
-    <aside v-if="split" class="team-list__aside glass-card liquid-surface-inner">
-      <h2 class="text-sm font-semibold tracking-wide uppercase text-[var(--color-text-muted)] mb-3">
-        Export & Funktionen
-      </h2>
+    <TeamsSyncTables
+        v-model:team-list="teamList"
+        :program="program"
+        :remote-teams="remoteTeams"
+        :plan-capacity="planCapacity"
+        :teams-beyond-capacity="teamsBeyondCapacity"
+        :has-two-explore-groups="hasTwoExploreGroups"
+        :e1-teams="planParams.e1_teams"
+        :show-jury="true"
+        :syncing="syncing"
+        :get-coach-count="getCoachCount"
+        :get-member-count="getMemberCount"
+        :get-coach-names="getCoachNames"
+        :get-team-people-data="getTeamPeopleData"
+        :is-team-expanded="isTeamExpanded"
+        :get-team-border-style="getTeamBorderStyle"
+        :get-team-group="getTeamGroup"
+        :format-birthday="formatBirthday"
+        @sort="onSort"
+        @update-noshow="updateTeamNoshow"
+        @toggle="toggleTeamExpansion"
+        @copy="copyToClipboard"
+        @sync="runSync"
+    />
 
-      <div class="space-y-4">
-        <TeamsRegistrationStats/>
-
-        <div>
-          <div class="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mb-2">
-            Export
-          </div>
-          <TeamsEmailOutreach :current-program="program"/>
-        </div>
-
-        <div class="text-xs text-[var(--color-text-muted)] italic leading-relaxed">
-          "No-show" Teams bleiben im Plan, werden aber in allen Ausgaben "durchgestrichen" dargestellt.
-        </div>
-      </div>
-    </aside>
+    <p class="team-list__note vol-muted">
+      „No-show“-Teams bleiben im Plan, werden aber in allen Ausgaben durchgestrichen dargestellt.
+    </p>
   </div>
 </template>
 
 <style scoped>
-.team-list {
-  min-height: 0;
+.team-list__meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 
-.team-list--split {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-  align-items: start;
-  height: 100%;
-}
-
-@media (min-width: 960px) {
-  .team-list--split {
-    grid-template-columns: minmax(0, 2fr) minmax(16rem, 1fr);
-  }
-
-  .team-list--split .team-list__main {
-    max-height: calc(100dvh - 8rem);
-    overflow-y: auto;
-  }
-
-  .team-list--split .team-list__aside {
-    position: sticky;
-    top: 0.25rem;
-  }
-}
-
-.team-list__main,
-.team-list__aside {
+.team-list__meta-text {
   min-width: 0;
+}
+
+.team-list__stats {
+  margin: 0;
+}
+
+.team-list__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
+}
+
+.team-list__note {
+  margin: 0.75rem 0 0;
 }
 </style>

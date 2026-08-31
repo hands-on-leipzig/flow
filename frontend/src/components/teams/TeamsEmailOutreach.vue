@@ -140,7 +140,7 @@ async function downloadExcel() {
 <template>
   <button
       type="button"
-      class="glass-btn-secondary teams-email-trigger"
+      class="glass-btn-secondary vol-upload-trigger"
       :disabled="!eventId"
       @click="openDialog"
   >
@@ -213,14 +213,6 @@ async function downloadExcel() {
 </template>
 
 <style scoped>
-.teams-email-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  width: 100%;
-  justify-content: center;
-}
-
 .teams-email-dialog {
   width: min(100%, 24rem);
   padding: 1.35rem 1.25rem 1.25rem;
