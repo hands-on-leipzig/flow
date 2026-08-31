@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CheckIn;
 use App\Models\Event;
 use App\Services\CheckInService;
+use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -47,13 +48,16 @@ class CheckInController extends Controller
     {
         $event = $this->eventBySlug($slug);
 
-        return response()->json([
-            'event_id' => $event->id,
-            'event_name' => $event->name,
-            'slug' => $event->slug,
-            'enabled' => (bool) $event->check_in_enabled,
-            'public_link' => $event->link,
-        ]);
+        return response()
+            ->json([
+                'event_id' => $event->id,
+                'event_name' => $event->name,
+                'slug' => $event->slug,
+                'enabled' => (bool) $event->check_in_enabled,
+                'public_link' => $event->link,
+            ])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate')
+            ->header('Pragma', 'no-cache');
     }
 
     public function openSession(Request $request, string $slug): JsonResponse
@@ -202,7 +206,11 @@ class CheckInController extends Controller
 
     private function eventBySlug(string $slug): Event
     {
-        $event = Event::query()->where('slug', $slug)->first();
+        $event = Event::query()
+            ->where('slug', $slug)
+            ->where('season', SeasonService::currentSeasonId())
+            ->first();
+
         if (! $event) {
             abort(404, 'Event not found');
         }

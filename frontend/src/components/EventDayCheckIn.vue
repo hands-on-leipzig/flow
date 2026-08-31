@@ -3,7 +3,7 @@
  * am Tag → Check-In
  * Controls left · live iframe of reception app right
  */
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
@@ -38,13 +38,15 @@ const textTeams = ref('')
 const textHelpers = ref('')
 const iframeKey = ref(0)
 const iframeLoading = ref(true)
+const previewNonce = ref(Date.now())
 const showResetConfirm = ref(false)
 const resetBusy = ref(false)
 
+/** Same-origin reception URL; nonce forces a real network reload after settings change. */
 const receptionUrl = computed(() => {
   const path = settings.value?.reception_path
   if (!path) return ''
-  return `${window.location.origin}${path}`
+  return `${window.location.origin}${path}?preview=${previewNonce.value}`
 })
 
 async function loadSettings() {
@@ -108,6 +110,7 @@ async function saveTexts() {
 
 function reloadPreview() {
   iframeLoading.value = true
+  previewNonce.value = Date.now()
   iframeKey.value += 1
 }
 
@@ -133,10 +136,6 @@ async function confirmReset() {
 watch(eventId, () => {
   void loadSettings()
 }, {immediate: true})
-
-onMounted(() => {
-  void loadSettings()
-})
 </script>
 
 <template>

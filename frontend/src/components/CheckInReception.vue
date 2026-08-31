@@ -94,7 +94,10 @@ const unlocked = computed(() => !!token.value && !!bootstrap.value?.enabled)
 async function loadBootstrap() {
   bootstrapError.value = ''
   try {
-    const {data} = await api.get(`/check-in/${slug.value}/bootstrap`)
+    const {data} = await api.get(`/check-in/${slug.value}/bootstrap`, {
+      params: {_: Date.now()},
+      headers: {'Cache-Control': 'no-cache', Pragma: 'no-cache'},
+    })
     bootstrap.value = data
     if (!data.enabled) {
       token.value = ''
