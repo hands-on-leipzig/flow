@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Export\Spreadsheet\SpreadsheetResponse;
+use App\Export\Teams\TeamsPeopleSpreadsheetSource;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Support\ProgramCatalog;
@@ -10,7 +12,9 @@ use App\Models\TeamPlan;
 use App\Models\Plan;
 use App\Http\Controllers\Api\PlanController;
 use App\Services\EventAttentionService;
+use App\Services\TeamSyncService;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -231,6 +235,47 @@ class TeamController extends Controller
         app(EventAttentionService::class)->updateEventAttentionStatus($event->id);
 
         return response()->json(['message' => 'Team order updated successfully']);
+    }
+
+    public function exportPeople(Event $event, DrahtController $drahtController): Response
+    {
+        return SpreadsheetResponse::download(
+            (new TeamsPeopleSpreadsheetSource($event, $drahtController))->document()
+        );
+    }
+
+    public function sync(Request $request, Event $event, TeamSyncService $teamSyncService, DrahtController $drahtController)
+    {
+        $validated = $request->validate([
+            'program' => 'required|string',
+        ]);
+
+        $program = ProgramCatalog::resolve($validated['program']);
+        if (! $program) {
+            return response()->json(['error' => 'Program not found'], 404);
+        }
+
+        $drahtPayload = $drahtController->fetchScheduleData($event);
+        if (! $drahtPayload['ok']) {
+            return response()->json(['error' => 'DRAHT data unavailable'], 422);
+        }
+
+        $drahtProgram = collect($drahtPayload['data']['programs'] ?? [])
+            ->first(fn ($p) => (int) ($p['first_program'] ?? 0) === (int) $program->id);
+
+        $drahtTeams = is_array($drahtProgram['teams'] ?? null) ? $drahtProgram['teams'] : [];
+
+        try {
+            $result = $teamSyncService->sync($event, $validated['program'], $drahtTeams);
+
+            return response()->json($result);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => $e->getMessage()], 404);
+        } catch (\RuntimeException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => 'Sync failed'], 422);
+        }
     }
 
     public function destroy(Team $team)

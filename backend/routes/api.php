@@ -254,6 +254,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/contao/rounds/{eventId}', [ContaoController::class, 'saveRoundsToShow']);
 
     // Team controller
+    Route::post('/events/{event}/teams/sync', [TeamController::class, 'sync']);
+    Route::get('/events/{event}/teams/people/export', [TeamController::class, 'exportPeople']);
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);
     Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
