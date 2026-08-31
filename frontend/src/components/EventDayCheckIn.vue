@@ -244,8 +244,8 @@ onBeforeUnmount(() => {
               class="glass-input ci-settings__textarea"
               :disabled="loading || !eventId"
               placeholder="Optionaler Hinweis für alle Teams…"
-              @input="scheduleFieldSave"
               @blur="flushFieldSave"
+              @keydown.enter.exact.prevent="flushFieldSave"
           />
         </section>
 
@@ -257,8 +257,8 @@ onBeforeUnmount(() => {
               class="glass-input ci-settings__textarea"
               :disabled="loading || !eventId"
               placeholder="Optionaler Hinweis für alle Helfer:innen…"
-              @input="scheduleFieldSave"
               @blur="flushFieldSave"
+              @keydown.enter.exact.prevent="flushFieldSave"
           />
         </section>
 
