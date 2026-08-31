@@ -44,15 +44,23 @@ class TeamSyncService
             DB::transaction(function () use ($event, $program, $plan, $merged) {
                 foreach ($merged as $row) {
                     if ($row['status'] === 'missing' && ! empty($row['local']['id'])) {
-                        Team::where('id', $row['local']['id'])->delete();
+                        Team::query()
+                            ->where('id', $row['local']['id'])
+                            ->where('event', $event->id)
+                            ->where('first_program', $program->id)
+                            ->delete();
                     }
                 }
 
                 foreach ($merged as $row) {
                     if ($row['status'] === 'conflict' && $row['local'] && $row['draht']) {
-                        Team::where('id', $row['local']['id'])->update([
-                            'name' => $row['draht']['name'],
-                        ]);
+                        Team::query()
+                            ->where('id', $row['local']['id'])
+                            ->where('event', $event->id)
+                            ->where('first_program', $program->id)
+                            ->update([
+                                'name' => $row['draht']['name'],
+                            ]);
                     }
                 }
 
@@ -76,7 +84,11 @@ class TeamSyncService
                     $team->save();
                 }
 
-                app(PlanController::class)->syncTeamPlanForEvent($event->id);
+                app(PlanController::class)->syncTeamPlanForProgram(
+                    $plan->id,
+                    $event->id,
+                    $program->id,
+                );
                 $this->renumberTeamPlanForProgram($plan->id, $event->id, $program->id);
             });
         } catch (Throwable $e) {

@@ -260,8 +260,16 @@ class TeamController extends Controller
             return response()->json(['error' => 'DRAHT data unavailable'], 422);
         }
 
-        $drahtProgram = collect($drahtPayload['data']['programs'] ?? [])
-            ->first(fn ($p) => (int) ($p['first_program'] ?? 0) === (int) $program->id);
+        $programs = collect($drahtPayload['data']['programs'] ?? []);
+        $drahtProgram = $programs->first(
+            fn ($p) => (int) ($p['first_program'] ?? 0) === (int) $program->id
+        ) ?? $programs->first(
+            fn ($p) => strcasecmp((string) ($p['name'] ?? ''), (string) $program->name) === 0
+        );
+
+        if ($drahtProgram === null) {
+            return response()->json(['error' => 'DRAHT program not found'], 422);
+        }
 
         $drahtTeams = is_array($drahtProgram['teams'] ?? null) ? $drahtProgram['teams'] : [];
 

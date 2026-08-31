@@ -47,6 +47,48 @@ class TeamSyncServiceTest extends TestCase
         $this->assertDatabaseHas('team', ['id' => 11, 'name' => 'Renamed Local']);
     }
 
+    public function test_sync_does_not_touch_other_programs(): void
+    {
+        $this->seedMinimalData();
+
+        DB::table('m_first_program')->insert([
+            'id' => 2,
+            'name' => 'EXPLORE',
+            'sequence' => 1,
+        ]);
+
+        DB::table('team')->insert([
+            ['id' => 20, 'name' => 'Explore Team', 'event' => 1, 'first_program' => 2, 'team_number_hot' => 501],
+        ]);
+
+        DB::table('team_plan')->insert([
+            ['team' => 20, 'plan' => 1, 'team_number_plan' => 1, 'room' => null, 'noshow' => 0],
+        ]);
+
+        $this->mock(EventAttentionService::class, function ($mock) {
+            $mock->shouldReceive('updateEventAttentionStatus')->once()->with(1);
+        });
+
+        $event = \App\Models\Event::query()->without('programs')->find(1);
+        $service = app(TeamSyncService::class);
+
+        $service->sync($event, 'challenge', [
+            ['ref' => 101, 'name' => 'Renamed Local'],
+            ['ref' => 200, 'name' => 'Fresh Team'],
+        ]);
+
+        $this->assertDatabaseHas('team', [
+            'id' => 20,
+            'name' => 'Explore Team',
+            'first_program' => 2,
+        ]);
+        $this->assertDatabaseHas('team_plan', [
+            'team' => 20,
+            'plan' => 1,
+            'team_number_plan' => 1,
+        ]);
+    }
+
     private function createSchema(): void
     {
         Schema::dropAllTables();
