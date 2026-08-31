@@ -34,7 +34,7 @@ type Detail = SearchHit & {
   reception_note?: string | null
   no_show_reason?: string | null
   no_show_source?: string | null
-  next_activities?: Array<{start: string | null; end: string | null; title: string}>
+  next_activities?: Array<{start: string | null; room?: string | null; title: string}>
 }
 
 type Overview = {
@@ -519,9 +519,12 @@ onMounted(async () => {
             <div v-if="detail.next_activities?.length" class="ci-card">
               <div class="ci-card__label">Nächste Aktivitäten</div>
               <ul class="ci-acts">
-                <li v-for="(act, idx) in detail.next_activities" :key="idx">
-                  <span class="ci-acts__time">{{ act.start }}<template v-if="act.end">–{{ act.end }}</template></span>
-                  {{ act.title }}
+                <li v-for="(act, idx) in detail.next_activities" :key="idx" class="ci-acts__item">
+                  <span class="ci-acts__time">{{ act.start || '—' }}</span>
+                  <span class="ci-acts__body">
+                    <span class="ci-acts__room">{{ act.room || 'Raum offen' }}</span>
+                    <span class="ci-acts__title">{{ act.title }}</span>
+                  </span>
                 </li>
               </ul>
             </div>
@@ -887,15 +890,40 @@ onMounted(async () => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.9rem;
+  gap: 0.65rem;
+}
+
+.ci-acts__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
 }
 
 .ci-acts__time {
-  display: inline-block;
-  min-width: 4.5rem;
+  flex-shrink: 0;
+  min-width: 3rem;
   color: #9aa7b5;
   font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  padding-top: 0.1rem;
+}
+
+.ci-acts__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.ci-acts__room {
+  font-weight: 750;
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.ci-acts__title {
+  font-size: 0.9rem;
+  color: #9aa7b5;
 }
 
 .ci-banner {

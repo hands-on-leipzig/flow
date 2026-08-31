@@ -541,7 +541,7 @@ class CheckInService
     }
 
     /**
-     * @return list<array{start: ?string, end: ?string, title: string}>
+     * @return list<array{start: ?string, room: ?string, title: string}>
      */
     private function nextActivitiesForTeam(Event $event, ?Plan $plan, object $teamRow): array
     {
@@ -567,7 +567,7 @@ class CheckInService
     }
 
     /**
-     * @return list<array{start: ?string, end: ?string, title: string}>
+     * @return list<array{start: ?string, room: ?string, title: string}>
      */
     private function nextActivitiesForHelper(Event $event, int $personId): array
     {
@@ -603,7 +603,7 @@ class CheckInService
     }
 
     /**
-     * @return list<array{start: ?string, end: ?string, title: string}>
+     * @return list<array{start: ?string, room: ?string, title: string}>
      */
     private function nextTwoFromSchedule(int $planId, array $query): array
     {
@@ -623,17 +623,22 @@ class CheckInService
         $out = [];
         foreach ($groups->take(2) as $group) {
             $title = $group['group_meta']['name'] ?? 'Aktivität';
+            $room = null;
             if (! empty($group['activities']) && is_array($group['activities'])) {
                 $first = $group['activities'][0] ?? null;
                 if (is_array($first)) {
                     $title = $first['activity_name']
                         ?? $first['meta']['name']
                         ?? $title;
+                    $roomInfo = $first['room'] ?? null;
+                    if (is_array($roomInfo)) {
+                        $room = $roomInfo['room_name'] ?: ($roomInfo['room_type_name'] ?? null);
+                    }
                 }
             }
             $out[] = [
                 'start' => isset($group['start_time']) ? Carbon::parse($group['start_time'])->format('H:i') : null,
-                'end' => isset($group['end_time']) ? Carbon::parse($group['end_time'])->format('H:i') : null,
+                'room' => $room ? (string) $room : null,
                 'title' => (string) $title,
             ];
         }
