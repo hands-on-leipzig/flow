@@ -252,32 +252,38 @@ onMounted(async () => {
   <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
 
   <div class="team-list">
-    <div class="team-list__meta">
-      <ProgramLogo :program="program" size="xl"/>
-      <div class="team-list__meta-text">
-        <h2 class="team-list__title text-lg font-semibold">
-          <span class="italic">FIRST</span> LEGO League {{ programLabel }}
-        </h2>
-        <p class="team-list__stats text-sm text-[var(--color-text-subtle)]">
-          <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">
-            Angemeldet: {{ enrolledCount }}
-          </span>,
-          <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">
-            Plan für: {{ planCapacity }}
-          </span>,
-          Kapazität: {{ venueCapacity }}
-        </p>
-        <div v-if="hasTwoExploreGroups" class="team-list__legend">
-          <span class="flex items-center gap-1">
-            <span class="w-6 h-4 rounded" style="background-color: #1e40af;"/>
-            <span style="color: #1e40af;">Vormittag</span>
-          </span>
-          <span class="flex items-center gap-1">
-            <span class="w-6 h-4 rounded" style="background-color: #93c5fd;"/>
-            <span style="color: #93c5fd;">Nachmittag</span>
-          </span>
+    <div class="team-list__header">
+      <div class="team-list__meta">
+        <ProgramLogo :program="program" size="xl"/>
+        <div class="team-list__meta-text">
+          <h2 class="team-list__title text-lg font-semibold">
+            <span class="italic">FIRST</span> LEGO League {{ programLabel }}
+          </h2>
+          <p class="team-list__stats text-sm text-[var(--color-text-subtle)]">
+            <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">
+              Angemeldet: {{ enrolledCount }}
+            </span>,
+            <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">
+              Plan für: {{ planCapacity }}
+            </span>,
+            Kapazität: {{ venueCapacity }}
+          </p>
+          <div v-if="hasTwoExploreGroups" class="team-list__legend">
+            <span class="flex items-center gap-1">
+              <span class="w-6 h-4 rounded" style="background-color: #1e40af;"/>
+              <span style="color: #1e40af;">Vormittag</span>
+            </span>
+            <span class="flex items-center gap-1">
+              <span class="w-6 h-4 rounded" style="background-color: #93c5fd;"/>
+              <span style="color: #93c5fd;">Nachmittag</span>
+            </span>
+          </div>
         </div>
       </div>
+
+      <p class="team-list__note vol-muted">
+        „No-show“-Teams bleiben im Plan, werden aber in allen Ausgaben durchgestrichen dargestellt.
+      </p>
     </div>
 
     <TeamsSyncTables
@@ -304,19 +310,24 @@ onMounted(async () => {
         @copy="copyToClipboard"
         @sync="runSync"
     />
-
-    <p class="team-list__note vol-muted">
-      „No-show“-Teams bleiben im Plan, werden aber in allen Ausgaben durchgestrichen dargestellt.
-    </p>
   </div>
 </template>
 
 <style scoped>
+.team-list__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
 .team-list__meta {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  margin-bottom: 0.75rem;
+  min-width: 0;
+  flex: 1;
 }
 
 .team-list__meta-text {
@@ -340,6 +351,22 @@ onMounted(async () => {
 }
 
 .team-list__note {
-  margin: 0.75rem 0 0;
+  margin: 0;
+  max-width: 13rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+@media (max-width: 639px) {
+  .team-list__header {
+    flex-direction: column;
+  }
+
+  .team-list__note {
+    max-width: none;
+    text-align: left;
+  }
 }
 </style>
