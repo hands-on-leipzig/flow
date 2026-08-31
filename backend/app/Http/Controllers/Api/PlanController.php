@@ -347,99 +347,71 @@ class PlanController extends Controller
     }
 
     /**
+     * Ensure teams for one program have team_plan rows on the event plan.
+     */
+    public function syncTeamPlanForProgram(int $planId, int $eventId, int $programId): void
+    {
+        Log::info("syncTeamPlanForProgram called for plan $planId, event $eventId, program $programId");
+
+        $teams = Team::where('event', $eventId)
+            ->where('first_program', $programId)
+            ->get();
+
+        if ($teams->isEmpty()) {
+            return;
+        }
+
+        $existingTeamIds = TeamPlan::where('plan', $planId)
+            ->pluck('team')
+            ->all();
+
+        $missingTeams = $teams->whereNotIn('id', $existingTeamIds)->values();
+        if ($missingTeams->isEmpty()) {
+            return;
+        }
+
+        $existingMax = TeamPlan::where('plan', $planId)
+            ->join('team', 'team_plan.team', '=', 'team.id')
+            ->where('team.first_program', $programId)
+            ->max('team_plan.team_number_plan') ?? 0;
+
+        $teamPlanEntries = [];
+        foreach ($missingTeams as $index => $team) {
+            $teamPlanEntries[] = [
+                'team' => $team->id,
+                'plan' => $planId,
+                'team_number_plan' => $existingMax + $index + 1,
+                'room' => null,
+            ];
+        }
+
+        if ($teamPlanEntries !== []) {
+            try {
+                TeamPlan::insert($teamPlanEntries);
+                Log::info('Inserted '.count($teamPlanEntries)." team_plan entries for program $programId");
+            } catch (\Exception $e) {
+                Log::error('Failed to insert team_plan entries for program '.$programId.': '.$e->getMessage());
+            }
+        }
+    }
+
+    /**
      * Sync team_plan entries for a specific plan
      */
     private function syncTeamPlanForPlan($planId, $eventId)
     {
         Log::info("syncTeamPlanForPlan called for plan $planId, event $eventId");
 
-        // Get all teams for this event
-        $teams = Team::where('event', $eventId)->get();
-        Log::info("Found " . $teams->count() . " teams for event $eventId");
+        $programIds = Team::where('event', $eventId)
+            ->distinct()
+            ->pluck('first_program')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
 
-        if ($teams->isEmpty()) {
-            Log::info("No teams found for event $eventId - skipping sync");
-            return;
-        }
-
-        // Get existing team_plan entries for this plan
-        $existingTeamIds = TeamPlan::where('plan', $planId)
-            ->pluck('team')
-            ->toArray();
-        Log::info("Found " . count($existingTeamIds) . " existing team_plan entries for plan $planId");
-
-        // Find teams that don't have team_plan entries
-        $missingTeams = $teams->whereNotIn('id', $existingTeamIds);
-        Log::info("Found " . $missingTeams->count() . " missing teams for plan $planId");
-
-        if ($missingTeams->isEmpty()) {
-            Log::info("All teams already have team_plan entries for plan $planId");
-            return; // All teams already have entries
-        }
-
-        // Group missing teams by program
-        $missingExploreTeams = $missingTeams->where('first_program', FirstProgram::EXPLORE->value)->values();
-        $missingChallengeTeams = $missingTeams->where('first_program', FirstProgram::CHALLENGE->value)->values();
-        $missingFutureTeams = $missingTeams->where('first_program', FirstProgram::FUTURE_8->value)->values();
-
-        // Get max team_number_plan per program for this plan
-        $existingExploreMax = TeamPlan::where('plan', $planId)
-            ->join('team', 'team_plan.team', '=', 'team.id')
-            ->where('team.first_program', FirstProgram::EXPLORE->value)
-            ->max('team_plan.team_number_plan') ?? 0;
-        
-        $existingChallengeMax = TeamPlan::where('plan', $planId)
-            ->join('team', 'team_plan.team', '=', 'team.id')
-            ->where('team.first_program', FirstProgram::CHALLENGE->value)
-            ->max('team_plan.team_number_plan') ?? 0;
-
-        $existingFutureMax = TeamPlan::where('plan', $planId)
-            ->join('team', 'team_plan.team', '=', 'team.id')
-            ->where('team.first_program', FirstProgram::FUTURE_8->value)
-            ->max('team_plan.team_number_plan') ?? 0;
-
-        Log::info("Max team_number_plan for explore: $existingExploreMax, challenge: $existingChallengeMax, future: $existingFutureMax");
-
-        // Add missing teams with sequential order per program (starting from max+1 for each program)
-        $teamPlanEntries = [];
-        
-        foreach ($missingExploreTeams as $index => $team) {
-            $teamPlanEntries[] = [
-                'team' => $team->id,
-                'plan' => $planId,
-                'team_number_plan' => $existingExploreMax + $index + 1,
-                'room' => null
-            ];
-        }
-
-        foreach ($missingChallengeTeams as $index => $team) {
-            $teamPlanEntries[] = [
-                'team' => $team->id,
-                'plan' => $planId,
-                'team_number_plan' => $existingChallengeMax + $index + 1,
-                'room' => null
-            ];
-        }
-
-        foreach ($missingFutureTeams as $index => $team) {
-            $teamPlanEntries[] = [
-                'team' => $team->id,
-                'plan' => $planId,
-                'team_number_plan' => $existingFutureMax + $index + 1,
-                'room' => null
-            ];
-        }
-
-        Log::info("Prepared " . count($teamPlanEntries) . " missing team_plan entries to insert");
-
-        // Insert missing team_plan entries
-        if (!empty($teamPlanEntries)) {
-            try {
-                TeamPlan::insert($teamPlanEntries);
-                Log::info("Successfully inserted " . count($teamPlanEntries) . " missing team_plan entries");
-            } catch (\Exception $e) {
-                Log::error("Failed to insert missing team_plan entries: " . $e->getMessage());
-            }
+        foreach ($programIds as $programId) {
+            $this->syncTeamPlanForProgram($planId, $eventId, $programId);
         }
     }
 

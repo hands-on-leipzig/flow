@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import IconDraggable from '@/components/icons/IconDraggable.vue'
+import {formatJuryCell, juryCellAriaLabel} from '@/utils/teamJury'
 
 const props = defineProps({
   team: {type: Object, required: true},
   index: {type: Number, required: true},
+  program: {type: String, default: ''},
   variant: {type: String, default: 'main'},
   planCapacity: {type: Number, default: 0},
   teamsBeyondCapacity: {type: Boolean, default: false},
@@ -29,6 +31,18 @@ const beyondCapacity = () => props.teamsBeyondCapacity && props.index >= props.p
 
 const isTagged = computed(() => isPending() || props.missingInDraht)
 const showChangeLabel = computed(() => isPending())
+
+const juryDisplay = computed(() => {
+  if (isPending()) return '–'
+  const lane = props.team.jury_lane as number | null | undefined
+  return formatJuryCell(props.program, lane)
+})
+
+const juryAriaLabel = computed(() => {
+  if (isPending()) return undefined
+  const lane = props.team.jury_lane as number | null | undefined
+  return juryCellAriaLabel(props.program, lane)
+})
 
 function pendingTeamNumber(team: Record<string, unknown>): string {
   const num = team.number ?? team.ref
@@ -91,8 +105,10 @@ function onCopy(text: string, label: string) {
       <span
           v-if="showJury"
           class="team-row__jury text-sm tabular-nums text-[var(--color-text-subtle)]"
+          :aria-label="juryAriaLabel"
+          :title="juryAriaLabel"
       >
-        –
+        {{ juryDisplay }}
       </span>
 
       <span

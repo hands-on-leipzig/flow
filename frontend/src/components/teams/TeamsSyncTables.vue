@@ -121,6 +121,7 @@ function updateTeamList(value: unknown[]) {
             variant="pending"
             :team="row.draht"
             :index="idx"
+            :program="program"
             :show-jury="showJury"
             :sync-change-label="upperRowLabel(row)"
             :coach-count="getCoachCount(row.draht)"
@@ -170,6 +171,7 @@ function updateTeamList(value: unknown[]) {
           <TeamRow
               :team="team"
               :index="index"
+              :program="program"
               variant="main"
               :plan-capacity="planCapacity"
               :teams-beyond-capacity="teamsBeyondCapacity"
