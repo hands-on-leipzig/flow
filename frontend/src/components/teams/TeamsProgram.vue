@@ -9,6 +9,7 @@ import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
 import TeamList from '@/components/molecules/TeamList.vue'
 import TeamsRegistrationStats from '@/components/teams/TeamsRegistrationStats.vue'
+import TeamsMultiTeamCoaches from '@/components/teams/TeamsMultiTeamCoaches.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
@@ -160,6 +161,7 @@ watch(
 
       <aside class="teams-program__stats">
         <TeamsRegistrationStats/>
+        <TeamsMultiTeamCoaches/>
       </aside>
     </div>
   </div>
@@ -188,6 +190,9 @@ watch(
 .teams-program__main,
 .teams-program__stats {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .teams-program__loading {
