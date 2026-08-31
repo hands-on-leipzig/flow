@@ -13,7 +13,6 @@ import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import {findProgram, firstTeamsPath} from '@/utils/eventPrograms'
-import {getProgramTheme} from '@/utils/programTheme'
 import {flowFilename} from '@/utils/flowFilename'
 import {showGlassToast} from '@/composables/useGlassToast'
 
@@ -27,8 +26,6 @@ const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
 
 const program = computed(() => String(route.params.program || ''))
-const programTheme = computed(() => getProgramTheme(program.value))
-const programLabel = computed(() => programTheme.value.shortName)
 
 const remoteTeams = ref<any[]>([])
 const remoteCapacity = ref(0)
@@ -129,9 +126,7 @@ watch(
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Teams</h1>
-        <p class="vol-page__sub">
-          <span class="italic">FIRST</span> LEGO League {{ programLabel }}
-        </p>
+        <p class="vol-page__sub">Teams und Anmeldung für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">
         <button

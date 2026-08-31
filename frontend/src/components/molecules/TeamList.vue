@@ -7,6 +7,7 @@ import SavingToast from '@/components/atoms/SavingToast.vue'
 import TeamsSyncTables from '@/components/teams/TeamsSyncTables.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {drahtIdFor, programMatchesSlug} from '@/utils/eventPrograms'
+import {getProgramTheme} from '@/utils/programTheme'
 import {visibleDrahtTeams} from '@/utils/teamSync'
 
 const props = defineProps({
@@ -18,6 +19,9 @@ const props = defineProps({
 const isExplore = computed(() => programMatchesSlug(props.program, 'explore'))
 const isChallenge = computed(() => programMatchesSlug(props.program, 'challenge'))
 const isFuture8 = computed(() => programMatchesSlug(props.program, 'future_8'))
+
+const programTheme = computed(() => getProgramTheme(props.program))
+const programLabel = computed(() => programTheme.value.shortName)
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -249,8 +253,11 @@ onMounted(async () => {
 
   <div class="team-list">
     <div class="team-list__meta">
-      <ProgramLogo :program="program" size="lg"/>
+      <ProgramLogo :program="program" size="xl"/>
       <div class="team-list__meta-text">
+        <h2 class="team-list__title text-lg font-semibold">
+          <span class="italic">FIRST</span> LEGO League {{ programLabel }}
+        </h2>
         <p class="team-list__stats text-sm text-[var(--color-text-subtle)]">
           <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">
             Angemeldet: {{ enrolledCount }}
@@ -314,6 +321,10 @@ onMounted(async () => {
 
 .team-list__meta-text {
   min-width: 0;
+}
+
+.team-list__title {
+  margin: 0 0 0.25rem;
 }
 
 .team-list__stats {

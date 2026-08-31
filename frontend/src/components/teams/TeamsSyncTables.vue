@@ -96,6 +96,13 @@ function updateTeamList(value: unknown[]) {
 
 <template>
   <div class="teams-sync-tables" :class="{'teams-sync-tables--jury': showJury}">
+    <p
+        v-if="showSyncButton"
+        class="teams-sync-tables__notice"
+    >
+      Die Daten in FLOW weichen von denen der Anmeldung ab.
+    </p>
+
     <template v-if="showSyncButton">
       <h3 class="teams-sync-tables__heading">Änderungen der Anmeldung</h3>
 
@@ -201,6 +208,17 @@ function updateTeamList(value: unknown[]) {
 </template>
 
 <style scoped>
+.teams-sync-tables__notice {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, #b45309 35%, var(--color-border));
+  background: color-mix(in srgb, #b45309 12%, var(--color-bg-muted));
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 .teams-sync-tables__heading {
   margin: 0 0 0.5rem;
   font-size: 0.8rem;
