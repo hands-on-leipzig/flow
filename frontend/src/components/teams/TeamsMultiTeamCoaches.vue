@@ -137,7 +137,7 @@ watch(() => event.value?.id, () => {
 <template>
   <div v-if="showTile" class="teams-multi-team-coaches">
     <h3 class="teams-multi-team-coaches__title">
-      Coach mit mehr als einem Team
+      Coach:innen mit mehr als einem Team
     </h3>
 
     <ul class="teams-multi-team-coaches__list">
