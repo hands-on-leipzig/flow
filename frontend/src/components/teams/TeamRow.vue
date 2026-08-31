@@ -25,6 +25,12 @@ const emit = defineEmits(['toggle', 'update-noshow', 'copy'])
 const isPending = () => props.variant === 'pending'
 const beyondCapacity = () => props.teamsBeyondCapacity && props.index >= props.planCapacity
 
+function pendingTeamNumber(team: Record<string, unknown>): string {
+  const num = team.number ?? team.ref
+  if (num == null || num === '') return '–'
+  return String(num).padStart(4, '0')
+}
+
 function onCopy(text: string, label: string) {
   emit('copy', text, label)
 }
@@ -35,6 +41,7 @@ function onCopy(text: string, label: string) {
       :class="[
         'team-row rounded-xl px-3 py-2 md:py-2.5 mb-1.5 border transition-opacity',
         showJury ? 'team-row--with-jury' : '',
+        isPending() ? 'team-row--pending' : '',
         isPending()
           ? 'bg-[color-mix(in_srgb,var(--color-bg-muted)_50%,#fff)] border-[var(--color-border)] text-[var(--color-text-muted)]'
           : [
@@ -54,76 +61,76 @@ function onCopy(text: string, label: string) {
     <div class="team-row__grid">
       <span
           v-if="!isPending()"
-          class="drag-handle cursor-move text-[var(--color-text-muted)] self-center"
+          class="team-row__drag drag-handle cursor-move text-[var(--color-text-muted)] self-center"
           @click.stop
       >
         <IconDraggable/>
       </span>
-      <span v-else class="hidden md:block" aria-hidden="true"/>
+      <span v-else class="team-row__drag hidden md:block" aria-hidden="true"/>
 
       <span
           v-if="!isPending() && (!beyondCapacity() || index < planCapacity)"
-          class="text-sm font-semibold tabular-nums"
+          class="team-row__plan text-sm font-semibold tabular-nums"
           :class="beyondCapacity() ? 'text-amber-950' : 'text-[var(--color-text)]'"
       >
         T{{ String(index + 1).padStart(2, '0') }}
       </span>
-      <span v-else-if="!isPending()" class="text-sm font-semibold tabular-nums text-amber-950">–</span>
-      <span v-else class="text-sm tabular-nums text-[var(--color-text-subtle)]">–</span>
-
-      <span v-if="showJury" class="text-sm tabular-nums text-[var(--color-text-subtle)]">–</span>
+      <span v-else-if="!isPending()" class="team-row__plan text-sm font-semibold tabular-nums text-amber-950">–</span>
+      <span v-else class="team-row__plan text-sm tabular-nums text-[var(--color-text-subtle)]">–</span>
 
       <span
-          class="text-sm tabular-nums font-medium"
+          v-if="showJury"
+          class="team-row__jury text-sm tabular-nums text-[var(--color-text-subtle)]"
+      >
+        –
+      </span>
+
+      <span
+          class="team-row__draht-id text-sm tabular-nums font-medium"
           :class="beyondCapacity() ? 'text-amber-900' : 'text-[var(--color-text-muted)]'"
       >
-        <template v-if="isPending()">
-          {{ team.number != null ? String(team.number).padStart(4, '0') : '–' }}
-        </template>
+        <template v-if="isPending()">{{ pendingTeamNumber(team) }}</template>
         <template v-else>
           {{ team.team_number_hot ? String(team.team_number_hot).padStart(4, '0') : '–' }}
         </template>
       </span>
 
       <span
-          class="text-sm font-medium truncate min-w-0"
+          class="team-row__name text-sm font-medium truncate min-w-0"
           :class="beyondCapacity() ? 'text-amber-950' : 'text-[var(--color-text)]'"
       >
         {{ isPending() ? (team.name || '–') : team.name }}
       </span>
 
       <span
-          v-if="!isPending() && coachNames.length"
-          class="hidden md:inline text-sm text-[var(--color-text-muted)] truncate min-w-0"
+          v-if="coachNames.length"
+          class="team-row__coaches text-sm text-[var(--color-text-muted)] truncate min-w-0"
           :title="coachNames.join(', ')"
       >
         <i class="bi bi-person-badge shrink-0 opacity-80 mr-1" aria-hidden="true"/>
         {{ coachNames.join(', ') }}
       </span>
-      <span v-else-if="!isPending()" class="hidden md:inline text-[var(--color-text-subtle)]">–</span>
-      <span v-else class="hidden md:inline"/>
+      <span v-else class="team-row__coaches text-sm text-[var(--color-text-subtle)]">–</span>
 
-      <template v-if="!isPending()">
-        <span
-            class="text-sm tabular-nums text-center text-[var(--color-text-muted)]"
-            :aria-label="coachCount != null ? `${coachCount} Coaches` : undefined"
-        >
+      <span
+          class="team-row__coach-count text-sm tabular-nums text-center text-[var(--color-text-muted)]"
+          :aria-label="coachCount != null ? `${coachCount} Coaches` : undefined"
+      >
+        <template v-if="!isPending() || coachCount != null">
           {{ coachCount ?? '–' }}
           <i class="bi bi-person-badge ml-0.5" aria-hidden="true"/>
-        </span>
+        </template>
+      </span>
 
-        <span
-            class="text-sm tabular-nums text-center text-[var(--color-text-muted)]"
-            :aria-label="memberCount != null ? `${memberCount} Teammitglieder` : undefined"
-        >
+      <span
+          class="team-row__member-count text-sm tabular-nums text-center text-[var(--color-text-muted)]"
+          :aria-label="memberCount != null ? `${memberCount} Teammitglieder` : undefined"
+      >
+        <template v-if="!isPending() || memberCount != null">
           {{ memberCount ?? '–' }}
           <i class="bi bi-person-fill ml-0.5" aria-hidden="true"/>
-        </span>
-      </template>
-      <template v-else>
-        <span/>
-        <span/>
-      </template>
+        </template>
+      </span>
 
       <template v-if="!isPending()">
         <label
@@ -143,10 +150,10 @@ function onCopy(text: string, label: string) {
       </template>
       <span v-else/>
 
-      <span v-if="!isPending()" class="text-[var(--color-text-muted)] text-sm justify-self-end">
+      <span v-if="!isPending()" class="team-row__expand text-[var(--color-text-muted)] text-sm justify-self-end">
         {{ expanded ? '▼' : '▶' }}
       </span>
-      <span v-else/>
+      <span v-else class="team-row__expand"/>
     </div>
 
     <div
@@ -253,11 +260,32 @@ function onCopy(text: string, label: string) {
 
 @media (max-width: 767px) {
   .team-row__grid {
-    grid-template-columns: 1fr;
-    gap: 0.25rem;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 0.25rem 0.5rem;
   }
-  .team-row__grid > *:not(:nth-child(1)):not(:nth-child(5)) {
+
+  .team-row__grid > * {
     display: none;
+  }
+
+  .team-row__draht-id {
+    display: block;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: start;
+  }
+
+  .team-row__name {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .team-row__coaches {
+    display: block;
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 0.75rem;
   }
 }
 </style>

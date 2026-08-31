@@ -107,6 +107,9 @@ function updateTeamList(value: unknown[]) {
             :team="row.draht"
             :index="idx"
             :show-jury="showJury"
+            :coach-count="getCoachCount(row.draht)"
+            :member-count="getMemberCount(row.draht)"
+            :coach-names="getCoachNames(row.draht)"
             :format-birthday="formatBirthday"
         />
       </ul>

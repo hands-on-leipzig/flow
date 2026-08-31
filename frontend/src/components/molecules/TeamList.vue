@@ -148,6 +148,7 @@ function getTeamBorderStyle(team) {
 
 function getDrahtTeamNumber(team) {
   if (team.team_number_hot) return String(team.team_number_hot)
+  if (team.number != null && team.number !== '') return String(team.number)
   const remoteTeam = visibleRemoteTeams.value.find(
     (rt) => rt.id === team.id || (rt.name === team.name && rt.number),
   )
@@ -156,8 +157,8 @@ function getDrahtTeamNumber(team) {
 
 function getTeamPeopleData(team) {
   const teamNumber = getDrahtTeamNumber(team)
-  if (!teamNumber || !peopleData.value[teamNumber]) return null
-  return peopleData.value[teamNumber]
+  if (!teamNumber) return null
+  return peopleData.value[teamNumber] ?? peopleData.value[Number(teamNumber)] ?? null
 }
 
 function getCoachCount(team) {
