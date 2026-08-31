@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
-import axios from 'axios'
+import axios, {type AxiosInstance} from 'axios'
 import {useEventStore} from '@/stores/event'
 
 type RobotGamePublicRounds = {
@@ -13,8 +13,18 @@ type RobotGamePublicRounds = {
 
 type RoundKey = keyof RobotGamePublicRounds
 
+const props = defineProps<{
+  /** Override event id (e.g. Cockpit public app). Falls back to selected event. */
+  eventId?: number | null
+  /** API path under /api, e.g. cockpit/my-slug/rounds */
+  roundsApiPath?: string | null
+  /** Custom axios client (e.g. with Cockpit session header). */
+  http?: AxiosInstance
+}>()
+
 const eventStore = useEventStore()
-const eventId = computed(() => eventStore.selectedEvent?.id)
+const resolvedEventId = computed(() => props.eventId ?? eventStore.selectedEvent?.id ?? null)
+const client = computed(() => props.http ?? axios)
 const rounds = ref<RobotGamePublicRounds | null>(null)
 const loading = ref(false)
 const saving = ref<RoundKey | null>(null)
@@ -27,12 +37,30 @@ const roundOptions: Array<{ key: RoundKey; label: string }> = [
   {key: 'hf', label: 'HF'},
 ]
 
+function roundsUrl(): string | null {
+  if (props.roundsApiPath) return props.roundsApiPath
+  if (resolvedEventId.value) return `/contao/rounds/${resolvedEventId.value}`
+  return null
+}
+
+function normalizeRounds(raw: Record<string, unknown>): RobotGamePublicRounds {
+  const bool = (key: RoundKey) => !!raw[key]
+  return {
+    vr1: bool('vr1'),
+    vr2: bool('vr2'),
+    vr3: bool('vr3'),
+    vf: bool('vf'),
+    hf: bool('hf'),
+  }
+}
+
 async function fetchRounds() {
-  if (!eventId.value) return
+  const url = roundsUrl()
+  if (!url) return
   loading.value = true
   try {
-    const response = await axios.get(`/contao/rounds/${eventId.value}`)
-    rounds.value = response.data
+    const response = await client.value.get(url)
+    rounds.value = normalizeRounds(response.data)
   } catch (error) {
     console.error('Error fetching robot game rounds:', error)
   } finally {
@@ -41,13 +69,14 @@ async function fetchRounds() {
 }
 
 async function toggleRound(round: RoundKey) {
-  if (!eventId.value || !rounds.value || saving.value) return
+  const url = roundsUrl()
+  if (!url || !rounds.value || saving.value) return
   const next = !rounds.value[round]
   const previous = rounds.value[round]
   rounds.value[round] = next
   saving.value = round
   try {
-    await axios.put(`/contao/rounds/${eventId.value}`, rounds.value)
+    await client.value.put(url, rounds.value)
   } catch (error) {
     rounds.value[round] = previous
     console.error('Error updating robot game rounds:', error)
@@ -56,7 +85,7 @@ async function toggleRound(round: RoundKey) {
   }
 }
 
-watch(() => eventId.value, fetchRounds, {immediate: true})
+watch(() => [resolvedEventId.value, props.roundsApiPath] as const, fetchRounds, {immediate: true})
 onMounted(fetchRounds)
 </script>
 

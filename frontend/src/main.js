@@ -27,7 +27,11 @@ import PublishWlan from "@/components/publish/PublishWlan.vue";
 import PublishDigital from "@/components/publish/PublishDigital.vue";
 import PublishAnalog from "@/components/publish/PublishAnalog.vue";
 import PublishNameTags from "@/components/publish/PublishNameTags.vue";
-import EventDayControl from "@/components/EventDayControl.vue";
+import EventDayShell from "@/components/EventDayShell.vue";
+import EventDayCheckIn from "@/components/EventDayCheckIn.vue";
+import EventDayCockpit from "@/components/EventDayCockpit.vue";
+import CheckInReception from "@/components/CheckInReception.vue";
+import CockpitApp from "@/components/CockpitApp.vue";
 // Admin is lazy-loaded - only loads when /admin route is accessed
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
@@ -112,7 +116,15 @@ const routes = [
                     {path: 'logos', name: 'publish-logos', component: Logos},
                 ],
             },
-            {path: 'live', component: EventDayControl},
+            {
+                path: 'live',
+                component: EventDayShell,
+                redirect: {name: 'live-check-in'},
+                children: [
+                    {path: 'check-in', name: 'live-check-in', component: EventDayCheckIn},
+                    {path: 'cockpit', name: 'live-cockpit', component: EventDayCockpit},
+                ],
+            },
             {path: 'slots', redirect: '/plan/schedule/slots'},
             {path: 'profile', component: Profile},
             {path: 'access', component: AccessManagement},
@@ -150,14 +162,16 @@ const routes = [
     {path: '/publish/analog', redirect: '/plan/publish/analog'},
     {path: '/publish/namensschilder', redirect: '/plan/publish/namensschilder'},
     {path: '/publish/logos', redirect: '/plan/publish/logos'},
-    {path: '/event-day', redirect: '/plan/live'},
-    {path: '/live', redirect: '/plan/live'},
+    {path: '/event-day', redirect: '/plan/live/cockpit'},
+    {path: '/live', redirect: '/plan/live/cockpit'},
     {path: '/admin', redirect: '/plan/admin'},
     {path: '/presentation', redirect: '/plan/publish/digital'},
     {path: '/preview/:planId', redirect: to => `/plan/preview/${to.params.planId}`},
     {path: '/editSlide/:slideId', redirect: to => `/plan/editSlide/${to.params.slideId}`},
 
     // Public slug-based routes (must be after all specific routes)
+    {path: '/:slug/check-in', component: CheckInReception, props: true, meta: {public: true}},
+    {path: '/:slug/cockpit', component: CockpitApp, props: true, meta: {public: true}},
     {path: '/:slug', component: PublicEvent, props: true, meta: {public: true}},
     // Unauthorized access route
     {path: '/unauthorized', component: UnauthorizedAccess, meta: {public: true}},
@@ -257,7 +271,7 @@ router.beforeEach(async (to, from, next) => {
         // Day-of default view: on first load, open am Tag instead of Übersicht
         const isInitialNavigation = from.matched.length === 0
         if (isInitialNavigation && to.path === '/plan/overview' && isTodayWithinEvent(eventStore.selectedEvent)) {
-            next('/plan/live')
+            next('/plan/live/cockpit')
             return
         }
     }
