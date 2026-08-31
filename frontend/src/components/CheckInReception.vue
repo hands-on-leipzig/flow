@@ -38,7 +38,7 @@ type Detail = SearchHit & {
 }
 
 type OverviewLine = {
-  kind: 'global' | 'cross' | 'program' | 'local' | string
+  kind: 'global' | 'cross' | 'program' | 'local' | 'spacer' | string
   program_id?: number | null
   program_name?: string
   logo_stem?: string | null
@@ -354,7 +354,6 @@ function roleLabel(hit: {subject_type?: string; subtitle?: string | null; role_l
 }
 
 function statsLogo(line: OverviewLine) {
-  if (line.kind === 'global') return imageUrl('/flow/flow.png')
   if (line.kind === 'program' && line.logo_stem) return programLogoSrc({logo_stem: line.logo_stem})
   return ''
 }
@@ -366,7 +365,25 @@ function statsIcon(line: OverviewLine) {
   return ''
 }
 
+/** Keep program rows aligned: empty Teams slot where Helfer has Übergreifend. */
+function teamStatLines(lines: OverviewLine[] | undefined, helperLines: OverviewLine[] | undefined): OverviewLine[] {
+  const teams = [...(lines || [])]
+  const helpersHaveCross = (helperLines || []).some((line) => line.kind === 'cross')
+  const teamsHaveCross = teams.some((line) => line.kind === 'cross')
+  if (!helpersHaveCross || teamsHaveCross) return teams
+
+  const insertAt = teams.findIndex((line) => line.kind === 'global')
+  teams.splice(insertAt >= 0 ? insertAt + 1 : 0, 0, {
+    kind: 'spacer',
+    checked_in: 0,
+    total: 0,
+  })
+  return teams
+}
+
 const showSearchResults = computed(() => query.value.trim().length >= 2 && results.value.length > 0)
+const homeTeamStats = computed(() => teamStatLines(overview.value?.teams, overview.value?.helpers))
+const homeHelperStats = computed(() => overview.value?.helpers || [])
 
 watch(slug, async () => {
   token.value = sessionStorage.getItem(storageKey.value) || ''
@@ -391,8 +408,11 @@ onMounted(async () => {
   <div class="ci-app">
     <header class="ci-app__header">
       <div class="ci-app__brand">
-        <div class="ci-app__title">Check-In</div>
-        <div class="ci-app__event">{{ bootstrap?.event_name || slug }}</div>
+        <img
+            class="ci-app__logo"
+            :src="imageUrl('/flow/flow.png')"
+            alt="FLOW"
+        />
       </div>
       <div v-if="unlocked" class="ci-app__tools">
         <button type="button" class="ci-tool" title="Übersicht" @click="openOverview">
@@ -446,11 +466,10 @@ onMounted(async () => {
 
       <template v-else-if="unlocked && view === 'home'">
         <div class="ci-panel">
-          <img
-              class="ci-logo"
-              :src="imageUrl('/flow/flow.png')"
-              alt="FLOW"
-          />
+          <div class="ci-home-brand">
+            <div class="ci-home-brand__title">Check-In</div>
+            <div class="ci-home-brand__event">{{ bootstrap?.event_name || slug }}</div>
+          </div>
           <input
               id="ci-search"
               v-model="query"
@@ -506,42 +525,62 @@ onMounted(async () => {
             <section class="ci-stats__box">
               <h2 class="ci-stats__heading">Teams</h2>
               <ul class="ci-stats__lines">
-                <li v-for="(line, i) in (overview?.teams || [])" :key="`t-${i}`" class="ci-stats__line">
-                  <img
-                      v-if="statsLogo(line)"
-                      class="ci-stats__logo"
-                      :src="statsLogo(line)"
-                      alt=""
-                      aria-hidden="true"
-                  />
-                  <i
-                      v-else-if="statsIcon(line)"
-                      class="bi ci-stats__icon"
-                      :class="statsIcon(line)"
-                      aria-hidden="true"
-                  />
-                  <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                <li
+                    v-for="(line, i) in homeTeamStats"
+                    :key="`t-${i}`"
+                    class="ci-stats__line"
+                    :class="{'ci-stats__line--spacer': line.kind === 'spacer'}"
+                >
+                  <template v-if="line.kind === 'spacer'">
+                    <span class="ci-stats__spacer" aria-hidden="true"/>
+                  </template>
+                  <template v-else-if="line.kind === 'global'">
+                    <span class="ci-stats__label">Gesamt</span>
+                    <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                  </template>
+                  <template v-else>
+                    <img
+                        v-if="statsLogo(line)"
+                        class="ci-stats__logo"
+                        :src="statsLogo(line)"
+                        alt=""
+                        aria-hidden="true"
+                    />
+                    <i
+                        v-else-if="statsIcon(line)"
+                        class="bi ci-stats__icon"
+                        :class="statsIcon(line)"
+                        aria-hidden="true"
+                    />
+                    <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                  </template>
                 </li>
               </ul>
             </section>
             <section class="ci-stats__box">
               <h2 class="ci-stats__heading">Helfer</h2>
               <ul class="ci-stats__lines">
-                <li v-for="(line, i) in (overview?.helpers || [])" :key="`h-${i}`" class="ci-stats__line">
-                  <img
-                      v-if="statsLogo(line)"
-                      class="ci-stats__logo"
-                      :src="statsLogo(line)"
-                      alt=""
-                      aria-hidden="true"
-                  />
-                  <i
-                      v-else-if="statsIcon(line)"
-                      class="bi ci-stats__icon"
-                      :class="statsIcon(line)"
-                      aria-hidden="true"
-                  />
-                  <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                <li v-for="(line, i) in homeHelperStats" :key="`h-${i}`" class="ci-stats__line">
+                  <template v-if="line.kind === 'global'">
+                    <span class="ci-stats__label">Gesamt</span>
+                    <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                  </template>
+                  <template v-else>
+                    <img
+                        v-if="statsLogo(line)"
+                        class="ci-stats__logo"
+                        :src="statsLogo(line)"
+                        alt=""
+                        aria-hidden="true"
+                    />
+                    <i
+                        v-else-if="statsIcon(line)"
+                        class="bi ci-stats__icon"
+                        :class="statsIcon(line)"
+                        aria-hidden="true"
+                    />
+                    <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                  </template>
                 </li>
               </ul>
             </section>
@@ -672,42 +711,62 @@ onMounted(async () => {
               <section class="ci-stats__box">
                 <h2 class="ci-stats__heading">Teams</h2>
                 <ul class="ci-stats__lines">
-                  <li v-for="(line, i) in overview.teams" :key="`ot-${i}`" class="ci-stats__line">
-                    <img
-                        v-if="statsLogo(line)"
-                        class="ci-stats__logo"
-                        :src="statsLogo(line)"
-                        alt=""
-                        aria-hidden="true"
-                    />
-                    <i
-                        v-else-if="statsIcon(line)"
-                        class="bi ci-stats__icon"
-                        :class="statsIcon(line)"
-                        aria-hidden="true"
-                    />
-                    <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                  <li
+                      v-for="(line, i) in homeTeamStats"
+                      :key="`ot-${i}`"
+                      class="ci-stats__line"
+                      :class="{'ci-stats__line--spacer': line.kind === 'spacer'}"
+                  >
+                    <template v-if="line.kind === 'spacer'">
+                      <span class="ci-stats__spacer" aria-hidden="true"/>
+                    </template>
+                    <template v-else-if="line.kind === 'global'">
+                      <span class="ci-stats__label">Gesamt</span>
+                      <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                    </template>
+                    <template v-else>
+                      <img
+                          v-if="statsLogo(line)"
+                          class="ci-stats__logo"
+                          :src="statsLogo(line)"
+                          alt=""
+                          aria-hidden="true"
+                      />
+                      <i
+                          v-else-if="statsIcon(line)"
+                          class="bi ci-stats__icon"
+                          :class="statsIcon(line)"
+                          aria-hidden="true"
+                      />
+                      <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                    </template>
                   </li>
                 </ul>
               </section>
               <section class="ci-stats__box">
                 <h2 class="ci-stats__heading">Helfer</h2>
                 <ul class="ci-stats__lines">
-                  <li v-for="(line, i) in overview.helpers" :key="`oh-${i}`" class="ci-stats__line">
-                    <img
-                        v-if="statsLogo(line)"
-                        class="ci-stats__logo"
-                        :src="statsLogo(line)"
-                        alt=""
-                        aria-hidden="true"
-                    />
-                    <i
-                        v-else-if="statsIcon(line)"
-                        class="bi ci-stats__icon"
-                        :class="statsIcon(line)"
-                        aria-hidden="true"
-                    />
-                    <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                  <li v-for="(line, i) in homeHelperStats" :key="`oh-${i}`" class="ci-stats__line">
+                    <template v-if="line.kind === 'global'">
+                      <span class="ci-stats__label">Gesamt</span>
+                      <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                    </template>
+                    <template v-else>
+                      <img
+                          v-if="statsLogo(line)"
+                          class="ci-stats__logo"
+                          :src="statsLogo(line)"
+                          alt=""
+                          aria-hidden="true"
+                      />
+                      <i
+                          v-else-if="statsIcon(line)"
+                          class="bi ci-stats__icon"
+                          :class="statsIcon(line)"
+                          aria-hidden="true"
+                      />
+                      <span class="ci-stats__count">{{ line.checked_in }} von {{ line.total }}</span>
+                    </template>
                   </li>
                 </ul>
               </section>
@@ -753,16 +812,16 @@ onMounted(async () => {
   z-index: 2;
 }
 
-.ci-app__title {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #9aa7b5;
+.ci-app__brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
-.ci-app__event {
-  font-weight: 700;
-  font-size: 1rem;
+.ci-app__logo {
+  display: block;
+  height: 1.75rem;
+  width: auto;
 }
 
 .ci-app__tools {
@@ -797,11 +856,22 @@ onMounted(async () => {
   margin: 0 auto;
 }
 
-.ci-logo {
-  display: block;
-  height: 2.25rem;
-  width: auto;
-  margin: 0.25rem auto 0.5rem;
+.ci-home-brand {
+  text-align: center;
+  margin: 0.15rem 0 0.35rem;
+}
+
+.ci-home-brand__title {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9aa7b5;
+}
+
+.ci-home-brand__event {
+  font-weight: 750;
+  font-size: 1.2rem;
+  line-height: 1.25;
 }
 
 .ci-panel--center {
@@ -898,8 +968,8 @@ onMounted(async () => {
 }
 
 .ci-stats__heading {
-  margin: 0 0 0.55rem;
-  font-size: 0.75rem;
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -912,20 +982,38 @@ onMounted(async () => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.5rem;
 }
 
 .ci-stats__line {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.55rem;
   min-width: 0;
+  min-height: 1.5rem;
+}
+
+.ci-stats__line--spacer {
+  visibility: hidden;
+}
+
+.ci-stats__spacer {
+  display: block;
+  width: 100%;
+  height: 1.5rem;
+}
+
+.ci-stats__label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #c5ced6;
+  min-width: 4.25rem;
 }
 
 .ci-stats__logo,
 .ci-stats__icon {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.5rem;
+  height: 1.5rem;
   flex-shrink: 0;
 }
 
@@ -937,12 +1025,12 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.95rem;
+  font-size: 1.25rem;
   color: #9aa7b5;
 }
 
 .ci-stats__count {
-  font-size: 0.9rem;
+  font-size: 1.05rem;
   font-variant-numeric: tabular-nums;
   font-weight: 650;
   white-space: nowrap;
