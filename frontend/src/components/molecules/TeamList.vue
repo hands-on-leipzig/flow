@@ -9,6 +9,10 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import {drahtIdFor, programMatchesSlug} from '@/utils/eventPrograms'
 import {getProgramTheme} from '@/utils/programTheme'
 import {visibleDrahtTeams} from '@/utils/teamSync'
+import {
+  applyJuryLanesForPlanSlots,
+  buildJuryLaneByPlanSlot,
+} from '@/utils/teamJury'
 
 const props = defineProps({
   program: {type: String, required: true},
@@ -27,6 +31,7 @@ const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 
 const teamList = ref([])
+const juryLaneByPlanSlot = ref({})
 const savingToast = ref(null)
 const syncing = ref(false)
 
@@ -69,14 +74,23 @@ function normalizeTeamsResponse(data) {
 
 async function reloadTeams() {
   const dbRes = await axios.get(`/events/${event.value?.id}/teams?program=${props.program}&sort=plan_order`)
-  teamList.value = normalizeTeamsResponse(dbRes.data)
+  const teams = normalizeTeamsResponse(dbRes.data)
+  juryLaneByPlanSlot.value = buildJuryLaneByPlanSlot(teams)
+  teamList.value = teams
 }
 
 const onSort = async () => {
-  teamList.value = teamList.value.map((team, index) => ({
-    ...team,
-    team_number_plan: index + 1,
-  }))
+  const slotMap = Object.keys(juryLaneByPlanSlot.value).length
+    ? juryLaneByPlanSlot.value
+    : buildJuryLaneByPlanSlot(teamList.value)
+
+  teamList.value = applyJuryLanesForPlanSlots(
+    teamList.value.map((team, index) => ({
+      ...team,
+      team_number_plan: index + 1,
+    })),
+    slotMap,
+  )
 
   const payload = teamList.value.map((team, index) => ({
     team_id: team.id,

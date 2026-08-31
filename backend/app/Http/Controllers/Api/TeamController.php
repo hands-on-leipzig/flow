@@ -12,6 +12,7 @@ use App\Models\TeamPlan;
 use App\Models\Plan;
 use App\Http\Controllers\Api\PlanController;
 use App\Services\EventAttentionService;
+use App\Services\TeamJuryAssignmentService;
 use App\Services\TeamSyncService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -72,9 +73,13 @@ class TeamController extends Controller
 
         $teams = $query->get();
 
+        $plan = Plan::where('event', $event->id)->first();
+        if ($plan) {
+            $this->attachJuryLanes($teams, $plan->id, (int) $program->id);
+        }
+
         // If Explore teams, include e1_teams and e_mode for frontend to determine morning/afternoon split
         if (strcasecmp((string) $program->name, 'EXPLORE') === 0) {
-            $plan = Plan::where('event', $event->id)->first();
             if ($plan) {
                 $e1Teams = DB::table('plan_param_value')
                     ->join('m_parameter', 'plan_param_value.parameter', '=', 'm_parameter.id')
@@ -312,6 +317,21 @@ class TeamController extends Controller
                 'error' => $e->getMessage()
             ]);
             return response()->json(['error' => 'Failed to delete team'], 500);
+        }
+    }
+
+    /**
+     * Attach jury_lane from generated plan activities (keyed on team_number_plan, not DRAHT).
+     */
+    private function attachJuryLanes($teams, int $planId, int $firstProgramId): void
+    {
+        $assignments = app(TeamJuryAssignmentService::class)->assignmentsForProgram($planId, $firstProgramId);
+
+        foreach ($teams as $team) {
+            $planNo = (int) ($team->team_number_plan ?? 0);
+            $team->jury_lane = ($planNo > 0 && isset($assignments[$planNo]))
+                ? $assignments[$planNo]
+                : null;
         }
     }
 
