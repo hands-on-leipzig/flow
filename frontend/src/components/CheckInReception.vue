@@ -417,6 +417,18 @@ onMounted(async () => {
         >
           <i class="bi bi-telephone" aria-hidden="true"/>
         </a>
+        <button
+            v-else
+            type="button"
+            class="ci-tool ci-tool--disabled"
+            aria-disabled="true"
+            :title="organizer
+              ? 'Keine Handynummer für Organisator:in'
+              : 'Keine Organisator:in zugewiesen'"
+            @click.prevent
+        >
+          <i class="bi bi-telephone" aria-hidden="true"/>
+        </button>
         <button type="button" class="ci-tool" title="Status teilen" @click="shareStatus">
           <i class="bi bi-share" aria-hidden="true"/>
         </button>
@@ -754,6 +766,14 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   text-decoration: none;
+}
+
+.ci-tool--disabled,
+.ci-tool:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  color: #7a8794;
+  border-color: rgba(255, 255, 255, 0.06);
 }
 
 .ci-app__main {

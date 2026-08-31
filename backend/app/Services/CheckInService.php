@@ -407,6 +407,8 @@ class CheckInService
                 'mr.name as catalog_role_name',
                 'mr.first_program',
                 'fp.name as program_name',
+                'fp.display_name as program_display_name',
+                'fp.sequence as program_sequence',
                 'fp.logo_stem',
                 'a.id as assignment_id',
             ])
@@ -435,8 +437,11 @@ class CheckInService
                     'organization' => $row->organization,
                     'first_program' => null,
                     'program_name' => null,
+                    'program_display_name' => null,
+                    'program_sequence' => null,
                     'logo_stem' => null,
                     'is_local' => true,
+                    'role_label' => null,
                     'role_labels' => [],
                     'scope_picked' => false,
                 ];
@@ -452,7 +457,10 @@ class CheckInService
                 $byPerson[$id]->is_local = $isLocal;
                 $byPerson[$id]->first_program = $row->first_program !== null ? (int) $row->first_program : null;
                 $byPerson[$id]->program_name = $row->program_name;
+                $byPerson[$id]->program_display_name = $row->program_display_name ?: $row->program_name;
+                $byPerson[$id]->program_sequence = $row->program_sequence !== null ? (int) $row->program_sequence : null;
                 $byPerson[$id]->logo_stem = $row->logo_stem ?: null;
+                $byPerson[$id]->role_label = $label ?: null;
                 $byPerson[$id]->scope_picked = true;
             }
         }
@@ -944,62 +952,173 @@ class CheckInService
 
     public function shareText(Event $event): string
     {
-        $overview = $this->overview($event);
-        $lines = ['Check-In: '.$event->name, ''];
-
-        $t = $overview['totals'];
-        $lines[] = sprintf('Teams: %d/%d', $t['teams_checked_in'], $t['teams_total']);
-        foreach ($overview['teams'] as $row) {
-            if (($row['kind'] ?? '') === 'global') {
-                continue;
-            }
-            $lines[] = sprintf('  %s: %d/%d', $row['program_name'], $row['checked_in'], $row['total']);
-        }
-        $lines[] = sprintf('Helfer:innen: %d/%d', $t['helpers_checked_in'], $t['helpers_total']);
-        foreach ($overview['helpers'] as $row) {
-            if (($row['kind'] ?? '') === 'global') {
-                continue;
-            }
-            $lines[] = sprintf('  %s: %d/%d', $row['program_name'], $row['checked_in'], $row['total']);
-        }
-
         $records = CheckIn::query()
             ->where('event', $event->id)
-            ->orderBy('updated_at', 'desc')
+            ->get()
+            ->keyBy(fn (CheckIn $row) => $row->subject_type.':'.$row->subject_id);
+
+        $lines = ['Check-In: '.$event->name, ''];
+
+        $teams = DB::table('team')
+            ->leftJoin('m_first_program as fp', 'fp.id', '=', 'team.first_program')
+            ->where('team.event', $event->id)
+            ->select([
+                'team.id',
+                'team.name',
+                'team.first_program',
+                'fp.name as program_name',
+                'fp.display_name as program_display_name',
+                'fp.sequence as program_sequence',
+            ])
             ->get();
 
-        if ($records->isNotEmpty()) {
-            $lines[] = '';
-            $lines[] = 'Einträge:';
-            foreach ($records as $record) {
-                $label = $this->subjectLabel($event, $record);
-                $status = $record->status === CheckIn::STATUS_NO_SHOW ? 'No-Show' : 'Check-In';
-                $lines[] = sprintf('- %s [%s]', $label, $status);
-                if ($record->reception_note) {
-                    $lines[] = '  Notiz: '.$record->reception_note;
-                }
-                if ($record->isNoShow()) {
-                    if ($record->no_show_reason) {
-                        $lines[] = '  Grund: '.$record->no_show_reason;
-                    }
-                    if ($record->no_show_source) {
-                        $lines[] = '  Quelle: '.$record->no_show_source;
-                    }
-                }
+        $teamGroups = $teams->groupBy(fn ($t) => $t->first_program ?? 0);
+        $teamKeys = $teamGroups->keys()->sort(function ($a, $b) use ($teamGroups) {
+            $a = (int) $a;
+            $b = (int) $b;
+            if ($a === 0) {
+                return -1;
             }
+            if ($b === 0) {
+                return 1;
+            }
+            $seqA = (int) ($teamGroups[$a]->first()->program_sequence ?? PHP_INT_MAX);
+            $seqB = (int) ($teamGroups[$b]->first()->program_sequence ?? PHP_INT_MAX);
+
+            return $seqA <=> $seqB ?: $a <=> $b;
+        })->values();
+
+        foreach ($teamKeys as $programKey) {
+            $group = $teamGroups[$programKey];
+            $subtitle = ((int) $programKey) === 0
+                ? 'Übergreifend'
+                : (string) ($group->first()->program_display_name
+                    ?: $group->first()->program_name
+                    ?: 'Programm');
+            $lines[] = $subtitle;
+            foreach ($group->sortBy(fn ($t) => mb_strtolower(trim((string) ($t->name ?? ''))), SORT_NATURAL)->values() as $team) {
+                $name = trim((string) ($team->name ?? ''));
+                $record = $records->get(CheckIn::SUBJECT_TEAM.':'.(int) $team->id);
+                $lines[] = $this->tsvExportLine($name !== '' ? $name : ('Team '.$team->id), $record);
+            }
+            $lines[] = '';
+        }
+
+        $lines[] = 'Helfer:innen';
+
+        $helpers = $this->staffedHelpersGrouped($event->id);
+        $helperBuckets = [];
+        foreach ($helpers as $helper) {
+            if (! empty($helper->is_local)) {
+                $scope = 'local';
+                $scopeLabel = 'Zusätzlich';
+                $sequence = PHP_INT_MAX;
+            } elseif ($helper->first_program === null) {
+                $scope = 'cross';
+                $scopeLabel = 'Übergreifend';
+                $sequence = -1;
+            } else {
+                $scope = 'program:'.(int) $helper->first_program;
+                $scopeLabel = (string) ($helper->program_display_name
+                    ?: $helper->program_name
+                    ?: 'Programm');
+                $sequence = $helper->program_sequence !== null
+                    ? (int) $helper->program_sequence
+                    : PHP_INT_MAX - 1;
+            }
+            $role = trim((string) ($helper->role_label ?? ''));
+            if ($role === '') {
+                $role = 'Rolle';
+            }
+            $bucketKey = $scope.'|'.$role;
+            if (! isset($helperBuckets[$bucketKey])) {
+                $helperBuckets[$bucketKey] = [
+                    'scope' => $scope,
+                    'sequence' => $sequence,
+                    'scope_label' => $scopeLabel,
+                    'role' => $role,
+                    'people' => [],
+                ];
+            }
+            $helperBuckets[$bucketKey]['people'][] = $helper;
+        }
+
+        uasort($helperBuckets, function (array $a, array $b) {
+            if ($a['sequence'] !== $b['sequence']) {
+                return $a['sequence'] <=> $b['sequence'];
+            }
+            $roleCmp = strcasecmp($a['role'], $b['role']);
+            if ($roleCmp !== 0) {
+                return $roleCmp;
+            }
+
+            return strcasecmp($a['scope_label'], $b['scope_label']);
+        });
+
+        foreach ($helperBuckets as $bucket) {
+            $lines[] = $bucket['scope_label'].' — '.$bucket['role'];
+            usort($bucket['people'], function ($a, $b) {
+                $last = strcasecmp((string) $a->last_name, (string) $b->last_name);
+                if ($last !== 0) {
+                    return $last;
+                }
+
+                return strcasecmp((string) $a->first_name, (string) $b->first_name);
+            });
+            foreach ($bucket['people'] as $person) {
+                $name = trim($person->first_name.' '.$person->last_name);
+                $record = $records->get(CheckIn::SUBJECT_VOLUNTEER.':'.(int) $person->id);
+                $lines[] = $this->tsvExportLine($name !== '' ? $name : ('Helfer '.$person->id), $record);
+            }
+            $lines[] = '';
+        }
+
+        while ($lines !== [] && end($lines) === '') {
+            array_pop($lines);
         }
 
         return implode("\n", $lines);
     }
 
-    private function subjectLabel(Event $event, CheckIn $record): string
+    private function tsvExportLine(string $name, ?CheckIn $record): string
     {
-        try {
-            $detail = $this->detail($event, $record->subject_type, (int) $record->subject_id);
+        return $name."\t".$this->exportStatus($record)."\t".$this->exportExtra($record);
+    }
 
-            return $detail['label'] ?? ($record->subject_type.' #'.$record->subject_id);
-        } catch (\Throwable) {
-            return $record->subject_type.' #'.$record->subject_id;
+    private function exportStatus(?CheckIn $record): string
+    {
+        if (! $record) {
+            return 'Offen';
         }
+        if ($record->isNoShow()) {
+            return 'No-Show';
+        }
+        if ($record->isCheckedIn()) {
+            return 'Da';
+        }
+
+        return 'Offen';
+    }
+
+    private function exportExtra(?CheckIn $record): string
+    {
+        if (! $record) {
+            return '';
+        }
+
+        $parts = [];
+        if ($record->reception_note) {
+            $parts[] = $record->reception_note;
+        }
+        if ($record->isNoShow()) {
+            if ($record->no_show_reason) {
+                $parts[] = 'Grund: '.$record->no_show_reason;
+            }
+            if ($record->no_show_source) {
+                $parts[] = 'Quelle: '.$record->no_show_source;
+            }
+        }
+
+        return implode(' | ', $parts);
     }
 }
