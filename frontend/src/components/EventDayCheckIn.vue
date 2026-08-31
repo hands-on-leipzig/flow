@@ -3,7 +3,7 @@
  * am Tag → Check-In
  * Controls left · live iframe of reception app right
  */
-import {computed, ref, watch} from 'vue'
+import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
@@ -25,6 +25,8 @@ type Settings = {
   reception_path: string | null
 }
 
+const FIELD_SAVE_DEBOUNCE_MS = 450
+
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id ?? null)
@@ -36,11 +38,13 @@ const loading = ref(false)
 const pinDraft = ref('')
 const textTeams = ref('')
 const textHelpers = ref('')
+const lastSaved = ref({pin: '', text_teams: '', text_helpers: ''})
 const iframeKey = ref(0)
 const iframeLoading = ref(true)
 const previewNonce = ref(Date.now())
 const showResetConfirm = ref(false)
 const resetBusy = ref(false)
+let fieldSaveTimer: ReturnType<typeof setTimeout> | null = null
 
 /** Same-origin reception URL; nonce forces a real network reload after settings change. */
 const receptionUrl = computed(() => {
@@ -48,6 +52,26 @@ const receptionUrl = computed(() => {
   if (!path) return ''
   return `${window.location.origin}${path}?preview=${previewNonce.value}`
 })
+
+function syncDraftsFromSettings(data: Settings) {
+  pinDraft.value = data.pin || ''
+  textTeams.value = data.text_teams || ''
+  textHelpers.value = data.text_helpers || ''
+  lastSaved.value = {
+    pin: pinDraft.value,
+    text_teams: textTeams.value,
+    text_helpers: textHelpers.value,
+  }
+}
+
+function pendingFieldUpdates(): Record<string, string> {
+  const payload: Record<string, string> = {}
+  const pin = pinDraft.value.replace(/\D/g, '').slice(0, 6)
+  if (pin.length === 6 && pin !== lastSaved.value.pin) payload.pin = pin
+  if (textTeams.value !== lastSaved.value.text_teams) payload.text_teams = textTeams.value
+  if (textHelpers.value !== lastSaved.value.text_helpers) payload.text_helpers = textHelpers.value
+  return payload
+}
 
 async function loadSettings() {
   if (!eventId.value) {
@@ -58,9 +82,7 @@ async function loadSettings() {
   try {
     const {data} = await axios.get(`/events/${eventId.value}/check-in/settings`)
     settings.value = data
-    pinDraft.value = data.pin || ''
-    textTeams.value = data.text_teams || ''
-    textHelpers.value = data.text_helpers || ''
+    syncDraftsFromSettings(data)
     reloadPreview()
   } catch {
     showGlassToast('Check-In Einstellungen konnten nicht geladen werden.', 'error')
@@ -69,16 +91,14 @@ async function loadSettings() {
   }
 }
 
-async function savePatch(patch: Record<string, unknown>) {
+async function savePatch(patch: Record<string, unknown>, opts?: {reloadPreview?: boolean}) {
   if (!eventId.value) return
   saving.value?.show()
   try {
     const {data} = await axios.put(`/events/${eventId.value}/check-in/settings`, patch)
     settings.value = data
-    pinDraft.value = data.pin || ''
-    textTeams.value = data.text_teams || ''
-    textHelpers.value = data.text_helpers || ''
-    reloadPreview()
+    syncDraftsFromSettings(data)
+    if (opts?.reloadPreview !== false) reloadPreview()
   } catch (e: any) {
     showGlassToast(e?.response?.data?.error || 'Speichern fehlgeschlagen.', 'error')
     await loadSettings()
@@ -88,24 +108,40 @@ async function savePatch(patch: Record<string, unknown>) {
 }
 
 async function onEnabledToggle(next: boolean) {
-  await savePatch({enabled: next})
+  await flushFieldSave()
+  await savePatch({enabled: next}, {reloadPreview: true})
 }
 
-async function savePin() {
+async function flushFieldSave(opts?: {revertIncompletePin?: boolean}) {
+  if (fieldSaveTimer) {
+    clearTimeout(fieldSaveTimer)
+    fieldSaveTimer = null
+  }
+  if (!eventId.value) return
+
   const pin = pinDraft.value.replace(/\D/g, '').slice(0, 6)
   pinDraft.value = pin
-  if (pin.length !== 6) {
+  if (opts?.revertIncompletePin && pin !== lastSaved.value.pin && pin.length !== 6) {
     showGlassToast('PIN muss aus 6 Ziffern bestehen.', 'error')
-    return
+    pinDraft.value = lastSaved.value.pin
   }
-  await savePatch({pin})
+
+  const payload = pendingFieldUpdates()
+  if (Object.keys(payload).length === 0) return
+
+  await savePatch(payload, {reloadPreview: 'pin' in payload})
 }
 
-async function saveTexts() {
-  await savePatch({
-    text_teams: textTeams.value,
-    text_helpers: textHelpers.value,
-  })
+function scheduleFieldSave() {
+  if (fieldSaveTimer) clearTimeout(fieldSaveTimer)
+  fieldSaveTimer = setTimeout(() => {
+    void flushFieldSave()
+  }, FIELD_SAVE_DEBOUNCE_MS)
+}
+
+function onPinInput() {
+  pinDraft.value = pinDraft.value.replace(/\D/g, '').slice(0, 6)
+  scheduleFieldSave()
 }
 
 function reloadPreview() {
@@ -122,6 +158,7 @@ async function confirmReset() {
   if (!eventId.value || resetBusy.value) return
   resetBusy.value = true
   try {
+    await flushFieldSave()
     await axios.post(`/events/${eventId.value}/check-in/reset`)
     showGlassToast('Check-In Einträge zurückgesetzt.', 'success')
     showResetConfirm.value = false
@@ -136,6 +173,10 @@ async function confirmReset() {
 watch(eventId, () => {
   void loadSettings()
 }, {immediate: true})
+
+onBeforeUnmount(() => {
+  void flushFieldSave()
+})
 </script>
 
 <template>
@@ -179,25 +220,19 @@ watch(eventId, () => {
             </div>
           </div>
           <div class="ci-settings__pin-row">
+            <label class="ci-settings__pin-label" for="checkin-pin">PIN</label>
             <input
+                id="checkin-pin"
                 v-model="pinDraft"
                 type="text"
                 inputmode="numeric"
                 maxlength="6"
                 autocomplete="off"
-                class="glass-input"
+                class="glass-input ci-settings__pin-input"
                 :disabled="loading || !eventId"
-                aria-label="PIN"
-                @keydown.enter.prevent="savePin"
+                @input="onPinInput"
+                @blur="flushFieldSave({revertIncompletePin: true})"
             />
-            <button
-                type="button"
-                class="glass-btn-secondary"
-                :disabled="loading || !eventId"
-                @click="savePin"
-            >
-              Speichern
-            </button>
           </div>
         </section>
 
@@ -209,6 +244,8 @@ watch(eventId, () => {
               class="glass-input ci-settings__textarea"
               :disabled="loading || !eventId"
               placeholder="Optionaler Hinweis für alle Teams…"
+              @input="scheduleFieldSave"
+              @blur="flushFieldSave"
           />
         </section>
 
@@ -220,21 +257,15 @@ watch(eventId, () => {
               class="glass-input ci-settings__textarea"
               :disabled="loading || !eventId"
               placeholder="Optionaler Hinweis für alle Helfer:innen…"
+              @input="scheduleFieldSave"
+              @blur="flushFieldSave"
           />
-          <button
-              type="button"
-              class="glass-btn-secondary mt-2"
-              :disabled="loading || !eventId"
-              @click="saveTexts"
-          >
-            Texte speichern
-          </button>
         </section>
 
         <section class="glass-card liquid-surface-inner ci-settings__tile">
-          <h2 class="glass-card__heading">Testen</h2>
+          <h2 class="glass-card__heading">Alles zurücksetzen</h2>
           <p class="glass-settings-hint">
-            Setzt alle Empfangseinträge zurück (nicht PIN/Texte/Status).
+            Alle Eingaben zurücksetzen, z.B. nach Tests.
           </p>
           <button
               type="button"
@@ -351,7 +382,14 @@ watch(eventId, () => {
   align-items: center;
 }
 
-.ci-settings__pin-row .glass-input {
+.ci-settings__pin-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.ci-settings__pin-input {
   font-size: 1.25rem;
   letter-spacing: 0.2em;
   font-variant-numeric: tabular-nums;
