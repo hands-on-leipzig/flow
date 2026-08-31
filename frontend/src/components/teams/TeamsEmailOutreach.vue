@@ -3,8 +3,9 @@ import {computed, ref} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
-import {drahtIdFor, eventPrograms, programSlug} from '@/utils/eventPrograms'
+import {drahtIdFor, eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
 import {flowFilename} from '@/utils/flowFilename'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 
 const props = defineProps<{
   currentProgram: string
@@ -14,17 +15,18 @@ const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 const eventDate = computed(() => eventStore.selectedEvent?.date)
 const programs = computed(() => eventPrograms(eventStore.selectedEvent))
+const showProgramSelection = computed(() => programs.value.length > 1)
 
 const open = ref(false)
 const busy = ref(false)
 const selectedPrograms = ref<string[]>([])
 
-function programSlugs(): string[] {
-  return programs.value.map((p) => programSlug(p.name))
-}
-
 function openDialog() {
-  selectedPrograms.value = [props.currentProgram]
+  if (programs.value.length === 1) {
+    selectedPrograms.value = [programSlug(programs.value[0].name)]
+  } else {
+    selectedPrograms.value = [props.currentProgram]
+  }
   open.value = true
 }
 
@@ -162,19 +164,20 @@ async function downloadExcel() {
       >
         <h2 id="teams-email-dialog-title" class="teams-email-dialog__title">E-Mail-Adressen</h2>
 
-        <fieldset class="teams-email-dialog__programs">
-          <legend class="teams-email-dialog__legend">Programme (Coaches)</legend>
+        <fieldset v-if="showProgramSelection" class="teams-email-dialog__programs">
+          <legend class="teams-email-dialog__legend">Programme</legend>
           <label
-              v-for="slug in programSlugs()"
-              :key="slug"
+              v-for="prog in programs"
+              :key="programSlug(prog.name)"
               class="teams-email-dialog__check"
           >
             <input
                 type="checkbox"
-                :checked="selectedPrograms.includes(slug)"
-                @change="toggleProgram(slug)"
+                :checked="selectedPrograms.includes(programSlug(prog.name))"
+                @change="toggleProgram(programSlug(prog.name))"
             />
-            <span>{{ slug.replace(/_/g, ' ') }}</span>
+            <ProgramLogo :program="prog" size="chip" decorative/>
+            <span>{{ programDisplayName(prog) }}</span>
           </label>
         </fieldset>
 
