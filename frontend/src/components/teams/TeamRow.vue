@@ -101,22 +101,29 @@ function onCopy(text: string, label: string) {
         {{ coachNames.join(', ') }}
       </span>
       <span v-else-if="!isPending()" class="hidden md:inline text-[var(--color-text-subtle)]">–</span>
+      <span v-else class="hidden md:inline"/>
 
-      <span
-          class="text-sm tabular-nums text-center text-[var(--color-text-muted)]"
-          :aria-label="coachCount != null ? `${coachCount} Coaches` : undefined"
-      >
-        {{ coachCount ?? '–' }}
-        <i class="bi bi-person-badge ml-0.5" aria-hidden="true"/>
-      </span>
+      <template v-if="!isPending()">
+        <span
+            class="text-sm tabular-nums text-center text-[var(--color-text-muted)]"
+            :aria-label="coachCount != null ? `${coachCount} Coaches` : undefined"
+        >
+          {{ coachCount ?? '–' }}
+          <i class="bi bi-person-badge ml-0.5" aria-hidden="true"/>
+        </span>
 
-      <span
-          class="text-sm tabular-nums text-center text-[var(--color-text-muted)]"
-          :aria-label="memberCount != null ? `${memberCount} Teammitglieder` : undefined"
-      >
-        {{ memberCount ?? '–' }}
-        <i class="bi bi-person-fill ml-0.5" aria-hidden="true"/>
-      </span>
+        <span
+            class="text-sm tabular-nums text-center text-[var(--color-text-muted)]"
+            :aria-label="memberCount != null ? `${memberCount} Teammitglieder` : undefined"
+        >
+          {{ memberCount ?? '–' }}
+          <i class="bi bi-person-fill ml-0.5" aria-hidden="true"/>
+        </span>
+      </template>
+      <template v-else>
+        <span/>
+        <span/>
+      </template>
 
       <template v-if="!isPending()">
         <label

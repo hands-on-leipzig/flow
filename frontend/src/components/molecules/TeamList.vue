@@ -35,8 +35,6 @@ const syncing = ref(false)
 
 const peopleData = ref({})
 const expandedTeams = ref(new Set())
-const totalPlayers = ref(0)
-const totalCoaches = ref(0)
 
 const planParams = ref({
   c_teams: 0,
@@ -239,8 +237,6 @@ onMounted(async () => {
       try {
         const peopleRes = await axios.get(`/draht/people/${drahtEventId}`)
         if (peopleRes.data) {
-          totalPlayers.value = peopleRes.data.total_players || 0
-          totalCoaches.value = peopleRes.data.total_coaches || 0
           const {total_players, total_coaches, ...teamsData} = peopleRes.data
           peopleData.value = teamsData
         }
@@ -298,9 +294,6 @@ onMounted(async () => {
           :has-two-explore-groups="hasTwoExploreGroups"
           :e1-teams="planParams.e1_teams"
           :show-jury="true"
-          :total-coaches="totalCoaches"
-          :total-members="totalPlayers"
-          :people-data="peopleData"
           :syncing="syncing"
           :get-coach-count="getCoachCount"
           :get-member-count="getMemberCount"

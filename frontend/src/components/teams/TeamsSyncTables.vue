@@ -19,9 +19,6 @@ const props = defineProps({
   hasTwoExploreGroups: {type: Boolean, default: false},
   e1Teams: {type: Number, default: 0},
   showJury: {type: Boolean, default: false},
-  totalCoaches: {type: Number, default: 0},
-  totalMembers: {type: Number, default: 0},
-  peopleData: {type: Object, default: () => ({})},
   syncing: {type: Boolean, default: false},
   getCoachCount: {type: Function, required: true},
   getMemberCount: {type: Function, required: true},
@@ -99,28 +96,6 @@ function updateTeamList(value: unknown[]) {
 
 <template>
   <div class="teams-sync-tables" :class="{'teams-sync-tables--jury': showJury}">
-    <div
-        class="teams-sync-tables__counts team-row__grid mb-2 text-sm tabular-nums text-[var(--color-text-muted)] hidden md:grid"
-        :class="showJury ? 'team-row--with-jury' : ''"
-    >
-      <span/>
-      <span/>
-      <span v-if="showJury"/>
-      <span/>
-      <span/>
-      <span/>
-      <span class="text-center font-medium text-[var(--color-text)]">
-        {{ totalCoaches }}
-        <i class="bi bi-person-badge ml-0.5" aria-hidden="true"/>
-      </span>
-      <span class="text-center font-medium text-[var(--color-text)]">
-        {{ totalMembers }}
-        <i class="bi bi-person-fill ml-0.5" aria-hidden="true"/>
-      </span>
-      <span/>
-      <span/>
-    </div>
-
     <ul v-if="pendingRows.length" class="teams-sync-tables__pending list-none p-0 m-0 mb-2">
       <TeamRow
           v-for="(row, idx) in pendingRows"
@@ -216,22 +191,6 @@ function updateTeamList(value: unknown[]) {
 </template>
 
 <style scoped>
-.teams-sync-tables__counts {
-  display: grid;
-  grid-template-columns:
-    1.5rem
-    2.75rem
-    3.5rem
-    minmax(5rem, 1.4fr)
-    minmax(4rem, 1fr)
-    3.25rem
-    3.25rem
-    4.5rem
-    1.5rem;
-  gap: 0.35rem 0.5rem;
-  align-items: center;
-}
-
 .teams-sync-tables :deep(.team-row__grid) {
   display: grid;
   grid-template-columns:
@@ -248,8 +207,7 @@ function updateTeamList(value: unknown[]) {
   align-items: center;
 }
 
-.teams-sync-tables--jury :deep(.team-row__grid),
-.teams-sync-tables--jury .teams-sync-tables__counts {
+.teams-sync-tables--jury :deep(.team-row__grid) {
   grid-template-columns:
     1.5rem
     2.75rem
