@@ -96,28 +96,35 @@ function updateTeamList(value: unknown[]) {
 
 <template>
   <div class="teams-sync-tables" :class="{'teams-sync-tables--jury': showJury}">
-    <ul v-if="pendingRows.length" class="teams-sync-tables__pending list-none p-0 m-0 mb-2">
-      <TeamRow
-          v-for="(row, idx) in pendingRows"
-          :key="`pending-${row.draht?.id ?? row.number ?? idx}`"
-          variant="pending"
-          :team="row.draht"
-          :index="idx"
-          :show-jury="showJury"
-          :format-birthday="formatBirthday"
-      />
-    </ul>
+    <template v-if="showSyncButton">
+      <h3 class="teams-sync-tables__heading">Änderungen der Anmeldung</h3>
 
-    <div v-if="showSyncButton" class="mb-3 flex justify-center">
-      <button
-          type="button"
-          class="glass-btn-primary px-4 py-2 text-sm font-medium disabled:opacity-50"
-          :disabled="syncing"
-          @click="emit('sync')"
-      >
-        {{ syncLabel }}
-      </button>
-    </div>
+      <ul v-if="pendingRows.length" class="teams-sync-tables__pending list-none p-0 m-0 mb-2">
+        <TeamRow
+            v-for="(row, idx) in pendingRows"
+            :key="`pending-${row.draht?.id ?? row.number ?? idx}`"
+            variant="pending"
+            :team="row.draht"
+            :index="idx"
+            :show-jury="showJury"
+            :format-birthday="formatBirthday"
+        />
+      </ul>
+
+      <div class="teams-sync-tables__sync-wrap">
+        <button
+            type="button"
+            class="teams-sync-tables__sync-btn glass-btn-accent"
+            :disabled="syncing"
+            @click="emit('sync')"
+        >
+          <i class="bi bi-arrow-repeat teams-sync-tables__sync-icon" aria-hidden="true"/>
+          <span>{{ syncLabel }}</span>
+        </button>
+      </div>
+
+      <h3 class="teams-sync-tables__heading teams-sync-tables__heading--flow">Daten in FLOW</h3>
+    </template>
 
     <draggable
         :model-value="teamList"
@@ -191,6 +198,50 @@ function updateTeamList(value: unknown[]) {
 </template>
 
 <style scoped>
+.teams-sync-tables__heading {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.teams-sync-tables__heading--flow {
+  margin-top: 0.25rem;
+}
+
+.teams-sync-tables__sync-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 0.75rem 0 1rem;
+  padding: 0.65rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-muted));
+  box-shadow:
+    0 10px 24px rgba(255, 122, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.teams-sync-tables__sync-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  width: 100%;
+  max-width: 28rem;
+  padding: 0.75rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.teams-sync-tables__sync-icon {
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
 .teams-sync-tables :deep(.team-row__grid) {
   display: grid;
   grid-template-columns:
