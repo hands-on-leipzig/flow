@@ -163,19 +163,17 @@ const navEntries = computed<NavEntry[]>(() => [
   },
   {
     name: 'am Tag',
-    path: '/plan/live',
+    path: '/plan/live/check-in',
     icon: 'bi-play-circle',
     children: [
-      {name: 'Live', path: '/plan/live', icon: 'bi-play-circle'},
       {name: 'Check-In', path: '/plan/live/check-in', icon: 'bi-person-check'},
+      {name: 'Cockpit', path: '/plan/live/cockpit', icon: 'bi-speedometer2'},
     ],
   },
 ])
 
-const liveTabPath = '/plan/live'
-const isLiveTabActive = computed(() => route.path === liveTabPath || route.path.startsWith(`${liveTabPath}/`))
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
-const showBackToOverview = computed(() => isLiveTabActive.value || isAdminMode.value)
+const showBackToOverview = computed(() => isAdminMode.value)
 
 function toAdminNavEntry(item: (typeof ADMIN_OPS_SECTIONS)[number]): NavEntry {
   const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)

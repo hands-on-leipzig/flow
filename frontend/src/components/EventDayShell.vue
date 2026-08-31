@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * am Tag shell: nested panes (Live tools, Check-In).
+ * am Tag shell: nested panes (Check-In, Cockpit).
  */
 defineOptions({name: 'EventDayShell'})
 </script>
@@ -8,7 +8,7 @@ defineOptions({name: 'EventDayShell'})
 <template>
   <div class="event-day-shell">
     <router-view v-slot="{ Component, route: paneRoute }">
-      <keep-alive include="EventDayControl,EventDayCheckIn">
+      <keep-alive include="EventDayCheckIn,EventDayCockpit">
         <component
             :is="Component"
             v-if="Component"

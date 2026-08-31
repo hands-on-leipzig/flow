@@ -27,6 +27,8 @@ class Event extends Model
         'check_in_pin',
         'check_in_text_teams',
         'check_in_text_helpers',
+        'cockpit_enabled',
+        'cockpit_pin',
         'wifi_ssid',
         'wifi_password',
         'wifi_instruction',
@@ -38,6 +40,7 @@ class Event extends Model
     protected $casts = [
         'public_helper_search' => 'boolean',
         'check_in_enabled' => 'boolean',
+        'cockpit_enabled' => 'boolean',
     ];
 
     public function checkIns()

@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AfternoonController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\CheckInController;
+use App\Http\Controllers\Api\CockpitController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
@@ -89,6 +90,14 @@ Route::prefix('check-in/{slug}')->group(function () {
         ->where('subjectType', 'team|volunteer');
     Route::patch('/{subjectType}/{subjectId}/note', [CheckInController::class, 'updateNote'])
         ->where('subjectType', 'team|volunteer');
+});
+
+// Cockpit app (PIN session; public)
+Route::prefix('cockpit/{slug}')->group(function () {
+    Route::get('/bootstrap', [CockpitController::class, 'bootstrap']);
+    Route::post('/session', [CockpitController::class, 'openSession']);
+    Route::get('/rounds', [CockpitController::class, 'getRounds']);
+    Route::put('/rounds', [CockpitController::class, 'saveRounds']);
 });
 
 Route::prefix('contao')->group(function () {
@@ -413,6 +422,11 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/settings', [CheckInController::class, 'getSettings']);
         Route::put('/settings', [CheckInController::class, 'updateSettings']);
         Route::post('/reset', [CheckInController::class, 'reset']);
+    });
+
+    Route::prefix('events/{event}/cockpit')->group(function () {
+        Route::get('/settings', [CockpitController::class, 'getSettings']);
+        Route::put('/settings', [CockpitController::class, 'updateSettings']);
     });
 
     Route::prefix('export')->group(function () {
