@@ -28,6 +28,9 @@ import PublishDigital from "@/components/publish/PublishDigital.vue";
 import PublishAnalog from "@/components/publish/PublishAnalog.vue";
 import PublishNameTags from "@/components/publish/PublishNameTags.vue";
 import EventDayControl from "@/components/EventDayControl.vue";
+import EventDayShell from "@/components/EventDayShell.vue";
+import EventDayCheckIn from "@/components/EventDayCheckIn.vue";
+import CheckInReception from "@/components/CheckInReception.vue";
 // Admin is lazy-loaded - only loads when /admin route is accessed
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
@@ -112,7 +115,15 @@ const routes = [
                     {path: 'logos', name: 'publish-logos', component: Logos},
                 ],
             },
-            {path: 'live', component: EventDayControl},
+            {
+                path: 'live',
+                component: EventDayShell,
+                redirect: {name: 'live-tools'},
+                children: [
+                    {path: '', name: 'live-tools', component: EventDayControl},
+                    {path: 'check-in', name: 'live-check-in', component: EventDayCheckIn},
+                ],
+            },
             {path: 'slots', redirect: '/plan/schedule/slots'},
             {path: 'profile', component: Profile},
             {path: 'access', component: AccessManagement},
@@ -158,6 +169,7 @@ const routes = [
     {path: '/editSlide/:slideId', redirect: to => `/plan/editSlide/${to.params.slideId}`},
 
     // Public slug-based routes (must be after all specific routes)
+    {path: '/:slug/check-in', component: CheckInReception, props: true, meta: {public: true}},
     {path: '/:slug', component: PublicEvent, props: true, meta: {public: true}},
     // Unauthorized access route
     {path: '/unauthorized', component: UnauthorizedAccess, meta: {public: true}},

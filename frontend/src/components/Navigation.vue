@@ -161,11 +161,19 @@ const navEntries = computed<NavEntry[]>(() => [
       {name: 'Namensschilder', path: '/plan/publish/namensschilder', icon: 'bi-person-badge'},
     ],
   },
-  {name: 'am Tag', path: '/plan/live', icon: 'bi-play-circle'},
+  {
+    name: 'am Tag',
+    path: '/plan/live',
+    icon: 'bi-play-circle',
+    children: [
+      {name: 'Live', path: '/plan/live', icon: 'bi-play-circle'},
+      {name: 'Check-In', path: '/plan/live/check-in', icon: 'bi-person-check'},
+    ],
+  },
 ])
 
 const liveTabPath = '/plan/live'
-const isLiveTabActive = computed(() => isActive(liveTabPath))
+const isLiveTabActive = computed(() => route.path === liveTabPath || route.path.startsWith(`${liveTabPath}/`))
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
 const showBackToOverview = computed(() => isLiveTabActive.value || isAdminMode.value)
 

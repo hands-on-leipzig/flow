@@ -13,7 +13,7 @@ const cachedPages = [
   'Teams',
   'Rooms',
   'PublishControl',
-  'EventDayControl',
+  'EventDayShell',
   'Admin',
 ]
 
@@ -27,6 +27,7 @@ const pageKey = computed(() => {
   if (path.includes('/plan/schedule')) return `${eventId.value}:schedule`
   if (path.includes('/plan/publish')) return `${eventId.value}:publish`
   if (path.includes('/plan/teams')) return `${eventId.value}:teams`
+  if (path.includes('/plan/live')) return `${eventId.value}:live`
   if (path.includes('/plan/admin')) return `${eventId.value}:admin`
   return `${eventId.value}:${path}`
 })

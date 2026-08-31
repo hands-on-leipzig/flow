@@ -1,0 +1,856 @@
+<script setup lang="ts">
+import {computed, onMounted, ref, watch} from 'vue'
+import {useRoute} from 'vue-router'
+import axios from 'axios'
+import QRCode from 'qrcode'
+
+defineOptions({name: 'CheckInReception'})
+
+type Bootstrap = {
+  event_id: number
+  event_name: string
+  slug: string
+  enabled: boolean
+  public_link: string | null
+}
+
+type SearchHit = {
+  subject_type: 'team' | 'volunteer'
+  subject_id: number
+  label: string
+  subtitle?: string | null
+  program_name?: string | null
+  status: 'checked_in' | 'no_show' | null
+  checked_in_at?: string | null
+}
+
+type Detail = SearchHit & {
+  room?: string | null
+  info_text?: string | null
+  role_labels?: string[]
+  reception_note?: string | null
+  no_show_reason?: string | null
+  no_show_source?: string | null
+  next_activities?: Array<{start: string | null; end: string | null; title: string}>
+}
+
+type Overview = {
+  teams: Array<{program_name: string; checked_in: number; total: number}>
+  helpers: Array<{program_name: string; checked_in: number; total: number}>
+  totals: {
+    teams_checked_in: number
+    teams_total: number
+    helpers_checked_in: number
+    helpers_total: number
+  }
+}
+
+const route = useRoute()
+const slug = computed(() => String(route.params.slug || ''))
+
+const bootstrap = ref<Bootstrap | null>(null)
+const bootstrapError = ref('')
+const pin = ref('')
+const pinError = ref('')
+const token = ref('')
+const unlocking = ref(false)
+
+const view = ref<'home' | 'detail' | 'overview' | 'qr' | 'noshow'>('home')
+const query = ref('')
+const searching = ref(false)
+const results = ref<SearchHit[]>([])
+const detail = ref<Detail | null>(null)
+const detailLoading = ref(false)
+const note = ref('')
+const actionBusy = ref(false)
+const actionError = ref('')
+const confirmRecheck = ref(false)
+
+const noShowReason = ref('')
+const noShowSource = ref('')
+
+const overview = ref<Overview | null>(null)
+const overviewLoading = ref(false)
+const organizer = ref<{name: string; mobile: string | null} | null>(null)
+const qrDataUrl = ref('')
+const toolsError = ref('')
+
+const storageKey = computed(() => `flow:check-in-token:${slug.value}`)
+
+const api = axios.create({
+  baseURL: '/api',
+  withCredentials: true,
+})
+
+api.interceptors.request.use((config) => {
+  if (token.value) {
+    config.headers['X-Check-In-Token'] = token.value
+  }
+  return config
+})
+
+const unlocked = computed(() => !!token.value && !!bootstrap.value?.enabled)
+
+async function loadBootstrap() {
+  bootstrapError.value = ''
+  try {
+    const {data} = await api.get(`/check-in/${slug.value}/bootstrap`)
+    bootstrap.value = data
+    if (!data.enabled) {
+      token.value = ''
+      sessionStorage.removeItem(storageKey.value)
+    }
+  } catch (e: any) {
+    bootstrapError.value = e?.response?.data?.error || 'Event nicht gefunden.'
+    bootstrap.value = null
+  }
+}
+
+async function unlock() {
+  pinError.value = ''
+  unlocking.value = true
+  try {
+    const {data} = await api.post(`/check-in/${slug.value}/session`, {pin: pin.value})
+    token.value = data.token
+    sessionStorage.setItem(storageKey.value, data.token)
+    pin.value = ''
+    view.value = 'home'
+  } catch (e: any) {
+    const status = e?.response?.status
+    if (status === 423) {
+      await loadBootstrap()
+      pinError.value = 'Check-In ist nicht geöffnet.'
+    } else {
+      pinError.value = e?.response?.data?.error || 'PIN ungültig.'
+    }
+    token.value = ''
+    sessionStorage.removeItem(storageKey.value)
+  } finally {
+    unlocking.value = false
+  }
+}
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+function onQueryInput() {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    void runSearch()
+  }, 250)
+}
+
+async function runSearch() {
+  const q = query.value.trim()
+  if (q.length < 2) {
+    results.value = []
+    return
+  }
+  searching.value = true
+  try {
+    const {data} = await api.get(`/check-in/${slug.value}/search`, {params: {q}})
+    results.value = data.results || []
+  } catch (e: any) {
+    if (e?.response?.status === 401 || e?.response?.status === 423) {
+      token.value = ''
+      sessionStorage.removeItem(storageKey.value)
+      await loadBootstrap()
+    }
+    results.value = []
+  } finally {
+    searching.value = false
+  }
+}
+
+async function openDetail(hit: SearchHit) {
+  view.value = 'detail'
+  detailLoading.value = true
+  actionError.value = ''
+  confirmRecheck.value = false
+  try {
+    const {data} = await api.get(`/check-in/${slug.value}/${hit.subject_type}/${hit.subject_id}`)
+    detail.value = data
+    note.value = data.reception_note || ''
+  } catch (e: any) {
+    actionError.value = e?.response?.data?.error || 'Laden fehlgeschlagen.'
+    detail.value = null
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+async function saveNoteOnly() {
+  if (!detail.value) return
+  actionBusy.value = true
+  actionError.value = ''
+  try {
+    const {data} = await api.patch(
+        `/check-in/${slug.value}/${detail.value.subject_type}/${detail.value.subject_id}/note`,
+        {reception_note: note.value},
+    )
+    detail.value = data
+  } catch (e: any) {
+    actionError.value = e?.response?.data?.error || 'Notiz speichern fehlgeschlagen.'
+  } finally {
+    actionBusy.value = false
+  }
+}
+
+async function doCheckIn() {
+  if (!detail.value) return
+  if (detail.value.status === 'no_show') {
+    actionError.value = 'No-Show — bitte Organisator:in kontaktieren.'
+    return
+  }
+  if (detail.value.status === 'checked_in' && !confirmRecheck.value) {
+    confirmRecheck.value = true
+    return
+  }
+  actionBusy.value = true
+  actionError.value = ''
+  try {
+    const {data} = await api.post(
+        `/check-in/${slug.value}/${detail.value.subject_type}/${detail.value.subject_id}/check-in`,
+        {reception_note: note.value},
+    )
+    detail.value = data
+    confirmRecheck.value = false
+  } catch (e: any) {
+    actionError.value = e?.response?.data?.error || 'Check-In fehlgeschlagen.'
+  } finally {
+    actionBusy.value = false
+  }
+}
+
+function openNoShowForm() {
+  noShowReason.value = detail.value?.no_show_reason || ''
+  noShowSource.value = detail.value?.no_show_source || ''
+  view.value = 'noshow'
+}
+
+async function submitNoShow() {
+  if (!detail.value) return
+  if (!noShowReason.value.trim() || !noShowSource.value.trim() || !note.value.trim()) {
+    actionError.value = 'Grund, Quelle und Notiz sind Pflicht.'
+    return
+  }
+  actionBusy.value = true
+  actionError.value = ''
+  try {
+    const {data} = await api.post(
+        `/check-in/${slug.value}/${detail.value.subject_type}/${detail.value.subject_id}/no-show`,
+        {
+          no_show_reason: noShowReason.value.trim(),
+          no_show_source: noShowSource.value.trim(),
+          reception_note: note.value.trim(),
+        },
+    )
+    detail.value = data
+    view.value = 'detail'
+  } catch (e: any) {
+    actionError.value = e?.response?.data?.error || 'No-Show speichern fehlgeschlagen.'
+  } finally {
+    actionBusy.value = false
+  }
+}
+
+async function openOverview() {
+  view.value = 'overview'
+  overviewLoading.value = true
+  try {
+    const {data} = await api.get(`/check-in/${slug.value}/overview`)
+    overview.value = data
+  } catch {
+    overview.value = null
+  } finally {
+    overviewLoading.value = false
+  }
+}
+
+async function openQr() {
+  view.value = 'qr'
+  qrDataUrl.value = ''
+  const link = bootstrap.value?.public_link
+  if (!link) {
+    toolsError.value = 'Kein öffentlicher Plan-Link.'
+    return
+  }
+  toolsError.value = ''
+  try {
+    qrDataUrl.value = await QRCode.toDataURL(link, {width: 280, margin: 1})
+  } catch {
+    toolsError.value = 'QR-Code konnte nicht erzeugt werden.'
+  }
+}
+
+async function loadOrganizer() {
+  try {
+    const {data} = await api.get(`/check-in/${slug.value}/organizer`)
+    organizer.value = data.organizer
+  } catch {
+    organizer.value = null
+  }
+}
+
+async function shareStatus() {
+  toolsError.value = ''
+  try {
+    const {data} = await api.get(`/check-in/${slug.value}/share`)
+    const text = data.text || ''
+    if (navigator.share) {
+      await navigator.share({title: 'Check-In Status', text})
+    } else if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      toolsError.value = 'Status in Zwischenablage kopiert.'
+    } else {
+      toolsError.value = text
+    }
+  } catch {
+    toolsError.value = 'Teilen fehlgeschlagen.'
+  }
+}
+
+function backHome() {
+  view.value = 'home'
+  detail.value = null
+  confirmRecheck.value = false
+  actionError.value = ''
+  void runSearch()
+}
+
+function statusLabel(hit: {status: string | null; checked_in_at?: string | null}) {
+  if (hit.status === 'no_show') return 'No-Show'
+  if (hit.status === 'checked_in') return hit.checked_in_at ? `Da · ${hit.checked_in_at}` : 'Da'
+  return 'Offen'
+}
+
+watch(slug, async () => {
+  token.value = sessionStorage.getItem(storageKey.value) || ''
+  await loadBootstrap()
+  if (unlocked.value) {
+    await loadOrganizer()
+  }
+})
+
+onMounted(async () => {
+  token.value = sessionStorage.getItem(storageKey.value) || ''
+  await loadBootstrap()
+  if (unlocked.value) {
+    await loadOrganizer()
+  }
+})
+</script>
+
+<template>
+  <div class="ci-app">
+    <header class="ci-app__header">
+      <div class="ci-app__brand">
+        <div class="ci-app__title">Check-In</div>
+        <div class="ci-app__event">{{ bootstrap?.event_name || slug }}</div>
+      </div>
+      <div v-if="unlocked" class="ci-app__tools">
+        <button type="button" class="ci-tool" title="Übersicht" @click="openOverview">
+          <i class="bi bi-bar-chart" aria-hidden="true"/>
+        </button>
+        <button type="button" class="ci-tool" title="QR öffentlicher Plan" @click="openQr">
+          <i class="bi bi-qr-code" aria-hidden="true"/>
+        </button>
+        <a
+            v-if="organizer?.mobile"
+            class="ci-tool"
+            :href="`tel:${organizer.mobile}`"
+            :title="`Organisator:in anrufen (${organizer.name})`"
+        >
+          <i class="bi bi-telephone" aria-hidden="true"/>
+        </a>
+        <button type="button" class="ci-tool" title="Status teilen" @click="shareStatus">
+          <i class="bi bi-share" aria-hidden="true"/>
+        </button>
+      </div>
+    </header>
+
+    <main class="ci-app__main">
+      <p v-if="bootstrapError" class="ci-banner ci-banner--error">{{ bootstrapError }}</p>
+
+      <template v-else-if="bootstrap && !bootstrap.enabled">
+        <div class="ci-panel">
+          <h1 class="ci-panel__h">Check-In geschlossen</h1>
+          <p class="ci-muted">Der Empfang ist derzeit nicht geöffnet.</p>
+        </div>
+      </template>
+
+      <template v-else-if="bootstrap && !unlocked">
+        <div class="ci-panel">
+          <h1 class="ci-panel__h">PIN eingeben</h1>
+          <input
+              v-model="pin"
+              type="text"
+              inputmode="numeric"
+              maxlength="6"
+              autocomplete="one-time-code"
+              class="ci-pin"
+              @keydown.enter.prevent="unlock"
+          />
+          <p v-if="pinError" class="ci-banner ci-banner--error">{{ pinError }}</p>
+          <button type="button" class="ci-btn ci-btn--primary" :disabled="unlocking || pin.length !== 6" @click="unlock">
+            Entsperren
+          </button>
+        </div>
+      </template>
+
+      <template v-else-if="unlocked && view === 'home'">
+        <div class="ci-panel">
+          <label class="ci-label" for="ci-search">Suche</label>
+          <input
+              id="ci-search"
+              v-model="query"
+              type="search"
+              class="ci-input"
+              placeholder="Name, Team, E-Mail…"
+              autocomplete="off"
+              @input="onQueryInput"
+          />
+          <p v-if="query.trim().length > 0 && query.trim().length < 2" class="ci-muted">Mindestens 2 Zeichen.</p>
+          <p v-else-if="searching" class="ci-muted">Suche…</p>
+          <p v-else-if="query.trim().length >= 2 && !results.length" class="ci-muted">Keine Treffer.</p>
+          <ul v-else class="ci-list">
+            <li v-for="hit in results" :key="`${hit.subject_type}-${hit.subject_id}`">
+              <button type="button" class="ci-hit" @click="openDetail(hit)">
+                <span class="ci-hit__main">
+                  <span class="ci-hit__badge">{{ hit.subject_type === 'team' ? 'Team' : 'Helfer' }}</span>
+                  <span class="ci-hit__label">{{ hit.label }}</span>
+                  <span v-if="hit.subtitle" class="ci-hit__sub">{{ hit.subtitle }}</span>
+                </span>
+                <span
+                    class="ci-hit__status"
+                    :class="{
+                      'ci-hit__status--in': hit.status === 'checked_in',
+                      'ci-hit__status--no': hit.status === 'no_show',
+                    }"
+                >
+                  {{ statusLabel(hit) }}
+                </span>
+              </button>
+            </li>
+          </ul>
+          <p v-if="toolsError" class="ci-muted">{{ toolsError }}</p>
+        </div>
+      </template>
+
+      <template v-else-if="unlocked && view === 'detail'">
+        <div class="ci-panel">
+          <button type="button" class="ci-link" @click="backHome">← Zurück</button>
+          <div v-if="detailLoading" class="ci-muted">Laden…</div>
+          <template v-else-if="detail">
+            <div class="ci-hit__badge">{{ detail.subject_type === 'team' ? 'Team' : 'Helfer' }}</div>
+            <h1 class="ci-panel__h">{{ detail.label }}</h1>
+            <p v-if="detail.program_name || detail.role_labels?.length" class="ci-muted">
+              {{ detail.program_name }}
+              <template v-if="detail.role_labels?.length"> · {{ detail.role_labels.join(', ') }}</template>
+            </p>
+            <p
+                class="ci-status-line"
+                :class="{
+                  'ci-status-line--in': detail.status === 'checked_in',
+                  'ci-status-line--no': detail.status === 'no_show',
+                }"
+            >
+              {{ statusLabel(detail) }}
+            </p>
+
+            <div v-if="detail.room" class="ci-card">
+              <div class="ci-card__label">Raum</div>
+              <div class="ci-card__value">{{ detail.room }}</div>
+            </div>
+
+            <div v-if="detail.next_activities?.length" class="ci-card">
+              <div class="ci-card__label">Nächste Aktivitäten</div>
+              <ul class="ci-acts">
+                <li v-for="(act, idx) in detail.next_activities" :key="idx">
+                  <span class="ci-acts__time">{{ act.start }}<template v-if="act.end">–{{ act.end }}</template></span>
+                  {{ act.title }}
+                </li>
+              </ul>
+            </div>
+
+            <div v-if="detail.info_text" class="ci-card">
+              <div class="ci-card__label">Hinweis</div>
+              <div class="ci-card__value ci-card__value--pre">{{ detail.info_text }}</div>
+            </div>
+
+            <label class="ci-label" for="ci-note">Notiz</label>
+            <textarea id="ci-note" v-model="note" rows="3" class="ci-input" :disabled="actionBusy"/>
+
+            <p v-if="actionError" class="ci-banner ci-banner--error">{{ actionError }}</p>
+            <p v-if="confirmRecheck" class="ci-banner">Bereits eingecheckt — erneut bestätigen?</p>
+
+            <div class="ci-actions">
+              <button
+                  type="button"
+                  class="ci-btn ci-btn--primary"
+                  :disabled="actionBusy || detail.status === 'no_show'"
+                  @click="doCheckIn"
+              >
+                {{ detail.status === 'checked_in' ? (confirmRecheck ? 'Erneut check-in' : 'Check-In') : 'Check-In' }}
+              </button>
+              <button type="button" class="ci-btn" :disabled="actionBusy" @click="saveNoteOnly">
+                Notiz speichern
+              </button>
+              <button
+                  type="button"
+                  class="ci-btn ci-btn--danger"
+                  :disabled="actionBusy || detail.status === 'no_show'"
+                  @click="openNoShowForm"
+              >
+                No-Show
+              </button>
+            </div>
+            <p v-if="detail.status === 'no_show'" class="ci-muted">
+              No-Show erfasst. Check-In nur über Organisator:in möglich.
+            </p>
+          </template>
+        </div>
+      </template>
+
+      <template v-else-if="unlocked && view === 'noshow'">
+        <div class="ci-panel">
+          <button type="button" class="ci-link" @click="view = 'detail'">← Zurück</button>
+          <h1 class="ci-panel__h">No-Show</h1>
+          <p class="ci-muted">{{ detail?.label }}</p>
+          <label class="ci-label" for="ci-reason">Grund</label>
+          <textarea id="ci-reason" v-model="noShowReason" rows="2" class="ci-input"/>
+          <label class="ci-label" for="ci-source">Wie wurde die Info übermittelt?</label>
+          <textarea id="ci-source" v-model="noShowSource" rows="2" class="ci-input"/>
+          <label class="ci-label" for="ci-note-ns">Notiz</label>
+          <textarea id="ci-note-ns" v-model="note" rows="2" class="ci-input"/>
+          <p v-if="actionError" class="ci-banner ci-banner--error">{{ actionError }}</p>
+          <button type="button" class="ci-btn ci-btn--danger" :disabled="actionBusy" @click="submitNoShow">
+            No-Show speichern
+          </button>
+        </div>
+      </template>
+
+      <template v-else-if="unlocked && view === 'overview'">
+        <div class="ci-panel">
+          <button type="button" class="ci-link" @click="view = 'home'">← Zurück</button>
+          <h1 class="ci-panel__h">Übersicht</h1>
+          <div v-if="overviewLoading" class="ci-muted">Laden…</div>
+          <template v-else-if="overview">
+            <div class="ci-card">
+              <div class="ci-card__label">Teams gesamt</div>
+              <div class="ci-card__value">
+                {{ overview.totals.teams_checked_in }} / {{ overview.totals.teams_total }}
+              </div>
+              <ul class="ci-acts">
+                <li v-for="(row, i) in overview.teams" :key="`t-${i}`">
+                  {{ row.program_name }}: {{ row.checked_in }}/{{ row.total }}
+                </li>
+              </ul>
+            </div>
+            <div class="ci-card">
+              <div class="ci-card__label">Helfer:innen gesamt</div>
+              <div class="ci-card__value">
+                {{ overview.totals.helpers_checked_in }} / {{ overview.totals.helpers_total }}
+              </div>
+              <ul class="ci-acts">
+                <li v-for="(row, i) in overview.helpers" :key="`h-${i}`">
+                  {{ row.program_name }}: {{ row.checked_in }}/{{ row.total }}
+                </li>
+              </ul>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <template v-else-if="unlocked && view === 'qr'">
+        <div class="ci-panel ci-panel--center">
+          <button type="button" class="ci-link" @click="view = 'home'">← Zurück</button>
+          <h1 class="ci-panel__h">Öffentlicher Plan</h1>
+          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR-Code öffentlicher Plan" class="ci-qr"/>
+          <p v-if="toolsError" class="ci-banner ci-banner--error">{{ toolsError }}</p>
+          <p v-if="bootstrap?.public_link" class="ci-muted ci-break">{{ bootstrap.public_link }}</p>
+        </div>
+      </template>
+    </main>
+  </div>
+</template>
+
+<style scoped>
+.ci-app {
+  min-height: 100dvh;
+  background: #0f1419;
+  color: #f3f5f7;
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+}
+
+.ci-app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  padding-top: max(0.85rem, env(safe-area-inset-top));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #161c22;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.ci-app__title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9aa7b5;
+}
+
+.ci-app__event {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.ci-app__tools {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.ci-tool {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #e8eef4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.ci-app__main {
+  flex: 1;
+  padding: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.ci-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.ci-panel--center {
+  align-items: stretch;
+  text-align: center;
+}
+
+.ci-panel__h {
+  font-size: 1.35rem;
+  font-weight: 750;
+  margin: 0;
+}
+
+.ci-muted {
+  color: #9aa7b5;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.ci-label {
+  font-size: 0.8rem;
+  color: #9aa7b5;
+}
+
+.ci-input,
+.ci-pin {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #1a222b;
+  color: #f3f5f7;
+  padding: 0.85rem 0.95rem;
+  font-size: 1rem;
+}
+
+.ci-pin {
+  text-align: center;
+  letter-spacing: 0.35em;
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ci-btn {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #24303b;
+  color: #f3f5f7;
+  border-radius: 0.75rem;
+  padding: 0.85rem 1rem;
+  font-weight: 650;
+}
+
+.ci-btn--primary {
+  background: #2f6fed;
+  border-color: #2f6fed;
+}
+
+.ci-btn--danger {
+  background: #8b2e2e;
+  border-color: #8b2e2e;
+}
+
+.ci-btn:disabled {
+  opacity: 0.5;
+}
+
+.ci-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ci-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ci-hit {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.85rem;
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #1a222b;
+  color: inherit;
+}
+
+.ci-hit__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.ci-hit__badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9aa7b5;
+}
+
+.ci-hit__label {
+  font-weight: 700;
+}
+
+.ci-hit__sub {
+  font-size: 0.85rem;
+  color: #9aa7b5;
+}
+
+.ci-hit__status {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  color: #9aa7b5;
+}
+
+.ci-hit__status--in,
+.ci-status-line--in {
+  color: #5dcea2;
+}
+
+.ci-hit__status--no,
+.ci-status-line--no {
+  color: #f0a0a0;
+}
+
+.ci-status-line {
+  margin: 0;
+  font-weight: 650;
+}
+
+.ci-card {
+  border-radius: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #1a222b;
+  padding: 0.85rem;
+  text-align: left;
+}
+
+.ci-card__label {
+  font-size: 0.75rem;
+  color: #9aa7b5;
+  margin-bottom: 0.25rem;
+}
+
+.ci-card__value {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.ci-card__value--pre {
+  white-space: pre-wrap;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.ci-acts {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.ci-acts__time {
+  display: inline-block;
+  min-width: 4.5rem;
+  color: #9aa7b5;
+  font-variant-numeric: tabular-nums;
+}
+
+.ci-banner {
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 0;
+}
+
+.ci-banner--error {
+  background: rgba(180, 50, 50, 0.25);
+  color: #ffd0d0;
+}
+
+.ci-link {
+  border: 0;
+  background: transparent;
+  color: #8eb6ff;
+  text-align: left;
+  padding: 0;
+  width: fit-content;
+}
+
+.ci-qr {
+  width: min(280px, 80vw);
+  height: auto;
+  margin: 0 auto;
+  border-radius: 0.75rem;
+  background: #fff;
+  padding: 0.5rem;
+}
+
+.ci-break {
+  word-break: break-all;
+}
+</style>
