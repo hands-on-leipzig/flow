@@ -3,6 +3,7 @@ import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import axios from 'axios'
 import QRCode from 'qrcode'
+import {imageUrl, programLogoSrc} from '@/utils/images'
 
 defineOptions({name: 'CheckInReception'})
 
@@ -19,7 +20,9 @@ type SearchHit = {
   subject_id: number
   label: string
   subtitle?: string | null
+  program_id?: number | null
   program_name?: string | null
+  logo_stem?: string | null
   status: 'checked_in' | 'no_show' | null
   checked_in_at?: string | null
 }
@@ -326,6 +329,12 @@ function statusLabel(hit: {status: string | null; checked_in_at?: string | null}
   return 'Offen'
 }
 
+function statusIcon(status: string | null) {
+  if (status === 'no_show') return 'bi-x-circle-fill'
+  if (status === 'checked_in') return 'bi-check-circle-fill'
+  return 'bi-circle'
+}
+
 watch(slug, async () => {
   token.value = sessionStorage.getItem(storageKey.value) || ''
   await loadBootstrap()
@@ -402,14 +411,19 @@ onMounted(async () => {
 
       <template v-else-if="unlocked && view === 'home'">
         <div class="ci-panel">
-          <label class="ci-label" for="ci-search">Suche</label>
+          <img
+              class="ci-logo"
+              :src="imageUrl('/flow/flow.png')"
+              alt="FLOW"
+          />
           <input
               id="ci-search"
               v-model="query"
               type="search"
               class="ci-input"
-              placeholder="Name, Team, E-Mail…"
+              placeholder="Suche nach Name, Team, E-Mail…"
               autocomplete="off"
+              aria-label="Suche"
               @input="onQueryInput"
           />
           <p v-if="query.trim().length > 0 && query.trim().length < 2" class="ci-muted">Mindestens 2 Zeichen.</p>
@@ -419,8 +433,16 @@ onMounted(async () => {
             <li v-for="hit in results" :key="`${hit.subject_type}-${hit.subject_id}`">
               <button type="button" class="ci-hit" @click="openDetail(hit)">
                 <span class="ci-hit__main">
-                  <span class="ci-hit__badge">{{ hit.subject_type === 'team' ? 'Team' : 'Helfer' }}</span>
-                  <span class="ci-hit__label">{{ hit.label }}</span>
+                  <span class="ci-hit__title">
+                    <img
+                        v-if="hit.logo_stem"
+                        class="ci-hit__program"
+                        :src="programLogoSrc({logo_stem: hit.logo_stem})"
+                        alt=""
+                        aria-hidden="true"
+                    />
+                    <span class="ci-hit__label">{{ hit.label }}</span>
+                  </span>
                   <span v-if="hit.subtitle" class="ci-hit__sub">{{ hit.subtitle }}</span>
                 </span>
                 <span
@@ -429,8 +451,14 @@ onMounted(async () => {
                       'ci-hit__status--in': hit.status === 'checked_in',
                       'ci-hit__status--no': hit.status === 'no_show',
                     }"
+                    :title="statusLabel(hit)"
                 >
-                  {{ statusLabel(hit) }}
+                  <i
+                      class="bi"
+                      :class="statusIcon(hit.status)"
+                      aria-hidden="true"
+                  />
+                  <span class="sr-only">{{ statusLabel(hit) }}</span>
                 </span>
               </button>
             </li>
@@ -444,11 +472,19 @@ onMounted(async () => {
           <button type="button" class="ci-link" @click="backHome">← Zurück</button>
           <div v-if="detailLoading" class="ci-muted">Laden…</div>
           <template v-else-if="detail">
-            <div class="ci-hit__badge">{{ detail.subject_type === 'team' ? 'Team' : 'Helfer' }}</div>
-            <h1 class="ci-panel__h">{{ detail.label }}</h1>
-            <p v-if="detail.program_name || detail.role_labels?.length" class="ci-muted">
-              {{ detail.program_name }}
-              <template v-if="detail.role_labels?.length"> · {{ detail.role_labels.join(', ') }}</template>
+            <div class="ci-detail-head">
+              <img
+                  v-if="detail.logo_stem"
+                  class="ci-detail-head__program"
+                  :src="programLogoSrc({logo_stem: detail.logo_stem})"
+                  alt=""
+                  aria-hidden="true"
+              />
+              <h1 class="ci-panel__h">{{ detail.label }}</h1>
+            </div>
+            <p v-if="detail.subject_type === 'team'" class="ci-muted">Team</p>
+            <p v-else-if="detail.role_labels?.length" class="ci-muted">
+              {{ detail.role_labels.join(', ') }}
             </p>
             <p
                 class="ci-status-line"
@@ -645,6 +681,13 @@ onMounted(async () => {
   margin: 0 auto;
 }
 
+.ci-logo {
+  display: block;
+  height: 2.25rem;
+  width: auto;
+  margin: 0.25rem auto 0.5rem;
+}
+
 .ci-panel--center {
   align-items: stretch;
   text-align: center;
@@ -744,15 +787,43 @@ onMounted(async () => {
   min-width: 0;
 }
 
-.ci-hit__badge {
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #9aa7b5;
+.ci-hit__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.ci-hit__program {
+  width: 1.35rem;
+  height: 1.35rem;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .ci-hit__label {
   font-weight: 700;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ci-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.ci-detail-head__program {
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.ci-detail-head .ci-panel__h {
+  min-width: 0;
 }
 
 .ci-hit__sub {
@@ -761,8 +832,9 @@ onMounted(async () => {
 }
 
 .ci-hit__status {
-  font-size: 0.75rem;
-  white-space: nowrap;
+  font-size: 1.25rem;
+  line-height: 1;
+  flex-shrink: 0;
   color: #9aa7b5;
 }
 

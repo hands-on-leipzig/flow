@@ -241,6 +241,7 @@ class CheckInService
                 'team.first_program',
                 'team_plan.team_number_plan',
                 'fp.name as program_name',
+                'fp.logo_stem',
             ])
             ->get();
 
@@ -260,15 +261,15 @@ class CheckInService
                 continue;
             }
 
-            $number = $row->team_number_plan ?: $row->team_number_hot;
-            $label = trim(($number ? '#'.$number.' ' : '').($row->name ?? ''));
+            $label = trim((string) ($row->name ?? ''));
 
             $hits[] = [
                 'id' => (int) $row->id,
                 'label' => $label !== '' ? $label : ('Team '.$row->id),
-                'subtitle' => $row->program_name,
+                'subtitle' => 'Team',
                 'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
                 'program_name' => $row->program_name,
+                'logo_stem' => $row->logo_stem ?: null,
             ];
         }
 
@@ -376,6 +377,7 @@ class CheckInService
                 'subtitle' => $roleLabels[0] ?? $row->organization,
                 'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
                 'program_name' => $row->program_name,
+                'logo_stem' => $row->logo_stem ?: null,
                 'role_labels' => $roleLabels,
             ];
         }
@@ -404,6 +406,7 @@ class CheckInService
                 'mr.name as catalog_role_name',
                 'mr.first_program',
                 'fp.name as program_name',
+                'fp.logo_stem',
                 'a.id as assignment_id',
             ])
             ->orderBy('p.last_name')
@@ -431,6 +434,7 @@ class CheckInService
                     'organization' => $row->organization,
                     'first_program' => $row->first_program,
                     'program_name' => $row->program_name,
+                    'logo_stem' => $row->logo_stem,
                     'role_labels' => [],
                 ];
             }
@@ -441,6 +445,7 @@ class CheckInService
             if ($byPerson[$id]->first_program === null && $row->first_program !== null) {
                 $byPerson[$id]->first_program = $row->first_program;
                 $byPerson[$id]->program_name = $row->program_name;
+                $byPerson[$id]->logo_stem = $row->logo_stem;
             }
         }
 
@@ -486,6 +491,7 @@ class CheckInService
                 'team_plan.room as room_id',
                 'room.name as room_name',
                 'fp.name as program_name',
+                'fp.logo_stem',
             ])
             ->first();
 
@@ -494,8 +500,7 @@ class CheckInService
         }
 
         $record = $this->findRecord($event, CheckIn::SUBJECT_TEAM, $teamId);
-        $number = $row->team_number_plan ?: $row->team_number_hot;
-        $label = trim(($number ? '#'.$number.' ' : '').($row->name ?? ''));
+        $label = trim((string) ($row->name ?? ''));
 
         return array_merge([
             'subject_type' => CheckIn::SUBJECT_TEAM,
@@ -503,6 +508,7 @@ class CheckInService
             'label' => $label !== '' ? $label : ('Team '.$row->id),
             'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
             'program_name' => $row->program_name,
+            'logo_stem' => $row->logo_stem ?: null,
             'room' => $row->room_name ?: null,
             'info_text' => $event->check_in_text_teams,
             'next_activities' => $this->nextActivitiesForTeam($event, $plan, $row),
@@ -526,6 +532,7 @@ class CheckInService
             'label' => trim($row->first_name.' '.$row->last_name),
             'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
             'program_name' => $row->program_name,
+            'logo_stem' => $row->logo_stem ?: null,
             'room' => null,
             'role_labels' => $roleLabels,
             'info_text' => $event->check_in_text_helpers,

@@ -169,7 +169,7 @@ const routes = [
     {path: '/editSlide/:slideId', redirect: to => `/plan/editSlide/${to.params.slideId}`},
 
     // Public slug-based routes (must be after all specific routes)
-    {path: '/:slug/check-in', component: CheckInReception, props: true, meta: {public: true}},
+    {path: '/:slug/check-in', component: CheckInReception, props: true, meta: {public: true, plain: true}},
     {path: '/:slug', component: PublicEvent, props: true, meta: {public: true}},
     // Unauthorized access route
     {path: '/unauthorized', component: UnauthorizedAccess, meta: {public: true}},

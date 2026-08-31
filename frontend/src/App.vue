@@ -16,6 +16,9 @@ const isPublicRoute = computed(() => {
 /** Slim plan pop-out / public surfaces: no app chrome. */
 const isChromeLess = computed(() => isPublicRoute.value || route.meta?.popout === true)
 
+/** Blank canvas (no orbit/pe-page styling), e.g. Check-In reception. */
+const isPlainSurface = computed(() => route.meta?.plain === true)
+
 /** Admin fills the panel so tools can scroll internally (e.g. Main Tables). */
 const isAdminRoute = computed(() => route.path.startsWith('/plan/admin'))
 
@@ -83,7 +86,11 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="isChromeLess" class="min-h-dvh w-full font-sans liquid-surface-scope pe-page">
+  <div
+    v-if="isChromeLess"
+    class="min-h-dvh w-full font-sans"
+    :class="{ 'liquid-surface-scope pe-page': !isPlainSurface }"
+  >
     <router-view/>
   </div>
 
