@@ -397,7 +397,7 @@ onMounted(async () => {
 
 <template>
   <div class="ci-app">
-    <header class="ci-app__header">
+    <header class="ci-app__header liquid-surface-inner">
       <div class="ci-app__brand">
         <img
             class="ci-app__logo"
@@ -436,17 +436,17 @@ onMounted(async () => {
     </header>
 
     <main class="ci-app__main">
-      <p v-if="bootstrapError" class="ci-banner ci-banner--error">{{ bootstrapError }}</p>
+      <p v-if="bootstrapError" class="glass-alert-error !mb-0">{{ bootstrapError }}</p>
 
       <template v-else-if="bootstrap && !bootstrap.enabled">
-        <div class="ci-panel">
+        <div class="ci-panel glass-card liquid-surface-inner">
           <h1 class="ci-panel__h">Check-In geschlossen</h1>
           <p class="ci-muted">Der Empfang ist derzeit nicht geöffnet.</p>
         </div>
       </template>
 
       <template v-else-if="bootstrap && !unlocked">
-        <div class="ci-panel">
+        <div class="ci-panel glass-card liquid-surface-inner">
           <h1 class="ci-panel__h">PIN eingeben</h1>
           <input
               v-model="pin"
@@ -454,11 +454,16 @@ onMounted(async () => {
               inputmode="numeric"
               maxlength="6"
               autocomplete="one-time-code"
-              class="ci-pin"
+              class="glass-input ci-pin"
               @keydown.enter.prevent="unlock"
           />
-          <p v-if="pinError" class="ci-banner ci-banner--error">{{ pinError }}</p>
-          <button type="button" class="ci-btn ci-btn--primary" :disabled="unlocking || pin.length !== 6" @click="unlock">
+          <p v-if="pinError" class="glass-alert-error !mb-0">{{ pinError }}</p>
+          <button
+              type="button"
+              class="glass-btn-accent ci-btn-block"
+              :disabled="unlocking || pin.length !== 6"
+              @click="unlock"
+          >
             Entsperren
           </button>
         </div>
@@ -474,7 +479,7 @@ onMounted(async () => {
               id="ci-search"
               v-model="query"
               type="search"
-              class="ci-input"
+              class="glass-input ci-input"
               placeholder="Suche nach Name, Team, E-Mail…"
               autocomplete="off"
               aria-label="Suche"
@@ -485,7 +490,7 @@ onMounted(async () => {
           <p v-else-if="query.trim().length >= 2 && !results.length" class="ci-muted">Keine Treffer.</p>
           <ul v-if="showSearchResults" class="ci-list">
             <li v-for="hit in results" :key="`${hit.subject_type}-${hit.subject_id}`">
-              <button type="button" class="ci-hit" @click="openDetail(hit)">
+              <button type="button" class="ci-hit liquid-surface-inner" @click="openDetail(hit)">
                 <span class="ci-hit__row">
                   <span class="ci-hit__label">{{ hit.label }}</span>
                   <span class="ci-hit__trailing">
@@ -522,7 +527,7 @@ onMounted(async () => {
           </ul>
 
           <div class="ci-stats" aria-label="Check-In Stand">
-            <section class="ci-stats__box">
+            <section class="ci-stats__box glass-card liquid-surface-inner">
               <h2 class="ci-stats__heading">Teams</h2>
               <ul class="ci-stats__lines">
                 <li
@@ -557,7 +562,7 @@ onMounted(async () => {
                 </li>
               </ul>
             </section>
-            <section class="ci-stats__box">
+            <section class="ci-stats__box glass-card liquid-surface-inner">
               <h2 class="ci-stats__heading">Helfer</h2>
               <ul class="ci-stats__lines">
                 <li v-for="(line, i) in homeHelperStats" :key="`h-${i}`" class="ci-stats__line">
@@ -595,7 +600,7 @@ onMounted(async () => {
           <button type="button" class="ci-link" @click="backHome">← Zurück</button>
           <div v-if="detailLoading" class="ci-muted">Laden…</div>
           <template v-else-if="detail">
-            <div class="ci-hit ci-hit--detail" aria-live="polite">
+            <div class="ci-hit ci-hit--detail liquid-surface-inner" aria-live="polite">
               <div class="ci-hit__row">
                 <span class="ci-hit__label">{{ detail.label }}</span>
                 <span class="ci-hit__trailing">
@@ -629,12 +634,12 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div v-if="detail.room" class="ci-card">
+            <div v-if="detail.room" class="ci-card glass-card liquid-surface-inner">
               <div class="ci-card__label">Raum</div>
               <div class="ci-card__value">{{ detail.room }}</div>
             </div>
 
-            <div v-if="detail.next_activities?.length" class="ci-card">
+            <div v-if="detail.next_activities?.length" class="ci-card glass-card liquid-surface-inner">
               <div class="ci-card__label">Nächste Aktivitäten</div>
               <ul class="ci-acts">
                 <li v-for="(act, idx) in detail.next_activities" :key="idx" class="ci-acts__item">
@@ -647,21 +652,21 @@ onMounted(async () => {
               </ul>
             </div>
 
-            <div v-if="detail.info_text" class="ci-card">
+            <div v-if="detail.info_text" class="ci-card glass-card liquid-surface-inner">
               <div class="ci-card__label">Hinweis</div>
               <div class="ci-card__value ci-card__value--pre">{{ detail.info_text }}</div>
             </div>
 
             <label class="ci-label" for="ci-note">Notiz</label>
-            <textarea id="ci-note" v-model="note" rows="3" class="ci-input" :disabled="actionBusy"/>
+            <textarea id="ci-note" v-model="note" rows="3" class="glass-input ci-input" :disabled="actionBusy"/>
 
-            <p v-if="actionError" class="ci-banner ci-banner--error">{{ actionError }}</p>
-            <p v-if="confirmRecheck" class="ci-banner">Bereits eingecheckt — erneut bestätigen?</p>
+            <p v-if="actionError" class="glass-alert-error !mb-0">{{ actionError }}</p>
+            <p v-if="confirmRecheck" class="glass-alert-warning !mb-0">Bereits eingecheckt — erneut bestätigen?</p>
 
             <div class="ci-actions">
               <button
                   type="button"
-                  class="ci-btn ci-btn--primary"
+                  class="glass-btn-accent"
                   :disabled="actionBusy || detail.status === 'no_show'"
                   @click="doCheckIn"
               >
@@ -669,7 +674,7 @@ onMounted(async () => {
               </button>
               <button
                   type="button"
-                  class="ci-btn ci-btn--danger"
+                  class="ci-btn-danger"
                   :disabled="actionBusy || detail.status === 'no_show'"
                   @click="openNoShowForm"
               >
@@ -689,24 +694,24 @@ onMounted(async () => {
           <h1 class="ci-panel__h">No-Show</h1>
           <p class="ci-muted">{{ detail?.label }}</p>
           <label class="ci-label" for="ci-reason">Grund</label>
-          <textarea id="ci-reason" v-model="noShowReason" rows="2" class="ci-input"/>
+          <textarea id="ci-reason" v-model="noShowReason" rows="2" class="glass-input ci-input"/>
           <label class="ci-label" for="ci-source">Wie wurde die Info übermittelt?</label>
-          <textarea id="ci-source" v-model="noShowSource" rows="2" class="ci-input"/>
+          <textarea id="ci-source" v-model="noShowSource" rows="2" class="glass-input ci-input"/>
           <label class="ci-label" for="ci-note-ns">Notiz</label>
-          <textarea id="ci-note-ns" v-model="note" rows="2" class="ci-input"/>
-          <p v-if="actionError" class="ci-banner ci-banner--error">{{ actionError }}</p>
-          <button type="button" class="ci-btn ci-btn--danger" :disabled="actionBusy" @click="submitNoShow">
+          <textarea id="ci-note-ns" v-model="note" rows="2" class="glass-input ci-input"/>
+          <p v-if="actionError" class="glass-alert-error !mb-0">{{ actionError }}</p>
+          <button type="button" class="ci-btn-danger ci-btn-block" :disabled="actionBusy" @click="submitNoShow">
             No-Show speichern
           </button>
         </div>
       </template>
 
       <template v-else-if="unlocked && view === 'qr'">
-        <div class="ci-panel ci-panel--center">
+        <div class="ci-panel ci-panel--center glass-card liquid-surface-inner">
           <button type="button" class="ci-link" @click="view = 'home'">← Zurück</button>
           <h1 class="ci-panel__h">Öffentlicher Plan</h1>
           <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR-Code öffentlicher Plan" class="ci-qr"/>
-          <p v-if="toolsError" class="ci-banner ci-banner--error">{{ toolsError }}</p>
+          <p v-if="toolsError" class="glass-alert-error !mb-0">{{ toolsError }}</p>
           <p v-if="bootstrap?.public_link" class="ci-muted ci-break">{{ bootstrap.public_link }}</p>
         </div>
       </template>
@@ -717,11 +722,9 @@ onMounted(async () => {
 <style scoped>
 .ci-app {
   min-height: 100dvh;
-  background: #0f1419;
-  color: #f3f5f7;
+  color: var(--color-text);
   display: flex;
   flex-direction: column;
-  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
 }
 
 .ci-app__header {
@@ -731,11 +734,11 @@ onMounted(async () => {
   gap: 0.75rem;
   padding: 0.85rem 1rem;
   padding-top: max(0.85rem, env(safe-area-inset-top));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background: #161c22;
+  border-bottom: 1px solid var(--liquid-border-soft);
   position: sticky;
   top: 0;
   z-index: 2;
+  border-radius: 0;
 }
 
 .ci-app__brand {
@@ -758,22 +761,30 @@ onMounted(async () => {
 .ci-tool {
   width: 2.5rem;
   height: 2.5rem;
-  border-radius: 0.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: #e8eef4;
+  border-radius: var(--radius);
+  border: 1px solid var(--liquid-border);
+  background: var(--liquid-tile-bg);
+  color: var(--color-text);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  cursor: pointer;
+  box-shadow:
+    0 4px 12px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.ci-tool:hover:not(.ci-tool--disabled) {
+  background: var(--color-bg-hover);
 }
 
 .ci-tool--disabled,
 .ci-tool:disabled {
-  opacity: 0.35;
+  opacity: 0.4;
   cursor: not-allowed;
-  color: #7a8794;
-  border-color: rgba(255, 255, 255, 0.06);
+  color: var(--color-text-muted);
+  box-shadow: none;
 }
 
 .ci-app__main {
@@ -799,46 +810,43 @@ onMounted(async () => {
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: #9aa7b5;
+  color: var(--color-text-muted);
 }
 
 .ci-home-brand__event {
   font-weight: 750;
   font-size: 1.2rem;
   line-height: 1.25;
+  color: var(--color-text);
 }
 
 .ci-panel--center {
   align-items: stretch;
   text-align: center;
+  padding: 1rem;
 }
 
 .ci-panel__h {
   font-size: 1.35rem;
   font-weight: 750;
   margin: 0;
+  color: var(--color-text);
 }
 
 .ci-muted {
-  color: #9aa7b5;
+  color: var(--color-text-muted);
   font-size: 0.9rem;
   margin: 0;
 }
 
 .ci-label {
   font-size: 0.8rem;
-  color: #9aa7b5;
+  color: var(--color-text-muted);
 }
 
 .ci-input,
 .ci-pin {
   width: 100%;
-  border-radius: 0.75rem;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: #1a222b;
-  color: #f3f5f7;
-  padding: 0.85rem 0.95rem;
-  font-size: 1rem;
 }
 
 .ci-pin {
@@ -848,33 +856,41 @@ onMounted(async () => {
   font-variant-numeric: tabular-nums;
 }
 
-.ci-btn {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: #24303b;
-  color: #f3f5f7;
-  border-radius: 0.75rem;
-  padding: 0.85rem 1rem;
-  font-weight: 650;
+.ci-btn-block {
+  width: 100%;
 }
 
-.ci-btn--primary {
-  background: #2f6fed;
-  border-color: #2f6fed;
+.ci-btn-danger {
+  padding: 0.5rem 1rem;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, #dc2626 55%, var(--color-border-strong));
+  background: color-mix(in srgb, #dc2626 12%, var(--color-bg-muted));
+  color: color-mix(in srgb, #dc2626 75%, var(--color-text));
+  cursor: pointer;
 }
 
-.ci-btn--danger {
-  background: #8b2e2e;
-  border-color: #8b2e2e;
+.ci-btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, #dc2626 18%, var(--color-bg-muted));
 }
 
-.ci-btn:disabled {
+.ci-btn-danger:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .ci-actions {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.ci-actions .glass-btn-accent,
+.ci-actions .ci-btn-danger {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
 }
 
 .ci-list {
@@ -894,9 +910,6 @@ onMounted(async () => {
 }
 
 .ci-stats__box {
-  border-radius: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #1a222b;
   padding: 0.75rem;
   min-width: 0;
 }
@@ -907,7 +920,7 @@ onMounted(async () => {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #9aa7b5;
+  color: var(--color-text-muted);
 }
 
 .ci-stats__lines {
@@ -940,7 +953,7 @@ onMounted(async () => {
 .ci-stats__label {
   font-size: 1.05rem;
   font-weight: 700;
-  color: #c5ced6;
+  color: var(--color-text);
   min-width: 4.25rem;
 }
 
@@ -960,7 +973,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   font-size: 1.25rem;
-  color: #9aa7b5;
+  color: var(--color-text-muted);
 }
 
 .ci-stats__count {
@@ -968,6 +981,7 @@ onMounted(async () => {
   font-variant-numeric: tabular-nums;
   font-weight: 650;
   white-space: nowrap;
+  color: var(--color-text);
 }
 
 .ci-hit {
@@ -977,14 +991,22 @@ onMounted(async () => {
   flex-direction: column;
   gap: 0.35rem;
   padding: 0.85rem;
-  border-radius: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #1a222b;
-  color: inherit;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--liquid-border-soft);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.ci-hit:hover {
+  background: var(--color-bg-hover);
 }
 
 .ci-hit--detail {
   cursor: default;
+}
+
+.ci-hit--detail:hover {
+  background: inherit;
 }
 
 .ci-hit__row {
@@ -1018,7 +1040,7 @@ onMounted(async () => {
 .ci-hit__time {
   font-size: 0.85rem;
   font-variant-numeric: tabular-nums;
-  color: #9aa7b5;
+  color: var(--color-text-muted);
 }
 
 .ci-hit__program {
@@ -1030,41 +1052,39 @@ onMounted(async () => {
 
 .ci-hit__sub {
   font-size: 0.85rem;
-  color: #9aa7b5;
+  color: var(--color-text-muted);
 }
 
 .ci-hit__status {
   font-size: 1.25rem;
   line-height: 1;
   flex-shrink: 0;
-  color: #9aa7b5;
+  color: var(--color-text-muted);
 }
 
 .ci-hit__status--in {
-  color: #5dcea2;
+  color: #059669;
 }
 
 .ci-hit__status--no {
-  color: #f0a0a0;
+  color: #dc2626;
 }
 
 .ci-card {
-  border-radius: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #1a222b;
   padding: 0.85rem;
   text-align: left;
 }
 
 .ci-card__label {
   font-size: 0.75rem;
-  color: #9aa7b5;
+  color: var(--color-text-muted);
   margin-bottom: 0.25rem;
 }
 
 .ci-card__value {
   font-weight: 700;
   font-size: 1.05rem;
+  color: var(--color-text);
 }
 
 .ci-card__value--pre {
@@ -1091,7 +1111,7 @@ onMounted(async () => {
 .ci-acts__time {
   flex-shrink: 0;
   min-width: 3rem;
-  color: #9aa7b5;
+  color: var(--color-text-muted);
   font-variant-numeric: tabular-nums;
   font-size: 0.95rem;
   padding-top: 0.1rem;
@@ -1108,41 +1128,37 @@ onMounted(async () => {
   font-weight: 750;
   font-size: 1.15rem;
   line-height: 1.2;
+  color: var(--color-text);
 }
 
 .ci-acts__title {
   font-size: 0.9rem;
-  color: #9aa7b5;
-}
-
-.ci-banner {
-  border-radius: 0.65rem;
-  padding: 0.65rem 0.75rem;
-  background: rgba(255, 255, 255, 0.06);
-  margin: 0;
-}
-
-.ci-banner--error {
-  background: rgba(180, 50, 50, 0.25);
-  color: #ffd0d0;
+  color: var(--color-text-muted);
 }
 
 .ci-link {
   border: 0;
   background: transparent;
-  color: #8eb6ff;
+  color: var(--color-accent);
   text-align: left;
   padding: 0;
   width: fit-content;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ci-link:hover {
+  text-decoration: underline;
 }
 
 .ci-qr {
   width: min(280px, 80vw);
   height: auto;
   margin: 0 auto;
-  border-radius: 0.75rem;
+  border-radius: var(--radius);
   background: #fff;
   padding: 0.5rem;
+  border: 1px solid var(--liquid-border-soft);
 }
 
 .ci-break {

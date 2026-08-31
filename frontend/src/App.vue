@@ -16,7 +16,7 @@ const isPublicRoute = computed(() => {
 /** Slim plan pop-out / public surfaces: no app chrome. */
 const isChromeLess = computed(() => isPublicRoute.value || route.meta?.popout === true)
 
-/** Blank canvas (no orbit/pe-page styling), e.g. Check-In reception. */
+/** Blank canvas (no orbit/pe-page styling) when a route opts in via meta.plain. */
 const isPlainSurface = computed(() => route.meta?.plain === true)
 
 /** Admin fills the panel so tools can scroll internally (e.g. Main Tables). */
