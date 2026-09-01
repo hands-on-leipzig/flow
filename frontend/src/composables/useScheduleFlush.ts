@@ -4,6 +4,7 @@ import type {Parameter} from '@/models/Parameter'
 import {pollPlanUntilReady, runGenerateLite} from '@/composables/usePlanGeneratorPoll'
 import {orderDebouncedUpdates} from '@/utils/extraBlockSaveKeys'
 import type {FreeExtraBlock, SlotExtraBlock} from '@/types/extraBlock'
+import type {TeamSavePayload} from '@/components/molecules/SlotTeamPanel.vue'
 import {parseExtraBlockSaveError} from '@/utils/extraBlockApiErrors'
 import {normalizeDurationMinutes} from '@/utils/extraBlockDuration'
 
@@ -287,6 +288,15 @@ export async function flushSlotBlockUpdates(
         await axios.put(
           `/plans/${deps.planId}/extra-blocks/slot/${block.id}`,
           deps.toApiPayload(block),
+        )
+        needsLite = true
+      }
+
+      if (name.startsWith(`${SLOT_BLOCK_PREFIX}_team_`) && value) {
+        const payload = value as TeamSavePayload
+        await axios.patch(
+          `/plans/${deps.planId}/extra-blocks/slot/${payload.blockId}/teams/${payload.first_program}/${payload.team_number_plan}`,
+          {start: payload.start},
         )
         needsLite = true
       }
