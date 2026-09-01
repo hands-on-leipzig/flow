@@ -26,6 +26,7 @@ const isFullHeightPage = computed(() => {
     || path.includes('/plan/schedule')
     || path === '/plan/publish'
     || path === '/plan/publish/logos'
+    || path.startsWith('/plan/live')
 })
 
 /** Nested Ablauf / Ausgabe / Teams routes share one cache entry so the shell stays mounted. */
