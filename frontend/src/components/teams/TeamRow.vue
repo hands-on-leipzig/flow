@@ -44,6 +44,11 @@ const juryAriaLabel = computed(() => {
   return juryCellAriaLabel(props.program, lane)
 })
 
+const peopleTotal = computed(() => {
+  if (props.coachCount == null && props.memberCount == null) return null
+  return (props.coachCount ?? 0) + (props.memberCount ?? 0)
+})
+
 function pendingTeamNumber(team: Record<string, unknown>): string {
   const num = team.number ?? team.ref
   if (num == null || num === '') return '–'
@@ -165,6 +170,15 @@ function onCopy(text: string, label: string) {
         </template>
       </span>
 
+      <span
+          class="team-row__people-total text-sm tabular-nums text-center font-semibold text-[var(--color-text)]"
+          :aria-label="peopleTotal != null ? `${peopleTotal} Personen gesamt` : undefined"
+      >
+        <template v-if="!isPending() || peopleTotal != null">
+          {{ peopleTotal ?? '–' }}
+        </template>
+      </span>
+
       <template v-if="!isPending()">
         <label
             v-if="!beyondCapacity()"
@@ -271,6 +285,7 @@ function onCopy(text: string, label: string) {
     minmax(4rem, 1fr)
     3.25rem
     3.25rem
+    3.25rem
     4.5rem
     1.5rem;
   gap: 0.35rem 0.5rem;
@@ -285,6 +300,7 @@ function onCopy(text: string, label: string) {
     3.5rem
     minmax(5rem, 1.4fr)
     minmax(4rem, 1fr)
+    3.25rem
     3.25rem
     3.25rem
     4.5rem

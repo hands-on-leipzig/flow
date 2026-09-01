@@ -210,6 +210,7 @@ function updateTeamList(value: unknown[]) {
           <span class="hidden md:inline"/>
           <span class="text-sm text-center">–</span>
           <span class="text-sm text-center">–</span>
+          <span class="text-sm text-center font-semibold">–</span>
           <span/>
           <span/>
         </div>
@@ -275,6 +276,7 @@ function updateTeamList(value: unknown[]) {
     minmax(4rem, 1fr)
     3.25rem
     3.25rem
+    3.25rem
     4.5rem
     1.5rem;
   gap: 0.35rem 0.5rem;
@@ -289,6 +291,7 @@ function updateTeamList(value: unknown[]) {
     3.5rem
     minmax(5rem, 1.4fr)
     minmax(4rem, 1fr)
+    3.25rem
     3.25rem
     3.25rem
     4.5rem
