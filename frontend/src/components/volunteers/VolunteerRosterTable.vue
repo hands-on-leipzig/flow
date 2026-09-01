@@ -5,8 +5,9 @@ import {useEventStore} from '@/stores/event'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {programNameForId} from '@/utils/eventPrograms'
 import {volunteerDisplayName} from '@/utils/volunteerPerson'
-import {ROSTER_MEALS, T_SHIRT_CUTS} from '@/volunteers/rosterConstants'
+import {T_SHIRT_CUTS} from '@/volunteers/rosterConstants'
 import {defaultRosterDetail, type RosterAssignment, type RosterEntry} from '@/volunteers/rosterTypes'
+import type {VolunteerMealOption} from '@/composables/useVolunteerMealOptions'
 import type {RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
@@ -15,6 +16,7 @@ const props = defineProps<{
   eventId?: number | null
   entries: RosterEntry[]
   columns: RosterColumnMeta[]
+  mealOptions: VolunteerMealOption[]
   sortKey: 'name' | 'role'
   sortDir: 'asc' | 'desc'
   togglingId: number | null
@@ -35,6 +37,7 @@ function columnColClass(key: string) {
     role: 'vol-col--role',
     t_shirt: 'vol-col--tshirt',
     meal: 'vol-col--meal',
+    photo_consent: 'vol-col--photo',
     notes: 'vol-col--notes',
   }
   return classes[key] ?? 'vol-col--custom'
@@ -100,6 +103,7 @@ async function saveDetail(entry: RosterEntry) {
         t_shirt_cut: detail.t_shirt_cut,
         t_shirt_size: detail.t_shirt_size,
         meal: detail.meal,
+        photo_consent: detail.photo_consent,
         notes: detail.notes,
       },
     )
@@ -127,6 +131,13 @@ async function saveCustom(entry: RosterEntry, fieldKey: string, value: string | 
   } finally {
     if (savingEntryId.value === entry.id) savingEntryId.value = null
   }
+}
+
+function setPhotoConsent(entry: RosterEntry, value: boolean | null) {
+  const detail = entryDetail(entry)
+  if (detail.photo_consent === value) return
+  detail.photo_consent = value
+  void saveDetail(entry)
 }
 
 function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean | null) {
@@ -225,8 +236,46 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
                   @change="entryDetail(entry).meal = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
               >
                 <option value="">?</option>
-                <option v-for="meal in ROSTER_MEALS" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
+                <option v-for="meal in mealOptions" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
               </select>
+            </td>
+            <td v-else-if="column.editor === 'photo_consent'" class="vol-table__field">
+              <div
+                  class="glass-segment vol-tristate"
+                  role="group"
+                  :aria-label="column.label"
+              >
+                <button
+                    type="button"
+                    class="glass-segment__btn"
+                    :class="{'glass-segment__btn--active': entryDetail(entry).photo_consent === null}"
+                    :aria-pressed="entryDetail(entry).photo_consent === null"
+                    :disabled="isSaving(entry)"
+                    @click="setPhotoConsent(entry, null)"
+                >
+                  ?
+                </button>
+                <button
+                    type="button"
+                    class="glass-segment__btn"
+                    :class="{'glass-segment__btn--active': entryDetail(entry).photo_consent === true}"
+                    :aria-pressed="entryDetail(entry).photo_consent === true"
+                    :disabled="isSaving(entry)"
+                    @click="setPhotoConsent(entry, true)"
+                >
+                  Ja
+                </button>
+                <button
+                    type="button"
+                    class="glass-segment__btn"
+                    :class="{'glass-segment__btn--active': entryDetail(entry).photo_consent === false}"
+                    :aria-pressed="entryDetail(entry).photo_consent === false"
+                    :disabled="isSaving(entry)"
+                    @click="setPhotoConsent(entry, false)"
+                >
+                  Nein
+                </button>
+              </div>
             </td>
             <td v-else-if="column.editor === 'text'" class="vol-table__field">
               <input
@@ -318,6 +367,7 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 .vol-col--role { width: 18%; }
 .vol-col--tshirt { width: 11%; }
 .vol-col--meal { width: 11%; }
+.vol-col--photo { width: 11%; }
 .vol-col--notes { width: auto; }
 .vol-col--custom { width: 11%; }
 

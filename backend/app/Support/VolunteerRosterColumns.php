@@ -17,8 +17,15 @@ final class VolunteerRosterColumns
     private const FIXED_TABLE_START = [
         ['key' => 'name', 'label' => 'Name', 'table' => true, 'sortable' => true, 'kind' => 'fixed'],
         ['key' => 'role', 'label' => 'Rolle', 'table' => true, 'sortable' => true, 'kind' => 'fixed'],
+        ['key' => 'photo_consent', 'label' => 'Foto Erlaubnis', 'table' => true, 'export' => true, 'kind' => 'fixed', 'editor' => 'photo_consent', 'public_form' => false],
         ['key' => 't_shirt', 'label' => 'T-Shirt Größe', 'table' => true, 'kind' => 'fixed', 'editor' => 't_shirt'],
         ['key' => 'meal', 'label' => 'Essen', 'table' => true, 'export' => true, 'kind' => 'fixed', 'editor' => 'meal'],
+    ];
+
+    /**
+     * @var list<array{key: string, label: string, table?: bool, export?: bool, kind?: string, editor?: string, public_form?: bool}>
+     */
+    private const FIXED_BEFORE_NOTES = [
     ];
 
     /**
@@ -49,6 +56,9 @@ final class VolunteerRosterColumns
         foreach (self::customFieldsForEvent($eventId) as $field) {
             $columns[] = VolunteerRosterCustomFields::serializeColumn($field);
         }
+        foreach (self::FIXED_BEFORE_NOTES as $column) {
+            $columns[] = $column;
+        }
         foreach (self::FIXED_TABLE_END as $column) {
             $columns[] = $column;
         }
@@ -63,6 +73,7 @@ final class VolunteerRosterColumns
                 'editor' => $column['editor'] ?? null,
                 'field_key' => $column['field_key'] ?? null,
                 'options' => $column['options'] ?? [],
+                'public_form' => $column['public_form'] ?? true,
             ];
         }, $columns));
     }
@@ -90,6 +101,7 @@ final class VolunteerRosterColumns
 
         $definitions[] = ['key' => 'zuordnung_1_program', 'label' => 'Zuordnung 1 Programm', 'export' => true];
         $definitions[] = ['key' => 'zuordnung_1_role', 'label' => 'Zuordnung 1 Rolle', 'export' => true];
+        $definitions[] = ['key' => 'photo_consent', 'label' => 'Foto Erlaubnis', 'export' => true];
         $definitions[] = ['key' => 't_shirt_cut', 'label' => 'T-Shirt Schnitt', 'export' => true];
         $definitions[] = ['key' => 't_shirt_size', 'label' => 'T-Shirt Größe', 'export' => true];
         $definitions[] = ['key' => 'meal', 'label' => 'Essen', 'export' => true];
@@ -117,6 +129,7 @@ final class VolunteerRosterColumns
      * @param  array<int, string>  $programNames
      * @param  array<string, mixed>  $customValues
      * @param  Collection<int, EventVolunteerField>|null  $customFields  When null, loaded for the event
+     * @param  array<string, string>  $mealLabelMap
      * @return list<string>
      */
     public static function exportValuesForEvent(
@@ -126,6 +139,7 @@ final class VolunteerRosterColumns
         array $programNames,
         array $customValues,
         ?Collection $customFields = null,
+        array $mealLabelMap = [],
     ): array {
         $person = $row->person;
         if (! $person) {
@@ -138,10 +152,13 @@ final class VolunteerRosterColumns
 
         $values = VolunteerPersonColumns::exportValues($person, ['updated_at']);
         $values = array_merge($values, self::assignmentPairValues($assignments[0] ?? null, $programNames));
+        $values[] = VolunteerRosterDetailFields::exportPhotoConsentLabel(
+            $detail?->photo_consent !== null ? (bool) $detail->photo_consent : null
+        );
         $values = array_merge($values, [
             VolunteerRosterDetailFields::exportLabel($detail?->t_shirt_cut),
             $detail?->t_shirt_size ?? '',
-            VolunteerRosterDetailFields::exportMealLabel($detail?->meal),
+            VolunteerRosterDetailFields::exportMealLabel($detail?->meal, $mealLabelMap),
         ]);
 
         foreach ($customFields as $field) {

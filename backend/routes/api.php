@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Http\Controllers\Api\EventStaffingController;
 use App\Http\Controllers\Api\EventVolunteerFieldController;
+use App\Http\Controllers\Api\EventVolunteerMealOptionController;
 use App\Http\Controllers\Api\EventVolunteerRosterController;
 use App\Http\Controllers\Api\EventWorkspaceController;
 use App\Http\Controllers\Api\ExtraBlockController;
@@ -302,6 +303,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'store']);
     Route::patch('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'update']);
     Route::delete('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'destroy']);
+    Route::get('/events/{event}/volunteer-meal-options', [EventVolunteerMealOptionController::class, 'index']);
+    Route::put('/events/{event}/volunteer-meal-options', [EventVolunteerMealOptionController::class, 'replace']);
     Route::get('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'index']);
     Route::get('/events/{event}/volunteer-roster/export', [EventVolunteerRosterController::class, 'exportXlsx']);
     Route::post('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'store']);

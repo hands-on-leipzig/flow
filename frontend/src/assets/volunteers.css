@@ -71,6 +71,7 @@
 }
 
 .vol-toolbar__count {
+  margin-left: auto;
   opacity: 0.6;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -120,6 +121,38 @@
   min-height: 1.75rem;
   margin: 0 0.1rem;
   background: color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+}
+
+.vol-staffing-filters__name-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 1 12rem;
+  min-width: 8rem;
+  max-width: 15rem;
+}
+
+.vol-staffing-filters__name-icon,
+.vol-staffing-filters__filter-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.vol-staffing-filters__name {
+  flex: 1;
+  min-width: 0;
+}
+
+.vol-toolbar__name-filter {
+  flex: 0 1 11rem;
+  min-width: 7rem;
+  max-width: 14rem;
 }
 
 .vol-staffing-filters__count {
