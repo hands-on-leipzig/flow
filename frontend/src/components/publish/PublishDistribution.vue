@@ -259,15 +259,18 @@ async function onCheckInToggle(next: boolean) {
   if (!eventId.value) return
   const prev = checkInEnabled.value
   checkInEnabled.value = next
+  let saved = false
   try {
     dayAppsSaving.value?.show()
     const {data} = await axios.put(`/events/${eventId.value}/check-in/settings`, {enabled: next})
     checkInEnabled.value = !!data?.enabled
+    saved = true
   } catch (e: any) {
     checkInEnabled.value = prev
     showGlassToast(e?.response?.data?.error || 'Check-In konnte nicht gespeichert werden.', 'error')
   } finally {
     dayAppsSaving.value?.hide()
+    if (saved) reloadPreview()
   }
 }
 
@@ -275,15 +278,18 @@ async function onCockpitToggle(next: boolean) {
   if (!eventId.value) return
   const prev = cockpitEnabled.value
   cockpitEnabled.value = next
+  let saved = false
   try {
     dayAppsSaving.value?.show()
     const {data} = await axios.put(`/events/${eventId.value}/cockpit/settings`, {enabled: next})
     cockpitEnabled.value = !!data?.enabled
+    saved = true
   } catch (e: any) {
     cockpitEnabled.value = prev
     showGlassToast(e?.response?.data?.error || 'Cockpit konnte nicht gespeichert werden.', 'error')
   } finally {
     dayAppsSaving.value?.hide()
+    if (saved) reloadPreview()
   }
 }
 

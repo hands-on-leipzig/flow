@@ -122,6 +122,8 @@ const loadingSchedule = ref(false)
 const error = ref<string | null>(null)
 const eventName = ref('')
 const eventSlug = ref<string | null>(null)
+const checkInEnabled = ref(false)
+const cockpitEnabled = ref(false)
 const roles = ref<Role[]>([])
 const groups = ref<Group[]>([])
 const openRoleId = ref<number | null>(null)
@@ -161,6 +163,9 @@ const cockpitPath = computed(() => {
   const slug = effectiveSlug.value
   return slug ? `/${slug}/cockpit` : null
 })
+
+const showCheckInLink = computed(() => checkInEnabled.value && !!checkInPath.value)
+const showCockpitLink = computed(() => cockpitEnabled.value && !!cockpitPath.value)
 
 const selectedRoleMeta = computed(() =>
     roles.value.find((r) => r.id === selectedRole.value) || null
@@ -886,6 +891,8 @@ async function loadRoles() {
     roles.value = data.roles || []
     eventName.value = data.event_name || ''
     eventSlug.value = typeof data.slug === 'string' && data.slug !== '' ? data.slug : null
+    checkInEnabled.value = !!data.check_in_enabled
+    cockpitEnabled.value = !!data.cockpit_enabled
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Rollen konnten nicht geladen werden.'
   } finally {
@@ -1160,21 +1167,21 @@ watch(
               </button>
 
               <button
+                  v-if="showCheckInLink"
                   type="button"
                   class="public-schedule__app-btn"
                   aria-label="Check-In"
                   title="Check-In"
-                  :disabled="!checkInPath"
                   @click="onCheckInClick"
               >
                 <i class="bi bi-person-check" aria-hidden="true"/>
               </button>
               <button
+                  v-if="showCockpitLink"
                   type="button"
                   class="public-schedule__app-btn"
                   aria-label="Cockpit"
                   title="Cockpit"
-                  :disabled="!cockpitPath"
                   @click="onCockpitClick"
               >
                 <i class="bi bi-speedometer2" aria-hidden="true"/>
@@ -2011,13 +2018,8 @@ watch(
   font-size: 1.05rem;
 }
 
-.public-schedule__app-btn:active:not(:disabled) {
+.public-schedule__app-btn:active {
   background: #f3f4f6;
-}
-
-.public-schedule__app-btn:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
 }
 
 .public-schedule__role-chip-action {

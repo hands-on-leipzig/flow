@@ -29,6 +29,8 @@ class PublicPlanService
                 'event.level as event_level',
                 'event.name as event_name',
                 'event.slug as event_slug',
+                'event.check_in_enabled',
+                'event.cockpit_enabled',
             )
             ->first();
 
@@ -60,6 +62,8 @@ class PublicPlanService
             'event_id' => (int) $plan->event_id,
             'event_name' => $plan->event_name,
             'slug' => $plan->event_slug ?: null,
+            'check_in_enabled' => (bool) $plan->check_in_enabled,
+            'cockpit_enabled' => (bool) $plan->cockpit_enabled,
             'roles' => $roles,
         ];
     }
