@@ -5,8 +5,8 @@ namespace App\Support;
 use App\Enums\ExploreMode;
 
 /**
- * Ceremony-time parameter visibility (Ablauf → Zeiten columns).
- * Shared by ParameterController and ImportantTimesService.
+ * Ceremony-time parameter visibility (Ablauf → Zeiten start editability).
+ * Used by CeremonyTimesService.
  */
 final class TimeColumnVisibility
 {

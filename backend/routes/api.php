@@ -352,8 +352,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::put('/condition/{id}', [ParameterController::class, 'updateCondition']);
         Route::delete('/condition/{id}', [ParameterController::class, 'deleteCondition']);
     });
-    /** @deprecated Use GET /plans/{planId}/ceremony-times instead. */
-    Route::get('/parameters/visibility', [ParameterController::class, 'visibility']);
     Route::get('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'blocks']);
     Route::put('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'updateOrder']);
 

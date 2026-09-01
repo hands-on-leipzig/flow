@@ -80,11 +80,4 @@ class ParameterController extends Controller
         ]);
     }
 
-
-    /** @deprecated Replaced by GET /plans/{planId}/ceremony-times (Zeiten screen). Remove in follow-up PR. */
-    public function visibility(): \Illuminate\Http\JsonResponse
-    {
-        return response()->json(['matrix' => \App\Support\TimeColumnVisibility::matrix()]);
-    }
-
 }
