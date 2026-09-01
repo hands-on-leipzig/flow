@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\FirstProgram;
+use App\Support\TableFieldLabels;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -164,8 +166,14 @@ class PublicPlanService
                         $noshow = (bool) $team['noshow'];
                     }
                 } elseif (in_array($roleId, [5, 11], true)) {
-                    $tableLabel = $tableNames[$i] ?? (string) $i;
-                    $label = 'Tisch '.$tableLabel;
+                    $fp = $firstProgram ?? FirstProgram::CHALLENGE->value;
+                    $byProgram = $tableNames[$fp] ?? [];
+                    $custom = $byProgram[$i] ?? null;
+                    if (TableFieldLabels::supports($fp)) {
+                        $label = TableFieldLabels::effective($fp, $i, $custom);
+                    } else {
+                        $label = TableFieldLabels::defaultLabel(FirstProgram::CHALLENGE->value, $i);
+                    }
                 }
 
                 $options[] = [
@@ -267,11 +275,24 @@ class PublicPlanService
         return $map;
     }
 
+    /**
+     * @return array<int, array<int, string>> first_program => [table_number => table_name]
+     */
     private function tableNamesForEvent(int $eventId): array
     {
         $map = [];
-        foreach (DB::table('table_event')->where('event', $eventId)->get(['table_number', 'table_name']) as $row) {
-            $map[(int) $row->table_number] = $row->table_name ?: (string) $row->table_number;
+        foreach (
+            DB::table('table_event')
+                ->where('event', $eventId)
+                ->get(['first_program', 'table_number', 'table_name']) as $row
+        ) {
+            $fp = (int) $row->first_program;
+            $num = (int) $row->table_number;
+            $name = trim((string) ($row->table_name ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $map[$fp][$num] = $name;
         }
 
         return $map;

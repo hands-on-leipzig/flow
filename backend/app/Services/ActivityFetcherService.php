@@ -4,6 +4,7 @@
 
 namespace App\Services;
 
+use App\Support\TableFieldLabels;
 use Illuminate\Support\Facades\DB;
 
 class ActivityFetcherService
@@ -154,23 +155,29 @@ class ActivityFetcherService
             });
         }
 
-        // Table-Names (Override aus table_event)
+        // Table-Names (Override aus table_event, scoped by program)
         $q->leftJoin('table_event as te1', function ($j) {
             $j->on('te1.event', '=', 'p.event')
+                ->on('te1.first_program', '=', 'atd.first_program')
                 ->where('te1.table_number', 1);
         });
         $q->leftJoin('table_event as te2', function ($j) {
             $j->on('te2.event', '=', 'p.event')
+                ->on('te2.first_program', '=', 'atd.first_program')
                 ->where('te2.table_number', 2);
         });
         $q->leftJoin('table_event as te3', function ($j) {
             $j->on('te3.event', '=', 'p.event')
+                ->on('te3.first_program', '=', 'atd.first_program')
                 ->where('te3.table_number', 3);
         });
         $q->leftJoin('table_event as te4', function ($j) {
             $j->on('te4.event', '=', 'p.event')
+                ->on('te4.first_program', '=', 'atd.first_program')
                 ->where('te4.table_number', 4);
         });
+
+        $nounExpr = TableFieldLabels::sqlDefaultNounExpression('atd.first_program');
 
         // Basisselektion
         $select = '
@@ -190,13 +197,13 @@ class ActivityFetcherService
             a.extra_block as extra_block_id,
             peb.type as extra_block_type,
             CASE a.table_1
-                WHEN 1 THEN CONCAT("Tisch ", COALESCE(te1.table_name, "1"))
-                WHEN 3 THEN CONCAT("Tisch ", COALESCE(te3.table_name, "3"))
+                WHEN 1 THEN COALESCE(NULLIF(TRIM(te1.table_name), ""), CONCAT('.$nounExpr.', " ", "1"))
+                WHEN 3 THEN COALESCE(NULLIF(TRIM(te3.table_name), ""), CONCAT('.$nounExpr.', " ", "3"))
                 ELSE NULL
             END AS table_1_name,
             CASE a.table_2
-                WHEN 2 THEN CONCAT("Tisch ", COALESCE(te2.table_name, "2"))
-                WHEN 4 THEN CONCAT("Tisch ", COALESCE(te4.table_name, "4"))
+                WHEN 2 THEN COALESCE(NULLIF(TRIM(te2.table_name), ""), CONCAT('.$nounExpr.', " ", "2"))
+                WHEN 4 THEN COALESCE(NULLIF(TRIM(te4.table_name), ""), CONCAT('.$nounExpr.', " ", "4"))
                 ELSE NULL
             END AS table_2_name,
             a.slot_team as slot_team

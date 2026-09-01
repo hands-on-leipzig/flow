@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import TimeSettings from '@/components/molecules/TimeSettings.vue'
+import CeremonyTimesList from '@/components/molecules/CeremonyTimesList.vue'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 
 defineOptions({ name: 'ScheduleTimes' })
 
 const {
   parameters,
-  showExplore,
-  showChallenge,
-  visibilityMap,
+  selectedPlanId,
+  planLocked,
+  previewReload,
   disabledMap,
   handleParamUpdate,
 } = useScheduleWorkspace()
@@ -18,14 +18,14 @@ const {
   <div class="schedule-times flex flex-col pb-2">
     <p class="glass-alert-warning shrink-0 flex items-start gap-2">
       <i class="bi bi-info-circle mt-0.5 shrink-0" aria-hidden="true"/>
-      <span>Alle anderen Startzeiten werden automatisch bestimmt. Viele Dauern können über die Expertenparameter verändert werden.</span>
+      <span>Startzeiten werden zum Teil automatisch bestimmt. Die Dauern können selber gewählt werden.</span>
     </p>
-    <TimeSettings
+    <CeremonyTimesList
+        :plan-id="selectedPlanId"
         :parameters="parameters"
-        :visibility-map="visibilityMap"
         :disabled-map="disabledMap"
-        :show-explore="showExplore"
-        :show-challenge="showChallenge"
+        :plan-locked="planLocked"
+        :reload-token="previewReload"
         @update-param="handleParamUpdate"
     />
   </div>

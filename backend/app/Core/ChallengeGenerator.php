@@ -133,22 +133,25 @@ class ChallengeGenerator implements ChallengeShapedLead
         });
     }
 
-    public function openingsAndBriefings(bool $explore = false): void
+    public function openingsAndBriefings(bool $explore = false, string $jointPrefix = 'g'): void
     {
         try {
             
             if ($explore) {
+                $startParam = "{$jointPrefix}_start_opening";
+                $durationParam = "{$jointPrefix}_duration_opening";
+                $code = "{$jointPrefix}_opening";
 
-                $this->cTime->setTime($this->pp('g_start_opening'));
+                $this->cTime->setTime($this->pp($startParam));
                 $this->jTime->set($this->cTime->current());
                 $this->rTime->set($this->cTime->current());
 
-                $this->writer->withGroup('g_opening', function () {
-                    $this->writer->insertActivity('g_opening', $this->cTime, $this->pp('g_duration_opening'));
+                $this->writer->withGroup($code, function () use ($code, $durationParam) {
+                    $this->writer->insertActivity($code, $this->cTime, $this->pp($durationParam));
                 });
 
-                $this->jTime->addMinutes($this->pp('g_duration_opening'));
-                $this->rTime->addMinutes($this->pp('g_duration_opening'));
+                $this->jTime->addMinutes($this->pp($durationParam));
+                $this->rTime->addMinutes($this->pp($durationParam));
 
             } else {
 
@@ -744,7 +747,7 @@ class ChallengeGenerator implements ChallengeShapedLead
     }
 
 
-    public function awards( bool $explore = false): void
+    public function awards(bool $explore = false, string $jointPrefix = 'g'): void
     {
         try {
             if ($explore) {
@@ -793,10 +796,12 @@ class ChallengeGenerator implements ChallengeShapedLead
                 }
             }
 
-            $this->writer->withGroup('g_awards', function () {
-                $this->writer->insertActivity('g_awards', $this->cTime, $this->pp('g_duration_awards'));
+            $awardsCode = "{$jointPrefix}_awards";
+            $awardsDuration = "{$jointPrefix}_duration_awards";
+            $this->writer->withGroup($awardsCode, function () use ($awardsCode, $awardsDuration) {
+                $this->writer->insertActivity($awardsCode, $this->cTime, $this->pp($awardsDuration));
             });
-            $this->cTime->addMinutes($this->pp('g_duration_awards'));
+            $this->cTime->addMinutes($this->pp($awardsDuration));
 
         } else {
 

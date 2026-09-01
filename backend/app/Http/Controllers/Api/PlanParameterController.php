@@ -221,19 +221,30 @@ class PlanParameterController extends Controller
         $inputParameters = $baseQuery('input', true);
         $expertParameters = $baseQuery('expert', false);
 
-        // Get overwritten table names for this plan's event
+        // Get overwritten table/field names for this plan's event (per program)
         $plan = DB::table('plan')->where('id', $planId)->first();
         $tableNames = [];
         if ($plan && $plan->event) {
-            $tableNames = DB::table('table_event')
-                ->where('event', $plan->event)
-                ->whereNotNull('table_name')
-                ->where('table_name', '!=', '')
-                ->orderBy('table_number')
-                ->get(['table_number', 'table_name'])
+            $tableNames = DB::table('table_event as te')
+                ->leftJoin('m_first_program as fp', 'fp.id', '=', 'te.first_program')
+                ->where('te.event', $plan->event)
+                ->whereNotNull('te.table_name')
+                ->where('te.table_name', '!=', '')
+                ->orderBy('te.first_program')
+                ->orderBy('te.table_number')
+                ->get([
+                    'te.first_program',
+                    'fp.name as program_name',
+                    'fp.display_name as program_display_name',
+                    'te.table_number',
+                    'te.table_name',
+                ])
                 ->map(function ($row) {
                     return [
-                        'table_number' => $row->table_number,
+                        'first_program' => (int) $row->first_program,
+                        'program_name' => $row->program_name,
+                        'program_display_name' => $row->program_display_name ?: $row->program_name,
+                        'table_number' => (int) $row->table_number,
                         'table_name' => $row->table_name,
                     ];
                 })

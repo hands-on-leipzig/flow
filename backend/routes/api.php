@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanActivityController;
+use App\Http\Controllers\Api\PlanCeremonyTimesController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanExportController;
 use App\Http\Controllers\Api\PlanGeneratorController;
@@ -239,6 +240,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     // PlanParameter controller
     // Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
+    Route::get('/plans/{planId}/ceremony-times', [PlanCeremonyTimesController::class, 'show']);
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
     Route::get('/plans/{id}/non-default-parameters', [PlanParameterController::class, 'getNonDefaultParameter']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
@@ -350,7 +352,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::put('/condition/{id}', [ParameterController::class, 'updateCondition']);
         Route::delete('/condition/{id}', [ParameterController::class, 'deleteCondition']);
     });
-    Route::get('/parameters/visibility', [ParameterController::class, 'visibility']);
     Route::get('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'blocks']);
     Route::put('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'updateOrder']);
 

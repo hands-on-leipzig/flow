@@ -71,23 +71,25 @@
         </div>
       </div>
       
-      <!-- Table Names Table -->
+      <!-- Table / field names (per program) -->
       <div v-if="tableNames.length > 0">
-        <h4 class="text-md font-semibold mb-2">Tischnamen (überschrieben)</h4>
+        <h4 class="text-md font-semibold mb-2">Tisch-/Spielfeldnamen (überschrieben)</h4>
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm border-collapse">
             <thead class="bg-[var(--color-bg-muted)] text-left">
               <tr>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Tisch Nummer</th>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Tischname</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Programm</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Nummer</th>
+                <th class="px-3 py-2 border border-[var(--color-border)]">Bezeichnung</th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="table in tableNames"
-                :key="table.table_number"
+                :key="`${table.first_program}-${table.table_number}`"
                 class="hover:bg-[var(--color-bg-hover)]"
               >
+                <td class="px-3 py-2 border border-[var(--color-border)]">{{ table.program_display_name || table.program_name || table.first_program }}</td>
                 <td class="px-3 py-2 border border-[var(--color-border)]">{{ table.table_number }}</td>
                 <td class="px-3 py-2 border border-[var(--color-border)]">{{ table.table_name }}</td>
               </tr>
@@ -132,6 +134,9 @@ const expertParameters = ref<Array<{
   sequence: number
 }>>([])
 const tableNames = ref<Array<{
+  first_program: number
+  program_name: string | null
+  program_display_name: string | null
   table_number: number
   table_name: string
 }>>([])
