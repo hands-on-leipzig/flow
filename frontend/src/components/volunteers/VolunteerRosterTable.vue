@@ -32,7 +32,11 @@ const emit = defineEmits<{
 const eventStore = useEventStore()
 const savingEntryId = ref<number | null>(null)
 
-function columnColClass(key: string) {
+function columnColClass(column: RosterColumnMeta) {
+  if (column.kind === 'custom') {
+    return column.type === 'text' ? 'vol-col--custom-text' : 'vol-col--custom'
+  }
+
   const classes: Record<string, string> = {
     name: 'vol-col--name',
     role: 'vol-col--role',
@@ -40,7 +44,7 @@ function columnColClass(key: string) {
     meal: 'vol-col--meal',
     photo_consent: 'vol-col--photo',
   }
-  return classes[key] ?? 'vol-col--custom'
+  return classes[column.key] ?? 'vol-col--custom'
 }
 
 function personListLink(person: RosterEntry['person']) {
@@ -155,23 +159,30 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 </script>
 
 <template>
-  <div class="vol-table-frame vol-table-frame--scroll">
-    <table class="vol-table">
+  <div class="vol-table-frame vol-table-frame--scroll vol-table-frame--roster">
+    <table class="vol-table vol-table--roster">
       <colgroup>
         <col class="vol-col--roster">
         <col
             v-for="column in columns"
             :key="`roster-col-${column.key}`"
-            :class="columnColClass(column.key)"
+            :class="columnColClass(column)"
         >
       </colgroup>
       <thead>
         <tr>
-          <th class="vol-table__roster" scope="col"><span class="sr-only">Helfer:innenliste</span></th>
+          <th class="vol-table__roster vol-table__sticky vol-table__sticky--roster" scope="col">
+            <span class="sr-only">Helfer:innenliste</span>
+          </th>
           <th
               v-for="column in columns"
               :key="column.key"
               scope="col"
+              :class="{
+                'vol-table__name': column.key === 'name',
+                'vol-table__sticky': column.key === 'name',
+                'vol-table__sticky--name': column.key === 'name',
+              }"
           >
             <button
                 v-if="column.sortable && isSortableRosterColumn(column.key)"
@@ -189,7 +200,7 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
       </thead>
       <tbody>
         <tr v-for="entry in entries" :key="entry.id" class="glass-table-row--hover">
-          <td class="vol-table__roster">
+          <td class="vol-table__roster vol-table__sticky vol-table__sticky--roster">
             <button
                 type="button"
                 class="vol-roster-icon vol-roster-icon--on"
@@ -204,7 +215,10 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
             </button>
           </td>
           <template v-for="column in columns" :key="`${entry.id}-${column.key}`">
-            <td v-if="column.key === 'name'" class="vol-table__name">
+            <td
+                v-if="column.key === 'name'"
+                class="vol-table__name vol-table__sticky vol-table__sticky--name"
+            >
               <RouterLink :to="personListLink(entry.person)" class="vol-table__name-link">
                 {{ volunteerDisplayName(entry.person) }}
               </RouterLink>
@@ -363,12 +377,59 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 </template>
 
 <style scoped>
-.vol-col--name { width: 20%; }
-.vol-col--role { width: 18%; }
-.vol-col--tshirt { width: 11%; }
-.vol-col--meal { width: 11%; }
-.vol-col--photo { width: 11%; }
-.vol-col--custom { width: 11%; }
+.vol-table-frame--roster {
+  --vol-roster-sticky-roster-width: 2.75rem;
+}
+
+.vol-table--roster {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.vol-col--roster {
+  width: var(--vol-roster-sticky-roster-width);
+}
+
+.vol-col--name { min-width: 11rem; }
+.vol-col--role { min-width: 10rem; }
+.vol-col--tshirt { min-width: 6.5rem; }
+.vol-col--meal { min-width: 7rem; }
+.vol-col--photo { min-width: 8rem; }
+.vol-col--custom { min-width: 7.5rem; }
+.vol-col--custom-text { min-width: 14rem; }
+
+.vol-table__sticky {
+  position: sticky;
+}
+
+.vol-table-frame--roster thead .vol-table__sticky {
+  background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
+  backdrop-filter: blur(8px);
+}
+
+.vol-table-frame--roster tbody .vol-table__sticky {
+  background: color-mix(in srgb, #ffffff 92%, var(--color-bg-muted));
+}
+
+.vol-table__sticky--roster {
+  left: 0;
+  z-index: 2;
+}
+
+.vol-table__sticky--name {
+  left: var(--vol-roster-sticky-roster-width);
+  z-index: 2;
+  box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.14);
+}
+
+.vol-table-frame--roster thead th.vol-table__sticky {
+  z-index: 4;
+}
+
+.vol-table-frame--roster tbody tr.glass-table-row--hover:hover .vol-table__sticky {
+  background: var(--color-bg-hover);
+}
 
 .vol-table__name-link {
   font-weight: 600;
