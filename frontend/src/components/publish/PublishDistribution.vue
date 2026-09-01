@@ -321,7 +321,8 @@ onMounted(async () => {
             class="pub__left"
             :style="{ flex: `0 0 ${leftWidth}%` }"
         >
-          <div class="pub__settings">
+          <div class="pub__left-scroll">
+            <div class="pub__settings">
             <header class="pub__page-head">
               <h1 class="pub__page-title">Veröffentlichung</h1>
             </header>
@@ -466,6 +467,7 @@ onMounted(async () => {
             </p>
           </div>
         </section>
+            </div>
           </div>
         </section>
 
@@ -556,16 +558,15 @@ onMounted(async () => {
 <style scoped>
 .pub {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   flex-direction: column;
-  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
 .pub__workspace {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
@@ -574,7 +575,7 @@ onMounted(async () => {
 
 .pub__split {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   min-height: 0;
   height: 100%;
   flex-direction: column;
@@ -588,6 +589,11 @@ onMounted(async () => {
     flex-direction: row;
     gap: 0.55rem;
   }
+
+  .pub__left {
+    height: 100%;
+    max-height: 100%;
+  }
 }
 
 .pub__left {
@@ -597,6 +603,13 @@ onMounted(async () => {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.pub__left-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .pub__right {
@@ -621,9 +634,6 @@ onMounted(async () => {
 }
 
 .pub__settings {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto;
   display: flex;
   flex-direction: column;
   gap: 1.15rem;

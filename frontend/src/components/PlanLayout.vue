@@ -41,7 +41,7 @@ const pageKey = computed(() => {
 </script>
 
 <template>
-  <div :class="isFullHeightPage ? 'h-full min-h-0' : undefined">
+  <div :class="isFullHeightPage ? 'h-full min-h-0 flex flex-col' : undefined">
     <router-view v-slot="{ Component }">
       <keep-alive :include="cachedPages" :max="12">
         <component

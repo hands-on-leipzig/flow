@@ -128,8 +128,7 @@ onMounted(() => {
 }
 
 .glass-app__panel--fill > :deep(*) {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   min-height: 0;
-  height: 100%;
 }
 </style>

@@ -18,7 +18,13 @@ const isFillSplit = computed(() => {
 </script>
 
 <template>
-  <div class="publish-shell" :class="{'publish-shell--fill': isFillSplit}">
+  <div
+    class="publish-shell"
+    :class="{
+      'publish-shell--fill': isFillSplit,
+      'h-full min-h-0 flex flex-col overflow-hidden': isFillSplit,
+    }"
+  >
     <router-view v-slot="{ Component, route: paneRoute }">
       <keep-alive include="PublishDistribution,PublishWlan,PublishDigital,PublishAnalog,PublishNameTags,Logos">
         <component
@@ -51,7 +57,6 @@ const isFillSplit = computed(() => {
 .publish-shell--fill :deep(.logos-page) {
   flex: 1 1 0%;
   min-height: 0;
-  height: 100%;
   overflow: hidden;
 }
 </style>
