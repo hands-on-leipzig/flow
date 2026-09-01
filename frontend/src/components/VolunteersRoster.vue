@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
+import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
+import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import VolunteerRosterColumnsPanel from '@/components/molecules/VolunteerRosterColumnsPanel.vue'
+import VolunteerMealOptionsPanel from '@/components/molecules/VolunteerMealOptionsPanel.vue'
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import VolunteerPersonSearch from '@/components/volunteers/VolunteerPersonSearch.vue'
@@ -25,6 +28,8 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import {type VolunteerPersonRef, volunteerDisplayName} from '@/utils/volunteerPerson'
 import {defaultRosterDetail, type RosterEntry} from '@/volunteers/rosterTypes'
+import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
+import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
 
 type Person = VolunteerPersonRef
 
@@ -34,6 +39,7 @@ const eventId = computed(() => eventStore.selectedEvent?.id)
 const roster = ref<RosterEntry[]>([])
 const tableColumns = ref<RosterColumnMeta[]>([...ROSTER_TABLE_COLUMNS])
 const columnsPanelOpen = ref(false)
+const mealPanelOpen = ref(false)
 const pool = ref<Person[]>([])
 const loading = ref(false)
 const togglingId = ref<number | null>(null)
@@ -47,7 +53,25 @@ const sortKey = ref<'name' | 'role'>('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
 
 const activeAssignmentFilters = ref<Set<StaffingFilterKey>>(new Set())
+const nameFilter = ref('')
 const showOnlyUnset = ref(false)
+const showOnlyPhotoUnset = ref(false)
+
+const {options: mealOptions, setOptions: setMealOptions} = useVolunteerMealOptions(eventId)
+
+const {
+  enabled: volunteerDataEntryEnabled,
+  loading: volunteerDataEntryLoading,
+  setEnabled: setVolunteerDataEntryEnabled,
+} = usePublicVolunteerDataEntry(eventId)
+
+async function onVolunteerDataEntryToggle(next: boolean) {
+  try {
+    await setVolunteerDataEntryEnabled(next)
+  } catch {
+    // toast from composable
+  }
+}
 
 const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
 
@@ -75,7 +99,21 @@ const sortedRoster = computed(() => {
   })
 })
 
+function entryMatchesNameFilter(entry: RosterEntry) {
+  const query = nameFilter.value.trim().toLocaleLowerCase('de')
+  if (!query) return true
+  const person = entry.person
+  const haystack = [person.first_name, person.last_name, volunteerDisplayName(person)]
+    .join(' ')
+    .toLocaleLowerCase('de')
+  return haystack.includes(query)
+}
+
 function entryMatchesFilters(entry: RosterEntry) {
+  if (!entryMatchesNameFilter(entry)) {
+    return false
+  }
+
   const assignments = entry.assignments ?? []
   if (assignments.length) {
     if (activeAssignmentFilters.value.size === 0) return false
@@ -86,6 +124,13 @@ function entryMatchesFilters(entry: RosterEntry) {
 
   if (showOnlyUnset.value && !rosterEntryHasUnsetField(entry, tableColumns.value)) {
     return false
+  }
+
+  if (showOnlyPhotoUnset.value) {
+    const detail = entry.detail ?? defaultRosterDetail()
+    if (detail.photo_consent !== null && detail.photo_consent !== undefined) {
+      return false
+    }
   }
 
   return true
@@ -175,6 +220,9 @@ async function load() {
       custom: entry.custom ?? {},
     }))
     tableColumns.value = rosterRes.data.columns ?? [...ROSTER_TABLE_COLUMNS]
+    if (rosterRes.data.meal_options) {
+      setMealOptions(rosterRes.data.meal_options)
+    }
     pool.value = poolRes.data.people ?? []
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
@@ -227,13 +275,23 @@ onMounted(() => load())
 </script>
 
 <template>
-  <div class="vol-page">
+  <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Helfer:innenliste</h1>
         <p class="vol-page__sub">Alle Helfer:innen für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">
+        <button
+            type="button"
+            class="glass-btn-secondary vol-upload-trigger"
+            title="Essensoptionen verwalten"
+            :disabled="!eventId"
+            @click="mealPanelOpen = true"
+        >
+          <i class="bi bi-fork-knife" aria-hidden="true"/>
+          Essen
+        </button>
         <button
             type="button"
             class="glass-btn-secondary vol-upload-trigger"
@@ -258,22 +316,66 @@ onMounted(() => load())
       </div>
     </header>
 
-    <VolunteerPersonSearch
-        :pool="pool"
-        :on-roster="(id) => rosterPersonIds.has(id)"
-        :busy-person-id="addingId"
-        @select="addToRoster"
-    />
+    <div class="vol-roster-toolbar">
+      <VolunteerPersonSearch
+          :pool="pool"
+          :on-roster="(id) => rosterPersonIds.has(id)"
+          :busy-person-id="addingId"
+          @select="addToRoster"
+      />
+      <section class="glass-card liquid-surface-inner vol-tile vol-roster-publish">
+        <div class="vol-roster-publish__row">
+          <span class="vol-roster-publish__label">Dateneingabe durch Helfer:innen</span>
+          <ToggleSwitch
+              :model-value="volunteerDataEntryEnabled"
+              :disabled="volunteerDataEntryLoading || !eventId"
+              @update:modelValue="onVolunteerDataEntryToggle"
+          />
+        </div>
+        <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
+          Helfer:innen können auf dem öffentlichen Plan ihre Daten eingeben. Einstellungen unter
+          <RouterLink to="/plan/publish" class="vol-roster-publish__link">
+            Ausgabe → Veröffentlichung
+          </RouterLink>.
+        </p>
+      </section>
+    </div>
 
-    <section class="glass-card liquid-surface-inner vol-tile">
+    <section class="glass-card liquid-surface-inner vol-tile vol-roster-table-tile">
       <VolunteerStaffingFilterBar
           v-if="roster.length && !loading"
           :active-filters="activeAssignmentFilters"
           :programs="programFilters"
           @toggle="onToggleAssignmentFilter"
       >
+        <template #leading>
+          <div class="vol-staffing-filters__name-group">
+            <span class="vol-staffing-filters__name-icon" aria-hidden="true">
+              <i class="bi bi-funnel"/>
+            </span>
+            <input
+                v-model="nameFilter"
+                type="search"
+                class="glass-input glass-input--sm vol-staffing-filters__name"
+                placeholder="Name…"
+                aria-label="Nach Name filtern"
+                autocomplete="off"
+            >
+          </div>
+        </template>
         <template #trailing>
           <span class="vol-staffing-filters__sep" aria-hidden="true"/>
+          <button
+              type="button"
+              class="vol-staffing-filter"
+              :class="{'vol-staffing-filter--active': showOnlyPhotoUnset}"
+              :aria-pressed="showOnlyPhotoUnset"
+              title="Nur Helfer:innen ohne Foto-Erlaubnis anzeigen"
+              @click="showOnlyPhotoUnset = !showOnlyPhotoUnset"
+          >
+            <i class="bi bi-camera vol-staffing-filter__icon" aria-hidden="true"/>
+            <span class="vol-staffing-filter__label">Foto Erlaubnis</span>
+          </button>
           <button
               type="button"
               class="vol-staffing-filter"
@@ -299,6 +401,7 @@ onMounted(() => load())
           :event-id="eventId"
           :entries="filteredRoster"
           :columns="tableColumns"
+          :meal-options="mealOptions"
           :sort-key="sortKey"
           :sort-dir="sortDir"
           :toggling-id="togglingId"
@@ -317,6 +420,13 @@ onMounted(() => load())
         cancel-text="Abbrechen"
         @confirm="confirmRemove"
         @cancel="removeTarget = null"
+    />
+
+    <VolunteerMealOptionsPanel
+        :open="mealPanelOpen"
+        :event-id="eventId"
+        @close="mealPanelOpen = false"
+        @changed="load"
     />
 
     <VolunteerRosterColumnsPanel

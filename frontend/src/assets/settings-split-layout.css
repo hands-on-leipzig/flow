@@ -1,0 +1,119 @@
+/**
+ * Shared settings + live-preview split (Veröffentlichung, am Tag Check-In/Cockpit).
+ * Preview chrome lives in MobileLivePreview.vue.
+ */
+
+.settings-split {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.settings-split__workspace {
+  display: flex;
+  flex: 1 1 0%;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.settings-split__split {
+  display: flex;
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .settings-split__split {
+    flex-direction: row;
+    gap: 0.55rem;
+  }
+
+  .settings-split__left {
+    height: 100%;
+    max-height: 100%;
+  }
+}
+
+.settings-split__left {
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.settings-split__left-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.settings-split__right {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .settings-split__left {
+    flex: 1 1 auto !important;
+    max-height: 50vh;
+  }
+}
+
+.settings-split__splitter {
+  flex-shrink: 0;
+}
+
+.settings-split__settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding: 1.15rem 1.2rem 1.4rem;
+  background: var(--glass-tab-surface, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, transparent);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.07),
+    0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.settings-split__page-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.settings-split__page-sub {
+  margin: 0.35rem 0 0;
+  font-size: 0.9375rem;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+
+.settings-split__header-hint {
+  line-height: 1.45;
+}
+
+.settings-split__tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem;
+}

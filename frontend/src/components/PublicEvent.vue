@@ -10,6 +10,7 @@ import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
+import VolunteerPublicFormFlow from '@/components/volunteers/VolunteerPublicFormFlow.vue'
 
 const route = useRoute()
 const event = ref(null)
@@ -18,6 +19,9 @@ const loading = ref(true)
 const error = ref(null)
 const publicPlanId = ref(null)
 const eventLogos = ref([])
+
+const formStep = ref(null)
+const formEmail = ref('')
 
 const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
 const headingPlace = computed(() => cleanEventName(event.value) || event.value?.name || '—')
@@ -193,6 +197,24 @@ const showHelperSearchSection = computed(() => {
   return level >= 1 && level < 4
 })
 
+const volunteerDataEntry = computed(() => scheduleInfo.value?.volunteer_data_entry ?? null)
+
+const showVolunteerDataEntrySection = computed(() => {
+  if (!scheduleInfo.value || !volunteerDataEntry.value?.enabled) return false
+  const level = scheduleInfo.value.level
+  return level >= 1 && level < 4
+})
+
+function openVolunteerForm() {
+  formStep.value = 'email'
+  formEmail.value = ''
+}
+
+function closeVolunteerForm() {
+  formStep.value = null
+  formEmail.value = ''
+}
+
 const helperSearchPrimaryScopes = computed(() => {
   const scopes = helperSearch.value?.scopes
   if (!Array.isArray(scopes)) return []
@@ -280,6 +302,17 @@ onMounted(async () => {
 
     <!-- Levels 1–3 -->
     <div v-else-if="event" class="pe-content">
+      <VolunteerPublicFormFlow
+          v-if="formStep"
+          :step="formStep"
+          :email="formEmail"
+          :slug="String(route.params.slug ?? '')"
+          @update:email="formEmail = $event"
+          @update:step="formStep = $event"
+          @cancel="closeVolunteerForm"
+      />
+
+      <template v-else>
       <header class="pe-hero glass-card liquid-surface-inner">
         <img
             :src="imageUrl('/flow/hot+fll.png')"
@@ -403,6 +436,20 @@ onMounted(async () => {
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- Dateneingabe für Helfer:innen -->
+      <section
+          v-if="showVolunteerDataEntrySection"
+          class="glass-card liquid-surface-inner pe-section"
+      >
+        <h2 class="glass-card__title">Dateneingabe für Helfer:innen</h2>
+        <p class="pe-muted pe-volunteer-form-intro">
+          Helfer:innen können hier ihre Daten für diese Veranstaltung prüfen und ergänzen.
+        </p>
+        <button type="button" class="glass-btn-accent" @click="openVolunteerForm">
+          Daten eingeben
+        </button>
       </section>
 
       <!-- Suche nach Helfer:innen -->
@@ -541,6 +588,7 @@ onMounted(async () => {
           </a>
         </div>
       </footer>
+      </template>
     </div>
   </div>
 </template>
@@ -971,6 +1019,10 @@ onMounted(async () => {
   margin: 0.85rem 0 0;
   font-size: 0.9rem;
   color: var(--color-text-muted);
+}
+
+.pe-volunteer-form-intro {
+  margin-bottom: 1rem;
 }
 
 .pe-team-list {

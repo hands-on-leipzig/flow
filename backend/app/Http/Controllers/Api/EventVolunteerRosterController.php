@@ -13,6 +13,7 @@ use App\Models\EventVolunteerRoster;
 use App\Models\EventVolunteerRosterDetail;
 use App\Models\VolunteerPerson;
 use App\Support\PersonIdsFilter;
+use App\Support\VolunteerMealOptions;
 use App\Support\VolunteerRosterColumns;
 use App\Support\VolunteerRosterCustomFields;
 use App\Support\VolunteerRosterDetailFields;
@@ -27,6 +28,7 @@ class EventVolunteerRosterController extends Controller
     public function index(Event $event): JsonResponse
     {
         $customFields = VolunteerRosterColumns::customFieldsForEvent($event->id);
+        $mealOptions = VolunteerMealOptions::bootstrapForEvent($event->id);
 
         $rows = EventVolunteerRoster::query()
             ->where('event', $event->id)
@@ -70,6 +72,7 @@ class EventVolunteerRosterController extends Controller
         return response()->json([
             'roster' => $roster,
             'columns' => VolunteerRosterColumns::tablePayloadForEvent($event->id),
+            'meal_options' => $mealOptions,
         ]);
     }
 
@@ -122,14 +125,24 @@ class EventVolunteerRosterController extends Controller
         }
 
         $existing = $roster->detail;
+        $mealOptions = VolunteerMealOptions::optionsForEvent($event->id);
+        if ($mealOptions->isEmpty()) {
+            VolunteerMealOptions::bootstrapForEvent($event->id);
+            $mealOptions = VolunteerMealOptions::optionsForEvent($event->id);
+        }
+
         $payload = [
             't_shirt_cut' => $request->input('t_shirt_cut', $existing?->t_shirt_cut),
             't_shirt_size' => $request->input('t_shirt_size', $existing?->t_shirt_size),
             'meal' => $request->input('meal', $existing?->meal),
+            'photo_consent' => $request->has('photo_consent') ? $request->input('photo_consent') : $existing?->photo_consent,
             'notes' => $request->has('notes') ? $request->input('notes') : $existing?->notes,
         ];
 
-        $validation = VolunteerRosterDetailFields::validate($payload);
+        $validation = VolunteerRosterDetailFields::validate(
+            $payload,
+            VolunteerMealOptions::allowedValues($mealOptions),
+        );
         if (! $validation['ok']) {
             return response()->json(['error' => $validation['error']], 422);
         }

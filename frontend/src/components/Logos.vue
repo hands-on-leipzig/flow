@@ -388,10 +388,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-5">
+  <div class="logos-page h-full min-h-0 flex flex-col overflow-hidden">
     <div
         v-if="!selectedEvent && !eventStore.selectedEvent"
-        class="glass-alert-warning flex items-start gap-2"
+        class="glass-alert-warning flex items-start gap-2 shrink-0"
     >
       <i class="bi bi-exclamation-triangle-fill mt-0.5" aria-hidden="true"></i>
       <div>
@@ -400,15 +400,14 @@ onMounted(async () => {
       </div>
     </div>
 
-    <template v-else>
-      <div class="logos-workspace">
-        <div class="logos-workspace__split">
-          <!-- Left: manage + sort -->
-          <section
-              class="logos-workspace__pane logos-workspace__left"
-              :style="{ flex: `0 0 ${leftWidth}%` }"
-          >
-            <div class="glass-card liquid-surface-inner logos-workspace__card">
+    <div v-else class="logos-workspace flex-1 min-h-0 min-w-0 overflow-hidden">
+      <div class="logos-workspace__split">
+        <!-- Left: manage + sort -->
+        <section
+            class="logos-workspace__pane logos-workspace__left"
+            :style="{ flex: `0 0 ${leftWidth}%` }"
+        >
+          <div class="logos-workspace__scroll glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Logos verwalten</h2>
           <p class="glass-settings-hint !mb-1">
             Logos werden in dieser Reihenfolge angezeigt.
@@ -527,7 +526,7 @@ onMounted(async () => {
 
           <!-- Right: usage previews -->
           <section class="logos-workspace__pane logos-workspace__right">
-            <div class="glass-card liquid-surface-inner logos-workspace__card">
+            <div class="logos-workspace__scroll glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Vorschau</h2>
           <p class="glass-settings-hint !mb-4">
             So erscheinen die aktiven Logos auf dem öffentlichen Plan und in den PDFs.
@@ -651,7 +650,6 @@ onMounted(async () => {
           </section>
         </div>
       </div>
-    </template>
 
     <Teleport to="body">
       <div
@@ -719,44 +717,49 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.logos-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .logos-workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .logos-workspace__split {
   display: flex;
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
   flex-direction: column;
   gap: 0.75rem;
-  min-height: 0;
-  min-width: 0;
+  align-items: stretch;
+  overflow: hidden;
 }
 
 @media (min-width: 1024px) {
   .logos-workspace__split {
     flex-direction: row;
     gap: 0.55rem;
-    align-items: stretch;
   }
 
   .logos-workspace__left {
-    min-width: 0;
+    height: 100%;
+    max-height: 100%;
   }
 
   .logos-workspace__right {
     flex: 1 1 auto;
-    min-width: 0;
-  }
-
-  .logos-workspace__card {
-    height: 100%;
-    overflow: auto;
-  }
-}
-
-@media (max-width: 1023px) {
-  .logos-workspace__left {
-    flex: 1 1 auto !important;
+    min-height: 0;
+    overflow: hidden;
   }
 }
 
@@ -765,6 +768,26 @@ onMounted(async () => {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.logos-workspace__scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.logos-workspace__splitter {
+  flex-shrink: 0;
+}
+
+@media (max-width: 1023px) {
+  .logos-workspace__left {
+    flex: 1 1 auto !important;
+    max-height: 50vh;
+  }
 }
 
 .logo-composer {

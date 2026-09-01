@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
-import {useRoute} from 'vue-router'
+import {RouterLink, useRoute} from 'vue-router'
 import axios from 'axios'
 import {imageUrl} from '@/utils/images'
+import {publicPlanPath} from '@/utils/publicPlanPath'
 import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
 
 defineOptions({name: 'CockpitApp'})
@@ -12,6 +13,7 @@ type Bootstrap = {
   event_name: string
   slug: string
   enabled: boolean
+  public_link: string | null
 }
 
 const route = useRoute()
@@ -25,6 +27,8 @@ const token = ref('')
 const unlocking = ref(false)
 
 const storageKey = computed(() => `flow:cockpit-token:${slug.value}`)
+
+const planPath = computed(() => publicPlanPath(bootstrap.value?.public_link, bootstrap.value?.slug || slug.value))
 
 const api = axios.create({
   baseURL: '/api',
@@ -107,7 +111,19 @@ onMounted(async () => {
 <template>
   <div class="cp-app">
     <header class="cp-app__header liquid-surface-inner">
-      <div class="cp-app__brand">
+      <RouterLink
+          v-if="planPath"
+          :to="planPath"
+          class="cp-app__brand cp-app__brand-link"
+          aria-label="Zum öffentlichen Plan"
+      >
+        <img
+            class="cp-app__logo"
+            :src="imageUrl('/flow/flow.png')"
+            alt="FLOW"
+        />
+      </RouterLink>
+      <div v-else class="cp-app__brand">
         <img
             class="cp-app__logo"
             :src="imageUrl('/flow/flow.png')"
@@ -201,6 +217,16 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   min-width: 0;
+}
+
+.cp-app__brand-link {
+  text-decoration: none;
+  color: inherit;
+  border-radius: 0.35rem;
+}
+
+.cp-app__brand-link:active {
+  opacity: 0.85;
 }
 
 .cp-app__logo {

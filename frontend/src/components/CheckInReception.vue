@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
-import {useRoute} from 'vue-router'
+import {RouterLink, useRoute} from 'vue-router'
 import axios from 'axios'
 import QRCode from 'qrcode'
 import {imageUrl, programLogoSrc} from '@/utils/images'
+import {publicPlanPath} from '@/utils/publicPlanPath'
 
 defineOptions({name: 'CheckInReception'})
 
@@ -87,6 +88,8 @@ const qrDataUrl = ref('')
 const toolsError = ref('')
 
 const storageKey = computed(() => `flow:check-in-token:${slug.value}`)
+
+const planPath = computed(() => publicPlanPath(bootstrap.value?.public_link, bootstrap.value?.slug || slug.value))
 
 const api = axios.create({
   baseURL: '/api',
@@ -397,7 +400,19 @@ onMounted(async () => {
 <template>
   <div class="ci-app">
     <header class="ci-app__header liquid-surface-inner">
-      <div class="ci-app__brand">
+      <RouterLink
+          v-if="planPath"
+          :to="planPath"
+          class="ci-app__brand ci-app__brand-link"
+          aria-label="Zum öffentlichen Plan"
+      >
+        <img
+            class="ci-app__logo"
+            :src="imageUrl('/flow/flow.png')"
+            alt="FLOW"
+        />
+      </RouterLink>
+      <div v-else class="ci-app__brand">
         <img
             class="ci-app__logo"
             :src="imageUrl('/flow/flow.png')"
@@ -742,6 +757,16 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   min-width: 0;
+}
+
+.ci-app__brand-link {
+  text-decoration: none;
+  color: inherit;
+  border-radius: 0.35rem;
+}
+
+.ci-app__brand-link:active {
+  opacity: 0.85;
 }
 
 .ci-app__logo {

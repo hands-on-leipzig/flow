@@ -23,7 +23,15 @@ class PublicPlanService
         $plan = DB::table('plan')
             ->join('event', 'event.id', '=', 'plan.event')
             ->where('plan.id', $planId)
-            ->select('plan.id as plan_id', 'plan.event as event_id', 'event.level as event_level', 'event.name as event_name')
+            ->select(
+                'plan.id as plan_id',
+                'plan.event as event_id',
+                'event.level as event_level',
+                'event.name as event_name',
+                'event.slug as event_slug',
+                'event.check_in_enabled',
+                'event.cockpit_enabled',
+            )
             ->first();
 
         if (! $plan) {
@@ -53,6 +61,9 @@ class PublicPlanService
             'plan_id' => $planId,
             'event_id' => (int) $plan->event_id,
             'event_name' => $plan->event_name,
+            'slug' => $plan->event_slug ?: null,
+            'check_in_enabled' => (bool) $plan->check_in_enabled,
+            'cockpit_enabled' => (bool) $plan->cockpit_enabled,
             'roles' => $roles,
         ];
     }

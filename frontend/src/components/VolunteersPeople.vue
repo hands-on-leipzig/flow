@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
+import {useRoute} from 'vue-router'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
@@ -13,7 +14,7 @@ import type {VolunteerTableColumn} from '@/volunteers/columns/types'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import {flowFilename} from '@/utils/flowFilename'
-import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
+import {type VolunteerPersonRef, volunteerDisplayName} from '@/utils/volunteerPerson'
 
 type Person = VolunteerPersonRef
 
@@ -34,6 +35,7 @@ const emptyDraft = (): PersonDraft => ({
 })
 
 const eventStore = useEventStore()
+const route = useRoute()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const people = ref<Person[]>([])
@@ -94,15 +96,21 @@ function sortIcon(key: SortKey) {
   return sortDir.value === 'asc' ? 'bi-sort-up' : 'bi-sort-down'
 }
 
+function personMatchesNameFilter(person: Person) {
+  const query = search.value.trim().toLocaleLowerCase('de')
+  if (!query) return true
+  const haystack = [person.first_name, person.last_name, volunteerDisplayName(person)]
+    .join(' ')
+    .toLocaleLowerCase('de')
+  return haystack.includes(query)
+}
+
 const filtered = computed(() => {
   let list = people.value
   if (notOnRosterOnly.value) {
     list = list.filter((p) => !p.on_roster)
   }
-  const q = search.value.trim().toLowerCase()
-  if (q) {
-    list = list.filter((p) => volunteerSearchHaystack(p).includes(q))
-  }
+  list = list.filter(personMatchesNameFilter)
   const key = sortKey.value
   const dir = sortDir.value === 'asc' ? 1 : -1
   return [...list].sort((a, b) => {
@@ -386,9 +394,19 @@ watch([search, notOnRosterOnly], () => {
   if (editingId.value !== null) cancelEdit()
 })
 
+function applyRouteSearch() {
+  const q = route.query.q
+  if (typeof q === 'string' && q.trim()) {
+    search.value = q.trim()
+  }
+}
+
+watch(() => route.query.q, applyRouteSearch)
+
 watch(eventId, () => {
   cancelEdit()
   resetCreateDraft()
+  applyRouteSearch()
   void load()
 }, {immediate: true})
 </script>
@@ -508,6 +526,9 @@ watch(eventId, () => {
 
     <section class="glass-card liquid-surface-inner vol-tile">
       <div class="vol-toolbar">
+        <span class="vol-staffing-filters__filter-icon" aria-hidden="true">
+          <i class="bi bi-funnel"/>
+        </span>
         <button
             type="button"
             class="vol-staffing-filter"
@@ -522,10 +543,11 @@ watch(eventId, () => {
         <input
             v-model="search"
             type="search"
-            class="glass-input glass-input--sm vol-toolbar__search"
-            placeholder="Tippen zum Filtern (alle Felder)…"
+            class="glass-input glass-input--sm vol-staffing-filters__name vol-toolbar__name-filter"
+            placeholder="Name…"
+            aria-label="Nach Name filtern"
             autocomplete="off"
-        />
+        >
         <span class="vol-toolbar__count">{{ filtered.length }} / {{ people.length }}</span>
       </div>
 

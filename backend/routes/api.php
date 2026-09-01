@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Http\Controllers\Api\EventStaffingController;
 use App\Http\Controllers\Api\EventVolunteerFieldController;
+use App\Http\Controllers\Api\EventVolunteerMealOptionController;
 use App\Http\Controllers\Api\EventVolunteerRosterController;
 use App\Http\Controllers\Api\EventWorkspaceController;
 use App\Http\Controllers\Api\ExtraBlockController;
@@ -40,6 +41,7 @@ use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\VolunteerPersonController;
+use App\Http\Controllers\Api\VolunteerPublicFormController;
 use App\Models\Event;
 use App\Services\SeasonService;
 use Illuminate\Http\Request;
@@ -92,6 +94,10 @@ Route::prefix('check-in/{slug}')->group(function () {
     Route::patch('/{subjectType}/{subjectId}/note', [CheckInController::class, 'updateNote'])
         ->where('subjectType', 'team|volunteer');
 });
+
+// Volunteer public data entry (email lookup + save; public; OTP token deferred)
+Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
+Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
 
 // Cockpit app (PIN session; public)
 Route::prefix('cockpit/{slug}')->group(function () {
@@ -302,6 +308,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'store']);
     Route::patch('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'update']);
     Route::delete('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'destroy']);
+    Route::get('/events/{event}/volunteer-meal-options', [EventVolunteerMealOptionController::class, 'index']);
+    Route::put('/events/{event}/volunteer-meal-options', [EventVolunteerMealOptionController::class, 'replace']);
     Route::get('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'index']);
     Route::get('/events/{event}/volunteer-roster/export', [EventVolunteerRosterController::class, 'exportXlsx']);
     Route::post('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'store']);
@@ -415,6 +423,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
         Route::get('/helper-search/{eventId}', [PublishController::class, 'getPublicHelperSearch']);
         Route::post('/helper-search/{eventId}', [PublishController::class, 'setPublicHelperSearch']);
+        Route::get('/volunteer-data-entry/{eventId}', [PublishController::class, 'getPublicVolunteerDataEntry']);
+        Route::post('/volunteer-data-entry/{eventId}', [PublishController::class, 'setPublicVolunteerDataEntry']);
         Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
         Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
     });
