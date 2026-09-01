@@ -201,7 +201,7 @@ onBeforeUnmount(() => {
           Empfang am Veranstaltungstag. Vorschau rechts ist die echte Rezeptionsansicht.
         </p>
         <p class="glass-settings-hint !mb-0 event-day__header-hint">
-          Diese Funktion ist nur verfügbar, wenn die
+          Diese Funktion ist nur vom Plan verlinkt, wenn die
           <RouterLink to="/plan/publish" class="glass-settings-hint-link">Veröffentlichung</RouterLink>
           auf „volle Details“ gesetzt ist.
         </p>
