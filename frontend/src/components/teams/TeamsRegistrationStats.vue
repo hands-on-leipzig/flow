@@ -7,8 +7,16 @@ import {drahtIdFor, eventPrograms, programSlug} from '@/utils/eventPrograms'
 
 type ProgramStats = {
   slug: string
+  teams: number
   coaches: number
   members: number
+}
+
+const PEOPLE_TOTAL_KEYS = new Set(['total_players', 'total_coaches'])
+
+function countTeamsFromPeople(data: Record<string, unknown> | null | undefined): number {
+  if (!data || typeof data !== 'object') return 0
+  return Object.keys(data).filter((key) => !PEOPLE_TOTAL_KEYS.has(key)).length
 }
 
 const eventStore = useEventStore()
@@ -32,18 +40,19 @@ async function loadStats() {
       const slug = programSlug(prog.name)
       const drahtId = drahtIdFor(event.value, slug)
       if (!drahtId) {
-        rows.push({slug, coaches: 0, members: 0})
+        rows.push({slug, teams: 0, coaches: 0, members: 0})
         continue
       }
       try {
         const {data} = await axios.get(`/draht/people/${drahtId}`)
         rows.push({
           slug,
+          teams: countTeamsFromPeople(data),
           coaches: Number(data?.total_coaches || 0),
           members: Number(data?.total_players || 0),
         })
       } catch {
-        rows.push({slug, coaches: 0, members: 0})
+        rows.push({slug, teams: 0, coaches: 0, members: 0})
       }
     }
     stats.value = rows
@@ -52,11 +61,12 @@ async function loadStats() {
   }
 }
 
+const totalTeams = computed(() => stats.value.reduce((sum, row) => sum + row.teams, 0))
 const totalCoaches = computed(() => stats.value.reduce((sum, row) => sum + row.coaches, 0))
 const totalMembers = computed(() => stats.value.reduce((sum, row) => sum + row.members, 0))
 const grandTotal = computed(() => totalCoaches.value + totalMembers.value)
 
-function statForSlug(slug: string, field: 'coaches' | 'members'): number {
+function statForSlug(slug: string, field: 'teams' | 'coaches' | 'members'): number {
   return stats.value.find((row) => row.slug === slug)?.[field] ?? 0
 }
 
@@ -103,6 +113,19 @@ watch(() => event.value?.id, () => {
         </thead>
         <tbody class="text-[var(--color-text)]">
           <tr class="border-t border-[var(--color-border)]">
+            <td class="py-1.5 pr-2 text-[var(--color-text-muted)]">Teams</td>
+            <td
+                v-for="prog in programs"
+                :key="`t-${programSlug(prog.name)}`"
+                class="text-center tabular-nums py-1.5 px-1 font-medium"
+            >
+              {{ statForSlug(programSlug(prog.name), 'teams') }}
+            </td>
+            <td v-if="showTotalColumn" class="text-center tabular-nums py-1.5 px-1 font-semibold">
+              {{ totalTeams }}
+            </td>
+          </tr>
+          <tr class="border-t border-[var(--color-border)]">
             <td class="py-1.5 pr-2 text-[var(--color-text-muted)]">Coaches</td>
             <td
                 v-for="prog in programs"
@@ -128,16 +151,16 @@ watch(() => event.value?.id, () => {
               {{ totalMembers }}
             </td>
           </tr>
-          <tr class="border-t border-[var(--color-border)]">
-            <td class="py-1.5 pr-2 text-[var(--color-text-muted)] font-medium">Gesamt</td>
+          <tr class="teams-registration-stats__total-row border-t border-[var(--color-border)]">
+            <td class="py-1.5 pr-2 text-[var(--color-text-muted)]">Gesamt</td>
             <td
                 v-for="prog in programs"
-                :key="`t-${programSlug(prog.name)}`"
-                class="text-center tabular-nums py-1.5 px-1 font-semibold"
+                :key="`g-${programSlug(prog.name)}`"
+                class="text-center tabular-nums py-1.5 px-1"
             >
               {{ totalForSlug(programSlug(prog.name)) }}
             </td>
-            <td v-if="showTotalColumn" class="text-center tabular-nums py-1.5 px-1 font-bold">
+            <td v-if="showTotalColumn" class="text-center tabular-nums py-1.5 px-1">
               {{ grandTotal }}
             </td>
           </tr>
@@ -167,5 +190,10 @@ watch(() => event.value?.id, () => {
 .teams-registration-stats__table td {
   padding-left: 0.25rem;
   padding-right: 0.25rem;
+}
+
+.teams-registration-stats__total-row,
+.teams-registration-stats__total-row td {
+  font-weight: 700;
 }
 </style>
