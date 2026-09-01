@@ -60,16 +60,23 @@ final class VolunteerMealOptions
 
     /**
      * @param  Collection<int, EventVolunteerMealOption>  $options
-     * @return list<array{id: int, value: string, label: string, sequence: int}>
+     * @return list<array{id: int, value: string, label: string, sequence: int, usage_count?: int}>
      */
-    public static function serializeList(Collection $options): array
+    public static function serializeList(Collection $options, ?int $eventId = null): array
     {
-        return $options->map(fn (EventVolunteerMealOption $option) => [
-            'id' => $option->id,
-            'value' => $option->value,
-            'label' => $option->label,
-            'sequence' => (int) $option->sequence,
-        ])->values()->all();
+        return $options->map(function (EventVolunteerMealOption $option) use ($eventId) {
+            $row = [
+                'id' => $option->id,
+                'value' => $option->value,
+                'label' => $option->label,
+                'sequence' => (int) $option->sequence,
+            ];
+            if ($eventId !== null) {
+                $row['usage_count'] = self::usageCount($eventId, $option->value);
+            }
+
+            return $row;
+        })->values()->all();
     }
 
     /**
@@ -179,20 +186,28 @@ final class VolunteerMealOptions
 
     /**
      * @param  list<string>  $removedValues
-     * @return array{ok: true}|array{ok: false, error: string}
      */
-    public static function validateRemovedValues(int $eventId, array $removedValues): array
+    public static function clearAssignmentsForRemovedValues(int $eventId, array $removedValues): int
     {
-        foreach ($removedValues as $value) {
-            if (self::usageCount($eventId, $value) > 0) {
-                return [
-                    'ok' => false,
-                    'error' => "Essensoption „{$value}“ wird noch von Helfer:innen verwendet und kann nicht entfernt werden.",
-                ];
-            }
+        if ($removedValues === []) {
+            return 0;
         }
 
-        return ['ok' => true];
+        $rosterIds = DB::table('event_volunteer_roster')
+            ->where('event', $eventId)
+            ->pluck('id');
+
+        if ($rosterIds->isEmpty()) {
+            return 0;
+        }
+
+        return DB::table('event_volunteer_roster_detail')
+            ->whereIn('event_volunteer_roster', $rosterIds)
+            ->whereIn('meal', $removedValues)
+            ->update([
+                'meal' => null,
+                'updated_at' => now(),
+            ]);
     }
 
     public static function exportMealLabel(?string $meal, array $labelMap): string

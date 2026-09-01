@@ -22,6 +22,18 @@ const draftLabel = ref('')
 
 const canAdd = computed(() => draftLabel.value.trim().length > 0 && !saving.value)
 
+const deleteMessage = computed(() => {
+  const target = deleteTarget.value
+  if (!target) return ''
+  const count = target.usage_count ?? 0
+  if (count > 0) {
+    const assignees = count === 1 ? '1 Helfer:in' : `${count} Helfer:innen`
+    const verb = count === 1 ? 'verliert' : 'verlieren'
+    return `„${target.label}" wird gelöscht. ${assignees} ${verb} die gespeicherte Essenswahl.`
+  }
+  return `„${target.label}" wird dauerhaft entfernt.`
+})
+
 function requestClose() {
   if (deleteTarget.value || saving.value) return
   emit('close')
@@ -194,7 +206,7 @@ watch(
         scrim-class="z-[110]"
         type="warning"
         title="Essensoption löschen?"
-        :message="deleteTarget ? `„${deleteTarget.label}“ wird entfernt, sofern sie nicht mehr verwendet wird.` : ''"
+        :message="deleteMessage"
         confirm-text="Löschen"
         cancel-text="Abbrechen"
         :disable-confirm-button="saving"

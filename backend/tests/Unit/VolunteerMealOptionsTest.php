@@ -54,4 +54,35 @@ class VolunteerMealOptionsTest extends TestCase
         $this->assertSame('nein', VolunteerRosterDetailFields::exportPhotoConsentLabel(false));
         $this->assertSame('', VolunteerRosterDetailFields::exportPhotoConsentLabel(null));
     }
+
+    public function test_clear_assignments_for_removed_values_sets_meal_to_null(): void
+    {
+        if (! \Illuminate\Support\Facades\Schema::hasTable('event_volunteer_roster_detail')) {
+            $this->markTestSkipped('Roster detail table not available in test schema.');
+        }
+
+        \Illuminate\Support\Facades\DB::table('event_volunteer_roster')->insert([
+            'id' => 501,
+            'event' => 99,
+            'volunteer_person' => 1,
+            'created_at' => now(),
+        ]);
+        \Illuminate\Support\Facades\DB::table('event_volunteer_roster_detail')->insert([
+            'event_volunteer_roster' => 501,
+            'meal' => 'vegetarisch',
+            'updated_at' => now(),
+        ]);
+
+        $cleared = VolunteerMealOptions::clearAssignmentsForRemovedValues(99, ['vegetarisch', 'vegan']);
+
+        $this->assertSame(1, $cleared);
+        $this->assertNull(
+            \Illuminate\Support\Facades\DB::table('event_volunteer_roster_detail')
+                ->where('event_volunteer_roster', 501)
+                ->value('meal')
+        );
+
+        \Illuminate\Support\Facades\DB::table('event_volunteer_roster_detail')->where('event_volunteer_roster', 501)->delete();
+        \Illuminate\Support\Facades\DB::table('event_volunteer_roster')->where('id', 501)->delete();
+    }
 }

@@ -14,9 +14,12 @@ class EventVolunteerMealOptionController extends Controller
 {
     public function index(Event $event): JsonResponse
     {
-        $options = VolunteerMealOptions::bootstrapForEvent($event->id);
+        VolunteerMealOptions::bootstrapForEvent($event->id);
+        $options = VolunteerMealOptions::optionsForEvent($event->id);
 
-        return response()->json(['options' => $options]);
+        return response()->json([
+            'options' => VolunteerMealOptions::serializeList($options, $event->id),
+        ]);
     }
 
     public function replace(Request $request, Event $event): JsonResponse
@@ -40,12 +43,10 @@ class EventVolunteerMealOptionController extends Controller
 
         $newValues = array_column($validation['data'], 'value');
         $removed = $current->pluck('value')->diff($newValues)->values()->all();
-        $removalCheck = VolunteerMealOptions::validateRemovedValues($event->id, $removed);
-        if (! $removalCheck['ok']) {
-            return response()->json(['error' => $removalCheck['error']], 422);
-        }
 
-        DB::transaction(function () use ($event, $validation) {
+        DB::transaction(function () use ($event, $validation, $removed) {
+            VolunteerMealOptions::clearAssignmentsForRemovedValues($event->id, $removed);
+
             EventVolunteerMealOption::query()->where('event', $event->id)->delete();
 
             foreach ($validation['data'] as $index => $option) {
@@ -60,7 +61,8 @@ class EventVolunteerMealOptionController extends Controller
 
         return response()->json([
             'options' => VolunteerMealOptions::serializeList(
-                VolunteerMealOptions::optionsForEvent($event->id)
+                VolunteerMealOptions::optionsForEvent($event->id),
+                $event->id,
             ),
         ]);
     }

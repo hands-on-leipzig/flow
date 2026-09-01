@@ -7,6 +7,7 @@ export type VolunteerMealOption = {
   value: string
   label: string
   sequence?: number
+  usage_count?: number
 }
 
 export function useVolunteerMealOptions(eventId: Ref<number | undefined>) {
