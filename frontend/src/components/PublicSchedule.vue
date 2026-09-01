@@ -121,6 +121,7 @@ const loadingRoles = ref(true)
 const loadingSchedule = ref(false)
 const error = ref<string | null>(null)
 const eventName = ref('')
+const eventSlug = ref<string | null>(null)
 const roles = ref<Role[]>([])
 const groups = ref<Group[]>([])
 const openRoleId = ref<number | null>(null)
@@ -143,6 +144,23 @@ const activeSheet = ref<'detail' | 'role'>('detail')
 const numericPlanId = computed(() => Number(props.planId))
 const hasRoleSelection = computed(() => selectedRole.value != null)
 const planReady = computed(() => !loadingRoles.value && !error.value)
+
+const routeSlug = computed(() => {
+  const slug = route.params.slug
+  return typeof slug === 'string' && slug !== '' ? slug : null
+})
+
+const effectiveSlug = computed(() => routeSlug.value || eventSlug.value)
+
+const checkInPath = computed(() => {
+  const slug = effectiveSlug.value
+  return slug ? `/${slug}/check-in` : null
+})
+
+const cockpitPath = computed(() => {
+  const slug = effectiveSlug.value
+  return slug ? `/${slug}/cockpit` : null
+})
 
 const selectedRoleMeta = computed(() =>
     roles.value.find((r) => r.id === selectedRole.value) || null
@@ -640,6 +658,19 @@ function openRoleSheet() {
   resetSheetDrag()
 }
 
+function openDayApp(path: string | null) {
+  if (!path) return
+  void router.push(path)
+}
+
+function onCheckInClick() {
+  openDayApp(checkInPath.value)
+}
+
+function onCockpitClick() {
+  openDayApp(cockpitPath.value)
+}
+
 function closeRoleSheet() {
   roleSheetOpen.value = false
   resetSheetDrag()
@@ -854,6 +885,7 @@ async function loadRoles() {
     const {data} = await axios.get(`/plans/${numericPlanId.value}/visitor/roles`)
     roles.value = data.roles || []
     eventName.value = data.event_name || ''
+    eventSlug.value = typeof data.slug === 'string' && data.slug !== '' ? data.slug : null
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Rollen konnten nicht geladen werden.'
   } finally {
@@ -1099,38 +1131,69 @@ watch(
       <div v-else class="public-schedule__plan">
         <header class="public-schedule__chrome">
           <div class="public-schedule__toolbar">
-            <button
-                type="button"
-                class="public-schedule__role-chip"
-                :aria-expanded="roleSheetOpen"
-                aria-haspopup="dialog"
-                :aria-label="hasRoleSelection ? `Rolle wechseln: ${roleChipLabel}` : 'Rolle wählen'"
-                @click="openRoleSheet"
-            >
-              <img
-                  v-if="selectedRoleMeta"
-                  :src="programLogo(selectedRoleMeta)"
-                  :alt="programLogoAlt(selectedRoleMeta)"
-                  class="public-schedule__role-chip-logo"
-              />
-              <i
-                  v-else
-                  class="bi bi-person-circle public-schedule__role-chip-placeholder"
-                  aria-hidden="true"
-              />
-              <span class="public-schedule__role-chip-text">
-                <span class="public-schedule__toolbar-event">
-                  {{ eventName || 'Online-Zeitplan' }}
+            <div class="public-schedule__toolbar-main">
+              <button
+                  type="button"
+                  class="public-schedule__role-chip"
+                  :aria-expanded="roleSheetOpen"
+                  aria-haspopup="dialog"
+                  :aria-label="hasRoleSelection ? `Rolle wechseln: ${roleChipLabel}` : 'Rolle wählen'"
+                  @click="openRoleSheet"
+              >
+                <img
+                    v-if="selectedRoleMeta"
+                    :src="programLogo(selectedRoleMeta)"
+                    :alt="programLogoAlt(selectedRoleMeta)"
+                    class="public-schedule__role-chip-logo"
+                />
+                <i
+                    v-else
+                    class="bi bi-person-circle public-schedule__role-chip-placeholder"
+                    aria-hidden="true"
+                />
+                <span class="public-schedule__role-chip-text">
+                  <span class="public-schedule__toolbar-event">
+                    {{ eventName || 'Online-Zeitplan' }}
+                  </span>
+                  <span class="public-schedule__selection">{{ roleChipLabel }}</span>
                 </span>
-                <span class="public-schedule__selection">{{ roleChipLabel }}</span>
-              </span>
-              <span class="public-schedule__role-chip-action">
+              </button>
+
+              <button
+                  type="button"
+                  class="public-schedule__app-btn"
+                  aria-label="Check-In"
+                  title="Check-In"
+                  :disabled="!checkInPath"
+                  @click="onCheckInClick"
+              >
+                <i class="bi bi-person-check" aria-hidden="true"/>
+              </button>
+              <button
+                  type="button"
+                  class="public-schedule__app-btn"
+                  aria-label="Cockpit"
+                  title="Cockpit"
+                  :disabled="!cockpitPath"
+                  @click="onCockpitClick"
+              >
+                <i class="bi bi-speedometer2" aria-hidden="true"/>
+              </button>
+
+              <button
+                  type="button"
+                  class="public-schedule__role-chip-action"
+                  :aria-expanded="roleSheetOpen"
+                  aria-haspopup="dialog"
+                  :aria-label="hasRoleSelection ? `Rolle wechseln: ${roleChipLabel}` : 'Rolle wählen'"
+                  @click="openRoleSheet"
+              >
                 <span class="public-schedule__role-chip-action-label">
                   {{ hasRoleSelection ? 'Wechseln' : 'Wählen' }}
                 </span>
                 <i class="bi bi-chevron-down" aria-hidden="true"/>
-              </span>
-            </button>
+              </button>
+            </div>
 
             <div ref="filterRootEl" class="public-schedule__filter">
               <button
@@ -1864,8 +1927,16 @@ watch(
   background: #fff;
 }
 
+.public-schedule__toolbar-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
 .public-schedule__role-chip {
   min-width: 0;
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1926,6 +1997,29 @@ watch(
   text-overflow: ellipsis;
 }
 
+.public-schedule__app-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: none;
+  border-radius: 0.65rem;
+  background: transparent;
+  color: #6b7280;
+  font-size: 1.05rem;
+}
+
+.public-schedule__app-btn:active:not(:disabled) {
+  background: #f3f4f6;
+}
+
+.public-schedule__app-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 .public-schedule__role-chip-action {
   flex-shrink: 0;
   display: inline-flex;
@@ -1940,6 +2034,10 @@ watch(
   font-size: 0.72rem;
   font-weight: 750;
   letter-spacing: 0.01em;
+}
+
+.public-schedule__role-chip-action:active {
+  background: #e5e7eb;
 }
 
 .public-schedule__role-chip-action .bi {
