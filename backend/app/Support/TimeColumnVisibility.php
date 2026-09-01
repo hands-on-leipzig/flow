@@ -15,6 +15,7 @@ final class TimeColumnVisibility
         'c_start_opening', 'c_duration_opening', 'c_duration_awards',
         'f8_start_opening', 'f8_duration_opening', 'f8_duration_awards',
         'g_start_opening', 'g_duration_opening', 'g_duration_awards',
+        'c+f8_start_opening', 'c+f8_duration_opening', 'c+f8_duration_awards',
         'e1_start_opening', 'e1_duration_opening', 'e1_duration_awards',
         'e2_start_opening', 'e2_duration_opening', 'e2_duration_awards',
     ];
@@ -47,7 +48,7 @@ final class TimeColumnVisibility
                             self::enableLeadTimes($entry, $e, 'f8');
                         }
                         if ($c === 1 && $f8 === 1) {
-                            self::forceJointAwards($entry);
+                            self::forceJointAwards($entry, $e);
                         }
                         self::enableExploreTimes($entry, $e);
                     }
@@ -99,7 +100,7 @@ final class TimeColumnVisibility
 
         $prefix = substr($paramName, 0, -strlen('_start_opening'));
 
-        return in_array($prefix, ['g', 'e1', 'e2', 'c', 'f8'], true) ? $prefix : null;
+        return in_array($prefix, ['g', 'c+f8', 'e1', 'e2', 'c', 'f8'], true) ? $prefix : null;
     }
 
     /**
@@ -157,10 +158,21 @@ final class TimeColumnVisibility
     /**
      * @param  array<string, array{editable: bool}>  $entry
      */
-    private static function forceJointAwards(array &$entry): void
+    private static function forceJointAwards(array &$entry, int $e): void
     {
         $entry['c_duration_awards']['editable'] = false;
         $entry['f8_duration_awards']['editable'] = false;
+        $entry['g_duration_awards']['editable'] = false;
+        $entry['c+f8_duration_awards']['editable'] = false;
+
+        if ($e === ExploreMode::NONE->value) {
+            $entry['c+f8_start_opening']['editable'] = true;
+            $entry['c+f8_duration_opening']['editable'] = true;
+            $entry['c+f8_duration_awards']['editable'] = true;
+
+            return;
+        }
+
         $entry['g_duration_awards']['editable'] = true;
     }
 
@@ -200,7 +212,7 @@ final class TimeColumnVisibility
     private static function timeColumns(array $entry): array
     {
         $columns = [];
-        foreach (['g', 'e1', 'e2', 'c', 'f8'] as $prefix) {
+        foreach (['g', 'c+f8', 'e1', 'e2', 'c', 'f8'] as $prefix) {
             if (
                 ($entry["{$prefix}_start_opening"]['editable'] ?? false)
                 || ($entry["{$prefix}_duration_opening"]['editable'] ?? false)

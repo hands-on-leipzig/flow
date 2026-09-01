@@ -14,7 +14,7 @@ use Tests\TestCase;
  * Narrow Policy C verification (afternoon order filter + support pointer).
  *
  * Manual UI check: event with Challenge + Future 8+, g_separate_rooms=1 —
- * (1) without Explore: joint g_opening, independent mornings/afternoons, joint g_awards / g_end;
+ * (1) without Explore: joint c+f8_opening, independent mornings/afternoons, joint c+f8_awards / g_end;
  * (2) with Explore integrated morning: Explore hole follows Challenge only; F8 stays on opening-end clock;
  * Nachmittag shows two lists; A/B (g_separate_rooms=0) keeps one shared list.
  *

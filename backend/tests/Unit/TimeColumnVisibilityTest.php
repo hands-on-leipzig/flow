@@ -49,6 +49,29 @@ class TimeColumnVisibilityTest extends TestCase
     {
         $this->assertSame('g', TimeColumnVisibility::prefixForParam('g_start_opening'));
         $this->assertSame('e1', TimeColumnVisibility::prefixForParam('e1_start_opening'));
+        $this->assertSame('c+f8', TimeColumnVisibility::prefixForParam('c+f8_start_opening'));
         $this->assertNull(TimeColumnVisibility::prefixForParam('g_duration_opening'));
+    }
+
+    public function test_challenge_and_future_without_explore_use_cf8_joint_times(): void
+    {
+        $fields = TimeColumnVisibility::fieldsForModes(ExploreMode::NONE->value, 1, 1);
+
+        $this->assertTrue($fields['c+f8_start_opening']['editable']);
+        $this->assertTrue($fields['c+f8_duration_opening']['editable']);
+        $this->assertTrue($fields['c+f8_duration_awards']['editable']);
+        $this->assertFalse($fields['g_duration_awards']['editable']);
+        $this->assertFalse($fields['c_duration_awards']['editable']);
+        $this->assertFalse($fields['f8_duration_awards']['editable']);
+    }
+
+    public function test_challenge_and_future_with_explore_keep_g_awards(): void
+    {
+        $fields = TimeColumnVisibility::fieldsForModes(ExploreMode::INTEGRATED_AFTERNOON->value, 1, 1);
+
+        $this->assertTrue($fields['g_duration_awards']['editable']);
+        $this->assertFalse($fields['c+f8_duration_awards']['editable']);
+        $this->assertFalse($fields['c_duration_awards']['editable']);
+        $this->assertFalse($fields['f8_duration_awards']['editable']);
     }
 }

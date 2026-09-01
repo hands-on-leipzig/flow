@@ -246,7 +246,7 @@ class PlanGeneratorCore
         $this->runMain(true, $afterRG1Callback);
 
         $this->afternoon();
-        // Explore already awarded; Challenge-shaped programs share g_awards when both on.
+        // Explore already awarded; Challenge-shaped programs share joint awards when both on.
         $this->awardsForPrograms();
     }
 
@@ -321,11 +321,11 @@ class PlanGeneratorCore
     /**
      * Ceremony lead writes opening (+ its briefings). When Future is secondary, add Future briefings
      * and sync its clocks to the lead (coordinator also syncs before morning).
-     * Policy C always uses joint g_opening even without Explore.
+     * Policy C always uses a joint opening even without Explore (`c+f8_opening`).
      */
     private function openingsForPrograms(bool $jointOpening): void
     {
-        $this->lead->openingsAndBriefings($jointOpening || $this->isPolicyC());
+        $this->lead->openingsAndBriefings($jointOpening || $this->isPolicyC(), $this->jointCeremonyPrefix());
 
         if ($this->coordinator !== null && $this->future !== null && $this->challenge !== null) {
             // Lead is Challenge: Future briefings only (opening already joint/Challenge).
@@ -339,6 +339,18 @@ class PlanGeneratorCore
         return $this->challenge !== null
             && $this->future !== null
             && (bool) $this->pp('g_separate_rooms', false);
+    }
+
+    /** Joint C+F8 ceremonies use `c+f8_*` when Explore is off; Explore-integrated joint stays `g_*`. */
+    private function jointCeremonyPrefix(): string
+    {
+        if ($this->challenge !== null
+            && $this->future !== null
+            && (int) $this->pp('e_mode', 0) === ExploreMode::NONE->value) {
+            return 'c+f8';
+        }
+
+        return 'g';
     }
 
     private function runMain(bool $explore = false, ?callable $afterRG1Callback = null): void
@@ -383,7 +395,8 @@ class PlanGeneratorCore
     }
 
     /**
-     * Ceremony awards. When Challenge and Future are both on, always joint (g_awards) from the later end.
+     * Ceremony awards. When Challenge and Future are both on, always joint from the later end
+     * (`c+f8_awards` without Explore, `g_awards` when Explore is on).
      *
      * @param  bool  $jointWithExplore  Explore-integrated recipes that already used g_awards with Explore.
      */
@@ -391,12 +404,12 @@ class PlanGeneratorCore
     {
         if ($this->challenge !== null && $this->future !== null) {
             $this->syncSharedCeremonyClock();
-            $this->lead->awards(true);
+            $this->lead->awards(true, $this->jointCeremonyPrefix());
 
             return;
         }
 
-        $this->lead->awards($jointWithExplore);
+        $this->lead->awards($jointWithExplore, $this->jointCeremonyPrefix());
     }
 
     /**
