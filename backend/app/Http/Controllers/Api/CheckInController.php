@@ -135,7 +135,7 @@ class CheckInController extends Controller
         $data = $request->validate([
             'no_show_reason' => 'required|string|min:1',
             'no_show_source' => 'required|string|min:1',
-            'reception_note' => 'required|string|min:1',
+            'reception_note' => 'nullable|string',
         ]);
 
         $this->checkIn->markNoShow(
@@ -144,7 +144,7 @@ class CheckInController extends Controller
             $subjectId,
             $data['no_show_reason'],
             $data['no_show_source'],
-            $data['reception_note'],
+            $data['reception_note'] ?? null,
         );
 
         return response()->json($this->checkIn->detail($event, $subjectType, $subjectId));

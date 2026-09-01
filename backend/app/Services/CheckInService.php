@@ -696,7 +696,7 @@ class CheckInService
         int $subjectId,
         string $reason,
         string $source,
-        string $note,
+        ?string $note,
     ): CheckIn {
         $this->assertSubjectExists($event, $subjectType, $subjectId);
 
@@ -710,7 +710,7 @@ class CheckInService
         $record->checked_in_at = null;
         $record->no_show_reason = $reason;
         $record->no_show_source = $source;
-        $record->reception_note = $note;
+        $record->reception_note = $note === '' || $note === null ? null : $note;
         $record->save();
 
         return $record;
