@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
+import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
+import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import VolunteerRosterColumnsPanel from '@/components/molecules/VolunteerRosterColumnsPanel.vue'
 import VolunteerMealOptionsPanel from '@/components/molecules/VolunteerMealOptionsPanel.vue'
@@ -27,6 +29,7 @@ import {apiError} from '@/utils/apiError'
 import {type VolunteerPersonRef, volunteerDisplayName} from '@/utils/volunteerPerson'
 import {defaultRosterDetail, type RosterEntry} from '@/volunteers/rosterTypes'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
+import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
 
 type Person = VolunteerPersonRef
 
@@ -55,6 +58,20 @@ const showOnlyUnset = ref(false)
 const showOnlyPhotoUnset = ref(false)
 
 const {options: mealOptions, setOptions: setMealOptions} = useVolunteerMealOptions(eventId)
+
+const {
+  enabled: volunteerDataEntryEnabled,
+  loading: volunteerDataEntryLoading,
+  setEnabled: setVolunteerDataEntryEnabled,
+} = usePublicVolunteerDataEntry(eventId)
+
+async function onVolunteerDataEntryToggle(next: boolean) {
+  try {
+    await setVolunteerDataEntryEnabled(next)
+  } catch {
+    // toast from composable
+  }
+}
 
 const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
 
@@ -298,6 +315,23 @@ onMounted(() => load())
         <VolunteerEmailOutreach scope="roster" :people="visibleRosterPeople"/>
       </div>
     </header>
+
+    <section class="glass-card liquid-surface-inner vol-tile vol-roster-publish">
+      <div class="vol-roster-publish__row">
+        <span class="vol-roster-publish__label">Dateneingabe durch Helfer:innen</span>
+        <ToggleSwitch
+            :model-value="volunteerDataEntryEnabled"
+            :disabled="volunteerDataEntryLoading || !eventId"
+            @update:modelValue="onVolunteerDataEntryToggle"
+        />
+      </div>
+      <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
+        Helfer:innen können auf dem öffentlichen Plan ihre Daten eingeben. Einstellungen unter
+        <RouterLink to="/plan/publish" class="vol-roster-publish__link">
+          Ausgabe → Veröffentlichung
+        </RouterLink>.
+      </p>
+    </section>
 
     <VolunteerPersonSearch
         :pool="pool"

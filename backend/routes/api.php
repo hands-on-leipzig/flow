@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\VolunteerPersonController;
+use App\Http\Controllers\Api\VolunteerPublicFormController;
 use App\Models\Event;
 use App\Services\SeasonService;
 use Illuminate\Http\Request;
@@ -93,6 +94,9 @@ Route::prefix('check-in/{slug}')->group(function () {
     Route::patch('/{subjectType}/{subjectId}/note', [CheckInController::class, 'updateNote'])
         ->where('subjectType', 'team|volunteer');
 });
+
+// Volunteer public data entry (email lookup; public)
+Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
 
 // Cockpit app (PIN session; public)
 Route::prefix('cockpit/{slug}')->group(function () {
@@ -418,6 +422,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
         Route::get('/helper-search/{eventId}', [PublishController::class, 'getPublicHelperSearch']);
         Route::post('/helper-search/{eventId}', [PublishController::class, 'setPublicHelperSearch']);
+        Route::get('/volunteer-data-entry/{eventId}', [PublishController::class, 'getPublicVolunteerDataEntry']);
+        Route::post('/volunteer-data-entry/{eventId}', [PublishController::class, 'setPublicVolunteerDataEntry']);
         Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
         Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
     });

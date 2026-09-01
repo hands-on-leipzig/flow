@@ -341,6 +341,10 @@ class PublishController extends Controller
             $payload['helper_search'] = \App\Support\PublicHelperSearchPayload::forEvent($event);
         }
 
+        if ($level < 4 && (bool) $event->public_volunteer_data_entry) {
+            $payload['volunteer_data_entry'] = ['enabled' => true];
+        }
+
         return response()->json($payload);
     }
 
@@ -372,6 +376,37 @@ class PublishController extends Controller
             'success' => true,
             'event_id' => $eventId,
             'public_helper_search' => (bool) $event->public_helper_search,
+        ]);
+    }
+
+    public function getPublicVolunteerDataEntry(int $eventId): JsonResponse
+    {
+        $event = Event::find($eventId);
+        if (! $event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        return response()->json([
+            'event_id' => $eventId,
+            'public_volunteer_data_entry' => (bool) $event->public_volunteer_data_entry,
+        ]);
+    }
+
+    public function setPublicVolunteerDataEntry(int $eventId, Request $request): JsonResponse
+    {
+        $event = Event::find($eventId);
+        if (! $event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        $enabled = $request->boolean('public_volunteer_data_entry');
+        $event->public_volunteer_data_entry = $enabled;
+        $event->save();
+
+        return response()->json([
+            'success' => true,
+            'event_id' => $eventId,
+            'public_volunteer_data_entry' => (bool) $event->public_volunteer_data_entry,
         ]);
     }
 

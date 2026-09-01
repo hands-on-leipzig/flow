@@ -23,6 +23,7 @@ class Event extends Model
         'link',
         'qrcode',
         'public_helper_search',
+        'public_volunteer_data_entry',
         'check_in_enabled',
         'check_in_pin',
         'check_in_text_teams',
@@ -39,6 +40,7 @@ class Event extends Model
 
     protected $casts = [
         'public_helper_search' => 'boolean',
+        'public_volunteer_data_entry' => 'boolean',
         'check_in_enabled' => 'boolean',
         'cockpit_enabled' => 'boolean',
     ];

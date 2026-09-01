@@ -13,6 +13,7 @@ import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
+import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
 
 defineOptions({name: 'PublishDistribution'})
 
@@ -22,6 +23,7 @@ const eventId = computed(() => event.value?.id ?? null)
 
 const saving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const helperSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
+const volunteerDataEntrySaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const dayAppsSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const detailLevel = ref(0)
 const checkInEnabled = ref(false)
@@ -37,6 +39,12 @@ const {
   setEnabled: setHelperSearchEnabled,
 } = usePublicHelperSearch(eventId)
 
+const {
+  enabled: volunteerDataEntryEnabled,
+  loading: volunteerDataEntryLoading,
+  setEnabled: setVolunteerDataEntryEnabled,
+} = usePublicVolunteerDataEntry(eventId)
+
 const levels = [
   {id: 0, short: 'Basis', name: 'Planung und Anmeldung', hint: 'Datum, Ort, Kontakt, Teams'},
   {id: 1, short: 'Ablauf', name: 'Überblick zum Ablauf', hint: '+ wichtige Zeiten'},
@@ -44,6 +52,8 @@ const levels = [
 ]
 
 const helperSearchHiddenByLevel = computed(() => detailLevel.value === 2)
+
+const volunteerDataEntryHiddenByLevel = computed(() => detailLevel.value === 2)
 
 function normalizeLink(raw: string | null | undefined): string {
   if (!raw) return ''
@@ -117,6 +127,18 @@ async function onHelperSearchToggle(next: boolean) {
     // toast from composable
   } finally {
     helperSaving.value?.hide()
+  }
+}
+
+async function onVolunteerDataEntryToggle(next: boolean) {
+  try {
+    volunteerDataEntrySaving.value?.show()
+    await setVolunteerDataEntryEnabled(next)
+    reloadPreview()
+  } catch {
+    // toast from composable
+  } finally {
+    volunteerDataEntrySaving.value?.hide()
   }
 }
 
@@ -197,6 +219,7 @@ onMounted(async () => {
 <template>
   <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
   <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
+  <SavingToast ref="volunteerDataEntrySaving" message="Einstellung wird gespeichert…" />
   <SavingToast ref="dayAppsSaving" message="Wird gespeichert…" />
 
   <div class="pub">
@@ -257,27 +280,53 @@ onMounted(async () => {
         </section>
 
         <section class="pub__tile glass-card liquid-surface-inner">
-          <div class="pub__helper-head">
-            <h2 class="glass-card__heading !mb-0">Suche nach Helfer:innen</h2>
-            <ToggleSwitch
-                :model-value="helperSearchEnabled"
-                :disabled="helperSearchLoading || !eventId"
-                @update:modelValue="onHelperSearchToggle"
-            />
+          <h2 class="glass-card__heading">Helfer:innen auf dem öffentlichen Plan</h2>
+
+          <div class="pub__app-block">
+            <div class="pub__app-row">
+              <span class="pub__app-link">Dateneingabe durch Helfer:innen</span>
+              <ToggleSwitch
+                  :model-value="volunteerDataEntryEnabled"
+                  :disabled="volunteerDataEntryLoading || !eventId"
+                  @update:modelValue="onVolunteerDataEntryToggle"
+              />
+            </div>
+            <p class="glass-settings-hint !mb-0">
+              Helfer:innen können auf dem öffentlichen Plan ihre Daten prüfen und ergänzen.
+            </p>
+            <p
+                v-if="volunteerDataEntryEnabled && volunteerDataEntryHiddenByLevel"
+                class="glass-settings-hint !mb-0 pub__helper-warn"
+            >
+              Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
+            </p>
           </div>
-          <p class="glass-settings-hint !mb-0">
-            Zeigt offene Positionen aus
-            <RouterLink to="/plan/volunteers/staffing" class="pub__helper-link">
-              Helfer:innen → Zuordnung
-            </RouterLink>
-            auf dem öffentlichen Plan zwischen Allgemeine Infos und Angemeldete Teams.
-          </p>
-          <p
-              v-if="helperSearchEnabled && helperSearchHiddenByLevel"
-              class="glass-settings-hint !mb-0 pub__helper-warn"
-          >
-            Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
-          </p>
+
+          <div class="pub__app-block">
+            <div class="pub__app-row">
+              <RouterLink to="/plan/volunteers/staffing" class="glass-settings-hint-link pub__app-link">
+                Suche nach Helfer:innen
+              </RouterLink>
+              <ToggleSwitch
+                  :model-value="helperSearchEnabled"
+                  :disabled="helperSearchLoading || !eventId"
+                  @update:modelValue="onHelperSearchToggle"
+              />
+            </div>
+            <p class="glass-settings-hint !mb-0">
+              Zeigt offene Positionen aus
+              <RouterLink to="/plan/volunteers/staffing" class="pub__helper-link">
+                Helfer:innen → Zuordnung
+              </RouterLink>
+              auf dem öffentlichen Plan zwischen Allgemeine Infos und Angemeldete Teams.
+            </p>
+            <p
+                v-if="helperSearchEnabled && helperSearchHiddenByLevel"
+                class="glass-settings-hint !mb-0 pub__helper-warn"
+            >
+              Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
+            </p>
+          </div>
         </section>
 
         <section class="pub__tile glass-card liquid-surface-inner">

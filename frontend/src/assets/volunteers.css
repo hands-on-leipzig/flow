@@ -77,6 +77,32 @@
   white-space: nowrap;
 }
 
+.vol-roster-publish__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.vol-roster-publish__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.vol-roster-publish__hint {
+  margin-top: 0.5rem;
+}
+
+.vol-roster-publish__link {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.vol-roster-publish__link:hover {
+  color: color-mix(in srgb, var(--color-accent) 80%, var(--color-text));
+}
+
 .vol-person-search-field {
   position: relative;
   width: 100%;
