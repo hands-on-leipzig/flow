@@ -106,9 +106,7 @@ class VolunteerPublicFormController extends Controller
                 ? $detailInput['meal']
                 : $existingDetail?->meal,
             'photo_consent' => $existingDetail?->photo_consent,
-            'notes' => array_key_exists('notes', $detailInput)
-                ? $detailInput['notes']
-                : $existingDetail?->notes,
+            'notes' => $existingDetail?->notes,
         ];
 
         $detailValidation = VolunteerRosterDetailFields::validate(

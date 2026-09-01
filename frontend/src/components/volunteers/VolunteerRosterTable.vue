@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import axios from 'axios'
 import {ref} from 'vue'
+import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {programNameForId} from '@/utils/eventPrograms'
@@ -38,9 +39,15 @@ function columnColClass(key: string) {
     t_shirt: 'vol-col--tshirt',
     meal: 'vol-col--meal',
     photo_consent: 'vol-col--photo',
-    notes: 'vol-col--notes',
   }
   return classes[key] ?? 'vol-col--custom'
+}
+
+function personListLink(person: RosterEntry['person']) {
+  return {
+    name: 'volunteers-people',
+    query: {q: volunteerDisplayName(person)},
+  } as const
 }
 
 function isSortableRosterColumn(key: string): key is 'name' | 'role' {
@@ -197,7 +204,11 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
             </button>
           </td>
           <template v-for="column in columns" :key="`${entry.id}-${column.key}`">
-            <td v-if="column.key === 'name'" class="vol-table__name">{{ volunteerDisplayName(entry.person) }}</td>
+            <td v-if="column.key === 'name'" class="vol-table__name">
+              <RouterLink :to="personListLink(entry.person)" class="vol-table__name-link">
+                {{ volunteerDisplayName(entry.person) }}
+              </RouterLink>
+            </td>
             <td v-else-if="column.key === 'role'" class="vol-table__role">
               <div v-if="entry.assignments?.length" class="vol-table__assignments">
                 <div
@@ -276,17 +287,6 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
                   Nein
                 </button>
               </div>
-            </td>
-            <td v-else-if="column.editor === 'text'" class="vol-table__field">
-              <input
-                  type="text"
-                  class="glass-input glass-input--sm vol-detail-input"
-                  :value="entryDetail(entry).notes ?? ''"
-                  placeholder="Bemerkung"
-                  :disabled="isSaving(entry)"
-                  @change="entryDetail(entry).notes = ($event.target as HTMLInputElement).value.trim() || null"
-                  @blur="saveDetail(entry)"
-              >
             </td>
             <td v-else-if="column.kind === 'custom' && column.field_key" class="vol-table__field">
               <input
@@ -368,8 +368,17 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 .vol-col--tshirt { width: 11%; }
 .vol-col--meal { width: 11%; }
 .vol-col--photo { width: 11%; }
-.vol-col--notes { width: auto; }
 .vol-col--custom { width: 11%; }
+
+.vol-table__name-link {
+  font-weight: 600;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.vol-table__name-link:hover {
+  text-decoration: underline;
+}
 
 .vol-table__name {
   font-weight: 600;

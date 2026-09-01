@@ -22,7 +22,9 @@ const isPlainSurface = computed(() => route.meta?.plain === true)
 /** Panel fills viewport height so inner panes scroll (admin tools, Ablauf split). */
 const isPanelFillRoute = computed(() => {
   const path = route.path
-  return path.startsWith('/plan/admin') || path.startsWith('/plan/schedule')
+  return path.startsWith('/plan/admin')
+    || path.startsWith('/plan/schedule')
+    || path.startsWith('/plan/volunteers/roster')
 })
 
 const router = useRouter();

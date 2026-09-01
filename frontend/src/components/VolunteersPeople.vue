@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
+import {useRoute} from 'vue-router'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
@@ -34,6 +35,7 @@ const emptyDraft = (): PersonDraft => ({
 })
 
 const eventStore = useEventStore()
+const route = useRoute()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const people = ref<Person[]>([])
@@ -392,9 +394,19 @@ watch([search, notOnRosterOnly], () => {
   if (editingId.value !== null) cancelEdit()
 })
 
+function applyRouteSearch() {
+  const q = route.query.q
+  if (typeof q === 'string' && q.trim()) {
+    search.value = q.trim()
+  }
+}
+
+watch(() => route.query.q, applyRouteSearch)
+
 watch(eventId, () => {
   cancelEdit()
   resetCreateDraft()
+  applyRouteSearch()
   void load()
 }, {immediate: true})
 </script>

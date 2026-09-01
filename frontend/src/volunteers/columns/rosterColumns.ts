@@ -6,7 +6,6 @@ export const ROSTER_TABLE_DEFINITIONS = [
   {key: 'photo_consent', label: 'Foto Erlaubnis', table: true, kind: 'fixed', editor: 'photo_consent', public_form: false},
   {key: 't_shirt', label: 'T-Shirt Größe', table: true, kind: 'fixed', editor: 't_shirt'},
   {key: 'meal', label: 'Essen', table: true, kind: 'fixed', editor: 'meal'},
-  {key: 'notes', label: 'Bemerkungen', table: true, kind: 'fixed', editor: 'text'},
 ] as const satisfies readonly VolunteerColumnDef[]
 
 export type RosterColumnMeta = VolunteerColumnDef & {
@@ -34,5 +33,4 @@ export function rosterColumnLabel(columns: RosterColumnMeta[], key: string): str
 export const ROSTER_BUILTIN_LABELS = [
   'T-Shirt Größe',
   'Essen',
-  'Bemerkungen',
 ] as const

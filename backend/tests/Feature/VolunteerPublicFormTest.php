@@ -183,7 +183,6 @@ class VolunteerPublicFormTest extends TestCase
                     't_shirt_cut' => 'maenner',
                     't_shirt_size' => 'M',
                     'meal' => 'vegetarisch',
-                    'notes' => 'Neue Notiz',
                 ],
                 'custom' => [
                     'vegan' => true,
@@ -196,7 +195,7 @@ class VolunteerPublicFormTest extends TestCase
         $payload = $response->getData(true);
         $this->assertSame('Maximilian', $payload['person']['first_name']);
         $this->assertSame('vegetarisch', $payload['detail']['meal']);
-        $this->assertSame('Neue Notiz', $payload['detail']['notes']);
+        $this->assertSame('Hinweis', $payload['detail']['notes']);
         $this->assertTrue($payload['custom']['vegan']);
 
         $this->assertSame('Maximilian', DB::table('volunteer_person')->where('id', 10)->value('first_name'));
@@ -277,6 +276,39 @@ class VolunteerPublicFormTest extends TestCase
         $this->assertNull($response->getData(true)['detail']['photo_consent']);
         $this->assertNull(
             DB::table('event_volunteer_roster_detail')->where('event_volunteer_roster', 100)->value('photo_consent')
+        );
+    }
+
+    public function test_save_does_not_update_notes_from_request(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember(['notes' => 'Bestehend']);
+        $controller = app(VolunteerPublicFormController::class);
+
+        $response = $controller->save(
+            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+                'email' => 'max@example.com',
+                'person' => [
+                    'first_name' => 'Max',
+                    'last_name' => 'Muster',
+                    'mobile' => '+491701234567',
+                ],
+                'detail' => [
+                    't_shirt_cut' => 'maenner',
+                    't_shirt_size' => 'L',
+                    'meal' => 'standard',
+                    'notes' => 'Neue Notiz',
+                ],
+                'custom' => [],
+            ]),
+            'test-event'
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('Bestehend', $response->getData(true)['detail']['notes']);
+        $this->assertSame(
+            'Bestehend',
+            DB::table('event_volunteer_roster_detail')->where('event_volunteer_roster', 100)->value('notes')
         );
     }
 

@@ -275,7 +275,7 @@ onMounted(() => load())
 </script>
 
 <template>
-  <div class="vol-page">
+  <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Helfer:innenliste</h1>
@@ -316,31 +316,32 @@ onMounted(() => load())
       </div>
     </header>
 
-    <section class="glass-card liquid-surface-inner vol-tile vol-roster-publish">
-      <div class="vol-roster-publish__row">
-        <span class="vol-roster-publish__label">Dateneingabe durch Helfer:innen</span>
-        <ToggleSwitch
-            :model-value="volunteerDataEntryEnabled"
-            :disabled="volunteerDataEntryLoading || !eventId"
-            @update:modelValue="onVolunteerDataEntryToggle"
-        />
-      </div>
-      <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
-        Helfer:innen können auf dem öffentlichen Plan ihre Daten eingeben. Einstellungen unter
-        <RouterLink to="/plan/publish" class="vol-roster-publish__link">
-          Ausgabe → Veröffentlichung
-        </RouterLink>.
-      </p>
-    </section>
+    <div class="vol-roster-toolbar">
+      <VolunteerPersonSearch
+          :pool="pool"
+          :on-roster="(id) => rosterPersonIds.has(id)"
+          :busy-person-id="addingId"
+          @select="addToRoster"
+      />
+      <section class="glass-card liquid-surface-inner vol-tile vol-roster-publish">
+        <div class="vol-roster-publish__row">
+          <span class="vol-roster-publish__label">Dateneingabe durch Helfer:innen</span>
+          <ToggleSwitch
+              :model-value="volunteerDataEntryEnabled"
+              :disabled="volunteerDataEntryLoading || !eventId"
+              @update:modelValue="onVolunteerDataEntryToggle"
+          />
+        </div>
+        <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
+          Helfer:innen können auf dem öffentlichen Plan ihre Daten eingeben. Einstellungen unter
+          <RouterLink to="/plan/publish" class="vol-roster-publish__link">
+            Ausgabe → Veröffentlichung
+          </RouterLink>.
+        </p>
+      </section>
+    </div>
 
-    <VolunteerPersonSearch
-        :pool="pool"
-        :on-roster="(id) => rosterPersonIds.has(id)"
-        :busy-person-id="addingId"
-        @select="addToRoster"
-    />
-
-    <section class="glass-card liquid-surface-inner vol-tile">
+    <section class="glass-card liquid-surface-inner vol-tile vol-roster-table-tile">
       <VolunteerStaffingFilterBar
           v-if="roster.length && !loading"
           :active-filters="activeAssignmentFilters"

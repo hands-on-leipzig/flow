@@ -281,16 +281,6 @@ watch(
               </select>
             </div>
 
-            <div v-else-if="field.editor === 'text' && field.key === 'notes'" class="vol-public-form__row">
-              <label class="vol-public-form__label" :for="`vol-form-notes-${field.key}`">Bemerkungen</label>
-              <textarea
-                  :id="`vol-form-notes-${field.key}`"
-                  v-model="detailDraft.notes"
-                  class="glass-input vol-public-form__textarea"
-                  rows="3"
-              />
-            </div>
-
             <div v-else-if="field.kind === 'custom' && field.type === 'text'" class="vol-public-form__row">
               <label class="vol-public-form__label" :for="`vol-form-custom-${field.field_key}`">{{ field.label }}</label>
               <input

@@ -23,19 +23,6 @@ final class VolunteerRosterColumns
     ];
 
     /**
-     * @var list<array{key: string, label: string, table?: bool, export?: bool, kind?: string, editor?: string, public_form?: bool}>
-     */
-    private const FIXED_BEFORE_NOTES = [
-    ];
-
-    /**
-     * @var list<array{key: string, label: string, table?: bool, export?: bool, kind?: string, editor?: string}>
-     */
-    private const FIXED_TABLE_END = [
-        ['key' => 'notes', 'label' => 'Bemerkungen', 'table' => true, 'export' => true, 'kind' => 'fixed', 'editor' => 'text'],
-    ];
-
-    /**
      * @return Collection<int, EventVolunteerField>
      */
     public static function customFieldsForEvent(int $eventId): Collection
@@ -55,12 +42,6 @@ final class VolunteerRosterColumns
         $columns = self::FIXED_TABLE_START;
         foreach (self::customFieldsForEvent($eventId) as $field) {
             $columns[] = VolunteerRosterCustomFields::serializeColumn($field);
-        }
-        foreach (self::FIXED_BEFORE_NOTES as $column) {
-            $columns[] = $column;
-        }
-        foreach (self::FIXED_TABLE_END as $column) {
-            $columns[] = $column;
         }
 
         return array_values(array_map(function (array $column) {
@@ -114,8 +95,6 @@ final class VolunteerRosterColumns
             ];
         }
 
-        $definitions[] = ['key' => 'notes', 'label' => 'Bemerkungen', 'export' => true];
-
         for ($i = 2; $i <= self::EXPORT_ASSIGNMENT_PAIRS; $i++) {
             $definitions[] = ['key' => "zuordnung_{$i}_program", 'label' => "Zuordnung {$i} Programm", 'export' => true];
             $definitions[] = ['key' => "zuordnung_{$i}_role", 'label' => "Zuordnung {$i} Rolle", 'export' => true];
@@ -166,8 +145,6 @@ final class VolunteerRosterColumns
             $stored = $apiValue === null ? null : (string) (is_bool($apiValue) ? ($apiValue ? '1' : '0') : $apiValue);
             $values[] = VolunteerRosterCustomFields::exportValue($field, $stored);
         }
-
-        $values[] = $detail?->notes ?? '';
 
         for ($i = 1; $i < self::EXPORT_ASSIGNMENT_PAIRS; $i++) {
             $values = array_merge($values, self::assignmentPairValues($assignments[$i] ?? null, $programNames));
