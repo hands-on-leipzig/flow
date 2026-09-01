@@ -12,6 +12,7 @@ import {PERSON_TABLE_COLUMNS} from '@/volunteers/columns/personColumns'
 import type {VolunteerTableColumn} from '@/volunteers/columns/types'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
+import {flowFilename} from '@/utils/flowFilename'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 
 type Person = VolunteerPersonRef
@@ -48,6 +49,7 @@ const togglingId = ref<number | null>(null)
 const removeFromRosterTarget = ref<Person | null>(null)
 const deletePersonTarget = ref<Person | null>(null)
 const importOpen = ref(false)
+const exportBusy = ref(false)
 
 const createDraft = ref<PersonDraft>(emptyDraft())
 const createMobileError = ref('')
@@ -153,6 +155,29 @@ async function load() {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
     loading.value = false
+  }
+}
+
+async function downloadExcel() {
+  if (!eventId.value || exportBusy.value || !filtered.value.length) return
+  exportBusy.value = true
+  try {
+    const personIds = filtered.value.map((p) => p.id)
+    const response = await axios.get(`/events/${eventId.value}/volunteers/export`, {
+      params: {person_ids: personIds.join(',')},
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = response.headers['x-filename']
+      || flowFilename('Personen', 'xlsx', eventStore.selectedEvent?.date)
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch {
+    showGlassToast('Export fehlgeschlagen', 'error')
+  } finally {
+    exportBusy.value = false
   }
 }
 
@@ -384,6 +409,16 @@ watch(eventId, () => {
         >
           <i class="bi bi-upload" aria-hidden="true"/>
           Upload
+        </button>
+        <button
+            type="button"
+            class="glass-btn-secondary vol-upload-trigger"
+            :class="{'vol-upload-trigger--active': exportBusy}"
+            :disabled="!eventId || exportBusy || !filtered.length"
+            @click="downloadExcel"
+        >
+          <i class="bi bi-download" aria-hidden="true"/>
+          {{ exportBusy ? 'Export…' : 'Download' }}
         </button>
         <VolunteerEmailOutreach scope="pool" :people="filtered"/>
       </div>
