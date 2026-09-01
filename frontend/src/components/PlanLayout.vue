@@ -19,10 +19,13 @@ const cachedPages = [
 
 const eventId = computed(() => eventStore.selectedEvent?.id ?? 0)
 
-/** Ablauf / Zusätzliche Aktivitäten: split pane needs bounded height for independent scroll. */
-const isFullHeightPage = computed(() =>
-  route.path.includes('/plan/admin') || route.path.includes('/plan/schedule'),
-)
+/** Ablauf / Veröffentlichung: split pane needs bounded height for independent scroll. */
+const isFullHeightPage = computed(() => {
+  const path = route.path.replace(/\/$/, '')
+  return path.includes('/plan/admin')
+    || path.includes('/plan/schedule')
+    || path === '/plan/publish'
+})
 
 /** Nested Ablauf / Ausgabe / Teams routes share one cache entry so the shell stays mounted. */
 const pageKey = computed(() => {

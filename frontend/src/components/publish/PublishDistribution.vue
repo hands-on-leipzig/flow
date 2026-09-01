@@ -31,7 +31,54 @@ const cockpitEnabled = ref(false)
 const dayAppsLoading = ref(false)
 const iframeKey = ref(0)
 const iframeLoading = ref(true)
-const leftWidth = ref(32)
+const leftWidth = ref(50)
+
+const PREVIEW_DEVICE_STORAGE_KEY = 'flow-publish-preview-device'
+
+const previewDevices = [
+  {id: 'full', label: 'Responsive', width: null},
+  {id: '360', label: 'Handy klein (360)', width: 360},
+  {id: '390', label: 'Handy (390)', width: 390},
+  {id: '430', label: 'Handy groß (430)', width: 430},
+  {id: '768', label: 'Tablet (768)', width: 768},
+  {id: '1024', label: 'Tablet groß (1024)', width: 1024},
+] as const
+
+type PreviewDeviceId = (typeof previewDevices)[number]['id']
+
+function readPreviewDeviceId(): PreviewDeviceId {
+  try {
+    const stored = localStorage.getItem(PREVIEW_DEVICE_STORAGE_KEY)
+    if (stored && previewDevices.some((device) => device.id === stored)) {
+      return stored as PreviewDeviceId
+    }
+  } catch {
+    /* ignore */
+  }
+  return 'full'
+}
+
+const previewDeviceId = ref<PreviewDeviceId>(readPreviewDeviceId())
+
+const activePreviewDevice = computed(
+  () => previewDevices.find((device) => device.id === previewDeviceId.value) ?? previewDevices[0],
+)
+
+const deviceShellStyle = computed(() => {
+  const width = activePreviewDevice.value.width
+  if (width == null) {
+    return undefined
+  }
+  return {width: `${width}px`}
+})
+
+watch(previewDeviceId, (id) => {
+  try {
+    localStorage.setItem(PREVIEW_DEVICE_STORAGE_KEY, id)
+  } catch {
+    /* ignore */
+  }
+})
 
 const {
   enabled: helperSearchEnabled,
@@ -226,24 +273,26 @@ onMounted(async () => {
 </script>
 
 <template>
-  <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
-  <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
-  <SavingToast ref="volunteerDataEntrySaving" message="Einstellung wird gespeichert…" />
-  <SavingToast ref="dayAppsSaving" message="Wird gespeichert…" />
-
   <div class="pub">
-    <div class="pub__shell">
-      <section
-          class="pub__left"
-          :style="{ flex: `0 0 ${leftWidth}%` }"
-      >
-        <header class="pub__page-head">
-          <h1 class="pub__page-title">Veröffentlichung</h1>
-        </header>
+    <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
+    <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
+    <SavingToast ref="volunteerDataEntrySaving" message="Einstellung wird gespeichert…" />
+    <SavingToast ref="dayAppsSaving" message="Wird gespeichert…" />
 
-        <PublicLinkStrip on-publish-page/>
+    <div class="pub__workspace">
+      <div class="pub__split">
+        <section
+            class="pub__left"
+            :style="{ flex: `0 0 ${leftWidth}%` }"
+        >
+          <div class="pub__settings">
+            <header class="pub__page-head">
+              <h1 class="pub__page-title">Veröffentlichung</h1>
+            </header>
 
-        <section class="pub__tile glass-card liquid-surface-inner">
+            <PublicLinkStrip on-publish-page/>
+
+            <section class="pub__tile glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Sichtbarkeit</h2>
           <div class="pub__levels" role="radiogroup" aria-label="Sichtbarkeitsstufe">
             <div
@@ -381,63 +430,88 @@ onMounted(async () => {
             </p>
           </div>
         </section>
-      </section>
-
-      <PanelSplitter
-          v-model="leftWidth"
-          class="hidden md:flex pub__splitter"
-          :min="24"
-          :max="48"
-          storage-key="flow-publish-split"
-      />
-
-      <section
-          class="glass-card liquid-surface-inner pub__preview"
-          aria-label="Live-Vorschau der öffentlichen Seite"
-      >
-        <div class="pub__preview-bar">
-          <span class="pub__preview-dot" aria-hidden="true"/>
-          <span class="pub__preview-dot" aria-hidden="true"/>
-          <span class="pub__preview-dot" aria-hidden="true"/>
-          <span class="pub__preview-path">
-            Live-Vorschau · {{ activeLevel.short }}
-          </span>
-          <button
-              v-if="publicUrl"
-              type="button"
-              class="pub__preview-open"
-              title="Vorschau neu laden"
-              @click="reloadPreview"
-          >
-            <i class="bi bi-arrow-clockwise" aria-hidden="true"/>
-          </button>
-          <button
-              v-if="publicUrl"
-              type="button"
-              class="pub__preview-open"
-              @click="openPublic"
-          >
-            In Tab öffnen
-          </button>
-        </div>
-
-        <div class="pub__frame-wrap">
-          <div v-if="iframeLoading && publicUrl" class="pub__frame-loading">
-            Lade Vorschau…
           </div>
-          <iframe
-              v-if="publicUrl"
-              :key="iframeKey"
-              class="pub__frame"
-              :src="previewSrc"
-              title="Vorschau der öffentlichen Veranstaltungsseite"
-              @load="onIframeLoad"
-          />
-          <div v-else class="pub__frame-empty">
-            Kein öffentlicher Link vorhanden.
+        </section>
+
+        <PanelSplitter
+            v-model="leftWidth"
+            class="hidden md:flex pub__splitter"
+            storage-key="flow-publish-split-v2"
+        />
+
+        <section class="pub__right">
+          <div
+              class="pub__preview glass-card liquid-surface-inner"
+              aria-label="Live-Vorschau der öffentlichen Seite"
+          >
+            <div class="pub__preview-bar">
+              <span class="pub__preview-dot" aria-hidden="true"/>
+              <span class="pub__preview-dot" aria-hidden="true"/>
+              <span class="pub__preview-dot" aria-hidden="true"/>
+              <span class="pub__preview-path">
+                Live-Vorschau · {{ activeLevel.short }}
+              </span>
+              <div class="pub__preview-actions">
+                <label class="pub__preview-device glass-btn-accent">
+                  <span class="pub__preview-device-label">Breite</span>
+                  <select
+                      v-model="previewDeviceId"
+                      class="pub__preview-device-select"
+                      aria-label="Vorschau-Breite"
+                  >
+                    <option v-for="device in previewDevices" :key="device.id" :value="device.id">
+                      {{ device.label }}
+                    </option>
+                  </select>
+                </label>
+                <button
+                    v-if="publicUrl"
+                    type="button"
+                    class="pub__preview-icon-btn"
+                    title="Vorschau neu laden"
+                    @click="reloadPreview"
+                >
+                  <i class="bi bi-arrow-clockwise" aria-hidden="true"/>
+                </button>
+                <button
+                    v-if="publicUrl"
+                    type="button"
+                    class="glass-btn-secondary pub__preview-tab-btn"
+                    @click="openPublic"
+                >
+                  In Tab öffnen
+                </button>
+              </div>
+            </div>
+
+            <div
+                class="pub__frame-stage"
+                :class="{'pub__frame-stage--fixed': activePreviewDevice.width != null}"
+            >
+              <div
+                  class="pub__device-shell"
+                  :class="{'pub__device-shell--full': activePreviewDevice.width == null}"
+                  :style="deviceShellStyle"
+              >
+                <div v-if="iframeLoading && publicUrl" class="pub__frame-loading">
+                  Lade Vorschau…
+                </div>
+                <iframe
+                    v-if="publicUrl"
+                    :key="iframeKey"
+                    class="pub__frame"
+                    :src="previewSrc"
+                    title="Vorschau der öffentlichen Veranstaltungsseite"
+                    @load="onIframeLoad"
+                />
+                <div v-else class="pub__frame-empty">
+                  Kein öffentlicher Link vorhanden.
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   </div>
 </template>
@@ -445,24 +519,35 @@ onMounted(async () => {
 <style scoped>
 .pub {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 1rem;
-  min-height: min(72vh, 48rem);
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
-.pub__shell {
+.pub__workspace {
   display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.pub__split {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
   flex-direction: column;
   gap: 0.75rem;
   align-items: stretch;
-  flex: 1;
-  min-height: min(64vh, 42rem);
-  min-width: 0;
+  overflow: hidden;
 }
 
 @media (min-width: 768px) {
-  .pub__shell {
+  .pub__split {
     flex-direction: row;
     gap: 0.55rem;
   }
@@ -471,10 +556,47 @@ onMounted(async () => {
 .pub__left {
   display: flex;
   flex-direction: column;
-  gap: 1.15rem;
+  align-self: stretch;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+}
+
+.pub__right {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .pub__left {
+    flex: 1 1 auto !important;
+    max-height: 50vh;
+  }
+}
+
+.pub__splitter {
+  flex-shrink: 0;
+}
+
+.pub__settings {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding: 1.15rem 1.2rem 1.4rem;
+  background: var(--glass-tab-surface, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, transparent);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.07),
+    0 2px 6px rgba(15, 23, 42, 0.04);
 }
 
 .pub__page-head {
@@ -510,23 +632,10 @@ onMounted(async () => {
   line-height: 1.45;
 }
 
-@media (max-width: 767px) {
-  .pub__left {
-    flex: 1 1 auto !important;
-  }
-}
-
 .pub__tile {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-}
-
-.pub__helper-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
 }
 
 .pub__helper-warn {
@@ -547,18 +656,16 @@ onMounted(async () => {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  min-height: 28rem;
+  min-height: 0;
   min-width: 0;
   padding: 0 !important;
   overflow: hidden;
-}
-
-@media (min-width: 768px) {
-  .pub__preview {
-    min-height: 0;
-    height: auto;
-    align-self: stretch;
-  }
+  background: var(--glass-tab-surface, #ffffff);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, transparent);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow:
+    0 10px 28px rgba(15, 23, 42, 0.07),
+    0 2px 6px rgba(15, 23, 42, 0.04);
 }
 
 .pub__levels {
@@ -666,6 +773,83 @@ onMounted(async () => {
   border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 22%, transparent);
   background: color-mix(in srgb, var(--color-bg-muted) 45%, #fff);
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.pub__preview-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.pub__preview-device.glass-btn-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.55rem 0.35rem 0.75rem;
+  cursor: default;
+}
+
+.pub__preview-device-label {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--color-on-accent);
+  white-space: nowrap;
+}
+
+.pub__preview-device-select {
+  appearance: none;
+  min-width: 10.5rem;
+  max-width: 13rem;
+  padding: 0.2rem 1.65rem 0.2rem 0.45rem;
+  border: 1px solid color-mix(in srgb, #fff 28%, transparent);
+  border-radius: calc(var(--radius) - 2px);
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M4.646 6.646a.5.5 0 0 1 .708 0L8 9.293l2.646-2.647a.5.5 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5 0 0 1 0-.708'/%3E%3C/svg%3E")
+    no-repeat right 0.45rem center / 0.75rem,
+    color-mix(in srgb, #fff 18%, transparent);
+  color: var(--color-on-accent);
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.pub__preview-device-select:focus-visible {
+  outline: 2px solid color-mix(in srgb, #fff 75%, transparent);
+  outline-offset: 1px;
+}
+
+.pub__preview-device-select option {
+  color: var(--color-text);
+  background: #fff;
+}
+
+.pub__preview-tab-btn {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.pub__preview-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.pub__preview-icon-btn:hover {
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
 }
 
 .pub__preview-dot {
@@ -687,38 +871,53 @@ onMounted(async () => {
   white-space: nowrap;
 }
 
-.pub__preview-open {
-  border: none;
-  background: transparent;
-  color: var(--color-accent);
-  font-size: 0.75rem;
-  font-weight: 650;
-  cursor: pointer;
-  padding: 0.2rem 0.35rem;
-}
-
-.pub__preview-open:hover { text-decoration: underline; }
-
-.pub__frame-wrap {
+.pub__frame-stage {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  background: color-mix(in srgb, var(--color-bg-muted) 38%, #eef2f7);
+}
+
+.pub__frame-stage--fixed {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  padding: 0.85rem;
+}
+
+.pub__device-shell {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
   background: #fff;
+  overflow: hidden;
+}
+
+.pub__device-shell--full {
+  width: 100%;
+}
+
+.pub__device-shell:not(.pub__device-shell--full) {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  border-radius: calc(var(--radius-lg, 16px) + 2px);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
+  box-shadow:
+    0 16px 36px rgba(15, 23, 42, 0.14),
+    0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 .pub__frame {
   width: 100%;
   height: 100%;
-  min-height: 24rem;
   border: none;
   display: block;
   background: #fff;
-}
-
-@media (min-width: 768px) {
-  .pub__frame {
-    min-height: 0;
-  }
 }
 
 .pub__frame-loading,

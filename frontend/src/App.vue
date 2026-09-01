@@ -19,11 +19,12 @@ const isChromeLess = computed(() => isPublicRoute.value || route.meta?.popout ==
 /** Blank canvas (no orbit/pe-page styling) when a route opts in via meta.plain. */
 const isPlainSurface = computed(() => route.meta?.plain === true)
 
-/** Panel fills viewport height so inner panes scroll (admin tools, Ablauf split). */
+/** Panel fills viewport height so inner panes scroll (admin tools, Ablauf split, Veröffentlichung). */
 const isPanelFillRoute = computed(() => {
-  const path = route.path
+  const path = route.path.replace(/\/$/, '')
   return path.startsWith('/plan/admin')
     || path.startsWith('/plan/schedule')
+    || path === '/plan/publish'
     || path.startsWith('/plan/volunteers/roster')
 })
 
