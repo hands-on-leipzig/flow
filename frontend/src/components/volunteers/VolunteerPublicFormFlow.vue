@@ -41,6 +41,8 @@ const otpError = ref('')
 const lookupLoading = ref(false)
 const lookupError = ref('')
 const lookupPayload = ref<LookupPayload | null>(null)
+const saving = ref(false)
+const saveError = ref('')
 
 const personDraft = ref({first_name: '', last_name: '', mobile: ''})
 const detailDraft = ref<RosterDetail>(defaultRosterDetail())
@@ -115,8 +117,27 @@ function setCustomBoolean(fieldKey: string, value: boolean | null) {
   setCustomValue(fieldKey, value)
 }
 
-function submitForm() {
-  emit('update:step', 'done')
+async function submitForm() {
+  if (!props.slug || !props.email.trim() || saving.value) return
+  saving.value = true
+  saveError.value = ''
+  const {photo_consent: _photoConsent, ...detailPayload} = detailDraft.value
+  try {
+    await axios.post(`/public-volunteer-form/${props.slug}/save`, {
+      email: props.email.trim(),
+      person: personDraft.value,
+      detail: detailPayload,
+      custom: customDraft.value,
+    })
+    emit('update:step', 'done')
+  } catch (error: unknown) {
+    const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error as string | undefined)
+        : undefined
+    saveError.value = message || 'Speichern fehlgeschlagen. Bitte erneut versuchen.'
+  } finally {
+    saving.value = false
+  }
 }
 
 watch(
@@ -340,9 +361,14 @@ watch(
         </div>
 
         <footer class="vol-public-form__actions">
-          <button type="button" class="glass-btn-secondary" @click="emit('cancel')">Abbrechen</button>
-          <button type="button" class="glass-btn-accent" @click="submitForm">Speichern</button>
+          <button type="button" class="glass-btn-secondary" :disabled="saving" @click="emit('cancel')">
+            Abbrechen
+          </button>
+          <button type="button" class="glass-btn-accent" :disabled="saving" @click="submitForm">
+            {{ saving ? 'Speichern…' : 'Speichern' }}
+          </button>
         </footer>
+        <p v-if="saveError" class="vol-public-form__error">{{ saveError }}</p>
       </template>
     </div>
   </section>

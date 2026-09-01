@@ -95,8 +95,9 @@ Route::prefix('check-in/{slug}')->group(function () {
         ->where('subjectType', 'team|volunteer');
 });
 
-// Volunteer public data entry (email lookup; public)
+// Volunteer public data entry (email lookup + save; public; OTP token deferred)
 Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
+Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
 
 // Cockpit app (PIN session; public)
 Route::prefix('cockpit/{slug}')->group(function () {
