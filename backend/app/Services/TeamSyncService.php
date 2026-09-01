@@ -53,15 +53,20 @@ class TeamSyncService
                 }
 
                 foreach ($merged as $row) {
-                    if ($row['status'] === 'conflict' && $row['local'] && $row['draht']) {
-                        Team::query()
-                            ->where('id', $row['local']['id'])
-                            ->where('event', $event->id)
-                            ->where('first_program', $program->id)
-                            ->update([
-                                'name' => $row['draht']['name'],
-                            ]);
+                    if (! in_array($row['status'], ['match', 'conflict'], true) || ! $row['local'] || ! $row['draht']) {
+                        continue;
                     }
+
+                    $updates = $this->drahtFieldUpdates($row['draht'], (array) $row['local'], $row['status'] === 'conflict');
+                    if ($updates === []) {
+                        continue;
+                    }
+
+                    Team::query()
+                        ->where('id', $row['local']['id'])
+                        ->where('event', $event->id)
+                        ->where('first_program', $program->id)
+                        ->update($updates);
                 }
 
                 foreach ($merged as $row) {
@@ -200,5 +205,35 @@ class TeamSyncService
                 ->where('plan', $planId)
                 ->update(['team_number_plan' => $index + 1]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $draht
+     * @param  array<string, mixed>  $local
+     * @return array<string, mixed>
+     */
+    private function drahtFieldUpdates(array $draht, array $local, bool $updateName): array
+    {
+        $updates = [];
+
+        if ($updateName && ($draht['name'] ?? '') !== ($local['name'] ?? '')) {
+            $updates['name'] = $draht['name'];
+        }
+
+        foreach (['organization', 'location'] as $field) {
+            $incoming = $draht[$field] ?? null;
+            if (! is_string($incoming)) {
+                continue;
+            }
+            $incoming = trim($incoming);
+            if ($incoming === '') {
+                continue;
+            }
+            if ((string) ($local[$field] ?? '') !== $incoming) {
+                $updates[$field] = $incoming;
+            }
+        }
+
+        return $updates;
     }
 }

@@ -22,6 +22,33 @@ class TeamSyncServiceTest extends TestCase
         $this->createSchema();
     }
 
+    public function test_sync_updates_organization_on_match(): void
+    {
+        $this->seedMinimalData();
+
+        DB::table('team')->where('id', 11)->update([
+            'organization' => null,
+            'location' => null,
+        ]);
+
+        $this->mock(EventAttentionService::class, function ($mock) {
+            $mock->shouldReceive('updateEventAttentionStatus')->once()->with(1);
+        });
+
+        $event = \App\Models\Event::query()->without('programs')->find(1);
+        $service = app(TeamSyncService::class);
+
+        $service->sync($event, 'challenge', [
+            ['ref' => 101, 'name' => 'Old Name', 'organization' => 'Gymnasium', 'location' => 'City'],
+        ]);
+
+        $this->assertDatabaseHas('team', [
+            'id' => 11,
+            'organization' => 'Gymnasium',
+            'location' => 'City',
+        ]);
+    }
+
     public function test_sync_applies_remove_add_and_update(): void
     {
         $this->seedMinimalData();
