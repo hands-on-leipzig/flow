@@ -10,6 +10,7 @@ use App\Export\Spreadsheet\SpreadsheetSource;
 use App\Models\Event;
 use App\Models\EventVolunteerField;
 use App\Models\EventVolunteerRoster;
+use App\Support\VolunteerMealOptions;
 use App\Support\VolunteerRosterColumns;
 use App\Support\VolunteerRosterCustomFields;
 use Illuminate\Support\Collection;
@@ -28,6 +29,12 @@ final class VolunteerRosterSpreadsheetSource implements SpreadsheetSource
     public function document(): SpreadsheetDocument
     {
         $customFields = VolunteerRosterColumns::customFieldsForEvent($this->event->id);
+        $mealOptions = VolunteerMealOptions::optionsForEvent($this->event->id);
+        if ($mealOptions->isEmpty()) {
+            VolunteerMealOptions::bootstrapForEvent($this->event->id);
+            $mealOptions = VolunteerMealOptions::optionsForEvent($this->event->id);
+        }
+        $mealLabelMap = VolunteerMealOptions::labelMap($mealOptions);
         $definitions = VolunteerRosterColumns::exportDefinitionsForEvent($this->event->id);
 
         $columns = [];
@@ -75,6 +82,7 @@ final class VolunteerRosterSpreadsheetSource implements SpreadsheetSource
                 $programNames,
                 $this->customValuesForRow($row, $customFields),
                 $customFields,
+                $mealLabelMap,
             );
         }
 

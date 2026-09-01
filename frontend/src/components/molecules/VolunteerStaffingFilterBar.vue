@@ -39,6 +39,7 @@ function assignedCount(key: StaffingFilterKey) {
       class="vol-staffing-filters"
       :class="{'vol-staffing-filters--card glass-card liquid-surface-inner': card}"
   >
+    <slot name="leading"/>
     <button
         type="button"
         class="vol-staffing-filter"

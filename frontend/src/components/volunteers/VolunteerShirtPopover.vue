@@ -78,6 +78,7 @@ async function confirm() {
   const detail = entry.detail ?? defaultRosterDetail()
   const meal = detail.meal
   const notes = detail.notes
+  const photoConsent = detail.photo_consent
 
   try {
     const {data} = await axios.patch(
@@ -87,6 +88,7 @@ async function confirm() {
         t_shirt_size: hasSize ? size : null,
         meal,
         notes,
+        photo_consent: photoConsent,
       },
     )
     entry.detail = data.detail ?? {

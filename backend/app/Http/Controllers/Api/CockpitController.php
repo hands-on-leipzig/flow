@@ -45,6 +45,7 @@ class CockpitController extends Controller
                 'event_name' => $event->name,
                 'slug' => $event->slug,
                 'enabled' => (bool) $event->cockpit_enabled,
+                'public_link' => $event->link,
             ])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate')
             ->header('Pragma', 'no-cache');

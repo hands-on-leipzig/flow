@@ -3,9 +3,9 @@ import axios from 'axios'
 import {showGlassToast} from '@/composables/useGlassToast'
 
 /**
- * Shared load/save for event.public_helper_search (Veröffentlichung + Zuordnung).
+ * Shared load/save for event.public_volunteer_data_entry (Veröffentlichung + Helferliste).
  */
-export function usePublicHelperSearch(eventId: Ref<number | null | undefined>) {
+export function usePublicVolunteerDataEntry(eventId: Ref<number | null | undefined>) {
   const enabled = ref(false)
   const loading = ref(false)
   const saving = ref(false)
@@ -18,8 +18,8 @@ export function usePublicHelperSearch(eventId: Ref<number | null | undefined>) {
     }
     loading.value = true
     try {
-      const {data} = await axios.get(`/publish/helper-search/${id}`)
-      enabled.value = !!data.public_helper_search
+      const {data} = await axios.get(`/publish/volunteer-data-entry/${id}`)
+      enabled.value = !!data.public_volunteer_data_entry
     } catch {
       enabled.value = false
     } finally {
@@ -34,12 +34,12 @@ export function usePublicHelperSearch(eventId: Ref<number | null | undefined>) {
     enabled.value = next
     saving.value = true
     try {
-      await axios.post(`/publish/helper-search/${id}`, {public_helper_search: next})
+      await axios.post(`/publish/volunteer-data-entry/${id}`, {public_volunteer_data_entry: next})
       return true
     } catch {
       enabled.value = prev
       showGlassToast('Einstellung konnte nicht gespeichert werden.', 'error')
-      throw new Error('helper-search save failed')
+      throw new Error('volunteer-data-entry save failed')
     } finally {
       saving.value = false
     }

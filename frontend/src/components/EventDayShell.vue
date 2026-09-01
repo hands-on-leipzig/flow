@@ -6,7 +6,7 @@ defineOptions({name: 'EventDayShell'})
 </script>
 
 <template>
-  <div class="event-day-shell">
+  <div class="event-day-shell event-day-shell--fill h-full min-h-0 flex flex-col overflow-hidden">
     <router-view v-slot="{ Component, route: paneRoute }">
       <keep-alive include="EventDayCheckIn,EventDayCockpit">
         <component
@@ -20,11 +20,15 @@ defineOptions({name: 'EventDayShell'})
 </template>
 
 <style scoped>
-.event-day-shell {
+.event-day-shell--fill {
   min-height: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.event-day-shell--fill :deep(.settings-split) {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
 }
 </style>

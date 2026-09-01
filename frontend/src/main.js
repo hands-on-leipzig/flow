@@ -5,6 +5,7 @@ import axios from 'axios'
 import './assets/main.css'
 import './assets/glass-layout.css'
 import './assets/volunteers.css'
+import './assets/settings-split-layout.css'
 import keycloak from "@/keycloak.js";
 import Schedule from "@/components/Schedule.vue";
 import ScheduleGeneral from "@/components/ScheduleGeneral.vue";

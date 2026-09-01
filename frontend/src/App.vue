@@ -19,10 +19,15 @@ const isChromeLess = computed(() => isPublicRoute.value || route.meta?.popout ==
 /** Blank canvas (no orbit/pe-page styling) when a route opts in via meta.plain. */
 const isPlainSurface = computed(() => route.meta?.plain === true)
 
-/** Panel fills viewport height so inner panes scroll (admin tools, Ablauf split). */
+/** Panel fills viewport height so inner panes scroll (admin tools, Ablauf split, Ausgabe splits). */
 const isPanelFillRoute = computed(() => {
-  const path = route.path
-  return path.startsWith('/plan/admin') || path.startsWith('/plan/schedule')
+  const path = route.path.replace(/\/$/, '')
+  return path.startsWith('/plan/admin')
+    || path.startsWith('/plan/schedule')
+    || path === '/plan/publish'
+    || path === '/plan/publish/logos'
+    || path.startsWith('/plan/volunteers/roster')
+    || path.startsWith('/plan/live')
 })
 
 const router = useRouter();
@@ -124,8 +129,7 @@ onMounted(() => {
 }
 
 .glass-app__panel--fill > :deep(*) {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   min-height: 0;
-  height: 100%;
 }
 </style>

@@ -10,6 +10,7 @@ const props = defineProps<{
   onRoster: (personId: number) => boolean
   busyPersonId?: number | null
   placeholder?: string
+  embedded?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -44,7 +45,7 @@ function onChipClick(person: VolunteerPersonRef) {
 </script>
 
 <template>
-  <section class="glass-card liquid-surface-inner vol-tile vol-search-tile">
+  <component :is="embedded ? 'div' : 'section'" :class="embedded ? 'vol-person-search-embedded' : 'glass-card liquid-surface-inner vol-tile vol-search-tile'">
     <div class="vol-person-search-field">
       <input
           v-model="search"
@@ -85,10 +86,17 @@ function onChipClick(person: VolunteerPersonRef) {
         </button>
       </div>
     </div>
-  </section>
+  </component>
 </template>
 
 <style scoped>
+.vol-person-search-embedded {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
 .vol-search-tile {
   display: flex;
   flex-direction: column;
