@@ -114,6 +114,17 @@
   line-height: 1.4;
 }
 
+.glass-settings-hint-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  font-style: normal;
+  text-decoration: none;
+}
+
+.glass-settings-hint-link:hover {
+  text-decoration: underline;
+}
+
 .glass-choice {
   padding: 0.45rem 0.8rem;
   border-radius: var(--radius);

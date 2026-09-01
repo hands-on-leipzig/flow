@@ -79,10 +79,10 @@ final class VolunteerRosterSpreadsheetSource implements SpreadsheetSource
         }
 
         return new SpreadsheetDocument(
-            'Helferliste',
+            'Helfer:innenliste',
             $this->event->date,
             [
-                new SpreadsheetSheet('Helferliste', $columns, $rows),
+                new SpreadsheetSheet('Helfer:innenliste', $columns, $rows),
             ],
             (string) ($this->event->name ?? ''),
         );

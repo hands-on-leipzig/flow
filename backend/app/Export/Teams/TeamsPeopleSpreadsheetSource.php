@@ -9,6 +9,9 @@ use App\Export\Spreadsheet\SpreadsheetSheet;
 use App\Export\Spreadsheet\SpreadsheetSource;
 use App\Http\Controllers\Api\DrahtController;
 use App\Models\Event;
+use App\Support\ContactEmailExportColumns;
+use App\Support\ProgramCatalog;
+use App\Support\SpreadsheetExportVariant;
 use App\Support\TeamsPeopleColumns;
 
 final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
@@ -16,26 +19,39 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
     public function __construct(
         private readonly Event $event,
         private readonly DrahtController $drahtController,
+        private readonly string $variant = SpreadsheetExportVariant::FULL,
+        /** @var list<string>|null */
+        private readonly ?array $programSlugs = null,
     ) {}
 
     public function document(): SpreadsheetDocument
     {
-        $columns = [];
-        foreach (TeamsPeopleColumns::definitions() as $definition) {
-            if (! ($definition['export'] ?? false)) {
-                continue;
+        $emailOnly = $this->variant === SpreadsheetExportVariant::EMAIL;
+
+        if ($emailOnly) {
+            $columns = ContactEmailExportColumns::spreadsheetColumns();
+        } else {
+            $columns = [];
+            foreach (TeamsPeopleColumns::definitions() as $definition) {
+                if (! ($definition['export'] ?? false)) {
+                    continue;
+                }
+                $columns[] = new SpreadsheetColumn(
+                    $definition['key'],
+                    $definition['label'],
+                    SpreadsheetColumnType::fromDefinition($definition['type'] ?? null),
+                );
             }
-            $columns[] = new SpreadsheetColumn(
-                $definition['key'],
-                $definition['label'],
-                SpreadsheetColumnType::fromDefinition($definition['type'] ?? null),
-            );
         }
 
         $rows = [];
         $this->event->loadMissing('programs');
 
         foreach ($this->event->programs as $program) {
+            if (! $this->programMatchesFilter($program)) {
+                continue;
+            }
+
             $drahtId = (int) ($program->draht_id ?? 0);
             if ($drahtId <= 0) {
                 continue;
@@ -60,20 +76,34 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
 
                 foreach ($teamData['coaches'] ?? [] as $coach) {
                     if (is_array($coach)) {
+                        $firstName = (string) ($coach['firstname'] ?? '');
+                        $lastName = (string) ($coach['name'] ?? '');
+                        $email = trim((string) ($coach['email'] ?? ''));
+                        if ($emailOnly) {
+                            if ($email === '') {
+                                continue;
+                            }
+                            $rows[] = ContactEmailExportColumns::exportValues([
+                                'first_name' => $firstName,
+                                'last_name' => $lastName,
+                                'email' => $email,
+                            ]);
+                            continue;
+                        }
                         $rows[] = TeamsPeopleColumns::exportValues([
                             'program' => $programLabel,
                             'team_number' => $teamNumber,
                             'team_name' => $teamName,
                             'role' => 'Coach',
-                            'first_name' => (string) ($coach['firstname'] ?? ''),
-                            'last_name' => (string) ($coach['name'] ?? ''),
+                            'first_name' => $firstName,
+                            'last_name' => $lastName,
                             'gender' => '',
                             'birthday' => '',
-                            'email' => (string) ($coach['email'] ?? ''),
+                            'email' => $email,
                             'phone' => (string) ($coach['phone'] ?? ''),
                             'organization' => $organization,
                         ]);
-                    } elseif (is_string($coach) && trim($coach) !== '') {
+                    } elseif (is_string($coach) && trim($coach) !== '' && ! $emailOnly) {
                         $rows[] = TeamsPeopleColumns::exportValues([
                             'program' => $programLabel,
                             'team_number' => $teamNumber,
@@ -88,6 +118,10 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
                             'organization' => $organization,
                         ]);
                     }
+                }
+
+                if ($emailOnly) {
+                    continue;
                 }
 
                 foreach ($teamData['players'] ?? [] as $player) {
@@ -111,8 +145,10 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
             }
         }
 
+        $stem = $emailOnly ? 'Teams_email' : 'Teams';
+
         return new SpreadsheetDocument(
-            'Teams',
+            $stem,
             $this->event->date,
             [
                 new SpreadsheetSheet('Teams', $columns, $rows),
@@ -134,5 +170,25 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
         $data = $response->getData(true);
 
         return is_array($data) ? $data : null;
+    }
+
+    private function programMatchesFilter(object $program): bool
+    {
+        if ($this->programSlugs === null) {
+            return true;
+        }
+        if ($this->programSlugs === []) {
+            return false;
+        }
+
+        $firstProgramId = (int) ($program->first_program ?? 0);
+        foreach ($this->programSlugs as $slug) {
+            $resolved = ProgramCatalog::resolve($slug);
+            if ($resolved && $firstProgramId === (int) $resolved->id) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

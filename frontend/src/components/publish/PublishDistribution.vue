@@ -22,7 +22,11 @@ const eventId = computed(() => event.value?.id ?? null)
 
 const saving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const helperSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
+const dayAppsSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const detailLevel = ref(0)
+const checkInEnabled = ref(false)
+const cockpitEnabled = ref(false)
+const dayAppsLoading = ref(false)
 const iframeKey = ref(0)
 const iframeLoading = ref(true)
 const leftWidth = ref(32)
@@ -116,11 +120,64 @@ async function onHelperSearchToggle(next: boolean) {
   }
 }
 
+async function loadDayAppSettings() {
+  if (!eventId.value) {
+    checkInEnabled.value = false
+    cockpitEnabled.value = false
+    return
+  }
+  dayAppsLoading.value = true
+  try {
+    const [checkInRes, cockpitRes] = await Promise.all([
+      axios.get(`/events/${eventId.value}/check-in/settings`),
+      axios.get(`/events/${eventId.value}/cockpit/settings`),
+    ])
+    checkInEnabled.value = !!checkInRes.data?.enabled
+    cockpitEnabled.value = !!cockpitRes.data?.enabled
+  } catch {
+    showGlassToast('Einstellungen für am Tag konnten nicht geladen werden.', 'error')
+  } finally {
+    dayAppsLoading.value = false
+  }
+}
+
+async function onCheckInToggle(next: boolean) {
+  if (!eventId.value) return
+  const prev = checkInEnabled.value
+  checkInEnabled.value = next
+  try {
+    dayAppsSaving.value?.show()
+    const {data} = await axios.put(`/events/${eventId.value}/check-in/settings`, {enabled: next})
+    checkInEnabled.value = !!data?.enabled
+  } catch (e: any) {
+    checkInEnabled.value = prev
+    showGlassToast(e?.response?.data?.error || 'Check-In konnte nicht gespeichert werden.', 'error')
+  } finally {
+    dayAppsSaving.value?.hide()
+  }
+}
+
+async function onCockpitToggle(next: boolean) {
+  if (!eventId.value) return
+  const prev = cockpitEnabled.value
+  cockpitEnabled.value = next
+  try {
+    dayAppsSaving.value?.show()
+    const {data} = await axios.put(`/events/${eventId.value}/cockpit/settings`, {enabled: next})
+    cockpitEnabled.value = !!data?.enabled
+  } catch (e: any) {
+    cockpitEnabled.value = prev
+    showGlassToast(e?.response?.data?.error || 'Cockpit konnte nicht gespeichert werden.', 'error')
+  } finally {
+    dayAppsSaving.value?.hide()
+  }
+}
+
 watch(
     () => event.value?.id,
     async (id) => {
       if (!id) return
-      await fetchPublicationLevel()
+      await Promise.all([fetchPublicationLevel(), loadDayAppSettings()])
       reloadPreview()
     }
 )
@@ -131,7 +188,7 @@ watch(publicUrl, (url, prev) => {
 
 onMounted(async () => {
   if (event.value?.id) {
-    await fetchPublicationLevel()
+    await Promise.all([fetchPublicationLevel(), loadDayAppSettings()])
     reloadPreview()
   }
 })
@@ -140,6 +197,7 @@ onMounted(async () => {
 <template>
   <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
   <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
+  <SavingToast ref="dayAppsSaving" message="Wird gespeichert…" />
 
   <div class="pub">
     <div class="pub__shell">
@@ -147,6 +205,10 @@ onMounted(async () => {
           class="pub__left"
           :style="{ flex: `0 0 ${leftWidth}%` }"
       >
+        <header class="pub__page-head">
+          <h1 class="pub__page-title">Veröffentlichung</h1>
+        </header>
+
         <PublicLinkStrip on-publish-page/>
 
         <section class="pub__tile glass-card liquid-surface-inner">
@@ -216,6 +278,46 @@ onMounted(async () => {
           >
             Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
           </p>
+        </section>
+
+        <section class="pub__tile glass-card liquid-surface-inner">
+          <h2 class="glass-card__heading">Apps speziell für den Tag der Veranstaltung</h2>
+
+          <p class="glass-settings-hint !mb-0 pub__day-apps-hint">
+            Diese Apps sind nur vom Plan verlinkt, wenn die Sichtbarkeit auf „volle Details“ gesetzt ist.
+          </p>
+
+          <div class="pub__app-block">
+            <div class="pub__app-row">
+              <RouterLink to="/plan/live/check-in" class="glass-settings-hint-link pub__app-link">
+                Check-In
+              </RouterLink>
+              <ToggleSwitch
+                  :model-value="checkInEnabled"
+                  :disabled="dayAppsLoading || !eventId"
+                  @update:modelValue="onCheckInToggle"
+              />
+            </div>
+            <p class="glass-settings-hint !mb-0">
+              Empfang am Veranstaltungstag. Vorschau rechts ist die echte Rezeptionsansicht.
+            </p>
+          </div>
+
+          <div class="pub__app-block">
+            <div class="pub__app-row">
+              <RouterLink to="/plan/live/cockpit" class="glass-settings-hint-link pub__app-link">
+                Cockpit
+              </RouterLink>
+              <ToggleSwitch
+                  :model-value="cockpitEnabled"
+                  :disabled="dayAppsLoading || !eventId"
+                  @update:modelValue="onCockpitToggle"
+              />
+            </div>
+            <p class="glass-settings-hint !mb-0">
+              Steuerung am Veranstaltungstag. Vorschau rechts ist die echte Cockpit-Ansicht.
+            </p>
+          </div>
         </section>
       </section>
 
@@ -311,6 +413,39 @@ onMounted(async () => {
   min-width: 0;
   min-height: 0;
   overflow: auto;
+}
+
+.pub__page-head {
+  margin: 0;
+}
+
+.pub__page-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.pub__app-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pub__app-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.pub__app-link {
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.pub__day-apps-hint {
+  line-height: 1.45;
 }
 
 @media (max-width: 767px) {

@@ -14,7 +14,7 @@ export const usePlanCacheStore = defineStore('planCache', {
     plan: null as any | null,
     lanesOptions: null as any | null,
     logos: null as any[] | null,
-    tableNames: null as any | null,
+    tableNames: null as Record<number, any> | null,
     prefetchStatus: 'idle' as PrefetchStatus,
     drahtPromise: null as Promise<any> | null,
     planPromise: null as Promise<any> | null,
@@ -37,6 +37,10 @@ export const usePlanCacheStore = defineStore('planCache', {
     invalidateLogos() {
       this.logos = null
       this.logosPromise = null
+    },
+
+    invalidateTableNames() {
+      this.tableNames = null
     },
 
     invalidatePlan() {
@@ -120,12 +124,15 @@ export const usePlanCacheStore = defineStore('planCache', {
       return this.logosPromise
     },
 
-    async getTableNames(eventId: number) {
+    async getTableNames(eventId: number, firstProgram: number) {
       this.ensureEvent(eventId)
-      if (this.tableNames) return this.tableNames
+      if (!this.tableNames) this.tableNames = {}
+      if (this.tableNames[firstProgram]) return this.tableNames[firstProgram]
 
-      const {data} = await axios.get(`/table-names/${eventId}`)
-      this.tableNames = data
+      const {data} = await axios.get(`/table-names/${eventId}`, {
+        params: {first_program: firstProgram},
+      })
+      this.tableNames[firstProgram] = data
       return data
     },
 
@@ -146,7 +153,8 @@ export const usePlanCacheStore = defineStore('planCache', {
         await Promise.allSettled([
           this.getLanesOptions(),
           this.getLogos(),
-          this.getTableNames(eventId),
+          this.getTableNames(eventId, 3),
+          this.getTableNames(eventId, 8),
         ])
 
         // Chunks one-by-one so we don't spike the network

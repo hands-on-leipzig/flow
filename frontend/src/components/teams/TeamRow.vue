@@ -44,6 +44,11 @@ const juryAriaLabel = computed(() => {
   return juryCellAriaLabel(props.program, lane)
 })
 
+const peopleTotal = computed(() => {
+  if (props.coachCount == null && props.memberCount == null) return null
+  return (props.coachCount ?? 0) + (props.memberCount ?? 0)
+})
+
 function pendingTeamNumber(team: Record<string, unknown>): string {
   const num = team.number ?? team.ref
   if (num == null || num === '') return '–'
@@ -145,25 +150,62 @@ function onCopy(text: string, label: string) {
       </span>
       <span v-else class="team-row__coaches text-sm text-[var(--color-text-subtle)]">–</span>
 
-      <span
-          class="team-row__coach-count text-sm tabular-nums text-center text-[var(--color-text-muted)]"
-          :aria-label="coachCount != null ? `${coachCount} Coaches` : undefined"
+      <div
+          v-if="!isPending()"
+          class="team-row__people-zone"
+          :class="{'team-row__people-zone--expanded': expanded}"
       >
-        <template v-if="!isPending() || coachCount != null">
+        <span
+            class="team-row__coach-count text-sm tabular-nums text-center text-[var(--color-text-muted)]"
+            :aria-label="coachCount != null ? `${coachCount} Coaches` : undefined"
+        >
           {{ coachCount ?? '–' }}
           <i class="bi bi-person-badge ml-0.5" aria-hidden="true"/>
-        </template>
-      </span>
+        </span>
 
-      <span
-          class="team-row__member-count text-sm tabular-nums text-center text-[var(--color-text-muted)]"
-          :aria-label="memberCount != null ? `${memberCount} Teammitglieder` : undefined"
-      >
-        <template v-if="!isPending() || memberCount != null">
+        <span
+            class="team-row__member-count text-sm tabular-nums text-center text-[var(--color-text-muted)]"
+            :aria-label="memberCount != null ? `${memberCount} Teammitglieder` : undefined"
+        >
           {{ memberCount ?? '–' }}
           <i class="bi bi-person-fill ml-0.5" aria-hidden="true"/>
-        </template>
-      </span>
+        </span>
+
+        <span
+            class="team-row__people-total text-sm tabular-nums text-center font-semibold text-[var(--color-text)]"
+            :aria-label="peopleTotal != null ? `${peopleTotal} Personen gesamt` : undefined"
+        >
+          {{ peopleTotal ?? '–' }}
+        </span>
+
+        <span class="team-row__expand text-[var(--color-text-muted)] text-sm justify-self-end">
+          {{ expanded ? '▼' : '▶' }}
+        </span>
+      </div>
+      <template v-else>
+        <span
+            class="team-row__coach-count text-sm tabular-nums text-center text-[var(--color-text-muted)]"
+            :aria-label="coachCount != null ? `${coachCount} Coaches` : undefined"
+        >
+          <template v-if="coachCount != null">
+            {{ coachCount }}
+            <i class="bi bi-person-badge ml-0.5" aria-hidden="true"/>
+          </template>
+        </span>
+
+        <span
+            class="team-row__member-count text-sm tabular-nums text-center text-[var(--color-text-muted)]"
+            :aria-label="memberCount != null ? `${memberCount} Teammitglieder` : undefined"
+        >
+          <template v-if="memberCount != null">
+            {{ memberCount }}
+            <i class="bi bi-person-fill ml-0.5" aria-hidden="true"/>
+          </template>
+        </span>
+
+        <span class="team-row__people-total"/>
+        <span class="team-row__expand"/>
+      </template>
 
       <template v-if="!isPending()">
         <label
@@ -182,11 +224,6 @@ function onCopy(text: string, label: string) {
         <span v-else class="text-xs text-amber-800">No-show</span>
       </template>
       <span v-else/>
-
-      <span v-if="!isPending()" class="team-row__expand text-[var(--color-text-muted)] text-sm justify-self-end">
-        {{ expanded ? '▼' : '▶' }}
-      </span>
-      <span v-else class="team-row__expand"/>
     </div>
 
     <div
@@ -271,8 +308,9 @@ function onCopy(text: string, label: string) {
     minmax(4rem, 1fr)
     3.25rem
     3.25rem
-    4.5rem
-    1.5rem;
+    3.25rem
+    1.5rem
+    4.5rem;
   gap: 0.35rem 0.5rem;
   align-items: center;
 }
@@ -287,14 +325,44 @@ function onCopy(text: string, label: string) {
     minmax(4rem, 1fr)
     3.25rem
     3.25rem
-    4.5rem
-    1.5rem;
+    3.25rem
+    1.5rem
+    4.5rem;
 }
 
 .team-row--tagged {
   border-color: color-mix(in srgb, #b45309 45%, var(--color-border));
   background: color-mix(in srgb, #b45309 10%, var(--color-bg-muted));
   color: var(--color-text);
+}
+
+.team-row__people-zone {
+  grid-column: span 4;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  border-radius: calc(var(--radius) + 2px);
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+  background: color-mix(in srgb, var(--color-text) 3.5%, var(--color-bg-muted));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.team-row__people-zone .team-row__expand {
+  padding-right: 0.45rem;
+}
+
+.team-row:not(.team-row--tagged):hover .team-row__people-zone {
+  border-color: color-mix(in srgb, var(--color-border) 65%, var(--color-text));
+  background: color-mix(in srgb, var(--color-text) 5.5%, var(--color-bg-muted));
+}
+
+.team-row__people-zone--expanded {
+  border-color: color-mix(in srgb, #2563eb 22%, var(--color-border));
+  background: color-mix(in srgb, #2563eb 7%, var(--color-bg-muted));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 50%, transparent),
+    0 0 0 1px color-mix(in srgb, #2563eb 8%, transparent);
 }
 
 .team-row--has-change-label .team-row__change-label {

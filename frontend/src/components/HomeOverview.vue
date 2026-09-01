@@ -156,7 +156,7 @@ async function loadOverviewData() {
       if (ensure?.generated || ensure?.staffing_synced) {
         const parts: string[] = []
         if (ensure.generated) parts.push('Ablauf wurde erzeugt')
-        if (ensure.staffing_synced) parts.push('Helfer-Rollen wurden angelegt')
+        if (ensure.staffing_synced) parts.push('Helfer:innen-Rollen wurden angelegt')
         showGlassToast(parts.join('. ') + '.', 'success')
       }
     } catch (e: unknown) {

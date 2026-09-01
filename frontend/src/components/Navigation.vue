@@ -144,7 +144,7 @@ const navEntries = computed<NavEntry[]>(() => [
     icon: 'bi-person-heart',
     children: [
       {name: 'Personen', path: '/plan/volunteers', icon: 'bi-person-lines-fill'},
-      {name: 'Helferliste', path: '/plan/volunteers/roster', icon: 'bi-clipboard-check'},
+      {name: 'Helfer:innenliste', path: '/plan/volunteers/roster', icon: 'bi-clipboard-check'},
       {name: 'Zuordnung', path: '/plan/volunteers/staffing', icon: 'bi-diagram-3'},
     ],
   },

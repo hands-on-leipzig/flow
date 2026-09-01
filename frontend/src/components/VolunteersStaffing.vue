@@ -676,10 +676,10 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
           <h2 class="glass-card__heading !mb-3 !text-sm md:!text-base">Helfer:innen ohne Zuordnung</h2>
 
           <p v-if="!roster.length" class="staffing-sidebar-muted">
-            Noch niemand auf der Helferliste — unter Helferliste Personen hinzufügen.
+            Noch niemand auf der Helfer:innenliste — unter Helfer:innenliste Personen hinzufügen.
           </p>
           <p v-else-if="!unassignedPeople.length" class="staffing-sidebar-muted">
-            Alle auf der Helferliste sind zugeordnet.
+            Alle auf der Helfer:innenliste sind zugeordnet.
           </p>
 
           <template v-else>

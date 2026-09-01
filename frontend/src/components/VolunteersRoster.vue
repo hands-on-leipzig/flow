@@ -101,7 +101,7 @@ const visibleRosterPeople = computed(() => filteredRoster.value.map((entry) => e
 const removeMessage = computed(() => {
   const entry = removeTarget.value
   if (!entry) return ''
-  const base = `${volunteerDisplayName(entry.person)} wird von der Helferliste dieser Veranstaltung entfernt.`
+  const base = `${volunteerDisplayName(entry.person)} wird von der Helfer:innenliste dieser Veranstaltung entfernt.`
   if (entry.has_assignment) {
     return `${base} Bestehende Zuordnungen werden ebenfalls entfernt.`
   }
@@ -151,7 +151,7 @@ async function downloadExcel() {
     const link = document.createElement('a')
     link.href = url
     link.download = response.headers['x-filename']
-      || flowFilename('Helferliste', 'xlsx', eventStore.selectedEvent?.date)
+      || flowFilename('Helfer:innenliste', 'xlsx', eventStore.selectedEvent?.date)
     link.click()
     window.URL.revokeObjectURL(url)
   } catch {
@@ -191,7 +191,7 @@ async function addToRoster(person: Person) {
       volunteer_person: person.id,
     })
     await load()
-    showGlassToast(`${volunteerDisplayName(person)} zur Helferliste hinzugefügt`, 'success')
+    showGlassToast(`${volunteerDisplayName(person)} zur Helfer:innenliste hinzugefügt`, 'success')
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Hinzufügen fehlgeschlagen'), 'error')
   } finally {
@@ -212,7 +212,7 @@ async function confirmRemove() {
     await axios.delete(`/events/${eventId.value}/volunteer-roster/${entry.person.id}`)
     removeTarget.value = null
     await load()
-    showGlassToast('Von Helferliste entfernt', 'success')
+    showGlassToast('Von Helfer:innenliste entfernt', 'success')
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Entfernen fehlgeschlagen'), 'error')
   } finally {
@@ -230,8 +230,8 @@ onMounted(() => load())
   <div class="vol-page">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Helferliste</h1>
-        <p class="vol-page__sub">Alle Helfer für diese Veranstaltung</p>
+        <h1 class="vol-page__title">Helfer:innenliste</h1>
+        <p class="vol-page__sub">Alle Helfer:innen für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">
         <button
@@ -291,8 +291,8 @@ onMounted(() => load())
       </VolunteerStaffingFilterBar>
 
       <p v-if="loading" class="vol-muted">Laden…</p>
-      <p v-else-if="!roster.length" class="vol-muted">Noch niemand auf der Helferliste.</p>
-      <p v-else-if="!filteredRoster.length" class="vol-muted">Keine Helfer für die gewählten Filter.</p>
+      <p v-else-if="!roster.length" class="vol-muted">Noch niemand auf der Helfer:innenliste.</p>
+      <p v-else-if="!filteredRoster.length" class="vol-muted">Keine Helfer:innen für die gewählten Filter.</p>
 
       <VolunteerRosterTable
           v-else
@@ -311,7 +311,7 @@ onMounted(() => load())
     <ConfirmationModal
         :show="!!removeTarget"
         type="warning"
-        title="Von Helferliste entfernen?"
+        title="Von Helfer:innenliste entfernen?"
         :message="removeMessage"
         confirm-text="Entfernen"
         cancel-text="Abbrechen"

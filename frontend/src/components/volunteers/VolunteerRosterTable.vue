@@ -51,9 +51,9 @@ function sortIcon(key: 'name' | 'role') {
 
 function rosterIconTooltip(entry: RosterEntry) {
   if (entry.has_assignment) {
-    return 'Von Helferliste entfernen — Zuordnungen werden ebenfalls entfernt'
+    return 'Von Helfer:innenliste entfernen — Zuordnungen werden ebenfalls entfernt'
   }
-  return 'Von Helferliste entfernen'
+  return 'Von Helfer:innenliste entfernen'
 }
 
 function assignmentProgramRef(assignment: RosterAssignment) {
@@ -149,7 +149,7 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
       </colgroup>
       <thead>
         <tr>
-          <th class="vol-table__roster" scope="col"><span class="sr-only">Helferliste</span></th>
+          <th class="vol-table__roster" scope="col"><span class="sr-only">Helfer:innenliste</span></th>
           <th
               v-for="column in columns"
               :key="column.key"

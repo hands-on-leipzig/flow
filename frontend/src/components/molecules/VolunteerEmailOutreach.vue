@@ -30,7 +30,7 @@ const busy = ref(false)
 const usesCustomPeople = computed(() => props.people !== undefined)
 
 function excelFilename() {
-  const name = props.scope === 'roster' ? 'Helferliste' : 'Personen'
+  const name = props.scope === 'roster' ? 'Helfer:innenliste_email' : 'Personen_email'
   return flowFilename(name, 'xlsx', eventDate.value)
 }
 
@@ -112,7 +112,7 @@ async function downloadExcel() {
       return
     }
 
-    const params: Record<string, string> = {scope: props.scope}
+    const params: Record<string, string> = {scope: props.scope, variant: 'email'}
     if (usesCustomPeople.value) {
       params.person_ids = people.map((person) => person.id).filter((id) => id > 0).join(',')
     }

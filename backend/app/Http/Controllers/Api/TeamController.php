@@ -7,6 +7,8 @@ use App\Export\Teams\TeamsPeopleSpreadsheetSource;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Support\ProgramCatalog;
+use App\Support\ProgramSlugsFilter;
+use App\Support\SpreadsheetExportVariant;
 use App\Models\Team;
 use App\Models\TeamPlan;
 use App\Models\Plan;
@@ -242,10 +244,15 @@ class TeamController extends Controller
         return response()->json(['message' => 'Team order updated successfully']);
     }
 
-    public function exportPeople(Event $event, DrahtController $drahtController): Response
+    public function exportPeople(Event $event, DrahtController $drahtController, Request $request): Response
     {
         return SpreadsheetResponse::download(
-            (new TeamsPeopleSpreadsheetSource($event, $drahtController))->document()
+            (new TeamsPeopleSpreadsheetSource(
+                $event,
+                $drahtController,
+                SpreadsheetExportVariant::parse($request),
+                ProgramSlugsFilter::parse($request),
+            ))->document()
         );
     }
 

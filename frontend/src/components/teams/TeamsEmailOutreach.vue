@@ -42,7 +42,7 @@ function toggleProgram(slug: string) {
 }
 
 function excelFilename() {
-  return flowFilename('Teams', 'xlsx', eventDate.value)
+  return flowFilename('Teams_email', 'xlsx', eventDate.value)
 }
 
 type CoachContact = {email: string}
@@ -118,10 +118,14 @@ async function openMailto() {
 }
 
 async function downloadExcel() {
-  if (!eventId.value || busy.value) return
+  if (!eventId.value || busy.value || selectedPrograms.value.length === 0) return
   busy.value = true
   try {
     const response = await axios.get(`/events/${eventId.value}/teams/people/export`, {
+      params: {
+        variant: 'email',
+        programs: selectedPrograms.value.join(','),
+      },
       responseType: 'blob',
     })
     const url = window.URL.createObjectURL(response.data)
@@ -203,7 +207,7 @@ async function downloadExcel() {
           <button
               type="button"
               class="teams-email-dialog__btn"
-              :disabled="busy"
+              :disabled="busy || selectedPrograms.length === 0"
               @click="downloadExcel"
           >
             <i class="bi bi-file-earmark-excel" aria-hidden="true"/>
