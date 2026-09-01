@@ -118,6 +118,7 @@ const newBlockLink = ref('')
 const newBlockDuration = ref(30)
 const newFirstProgram = ref(0)
 const composerRef = ref<{ focusTitle?: () => void } | null>(null)
+const creatingBlock = ref(false)
 
 function toApiPayload(block: SlotExtraBlock) {
   return {
@@ -211,7 +212,7 @@ async function saveAssignments(payloads: TeamSavePayload[]) {
 }
 
 function createBlock() {
-  if (!props.planId) return
+  if (!props.planId || creatingBlock.value) return
   const name = newBlockName.value.trim()
   if (!name) return
 
@@ -228,8 +229,59 @@ function createBlock() {
 
   blocks.value.push(block)
   resetComposer()
-  scheduleBlockSave(block)
   void nextTick(() => composerRef.value?.focusTitle?.())
+  void persistNewBlock(block)
+}
+
+async function persistNewBlock(block: SlotExtraBlock) {
+  if (!props.planId || !block._clientKey) return
+
+  creatingBlock.value = true
+  generatorError.value = null
+  errorDetails.value = null
+
+  try {
+    const {data} = await axios.post(
+      `/plans/${props.planId}/extra-blocks/slot`,
+      toApiPayload(block),
+    )
+    const saved = data?.block ?? data
+    if (!saved?.id) {
+      throw new Error('Slot konnte nicht gespeichert werden.')
+    }
+
+    const idx = blocks.value.findIndex((row) => row._clientKey === block._clientKey)
+    if (idx !== -1) {
+      blocks.value[idx] = {
+        ...blocks.value[idx],
+        ...saved,
+        duration: normalizeDurationMinutes(saved.duration),
+        first_program: saved.first_program ?? block.first_program,
+      }
+    }
+
+    cancelExtraBlockUpdate(`${SAVE_PREFIX}_add_${block._clientKey}`)
+    setSaveOriginals(Object.fromEntries(
+      blocks.value.map((b) => [blockSaveKey(b), toApiPayload(b)]),
+    ))
+
+    const ok = await runGenerateLite(
+      props.planId,
+      isGenerating,
+      generatorError,
+      errorDetails,
+    )
+    if (ok) emit('changed')
+    await reloadTeamPanels(saved.id)
+  } catch (error: unknown) {
+    blocks.value = blocks.value.filter((row) => row._clientKey !== block._clientKey)
+    isGenerating.value = false
+    const parsed = parseExtraBlockSaveError(error, 'Fehler beim Anlegen des Slots')
+    generatorError.value = parsed.message
+    errorDetails.value = parsed.details
+  } finally {
+    creatingBlock.value = false
+  }
 }
 
 function resetComposer() {
@@ -386,7 +438,7 @@ const scopeChangeMessage = computed(() => {
       <ItemComposer
           ref="composerRef"
           v-model:title="newBlockName"
-          :disabled="!planId"
+          :disabled="!planId || creatingBlock"
           title-placeholder="Neuer Slot z.B. Besichtigung Sternwarte"
           empty-hint="Zeitfenster pro Team, unabhängig vom generierten Ablauf."
           @commit="createBlock"

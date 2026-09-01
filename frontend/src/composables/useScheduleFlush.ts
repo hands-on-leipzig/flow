@@ -109,6 +109,10 @@ export async function executeScheduleFlush(
       if (!ok) return
     }
 
+    if (hasSlotBlocks && !deps.slotBlockFlush) {
+      throw new Error('Slot block flush handler not registered')
+    }
+
     if (hasSlotBlocks && deps.slotBlockFlush) {
       const ok = await deps.slotBlockFlush(slotBlockUpdates, {skipPostGeneration: needsFullGenerate})
       if (!ok) return
@@ -264,7 +268,7 @@ export async function flushSlotBlockUpdates(
           `/plans/${deps.planId}/extra-blocks/slot`,
           deps.toApiPayload(block),
         )
-        const saved = response.data
+        const saved = response.data?.block ?? response.data
         if (block._clientKey && saved?.id) {
           const idx = deps.blocks.value.findIndex((row) => row._clientKey === block._clientKey)
           if (idx !== -1) {
