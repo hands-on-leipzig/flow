@@ -10,6 +10,8 @@ use App\Export\Spreadsheet\SpreadsheetSource;
 use App\Models\Event;
 use App\Models\EventVolunteerRoster;
 use App\Models\VolunteerPerson;
+use App\Support\ContactEmailExportColumns;
+use App\Support\SpreadsheetExportVariant;
 use App\Support\VolunteerPersonColumns;
 
 final class VolunteerPersonSpreadsheetSource implements SpreadsheetSource
@@ -21,21 +23,27 @@ final class VolunteerPersonSpreadsheetSource implements SpreadsheetSource
         private readonly Event $event,
         private readonly string $scope = 'pool',
         private readonly ?array $personIds = null,
+        private readonly string $variant = SpreadsheetExportVariant::FULL,
     ) {}
 
     public function document(): SpreadsheetDocument
     {
-        $definitions = VolunteerPersonColumns::definitions();
-        $columns = [];
-        foreach ($definitions as $definition) {
-            if (! ($definition['export'] ?? false)) {
-                continue;
+        $emailOnly = $this->variant === SpreadsheetExportVariant::EMAIL;
+
+        if ($emailOnly) {
+            $columns = ContactEmailExportColumns::spreadsheetColumns();
+        } else {
+            $columns = [];
+            foreach (VolunteerPersonColumns::definitions() as $definition) {
+                if (! ($definition['export'] ?? false)) {
+                    continue;
+                }
+                $columns[] = new SpreadsheetColumn(
+                    $definition['key'],
+                    $definition['label'],
+                    SpreadsheetColumnType::fromDefinition($definition['type'] ?? null),
+                );
             }
-            $columns[] = new SpreadsheetColumn(
-                $definition['key'],
-                $definition['label'],
-                SpreadsheetColumnType::fromDefinition($definition['type'] ?? null),
-            );
         }
 
         $query = VolunteerPerson::query()
@@ -55,10 +63,26 @@ final class VolunteerPersonSpreadsheetSource implements SpreadsheetSource
 
         $rows = [];
         foreach ($query->get() as $person) {
+            if ($emailOnly) {
+                $email = trim((string) ($person->email ?? ''));
+                if ($email === '') {
+                    continue;
+                }
+                $rows[] = ContactEmailExportColumns::exportValues([
+                    'first_name' => $person->first_name,
+                    'last_name' => $person->last_name,
+                    'email' => $email,
+                ]);
+                continue;
+            }
+
             $rows[] = VolunteerPersonColumns::exportValues($person);
         }
 
         $stem = $this->scope === 'roster' ? 'Helferliste' : 'Personen';
+        if ($emailOnly) {
+            $stem .= '_email';
+        }
 
         return new SpreadsheetDocument(
             $stem,
