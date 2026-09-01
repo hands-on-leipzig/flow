@@ -12,6 +12,7 @@ use App\Models\VolunteerPerson;
 use App\Services\VolunteerPersonImportService;
 use App\Support\GermanMobileNumber;
 use App\Support\PersonIdsFilter;
+use App\Support\SpreadsheetExportVariant;
 use App\Support\VolunteerPersonColumns;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -186,6 +187,7 @@ class VolunteerPersonController extends Controller
                 $event,
                 $scope,
                 PersonIdsFilter::parse($request),
+                SpreadsheetExportVariant::parse($request),
             ))->document()
         );
     }

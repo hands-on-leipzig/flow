@@ -696,7 +696,7 @@ class CheckInService
         int $subjectId,
         string $reason,
         string $source,
-        string $note,
+        ?string $note,
     ): CheckIn {
         $this->assertSubjectExists($event, $subjectType, $subjectId);
 
@@ -710,7 +710,7 @@ class CheckInService
         $record->checked_in_at = null;
         $record->no_show_reason = $reason;
         $record->no_show_source = $source;
-        $record->reception_note = $note;
+        $record->reception_note = $note === '' || $note === null ? null : $note;
         $record->save();
 
         return $record;
@@ -1068,7 +1068,7 @@ class CheckInService
             foreach ($bucket['people'] as $person) {
                 $name = trim($person->first_name.' '.$person->last_name);
                 $record = $records->get(CheckIn::SUBJECT_VOLUNTEER.':'.(int) $person->id);
-                $lines[] = $this->tsvExportLine($name !== '' ? $name : ('Helfer '.$person->id), $record);
+                $lines[] = $this->tsvExportLine($name !== '' ? $name : ('Helfer:innen '.$person->id), $record);
             }
             $lines[] = '';
         }

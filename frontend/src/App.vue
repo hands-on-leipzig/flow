@@ -19,8 +19,11 @@ const isChromeLess = computed(() => isPublicRoute.value || route.meta?.popout ==
 /** Blank canvas (no orbit/pe-page styling) when a route opts in via meta.plain. */
 const isPlainSurface = computed(() => route.meta?.plain === true)
 
-/** Admin fills the panel so tools can scroll internally (e.g. Main Tables). */
-const isAdminRoute = computed(() => route.path.startsWith('/plan/admin'))
+/** Panel fills viewport height so inner panes scroll (admin tools, Ablauf split). */
+const isPanelFillRoute = computed(() => {
+  const path = route.path
+  return path.startsWith('/plan/admin') || path.startsWith('/plan/schedule')
+})
 
 const router = useRouter();
 const route = useRoute();
@@ -98,7 +101,7 @@ onMounted(() => {
     <EventDayBanner/>
     <div
       class="glass-app__panel liquid-surface"
-      :class="{ 'glass-app__panel--fill': isAdminRoute }"
+      :class="{ 'glass-app__panel--fill': isPanelFillRoute }"
     >
       <router-view/>
     </div>

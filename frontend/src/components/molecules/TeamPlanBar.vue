@@ -21,14 +21,29 @@ const maxPlan = computed(() => {
   return maxT
 })
 
-const scale = computed(() => Math.max(maxPlan.value, 1))
+/** Plan slider cannot exceed effective capacity (DRAHT or manual override). */
+const dragMax = computed(() => {
+  const maxT = maxPlan.value
+  const cap = Number(props.capacity)
+  if (Number.isFinite(cap) && cap > 0) {
+    return Math.min(maxT, Math.round(cap))
+  }
+  return maxT
+})
+
+/** Track width aligns handle with the Kapazität label and enrolled fill. */
+const trackScale = computed(() => {
+  const cap = Number(props.capacity)
+  const capN = Number.isFinite(cap) && cap > 0 ? Math.round(cap) : 0
+  return Math.max(dragMax.value, capN, 1)
+})
 
 const fillPct = computed(() => {
   if (props.capacity <= 0) return 0
   return (props.registeredTeams / props.capacity) * 100
 })
 
-const handlePct = computed(() => Math.min(100, (props.planTeams / scale.value) * 100))
+const handlePct = computed(() => Math.min(100, (props.planTeams / trackScale.value) * 100))
 
 const labelOnLeft = computed(() => handlePct.value > 50)
 
@@ -37,7 +52,7 @@ const overEnrolled = computed(() => props.registeredTeams > props.planTeams)
 const planMismatch = computed(() => props.planTeams !== props.registeredTeams)
 
 function clampPlan(value: number): number {
-  return Math.min(maxPlan.value, Math.max(props.minTeams, Math.round(value)))
+  return Math.min(dragMax.value, Math.max(props.minTeams, Math.round(value)))
 }
 
 function valueFromClientX(clientX: number): number {
@@ -46,7 +61,7 @@ function valueFromClientX(clientX: number): number {
   const rect = track.getBoundingClientRect()
   if (rect.width <= 0) return props.planTeams
   const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
-  return clampPlan(ratio * scale.value)
+  return clampPlan(ratio * trackScale.value)
 }
 
 function commit(value: number) {
@@ -55,7 +70,7 @@ function commit(value: number) {
 }
 
 watch(
-    () => [props.planTeams, props.minTeams, props.maxTeams] as const,
+    () => [props.planTeams, props.minTeams, props.maxTeams, props.capacity] as const,
     () => {
       const next = clampPlan(props.planTeams)
       if (next !== props.planTeams) commit(next)
@@ -100,7 +115,7 @@ function onKeydown(event: KeyboardEvent) {
     commit(clampPlan(props.minTeams))
   } else if (event.key === 'End') {
     event.preventDefault()
-    commit(clampPlan(maxPlan.value))
+    commit(clampPlan(dragMax.value))
   }
 }
 </script>
@@ -131,7 +146,7 @@ function onKeydown(event: KeyboardEvent) {
         role="slider"
         tabindex="0"
         :aria-valuemin="minTeams"
-        :aria-valuemax="maxPlan"
+        :aria-valuemax="dragMax"
         :aria-valuenow="planTeams"
         :aria-label="`Plan für ${planTeams} Teams`"
         @pointerdown="onPointerDown"

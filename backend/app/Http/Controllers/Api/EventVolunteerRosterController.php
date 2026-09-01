@@ -118,7 +118,7 @@ class EventVolunteerRosterController extends Controller
             ->first();
 
         if (! $roster) {
-            return response()->json(['error' => 'Person ist nicht auf der Helferliste.'], 404);
+            return response()->json(['error' => 'Person ist nicht auf der Helfer:innenliste.'], 404);
         }
 
         $existing = $roster->detail;
@@ -156,7 +156,7 @@ class EventVolunteerRosterController extends Controller
             ->first();
 
         if (! $roster) {
-            return response()->json(['error' => 'Person ist nicht auf der Helferliste.'], 404);
+            return response()->json(['error' => 'Person ist nicht auf der Helfer:innenliste.'], 404);
         }
 
         $validated = $request->validate([

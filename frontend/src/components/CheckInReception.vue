@@ -228,8 +228,8 @@ function openNoShowForm() {
 
 async function submitNoShow() {
   if (!detail.value) return
-  if (!noShowReason.value.trim() || !noShowSource.value.trim() || !note.value.trim()) {
-    actionError.value = 'Grund, Quelle und Notiz sind Pflicht.'
+  if (!noShowReason.value.trim() || !noShowSource.value.trim()) {
+    actionError.value = 'Grund und Quelle sind Pflicht.'
     return
   }
   actionBusy.value = true
@@ -240,7 +240,6 @@ async function submitNoShow() {
         {
           no_show_reason: noShowReason.value.trim(),
           no_show_source: noShowSource.value.trim(),
-          reception_note: note.value.trim(),
         },
     )
     detail.value = data
@@ -563,7 +562,7 @@ onMounted(async () => {
               </ul>
             </section>
             <section class="ci-stats__box glass-card liquid-surface-inner">
-              <h2 class="ci-stats__heading">Helfer</h2>
+              <h2 class="ci-stats__heading">Helfer:innen</h2>
               <ul class="ci-stats__lines">
                 <li v-for="(line, i) in homeHelperStats" :key="`h-${i}`" class="ci-stats__line">
                   <template v-if="line.kind === 'global'">
@@ -697,8 +696,6 @@ onMounted(async () => {
           <textarea id="ci-reason" v-model="noShowReason" rows="2" class="glass-input ci-input"/>
           <label class="ci-label" for="ci-source">Wie wurde die Info übermittelt?</label>
           <textarea id="ci-source" v-model="noShowSource" rows="2" class="glass-input ci-input"/>
-          <label class="ci-label" for="ci-note-ns">Notiz</label>
-          <textarea id="ci-note-ns" v-model="note" rows="2" class="glass-input ci-input"/>
           <p v-if="actionError" class="glass-alert-error !mb-0">{{ actionError }}</p>
           <button type="button" class="ci-btn-danger ci-btn-block" :disabled="actionBusy" @click="submitNoShow">
             No-Show speichern

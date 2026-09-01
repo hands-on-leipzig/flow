@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 use App\Models\Plan;
 use App\Models\MSupportedPlan;
 use App\Models\PlanParamValue;
@@ -417,47 +418,23 @@ class PlanController extends Controller
 
     private function addDefaultFreeBlocks(int $planId): void
     {
-        $eventDate = DB::table('plan')
-            ->join('event', 'plan.event', '=', 'event.id')
-            ->where('plan.id', $planId)
-            ->value('event.date');
+        $eventId = (int) DB::table('plan')->where('id', $planId)->value('event');
+        $event = $eventId > 0 ? Event::find($eventId) : null;
 
+        $eventDate = $event?->date ?? DB::table('event')->where('id', $eventId)->value('date');
         $date = Carbon::parse($eventDate);
         $start = $date->copy();
         $end = $date->copy();
-
-
-        // --- IDs der relevanten Parameter finden ---
-        $paramIds = DB::table('m_parameter')
-            ->whereIn('name', ['e_teams', 'c_teams'])
-            ->pluck('id', 'name');
-
-        $eTeamsParamId = $paramIds['e_teams'] ?? null;
-        $cTeamsParamId = $paramIds['c_teams'] ?? null;
-
-        // --- Werte aus plan_param_value lesen ---
-        $paramValues = DB::table('plan_param_value')
-            ->where('plan', $planId)
-            ->whereIn('parameter', [$eTeamsParamId, $cTeamsParamId])
-            ->pluck('set_value', 'parameter');
-
-        $e_teams = isset($paramValues[$eTeamsParamId]) ? (int)$paramValues[$eTeamsParamId] : 0;
-        $c_teams = isset($paramValues[$cTeamsParamId]) ? (int)$paramValues[$cTeamsParamId] : 0;
-
-        // Mittagessen: Explore-only, Challenge-only, or Joint depending on which programs the event has
-        $mittagessenProgram = ($e_teams > 0 && $c_teams === 0)
-            ? FirstProgram::EXPLORE->value
-            : (($c_teams > 0 && $e_teams === 0) ? FirstProgram::CHALLENGE->value : FirstProgram::JOINT->value);
 
         $start->setTime(11, 30, 0);
         $end->setTime(13, 30, 0);
 
         DB::table('extra_block')->insert([
             'plan' => $planId,
-            'first_program' => $mittagessenProgram,
+            'first_program' => FirstProgram::JOINT->value,
             'name' => 'Mittagessen',
-            'description' => 'Es gibt verschiedene Gerichte für Teams, Helfer und Besucher.',
-            'link' => 'https://lecker-essen.mhhm',
+            'description' => 'Es gibt verschiedene Gerichte für Teams, Helfer:innen und Besucher.',
+            'link' => null,
             'start' => $start,
             'end' => $end,
             'room' => null,
@@ -484,33 +461,49 @@ class PlanController extends Controller
         $start->setTime(8, 0, 0);
         $end->setTime(8, 30, 0);
 
-        DB::table('extra_block')->insert([
-            'plan' => $planId,
-            'first_program' => FirstProgram::EXPLORE->value,
-            'name' => 'Check-In FLL Explore',
-            'description' => 'Teams und Gutacher:innen bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
-            'link' => null,
-            'start' => $start,
-            'end' => $end,
-            'room' => null,
-            'active' => $e_teams > 0 ? 1 : 0,
-            'type' => 'free',
-        ]);
+        foreach ($event?->programs ?? [] as $programRow) {
+            $programId = (int) ($programRow->first_program ?? 0);
+            if ($programId <= 0) {
+                continue;
+            }
 
-        DB::table('extra_block')->insert([
-            'plan' => $planId,
-            'first_program' => FirstProgram::CHALLENGE->value,
-            'name' => 'Check-In FLL Challenge',
-            'description' => 'Teams, Juror:innen und Schiedsrichter:innen bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
-            'link' => null,
-            'start' => $start,
-            'end' => $end,
-            'room' => null,
-            'active' => $c_teams > 0 ? 1 : 0,
-            'type' => 'free',
-        ]);
+            $copy = $this->defaultCheckInBlockCopy($programId, $programRow->display_name);
 
+            DB::table('extra_block')->insert([
+                'plan' => $planId,
+                'first_program' => $programId,
+                'name' => $copy['name'],
+                'description' => $copy['description'],
+                'link' => null,
+                'start' => $start,
+                'end' => $end,
+                'room' => null,
+                'active' => 1,
+                'public_time' => 1,
+                'type' => 'free',
+            ]);
+        }
+    }
 
+    /**
+     * @return array{name: string, description: string}
+     */
+    private function defaultCheckInBlockCopy(int $firstProgramId, ?string $displayName): array
+    {
+        return match ($firstProgramId) {
+            FirstProgram::EXPLORE->value => [
+                'name' => 'Check-In FLL Explore',
+                'description' => 'Teams und Gutacher:innen bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
+            ],
+            FirstProgram::CHALLENGE->value => [
+                'name' => 'Check-In FLL Challenge',
+                'description' => 'Teams, Juror:innen und Schiedsrichter:innen bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
+            ],
+            default => [
+                'name' => 'Check-In FLL '.trim((string) ($displayName ?: 'Programm')),
+                'description' => 'Teams bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
+            ],
+        };
     }
 
     public function delete(int $id)

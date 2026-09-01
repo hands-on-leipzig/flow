@@ -19,7 +19,10 @@ const cachedPages = [
 
 const eventId = computed(() => eventStore.selectedEvent?.id ?? 0)
 
-const isAdminPage = computed(() => route.path.includes('/plan/admin'))
+/** Ablauf / Zusätzliche Aktivitäten: split pane needs bounded height for independent scroll. */
+const isFullHeightPage = computed(() =>
+  route.path.includes('/plan/admin') || route.path.includes('/plan/schedule'),
+)
 
 /** Nested Ablauf / Ausgabe / Teams routes share one cache entry so the shell stays mounted. */
 const pageKey = computed(() => {
@@ -34,14 +37,14 @@ const pageKey = computed(() => {
 </script>
 
 <template>
-  <div :class="isAdminPage ? 'h-full min-h-0' : undefined">
+  <div :class="isFullHeightPage ? 'h-full min-h-0' : undefined">
     <router-view v-slot="{ Component }">
       <keep-alive :include="cachedPages" :max="12">
         <component
             :is="Component"
             v-if="Component"
             :key="pageKey"
-            :class="isAdminPage ? 'h-full min-h-0' : undefined"
+            :class="isFullHeightPage ? 'h-full min-h-0' : undefined"
         />
       </keep-alive>
     </router-view>

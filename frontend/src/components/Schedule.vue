@@ -316,6 +316,15 @@ watch(
     gap: 0.55rem;
     align-items: stretch;
   }
+
+  .schedule-workspace__left {
+    max-height: 100%;
+  }
+
+  .schedule-workspace__right {
+    min-height: 0;
+    overflow: hidden;
+  }
 }
 
 .schedule-workspace__left {
@@ -372,12 +381,6 @@ watch(
   box-shadow:
     0 10px 28px rgba(15, 23, 42, 0.07),
     0 2px 6px rgba(15, 23, 42, 0.04);
-}
-
-@media (min-width: 768px) {
-  .schedule-workspace__right {
-    min-height: 0;
-  }
 }
 
 @media (max-width: 767px) {
