@@ -43,9 +43,9 @@ const previewViewports = [
   {id: 'iphone-15', label: 'iPhone 15 · 390 × 844', width: 390, height: 844},
   {id: 'iphone-15-pro-max', label: 'iPhone 15 Pro Max · 430 × 932', width: 430, height: 932},
   {id: 'pixel-8', label: 'Pixel 8 · 412 × 915', width: 412, height: 915},
-  {id: 'ipad-mini', label: 'iPad mini · 768 × 1024', width: 768, height: 1024},
-  {id: 'ipad-pro-11', label: 'iPad Pro 11" · 834 × 1194', width: 834, height: 1194},
-  {id: 'ipad-pro-12', label: 'iPad Pro 12,9" · 1024 × 1366', width: 1024, height: 1366},
+  {id: 'ipad-mini', label: 'iPad mini · 1024 × 768 (Querformat)', width: 1024, height: 768},
+  {id: 'ipad-pro-11', label: 'iPad Pro 11" · 1194 × 834 (Querformat)', width: 1194, height: 834},
+  {id: 'ipad-pro-12', label: 'iPad Pro 12,9" · 1366 × 1024 (Querformat)', width: 1366, height: 1024},
 ] as const
 
 type PreviewViewportId = (typeof previewViewports)[number]['id']
