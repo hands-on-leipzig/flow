@@ -33,24 +33,45 @@ const iframeKey = ref(0)
 const iframeLoading = ref(true)
 const leftWidth = ref(50)
 
-const PREVIEW_DEVICE_STORAGE_KEY = 'flow-publish-preview-device'
+const PREVIEW_VIEWPORT_STORAGE_KEY = 'flow-publish-preview-viewport'
+const PREVIEW_VIEWPORT_STORAGE_KEY_LEGACY = 'flow-publish-preview-device'
 
-const previewDevices = [
-  {id: 'full', label: 'Responsive', width: null},
-  {id: '360', label: 'Handy klein (360)', width: 360},
-  {id: '390', label: 'Handy (390)', width: 390},
-  {id: '430', label: 'Handy groß (430)', width: 430},
-  {id: '768', label: 'Tablet (768)', width: 768},
-  {id: '1024', label: 'Tablet groß (1024)', width: 1024},
+const previewViewports = [
+  {id: 'full', label: 'Responsive', width: null, height: null},
+  {id: 'galaxy-s24', label: 'Galaxy S24 · 360 × 780', width: 360, height: 780},
+  {id: 'iphone-se', label: 'iPhone SE · 375 × 667', width: 375, height: 667},
+  {id: 'iphone-15', label: 'iPhone 15 · 390 × 844', width: 390, height: 844},
+  {id: 'iphone-15-pro-max', label: 'iPhone 15 Pro Max · 430 × 932', width: 430, height: 932},
+  {id: 'pixel-8', label: 'Pixel 8 · 412 × 915', width: 412, height: 915},
+  {id: 'ipad-mini', label: 'iPad mini · 768 × 1024', width: 768, height: 1024},
+  {id: 'ipad-pro-11', label: 'iPad Pro 11" · 834 × 1194', width: 834, height: 1194},
+  {id: 'ipad-pro-12', label: 'iPad Pro 12,9" · 1024 × 1366', width: 1024, height: 1366},
 ] as const
 
-type PreviewDeviceId = (typeof previewDevices)[number]['id']
+type PreviewViewportId = (typeof previewViewports)[number]['id']
 
-function readPreviewDeviceId(): PreviewDeviceId {
+const legacyViewportIds: Record<string, PreviewViewportId> = {
+  full: 'full',
+  '360': 'galaxy-s24',
+  '390': 'iphone-15',
+  '430': 'iphone-15-pro-max',
+  '768': 'ipad-mini',
+  '1024': 'ipad-pro-12',
+}
+
+function isPreviewViewportId(value: string): value is PreviewViewportId {
+  return previewViewports.some((viewport) => viewport.id === value)
+}
+
+function readPreviewViewportId(): PreviewViewportId {
   try {
-    const stored = localStorage.getItem(PREVIEW_DEVICE_STORAGE_KEY)
-    if (stored && previewDevices.some((device) => device.id === stored)) {
-      return stored as PreviewDeviceId
+    const stored = localStorage.getItem(PREVIEW_VIEWPORT_STORAGE_KEY)
+    if (stored && isPreviewViewportId(stored)) {
+      return stored
+    }
+    const legacy = localStorage.getItem(PREVIEW_VIEWPORT_STORAGE_KEY_LEGACY)
+    if (legacy && legacyViewportIds[legacy]) {
+      return legacyViewportIds[legacy]
     }
   } catch {
     /* ignore */
@@ -58,23 +79,38 @@ function readPreviewDeviceId(): PreviewDeviceId {
   return 'full'
 }
 
-const previewDeviceId = ref<PreviewDeviceId>(readPreviewDeviceId())
+const previewViewportId = ref<PreviewViewportId>(readPreviewViewportId())
 
-const activePreviewDevice = computed(
-  () => previewDevices.find((device) => device.id === previewDeviceId.value) ?? previewDevices[0],
+const activePreviewViewport = computed(
+  () => previewViewports.find((viewport) => viewport.id === previewViewportId.value) ?? previewViewports[0],
+)
+
+const isFixedPreviewViewport = computed(
+  () => activePreviewViewport.value.width != null && activePreviewViewport.value.height != null,
 )
 
 const deviceShellStyle = computed(() => {
-  const width = activePreviewDevice.value.width
-  if (width == null) {
+  const {width, height} = activePreviewViewport.value
+  if (width == null || height == null) {
     return undefined
   }
-  return {width: `${width}px`}
+  return {
+    width: `${width}px`,
+    height: `${height}px`,
+  }
 })
 
-watch(previewDeviceId, (id) => {
+const previewViewportHint = computed(() => {
+  const {width, height} = activePreviewViewport.value
+  if (width == null || height == null) {
+    return 'Responsive'
+  }
+  return `${width} × ${height}`
+})
+
+watch(previewViewportId, (id) => {
   try {
-    localStorage.setItem(PREVIEW_DEVICE_STORAGE_KEY, id)
+    localStorage.setItem(PREVIEW_VIEWPORT_STORAGE_KEY, id)
   } catch {
     /* ignore */
   }
@@ -450,17 +486,18 @@ onMounted(async () => {
               <span class="pub__preview-dot" aria-hidden="true"/>
               <span class="pub__preview-path">
                 Live-Vorschau · {{ activeLevel.short }}
+                <span v-if="isFixedPreviewViewport" class="pub__preview-viewport"> · {{ previewViewportHint }}</span>
               </span>
               <div class="pub__preview-actions">
                 <label class="pub__preview-device glass-btn-accent">
-                  <span class="pub__preview-device-label">Breite</span>
+                  <span class="pub__preview-device-label">Gerät</span>
                   <select
-                      v-model="previewDeviceId"
+                      v-model="previewViewportId"
                       class="pub__preview-device-select"
-                      aria-label="Vorschau-Breite"
+                      aria-label="Vorschau-Gerät"
                   >
-                    <option v-for="device in previewDevices" :key="device.id" :value="device.id">
-                      {{ device.label }}
+                    <option v-for="viewport in previewViewports" :key="viewport.id" :value="viewport.id">
+                      {{ viewport.label }}
                     </option>
                   </select>
                 </label>
@@ -486,11 +523,11 @@ onMounted(async () => {
 
             <div
                 class="pub__frame-stage"
-                :class="{'pub__frame-stage--fixed': activePreviewDevice.width != null}"
+                :class="{'pub__frame-stage--fixed': isFixedPreviewViewport}"
             >
               <div
                   class="pub__device-shell"
-                  :class="{'pub__device-shell--full': activePreviewDevice.width == null}"
+                  :class="{'pub__device-shell--full': !isFixedPreviewViewport}"
                   :style="deviceShellStyle"
               >
                 <div v-if="iframeLoading && publicUrl" class="pub__frame-loading">
@@ -801,8 +838,8 @@ onMounted(async () => {
 
 .pub__preview-device-select {
   appearance: none;
-  min-width: 10.5rem;
-  max-width: 13rem;
+  min-width: 12.5rem;
+  max-width: 16rem;
   padding: 0.2rem 1.65rem 0.2rem 0.45rem;
   border: 1px solid color-mix(in srgb, #fff 28%, transparent);
   border-radius: calc(var(--radius) - 2px);
@@ -880,10 +917,14 @@ onMounted(async () => {
   background: color-mix(in srgb, var(--color-bg-muted) 38%, #eef2f7);
 }
 
+.pub__preview-viewport {
+  font-variant-numeric: tabular-nums;
+}
+
 .pub__frame-stage--fixed {
   display: flex;
   justify-content: center;
-  align-items: stretch;
+  align-items: flex-start;
   padding: 0.85rem;
 }
 
@@ -902,9 +943,7 @@ onMounted(async () => {
 
 .pub__device-shell:not(.pub__device-shell--full) {
   flex: 0 0 auto;
-  width: 100%;
-  max-width: 100%;
-  min-height: 100%;
+  max-width: calc(100% - 1.7rem);
   border-radius: calc(var(--radius-lg, 16px) + 2px);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
   box-shadow:
