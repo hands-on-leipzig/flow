@@ -433,7 +433,7 @@ class PlanController extends Controller
             'plan' => $planId,
             'first_program' => FirstProgram::JOINT->value,
             'name' => 'Mittagessen',
-            'description' => 'Es gibt verschiedene Gerichte für Teams, Helfer und Besucher.',
+            'description' => 'Es gibt verschiedene Gerichte für Teams, Helfer:innen und Besucher.',
             'link' => null,
             'start' => $start,
             'end' => $end,

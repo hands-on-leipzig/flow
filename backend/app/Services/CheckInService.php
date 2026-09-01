@@ -1068,7 +1068,7 @@ class CheckInService
             foreach ($bucket['people'] as $person) {
                 $name = trim($person->first_name.' '.$person->last_name);
                 $record = $records->get(CheckIn::SUBJECT_VOLUNTEER.':'.(int) $person->id);
-                $lines[] = $this->tsvExportLine($name !== '' ? $name : ('Helfer '.$person->id), $record);
+                $lines[] = $this->tsvExportLine($name !== '' ? $name : ('Helfer:innen '.$person->id), $record);
             }
             $lines[] = '';
         }

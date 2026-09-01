@@ -79,7 +79,7 @@ final class VolunteerPersonSpreadsheetSource implements SpreadsheetSource
             $rows[] = VolunteerPersonColumns::exportValues($person);
         }
 
-        $stem = $this->scope === 'roster' ? 'Helferliste' : 'Personen';
+        $stem = $this->scope === 'roster' ? 'Helfer:innenliste' : 'Personen';
         if ($emailOnly) {
             $stem .= '_email';
         }

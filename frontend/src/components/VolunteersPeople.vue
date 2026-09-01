@@ -123,7 +123,7 @@ const filtered = computed(() => {
 const removeFromRosterMessage = computed(() => {
   const p = removeFromRosterTarget.value
   if (!p) return ''
-  const base = `${volunteerDisplayName(p)} wird von der Helferliste dieser Veranstaltung entfernt.`
+  const base = `${volunteerDisplayName(p)} wird von der Helfer:innenliste dieser Veranstaltung entfernt.`
   if (assignedIds.value.has(p.id)) {
     return `${base} Bestehende Zuordnungen werden ebenfalls entfernt.`
   }
@@ -303,7 +303,7 @@ async function saveEdit() {
 }
 
 function deletePersonLabel(p: Person) {
-  if (p.on_roster) return 'Löschen nicht möglich — Person ist auf der Helferliste'
+  if (p.on_roster) return 'Löschen nicht möglich — Person ist auf der Helfer:innenliste'
   return 'Person löschen'
 }
 
@@ -327,11 +327,11 @@ async function confirmDeletePerson() {
 }
 
 function rosterIconTooltip(p: Person) {
-  if (!p.on_roster) return 'Zur Helferliste hinzufügen'
+  if (!p.on_roster) return 'Zur Helfer:innenliste hinzufügen'
   if (assignedIds.value.has(p.id)) {
-    return 'Von Helferliste entfernen — Zuordnungen werden ebenfalls entfernt'
+    return 'Von Helfer:innenliste entfernen — Zuordnungen werden ebenfalls entfernt'
   }
-  return 'Von Helferliste entfernen'
+  return 'Von Helfer:innenliste entfernen'
 }
 
 function onRosterIconClick(p: Person) {
@@ -351,7 +351,7 @@ async function addToRoster(p: Person) {
       volunteer_person: p.id,
     })
     p.on_roster = true
-    showGlassToast('Zur Helferliste hinzugefügt', 'success')
+    showGlassToast('Zur Helfer:innenliste hinzugefügt', 'success')
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Hinzufügen fehlgeschlagen'), 'error')
   } finally {
@@ -368,7 +368,7 @@ async function confirmRemoveFromRoster() {
     p.on_roster = false
     assignedIds.value.delete(p.id)
     removeFromRosterTarget.value = null
-    showGlassToast('Von Helferliste entfernt', 'success')
+    showGlassToast('Von Helfer:innenliste entfernt', 'success')
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Entfernen fehlgeschlagen'), 'error')
   } finally {
@@ -513,11 +513,11 @@ watch(eventId, () => {
             class="vol-staffing-filter"
             :class="{'vol-staffing-filter--active': notOnRosterOnly}"
             :aria-pressed="notOnRosterOnly"
-            title="Nur Personen anzeigen, die noch nicht auf der Helferliste sind"
+            title="Nur Personen anzeigen, die noch nicht auf der Helfer:innenliste sind"
             @click="notOnRosterOnly = !notOnRosterOnly"
         >
           <i class="bi bi-clipboard-check vol-staffing-filter__icon" aria-hidden="true"/>
-          <span class="vol-staffing-filter__label">Nicht auf Helferliste</span>
+          <span class="vol-staffing-filter__label">Nicht auf Helfer:innenliste</span>
         </button>
         <input
             v-model="search"
@@ -546,7 +546,7 @@ watch(eventId, () => {
           </colgroup>
           <thead>
             <tr>
-              <th class="vol-table__roster" scope="col"><span class="sr-only">Helferliste</span></th>
+              <th class="vol-table__roster" scope="col"><span class="sr-only">Helfer:innenliste</span></th>
               <th
                   v-for="column in tableColumns"
                   :key="column.key"
@@ -692,7 +692,7 @@ watch(eventId, () => {
     <ConfirmationModal
         :show="!!removeFromRosterTarget"
         type="warning"
-        title="Von Helferliste entfernen?"
+        title="Von Helfer:innenliste entfernen?"
         :message="removeFromRosterMessage"
         confirm-text="Entfernen"
         cancel-text="Abbrechen"

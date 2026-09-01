@@ -562,7 +562,7 @@ onMounted(async () => {
               </ul>
             </section>
             <section class="ci-stats__box glass-card liquid-surface-inner">
-              <h2 class="ci-stats__heading">Helfer</h2>
+              <h2 class="ci-stats__heading">Helfer:innen</h2>
               <ul class="ci-stats__lines">
                 <li v-for="(line, i) in homeHelperStats" :key="`h-${i}`" class="ci-stats__line">
                   <template v-if="line.kind === 'global'">

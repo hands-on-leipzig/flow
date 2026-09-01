@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * One program's teams page — mirrors Helferliste vol-page chrome.
+ * One program's teams page — mirrors Helfer:innenliste vol-page chrome.
  */
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'

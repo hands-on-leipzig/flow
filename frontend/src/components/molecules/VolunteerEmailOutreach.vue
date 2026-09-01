@@ -30,7 +30,7 @@ const busy = ref(false)
 const usesCustomPeople = computed(() => props.people !== undefined)
 
 function excelFilename() {
-  const name = props.scope === 'roster' ? 'Helferliste_email' : 'Personen_email'
+  const name = props.scope === 'roster' ? 'Helfer:innenliste_email' : 'Personen_email'
   return flowFilename(name, 'xlsx', eventDate.value)
 }
 
