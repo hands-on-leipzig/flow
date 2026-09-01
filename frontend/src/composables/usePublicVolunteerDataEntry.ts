@@ -27,14 +27,15 @@ export function usePublicVolunteerDataEntry(eventId: Ref<number | null | undefin
     }
   }
 
-  async function setEnabled(next: boolean) {
+  async function setEnabled(next: boolean): Promise<boolean> {
     const id = eventId.value
-    if (!id || saving.value) return
+    if (!id || saving.value) return false
     const prev = enabled.value
     enabled.value = next
     saving.value = true
     try {
       await axios.post(`/publish/volunteer-data-entry/${id}`, {public_volunteer_data_entry: next})
+      return true
     } catch {
       enabled.value = prev
       showGlassToast('Einstellung konnte nicht gespeichert werden.', 'error')

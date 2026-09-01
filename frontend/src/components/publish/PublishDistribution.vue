@@ -64,6 +64,13 @@ function normalizeLink(raw: string | null | undefined): string {
 
 const publicUrl = computed(() => normalizeLink(event.value?.link))
 
+const previewSrc = computed(() => {
+  const url = publicUrl.value
+  if (!url) return ''
+  const sep = url.includes('?') ? '&' : '?'
+  return `${url}${sep}_pv=${iframeKey.value}`
+})
+
 const activeLevel = computed(() => levels[detailLevel.value] ?? levels[0])
 
 function frontendToBackendLevel(level: number) {
@@ -119,26 +126,28 @@ function onIframeLoad() {
 }
 
 async function onHelperSearchToggle(next: boolean) {
+  let saved = false
   try {
     helperSaving.value?.show()
-    await setHelperSearchEnabled(next)
-    reloadPreview()
+    saved = await setHelperSearchEnabled(next)
   } catch {
     // toast from composable
   } finally {
     helperSaving.value?.hide()
+    if (saved) reloadPreview()
   }
 }
 
 async function onVolunteerDataEntryToggle(next: boolean) {
+  let saved = false
   try {
     volunteerDataEntrySaving.value?.show()
-    await setVolunteerDataEntryEnabled(next)
-    reloadPreview()
+    saved = await setVolunteerDataEntryEnabled(next)
   } catch {
     // toast from composable
   } finally {
     volunteerDataEntrySaving.value?.hide()
+    if (saved) reloadPreview()
   }
 }
 
@@ -280,11 +289,11 @@ onMounted(async () => {
         </section>
 
         <section class="pub__tile glass-card liquid-surface-inner">
-          <h2 class="glass-card__heading">Helfer:innen auf dem öffentlichen Plan</h2>
+          <h2 class="glass-card__heading">Helfer:innen</h2>
 
           <div class="pub__app-block">
             <div class="pub__app-row">
-              <span class="pub__app-link">Dateneingabe durch Helfer:innen</span>
+              <span class="glass-settings-hint-link pub__app-link">Dateneingabe durch Helfer:innen</span>
               <ToggleSwitch
                   :model-value="volunteerDataEntryEnabled"
                   :disabled="volunteerDataEntryLoading || !eventId"
@@ -292,7 +301,11 @@ onMounted(async () => {
               />
             </div>
             <p class="glass-settings-hint !mb-0">
-              Helfer:innen können auf dem öffentlichen Plan ihre Daten prüfen und ergänzen.
+              Dateneingabe durch Helfer:innen. Die Felder dafür werden in
+              <RouterLink to="/plan/volunteers/roster" class="pub__helper-link">
+                Helfer:innen &gt; Helfer:innenliste
+              </RouterLink>
+              festlegt.
             </p>
             <p
                 v-if="volunteerDataEntryEnabled && volunteerDataEntryHiddenByLevel"
@@ -416,7 +429,7 @@ onMounted(async () => {
               v-if="publicUrl"
               :key="iframeKey"
               class="pub__frame"
-              :src="publicUrl"
+              :src="previewSrc"
               title="Vorschau der öffentlichen Veranstaltungsseite"
               @load="onIframeLoad"
           />

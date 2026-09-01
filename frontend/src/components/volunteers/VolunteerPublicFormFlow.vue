@@ -25,16 +25,14 @@ type LookupPayload = {
 }
 
 const props = defineProps<{
-  step: 'email' | 'otp' | 'data'
+  step: 'email' | 'otp' | 'data' | 'done'
   email: string
   slug: string
 }>()
 
 const emit = defineEmits<{
   'update:email': [value: string]
-  'update:step': [value: 'email' | 'otp' | 'data']
-  'back-to-plan': []
-  submitted: []
+  'update:step': [value: 'email' | 'otp' | 'data' | 'done']
   cancel: []
 }>()
 
@@ -61,23 +59,6 @@ const photoConsentLabel = computed(() => {
 })
 
 const showPhotoReminder = computed(() => detailDraft.value.photo_consent === null)
-
-function goBack() {
-  if (props.step === 'email') {
-    emit('back-to-plan')
-    return
-  }
-  if (props.step === 'otp') {
-    otpError.value = ''
-    otpCode.value = ''
-    emit('update:step', 'email')
-    return
-  }
-  if (props.step === 'data') {
-    lookupError.value = ''
-    emit('update:step', 'otp')
-  }
-}
 
 function proceedFromEmail() {
   const trimmed = props.email.trim()
@@ -135,7 +116,7 @@ function setCustomBoolean(fieldKey: string, value: boolean | null) {
 }
 
 function submitForm() {
-  emit('submitted')
+  emit('update:step', 'done')
 }
 
 watch(
@@ -143,6 +124,10 @@ watch(
   (step) => {
     if (step === 'data') {
       void loadLookup()
+      return
+    }
+    if (step === 'done') {
+      window.scrollTo({top: 0, behavior: 'smooth'})
     }
   },
   {immediate: true},
@@ -151,11 +136,8 @@ watch(
 
 <template>
   <section class="glass-card liquid-surface-inner pe-section vol-public-form">
-    <header class="vol-public-form__head">
+    <header v-if="step !== 'done'" class="vol-public-form__head">
       <h2 class="glass-card__title">Dateneingabe für Helfer:innen</h2>
-      <button type="button" class="glass-btn-secondary vol-public-form__back" @click="goBack">
-        Zurück
-      </button>
     </header>
 
     <div v-if="step === 'email'" class="vol-public-form__step">
@@ -168,9 +150,14 @@ watch(
           autocomplete="email"
           placeholder="name@beispiel.de"
       >
-      <button type="button" class="glass-btn-accent vol-public-form__primary" @click="proceedFromEmail">
-        Weiter
-      </button>
+      <div class="vol-public-form__actions vol-public-form__actions--inline">
+        <button type="button" class="glass-btn-accent" @click="proceedFromEmail">
+          Weiter
+        </button>
+        <button type="button" class="glass-btn-secondary" @click="emit('cancel')">
+          Abbrechen
+        </button>
+      </div>
     </div>
 
     <div v-else-if="step === 'otp'" class="vol-public-form__step">
@@ -189,14 +176,38 @@ watch(
           placeholder="000000"
       >
       <p v-if="otpError" class="vol-public-form__error">{{ otpError }}</p>
-      <button type="button" class="glass-btn-accent vol-public-form__primary" @click="verifyOtp">
-        Bestätigen
-      </button>
+      <div class="vol-public-form__actions vol-public-form__actions--otp">
+        <button type="button" class="glass-btn-accent" @click="verifyOtp">
+          Bestätigen
+        </button>
+        <button type="button" class="glass-btn-secondary" @click="emit('cancel')">
+          Abbrechen
+        </button>
+      </div>
+    </div>
+
+    <div v-else-if="step === 'done'" class="vol-public-form__step">
+      <p class="vol-public-form__thanks">
+        Danke für die Informationen. Du kannst wiederkommen, wenn du noch etwas ändern möchtest.
+        Einige Tage vor der Veranstaltung wird das Formular aber gesperrt.
+      </p>
+      <div class="vol-public-form__actions vol-public-form__actions--inline">
+        <button type="button" class="glass-btn-accent" @click="emit('cancel')">
+          Schließen
+        </button>
+      </div>
     </div>
 
     <div v-else class="vol-public-form__step">
       <p v-if="lookupLoading" class="pe-muted">Laden…</p>
-      <p v-else-if="lookupError" class="vol-public-form__error">{{ lookupError }}</p>
+      <template v-else-if="lookupError">
+        <p class="vol-public-form__error">{{ lookupError }}</p>
+        <div class="vol-public-form__actions vol-public-form__actions--inline">
+          <button type="button" class="glass-btn-secondary" @click="emit('cancel')">
+            Abbrechen
+          </button>
+        </div>
+      </template>
 
       <template v-else-if="lookupPayload">
         <div class="vol-public-form__fields">
@@ -329,7 +340,6 @@ watch(
         </div>
 
         <footer class="vol-public-form__actions">
-          <button type="button" class="glass-btn-secondary" @click="goBack">Zurück</button>
           <button type="button" class="glass-btn-secondary" @click="emit('cancel')">Abbrechen</button>
           <button type="button" class="glass-btn-accent" @click="submitForm">Speichern</button>
         </footer>
@@ -340,10 +350,6 @@ watch(
 
 <style scoped>
 .vol-public-form__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
   margin-bottom: 1rem;
 }
 
@@ -383,8 +389,10 @@ watch(
   line-height: 1.45;
 }
 
-.vol-public-form__primary {
-  align-self: flex-start;
+.vol-public-form__thanks {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.55;
 }
 
 .vol-public-form__otp {
@@ -422,6 +430,13 @@ watch(
   margin-top: 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid var(--liquid-border-soft);
+}
+
+.vol-public-form__actions--otp,
+.vol-public-form__actions--inline {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 @media (max-width: 640px) {

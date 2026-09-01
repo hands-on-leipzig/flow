@@ -22,7 +22,6 @@ const eventLogos = ref([])
 
 const formStep = ref(null)
 const formEmail = ref('')
-const formSuccessMessage = ref('')
 
 const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
 const headingPlace = computed(() => cleanEventName(event.value) || event.value?.name || '—')
@@ -209,17 +208,11 @@ const showVolunteerDataEntrySection = computed(() => {
 function openVolunteerForm() {
   formStep.value = 'email'
   formEmail.value = ''
-  formSuccessMessage.value = ''
 }
 
 function closeVolunteerForm() {
   formStep.value = null
   formEmail.value = ''
-}
-
-function onVolunteerFormSubmitted() {
-  formSuccessMessage.value = 'Daten gespeichert.'
-  closeVolunteerForm()
 }
 
 const helperSearchPrimaryScopes = computed(() => {
@@ -309,10 +302,6 @@ onMounted(async () => {
 
     <!-- Levels 1–3 -->
     <div v-else-if="event" class="pe-content">
-      <p v-if="formSuccessMessage && !formStep" class="pe-form-success glass-alert-success">
-        {{ formSuccessMessage }}
-      </p>
-
       <VolunteerPublicFormFlow
           v-if="formStep"
           :step="formStep"
@@ -320,9 +309,7 @@ onMounted(async () => {
           :slug="String(route.params.slug ?? '')"
           @update:email="formEmail = $event"
           @update:step="formStep = $event"
-          @back-to-plan="closeVolunteerForm"
           @cancel="closeVolunteerForm"
-          @submitted="onVolunteerFormSubmitted"
       />
 
       <template v-else>
@@ -1032,12 +1019,6 @@ onMounted(async () => {
   margin: 0.85rem 0 0;
   font-size: 0.9rem;
   color: var(--color-text-muted);
-}
-
-.pe-form-success {
-  margin: 0 0 1rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius);
 }
 
 .pe-volunteer-form-intro {

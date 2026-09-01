@@ -27,14 +27,15 @@ export function usePublicHelperSearch(eventId: Ref<number | null | undefined>) {
     }
   }
 
-  async function setEnabled(next: boolean) {
+  async function setEnabled(next: boolean): Promise<boolean> {
     const id = eventId.value
-    if (!id || saving.value) return
+    if (!id || saving.value) return false
     const prev = enabled.value
     enabled.value = next
     saving.value = true
     try {
       await axios.post(`/publish/helper-search/${id}`, {public_helper_search: next})
+      return true
     } catch {
       enabled.value = prev
       showGlassToast('Einstellung konnte nicht gespeichert werden.', 'error')
