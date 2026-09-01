@@ -208,6 +208,7 @@ function updateTeamList(value: unknown[]) {
           <span class="text-sm tabular-nums">–</span>
           <span class="text-sm font-medium">Fehlendes Team</span>
           <span class="hidden md:inline"/>
+          <span class="hidden md:inline"/>
           <div class="team-row__people-zone team-row__people-zone--placeholder">
             <span class="text-sm text-center">–</span>
             <span class="text-sm text-center">–</span>
@@ -274,7 +275,8 @@ function updateTeamList(value: unknown[]) {
     1.5rem
     2.75rem
     3.5rem
-    minmax(5rem, 1.4fr)
+    minmax(5rem, 1.2fr)
+    minmax(4rem, 1fr)
     minmax(4rem, 1fr)
     3.25rem
     3.25rem
@@ -291,7 +293,8 @@ function updateTeamList(value: unknown[]) {
     2.75rem
     2.25rem
     3.5rem
-    minmax(5rem, 1.4fr)
+    minmax(5rem, 1.2fr)
+    minmax(4rem, 1fr)
     minmax(4rem, 1fr)
     3.25rem
     3.25rem
