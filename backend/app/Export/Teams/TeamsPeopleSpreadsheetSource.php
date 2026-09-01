@@ -9,6 +9,7 @@ use App\Export\Spreadsheet\SpreadsheetSheet;
 use App\Export\Spreadsheet\SpreadsheetSource;
 use App\Http\Controllers\Api\DrahtController;
 use App\Models\Event;
+use App\Models\Team;
 use App\Support\ContactEmailExportColumns;
 use App\Support\ProgramCatalog;
 use App\Support\SpreadsheetExportVariant;
@@ -57,6 +58,12 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
                 continue;
             }
 
+            $firstProgramId = (int) ($program->first_program ?? 0);
+            $organizationsByTeamNumber = Team::query()
+                ->where('event', $this->event->id)
+                ->where('first_program', $firstProgramId)
+                ->pluck('organization', 'team_number_hot');
+
             $programLabel = (string) ($program->display_name ?? $program->name ?? '');
             $peopleData = $this->fetchPeople($drahtId);
             if ($peopleData === null) {
@@ -72,7 +79,7 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
 
                 $teamNumber = is_numeric($teamKey) ? (string) $teamKey : (string) ($teamData['number'] ?? $teamKey);
                 $teamName = (string) ($teamData['name'] ?? '');
-                $organization = (string) ($teamData['organization'] ?? '');
+                $organization = $this->resolveOrganization($teamNumber, $organizationsByTeamNumber, $teamData);
 
                 foreach ($teamData['coaches'] ?? [] as $coach) {
                     if (is_array($coach)) {
@@ -170,6 +177,24 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
         $data = $response->getData(true);
 
         return is_array($data) ? $data : null;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int|string, mixed>  $organizationsByTeamNumber
+     * @param  array<string, mixed>  $teamData
+     */
+    private function resolveOrganization(string $teamNumber, $organizationsByTeamNumber, array $teamData): string
+    {
+        $fromFlow = $organizationsByTeamNumber->get((int) $teamNumber)
+            ?? $organizationsByTeamNumber->get($teamNumber);
+
+        if (is_string($fromFlow) && trim($fromFlow) !== '') {
+            return trim($fromFlow);
+        }
+
+        $fromDraht = $teamData['organization'] ?? '';
+
+        return is_string($fromDraht) ? trim($fromDraht) : '';
     }
 
     private function programMatchesFilter(object $program): bool

@@ -140,6 +140,14 @@ function onCopy(text: string, label: string) {
       </span>
 
       <span
+          class="team-row__organization text-sm text-[var(--color-text-muted)] truncate min-w-0"
+          :class="missingInDraht ? 'line-through decoration-[var(--color-text-muted)]' : ''"
+          :title="String(team.organization || '')"
+      >
+        {{ team.organization || '–' }}
+      </span>
+
+      <span
           v-if="coachNames.length"
           class="team-row__coaches text-sm text-[var(--color-text-muted)] truncate min-w-0"
           :class="missingInDraht ? 'line-through decoration-[var(--color-text-muted)]' : ''"
@@ -304,7 +312,8 @@ function onCopy(text: string, label: string) {
     1.5rem
     2.75rem
     3.5rem
-    minmax(5rem, 1.4fr)
+    minmax(5rem, 1.2fr)
+    minmax(4rem, 1fr)
     minmax(4rem, 1fr)
     3.25rem
     3.25rem
@@ -321,7 +330,8 @@ function onCopy(text: string, label: string) {
     2.75rem
     2.25rem
     3.5rem
-    minmax(5rem, 1.4fr)
+    minmax(5rem, 1.2fr)
+    minmax(4rem, 1fr)
     minmax(4rem, 1fr)
     3.25rem
     3.25rem
@@ -411,10 +421,17 @@ function onCopy(text: string, label: string) {
     grid-row: 1;
   }
 
-  .team-row__coaches {
+  .team-row__organization {
     display: block;
     grid-column: 2;
     grid-row: 2;
+    font-size: 0.75rem;
+  }
+
+  .team-row__coaches {
+    display: block;
+    grid-column: 2;
+    grid-row: 3;
     font-size: 0.75rem;
   }
 
@@ -439,9 +456,14 @@ function onCopy(text: string, label: string) {
     grid-row: 1;
   }
 
-  .team-row--has-change-label .team-row__coaches {
+  .team-row--has-change-label .team-row__organization {
     grid-column: 2;
     grid-row: 2;
+  }
+
+  .team-row--has-change-label .team-row__coaches {
+    grid-column: 2;
+    grid-row: 3;
   }
 }
 </style>

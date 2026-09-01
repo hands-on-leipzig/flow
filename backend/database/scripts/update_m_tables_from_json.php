@@ -276,9 +276,6 @@ function updateMTable(string $table, array $jsonRecords): array {
         return $report;
     }
     
-    // Ensure AUTO_INCREMENT is high enough
-    ensureAutoIncrement($table, $jsonRecords);
-    
     // Get current records from DB
     $dbRecords = DB::table($table)->get()->keyBy('id');
 
@@ -389,6 +386,11 @@ function updateMTablesFromJson(string $jsonPath): array {
     // Discover dependency order
     $orderedTables = discoverDependencyOrder($tables);
     
+    // ALTER TABLE causes implicit commit in MySQL — run before the transaction
+    foreach ($orderedTables as $table) {
+        ensureAutoIncrement($table, $jsonData[$table] ?? []);
+    }
+
     // Update tables in dependency order
     $overallReport = [];
     
