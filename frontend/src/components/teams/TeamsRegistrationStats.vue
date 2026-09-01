@@ -112,7 +112,7 @@ watch(() => event.value?.id, () => {
           </tr>
         </thead>
         <tbody class="text-[var(--color-text)]">
-          <tr class="border-t border-[var(--color-border)]">
+          <tr class="teams-registration-stats__teams-row border-t border-[var(--color-border)]">
             <td class="py-1.5 pr-2 text-[var(--color-text-muted)]">Teams</td>
             <td
                 v-for="prog in programs"
@@ -152,7 +152,7 @@ watch(() => event.value?.id, () => {
             </td>
           </tr>
           <tr class="teams-registration-stats__total-row border-t border-[var(--color-border)]">
-            <td class="py-1.5 pr-2 text-[var(--color-text-muted)]">Gesamt</td>
+            <td class="py-1.5 pr-2 text-[var(--color-text-muted)]">Coaches und Mitglieder</td>
             <td
                 v-for="prog in programs"
                 :key="`g-${programSlug(prog.name)}`"
@@ -190,6 +190,11 @@ watch(() => event.value?.id, () => {
 .teams-registration-stats__table td {
   padding-left: 0.25rem;
   padding-right: 0.25rem;
+}
+
+.teams-registration-stats__teams-row,
+.teams-registration-stats__teams-row td {
+  font-style: italic;
 }
 
 .teams-registration-stats__total-row,
