@@ -18,6 +18,16 @@ import {
   PLAN_PREVIEW_CHANNEL,
 } from '@/utils/planPreviewSync'
 import { eventPrograms, programId } from '@/utils/eventPrograms'
+import {
+  FIRST_PROGRAM_CHALLENGE,
+  FIRST_PROGRAM_FUTURE_8,
+  TABLE_FIELD_MAX_LENGTH,
+  defaultTableFieldLabel,
+  duplicateEffectiveTableFieldLabels,
+  supportsTableFieldLabels,
+  tableCountParamName,
+  tableFieldNoun,
+} from '@/utils/tableFieldLabels'
 
 const SPECIAL_KEYS = new Set([
   'e1_teams', 'e2_teams',
@@ -106,7 +116,10 @@ function ensurePopoutPresenceListener() {
 
 const lanesIndex = ref<LanesIndex | null>(null)
 const supportedPlanData = ref<any[] | null>(null)
-const tableNames = ref(['', '', '', ''])
+/** Custom names per first_program id (0-based arrays sized to table_count). */
+const tableNamesByProgram = ref<Record<number, string[]>>({})
+const tableCountByProgram = ref<Record<number, number>>({})
+const tableNameErrorsByProgram = ref<Record<number, string | null>>({})
 
 const isSpecial = (p: Parameter) => SPECIAL_KEYS.has((p.name || '').toLowerCase())
 
@@ -261,6 +274,29 @@ const toastAction = computed<'generate' | 'update'>(() => {
   return 'update'
 })
 
+watch(
+  () => [
+    Number(paramMapByName.value['r_tables']?.value || 0),
+    Number(paramMapByName.value['f8_fields']?.value || 0),
+  ],
+  ([rTables, f8Fields]) => {
+    const resize = (fp: number, count: number) => {
+      if (!supportsTableFieldLabels(fp)) return
+      if (count < 1) {
+        tableNamesByProgram.value = {...tableNamesByProgram.value, [fp]: []}
+        tableCountByProgram.value = {...tableCountByProgram.value, [fp]: 0}
+        return
+      }
+      const prev = tableNamesByProgram.value[fp] || []
+      const next = Array.from({ length: count }, (_, i) => prev[i] ?? '')
+      tableNamesByProgram.value = {...tableNamesByProgram.value, [fp]: next}
+      tableCountByProgram.value = {...tableCountByProgram.value, [fp]: count}
+    }
+    resize(FIRST_PROGRAM_CHALLENGE, rTables === 2 || rTables === 4 ? rTables : 0)
+    resize(FIRST_PROGRAM_FUTURE_8, f8Fields === 2 || f8Fields === 4 ? f8Fields : 0)
+  },
+)
+
 watch(isGenerating, (generating) => {
   if (generating) getSaveApi().freeze()
   else getSaveApi().unfreeze()
@@ -411,35 +447,98 @@ async function fetchParams(planId: number) {
   }
 }
 
-async function fetchTableNames() {
-  if (!selectedEvent.value?.id) return
+async function fetchTableNamesForProgram(firstProgram: number) {
+  if (!selectedEvent.value?.id || !supportsTableFieldLabels(firstProgram)) return
   try {
-    const response = await planCache().getTableNames(selectedEvent.value.id)
-    const tables = response.table_names
-    const names = Array(4).fill('')
+    const response = await planCache().getTableNames(selectedEvent.value.id, firstProgram)
+    const countFromApi = Number(response.table_count) || 0
+    const countFromParam = Number(paramMapByName.value[tableCountParamName(firstProgram)]?.value || 0) || 0
+    const count = countFromApi > 0 ? countFromApi : countFromParam
+    const names = Array(Math.max(0, count)).fill('')
+    const tables = response.table_names || []
     tables.forEach((t: any) => {
-      if (t.table_number >= 1 && t.table_number <= 4) {
-        names[t.table_number - 1] = t.table_name ?? ''
+      const num = Number(t.table_number)
+      if (num >= 1 && num <= names.length) {
+        names[num - 1] = t.table_name ?? ''
       }
     })
-    tableNames.value = names
+    tableNamesByProgram.value = {...tableNamesByProgram.value, [firstProgram]: names}
+    tableCountByProgram.value = {...tableCountByProgram.value, [firstProgram]: count}
+    tableNameErrorsByProgram.value = {...tableNameErrorsByProgram.value, [firstProgram]: null}
   } catch (e) {
-    if (import.meta.env.DEV) console.error('Fehler beim Laden der Tischbezeichnungen:', e)
-    tableNames.value = Array(4).fill('')
+    if (import.meta.env.DEV) console.error('Fehler beim Laden der Tisch-/Spielfeld-Bezeichnungen:', e)
+    tableNamesByProgram.value = {...tableNamesByProgram.value, [firstProgram]: []}
+    tableCountByProgram.value = {...tableCountByProgram.value, [firstProgram]: 0}
   }
 }
 
-async function updateTableName() {
+async function fetchTableNames() {
   if (!selectedEvent.value?.id) return
+  const programs = attachedPrograms.value
+    .map((p) => programId(p))
+    .filter((id) => supportsTableFieldLabels(id))
+  // Always try Challenge + Future if attached; also load both when params say so.
+  const ids = new Set<number>(programs)
+  if (Number(paramMapByName.value['c_mode']?.value || 0) > 0) ids.add(FIRST_PROGRAM_CHALLENGE)
+  if (Number(paramMapByName.value['f8_mode']?.value || 0) === 1) ids.add(FIRST_PROGRAM_FUTURE_8)
+  await Promise.all([...ids].map((id) => fetchTableNamesForProgram(id)))
+}
+
+function tableNamesFor(firstProgram: number): string[] {
+  return tableNamesByProgram.value[firstProgram] || []
+}
+
+function tableFieldSectionTitle(firstProgram: number): string {
+  return firstProgram === FIRST_PROGRAM_FUTURE_8
+    ? 'Bezeichnung der Spielfelder'
+    : 'Bezeichnung der Robot-Game-Tische'
+}
+
+function tableFieldSlotLabel(firstProgram: number, indexZeroBased: number): string {
+  return defaultTableFieldLabel(firstProgram, indexZeroBased + 1)
+}
+
+async function updateTableName(firstProgram: number) {
+  if (!selectedEvent.value?.id || !supportsTableFieldLabels(firstProgram)) return
+  const names = [...(tableNamesByProgram.value[firstProgram] || [])]
+  const trimmed = names.map((n) => (n ?? '').trim())
+
+  for (const n of trimmed) {
+    if (n.length > TABLE_FIELD_MAX_LENGTH) {
+      tableNameErrorsByProgram.value = {
+        ...tableNameErrorsByProgram.value,
+        [firstProgram]: `Maximal ${TABLE_FIELD_MAX_LENGTH} Zeichen`,
+      }
+      return
+    }
+  }
+
+  const dupes = duplicateEffectiveTableFieldLabels(firstProgram, trimmed)
+  if (dupes.length > 0) {
+    tableNameErrorsByProgram.value = {
+      ...tableNameErrorsByProgram.value,
+      [firstProgram]: `Bezeichnungen müssen eindeutig sein (${dupes.join(', ')})`,
+    }
+    return
+  }
+
+  tableNameErrorsByProgram.value = {...tableNameErrorsByProgram.value, [firstProgram]: null}
+
   try {
     await axios.put(`/table-names/${selectedEvent.value.id}`, {
-      table_names: tableNames.value.map((name, i) => ({
+      first_program: firstProgram,
+      table_names: trimmed.map((name, i) => ({
         table_number: i + 1,
-        table_name: name ?? '',
+        table_name: name,
       })),
     })
-  } catch (e) {
-    if (import.meta.env.DEV) console.error('Fehler beim Speichern der Tischnamen:', e)
+    planCache().invalidateTableNames()
+    // Keep local state; refresh cache entry for this program
+    tableNamesByProgram.value = {...tableNamesByProgram.value, [firstProgram]: trimmed}
+  } catch (e: any) {
+    if (import.meta.env.DEV) console.error('Fehler beim Speichern der Bezeichnungen:', e)
+    const msg = e?.response?.data?.error || 'Speichern fehlgeschlagen'
+    tableNameErrorsByProgram.value = {...tableNameErrorsByProgram.value, [firstProgram]: msg}
   }
 }
 
@@ -598,7 +697,13 @@ export function useScheduleWorkspace() {
     planPopoutOpen,
     lanesIndex,
     supportedPlanData,
-    tableNames,
+    tableNamesByProgram,
+    tableCountByProgram,
+    tableNameErrorsByProgram,
+    tableNamesFor,
+    tableFieldSectionTitle,
+    tableFieldSlotLabel,
+    tableFieldNoun,
     visibilityMap,
     disabledMap,
     paramMap,
