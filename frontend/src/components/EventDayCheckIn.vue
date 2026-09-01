@@ -197,7 +197,14 @@ onBeforeUnmount(() => {
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Check-In App</h1>
-        <p class="vol-page__sub">Empfang am Veranstaltungstag. Vorschau rechts ist die echte Rezeptionsansicht.</p>
+        <p class="vol-page__sub">
+          Empfang am Veranstaltungstag. Vorschau rechts ist die echte Rezeptionsansicht.
+        </p>
+        <p class="glass-settings-hint !mb-0 event-day__header-hint">
+          Diese Funktion ist nur verfügbar, wenn die
+          <RouterLink to="/plan/publish" class="glass-settings-hint-link">Veröffentlichung</RouterLink>
+          auf „volle Details“ gesetzt ist.
+        </p>
       </div>
     </header>
 
@@ -325,6 +332,10 @@ onBeforeUnmount(() => {
   flex-direction: column;
   gap: 1rem;
   min-height: min(72vh, 48rem);
+}
+
+.event-day__header-hint {
+  line-height: 1.45;
 }
 
 .ci-settings__toggle-label {
