@@ -320,6 +320,11 @@ function deleteBlock() {
 
 function toggleActive(block: SlotExtraBlock, active: boolean) {
   block.active = active
+  if (!active && block.id) {
+    const next = new Set(expandedTeamBlocks.value)
+    next.delete(block.id)
+    expandedTeamBlocks.value = next
+  }
   scheduleBlockSave(block)
 }
 
