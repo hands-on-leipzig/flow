@@ -208,10 +208,12 @@ function updateTeamList(value: unknown[]) {
           <span class="text-sm tabular-nums">–</span>
           <span class="text-sm font-medium">Fehlendes Team</span>
           <span class="hidden md:inline"/>
-          <span class="text-sm text-center">–</span>
-          <span class="text-sm text-center">–</span>
-          <span class="text-sm text-center font-semibold">–</span>
-          <span/>
+          <div class="team-row__people-zone team-row__people-zone--placeholder">
+            <span class="text-sm text-center">–</span>
+            <span class="text-sm text-center">–</span>
+            <span class="text-sm text-center font-semibold">–</span>
+            <span/>
+          </div>
           <span/>
         </div>
       </li>
@@ -277,8 +279,8 @@ function updateTeamList(value: unknown[]) {
     3.25rem
     3.25rem
     3.25rem
-    4.5rem
-    1.5rem;
+    1.5rem
+    4.5rem;
   gap: 0.35rem 0.5rem;
   align-items: center;
 }
@@ -294,8 +296,12 @@ function updateTeamList(value: unknown[]) {
     3.25rem
     3.25rem
     3.25rem
-    4.5rem
-    1.5rem;
+    1.5rem
+    4.5rem;
+}
+
+.teams-sync-tables :deep(.team-row__people-zone--placeholder) {
+  pointer-events: none;
 }
 
 .drag-ghost {
