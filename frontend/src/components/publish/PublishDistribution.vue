@@ -389,7 +389,7 @@ onMounted(async () => {
             <p class="glass-settings-hint !mb-0">
               Dateneingabe durch Helfer:innen. Die Felder dafür werden in
               <RouterLink to="/plan/volunteers/roster" class="pub__helper-link">
-                Helfer:innen &gt; Helfer:innenliste
+                Helfer:innen → Helfer:innenliste
               </RouterLink>
               festlegt.
             </p>
@@ -447,7 +447,11 @@ onMounted(async () => {
               />
             </div>
             <p class="glass-settings-hint !mb-0">
-              Empfang am Veranstaltungstag. Vorschau rechts ist die echte Rezeptionsansicht.
+              Details unter
+              <RouterLink to="/plan/live/check-in" class="pub__helper-link">
+                am Tag → Check-In
+              </RouterLink>
+              .
             </p>
           </div>
 
@@ -463,7 +467,11 @@ onMounted(async () => {
               />
             </div>
             <p class="glass-settings-hint !mb-0">
-              Steuerung am Veranstaltungstag. Vorschau rechts ist die echte Cockpit-Ansicht.
+              Details unter
+              <RouterLink to="/plan/live/cockpit" class="pub__helper-link">
+                am Tag → Cockpit
+              </RouterLink>
+              .
             </p>
           </div>
         </section>
