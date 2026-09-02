@@ -18,11 +18,18 @@ class PhotoConsentStatusTest extends TestCase
         $this->assertSame('Fotoerlaubnis verweigert', PhotoConsentStatus::forVolunteer(false)['check_in_label']);
     }
 
-    public function test_team_denied_wins_when_incomplete(): void
+    public function test_team_incomplete_stays_pending_even_with_no(): void
     {
         $result = PhotoConsentStatus::forTeam(['unknown' => 0, 'yes' => 3, 'no' => 1], 10);
-        $this->assertSame(PhotoConsentStatus::DENIED, $result['status']);
+        $this->assertSame(PhotoConsentStatus::PENDING, $result['status']);
         $this->assertSame(4, $result['answered']);
+        $this->assertSame('Es fehlen Fotoerlaubnisse', $result['check_in_label']);
+    }
+
+    public function test_team_complete_with_no_is_denied(): void
+    {
+        $result = PhotoConsentStatus::forTeam(['unknown' => 0, 'yes' => 4, 'no' => 1], 5);
+        $this->assertSame(PhotoConsentStatus::DENIED, $result['status']);
         $this->assertSame('Mindestens eine Fotoerlaubnis verweigert', $result['check_in_label']);
     }
 

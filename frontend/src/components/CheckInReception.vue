@@ -638,14 +638,6 @@ onMounted(async () => {
                   </span>
                 </span>
               </div>
-              <div
-                  v-if="detail.photo_consent"
-                  class="ci-photo-consent"
-                  :class="photoConsentStatusClass(detail.photo_consent.status)"
-                  role="status"
-              >
-                {{ detail.photo_consent.label }}
-              </div>
               <div v-if="detail.logo_stem || roleLabel(detail)" class="ci-hit__row ci-hit__row--sub">
                 <img
                     v-if="detail.logo_stem"
@@ -655,6 +647,15 @@ onMounted(async () => {
                     aria-hidden="true"
                 />
                 <span v-if="roleLabel(detail)" class="ci-hit__sub">{{ roleLabel(detail) }}</span>
+              </div>
+              <div
+                  v-if="detail.photo_consent"
+                  class="ci-photo-consent"
+                  :class="photoConsentStatusClass(detail.photo_consent.status)"
+                  role="status"
+              >
+                <i class="bi bi-camera ci-photo-consent__icon" aria-hidden="true"/>
+                <span>{{ detail.photo_consent.label }}</span>
               </div>
             </div>
 
@@ -1055,12 +1056,22 @@ onMounted(async () => {
 }
 
 .ci-photo-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
   margin-top: 0.45rem;
   padding: 0.4rem 0.55rem;
   border-radius: var(--radius, 0.5rem);
   font-size: 0.85rem;
   font-weight: 600;
   line-height: 1.3;
+}
+
+.ci-photo-consent__icon {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .ci-hit__label {

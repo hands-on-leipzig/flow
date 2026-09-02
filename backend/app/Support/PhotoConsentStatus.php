@@ -47,6 +47,25 @@ final class PhotoConsentStatus
         $yes = (int) ($counts['yes'] ?? 0);
         $no = (int) ($counts['no'] ?? 0);
         $answered = $yes + $no;
+        $complete = $peopleCount !== null && $peopleCount > 0 && $answered >= $peopleCount;
+
+        if (! $complete) {
+            $y = $peopleCount ?? 0;
+            $message = sprintf(
+                'Bisher liegen %d von %d Fotoerlaubnissen vor. Bitte nicht vergessen, die restlichen zu schicken.',
+                $answered,
+                $y,
+            );
+
+            return array_merge(self::payload(
+                self::PENDING,
+                'Es fehlen Fotoerlaubnisse',
+                $message,
+            ), [
+                'answered' => $answered,
+                'people_count' => $peopleCount,
+            ]);
+        }
 
         if ($no >= 1) {
             return array_merge(self::payload(
@@ -59,28 +78,10 @@ final class PhotoConsentStatus
             ]);
         }
 
-        if ($peopleCount !== null && $peopleCount > 0 && $yes === $peopleCount) {
-            return array_merge(self::payload(
-                self::GRANTED,
-                'Alle Fotoerlaubnisse liegen vor',
-                'Alle Fotoerlaubnisse liegen vor. Danke!',
-            ), [
-                'answered' => $answered,
-                'people_count' => $peopleCount,
-            ]);
-        }
-
-        $y = $peopleCount ?? 0;
-        $message = sprintf(
-            'Bisher liegen %d von %d Fotoerlaubnissen vor. Bitte nicht vergessen, die restlichen zu schicken.',
-            $answered,
-            $y,
-        );
-
         return array_merge(self::payload(
-            self::PENDING,
-            'Es fehlen Fotoerlaubnisse',
-            $message,
+            self::GRANTED,
+            'Alle Fotoerlaubnisse liegen vor',
+            'Alle Fotoerlaubnisse liegen vor. Danke!',
         ), [
             'answered' => $answered,
             'people_count' => $peopleCount,

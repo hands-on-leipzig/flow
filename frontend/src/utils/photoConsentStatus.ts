@@ -41,6 +41,18 @@ export function photoConsentStatusForTeam(
   const yes = Number(counts?.yes ?? 0)
   const no = Number(counts?.no ?? 0)
   const answered = yes + no
+  const complete = peopleCount != null && peopleCount > 0 && answered >= peopleCount
+
+  if (!complete) {
+    const y = peopleCount ?? 0
+    return {
+      status: 'pending',
+      checkInLabel: 'Es fehlen Fotoerlaubnisse',
+      selfServiceMessage: `Bisher liegen ${answered} von ${y} Fotoerlaubnissen vor. Bitte nicht vergessen, die restlichen zu schicken.`,
+      answered,
+      peopleCount: peopleCount ?? null,
+    }
+  }
 
   if (no >= 1) {
     return {
@@ -53,23 +65,12 @@ export function photoConsentStatusForTeam(
     }
   }
 
-  if (peopleCount != null && peopleCount > 0 && yes === peopleCount) {
-    return {
-      status: 'granted',
-      checkInLabel: 'Alle Fotoerlaubnisse liegen vor',
-      selfServiceMessage: 'Alle Fotoerlaubnisse liegen vor. Danke!',
-      answered,
-      peopleCount,
-    }
-  }
-
-  const y = peopleCount ?? 0
   return {
-    status: 'pending',
-    checkInLabel: 'Es fehlen Fotoerlaubnisse',
-    selfServiceMessage: `Bisher liegen ${answered} von ${y} Fotoerlaubnissen vor. Bitte nicht vergessen, die restlichen zu schicken.`,
+    status: 'granted',
+    checkInLabel: 'Alle Fotoerlaubnisse liegen vor',
+    selfServiceMessage: 'Alle Fotoerlaubnisse liegen vor. Danke!',
     answered,
-    peopleCount: peopleCount ?? null,
+    peopleCount,
   }
 }
 
