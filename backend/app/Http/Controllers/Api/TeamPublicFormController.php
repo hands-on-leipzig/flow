@@ -227,6 +227,7 @@ class TeamPublicFormController extends Controller
                 'name' => $team->name,
                 'team_number_hot' => $team->team_number_hot !== null ? (int) $team->team_number_hot : null,
                 'organization' => $team->organization,
+                'first_program' => $firstProgramId > 0 ? $firstProgramId : null,
                 'program_label' => $meta['labels'][$firstProgramId] ?? '',
                 'people_count' => $peopleCounts[$team->id] ?? null,
             ];
@@ -276,6 +277,7 @@ class TeamPublicFormController extends Controller
                 'name' => $row['name'],
                 'team_number_hot' => $row['team_number_hot'],
                 'organization' => $row['organization'],
+                'first_program' => $row['first_program'] ?? ((int) $team->first_program ?: null),
                 'program_label' => $row['program_label'],
                 'people_count' => $row['people_count'],
             ],

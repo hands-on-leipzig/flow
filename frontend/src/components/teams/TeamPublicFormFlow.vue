@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, ref, watch} from 'vue'
 import axios from 'axios'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {sumCountMap} from '@/utils/teamDataCompletion'
 
 type FormColumn = {
@@ -21,6 +22,7 @@ type TeamSummary = {
   name: string
   team_number_hot: number | null
   organization: string | null
+  first_program: number | null
   program_label: string
   people_count: number | null
 }
@@ -45,6 +47,7 @@ const props = defineProps<{
   step: 'email' | 'otp' | 'pick-team' | 'data' | 'done'
   email: string
   slug: string
+  event?: Record<string, unknown> | null
 }>()
 
 const emit = defineEmits<{
@@ -343,26 +346,28 @@ watch(
 
       <template v-else-if="formPayload">
         <div class="vol-public-form__fields">
-          <div class="vol-public-form__row">
-            <span class="vol-public-form__label">Team</span>
-            <span class="vol-public-form__readonly">{{ formPayload.team.name }}</span>
-          </div>
-          <div class="vol-public-form__row">
-            <span class="vol-public-form__label">Nr</span>
-            <span class="vol-public-form__readonly">{{ formPayload.team.team_number_hot ?? '—' }}</span>
-          </div>
-          <div class="vol-public-form__row">
-            <span class="vol-public-form__label">Organisation</span>
-            <span class="vol-public-form__readonly">{{ formPayload.team.organization || '—' }}</span>
-          </div>
-          <div class="vol-public-form__row">
-            <span class="vol-public-form__label">Programm</span>
-            <span class="vol-public-form__readonly">{{ formPayload.team.program_label || '—' }}</span>
-          </div>
-          <div class="vol-public-form__row">
-            <span class="vol-public-form__label">Personen</span>
-            <span class="vol-public-form__readonly">{{ peopleCount ?? '—' }}</span>
-          </div>
+          <header class="team-public-form__meta">
+            <div class="team-public-form__identity">
+              <ProgramLogo
+                  v-if="formPayload.team.first_program"
+                  :event="event"
+                  :program="formPayload.team.first_program"
+                  size="sm"
+                  class="team-public-form__logo"
+              />
+              <p class="team-public-form__title">
+                <span class="team-public-form__name">{{ formPayload.team.name }}</span>
+                <span
+                    v-if="formPayload.team.team_number_hot != null"
+                    class="team-public-form__hot"
+                >({{ formPayload.team.team_number_hot }})</span>
+                <span class="team-public-form__org">{{ formPayload.team.organization || '—' }}</span>
+              </p>
+            </div>
+            <p class="team-public-form__people">
+              Gemeldete Personen: {{ peopleCount ?? '—' }}
+            </p>
+          </header>
 
           <div
               v-if="hasPhotoColumn"
@@ -584,6 +589,58 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.team-public-form__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.35rem;
+}
+
+.team-public-form__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.team-public-form__logo {
+  flex-shrink: 0;
+}
+
+.team-public-form__title {
+  margin: 0;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.team-public-form__name {
+  font-weight: 700;
+}
+
+.team-public-form__hot {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.team-public-form__org {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.team-public-form__people {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .team-public-form__pick {

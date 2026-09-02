@@ -342,6 +342,7 @@ onMounted(async () => {
           :step="teamFormStep"
           :email="teamFormEmail"
           :slug="String(route.params.slug ?? '')"
+          :event="event"
           @update:email="teamFormEmail = $event"
           @update:step="teamFormStep = $event"
           @cancel="closeTeamForm"
