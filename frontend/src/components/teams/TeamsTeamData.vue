@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onActivated, ref, watch} from 'vue'
 import axios from 'axios'
 import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
@@ -51,6 +51,7 @@ const {
   enabled: teamDataEntryEnabled,
   loading: teamDataEntryLoading,
   setEnabled: setTeamDataEntryEnabled,
+  load: loadTeamDataEntry,
 } = usePublicTeamDataEntry(eventId)
 
 async function onTeamDataEntryToggle(next: boolean) {
@@ -179,8 +180,15 @@ async function downloadExcel() {
   }
 }
 
-watch(eventId, () => load(), {immediate: true})
-onMounted(() => load())
+watch(eventId, () => {
+  void load()
+}, {immediate: true})
+
+// keep-alive: coach form / Spalten may change while this pane is cached
+onActivated(() => {
+  void load()
+  void loadTeamDataEntry()
+})
 </script>
 
 <template>
