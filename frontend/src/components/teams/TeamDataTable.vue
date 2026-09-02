@@ -25,6 +25,13 @@ const emit = defineEmits<{
 const savingTeamId = ref<number | null>(null)
 const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
+function columnColClass(column: TeamDataColumn) {
+  if (column.editor === 'text') return 'vol-col--custom-text'
+  if (column.editor === 'meal_counts') return 'vol-col--meal'
+  if (column.key === 'photo_consent' || column.kind === 'photo') return 'vol-col--photo'
+  return 'vol-col--custom'
+}
+
 function displayNumber(value: number | null | undefined) {
   if (value === null || value === undefined) return '—'
   return String(value)
@@ -100,29 +107,29 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 </script>
 
 <template>
-  <div class="vol-table-frame vol-table-frame--scroll team-data-table-frame">
-    <table class="vol-table team-data-table">
+  <div class="vol-table-frame vol-table-frame--scroll vol-table-frame--roster vol-table-frame--team-data">
+    <table class="vol-table vol-table--roster vol-table--team-data">
       <colgroup>
-        <col class="team-data-col--program">
-        <col class="team-data-col--nr">
-        <col class="team-data-col--name">
-        <col class="team-data-col--organization">
-        <col class="team-data-col--people">
+        <col class="vol-col--program">
+        <col class="vol-col--nr">
+        <col class="vol-col--name">
+        <col class="vol-col--organization">
+        <col class="vol-col--people">
         <col
             v-for="column in columns"
             :key="column.key"
-            class="team-data-col--dynamic"
+            :class="columnColClass(column)"
         >
       </colgroup>
       <thead>
         <tr>
-          <th class="vol-table__sticky team-data-table__sticky--program" scope="col">
+          <th class="vol-table__roster vol-table__sticky vol-table__sticky--program" scope="col">
             <span class="sr-only">Programm</span>
           </th>
-          <th class="vol-table__sticky team-data-table__sticky--nr" scope="col">Nr</th>
-          <th class="vol-table__sticky team-data-table__sticky--name" scope="col">Teamname</th>
-          <th class="vol-table__sticky team-data-table__sticky--organization" scope="col">Organisation</th>
-          <th class="vol-table__sticky team-data-table__sticky--people" scope="col">Personen</th>
+          <th class="vol-table__sticky vol-table__sticky--nr" scope="col">Nr</th>
+          <th class="vol-table__name vol-table__sticky vol-table__sticky--name" scope="col">Teamname</th>
+          <th class="vol-table__sticky vol-table__sticky--organization" scope="col">Organisation</th>
+          <th class="vol-table__sticky vol-table__sticky--people" scope="col">Personen</th>
           <th
               v-for="column in columns"
               :key="column.key"
@@ -133,40 +140,40 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
         </tr>
       </thead>
       <tbody>
-        <tr v-if="!teams.length">
-          <td :colspan="5 + columns.length" class="team-data-table__empty">
-            Keine Teams vorhanden.
-          </td>
-        </tr>
-        <tr v-for="row in teams" :key="row.id">
-          <td class="vol-table__sticky team-data-table__sticky--program">
+        <tr v-for="row in teams" :key="row.id" class="glass-table-row--hover">
+          <td class="vol-table__roster vol-table__sticky vol-table__sticky--program">
             <ProgramLogo
                 v-if="row.first_program"
                 :program="row.first_program"
                 size="chip"
                 decorative
+                class="vol-table__assignment-icon"
             />
             <span v-else class="team-data-table__dash">—</span>
           </td>
-          <td class="vol-table__sticky team-data-table__sticky--nr">
+          <td class="vol-table__sticky vol-table__sticky--nr team-data-table__nr">
             {{ displayNumber(row.team_number_hot) }}
           </td>
-          <td class="vol-table__sticky team-data-table__sticky--name">{{ row.name }}</td>
-          <td class="vol-table__sticky team-data-table__sticky--organization">
+          <td class="vol-table__name vol-table__sticky vol-table__sticky--name">{{ row.name }}</td>
+          <td class="vol-table__role vol-table__sticky vol-table__sticky--organization">
             {{ displayOrganization(row.organization) }}
           </td>
-          <td class="vol-table__sticky team-data-table__sticky--people">
+          <td class="vol-table__sticky vol-table__sticky--people team-data-table__people">
             {{ displayNumber(row.people_count) }}
           </td>
           <td
               v-for="column in columns"
               :key="`${row.id}-${column.key}`"
+              class="vol-table__field"
           >
             <button
                 v-if="column.editor === 'meal_counts' || column.editor === 'count_set'"
                 type="button"
-                class="team-data-cell team-data-cell--count"
-                :class="{'team-data-cell--mismatch': countSetCellMismatch(row, column)}"
+                class="vol-detail-trigger glass-input glass-input--sm"
+                :class="{
+                  'vol-detail-trigger--unset': countSetTotal(row, column) === 0,
+                  'team-data-cell--mismatch': countSetCellMismatch(row, column),
+                }"
                 @click="onCountCellClick($event, row, column)"
             >
               {{ countSetTotal(row, column) }}
@@ -174,7 +181,7 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
             <input
                 v-else-if="column.editor === 'text'"
                 type="text"
-                class="glass-input glass-input--sm team-data-cell__input"
+                class="glass-input glass-input--sm vol-detail-input"
                 :value="scalarValue(row, column)"
                 :disabled="savingTeamId === row.id"
                 @input="scheduleScalarSave(row, column, ($event.target as HTMLInputElement).value)"
@@ -184,7 +191,7 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
                 type="number"
                 min="0"
                 step="1"
-                class="glass-input glass-input--sm team-data-cell__input"
+                class="glass-input glass-input--sm vol-detail-input vol-detail-input--number"
                 :value="scalarValue(row, column)"
                 :disabled="savingTeamId === row.id"
                 @input="scheduleScalarSave(row, column, ($event.target as HTMLInputElement).value)"
@@ -197,92 +204,142 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 </template>
 
 <style scoped>
-.team-data-table-frame {
-  max-height: none;
+.vol-table-frame--team-data {
+  --td-sticky-program: 2.75rem;
+  --td-sticky-nr: 3.25rem;
+  --td-sticky-name: 11rem;
+  --td-sticky-organization: 9rem;
+  --td-sticky-people: 4.75rem;
 }
 
-.team-data-table {
+.vol-table--team-data {
+  width: max-content;
   min-width: 100%;
+  table-layout: auto;
 }
 
-.team-data-col--program,
-.team-data-table__sticky--program {
-  width: 2.75rem;
-  min-width: 2.75rem;
+.vol-col--program {
+  width: var(--td-sticky-program);
 }
 
-.team-data-col--nr,
-.team-data-table__sticky--nr {
-  min-width: 3rem;
+.vol-col--nr {
+  min-width: var(--td-sticky-nr);
 }
 
-.team-data-col--name,
-.team-data-table__sticky--name {
-  min-width: 10rem;
+.vol-col--name {
+  min-width: var(--td-sticky-name);
 }
 
-.team-data-col--organization,
-.team-data-table__sticky--organization {
-  min-width: 9rem;
+.vol-col--organization {
+  min-width: var(--td-sticky-organization);
 }
 
-.team-data-col--people,
-.team-data-table__sticky--people {
-  min-width: 4.5rem;
+.vol-col--people {
+  min-width: var(--td-sticky-people);
 }
 
-.team-data-table__sticky--program {
+.vol-col--meal {
+  min-width: 7rem;
+}
+
+.vol-col--photo {
+  min-width: 8rem;
+}
+
+.vol-col--custom {
+  min-width: 7.5rem;
+}
+
+.vol-col--custom-text {
+  min-width: 14rem;
+}
+
+.vol-table__sticky {
+  position: sticky;
+}
+
+.vol-table-frame--team-data thead .vol-table__sticky {
+  background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
+  backdrop-filter: blur(8px);
+}
+
+.vol-table-frame--team-data tbody .vol-table__sticky {
+  background: color-mix(in srgb, #ffffff 92%, var(--color-bg-muted));
+}
+
+.vol-table__sticky--program {
   left: 0;
-}
-
-.team-data-table__sticky--nr {
-  left: 2.75rem;
-}
-
-.team-data-table__sticky--name {
-  left: 5.75rem;
-}
-
-.team-data-table__sticky--organization {
-  left: 15.75rem;
-}
-
-.team-data-table__sticky--people {
-  left: 24.75rem;
-}
-
-.team-data-table__sticky--program,
-.team-data-table__sticky--nr,
-.team-data-table__sticky--name,
-.team-data-table__sticky--organization,
-.team-data-table__sticky--people {
   z-index: 2;
-  background: var(--liquid-tile-bg-inner);
 }
 
-.team-data-table__empty {
-  text-align: center;
-  opacity: 0.7;
-  padding: 1.5rem;
+.vol-table__sticky--nr {
+  left: var(--td-sticky-program);
+  z-index: 2;
+}
+
+.vol-table__sticky--name {
+  left: calc(var(--td-sticky-program) + var(--td-sticky-nr));
+  z-index: 2;
+}
+
+.vol-table__sticky--organization {
+  left: calc(var(--td-sticky-program) + var(--td-sticky-nr) + var(--td-sticky-name));
+  z-index: 2;
+}
+
+.vol-table__sticky--people {
+  left: calc(
+    var(--td-sticky-program) + var(--td-sticky-nr) + var(--td-sticky-name) + var(--td-sticky-organization)
+  );
+  z-index: 2;
+  box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.14);
+}
+
+.vol-table-frame--team-data thead th.vol-table__sticky {
+  z-index: 4;
+}
+
+.vol-table-frame--team-data tbody tr.glass-table-row--hover:hover .vol-table__sticky {
+  background: var(--color-bg-hover);
+}
+
+.vol-table__name {
+  font-weight: 600;
+}
+
+.vol-table__role {
+  color: var(--color-text-muted);
+}
+
+.vol-table__assignment-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.team-data-table__nr,
+.team-data-table__people {
+  font-variant-numeric: tabular-nums;
 }
 
 .team-data-table__dash {
   opacity: 0.5;
 }
 
-.team-data-cell {
-  width: 100%;
-  border: none;
-  background: transparent;
-  font: inherit;
-  text-align: center;
-  cursor: pointer;
-  padding: 0.35rem 0.5rem;
-  border-radius: var(--radius-sm);
+.vol-table__field {
+  vertical-align: middle;
 }
 
-.team-data-cell--count:hover {
-  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+.vol-detail-trigger {
+  width: 100%;
+  min-width: 5.5rem;
+  text-align: center;
+  cursor: pointer;
+}
+
+.vol-detail-trigger--unset {
+  color: var(--color-text-subtle);
 }
 
 .team-data-cell--mismatch {
@@ -290,8 +347,25 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
   font-weight: 600;
 }
 
-.team-data-cell__input {
+.vol-detail-trigger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.vol-detail-input {
   width: 100%;
-  min-width: 5rem;
+  min-width: 0;
+  font-size: 0.8125rem;
+}
+
+.vol-detail-input--number {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.vol-detail-input--number::-webkit-outer-spin-button,
+.vol-detail-input--number::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 </style>

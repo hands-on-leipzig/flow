@@ -2,6 +2,7 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import TeamDataColumnsPanel from '@/components/molecules/TeamDataColumnsPanel.vue'
 import VolunteerMealOptionsPanel from '@/components/molecules/VolunteerMealOptionsPanel.vue'
 import TeamDataTable from '@/components/teams/TeamDataTable.vue'
@@ -183,19 +184,24 @@ onMounted(() => load())
     </header>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-roster-table-tile">
-      <div v-if="teams.length && !loading" class="team-data-filters">
-        <div class="team-data-filters__programs">
-          <button
-              v-for="program in programFilters"
-              :key="program.first_program"
-              type="button"
-              class="vol-staffing-filter"
-              :class="{'vol-staffing-filter--active': activeProgramFilters.has(Number(program.first_program))}"
-              @click="toggleProgramFilter(Number(program.first_program))"
-          >
-            <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
-          </button>
-        </div>
+      <div v-if="teams.length && !loading" class="vol-staffing-filters">
+        <button
+            v-for="program in programFilters"
+            :key="program.first_program"
+            type="button"
+            class="vol-staffing-filter"
+            :class="{'vol-staffing-filter--active': activeProgramFilters.has(Number(program.first_program))}"
+            @click="toggleProgramFilter(Number(program.first_program))"
+        >
+          <ProgramLogo
+              :program="program"
+              size="chip"
+              decorative
+              class="vol-staffing-filter__logo"
+          />
+          <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
+        </button>
+        <span class="vol-staffing-filters__sep" aria-hidden="true"/>
         <button
             type="button"
             class="vol-staffing-filter"
@@ -204,11 +210,16 @@ onMounted(() => load())
             @click="showOnlyIncomplete = !showOnlyIncomplete"
         >
           <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
-          <span class="vol-staffing-filter__label">Nur unvollständig</span>
+          <span class="vol-staffing-filter__label">Unvollständige</span>
         </button>
+        <span class="vol-toolbar__count vol-staffing-filters__count">
+          {{ filteredTeams.length }} / {{ teams.length }}
+        </span>
       </div>
 
       <p v-if="loading" class="vol-muted">Laden…</p>
+      <p v-else-if="!teams.length" class="vol-muted">Keine Teams vorhanden.</p>
+      <p v-else-if="!filteredTeams.length" class="vol-muted">Keine Teams für die gewählten Filter.</p>
       <TeamDataTable
           v-else
           :event-id="eventId"
@@ -246,19 +257,3 @@ onMounted(() => load())
   </div>
 </template>
 
-<style scoped>
-.team-data-filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
-  margin-bottom: 0.75rem;
-}
-
-.team-data-filters__programs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  flex: 1 1 auto;
-}
-</style>
