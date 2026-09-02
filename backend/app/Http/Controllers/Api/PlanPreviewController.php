@@ -89,7 +89,6 @@ class PlanPreviewController extends Controller
             'html' => view('preview.roles-grid', [
                 'programs' => $data['programs'],
                 'eventsByDay' => $data['eventsByDay'],
-                'hasOverlaps' => $data['has_overlaps'],
             ])->render(),
             'programs' => array_map(static fn (array $p) => [
                 'id' => $p['id'],
@@ -111,7 +110,6 @@ class PlanPreviewController extends Controller
             'html' => view('preview.teams-grid', [
                 'programs' => $data['programs'],
                 'eventsByDay' => $data['eventsByDay'],
-                'hasOverlaps' => $data['has_overlaps'],
             ])->render(),
             'programs' => array_map(static fn (array $p) => [
                 'id' => $p['id'],

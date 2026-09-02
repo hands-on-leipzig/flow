@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Enums\FirstProgram;
 use App\Support\OverviewPlanStyle;
 use App\Support\PlanParameter;
-use App\Support\PreviewGridOverlapResolver;
 use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
 use Illuminate\Support\Carbon;
@@ -28,8 +27,7 @@ class TeamsPreviewGridService
      * @return array{
      *   programs: list<array{id: int, label: string, logo: string, style_column: string, columns: list<array{key: string, title: string, style_column: string, program_id: int, index: int}>}>,
      *   eventsByDay: array<string, array{date: Carbon, timeSlots: list<Carbon>, events: list<array{column_key: string, start: Carbon, end: Carbon, text: string, rowspan: int, style_column: string}>}>,
-     *   empty: bool,
-     *   has_overlaps: bool
+     *   empty: bool
      * }
      */
     public function build(int $planId): array
@@ -53,7 +51,6 @@ class TeamsPreviewGridService
                 'programs' => $programs,
                 'eventsByDay' => [],
                 'empty' => true,
-                'has_overlaps' => false,
             ];
         }
 
@@ -74,16 +71,12 @@ class TeamsPreviewGridService
         });
 
         $placed = $this->placeActivities($activities, $byProgramTeam, $programIds, $slotAssignmentPrograms);
-
-        $overlap = PreviewGridOverlapResolver::resolve($placed);
-        $placed = $overlap['events'];
         $eventsByDay = $this->bucketByDay($placed);
 
         return [
             'programs' => $programs,
             'eventsByDay' => $eventsByDay,
             'empty' => $placed === [] && $activities->isEmpty(),
-            'has_overlaps' => $overlap['has_overlaps'],
         ];
     }
 
