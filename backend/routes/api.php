@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\TeamPublicFormController;
 use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
@@ -102,6 +103,9 @@ Route::prefix('check-in/{slug}')->group(function () {
 // Volunteer public data entry (email lookup + save; public; OTP token deferred)
 Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
 Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
+Route::get('/public-team-form/{slug}/lookup', [TeamPublicFormController::class, 'lookup']);
+Route::get('/public-team-form/{slug}/team/{team}', [TeamPublicFormController::class, 'team']);
+Route::post('/public-team-form/{slug}/save', [TeamPublicFormController::class, 'save']);
 
 // Cockpit app (PIN session; public)
 Route::prefix('cockpit/{slug}')->group(function () {
@@ -303,6 +307,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::get('/events/{event}/team-fields', [EventTeamFieldController::class, 'index']);
     Route::post('/events/{event}/team-fields', [EventTeamFieldController::class, 'store']);
+    Route::put('/events/{event}/team-fields/public-form', [EventTeamFieldController::class, 'replacePublicForm']);
     Route::patch('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'update']);
     Route::delete('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'destroy']);
     Route::get('/events/{event}/team-data', [EventTeamDataController::class, 'index']);
@@ -445,6 +450,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/helper-search/{eventId}', [PublishController::class, 'setPublicHelperSearch']);
         Route::get('/volunteer-data-entry/{eventId}', [PublishController::class, 'getPublicVolunteerDataEntry']);
         Route::post('/volunteer-data-entry/{eventId}', [PublishController::class, 'setPublicVolunteerDataEntry']);
+        Route::get('/team-data-entry/{eventId}', [PublishController::class, 'getPublicTeamDataEntry']);
+        Route::post('/team-data-entry/{eventId}', [PublishController::class, 'setPublicTeamDataEntry']);
         Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
         Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
     });

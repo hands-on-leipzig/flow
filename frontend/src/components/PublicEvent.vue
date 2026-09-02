@@ -11,6 +11,7 @@ import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} 
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
 import VolunteerPublicFormFlow from '@/components/volunteers/VolunteerPublicFormFlow.vue'
+import TeamPublicFormFlow from '@/components/teams/TeamPublicFormFlow.vue'
 
 const route = useRoute()
 const event = ref(null)
@@ -22,6 +23,8 @@ const eventLogos = ref([])
 
 const formStep = ref(null)
 const formEmail = ref('')
+const teamFormStep = ref(null)
+const teamFormEmail = ref('')
 
 const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
 const headingPlace = computed(() => cleanEventName(event.value) || event.value?.name || '—')
@@ -205,7 +208,17 @@ const showVolunteerDataEntrySection = computed(() => {
   return level >= 1 && level < 4
 })
 
+const teamDataEntry = computed(() => scheduleInfo.value?.team_data_entry ?? null)
+
+const showTeamDataEntrySection = computed(() => {
+  if (!scheduleInfo.value || !teamDataEntry.value?.enabled) return false
+  const level = scheduleInfo.value.level
+  return level >= 1 && level < 4
+})
+
 function openVolunteerForm() {
+  teamFormStep.value = null
+  teamFormEmail.value = ''
   formStep.value = 'email'
   formEmail.value = ''
 }
@@ -213,6 +226,18 @@ function openVolunteerForm() {
 function closeVolunteerForm() {
   formStep.value = null
   formEmail.value = ''
+}
+
+function openTeamForm() {
+  formStep.value = null
+  formEmail.value = ''
+  teamFormStep.value = 'email'
+  teamFormEmail.value = ''
+}
+
+function closeTeamForm() {
+  teamFormStep.value = null
+  teamFormEmail.value = ''
 }
 
 const helperSearchPrimaryScopes = computed(() => {
@@ -310,6 +335,16 @@ onMounted(async () => {
           @update:email="formEmail = $event"
           @update:step="formStep = $event"
           @cancel="closeVolunteerForm"
+      />
+
+      <TeamPublicFormFlow
+          v-else-if="teamFormStep"
+          :step="teamFormStep"
+          :email="teamFormEmail"
+          :slug="String(route.params.slug ?? '')"
+          @update:email="teamFormEmail = $event"
+          @update:step="teamFormStep = $event"
+          @cancel="closeTeamForm"
       />
 
       <template v-else>
@@ -448,6 +483,20 @@ onMounted(async () => {
           Helfer:innen können hier ihre Daten für diese Veranstaltung prüfen und ergänzen.
         </p>
         <button type="button" class="glass-btn-accent" @click="openVolunteerForm">
+          Daten eingeben
+        </button>
+      </section>
+
+      <!-- Dateneingabe für Coaches -->
+      <section
+          v-if="showTeamDataEntrySection"
+          class="glass-card liquid-surface-inner pe-section"
+      >
+        <h2 class="glass-card__title">Dateneingabe für Coaches</h2>
+        <p class="pe-muted pe-volunteer-form-intro">
+          Coaches können hier die Teamdaten für diese Veranstaltung prüfen und ergänzen.
+        </p>
+        <button type="button" class="glass-btn-accent" @click="openTeamForm">
           Daten eingeben
         </button>
       </section>

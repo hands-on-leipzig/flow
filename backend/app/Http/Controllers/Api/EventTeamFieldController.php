@@ -133,6 +133,46 @@ class EventTeamFieldController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Checklist save: which custom fields appear on the public coach form.
+     */
+    public function replacePublicForm(Request $request, Event $event): JsonResponse
+    {
+        $validated = $request->validate([
+            'field_keys' => 'present|array',
+            'field_keys.*' => 'string|max:64',
+        ]);
+
+        $keys = array_values(array_unique(array_map('strval', $validated['field_keys'])));
+        $fields = EventTeamField::query()->where('event', $event->id)->get();
+        $known = $fields->pluck('field_key')->all();
+
+        foreach ($keys as $key) {
+            if (! in_array($key, $known, true)) {
+                return response()->json(['error' => 'Unbekanntes Zusatzfeld.'], 422);
+            }
+        }
+
+        DB::transaction(function () use ($fields, $keys) {
+            foreach ($fields as $field) {
+                $next = in_array($field->field_key, $keys, true);
+                if ((bool) $field->public_form !== $next) {
+                    $field->public_form = $next;
+                    $field->save();
+                }
+            }
+        });
+
+        $serialized = EventTeamField::query()
+            ->where('event', $event->id)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (EventTeamField $field) => TeamDataCustomFields::serializeField($field));
+
+        return response()->json(['fields' => $serialized]);
+    }
+
     private function swapSequence(int $eventId, EventTeamField $field, int $direction): void
     {
         $fields = EventTeamField::query()

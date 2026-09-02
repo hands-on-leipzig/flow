@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
+import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import TeamDataColumnsPanel from '@/components/molecules/TeamDataColumnsPanel.vue'
 import VolunteerMealOptionsPanel from '@/components/molecules/VolunteerMealOptionsPanel.vue'
 import TeamDataTable from '@/components/teams/TeamDataTable.vue'
 import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
+import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {eventPrograms, programDisplayName} from '@/utils/eventPrograms'
 import {
   isTeamPhotoConsentUnset,
@@ -43,6 +46,20 @@ const countAnchorEl = ref<HTMLElement | null>(null)
 const countSaving = ref(false)
 
 const {options: mealOptions, setOptions: setMealOptions} = useVolunteerMealOptions(eventId)
+
+const {
+  enabled: teamDataEntryEnabled,
+  loading: teamDataEntryLoading,
+  setEnabled: setTeamDataEntryEnabled,
+} = usePublicTeamDataEntry(eventId)
+
+async function onTeamDataEntryToggle(next: boolean) {
+  try {
+    await setTeamDataEntryEnabled(next)
+  } catch {
+    // toast from composable
+  }
+}
 
 const programFilters = computed(() => {
   const programs = eventPrograms(eventStore.selectedEvent)
@@ -207,6 +224,25 @@ onMounted(() => load())
         </button>
       </div>
     </header>
+
+    <div class="vol-roster-toolbar">
+      <section class="glass-card liquid-surface-inner vol-tile vol-roster-publish" style="flex: 1 1 100%">
+        <div class="vol-roster-publish__row">
+          <span class="vol-roster-publish__label">Dateneingabe durch Coaches</span>
+          <ToggleSwitch
+              :model-value="teamDataEntryEnabled"
+              :disabled="teamDataEntryLoading || !eventId"
+              @update:modelValue="onTeamDataEntryToggle"
+          />
+        </div>
+        <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
+          Coaches können auf dem öffentlichen Plan Teamdaten eingeben. Formular-Felder unter
+          <RouterLink to="/plan/publish" class="vol-roster-publish__link">
+            Ausgabe → Veröffentlichung
+          </RouterLink>.
+        </p>
+      </section>
+    </div>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-roster-table-tile">
       <div v-if="teams.length && !loading" class="vol-staffing-filters">

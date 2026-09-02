@@ -86,7 +86,7 @@ class TeamFieldApiTest extends TestCase
         DB::table('event_team_field_value')->insert([
             'team' => 1,
             'event_team_field' => $fieldId,
-            'value' => '{"unknown":0,"yes":1,"no":0}',
+            'value' => '1',
             'updated_at' => now(),
         ]);
 
@@ -94,6 +94,51 @@ class TeamFieldApiTest extends TestCase
         $this->assertSame(200, $destroy->getStatusCode());
         $this->assertFalse(DB::table('event_team_field')->where('id', $fieldId)->exists());
         $this->assertFalse(DB::table('event_team_field_value')->where('event_team_field', $fieldId)->exists());
+    }
+
+    public function test_replace_public_form_flags(): void
+    {
+        $event = Event::query()->findOrFail(1);
+        $controller = app(EventTeamFieldController::class);
+
+        $a = $controller->store(
+            Request::create('/', 'POST', ['label' => 'A', 'type' => 'text']),
+            $event,
+        )->getData(true)['field'];
+        $b = $controller->store(
+            Request::create('/', 'POST', ['label' => 'B', 'type' => 'text']),
+            $event,
+        )->getData(true)['field'];
+
+        $bad = $controller->replacePublicForm(
+            Request::create('/', 'PUT', ['field_keys' => ['missing']]),
+            $event,
+        );
+        $this->assertSame(422, $bad->getStatusCode());
+
+        $ok = $controller->replacePublicForm(
+            Request::create('/', 'PUT', ['field_keys' => [$a['field_key']]]),
+            $event,
+        );
+        $this->assertSame(200, $ok->getStatusCode());
+        $fields = collect($ok->getData(true)['fields']);
+        $this->assertTrue($fields->firstWhere('field_key', $a['field_key'])['public_form']);
+        $this->assertFalse($fields->firstWhere('field_key', $b['field_key'])['public_form']);
+    }
+
+    public function test_publish_team_data_entry_get_and_post(): void
+    {
+        $controller = app(\App\Http\Controllers\Api\PublishController::class);
+
+        $get = $controller->getPublicTeamDataEntry(1);
+        $this->assertSame(200, $get->getStatusCode());
+        $this->assertFalse($get->getData(true)['public_team_data_entry']);
+
+        $post = $controller->setPublicTeamDataEntry(1, Request::create('/', 'POST', [
+            'public_team_data_entry' => true,
+        ]));
+        $this->assertSame(200, $post->getStatusCode());
+        $this->assertTrue($post->getData(true)['public_team_data_entry']);
     }
 
     private function seedBase(): void
@@ -138,6 +183,7 @@ class TeamFieldApiTest extends TestCase
                 $table->date('date')->nullable();
                 $table->unsignedTinyInteger('days')->default(1);
                 $table->boolean('collect_meal')->default(true);
+                $table->boolean('public_team_data_entry')->default(false);
             });
         }
         if (! Schema::hasTable('team')) {

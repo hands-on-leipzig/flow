@@ -345,6 +345,10 @@ class PublishController extends Controller
             $payload['volunteer_data_entry'] = ['enabled' => true];
         }
 
+        if ($level < 4 && (bool) $event->public_team_data_entry) {
+            $payload['team_data_entry'] = ['enabled' => true];
+        }
+
         return response()->json($payload);
     }
 
@@ -407,6 +411,37 @@ class PublishController extends Controller
             'success' => true,
             'event_id' => $eventId,
             'public_volunteer_data_entry' => (bool) $event->public_volunteer_data_entry,
+        ]);
+    }
+
+    public function getPublicTeamDataEntry(int $eventId): JsonResponse
+    {
+        $event = Event::find($eventId);
+        if (! $event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        return response()->json([
+            'event_id' => $eventId,
+            'public_team_data_entry' => (bool) $event->public_team_data_entry,
+        ]);
+    }
+
+    public function setPublicTeamDataEntry(int $eventId, Request $request): JsonResponse
+    {
+        $event = Event::find($eventId);
+        if (! $event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        $enabled = $request->boolean('public_team_data_entry');
+        $event->public_team_data_entry = $enabled;
+        $event->save();
+
+        return response()->json([
+            'success' => true,
+            'event_id' => $eventId,
+            'public_team_data_entry' => (bool) $event->public_team_data_entry,
         ]);
     }
 
