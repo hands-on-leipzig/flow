@@ -213,6 +213,16 @@ class VolunteerRosterApiTest extends TestCase
         $this->assertTrue(
             collect($checklist->getData(true)['fields'])->firstWhere('field_key', 'interne_notiz')['public_form']
         );
+
+        $indexed = $fieldController->index($event);
+        $this->assertSame(200, $indexed->getStatusCode());
+        $indexPayload = $indexed->getData(true);
+        $this->assertTrue($indexPayload['collect']['t_shirt']);
+        $this->assertTrue($indexPayload['collect']['meal']);
+        $indexedField = collect($indexPayload['fields'])->firstWhere('field_key', 'interne_notiz');
+        $this->assertNotNull($indexedField);
+        $this->assertSame(0, $indexedField['usage_count']);
+        $this->assertTrue($indexedField['public_form']);
     }
 
     private function seedBase(): void

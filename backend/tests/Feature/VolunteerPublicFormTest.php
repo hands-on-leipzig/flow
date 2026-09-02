@@ -394,6 +394,64 @@ class VolunteerPublicFormTest extends TestCase
         $this->assertSame(422, $response->getStatusCode());
     }
 
+    public function test_save_returns_422_when_collect_flags_off(): void
+    {
+        $this->seedEvent([
+            'public_volunteer_data_entry' => true,
+            'volunteer_collect_t_shirt' => false,
+            'volunteer_collect_meal' => false,
+        ]);
+        $this->seedRosterMember([
+            't_shirt_cut' => null,
+            't_shirt_size' => null,
+            'meal' => null,
+        ]);
+        $controller = app(VolunteerPublicFormController::class);
+
+        $shirtRejected = $controller->save(
+            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+                'email' => 'max@example.com',
+                'person' => [
+                    'first_name' => 'Max',
+                    'last_name' => 'Muster',
+                    'mobile' => '+491701234567',
+                ],
+                'detail' => [
+                    't_shirt_cut' => 'maenner',
+                    't_shirt_size' => 'L',
+                ],
+                'custom' => [],
+            ]),
+            'test-event'
+        );
+        $this->assertSame(422, $shirtRejected->getStatusCode());
+        $this->assertSame(
+            'T-Shirt-Angaben sind für diese Veranstaltung deaktiviert.',
+            $shirtRejected->getData(true)['error']
+        );
+
+        $mealRejected = $controller->save(
+            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+                'email' => 'max@example.com',
+                'person' => [
+                    'first_name' => 'Max',
+                    'last_name' => 'Muster',
+                    'mobile' => '+491701234567',
+                ],
+                'detail' => [
+                    'meal' => 'standard',
+                ],
+                'custom' => [],
+            ]),
+            'test-event'
+        );
+        $this->assertSame(422, $mealRejected->getStatusCode());
+        $this->assertSame(
+            'Essenswahl ist für diese Veranstaltung deaktiviert.',
+            $mealRejected->getData(true)['error']
+        );
+    }
+
     /**
      * @param  array<string, mixed>  $detailOverrides
      */
