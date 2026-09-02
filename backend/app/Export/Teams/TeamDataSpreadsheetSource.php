@@ -13,8 +13,12 @@ use App\Support\TeamDataIndex;
 
 final class TeamDataSpreadsheetSource implements SpreadsheetSource
 {
+    /**
+     * @param  list<int>|null  $teamIds  null = all; empty = none
+     */
     public function __construct(
         private readonly Event $event,
+        private readonly ?array $teamIds = null,
     ) {}
 
     public function document(): SpreadsheetDocument
@@ -34,6 +38,14 @@ final class TeamDataSpreadsheetSource implements SpreadsheetSource
 
         $payload = TeamDataIndex::payloadForEvent($this->event);
         $teams = is_array($payload['teams'] ?? null) ? $payload['teams'] : [];
+
+        if ($this->teamIds !== null) {
+            $allowed = array_fill_keys($this->teamIds, true);
+            $teams = array_values(array_filter(
+                $teams,
+                static fn (array $team): bool => isset($allowed[(int) ($team['id'] ?? 0)]),
+            ));
+        }
 
         $rows = [];
         foreach ($teams as $team) {

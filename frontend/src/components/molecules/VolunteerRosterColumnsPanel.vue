@@ -41,6 +41,12 @@ const isBusy = computed(() => adding.value || deleting.value || busyFieldId.valu
 const canAdd = computed(() => canAddCustomField(draft.value, adding.value))
 const deleteConfirmMessage = computed(() => (deleteTarget.value ? deleteCustomFieldConfirmMessage(deleteTarget.value) : ''))
 
+const disableConfirmTitle = computed(() => {
+  if (disableTarget.value === 'meal') return 'Essen abschalten?'
+  if (disableTarget.value === 't_shirt') return 'T-Shirt abschalten?'
+  return 'Spalte abschalten?'
+})
+
 const disableConfirmMessage = computed(() => {
   if (disableTarget.value === 't_shirt') {
     const n = usage.value.t_shirt
@@ -284,7 +290,7 @@ watch(
       :show="!!disableTarget"
       scrim-class="z-[110]"
       type="warning"
-      title="Spalte abschalten?"
+      :title="disableConfirmTitle"
       :message="disableConfirmMessage"
       confirm-text="Abschalten"
       cancel-text="Abbrechen"

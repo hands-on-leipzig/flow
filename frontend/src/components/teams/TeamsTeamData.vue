@@ -34,6 +34,7 @@ const mealPanelOpen = ref(false)
 const exportBusy = ref(false)
 const showOnlyIncomplete = ref(false)
 const showOnlyPhotoUnset = ref(false)
+const nameFilter = ref('')
 const activeProgramFilters = ref<Set<number>>(new Set())
 
 const countEditTeam = ref<TeamDataRow | null>(null)
@@ -50,10 +51,27 @@ const programFilters = computed(() => {
 })
 
 const filteredTeams = computed(() => {
-  let rows = [...teams.value]
-  if (activeProgramFilters.value.size > 0) {
-    rows = rows.filter((row) => row.first_program != null && activeProgramFilters.value.has(row.first_program))
+  if (activeProgramFilters.value.size === 0) {
+    return []
   }
+
+  let rows = [...teams.value]
+  rows = rows.filter((row) => row.first_program != null && activeProgramFilters.value.has(row.first_program))
+
+  const query = nameFilter.value.trim().toLocaleLowerCase('de')
+  if (query) {
+    rows = rows.filter((row) => {
+      const haystack = [
+        row.name,
+        row.organization ?? '',
+        row.team_number_hot != null ? String(row.team_number_hot) : '',
+      ]
+        .join(' ')
+        .toLocaleLowerCase('de')
+      return haystack.includes(query)
+    })
+  }
+
   if (showOnlyPhotoUnset.value) {
     rows = rows.filter((row) => isTeamPhotoConsentUnset(row))
   }
@@ -125,7 +143,9 @@ async function downloadExcel() {
   if (!eventId.value || exportBusy.value || !filteredTeams.value.length) return
   exportBusy.value = true
   try {
+    const teamIds = filteredTeams.value.map((team) => team.id)
     const response = await axios.get(`/events/${eventId.value}/team-data/export`, {
+      params: {team_ids: teamIds.join(',')},
       responseType: 'blob',
     })
     const url = window.URL.createObjectURL(response.data)
@@ -183,16 +203,26 @@ onMounted(() => load())
             @click="downloadExcel"
         >
           <i class="bi bi-download" aria-hidden="true"/>
-          {{ exportBusy ? 'Export…' : 'Excel' }}
+          {{ exportBusy ? 'Export…' : 'Download' }}
         </button>
       </div>
     </header>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-roster-table-tile">
       <div v-if="teams.length && !loading" class="vol-staffing-filters">
-        <span class="vol-staffing-filters__filter-icon" aria-hidden="true">
-          <i class="bi bi-funnel"/>
-        </span>
+        <div class="vol-staffing-filters__name-group">
+          <span class="vol-staffing-filters__name-icon" aria-hidden="true">
+            <i class="bi bi-funnel"/>
+          </span>
+          <input
+              v-model="nameFilter"
+              type="search"
+              class="glass-input glass-input--sm vol-staffing-filters__name"
+              placeholder="Team…"
+              aria-label="Nach Teamname, Organisation oder Nr filtern"
+              autocomplete="off"
+          >
+        </div>
         <button
             v-for="program in programFilters"
             :key="program.first_program"

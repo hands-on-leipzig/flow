@@ -12,6 +12,7 @@ use App\Models\Team;
 use App\Support\TeamDataColumns;
 use App\Support\TeamDataCustomFields;
 use App\Support\TeamDataIndex;
+use App\Support\TeamIdsFilter;
 use App\Support\TeamMealCounts;
 use App\Support\TeamPhotoCounts;
 use App\Support\VolunteerCollectOptions;
@@ -110,10 +111,13 @@ class EventTeamDataController extends Controller
         return response()->json(TeamDataIndex::teamPayload($event, $team));
     }
 
-    public function exportXlsx(Event $event)
+    public function exportXlsx(Request $request, Event $event)
     {
         return SpreadsheetResponse::download(
-            (new TeamDataSpreadsheetSource($event))->document()
+            (new TeamDataSpreadsheetSource(
+                $event,
+                TeamIdsFilter::parse($request),
+            ))->document()
         );
     }
 }

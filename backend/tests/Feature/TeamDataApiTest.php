@@ -152,6 +152,32 @@ class TeamDataApiTest extends TestCase
         $this->assertSame(1, $rows[0][$standardIdx]);
     }
 
+    public function test_export_respects_team_ids_filter(): void
+    {
+        DB::table('team')->insert([
+            'id' => 2,
+            'event' => 1,
+            'first_program' => 1,
+            'name' => 'Team B',
+            'team_number_hot' => 20,
+            'organization' => 'Other School',
+        ]);
+
+        $event = Event::query()->findOrFail(1);
+        $all = (new TeamDataSpreadsheetSource($event))->document();
+        $this->assertCount(2, iterator_to_array($all->sheets[0]->rows));
+
+        $filtered = (new TeamDataSpreadsheetSource($event, [1]))->document();
+        $rows = iterator_to_array($filtered->sheets[0]->rows);
+        $this->assertCount(1, $rows);
+        $labels = array_map(fn ($column) => $column->label, $filtered->sheets[0]->columns);
+        $nameIdx = array_search('Teamname', $labels, true);
+        $this->assertSame('Team A', $rows[0][$nameIdx]);
+
+        $none = (new TeamDataSpreadsheetSource($event, []))->document();
+        $this->assertCount(0, iterator_to_array($none->sheets[0]->rows));
+    }
+
     public function test_boolean_and_select_validation(): void
     {
         $booleanField = new EventTeamField([

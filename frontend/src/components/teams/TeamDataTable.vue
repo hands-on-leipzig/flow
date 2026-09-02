@@ -23,7 +23,6 @@ const emit = defineEmits<{
 }>()
 
 const savingTeamId = ref<number | null>(null)
-const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
 
 function columnColClass(column: TeamDataColumn) {
   if (column.editor === 'text') return 'vol-col--custom-text'
@@ -72,23 +71,6 @@ function isSaving(row: TeamDataRow) {
   return savingTeamId.value === row.id
 }
 
-function scheduleScalarSave(row: TeamDataRow, column: TeamDataColumn, raw: string) {
-  const fieldKey = column.field_key
-  if (!fieldKey || !props.eventId) return
-
-  const timerKey = `${row.id}:${fieldKey}`
-  const existing = debounceTimers.get(timerKey)
-  if (existing) clearTimeout(existing)
-
-  debounceTimers.set(
-    timerKey,
-    setTimeout(() => {
-      debounceTimers.delete(timerKey)
-      void saveScalar(row, column, raw)
-    }, 450),
-  )
-}
-
 async function saveCustomField(row: TeamDataRow, column: TeamDataColumn, value: string | number | boolean | null) {
   const fieldKey = column.field_key
   if (!fieldKey || !props.eventId) return
@@ -124,10 +106,7 @@ function setCustomSelect(row: TeamDataRow, column: TeamDataColumn, raw: string) 
   void saveCustomField(row, column, value)
 }
 
-async function saveScalar(row: TeamDataRow, column: TeamDataColumn, raw: string) {
-  const fieldKey = column.field_key
-  if (!fieldKey || !props.eventId) return
-
+function saveScalar(row: TeamDataRow, column: TeamDataColumn, raw: string) {
   let value: string | number | null = raw
   if (column.editor === 'number') {
     const trimmed = raw.trim()
@@ -142,18 +121,7 @@ async function saveScalar(row: TeamDataRow, column: TeamDataColumn, raw: string)
     value = null
   }
 
-  savingTeamId.value = row.id
-  try {
-    const {data} = await axios.patch(`/events/${props.eventId}/teams/${row.id}/team-data`, {
-      custom: {[fieldKey]: value},
-    })
-    Object.assign(row, data)
-    emit('updated', row)
-  } catch (e: unknown) {
-    showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
-  } finally {
-    if (savingTeamId.value === row.id) savingTeamId.value = null
-  }
+  void saveCustomField(row, column, value)
 }
 
 function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataColumn) {
@@ -290,7 +258,7 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
                 class="glass-input glass-input--sm vol-detail-input"
                 :value="scalarValue(row, column)"
                 :disabled="isSaving(row)"
-                @input="scheduleScalarSave(row, column, ($event.target as HTMLInputElement).value)"
+                @change="saveScalar(row, column, ($event.target as HTMLInputElement).value)"
             >
             <input
                 v-else-if="column.editor === 'number'"
@@ -300,7 +268,7 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
                 class="glass-input glass-input--sm vol-detail-input vol-detail-input--number"
                 :value="scalarValue(row, column)"
                 :disabled="isSaving(row)"
-                @input="scheduleScalarSave(row, column, ($event.target as HTMLInputElement).value)"
+                @change="saveScalar(row, column, ($event.target as HTMLInputElement).value)"
             >
           </td>
         </tr>
