@@ -9,6 +9,7 @@ const seasons = ref([])
 const selectedSeasonId = ref(null)
 const loading = ref(true)
 const running = ref(false)
+const runningEventId = ref(null)
 const progress = ref(null)
 const programErrors = ref({})
 
@@ -73,17 +74,16 @@ function rowKey(eventId, firstProgram) {
   return `${eventId}_${firstProgram}`
 }
 
-async function runQualityCheck() {
-  if (!canRun.value) return
+async function evaluatePrograms(items) {
+  if (items.length === 0) return
 
-  const toRun = [...stalePrograms.value]
   running.value = true
-  programErrors.value = {}
-  const total = toRun.length
+  const total = items.length
   let done = 0
 
-  for (const { event, program } of toRun) {
+  for (const { event, program } of items) {
     done += 1
+    runningEventId.value = event.event_id
     progress.value = {
       current: done,
       total,
@@ -111,10 +111,35 @@ async function runQualityCheck() {
   }
 
   running.value = false
+  runningEventId.value = null
   progress.value = null
+}
+
+async function runQualityCheck() {
+  if (!canRun.value) return
+
+  const toRun = [...stalePrograms.value]
+  programErrors.value = {}
+  await evaluatePrograms(toRun)
 
   if (stalePrograms.value.length === 0) {
     showGlassToast('Qualitätsprüfung abgeschlossen.', 'success')
+  }
+}
+
+async function runEventQuality(event) {
+  if (running.value || event.status !== 'evaluable' || !event.plan_id) return
+
+  const toRun = (event.programs || [])
+    .filter((p) => p.stale)
+    .map((program) => ({ event, program }))
+
+  if (toRun.length === 0) return
+
+  await evaluatePrograms(toRun)
+
+  if ((event.programs || []).every((p) => !p.stale)) {
+    showGlassToast(`${event.event_name}: Qualitätsprüfung abgeschlossen.`, 'success')
   }
 }
 
@@ -167,6 +192,9 @@ onMounted(async () => {
       v-else
       :events="events"
       :program-errors="programErrors"
+      :running="running"
+      :running-event-id="runningEventId"
+      @run-event="runEventQuality"
     />
   </div>
 </template>

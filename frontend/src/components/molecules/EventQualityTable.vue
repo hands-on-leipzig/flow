@@ -12,7 +12,17 @@ const props = defineProps({
     type: Object,
     default: () => ({}),
   },
+  running: {
+    type: Boolean,
+    default: false,
+  },
+  runningEventId: {
+    type: Number,
+    default: null,
+  },
 })
+
+const emit = defineEmits(['run-event'])
 
 const expandedKey = ref(null)
 
@@ -32,12 +42,33 @@ function rowKey(eventId, firstProgram) {
 }
 
 function toggleExpanded(eventId, firstProgram) {
+  const event = props.events.find((e) => e.event_id === eventId)
+  if (event && eventIsStale(event)) return
+
   const key = rowKey(eventId, firstProgram)
   expandedKey.value = expandedKey.value === key ? null : key
 }
 
-function staleCount(event) {
-  return (event.programs || []).filter((p) => p.stale).length
+function eventIsStale(event) {
+  return (event.programs || []).some((p) => p.stale)
+}
+
+function staleNote(event) {
+  const stale = (event.programs || []).filter((p) => p.stale)
+  if (stale.length === 0) return null
+
+  const missing = stale.some((p) => p.stale_reason === 'missing')
+  const changed = stale.some((p) => p.stale_reason === 'plan_changed')
+
+  if (missing && changed) return 'Qualität veraltet'
+  if (missing) return 'Nicht berechnet'
+  return 'Veraltet'
+}
+
+function eventHasError(event) {
+  return (event.programs || []).some((p) =>
+    programError(event.event_id, p.first_program),
+  )
 }
 
 function programError(eventId, firstProgram) {
@@ -108,11 +139,28 @@ function programError(eventId, firstProgram) {
             <span v-if="event.regional_partner_name"> · {{ event.regional_partner_name }}</span>
           </span>
           <span
-            v-if="staleCount(event) > 0"
+            v-if="staleNote(event)"
             class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300"
           >
-            {{ staleCount(event) }} veraltet
+            {{ staleNote(event) }}
           </span>
+          <span
+            v-if="eventHasError(event)"
+            class="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-700 dark:text-red-300"
+          >
+            Fehler
+          </span>
+          <button
+            v-if="eventIsStale(event)"
+            type="button"
+            class="glass-btn-accent !px-2 !py-0.5 !text-xs inline-flex items-center gap-1 ml-auto"
+            :disabled="running"
+            @click="emit('run-event', event)"
+          >
+            <i class="bi bi-clipboard-check" aria-hidden="true" />
+            <span v-if="runningEventId === event.event_id">Prüfe …</span>
+            <span v-else>Qualität prüfen</span>
+          </button>
         </div>
 
         <QPlanSummaryRow
@@ -120,9 +168,8 @@ function programError(eventId, firstProgram) {
           :key="rowKey(event.event_id, program.first_program)"
           :plan-id="event.plan_id"
           :program="program"
+          :expandable="!eventIsStale(event)"
           :expanded="expandedKey === rowKey(event.event_id, program.first_program)"
-          :dimmed="program.stale"
-          :error="programError(event.event_id, program.first_program)"
           @toggle="toggleExpanded(event.event_id, program.first_program)"
         />
       </template>

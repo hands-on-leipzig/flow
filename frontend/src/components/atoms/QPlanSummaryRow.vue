@@ -17,13 +17,9 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  dimmed: {
+  expandable: {
     type: Boolean,
-    default: false,
-  },
-  error: {
-    type: String,
-    default: null,
+    default: true,
   },
 })
 
@@ -42,12 +38,10 @@ const {
 const qplan = computed(() => props.program.q_plan)
 const isFuture8 = computed(() => props.program.first_program === 8)
 
-const staleLabel = computed(() => {
-  if (props.error) return props.error
-  if (props.program.stale_reason === 'missing') return 'Nicht berechnet'
-  if (props.program.stale) return 'Veraltet'
-  return null
-})
+function onRowClick() {
+  if (!props.expandable) return
+  emit('toggle')
+}
 
 function openPreview() {
   window.open(`/preview/${props.planId}`, '_blank', 'noopener')
@@ -57,9 +51,9 @@ function openPreview() {
 <template>
   <div class="border-b border-[var(--color-border)]">
     <div
-      class="grid grid-cols-13 text-sm py-1 hover:bg-[var(--color-bg-hover)] cursor-pointer items-center"
-      :class="{ 'opacity-50': dimmed && program.stale }"
-      @click="emit('toggle')"
+      class="grid grid-cols-13 text-sm py-1 items-center"
+      :class="expandable ? 'hover:bg-[var(--color-bg-hover)] cursor-pointer' : 'opacity-60'"
+      @click="onRowClick"
     >
       <div class="flex items-center gap-2 pl-4">
         <ProgramLogo :program="program.first_program" size="xs" />
@@ -72,12 +66,6 @@ function openPreview() {
         >
           🧾
         </button>
-        <span
-          v-if="staleLabel"
-          class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-700 dark:text-amber-300"
-        >
-          {{ staleLabel }}
-        </span>
       </div>
 
       <template v-if="qplan">
@@ -118,7 +106,7 @@ function openPreview() {
     </div>
 
     <div
-      v-if="expanded"
+      v-if="expandable && expanded"
       class="bg-[var(--color-bg-muted)] px-2 py-1 border-t border-[var(--color-border)] ml-4"
     >
       <QPlanDetails :plan-id="planId" :first-program="program.first_program" />
