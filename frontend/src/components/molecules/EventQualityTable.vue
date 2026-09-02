@@ -74,6 +74,14 @@ function eventHasError(event) {
 function programError(eventId, firstProgram) {
   return props.programErrors[rowKey(eventId, firstProgram)] || null
 }
+
+function eventTitle(event) {
+  const parts = [event.event_name, `E${event.event_id}`]
+  if (event.plan_id) {
+    parts.push(`P${event.plan_id}`)
+  }
+  return parts.join(' · ')
+}
 </script>
 
 <template>
@@ -108,7 +116,7 @@ function programError(eventId, firstProgram) {
         v-if="event.status === 'no_plan'"
         class="py-2 px-1 text-sm bg-[var(--color-bg-muted)] text-[var(--color-text-subtle)]"
       >
-        <div class="font-medium">{{ event.event_name }}</div>
+        <div class="font-medium">{{ eventTitle(event) }}</div>
         <div class="text-xs mt-0.5">
           {{ formatDateOnly(event.event_date) }}
           <span v-if="event.regional_partner_name"> · {{ event.regional_partner_name }}</span>
@@ -121,7 +129,7 @@ function programError(eventId, firstProgram) {
         v-else-if="event.status === 'explore_only'"
         class="py-2 px-1 text-sm"
       >
-        <div class="font-medium">{{ event.event_name }}</div>
+        <div class="font-medium">{{ eventTitle(event) }}</div>
         <div class="text-xs mt-0.5 text-[var(--color-text-muted)]">
           {{ formatDateOnly(event.event_date) }}
           <span v-if="event.regional_partner_name"> · {{ event.regional_partner_name }}</span>
@@ -133,7 +141,7 @@ function programError(eventId, firstProgram) {
       <!-- Evaluable: header + sub-rows -->
       <template v-else>
         <div class="py-2 px-1 text-sm bg-[var(--color-bg-muted)]/50 flex items-center gap-2 flex-wrap">
-          <span class="font-medium">{{ event.event_name }}</span>
+          <span class="font-medium">{{ eventTitle(event) }}</span>
           <span class="text-xs text-[var(--color-text-muted)]">
             {{ formatDateOnly(event.event_date) }}
             <span v-if="event.regional_partner_name"> · {{ event.regional_partner_name }}</span>
