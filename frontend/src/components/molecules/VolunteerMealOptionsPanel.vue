@@ -138,7 +138,7 @@ watch(
         <header class="vol-meal-dialog__header">
           <h2 id="vol-meal-dialog-title" class="vol-meal-dialog__title">Essensoptionen</h2>
           <p class="vol-meal-dialog__hint">
-            Diese Liste gilt für die Helfer:innenliste und andere Bereiche dieser Veranstaltung.
+            Diese Liste gilt für die Helfer:innen und die Teams.
           </p>
         </header>
 
