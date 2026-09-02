@@ -15,6 +15,7 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
+import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {normalizePublicLink} from '@/utils/publicLink'
 
 defineOptions({name: 'PublishDistribution'})
@@ -26,6 +27,7 @@ const eventId = computed(() => event.value?.id ?? null)
 const saving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const helperSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const volunteerDataEntrySaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
+const teamDataEntrySaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const dayAppsSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const detailLevel = ref(0)
 const checkInEnabled = ref(false)
@@ -130,10 +132,20 @@ const {
   setEnabled: setVolunteerDataEntryEnabled,
 } = usePublicVolunteerDataEntry(eventId)
 
+const {
+  enabled: teamDataEntryEnabled,
+  loading: teamDataEntryLoading,
+  setEnabled: setTeamDataEntryEnabled,
+} = usePublicTeamDataEntry(eventId)
+
 const publicFormFields = ref<Array<{field_key: string; label: string; public_form: boolean}>>([])
 const publicFormFieldsBusy = ref(false)
 const collectTShirt = ref(true)
 const collectMeal = ref(true)
+
+const teamPublicFormFields = ref<Array<{field_key: string; label: string; public_form: boolean}>>([])
+const teamPublicFormFieldsBusy = ref(false)
+const teamCollectMeal = ref(true)
 
 function applyCollectFlags(collect: {t_shirt?: boolean; meal?: boolean} | null | undefined) {
   // Backend defaults are on; treat missing as on (same as Helferliste).
@@ -161,6 +173,25 @@ async function loadPublicFormChecklist() {
   }
 }
 
+async function loadTeamPublicFormChecklist() {
+  if (!eventId.value) {
+    teamPublicFormFields.value = []
+    teamCollectMeal.value = true
+    return
+  }
+  try {
+    const {data} = await axios.get(`/events/${eventId.value}/team-fields`)
+    teamPublicFormFields.value = (data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
+      field_key: field.field_key,
+      label: field.label,
+      public_form: !!field.public_form,
+    }))
+    teamCollectMeal.value = data.collect?.meal !== false
+  } catch {
+    teamPublicFormFields.value = []
+  }
+}
+
 async function savePublicFormChecklist() {
   if (!eventId.value || publicFormFieldsBusy.value) return
   publicFormFieldsBusy.value = true
@@ -182,11 +213,39 @@ async function savePublicFormChecklist() {
   }
 }
 
+async function saveTeamPublicFormChecklist() {
+  if (!eventId.value || teamPublicFormFieldsBusy.value) return
+  teamPublicFormFieldsBusy.value = true
+  try {
+    const keys = teamPublicFormFields.value.filter((f) => f.public_form).map((f) => f.field_key)
+    const {data} = await axios.put(`/events/${eventId.value}/team-fields/public-form`, {
+      field_keys: keys,
+    })
+    teamPublicFormFields.value = (data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
+      field_key: field.field_key,
+      label: field.label,
+      public_form: !!field.public_form,
+    }))
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Formular-Felder konnten nicht gespeichert werden.'), 'error')
+    await loadTeamPublicFormChecklist()
+  } finally {
+    teamPublicFormFieldsBusy.value = false
+  }
+}
+
 function togglePublicFormField(fieldKey: string, next: boolean) {
   const row = publicFormFields.value.find((f) => f.field_key === fieldKey)
   if (!row || row.public_form === next) return
   row.public_form = next
   void savePublicFormChecklist()
+}
+
+function toggleTeamPublicFormField(fieldKey: string, next: boolean) {
+  const row = teamPublicFormFields.value.find((f) => f.field_key === fieldKey)
+  if (!row || row.public_form === next) return
+  row.public_form = next
+  void saveTeamPublicFormChecklist()
 }
 
 const levels = [
@@ -198,6 +257,8 @@ const levels = [
 const helperSearchHiddenByLevel = computed(() => detailLevel.value === 2)
 
 const volunteerDataEntryHiddenByLevel = computed(() => detailLevel.value === 2)
+
+const teamDataEntryHiddenByLevel = computed(() => detailLevel.value === 2)
 
 const publicUrl = computed(() => normalizePublicLink(event.value?.link))
 
@@ -291,6 +352,22 @@ async function onVolunteerDataEntryToggle(next: boolean) {
   }
 }
 
+async function onTeamDataEntryToggle(next: boolean) {
+  let saved = false
+  try {
+    teamDataEntrySaving.value?.show()
+    saved = await setTeamDataEntryEnabled(next)
+    if (saved && next) {
+      await loadTeamPublicFormChecklist()
+    }
+  } catch {
+    // toast from composable
+  } finally {
+    teamDataEntrySaving.value?.hide()
+    if (saved) reloadPreview()
+  }
+}
+
 async function loadDayAppSettings() {
   if (!eventId.value) {
     checkInEnabled.value = false
@@ -354,7 +431,7 @@ watch(
     () => event.value?.id,
     async (id) => {
       if (!id) return
-      await Promise.all([fetchPublicationLevel(), loadDayAppSettings(), loadPublicFormChecklist()])
+      await Promise.all([fetchPublicationLevel(), loadDayAppSettings(), loadPublicFormChecklist(), loadTeamPublicFormChecklist()])
       reloadPreview()
     }
 )
@@ -365,7 +442,7 @@ watch(publicUrl, (url, prev) => {
 
 onMounted(async () => {
   if (event.value?.id) {
-    await Promise.all([fetchPublicationLevel(), loadDayAppSettings(), loadPublicFormChecklist()])
+    await Promise.all([fetchPublicationLevel(), loadDayAppSettings(), loadPublicFormChecklist(), loadTeamPublicFormChecklist()])
     reloadPreview()
   }
 })
@@ -374,6 +451,7 @@ onMounted(async () => {
 onActivated(() => {
   if (event.value?.id) {
     void loadPublicFormChecklist()
+    void loadTeamPublicFormChecklist()
   }
 })
 </script>
@@ -383,6 +461,7 @@ onActivated(() => {
     <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
     <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="volunteerDataEntrySaving" message="Einstellung wird gespeichert…" />
+    <SavingToast ref="teamDataEntrySaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="dayAppsSaving" message="Wird gespeichert…" />
 
     <div class="pub__workspace">
@@ -441,6 +520,69 @@ onActivated(() => {
                 </p>
               </div>
             </div>
+          </div>
+        </section>
+
+        <section class="pub__tile glass-card liquid-surface-inner">
+          <h2 class="glass-card__heading">Teams</h2>
+
+          <div class="pub__app-block">
+            <div class="pub__app-row">
+              <span class="glass-settings-hint-link pub__app-link">Dateneingabe durch Coaches</span>
+              <ToggleSwitch
+                  :model-value="teamDataEntryEnabled"
+                  :disabled="teamDataEntryLoading || !eventId"
+                  @update:modelValue="onTeamDataEntryToggle"
+              />
+            </div>
+            <p class="glass-settings-hint !mb-0">
+              Coaches können Teamdaten eingeben.<br>
+              Hier wird festgelegt, welche Felder erscheinen. Welche Felder es überhaupt gibt, kann unter
+              <RouterLink to="/plan/teams/data" class="pub__helper-link">
+                Teams → Teamdaten
+              </RouterLink>
+              festgelegt werden.
+            </p>
+            <div
+                v-if="teamDataEntryEnabled"
+                class="pub__form-checklist"
+            >
+              <p class="pub__form-checklist-title">Felder im Formular</p>
+              <div
+                  class="pub__form-check pub__form-check--fixed"
+                  title="Immer im Formular"
+              >
+                <input type="checkbox" :checked="true" disabled>
+                <span>Foto Erlaubnis</span>
+              </div>
+              <div
+                  v-if="teamCollectMeal"
+                  class="pub__form-check pub__form-check--fixed"
+                  title="Immer im Formular, solange Essen in Teamdaten aktiv ist"
+              >
+                <input type="checkbox" :checked="true" disabled>
+                <span>Essen</span>
+              </div>
+              <label
+                  v-for="field in teamPublicFormFields"
+                  :key="field.field_key"
+                  class="pub__form-check"
+              >
+                <input
+                    type="checkbox"
+                    :checked="field.public_form"
+                    :disabled="teamPublicFormFieldsBusy"
+                    @change="toggleTeamPublicFormField(field.field_key, ($event.target as HTMLInputElement).checked)"
+                >
+                <span>{{ field.label }}</span>
+              </label>
+            </div>
+            <p
+                v-if="teamDataEntryEnabled && teamDataEntryHiddenByLevel"
+                class="glass-settings-hint !mb-0 pub__helper-warn"
+            >
+              Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
+            </p>
           </div>
         </section>
 
