@@ -3,7 +3,7 @@
  * Ausgabe → Veröffentlichung
  * Controls left · live iframe of the public page right
  */
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onActivated, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
@@ -12,8 +12,11 @@ import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {apiError} from '@/utils/apiError'
 import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
+import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
+import {normalizePublicLink} from '@/utils/publicLink'
 
 defineOptions({name: 'PublishDistribution'})
 
@@ -24,6 +27,7 @@ const eventId = computed(() => event.value?.id ?? null)
 const saving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const helperSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const volunteerDataEntrySaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
+const teamDataEntrySaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const dayAppsSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const detailLevel = ref(0)
 const checkInEnabled = ref(false)
@@ -128,6 +132,122 @@ const {
   setEnabled: setVolunteerDataEntryEnabled,
 } = usePublicVolunteerDataEntry(eventId)
 
+const {
+  enabled: teamDataEntryEnabled,
+  loading: teamDataEntryLoading,
+  setEnabled: setTeamDataEntryEnabled,
+} = usePublicTeamDataEntry(eventId)
+
+const publicFormFields = ref<Array<{field_key: string; label: string; public_form: boolean}>>([])
+const publicFormFieldsBusy = ref(false)
+const collectTShirt = ref(true)
+const collectMeal = ref(true)
+
+const teamPublicFormFields = ref<Array<{field_key: string; label: string; public_form: boolean}>>([])
+const teamPublicFormFieldsBusy = ref(false)
+const teamCollectMeal = ref(true)
+
+function applyCollectFlags(collect: {t_shirt?: boolean; meal?: boolean} | null | undefined) {
+  // Backend defaults are on; treat missing as on (same as Helferliste).
+  collectTShirt.value = collect?.t_shirt !== false
+  collectMeal.value = collect?.meal !== false
+}
+
+async function loadPublicFormChecklist() {
+  if (!eventId.value) {
+    publicFormFields.value = []
+    collectTShirt.value = true
+    collectMeal.value = true
+    return
+  }
+  try {
+    const {data} = await axios.get(`/events/${eventId.value}/volunteer-fields`)
+    publicFormFields.value = (data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
+      field_key: field.field_key,
+      label: field.label,
+      public_form: !!field.public_form,
+    }))
+    applyCollectFlags(data.collect)
+  } catch {
+    publicFormFields.value = []
+  }
+}
+
+async function loadTeamPublicFormChecklist() {
+  if (!eventId.value) {
+    teamPublicFormFields.value = []
+    teamCollectMeal.value = true
+    return
+  }
+  try {
+    const {data} = await axios.get(`/events/${eventId.value}/team-fields`)
+    teamPublicFormFields.value = (data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
+      field_key: field.field_key,
+      label: field.label,
+      public_form: !!field.public_form,
+    }))
+    teamCollectMeal.value = data.collect?.meal !== false
+  } catch {
+    teamPublicFormFields.value = []
+  }
+}
+
+async function savePublicFormChecklist() {
+  if (!eventId.value || publicFormFieldsBusy.value) return
+  publicFormFieldsBusy.value = true
+  try {
+    const keys = publicFormFields.value.filter((f) => f.public_form).map((f) => f.field_key)
+    const {data} = await axios.put(`/events/${eventId.value}/volunteer-fields/public-form`, {
+      field_keys: keys,
+    })
+    publicFormFields.value = (data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
+      field_key: field.field_key,
+      label: field.label,
+      public_form: !!field.public_form,
+    }))
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Formular-Felder konnten nicht gespeichert werden.'), 'error')
+    await loadPublicFormChecklist()
+  } finally {
+    publicFormFieldsBusy.value = false
+  }
+}
+
+async function saveTeamPublicFormChecklist() {
+  if (!eventId.value || teamPublicFormFieldsBusy.value) return
+  teamPublicFormFieldsBusy.value = true
+  try {
+    const keys = teamPublicFormFields.value.filter((f) => f.public_form).map((f) => f.field_key)
+    const {data} = await axios.put(`/events/${eventId.value}/team-fields/public-form`, {
+      field_keys: keys,
+    })
+    teamPublicFormFields.value = (data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
+      field_key: field.field_key,
+      label: field.label,
+      public_form: !!field.public_form,
+    }))
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Formular-Felder konnten nicht gespeichert werden.'), 'error')
+    await loadTeamPublicFormChecklist()
+  } finally {
+    teamPublicFormFieldsBusy.value = false
+  }
+}
+
+function togglePublicFormField(fieldKey: string, next: boolean) {
+  const row = publicFormFields.value.find((f) => f.field_key === fieldKey)
+  if (!row || row.public_form === next) return
+  row.public_form = next
+  void savePublicFormChecklist()
+}
+
+function toggleTeamPublicFormField(fieldKey: string, next: boolean) {
+  const row = teamPublicFormFields.value.find((f) => f.field_key === fieldKey)
+  if (!row || row.public_form === next) return
+  row.public_form = next
+  void saveTeamPublicFormChecklist()
+}
+
 const levels = [
   {id: 0, short: 'Basis', name: 'Planung und Anmeldung', hint: 'Datum, Ort, Kontakt, Teams'},
   {id: 1, short: 'Ablauf', name: 'Überblick zum Ablauf', hint: '+ wichtige Zeiten'},
@@ -138,14 +258,9 @@ const helperSearchHiddenByLevel = computed(() => detailLevel.value === 2)
 
 const volunteerDataEntryHiddenByLevel = computed(() => detailLevel.value === 2)
 
-function normalizeLink(raw: string | null | undefined): string {
-  if (!raw) return ''
-  if (/^https?:\/\//i.test(raw)) return raw
-  const base = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '')
-  return `${base}/${raw.replace(/^\//, '')}`
-}
+const teamDataEntryHiddenByLevel = computed(() => detailLevel.value === 2)
 
-const publicUrl = computed(() => normalizeLink(event.value?.link))
+const publicUrl = computed(() => normalizePublicLink(event.value?.link))
 
 const previewSrc = computed(() => {
   const url = publicUrl.value
@@ -226,10 +341,29 @@ async function onVolunteerDataEntryToggle(next: boolean) {
   try {
     volunteerDataEntrySaving.value?.show()
     saved = await setVolunteerDataEntryEnabled(next)
+    if (saved && next) {
+      await loadPublicFormChecklist()
+    }
   } catch {
     // toast from composable
   } finally {
     volunteerDataEntrySaving.value?.hide()
+    if (saved) reloadPreview()
+  }
+}
+
+async function onTeamDataEntryToggle(next: boolean) {
+  let saved = false
+  try {
+    teamDataEntrySaving.value?.show()
+    saved = await setTeamDataEntryEnabled(next)
+    if (saved && next) {
+      await loadTeamPublicFormChecklist()
+    }
+  } catch {
+    // toast from composable
+  } finally {
+    teamDataEntrySaving.value?.hide()
     if (saved) reloadPreview()
   }
 }
@@ -297,7 +431,7 @@ watch(
     () => event.value?.id,
     async (id) => {
       if (!id) return
-      await Promise.all([fetchPublicationLevel(), loadDayAppSettings()])
+      await Promise.all([fetchPublicationLevel(), loadDayAppSettings(), loadPublicFormChecklist(), loadTeamPublicFormChecklist()])
       reloadPreview()
     }
 )
@@ -308,8 +442,16 @@ watch(publicUrl, (url, prev) => {
 
 onMounted(async () => {
   if (event.value?.id) {
-    await Promise.all([fetchPublicationLevel(), loadDayAppSettings()])
+    await Promise.all([fetchPublicationLevel(), loadDayAppSettings(), loadPublicFormChecklist(), loadTeamPublicFormChecklist()])
     reloadPreview()
+  }
+})
+
+// keep-alive: Spalten (T-Shirt/Essen) may change while this pane is cached
+onActivated(() => {
+  if (event.value?.id) {
+    void loadPublicFormChecklist()
+    void loadTeamPublicFormChecklist()
   }
 })
 </script>
@@ -319,6 +461,7 @@ onMounted(async () => {
     <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
     <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="volunteerDataEntrySaving" message="Einstellung wird gespeichert…" />
+    <SavingToast ref="teamDataEntrySaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="dayAppsSaving" message="Wird gespeichert…" />
 
     <div class="pub__workspace">
@@ -381,6 +524,69 @@ onMounted(async () => {
         </section>
 
         <section class="pub__tile glass-card liquid-surface-inner">
+          <h2 class="glass-card__heading">Teams</h2>
+
+          <div class="pub__app-block">
+            <div class="pub__app-row">
+              <span class="glass-settings-hint-link pub__app-link">Dateneingabe durch Coaches</span>
+              <ToggleSwitch
+                  :model-value="teamDataEntryEnabled"
+                  :disabled="teamDataEntryLoading || !eventId"
+                  @update:modelValue="onTeamDataEntryToggle"
+              />
+            </div>
+            <p class="glass-settings-hint !mb-0">
+              Coaches können Teamdaten eingeben.<br>
+              Hier wird festgelegt, welche Felder erscheinen. Welche Felder es überhaupt gibt, kann unter
+              <RouterLink to="/plan/teams/data" class="pub__helper-link">
+                Teams → Teamdaten
+              </RouterLink>
+              festgelegt werden.
+            </p>
+            <div
+                v-if="teamDataEntryEnabled"
+                class="pub__form-checklist"
+            >
+              <p class="pub__form-checklist-title">Felder im Formular</p>
+              <div
+                  class="pub__form-check pub__form-check--fixed"
+                  title="Immer im Formular"
+              >
+                <input type="checkbox" :checked="true" disabled>
+                <span>Foto Erlaubnis</span>
+              </div>
+              <div
+                  v-if="teamCollectMeal"
+                  class="pub__form-check pub__form-check--fixed"
+                  title="Immer im Formular, solange Essen in Teamdaten aktiv ist"
+              >
+                <input type="checkbox" :checked="true" disabled>
+                <span>Essen</span>
+              </div>
+              <label
+                  v-for="field in teamPublicFormFields"
+                  :key="field.field_key"
+                  class="pub__form-check"
+              >
+                <input
+                    type="checkbox"
+                    :checked="field.public_form"
+                    :disabled="teamPublicFormFieldsBusy"
+                    @change="toggleTeamPublicFormField(field.field_key, ($event.target as HTMLInputElement).checked)"
+                >
+                <span>{{ field.label }}</span>
+              </label>
+            </div>
+            <p
+                v-if="teamDataEntryEnabled && teamDataEntryHiddenByLevel"
+                class="glass-settings-hint !mb-0 pub__helper-warn"
+            >
+              Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
+            </p>
+          </div>
+        </section>
+
+        <section class="pub__tile glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Helfer:innen</h2>
 
           <div class="pub__app-block">
@@ -393,12 +599,48 @@ onMounted(async () => {
               />
             </div>
             <p class="glass-settings-hint !mb-0">
-              Dateneingabe durch Helfer:innen. Die Felder dafür werden in
+              Helfer:innen können ihre Daten eingeben.<br>
+              Hier wird festgelegt, welche Felder erscheinen. Welche Felder es überhaupt gibt, kann unter
               <RouterLink to="/plan/volunteers/roster" class="pub__helper-link">
                 Helfer:innen → Helfer:innenliste
               </RouterLink>
-              festlegt.
+              festgelegt werden.
             </p>
+            <div
+                v-if="volunteerDataEntryEnabled"
+                class="pub__form-checklist"
+            >
+              <p class="pub__form-checklist-title">Felder im Formular</p>
+              <div
+                  v-if="collectTShirt"
+                  class="pub__form-check pub__form-check--fixed"
+                  title="Immer im Formular, solange T-Shirt in der Helferliste aktiv ist"
+              >
+                <input type="checkbox" :checked="true" disabled>
+                <span>T-Shirt Größe</span>
+              </div>
+              <div
+                  v-if="collectMeal"
+                  class="pub__form-check pub__form-check--fixed"
+                  title="Immer im Formular, solange Essen in der Helferliste aktiv ist"
+              >
+                <input type="checkbox" :checked="true" disabled>
+                <span>Essen</span>
+              </div>
+              <label
+                  v-for="field in publicFormFields"
+                  :key="field.field_key"
+                  class="pub__form-check"
+              >
+                <input
+                    type="checkbox"
+                    :checked="field.public_form"
+                    :disabled="publicFormFieldsBusy"
+                    @change="togglePublicFormField(field.field_key, ($event.target as HTMLInputElement).checked)"
+                >
+                <span>{{ field.label }}</span>
+              </label>
+            </div>
             <p
                 v-if="volunteerDataEntryEnabled && volunteerDataEntryHiddenByLevel"
                 class="glass-settings-hint !mb-0 pub__helper-warn"
@@ -675,6 +917,40 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.pub__form-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--liquid-border-soft);
+}
+
+.pub__form-checklist-title {
+  margin: 0 0 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.pub__form-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.pub__form-check--fixed {
+  cursor: default;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+.pub__form-check--fixed input {
+  cursor: not-allowed;
 }
 
 .pub__app-row {

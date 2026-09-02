@@ -6,6 +6,7 @@ import {useEventStore} from '@/stores/event'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {flowFilename} from '@/utils/flowFilename'
+import {normalizePublicLink} from '@/utils/publicLink'
 
 defineOptions({name: 'PublicLinkStrip'})
 
@@ -24,17 +25,10 @@ const linkLoading = ref(false)
 const regenerating = ref(false)
 const showQrModal = ref(false)
 
-function normalizeLink(raw: string | null | undefined): string {
-  if (!raw) return ''
-  if (/^https?:\/\//i.test(raw)) return raw
-  const base = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '')
-  return `${base}/${raw.replace(/^\//, '')}`
-}
-
 function applyPublishResponse(data: {link?: string; qrcode?: string}) {
   if (!eventStore.selectedEvent) return
   if (data.link) {
-    eventStore.selectedEvent.link = normalizeLink(data.link)
+    eventStore.selectedEvent.link = normalizePublicLink(data.link)
   }
   if (data.qrcode) {
     eventStore.selectedEvent.qrcode = data.qrcode.replace(/^data:image\/png;base64,/, '')
@@ -58,7 +52,7 @@ async function ensurePublicLink() {
   }
 }
 
-const publicUrl = computed(() => normalizeLink(event.value?.link))
+const publicUrl = computed(() => normalizePublicLink(event.value?.link))
 
 const qrSrc = computed(() => {
   const raw = event.value?.qrcode
@@ -77,9 +71,8 @@ async function regenerateLinkAndQR() {
   regenerating.value = true
   try {
     const {data} = await axios.post(`/publish/regenerate/${id}`)
-    const baseUrl = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '')
     if (eventStore.selectedEvent) {
-      eventStore.selectedEvent.link = `${baseUrl}/${data.link}`
+      eventStore.selectedEvent.link = normalizePublicLink(data.link)
       eventStore.selectedEvent.qrcode = String(data.qrcode || '').replace(/^data:image\/png;base64,/, '')
       eventStore.selectedEvent.slug = data.link
     }

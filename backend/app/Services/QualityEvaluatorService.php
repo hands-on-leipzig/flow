@@ -11,7 +11,12 @@ use App\Models\PlanParamValue;
 use App\Models\Plan;
 use App\Models\MSupportedPlan;
 use App\Enums\FirstProgram;
+use App\Enums\GeneratorStatus;
+use App\Enums\QualityEvaluationStatus;
 use App\Support\ChallengeShapedParamMap;
+use App\Support\MatchPlanSpec;
+use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
 use Carbon\Carbon;
 
 use Illuminate\Support\Facades\DB;
@@ -369,7 +374,276 @@ class QualityEvaluatorService
         }
 
         $this->evaluate($qPlan->id);
-}
+    }
+
+    /**
+     * Whether a q_plan row is missing or older than the live plan.
+     */
+    public function isQPlanStale(?object $plan, ?object $qplan): bool
+    {
+        if ($qplan === null) {
+            return true;
+        }
+
+        if (empty($plan?->last_change)) {
+            return false;
+        }
+
+        $planChanged = Carbon::parse($plan->last_change);
+        $qLast = $qplan->last_change ? Carbon::parse($qplan->last_change) : null;
+
+        return $qLast === null || $qLast->lt($planChanged);
+    }
+
+    /**
+     * Hard gates: plan cannot be meaningfully evaluated for Q1–Q6.
+     *
+     * @return array{not_evaluable: bool, reasons: list<string>}
+     */
+    public function assessHardGates(int $planId, int $firstProgram, ?object $plan = null): array
+    {
+        $reasons = [];
+        $plan ??= DB::table('plan')->where('id', $planId)->first();
+
+        if (! $plan) {
+            return ['not_evaluable' => true, 'reasons' => ['Plan nicht gefunden']];
+        }
+
+        $genStatus = GeneratorStatus::tryFrom((string) ($plan->generator_status ?? ''))
+            ?? GeneratorStatus::UNKNOWN;
+
+        if ($genStatus === GeneratorStatus::FAILED) {
+            $reasons[] = 'Generierung fehlgeschlagen';
+        } elseif ($genStatus === GeneratorStatus::RUNNING) {
+            $reasons[] = 'Generierung läuft';
+        } elseif (! $genStatus->isDone()) {
+            $reasons[] = 'Plan nicht generiert';
+        }
+
+        $groupCodes = $this->teamActivityGroupCodesForProgram($firstProgram);
+        $requiredGroupIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $groupCodes)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($requiredGroupIds !== []) {
+            $presentCount = DB::table('activity_group')
+                ->where('plan', $planId)
+                ->whereIn('activity_type_detail', $requiredGroupIds)
+                ->count();
+
+            if ($presentCount < count($requiredGroupIds)) {
+                $reasons[] = 'Robot-Game-Aktivitätsgruppen fehlen';
+            }
+        }
+
+        if ($this->fetchTeamActivitiesForPlan($planId, $firstProgram)->isEmpty()) {
+            $reasons[] = 'Keine Team-Aktivitäten im Plan';
+        }
+
+        $matchCountR1to3 = DB::table('match')
+            ->where('plan', $planId)
+            ->where('first_program', $firstProgram)
+            ->whereIn('round', [1, 2, 3])
+            ->count();
+
+        if ($matchCountR1to3 === 0) {
+            $reasons[] = 'Kein Matchplan (Runden 1–3)';
+        }
+
+        return [
+            'not_evaluable' => $reasons !== [],
+            'reasons' => $reasons,
+        ];
+    }
+
+    /**
+     * Soft checks after evaluate(): metrics may be partial.
+     *
+     * @return list<string>
+     */
+    public function assessSoftIncomplete(int $qPlanId): array
+    {
+        $reasons = [];
+        $qplan = QPlan::findOrFail($qPlanId);
+        $teams = (int) $qplan->c_teams;
+        $planId = (int) $qplan->plan;
+        $firstProgram = (int) $qplan->first_program;
+
+        if ($teams > 0 && $qplan->q6_duration === null) {
+            $reasons[] = 'Keine ermittelbare Gesamtdauer';
+        }
+
+        $teamsInMatches = DB::table('match')
+            ->where('plan', $planId)
+            ->where('first_program', $firstProgram)
+            ->whereIn('round', [1, 2, 3])
+            ->get(['table_1_team', 'table_2_team']);
+
+        $seenTeams = [];
+        foreach ($teamsInMatches as $match) {
+            foreach (['table_1_team', 'table_2_team'] as $col) {
+                $t = (int) ($match->$col ?? 0);
+                if ($t > 0) {
+                    $seenTeams[$t] = true;
+                }
+            }
+        }
+
+        if (count($seenTeams) < $teams) {
+            $reasons[] = 'Nicht alle Teams im Matchplan';
+        }
+
+        $noTransferData = QPlanTeam::where('q_plan', $qPlanId)
+            ->where('q1_transition_1_2', 0)
+            ->where('q1_transition_2_3', 0)
+            ->where('q1_transition_3_4', 0)
+            ->where('q1_transition_4_5', 0)
+            ->count();
+
+        if ($noTransferData > 0) {
+            $reasons[] = 'Transferdaten unvollständig';
+        }
+
+        try {
+            $pp = PlanParameter::load($planId);
+            $spec = MatchPlanSpec::for(FirstProgram::from($firstProgram), $pp);
+            $expectedMatches = $spec->matchesPerRound * 4;
+            $actualMatches = DB::table('match')
+                ->where('plan', $planId)
+                ->where('first_program', $firstProgram)
+                ->whereIn('round', [0, 1, 2, 3])
+                ->count();
+
+            if ($actualMatches < $expectedMatches) {
+                $reasons[] = 'Matchplan unvollständig';
+            }
+        } catch (\Throwable) {
+            // Derived match params missing — already covered by other checks.
+        }
+
+        return $reasons;
+    }
+
+    public function applyEvaluationStatus(int $qPlanId, QualityEvaluationStatus $status, array $reasons = []): void
+    {
+        QPlan::where('id', $qPlanId)->update([
+            'evaluation_status' => $status->value,
+            'evaluation_reasons' => $reasons === [] ? null : json_encode(array_values($reasons)),
+            'last_change' => now(),
+        ]);
+    }
+
+    /**
+     * Ensure a QPlan exists and is up-to-date for a given plan + Challenge-shaped program.
+     */
+    public function ensureEvaluatedForPlan(int $planId, int $firstProgram, bool $force = false): QPlan
+    {
+        if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
+            throw new \InvalidArgumentException('first_program must be Challenge or Future 8+');
+        }
+
+        $plan = DB::table('plan')->where('id', $planId)->first();
+        if (! $plan) {
+            throw new \RuntimeException("Plan {$planId} not found");
+        }
+
+        $pp = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $pp);
+        $onPrograms = $presence->challengeShapedOnIds();
+
+        if ($onPrograms !== [] && ! in_array($firstProgram, $onPrograms, true)) {
+            throw new \InvalidArgumentException('first_program is not on for this plan');
+        }
+
+        $qplan = DB::table('q_plan')
+            ->where('plan', $planId)
+            ->where('first_program', $firstProgram)
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $force && ! $this->isQPlanStale($plan, $qplan)) {
+            return QPlan::findOrFail($qplan->id);
+        }
+
+        $host = gethostname();
+        $map = ChallengeShapedParamMap::from($firstProgram);
+
+        $runId = DB::table('q_run')->insertGetId([
+            'name' => "Auto für Plan {$planId}",
+            'first_program' => $firstProgram,
+            'comment' => 'Automatisch erstellt durch Preview',
+            'selection' => null,
+            'started_at' => Carbon::now(),
+            'status' => 'running',
+            'host' => $host,
+        ]);
+
+        $teams = (int) $pp->get($map->teams(), 0);
+        $tables = (int) $pp->get($map->tables(), 0);
+        $lanes = (int) $pp->get($map->lanes(), 0);
+        $juryRounds = (int) ceil(max(1, $teams) / max(1, $lanes));
+        $robotCheck = $map->supportsRobotCheck()
+            ? (bool) $pp->get($map->robotCheck(), 0)
+            : false;
+        $rDurationRobotCheck = (int) $pp->get('r_duration_robot_check', 0);
+        $transfer = (int) $pp->get($map->transfer(), 0);
+        $rAsym = ($tables === 4 && ($teams % 4 === 1 || $teams % 4 === 2)) ? 1 : 0;
+
+        $qPlanId = DB::table('q_plan')->insertGetId([
+            'plan' => $planId,
+            'q_run' => $runId,
+            'first_program' => $firstProgram,
+            'name' => $plan->name,
+            'c_teams' => $teams,
+            'r_tables' => $tables,
+            'j_lanes' => $lanes,
+            'j_rounds' => $juryRounds,
+            'r_asym' => $rAsym,
+            'r_robot_check' => $robotCheck,
+            'r_duration_robot_check' => $rDurationRobotCheck,
+            'c_duration_transfer' => $transfer,
+            'calculated' => true,
+            'evaluation_status' => QualityEvaluationStatus::OK->value,
+            'evaluation_reasons' => null,
+            'last_change' => null,
+        ]);
+
+        $hard = $this->assessHardGates($planId, $firstProgram, $plan);
+
+        if ($hard['not_evaluable']) {
+            $this->applyEvaluationStatus(
+                $qPlanId,
+                QualityEvaluationStatus::NOT_EVALUABLE,
+                $hard['reasons'],
+            );
+        } else {
+            $this->evaluate($qPlanId);
+            $softReasons = $this->assessSoftIncomplete($qPlanId);
+            $this->applyEvaluationStatus(
+                $qPlanId,
+                $softReasons === [] ? QualityEvaluationStatus::OK : QualityEvaluationStatus::INCOMPLETE,
+                $softReasons,
+            );
+        }
+
+        $totals = DB::table('q_plan')->where('q_run', $runId)->count();
+        DB::table('q_run')->where('id', $runId)->update([
+            'qplans_total' => $totals,
+            'qplans_calculated' => $totals,
+            'finished_at' => Carbon::now(),
+            'status' => 'done',
+        ]);
+
+        DB::table('q_plan')
+            ->where('plan', $planId)
+            ->where('first_program', $firstProgram)
+            ->where('id', '!=', $qPlanId)
+            ->delete();
+
+        return QPlan::findOrFail($qPlanId);
+    }
 
     /**
      * Load all relevant activities for a given plan, including joins to group and type info.
@@ -377,40 +651,8 @@ class QualityEvaluatorService
     private function prepareEvaluationData(int $qPlanId): Collection
     {
         $planId = $this->planIdForQPlan($qPlanId);
-        $activityCodes = $this->teamActivityCodesForQPlan($qPlanId);
-        $groupCodes = $this->teamActivityGroupCodesForQPlan($qPlanId);
-
-        $activityIds = DB::table('m_activity_type_detail')
-            ->whereIn('code', $activityCodes)
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        $groupIds = DB::table('m_activity_type_detail')
-            ->whereIn('code', $groupCodes)
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        $activities = Activity::query()
-            ->select([
-                'activity.start',
-                'activity.end',
-                'activity.jury_lane',
-                'activity.jury_team',
-                'activity.table_1',
-                'activity.table_1_team',
-                'activity.table_2',
-                'activity.table_2_team',
-                'activity.activity_type_detail as activity_atd',
-                'activity_group.activity_type_detail as activity_group_atd',
-            ])
-            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
-            ->where('activity_group.plan', $planId)
-            ->whereIn('activity_group.activity_type_detail', $groupIds)
-            ->whereIn('activity.activity_type_detail', $activityIds)
-            ->orderBy('activity.start')
-            ->get();
+        $firstProgram = (int) ($this->qPlanRow($qPlanId)->first_program ?? FirstProgram::CHALLENGE->value);
+        $activities = $this->fetchTeamActivitiesForPlan($planId, $firstProgram);
 
         DB::table('q_plan_team')->where('q_plan', $qPlanId)->delete();
 
@@ -446,9 +688,9 @@ class QualityEvaluatorService
     }
 
     /** @return list<string> */
-    private function teamActivityCodesForQPlan(int $qPlanId): array
+    private function teamActivityCodesForProgram(int $firstProgram): array
     {
-        if ($this->paramMapForQPlan($qPlanId)->program === FirstProgram::FUTURE_8) {
+        if ($firstProgram === FirstProgram::FUTURE_8->value) {
             return ['f8_j_with_team', 'f8_r_match'];
         }
 
@@ -457,9 +699,9 @@ class QualityEvaluatorService
 
     /** Judging package + RG rounds 0–3 (exclude finals), per program. */
     /** @return list<string> */
-    private function teamActivityGroupCodesForQPlan(int $qPlanId): array
+    private function teamActivityGroupCodesForProgram(int $firstProgram): array
     {
-        if ($this->paramMapForQPlan($qPlanId)->program === FirstProgram::FUTURE_8) {
+        if ($firstProgram === FirstProgram::FUTURE_8->value) {
             return [
                 'f8_j_package',
                 'f8_test_round',
@@ -476,6 +718,65 @@ class QualityEvaluatorService
             'r_round_2',
             'r_round_3',
         ];
+    }
+
+    private function fetchTeamActivitiesForPlan(int $planId, int $firstProgram): Collection
+    {
+        $activityCodes = $this->teamActivityCodesForProgram($firstProgram);
+        $groupCodes = $this->teamActivityGroupCodesForProgram($firstProgram);
+
+        $activityIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $activityCodes)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $groupIds = DB::table('m_activity_type_detail')
+            ->whereIn('code', $groupCodes)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($activityIds === [] || $groupIds === []) {
+            return collect();
+        }
+
+        return Activity::query()
+            ->select([
+                'activity.start',
+                'activity.end',
+                'activity.jury_lane',
+                'activity.jury_team',
+                'activity.table_1',
+                'activity.table_1_team',
+                'activity.table_2',
+                'activity.table_2_team',
+                'activity.activity_type_detail as activity_atd',
+                'activity_group.activity_type_detail as activity_group_atd',
+            ])
+            ->join('activity_group', 'activity.activity_group', '=', 'activity_group.id')
+            ->where('activity_group.plan', $planId)
+            ->whereIn('activity_group.activity_type_detail', $groupIds)
+            ->whereIn('activity.activity_type_detail', $activityIds)
+            ->orderBy('activity.start')
+            ->get();
+    }
+
+    /** @return list<string> */
+    private function teamActivityCodesForQPlan(int $qPlanId): array
+    {
+        $firstProgram = (int) ($this->qPlanRow($qPlanId)->first_program ?? FirstProgram::CHALLENGE->value);
+
+        return $this->teamActivityCodesForProgram($firstProgram);
+    }
+
+    /** Judging package + RG rounds 0–3 (exclude finals), per program. */
+    /** @return list<string> */
+    private function teamActivityGroupCodesForQPlan(int $qPlanId): array
+    {
+        $firstProgram = (int) ($this->qPlanRow($qPlanId)->first_program ?? FirstProgram::CHALLENGE->value);
+
+        return $this->teamActivityGroupCodesForProgram($firstProgram);
     }
 
     private function qPlanRow(int $qPlanId): object

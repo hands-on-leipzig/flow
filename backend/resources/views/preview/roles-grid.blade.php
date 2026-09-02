@@ -14,6 +14,9 @@ foreach ($programs as $program) {
     <div class="roles-grid-empty">Keine Aktivitäten mit Spur oder Tisch.</div>
 @else
 <div class="roles-grid-container">
+    @if($hasOverlaps ?? false)
+        <div class="roles-grid-overlap-warning">Es gibt überlappende Aktivitäten</div>
+    @endif
     @foreach($eventsByDay as $dayKey => $dayData)
         <div class="roles-grid-day">
             @if($isMultiDay)
@@ -88,7 +91,12 @@ foreach ($programs as $program) {
                                             $remaining = count($dayData['timeSlots']) - $index;
                                             $rowspan = max(1, min((int) $starting['rowspan'], $remaining));
                                             $occupied[$ck] = $index + $rowspan;
-                                            $colors = \App\Support\OverviewPlanStyle::cellColors($starting['style_column']);
+                                            $isOverlapCell = ! empty($starting['overlap_adjusted']) || ! empty($starting['overlap_container']);
+                                            if ($isOverlapCell) {
+                                                $colors = ['bg' => '#000', 'border' => '#000'];
+                                            } else {
+                                                $colors = \App\Support\OverviewPlanStyle::cellColors($starting['style_column']);
+                                            }
                                         }
                                     @endphp
 
@@ -97,7 +105,7 @@ foreach ($programs as $program) {
                                             rowspan="{{ $rowspan }}"
                                             class="roles-grid-activity"
                                             data-program-id="{{ $col['program_id'] }}"
-                                            style="background-color: {{ $colors['bg'] }}; border-left: 3px solid {{ $colors['border'] }};"
+                                            style="background-color: {{ $colors['bg'] }}; border-left: 3px solid {{ $colors['border'] }};{{ $isOverlapCell ? ' color: #fff;' : '' }}"
                                         >{{ $starting['text'] }}</td>
                                     @else
                                         <td class="roles-grid-empty-cell" data-program-id="{{ $col['program_id'] }}"></td>
@@ -124,6 +132,15 @@ foreach ($programs as $program) {
     text-align: center;
     color: #6b7280;
     font-size: 0.875rem;
+}
+.roles-grid-overlap-warning {
+    background-color: #000;
+    color: #fff;
+    padding: 8px 12px;
+    margin: 0 0 10px 0;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 3px;
 }
 .roles-grid-day {
     margin-bottom: 1.5rem;

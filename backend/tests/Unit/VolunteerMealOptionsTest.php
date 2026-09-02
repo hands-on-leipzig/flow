@@ -43,9 +43,10 @@ class VolunteerMealOptionsTest extends TestCase
 
     public function test_validate_photo_consent_accepts_tri_state(): void
     {
-        $this->assertTrue(VolunteerRosterDetailFields::validate(['photo_consent' => true])['ok']);
-        $this->assertTrue(VolunteerRosterDetailFields::validate(['photo_consent' => false])['ok']);
-        $this->assertTrue(VolunteerRosterDetailFields::validate(['photo_consent' => null])['ok']);
+        $allowed = ['standard', 'vegetarisch', 'vegan', 'keine'];
+        $this->assertTrue(VolunteerRosterDetailFields::validate(['photo_consent' => true], $allowed)['ok']);
+        $this->assertTrue(VolunteerRosterDetailFields::validate(['photo_consent' => false], $allowed)['ok']);
+        $this->assertTrue(VolunteerRosterDetailFields::validate(['photo_consent' => null], $allowed)['ok']);
     }
 
     public function test_export_photo_consent_label(): void

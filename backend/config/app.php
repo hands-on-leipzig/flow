@@ -57,6 +57,17 @@ return [
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
 
     /*
+    | Public event links (QR codes, DRAHT, share UI). Production uses the
+    | vanity host handson.tools; other environments keep FRONTEND_URL unless
+    | PUBLIC_URL is set explicitly.
+    */
+    'public_url' => rtrim((string) (env('PUBLIC_URL') ?: (
+        env('APP_ENV') === 'production'
+            ? 'https://handson.tools'
+            : env('FRONTEND_URL', 'http://localhost:5173')
+    )), '/'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------

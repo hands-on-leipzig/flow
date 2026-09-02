@@ -10,8 +10,11 @@ use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Http\Controllers\Api\EventStaffingController;
+use App\Http\Controllers\Api\EventTeamDataController;
+use App\Http\Controllers\Api\EventTeamFieldController;
 use App\Http\Controllers\Api\EventVolunteerFieldController;
 use App\Http\Controllers\Api\EventVolunteerMealOptionController;
+use App\Http\Controllers\Api\EventVolunteerCollectController;
 use App\Http\Controllers\Api\EventVolunteerRosterController;
 use App\Http\Controllers\Api\EventWorkspaceController;
 use App\Http\Controllers\Api\ExtraBlockController;
@@ -28,6 +31,7 @@ use App\Http\Controllers\Api\PlanExportController;
 use App\Http\Controllers\Api\PlanGeneratorController;
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\PlanPreviewController;
+use App\Http\Controllers\Api\PlanQualityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\PublicPlanController;
@@ -37,6 +41,7 @@ use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\TeamPublicFormController;
 use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
@@ -98,6 +103,9 @@ Route::prefix('check-in/{slug}')->group(function () {
 // Volunteer public data entry (email lookup + save; public; OTP token deferred)
 Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
 Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
+Route::get('/public-team-form/{slug}/lookup', [TeamPublicFormController::class, 'lookup']);
+Route::get('/public-team-form/{slug}/team/{team}', [TeamPublicFormController::class, 'team']);
+Route::post('/public-team-form/{slug}/save', [TeamPublicFormController::class, 'save']);
 
 // Cockpit app (PIN session; public)
 Route::prefix('cockpit/{slug}')->group(function () {
@@ -297,6 +305,15 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
     Route::delete('/teams/{team}', [TeamController::class, 'destroy']);
 
+    Route::get('/events/{event}/team-fields', [EventTeamFieldController::class, 'index']);
+    Route::post('/events/{event}/team-fields', [EventTeamFieldController::class, 'store']);
+    Route::put('/events/{event}/team-fields/public-form', [EventTeamFieldController::class, 'replacePublicForm']);
+    Route::patch('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'update']);
+    Route::delete('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'destroy']);
+    Route::get('/events/{event}/team-data', [EventTeamDataController::class, 'index']);
+    Route::patch('/events/{event}/teams/{team}/team-data', [EventTeamDataController::class, 'update']);
+    Route::get('/events/{event}/team-data/export', [EventTeamDataController::class, 'exportXlsx']);
+
     // Volunteer staffing (pool + roster)
     Route::get('/events/{event}/volunteers', [VolunteerPersonController::class, 'index']);
     Route::post('/events/{event}/volunteers', [VolunteerPersonController::class, 'store']);
@@ -306,10 +323,13 @@ Route::middleware(['keycloak'])->group(function () {
     Route::delete('/volunteers/{volunteer}', [VolunteerPersonController::class, 'destroy']);
     Route::get('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'index']);
     Route::post('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'store']);
+    Route::put('/events/{event}/volunteer-fields/public-form', [EventVolunteerFieldController::class, 'replacePublicForm']);
     Route::patch('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'update']);
     Route::delete('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'destroy']);
     Route::get('/events/{event}/volunteer-meal-options', [EventVolunteerMealOptionController::class, 'index']);
     Route::put('/events/{event}/volunteer-meal-options', [EventVolunteerMealOptionController::class, 'replace']);
+    Route::get('/events/{event}/volunteer-collect', [EventVolunteerCollectController::class, 'show']);
+    Route::patch('/events/{event}/volunteer-collect', [EventVolunteerCollectController::class, 'update']);
     Route::get('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'index']);
     Route::get('/events/{event}/volunteer-roster/export', [EventVolunteerRosterController::class, 'exportXlsx']);
     Route::post('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'store']);
@@ -377,6 +397,11 @@ Route::middleware(['keycloak'])->group(function () {
         Route::delete('/', [UserRegionalPartnerController::class, 'destroy']);
     });
 
+    Route::prefix('admin/plan-quality')->group(function () {
+        Route::get('/events', [PlanQualityController::class, 'listEvents']);
+        Route::post('/evaluate/{planId}', [PlanQualityController::class, 'evaluatePlan']);
+    });
+
     Route::prefix('admin/main-tables')->group(function () {
         Route::get('/', [MainTablesController::class, 'index']);
         Route::get('/export', [MainTablesController::class, 'export']);
@@ -425,6 +450,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/helper-search/{eventId}', [PublishController::class, 'setPublicHelperSearch']);
         Route::get('/volunteer-data-entry/{eventId}', [PublishController::class, 'getPublicVolunteerDataEntry']);
         Route::post('/volunteer-data-entry/{eventId}', [PublishController::class, 'setPublicVolunteerDataEntry']);
+        Route::get('/team-data-entry/{eventId}', [PublishController::class, 'getPublicTeamDataEntry']);
+        Route::post('/team-data-entry/{eventId}', [PublishController::class, 'setPublicTeamDataEntry']);
         Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
         Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
     });

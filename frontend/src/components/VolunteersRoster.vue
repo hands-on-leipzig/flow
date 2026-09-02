@@ -22,7 +22,7 @@ import {
   type StaffingFilterKey,
 } from '@/utils/volunteerStaffingFilters'
 import {flowFilename} from '@/utils/flowFilename'
-import {ROSTER_TABLE_COLUMNS, type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
+import {type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {rosterEntryHasUnsetField} from '@/utils/volunteerRosterUnset'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
@@ -37,9 +37,10 @@ const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const roster = ref<RosterEntry[]>([])
-const tableColumns = ref<RosterColumnMeta[]>([...ROSTER_TABLE_COLUMNS])
+const tableColumns = ref<RosterColumnMeta[]>([])
 const columnsPanelOpen = ref(false)
 const mealPanelOpen = ref(false)
+const collectMeal = ref(true)
 const pool = ref<Person[]>([])
 const loading = ref(false)
 const togglingId = ref<number | null>(null)
@@ -219,10 +220,11 @@ async function load() {
       detail: entry.detail ?? defaultRosterDetail(),
       custom: entry.custom ?? {},
     }))
-    tableColumns.value = rosterRes.data.columns ?? [...ROSTER_TABLE_COLUMNS]
+    tableColumns.value = rosterRes.data.columns ?? []
     if (rosterRes.data.meal_options) {
       setMealOptions(rosterRes.data.meal_options)
     }
+    collectMeal.value = rosterRes.data.collect?.meal !== false
     pool.value = poolRes.data.people ?? []
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
@@ -283,6 +285,7 @@ onMounted(() => load())
       </div>
       <div class="vol-page__actions">
         <button
+            v-if="collectMeal"
             type="button"
             class="glass-btn-secondary vol-upload-trigger"
             title="Essensoptionen verwalten"
@@ -333,7 +336,7 @@ onMounted(() => load())
           />
         </div>
         <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
-          Helfer:innen können auf dem öffentlichen Plan ihre Daten eingeben. Einstellungen unter
+          Helfer:innen können auf dem öffentlichen Plan ihre Daten eingeben. Formular-Felder unter
           <RouterLink to="/plan/publish" class="vol-roster-publish__link">
             Ausgabe → Veröffentlichung
           </RouterLink>.

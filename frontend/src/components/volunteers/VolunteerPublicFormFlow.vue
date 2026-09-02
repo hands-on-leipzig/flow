@@ -44,7 +44,7 @@ const lookupPayload = ref<LookupPayload | null>(null)
 const saving = ref(false)
 const saveError = ref('')
 
-const personDraft = ref({first_name: '', last_name: '', mobile: ''})
+const personDraft = ref({first_name: '', last_name: '', mobile: '', organization: ''})
 const detailDraft = ref<RosterDetail>(defaultRosterDetail())
 const customDraft = ref<Record<string, string | number | boolean | null>>({})
 
@@ -95,6 +95,7 @@ async function loadLookup() {
       first_name: data.person.first_name ?? '',
       last_name: data.person.last_name ?? '',
       mobile: data.person.mobile ?? '',
+      organization: data.person.organization ?? '',
     }
     detailDraft.value = {...defaultRosterDetail(), ...data.detail}
     customDraft.value = {...data.custom}
@@ -122,12 +123,18 @@ async function submitForm() {
   saving.value = true
   saveError.value = ''
   const {photo_consent: _photoConsent, ...detailPayload} = detailDraft.value
+  const customPayload: Record<string, string | number | boolean | null> = {}
+  for (const field of lookupPayload.value?.fields ?? []) {
+    if (field.kind === 'custom' && field.field_key) {
+      customPayload[field.field_key] = customDraft.value[field.field_key] ?? null
+    }
+  }
   try {
     await axios.post(`/public-volunteer-form/${props.slug}/save`, {
       email: props.email.trim(),
       person: personDraft.value,
       detail: detailPayload,
-      custom: customDraft.value,
+      custom: customPayload,
     })
     emit('update:step', 'done')
   } catch (error: unknown) {
@@ -243,6 +250,10 @@ watch(
           <div class="vol-public-form__row">
             <label class="vol-public-form__label" for="vol-form-mobile">Mobil</label>
             <input id="vol-form-mobile" v-model="personDraft.mobile" type="tel" class="glass-input">
+          </div>
+          <div class="vol-public-form__row">
+            <label class="vol-public-form__label" for="vol-form-org">Organisation</label>
+            <input id="vol-form-org" v-model="personDraft.organization" type="text" class="glass-input">
           </div>
 
           <template v-for="field in lookupPayload.fields" :key="field.key">

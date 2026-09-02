@@ -3,6 +3,8 @@
 namespace App\Support;
 
 use App\Models\EventVolunteerField;
+use App\Models\EventVolunteerRoster;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
 final class VolunteerRosterCustomFields
@@ -118,6 +120,7 @@ final class VolunteerRosterCustomFields
             'type' => $field->type,
             'options' => $field->type === 'select' ? ($field->options ?? []) : [],
             'sequence' => (int) $field->sequence,
+            'public_form' => (bool) ($field->public_form ?? false),
         ];
     }
 
@@ -134,6 +137,7 @@ final class VolunteerRosterCustomFields
             'type' => $field->type,
             'field_key' => $field->field_key,
             'options' => $field->type === 'select' ? ($field->options ?? []) : [],
+            'public_form' => (bool) ($field->public_form ?? false),
         ];
     }
 
@@ -275,5 +279,22 @@ final class VolunteerRosterCustomFields
         }
 
         return false;
+    }
+
+    /**
+     * @param  Collection<int, EventVolunteerField>  $customFields
+     * @return array<string, mixed>
+     */
+    public static function apiValuesForRow(EventVolunteerRoster $row, Collection $customFields): array
+    {
+        $valuesByFieldId = $row->fieldValues->keyBy('event_volunteer_field');
+        $payload = [];
+
+        foreach ($customFields as $field) {
+            $stored = $valuesByFieldId->get($field->id)?->value;
+            $payload[$field->field_key] = self::apiValue($field, $stored);
+        }
+
+        return $payload;
     }
 }

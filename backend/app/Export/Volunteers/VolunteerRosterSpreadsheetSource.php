@@ -80,7 +80,7 @@ final class VolunteerRosterSpreadsheetSource implements SpreadsheetSource
                 $row,
                 $assignments,
                 $programNames,
-                $this->customValuesForRow($row, $customFields),
+                VolunteerRosterCustomFields::apiValuesForRow($row, $customFields),
                 $customFields,
                 $mealLabelMap,
             );
@@ -94,23 +94,6 @@ final class VolunteerRosterSpreadsheetSource implements SpreadsheetSource
             ],
             (string) ($this->event->name ?? ''),
         );
-    }
-
-    /**
-     * @param  Collection<int, EventVolunteerField>  $customFields
-     * @return array<string, mixed>
-     */
-    private function customValuesForRow(EventVolunteerRoster $row, Collection $customFields): array
-    {
-        $valuesByFieldId = $row->fieldValues->keyBy('event_volunteer_field');
-        $payload = [];
-
-        foreach ($customFields as $field) {
-            $stored = $valuesByFieldId->get($field->id)?->value;
-            $payload[$field->field_key] = VolunteerRosterCustomFields::apiValue($field, $stored);
-        }
-
-        return $payload;
     }
 
     /**

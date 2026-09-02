@@ -6,6 +6,8 @@ use App\Models\EventVolunteerField;
 use App\Models\EventVolunteerRoster;
 use App\Models\EventVolunteerRosterDetail;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 final class VolunteerRosterColumns
 {
@@ -35,11 +37,44 @@ final class VolunteerRosterColumns
     }
 
     /**
+     * @return array{t_shirt: bool, meal: bool}
+     */
+    private static function collectFlagsForEventId(int $eventId): array
+    {
+        if (! Schema::hasTable('event')) {
+            return ['t_shirt' => true, 'meal' => true];
+        }
+
+        $row = DB::table('event')->where('id', $eventId)->first();
+        if (! $row) {
+            return ['t_shirt' => true, 'meal' => true];
+        }
+
+        return [
+            't_shirt' => (bool) ($row->volunteer_collect_t_shirt ?? true),
+            'meal' => (bool) ($row->collect_meal ?? $row->volunteer_collect_meal ?? true),
+        ];
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     public static function tablePayloadForEvent(int $eventId): array
     {
-        $columns = self::FIXED_TABLE_START;
+        $flags = self::collectFlagsForEventId($eventId);
+        $collectShirt = $flags['t_shirt'];
+        $collectMeal = $flags['meal'];
+
+        $columns = [];
+        foreach (self::FIXED_TABLE_START as $column) {
+            if ($column['key'] === 't_shirt' && ! $collectShirt) {
+                continue;
+            }
+            if ($column['key'] === 'meal' && ! $collectMeal) {
+                continue;
+            }
+            $columns[] = $column;
+        }
         foreach (self::customFieldsForEvent($eventId) as $field) {
             $columns[] = VolunteerRosterCustomFields::serializeColumn($field);
         }
@@ -54,7 +89,9 @@ final class VolunteerRosterColumns
                 'editor' => $column['editor'] ?? null,
                 'field_key' => $column['field_key'] ?? null,
                 'options' => $column['options'] ?? [],
-                'public_form' => $column['public_form'] ?? true,
+                'public_form' => array_key_exists('public_form', $column)
+                    ? (bool) $column['public_form']
+                    : (($column['kind'] ?? '') === 'custom' ? false : true),
             ];
         }, $columns));
     }
@@ -72,6 +109,10 @@ final class VolunteerRosterColumns
      */
     public static function exportDefinitionsForEvent(int $eventId): array
     {
+        $flags = self::collectFlagsForEventId($eventId);
+        $collectShirt = $flags['t_shirt'];
+        $collectMeal = $flags['meal'];
+
         $definitions = [];
         foreach (VolunteerPersonColumns::definitions() as $column) {
             if (($column['key'] ?? '') === 'updated_at') {
@@ -83,9 +124,13 @@ final class VolunteerRosterColumns
         $definitions[] = ['key' => 'zuordnung_1_program', 'label' => 'Zuordnung 1 Programm', 'export' => true];
         $definitions[] = ['key' => 'zuordnung_1_role', 'label' => 'Zuordnung 1 Rolle', 'export' => true];
         $definitions[] = ['key' => 'photo_consent', 'label' => 'Foto Erlaubnis', 'export' => true];
-        $definitions[] = ['key' => 't_shirt_cut', 'label' => 'T-Shirt Schnitt', 'export' => true];
-        $definitions[] = ['key' => 't_shirt_size', 'label' => 'T-Shirt Größe', 'export' => true];
-        $definitions[] = ['key' => 'meal', 'label' => 'Essen', 'export' => true];
+        if ($collectShirt) {
+            $definitions[] = ['key' => 't_shirt_cut', 'label' => 'T-Shirt Schnitt', 'export' => true];
+            $definitions[] = ['key' => 't_shirt_size', 'label' => 'T-Shirt Größe', 'export' => true];
+        }
+        if ($collectMeal) {
+            $definitions[] = ['key' => 'meal', 'label' => 'Essen', 'export' => true];
+        }
 
         foreach (self::customFieldsForEvent($eventId) as $field) {
             $definitions[] = [
@@ -128,17 +173,22 @@ final class VolunteerRosterColumns
         /** @var EventVolunteerRosterDetail|null $detail */
         $detail = $row->detail;
         $customFields ??= self::customFieldsForEvent($eventId);
+        $flags = self::collectFlagsForEventId($eventId);
+        $collectShirt = $flags['t_shirt'];
+        $collectMeal = $flags['meal'];
 
         $values = VolunteerPersonColumns::exportValues($person, ['updated_at']);
         $values = array_merge($values, self::assignmentPairValues($assignments[0] ?? null, $programNames));
         $values[] = VolunteerRosterDetailFields::exportPhotoConsentLabel(
             $detail?->photo_consent !== null ? (bool) $detail->photo_consent : null
         );
-        $values = array_merge($values, [
-            VolunteerRosterDetailFields::exportLabel($detail?->t_shirt_cut),
-            $detail?->t_shirt_size ?? '',
-            VolunteerRosterDetailFields::exportMealLabel($detail?->meal, $mealLabelMap),
-        ]);
+        if ($collectShirt) {
+            $values[] = VolunteerRosterDetailFields::exportLabel($detail?->t_shirt_cut);
+            $values[] = $detail?->t_shirt_size ?? '';
+        }
+        if ($collectMeal) {
+            $values[] = VolunteerRosterDetailFields::exportMealLabel($detail?->meal, $mealLabelMap);
+        }
 
         foreach ($customFields as $field) {
             $apiValue = $customValues[$field->field_key] ?? null;

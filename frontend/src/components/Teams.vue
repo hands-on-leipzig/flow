@@ -8,11 +8,11 @@ defineOptions({name: 'Teams'})
 <template>
   <div class="teams-shell">
     <router-view v-slot="{ Component, route: paneRoute }">
-      <keep-alive include="TeamsProgram">
+      <keep-alive include="TeamsProgram,TeamsTeamData">
         <component
             :is="Component"
             v-if="Component"
-            :key="String(paneRoute.params.program ?? paneRoute.path)"
+            :key="paneRoute.name === 'teams-data' ? 'teams-data' : String(paneRoute.params.program ?? paneRoute.path)"
         />
       </keep-alive>
     </router-view>

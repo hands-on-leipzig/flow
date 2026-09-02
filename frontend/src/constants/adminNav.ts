@@ -1,4 +1,4 @@
-export const ADMIN_DEFAULT_SECTION = 'statistics'
+export const ADMIN_DEFAULT_SECTION = 'system-news'
 
 export type AdminGroup = 'ops' | 'entwicklung'
 
@@ -50,8 +50,9 @@ export function isEntwicklungEnvironment(isLocal: boolean): boolean {
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
   // Ops
-  {key: 'statistics', label: 'Statistiken', icon: 'bi-bar-chart', group: 'ops'},
   {key: 'system-news', label: 'System News', icon: 'bi-newspaper', group: 'ops'},
+  {key: 'statistics', label: 'Statistiken', icon: 'bi-bar-chart', group: 'ops'},
+  {key: 'plan-qualitaet', label: 'Plan Qualität', icon: 'bi-clipboard-check', group: 'ops'},
   {key: 'user-regional-partners', label: 'User ↔ Regionen', icon: 'bi-people', group: 'ops'},
   {key: 'calendar', label: 'Kalender-Feeds', icon: 'bi-calendar3', group: 'ops'},
   {key: 'external-api', label: 'External API', icon: 'bi-key', group: 'ops'},
