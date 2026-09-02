@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\PlanExportController;
 use App\Http\Controllers\Api\PlanGeneratorController;
 use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\PlanPreviewController;
+use App\Http\Controllers\Api\PlanQualityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\PublicPlanController;
@@ -375,6 +376,11 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/selection-data', [UserRegionalPartnerController::class, 'getSelectionData']);
         Route::post('/', [UserRegionalPartnerController::class, 'store']);
         Route::delete('/', [UserRegionalPartnerController::class, 'destroy']);
+    });
+
+    Route::prefix('admin/plan-quality')->group(function () {
+        Route::get('/events', [PlanQualityController::class, 'listEvents']);
+        Route::post('/evaluate/{planId}', [PlanQualityController::class, 'evaluatePlan']);
     });
 
     Route::prefix('admin/main-tables')->group(function () {

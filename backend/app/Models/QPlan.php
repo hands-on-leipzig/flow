@@ -51,6 +51,8 @@ class QPlan extends Model
         'q5_idle_stddev',
         'q6_duration',
         'calculated',
+        'evaluation_status',
+        'evaluation_reasons',
     ];
 
     protected $casts = [
@@ -81,6 +83,7 @@ class QPlan extends Model
         'q5_idle_avg' => 'float',
         'q5_idle_stddev' => 'float',
         'calculated' => 'boolean',
+        'evaluation_reasons' => 'array',
     ];
 
     public function plan()

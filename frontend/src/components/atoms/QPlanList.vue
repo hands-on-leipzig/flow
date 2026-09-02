@@ -3,6 +3,17 @@ import { ref, watch, computed } from 'vue'
 import axios from 'axios'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
+import { useQualityMetrics } from '@/composables/useQualityMetrics'
+
+const {
+  ampelfarbeQ1Q4,
+  ampelfarbeQ2,
+  ampelfarbeQ3,
+  formatDistribution,
+  farbeQ5Idle,
+  farbeQ5Stddev,
+  formatDuration,
+} = useQualityMetrics()
 
 
 const props = defineProps({
@@ -150,72 +161,6 @@ const loadPlans = async () => {
 }
 
 watch(() => props.qrun, loadPlans, { immediate: true })
-
-function ampelfarbeQ1Q4(ok, teams) {
-  return ok === teams ? '🟢' : '🔴'
-}
-
-function ampelfarbeQ2(count1, count2, rTables) {
-  // 2 tables: red if any team saw only 1 table, else green
-  if (rTables === 2) {
-    if (count1 > 0) return '🔴'
-    return '🟢'
-  }
-  
-  // 4 tables: red if _1 > 0, yellow if _2 > 0, else green
-  if (rTables === 4) {
-    if (count1 > 0) return '🔴'
-    if (count2 > 0) return '🟡'
-    return '🟢'
-  }
-  
-  // Fallback for unknown table count
-  return '⚪'
-}
-
-function ampelfarbeQ3(count1, count2) {
-  // If any team has only 1 opponent: red
-  if (count1 > 0) return '🔴'
-  // Else if any team has 2 opponents: yellow
-  if (count2 > 0) return '🟡'
-  // Else all teams have 3 opponents: green
-  return '🟢'
-}
-
-function formatDistribution(count1, count2, count3, scoreAvg) {
-  // Format: "5-3-2 (77%)" meaning 5 with 3, 3 with 2, 2 with 1, avg 77%
-  // Always show all three counts, even if 0: "10-0-0 (67%)"
-  const count3Val = count3 ?? 0
-  const count2Val = count2 ?? 0
-  const count1Val = count1 ?? 0
-  
-  const distStr = `${count3Val}-${count2Val}-${count1Val}`
-  const scoreStr = scoreAvg != null ? `(${scoreAvg.toFixed(0)}%)` : ''
-  
-  return `${distStr} ${scoreStr}`.trim()
-}
-
-function farbeQ5Idle(avg, teams) {
-  const max = (teams - 1) / 2
-  const ratio = Math.min(Math.max(avg / max, 0), 1)
-  const r = Math.round(255 * (1 - ratio))
-  const g = Math.round(255 * ratio)
-  return `rgb(${r},${g},0)`
-}
-
-function farbeQ5Stddev(stddev) {
-  const ratio = Math.min(stddev / 2.0, 1)
-  const r = Math.round(255 * ratio)
-  const g = Math.round(255 * (1 - ratio))
-  return `rgb(${r},${g},0)`
-}
-
-function formatDuration(minutes) {
-  if (minutes == null) return '–'
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
-  return `${hours}:${String(mins).padStart(2, '0')}`
-}
 
 function toggleExpanded(planId) {
   expandedPlanId.value = expandedPlanId.value === planId ? null : planId

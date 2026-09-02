@@ -33,6 +33,7 @@ import EventDayCheckIn from "@/components/EventDayCheckIn.vue";
 import EventDayCockpit from "@/components/EventDayCockpit.vue";
 import CheckInReception from "@/components/CheckInReception.vue";
 import CockpitApp from "@/components/CockpitApp.vue";
+import {ADMIN_DEFAULT_SECTION} from '@/constants/adminNav'
 // Admin is lazy-loaded - only loads when /admin route is accessed
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
@@ -130,7 +131,7 @@ const routes = [
             {path: 'profile', component: Profile},
             {path: 'access', component: AccessManagement},
             // Lazy-load Admin — one component for all sections so tab state stays mounted
-            {path: 'admin', redirect: '/plan/admin/statistics'},
+            {path: 'admin', redirect: `/plan/admin/${ADMIN_DEFAULT_SECTION}`},
             {path: 'admin/:section', component: () => import('@/components/Admin.vue')},
             {path: 'presentation', redirect: '/plan/publish/digital'},
             {path: 'preview/:planId', component: Preview, props: true},

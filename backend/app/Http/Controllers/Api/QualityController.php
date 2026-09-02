@@ -453,88 +453,10 @@ class QualityController extends Controller
             }
         }
 
-        $qplan = DB::table('q_plan')
-            ->where('plan', $planId)
-            ->where('first_program', $firstProgram)
-            ->orderByDesc('id')
-            ->first();
+        $evaluator = app(\App\Services\QualityEvaluatorService::class);
+        $qPlan = $evaluator->ensureEvaluatedForPlan($planId, $firstProgram);
 
-        $needsCreateOrRefresh = false;
-        if (!$qplan) {
-            $needsCreateOrRefresh = true;
-        } else {
-            if (!empty($plan->last_change)) {
-                $planChanged = Carbon::parse($plan->last_change);
-                $qLast = $qplan->last_change ? Carbon::parse($qplan->last_change) : null;
-                if ($qLast === null || $qLast->lt($planChanged)) {
-                    $needsCreateOrRefresh = true;
-                }
-            }
-        }
-
-        if ($needsCreateOrRefresh) {
-            $host = gethostname();
-            $map = ChallengeShapedParamMap::from($firstProgram);
-
-            $runId = DB::table('q_run')->insertGetId([
-                'name' => "Auto für Plan {$planId}",
-                'first_program' => $firstProgram,
-                'comment' => 'Automatisch erstellt durch Preview',
-                'selection' => null,
-                'started_at' => Carbon::now(),
-                'status' => 'running',
-                'host' => $host,
-            ]);
-
-            $teams = (int) $pp->get($map->teams(), 0);
-            $tables = (int) $pp->get($map->tables(), 0);
-            $lanes = (int) $pp->get($map->lanes(), 0);
-            $juryRounds = (int) ceil(max(1, $teams) / max(1, $lanes));
-            $robotCheck = $map->supportsRobotCheck()
-                ? (bool) $pp->get($map->robotCheck(), 0)
-                : false;
-            $rDurationRobotCheck = (int) $pp->get('r_duration_robot_check', 0);
-            $transfer = (int) $pp->get($map->transfer(), 0);
-            $rAsym = ($tables === 4 && ($teams % 4 === 1 || $teams % 4 === 2)) ? 1 : 0;
-
-            $qPlanId = DB::table('q_plan')->insertGetId([
-                'plan' => $planId,
-                'q_run' => $runId,
-                'first_program' => $firstProgram,
-                'name' => $plan->name,
-                'c_teams' => $teams,
-                'r_tables' => $tables,
-                'j_lanes' => $lanes,
-                'j_rounds' => $juryRounds,
-                'r_asym' => $rAsym,
-                'r_robot_check' => $robotCheck,
-                'r_duration_robot_check' => $rDurationRobotCheck,
-                'c_duration_transfer' => $transfer,
-                'calculated' => true,
-                'last_change' => null,
-            ]);
-
-            app(\App\Services\QualityEvaluatorService::class)->evaluate($qPlanId);
-
-            $totals = DB::table('q_plan')->where('q_run', $runId)->count();
-            DB::table('q_run')->where('id', $runId)->update([
-                'qplans_total' => $totals,
-                'qplans_calculated' => $totals,
-                'finished_at' => Carbon::now(),
-                'status' => 'done',
-            ]);
-
-            $qplan = DB::table('q_plan')->where('id', $qPlanId)->first();
-
-            // Drop older auto rows for the same plan + program only (keep the other C/F8 row).
-            DB::table('q_plan')
-                ->where('plan', $planId)
-                ->where('first_program', $firstProgram)
-                ->where('id', '!=', $qPlanId)
-                ->delete();
-        }
-
-        return $this->getQPlanDetails($qplan->id);
+        return $this->getQPlanDetails($qPlan->id);
     }
 
     public function deleteQRun(int $qRunId)
