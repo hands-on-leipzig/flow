@@ -52,7 +52,16 @@ final class TeamDataColumns
     public static function tablePayloadForEvent(int $eventId): array
     {
         $collectMeal = self::collectsMealForEventId($eventId);
-        $columns = [];
+        $columns = [
+            [
+                'key' => 'photo_consent',
+                'label' => 'Foto Erlaubnis',
+                'kind' => 'photo',
+                'editor' => 'count_set',
+                'boolean_keys' => TeamPhotoCounts::BUCKETS,
+                'sortable' => false,
+            ],
+        ];
 
         if ($collectMeal) {
             $columns[] = [
@@ -104,10 +113,19 @@ final class TeamDataColumns
     {
         $definitions = [
             ['key' => 'program_label', 'label' => 'Programm', 'export' => true],
+            ['key' => 'team_number_hot', 'label' => 'Nr', 'export' => true],
             ['key' => 'team_name', 'label' => 'Teamname', 'export' => true],
-            ['key' => 'team_number_plan', 'label' => 'Nr', 'export' => true],
+            ['key' => 'organization', 'label' => 'Organisation', 'export' => true],
             ['key' => 'people_count', 'label' => 'Personen', 'export' => true],
         ];
+
+        foreach (['unknown' => '?', 'yes' => 'Ja', 'no' => 'Nein'] as $bucket => $label) {
+            $definitions[] = [
+                'key' => 'photo_consent:'.$bucket,
+                'label' => 'Foto Erlaubnis: '.$label,
+                'export' => true,
+            ];
+        }
 
         if (self::collectsMealForEventId($eventId)) {
             $mealOptions = VolunteerMealOptions::optionsForEvent($eventId);
@@ -190,8 +208,11 @@ final class TeamDataColumns
         if ($key === 'team_name') {
             return $team['name'] ?? '';
         }
-        if ($key === 'team_number_plan') {
-            return $team['team_number_plan'] ?? '';
+        if ($key === 'team_number_hot') {
+            return $team['team_number_hot'] ?? '';
+        }
+        if ($key === 'organization') {
+            return $team['organization'] ?? '';
         }
         if ($key === 'people_count') {
             $count = $team['people_count'] ?? null;
@@ -203,6 +224,12 @@ final class TeamDataColumns
             $meals = is_array($team['meals'] ?? null) ? $team['meals'] : [];
 
             return (int) ($meals[$mealValue] ?? 0);
+        }
+        if (str_starts_with($key, 'photo_consent:')) {
+            $bucket = substr($key, 14);
+            $photo = is_array($team['photo_consent'] ?? null) ? $team['photo_consent'] : [];
+
+            return (int) ($photo[$bucket] ?? 0);
         }
         if (! str_starts_with($key, 'custom:')) {
             return '';

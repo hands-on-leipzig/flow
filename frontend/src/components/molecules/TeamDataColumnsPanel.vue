@@ -205,7 +205,9 @@ watch(
       <li class="vol-columns-dialog__builtin">Teamname</li>
       <li class="vol-columns-dialog__builtin">Nr</li>
       <li class="vol-columns-dialog__builtin">Programm</li>
+      <li class="vol-columns-dialog__builtin">Organisation</li>
       <li class="vol-columns-dialog__builtin">Personen</li>
+      <li class="vol-columns-dialog__builtin">Foto Erlaubnis</li>
       <li class="vol-columns-dialog__builtin vol-columns-dialog__builtin--toggle">
         <label class="vol-columns-dialog__check">
           <input

@@ -125,8 +125,8 @@ final class TeamDataIndex
                 return $seqA <=> $seqB;
             }
 
-            $planA = $a->team_number_plan !== null ? (int) $a->team_number_plan : PHP_INT_MAX;
-            $planB = $b->team_number_plan !== null ? (int) $b->team_number_plan : PHP_INT_MAX;
+            $planA = (int) ($a->team_number_hot ?? 0);
+            $planB = (int) ($b->team_number_hot ?? 0);
             if ($planA !== $planB) {
                 return $planA <=> $planB;
             }
@@ -217,14 +217,17 @@ final class TeamDataIndex
         $payload = [
             'id' => $team->id,
             'name' => $team->name,
-            'team_number_hot' => $team->team_number_hot,
+            'organization' => $team->organization,
+            'team_number_hot' => $team->team_number_hot !== null ? (int) $team->team_number_hot : null,
             'team_number_plan' => $team->team_number_plan !== null ? (int) $team->team_number_plan : null,
             'first_program' => $firstProgramId ?: null,
             'program_label' => $programMeta['labels'][$firstProgramId] ?? '',
             'people_count' => $peopleCount,
+            'photo_consent' => TeamPhotoCounts::mapForTeamWithDefaults($team->id),
             'custom' => $custom,
             'touched' => [
                 'meal' => TeamMealCounts::isTouched($team->id),
+                'photo' => TeamPhotoCounts::isTouched($team->id),
                 'custom' => $customTouched,
             ],
         ];

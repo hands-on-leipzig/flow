@@ -51,6 +51,13 @@ const rows = computed(() => {
     }))
   }
 
+  if (column.key === 'photo_consent' || column.kind === 'photo') {
+    return (column.boolean_keys ?? ['unknown', 'yes', 'no']).map((key) => ({
+      key,
+      label: BOOLEAN_LABELS[key] ?? key,
+    }))
+  }
+
   if (column.type === 'boolean') {
     return (column.boolean_keys ?? ['unknown', 'yes', 'no']).map((key) => ({
       key,
@@ -74,6 +81,11 @@ watch(
     if (column.editor === 'meal_counts') {
       for (const option of props.mealOptions) {
         next[option.value] = Number(team.meals?.[option.value] ?? 0)
+      }
+    } else if (column.key === 'photo_consent' || column.kind === 'photo') {
+      const map = team.photo_consent ?? {}
+      for (const row of rows.value) {
+        next[row.key] = Number(map[row.key] ?? 0)
       }
     } else if (column.field_key) {
       const map = team.custom[column.field_key]
@@ -101,6 +113,8 @@ async function confirm() {
     const payload: Record<string, unknown> = {}
     if (column.editor === 'meal_counts') {
       payload.meals = {...draft.value}
+    } else if (column.key === 'photo_consent' || column.kind === 'photo') {
+      payload.photo_consent = {...draft.value}
     } else if (column.field_key) {
       payload.custom = {[column.field_key]: {...draft.value}}
     }

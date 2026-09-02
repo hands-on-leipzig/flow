@@ -59,11 +59,14 @@ class TeamDataApiTest extends TestCase
         $index = $controller->index($event);
         $this->assertSame(200, $index->getStatusCode());
         $indexPayload = $index->getData(true);
+        $this->assertNotNull(collect($indexPayload['columns'])->firstWhere('key', 'photo_consent'));
         $this->assertNotNull(collect($indexPayload['columns'])->firstWhere('key', 'meal'));
         $this->assertCount(1, $indexPayload['teams']);
+        $this->assertSame('Test School', $indexPayload['teams'][0]['organization']);
 
         $patch = $controller->update(
             Request::create('/', 'PATCH', [
+                'photo_consent' => ['unknown' => 1, 'yes' => 2, 'no' => 0],
                 'meals' => ['standard' => 2, 'vegetarisch' => 1, 'vegan' => 0, 'keine' => 0],
                 'custom' => ['flag' => ['unknown' => 0, 'yes' => 2, 'no' => 1]],
             ]),
@@ -73,8 +76,10 @@ class TeamDataApiTest extends TestCase
         $this->assertSame(200, $patch->getStatusCode());
         $row = $patch->getData(true);
         $this->assertSame(2, $row['meals']['standard']);
+        $this->assertTrue($row['touched']['photo']);
         $this->assertTrue($row['touched']['meal']);
         $this->assertTrue($row['touched']['custom']['flag']);
+        $this->assertSame(['unknown' => 1, 'yes' => 2, 'no' => 0], $row['photo_consent']);
         $this->assertSame(['unknown' => 0, 'yes' => 2, 'no' => 1], $row['custom']['flag']);
 
         $this->assertSame(3, TeamMealCounts::mapForTeamWithCatalog(1, 1)['standard'] + TeamMealCounts::mapForTeamWithCatalog(1, 1)['vegetarisch']);
@@ -133,6 +138,8 @@ class TeamDataApiTest extends TestCase
         $labels = array_map(fn ($column) => $column->label, $sheet->columns);
 
         $this->assertContains('Personen', $labels);
+        $this->assertContains('Organisation', $labels);
+        $this->assertContains('Foto Erlaubnis: Ja', $labels);
         $this->assertContains('Essen: Standard', $labels);
 
         $rows = iterator_to_array($sheet->rows);
@@ -191,6 +198,7 @@ class TeamDataApiTest extends TestCase
             'first_program' => 1,
             'name' => 'Team A',
             'team_number_hot' => 10,
+            'organization' => 'Test School',
         ]);
         foreach ([
             ['standard', 'Standard', 1],
@@ -212,6 +220,7 @@ class TeamDataApiTest extends TestCase
     private function truncateData(): void
     {
         foreach ([
+            'event_team_photo_count',
             'event_team_meal_count',
             'event_team_field_value',
             'event_team_field',
@@ -263,6 +272,7 @@ class TeamDataApiTest extends TestCase
                 $table->unsignedInteger('first_program')->nullable();
                 $table->string('name');
                 $table->unsignedInteger('team_number_hot')->nullable();
+                $table->string('organization')->nullable();
             });
         }
         if (! Schema::hasTable('event_volunteer_meal_option')) {
@@ -302,6 +312,15 @@ class TeamDataApiTest extends TestCase
                 $table->increments('id');
                 $table->unsignedInteger('team');
                 $table->string('meal_value', 64);
+                $table->unsignedInteger('count')->default(0);
+                $table->timestamp('updated_at')->nullable();
+            });
+        }
+        if (! Schema::hasTable('event_team_photo_count')) {
+            Schema::create('event_team_photo_count', function (Blueprint $table) {
+                $table->increments('id');
+                $table->unsignedInteger('team');
+                $table->string('bucket', 16);
                 $table->unsignedInteger('count')->default(0);
                 $table->timestamp('updated_at')->nullable();
             });

@@ -1,7 +1,7 @@
 export type TeamDataColumn = {
   key: string
   label: string
-  kind: 'meal' | 'custom'
+  kind: 'meal' | 'custom' | 'photo'
   type?: string
   editor: 'meal_counts' | 'text' | 'number' | 'count_set'
   field_key?: string
@@ -12,15 +12,18 @@ export type TeamDataColumn = {
 export type TeamDataRow = {
   id: number
   name: string
+  organization: string | null
   team_number_hot: number | null
   team_number_plan: number | null
   first_program: number | null
   program_label: string
   people_count: number | null
+  photo_consent?: Record<string, number>
   meals?: Record<string, number>
   custom: Record<string, unknown>
   touched?: {
     meal?: boolean
+    photo?: boolean
     custom?: Record<string, boolean>
   }
 }
@@ -28,6 +31,31 @@ export type TeamDataRow = {
 export function sumCountMap(map: Record<string, number> | null | undefined): number {
   if (!map) return 0
   return Object.values(map).reduce((sum, value) => sum + Number(value || 0), 0)
+}
+
+function countMapForColumn(row: TeamDataRow, column: TeamDataColumn): Record<string, number> | null | undefined {
+  if (column.key === 'photo_consent' || column.kind === 'photo') {
+    return row.photo_consent
+  }
+  if (column.editor === 'meal_counts') {
+    return row.meals
+  }
+  const fieldKey = column.field_key
+  if (!fieldKey) return null
+  const value = row.custom[fieldKey]
+  return value && typeof value === 'object' ? (value as Record<string, number>) : null
+}
+
+function isTouchedForColumn(row: TeamDataRow, column: TeamDataColumn): boolean {
+  if (column.key === 'photo_consent' || column.kind === 'photo') {
+    return !!row.touched?.photo
+  }
+  if (column.editor === 'meal_counts') {
+    return !!row.touched?.meal
+  }
+  const fieldKey = column.field_key
+  if (!fieldKey) return false
+  return !!row.touched?.custom?.[fieldKey]
 }
 
 function isScalarColumnIncomplete(row: TeamDataRow, column: TeamDataColumn): boolean {
@@ -52,19 +80,8 @@ function isCountSetColumnIncomplete(row: TeamDataRow, column: TeamDataColumn): b
     return false
   }
 
-  if (column.editor === 'meal_counts') {
-    if (!row.touched?.meal) return true
-    return sumCountMap(row.meals) !== row.people_count
-  }
-
-  const fieldKey = column.field_key
-  if (!fieldKey) return false
-
-  if (!row.touched?.custom?.[fieldKey]) return true
-  const map = row.custom[fieldKey]
-  if (!map || typeof map !== 'object') return true
-
-  return sumCountMap(map as Record<string, number>) !== row.people_count
+  if (!isTouchedForColumn(row, column)) return true
+  return sumCountMap(countMapForColumn(row, column)) !== row.people_count
 }
 
 export function isTeamRowIncomplete(row: TeamDataRow, columns: TeamDataColumn[]): boolean {
@@ -83,18 +100,11 @@ export function isTeamRowIncomplete(row: TeamDataRow, columns: TeamDataColumn[])
 
 export function countSetCellMismatch(row: TeamDataRow, column: TeamDataColumn): boolean {
   if (row.people_count === null) return false
+  if (!isTouchedForColumn(row, column)) return false
 
-  if (column.editor === 'meal_counts') {
-    if (!row.touched?.meal) return false
-    return sumCountMap(row.meals) !== row.people_count
-  }
+  return sumCountMap(countMapForColumn(row, column)) !== row.people_count
+}
 
-  const fieldKey = column.field_key
-  if (!fieldKey || column.editor !== 'count_set') return false
-  if (!row.touched?.custom?.[fieldKey]) return false
-
-  const map = row.custom[fieldKey]
-  if (!map || typeof map !== 'object') return false
-
-  return sumCountMap(map as Record<string, number>) !== row.people_count
+export function countSetTotal(row: TeamDataRow, column: TeamDataColumn): number {
+  return sumCountMap(countMapForColumn(row, column))
 }

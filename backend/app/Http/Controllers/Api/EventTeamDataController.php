@@ -13,6 +13,7 @@ use App\Support\TeamDataColumns;
 use App\Support\TeamDataCustomFields;
 use App\Support\TeamDataIndex;
 use App\Support\TeamMealCounts;
+use App\Support\TeamPhotoCounts;
 use App\Support\VolunteerCollectOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,6 +35,18 @@ class EventTeamDataController extends Controller
         $collectMeal = VolunteerCollectOptions::collectsMeal($event);
         $customFields = TeamDataColumns::customFieldsForEvent($event->id);
         $fieldsByKey = $customFields->keyBy('field_key');
+
+        if ($request->has('photo_consent')) {
+            $validation = TeamPhotoCounts::validateCountMap($request->input('photo_consent'));
+            if (! $validation['ok']) {
+                return response()->json(['error' => $validation['error']], 422);
+            }
+            try {
+                TeamPhotoCounts::replaceForTeam($team->id, $validation['api']);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json(['error' => $e->getMessage()], 422);
+            }
+        }
 
         if ($request->has('meals')) {
             if (! $collectMeal) {
