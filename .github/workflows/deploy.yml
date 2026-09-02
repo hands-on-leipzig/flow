@@ -59,6 +59,7 @@ jobs:
     with:
       checkout_ref: ${{ github.event.release.tag_name }}
       app_url: https://flow.hands-on-technology.org
+      public_url: https://handson.tools
       temp_dir: deploy-flow-prod-temp
       public_dir: flow-prod
       refresh_m_tables: true

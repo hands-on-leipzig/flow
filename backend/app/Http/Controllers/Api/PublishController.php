@@ -108,7 +108,7 @@ class PublishController extends Controller
 
         $slug = $link;
         // Display link (stored in DB, shown to users) - clean without query params
-        $displayLink = config('app.frontend_url', 'http://localhost:5173') . "/" . $link;
+        $displayLink = config('app.public_url', 'https://handson.tools') . "/" . $link;
         // QR code link (includes source parameter for tracking)
         $qrCodeLink = $displayLink . "?source=qr";
 

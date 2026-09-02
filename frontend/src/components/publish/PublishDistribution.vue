@@ -15,6 +15,7 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
+import {normalizePublicLink} from '@/utils/publicLink'
 
 defineOptions({name: 'PublishDistribution'})
 
@@ -198,14 +199,7 @@ const helperSearchHiddenByLevel = computed(() => detailLevel.value === 2)
 
 const volunteerDataEntryHiddenByLevel = computed(() => detailLevel.value === 2)
 
-function normalizeLink(raw: string | null | undefined): string {
-  if (!raw) return ''
-  if (/^https?:\/\//i.test(raw)) return raw
-  const base = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '')
-  return `${base}/${raw.replace(/^\//, '')}`
-}
-
-const publicUrl = computed(() => normalizeLink(event.value?.link))
+const publicUrl = computed(() => normalizePublicLink(event.value?.link))
 
 const previewSrc = computed(() => {
   const url = publicUrl.value

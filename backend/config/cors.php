@@ -9,6 +9,7 @@ return [
         'https://flow.hands-on-technology.org',
         'https://test.flow.hands-on-technology.org',
         'https://dev.flow.hands-on-technology.org',
+        'https://handson.tools',
     ],
     'allowed_origins_patterns' => [],
     'allowed_headers' => ['*'],
