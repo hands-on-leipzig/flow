@@ -52,7 +52,7 @@ final class VolunteerRosterColumns
 
         return [
             't_shirt' => (bool) ($row->volunteer_collect_t_shirt ?? true),
-            'meal' => (bool) ($row->volunteer_collect_meal ?? true),
+            'meal' => (bool) ($row->collect_meal ?? $row->volunteer_collect_meal ?? true),
         ];
     }
 

@@ -238,7 +238,7 @@ class VolunteerRosterApiTest extends TestCase
             'days' => 1,
             'public_volunteer_data_entry' => true,
             'volunteer_collect_t_shirt' => true,
-            'volunteer_collect_meal' => true,
+            'collect_meal' => true,
         ]);
         DB::table('volunteer_person')->insert([
             'id' => 10,
@@ -300,7 +300,7 @@ class VolunteerRosterApiTest extends TestCase
                 $table->unsignedTinyInteger('days')->default(1);
                 $table->boolean('public_volunteer_data_entry')->default(false);
                 $table->boolean('volunteer_collect_t_shirt')->default(true);
-                $table->boolean('volunteer_collect_meal')->default(true);
+                $table->boolean('collect_meal')->default(true);
             });
         }
         if (! Schema::hasTable('m_first_program')) {

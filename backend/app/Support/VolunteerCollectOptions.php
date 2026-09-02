@@ -14,7 +14,7 @@ final class VolunteerCollectOptions
     {
         return [
             't_shirt' => (bool) ($event->volunteer_collect_t_shirt ?? true),
-            'meal' => (bool) ($event->volunteer_collect_meal ?? true),
+            'meal' => self::collectsMeal($event),
         ];
     }
 
@@ -25,15 +25,15 @@ final class VolunteerCollectOptions
 
     public static function collectsMeal(Event $event): bool
     {
-        return (bool) ($event->volunteer_collect_meal ?? true);
+        return (bool) ($event->collect_meal ?? true);
     }
 
     /**
-     * @return array{t_shirt_cleared: int, meal_cleared: int}
+     * @return array{t_shirt_cleared: int, meal_cleared: int, team_meal_rows_cleared: int}
      */
     public static function apply(Event $event, ?bool $tShirt, ?bool $meal): array
     {
-        $cleared = ['t_shirt_cleared' => 0, 'meal_cleared' => 0];
+        $cleared = ['t_shirt_cleared' => 0, 'meal_cleared' => 0, 'team_meal_rows_cleared' => 0];
 
         DB::transaction(function () use ($event, $tShirt, $meal, &$cleared) {
             $updates = [];
@@ -47,10 +47,11 @@ final class VolunteerCollectOptions
             }
             if ($meal !== null) {
                 $wasOn = self::collectsMeal($event);
-                $updates['volunteer_collect_meal'] = $meal;
-                $event->volunteer_collect_meal = $meal;
+                $updates['collect_meal'] = $meal;
+                $event->collect_meal = $meal;
                 if ($wasOn && ! $meal) {
                     $cleared['meal_cleared'] = self::clearMealForEvent($event->id);
+                    $cleared['team_meal_rows_cleared'] = TeamMealCounts::clearForEvent($event->id);
                 }
             }
             if ($updates !== []) {
@@ -74,11 +75,13 @@ final class VolunteerCollectOptions
 
     public static function usageCountMeal(int $eventId): int
     {
-        return (int) DB::table('event_volunteer_roster_detail as d')
+        $volunteer = (int) DB::table('event_volunteer_roster_detail as d')
             ->join('event_volunteer_roster as r', 'r.id', '=', 'd.event_volunteer_roster')
             ->where('r.event', $eventId)
             ->whereNotNull('d.meal')
             ->count();
+
+        return $volunteer + TeamMealCounts::usageCountForEvent($eventId);
     }
 
     private static function clearTShirtForEvent(int $eventId): int
