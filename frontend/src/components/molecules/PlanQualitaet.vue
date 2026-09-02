@@ -74,7 +74,7 @@ function rowKey(eventId, firstProgram) {
   return `${eventId}_${firstProgram}`
 }
 
-async function evaluatePrograms(items) {
+async function evaluatePrograms(items, { force = false } = {}) {
   if (items.length === 0) return
 
   running.value = true
@@ -94,6 +94,7 @@ async function evaluatePrograms(items) {
     try {
       const { data } = await axios.post(`/admin/plan-quality/evaluate/${event.plan_id}`, {
         first_program: program.first_program,
+        force,
       })
       patchProgram(event.event_id, program.first_program, data)
     } catch (err) {
@@ -130,17 +131,13 @@ async function runQualityCheck() {
 async function runEventQuality(event) {
   if (running.value || event.status !== 'evaluable' || !event.plan_id) return
 
-  const toRun = (event.programs || [])
-    .filter((p) => p.stale)
-    .map((program) => ({ event, program }))
-
+  const toRun = (event.programs || []).map((program) => ({ event, program }))
   if (toRun.length === 0) return
 
-  await evaluatePrograms(toRun)
+  programErrors.value = {}
+  await evaluatePrograms(toRun, { force: true })
 
-  if ((event.programs || []).every((p) => !p.stale)) {
-    showGlassToast(`${event.event_name}: Qualitätsprüfung abgeschlossen.`, 'success')
-  }
+  showGlassToast(`${event.event_name}: Qualitätsprüfung abgeschlossen.`, 'success')
 }
 
 watch(selectedSeasonId, () => {

@@ -128,16 +128,18 @@ class PlanQualityController extends Controller
     {
         $validated = $request->validate([
             'first_program' => 'required|integer|in:3,8',
+            'force' => 'sometimes|boolean',
         ]);
 
         $firstProgram = (int) $validated['first_program'];
+        $force = (bool) ($validated['force'] ?? false);
 
         if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
             return response()->json(['message' => 'first_program must be Challenge or Future 8+'], 422);
         }
 
         try {
-            $qPlan = $this->evaluator->ensureEvaluatedForPlan($planId, $firstProgram);
+            $qPlan = $this->evaluator->ensureEvaluatedForPlan($planId, $firstProgram, $force);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         } catch (\RuntimeException $e) {

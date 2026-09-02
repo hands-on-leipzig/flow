@@ -200,7 +200,6 @@ function eventEvaluationNote(event) {
             Fehler
           </span>
           <button
-            v-if="eventIsStale(event)"
             type="button"
             class="glass-btn-accent !px-2 !py-0.5 !text-xs inline-flex items-center gap-1 ml-auto"
             :disabled="running"

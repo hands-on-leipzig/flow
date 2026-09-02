@@ -538,7 +538,7 @@ class QualityEvaluatorService
     /**
      * Ensure a QPlan exists and is up-to-date for a given plan + Challenge-shaped program.
      */
-    public function ensureEvaluatedForPlan(int $planId, int $firstProgram): QPlan
+    public function ensureEvaluatedForPlan(int $planId, int $firstProgram, bool $force = false): QPlan
     {
         if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
             throw new \InvalidArgumentException('first_program must be Challenge or Future 8+');
@@ -563,7 +563,7 @@ class QualityEvaluatorService
             ->orderByDesc('id')
             ->first();
 
-        if (! $this->isQPlanStale($plan, $qplan)) {
+        if (! $force && ! $this->isQPlanStale($plan, $qplan)) {
             return QPlan::findOrFail($qplan->id);
         }
 
