@@ -43,7 +43,8 @@ function rowKey(eventId, firstProgram) {
 
 function toggleExpanded(eventId, firstProgram) {
   const event = props.events.find((e) => e.event_id === eventId)
-  if (event && eventIsStale(event)) return
+  const program = event?.programs?.find((p) => p.first_program === firstProgram)
+  if (!programIsExpandable(event, program)) return
 
   const key = rowKey(eventId, firstProgram)
   expandedKey.value = expandedKey.value === key ? null : key
@@ -81,6 +82,37 @@ function eventTitle(event) {
     parts.push(`P${event.plan_id}`)
   }
   return parts.join(' · ')
+}
+
+function programEvaluationStatus(program) {
+  return program?.q_plan?.evaluation_status ?? null
+}
+
+function programIsExpandable(event, program) {
+  if (!event || !program) return false
+  if (eventIsStale(event)) return false
+  if (programEvaluationStatus(program) === 'not_evaluable') return false
+  return true
+}
+
+function eventEvaluationNote(event) {
+  if (eventIsStale(event)) return null
+
+  const programs = event.programs || []
+  const notEvaluable = programs.filter((p) => programEvaluationStatus(p) === 'not_evaluable')
+  const incomplete = programs.filter((p) => programEvaluationStatus(p) === 'incomplete')
+
+  if (notEvaluable.length > 0 && incomplete.length > 0) {
+    return 'Auswertung eingeschränkt'
+  }
+  if (notEvaluable.length > 0) {
+    return notEvaluable.length === 1 ? 'Nicht auswertbar' : `${notEvaluable.length} nicht auswertbar`
+  }
+  if (incomplete.length > 0) {
+    return incomplete.length === 1 ? 'Plan unvollständig' : `${incomplete.length} unvollständig`
+  }
+
+  return null
 }
 </script>
 
@@ -153,6 +185,15 @@ function eventTitle(event) {
             {{ staleNote(event) }}
           </span>
           <span
+            v-if="eventEvaluationNote(event)"
+            class="text-[10px] px-1.5 py-0.5 rounded"
+            :class="(event.programs || []).some((p) => programEvaluationStatus(p) === 'not_evaluable')
+              ? 'bg-red-500/20 text-red-700 dark:text-red-300'
+              : 'bg-amber-500/20 text-amber-700 dark:text-amber-300'"
+          >
+            {{ eventEvaluationNote(event) }}
+          </span>
+          <span
             v-if="eventHasError(event)"
             class="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-700 dark:text-red-300"
           >
@@ -176,7 +217,7 @@ function eventTitle(event) {
           :key="rowKey(event.event_id, program.first_program)"
           :plan-id="event.plan_id"
           :program="program"
-          :expandable="!eventIsStale(event)"
+          :expandable="programIsExpandable(event, program)"
           :expanded="expandedKey === rowKey(event.event_id, program.first_program)"
           @toggle="toggleExpanded(event.event_id, program.first_program)"
         />

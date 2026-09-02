@@ -3,6 +3,11 @@ import { computed } from 'vue'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import { useQualityMetrics } from '@/composables/useQualityMetrics'
+import {
+  evaluationReasonsTooltip,
+  evaluationStatusChipClass,
+  evaluationStatusLabel,
+} from '@/composables/useQualityEvaluationStatus'
 
 const props = defineProps({
   planId: {
@@ -37,6 +42,12 @@ const {
 
 const qplan = computed(() => props.program.q_plan)
 const isFuture8 = computed(() => props.program.first_program === 8)
+const evaluationStatus = computed(() => qplan.value?.evaluation_status ?? null)
+const evaluationLabel = computed(() => evaluationStatusLabel(evaluationStatus.value))
+const evaluationTooltip = computed(() => evaluationReasonsTooltip(qplan.value))
+const metricsMuted = computed(() =>
+  evaluationStatus.value === 'not_evaluable' || evaluationStatus.value === 'incomplete',
+)
 
 function onRowClick() {
   if (!props.expandable) return
@@ -52,7 +63,10 @@ function openPreview() {
   <div class="border-b border-[var(--color-border)]">
     <div
       class="grid grid-cols-13 text-sm py-1 items-center"
-      :class="expandable ? 'hover:bg-[var(--color-bg-hover)] cursor-pointer' : 'opacity-60'"
+      :class="[
+        expandable ? 'hover:bg-[var(--color-bg-hover)] cursor-pointer' : 'opacity-60',
+        metricsMuted ? 'opacity-75' : '',
+      ]"
       @click="onRowClick"
     >
       <div class="flex items-center gap-2 pl-4">
@@ -66,6 +80,14 @@ function openPreview() {
         >
           🧾
         </button>
+        <span
+          v-if="evaluationLabel"
+          class="text-[10px] px-1.5 py-0.5 rounded"
+          :class="evaluationStatusChipClass(evaluationStatus)"
+          :title="evaluationTooltip"
+        >
+          {{ evaluationLabel }}
+        </span>
       </div>
 
       <template v-if="qplan">
