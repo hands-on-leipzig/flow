@@ -255,8 +255,9 @@ class ExploreGenerator
         try {
 
             $this->eTime->addMinutes($this->pp("e_ready_awards"));
-            $this->writer->withGroup('e_awards', function () use ($group) {
-                $this->writer->insertActivity('e_awards', $this->eTime, $this->pp("e{$group}_duration_awards"));
+            $awardsCode = "e{$group}_awards";
+            $this->writer->withGroup($awardsCode, function () use ($group, $awardsCode) {
+                $this->writer->insertActivity($awardsCode, $this->eTime, $this->pp("e{$group}_duration_awards"));
             }, $group);
             $this->eTime->addMinutes($this->pp("e{$group}_duration_awards"));
 
