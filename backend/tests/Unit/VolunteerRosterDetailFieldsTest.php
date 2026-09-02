@@ -13,14 +13,13 @@ class VolunteerRosterDetailFieldsTest extends TestCase
             't_shirt_cut' => 'frauen',
             't_shirt_size' => 'M',
             'meal' => 'vegetarisch',
-            'notes' => 'Allergie Nüsse',
-        ]);
+        ], ['standard', 'vegetarisch', 'vegan', 'keine']);
 
         $this->assertTrue($result['ok']);
         $this->assertSame('frauen', $result['data']['t_shirt_cut']);
         $this->assertSame('M', $result['data']['t_shirt_size']);
         $this->assertSame('vegetarisch', $result['data']['meal']);
-        $this->assertSame('Allergie Nüsse', $result['data']['notes']);
+        $this->assertArrayNotHasKey('notes', $result['data']);
     }
 
     public function test_validate_rejects_half_filled_shirt(): void
@@ -29,8 +28,7 @@ class VolunteerRosterDetailFieldsTest extends TestCase
             't_shirt_cut' => 'maenner',
             't_shirt_size' => null,
             'meal' => null,
-            'notes' => null,
-        ]);
+        ], ['standard', 'vegetarisch', 'vegan', 'keine']);
 
         $this->assertFalse($result['ok']);
     }
@@ -41,9 +39,19 @@ class VolunteerRosterDetailFieldsTest extends TestCase
             't_shirt_cut' => null,
             't_shirt_size' => null,
             'meal' => null,
-            'notes' => null,
-        ]);
+        ], ['standard', 'vegetarisch', 'vegan', 'keine']);
 
         $this->assertTrue($result['ok']);
+    }
+
+    public function test_validate_rejects_meal_not_in_allowed_list(): void
+    {
+        $result = VolunteerRosterDetailFields::validate([
+            't_shirt_cut' => null,
+            't_shirt_size' => null,
+            'meal' => 'vegetarisch',
+        ], ['standard', 'keine']);
+
+        $this->assertFalse($result['ok']);
     }
 }

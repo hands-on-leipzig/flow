@@ -13,6 +13,7 @@ use App\Models\EventVolunteerRoster;
 use App\Models\EventVolunteerRosterDetail;
 use App\Models\VolunteerPerson;
 use App\Support\PersonIdsFilter;
+use App\Support\VolunteerCollectOptions;
 use App\Support\VolunteerMealOptions;
 use App\Support\VolunteerRosterColumns;
 use App\Support\VolunteerRosterCustomFields;
@@ -56,7 +57,7 @@ class EventVolunteerRosterController extends Controller
                 'has_assignment' => in_array($person->id, $assignedPersonIds, true),
                 'assignments' => $assignmentsByPerson[$person->id] ?? [],
                 'detail' => VolunteerRosterDetailFields::serialize($row->detail),
-                'custom' => $this->customValuesForRow($row, $customFields),
+                'custom' => VolunteerRosterCustomFields::apiValuesForRow($row, $customFields),
                 'person' => [
                     'id' => $person->id,
                     'first_name' => $person->first_name,
@@ -73,6 +74,7 @@ class EventVolunteerRosterController extends Controller
             'roster' => $roster,
             'columns' => VolunteerRosterColumns::tablePayloadForEvent($event->id),
             'meal_options' => $mealOptions,
+            'collect' => VolunteerCollectOptions::forEvent($event),
         ]);
     }
 
@@ -131,13 +133,28 @@ class EventVolunteerRosterController extends Controller
             $mealOptions = VolunteerMealOptions::optionsForEvent($event->id);
         }
 
+        $collectShirt = VolunteerCollectOptions::collectsTShirt($event);
+        $collectMeal = VolunteerCollectOptions::collectsMeal($event);
+
         $payload = [
-            't_shirt_cut' => $request->input('t_shirt_cut', $existing?->t_shirt_cut),
-            't_shirt_size' => $request->input('t_shirt_size', $existing?->t_shirt_size),
-            'meal' => $request->input('meal', $existing?->meal),
+            't_shirt_cut' => $collectShirt
+                ? $request->input('t_shirt_cut', $existing?->t_shirt_cut)
+                : null,
+            't_shirt_size' => $collectShirt
+                ? $request->input('t_shirt_size', $existing?->t_shirt_size)
+                : null,
+            'meal' => $collectMeal
+                ? $request->input('meal', $existing?->meal)
+                : null,
             'photo_consent' => $request->has('photo_consent') ? $request->input('photo_consent') : $existing?->photo_consent,
-            'notes' => $request->has('notes') ? $request->input('notes') : $existing?->notes,
         ];
+
+        if (! $collectShirt && ($request->has('t_shirt_cut') || $request->has('t_shirt_size'))) {
+            return response()->json(['error' => 'T-Shirt-Angaben sind für diese Veranstaltung deaktiviert.'], 422);
+        }
+        if (! $collectMeal && $request->has('meal')) {
+            return response()->json(['error' => 'Essenswahl ist für diese Veranstaltung deaktiviert.'], 422);
+        }
 
         $validation = VolunteerRosterDetailFields::validate(
             $payload,
@@ -172,47 +189,78 @@ class EventVolunteerRosterController extends Controller
             return response()->json(['error' => 'Person ist nicht auf der Helfer:innenliste.'], 404);
         }
 
-        $validated = $request->validate([
-            'field_key' => 'required|string|max:64',
-            'value' => 'nullable',
-        ]);
-
-        $field = EventVolunteerField::query()
-            ->where('event', $event->id)
-            ->where('field_key', $validated['field_key'])
-            ->first();
-
-        if (! $field) {
-            return response()->json(['error' => 'Spalte nicht gefunden.'], 404);
-        }
-
-        $validation = VolunteerRosterCustomFields::validateValue($field, $validated['value']);
-        if (! $validation['ok']) {
-            return response()->json(['error' => $validation['error']], 422);
-        }
-
-        if ($validation['stored'] === null) {
-            EventVolunteerFieldValue::query()
-                ->where('event_volunteer_roster', $roster->id)
-                ->where('event_volunteer_field', $field->id)
-                ->delete();
+        $fieldsInput = $request->input('fields');
+        if (is_array($fieldsInput)) {
+            $updates = $fieldsInput;
+        } elseif ($request->has('field_key')) {
+            $validated = $request->validate([
+                'field_key' => 'required|string|max:64',
+                'value' => 'nullable',
+            ]);
+            $updates = [$validated['field_key'] => $validated['value']];
         } else {
-            EventVolunteerFieldValue::query()->updateOrCreate(
-                [
-                    'event_volunteer_roster' => $roster->id,
-                    'event_volunteer_field' => $field->id,
-                ],
-                [
-                    'value' => $validation['stored'],
-                    'updated_at' => now(),
-                ]
-            );
+            return response()->json(['error' => 'Keine Felder angegeben.'], 422);
         }
+
+        if ($updates === []) {
+            return response()->json(['error' => 'Keine Felder angegeben.'], 422);
+        }
+
+        $eventFields = EventVolunteerField::query()
+            ->where('event', $event->id)
+            ->get()
+            ->keyBy('field_key');
+
+        foreach (array_keys($updates) as $fieldKey) {
+            if (! is_string($fieldKey) || ! $eventFields->has($fieldKey)) {
+                return response()->json(['error' => 'Unbekanntes Zusatzfeld.'], 422);
+            }
+        }
+
+        $validatedUpdates = [];
+        foreach ($updates as $fieldKey => $value) {
+            /** @var EventVolunteerField $field */
+            $field = $eventFields->get($fieldKey);
+            $validation = VolunteerRosterCustomFields::validateValue($field, $value);
+            if (! $validation['ok']) {
+                return response()->json(['error' => $validation['error']], 422);
+            }
+            $validatedUpdates[$fieldKey] = [
+                'field' => $field,
+                'stored' => $validation['stored'],
+            ];
+        }
+
+        DB::transaction(function () use ($roster, $validatedUpdates) {
+            foreach ($validatedUpdates as $entry) {
+                /** @var EventVolunteerField $field */
+                $field = $entry['field'];
+                if ($entry['stored'] === null) {
+                    EventVolunteerFieldValue::query()
+                        ->where('event_volunteer_roster', $roster->id)
+                        ->where('event_volunteer_field', $field->id)
+                        ->delete();
+                } else {
+                    EventVolunteerFieldValue::query()->updateOrCreate(
+                        [
+                            'event_volunteer_roster' => $roster->id,
+                            'event_volunteer_field' => $field->id,
+                        ],
+                        [
+                            'value' => $entry['stored'],
+                            'updated_at' => now(),
+                        ]
+                    );
+                }
+            }
+        });
+
+        $roster->unsetRelation('fieldValues');
+        $roster->load('fieldValues.field');
+        $customFields = VolunteerRosterColumns::customFieldsForEvent($event->id);
 
         return response()->json([
-            'custom' => [
-                $field->field_key => $validation['api'],
-            ],
+            'custom' => VolunteerRosterCustomFields::apiValuesForRow($roster, $customFields),
         ]);
     }
 
@@ -242,23 +290,6 @@ class EventVolunteerRosterController extends Controller
         });
 
         return response()->json(['ok' => true]);
-    }
-
-    /**
-     * @param  Collection<int, EventVolunteerField>  $customFields
-     * @return array<string, mixed>
-     */
-    private function customValuesForRow(EventVolunteerRoster $row, Collection $customFields): array
-    {
-        $valuesByFieldId = $row->fieldValues->keyBy('event_volunteer_field');
-        $payload = [];
-
-        foreach ($customFields as $field) {
-            $stored = $valuesByFieldId->get($field->id)?->value;
-            $payload[$field->field_key] = VolunteerRosterCustomFields::apiValue($field, $stored);
-        }
-
-        return $payload;
     }
 
     /**

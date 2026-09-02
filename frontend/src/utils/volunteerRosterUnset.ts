@@ -4,7 +4,6 @@ type RosterDetailLike = {
   t_shirt_cut: string | null
   t_shirt_size: string | null
   meal: string | null
-  notes: string | null
 }
 
 type RosterEntryLike = {
@@ -20,7 +19,6 @@ function detailOf(entry: RosterEntryLike): RosterDetailLike {
     t_shirt_cut: null,
     t_shirt_size: null,
     meal: null,
-    notes: null,
   }
 }
 
@@ -54,7 +52,8 @@ export function rosterCustomFieldIsUnset(column: RosterColumnMeta, entry: Roster
 }
 
 export function rosterEntryHasUnsetField(entry: RosterEntryLike, columns: RosterColumnMeta[]): boolean {
-  if (ROSTER_FIXED_UNSET_KEYS.some((key) => rosterFixedFieldIsUnset(entry, key))) {
+  const columnKeys = new Set(columns.map((column) => column.key))
+  if (ROSTER_FIXED_UNSET_KEYS.some((key) => columnKeys.has(key) && rosterFixedFieldIsUnset(entry, key))) {
     return true
   }
 

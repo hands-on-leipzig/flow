@@ -79,10 +79,10 @@ class VolunteerRosterCustomFieldsTest extends TestCase
             't_shirt_cut' => null,
             't_shirt_size' => null,
             'meal' => null,
-            'notes' => null,
-        ]);
+        ], ['standard', 'vegetarisch', 'vegan', 'keine']);
 
         $this->assertTrue($result['ok']);
         $this->assertArrayNotHasKey('eve_meeting', $result['data']);
+        $this->assertArrayNotHasKey('notes', $result['data']);
     }
 }

@@ -22,7 +22,7 @@ import {
   type StaffingFilterKey,
 } from '@/utils/volunteerStaffingFilters'
 import {flowFilename} from '@/utils/flowFilename'
-import {ROSTER_TABLE_COLUMNS, type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
+import {type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {rosterEntryHasUnsetField} from '@/utils/volunteerRosterUnset'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
@@ -37,9 +37,10 @@ const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const roster = ref<RosterEntry[]>([])
-const tableColumns = ref<RosterColumnMeta[]>([...ROSTER_TABLE_COLUMNS])
+const tableColumns = ref<RosterColumnMeta[]>([])
 const columnsPanelOpen = ref(false)
 const mealPanelOpen = ref(false)
+const collectMeal = ref(true)
 const pool = ref<Person[]>([])
 const loading = ref(false)
 const togglingId = ref<number | null>(null)
@@ -65,9 +66,60 @@ const {
   setEnabled: setVolunteerDataEntryEnabled,
 } = usePublicVolunteerDataEntry(eventId)
 
+const publicFormFields = ref<Array<{field_key: string; label: string; public_form: boolean}>>([])
+const publicFormFieldsBusy = ref(false)
+
+async function loadPublicFormChecklist() {
+  if (!eventId.value) {
+    publicFormFields.value = []
+    return
+  }
+  try {
+    const {data} = await axios.get(`/events/${eventId.value}/volunteer-fields`)
+    publicFormFields.value = (data.fields ?? []).map((field: any) => ({
+      field_key: field.field_key,
+      label: field.label,
+      public_form: !!field.public_form,
+    }))
+  } catch {
+    publicFormFields.value = []
+  }
+}
+
+async function savePublicFormChecklist() {
+  if (!eventId.value || publicFormFieldsBusy.value) return
+  publicFormFieldsBusy.value = true
+  try {
+    const keys = publicFormFields.value.filter((f) => f.public_form).map((f) => f.field_key)
+    const {data} = await axios.put(`/events/${eventId.value}/volunteer-fields/public-form`, {
+      field_keys: keys,
+    })
+    publicFormFields.value = (data.fields ?? []).map((field: any) => ({
+      field_key: field.field_key,
+      label: field.label,
+      public_form: !!field.public_form,
+    }))
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Formular-Felder konnten nicht gespeichert werden.'), 'error')
+    await loadPublicFormChecklist()
+  } finally {
+    publicFormFieldsBusy.value = false
+  }
+}
+
+function togglePublicFormField(fieldKey: string, next: boolean) {
+  const row = publicFormFields.value.find((f) => f.field_key === fieldKey)
+  if (!row || row.public_form === next) return
+  row.public_form = next
+  void savePublicFormChecklist()
+}
+
 async function onVolunteerDataEntryToggle(next: boolean) {
   try {
     await setVolunteerDataEntryEnabled(next)
+    if (next) {
+      await loadPublicFormChecklist()
+    }
   } catch {
     // toast from composable
   }
@@ -219,11 +271,13 @@ async function load() {
       detail: entry.detail ?? defaultRosterDetail(),
       custom: entry.custom ?? {},
     }))
-    tableColumns.value = rosterRes.data.columns ?? [...ROSTER_TABLE_COLUMNS]
+    tableColumns.value = rosterRes.data.columns ?? []
     if (rosterRes.data.meal_options) {
       setMealOptions(rosterRes.data.meal_options)
     }
+    collectMeal.value = rosterRes.data.collect?.meal !== false
     pool.value = poolRes.data.people ?? []
+    await loadPublicFormChecklist()
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
@@ -283,6 +337,7 @@ onMounted(() => load())
       </div>
       <div class="vol-page__actions">
         <button
+            v-if="collectMeal"
             type="button"
             class="glass-btn-secondary vol-upload-trigger"
             title="Essensoptionen verwalten"
@@ -337,6 +392,31 @@ onMounted(() => load())
           <RouterLink to="/plan/publish" class="vol-roster-publish__link">
             Ausgabe → Veröffentlichung
           </RouterLink>.
+        </p>
+        <div
+            v-if="volunteerDataEntryEnabled && publicFormFields.length"
+            class="vol-roster-publish__checklist"
+        >
+          <p class="vol-roster-publish__checklist-title">Eigene Spalten im Formular</p>
+          <label
+              v-for="field in publicFormFields"
+              :key="field.field_key"
+              class="vol-roster-publish__check"
+          >
+            <input
+                type="checkbox"
+                :checked="field.public_form"
+                :disabled="publicFormFieldsBusy"
+                @change="togglePublicFormField(field.field_key, ($event.target as HTMLInputElement).checked)"
+            >
+            <span>{{ field.label }}</span>
+          </label>
+        </div>
+        <p
+            v-else-if="volunteerDataEntryEnabled && !publicFormFields.length"
+            class="glass-settings-hint !mb-0 vol-roster-publish__hint"
+        >
+          Noch keine eigenen Spalten — unter „Spalten“ anlegen. T-Shirt/Essen erscheinen automatisch, wenn aktiv.
         </p>
       </section>
     </div>
