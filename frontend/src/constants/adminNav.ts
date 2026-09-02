@@ -57,6 +57,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {key: 'external-api', label: 'External API', icon: 'bi-key', group: 'ops'},
   {key: 'sharepoint', label: 'SharePoint', icon: 'bi-folder', group: 'ops'},
   {key: 'wartung', label: 'Wartung', icon: 'bi-tools', group: 'ops'},
+  {key: 'plan-qualitaet', label: 'Plan Qualität', icon: 'bi-clipboard-check', group: 'ops'},
   // Entwicklung (bottom) — listed everywhere; enabled on Local + Dev only
   {
     key: 'nowandnext',

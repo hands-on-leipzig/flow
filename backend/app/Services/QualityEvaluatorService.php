@@ -12,6 +12,8 @@ use App\Models\Plan;
 use App\Models\MSupportedPlan;
 use App\Enums\FirstProgram;
 use App\Support\ChallengeShapedParamMap;
+use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
 use Carbon\Carbon;
 
 use Illuminate\Support\Facades\DB;
@@ -369,7 +371,118 @@ class QualityEvaluatorService
         }
 
         $this->evaluate($qPlan->id);
-}
+    }
+
+    /**
+     * Whether a q_plan row is missing or older than the live plan.
+     */
+    public function isQPlanStale(?object $plan, ?object $qplan): bool
+    {
+        if ($qplan === null) {
+            return true;
+        }
+
+        if (empty($plan?->last_change)) {
+            return false;
+        }
+
+        $planChanged = Carbon::parse($plan->last_change);
+        $qLast = $qplan->last_change ? Carbon::parse($qplan->last_change) : null;
+
+        return $qLast === null || $qLast->lt($planChanged);
+    }
+
+    /**
+     * Ensure a QPlan exists and is up-to-date for a given plan + Challenge-shaped program.
+     */
+    public function ensureEvaluatedForPlan(int $planId, int $firstProgram): QPlan
+    {
+        if (! ChallengeShapedParamMap::isSupported($firstProgram)) {
+            throw new \InvalidArgumentException('first_program must be Challenge or Future 8+');
+        }
+
+        $plan = DB::table('plan')->where('id', $planId)->first();
+        if (! $plan) {
+            throw new \RuntimeException("Plan {$planId} not found");
+        }
+
+        $pp = PlanParameter::load($planId);
+        $presence = ProgramPresence::forPlan($planId, $pp);
+        $onPrograms = $presence->challengeShapedOnIds();
+
+        if ($onPrograms !== [] && ! in_array($firstProgram, $onPrograms, true)) {
+            throw new \InvalidArgumentException('first_program is not on for this plan');
+        }
+
+        $qplan = DB::table('q_plan')
+            ->where('plan', $planId)
+            ->where('first_program', $firstProgram)
+            ->orderByDesc('id')
+            ->first();
+
+        if (! $this->isQPlanStale($plan, $qplan)) {
+            return QPlan::findOrFail($qplan->id);
+        }
+
+        $host = gethostname();
+        $map = ChallengeShapedParamMap::from($firstProgram);
+
+        $runId = DB::table('q_run')->insertGetId([
+            'name' => "Auto für Plan {$planId}",
+            'first_program' => $firstProgram,
+            'comment' => 'Automatisch erstellt durch Preview',
+            'selection' => null,
+            'started_at' => Carbon::now(),
+            'status' => 'running',
+            'host' => $host,
+        ]);
+
+        $teams = (int) $pp->get($map->teams(), 0);
+        $tables = (int) $pp->get($map->tables(), 0);
+        $lanes = (int) $pp->get($map->lanes(), 0);
+        $juryRounds = (int) ceil(max(1, $teams) / max(1, $lanes));
+        $robotCheck = $map->supportsRobotCheck()
+            ? (bool) $pp->get($map->robotCheck(), 0)
+            : false;
+        $rDurationRobotCheck = (int) $pp->get('r_duration_robot_check', 0);
+        $transfer = (int) $pp->get($map->transfer(), 0);
+        $rAsym = ($tables === 4 && ($teams % 4 === 1 || $teams % 4 === 2)) ? 1 : 0;
+
+        $qPlanId = DB::table('q_plan')->insertGetId([
+            'plan' => $planId,
+            'q_run' => $runId,
+            'first_program' => $firstProgram,
+            'name' => $plan->name,
+            'c_teams' => $teams,
+            'r_tables' => $tables,
+            'j_lanes' => $lanes,
+            'j_rounds' => $juryRounds,
+            'r_asym' => $rAsym,
+            'r_robot_check' => $robotCheck,
+            'r_duration_robot_check' => $rDurationRobotCheck,
+            'c_duration_transfer' => $transfer,
+            'calculated' => true,
+            'last_change' => null,
+        ]);
+
+        $this->evaluate($qPlanId);
+
+        $totals = DB::table('q_plan')->where('q_run', $runId)->count();
+        DB::table('q_run')->where('id', $runId)->update([
+            'qplans_total' => $totals,
+            'qplans_calculated' => $totals,
+            'finished_at' => Carbon::now(),
+            'status' => 'done',
+        ]);
+
+        DB::table('q_plan')
+            ->where('plan', $planId)
+            ->where('first_program', $firstProgram)
+            ->where('id', '!=', $qPlanId)
+            ->delete();
+
+        return QPlan::findOrFail($qPlanId);
+    }
 
     /**
      * Load all relevant activities for a given plan, including joins to group and type info.
