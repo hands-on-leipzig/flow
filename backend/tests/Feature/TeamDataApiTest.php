@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\EventTeamDataController;
 use App\Http\Controllers\Api\EventVolunteerCollectController;
 use App\Models\Event;
 use App\Models\EventTeamField;
+use App\Models\EventTeamFieldValue;
 use App\Models\Team;
 use App\Support\TeamDataColumns;
 use App\Support\TeamDataCustomFields;
@@ -61,6 +62,8 @@ class TeamDataApiTest extends TestCase
         $indexPayload = $index->getData(true);
         $this->assertNotNull(collect($indexPayload['columns'])->firstWhere('key', 'photo_consent'));
         $this->assertNotNull(collect($indexPayload['columns'])->firstWhere('key', 'meal'));
+        $flagColumn = collect($indexPayload['columns'])->firstWhere('key', 'custom:flag');
+        $this->assertSame('boolean', $flagColumn['editor']);
         $this->assertCount(1, $indexPayload['teams']);
         $this->assertSame('Test School', $indexPayload['teams'][0]['organization']);
 
@@ -68,7 +71,7 @@ class TeamDataApiTest extends TestCase
             Request::create('/', 'PATCH', [
                 'photo_consent' => ['unknown' => 1, 'yes' => 2, 'no' => 0],
                 'meals' => ['standard' => 2, 'vegetarisch' => 1, 'vegan' => 0, 'keine' => 0],
-                'custom' => ['flag' => ['unknown' => 0, 'yes' => 2, 'no' => 1]],
+                'custom' => ['flag' => true],
             ]),
             $event,
             $team,
@@ -80,7 +83,7 @@ class TeamDataApiTest extends TestCase
         $this->assertTrue($row['touched']['meal']);
         $this->assertTrue($row['touched']['custom']['flag']);
         $this->assertSame(['unknown' => 1, 'yes' => 2, 'no' => 0], $row['photo_consent']);
-        $this->assertSame(['unknown' => 0, 'yes' => 2, 'no' => 1], $row['custom']['flag']);
+        $this->assertTrue($row['custom']['flag']);
 
         $this->assertSame(3, TeamMealCounts::mapForTeamWithCatalog(1, 1)['standard'] + TeamMealCounts::mapForTeamWithCatalog(1, 1)['vegetarisch']);
         $this->assertDatabaseHas('event_team_field_value', [
@@ -159,15 +162,52 @@ class TeamDataApiTest extends TestCase
         $badBoolean = TeamDataCustomFields::validateValue($booleanField, ['yes' => 1]);
         $this->assertFalse($badBoolean['ok']);
 
+        $goodBoolean = TeamDataCustomFields::validateValue($booleanField, true);
+        $this->assertTrue($goodBoolean['ok']);
+        $this->assertSame('1', $goodBoolean['stored']);
+        $this->assertTrue($goodBoolean['api']);
+
         $selectField = new EventTeamField([
             'type' => 'select',
             'field_key' => 's',
             'label' => 'S',
             'options' => [['value' => 'a', 'label' => 'A']],
         ]);
-        $goodSelect = TeamDataCustomFields::validateValue($selectField, ['a' => 3]);
+        $goodSelect = TeamDataCustomFields::validateValue($selectField, 'a');
         $this->assertTrue($goodSelect['ok']);
-        $this->assertSame('{"a":3}', $goodSelect['stored']);
+        $this->assertSame('a', $goodSelect['stored']);
+        $this->assertSame('a', $goodSelect['api']);
+    }
+
+    public function test_export_includes_scalar_custom_boolean(): void
+    {
+        $field = EventTeamField::create([
+            'event' => 1,
+            'field_key' => 'ankunft',
+            'label' => 'Ankunft',
+            'type' => 'boolean',
+            'options' => null,
+            'sequence' => 1,
+            'public_form' => false,
+        ]);
+
+        EventTeamFieldValue::query()->create([
+            'team' => 1,
+            'event_team_field' => $field->id,
+            'value' => '1',
+            'updated_at' => now(),
+        ]);
+
+        $event = Event::query()->findOrFail(1);
+        $document = (new TeamDataSpreadsheetSource($event))->document();
+        $labels = array_map(fn ($column) => $column->label, $document->sheets[0]->columns);
+
+        $this->assertContains('Ankunft', $labels);
+        $this->assertNotContains('Ankunft: Ja', $labels);
+
+        $rows = iterator_to_array($document->sheets[0]->rows);
+        $idx = array_search('Ankunft', $labels, true);
+        $this->assertSame('Ja', $rows[0][$idx]);
     }
 
     private function seedBase(): void

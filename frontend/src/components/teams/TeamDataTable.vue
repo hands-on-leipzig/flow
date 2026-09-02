@@ -28,6 +28,8 @@ const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>()
 function columnColClass(column: TeamDataColumn) {
   if (column.editor === 'text') return 'vol-col--custom-text'
   if (column.editor === 'meal_counts') return 'vol-col--meal'
+  if (column.editor === 'boolean') return 'vol-col--photo'
+  if (column.editor === 'select') return 'vol-col--custom'
   if (column.key === 'photo_consent' || column.kind === 'photo') return 'vol-col--photo'
   return 'vol-col--custom'
 }
@@ -50,6 +52,26 @@ function scalarValue(row: TeamDataRow, column: TeamDataColumn): string {
   return String(value)
 }
 
+function booleanValue(row: TeamDataRow, column: TeamDataColumn): boolean | null {
+  const fieldKey = column.field_key
+  if (!fieldKey) return null
+  const value = row.custom[fieldKey]
+  if (value === null || value === undefined) return null
+  return Boolean(value)
+}
+
+function selectValue(row: TeamDataRow, column: TeamDataColumn): string {
+  const fieldKey = column.field_key
+  if (!fieldKey) return ''
+  const value = row.custom[fieldKey]
+  if (value === null || value === undefined) return ''
+  return String(value)
+}
+
+function isSaving(row: TeamDataRow) {
+  return savingTeamId.value === row.id
+}
+
 function scheduleScalarSave(row: TeamDataRow, column: TeamDataColumn, raw: string) {
   const fieldKey = column.field_key
   if (!fieldKey || !props.eventId) return
@@ -65,6 +87,41 @@ function scheduleScalarSave(row: TeamDataRow, column: TeamDataColumn, raw: strin
       void saveScalar(row, column, raw)
     }, 450),
   )
+}
+
+async function saveCustomField(row: TeamDataRow, column: TeamDataColumn, value: string | number | boolean | null) {
+  const fieldKey = column.field_key
+  if (!fieldKey || !props.eventId) return
+
+  savingTeamId.value = row.id
+  try {
+    const {data} = await axios.patch(`/events/${props.eventId}/teams/${row.id}/team-data`, {
+      custom: {[fieldKey]: value},
+    })
+    Object.assign(row, data)
+    emit('updated', row)
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
+  } finally {
+    if (savingTeamId.value === row.id) savingTeamId.value = null
+  }
+}
+
+function setCustomBoolean(row: TeamDataRow, column: TeamDataColumn, value: boolean | null) {
+  if (booleanValue(row, column) === value) return
+  if (column.field_key) {
+    row.custom[column.field_key] = value
+  }
+  void saveCustomField(row, column, value)
+}
+
+function setCustomSelect(row: TeamDataRow, column: TeamDataColumn, raw: string) {
+  const value = raw.trim() === '' ? null : raw
+  if (selectValue(row, column) === (value ?? '')) return
+  if (column.field_key) {
+    row.custom[column.field_key] = value
+  }
+  void saveCustomField(row, column, value)
 }
 
 async function saveScalar(row: TeamDataRow, column: TeamDataColumn, raw: string) {
@@ -178,12 +235,61 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
             >
               {{ countSetTotal(row, column) }}
             </button>
+            <div
+                v-else-if="column.editor === 'boolean'"
+                class="glass-segment vol-tristate"
+                role="group"
+                :aria-label="column.label"
+            >
+              <button
+                  type="button"
+                  class="glass-segment__btn"
+                  :class="{'glass-segment__btn--active': booleanValue(row, column) === null}"
+                  :aria-pressed="booleanValue(row, column) === null"
+                  :disabled="isSaving(row)"
+                  @click="setCustomBoolean(row, column, null)"
+              >
+                ?
+              </button>
+              <button
+                  type="button"
+                  class="glass-segment__btn"
+                  :class="{'glass-segment__btn--active': booleanValue(row, column) === true}"
+                  :aria-pressed="booleanValue(row, column) === true"
+                  :disabled="isSaving(row)"
+                  @click="setCustomBoolean(row, column, true)"
+              >
+                Ja
+              </button>
+              <button
+                  type="button"
+                  class="glass-segment__btn"
+                  :class="{'glass-segment__btn--active': booleanValue(row, column) === false}"
+                  :aria-pressed="booleanValue(row, column) === false"
+                  :disabled="isSaving(row)"
+                  @click="setCustomBoolean(row, column, false)"
+              >
+                Nein
+              </button>
+            </div>
+            <select
+                v-else-if="column.editor === 'select'"
+                class="select-input vol-detail-select vol-detail-select--full"
+                :value="selectValue(row, column)"
+                :disabled="isSaving(row)"
+                @change="setCustomSelect(row, column, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">?</option>
+              <option v-for="option in column.options ?? []" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
             <input
                 v-else-if="column.editor === 'text'"
                 type="text"
                 class="glass-input glass-input--sm vol-detail-input"
                 :value="scalarValue(row, column)"
-                :disabled="savingTeamId === row.id"
+                :disabled="isSaving(row)"
                 @input="scheduleScalarSave(row, column, ($event.target as HTMLInputElement).value)"
             >
             <input
@@ -193,7 +299,7 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
                 step="1"
                 class="glass-input glass-input--sm vol-detail-input vol-detail-input--number"
                 :value="scalarValue(row, column)"
-                :disabled="savingTeamId === row.id"
+                :disabled="isSaving(row)"
                 @input="scheduleScalarSave(row, column, ($event.target as HTMLInputElement).value)"
             >
           </td>
@@ -367,5 +473,37 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 .vol-detail-input--number::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+.vol-table__field select.select-input {
+  box-sizing: border-box;
+  min-height: var(--field-min-height-sm);
+  height: var(--field-min-height-sm);
+  padding: var(--field-padding-y-sm) 2rem var(--field-padding-y-sm) var(--field-padding-x-sm);
+  font-size: var(--field-font-size-sm);
+  border-radius: var(--field-radius-sm);
+  line-height: 1.4;
+}
+
+.vol-detail-select--full {
+  min-width: 6.5rem;
+}
+
+.vol-tristate {
+  display: inline-flex;
+  width: 100%;
+  min-width: 7.5rem;
+}
+
+.vol-tristate .glass-segment__btn {
+  flex: 1;
+  padding: 0.2rem 0.35rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.vol-tristate .glass-segment__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 </style>

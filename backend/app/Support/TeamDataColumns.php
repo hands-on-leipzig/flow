@@ -88,7 +88,8 @@ final class TeamDataColumns
         $editor = match ($field->type) {
             'text' => 'text',
             'number' => 'number',
-            'boolean', 'select' => 'count_set',
+            'boolean' => 'boolean',
+            'select' => 'select',
             default => 'text',
         };
 
@@ -100,7 +101,6 @@ final class TeamDataColumns
             'editor' => $editor,
             'field_key' => $field->field_key,
             'options' => $field->type === 'select' ? ($field->options ?? []) : [],
-            'boolean_keys' => $field->type === 'boolean' ? TeamDataCustomFields::BOOLEAN_KEYS : [],
             'public_form' => (bool) ($field->public_form ?? false),
             'sortable' => false,
         ];
@@ -143,31 +143,6 @@ final class TeamDataColumns
         }
 
         foreach (self::customFieldsForEvent($eventId) as $field) {
-            if ($field->type === 'boolean') {
-                foreach (['unknown' => '?', 'yes' => 'Ja', 'no' => 'Nein'] as $bKey => $bLabel) {
-                    $definitions[] = [
-                        'key' => 'custom:'.$field->field_key.':'.$bKey,
-                        'label' => $field->label.': '.$bLabel,
-                        'export' => true,
-                    ];
-                }
-                continue;
-            }
-            if ($field->type === 'select') {
-                foreach ($field->options ?? [] as $option) {
-                    $value = (string) ($option['value'] ?? '');
-                    $label = (string) ($option['label'] ?? $value);
-                    if ($value === '') {
-                        continue;
-                    }
-                    $definitions[] = [
-                        'key' => 'custom:'.$field->field_key.':'.$value,
-                        'label' => $field->label.': '.$label,
-                        'export' => true,
-                    ];
-                }
-                continue;
-            }
             $definitions[] = [
                 'key' => 'custom:'.$field->field_key,
                 'label' => $field->label,
@@ -235,22 +210,19 @@ final class TeamDataColumns
             return '';
         }
 
-        $rest = substr($key, 7);
-        $parts = explode(':', $rest, 2);
-        $fieldKey = $parts[0];
+        $fieldKey = substr($key, 7);
         $custom = is_array($team['custom'] ?? null) ? $team['custom'] : [];
         $value = $custom[$fieldKey] ?? null;
 
-        if (count($parts) === 1) {
-            return $value === null ? '' : $value;
+        if ($value === null) {
+            return '';
         }
 
-        $subKey = $parts[1];
-        if (! is_array($value)) {
-            return 0;
+        if (is_bool($value)) {
+            return $value ? 'Ja' : 'Nein';
         }
 
-        return (int) ($value[$subKey] ?? 0);
+        return $value;
     }
 
     public static function collectsMeal(Event $event): bool

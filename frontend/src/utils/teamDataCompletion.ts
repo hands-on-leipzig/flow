@@ -3,7 +3,7 @@ export type TeamDataColumn = {
   label: string
   kind: 'meal' | 'custom' | 'photo'
   type?: string
-  editor: 'meal_counts' | 'text' | 'number' | 'count_set'
+  editor: 'meal_counts' | 'text' | 'number' | 'count_set' | 'boolean' | 'select'
   field_key?: string
   options?: Array<{value: string; label: string}>
   boolean_keys?: string[]
@@ -40,10 +40,8 @@ function countMapForColumn(row: TeamDataRow, column: TeamDataColumn): Record<str
   if (column.editor === 'meal_counts') {
     return row.meals
   }
-  const fieldKey = column.field_key
-  if (!fieldKey) return null
-  const value = row.custom[fieldKey]
-  return value && typeof value === 'object' ? (value as Record<string, number>) : null
+
+  return null
 }
 
 function isTouchedForColumn(row: TeamDataRow, column: TeamDataColumn): boolean {
@@ -53,23 +51,33 @@ function isTouchedForColumn(row: TeamDataRow, column: TeamDataColumn): boolean {
   if (column.editor === 'meal_counts') {
     return !!row.touched?.meal
   }
+
+  return false
+}
+
+function customFieldValue(row: TeamDataRow, column: TeamDataColumn): unknown {
   const fieldKey = column.field_key
-  if (!fieldKey) return false
-  return !!row.touched?.custom?.[fieldKey]
+  if (!fieldKey) return null
+  return row.custom[fieldKey] ?? null
 }
 
 function isScalarColumnIncomplete(row: TeamDataRow, column: TeamDataColumn): boolean {
-  const fieldKey = column.field_key
-  if (!fieldKey) return false
+  const value = customFieldValue(row, column)
 
   if (column.editor === 'text') {
-    const value = row.custom[fieldKey]
     return typeof value !== 'string' || value.trim() === ''
   }
 
   if (column.editor === 'number') {
-    const value = row.custom[fieldKey]
     return value === null || value === undefined
+  }
+
+  if (column.editor === 'boolean') {
+    return value === null || value === undefined
+  }
+
+  if (column.editor === 'select') {
+    return value === null || value === undefined || (typeof value === 'string' && value.trim() === '')
   }
 
   return false
@@ -86,7 +94,7 @@ function isCountSetColumnIncomplete(row: TeamDataRow, column: TeamDataColumn): b
 
 export function isTeamRowIncomplete(row: TeamDataRow, columns: TeamDataColumn[]): boolean {
   for (const column of columns) {
-    if (column.editor === 'text' || column.editor === 'number') {
+    if (column.editor === 'text' || column.editor === 'number' || column.editor === 'boolean' || column.editor === 'select') {
       if (isScalarColumnIncomplete(row, column)) return true
       continue
     }

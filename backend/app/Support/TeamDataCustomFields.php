@@ -12,8 +12,6 @@ final class TeamDataCustomFields
 
     public const TYPES = ['text', 'number', 'boolean', 'select'];
 
-    public const BOOLEAN_KEYS = ['unknown', 'yes', 'no'];
-
     /**
      * @param  array<string, mixed>  $input
      * @return array{ok: true, data: array<string, mixed>}|array{ok: false, error: string}
@@ -101,15 +99,15 @@ final class TeamDataCustomFields
      */
     public static function validateValue(EventTeamField $field, mixed $input): array
     {
-        if ($input === null) {
+        if ($input === null || $input === '') {
             return ['ok' => true, 'stored' => null, 'api' => null];
         }
 
         return match ($field->type) {
             'text' => self::validateTextValue($input),
             'number' => self::validateNumberValue($input),
-            'boolean' => self::validateBooleanCountMap($input),
-            'select' => self::validateSelectCountMap($field, $input),
+            'boolean' => self::validateBooleanValue($input),
+            'select' => self::validateSelectValue($field, $input),
             default => ['ok' => false, 'error' => 'Ungültiger Feldtyp.'],
         };
     }
@@ -162,85 +160,38 @@ final class TeamDataCustomFields
     /**
      * @return array{ok: true, stored: ?string, api: mixed}|array{ok: false, error: string}
      */
-    private static function validateBooleanCountMap(mixed $input): array
+    private static function validateBooleanValue(mixed $input): array
     {
-        if (! is_array($input)) {
-            return ['ok' => false, 'error' => 'Ungültige Anzahlen.'];
+        $bool = filter_var($input, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        if ($bool === null && ! in_array($input, [0, 1, '0', '1', false, true], true)) {
+            return ['ok' => false, 'error' => 'Ungültiger Ja/Nein-Wert.'];
         }
 
-        $normalized = [];
-        foreach (self::BOOLEAN_KEYS as $key) {
-            if (! array_key_exists($key, $input)) {
-                return ['ok' => false, 'error' => 'Alle Anzahlen (? / Ja / Nein) sind erforderlich.'];
-            }
-            $count = self::parseNonNegativeInt($input[$key]);
-            if ($count === null) {
-                return ['ok' => false, 'error' => 'Ungültige Anzahl für '.$key.'.'];
-            }
-            $normalized[$key] = $count;
-        }
+        $bool = (bool) $bool;
 
-        $stored = json_encode($normalized, JSON_THROW_ON_ERROR);
-
-        return ['ok' => true, 'stored' => $stored, 'api' => $normalized];
+        return ['ok' => true, 'stored' => $bool ? '1' : '0', 'api' => $bool];
     }
 
     /**
      * @return array{ok: true, stored: ?string, api: mixed}|array{ok: false, error: string}
      */
-    private static function validateSelectCountMap(EventTeamField $field, mixed $input): array
+    private static function validateSelectValue(EventTeamField $field, mixed $input): array
     {
-        if (! is_array($input)) {
-            return ['ok' => false, 'error' => 'Ungültige Anzahlen.'];
+        $value = trim((string) $input);
+        if ($value === '') {
+            return ['ok' => true, 'stored' => null, 'api' => null];
         }
 
-        $options = $field->options ?? [];
-        if ($options === []) {
-            return ['ok' => false, 'error' => 'Auswahl-Feld ohne Optionen.'];
+        $allowed = array_column($field->options ?? [], 'value');
+        if (! in_array($value, $allowed, true)) {
+            return ['ok' => false, 'error' => 'Ungültige Auswahl.'];
         }
 
-        $normalized = [];
-        foreach ($options as $option) {
-            $value = (string) ($option['value'] ?? '');
-            if ($value === '') {
-                continue;
-            }
-            if (! array_key_exists($value, $input)) {
-                return ['ok' => false, 'error' => 'Anzahl für jede Option ist erforderlich.'];
-            }
-            $count = self::parseNonNegativeInt($input[$value]);
-            if ($count === null) {
-                return ['ok' => false, 'error' => 'Ungültige Anzahl für '.$value.'.'];
-            }
-            $normalized[$value] = $count;
-        }
-
-        $stored = json_encode($normalized, JSON_THROW_ON_ERROR);
-
-        return ['ok' => true, 'stored' => $stored, 'api' => $normalized];
-    }
-
-    private static function parseNonNegativeInt(mixed $input): ?int
-    {
-        if (is_string($input)) {
-            $input = trim($input);
-            if ($input === '') {
-                return null;
-            }
-        }
-        if (! is_numeric($input)) {
-            return null;
-        }
-        $intVal = (int) $input;
-        if ($intVal < 0) {
-            return null;
-        }
-
-        return $intVal;
+        return ['ok' => true, 'stored' => $value, 'api' => $value];
     }
 
     /**
-     * @return array<string, int>|string|int|null
+     * @return bool|string|int|null
      */
     public static function apiValue(EventTeamField $field, ?string $stored): mixed
     {
@@ -248,28 +199,24 @@ final class TeamDataCustomFields
             return null;
         }
 
-        if ($field->type === 'boolean' || $field->type === 'select') {
-            $decoded = json_decode($stored, true);
-            if (! is_array($decoded)) {
-                return null;
-            }
+        return match ($field->type) {
+            'boolean' => $stored === '1',
+            'number' => (int) $stored,
+            default => $stored,
+        };
+    }
 
-            return array_map(fn ($v) => (int) $v, $decoded);
+    public static function exportValue(EventTeamField $field, ?string $stored): string
+    {
+        if ($stored === null || $stored === '') {
+            return '';
         }
 
-        if ($field->type === 'number') {
-            return (int) $stored;
+        if ($field->type === 'boolean') {
+            return $stored === '1' ? 'Ja' : 'Nein';
         }
 
         return $stored;
-    }
-
-    /**
-     * @param  array<string, int>  $map
-     */
-    public static function sumCountMap(array $map): int
-    {
-        return array_sum(array_map('intval', $map));
     }
 
     /**

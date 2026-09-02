@@ -196,7 +196,7 @@ watch(
   <CustomColumnsDialogShell
       :open="open"
       title-id="team-columns-dialog-title"
-      hint="Teamname und Nummer kommen aus DRAHT / Sync und bleiben unverändert. Essen ist dieselbe Einstellung wie bei Helfer:innen. Eigene Spalten: Text = ein Textfeld; Zahl = eine Zahl; Ja/Nein und Auswahl = Anzahlen je Option (in der Tabelle Summe, Klick öffnet Aufschlüsselung)."
+      hint="Die ersten Spalten kommen aus der Anmeldung. Essen könnt ihr abwählen. Die Einstellung ist dieselbe wie für Helfer:innen. Eigene Spalten gelten nur für diese Veranstaltung."
       :error="error"
       :loading="loading"
       @close="requestClose"
