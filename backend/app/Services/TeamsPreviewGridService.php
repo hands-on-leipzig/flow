@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\FirstProgram;
 use App\Support\OverviewPlanStyle;
 use App\Support\PlanParameter;
+use App\Support\PreviewGridOverlapResolver;
 use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
 use Illuminate\Support\Carbon;
@@ -27,7 +28,8 @@ class TeamsPreviewGridService
      * @return array{
      *   programs: list<array{id: int, label: string, logo: string, style_column: string, columns: list<array{key: string, title: string, style_column: string, program_id: int, index: int}>}>,
      *   eventsByDay: array<string, array{date: Carbon, timeSlots: list<Carbon>, events: list<array{column_key: string, start: Carbon, end: Carbon, text: string, rowspan: int, style_column: string}>}>,
-     *   empty: bool
+     *   empty: bool,
+     *   has_overlaps: bool
      * }
      */
     public function build(int $planId): array
@@ -51,6 +53,7 @@ class TeamsPreviewGridService
                 'programs' => $programs,
                 'eventsByDay' => [],
                 'empty' => true,
+                'has_overlaps' => false,
             ];
         }
 
@@ -71,12 +74,16 @@ class TeamsPreviewGridService
         });
 
         $placed = $this->placeActivities($activities, $byProgramTeam, $programIds, $slotAssignmentPrograms);
+
+        $overlap = PreviewGridOverlapResolver::resolve($placed);
+        $placed = $overlap['events'];
         $eventsByDay = $this->bucketByDay($placed);
 
         return [
             'programs' => $programs,
             'eventsByDay' => $eventsByDay,
             'empty' => $placed === [] && $activities->isEmpty(),
+            'has_overlaps' => $overlap['has_overlaps'],
         ];
     }
 
@@ -338,6 +345,7 @@ class TeamsPreviewGridService
             $duration = max(self::SLOT_MINUTES, (int) $start->diffInMinutes($end));
             $rowspan = max(1, (int) ceil($duration / self::SLOT_MINUTES));
             $gridStart = $start->copy()->minute((int) (floor($start->minute / self::SLOT_MINUTES) * self::SLOT_MINUTES))->second(0);
+            $activityId = (int) ($a->activity_id ?? 0);
 
             $slotTeam = (int) ($a->slot_team ?? 0);
             if ($slotTeam > 0 && $this->isSlotBlockActivity($a)) {
@@ -358,6 +366,7 @@ class TeamsPreviewGridService
                     'text' => 'S',
                     'rowspan' => $rowspan,
                     'style_column' => OverviewPlanStyle::slotStyleColumn($programId),
+                    'activity_id' => $activityId,
                 ];
 
                 continue;
@@ -384,6 +393,7 @@ class TeamsPreviewGridService
                         'text' => $letter.$lane,
                         'rowspan' => $rowspan,
                         'style_column' => $programStyle,
+                        'activity_id' => $activityId,
                     ];
                 }
             }
@@ -414,6 +424,7 @@ class TeamsPreviewGridService
                     'text' => $letter.$tableNo,
                     'rowspan' => $rowspan,
                     'style_column' => $style,
+                    'activity_id' => $activityId,
                 ];
             }
         }
