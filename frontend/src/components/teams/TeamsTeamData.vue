@@ -10,6 +10,7 @@ import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {eventPrograms, programDisplayName} from '@/utils/eventPrograms'
 import {
+  isTeamPhotoConsentUnset,
   isTeamRowIncomplete,
   type TeamDataColumn,
   type TeamDataRow,
@@ -32,6 +33,7 @@ const columnsPanelOpen = ref(false)
 const mealPanelOpen = ref(false)
 const exportBusy = ref(false)
 const showOnlyIncomplete = ref(false)
+const showOnlyPhotoUnset = ref(false)
 const activeProgramFilters = ref<Set<number>>(new Set())
 
 const countEditTeam = ref<TeamDataRow | null>(null)
@@ -51,6 +53,9 @@ const filteredTeams = computed(() => {
   let rows = [...teams.value]
   if (activeProgramFilters.value.size > 0) {
     rows = rows.filter((row) => row.first_program != null && activeProgramFilters.value.has(row.first_program))
+  }
+  if (showOnlyPhotoUnset.value) {
+    rows = rows.filter((row) => isTeamPhotoConsentUnset(row))
   }
   if (showOnlyIncomplete.value) {
     rows = rows.filter((row) => isTeamRowIncomplete(row, columns.value))
@@ -185,6 +190,9 @@ onMounted(() => load())
 
     <section class="glass-card liquid-surface-inner vol-tile vol-roster-table-tile">
       <div v-if="teams.length && !loading" class="vol-staffing-filters">
+        <span class="vol-staffing-filters__filter-icon" aria-hidden="true">
+          <i class="bi bi-funnel"/>
+        </span>
         <button
             v-for="program in programFilters"
             :key="program.first_program"
@@ -202,6 +210,17 @@ onMounted(() => load())
           <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
         </button>
         <span class="vol-staffing-filters__sep" aria-hidden="true"/>
+        <button
+            type="button"
+            class="vol-staffing-filter"
+            :class="{'vol-staffing-filter--active': showOnlyPhotoUnset}"
+            :aria-pressed="showOnlyPhotoUnset"
+            title="Nur Teams ohne Foto-Erlaubnis anzeigen"
+            @click="showOnlyPhotoUnset = !showOnlyPhotoUnset"
+        >
+          <i class="bi bi-camera vol-staffing-filter__icon" aria-hidden="true"/>
+          <span class="vol-staffing-filter__label">Foto Erlaubnis</span>
+        </button>
         <button
             type="button"
             class="vol-staffing-filter"
