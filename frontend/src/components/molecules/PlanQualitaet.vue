@@ -176,6 +176,10 @@ onMounted(async () => {
         {{ runButtonLabel }}
       </button>
 
+      <span class="text-xs text-[var(--color-text-muted)]">
+        Nur-Explore-Events werden nicht angezeigt.
+      </span>
+
       <span v-if="progress" class="text-sm text-[var(--color-text-muted)]">
         {{ progress.current }}/{{ progress.total }} · {{ progress.eventName }} · {{ progress.programLabel }}
       </span>

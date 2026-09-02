@@ -105,6 +105,10 @@ class PlanQualityController extends Controller
                 }
             }
 
+            if ($status === 'explore_only') {
+                continue;
+            }
+
             $events[] = [
                 'event_id' => (int) $row->event_id,
                 'event_name' => $row->event_name,

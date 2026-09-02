@@ -156,20 +156,6 @@ function eventEvaluationNote(event) {
         </div>
       </div>
 
-      <!-- Explore only -->
-      <div
-        v-else-if="event.status === 'explore_only'"
-        class="py-2 px-1 text-sm"
-      >
-        <div class="font-medium">{{ eventTitle(event) }}</div>
-        <div class="text-xs mt-0.5 text-[var(--color-text-muted)]">
-          {{ formatDateOnly(event.event_date) }}
-          <span v-if="event.regional_partner_name"> · {{ event.regional_partner_name }}</span>
-          <template v-if="event.explore_on"> · Nur Explore (E)</template>
-          <template v-else> · Kein Challenge-Programm</template>
-        </div>
-      </div>
-
       <!-- Evaluable: header + sub-rows -->
       <template v-else>
         <div class="py-2 px-1 text-sm bg-[var(--color-bg-muted)]/50 flex items-center gap-2 flex-wrap">
