@@ -12,6 +12,10 @@ import type {VolunteerMealOption} from '@/composables/useVolunteerMealOptions'
 import type {RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
+import {
+  photoConsentStatusClass,
+  photoConsentStatusForVolunteer,
+} from '@/utils/photoConsentStatus'
 
 const props = defineProps<{
   eventId?: number | null
@@ -263,9 +267,13 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
                 <option v-for="meal in mealOptions" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
               </select>
             </td>
-            <td v-else-if="column.editor === 'photo_consent'" class="vol-table__field">
+            <td
+                v-else-if="column.editor === 'photo_consent'"
+                class="vol-table__field vol-table__field--photo"
+            >
               <div
                   class="glass-segment vol-tristate"
+                  :class="photoConsentStatusClass(photoConsentStatusForVolunteer(entryDetail(entry).photo_consent).status)"
                   role="group"
                   :aria-label="column.label"
               >
@@ -537,5 +545,15 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 .vol-tristate .glass-segment__btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.vol-table__field--photo {
+  border-radius: var(--field-radius-sm, 0.375rem);
+}
+
+.vol-table__field--photo .vol-tristate.photo-consent--pending,
+.vol-table__field--photo .vol-tristate.photo-consent--granted,
+.vol-table__field--photo .vol-tristate.photo-consent--denied {
+  border-color: color-mix(in srgb, currentColor 12%, var(--color-border));
 }
 </style>

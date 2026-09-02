@@ -289,11 +289,11 @@ onActivated(() => {
             class="vol-staffing-filter"
             :class="{'vol-staffing-filter--active': showOnlyPhotoUnset}"
             :aria-pressed="showOnlyPhotoUnset"
-            title="Nur Teams ohne Foto-Erlaubnis anzeigen"
+            title="Nur Teams ohne Fotoerlaubnis anzeigen"
             @click="showOnlyPhotoUnset = !showOnlyPhotoUnset"
         >
           <i class="bi bi-camera vol-staffing-filter__icon" aria-hidden="true"/>
-          <span class="vol-staffing-filter__label">Foto Erlaubnis</span>
+          <span class="vol-staffing-filter__label">Fotoerlaubnis</span>
         </button>
         <button
             type="button"

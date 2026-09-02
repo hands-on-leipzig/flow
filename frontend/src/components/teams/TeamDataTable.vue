@@ -8,6 +8,10 @@ import {
   type TeamDataColumn,
   type TeamDataRow,
 } from '@/utils/teamDataCompletion'
+import {
+  photoConsentStatusClass,
+  photoConsentStatusForTeam,
+} from '@/utils/photoConsentStatus'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 
@@ -41,6 +45,21 @@ function displayNumber(value: number | null | undefined) {
 function displayOrganization(value: string | null | undefined) {
   const trimmed = (value ?? '').trim()
   return trimmed === '' ? '—' : trimmed
+}
+
+function photoCellClass(row: TeamDataRow, column: TeamDataColumn) {
+  if (column.key !== 'photo_consent' && column.kind !== 'photo') {
+    return {
+      'vol-detail-trigger--unset': countSetTotal(row, column) === 0,
+      'team-data-cell--mismatch': countSetCellMismatch(row, column),
+    }
+  }
+  const status = photoConsentStatusForTeam(row.photo_consent, row.people_count).status
+  return {
+    [photoConsentStatusClass(status)]: true,
+    'vol-detail-trigger--unset': countSetTotal(row, column) === 0,
+    'team-data-cell--mismatch': countSetCellMismatch(row, column),
+  }
 }
 
 function scalarValue(row: TeamDataRow, column: TeamDataColumn): string {
@@ -195,10 +214,7 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
                 v-if="column.editor === 'meal_counts' || column.editor === 'count_set'"
                 type="button"
                 class="vol-detail-trigger glass-input glass-input--sm"
-                :class="{
-                  'vol-detail-trigger--unset': countSetTotal(row, column) === 0,
-                  'team-data-cell--mismatch': countSetCellMismatch(row, column),
-                }"
+                :class="photoCellClass(row, column)"
                 @click="onCountCellClick($event, row, column)"
             >
               {{ countSetTotal(row, column) }}

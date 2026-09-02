@@ -553,7 +553,7 @@ onActivated(() => {
                   title="Immer im Formular"
               >
                 <input type="checkbox" :checked="true" disabled>
-                <span>Foto Erlaubnis</span>
+                <span>Fotoerlaubnis</span>
               </div>
               <div
                   v-if="teamCollectMeal"

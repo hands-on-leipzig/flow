@@ -5,6 +5,7 @@ import axios from 'axios'
 import QRCode from 'qrcode'
 import {imageUrl, programLogoSrc} from '@/utils/images'
 import {publicPlanPath} from '@/utils/publicPlanPath'
+import {photoConsentStatusClass} from '@/utils/photoConsentStatus'
 
 defineOptions({name: 'CheckInReception'})
 
@@ -36,6 +37,7 @@ type Detail = SearchHit & {
   no_show_reason?: string | null
   no_show_source?: string | null
   next_activities?: Array<{start: string | null; room?: string | null; title: string}>
+  photo_consent?: {status: 'pending' | 'granted' | 'denied'; label: string} | null
 }
 
 type OverviewLine = {
@@ -636,6 +638,14 @@ onMounted(async () => {
                   </span>
                 </span>
               </div>
+              <div
+                  v-if="detail.photo_consent"
+                  class="ci-photo-consent"
+                  :class="photoConsentStatusClass(detail.photo_consent.status)"
+                  role="status"
+              >
+                {{ detail.photo_consent.label }}
+              </div>
               <div v-if="detail.logo_stem || roleLabel(detail)" class="ci-hit__row ci-hit__row--sub">
                 <img
                     v-if="detail.logo_stem"
@@ -1042,6 +1052,15 @@ onMounted(async () => {
 .ci-hit__row--sub {
   justify-content: flex-start;
   gap: 0.45rem;
+}
+
+.ci-photo-consent {
+  margin-top: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius, 0.5rem);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .ci-hit__label {

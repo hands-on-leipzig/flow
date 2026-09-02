@@ -19,7 +19,7 @@ final class VolunteerRosterColumns
     private const FIXED_TABLE_START = [
         ['key' => 'name', 'label' => 'Name', 'table' => true, 'sortable' => true, 'kind' => 'fixed'],
         ['key' => 'role', 'label' => 'Rolle', 'table' => true, 'sortable' => true, 'kind' => 'fixed'],
-        ['key' => 'photo_consent', 'label' => 'Foto Erlaubnis', 'table' => true, 'export' => true, 'kind' => 'fixed', 'editor' => 'photo_consent', 'public_form' => false],
+        ['key' => 'photo_consent', 'label' => 'Fotoerlaubnis', 'table' => true, 'export' => true, 'kind' => 'fixed', 'editor' => 'photo_consent', 'public_form' => false],
         ['key' => 't_shirt', 'label' => 'T-Shirt Größe', 'table' => true, 'kind' => 'fixed', 'editor' => 't_shirt'],
         ['key' => 'meal', 'label' => 'Essen', 'table' => true, 'export' => true, 'kind' => 'fixed', 'editor' => 'meal'],
     ];
@@ -123,7 +123,7 @@ final class VolunteerRosterColumns
 
         $definitions[] = ['key' => 'zuordnung_1_program', 'label' => 'Zuordnung 1 Programm', 'export' => true];
         $definitions[] = ['key' => 'zuordnung_1_role', 'label' => 'Zuordnung 1 Rolle', 'export' => true];
-        $definitions[] = ['key' => 'photo_consent', 'label' => 'Foto Erlaubnis', 'export' => true];
+        $definitions[] = ['key' => 'photo_consent', 'label' => 'Fotoerlaubnis', 'export' => true];
         if ($collectShirt) {
             $definitions[] = ['key' => 't_shirt_cut', 'label' => 'T-Shirt Schnitt', 'export' => true];
             $definitions[] = ['key' => 't_shirt_size', 'label' => 'T-Shirt Größe', 'export' => true];
