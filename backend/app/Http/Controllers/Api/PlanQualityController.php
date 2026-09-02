@@ -41,6 +41,7 @@ class PlanQualityController extends Controller
                 'event.name as event_name',
                 'event.date as event_date',
                 'regional_partner.name as regional_partner_name',
+                'regional_partner.id as regional_partner_id',
                 'plan.id as plan_id',
                 'plan.last_change as plan_last_change',
             ]);
@@ -114,6 +115,7 @@ class PlanQualityController extends Controller
                 'event_name' => $row->event_name,
                 'event_date' => $row->event_date,
                 'regional_partner_name' => $row->regional_partner_name,
+                'regional_partner_id' => $row->regional_partner_id ? (int) $row->regional_partner_id : null,
                 'plan_id' => $planId,
                 'status' => $status,
                 'explore_on' => $exploreOn,

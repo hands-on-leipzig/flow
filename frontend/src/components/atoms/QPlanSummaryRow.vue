@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import { useQualityMetrics } from '@/composables/useQualityMetrics'
+import { useGoToEventSchedule } from '@/composables/useGoToEventSchedule'
 import {
   evaluationReasonsTooltip,
   evaluationStatusChipClass,
@@ -13,6 +14,14 @@ const props = defineProps({
   planId: {
     type: Number,
     required: true,
+  },
+  eventId: {
+    type: Number,
+    required: true,
+  },
+  regionalPartnerId: {
+    type: Number,
+    default: null,
   },
   program: {
     type: Object,
@@ -29,6 +38,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['toggle'])
+
+const { goToEventSchedule } = useGoToEventSchedule()
 
 const {
   ampelfarbeQ1Q4,
@@ -54,8 +65,8 @@ function onRowClick() {
   emit('toggle')
 }
 
-function openPreview() {
-  window.open(`/preview/${props.planId}`, '_blank', 'noopener')
+function openPlan() {
+  void goToEventSchedule(props.eventId, props.regionalPartnerId)
 }
 </script>
 
@@ -75,8 +86,8 @@ function openPreview() {
         <button
           type="button"
           class="text-[var(--color-accent)] hover:opacity-80"
-          title="Vorschau öffnen"
-          @click.stop="openPreview"
+          title="Ablauf öffnen"
+          @click.stop="openPlan"
         >
           🧾
         </button>

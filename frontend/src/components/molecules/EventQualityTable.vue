@@ -201,6 +201,8 @@ function eventEvaluationNote(event) {
           v-for="program in event.programs"
           :key="rowKey(event.event_id, program.first_program)"
           :plan-id="event.plan_id"
+          :event-id="event.event_id"
+          :regional-partner-id="event.regional_partner_id"
           :program="program"
           :expandable="programIsExpandable(event, program)"
           :expanded="expandedKey === rowKey(event.event_id, program.first_program)"
