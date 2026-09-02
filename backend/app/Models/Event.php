@@ -25,7 +25,7 @@ class Event extends Model
         'public_helper_search',
         'public_volunteer_data_entry',
         'volunteer_collect_t_shirt',
-        'volunteer_collect_meal',
+        'collect_meal',
         'check_in_enabled',
         'check_in_pin',
         'check_in_text_teams',
@@ -44,7 +44,7 @@ class Event extends Model
         'public_helper_search' => 'boolean',
         'public_volunteer_data_entry' => 'boolean',
         'volunteer_collect_t_shirt' => 'boolean',
-        'volunteer_collect_meal' => 'boolean',
+        'collect_meal' => 'boolean',
         'check_in_enabled' => 'boolean',
         'cockpit_enabled' => 'boolean',
     ];

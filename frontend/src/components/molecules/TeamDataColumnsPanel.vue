@@ -12,7 +12,7 @@ import {
   type CustomFieldDefinition,
 } from '@/utils/customFieldColumns'
 
-export type VolunteerFieldDefinition = CustomFieldDefinition
+export type TeamFieldDefinition = CustomFieldDefinition
 
 const props = defineProps<{
   open: boolean
@@ -25,8 +25,8 @@ const emit = defineEmits<{
 }>()
 
 const fields = ref<CustomFieldDefinition[]>([])
-const collect = ref({t_shirt: true, meal: true})
-const usage = ref({t_shirt: 0, meal: 0})
+const collectMeal = ref(true)
+const usageMeal = ref(0)
 const loading = ref(false)
 const busyFieldId = ref<number | null>(null)
 const adding = ref(false)
@@ -34,33 +34,18 @@ const deleting = ref(false)
 const collectBusy = ref(false)
 const error = ref('')
 const deleteTarget = ref<CustomFieldDefinition | null>(null)
-const disableTarget = ref<'t_shirt' | 'meal' | null>(null)
+const disableMeal = ref(false)
 const draft = ref(emptyCustomFieldDraft())
 
 const isBusy = computed(() => adding.value || deleting.value || busyFieldId.value !== null || collectBusy.value)
 const canAdd = computed(() => canAddCustomField(draft.value, adding.value))
 const deleteConfirmMessage = computed(() => (deleteTarget.value ? deleteCustomFieldConfirmMessage(deleteTarget.value) : ''))
 
-const disableConfirmTitle = computed(() => {
-  if (disableTarget.value === 'meal') return 'Essen abschalten?'
-  if (disableTarget.value === 't_shirt') return 'T-Shirt abschalten?'
-  return 'Spalte abschalten?'
-})
-
-const disableConfirmMessage = computed(() => {
-  if (disableTarget.value === 't_shirt') {
-    const n = usage.value.t_shirt
-    return n > 0
-      ? `T-Shirt abschalten? ${n} Einträge werden geleert.`
-      : 'T-Shirt-Spalte wirklich abschalten?'
-  }
-  if (disableTarget.value === 'meal') {
-    const n = usage.value.meal
-    return n > 0
-      ? `Essen abschalten? ${n} Einträge werden geleert (Helfer:innen und Teams).`
-      : 'Essens-Spalte wirklich abschalten? (gilt für Helfer:innen und Teams)'
-  }
-  return ''
+const disableMealMessage = computed(() => {
+  const n = usageMeal.value
+  return n > 0
+    ? `Essen abschalten? ${n} Einträge werden geleert (Helfer:innen und Teams).`
+    : 'Essens-Spalte wirklich abschalten? (gilt für Helfer:innen und Teams)'
 })
 
 async function loadFields() {
@@ -69,18 +54,12 @@ async function loadFields() {
   error.value = ''
   try {
     const [fieldsRes, collectRes] = await Promise.all([
-      axios.get(`/events/${props.eventId}/volunteer-fields`),
+      axios.get(`/events/${props.eventId}/team-fields`),
       axios.get(`/events/${props.eventId}/volunteer-collect`),
     ])
     fields.value = fieldsRes.data.fields ?? []
-    collect.value = {
-      t_shirt: !!collectRes.data.collect?.t_shirt,
-      meal: !!collectRes.data.collect?.meal,
-    }
-    usage.value = {
-      t_shirt: Number(collectRes.data.usage?.t_shirt ?? 0),
-      meal: Number(collectRes.data.usage?.meal ?? 0),
-    }
+    collectMeal.value = collectRes.data.collect?.meal !== false
+    usageMeal.value = Number(collectRes.data.usage?.meal ?? 0)
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Spalten konnten nicht geladen werden.'
   } finally {
@@ -93,48 +72,40 @@ function resetDraft() {
 }
 
 function requestClose() {
-  if (deleteTarget.value || disableTarget.value || isBusy.value) return
+  if (deleteTarget.value || disableMeal.value || isBusy.value) return
   emit('close')
 }
 
-function onCollectClick(key: 't_shirt' | 'meal', event: MouseEvent) {
+function onMealClick(event: MouseEvent) {
   event.preventDefault()
   if (collectBusy.value) return
-  if (collect.value[key]) {
-    disableTarget.value = key
+  if (collectMeal.value) {
+    disableMeal.value = true
     return
   }
-  void setCollect(key, true)
+  void setCollectMeal(true)
 }
 
-async function setCollect(key: 't_shirt' | 'meal', enabled: boolean) {
+async function setCollectMeal(enabled: boolean) {
   if (!props.eventId || collectBusy.value) return
   collectBusy.value = true
   error.value = ''
   try {
-    const {data} = await axios.patch(`/events/${props.eventId}/volunteer-collect`, {[key]: enabled})
-    collect.value = {
-      t_shirt: !!data.collect?.t_shirt,
-      meal: !!data.collect?.meal,
-    }
-    usage.value = {
-      t_shirt: Number(data.usage?.t_shirt ?? 0),
-      meal: Number(data.usage?.meal ?? 0),
-    }
+    const {data} = await axios.patch(`/events/${props.eventId}/volunteer-collect`, {meal: enabled})
+    collectMeal.value = !!data.collect?.meal
+    usageMeal.value = Number(data.usage?.meal ?? 0)
     emit('changed')
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Einstellung konnte nicht gespeichert werden.'
     await loadFields()
   } finally {
     collectBusy.value = false
-    disableTarget.value = null
+    disableMeal.value = false
   }
 }
 
-async function confirmDisableCollect() {
-  const key = disableTarget.value
-  if (!key) return
-  await setCollect(key, false)
+async function confirmDisableMeal() {
+  await setCollectMeal(false)
 }
 
 async function addField() {
@@ -149,7 +120,7 @@ async function addField() {
     if (draft.value.type === 'select') {
       payload.options = parseCustomFieldOptions(draft.value.optionsText)
     }
-    await axios.post(`/events/${props.eventId}/volunteer-fields`, payload)
+    await axios.post(`/events/${props.eventId}/team-fields`, payload)
     resetDraft()
     await loadFields()
     emit('changed')
@@ -165,7 +136,7 @@ async function saveField(field: CustomFieldDefinition, patch: Record<string, unk
   busyFieldId.value = field.id
   error.value = ''
   try {
-    await axios.patch(`/events/${props.eventId}/volunteer-fields/${field.id}`, patch)
+    await axios.patch(`/events/${props.eventId}/team-fields/${field.id}`, patch)
     await loadFields()
     emit('changed')
   } catch (e: any) {
@@ -196,7 +167,7 @@ async function confirmDeleteField() {
   deleting.value = true
   error.value = ''
   try {
-    await axios.delete(`/events/${props.eventId}/volunteer-fields/${field.id}`)
+    await axios.delete(`/events/${props.eventId}/team-fields/${field.id}`)
     deleteTarget.value = null
     await loadFields()
     emit('changed')
@@ -213,7 +184,7 @@ watch(
     if (open) {
       resetDraft()
       deleteTarget.value = null
-      disableTarget.value = null
+      disableMeal.value = false
       void loadFields()
     }
   },
@@ -224,32 +195,26 @@ watch(
 <template>
   <CustomColumnsDialogShell
       :open="open"
-      title-id="vol-columns-dialog-title"
-      hint="Name, Rolle und Foto bleiben. T-Shirt und Essen könnt ihr abwählen (dabei werden vorhandene Angaben geleert). Essen ist dieselbe Einstellung wie bei Teamdaten. Eigene Spalten gelten nur für diese Veranstaltung."
+      title-id="team-columns-dialog-title"
+      hint="Die ersten Spalten kommen aus der Anmeldung. Essen könnt ihr abwählen. Die Einstellung ist dieselbe wie für Helfer:innen. Eigene Spalten gelten nur für diese Veranstaltung."
       :error="error"
       :loading="loading"
       @close="requestClose"
   >
     <template #builtins>
+      <li class="vol-columns-dialog__builtin">Teamname</li>
+      <li class="vol-columns-dialog__builtin">Nr</li>
+      <li class="vol-columns-dialog__builtin">Programm</li>
+      <li class="vol-columns-dialog__builtin">Organisation</li>
+      <li class="vol-columns-dialog__builtin">Personen</li>
       <li class="vol-columns-dialog__builtin">Foto Erlaubnis</li>
       <li class="vol-columns-dialog__builtin vol-columns-dialog__builtin--toggle">
         <label class="vol-columns-dialog__check">
           <input
               type="checkbox"
-              :checked="collect.t_shirt"
+              :checked="collectMeal"
               :disabled="collectBusy"
-              @click="onCollectClick('t_shirt', $event)"
-          >
-          <span>T-Shirt Größe</span>
-        </label>
-      </li>
-      <li class="vol-columns-dialog__builtin vol-columns-dialog__builtin--toggle">
-        <label class="vol-columns-dialog__check">
-          <input
-              type="checkbox"
-              :checked="collect.meal"
-              :disabled="collectBusy"
-              @click="onCollectClick('meal', $event)"
+              @click="onMealClick($event)"
           >
           <span>Essen</span>
         </label>
@@ -263,6 +228,7 @@ watch(
         :is-busy="isBusy"
         :adding="adding"
         :can-add="canAdd"
+        new-field-placeholder="z. B. Ankunft am Vorabend"
         @update:draft="draft = $event"
         @update-label="updateFieldLabel"
         @update-options="updateFieldOptions"
@@ -287,16 +253,16 @@ watch(
   />
 
   <ConfirmationModal
-      :show="!!disableTarget"
+      :show="disableMeal"
       scrim-class="z-[110]"
       type="warning"
-      :title="disableConfirmTitle"
-      :message="disableConfirmMessage"
+      title="Essen abschalten?"
+      :message="disableMealMessage"
       confirm-text="Abschalten"
       cancel-text="Abbrechen"
       :disable-confirm-button="collectBusy"
-      @confirm="confirmDisableCollect"
-      @cancel="disableTarget = null"
+      @confirm="confirmDisableMeal"
+      @cancel="disableMeal = false"
   />
 </template>
 

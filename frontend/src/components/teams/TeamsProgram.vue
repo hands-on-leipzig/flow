@@ -35,8 +35,8 @@ const exportBusy = ref(false)
 
 const attachedProgram = computed(() => findProgram(event.value, program.value))
 
-function isOnTeamsRoute(): boolean {
-  return route.path.includes('/plan/teams')
+function isOnProgramTeamsRoute(): boolean {
+  return route.name === 'teams-program'
 }
 
 function normalizeTeams(teams: any): any[] {
@@ -52,11 +52,11 @@ function normalizeTeams(teams: any): any[] {
 }
 
 async function loadRemoteTeams() {
-  if (!isOnTeamsRoute()) return
+  if (!isOnProgramTeamsRoute()) return
   loading.value = true
   try {
     if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
-    if (!isOnTeamsRoute()) return
+    if (!isOnProgramTeamsRoute()) return
     const current = findProgram(event.value, program.value)
     if (!event.value?.id) {
       remoteTeams.value = []
@@ -67,7 +67,8 @@ async function loadRemoteTeams() {
       remoteTeams.value = []
       remoteCapacity.value = 0
       const next = firstTeamsPath(event.value)
-      if (isOnTeamsRoute() && route.path !== next) {
+      // Never steal /plan/teams/data (Teamdaten) or other non-program teams routes.
+      if (isOnProgramTeamsRoute() && route.path !== next) {
         await router.replace(next)
       }
       return

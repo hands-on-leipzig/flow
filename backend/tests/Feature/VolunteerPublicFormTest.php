@@ -399,7 +399,7 @@ class VolunteerPublicFormTest extends TestCase
         $this->seedEvent([
             'public_volunteer_data_entry' => true,
             'volunteer_collect_t_shirt' => false,
-            'volunteer_collect_meal' => false,
+            'collect_meal' => false,
         ]);
         $this->seedRosterMember([
             't_shirt_cut' => null,
@@ -571,7 +571,7 @@ class VolunteerPublicFormTest extends TestCase
                 $table->boolean('public_helper_search')->default(false);
                 $table->boolean('public_volunteer_data_entry')->default(false);
                 $table->boolean('volunteer_collect_t_shirt')->default(true);
-                $table->boolean('volunteer_collect_meal')->default(true);
+                $table->boolean('collect_meal')->default(true);
             });
         }
 

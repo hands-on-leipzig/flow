@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Http\Controllers\Api\EventStaffingController;
+use App\Http\Controllers\Api\EventTeamDataController;
+use App\Http\Controllers\Api\EventTeamFieldController;
 use App\Http\Controllers\Api\EventVolunteerFieldController;
 use App\Http\Controllers\Api\EventVolunteerMealOptionController;
 use App\Http\Controllers\Api\EventVolunteerCollectController;
@@ -298,6 +300,14 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);
     Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
     Route::delete('/teams/{team}', [TeamController::class, 'destroy']);
+
+    Route::get('/events/{event}/team-fields', [EventTeamFieldController::class, 'index']);
+    Route::post('/events/{event}/team-fields', [EventTeamFieldController::class, 'store']);
+    Route::patch('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'update']);
+    Route::delete('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'destroy']);
+    Route::get('/events/{event}/team-data', [EventTeamDataController::class, 'index']);
+    Route::patch('/events/{event}/teams/{team}/team-data', [EventTeamDataController::class, 'update']);
+    Route::get('/events/{event}/team-data/export', [EventTeamDataController::class, 'exportXlsx']);
 
     // Volunteer staffing (pool + roster)
     Route::get('/events/{event}/volunteers', [VolunteerPersonController::class, 'index']);

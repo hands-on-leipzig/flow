@@ -38,6 +38,7 @@ import {ADMIN_DEFAULT_SECTION} from '@/constants/adminNav'
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
 import TeamsProgram from "@/components/teams/TeamsProgram.vue";
+import TeamsTeamData from "@/components/teams/TeamsTeamData.vue";
 import VolunteersPeople from "@/components/VolunteersPeople.vue";
 import VolunteersRoster from "@/components/VolunteersRoster.vue";
 import VolunteersStaffing from "@/components/VolunteersStaffing.vue";
@@ -97,6 +98,7 @@ const routes = [
                 component: Teams,
                 redirect: () => firstTeamsPath(useEventStore().selectedEvent),
                 children: [
+                    {path: 'data', name: 'teams-data', component: TeamsTeamData},
                     {path: ':program', name: 'teams-program', component: TeamsProgram},
                 ],
             },
