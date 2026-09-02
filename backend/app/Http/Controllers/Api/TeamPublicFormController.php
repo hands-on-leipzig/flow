@@ -7,6 +7,7 @@ use App\Models\Event;
 use App\Models\EventTeamField;
 use App\Models\EventTeamFieldValue;
 use App\Models\Team;
+use App\Services\SeasonService;
 use App\Support\TeamCoachLookup;
 use App\Support\TeamDataColumns;
 use App\Support\TeamDataCustomFields;
@@ -195,7 +196,10 @@ class TeamPublicFormController extends Controller
 
     private function eventBySlug(string $slug): Event
     {
-        $event = Event::query()->where('slug', $slug)->first();
+        $event = Event::query()
+            ->where('slug', $slug)
+            ->where('season', SeasonService::currentSeasonId())
+            ->first();
         if (! $event) {
             abort(404, 'Veranstaltung nicht gefunden.');
         }

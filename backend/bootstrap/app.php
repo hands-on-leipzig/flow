@@ -49,6 +49,11 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
+            // Let HTTP exceptions keep their status (404/422/etc.)
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+                return null;
+            }
+
             // Translate all other exceptions (including SQL errors)
             $translated = \App\Services\ErrorTranslationService::translateException($e);
             

@@ -149,8 +149,12 @@ async function loadLookup() {
       return
     }
     lookupError.value = 'Kein Team für diese E-Mail gefunden.'
-  } catch {
-    lookupError.value = 'Diese E-Mail ist keinem Team als Coach zugeordnet.'
+  } catch (error: unknown) {
+    const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error as string | undefined)
+          || (error.response?.data?.message as string | undefined)
+        : undefined
+    lookupError.value = message || 'Diese E-Mail ist keinem Team als Coach zugeordnet.'
     emit('update:step', 'data')
   } finally {
     lookupLoading.value = false

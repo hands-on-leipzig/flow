@@ -24,6 +24,7 @@ class TeamPublicFormTest extends TestCase
         Carbon::setTestNow('2026-09-02');
         $this->createSchema();
         $this->truncateData();
+        $this->seedSeason();
         $this->seedBase();
     }
 
@@ -209,6 +210,16 @@ class TeamPublicFormTest extends TestCase
         });
     }
 
+    private function seedSeason(): void
+    {
+        if (DB::table('m_season')->count() === 0) {
+            DB::table('m_season')->insert([
+                'id' => 1,
+                'year' => 2026,
+            ]);
+        }
+    }
+
     private function seedBase(): void
     {
         DB::table('event')->insert([
@@ -270,6 +281,7 @@ class TeamPublicFormTest extends TestCase
             'm_first_program',
             'team',
             'event',
+            'm_season',
         ] as $table) {
             if (Schema::hasTable($table)) {
                 DB::table($table)->delete();
@@ -279,6 +291,12 @@ class TeamPublicFormTest extends TestCase
 
     private function createSchema(): void
     {
+        if (! Schema::hasTable('m_season')) {
+            Schema::create('m_season', function (Blueprint $table) {
+                $table->unsignedInteger('id')->primary();
+                $table->unsignedSmallInteger('year');
+            });
+        }
         if (! Schema::hasTable('event')) {
             Schema::create('event', function (Blueprint $table) {
                 $table->unsignedInteger('id')->primary();
