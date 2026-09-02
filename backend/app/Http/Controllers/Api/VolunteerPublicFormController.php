@@ -33,7 +33,7 @@ class VolunteerPublicFormController extends Controller
         ['event' => $event, 'person' => $person, 'roster' => $roster] = $this->resolveRosterMember($slug, $email);
         $roster->load(['detail', 'fieldValues.field']);
 
-        $customFields = VolunteerRosterColumns::customFieldsForEvent($event->id);
+        $writableCustomFields = $this->writableCustomFieldsForEvent($event->id);
         $mealOptions = VolunteerMealOptions::bootstrapForEvent($event->id);
         $columns = collect(VolunteerRosterColumns::tablePayloadForEvent($event->id))
             ->reject(fn (array $column) => in_array($column['key'], ['name', 'role'], true))
@@ -50,7 +50,7 @@ class VolunteerPublicFormController extends Controller
         return response()->json([
             'person' => $this->serializePerson($person),
             'detail' => VolunteerRosterDetailFields::serialize($roster->detail),
-            'custom' => VolunteerRosterCustomFields::apiValuesForRow($roster, $customFields),
+            'custom' => VolunteerRosterCustomFields::apiValuesForRow($roster, $writableCustomFields),
             'meal_options' => $mealOptions,
             'fields' => $columns,
         ]);
@@ -284,7 +284,7 @@ class VolunteerPublicFormController extends Controller
     private function writableCustomFieldsForEvent(int $eventId): Collection
     {
         $publicFormKeys = collect(VolunteerRosterColumns::tablePayloadForEvent($eventId))
-            ->filter(fn (array $column) => ($column['kind'] ?? '') === 'custom' && ($column['public_form'] ?? true))
+            ->filter(fn (array $column) => ($column['kind'] ?? '') === 'custom' && (bool) ($column['public_form'] ?? false))
             ->pluck('field_key')
             ->filter()
             ->all();

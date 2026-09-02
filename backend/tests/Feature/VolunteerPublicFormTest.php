@@ -156,6 +156,62 @@ class VolunteerPublicFormTest extends TestCase
         $this->assertNotEmpty($payload['fields']);
     }
 
+    public function test_lookup_custom_only_includes_public_form_fields(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        DB::table('event_volunteer_field')->insert([
+            [
+                'id' => 1,
+                'event' => 1,
+                'field_key' => 'on_form',
+                'label' => 'On Form',
+                'type' => 'text',
+                'options' => null,
+                'sequence' => 1,
+                'public_form' => true,
+            ],
+            [
+                'id' => 2,
+                'event' => 1,
+                'field_key' => 'internal_only',
+                'label' => 'Internal',
+                'type' => 'text',
+                'options' => null,
+                'sequence' => 2,
+                'public_form' => false,
+            ],
+        ]);
+        DB::table('event_volunteer_field_value')->insert([
+            [
+                'event_volunteer_roster' => 100,
+                'event_volunteer_field' => 1,
+                'value' => 'visible',
+                'updated_at' => now(),
+            ],
+            [
+                'event_volunteer_roster' => 100,
+                'event_volunteer_field' => 2,
+                'value' => 'hidden',
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $controller = app(VolunteerPublicFormController::class);
+        $response = $controller->lookup(
+            Request::create('/api/public-volunteer-form/test-event/lookup', 'GET', ['email' => 'max@example.com']),
+            'test-event'
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $payload = $response->getData(true);
+        $this->assertSame('visible', $payload['custom']['on_form']);
+        $this->assertArrayNotHasKey('internal_only', $payload['custom']);
+        $fieldKeys = collect($payload['fields'])->pluck('field_key')->filter()->all();
+        $this->assertContains('on_form', $fieldKeys);
+        $this->assertNotContains('internal_only', $fieldKeys);
+    }
+
     public function test_save_persists_person_detail_and_custom(): void
     {
         $this->seedEvent(['public_volunteer_data_entry' => true]);

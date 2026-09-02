@@ -123,12 +123,18 @@ async function submitForm() {
   saving.value = true
   saveError.value = ''
   const {photo_consent: _photoConsent, ...detailPayload} = detailDraft.value
+  const customPayload: Record<string, string | number | boolean | null> = {}
+  for (const field of lookupPayload.value?.fields ?? []) {
+    if (field.kind === 'custom' && field.field_key) {
+      customPayload[field.field_key] = customDraft.value[field.field_key] ?? null
+    }
+  }
   try {
     await axios.post(`/public-volunteer-form/${props.slug}/save`, {
       email: props.email.trim(),
       person: personDraft.value,
       detail: detailPayload,
-      custom: customDraft.value,
+      custom: customPayload,
     })
     emit('update:step', 'done')
   } catch (error: unknown) {
