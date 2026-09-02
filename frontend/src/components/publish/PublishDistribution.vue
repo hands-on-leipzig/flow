@@ -131,21 +131,32 @@ const {
 
 const publicFormFields = ref<Array<{field_key: string; label: string; public_form: boolean}>>([])
 const publicFormFieldsBusy = ref(false)
+const collectTShirt = ref(false)
+const collectMeal = ref(false)
 
 async function loadPublicFormChecklist() {
   if (!eventId.value) {
     publicFormFields.value = []
+    collectTShirt.value = false
+    collectMeal.value = false
     return
   }
   try {
-    const {data} = await axios.get(`/events/${eventId.value}/volunteer-fields`)
-    publicFormFields.value = (data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
+    const [fieldsRes, collectRes] = await Promise.all([
+      axios.get(`/events/${eventId.value}/volunteer-fields`),
+      axios.get(`/events/${eventId.value}/volunteer-collect`),
+    ])
+    publicFormFields.value = (fieldsRes.data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
       field_key: field.field_key,
       label: field.label,
       public_form: !!field.public_form,
     }))
+    collectTShirt.value = !!collectRes.data.collect?.t_shirt
+    collectMeal.value = !!collectRes.data.collect?.meal
   } catch {
     publicFormFields.value = []
+    collectTShirt.value = false
+    collectMeal.value = false
   }
 }
 
@@ -445,17 +456,34 @@ onMounted(async () => {
               />
             </div>
             <p class="glass-settings-hint !mb-0">
-              Helfer:innen können auf dem öffentlichen Plan ihre Daten eingeben. Eigene Spalten unter
+              Helfer:innen können ihre Daten eingeben.<br>
+              Hier wird festgelegt, welche Felder erscheinen. Welche Felder es überhaupt gibt, kann unter
               <RouterLink to="/plan/volunteers/roster" class="pub__helper-link">
-                Helfer:innen → Helfer:innenliste → Spalten
+                Helfer:innen → Helfer:innenliste
               </RouterLink>
-              anlegen. T-Shirt/Essen erscheinen automatisch, wenn aktiv.
+              festgelegt werden.
             </p>
             <div
-                v-if="volunteerDataEntryEnabled && publicFormFields.length"
+                v-if="volunteerDataEntryEnabled"
                 class="pub__form-checklist"
             >
-              <p class="pub__form-checklist-title">Eigene Spalten im Formular</p>
+              <p class="pub__form-checklist-title">Felder im Formular</p>
+              <div
+                  v-if="collectTShirt"
+                  class="pub__form-check pub__form-check--fixed"
+                  title="Immer im Formular, solange T-Shirt in der Helferliste aktiv ist"
+              >
+                <input type="checkbox" checked disabled>
+                <span>T-Shirt Größe</span>
+              </div>
+              <div
+                  v-if="collectMeal"
+                  class="pub__form-check pub__form-check--fixed"
+                  title="Immer im Formular, solange Essen in der Helferliste aktiv ist"
+              >
+                <input type="checkbox" checked disabled>
+                <span>Essen</span>
+              </div>
               <label
                   v-for="field in publicFormFields"
                   :key="field.field_key"
@@ -470,16 +498,6 @@ onMounted(async () => {
                 <span>{{ field.label }}</span>
               </label>
             </div>
-            <p
-                v-else-if="volunteerDataEntryEnabled && !publicFormFields.length"
-                class="glass-settings-hint !mb-0"
-            >
-              Noch keine eigenen Spalten — unter
-              <RouterLink to="/plan/volunteers/roster" class="pub__helper-link">
-                Helfer:innenliste → Spalten
-              </RouterLink>
-              anlegen.
-            </p>
             <p
                 v-if="volunteerDataEntryEnabled && volunteerDataEntryHiddenByLevel"
                 class="glass-settings-hint !mb-0 pub__helper-warn"
@@ -780,6 +798,16 @@ onMounted(async () => {
   gap: 0.4rem;
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+.pub__form-check--fixed {
+  cursor: default;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+.pub__form-check--fixed input {
+  cursor: not-allowed;
 }
 
 .pub__app-row {
