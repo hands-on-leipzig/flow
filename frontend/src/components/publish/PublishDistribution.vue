@@ -3,7 +3,7 @@
  * Ausgabe → Veröffentlichung
  * Controls left · live iframe of the public page right
  */
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onActivated, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
@@ -131,32 +131,32 @@ const {
 
 const publicFormFields = ref<Array<{field_key: string; label: string; public_form: boolean}>>([])
 const publicFormFieldsBusy = ref(false)
-const collectTShirt = ref(false)
-const collectMeal = ref(false)
+const collectTShirt = ref(true)
+const collectMeal = ref(true)
+
+function applyCollectFlags(collect: {t_shirt?: boolean; meal?: boolean} | null | undefined) {
+  // Backend defaults are on; treat missing as on (same as Helferliste).
+  collectTShirt.value = collect?.t_shirt !== false
+  collectMeal.value = collect?.meal !== false
+}
 
 async function loadPublicFormChecklist() {
   if (!eventId.value) {
     publicFormFields.value = []
-    collectTShirt.value = false
-    collectMeal.value = false
+    collectTShirt.value = true
+    collectMeal.value = true
     return
   }
   try {
-    const [fieldsRes, collectRes] = await Promise.all([
-      axios.get(`/events/${eventId.value}/volunteer-fields`),
-      axios.get(`/events/${eventId.value}/volunteer-collect`),
-    ])
-    publicFormFields.value = (fieldsRes.data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
+    const {data} = await axios.get(`/events/${eventId.value}/volunteer-fields`)
+    publicFormFields.value = (data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
       field_key: field.field_key,
       label: field.label,
       public_form: !!field.public_form,
     }))
-    collectTShirt.value = !!collectRes.data.collect?.t_shirt
-    collectMeal.value = !!collectRes.data.collect?.meal
+    applyCollectFlags(data.collect)
   } catch {
     publicFormFields.value = []
-    collectTShirt.value = false
-    collectMeal.value = false
   }
 }
 
@@ -375,6 +375,13 @@ onMounted(async () => {
     reloadPreview()
   }
 })
+
+// keep-alive: Spalten (T-Shirt/Essen) may change while this pane is cached
+onActivated(() => {
+  if (event.value?.id) {
+    void loadPublicFormChecklist()
+  }
+})
 </script>
 
 <template>
@@ -473,7 +480,7 @@ onMounted(async () => {
                   class="pub__form-check pub__form-check--fixed"
                   title="Immer im Formular, solange T-Shirt in der Helferliste aktiv ist"
               >
-                <input type="checkbox" checked disabled>
+                <input type="checkbox" :checked="true" disabled>
                 <span>T-Shirt Größe</span>
               </div>
               <div
@@ -481,7 +488,7 @@ onMounted(async () => {
                   class="pub__form-check pub__form-check--fixed"
                   title="Immer im Formular, solange Essen in der Helferliste aktiv ist"
               >
-                <input type="checkbox" checked disabled>
+                <input type="checkbox" :checked="true" disabled>
                 <span>Essen</span>
               </div>
               <label

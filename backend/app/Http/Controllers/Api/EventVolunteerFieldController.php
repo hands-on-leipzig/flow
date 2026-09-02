@@ -8,6 +8,7 @@ use App\Models\EventVolunteerField;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Support\VolunteerCollectOptions;
 use App\Support\VolunteerRosterCustomFields;
 
 class EventVolunteerFieldController extends Controller
@@ -35,7 +36,10 @@ class EventVolunteerFieldController extends Controller
             return $row;
         });
 
-        return response()->json(['fields' => $payload]);
+        return response()->json([
+            'fields' => $payload,
+            'collect' => VolunteerCollectOptions::forEvent($event),
+        ]);
     }
 
     public function store(Request $request, Event $event): JsonResponse
