@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { formatDateOnly } from '@/utils/dateTimeFormat'
 import QPlanSummaryRow from '@/components/atoms/QPlanSummaryRow.vue'
+import { useGoToEventSchedule } from '@/composables/useGoToEventSchedule'
 
 const props = defineProps({
   events: {
@@ -23,6 +24,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['run-event'])
+
+const { goToEventSchedule } = useGoToEventSchedule()
 
 const expandedKey = ref(null)
 
@@ -68,20 +71,16 @@ function staleNote(event) {
 
 function eventHasError(event) {
   return (event.programs || []).some((p) =>
-    programError(event.event_id, p.first_program),
+    props.programErrors[rowKey(event.event_id, p.first_program)],
   )
 }
 
-function programError(eventId, firstProgram) {
-  return props.programErrors[rowKey(eventId, firstProgram)] || null
+function eventTitle(event) {
+  return `${event.event_name} · E${event.event_id}`
 }
 
-function eventTitle(event) {
-  const parts = [event.event_name, `E${event.event_id}`]
-  if (event.plan_id) {
-    parts.push(`P${event.plan_id}`)
-  }
-  return parts.join(' · ')
+function openPlan(event) {
+  void goToEventSchedule(event.event_id, event.regional_partner_id)
 }
 
 function programEvaluationStatus(program) {
@@ -159,7 +158,20 @@ function eventEvaluationNote(event) {
       <!-- Evaluable: header + sub-rows -->
       <template v-else>
         <div class="py-2 px-1 text-sm bg-[var(--color-bg-muted)]/50 flex items-center gap-2 flex-wrap">
-          <span class="font-medium">{{ eventTitle(event) }}</span>
+          <span class="font-medium inline-flex items-center gap-1">
+            {{ eventTitle(event) }}
+            <template v-if="event.plan_id">
+              · P{{ event.plan_id }}
+              <button
+                type="button"
+                class="text-[var(--color-accent)] hover:opacity-80"
+                title="Ablauf öffnen"
+                @click="openPlan(event)"
+              >
+                🧾
+              </button>
+            </template>
+          </span>
           <span class="text-xs text-[var(--color-text-muted)]">
             {{ formatDateOnly(event.event_date) }}
             <span v-if="event.regional_partner_name"> · {{ event.regional_partner_name }}</span>
@@ -201,8 +213,6 @@ function eventEvaluationNote(event) {
           v-for="program in event.programs"
           :key="rowKey(event.event_id, program.first_program)"
           :plan-id="event.plan_id"
-          :event-id="event.event_id"
-          :regional-partner-id="event.regional_partner_id"
           :program="program"
           :expandable="programIsExpandable(event, program)"
           :expanded="expandedKey === rowKey(event.event_id, program.first_program)"

@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import { useQualityMetrics } from '@/composables/useQualityMetrics'
-import { useGoToEventSchedule } from '@/composables/useGoToEventSchedule'
 import {
   evaluationReasonsTooltip,
   evaluationStatusChipClass,
@@ -14,14 +13,6 @@ const props = defineProps({
   planId: {
     type: Number,
     required: true,
-  },
-  eventId: {
-    type: Number,
-    required: true,
-  },
-  regionalPartnerId: {
-    type: Number,
-    default: null,
   },
   program: {
     type: Object,
@@ -38,8 +29,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['toggle'])
-
-const { goToEventSchedule } = useGoToEventSchedule()
 
 const {
   ampelfarbeQ1Q4,
@@ -64,10 +53,6 @@ function onRowClick() {
   if (!props.expandable) return
   emit('toggle')
 }
-
-function openPlan() {
-  void goToEventSchedule(props.eventId, props.regionalPartnerId)
-}
 </script>
 
 <template>
@@ -83,14 +68,6 @@ function openPlan() {
       <div class="flex items-center gap-2 pl-4">
         <ProgramLogo :program="program.first_program" size="xs" />
         <span class="text-xs text-[var(--color-text-muted)]">{{ program.label }}</span>
-        <button
-          type="button"
-          class="text-[var(--color-accent)] hover:opacity-80"
-          title="Ablauf öffnen"
-          @click.stop="openPlan"
-        >
-          🧾
-        </button>
         <span
           v-if="evaluationLabel"
           class="text-[10px] px-1.5 py-0.5 rounded"

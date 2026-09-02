@@ -68,46 +68,39 @@ class PlanQualityController extends Controller
         foreach ($rows as $row) {
             $planId = $row->plan_id ? (int) $row->plan_id : null;
             $status = 'no_plan';
-            $exploreOn = false;
-            $challengePrograms = [];
             $programs = [];
 
             if ($planId !== null) {
                 $pp = PlanParameter::load($planId);
                 $presence = ProgramPresence::forPlan($planId, $pp);
-                $exploreOn = $presence->exploreOn();
                 $challengePrograms = $presence->challengeShapedOnIds();
 
                 if ($challengePrograms === []) {
-                    $status = 'explore_only';
-                } else {
-                    $status = 'evaluable';
-                    $planObj = (object) [
-                        'last_change' => $row->plan_last_change,
-                    ];
-
-                    foreach ($challengePrograms as $programId) {
-                        $key = $planId.'_'.$programId;
-                        $qplanRow = $qPlansByPlanProgram[$key] ?? null;
-                        $stale = $this->evaluator->isQPlanStale($planObj, $qplanRow);
-                        $staleReason = null;
-                        if ($stale) {
-                            $staleReason = $qplanRow === null ? 'missing' : 'plan_changed';
-                        }
-
-                        $programs[] = [
-                            'first_program' => $programId,
-                            'label' => self::PROGRAM_LABELS[$programId] ?? "Program {$programId}",
-                            'q_plan' => $qplanRow ? $this->serializeQPlan($qplanRow) : null,
-                            'stale' => $stale,
-                            'stale_reason' => $staleReason,
-                        ];
-                    }
+                    continue;
                 }
-            }
 
-            if ($status === 'explore_only') {
-                continue;
+                $status = 'evaluable';
+                $planObj = (object) [
+                    'last_change' => $row->plan_last_change,
+                ];
+
+                foreach ($challengePrograms as $programId) {
+                    $key = $planId.'_'.$programId;
+                    $qplanRow = $qPlansByPlanProgram[$key] ?? null;
+                    $stale = $this->evaluator->isQPlanStale($planObj, $qplanRow);
+                    $staleReason = null;
+                    if ($stale) {
+                        $staleReason = $qplanRow === null ? 'missing' : 'plan_changed';
+                    }
+
+                    $programs[] = [
+                        'first_program' => $programId,
+                        'label' => self::PROGRAM_LABELS[$programId] ?? "Program {$programId}",
+                        'q_plan' => $qplanRow ? $this->serializeQPlan($qplanRow) : null,
+                        'stale' => $stale,
+                        'stale_reason' => $staleReason,
+                    ];
+                }
             }
 
             $events[] = [
@@ -118,8 +111,6 @@ class PlanQualityController extends Controller
                 'regional_partner_id' => $row->regional_partner_id ? (int) $row->regional_partner_id : null,
                 'plan_id' => $planId,
                 'status' => $status,
-                'explore_on' => $exploreOn,
-                'challenge_programs' => $challengePrograms,
                 'programs' => $programs,
             ];
         }
