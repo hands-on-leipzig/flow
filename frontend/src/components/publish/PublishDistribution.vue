@@ -3,7 +3,7 @@
  * Ausgabe → Veröffentlichung
  * Controls left · live iframe of the public page right
  */
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onActivated, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
@@ -12,6 +12,7 @@ import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {apiError} from '@/utils/apiError'
 import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
 
@@ -128,6 +129,65 @@ const {
   setEnabled: setVolunteerDataEntryEnabled,
 } = usePublicVolunteerDataEntry(eventId)
 
+const publicFormFields = ref<Array<{field_key: string; label: string; public_form: boolean}>>([])
+const publicFormFieldsBusy = ref(false)
+const collectTShirt = ref(true)
+const collectMeal = ref(true)
+
+function applyCollectFlags(collect: {t_shirt?: boolean; meal?: boolean} | null | undefined) {
+  // Backend defaults are on; treat missing as on (same as Helferliste).
+  collectTShirt.value = collect?.t_shirt !== false
+  collectMeal.value = collect?.meal !== false
+}
+
+async function loadPublicFormChecklist() {
+  if (!eventId.value) {
+    publicFormFields.value = []
+    collectTShirt.value = true
+    collectMeal.value = true
+    return
+  }
+  try {
+    const {data} = await axios.get(`/events/${eventId.value}/volunteer-fields`)
+    publicFormFields.value = (data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
+      field_key: field.field_key,
+      label: field.label,
+      public_form: !!field.public_form,
+    }))
+    applyCollectFlags(data.collect)
+  } catch {
+    publicFormFields.value = []
+  }
+}
+
+async function savePublicFormChecklist() {
+  if (!eventId.value || publicFormFieldsBusy.value) return
+  publicFormFieldsBusy.value = true
+  try {
+    const keys = publicFormFields.value.filter((f) => f.public_form).map((f) => f.field_key)
+    const {data} = await axios.put(`/events/${eventId.value}/volunteer-fields/public-form`, {
+      field_keys: keys,
+    })
+    publicFormFields.value = (data.fields ?? []).map((field: {field_key: string; label: string; public_form?: boolean}) => ({
+      field_key: field.field_key,
+      label: field.label,
+      public_form: !!field.public_form,
+    }))
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Formular-Felder konnten nicht gespeichert werden.'), 'error')
+    await loadPublicFormChecklist()
+  } finally {
+    publicFormFieldsBusy.value = false
+  }
+}
+
+function togglePublicFormField(fieldKey: string, next: boolean) {
+  const row = publicFormFields.value.find((f) => f.field_key === fieldKey)
+  if (!row || row.public_form === next) return
+  row.public_form = next
+  void savePublicFormChecklist()
+}
+
 const levels = [
   {id: 0, short: 'Basis', name: 'Planung und Anmeldung', hint: 'Datum, Ort, Kontakt, Teams'},
   {id: 1, short: 'Ablauf', name: 'Überblick zum Ablauf', hint: '+ wichtige Zeiten'},
@@ -226,6 +286,9 @@ async function onVolunteerDataEntryToggle(next: boolean) {
   try {
     volunteerDataEntrySaving.value?.show()
     saved = await setVolunteerDataEntryEnabled(next)
+    if (saved && next) {
+      await loadPublicFormChecklist()
+    }
   } catch {
     // toast from composable
   } finally {
@@ -297,7 +360,7 @@ watch(
     () => event.value?.id,
     async (id) => {
       if (!id) return
-      await Promise.all([fetchPublicationLevel(), loadDayAppSettings()])
+      await Promise.all([fetchPublicationLevel(), loadDayAppSettings(), loadPublicFormChecklist()])
       reloadPreview()
     }
 )
@@ -308,8 +371,15 @@ watch(publicUrl, (url, prev) => {
 
 onMounted(async () => {
   if (event.value?.id) {
-    await Promise.all([fetchPublicationLevel(), loadDayAppSettings()])
+    await Promise.all([fetchPublicationLevel(), loadDayAppSettings(), loadPublicFormChecklist()])
     reloadPreview()
+  }
+})
+
+// keep-alive: Spalten (T-Shirt/Essen) may change while this pane is cached
+onActivated(() => {
+  if (event.value?.id) {
+    void loadPublicFormChecklist()
   }
 })
 </script>
@@ -393,12 +463,48 @@ onMounted(async () => {
               />
             </div>
             <p class="glass-settings-hint !mb-0">
-              Dateneingabe durch Helfer:innen. Die Felder dafür werden in
+              Helfer:innen können ihre Daten eingeben.<br>
+              Hier wird festgelegt, welche Felder erscheinen. Welche Felder es überhaupt gibt, kann unter
               <RouterLink to="/plan/volunteers/roster" class="pub__helper-link">
                 Helfer:innen → Helfer:innenliste
               </RouterLink>
-              festlegt.
+              festgelegt werden.
             </p>
+            <div
+                v-if="volunteerDataEntryEnabled"
+                class="pub__form-checklist"
+            >
+              <p class="pub__form-checklist-title">Felder im Formular</p>
+              <div
+                  v-if="collectTShirt"
+                  class="pub__form-check pub__form-check--fixed"
+                  title="Immer im Formular, solange T-Shirt in der Helferliste aktiv ist"
+              >
+                <input type="checkbox" :checked="true" disabled>
+                <span>T-Shirt Größe</span>
+              </div>
+              <div
+                  v-if="collectMeal"
+                  class="pub__form-check pub__form-check--fixed"
+                  title="Immer im Formular, solange Essen in der Helferliste aktiv ist"
+              >
+                <input type="checkbox" :checked="true" disabled>
+                <span>Essen</span>
+              </div>
+              <label
+                  v-for="field in publicFormFields"
+                  :key="field.field_key"
+                  class="pub__form-check"
+              >
+                <input
+                    type="checkbox"
+                    :checked="field.public_form"
+                    :disabled="publicFormFieldsBusy"
+                    @change="togglePublicFormField(field.field_key, ($event.target as HTMLInputElement).checked)"
+                >
+                <span>{{ field.label }}</span>
+              </label>
+            </div>
             <p
                 v-if="volunteerDataEntryEnabled && volunteerDataEntryHiddenByLevel"
                 class="glass-settings-hint !mb-0 pub__helper-warn"
@@ -675,6 +781,40 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+.pub__form-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--liquid-border-soft);
+}
+
+.pub__form-checklist-title {
+  margin: 0 0 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.pub__form-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.pub__form-check--fixed {
+  cursor: default;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+.pub__form-check--fixed input {
+  cursor: not-allowed;
 }
 
 .pub__app-row {

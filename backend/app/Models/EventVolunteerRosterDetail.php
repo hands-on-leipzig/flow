@@ -17,7 +17,6 @@ class EventVolunteerRosterDetail extends Model
         't_shirt_size',
         'meal',
         'photo_consent',
-        'notes',
         'updated_at',
     ];
 

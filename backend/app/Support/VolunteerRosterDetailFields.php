@@ -10,36 +10,22 @@ class VolunteerRosterDetailFields
 
     public const T_SHIRT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
 
-    /** @deprecated Use event-specific meal options via VolunteerMealOptions */
-    public const MEALS = ['standard', 'vegetarisch', 'vegan', 'keine'];
-
     public const T_SHIRT_CUT_LABELS = [
         'maenner' => 'Männer',
         'frauen' => 'Frauen',
     ];
 
-    /** @deprecated Use event-specific meal options via VolunteerMealOptions */
-    public const MEAL_LABELS = [
-        'standard' => 'Standard',
-        'vegetarisch' => 'Vegetarisch',
-        'vegan' => 'Vegan',
-        'keine' => 'Keine',
-    ];
-
     /**
      * @param  array<string, mixed>  $input
-     * @param  list<string>|null  $allowedMeals
+     * @param  list<string>  $allowedMeals
      * @return array{ok: true, data: array<string, mixed>}|array{ok: false, error: string}
      */
-    public static function validate(array $input, ?array $allowedMeals = null): array
+    public static function validate(array $input, array $allowedMeals): array
     {
         $cut = self::nullableString($input, 't_shirt_cut');
         $size = self::nullableString($input, 't_shirt_size');
         $meal = self::nullableString($input, 'meal');
         $photoConsent = self::nullableBoolean($input, 'photo_consent');
-        $notes = array_key_exists('notes', $input)
-            ? ($input['notes'] === null || $input['notes'] === '' ? null : trim((string) $input['notes']))
-            : null;
 
         if ($cut !== null && ! in_array($cut, self::T_SHIRT_CUTS, true)) {
             return ['ok' => false, 'error' => 'Ungültiger T-Shirt-Schnitt.'];
@@ -51,12 +37,8 @@ class VolunteerRosterDetailFields
             return ['ok' => false, 'error' => 'Bitte Schnitt und Größe gemeinsam angeben oder leer lassen.'];
         }
 
-        $mealValues = $allowedMeals ?? self::MEALS;
-        if ($meal !== null && ! in_array($meal, $mealValues, true)) {
+        if ($meal !== null && ! in_array($meal, $allowedMeals, true)) {
             return ['ok' => false, 'error' => 'Ungültige Essenswahl.'];
-        }
-        if ($notes !== null && mb_strlen($notes) > 1000) {
-            return ['ok' => false, 'error' => 'Bemerkungen dürfen maximal 1000 Zeichen haben.'];
         }
 
         return [
@@ -66,7 +48,6 @@ class VolunteerRosterDetailFields
                 't_shirt_size' => $size,
                 'meal' => $meal,
                 'photo_consent' => $photoConsent,
-                'notes' => $notes,
             ],
         ];
     }
@@ -82,7 +63,6 @@ class VolunteerRosterDetailFields
                 't_shirt_size' => null,
                 'meal' => null,
                 'photo_consent' => null,
-                'notes' => null,
                 'updated_at' => null,
             ];
         }
@@ -92,7 +72,6 @@ class VolunteerRosterDetailFields
             't_shirt_size' => $detail->t_shirt_size,
             'meal' => $detail->meal,
             'photo_consent' => $detail->photo_consent === null ? null : (bool) $detail->photo_consent,
-            'notes' => $detail->notes,
             'updated_at' => optional($detail->updated_at)?->toIso8601String(),
         ];
     }
@@ -111,7 +90,7 @@ class VolunteerRosterDetailFields
             return '';
         }
 
-        return $labelMap[$meal] ?? self::MEAL_LABELS[$meal] ?? $meal;
+        return $labelMap[$meal] ?? $meal;
     }
 
     public static function exportPhotoConsentLabel(?bool $consent): string

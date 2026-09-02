@@ -2,7 +2,6 @@
 import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
-import {ROSTER_BUILTIN_LABELS} from '@/volunteers/columns/rosterColumns'
 
 export type VolunteerFieldDefinition = {
   id: number
@@ -11,6 +10,7 @@ export type VolunteerFieldDefinition = {
   type: 'text' | 'number' | 'boolean' | 'select'
   options: Array<{value: string; label: string}>
   sequence: number
+  usage_count?: number
 }
 
 const FIELD_TYPES = [
@@ -31,12 +31,16 @@ const emit = defineEmits<{
 }>()
 
 const fields = ref<VolunteerFieldDefinition[]>([])
+const collect = ref({t_shirt: true, meal: true})
+const usage = ref({t_shirt: 0, meal: 0})
 const loading = ref(false)
 const busyFieldId = ref<number | null>(null)
 const adding = ref(false)
 const deleting = ref(false)
+const collectBusy = ref(false)
 const error = ref('')
 const deleteTarget = ref<VolunteerFieldDefinition | null>(null)
+const disableTarget = ref<'t_shirt' | 'meal' | null>(null)
 
 const draft = ref({
   label: '',
@@ -44,7 +48,7 @@ const draft = ref({
   optionsText: '',
 })
 
-const isBusy = computed(() => adding.value || deleting.value || busyFieldId.value !== null)
+const isBusy = computed(() => adding.value || deleting.value || busyFieldId.value !== null || collectBusy.value)
 
 const draftOptions = computed(() => parseOptions(draft.value.optionsText))
 
@@ -52,6 +56,32 @@ const canAdd = computed(() => {
   if (adding.value || !draft.value.label.trim()) return false
   if (draft.value.type === 'select' && draftOptions.value.length === 0) return false
   return true
+})
+
+const deleteConfirmMessage = computed(() => {
+  const field = deleteTarget.value
+  if (!field) return ''
+  const n = Number(field.usage_count ?? 0)
+  if (n > 0) {
+    return `„${field.label}“ löschen? ${n} Einträge werden gelöscht.`
+  }
+  return `„${field.label}“ und alle Werte werden entfernt.`
+})
+
+const disableConfirmMessage = computed(() => {
+  if (disableTarget.value === 't_shirt') {
+    const n = usage.value.t_shirt
+    return n > 0
+      ? `T-Shirt abschalten? ${n} Einträge werden geleert.`
+      : 'T-Shirt-Spalte wirklich abschalten?'
+  }
+  if (disableTarget.value === 'meal') {
+    const n = usage.value.meal
+    return n > 0
+      ? `Essen abschalten? ${n} Einträge werden geleert.`
+      : 'Essens-Spalte wirklich abschalten?'
+  }
+  return ''
 })
 
 function optionLinesFromField(field: VolunteerFieldDefinition) {
@@ -63,8 +93,19 @@ async function loadFields() {
   loading.value = true
   error.value = ''
   try {
-    const {data} = await axios.get(`/events/${props.eventId}/volunteer-fields`)
-    fields.value = data.fields ?? []
+    const [fieldsRes, collectRes] = await Promise.all([
+      axios.get(`/events/${props.eventId}/volunteer-fields`),
+      axios.get(`/events/${props.eventId}/volunteer-collect`),
+    ])
+    fields.value = fieldsRes.data.fields ?? []
+    collect.value = {
+      t_shirt: !!collectRes.data.collect?.t_shirt,
+      meal: !!collectRes.data.collect?.meal,
+    }
+    usage.value = {
+      t_shirt: Number(collectRes.data.usage?.t_shirt ?? 0),
+      meal: Number(collectRes.data.usage?.meal ?? 0),
+    }
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Spalten konnten nicht geladen werden.'
   } finally {
@@ -85,7 +126,7 @@ function parseOptions(text: string) {
 }
 
 function requestClose() {
-  if (deleteTarget.value || isBusy.value) return
+  if (deleteTarget.value || disableTarget.value || isBusy.value) return
   emit('close')
 }
 
@@ -94,6 +135,47 @@ function onDialogKeydown(event: KeyboardEvent) {
     event.preventDefault()
     requestClose()
   }
+}
+
+function onCollectClick(key: 't_shirt' | 'meal', event: MouseEvent) {
+  event.preventDefault()
+  if (collectBusy.value) return
+  if (collect.value[key]) {
+    disableTarget.value = key
+    return
+  }
+  void setCollect(key, true)
+}
+
+async function setCollect(key: 't_shirt' | 'meal', enabled: boolean) {
+  if (!props.eventId || collectBusy.value) return
+  collectBusy.value = true
+  error.value = ''
+  try {
+    const {data} = await axios.patch(`/events/${props.eventId}/volunteer-collect`, {[key]: enabled})
+    collect.value = {
+      t_shirt: !!data.collect?.t_shirt,
+      meal: !!data.collect?.meal,
+    }
+    usage.value = {
+      t_shirt: Number(data.usage?.t_shirt ?? 0),
+      meal: Number(data.usage?.meal ?? 0),
+    }
+    emit('changed')
+  } catch (e: any) {
+    error.value = e?.response?.data?.error || 'Einstellung konnte nicht gespeichert werden.'
+    // reload to sync checkbox state
+    await loadFields()
+  } finally {
+    collectBusy.value = false
+    disableTarget.value = null
+  }
+}
+
+async function confirmDisableCollect() {
+  const key = disableTarget.value
+  if (!key) return
+  await setCollect(key, false)
 }
 
 async function addField() {
@@ -176,6 +258,7 @@ watch(
     if (open) {
       resetDraft()
       deleteTarget.value = null
+      disableTarget.value = null
       void loadFields()
     }
   },
@@ -201,11 +284,32 @@ watch(
         <header class="vol-columns-dialog__header">
           <h2 id="vol-columns-dialog-title" class="vol-columns-dialog__title">Spalten verwalten</h2>
           <p class="vol-columns-dialog__hint">
-            Feste Spalten bleiben unverändert. Eigene Spalten gelten nur für diese Veranstaltung.
+            Name, Rolle und Foto bleiben. T-Shirt und Essen könnt ihr abwählen (dabei werden vorhandene Angaben geleert).
+            Eigene Spalten gelten nur für diese Veranstaltung.
           </p>
           <ul class="vol-columns-dialog__builtins" aria-label="Feste Spalten">
-            <li v-for="label in ROSTER_BUILTIN_LABELS" :key="label" class="vol-columns-dialog__builtin">
-              {{ label }}
+            <li class="vol-columns-dialog__builtin">Foto Erlaubnis</li>
+            <li class="vol-columns-dialog__builtin vol-columns-dialog__builtin--toggle">
+              <label class="vol-columns-dialog__check">
+                <input
+                    type="checkbox"
+                    :checked="collect.t_shirt"
+                    :disabled="collectBusy"
+                    @click="onCollectClick('t_shirt', $event)"
+                >
+                <span>T-Shirt Größe</span>
+              </label>
+            </li>
+            <li class="vol-columns-dialog__builtin vol-columns-dialog__builtin--toggle">
+              <label class="vol-columns-dialog__check">
+                <input
+                    type="checkbox"
+                    :checked="collect.meal"
+                    :disabled="collectBusy"
+                    @click="onCollectClick('meal', $event)"
+                >
+                <span>Essen</span>
+              </label>
             </li>
           </ul>
         </header>
@@ -297,6 +401,11 @@ watch(
                     :disabled="adding"
                 />
               </label>
+              <div class="vol-columns-add__actions">
+                <button type="button" class="glass-btn-accent" :disabled="!canAdd" @click="addField">
+                  Hinzufügen
+                </button>
+              </div>
             </div>
           </section>
         </div>
@@ -304,9 +413,6 @@ watch(
         <footer class="vol-columns-dialog__footer">
           <button type="button" class="glass-btn-secondary" @click="requestClose">
             Schließen
-          </button>
-          <button type="button" class="glass-btn-accent" :disabled="!canAdd" @click="addField">
-            Hinzufügen
           </button>
         </footer>
       </div>
@@ -319,12 +425,27 @@ watch(
         scrim-class="z-[110]"
         type="warning"
         title="Spalte löschen?"
-        :message="deleteTarget ? `„${deleteTarget.label}“ und alle Werte werden entfernt.` : ''"
+        :message="deleteConfirmMessage"
         confirm-text="Löschen"
         cancel-text="Abbrechen"
         :disable-confirm-button="deleting"
         @confirm="confirmDeleteField"
         @cancel="deleteTarget = null"
+    />
+  </Teleport>
+
+  <Teleport to="body">
+    <ConfirmationModal
+        :show="!!disableTarget"
+        scrim-class="z-[110]"
+        type="warning"
+        title="Spalte abschalten?"
+        :message="disableConfirmMessage"
+        confirm-text="Abschalten"
+        cancel-text="Abbrechen"
+        :disable-confirm-button="collectBusy"
+        @confirm="confirmDisableCollect"
+        @cancel="disableTarget = null"
     />
   </Teleport>
 </template>
@@ -373,6 +494,17 @@ watch(
   background: var(--liquid-tile-bg-inner);
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+.vol-columns-dialog__builtin--toggle {
+  padding: 0.15rem 0.45rem;
+}
+
+.vol-columns-dialog__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
 }
 
 .vol-columns-dialog__body {
@@ -476,6 +608,12 @@ watch(
 .vol-columns-add__options {
   width: 100%;
   resize: vertical;
+}
+
+.vol-columns-add__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.15rem;
 }
 
 .vol-columns-dialog__footer {

@@ -11,6 +11,7 @@ use App\Models\EventVolunteerRosterDetail;
 use App\Models\VolunteerPerson;
 use App\Services\SeasonService;
 use App\Support\GermanMobileNumber;
+use App\Support\VolunteerCollectOptions;
 use App\Support\VolunteerMealOptions;
 use App\Support\VolunteerRosterColumns;
 use App\Support\VolunteerRosterCustomFields;
@@ -32,17 +33,24 @@ class VolunteerPublicFormController extends Controller
         ['event' => $event, 'person' => $person, 'roster' => $roster] = $this->resolveRosterMember($slug, $email);
         $roster->load(['detail', 'fieldValues.field']);
 
-        $customFields = VolunteerRosterColumns::customFieldsForEvent($event->id);
+        $writableCustomFields = $this->writableCustomFieldsForEvent($event->id);
         $mealOptions = VolunteerMealOptions::bootstrapForEvent($event->id);
         $columns = collect(VolunteerRosterColumns::tablePayloadForEvent($event->id))
             ->reject(fn (array $column) => in_array($column['key'], ['name', 'role'], true))
+            ->filter(function (array $column) {
+                if (($column['kind'] ?? '') === 'custom') {
+                    return (bool) ($column['public_form'] ?? false);
+                }
+
+                return true;
+            })
             ->values()
             ->all();
 
         return response()->json([
             'person' => $this->serializePerson($person),
             'detail' => VolunteerRosterDetailFields::serialize($roster->detail),
-            'custom' => $this->customValuesForRow($roster, $customFields),
+            'custom' => VolunteerRosterCustomFields::apiValuesForRow($roster, $writableCustomFields),
             'meal_options' => $mealOptions,
             'fields' => $columns,
         ]);
@@ -76,6 +84,13 @@ class VolunteerPublicFormController extends Controller
             return response()->json(['error' => 'Ungültiger Name.'], 422);
         }
 
+        $organization = array_key_exists('organization', $personInput)
+            ? $this->nullableTrim($personInput['organization'])
+            : $person->organization;
+        if ($organization !== null && mb_strlen($organization) > 255) {
+            return response()->json(['error' => 'Organisation darf maximal 255 Zeichen haben.'], 422);
+        }
+
         $mobileResult = GermanMobileNumber::validateAndNormalize(
             array_key_exists('mobile', $personInput) ? $personInput['mobile'] : $person->mobile
         );
@@ -95,18 +110,27 @@ class VolunteerPublicFormController extends Controller
             $mealOptions = VolunteerMealOptions::optionsForEvent($event->id);
         }
 
+        $collectShirt = VolunteerCollectOptions::collectsTShirt($event);
+        $collectMeal = VolunteerCollectOptions::collectsMeal($event);
+
+        if (! $collectShirt && (array_key_exists('t_shirt_cut', $detailInput) || array_key_exists('t_shirt_size', $detailInput))) {
+            return response()->json(['error' => 'T-Shirt-Angaben sind für diese Veranstaltung deaktiviert.'], 422);
+        }
+        if (! $collectMeal && array_key_exists('meal', $detailInput)) {
+            return response()->json(['error' => 'Essenswahl ist für diese Veranstaltung deaktiviert.'], 422);
+        }
+
         $detailPayload = [
-            't_shirt_cut' => array_key_exists('t_shirt_cut', $detailInput)
-                ? $detailInput['t_shirt_cut']
-                : $existingDetail?->t_shirt_cut,
-            't_shirt_size' => array_key_exists('t_shirt_size', $detailInput)
-                ? $detailInput['t_shirt_size']
-                : $existingDetail?->t_shirt_size,
-            'meal' => array_key_exists('meal', $detailInput)
-                ? $detailInput['meal']
-                : $existingDetail?->meal,
+            't_shirt_cut' => $collectShirt
+                ? (array_key_exists('t_shirt_cut', $detailInput) ? $detailInput['t_shirt_cut'] : $existingDetail?->t_shirt_cut)
+                : null,
+            't_shirt_size' => $collectShirt
+                ? (array_key_exists('t_shirt_size', $detailInput) ? $detailInput['t_shirt_size'] : $existingDetail?->t_shirt_size)
+                : null,
+            'meal' => $collectMeal
+                ? (array_key_exists('meal', $detailInput) ? $detailInput['meal'] : $existingDetail?->meal)
+                : null,
             'photo_consent' => $existingDetail?->photo_consent,
-            'notes' => $existingDetail?->notes,
         ];
 
         $detailValidation = VolunteerRosterDetailFields::validate(
@@ -154,6 +178,7 @@ class VolunteerPublicFormController extends Controller
             $roster,
             $firstName,
             $lastName,
+            $organization,
             $mobileResult,
             $detailValidation,
             $validatedCustom,
@@ -162,6 +187,7 @@ class VolunteerPublicFormController extends Controller
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'mobile' => $mobileResult['normalized'],
+                'organization' => $organization,
             ]);
             $person->save();
 
@@ -203,7 +229,7 @@ class VolunteerPublicFormController extends Controller
         return response()->json([
             'person' => $this->serializePerson($person),
             'detail' => VolunteerRosterDetailFields::serialize($roster->detail),
-            'custom' => $this->customValuesForRow($roster, $customFields),
+            'custom' => VolunteerRosterCustomFields::apiValuesForRow($roster, $customFields),
         ]);
     }
 
@@ -258,7 +284,7 @@ class VolunteerPublicFormController extends Controller
     private function writableCustomFieldsForEvent(int $eventId): Collection
     {
         $publicFormKeys = collect(VolunteerRosterColumns::tablePayloadForEvent($eventId))
-            ->filter(fn (array $column) => ($column['kind'] ?? '') === 'custom' && ($column['public_form'] ?? true))
+            ->filter(fn (array $column) => ($column['kind'] ?? '') === 'custom' && (bool) ($column['public_form'] ?? false))
             ->pluck('field_key')
             ->filter()
             ->all();
@@ -269,7 +295,7 @@ class VolunteerPublicFormController extends Controller
     }
 
     /**
-     * @return array{first_name: string, last_name: string, mobile: string|null}
+     * @return array{first_name: string, last_name: string, mobile: string|null, organization: string|null}
      */
     private function serializePerson(VolunteerPerson $person): array
     {
@@ -277,7 +303,19 @@ class VolunteerPublicFormController extends Controller
             'first_name' => $person->first_name,
             'last_name' => $person->last_name,
             'mobile' => $person->mobile,
+            'organization' => $person->organization,
         ];
+    }
+
+    private function nullableTrim(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 
     private function eventBySlug(string $slug): Event
@@ -292,22 +330,5 @@ class VolunteerPublicFormController extends Controller
         }
 
         return $event;
-    }
-
-    /**
-     * @param  Collection<int, EventVolunteerField>  $customFields
-     * @return array<string, mixed>
-     */
-    private function customValuesForRow(EventVolunteerRoster $row, Collection $customFields): array
-    {
-        $valuesByFieldId = $row->fieldValues->keyBy('event_volunteer_field');
-        $payload = [];
-
-        foreach ($customFields as $field) {
-            $stored = $valuesByFieldId->get($field->id)?->value;
-            $payload[$field->field_key] = VolunteerRosterCustomFields::apiValue($field, $stored);
-        }
-
-        return $payload;
     }
 }

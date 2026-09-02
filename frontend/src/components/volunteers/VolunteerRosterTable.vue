@@ -115,7 +115,6 @@ async function saveDetail(entry: RosterEntry) {
         t_shirt_size: detail.t_shirt_size,
         meal: detail.meal,
         photo_consent: detail.photo_consent,
-        notes: detail.notes,
       },
     )
     entry.detail = data.detail ?? detail
@@ -132,10 +131,10 @@ async function saveCustom(entry: RosterEntry, fieldKey: string, value: string | 
   try {
     const {data} = await axios.patch(
       `/events/${props.eventId}/volunteer-roster/${entry.person.id}/custom`,
-      {field_key: fieldKey, value},
+      {fields: {[fieldKey]: value}},
     )
     if (data.custom) {
-      entry.custom = {...entryCustom(entry), ...data.custom}
+      entry.custom = {...data.custom}
     }
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')

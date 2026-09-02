@@ -27,6 +27,7 @@ class VolunteerColumnsTest extends TestCase
             $table->string('type', 20);
             $table->json('options')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
+            $table->boolean('public_form')->default(false);
             $table->timestamps();
 
             $table->unique(['event', 'field_key'], 'event_volunteer_field_event_key_unique');

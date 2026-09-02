@@ -136,7 +136,6 @@ class VolunteerPublicFormTest extends TestCase
             't_shirt_size' => 'L',
             'meal' => 'standard',
             'photo_consent' => null,
-            'notes' => 'Hinweis',
             'updated_at' => now(),
         ]);
 
@@ -151,9 +150,66 @@ class VolunteerPublicFormTest extends TestCase
         $this->assertSame('Max', $payload['person']['first_name']);
         $this->assertSame('standard', $payload['detail']['meal']);
         $this->assertNull($payload['detail']['photo_consent']);
-        $this->assertSame('Hinweis', $payload['detail']['notes']);
+        $this->assertArrayNotHasKey('notes', $payload['detail']);
+        $this->assertArrayHasKey('organization', $payload['person']);
         $this->assertNotEmpty($payload['meal_options']);
         $this->assertNotEmpty($payload['fields']);
+    }
+
+    public function test_lookup_custom_only_includes_public_form_fields(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        DB::table('event_volunteer_field')->insert([
+            [
+                'id' => 1,
+                'event' => 1,
+                'field_key' => 'on_form',
+                'label' => 'On Form',
+                'type' => 'text',
+                'options' => null,
+                'sequence' => 1,
+                'public_form' => true,
+            ],
+            [
+                'id' => 2,
+                'event' => 1,
+                'field_key' => 'internal_only',
+                'label' => 'Internal',
+                'type' => 'text',
+                'options' => null,
+                'sequence' => 2,
+                'public_form' => false,
+            ],
+        ]);
+        DB::table('event_volunteer_field_value')->insert([
+            [
+                'event_volunteer_roster' => 100,
+                'event_volunteer_field' => 1,
+                'value' => 'visible',
+                'updated_at' => now(),
+            ],
+            [
+                'event_volunteer_roster' => 100,
+                'event_volunteer_field' => 2,
+                'value' => 'hidden',
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $controller = app(VolunteerPublicFormController::class);
+        $response = $controller->lookup(
+            Request::create('/api/public-volunteer-form/test-event/lookup', 'GET', ['email' => 'max@example.com']),
+            'test-event'
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $payload = $response->getData(true);
+        $this->assertSame('visible', $payload['custom']['on_form']);
+        $this->assertArrayNotHasKey('internal_only', $payload['custom']);
+        $fieldKeys = collect($payload['fields'])->pluck('field_key')->filter()->all();
+        $this->assertContains('on_form', $fieldKeys);
+        $this->assertNotContains('internal_only', $fieldKeys);
     }
 
     public function test_save_persists_person_detail_and_custom(): void
@@ -168,6 +224,7 @@ class VolunteerPublicFormTest extends TestCase
             'type' => 'boolean',
             'options' => null,
             'sequence' => 1,
+            'public_form' => true,
         ]);
 
         $controller = app(VolunteerPublicFormController::class);
@@ -178,6 +235,7 @@ class VolunteerPublicFormTest extends TestCase
                     'first_name' => 'Maximilian',
                     'last_name' => 'Muster',
                     'mobile' => '+491234567890',
+                    'organization' => 'Robo Club',
                 ],
                 'detail' => [
                     't_shirt_cut' => 'maenner',
@@ -194,11 +252,13 @@ class VolunteerPublicFormTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $payload = $response->getData(true);
         $this->assertSame('Maximilian', $payload['person']['first_name']);
+        $this->assertSame('Robo Club', $payload['person']['organization']);
         $this->assertSame('vegetarisch', $payload['detail']['meal']);
-        $this->assertSame('Hinweis', $payload['detail']['notes']);
+        $this->assertArrayNotHasKey('notes', $payload['detail']);
         $this->assertTrue($payload['custom']['vegan']);
 
         $this->assertSame('Maximilian', DB::table('volunteer_person')->where('id', 10)->value('first_name'));
+        $this->assertSame('Robo Club', DB::table('volunteer_person')->where('id', 10)->value('organization'));
         $this->assertSame('vegetarisch', DB::table('event_volunteer_roster_detail')->where('event_volunteer_roster', 100)->value('meal'));
         $this->assertSame('1', DB::table('event_volunteer_field_value')->where('event_volunteer_roster', 100)->value('value'));
     }
@@ -265,7 +325,6 @@ class VolunteerPublicFormTest extends TestCase
                     't_shirt_size' => 'L',
                     'meal' => 'standard',
                     'photo_consent' => true,
-                    'notes' => 'Hinweis',
                 ],
                 'custom' => [],
             ]),
@@ -276,39 +335,6 @@ class VolunteerPublicFormTest extends TestCase
         $this->assertNull($response->getData(true)['detail']['photo_consent']);
         $this->assertNull(
             DB::table('event_volunteer_roster_detail')->where('event_volunteer_roster', 100)->value('photo_consent')
-        );
-    }
-
-    public function test_save_does_not_update_notes_from_request(): void
-    {
-        $this->seedEvent(['public_volunteer_data_entry' => true]);
-        $this->seedRosterMember(['notes' => 'Bestehend']);
-        $controller = app(VolunteerPublicFormController::class);
-
-        $response = $controller->save(
-            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
-                'email' => 'max@example.com',
-                'person' => [
-                    'first_name' => 'Max',
-                    'last_name' => 'Muster',
-                    'mobile' => '+491701234567',
-                ],
-                'detail' => [
-                    't_shirt_cut' => 'maenner',
-                    't_shirt_size' => 'L',
-                    'meal' => 'standard',
-                    'notes' => 'Neue Notiz',
-                ],
-                'custom' => [],
-            ]),
-            'test-event'
-        );
-
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('Bestehend', $response->getData(true)['detail']['notes']);
-        $this->assertSame(
-            'Bestehend',
-            DB::table('event_volunteer_roster_detail')->where('event_volunteer_roster', 100)->value('notes')
         );
     }
 
@@ -330,7 +356,6 @@ class VolunteerPublicFormTest extends TestCase
                     't_shirt_cut' => 'maenner',
                     't_shirt_size' => 'L',
                     'meal' => 'invalid-meal',
-                    'notes' => null,
                 ],
                 'custom' => [],
             ]),
@@ -358,7 +383,6 @@ class VolunteerPublicFormTest extends TestCase
                     't_shirt_cut' => 'maenner',
                     't_shirt_size' => 'L',
                     'meal' => 'standard',
-                    'notes' => null,
                 ],
                 'custom' => [
                     'unknown_field' => 'x',
@@ -368,6 +392,64 @@ class VolunteerPublicFormTest extends TestCase
         );
 
         $this->assertSame(422, $response->getStatusCode());
+    }
+
+    public function test_save_returns_422_when_collect_flags_off(): void
+    {
+        $this->seedEvent([
+            'public_volunteer_data_entry' => true,
+            'volunteer_collect_t_shirt' => false,
+            'volunteer_collect_meal' => false,
+        ]);
+        $this->seedRosterMember([
+            't_shirt_cut' => null,
+            't_shirt_size' => null,
+            'meal' => null,
+        ]);
+        $controller = app(VolunteerPublicFormController::class);
+
+        $shirtRejected = $controller->save(
+            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+                'email' => 'max@example.com',
+                'person' => [
+                    'first_name' => 'Max',
+                    'last_name' => 'Muster',
+                    'mobile' => '+491701234567',
+                ],
+                'detail' => [
+                    't_shirt_cut' => 'maenner',
+                    't_shirt_size' => 'L',
+                ],
+                'custom' => [],
+            ]),
+            'test-event'
+        );
+        $this->assertSame(422, $shirtRejected->getStatusCode());
+        $this->assertSame(
+            'T-Shirt-Angaben sind für diese Veranstaltung deaktiviert.',
+            $shirtRejected->getData(true)['error']
+        );
+
+        $mealRejected = $controller->save(
+            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+                'email' => 'max@example.com',
+                'person' => [
+                    'first_name' => 'Max',
+                    'last_name' => 'Muster',
+                    'mobile' => '+491701234567',
+                ],
+                'detail' => [
+                    'meal' => 'standard',
+                ],
+                'custom' => [],
+            ]),
+            'test-event'
+        );
+        $this->assertSame(422, $mealRejected->getStatusCode());
+        $this->assertSame(
+            'Essenswahl ist für diese Veranstaltung deaktiviert.',
+            $mealRejected->getData(true)['error']
+        );
     }
 
     /**
@@ -401,7 +483,6 @@ class VolunteerPublicFormTest extends TestCase
             't_shirt_size' => 'L',
             'meal' => 'standard',
             'photo_consent' => null,
-            'notes' => 'Hinweis',
             'updated_at' => now(),
         ], $detailOverrides));
     }
@@ -489,6 +570,8 @@ class VolunteerPublicFormTest extends TestCase
                 $table->string('link')->nullable();
                 $table->boolean('public_helper_search')->default(false);
                 $table->boolean('public_volunteer_data_entry')->default(false);
+                $table->boolean('volunteer_collect_t_shirt')->default(true);
+                $table->boolean('volunteer_collect_meal')->default(true);
             });
         }
 
@@ -531,7 +614,6 @@ class VolunteerPublicFormTest extends TestCase
                 $table->string('t_shirt_size', 10)->nullable();
                 $table->string('meal', 30)->nullable();
                 $table->boolean('photo_consent')->nullable();
-                $table->text('notes')->nullable();
                 $table->timestamp('updated_at')->nullable();
                 $table->unique('event_volunteer_roster');
             });
@@ -557,6 +639,7 @@ class VolunteerPublicFormTest extends TestCase
                 $table->string('type', 20);
                 $table->json('options')->nullable();
                 $table->unsignedSmallInteger('sequence')->default(0);
+                $table->boolean('public_form')->default(false);
             });
         }
 

@@ -8,6 +8,7 @@ use App\Models\EventVolunteerField;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Support\VolunteerCollectOptions;
 use App\Support\VolunteerRosterCustomFields;
 
 class EventVolunteerFieldController extends Controller
@@ -18,10 +19,27 @@ class EventVolunteerFieldController extends Controller
             ->where('event', $event->id)
             ->orderBy('sequence')
             ->orderBy('id')
-            ->get()
-            ->map(fn (EventVolunteerField $field) => VolunteerRosterCustomFields::serializeField($field));
+            ->get();
 
-        return response()->json(['fields' => $fields]);
+        $usageByFieldId = DB::table('event_volunteer_field_value')
+            ->whereIn('event_volunteer_field', $fields->pluck('id'))
+            ->whereNotNull('value')
+            ->where('value', '!=', '')
+            ->select('event_volunteer_field', DB::raw('count(*) as usage_count'))
+            ->groupBy('event_volunteer_field')
+            ->pluck('usage_count', 'event_volunteer_field');
+
+        $payload = $fields->map(function (EventVolunteerField $field) use ($usageByFieldId) {
+            $row = VolunteerRosterCustomFields::serializeField($field);
+            $row['usage_count'] = (int) ($usageByFieldId[$field->id] ?? 0);
+
+            return $row;
+        });
+
+        return response()->json([
+            'fields' => $payload,
+            'collect' => VolunteerCollectOptions::forEvent($event),
+        ]);
     }
 
     public function store(Request $request, Event $event): JsonResponse
@@ -49,6 +67,7 @@ class EventVolunteerFieldController extends Controller
             'type' => $validation['data']['type'],
             'options' => $validation['data']['options'],
             'sequence' => $sequence,
+            'public_form' => false,
         ]);
 
         return response()->json([
@@ -60,6 +79,12 @@ class EventVolunteerFieldController extends Controller
     {
         if ((int) $field->event !== (int) $event->id) {
             return response()->json(['error' => 'Spalte gehört nicht zu dieser Veranstaltung.'], 404);
+        }
+
+        if ($request->has('type') && trim((string) $request->input('type')) !== (string) $field->type) {
+            return response()->json([
+                'error' => 'Der Feldtyp kann nach dem Anlegen nicht mehr geändert werden.',
+            ], 422);
         }
 
         $validation = VolunteerRosterCustomFields::validateDefinition($request->all(), $field);
@@ -104,6 +129,46 @@ class EventVolunteerFieldController extends Controller
         });
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Checklist save: which custom fields appear on the public form.
+     */
+    public function replacePublicForm(Request $request, Event $event): JsonResponse
+    {
+        $validated = $request->validate([
+            'field_keys' => 'present|array',
+            'field_keys.*' => 'string|max:64',
+        ]);
+
+        $keys = array_values(array_unique(array_map('strval', $validated['field_keys'])));
+        $fields = EventVolunteerField::query()->where('event', $event->id)->get();
+        $known = $fields->pluck('field_key')->all();
+
+        foreach ($keys as $key) {
+            if (! in_array($key, $known, true)) {
+                return response()->json(['error' => 'Unbekanntes Zusatzfeld.'], 422);
+            }
+        }
+
+        DB::transaction(function () use ($fields, $keys) {
+            foreach ($fields as $field) {
+                $next = in_array($field->field_key, $keys, true);
+                if ((bool) $field->public_form !== $next) {
+                    $field->public_form = $next;
+                    $field->save();
+                }
+            }
+        });
+
+        $serialized = EventVolunteerField::query()
+            ->where('event', $event->id)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (EventVolunteerField $field) => VolunteerRosterCustomFields::serializeField($field));
+
+        return response()->json(['fields' => $serialized]);
     }
 
     private function swapSequence(int $eventId, EventVolunteerField $field, int $direction): void

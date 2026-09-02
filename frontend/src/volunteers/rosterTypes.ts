@@ -5,7 +5,6 @@ export type RosterDetail = {
   t_shirt_size: string | null
   meal: string | null
   photo_consent: boolean | null
-  notes: string | null
   updated_at: string | null
 }
 
@@ -35,7 +34,6 @@ export function defaultRosterDetail(): RosterDetail {
     t_shirt_size: null,
     meal: null,
     photo_consent: null,
-    notes: null,
     updated_at: null,
   }
 }
