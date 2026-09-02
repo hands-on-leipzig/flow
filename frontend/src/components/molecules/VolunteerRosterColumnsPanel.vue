@@ -401,6 +401,11 @@ watch(
                     :disabled="adding"
                 />
               </label>
+              <div class="vol-columns-add__actions">
+                <button type="button" class="glass-btn-accent" :disabled="!canAdd" @click="addField">
+                  Hinzufügen
+                </button>
+              </div>
             </div>
           </section>
         </div>
@@ -408,9 +413,6 @@ watch(
         <footer class="vol-columns-dialog__footer">
           <button type="button" class="glass-btn-secondary" @click="requestClose">
             Schließen
-          </button>
-          <button type="button" class="glass-btn-accent" :disabled="!canAdd" @click="addField">
-            Hinzufügen
           </button>
         </footer>
       </div>
@@ -606,6 +608,12 @@ watch(
 .vol-columns-add__options {
   width: 100%;
   resize: vertical;
+}
+
+.vol-columns-add__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.15rem;
 }
 
 .vol-columns-dialog__footer {
