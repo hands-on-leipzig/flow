@@ -124,30 +124,6 @@
   color: color-mix(in srgb, var(--color-accent) 80%, var(--color-text));
 }
 
-.vol-roster-publish__checklist {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--liquid-border-soft);
-}
-
-.vol-roster-publish__checklist-title {
-  margin: 0 0 0.15rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
-.vol-roster-publish__check {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
 .vol-roster-toolbar {
   display: flex;
   align-items: stretch;
