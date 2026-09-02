@@ -10,6 +10,7 @@ class VolunteerRosterDetailFields
 
     public const T_SHIRT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL'];
 
+    /** @deprecated Use event-specific meal options via VolunteerMealOptions */
     public const MEALS = ['standard', 'vegetarisch', 'vegan', 'keine'];
 
     public const T_SHIRT_CUT_LABELS = [
@@ -17,6 +18,7 @@ class VolunteerRosterDetailFields
         'frauen' => 'Frauen',
     ];
 
+    /** @deprecated Use event-specific meal options via VolunteerMealOptions */
     public const MEAL_LABELS = [
         'standard' => 'Standard',
         'vegetarisch' => 'Vegetarisch',
@@ -26,13 +28,15 @@ class VolunteerRosterDetailFields
 
     /**
      * @param  array<string, mixed>  $input
+     * @param  list<string>|null  $allowedMeals
      * @return array{ok: true, data: array<string, mixed>}|array{ok: false, error: string}
      */
-    public static function validate(array $input): array
+    public static function validate(array $input, ?array $allowedMeals = null): array
     {
         $cut = self::nullableString($input, 't_shirt_cut');
         $size = self::nullableString($input, 't_shirt_size');
         $meal = self::nullableString($input, 'meal');
+        $photoConsent = self::nullableBoolean($input, 'photo_consent');
         $notes = array_key_exists('notes', $input)
             ? ($input['notes'] === null || $input['notes'] === '' ? null : trim((string) $input['notes']))
             : null;
@@ -46,7 +50,9 @@ class VolunteerRosterDetailFields
         if (($cut === null) xor ($size === null)) {
             return ['ok' => false, 'error' => 'Bitte Schnitt und Größe gemeinsam angeben oder leer lassen.'];
         }
-        if ($meal !== null && ! in_array($meal, self::MEALS, true)) {
+
+        $mealValues = $allowedMeals ?? self::MEALS;
+        if ($meal !== null && ! in_array($meal, $mealValues, true)) {
             return ['ok' => false, 'error' => 'Ungültige Essenswahl.'];
         }
         if ($notes !== null && mb_strlen($notes) > 1000) {
@@ -59,6 +65,7 @@ class VolunteerRosterDetailFields
                 't_shirt_cut' => $cut,
                 't_shirt_size' => $size,
                 'meal' => $meal,
+                'photo_consent' => $photoConsent,
                 'notes' => $notes,
             ],
         ];
@@ -74,6 +81,7 @@ class VolunteerRosterDetailFields
                 't_shirt_cut' => null,
                 't_shirt_size' => null,
                 'meal' => null,
+                'photo_consent' => null,
                 'notes' => null,
                 'updated_at' => null,
             ];
@@ -83,6 +91,7 @@ class VolunteerRosterDetailFields
             't_shirt_cut' => $detail->t_shirt_cut,
             't_shirt_size' => $detail->t_shirt_size,
             'meal' => $detail->meal,
+            'photo_consent' => $detail->photo_consent === null ? null : (bool) $detail->photo_consent,
             'notes' => $detail->notes,
             'updated_at' => optional($detail->updated_at)?->toIso8601String(),
         ];
@@ -93,9 +102,25 @@ class VolunteerRosterDetailFields
         return $cut ? (self::T_SHIRT_CUT_LABELS[$cut] ?? $cut) : '';
     }
 
-    public static function exportMealLabel(?string $meal): string
+    /**
+     * @param  array<string, string>  $labelMap
+     */
+    public static function exportMealLabel(?string $meal, array $labelMap = []): string
     {
-        return $meal ? (self::MEAL_LABELS[$meal] ?? $meal) : '';
+        if ($meal === null || $meal === '') {
+            return '';
+        }
+
+        return $labelMap[$meal] ?? self::MEAL_LABELS[$meal] ?? $meal;
+    }
+
+    public static function exportPhotoConsentLabel(?bool $consent): string
+    {
+        if ($consent === null) {
+            return '';
+        }
+
+        return $consent ? 'ja' : 'nein';
     }
 
     private static function nullableString(array $input, string $key): ?string
@@ -109,5 +134,36 @@ class VolunteerRosterDetailFields
         }
 
         return trim((string) $value);
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    private static function nullableBoolean(array $input, string $key): ?bool
+    {
+        if (! array_key_exists($key, $input)) {
+            return null;
+        }
+
+        $value = $input[$key];
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (in_array($value, [0, '0', 'false', false], true)) {
+            return false;
+        }
+
+        if (in_array($value, [1, '1', 'true', true], true)) {
+            return true;
+        }
+
+        $parsed = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        return $parsed;
     }
 }

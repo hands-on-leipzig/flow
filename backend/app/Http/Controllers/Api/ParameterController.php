@@ -80,10 +80,4 @@ class ParameterController extends Controller
         ]);
     }
 
-
-    public function visibility(): \Illuminate\Http\JsonResponse
-    {
-        return response()->json(['matrix' => \App\Support\TimeColumnVisibility::matrix()]);
-    }
-
 }

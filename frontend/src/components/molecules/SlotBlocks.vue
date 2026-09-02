@@ -21,7 +21,7 @@ import {
   SLOT_DURATION_MIN,
   SLOT_DURATION_STEP,
 } from '@/utils/extraBlockDuration'
-import {blockRowKey, createBlockSaveKeys, nextClientKey} from '@/utils/extraBlockSaveKeys'
+import {blockRowKey, createBlockSaveKeys, nextClientKey, slotTeamSaveKey} from '@/utils/extraBlockSaveKeys'
 
 const SAVE_PREFIX = 'slot_block'
 
@@ -42,7 +42,8 @@ const expandedTeamBlocks = ref<Set<number>>(new Set())
 /** Non-reactive: updating a ref here remounted SlotTeamPanel in a load loop. */
 const teamPanelRefs = new Map<number, InstanceType<typeof SlotTeamPanel>>()
 const teamDraftDirtyIds = ref<Set<number>>(new Set())
-const savingAssignmentsFor = ref<number | null>(null)
+/** Blocks with team saves queued for debounced flush (toast visible). */
+const teamQueuedBlockIds = ref<Set<number>>(new Set())
 
 const {blockSaveKey, blockDeleteKey} = createBlockSaveKeys(SAVE_PREFIX)
 
@@ -99,9 +100,64 @@ function teamsToggleDirty(block: SlotExtraBlock): boolean {
 
 function onTeamDraftChanged(blockId: number, dirty: boolean) {
   const next = new Set(teamDraftDirtyIds.value)
-  if (dirty) next.add(blockId)
-  else next.delete(blockId)
+  if (dirty) {
+    next.add(blockId)
+    if (teamQueuedBlockIds.value.has(blockId)) {
+      cancelTeamPendingForBlock(blockId)
+      const queued = new Set(teamQueuedBlockIds.value)
+      queued.delete(blockId)
+      teamQueuedBlockIds.value = queued
+    }
+  } else {
+    next.delete(blockId)
+    if (teamQueuedBlockIds.value.has(blockId)) {
+      const queued = new Set(teamQueuedBlockIds.value)
+      queued.delete(blockId)
+      teamQueuedBlockIds.value = queued
+    }
+  }
   teamDraftDirtyIds.value = next
+}
+
+/** Pending debounce keys per block — set only after Speichern. */
+const teamPendingKeys = new Map<number, Set<string>>()
+
+function cancelTeamPendingForBlock(blockId: number) {
+  const keys = teamPendingKeys.get(blockId)
+  if (keys) {
+    for (const key of keys) cancelExtraBlockUpdate(key)
+    teamPendingKeys.delete(blockId)
+  }
+  if (teamQueuedBlockIds.value.has(blockId)) {
+    const queued = new Set(teamQueuedBlockIds.value)
+    queued.delete(blockId)
+    teamQueuedBlockIds.value = queued
+  }
+}
+
+function onPendingTeamAssignments(blockId: number, payloads: TeamSavePayload[]) {
+  const nextKeys = new Set<string>()
+  for (const payload of payloads) {
+    const key = slotTeamSaveKey(payload.blockId, payload.first_program, payload.team_number_plan)
+    nextKeys.add(key)
+    scheduleExtraBlockUpdate(key, payload)
+  }
+
+  const prev = teamPendingKeys.get(blockId) ?? new Set<string>()
+  for (const key of prev) {
+    if (!nextKeys.has(key)) cancelExtraBlockUpdate(key)
+  }
+
+  if (nextKeys.size === 0) teamPendingKeys.delete(blockId)
+  else teamPendingKeys.set(blockId, nextKeys)
+}
+
+function queueTeamAssignments(blockId: number, payloads: TeamSavePayload[]) {
+  if (!payloads.length) return
+  onPendingTeamAssignments(blockId, payloads)
+  const queued = new Set(teamQueuedBlockIds.value)
+  queued.add(blockId)
+  teamQueuedBlockIds.value = queued
 }
 
 function toggleTeams(block: SlotExtraBlock) {
@@ -118,6 +174,7 @@ const newBlockLink = ref('')
 const newBlockDuration = ref(30)
 const newFirstProgram = ref(0)
 const composerRef = ref<{ focusTitle?: () => void } | null>(null)
+const creatingBlock = ref(false)
 
 function toApiPayload(block: SlotExtraBlock) {
   return {
@@ -175,43 +232,8 @@ onUnmounted(() => {
   registerSlotBlockFlushHandler(null)
 })
 
-async function saveAssignments(payloads: TeamSavePayload[]) {
-  if (!props.planId || !payloads.length || savingAssignmentsFor.value != null) return
-
-  const blockId = payloads[0]?.blockId
-  savingAssignmentsFor.value = blockId ?? null
-  generatorError.value = null
-  errorDetails.value = null
-
-  try {
-    for (const payload of payloads) {
-      await axios.patch(
-        `/plans/${props.planId}/extra-blocks/slot/${payload.blockId}/teams/${payload.first_program}/${payload.team_number_plan}`,
-        {start: payload.start},
-      )
-    }
-
-    const ok = await runGenerateLite(
-      props.planId,
-      isGenerating,
-      generatorError,
-      errorDetails,
-    )
-    await reloadTeamPanels(blockId)
-    if (ok) emit('changed')
-  } catch (error: unknown) {
-    isGenerating.value = false
-    const parsed = parseExtraBlockSaveError(error, 'Fehler beim Speichern der Zuordnungen')
-    generatorError.value = parsed.message
-    errorDetails.value = parsed.details
-    await reloadTeamPanels(blockId)
-  } finally {
-    savingAssignmentsFor.value = null
-  }
-}
-
 function createBlock() {
-  if (!props.planId) return
+  if (!props.planId || creatingBlock.value) return
   const name = newBlockName.value.trim()
   if (!name) return
 
@@ -228,8 +250,59 @@ function createBlock() {
 
   blocks.value.push(block)
   resetComposer()
-  scheduleBlockSave(block)
   void nextTick(() => composerRef.value?.focusTitle?.())
+  void persistNewBlock(block)
+}
+
+async function persistNewBlock(block: SlotExtraBlock) {
+  if (!props.planId || !block._clientKey) return
+
+  creatingBlock.value = true
+  generatorError.value = null
+  errorDetails.value = null
+
+  try {
+    const {data} = await axios.post(
+      `/plans/${props.planId}/extra-blocks/slot`,
+      toApiPayload(block),
+    )
+    const saved = data?.block ?? data
+    if (!saved?.id) {
+      throw new Error('Slot konnte nicht gespeichert werden.')
+    }
+
+    const idx = blocks.value.findIndex((row) => row._clientKey === block._clientKey)
+    if (idx !== -1) {
+      blocks.value[idx] = {
+        ...blocks.value[idx],
+        ...saved,
+        duration: normalizeDurationMinutes(saved.duration),
+        first_program: saved.first_program ?? block.first_program,
+      }
+    }
+
+    cancelExtraBlockUpdate(`${SAVE_PREFIX}_add_${block._clientKey}`)
+    setSaveOriginals(Object.fromEntries(
+      blocks.value.map((b) => [blockSaveKey(b), toApiPayload(b)]),
+    ))
+
+    const ok = await runGenerateLite(
+      props.planId,
+      isGenerating,
+      generatorError,
+      errorDetails,
+    )
+    if (ok) emit('changed')
+    await reloadTeamPanels(saved.id)
+  } catch (error: unknown) {
+    blocks.value = blocks.value.filter((row) => row._clientKey !== block._clientKey)
+    isGenerating.value = false
+    const parsed = parseExtraBlockSaveError(error, 'Fehler beim Anlegen des Slots')
+    generatorError.value = parsed.message
+    errorDetails.value = parsed.details
+  } finally {
+    creatingBlock.value = false
+  }
 }
 
 function resetComposer() {
@@ -262,12 +335,18 @@ function deleteBlock() {
     const next = new Set(expandedTeamBlocks.value)
     next.delete(block.id)
     expandedTeamBlocks.value = next
+    cancelTeamPendingForBlock(block.id)
     scheduleBlockDelete(block as SlotExtraBlock & {id: number})
   }
 }
 
 function toggleActive(block: SlotExtraBlock, active: boolean) {
   block.active = active
+  if (!active && block.id) {
+    const next = new Set(expandedTeamBlocks.value)
+    next.delete(block.id)
+    expandedTeamBlocks.value = next
+  }
   scheduleBlockSave(block)
 }
 
@@ -386,7 +465,7 @@ const scopeChangeMessage = computed(() => {
       <ItemComposer
           ref="composerRef"
           v-model:title="newBlockName"
-          :disabled="!planId"
+          :disabled="!planId || creatingBlock"
           title-placeholder="Neuer Slot z.B. Besichtigung Sternwarte"
           empty-hint="Zeitfenster pro Team, unabhängig vom generierten Ablauf."
           @commit="createBlock"
@@ -539,9 +618,9 @@ const scopeChangeMessage = computed(() => {
                 :block-active="b.active !== false"
                 :event-date="eventDate"
                 :event-days="eventDays"
-                :saving="savingAssignmentsFor === b.id"
+                :saving="isGenerating && teamsToggleDirty(b)"
                 @draft-changed="(dirty) => onTeamDraftChanged(b.id!, dirty)"
-                @save-assignments="saveAssignments"
+                @save-assignments="(payloads) => queueTeamAssignments(b.id!, payloads)"
             />
           </div>
         </div>

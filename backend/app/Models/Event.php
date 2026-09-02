@@ -23,6 +23,13 @@ class Event extends Model
         'link',
         'qrcode',
         'public_helper_search',
+        'public_volunteer_data_entry',
+        'check_in_enabled',
+        'check_in_pin',
+        'check_in_text_teams',
+        'check_in_text_helpers',
+        'cockpit_enabled',
+        'cockpit_pin',
         'wifi_ssid',
         'wifi_password',
         'wifi_instruction',
@@ -33,7 +40,15 @@ class Event extends Model
 
     protected $casts = [
         'public_helper_search' => 'boolean',
+        'public_volunteer_data_entry' => 'boolean',
+        'check_in_enabled' => 'boolean',
+        'cockpit_enabled' => 'boolean',
     ];
+
+    public function checkIns()
+    {
+        return $this->hasMany(CheckIn::class, 'event');
+    }
 
     protected $with = ['programs'];
 

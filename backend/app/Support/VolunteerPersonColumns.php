@@ -12,10 +12,10 @@ final class VolunteerPersonColumns
     private const DEFINITIONS = [
         ['key' => 'first_name', 'label' => 'Vorname', 'table' => true, 'export' => true, 'sortable' => true],
         ['key' => 'last_name', 'label' => 'Nachname', 'table' => true, 'export' => true, 'sortable' => true],
-        ['key' => 'nickname', 'label' => 'Spitzname', 'table' => true, 'export' => true],
         ['key' => 'email', 'label' => 'E-Mail', 'table' => true, 'export' => true],
         ['key' => 'mobile', 'label' => 'Mobil', 'table' => true, 'export' => true],
-        ['key' => 'updated_at', 'label' => 'Letzte Änderung', 'table' => true, 'export' => true],
+        ['key' => 'organization', 'label' => 'Organisation', 'table' => true, 'export' => true],
+        ['key' => 'updated_at', 'label' => 'Letzte Änderung', 'table' => true, 'export' => true, 'type' => 'datetime'],
     ];
 
     /**
@@ -43,17 +43,32 @@ final class VolunteerPersonColumns
     }
 
     /**
-     * @return list<string>
+     * @param  list<string>  $exceptKeys
+     * @return list<mixed>
      */
-    public static function exportValues(VolunteerPerson $person): array
+    public static function exportValues(VolunteerPerson $person, array $exceptKeys = []): array
     {
-        return [
-            $person->first_name,
-            $person->last_name,
-            $person->nickname ?? '',
-            $person->email,
-            $person->mobile ?? '',
-            optional($person->updated_at)?->toIso8601String() ?? '',
+        $byKey = [
+            'first_name' => $person->first_name,
+            'last_name' => $person->last_name,
+            'email' => $person->email,
+            'mobile' => $person->mobile ?? '',
+            'organization' => $person->organization ?? '',
+            'updated_at' => $person->updated_at,
         ];
+
+        $values = [];
+        foreach (self::DEFINITIONS as $definition) {
+            if (! ($definition['export'] ?? false)) {
+                continue;
+            }
+            $key = $definition['key'];
+            if (in_array($key, $exceptKeys, true)) {
+                continue;
+            }
+            $values[] = $byKey[$key] ?? '';
+        }
+
+        return $values;
     }
 }

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import axios from 'axios'
 import {ref} from 'vue'
+import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {programNameForId} from '@/utils/eventPrograms'
 import {volunteerDisplayName} from '@/utils/volunteerPerson'
-import {ROSTER_MEALS, T_SHIRT_CUTS} from '@/volunteers/rosterConstants'
+import {T_SHIRT_CUTS} from '@/volunteers/rosterConstants'
 import {defaultRosterDetail, type RosterAssignment, type RosterEntry} from '@/volunteers/rosterTypes'
+import type {VolunteerMealOption} from '@/composables/useVolunteerMealOptions'
 import type {RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
@@ -15,6 +17,7 @@ const props = defineProps<{
   eventId?: number | null
   entries: RosterEntry[]
   columns: RosterColumnMeta[]
+  mealOptions: VolunteerMealOption[]
   sortKey: 'name' | 'role'
   sortDir: 'asc' | 'desc'
   togglingId: number | null
@@ -29,15 +32,26 @@ const emit = defineEmits<{
 const eventStore = useEventStore()
 const savingEntryId = ref<number | null>(null)
 
-function columnColClass(key: string) {
+function columnColClass(column: RosterColumnMeta) {
+  if (column.kind === 'custom') {
+    return column.type === 'text' ? 'vol-col--custom-text' : 'vol-col--custom'
+  }
+
   const classes: Record<string, string> = {
     name: 'vol-col--name',
     role: 'vol-col--role',
     t_shirt: 'vol-col--tshirt',
     meal: 'vol-col--meal',
-    notes: 'vol-col--notes',
+    photo_consent: 'vol-col--photo',
   }
-  return classes[key] ?? 'vol-col--custom'
+  return classes[column.key] ?? 'vol-col--custom'
+}
+
+function personListLink(person: RosterEntry['person']) {
+  return {
+    name: 'volunteers-people',
+    query: {q: volunteerDisplayName(person)},
+  } as const
 }
 
 function isSortableRosterColumn(key: string): key is 'name' | 'role' {
@@ -51,9 +65,9 @@ function sortIcon(key: 'name' | 'role') {
 
 function rosterIconTooltip(entry: RosterEntry) {
   if (entry.has_assignment) {
-    return 'Von Helferliste entfernen — Zuordnungen werden ebenfalls entfernt'
+    return 'Von Helfer:innenliste entfernen — Zuordnungen werden ebenfalls entfernt'
   }
-  return 'Von Helferliste entfernen'
+  return 'Von Helfer:innenliste entfernen'
 }
 
 function assignmentProgramRef(assignment: RosterAssignment) {
@@ -100,6 +114,7 @@ async function saveDetail(entry: RosterEntry) {
         t_shirt_cut: detail.t_shirt_cut,
         t_shirt_size: detail.t_shirt_size,
         meal: detail.meal,
+        photo_consent: detail.photo_consent,
         notes: detail.notes,
       },
     )
@@ -129,6 +144,13 @@ async function saveCustom(entry: RosterEntry, fieldKey: string, value: string | 
   }
 }
 
+function setPhotoConsent(entry: RosterEntry, value: boolean | null) {
+  const detail = entryDetail(entry)
+  if (detail.photo_consent === value) return
+  detail.photo_consent = value
+  void saveDetail(entry)
+}
+
 function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean | null) {
   if (customValue(entry, fieldKey) === value) return
   entryCustom(entry)[fieldKey] = value
@@ -137,23 +159,30 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 </script>
 
 <template>
-  <div class="vol-table-frame vol-table-frame--scroll">
-    <table class="vol-table">
+  <div class="vol-table-frame vol-table-frame--scroll vol-table-frame--roster">
+    <table class="vol-table vol-table--roster">
       <colgroup>
         <col class="vol-col--roster">
         <col
             v-for="column in columns"
             :key="`roster-col-${column.key}`"
-            :class="columnColClass(column.key)"
+            :class="columnColClass(column)"
         >
       </colgroup>
       <thead>
         <tr>
-          <th class="vol-table__roster" scope="col"><span class="sr-only">Helferliste</span></th>
+          <th class="vol-table__roster vol-table__sticky vol-table__sticky--roster" scope="col">
+            <span class="sr-only">Helfer:innenliste</span>
+          </th>
           <th
               v-for="column in columns"
               :key="column.key"
               scope="col"
+              :class="{
+                'vol-table__name': column.key === 'name',
+                'vol-table__sticky': column.key === 'name',
+                'vol-table__sticky--name': column.key === 'name',
+              }"
           >
             <button
                 v-if="column.sortable && isSortableRosterColumn(column.key)"
@@ -171,7 +200,7 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
       </thead>
       <tbody>
         <tr v-for="entry in entries" :key="entry.id" class="glass-table-row--hover">
-          <td class="vol-table__roster">
+          <td class="vol-table__roster vol-table__sticky vol-table__sticky--roster">
             <button
                 type="button"
                 class="vol-roster-icon vol-roster-icon--on"
@@ -186,7 +215,14 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
             </button>
           </td>
           <template v-for="column in columns" :key="`${entry.id}-${column.key}`">
-            <td v-if="column.key === 'name'" class="vol-table__name">{{ volunteerDisplayName(entry.person) }}</td>
+            <td
+                v-if="column.key === 'name'"
+                class="vol-table__name vol-table__sticky vol-table__sticky--name"
+            >
+              <RouterLink :to="personListLink(entry.person)" class="vol-table__name-link">
+                {{ volunteerDisplayName(entry.person) }}
+              </RouterLink>
+            </td>
             <td v-else-if="column.key === 'role'" class="vol-table__role">
               <div v-if="entry.assignments?.length" class="vol-table__assignments">
                 <div
@@ -225,19 +261,46 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
                   @change="entryDetail(entry).meal = ($event.target as HTMLSelectElement).value || null; saveDetail(entry)"
               >
                 <option value="">?</option>
-                <option v-for="meal in ROSTER_MEALS" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
+                <option v-for="meal in mealOptions" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
               </select>
             </td>
-            <td v-else-if="column.editor === 'text'" class="vol-table__field">
-              <input
-                  type="text"
-                  class="glass-input glass-input--sm vol-detail-input"
-                  :value="entryDetail(entry).notes ?? ''"
-                  placeholder="Bemerkung"
-                  :disabled="isSaving(entry)"
-                  @change="entryDetail(entry).notes = ($event.target as HTMLInputElement).value.trim() || null"
-                  @blur="saveDetail(entry)"
+            <td v-else-if="column.editor === 'photo_consent'" class="vol-table__field">
+              <div
+                  class="glass-segment vol-tristate"
+                  role="group"
+                  :aria-label="column.label"
               >
+                <button
+                    type="button"
+                    class="glass-segment__btn"
+                    :class="{'glass-segment__btn--active': entryDetail(entry).photo_consent === null}"
+                    :aria-pressed="entryDetail(entry).photo_consent === null"
+                    :disabled="isSaving(entry)"
+                    @click="setPhotoConsent(entry, null)"
+                >
+                  ?
+                </button>
+                <button
+                    type="button"
+                    class="glass-segment__btn"
+                    :class="{'glass-segment__btn--active': entryDetail(entry).photo_consent === true}"
+                    :aria-pressed="entryDetail(entry).photo_consent === true"
+                    :disabled="isSaving(entry)"
+                    @click="setPhotoConsent(entry, true)"
+                >
+                  Ja
+                </button>
+                <button
+                    type="button"
+                    class="glass-segment__btn"
+                    :class="{'glass-segment__btn--active': entryDetail(entry).photo_consent === false}"
+                    :aria-pressed="entryDetail(entry).photo_consent === false"
+                    :disabled="isSaving(entry)"
+                    @click="setPhotoConsent(entry, false)"
+                >
+                  Nein
+                </button>
+              </div>
             </td>
             <td v-else-if="column.kind === 'custom' && column.field_key" class="vol-table__field">
               <input
@@ -314,12 +377,69 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 </template>
 
 <style scoped>
-.vol-col--name { width: 20%; }
-.vol-col--role { width: 18%; }
-.vol-col--tshirt { width: 11%; }
-.vol-col--meal { width: 11%; }
-.vol-col--notes { width: auto; }
-.vol-col--custom { width: 11%; }
+.vol-table-frame--roster {
+  --vol-roster-sticky-roster-width: 2.75rem;
+}
+
+.vol-table--roster {
+  width: max-content;
+  min-width: 100%;
+  table-layout: auto;
+}
+
+.vol-col--roster {
+  width: var(--vol-roster-sticky-roster-width);
+}
+
+.vol-col--name { min-width: 11rem; }
+.vol-col--role { min-width: 10rem; }
+.vol-col--tshirt { min-width: 6.5rem; }
+.vol-col--meal { min-width: 7rem; }
+.vol-col--photo { min-width: 8rem; }
+.vol-col--custom { min-width: 7.5rem; }
+.vol-col--custom-text { min-width: 14rem; }
+
+.vol-table__sticky {
+  position: sticky;
+}
+
+.vol-table-frame--roster thead .vol-table__sticky {
+  background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
+  backdrop-filter: blur(8px);
+}
+
+.vol-table-frame--roster tbody .vol-table__sticky {
+  background: color-mix(in srgb, #ffffff 92%, var(--color-bg-muted));
+}
+
+.vol-table__sticky--roster {
+  left: 0;
+  z-index: 2;
+}
+
+.vol-table__sticky--name {
+  left: var(--vol-roster-sticky-roster-width);
+  z-index: 2;
+  box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.14);
+}
+
+.vol-table-frame--roster thead th.vol-table__sticky {
+  z-index: 4;
+}
+
+.vol-table-frame--roster tbody tr.glass-table-row--hover:hover .vol-table__sticky {
+  background: var(--color-bg-hover);
+}
+
+.vol-table__name-link {
+  font-weight: 600;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.vol-table__name-link:hover {
+  text-decoration: underline;
+}
 
 .vol-table__name {
   font-weight: 600;

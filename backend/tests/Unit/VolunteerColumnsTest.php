@@ -39,9 +39,9 @@ class VolunteerColumnsTest extends TestCase
             [
                 'Vorname',
                 'Nachname',
-                'Spitzname',
                 'E-Mail',
                 'Mobil',
+                'Organisation',
                 'Letzte Änderung',
             ],
             VolunteerPersonColumns::exportLabels(),
@@ -53,7 +53,7 @@ class VolunteerColumnsTest extends TestCase
         $keys = array_column(VolunteerPersonColumns::tablePayload(), 'key');
 
         $this->assertSame(
-            ['first_name', 'last_name', 'nickname', 'email', 'mobile', 'updated_at'],
+            ['first_name', 'last_name', 'email', 'mobile', 'organization', 'updated_at'],
             $keys,
         );
     }
@@ -63,12 +63,12 @@ class VolunteerColumnsTest extends TestCase
         $keys = array_column(VolunteerRosterColumns::tablePayloadForEvent(999999), 'key');
 
         $this->assertSame(
-            ['name', 'role', 't_shirt', 'meal', 'notes'],
+            ['name', 'role', 'photo_consent', 't_shirt', 'meal'],
             $keys,
         );
     }
 
-    public function test_roster_table_payload_includes_custom_fields_between_meal_and_notes(): void
+    public function test_roster_table_payload_includes_custom_fields_after_meal(): void
     {
         EventVolunteerField::create([
             'event' => 1,
@@ -82,7 +82,7 @@ class VolunteerColumnsTest extends TestCase
         $keys = array_column(VolunteerRosterColumns::tablePayloadForEvent(1), 'key');
 
         $this->assertSame(
-            ['name', 'role', 't_shirt', 'meal', 'custom:vorabend', 'notes'],
+            ['name', 'role', 'photo_consent', 't_shirt', 'meal', 'custom:vorabend'],
             $keys,
         );
     }
@@ -93,16 +93,15 @@ class VolunteerColumnsTest extends TestCase
             [
                 'Vorname',
                 'Nachname',
-                'Spitzname',
                 'E-Mail',
                 'Mobil',
-                'Letzte Änderung',
+                'Organisation',
                 'Zuordnung 1 Programm',
                 'Zuordnung 1 Rolle',
+                'Foto Erlaubnis',
                 'T-Shirt Schnitt',
                 'T-Shirt Größe',
                 'Essen',
-                'Bemerkungen',
                 'Zuordnung 2 Programm',
                 'Zuordnung 2 Rolle',
                 'Zuordnung 3 Programm',
@@ -116,7 +115,7 @@ class VolunteerColumnsTest extends TestCase
         );
     }
 
-    public function test_roster_export_labels_place_custom_fields_before_notes(): void
+    public function test_roster_export_labels_place_custom_fields_after_meal(): void
     {
         EventVolunteerField::create([
             'event' => 2,
@@ -129,13 +128,27 @@ class VolunteerColumnsTest extends TestCase
 
         $labels = VolunteerRosterColumns::exportLabelsForEvent(2);
         $essenIndex = array_search('Essen', $labels, true);
-        $notesIndex = array_search('Bemerkungen', $labels, true);
+        $photoIndex = array_search('Foto Erlaubnis', $labels, true);
+        $shirtIndex = array_search('T-Shirt Schnitt', $labels, true);
         $customIndex = array_search('Parkplatz', $labels, true);
+        $zuordnung2Index = array_search('Zuordnung 2 Programm', $labels, true);
 
         $this->assertNotFalse($essenIndex);
-        $this->assertNotFalse($notesIndex);
+        $this->assertNotFalse($photoIndex);
+        $this->assertNotFalse($shirtIndex);
         $this->assertNotFalse($customIndex);
+        $this->assertNotFalse($zuordnung2Index);
+        $this->assertLessThan($shirtIndex, $photoIndex);
         $this->assertGreaterThan($essenIndex, $customIndex);
-        $this->assertLessThan($notesIndex, $customIndex);
+        $this->assertLessThan($zuordnung2Index, $customIndex);
+    }
+
+    public function test_roster_table_payload_marks_photo_consent_not_public(): void
+    {
+        $columns = VolunteerRosterColumns::tablePayloadForEvent(999999);
+        $photo = collect($columns)->firstWhere('key', 'photo_consent');
+
+        $this->assertNotNull($photo);
+        $this->assertFalse($photo['public_form']);
     }
 }

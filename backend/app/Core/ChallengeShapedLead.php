@@ -7,7 +7,7 @@ namespace App\Core;
  */
 interface ChallengeShapedLead
 {
-    public function openingsAndBriefings(bool $explore = false): void;
+    public function openingsAndBriefings(bool $explore = false, string $jointPrefix = 'g'): void;
 
     public function main(bool $explore = false, ?callable $afterRG1Callback = null): void;
 
@@ -17,5 +17,5 @@ interface ChallengeShapedLead
 
     public function endAfternoon(): void;
 
-    public function awards(bool $explore = false): void;
+    public function awards(bool $explore = false, string $jointPrefix = 'g'): void;
 }

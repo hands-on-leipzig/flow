@@ -13,13 +13,21 @@ const cachedPages = [
   'Teams',
   'Rooms',
   'PublishControl',
-  'EventDayControl',
+  'EventDayShell',
   'Admin',
 ]
 
 const eventId = computed(() => eventStore.selectedEvent?.id ?? 0)
 
-const isAdminPage = computed(() => route.path.includes('/plan/admin'))
+/** Split-pane pages need bounded height for independent left/right scroll. */
+const isFullHeightPage = computed(() => {
+  const path = route.path.replace(/\/$/, '')
+  return path.includes('/plan/admin')
+    || path.includes('/plan/schedule')
+    || path === '/plan/publish'
+    || path === '/plan/publish/logos'
+    || path.startsWith('/plan/live')
+})
 
 /** Nested Ablauf / Ausgabe / Teams routes share one cache entry so the shell stays mounted. */
 const pageKey = computed(() => {
@@ -27,20 +35,21 @@ const pageKey = computed(() => {
   if (path.includes('/plan/schedule')) return `${eventId.value}:schedule`
   if (path.includes('/plan/publish')) return `${eventId.value}:publish`
   if (path.includes('/plan/teams')) return `${eventId.value}:teams`
+  if (path.includes('/plan/live')) return `${eventId.value}:live`
   if (path.includes('/plan/admin')) return `${eventId.value}:admin`
   return `${eventId.value}:${path}`
 })
 </script>
 
 <template>
-  <div :class="isAdminPage ? 'h-full min-h-0' : undefined">
+  <div :class="isFullHeightPage ? 'h-full min-h-0 flex flex-col' : undefined">
     <router-view v-slot="{ Component }">
       <keep-alive :include="cachedPages" :max="12">
         <component
             :is="Component"
             v-if="Component"
             :key="pageKey"
-            :class="isAdminPage ? 'h-full min-h-0' : undefined"
+            :class="isFullHeightPage ? 'h-full min-h-0' : undefined"
         />
       </keep-alive>
     </router-view>

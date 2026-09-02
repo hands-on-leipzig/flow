@@ -6,6 +6,9 @@ use App\Models\Event;
 use App\Models\MSeason;
 use App\Models\RegionalPartner;
 use App\Models\Team;
+use App\Services\DrahtProgramDetachService;
+use App\Services\DrahtTeamEnrichmentService;
+use App\Support\DrahtScheduleData;
 use App\Support\ProgramCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -56,6 +59,8 @@ class DrahtController extends Controller
 
         $attempted = 0;
         $succeeded = 0;
+        $detachedAny = false;
+        $detachService = app(DrahtProgramDetachService::class);
 
         foreach ($event->programs as $row) {
             if (! $row->draht_id) {
@@ -84,6 +89,14 @@ class DrahtController extends Controller
                 ]);
             }
 
+            $normalized = DrahtScheduleData::normalize(is_array($payload) ? $payload : null);
+
+            if (is_array($payload) && $normalized['program_gone']) {
+                $detachService->detachProgram($event->id, (int) $row->first_program);
+                $detachedAny = true;
+                continue;
+            }
+
             if (is_array($payload)) {
                 $succeeded++;
                 $mergedData['address'] ??= $payload['address'] ?? null;
@@ -96,10 +109,14 @@ class DrahtController extends Controller
                 'name' => $row->name,
                 'sequence' => $row->sequence,
                 'draht_id' => $row->draht_id,
-                'scheduledata' => is_array($payload) ? $payload : null,
-                'teams' => is_array($payload) ? ($payload['teams'] ?? []) : [],
-                'capacity' => is_array($payload) ? ($payload['capacity_teams'] ?? 0) : 0,
+                'scheduledata' => $normalized['scheduledata'],
+                'teams' => $normalized['teams'],
+                'capacity' => $normalized['capacity'],
             ];
+        }
+
+        if ($detachedAny) {
+            $event->unsetRelation('programs');
         }
 
         return [
@@ -221,10 +238,11 @@ class DrahtController extends Controller
             }
 
             $icsEventIds = [];
-            DB::transaction(function () use ($seasonId, $eventsData, &$icsEventIds) {
-                // Track which events we've processed to identify events that should be deleted
+            $drahtIdsByEvent = [];
+            DB::transaction(function () use ($seasonId, $eventsData, &$icsEventIds, &$drahtIdsByEvent) {
                 $processedEventIds = [];
                 $processedDrahtIds = [];
+                $detachService = app(DrahtProgramDetachService::class);
 
                 foreach ($eventsData as $eventData) {
                     try {
@@ -295,6 +313,8 @@ class DrahtController extends Controller
                         $processedEventIds[] = $event->id;
                         $processedDrahtIds[] = $eventData['id'];
                         $icsEventIds[] = $event->id;
+                        $drahtIdsByEvent[$event->id] ??= [];
+                        $drahtIdsByEvent[$event->id][] = (int) $eventData['id'];
                         if (isset($eventData['teams']) && is_array($eventData['teams'])) {
                             $existingTeams = Team::where('event', $event->id)
                                 ->get()
@@ -335,27 +355,6 @@ class DrahtController extends Controller
                                     ]);
                                 }
                             }
-
-                            $teamsToDelete = Team::where('event', $event->id)
-                                ->whereNotIn('team_number_hot', $processedTeamNumbers)
-                                ->whereDoesntHave('teamPlans')
-                                ->get();
-
-                            foreach ($teamsToDelete as $teamToDelete) {
-                                $teamToDelete->delete();
-                            }
-
-                            $teamsWithPlans = Team::where('event', $event->id)
-                                ->whereNotIn('team_number_hot', $processedTeamNumbers)
-                                ->whereHas('teamPlans')
-                                ->get();
-
-                            if ($teamsWithPlans->isNotEmpty()) {
-                                Log::warning('Teams not deleted because they have team_plan entries', [
-                                    'event_id' => $event->id,
-                                    'team_numbers' => $teamsWithPlans->pluck('team_number_hot')->toArray()
-                                ]);
-                            }
                         }
                     } catch (\Exception $e) {
                         Log::error('Error processing event from Draht', [
@@ -366,7 +365,19 @@ class DrahtController extends Controller
                         continue;
                     }
                 }
+
+                foreach ($drahtIdsByEvent as $eventId => $activeDrahtIds) {
+                    $detachService->detachStaleByDrahtIds((int) $eventId, $activeDrahtIds);
+                }
             });
+
+            $enrichmentService = app(DrahtTeamEnrichmentService::class);
+            foreach (array_unique($icsEventIds) as $eventId) {
+                $event = Event::find($eventId);
+                if ($event) {
+                    $enrichmentService->enrichEvent($event);
+                }
+            }
 
             foreach (array_unique($icsEventIds) as $eventId) {
                 app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);

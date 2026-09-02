@@ -11,7 +11,9 @@ use App\Models\TableEvent;
 use App\Models\User;
 use App\Services\SeasonService;
 use App\Services\EventAttentionService;
+use App\Support\PlanParameter;
 use App\Support\ProgramCatalog;
+use App\Support\TableFieldLabels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -369,45 +371,127 @@ class EventController extends Controller
     }
 
 
-    public function getTableNames(int $eventId)
+    public function getTableNames(Request $request, int $eventId)
     {
+        $firstProgram = (int) $request->query('first_program', 0);
+        if (! TableFieldLabels::supports($firstProgram)) {
+            return response()->json(['error' => 'first_program muss Challenge oder Future 8+ sein'], 422);
+        }
+
+        $tableCount = $this->tableCountForEventProgram($eventId, $firstProgram);
+
         $tables = TableEvent::where('event', $eventId)
+            ->where('first_program', $firstProgram)
             ->orderBy('table_number')
-            ->get(['table_number', 'table_name']);
+            ->get(['table_number', 'table_name', 'first_program']);
 
         return response()->json([
+            'first_program' => $firstProgram,
+            'table_count' => $tableCount,
             'table_names' => $tables,
         ]);
     }
 
     public function updateTableNames(Request $request, int $eventId)
     {
-        $tables = $request->input('table_names');
+        $firstProgram = (int) $request->input('first_program', 0);
+        if (! TableFieldLabels::supports($firstProgram)) {
+            return response()->json(['error' => 'first_program muss Challenge oder Future 8+ sein'], 422);
+        }
 
-        if (!is_array($tables)) {
+        $tables = $request->input('table_names');
+        if (! is_array($tables)) {
             return response()->json(['error' => 'Ungültiges Format'], 422);
         }
 
-        DB::transaction(function () use ($tables, $eventId) {
+        $tableCount = $this->tableCountForEventProgram($eventId, $firstProgram);
+        if ($tableCount < 1) {
+            return response()->json(['error' => 'Keine Tische/Spielfelder für dieses Programm konfiguriert'], 422);
+        }
 
-            // Alte Tischnamen löschen
-            TableEvent::where('event', $eventId)->delete();
+        // Build customs for active slots only (1..count); ignore orphan numbers in uniqueness.
+        $customsByNumber = [];
+        foreach ($tables as $entry) {
+            if (! is_array($entry) || ! isset($entry['table_number'])) {
+                continue;
+            }
+            $num = (int) $entry['table_number'];
+            if ($num < 1 || $num > $tableCount) {
+                continue;
+            }
+            $name = isset($entry['table_name']) ? trim((string) $entry['table_name']) : '';
+            if (mb_strlen($name) > TableFieldLabels::MAX_LENGTH) {
+                return response()->json([
+                    'error' => 'Name darf höchstens '.TableFieldLabels::MAX_LENGTH.' Zeichen haben',
+                ], 422);
+            }
+            $customsByNumber[$num] = $name;
+        }
 
-            // Neue einfügen
-            foreach ($tables as $entry) {
-                if (!isset($entry['table_number']) || !isset($entry['table_name'])) {
+        // Fill missing active slots as empty so uniqueness sees defaults.
+        for ($n = 1; $n <= $tableCount; $n++) {
+            if (! array_key_exists($n, $customsByNumber)) {
+                $existing = TableEvent::where('event', $eventId)
+                    ->where('first_program', $firstProgram)
+                    ->where('table_number', $n)
+                    ->value('table_name');
+                $customsByNumber[$n] = $existing !== null ? trim((string) $existing) : '';
+            }
+        }
+
+        $dupes = TableFieldLabels::duplicateEffectiveLabels($firstProgram, $tableCount, $customsByNumber);
+        if ($dupes !== []) {
+            return response()->json([
+                'error' => 'Bezeichnungen müssen eindeutig sein',
+                'duplicates' => $dupes,
+            ], 422);
+        }
+
+        DB::transaction(function () use ($customsByNumber, $eventId, $firstProgram, $tableCount) {
+            for ($n = 1; $n <= $tableCount; $n++) {
+                $name = $customsByNumber[$n] ?? '';
+                if ($name === '') {
+                    TableEvent::where('event', $eventId)
+                        ->where('first_program', $firstProgram)
+                        ->where('table_number', $n)
+                        ->delete();
                     continue;
                 }
 
-                TableEvent::create([
-                    'event' => $eventId,
-                    'table_number' => (int)$entry['table_number'],
-                    'table_name' => $entry['table_name'],
-                ]);
+                TableEvent::updateOrCreate(
+                    [
+                        'event' => $eventId,
+                        'first_program' => $firstProgram,
+                        'table_number' => $n,
+                    ],
+                    ['table_name' => $name]
+                );
             }
+            // Orphans outside 1..count are intentionally kept.
         });
 
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'first_program' => $firstProgram,
+            'table_count' => $tableCount,
+        ]);
+    }
+
+    private function tableCountForEventProgram(int $eventId, int $firstProgram): int
+    {
+        $planId = DB::table('plan')->where('event', $eventId)->value('id');
+        if (! $planId) {
+            return 0;
+        }
+
+        try {
+            $params = PlanParameter::load((int) $planId);
+            $paramName = TableFieldLabels::countParamName($firstProgram);
+
+            return max(0, (int) $params->get($paramName, 0));
+        } catch (\Throwable) {
+            return 0;
+        }
     }
 
     /**

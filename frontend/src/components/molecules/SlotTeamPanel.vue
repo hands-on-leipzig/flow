@@ -182,6 +182,18 @@ watch(hasUnsavedChanges, (dirty) => {
   emit('draft-changed', dirty)
 }, {immediate: true})
 
+function pendingAssignmentPayloads(): TeamSavePayload[] {
+  if (!props.blockId || !hasUnsavedChanges.value) return []
+  return teams.value
+    .filter(isRowDirty)
+    .map((row) => ({
+      blockId: props.blockId!,
+      first_program: row.first_program,
+      team_number_plan: row.team_number_plan!,
+      start: draftStarts.value[row.row_key] ?? null,
+    }))
+}
+
 function wallTimeSortKey(s: string | null): string {
   if (!s) return 'z'
   const m = String(s).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/)
@@ -324,15 +336,7 @@ function showTimeInput(row: TeamRow): boolean {
 
 function saveAssignments() {
   if (!props.blockId || !hasUnsavedChanges.value) return
-  const payloads: TeamSavePayload[] = teams.value
-    .filter(isRowDirty)
-    .map((row) => ({
-      blockId: props.blockId!,
-      first_program: row.first_program,
-      team_number_plan: row.team_number_plan!,
-      start: draftStarts.value[row.row_key] ?? null,
-    }))
-  emit('save-assignments', payloads)
+  emit('save-assignments', pendingAssignmentPayloads())
 }
 
 async function openTeamHover(row: TeamRow) {

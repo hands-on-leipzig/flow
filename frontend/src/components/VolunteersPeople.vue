@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, ref, watch} from 'vue'
+import {useRoute} from 'vue-router'
 import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
@@ -12,11 +13,29 @@ import {PERSON_TABLE_COLUMNS} from '@/volunteers/columns/personColumns'
 import type {VolunteerTableColumn} from '@/volunteers/columns/types'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
-import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
+import {flowFilename} from '@/utils/flowFilename'
+import {type VolunteerPersonRef, volunteerDisplayName} from '@/utils/volunteerPerson'
 
 type Person = VolunteerPersonRef
 
+type PersonDraft = {
+  first_name: string
+  last_name: string
+  email: string
+  mobile: string
+  organization: string
+}
+
+const emptyDraft = (): PersonDraft => ({
+  first_name: '',
+  last_name: '',
+  email: '',
+  mobile: '',
+  organization: '',
+})
+
 const eventStore = useEventStore()
+const route = useRoute()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const people = ref<Person[]>([])
@@ -32,18 +51,15 @@ const togglingId = ref<number | null>(null)
 const removeFromRosterTarget = ref<Person | null>(null)
 const deletePersonTarget = ref<Person | null>(null)
 const importOpen = ref(false)
+const exportBusy = ref(false)
 
-const draft = ref({
-  first_name: '',
-  last_name: '',
-  nickname: '',
-  email: '',
-  mobile: '',
-})
+const createDraft = ref<PersonDraft>(emptyDraft())
+const createMobileError = ref('')
+
 const editingId = ref<number | null>(null)
-const draftMobileError = ref('')
-
-const isEditing = computed(() => editingId.value !== null)
+const editDraft = ref<PersonDraft>(emptyDraft())
+const editMobileError = ref('')
+const saving = ref(false)
 
 function formatUpdatedAt(value: string | null | undefined) {
   if (!value) return '—'
@@ -54,9 +70,9 @@ function columnColClass(key: string) {
   const classes: Record<string, string> = {
     first_name: 'vol-col--first',
     last_name: 'vol-col--last',
-    nickname: 'vol-col--nick',
     email: 'vol-col--email',
     mobile: 'vol-col--mobile',
+    organization: 'vol-col--org',
     updated_at: 'vol-col--updated',
   }
   return classes[key] ?? ''
@@ -80,15 +96,21 @@ function sortIcon(key: SortKey) {
   return sortDir.value === 'asc' ? 'bi-sort-up' : 'bi-sort-down'
 }
 
+function personMatchesNameFilter(person: Person) {
+  const query = search.value.trim().toLocaleLowerCase('de')
+  if (!query) return true
+  const haystack = [person.first_name, person.last_name, volunteerDisplayName(person)]
+    .join(' ')
+    .toLocaleLowerCase('de')
+  return haystack.includes(query)
+}
+
 const filtered = computed(() => {
   let list = people.value
   if (notOnRosterOnly.value) {
     list = list.filter((p) => !p.on_roster)
   }
-  const q = search.value.trim().toLowerCase()
-  if (q) {
-    list = list.filter((p) => volunteerSearchHaystack(p).includes(q))
-  }
+  list = list.filter(personMatchesNameFilter)
   const key = sortKey.value
   const dir = sortDir.value === 'asc' ? 1 : -1
   return [...list].sort((a, b) => {
@@ -109,7 +131,7 @@ const filtered = computed(() => {
 const removeFromRosterMessage = computed(() => {
   const p = removeFromRosterTarget.value
   if (!p) return ''
-  const base = `${volunteerDisplayName(p)} wird von der Helferliste dieser Veranstaltung entfernt.`
+  const base = `${volunteerDisplayName(p)} wird von der Helfer:innenliste dieser Veranstaltung entfernt.`
   if (assignedIds.value.has(p.id)) {
     return `${base} Bestehende Zuordnungen werden ebenfalls entfernt.`
   }
@@ -144,18 +166,31 @@ async function load() {
   }
 }
 
+async function downloadExcel() {
+  if (!eventId.value || exportBusy.value || !filtered.value.length) return
+  exportBusy.value = true
+  try {
+    const personIds = filtered.value.map((p) => p.id)
+    const response = await axios.get(`/events/${eventId.value}/volunteers/export`, {
+      params: {person_ids: personIds.join(',')},
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = response.headers['x-filename']
+      || flowFilename('Personen', 'xlsx', eventStore.selectedEvent?.date)
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch {
+    showGlassToast('Export fehlgeschlagen', 'error')
+  } finally {
+    exportBusy.value = false
+  }
+}
+
 function mobileInputClass(error?: string) {
   return error ? 'glass-input glass-input--sm vol-input--invalid' : 'glass-input glass-input--sm'
-}
-
-function clearDraftMobileError() {
-  draftMobileError.value = ''
-}
-
-function resetDraft() {
-  draft.value = {first_name: '', last_name: '', nickname: '', email: '', mobile: ''}
-  draftMobileError.value = ''
-  editingId.value = null
 }
 
 function resolveMobile(raw: string | null | undefined) {
@@ -164,72 +199,119 @@ function resolveMobile(raw: string | null | undefined) {
   return {ok: true as const, normalized: result.normalized}
 }
 
-function onDraftMobileBlur() {
-  const result = resolveMobile(draft.value.mobile)
+function onCreateMobileBlur() {
+  const result = resolveMobile(createDraft.value.mobile)
   if (!result.ok) {
-    draftMobileError.value = result.error
+    createMobileError.value = result.error
     return
   }
-  draftMobileError.value = ''
+  createMobileError.value = ''
   if (result.normalized !== null) {
-    draft.value.mobile = result.normalized
+    createDraft.value.mobile = result.normalized
   }
+}
+
+function onEditMobileBlur() {
+  const result = resolveMobile(editDraft.value.mobile)
+  if (!result.ok) {
+    editMobileError.value = result.error
+    return
+  }
+  editMobileError.value = ''
+  if (result.normalized !== null) {
+    editDraft.value.mobile = result.normalized
+  }
+}
+
+function resetCreateDraft() {
+  createDraft.value = emptyDraft()
+  createMobileError.value = ''
+}
+
+function cancelEdit() {
+  editingId.value = null
+  editDraft.value = emptyDraft()
+  editMobileError.value = ''
 }
 
 function startEdit(p: Person) {
   editingId.value = p.id
-  draft.value = {
+  editDraft.value = {
     first_name: p.first_name,
     last_name: p.last_name,
-    nickname: p.nickname ?? '',
     email: p.email,
     mobile: p.mobile ?? '',
+    organization: p.organization ?? '',
   }
-  draftMobileError.value = ''
-  document.querySelector('.vol-composer')?.scrollIntoView({behavior: 'smooth', block: 'nearest'})
+  editMobileError.value = ''
 }
 
-async function submitPerson() {
-  if (!eventId.value) return
-  if (!draft.value.first_name.trim() || !draft.value.last_name.trim() || !draft.value.email.trim()) {
+function buildPayload(draft: PersonDraft) {
+  if (!draft.first_name.trim() || !draft.last_name.trim() || !draft.email.trim()) {
     showGlassToast('Vorname, Nachname und E-Mail sind erforderlich.', 'info')
-    return
+    return null
   }
-  const mobileResult = resolveMobile(draft.value.mobile)
+  const mobileResult = resolveMobile(draft.mobile)
   if (!mobileResult.ok) {
-    draftMobileError.value = mobileResult.error
+    return {error: mobileResult.error as string}
+  }
+  return {
+    payload: {
+      first_name: draft.first_name.trim(),
+      last_name: draft.last_name.trim(),
+      email: draft.email.trim(),
+      mobile: mobileResult.normalized,
+      organization: draft.organization.trim() || null,
+    },
+  }
+}
+
+async function submitCreate() {
+  if (!eventId.value || saving.value) return
+  const built = buildPayload(createDraft.value)
+  if (!built) return
+  if ('error' in built) {
+    createMobileError.value = built.error
     return
   }
-  draftMobileError.value = ''
-  const payload = {
-    first_name: draft.value.first_name.trim(),
-    last_name: draft.value.last_name.trim(),
-    nickname: draft.value.nickname.trim() || null,
-    email: draft.value.email.trim(),
-    mobile: mobileResult.normalized,
-  }
+  createMobileError.value = ''
+  saving.value = true
   try {
-    if (editingId.value) {
-      await axios.put(`/volunteers/${editingId.value}`, payload)
-      resetDraft()
-      await load()
-      showGlassToast('Gespeichert', 'success')
-      return
-    }
-    await axios.post(`/events/${eventId.value}/volunteers`, payload)
-    resetDraft()
+    await axios.post(`/events/${eventId.value}/volunteers`, built.payload)
+    resetCreateDraft()
     await load()
     showGlassToast('Person angelegt', 'success')
   } catch (e: unknown) {
-    showGlassToast(
-      apiError(e, editingId.value ? 'Speichern fehlgeschlagen' : 'Anlegen fehlgeschlagen'),
-      'error',
-    )
+    showGlassToast(apiError(e, 'Anlegen fehlgeschlagen'), 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+async function saveEdit() {
+  if (!editingId.value || saving.value) return
+  const built = buildPayload(editDraft.value)
+  if (!built) return
+  if ('error' in built) {
+    editMobileError.value = built.error
+    return
+  }
+  editMobileError.value = ''
+  saving.value = true
+  try {
+    await axios.put(`/volunteers/${editingId.value}`, built.payload)
+    cancelEdit()
+    await load()
+    showGlassToast('Gespeichert', 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
+  } finally {
+    saving.value = false
   }
 }
 
 function deletePersonLabel(p: Person) {
-  if (p.on_roster) return 'Löschen nicht möglich — Person ist auf der Helferliste'
+  if (p.on_roster) return 'Löschen nicht möglich — Person ist auf der Helfer:innenliste'
   return 'Person löschen'
 }
 
@@ -243,7 +325,7 @@ async function confirmDeletePerson() {
   if (!p) return
   try {
     await axios.delete(`/volunteers/${p.id}`)
-    if (editingId.value === p.id) resetDraft()
+    if (editingId.value === p.id) cancelEdit()
     deletePersonTarget.value = null
     await load()
     showGlassToast('Gelöscht', 'success')
@@ -253,11 +335,11 @@ async function confirmDeletePerson() {
 }
 
 function rosterIconTooltip(p: Person) {
-  if (!p.on_roster) return 'Zur Helferliste hinzufügen'
+  if (!p.on_roster) return 'Zur Helfer:innenliste hinzufügen'
   if (assignedIds.value.has(p.id)) {
-    return 'Von Helferliste entfernen — Zuordnungen werden ebenfalls entfernt'
+    return 'Von Helfer:innenliste entfernen — Zuordnungen werden ebenfalls entfernt'
   }
-  return 'Von Helferliste entfernen'
+  return 'Von Helfer:innenliste entfernen'
 }
 
 function onRosterIconClick(p: Person) {
@@ -277,7 +359,7 @@ async function addToRoster(p: Person) {
       volunteer_person: p.id,
     })
     p.on_roster = true
-    showGlassToast('Zur Helferliste hinzugefügt', 'success')
+    showGlassToast('Zur Helfer:innenliste hinzugefügt', 'success')
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Hinzufügen fehlgeschlagen'), 'error')
   } finally {
@@ -294,7 +376,7 @@ async function confirmRemoveFromRoster() {
     p.on_roster = false
     assignedIds.value.delete(p.id)
     removeFromRosterTarget.value = null
-    showGlassToast('Von Helferliste entfernt', 'success')
+    showGlassToast('Von Helfer:innenliste entfernt', 'success')
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Entfernen fehlgeschlagen'), 'error')
   } finally {
@@ -308,8 +390,25 @@ function onPeopleImported() {
   showGlassToast('Import abgeschlossen', 'success')
 }
 
-watch(eventId, () => load(), {immediate: true})
-onMounted(() => load())
+watch([search, notOnRosterOnly], () => {
+  if (editingId.value !== null) cancelEdit()
+})
+
+function applyRouteSearch() {
+  const q = route.query.q
+  if (typeof q === 'string' && q.trim()) {
+    search.value = q.trim()
+  }
+}
+
+watch(() => route.query.q, applyRouteSearch)
+
+watch(eventId, () => {
+  cancelEdit()
+  resetCreateDraft()
+  applyRouteSearch()
+  void load()
+}, {immediate: true})
 </script>
 
 <template>
@@ -329,11 +428,21 @@ onMounted(() => load())
           <i class="bi bi-upload" aria-hidden="true"/>
           Upload
         </button>
+        <button
+            type="button"
+            class="glass-btn-secondary vol-upload-trigger"
+            :class="{'vol-upload-trigger--active': exportBusy}"
+            :disabled="!eventId || exportBusy || !filtered.length"
+            @click="downloadExcel"
+        >
+          <i class="bi bi-download" aria-hidden="true"/>
+          {{ exportBusy ? 'Export…' : 'Download' }}
+        </button>
         <VolunteerEmailOutreach scope="pool" :people="filtered"/>
       </div>
     </header>
 
-    <section class="glass-card liquid-surface-inner vol-tile vol-composer" :class="{'vol-composer--edit': isEditing}">
+    <section class="glass-card liquid-surface-inner vol-tile vol-composer">
       <div class="vol-table-frame">
         <table class="vol-table">
           <colgroup>
@@ -350,28 +459,21 @@ onMounted(() => load())
               <td class="vol-table__roster"/>
               <td>
                 <input
-                    v-model="draft.first_name"
+                    v-model="createDraft.first_name"
                     class="glass-input glass-input--sm"
                     placeholder="Vorname *"
                 />
               </td>
               <td>
                 <input
-                    v-model="draft.last_name"
+                    v-model="createDraft.last_name"
                     class="glass-input glass-input--sm"
                     placeholder="Nachname *"
                 />
               </td>
               <td>
                 <input
-                    v-model="draft.nickname"
-                    class="glass-input glass-input--sm"
-                    placeholder="Spitzname"
-                />
-              </td>
-              <td>
-                <input
-                    v-model="draft.email"
+                    v-model="createDraft.email"
                     class="glass-input glass-input--sm"
                     type="email"
                     placeholder="E-Mail *"
@@ -379,34 +481,34 @@ onMounted(() => load())
               </td>
               <td>
                 <input
-                    v-model="draft.mobile"
-                    :class="mobileInputClass(draftMobileError)"
+                    v-model="createDraft.mobile"
+                    :class="mobileInputClass(createMobileError)"
                     type="tel"
                     inputmode="tel"
                     autocomplete="tel"
                     placeholder="0170 1234567 oder +49 170 1234567"
-                    :aria-invalid="draftMobileError ? true : undefined"
-                    :title="draftMobileError || undefined"
-                    @input="clearDraftMobileError"
-                    @blur="onDraftMobileBlur"
+                    :aria-invalid="createMobileError ? true : undefined"
+                    :title="createMobileError || undefined"
+                    @input="createMobileError = ''"
+                    @blur="onCreateMobileBlur"
+                />
+              </td>
+              <td>
+                <input
+                    v-model="createDraft.organization"
+                    class="glass-input glass-input--sm"
+                    placeholder="Organisation"
                 />
               </td>
               <td class="vol-table__updated"/>
               <td class="vol-table__actions">
                 <button
-                    v-if="isEditing"
                     type="button"
-                    class="glass-btn-secondary vol-composer__cancel"
-                    @click="resetDraft"
+                    class="glass-btn-accent"
+                    :disabled="saving"
+                    @click="submitCreate"
                 >
-                  Abbrechen
-                </button>
-                <button
-                    type="button"
-                    :class="isEditing ? 'glass-btn-secondary vol-composer__save' : 'glass-btn-accent'"
-                    @click="submitPerson"
-                >
-                  {{ isEditing ? 'Sichern' : 'Anlegen' }}
+                  Anlegen
                 </button>
               </td>
             </tr>
@@ -424,24 +526,28 @@ onMounted(() => load())
 
     <section class="glass-card liquid-surface-inner vol-tile">
       <div class="vol-toolbar">
+        <span class="vol-staffing-filters__filter-icon" aria-hidden="true">
+          <i class="bi bi-funnel"/>
+        </span>
         <button
             type="button"
             class="vol-staffing-filter"
             :class="{'vol-staffing-filter--active': notOnRosterOnly}"
             :aria-pressed="notOnRosterOnly"
-            title="Nur Personen anzeigen, die noch nicht auf der Helferliste sind"
+            title="Nur Personen anzeigen, die noch nicht auf der Helfer:innenliste sind"
             @click="notOnRosterOnly = !notOnRosterOnly"
         >
           <i class="bi bi-clipboard-check vol-staffing-filter__icon" aria-hidden="true"/>
-          <span class="vol-staffing-filter__label">Nicht auf Helferliste</span>
+          <span class="vol-staffing-filter__label">Nicht auf Helfer:innenliste</span>
         </button>
         <input
             v-model="search"
             type="search"
-            class="glass-input glass-input--sm vol-toolbar__search"
-            placeholder="Tippen zum Filtern (alle Felder)…"
+            class="glass-input glass-input--sm vol-staffing-filters__name vol-toolbar__name-filter"
+            placeholder="Name…"
+            aria-label="Nach Name filtern"
             autocomplete="off"
-        />
+        >
         <span class="vol-toolbar__count">{{ filtered.length }} / {{ people.length }}</span>
       </div>
 
@@ -455,14 +561,14 @@ onMounted(() => load())
             <col class="vol-col--roster"/>
             <col
                 v-for="column in tableColumns"
-                :key="`composer-col-${column.key}`"
+                :key="`list-col-${column.key}`"
                 :class="columnColClass(column.key)"
             />
             <col class="vol-col--actions"/>
           </colgroup>
           <thead>
             <tr>
-              <th class="vol-table__roster" scope="col"><span class="sr-only">Helferliste</span></th>
+              <th class="vol-table__roster" scope="col"><span class="sr-only">Helfer:innenliste</span></th>
               <th
                   v-for="column in tableColumns"
                   :key="column.key"
@@ -495,7 +601,7 @@ onMounted(() => load())
                     type="button"
                     class="vol-roster-icon"
                     :class="p.on_roster ? 'vol-roster-icon--on' : 'vol-roster-icon--off'"
-                    :disabled="togglingId === p.id"
+                    :disabled="togglingId === p.id || editingId === p.id"
                     :aria-label="rosterIconTooltip(p)"
                     @click="onRosterIconClick(p)"
                 >
@@ -507,28 +613,98 @@ onMounted(() => load())
                   <span class="vol-roster-icon__tip glass-dropdown" role="tooltip">{{ rosterIconTooltip(p) }}</span>
                 </button>
               </td>
-              <td>{{ p.first_name }}</td>
-              <td>{{ p.last_name }}</td>
-              <td>{{ p.nickname?.trim() || '—' }}</td>
-              <td>{{ p.email }}</td>
-              <td>{{ p.mobile?.trim() || '—' }}</td>
-              <td class="vol-table__updated">{{ formatUpdatedAt(p.updated_at) }}</td>
-              <td class="vol-table__actions">
-                <button
-                    type="button"
-                    class="vol-icon-btn"
-                    aria-label="Bearbeiten"
-                    title="Bearbeiten"
-                    @click="startEdit(p)"
-                >
-                  <i class="bi bi-pencil" aria-hidden="true"/>
-                </button>
-                <IconDangerButton
-                    :label="deletePersonLabel(p)"
-                    :disabled="p.on_roster"
-                    @click="requestDeletePerson(p)"
-                />
-              </td>
+              <template v-if="editingId === p.id">
+                <td>
+                  <input
+                      v-model="editDraft.first_name"
+                      class="glass-input glass-input--sm"
+                      placeholder="Vorname *"
+                  />
+                </td>
+                <td>
+                  <input
+                      v-model="editDraft.last_name"
+                      class="glass-input glass-input--sm"
+                      placeholder="Nachname *"
+                  />
+                </td>
+                <td>
+                  <input
+                      v-model="editDraft.email"
+                      class="glass-input glass-input--sm"
+                      type="email"
+                      placeholder="E-Mail *"
+                  />
+                </td>
+                <td>
+                  <input
+                      v-model="editDraft.mobile"
+                      :class="mobileInputClass(editMobileError)"
+                      type="tel"
+                      inputmode="tel"
+                      autocomplete="tel"
+                      placeholder="Mobil"
+                      :aria-invalid="editMobileError ? true : undefined"
+                      :title="editMobileError || undefined"
+                      @input="editMobileError = ''"
+                      @blur="onEditMobileBlur"
+                  />
+                </td>
+                <td>
+                  <input
+                      v-model="editDraft.organization"
+                      class="glass-input glass-input--sm"
+                      placeholder="Organisation"
+                  />
+                </td>
+                <td class="vol-table__updated">{{ formatUpdatedAt(p.updated_at) }}</td>
+                <td class="vol-table__actions">
+                  <button
+                      type="button"
+                      class="vol-icon-btn"
+                      aria-label="Sichern"
+                      title="Sichern"
+                      :disabled="saving"
+                      @click="saveEdit"
+                  >
+                    <i class="bi bi-check-lg" aria-hidden="true"/>
+                  </button>
+                  <button
+                      type="button"
+                      class="vol-icon-btn"
+                      aria-label="Abbrechen"
+                      title="Abbrechen"
+                      :disabled="saving"
+                      @click="cancelEdit"
+                  >
+                    <i class="bi bi-x-lg" aria-hidden="true"/>
+                  </button>
+                </td>
+              </template>
+              <template v-else>
+                <td>{{ p.first_name }}</td>
+                <td>{{ p.last_name }}</td>
+                <td>{{ p.email }}</td>
+                <td>{{ p.mobile?.trim() || '—' }}</td>
+                <td>{{ p.organization?.trim() || '—' }}</td>
+                <td class="vol-table__updated">{{ formatUpdatedAt(p.updated_at) }}</td>
+                <td class="vol-table__actions">
+                  <button
+                      type="button"
+                      class="vol-icon-btn"
+                      aria-label="Bearbeiten"
+                      title="Bearbeiten"
+                      @click="startEdit(p)"
+                  >
+                    <i class="bi bi-pencil" aria-hidden="true"/>
+                  </button>
+                  <IconDangerButton
+                      :label="deletePersonLabel(p)"
+                      :disabled="p.on_roster"
+                      @click="requestDeletePerson(p)"
+                  />
+                </td>
+              </template>
             </tr>
           </tbody>
         </table>
@@ -538,7 +714,7 @@ onMounted(() => load())
     <ConfirmationModal
         :show="!!removeFromRosterTarget"
         type="warning"
-        title="Von Helferliste entfernen?"
+        title="Von Helfer:innenliste entfernen?"
         :message="removeFromRosterMessage"
         confirm-text="Entfernen"
         cancel-text="Abbrechen"
@@ -567,11 +743,11 @@ onMounted(() => load())
 
 .vol-col--first { width: 13%; }
 .vol-col--last { width: 13%; }
-.vol-col--nick { width: 11%; }
 .vol-col--email { width: 20%; }
 .vol-col--mobile { width: 13%; }
+.vol-col--org { width: 14%; }
 .vol-col--updated { width: 11%; }
-.vol-col--actions { width: 10rem; }
+.vol-col--actions { width: 6.5rem; }
 
 .vol-table__updated {
   font-variant-numeric: tabular-nums;
@@ -586,21 +762,6 @@ onMounted(() => load())
   align-items: center;
   justify-content: flex-end;
   white-space: nowrap;
-}
-
-.vol-composer--edit {
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 35%, transparent),
-    0 10px 24px rgba(15, 23, 42, 0.06);
-}
-
-.vol-composer__save {
-  min-width: 5.25rem;
-}
-
-.vol-composer__cancel {
-  padding-inline: 0.65rem;
-  font-size: 0.8125rem;
 }
 
 .vol-table__row--editing td {

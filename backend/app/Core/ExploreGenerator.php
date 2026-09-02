@@ -103,8 +103,9 @@ class ExploreGenerator
                 
                 $startOpening = clone $this->eTime;
 
-                $this->writer->withGroup('e_opening', function () use ($group) {
-                    $this->writer->insertActivity('e_opening', $this->eTime, $this->pp("e{$group}_duration_opening"));
+                $openingCode = "e{$group}_opening";
+                $this->writer->withGroup($openingCode, function () use ($group, $openingCode) {
+                    $this->writer->insertActivity($openingCode, $this->eTime, $this->pp("e{$group}_duration_opening"));
                 }, $group);
 
                 $this->eTime->addMinutes($this->pp("e{$group}_duration_opening"));

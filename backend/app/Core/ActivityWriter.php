@@ -246,11 +246,11 @@ class ActivityWriter
         $isExploreActivity = ($firstProgram === FirstProgram::EXPLORE->value);
         $hasTwoExploreGroups = $this->hasTwoExploreGroups();
 
-        // For Explore activities without lanes, insert group number after "e" if there are two Explore groups
-        // Example: e_opening -> e1_opening or e2_opening
+        // Legacy e_* codes map to e1_/e2_ room types when two Explore groups run; e1_/e2_ codes pass through.
         if ($isExploreActivity && $hasTwoExploreGroups && $exploreGroup !== null && ($juryLane === null || $juryLane === 0)) {
-            // Replace "e_" with "e{group}_"
-            $code = str_replace('e_', 'e' . $exploreGroup . '_', $code);
+            if (! preg_match('/^e\d+_/', $code)) {
+                $code = str_replace('e_', 'e' . $exploreGroup . '_', $code);
+            }
         }
 
         $map = [

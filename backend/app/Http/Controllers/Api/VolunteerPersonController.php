@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Export\Spreadsheet\SpreadsheetResponse;
+use App\Export\Volunteers\VolunteerPersonSpreadsheetSource;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\EventStaffingAssignment;
@@ -9,13 +11,15 @@ use App\Models\EventVolunteerRoster;
 use App\Models\VolunteerPerson;
 use App\Services\VolunteerPersonImportService;
 use App\Support\GermanMobileNumber;
+use App\Support\PersonIdsFilter;
+use App\Support\SpreadsheetExportVariant;
 use App\Support\VolunteerPersonColumns;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class VolunteerPersonController extends Controller
 {
@@ -36,9 +40,9 @@ class VolunteerPersonController extends Controller
             $query->where(function ($inner) use ($like) {
                 $inner->where('first_name', 'like', $like)
                     ->orWhere('last_name', 'like', $like)
-                    ->orWhere('nickname', 'like', $like)
                     ->orWhere('email', 'like', $like)
-                    ->orWhere('mobile', 'like', $like);
+                    ->orWhere('mobile', 'like', $like)
+                    ->orWhere('organization', 'like', $like);
             });
         }
 
@@ -62,7 +66,6 @@ class VolunteerPersonController extends Controller
         $validated = $request->validate([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'nickname' => 'nullable|string|max:100',
             'email' => [
                 'required',
                 'email',
@@ -71,6 +74,7 @@ class VolunteerPersonController extends Controller
                     ->where(fn ($q) => $q->where('regional_partner', $event->regional_partner)),
             ],
             'mobile' => 'nullable|string|max:50',
+            'organization' => 'nullable|string|max:255',
         ]);
 
         $mobile = $this->normalizeMobile($validated['mobile'] ?? null);
@@ -79,9 +83,9 @@ class VolunteerPersonController extends Controller
             'regional_partner' => $event->regional_partner,
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
-            'nickname' => $validated['nickname'] ?? null,
             'email' => strtolower(trim($validated['email'])),
             'mobile' => $mobile,
+            'organization' => $this->nullableTrim($validated['organization'] ?? null),
         ]);
 
         return response()->json([
@@ -94,7 +98,6 @@ class VolunteerPersonController extends Controller
         $validated = $request->validate([
             'first_name' => 'sometimes|required|string|max:100',
             'last_name' => 'sometimes|required|string|max:100',
-            'nickname' => 'nullable|string|max:100',
             'email' => [
                 'sometimes',
                 'required',
@@ -105,10 +108,15 @@ class VolunteerPersonController extends Controller
                     ->ignore($volunteer->id),
             ],
             'mobile' => 'nullable|string|max:50',
+            'organization' => 'nullable|string|max:255',
         ]);
 
         if (array_key_exists('mobile', $validated)) {
             $validated['mobile'] = $this->normalizeMobile($validated['mobile']);
+        }
+
+        if (array_key_exists('organization', $validated)) {
+            $validated['organization'] = $this->nullableTrim($validated['organization']);
         }
 
         if (isset($validated['email'])) {
@@ -149,9 +157,9 @@ class VolunteerPersonController extends Controller
             'rows' => 'required|array|max:'.VolunteerPersonImportService::MAX_ROWS,
             'rows.*.first_name' => 'required|string|max:100',
             'rows.*.last_name' => 'required|string|max:100',
-            'rows.*.nickname' => 'nullable|string|max:100',
             'rows.*.email' => 'required|string|max:255',
             'rows.*.mobile' => 'nullable|string|max:50',
+            'rows.*.organization' => 'nullable|string|max:255',
         ]);
 
         $result = $importService->import(
@@ -167,39 +175,21 @@ class VolunteerPersonController extends Controller
         return response()->json($result);
     }
 
-    public function exportCsv(Request $request, Event $event): StreamedResponse
+    public function exportXlsx(Request $request, Event $event): Response
     {
         $scope = $request->query('scope', 'pool'); // pool | roster
-        $filename = $scope === 'roster'
-            ? 'helfer-anmeldung-'.$event->id.'.csv'
-            : 'helfer-pool-'.$event->regional_partner.'.csv';
-
-        $query = VolunteerPerson::query()
-            ->where('regional_partner', $event->regional_partner)
-            ->orderBy('last_name')
-            ->orderBy('first_name');
-
-        if ($scope === 'roster') {
-            $query->whereIn('id', EventVolunteerRoster::query()
-                ->where('event', $event->id)
-                ->select('volunteer_person'));
+        if (! in_array($scope, ['pool', 'roster'], true)) {
+            $scope = 'pool';
         }
 
-        $rows = $query->get();
-
-        $header = VolunteerPersonColumns::exportLabels();
-
-        return response()->streamDownload(function () use ($rows, $header) {
-            $out = fopen('php://output', 'w');
-            fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, $header, ';');
-            foreach ($rows as $person) {
-                fputcsv($out, VolunteerPersonColumns::exportValues($person), ';');
-            }
-            fclose($out);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return SpreadsheetResponse::download(
+            (new VolunteerPersonSpreadsheetSource(
+                $event,
+                $scope,
+                PersonIdsFilter::parse($request),
+                SpreadsheetExportVariant::parse($request),
+            ))->document()
+        );
     }
 
     private function serializePerson(VolunteerPerson $person, ?bool $onRoster, ?int $eventId): array
@@ -209,9 +199,9 @@ class VolunteerPersonController extends Controller
             'regional_partner' => $person->regional_partner,
             'first_name' => $person->first_name,
             'last_name' => $person->last_name,
-            'nickname' => $person->nickname,
             'email' => $person->email,
             'mobile' => $person->mobile,
+            'organization' => $person->organization,
             'created_at' => optional($person->created_at)?->toIso8601String(),
             'updated_at' => optional($person->updated_at)?->toIso8601String(),
         ];
@@ -237,6 +227,17 @@ class VolunteerPersonController extends Controller
         }
 
         return $result['normalized'];
+    }
+
+    private function nullableTrim(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 
     /**

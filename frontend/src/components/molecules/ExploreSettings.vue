@@ -198,19 +198,6 @@ const programPlans = computed(() =>
     (props.supportedPlanData || []).filter((plan: any) => plan.first_program === PROGRAM_ID)
 )
 
-const getAlertLevelStyle = (level: number) => {
-  switch (level) {
-    case 1:
-      return 'glass-choice--active'
-    case 2:
-      return 'border-amber-400 bg-amber-50 text-amber-900'
-    case 3:
-      return 'border-red-400 bg-red-50 text-red-900'
-    default:
-      return 'glass-choice--active'
-  }
-}
-
 const planTeams = computed(() => Number(paramMapByName.value['e_teams']?.value || 0))
 const registeredTeams = computed(() => Number(event.value?.drahtTeamsExplore || 0))
 const drahtCapacity = computed(() => Number(event.value?.drahtCapacityExplore || 0))
@@ -336,7 +323,7 @@ watch(
                 :aria-disabled="disabled"
                 :class="[
                   'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
-                  checked ? (getAlertLevelStyle(group.alertLevel) || 'glass-choice--active') : '',
+                  checked ? 'glass-choice--active' : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : '',
                 ]"
                 type="button"

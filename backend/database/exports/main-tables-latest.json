@@ -265,7 +265,7 @@
         {
             "id": 5,
             "name": "Er\u00f6ffnung Explore",
-            "code": "e_opening",
+            "code": "e1_opening",
             "presence": "window",
             "public_time": 1,
             "name_preview": "Er\u00f6ffnung E",
@@ -894,7 +894,7 @@
         {
             "id": 56,
             "name": "Preisverleihung Explore",
-            "code": "e_awards",
+            "code": "e1_awards",
             "presence": "info",
             "public_time": 0,
             "name_preview": "Preise E",
@@ -963,7 +963,7 @@
             "id": 63,
             "name": "Slot Block",
             "code": "g_slot_block",
-            "presence": "window",
+            "presence": "punctual",
             "public_time": 0,
             "name_preview": null,
             "sequence": 30,
@@ -980,7 +980,7 @@
             "id": 64,
             "name": "Slot Block Explore",
             "code": "e_slot_block",
-            "presence": "window",
+            "presence": "punctual",
             "public_time": 0,
             "name_preview": null,
             "sequence": 90,
@@ -997,7 +997,7 @@
             "id": 65,
             "name": "Slot Block Challenge",
             "code": "c_slot_block",
-            "presence": "window",
+            "presence": "punctual",
             "public_time": 0,
             "name_preview": null,
             "sequence": 81,
@@ -1320,7 +1320,7 @@
             "id": 84,
             "name": "Slot Block Future 8+",
             "code": "f8_slot_block",
-            "presence": "window",
+            "presence": "punctual",
             "public_time": 0,
             "name_preview": null,
             "sequence": 81,
@@ -1349,6 +1349,160 @@
             "link": null,
             "link_text": null,
             "activity_type": 7
+        },
+        {
+            "id": 86,
+            "name": "Er\u00f6ffnung Explore (Nachmittag)",
+            "code": "e2_opening",
+            "presence": "window",
+            "public_time": 1,
+            "name_preview": "Er\u00f6ffnung E",
+            "sequence": 10,
+            "first_program": 2,
+            "afternoon_chain": null,
+            "afternoon_default": null,
+            "afternoon_parameter": null,
+            "description": "Die Explore Ausstellung wird er\u00f6ffnet",
+            "link": "",
+            "link_text": null,
+            "activity_type": 10
+        },
+        {
+            "id": 87,
+            "name": "Preisverleihung Explore (Nachmittag)",
+            "code": "e2_awards",
+            "presence": "info",
+            "public_time": 0,
+            "name_preview": "Preise E",
+            "sequence": 70,
+            "first_program": 2,
+            "afternoon_chain": null,
+            "afternoon_default": null,
+            "afternoon_parameter": null,
+            "description": "Medaillen und Urkunden f\u00fcr die Explore Teams",
+            "link": null,
+            "link_text": null,
+            "activity_type": 11
+        },
+        {
+            "id": 88,
+            "name": "Gemeinsame Preisverleihung",
+            "code": "c+f8_awards",
+            "presence": "info",
+            "public_time": 0,
+            "name_preview": "Preise",
+            "sequence": 20,
+            "first_program": null,
+            "afternoon_chain": null,
+            "afternoon_default": null,
+            "afternoon_parameter": null,
+            "description": "Medaillen, Urkunden und Pokale f\u00fcr die Challenge und Future 8+ Teams",
+            "link": "",
+            "link_text": null,
+            "activity_type": 13
+        },
+        {
+            "id": 89,
+            "name": "Gemeinsame Er\u00f6ffnung",
+            "code": "c+f8_opening",
+            "presence": "window",
+            "public_time": 1,
+            "name_preview": "Er\u00f6ffnung",
+            "sequence": 10,
+            "first_program": null,
+            "afternoon_chain": null,
+            "afternoon_default": null,
+            "afternoon_parameter": null,
+            "description": "Die Challenge und Future 8+ Wettbewerbe werden er\u00f6ffnet",
+            "link": "",
+            "link_text": null,
+            "activity_type": 12
+        }
+    ],
+    "m_ceremonies": [
+        {
+            "id": 1,
+            "activity_type_detail": 7,
+            "kind": "opening",
+            "start_parameter": 2,
+            "duration_parameter": 3
+        },
+        {
+            "id": 2,
+            "activity_type_detail": 5,
+            "kind": "opening",
+            "start_parameter": 94,
+            "duration_parameter": 11
+        },
+        {
+            "id": 3,
+            "activity_type_detail": 86,
+            "kind": "opening",
+            "start_parameter": 5,
+            "duration_parameter": 4
+        },
+        {
+            "id": 4,
+            "activity_type_detail": 6,
+            "kind": "opening",
+            "start_parameter": 96,
+            "duration_parameter": 29
+        },
+        {
+            "id": 5,
+            "activity_type_detail": 73,
+            "kind": "opening",
+            "start_parameter": 166,
+            "duration_parameter": 147
+        },
+        {
+            "id": 6,
+            "activity_type_detail": 34,
+            "kind": "awards",
+            "start_parameter": null,
+            "duration_parameter": 97
+        },
+        {
+            "id": 7,
+            "activity_type_detail": 56,
+            "kind": "awards",
+            "start_parameter": null,
+            "duration_parameter": 19
+        },
+        {
+            "id": 8,
+            "activity_type_detail": 87,
+            "kind": "awards",
+            "start_parameter": null,
+            "duration_parameter": 110
+        },
+        {
+            "id": 9,
+            "activity_type_detail": 32,
+            "kind": "awards",
+            "start_parameter": null,
+            "duration_parameter": 41
+        },
+        {
+            "id": 10,
+            "activity_type_detail": 79,
+            "kind": "awards",
+            "start_parameter": null,
+            "duration_parameter": 157
+        },
+        {
+            "id": 11,
+            "activity_type_detail": 88,
+            "kind": "awards",
+            "start_parameter": null,
+            "duration_parameter": 179
+        },
+        {
+            "id": 12,
+            "activity_type_detail": 89,
+            "kind": "opening",
+            "start_parameter": 182,
+            "duration_parameter": 181
         }
     ],
     "m_first_program": [
@@ -1765,8 +1919,8 @@
             "step": "2",
             "first_program": 3,
             "sequence": 92,
-            "ui_label": "Spielfelder",
-            "ui_description": "Anzahl Spielfelder (= Tische) im Robot-Game. Die Auswahl wird passend zur Anzahl Team und Jurygruppen angeboten. Vier Spielfelder f\u00fchren zu k\u00fcrzeren Robot-Game-Runden. Das kann gut sein, aber auch zu Leerlauf f\u00fcr Teams und Besucher f\u00fchren. Ausserdem brauchen vier Spielfelder mehr Platz, Material und Schiedsrichter:innen."
+            "ui_label": "Tische",
+            "ui_description": "Anzahl Tische (= Spielfelder) im Robot-Game. Die Auswahl wird passend zur Anzahl Team und Jurygruppen angeboten. Vier Tische f\u00fchren zu k\u00fcrzeren Robot-Game-Runden. Das kann gut sein, aber auch zu Leerlauf f\u00fcr Teams und Besucher f\u00fchren. Ausserdem brauchen vier Tische mehr Platz, Material und Schiedsrichter:innen."
         },
         {
             "id": 25,
@@ -3507,6 +3661,51 @@
             "sequence": 4,
             "ui_label": "Wo finden die Matches statt?",
             "ui_description": "Wenn die Game-Bereiche der beiden Programm nicht zusammen in einen Raum passen, werden unabh\u00e4ngige Zeitpl\u00e4ne pro Programm erzeugt. Er\u00f6ffnung und Preisverleihung bleiben aber integriert."
+        },
+        {
+            "id": 179,
+            "name": "c+f8_duration_awards",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "45",
+            "min": "30",
+            "max": "90",
+            "step": "5",
+            "first_program": null,
+            "sequence": 30,
+            "ui_label": "Dauer gemeinsame Preisverleihung",
+            "ui_description": "Dauer der gemeinsamen Preisverleihung f\u00fcr Challenge und Future 8+."
+        },
+        {
+            "id": 181,
+            "name": "c+f8_duration_opening",
+            "context": "input",
+            "level": 1,
+            "type": "integer",
+            "value": "45",
+            "min": "15",
+            "max": "60",
+            "step": "5",
+            "first_program": null,
+            "sequence": 29,
+            "ui_label": "Dauer gemeinsame Er\u00f6ffnung ",
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+        },
+        {
+            "id": 182,
+            "name": "c+f8_start_opening",
+            "context": "input",
+            "level": 1,
+            "type": "time",
+            "value": "09:00",
+            "min": "08:00",
+            "max": "11:00",
+            "step": "5",
+            "first_program": null,
+            "sequence": 28,
+            "ui_label": "Start gemeinsame Er\u00f6ffnung",
+            "ui_description": "Startzeit der gemeinsamen Er\u00f6ffnung f\u00fcr Challenge and Future 8+ zusammen."
         }
     ],
     "m_parameter_condition": [],
@@ -4586,6 +4785,24 @@
             "room_type_group": 5,
             "level": 1,
             "first_program": 8
+        },
+        {
+            "id": 81,
+            "code": "c+f8_opening",
+            "name": "Gemeinsame Er\u00f6ffnung",
+            "sequence": 110,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 0
+        },
+        {
+            "id": 82,
+            "code": "c+f8_awards",
+            "name": "Gemeinsame Preisverleihung",
+            "sequence": 510,
+            "room_type_group": 5,
+            "level": 1,
+            "first_program": 0
         }
     ],
     "m_room_type_group": [
@@ -8936,10 +9153,11 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-08-29T16:02:11.797510Z",
+        "exported_at": "2026-09-01T09:55:30.597329Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
+            "m_ceremonies",
             "m_first_program",
             "m_level",
             "m_parameter",

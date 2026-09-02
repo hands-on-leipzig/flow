@@ -29,6 +29,14 @@ export function createBlockSaveKeys(prefix: string) {
   return {blockSaveKey, blockDeleteKey}
 }
 
+export function slotTeamSaveKey(
+  blockId: number,
+  firstProgram: number,
+  teamNumberPlan: number,
+): string {
+  return `slot_block_team_${blockId}_${firstProgram}_${teamNumberPlan}`
+}
+
 export function orderDebouncedUpdates(
   updates: Record<string, unknown>,
   prefix: string,

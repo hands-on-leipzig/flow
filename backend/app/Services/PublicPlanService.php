@@ -2,13 +2,18 @@
 
 namespace App\Services;
 
+use App\Enums\FirstProgram;
+use App\Support\TableFieldLabels;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class PublicPlanService
 {
-    public function __construct(private ActivityFetcherService $activities) {}
+    public function __construct(
+        private ActivityFetcherService $activities,
+        private RoleFetcherService $roleFetcher,
+    ) {}
 
     /**
      * Role picker data (port of zeitplan.cgi get_auswahl).
@@ -18,59 +23,26 @@ class PublicPlanService
         $plan = DB::table('plan')
             ->join('event', 'event.id', '=', 'plan.event')
             ->where('plan.id', $planId)
-            ->select('plan.id as plan_id', 'plan.event as event_id', 'event.level as event_level', 'event.name as event_name')
+            ->select(
+                'plan.id as plan_id',
+                'plan.event as event_id',
+                'event.level as event_level',
+                'event.name as event_name',
+                'event.slug as event_slug',
+                'event.check_in_enabled',
+                'event.cockpit_enabled',
+            )
             ->first();
 
         if (! $plan) {
             abort(404, 'Plan not found');
         }
 
-        $params = $this->planParameters($planId);
-        $eTeams = (int) ($params['e_teams'] ?? 0);
-        $cTeams = (int) ($params['c_teams'] ?? 0);
-        $robotCheck = (int) ($params['r_robot_check'] ?? 0);
-
-        $rolesQuery = DB::table('m_role')
-            ->leftJoin('m_first_program', 'm_role.first_program', '=', 'm_first_program.id')
-            ->select([
-                'm_role.id',
-                'm_role.name',
-                'm_role.name_short',
-                'm_role.sequence',
-                'm_role.first_program',
-                'm_role.differentiation_type',
-                'm_role.differentiation_source',
-                'm_role.differentiation_parameter',
-                'm_first_program.color_hex',
-                'm_first_program.logo_stem',
-                'm_first_program.logo_white',
-                'm_first_program.name as first_program_name',
-            ])
-            ->where(function ($q) use ($eTeams, $cTeams) {
-                $q->whereNull('m_role.first_program');
-                if ($eTeams > 0) {
-                    $q->orWhere('m_role.first_program', 2);
-                }
-                if ($cTeams > 0) {
-                    $q->orWhere('m_role.first_program', 3);
-                }
-            })
-            ->orderByRaw('ISNULL(m_role.first_program) ASC')
-            ->orderBy('m_first_program.sequence')
-            ->orderBy('m_role.sequence');
-
-        if ($robotCheck === 0) {
-            $rolesQuery->where('m_role.id', '!=', 11);
-        }
-        if ((int) $plan->event_level !== 3) {
-            $rolesQuery->where('m_role.id', '!=', 16);
-        }
-
         $teams = $this->teamsByPlanNumber($planId);
         $tableNames = $this->tableNamesForEvent((int) $plan->event_id);
 
         $roles = [];
-        foreach ($rolesQuery->get() as $role) {
+        foreach ($this->roleFetcher->fetchRoles($planId) as $role) {
             $roles[] = [
                 'id' => (int) $role->id,
                 'name' => $role->name,
@@ -89,6 +61,9 @@ class PublicPlanService
             'plan_id' => $planId,
             'event_id' => (int) $plan->event_id,
             'event_name' => $plan->event_name,
+            'slug' => $plan->event_slug ?: null,
+            'check_in_enabled' => (bool) $plan->check_in_enabled,
+            'cockpit_enabled' => (bool) $plan->cockpit_enabled,
             'roles' => $roles,
         ];
     }
@@ -202,8 +177,14 @@ class PublicPlanService
                         $noshow = (bool) $team['noshow'];
                     }
                 } elseif (in_array($roleId, [5, 11], true)) {
-                    $tableLabel = $tableNames[$i] ?? (string) $i;
-                    $label = 'Tisch '.$tableLabel;
+                    $fp = $firstProgram ?? FirstProgram::CHALLENGE->value;
+                    $byProgram = $tableNames[$fp] ?? [];
+                    $custom = $byProgram[$i] ?? null;
+                    if (TableFieldLabels::supports($fp)) {
+                        $label = TableFieldLabels::effective($fp, $i, $custom);
+                    } else {
+                        $label = TableFieldLabels::defaultLabel(FirstProgram::CHALLENGE->value, $i);
+                    }
                 }
 
                 $options[] = [
@@ -305,11 +286,24 @@ class PublicPlanService
         return $map;
     }
 
+    /**
+     * @return array<int, array<int, string>> first_program => [table_number => table_name]
+     */
     private function tableNamesForEvent(int $eventId): array
     {
         $map = [];
-        foreach (DB::table('table_event')->where('event', $eventId)->get(['table_number', 'table_name']) as $row) {
-            $map[(int) $row->table_number] = $row->table_name ?: (string) $row->table_number;
+        foreach (
+            DB::table('table_event')
+                ->where('event', $eventId)
+                ->get(['first_program', 'table_number', 'table_name']) as $row
+        ) {
+            $fp = (int) $row->first_program;
+            $num = (int) $row->table_number;
+            $name = trim((string) ($row->table_name ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $map[$fp][$num] = $name;
         }
 
         return $map;

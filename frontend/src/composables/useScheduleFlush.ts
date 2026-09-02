@@ -4,6 +4,7 @@ import type {Parameter} from '@/models/Parameter'
 import {pollPlanUntilReady, runGenerateLite} from '@/composables/usePlanGeneratorPoll'
 import {orderDebouncedUpdates} from '@/utils/extraBlockSaveKeys'
 import type {FreeExtraBlock, SlotExtraBlock} from '@/types/extraBlock'
+import type {TeamSavePayload} from '@/components/molecules/SlotTeamPanel.vue'
 import {parseExtraBlockSaveError} from '@/utils/extraBlockApiErrors'
 import {normalizeDurationMinutes} from '@/utils/extraBlockDuration'
 
@@ -107,6 +108,10 @@ export async function executeScheduleFlush(
     if (hasExtraBlocks && deps.freeBlockFlush) {
       const ok = await deps.freeBlockFlush(extraBlockUpdates, {skipPostGeneration: needsFullGenerate})
       if (!ok) return
+    }
+
+    if (hasSlotBlocks && !deps.slotBlockFlush) {
+      throw new Error('Slot block flush handler not registered')
     }
 
     if (hasSlotBlocks && deps.slotBlockFlush) {
@@ -264,7 +269,7 @@ export async function flushSlotBlockUpdates(
           `/plans/${deps.planId}/extra-blocks/slot`,
           deps.toApiPayload(block),
         )
-        const saved = response.data
+        const saved = response.data?.block ?? response.data
         if (block._clientKey && saved?.id) {
           const idx = deps.blocks.value.findIndex((row) => row._clientKey === block._clientKey)
           if (idx !== -1) {
@@ -283,6 +288,15 @@ export async function flushSlotBlockUpdates(
         await axios.put(
           `/plans/${deps.planId}/extra-blocks/slot/${block.id}`,
           deps.toApiPayload(block),
+        )
+        needsLite = true
+      }
+
+      if (name.startsWith(`${SLOT_BLOCK_PREFIX}_team_`) && value) {
+        const payload = value as TeamSavePayload
+        await axios.patch(
+          `/plans/${deps.planId}/extra-blocks/slot/${payload.blockId}/teams/${payload.first_program}/${payload.team_number_plan}`,
+          {start: payload.start},
         )
         needsLite = true
       }

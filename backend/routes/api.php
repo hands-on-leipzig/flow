@@ -3,9 +3,17 @@
 use App\Http\Controllers\Api\AfternoonController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
+use App\Http\Controllers\Api\CheckInController;
+use App\Http\Controllers\Api\CockpitController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\EventStaffingAssignmentController;
+use App\Http\Controllers\Api\EventStaffingController;
+use App\Http\Controllers\Api\EventVolunteerFieldController;
+use App\Http\Controllers\Api\EventVolunteerMealOptionController;
+use App\Http\Controllers\Api\EventVolunteerRosterController;
+use App\Http\Controllers\Api\EventWorkspaceController;
 use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\LogoController;
@@ -14,7 +22,7 @@ use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanActivityController;
-use App\Http\Controllers\Api\PublicPlanController;
+use App\Http\Controllers\Api\PlanCeremonyTimesController;
 use App\Http\Controllers\Api\PlanController;
 use App\Http\Controllers\Api\PlanExportController;
 use App\Http\Controllers\Api\PlanGeneratorController;
@@ -23,6 +31,7 @@ use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanQualityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\ProgramController;
+use App\Http\Controllers\Api\PublicPlanController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
@@ -33,17 +42,14 @@ use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\VolunteerPersonController;
-use App\Http\Controllers\Api\EventVolunteerFieldController;
-use App\Http\Controllers\Api\EventVolunteerRosterController;
-use App\Http\Controllers\Api\EventStaffingController;
-use App\Http\Controllers\Api\EventStaffingAssignmentController;
+use App\Http\Controllers\Api\VolunteerPublicFormController;
 use App\Models\Event;
 use App\Services\SeasonService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/ping', fn() => ['pong' => true]);
+Route::get('/ping', fn () => ['pong' => true]);
 
 Route::get('/profile', function (Illuminate\Http\Request $request) {
     return response()->json([
@@ -72,6 +78,36 @@ Route::get('/calendar.ics', [CalendarFeedController::class, 'all']); // Public I
 Route::get('/calendar/{postfix}.ics', [CalendarFeedController::class, 'postfix'])
     ->where('postfix', '[A-Za-z0-9_]+');
 
+// Check-In reception (PIN session; public)
+Route::prefix('check-in/{slug}')->group(function () {
+    Route::get('/bootstrap', [CheckInController::class, 'bootstrap']);
+    Route::post('/session', [CheckInController::class, 'openSession']);
+    Route::get('/search', [CheckInController::class, 'search']);
+    Route::get('/overview', [CheckInController::class, 'overview']);
+    Route::get('/organizer', [CheckInController::class, 'organizerContact']);
+    Route::get('/share', [CheckInController::class, 'share']);
+    Route::get('/{subjectType}/{subjectId}', [CheckInController::class, 'show'])
+        ->where('subjectType', 'team|volunteer');
+    Route::post('/{subjectType}/{subjectId}/check-in', [CheckInController::class, 'checkIn'])
+        ->where('subjectType', 'team|volunteer');
+    Route::post('/{subjectType}/{subjectId}/no-show', [CheckInController::class, 'noShow'])
+        ->where('subjectType', 'team|volunteer');
+    Route::patch('/{subjectType}/{subjectId}/note', [CheckInController::class, 'updateNote'])
+        ->where('subjectType', 'team|volunteer');
+});
+
+// Volunteer public data entry (email lookup + save; public; OTP token deferred)
+Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
+Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
+
+// Cockpit app (PIN session; public)
+Route::prefix('cockpit/{slug}')->group(function () {
+    Route::get('/bootstrap', [CockpitController::class, 'bootstrap']);
+    Route::post('/session', [CockpitController::class, 'openSession']);
+    Route::get('/rounds', [CockpitController::class, 'getRounds']);
+    Route::put('/rounds', [CockpitController::class, 'saveRounds']);
+});
+
 Route::prefix('contao')->group(function () {
     Route::get('/test', [ContaoController::class, 'testConnection']);
     Route::get('/score', [ContaoController::class, 'getScore']);
@@ -90,7 +126,7 @@ Route::middleware(['keycloak'])->group(function () {
         ]);
     });
 
-    Route::get('/user', fn(Request $r) => $r->input('keycloak_user'));
+    Route::get('/user', fn (Request $r) => $r->input('keycloak_user'));
     Route::get('/user/me', [UserAccessController::class, 'me']);
     Route::get('/user/access', [UserAccessController::class, 'overview']);
     Route::get('/user/access/events/{eventId}/users', [UserAccessController::class, 'eventUsers']);
@@ -99,7 +135,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::delete('/user/access/grants', [UserAccessController::class, 'revoke']);
     Route::get('/user/regional-partners', function (Request $request) {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['regional_partners' => []]);
         }
 
@@ -114,13 +150,13 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/user/selected-event', function (Request $request) {
         $user = $request->user();
         $eventId = $user?->selection_event;
-        if (!$eventId) {
+        if (! $eventId) {
             return response()->json(['selected_event' => null]);
         }
 
         $event = Event::find($eventId);
         // Past seasons are allowed (view/switch via event modal). Only clear if missing or no access.
-        if (!$event || !$user->hasEventAccess($event->id)) {
+        if (! $event || ! $user->hasEventAccess($event->id)) {
             $user->selection_event = null;
             $user->selection_regional_partner = null;
             $user->save();
@@ -154,7 +190,7 @@ Route::middleware(['keycloak'])->group(function () {
         $user = $request->user();
         $event = Event::find($validated['event']);
 
-        if (!$event) {
+        if (! $event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
 
@@ -164,7 +200,7 @@ Route::middleware(['keycloak'])->group(function () {
             ], 422);
         }
 
-        if (!$user->hasEventAccess($event->id)) {
+        if (! $user->hasEventAccess($event->id)) {
             return response()->json(['error' => 'Forbidden - no access to this event'], 403);
         }
 
@@ -182,6 +218,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::patch('/{id}/lock', [PlanController::class, 'updateLock']);
         Route::post('/sync-team-plan/{eventId}', [PlanController::class, 'syncTeamPlanForEvent']);
         Route::delete('/{id}', [PlanController::class, 'delete']);
+        Route::get('/{planId}/roles', [PlanPreviewController::class, 'planRoles']);
     });
 
     // Preview controller
@@ -210,6 +247,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     // PlanParameter controller
     // Route::get('/plans/{id}/copy-default', [PlanParameterController::class, 'insertParamsFirst']);
+    Route::get('/plans/{planId}/ceremony-times', [PlanCeremonyTimesController::class, 'show']);
     Route::get('/plans/{id}/parameters', [PlanParameterController::class, 'getParametersForPlan']);
     Route::get('/plans/{id}/non-default-parameters', [PlanParameterController::class, 'getNonDefaultParameter']);
     Route::post('/plans/{id}/parameters', [PlanParameterController::class, 'updateParameter']);
@@ -253,6 +291,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::put('/contao/rounds/{eventId}', [ContaoController::class, 'saveRoundsToShow']);
 
     // Team controller
+    Route::post('/events/{event}/teams/sync', [TeamController::class, 'sync']);
+    Route::get('/events/{event}/teams/people/export', [TeamController::class, 'exportPeople']);
     Route::get('/events/{event}/teams', [TeamController::class, 'index']);
     Route::put('/events/{event}/teams', [TeamController::class, 'update']);
     Route::post('/events/{event}/teams/update-order', [TeamController::class, 'updateOrder']);
@@ -262,19 +302,22 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/volunteers', [VolunteerPersonController::class, 'index']);
     Route::post('/events/{event}/volunteers', [VolunteerPersonController::class, 'store']);
     Route::post('/events/{event}/volunteers/import', [VolunteerPersonController::class, 'import']);
-    Route::get('/events/{event}/volunteers/export', [VolunteerPersonController::class, 'exportCsv']);
+    Route::get('/events/{event}/volunteers/export', [VolunteerPersonController::class, 'exportXlsx']);
     Route::put('/volunteers/{volunteer}', [VolunteerPersonController::class, 'update']);
     Route::delete('/volunteers/{volunteer}', [VolunteerPersonController::class, 'destroy']);
     Route::get('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'index']);
     Route::post('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'store']);
     Route::patch('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'update']);
     Route::delete('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'destroy']);
+    Route::get('/events/{event}/volunteer-meal-options', [EventVolunteerMealOptionController::class, 'index']);
+    Route::put('/events/{event}/volunteer-meal-options', [EventVolunteerMealOptionController::class, 'replace']);
     Route::get('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'index']);
-    Route::get('/events/{event}/volunteer-roster/export', [EventVolunteerRosterController::class, 'exportCsv']);
+    Route::get('/events/{event}/volunteer-roster/export', [EventVolunteerRosterController::class, 'exportXlsx']);
     Route::post('/events/{event}/volunteer-roster', [EventVolunteerRosterController::class, 'store']);
     Route::patch('/events/{event}/volunteer-roster/{volunteer}/detail', [EventVolunteerRosterController::class, 'updateDetail']);
     Route::patch('/events/{event}/volunteer-roster/{volunteer}/custom', [EventVolunteerRosterController::class, 'updateCustom']);
     Route::delete('/events/{event}/volunteer-roster/{volunteer}', [EventVolunteerRosterController::class, 'destroy']);
+    Route::post('/events/{event}/ensure-workspace', [EventWorkspaceController::class, 'ensure']);
     Route::get('/events/{event}/staffing', [EventStaffingController::class, 'index']);
     Route::post('/events/{event}/staffing/sync', [EventStaffingController::class, 'sync']);
     Route::post('/events/{event}/staffing/groups/{group}/assignments', [EventStaffingAssignmentController::class, 'store']);
@@ -318,7 +361,6 @@ Route::middleware(['keycloak'])->group(function () {
         Route::put('/condition/{id}', [ParameterController::class, 'updateCondition']);
         Route::delete('/condition/{id}', [ParameterController::class, 'deleteCondition']);
     });
-    Route::get('/parameters/visibility', [ParameterController::class, 'visibility']);
     Route::get('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'blocks']);
     Route::put('/plans/{planId}/afternoon/blocks', [AfternoonController::class, 'updateOrder']);
 
@@ -387,8 +429,21 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
         Route::get('/helper-search/{eventId}', [PublishController::class, 'getPublicHelperSearch']);
         Route::post('/helper-search/{eventId}', [PublishController::class, 'setPublicHelperSearch']);
+        Route::get('/volunteer-data-entry/{eventId}', [PublishController::class, 'getPublicVolunteerDataEntry']);
+        Route::post('/volunteer-data-entry/{eventId}', [PublishController::class, 'setPublicVolunteerDataEntry']);
         Route::get('/pdf_download/{type}/{eventId}', [PublishController::class, 'download']);
         Route::get('/pdf_preview/{type}/{eventId}', [PublishController::class, 'preview']);
+    });
+
+    Route::prefix('events/{event}/check-in')->group(function () {
+        Route::get('/settings', [CheckInController::class, 'getSettings']);
+        Route::put('/settings', [CheckInController::class, 'updateSettings']);
+        Route::post('/reset', [CheckInController::class, 'reset']);
+    });
+
+    Route::prefix('events/{event}/cockpit')->group(function () {
+        Route::get('/settings', [CockpitController::class, 'getSettings']);
+        Route::put('/settings', [CockpitController::class, 'updateSettings']);
     });
 
     Route::prefix('export')->group(function () {
