@@ -23,5 +23,13 @@ defineOptions({name: 'Teams'})
 .teams-shell {
   height: 100%;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.teams-shell > :deep(*) {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 </style>

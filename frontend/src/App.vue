@@ -27,6 +27,7 @@ const isPanelFillRoute = computed(() => {
     || path === '/plan/publish'
     || path === '/plan/publish/logos'
     || path.startsWith('/plan/volunteers/roster')
+    || path === '/plan/teams/data'
     || path.startsWith('/plan/live')
 })
 

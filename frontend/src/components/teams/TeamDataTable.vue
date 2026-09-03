@@ -202,7 +202,7 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
               <i class="bi" :class="sortIcon('name')" aria-hidden="true"/>
             </button>
           </th>
-          <th class="vol-table__sticky vol-table__sticky--organization" scope="col">
+          <th scope="col">
             <button
                 type="button"
                 class="vol-sort"
@@ -213,7 +213,7 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
               <i class="bi" :class="sortIcon('organization')" aria-hidden="true"/>
             </button>
           </th>
-          <th class="vol-table__sticky vol-table__sticky--people" scope="col">Personen</th>
+          <th scope="col">Personen</th>
           <th
               v-for="column in columns"
               :key="column.key"
@@ -239,10 +239,10 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
             {{ displayNumber(row.team_number_hot) }}
           </td>
           <td class="vol-table__name vol-table__sticky vol-table__sticky--name">{{ row.name }}</td>
-          <td class="vol-table__role vol-table__sticky vol-table__sticky--organization">
+          <td class="vol-table__role">
             {{ displayOrganization(row.organization) }}
           </td>
-          <td class="vol-table__sticky vol-table__sticky--people team-data-table__people">
+          <td class="team-data-table__people">
             {{ displayNumber(row.people_count) }}
           </td>
           <td
@@ -336,8 +336,6 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
   --td-sticky-program: 2.75rem;
   --td-sticky-nr: 3.25rem;
   --td-sticky-name: 11rem;
-  --td-sticky-organization: 9rem;
-  --td-sticky-people: 4.75rem;
 }
 
 .vol-table--team-data {
@@ -359,11 +357,11 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 }
 
 .vol-col--organization {
-  min-width: var(--td-sticky-organization);
+  min-width: 9rem;
 }
 
 .vol-col--people {
-  min-width: var(--td-sticky-people);
+  min-width: 4.75rem;
 }
 
 .vol-col--meal {
@@ -407,18 +405,6 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 
 .vol-table__sticky--name {
   left: calc(var(--td-sticky-program) + var(--td-sticky-nr));
-  z-index: 2;
-}
-
-.vol-table__sticky--organization {
-  left: calc(var(--td-sticky-program) + var(--td-sticky-nr) + var(--td-sticky-name));
-  z-index: 2;
-}
-
-.vol-table__sticky--people {
-  left: calc(
-    var(--td-sticky-program) + var(--td-sticky-nr) + var(--td-sticky-name) + var(--td-sticky-organization)
-  );
   z-index: 2;
   box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.14);
 }
