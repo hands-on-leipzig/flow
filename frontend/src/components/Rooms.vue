@@ -845,15 +845,26 @@ const hasWarning = (tab) => {
 </script>
 
 <template>
-  <div>
-    <div v-if="loading" class="flex items-center justify-start h-full flex-col text-[var(--color-text-muted)] min-h-[400px]">
-      <LoaderFlow/>
-      <LoaderText/>
+  <div class="vol-page vol-page--fill">
+    <header class="vol-page__header">
+      <div>
+        <h1 class="vol-page__title">Räume</h1>
+        <p class="vol-page__sub">Aktivitäten auf Räume verteilen</p>
+      </div>
+    </header>
+
+    <div
+        v-if="loading"
+        class="vol-staffing-body vol-staffing-body--loading"
+    >
+      <div class="rooms-loading">
+        <LoaderFlow/>
+        <LoaderText/>
+      </div>
     </div>
-    <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-5">
-      <!-- Räume: Erste 3 Spalten -->
-      <div class="lg:col-span-3 order-2 lg:order-1">
-        <h2 class="glass-card__heading !text-lg md:!text-xl !mb-3 md:!mb-4">Räume</h2>
+
+    <div v-else class="vol-staffing-body">
+      <div class="vol-staffing-pane vol-staffing-pane--main">
         <!-- Mobile: tap-first room list (no drag/drop) -->
         <div class="md:hidden space-y-3">
           <ItemCard
@@ -1140,9 +1151,8 @@ const hasWarning = (tab) => {
         </div>
       </div>
 
-      <!-- Rechte Spalte: Aktivitäten & Teams -->
-      <div class="lg:col-span-1 order-1 lg:order-2">
-        <div class="glass-card liquid-surface-inner !p-3 md:!p-4">
+      <div class="vol-staffing-pane vol-staffing-pane--side">
+        <div class="glass-card liquid-surface-inner vol-sidebar-tile">
         <div class="glass-tabs !mb-3 md:!mb-4">
           <button
               type="button"
@@ -1363,3 +1373,28 @@ const hasWarning = (tab) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.vol-staffing-body--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rooms-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--color-text-muted);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+</style>

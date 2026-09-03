@@ -28,6 +28,7 @@ const isFullHeightPage = computed(() => {
     || path === '/plan/publish/logos'
     || path.startsWith('/plan/volunteers/staffing')
     || path.startsWith('/plan/teams')
+    || path.startsWith('/plan/rooms')
     || path.startsWith('/plan/live')
 })
 

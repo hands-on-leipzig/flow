@@ -14,7 +14,7 @@
   padding-bottom: 0.5rem;
 }
 
-/* Dual-pane fill body (Zuordnung, Teams program): 75/25 independent vertical scroll. */
+/* Dual-pane fill body (Zuordnung, Teams program, Räume): 75/25 independent vertical scroll. */
 .vol-page--fill > .vol-staffing-body {
   flex: 1 1 auto;
   min-height: 0;
