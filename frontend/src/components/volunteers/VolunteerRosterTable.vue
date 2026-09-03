@@ -439,17 +439,13 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 }
 
 .vol-table__name-link {
-  font-weight: 600;
-  color: var(--color-accent);
+  color: inherit;
+  font-weight: inherit;
   text-decoration: none;
 }
 
 .vol-table__name-link:hover {
   text-decoration: underline;
-}
-
-.vol-table__name {
-  font-weight: 600;
 }
 
 .vol-table__role {
