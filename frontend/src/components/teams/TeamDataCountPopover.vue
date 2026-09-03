@@ -19,7 +19,6 @@ const props = defineProps<{
   column: TeamDataColumn | null
   anchor: HTMLElement | null
   mealOptions: VolunteerMealOption[]
-  saving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -28,6 +27,7 @@ const emit = defineEmits<{
 }>()
 
 const draft = ref<Record<string, number>>({})
+const saving = ref(false)
 
 const isOpen = computed(() => !!props.team && !!props.column && !!props.anchor)
 
@@ -107,8 +107,9 @@ function onCountInput(key: string, raw: string) {
 async function confirm() {
   const team = props.team
   const column = props.column
-  if (!team || !column || !props.eventId) return
+  if (!team || !column || !props.eventId || saving.value) return
 
+  saving.value = true
   try {
     const payload: Record<string, unknown> = {}
     if (column.editor === 'meal_counts') {
@@ -124,6 +125,8 @@ async function confirm() {
     emit('close')
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
+  } finally {
+    saving.value = false
   }
 }
 </script>
@@ -160,10 +163,10 @@ async function confirm() {
       </div>
       <div class="team-data-popover__actions">
         <button type="button" class="glass-btn-secondary" :disabled="saving" @click="emit('close')">
-          Abbruch
+          Abbrechen
         </button>
         <button type="button" class="glass-btn-accent" :disabled="saving" @click="confirm">
-          Speichern
+          Übernehmen
         </button>
       </div>
     </div>

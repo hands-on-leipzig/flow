@@ -15,13 +15,18 @@ import {
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 
+type TeamDataSortKey = 'team_number_hot' | 'name' | 'organization'
+
 const props = defineProps<{
   eventId?: number | null
   teams: TeamDataRow[]
   columns: TeamDataColumn[]
+  sortKey: TeamDataSortKey
+  sortDir: 'asc' | 'desc'
 }>()
 
 const emit = defineEmits<{
+  'toggle-sort': [key: TeamDataSortKey]
   'open-count': [team: TeamDataRow, column: TeamDataColumn, anchor: HTMLElement]
   updated: [team: TeamDataRow]
 }>()
@@ -60,6 +65,11 @@ function photoCellClass(row: TeamDataRow, column: TeamDataColumn) {
     'vol-detail-trigger--unset': countSetTotal(row, column) === 0,
     'team-data-cell--mismatch': countSetCellMismatch(row, column),
   }
+}
+
+function sortIcon(key: TeamDataSortKey) {
+  if (props.sortKey !== key) return 'bi-arrow-down-up'
+  return props.sortDir === 'asc' ? 'bi-sort-up' : 'bi-sort-down'
 }
 
 function scalarValue(row: TeamDataRow, column: TeamDataColumn): string {
@@ -126,21 +136,21 @@ function setCustomSelect(row: TeamDataRow, column: TeamDataColumn, raw: string) 
 }
 
 function saveScalar(row: TeamDataRow, column: TeamDataColumn, raw: string) {
-  let value: string | number | null = raw
+  // Match Helferliste: trim text; empty → null. Numbers keep non-negative int parse.
   if (column.editor === 'number') {
     const trimmed = raw.trim()
     if (trimmed === '') {
-      value = null
-    } else {
-      const parsed = Number.parseInt(trimmed, 10)
-      if (!Number.isFinite(parsed) || parsed < 0) return
-      value = parsed
+      void saveCustomField(row, column, null)
+      return
     }
-  } else if (raw.trim() === '') {
-    value = null
+    const parsed = Number.parseInt(trimmed, 10)
+    if (!Number.isFinite(parsed) || parsed < 0) return
+    void saveCustomField(row, column, parsed)
+    return
   }
 
-  void saveCustomField(row, column, value)
+  const trimmed = raw.trim()
+  void saveCustomField(row, column, trimmed === '' ? null : trimmed)
 }
 
 function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataColumn) {
@@ -170,9 +180,39 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
           <th class="vol-table__roster vol-table__sticky vol-table__sticky--program" scope="col">
             <span class="sr-only">Programm</span>
           </th>
-          <th class="vol-table__sticky vol-table__sticky--nr" scope="col">Nr</th>
-          <th class="vol-table__name vol-table__sticky vol-table__sticky--name" scope="col">Teamname</th>
-          <th class="vol-table__sticky vol-table__sticky--organization" scope="col">Organisation</th>
+          <th class="vol-table__sticky vol-table__sticky--nr" scope="col">
+            <button
+                type="button"
+                class="vol-sort"
+                :class="{'vol-sort--active': sortKey === 'team_number_hot'}"
+                @click="emit('toggle-sort', 'team_number_hot')"
+            >
+              Nr
+              <i class="bi" :class="sortIcon('team_number_hot')" aria-hidden="true"/>
+            </button>
+          </th>
+          <th class="vol-table__name vol-table__sticky vol-table__sticky--name" scope="col">
+            <button
+                type="button"
+                class="vol-sort"
+                :class="{'vol-sort--active': sortKey === 'name'}"
+                @click="emit('toggle-sort', 'name')"
+            >
+              Teamname
+              <i class="bi" :class="sortIcon('name')" aria-hidden="true"/>
+            </button>
+          </th>
+          <th class="vol-table__sticky vol-table__sticky--organization" scope="col">
+            <button
+                type="button"
+                class="vol-sort"
+                :class="{'vol-sort--active': sortKey === 'organization'}"
+                @click="emit('toggle-sort', 'organization')"
+            >
+              Organisation
+              <i class="bi" :class="sortIcon('organization')" aria-hidden="true"/>
+            </button>
+          </th>
           <th class="vol-table__sticky vol-table__sticky--people" scope="col">Personen</th>
           <th
               v-for="column in columns"
@@ -279,8 +319,6 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
             <input
                 v-else-if="column.editor === 'number'"
                 type="number"
-                min="0"
-                step="1"
                 class="glass-input glass-input--sm vol-detail-input vol-detail-input--number"
                 :value="scalarValue(row, column)"
                 :disabled="isSaving(row)"
@@ -417,77 +455,8 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
   opacity: 0.5;
 }
 
-.vol-table__field {
-  vertical-align: middle;
-}
-
-.vol-detail-trigger {
-  width: 100%;
-  min-width: 5.5rem;
-  text-align: center;
-  cursor: pointer;
-}
-
-.vol-detail-trigger--unset {
-  color: var(--color-text-subtle);
-}
-
 .team-data-cell--mismatch {
   color: var(--color-warning, #b45309);
   font-weight: 600;
-}
-
-.vol-detail-trigger:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.vol-detail-input {
-  width: 100%;
-  min-width: 0;
-  font-size: 0.8125rem;
-}
-
-.vol-detail-input--number {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.vol-detail-input--number::-webkit-outer-spin-button,
-.vol-detail-input--number::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.vol-table__field select.select-input {
-  box-sizing: border-box;
-  min-height: var(--field-min-height-sm);
-  height: var(--field-min-height-sm);
-  padding: var(--field-padding-y-sm) 2rem var(--field-padding-y-sm) var(--field-padding-x-sm);
-  font-size: var(--field-font-size-sm);
-  border-radius: var(--field-radius-sm);
-  line-height: 1.4;
-}
-
-.vol-detail-select--full {
-  min-width: 6.5rem;
-}
-
-.vol-tristate {
-  display: inline-flex;
-  width: 100%;
-  min-width: 7.5rem;
-}
-
-.vol-tristate .glass-segment__btn {
-  flex: 1;
-  padding: 0.2rem 0.35rem;
-  font-size: 0.75rem;
-  line-height: 1.3;
-}
-
-.vol-tristate .glass-segment__btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 </style>
