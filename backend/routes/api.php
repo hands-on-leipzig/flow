@@ -475,6 +475,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('events/{event}/cockpit')->group(function () {
         Route::get('/settings', [CockpitController::class, 'getSettings']);
         Route::put('/settings', [CockpitController::class, 'updateSettings']);
+        Route::post('/reset', [CockpitController::class, 'reset']);
     });
 
     Route::prefix('export')->group(function () {

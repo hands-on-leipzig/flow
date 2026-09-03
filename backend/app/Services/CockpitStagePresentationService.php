@@ -155,6 +155,28 @@ class CockpitStagePresentationService
     }
 
     /**
+     * Drop every stage selection of this event, locks and lock times included.
+     * Backs "Alles zurücksetzen" after a dry run.
+     */
+    public function reset(Event $event): int
+    {
+        return DB::transaction(function () use ($event) {
+            $stageIds = DB::table('stage_presentation')
+                ->where('event', $event->id)
+                ->pluck('id')
+                ->all();
+
+            if ($stageIds === []) {
+                return 0;
+            }
+
+            DB::table('stage_presentation_team')->whereIn('stage_presentation', $stageIds)->delete();
+
+            return DB::table('stage_presentation')->whereIn('id', $stageIds)->delete();
+        });
+    }
+
+    /**
      * Filled slots within the current range. Rows above it are stale leftovers
      * from a higher parameter value and must not count toward completeness.
      */

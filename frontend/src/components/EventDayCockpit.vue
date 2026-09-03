@@ -9,6 +9,7 @@ import {useEventStore} from '@/stores/event'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
+import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import MobileLivePreview from '@/components/molecules/MobileLivePreview.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 
@@ -37,6 +38,8 @@ const pinDraft = ref('')
 const lastSaved = ref({pin: ''})
 const iframeKey = ref(0)
 const iframeLoading = ref(true)
+const showResetConfirm = ref(false)
+const resetBusy = ref(false)
 const previewNonce = ref(Date.now())
 let fieldSaveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -139,6 +142,22 @@ function onIframeLoad() {
   iframeLoading.value = false
 }
 
+async function confirmReset() {
+  if (!eventId.value || resetBusy.value) return
+  resetBusy.value = true
+  try {
+    await flushFieldSave()
+    await axios.post(`/events/${eventId.value}/cockpit/reset`)
+    showGlassToast('Auswahl für die Bühne zurückgesetzt.', 'success')
+    showResetConfirm.value = false
+    reloadPreview()
+  } catch {
+    showGlassToast('Zurücksetzen fehlgeschlagen.', 'error')
+  } finally {
+    resetBusy.value = false
+  }
+}
+
 watch(eventId, () => {
   void loadSettings()
 }, {immediate: true})
@@ -151,6 +170,17 @@ onBeforeUnmount(() => {
 <template>
   <div class="vol-page vol-page--fill settings-split">
     <SavingToast ref="saving" message="Wird gespeichert…"/>
+    <ConfirmationModal
+        :show="showResetConfirm"
+        type="danger"
+        title="Cockpit zurücksetzen?"
+        message="Die Auswahl der Teams für „Forschung auf der Bühne“ und deren Sperren werden gelöscht. PIN und Zugang bleiben erhalten."
+        confirm-text="Zurücksetzen"
+        cancel-text="Abbrechen"
+        :disable-confirm-button="resetBusy"
+        @confirm="confirmReset"
+        @cancel="showResetConfirm = false"
+    />
 
     <header class="vol-page__header">
       <div>
@@ -204,6 +234,21 @@ onBeforeUnmount(() => {
                       @blur="flushFieldSave({revertIncompletePin: true})"
                   />
                 </div>
+              </section>
+
+              <section class="glass-card liquid-surface-inner settings-split__tile">
+                <h2 class="glass-card__heading">Alles zurücksetzen</h2>
+                <p class="glass-settings-hint">
+                  Alle Eingaben zurücksetzen, z.B. nach Tests.
+                </p>
+                <button
+                    type="button"
+                    class="glass-btn-secondary"
+                    :disabled="loading || !eventId"
+                    @click="showResetConfirm = true"
+                >
+                  Cockpit zurücksetzen
+                </button>
               </section>
             </div>
           </div>

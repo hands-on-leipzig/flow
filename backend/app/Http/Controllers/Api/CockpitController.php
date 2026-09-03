@@ -42,6 +42,13 @@ class CockpitController extends Controller
         }
     }
 
+    public function reset(Event $event): JsonResponse
+    {
+        $deleted = $this->stagePresentations->reset($event);
+
+        return response()->json(['deleted' => $deleted]);
+    }
+
     public function bootstrap(string $slug): JsonResponse
     {
         $event = $this->eventBySlug($slug);

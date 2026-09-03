@@ -343,6 +343,51 @@ class CockpitStagePresentationTest extends TestCase
         $this->assertSame($a, $again['programs'][0]['slots'][0]['team']);
     }
 
+    // --- reset ----------------------------------------------------------
+
+    public function test_reset_drops_selection_and_lock_of_this_event_only(): void
+    {
+        $this->attach(self::CHALLENGE, teams: 6);
+        $this->setParam('c_presentations', 1);
+        $a = $this->seedTeam(self::CHALLENGE, 'Alpha');
+        $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a]);
+        $this->service()->setLock($this->event(), self::CHALLENGE, true);
+
+        $otherStage = (int) DB::table('stage_presentation')->insertGetId([
+            'event' => 2,
+            'first_program' => $this->programId(self::CHALLENGE),
+            'locked' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('stage_presentation_team')->insert([
+            'stage_presentation' => $otherStage,
+            'slot' => 1,
+            'team' => null,
+        ]);
+
+        $this->assertSame(1, $this->service()->reset($this->event()));
+
+        $section = $this->service()->state($this->event())['programs'][0];
+        $this->assertNull($section['slots'][0]['team']);
+        $this->assertFalse($section['locked']);
+        $this->assertNull($section['locked_at_time'], 'The lock time goes with the selection.');
+
+        $this->assertSame(1, DB::table('stage_presentation')->where('event', 2)->count());
+        $this->assertSame(
+            1,
+            DB::table('stage_presentation_team')->where('stage_presentation', $otherStage)->count()
+        );
+    }
+
+    public function test_reset_without_any_selection_does_nothing(): void
+    {
+        $this->attach(self::CHALLENGE, teams: 6);
+
+        $this->assertSame(0, $this->service()->reset($this->event()));
+        $this->assertCount(3, $this->service()->state($this->event())['programs'][0]['slots']);
+    }
+
     // --- endpoints ------------------------------------------------------
 
     public function test_endpoints_require_a_cockpit_token(): void
