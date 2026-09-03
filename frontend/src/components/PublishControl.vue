@@ -10,10 +10,12 @@ defineOptions({name: 'PublishControl'})
 
 const route = useRoute()
 
-/** Veröffentlichung + Logos: viewport-height split; other Ausgabe pages stay natural height. */
+/** Veröffentlichung + Logos + Digital: viewport-height split; other Ausgabe pages stay natural height. */
 const isFillSplit = computed(() => {
   const path = route.path.replace(/\/$/, '')
-  return path === '/plan/publish' || path === '/plan/publish/logos'
+  return path === '/plan/publish'
+    || path === '/plan/publish/logos'
+    || path === '/plan/publish/digital'
 })
 </script>
 
@@ -54,7 +56,8 @@ const isFillSplit = computed(() => {
 
 /* keep-alive has no DOM node — target split page roots explicitly. */
 .publish-shell--fill :deep(.pub),
-.publish-shell--fill :deep(.logos-page) {
+.publish-shell--fill :deep(.logos-page),
+.publish-shell--fill :deep(.digital-page) {
   flex: 1 1 0%;
   min-height: 0;
   overflow: hidden;

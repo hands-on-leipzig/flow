@@ -310,11 +310,6 @@ function copyUrl(url) {
     <div class="digital-workspace__split">
       <section class="digital-workspace__left" :style="{ flex: `0 0 ${leftWidth}%` }">
         <div class="digital-workspace__pane">
-          <header class="digital-workspace__head">
-            <h1 class="digital-workspace__title">Digital</h1>
-            <p class="digital-workspace__lede">Slideshows fürs Karussell</p>
-          </header>
-
           <div class="space-y-2">
             <ItemComposer
                 ref="composerRef"
@@ -587,9 +582,10 @@ function copyUrl(url) {
 .digital-workspace {
   display: flex;
   flex-direction: column;
-  min-height: min(72vh, 48rem);
   height: 100%;
+  min-height: 0;
   min-width: 0;
+  overflow: hidden;
 }
 
 .digital-workspace__split {
@@ -614,6 +610,8 @@ function copyUrl(url) {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .digital-workspace__right {
@@ -622,12 +620,14 @@ function copyUrl(url) {
   min-height: 16rem;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .digital-workspace__pane {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 1.1rem 1.15rem 1.25rem;
   background: var(--glass-tab-surface, #ffffff);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, transparent);
@@ -688,24 +688,8 @@ function copyUrl(url) {
 .digital-workspace__editor-body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
-}
-
-.digital-workspace__head {
-  margin-bottom: 0.85rem;
-}
-
-.digital-workspace__title {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 750;
-  letter-spacing: -0.025em;
-}
-
-.digital-workspace__lede {
-  margin: 0.2rem 0 0;
-  font-size: 0.84rem;
-  color: var(--color-text-muted);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .digital-workspace__empty {
