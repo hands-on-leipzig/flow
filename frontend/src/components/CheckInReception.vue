@@ -732,49 +732,51 @@ onMounted(async () => {
                 :key="section.key"
                 class="ci-roster__section"
             >
-              <h2 class="ci-roster__section-title">{{ section.label }}</h2>
               <p v-if="rosterSectionEmpty(section)" class="ci-muted ci-roster__empty">Niemand</p>
-              <div
+              <ul
                   v-for="(group, gi) in section.groups"
                   :key="`${section.key}-${group.kind}-${group.program_id ?? gi}`"
-                  class="ci-roster__group"
+                  class="ci-list ci-roster__group"
               >
-                <div class="ci-roster__group-head" aria-hidden="true">
-                  <img
-                      v-if="rosterGroupLogo(group)"
-                      class="ci-roster__group-logo"
-                      :src="rosterGroupLogo(group)"
-                      alt=""
-                  />
-                  <i
-                      v-else-if="rosterGroupIcon(group)"
-                      class="bi ci-roster__group-icon"
-                      :class="rosterGroupIcon(group)"
-                  />
-                </div>
-                <ul class="ci-list">
-                  <li v-for="hit in group.items" :key="`${hit.subject_type}-${hit.subject_id}`">
-                    <button type="button" class="ci-hit liquid-surface-inner" @click="openDetail(hit)">
-                      <span class="ci-hit__row">
-                        <span class="ci-hit__label">{{ hit.label }}</span>
-                        <span class="ci-hit__trailing">
-                          <span
-                              class="ci-hit__status"
-                              :class="{'ci-hit__status--no': hit.status === 'no_show'}"
-                              :title="statusLabel(hit)"
-                          >
-                            <i class="bi" :class="statusIcon(hit.status)" aria-hidden="true"/>
-                            <span class="sr-only">{{ statusLabel(hit) }}</span>
-                          </span>
+                <li v-for="hit in group.items" :key="`${hit.subject_type}-${hit.subject_id}`">
+                  <button type="button" class="ci-hit liquid-surface-inner" @click="openDetail(hit)">
+                    <span class="ci-hit__row">
+                      <span class="ci-hit__label">{{ hit.label }}</span>
+                      <span class="ci-hit__trailing">
+                        <span
+                            class="ci-hit__status"
+                            :class="{'ci-hit__status--no': hit.status === 'no_show'}"
+                            :title="statusLabel(hit)"
+                        >
+                          <i class="bi" :class="statusIcon(hit.status)" aria-hidden="true"/>
+                          <span class="sr-only">{{ statusLabel(hit) }}</span>
                         </span>
                       </span>
-                      <span v-if="hit.subtitle" class="ci-hit__row ci-hit__row--sub">
-                        <span class="ci-hit__sub">{{ hit.subtitle }}</span>
-                      </span>
-                    </button>
-                  </li>
-                </ul>
-              </div>
+                    </span>
+                    <span
+                        v-if="hit.logo_stem || rosterGroupLogo(group) || rosterGroupIcon(group) || hit.subtitle"
+                        class="ci-hit__row ci-hit__row--sub"
+                    >
+                      <img
+                          v-if="hit.logo_stem || rosterGroupLogo(group)"
+                          class="ci-hit__program"
+                          :src="hit.logo_stem
+                            ? programLogoSrc({logo_stem: hit.logo_stem})
+                            : rosterGroupLogo(group)"
+                          alt=""
+                          aria-hidden="true"
+                      />
+                      <i
+                          v-else-if="rosterGroupIcon(group)"
+                          class="bi ci-hit__program-icon"
+                          :class="rosterGroupIcon(group)"
+                          aria-hidden="true"
+                      />
+                      <span v-if="hit.subtitle" class="ci-hit__sub">{{ hit.subtitle }}</span>
+                    </span>
+                  </button>
+                </li>
+              </ul>
             </section>
           </template>
         </div>
@@ -1159,13 +1161,6 @@ onMounted(async () => {
   margin-top: 1rem;
 }
 
-.ci-roster__section-title {
-  margin: 0 0 0.55rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
 .ci-roster__empty {
   margin: 0 0 0.75rem;
 }
@@ -1174,21 +1169,10 @@ onMounted(async () => {
   margin-bottom: 0.75rem;
 }
 
-.ci-roster__group-head {
-  display: flex;
-  align-items: center;
-  min-height: 1.35rem;
-  margin-bottom: 0.35rem;
-}
-
-.ci-roster__group-logo {
-  width: 1.35rem;
-  height: 1.35rem;
-  object-fit: contain;
-}
-
-.ci-roster__group-icon {
-  font-size: 1.1rem;
+.ci-hit__program-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1;
   color: var(--color-text-muted);
 }
 
