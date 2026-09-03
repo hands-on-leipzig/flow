@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Support\ProgramCatalog;
 use App\Support\ProgramSlugsFilter;
+use App\Support\TeamNumbersFilter;
 use App\Support\SpreadsheetExportVariant;
 use App\Models\Team;
 use App\Models\TeamPlan;
@@ -252,6 +253,7 @@ class TeamController extends Controller
                 $drahtController,
                 SpreadsheetExportVariant::parse($request),
                 ProgramSlugsFilter::parse($request),
+                TeamNumbersFilter::parse($request),
             ))->document()
         );
     }

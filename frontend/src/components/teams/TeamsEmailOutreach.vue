@@ -7,25 +7,45 @@ import {drahtIdFor, eventPrograms, programDisplayName, programSlug} from '@/util
 import {flowFilename} from '@/utils/flowFilename'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 
-const props = defineProps<{
-  currentProgram: string
-}>()
+const props = withDefaults(defineProps<{
+  currentProgram?: string
+  /**
+   * Optional: When set, program selection is hidden and the email/export
+   * source is restricted to these programs (used for "WYSIWYG" on Teamdaten).
+   */
+  programSlugs?: string[]
+  /**
+   * Optional: When set, the email/export source is restricted to these
+   * team numbers (hot/plan) (used for "WYSIWYG" on Teamdaten).
+   */
+  teamNumbers?: number[]
+}>(), {
+  currentProgram: '',
+})
 
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 const eventDate = computed(() => eventStore.selectedEvent?.date)
 const programs = computed(() => eventPrograms(eventStore.selectedEvent))
-const showProgramSelection = computed(() => programs.value.length > 1)
+const showProgramSelection = computed(() => {
+  // When programSlugs are passed we want strict WYSIWYG — hide the UI.
+  if (props.programSlugs !== undefined) return false
+  return programs.value.length > 1
+})
 
 const open = ref(false)
 const busy = ref(false)
 const selectedPrograms = ref<string[]>([])
 
 function openDialog() {
-  if (programs.value.length === 1) {
+  if (props.programSlugs !== undefined) {
+    selectedPrograms.value = [...props.programSlugs]
+  } else if (programs.value.length === 1) {
     selectedPrograms.value = [programSlug(programs.value[0].name)]
-  } else {
+  } else if (props.currentProgram) {
     selectedPrograms.value = [props.currentProgram]
+  } else {
+    selectedPrograms.value = programs.value.map((prog) => programSlug(prog.name))
   }
   open.value = true
 }
@@ -47,11 +67,26 @@ function excelFilename() {
 
 type CoachContact = {email: string}
 
+function parseTeamNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  const raw = String(value).trim()
+  if (raw === '') return null
+  const n = Number(raw)
+  if (!Number.isFinite(n)) return null
+  return n
+}
+
 async function loadCoachEmails(): Promise<string[]> {
   if (!eventId.value || selectedPrograms.value.length === 0) return []
 
   const seen = new Set<string>()
   const emails: string[] = []
+  const allowedTeamNumbers = new Set(
+    (props.teamNumbers ?? [])
+        .map((n) => (typeof n === 'number' ? n : parseTeamNumber(n)))
+        .filter((n): n is number => n !== null),
+  )
 
   for (const slug of selectedPrograms.value) {
     const drahtId = drahtIdFor(eventStore.selectedEvent, slug)
@@ -60,8 +95,20 @@ async function loadCoachEmails(): Promise<string[]> {
     try {
       const {data} = await axios.get(`/draht/people/${drahtId}`)
       const {total_players, total_coaches, ...teams} = data ?? {}
-      for (const teamData of Object.values(teams) as Record<string, unknown>[]) {
-        if (!teamData || typeof teamData !== 'object') continue
+      for (const [teamKey, teamDataRaw] of Object.entries(teams ?? {})) {
+        if (!teamDataRaw || typeof teamDataRaw !== 'object') continue
+        const teamData = teamDataRaw as Record<string, unknown>
+
+        if (allowedTeamNumbers.size > 0) {
+          const teamNumber =
+            parseTeamNumber(teamKey)
+              ?? parseTeamNumber(teamData.number)
+              ?? parseTeamNumber(teamData.ref)
+              ?? parseTeamNumber(teamData.team_number_hot)
+              ?? parseTeamNumber(teamData.team_number_plan)
+          if (teamNumber === null || !allowedTeamNumbers.has(teamNumber)) continue
+        }
+
         for (const coach of (teamData.coaches as unknown[]) ?? []) {
           let email = ''
           if (typeof coach === 'object' && coach !== null) {
@@ -125,6 +172,7 @@ async function downloadExcel() {
       params: {
         variant: 'email',
         programs: selectedPrograms.value.join(','),
+        ...(props.teamNumbers !== undefined && props.teamNumbers.length > 0 ? {team_numbers: props.teamNumbers.join(',')} : {}),
       },
       responseType: 'blob',
     })
@@ -147,7 +195,7 @@ async function downloadExcel() {
   <button
       type="button"
       class="glass-btn-secondary vol-upload-trigger"
-      :disabled="!eventId"
+      :disabled="!eventId || (props.teamNumbers !== undefined && props.teamNumbers.length === 0)"
       @click="openDialog"
   >
     <i class="bi bi-envelope" aria-hidden="true"/>

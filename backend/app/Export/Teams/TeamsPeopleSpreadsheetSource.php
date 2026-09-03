@@ -23,6 +23,8 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
         private readonly string $variant = SpreadsheetExportVariant::FULL,
         /** @var list<string>|null */
         private readonly ?array $programSlugs = null,
+        /** @var list<int>|null */
+        private readonly ?array $teamNumbers = null,
     ) {}
 
     public function document(): SpreadsheetDocument
@@ -46,6 +48,11 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
         }
 
         $rows = [];
+        $allowedTeamNumbers = null;
+        if ($this->teamNumbers !== null) {
+            // Empty list = no matches.
+            $allowedTeamNumbers = array_fill_keys($this->teamNumbers, true);
+        }
         $this->event->loadMissing('programs');
 
         foreach ($this->event->programs as $program) {
@@ -78,6 +85,12 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
                 }
 
                 $teamNumber = is_numeric($teamKey) ? (string) $teamKey : (string) ($teamData['number'] ?? $teamKey);
+                $teamNumberInt = is_numeric($teamNumber) ? (int) $teamNumber : null;
+                if ($allowedTeamNumbers !== null) {
+                    if ($teamNumberInt === null || ! isset($allowedTeamNumbers[$teamNumberInt])) {
+                        continue;
+                    }
+                }
                 $teamName = (string) ($teamData['name'] ?? '');
                 $organization = $this->resolveOrganization($teamNumber, $organizationsByTeamNumber, $teamData);
 
