@@ -2,9 +2,11 @@
 import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import {RouterLink, useRoute} from 'vue-router'
 import axios from 'axios'
+import QRCode from 'qrcode'
 import {imageUrl} from '@/utils/images'
 import {publicPlanPath} from '@/utils/publicPlanPath'
 import CockpitToolShell from '@/components/molecules/CockpitToolShell.vue'
+import CockpitPhonebookPanel from '@/components/molecules/CockpitPhonebookPanel.vue'
 import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
 
 defineOptions({name: 'CockpitApp'})
@@ -43,13 +45,18 @@ const pin = ref('')
 const pinError = ref('')
 const token = ref('')
 const unlocking = ref(false)
-const view = ref<'home' | CockpitToolId>('home')
+const view = ref<'home' | 'qr' | CockpitToolId>('home')
 const homeScrollY = ref(0)
 const mainEl = ref<HTMLElement | null>(null)
+const organizer = ref<{name: string; mobile: string | null} | null>(null)
+const qrDataUrl = ref('')
+const toolsError = ref('')
 
 const storageKey = computed(() => `flow:cockpit-token:${slug.value}`)
 
 const planPath = computed(() => publicPlanPath(bootstrap.value?.public_link, bootstrap.value?.slug || slug.value))
+
+const showAppHeader = computed(() => view.value === 'home' || view.value === 'qr')
 
 const api = axios.create({
   baseURL: '/api',
@@ -84,7 +91,7 @@ const tools: CockpitTool[] = [
     homeLabel: 'Telefonbuch',
     explanation: 'Schnell jemanden auf dem Handy anrufen.',
     icon: 'bi-telephone',
-    ready: false,
+    ready: true,
   },
   {
     id: 'slideshow',
@@ -120,7 +127,11 @@ const tools: CockpitTool[] = [
   },
 ]
 
-const activeTool = computed(() => tools.find((tool) => tool.id === view.value) ?? null)
+const activeTool = computed(() =>
+  view.value === 'home' || view.value === 'qr'
+      ? null
+      : tools.find((tool) => tool.id === view.value) ?? null,
+)
 
 function openTool(toolId: CockpitToolId) {
   homeScrollY.value = mainEl.value?.scrollTop ?? window.scrollY
@@ -133,10 +144,37 @@ function openTool(toolId: CockpitToolId) {
 
 function backHome() {
   view.value = 'home'
+  toolsError.value = ''
   void nextTick(() => {
     if (mainEl.value) mainEl.value.scrollTop = homeScrollY.value
     else window.scrollTo({top: homeScrollY.value})
   })
+}
+
+async function openQr() {
+  homeScrollY.value = mainEl.value?.scrollTop ?? window.scrollY
+  view.value = 'qr'
+  qrDataUrl.value = ''
+  const link = bootstrap.value?.public_link
+  if (!link) {
+    toolsError.value = 'Kein öffentlicher Plan-Link.'
+    return
+  }
+  toolsError.value = ''
+  try {
+    qrDataUrl.value = await QRCode.toDataURL(link, {width: 280, margin: 1})
+  } catch {
+    toolsError.value = 'QR-Code konnte nicht erzeugt werden.'
+  }
+}
+
+async function loadOrganizer() {
+  try {
+    const {data} = await api.get(`/cockpit/${slug.value}/organizer`)
+    organizer.value = data.organizer
+  } catch {
+    organizer.value = null
+  }
 }
 
 async function loadBootstrap() {
@@ -168,6 +206,7 @@ async function unlock() {
     sessionStorage.setItem(storageKey.value, data.token)
     pin.value = ''
     view.value = 'home'
+    await loadOrganizer()
   } catch (e: any) {
     const status = e?.response?.status
     if (status === 423) {
@@ -194,18 +233,25 @@ watch(token, (next) => {
 watch(slug, async () => {
   token.value = sessionStorage.getItem(storageKey.value) || ''
   view.value = 'home'
+  organizer.value = null
   await loadBootstrap()
+  if (token.value && bootstrap.value?.enabled) {
+    await loadOrganizer()
+  }
 })
 
 onMounted(async () => {
   token.value = sessionStorage.getItem(storageKey.value) || ''
   await loadBootstrap()
+  if (token.value && bootstrap.value?.enabled) {
+    await loadOrganizer()
+  }
 })
 </script>
 
 <template>
   <div class="cp-app">
-    <header v-if="view === 'home'" class="cp-app__header liquid-surface-inner">
+    <header v-if="showAppHeader" class="cp-app__header liquid-surface-inner">
       <RouterLink
           v-if="planPath"
           :to="planPath"
@@ -225,9 +271,38 @@ onMounted(async () => {
             alt="FLOW"
         />
       </div>
+      <div v-if="unlocked" class="cp-app__tools">
+        <button type="button" class="cp-tool" title="QR öffentlicher Plan" @click="openQr">
+          <i class="bi bi-qr-code" aria-hidden="true"/>
+        </button>
+        <a
+            v-if="organizer?.mobile"
+            class="cp-tool"
+            :href="`tel:${organizer.mobile}`"
+            :title="`Organisator:in anrufen (${organizer.name})`"
+        >
+          <i class="bi bi-telephone" aria-hidden="true"/>
+        </a>
+        <button
+            v-else
+            type="button"
+            class="cp-tool cp-tool--disabled"
+            aria-disabled="true"
+            :title="organizer
+              ? 'Keine Handynummer für Organisator:in'
+              : 'Keine Organisator:in zugewiesen'"
+            @click.prevent
+        >
+          <i class="bi bi-telephone" aria-hidden="true"/>
+        </button>
+      </div>
     </header>
 
-    <main ref="mainEl" class="cp-app__main" :class="{'cp-app__main--tool': view !== 'home'}">
+    <main
+        ref="mainEl"
+        class="cp-app__main"
+        :class="{'cp-app__main--tool': !!activeTool}"
+    >
       <p v-if="bootstrapError" class="glass-alert-error !mb-0">{{ bootstrapError }}</p>
 
       <template v-else-if="bootstrap && !bootstrap.enabled">
@@ -285,6 +360,16 @@ onMounted(async () => {
         </div>
       </template>
 
+      <template v-else-if="unlocked && view === 'qr'">
+        <div class="cp-panel cp-panel--center glass-card liquid-surface-inner">
+          <button type="button" class="cp-link" @click="backHome">← Zurück</button>
+          <h1 class="cp-panel__h">Öffentlicher Plan</h1>
+          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR-Code öffentlicher Plan" class="cp-qr"/>
+          <p v-if="toolsError" class="glass-alert-error !mb-0">{{ toolsError }}</p>
+          <p v-if="bootstrap?.public_link" class="cp-muted cp-break">{{ bootstrap.public_link }}</p>
+        </div>
+      </template>
+
       <template v-else-if="unlocked && activeTool">
         <CockpitToolShell
             :title="activeTool.title"
@@ -296,6 +381,11 @@ onMounted(async () => {
               embedded
               :event-id="bootstrap?.event_id ?? null"
               :rounds-api-path="roundsApiPath"
+              :http="api"
+          />
+          <CockpitPhonebookPanel
+              v-else-if="activeTool.id === 'phonebook'"
+              :slug="slug"
               :http="api"
           />
           <p v-else class="cp-stub">Kommt bald.</p>
@@ -349,6 +439,37 @@ onMounted(async () => {
   width: auto;
 }
 
+.cp-app__tools {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.cp-tool {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--liquid-border);
+  background: var(--liquid-tile-bg);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 1.15rem;
+}
+
+.cp-tool:active:not(.cp-tool--disabled) {
+  opacity: 0.85;
+}
+
+.cp-tool--disabled,
+.cp-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  color: var(--color-text-muted);
+}
+
 .cp-app__main {
   flex: 1;
   padding: 1rem;
@@ -372,11 +493,50 @@ onMounted(async () => {
   max-width: 48rem;
 }
 
+.cp-panel--center {
+  align-items: center;
+  text-align: center;
+}
+
 .cp-panel__h {
   font-size: 1.35rem;
   font-weight: 750;
   margin: 0;
   color: var(--color-text);
+}
+
+.cp-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  align-self: flex-start;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-accent, var(--color-text));
+  cursor: pointer;
+  min-height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.cp-link:active {
+  opacity: 0.75;
+}
+
+.cp-qr {
+  width: min(100%, 17.5rem);
+  height: auto;
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 0.5rem;
+}
+
+.cp-break {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .cp-muted {

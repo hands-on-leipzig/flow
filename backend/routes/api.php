@@ -114,6 +114,8 @@ Route::prefix('cockpit/{slug}')->group(function () {
     Route::post('/session', [CockpitController::class, 'openSession']);
     Route::get('/rounds', [CockpitController::class, 'getRounds']);
     Route::put('/rounds', [CockpitController::class, 'saveRounds']);
+    Route::get('/organizer', [CockpitController::class, 'organizerContact']);
+    Route::get('/phonebook', [CockpitController::class, 'phonebook']);
 });
 
 Route::prefix('contao')->group(function () {

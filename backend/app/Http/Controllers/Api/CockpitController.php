@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Services\CheckInService;
 use App\Services\CockpitService;
 use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
@@ -13,6 +14,7 @@ class CockpitController extends Controller
 {
     public function __construct(
         private CockpitService $cockpit,
+        private CheckInService $checkIn,
         private ContaoController $contao,
     ) {}
 
@@ -83,6 +85,25 @@ class CockpitController extends Controller
         $event = $this->authorizedEvent($request, $slug);
 
         return $this->contao->saveRoundsToShow($request, $event->id);
+    }
+
+    public function organizerContact(Request $request, string $slug): JsonResponse
+    {
+        $event = $this->authorizedEvent($request, $slug);
+
+        return response()->json([
+            'organizer' => $this->checkIn->organizerContact($event),
+        ]);
+    }
+
+    public function phonebook(Request $request, string $slug): JsonResponse
+    {
+        $event = $this->authorizedEvent($request, $slug);
+        $q = (string) $request->query('q', '');
+
+        return response()->json([
+            'contacts' => $this->checkIn->phonebookContacts($event, $q),
+        ]);
     }
 
     private function eventBySlug(string $slug): Event

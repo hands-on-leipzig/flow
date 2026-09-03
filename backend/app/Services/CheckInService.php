@@ -242,6 +242,187 @@ class CheckInService
     }
 
     /**
+     * Flat phonebook contacts for Cockpit: DRAHT coaches + staffed helpers.
+     *
+     * @return list<array{
+     *   id: string,
+     *   kind: string,
+     *   name: string,
+     *   subtitle: string|null,
+     *   mobile: string|null,
+     *   status: string|null,
+     *   checked_in_at: string|null
+     * }>
+     */
+    public function phonebookContacts(Event $event, string $query): array
+    {
+        $q = mb_strtolower(trim($query));
+        if (mb_strlen($q) < 2) {
+            return [];
+        }
+
+        $records = CheckIn::query()
+            ->where('event', $event->id)
+            ->get()
+            ->keyBy(fn (CheckIn $row) => $row->subject_type.':'.$row->subject_id);
+
+        $contacts = [];
+
+        foreach ($this->phonebookCoachContacts($event) as $contact) {
+            if (! str_contains($contact['haystack'], $q)) {
+                continue;
+            }
+            $status = $this->recordStatusPayload($records->get(CheckIn::SUBJECT_TEAM.':'.$contact['team_id']));
+            $contacts[] = [
+                'id' => $contact['id'],
+                'kind' => 'coach',
+                'name' => $contact['name'],
+                'subtitle' => $contact['subtitle'],
+                'mobile' => $contact['mobile'],
+                'status' => $status['status'],
+                'checked_in_at' => $status['checked_in_at'],
+            ];
+        }
+
+        foreach ($this->phonebookHelperContacts($event) as $contact) {
+            if (! str_contains($contact['haystack'], $q)) {
+                continue;
+            }
+            $status = $this->recordStatusPayload($records->get(CheckIn::SUBJECT_VOLUNTEER.':'.$contact['person_id']));
+            $contacts[] = [
+                'id' => $contact['id'],
+                'kind' => 'volunteer',
+                'name' => $contact['name'],
+                'subtitle' => $contact['subtitle'],
+                'mobile' => $contact['mobile'],
+                'status' => $status['status'],
+                'checked_in_at' => $status['checked_in_at'],
+            ];
+        }
+
+        usort($contacts, function (array $a, array $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        return array_slice($contacts, 0, 40);
+    }
+
+    /**
+     * @return list<array{id: string, team_id: int, name: string, subtitle: string|null, mobile: string|null, haystack: string}>
+     */
+    private function phonebookCoachContacts(Event $event): array
+    {
+        $peopleByHot = $this->drahtPeopleByHotNumber($event);
+        $teams = DB::table('team')
+            ->where('event', $event->id)
+            ->select(['id', 'name', 'team_number_hot', 'organization'])
+            ->get();
+
+        $contacts = [];
+        foreach ($teams as $team) {
+            $hot = trim((string) ($team->team_number_hot ?? ''));
+            if ($hot === '' || $hot === '0') {
+                continue;
+            }
+            $teamData = $peopleByHot[$hot] ?? $peopleByHot[(string) ((int) $hot)] ?? null;
+            if (! is_array($teamData)) {
+                continue;
+            }
+
+            $teamName = trim((string) ($team->name ?? ''));
+            if ($teamName === '') {
+                $teamName = 'Team '.$team->id;
+            }
+            $org = trim((string) ($team->organization ?? ''));
+            $subtitleParts = array_filter([$teamName, $org !== '' ? $org : null, $hot !== '' ? 'Nr. '.$hot : null]);
+            $subtitle = implode(' · ', $subtitleParts);
+
+            $index = 0;
+            foreach ($teamData['coaches'] ?? [] as $coach) {
+                if (! is_array($coach)) {
+                    continue;
+                }
+                $name = trim((string) ($coach['firstname'] ?? '').' '.(string) ($coach['name'] ?? ''));
+                if ($name === '') {
+                    $name = 'Coach';
+                }
+                $mobile = trim((string) ($coach['phone'] ?? ''));
+                $email = trim((string) ($coach['email'] ?? ''));
+                $mobileOrNull = $mobile !== '' ? $mobile : null;
+
+                $haystack = mb_strtolower(implode(' ', array_filter([
+                    $name,
+                    $email,
+                    $mobile,
+                    $teamName,
+                    $org,
+                    $hot,
+                    'coach',
+                ])));
+
+                $contacts[] = [
+                    'id' => 'coach:'.$team->id.':'.$index,
+                    'team_id' => (int) $team->id,
+                    'name' => $name,
+                    'subtitle' => $subtitle,
+                    'mobile' => $mobileOrNull,
+                    'haystack' => $haystack,
+                ];
+                $index++;
+            }
+        }
+
+        return $contacts;
+    }
+
+    /**
+     * @return list<array{id: string, person_id: int, name: string, subtitle: string|null, mobile: string|null, haystack: string}>
+     */
+    private function phonebookHelperContacts(Event $event): array
+    {
+        $rows = $this->staffedHelpersGrouped($event->id);
+        $contacts = [];
+
+        foreach ($rows as $row) {
+            $roleLabels = $row->role_labels ? explode('||', $row->role_labels) : [];
+            $name = trim(($row->first_name ?? '').' '.($row->last_name ?? ''));
+            if ($name === '') {
+                $name = 'Helfer:in';
+            }
+            $org = trim((string) ($row->organization ?? ''));
+            $subtitleParts = array_filter([
+                $roleLabels !== [] ? implode(', ', $roleLabels) : null,
+                $org !== '' ? $org : null,
+            ]);
+            $subtitle = $subtitleParts !== [] ? implode(' · ', $subtitleParts) : null;
+            $mobile = trim((string) ($row->mobile ?? ''));
+            $mobileOrNull = $mobile !== '' ? $mobile : null;
+            $email = trim((string) ($row->email ?? ''));
+
+            $haystack = mb_strtolower(implode(' ', array_filter([
+                $name,
+                $email,
+                $mobile,
+                $org,
+                ...$roleLabels,
+                'helfer',
+                'volunteer',
+            ])));
+
+            $contacts[] = [
+                'id' => 'volunteer:'.$row->id,
+                'person_id' => (int) $row->id,
+                'name' => $name,
+                'subtitle' => $subtitle,
+                'mobile' => $mobileOrNull,
+                'haystack' => $haystack,
+            ];
+        }
+
+        return $contacts;
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     private function searchTeams(Event $event, string $q): array
