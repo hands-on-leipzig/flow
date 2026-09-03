@@ -1085,7 +1085,7 @@ const eventTitleNormalized = computed(() => {
     <template v-if="showLabels">
       <section class="glass-card liquid-surface-inner pdf-plans__panel">
         <h3 v-if="!hideHeading" class="glass-card__heading">Namensschilder</h3>
-        <p class="glass-settings-hint !not-italic mb-3">
+        <p v-if="!hideHeading" class="glass-settings-hint !not-italic mb-3">
           Namensaufkleber zum Drucken auf A4-Papier
         </p>
         <p class="text-sm text-[var(--color-text-muted)] mb-3">
