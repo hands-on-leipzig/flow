@@ -4,7 +4,7 @@ import axios from 'axios'
 import {useAnchoredPanel} from '@/composables/useAnchoredPanel'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
-import type {TeamDataColumn, TeamDataRow} from '@/utils/teamDataCompletion'
+import {sumCountMap, type TeamDataColumn, type TeamDataRow} from '@/utils/teamDataCompletion'
 import type {VolunteerMealOption} from '@/composables/useVolunteerMealOptions'
 
 const BOOLEAN_LABELS: Record<string, string> = {
@@ -73,6 +73,26 @@ const rows = computed(() => {
 
 const title = computed(() => props.column?.label ?? 'Anzahlen')
 
+/** Fotoerlaubnis / Essen must sum to registered people (same rule as public team form). */
+const requiresPeopleMatch = computed(() => {
+  const column = props.column
+  if (!column) return false
+  return column.editor === 'meal_counts'
+    || column.key === 'photo_consent'
+    || column.kind === 'photo'
+})
+
+const peopleCount = computed(() => props.team?.people_count ?? null)
+
+const draftSum = computed(() => sumCountMap(draft.value))
+
+const mismatch = computed(() => {
+  if (!requiresPeopleMatch.value || peopleCount.value === null) return false
+  return draftSum.value !== peopleCount.value
+})
+
+const confirmDisabled = computed(() => saving.value || mismatch.value)
+
 watch(
   () => [props.team, props.column] as const,
   ([team, column]) => {
@@ -107,7 +127,7 @@ function onCountInput(key: string, raw: string) {
 async function confirm() {
   const team = props.team
   const column = props.column
-  if (!team || !column || !props.eventId || saving.value) return
+  if (!team || !column || !props.eventId || confirmDisabled.value) return
 
   saving.value = true
   try {
@@ -137,11 +157,16 @@ async function confirm() {
         v-if="team && column"
         ref="panelRef"
         class="glass-modal team-data-popover"
+        :class="{'team-data-popover--mismatch': mismatch}"
         :style="panelStyle"
         @click.stop
     >
       <h3 class="team-data-popover__title">{{ title }}</h3>
-      <p v-if="team.people_count !== null" class="team-data-popover__hint">
+      <p v-if="requiresPeopleMatch" class="team-data-popover__hint">
+        Personen: {{ peopleCount ?? '—' }}
+        <span class="team-data-popover__sum"> · Summe: {{ draftSum }}</span>
+      </p>
+      <p v-else-if="team.people_count !== null" class="team-data-popover__hint">
         Personen: {{ team.people_count }}
       </p>
       <div class="team-data-popover__rows">
@@ -161,11 +186,14 @@ async function confirm() {
           >
         </label>
       </div>
+      <p v-if="mismatch" class="team-data-popover__error" role="alert">
+        Summe {{ draftSum }} ≠ Personen {{ peopleCount }}
+      </p>
       <div class="team-data-popover__actions">
         <button type="button" class="glass-btn-secondary" :disabled="saving" @click="emit('close')">
           Abbrechen
         </button>
-        <button type="button" class="glass-btn-accent" :disabled="saving" @click="confirm">
+        <button type="button" class="glass-btn-accent" :disabled="confirmDisabled" @click="confirm">
           Übernehmen
         </button>
       </div>
@@ -185,6 +213,11 @@ async function confirm() {
   box-shadow: var(--shadow-lg);
 }
 
+.team-data-popover--mismatch {
+  outline: 1px solid var(--color-danger, #c0392b);
+  outline-offset: 2px;
+}
+
 .team-data-popover__title {
   margin: 0 0 0.35rem;
   font-size: 0.875rem;
@@ -195,6 +228,10 @@ async function confirm() {
   margin: 0 0 0.65rem;
   font-size: 0.75rem;
   color: var(--color-text-muted);
+}
+
+.team-data-popover__sum {
+  font-variant-numeric: tabular-nums;
 }
 
 .team-data-popover__rows {
@@ -218,6 +255,13 @@ async function confirm() {
 
 .team-data-popover__input {
   width: 100%;
+}
+
+.team-data-popover__error {
+  margin: 0.55rem 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-danger, #c0392b);
 }
 
 .team-data-popover__actions {

@@ -158,6 +158,13 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
   if (!(target instanceof HTMLElement)) return
   emit('open-count', row, column, target)
 }
+
+/** Show entered total against registered people for Fotoerlaubnis / Essen. */
+function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
+  const total = countSetTotal(row, column)
+  if (row.people_count === null) return String(total)
+  return `${total} / ${row.people_count}`
+}
 </script>
 
 <template>
@@ -255,9 +262,10 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
                 type="button"
                 class="vol-detail-trigger glass-input glass-input--sm"
                 :class="photoCellClass(row, column)"
+                :title="row.people_count !== null ? `Summe ${countSetTotal(row, column)} von ${row.people_count} Personen` : undefined"
                 @click="onCountCellClick($event, row, column)"
             >
-              {{ countSetTotal(row, column) }}
+              {{ countCellLabel(row, column) }}
             </button>
             <div
                 v-else-if="column.editor === 'boolean'"
@@ -365,11 +373,11 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 }
 
 .vol-col--meal {
-  min-width: 7rem;
+  min-width: 7.5rem;
 }
 
 .vol-col--photo {
-  min-width: 8rem;
+  min-width: 8.5rem;
 }
 
 .vol-col--custom {
