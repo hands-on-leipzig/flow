@@ -7,6 +7,7 @@ import {imageUrl} from '@/utils/images'
 import {publicPlanPath} from '@/utils/publicPlanPath'
 import CockpitToolShell from '@/components/molecules/CockpitToolShell.vue'
 import CockpitPhonebookPanel from '@/components/molecules/CockpitPhonebookPanel.vue'
+import CockpitTimeShiftPanel from '@/components/molecules/CockpitTimeShiftPanel.vue'
 import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
 
 defineOptions({name: 'CockpitApp'})
@@ -104,7 +105,7 @@ const tools: CockpitTool[] = [
     id: 'phonebook',
     title: 'Telefonbuch',
     homeLabel: 'Telefonbuch',
-    explanation: 'Schnell jemanden auf dem Handy anrufen.',
+    explanation: '',
     icon: 'bi-telephone',
     ready: true,
   },
@@ -127,10 +128,10 @@ const tools: CockpitTool[] = [
   {
     id: 'timeshift',
     title: 'Zeiten im Plan verschieben',
-    homeLabel: 'Zeiten',
+    homeLabel: 'Zeiten verschieben',
     explanation: 'Verschiebe den Rest des Tages, ohne den Zeitplan neu zu generieren.',
     icon: 'bi-clock-history',
-    ready: false,
+    ready: true,
   },
   {
     id: 'stage-research',
@@ -400,6 +401,11 @@ onMounted(async () => {
           />
           <CockpitPhonebookPanel
               v-else-if="activeTool.id === 'phonebook'"
+              :slug="slug"
+              :http="api"
+          />
+          <CockpitTimeShiftPanel
+              v-else-if="activeTool.id === 'timeshift'"
               :slug="slug"
               :http="api"
           />

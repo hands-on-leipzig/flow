@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\FirstProgram;
+use App\Support\EventDayClock;
 use App\Support\TableFieldLabels;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -399,9 +400,8 @@ class PublicPlanService
 
     /**
      * Resolve “now” for expired filtering.
-     * Explicit ?now= wins. Otherwise use Europe/Berlin wall clock on the event
-     * calendar: today if it falls in the event window, else event day 1 + clock
-     * (so preview/test on a future event date matches PublicSchedule).
+     * Explicit ?now= wins. Otherwise use the shared event-day clock, which is
+     * also what the Cockpit timeshift tool compares against.
      */
     private function resolveNow(?string $nowParam, ?string $eventDate = null, int $eventDays = 1): Carbon
     {
@@ -411,27 +411,11 @@ class PublicPlanService
             return Carbon::createFromFormat(
                 'Y-m-d H:i',
                 sprintf('%s-%02d-%02d %02d:%02d', $year, $m[2], $m[3], $m[4], $m[5]),
-                'Europe/Berlin'
+                EventDayClock::TZ
             );
         }
 
-        $clock = now('Europe/Berlin');
-        if (! $eventDate) {
-            return $clock;
-        }
-
-        $eventStart = Carbon::createFromFormat('Y-m-d', substr($eventDate, 0, 10), 'Europe/Berlin')->startOfDay();
-        $eventEnd = $eventStart->copy()->addDays(max(1, $eventDays) - 1)->endOfDay();
-
-        if ($clock->betweenIncluded($eventStart, $eventEnd)) {
-            return $clock;
-        }
-
-        return Carbon::createFromFormat(
-            'Y-m-d H:i',
-            $eventStart->format('Y-m-d').' '.$clock->format('H:i'),
-            'Europe/Berlin'
-        );
+        return EventDayClock::pivot($eventDate, $eventDays);
     }
 
     private function groupActivities(Collection $rows): array

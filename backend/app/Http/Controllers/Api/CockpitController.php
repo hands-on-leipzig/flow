@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Services\CheckInService;
 use App\Services\CockpitService;
+use App\Services\CockpitTimeShiftService;
 use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class CockpitController extends Controller
         private CockpitService $cockpit,
         private CheckInService $checkIn,
         private ContaoController $contao,
+        private CockpitTimeShiftService $timeShift,
     ) {}
 
     public function getSettings(Event $event): JsonResponse
@@ -114,6 +116,30 @@ class CockpitController extends Controller
         return response()->json([
             'contacts' => $this->checkIn->phonebookContacts($event, $q),
         ]);
+    }
+
+    public function timeshiftBootstrap(Request $request, string $slug): JsonResponse
+    {
+        $event = $this->authorizedEvent($request, $slug);
+
+        return response()->json($this->timeShift->state($event));
+    }
+
+    public function timeshiftShift(Request $request, string $slug): JsonResponse
+    {
+        $event = $this->authorizedEvent($request, $slug);
+
+        $minutes = (int) $request->input('minutes');
+        if (
+            $minutes < CockpitTimeShiftService::MIN_MINUTES
+            || $minutes > CockpitTimeShiftService::MAX_MINUTES
+            || $minutes % CockpitTimeShiftService::STEP_MINUTES !== 0
+        ) {
+            return response()->json(['error' => 'Ungültige Anzahl Minuten.'], 422);
+        }
+
+        // "now" is always resolved server-side; a client-supplied value is ignored.
+        return response()->json($this->timeShift->shift($event, $minutes));
     }
 
     private function eventBySlug(string $slug): Event
