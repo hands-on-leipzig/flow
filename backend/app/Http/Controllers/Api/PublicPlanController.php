@@ -22,7 +22,8 @@ class PublicPlanController extends Controller
     /**
      * Public role-filtered schedule.
      *
-     * Query: role, team, lane, table, expired (yes|no), now (Y-m-d H:i)
+     * Query: role, team, lane, table, expired (yes|no), now (Y-m-d H:i).
+     * Without now, expired filtering uses Berlin wall clock on the event day.
      */
     public function schedule(int $planId, Request $request): JsonResponse
     {

@@ -73,7 +73,11 @@ class PublicPlanService
      */
     public function getSchedule(int $planId, array $query): array
     {
-        $plan = DB::table('plan')->where('id', $planId)->first();
+        $plan = DB::table('plan')
+            ->join('event', 'event.id', '=', 'plan.event')
+            ->where('plan.id', $planId)
+            ->select('plan.id', 'event.date as event_date', 'event.days as event_days')
+            ->first();
         if (! $plan) {
             abort(404, 'Plan not found');
         }
@@ -88,7 +92,12 @@ class PublicPlanService
         $table = isset($query['table']) && $query['table'] !== '' ? (int) $query['table'] : null;
         $includeExpired = ! isset($query['expired']) || $query['expired'] === 'yes' || $query['expired'] === '1' || $query['expired'] === true;
 
-        $now = $this->resolveNow($query['now'] ?? null);
+        // Wall clock on the event day (preview/live), matching PublicSchedule’s projection.
+        $now = $this->resolveNow(
+            $query['now'] ?? null,
+            $plan->event_date ? (string) $plan->event_date : null,
+            max(1, (int) ($plan->event_days ?? 1)),
+        );
         $params = $this->planParameters($planId);
 
         $rows = $this->activities->fetchActivities(
@@ -388,7 +397,13 @@ class PublicPlanService
         return (int) $exploreGroup === $expected;
     }
 
-    private function resolveNow(?string $nowParam): Carbon
+    /**
+     * Resolve “now” for expired filtering.
+     * Explicit ?now= wins. Otherwise use Europe/Berlin wall clock on the event
+     * calendar: today if it falls in the event window, else event day 1 + clock
+     * (so preview/test on a future event date matches PublicSchedule).
+     */
+    private function resolveNow(?string $nowParam, ?string $eventDate = null, int $eventDays = 1): Carbon
     {
         if ($nowParam && preg_match('/^(\d{2}|\d{4})-(\d{1,2})-(\d{1,2})[ T+](\d{1,2}):(\d{1,2})$/', urldecode(str_replace('+', ' ', $nowParam)), $m)) {
             $year = strlen($m[1]) === 2 ? '20'.$m[1] : $m[1];
@@ -400,7 +415,23 @@ class PublicPlanService
             );
         }
 
-        return now('Europe/Berlin');
+        $clock = now('Europe/Berlin');
+        if (! $eventDate) {
+            return $clock;
+        }
+
+        $eventStart = Carbon::createFromFormat('Y-m-d', substr($eventDate, 0, 10), 'Europe/Berlin')->startOfDay();
+        $eventEnd = $eventStart->copy()->addDays(max(1, $eventDays) - 1)->endOfDay();
+
+        if ($clock->betweenIncluded($eventStart, $eventEnd)) {
+            return $clock;
+        }
+
+        return Carbon::createFromFormat(
+            'Y-m-d H:i',
+            $eventStart->format('Y-m-d').' '.$clock->format('H:i'),
+            'Europe/Berlin'
+        );
     }
 
     private function groupActivities(Collection $rows): array
