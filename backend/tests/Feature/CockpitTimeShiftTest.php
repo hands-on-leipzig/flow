@@ -129,6 +129,18 @@ class CockpitTimeShiftTest extends TestCase
         $this->assertSame($this->pivot->copy()->addHours(3)->addMinutes(15)->format('H:i'), $after['end_of_day_time']);
     }
 
+    public function test_state_reports_the_berlin_clock_as_now(): void
+    {
+        $state = app(CockpitTimeShiftService::class)->state($this->event());
+
+        // Tolerate a minute rolling over between setUp and the call.
+        $this->assertContains($state['now_time'], [
+            $this->pivot->format('H:i'),
+            $this->pivot->copy()->addMinute()->format('H:i'),
+        ]);
+        $this->assertNotSame(now('UTC')->format('H:i'), $state['now_time']);
+    }
+
     public function test_upcoming_end_excludes_activities_that_already_started(): void
     {
         // The latest-ending activity is already running, so it never moves.

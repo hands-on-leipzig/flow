@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, onMounted, ref} from 'vue'
+import {computed, onMounted, onUnmounted, ref} from 'vue'
 import type {AxiosInstance} from 'axios'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 
@@ -14,7 +14,10 @@ const props = defineProps<{
   http: AxiosInstance
 }>()
 
+const REFRESH_MS = 30_000
+
 const minutes = ref(MIN_MINUTES)
+const nowTime = ref<string | null>(null)
 const endOfDayTime = ref<string | null>(null)
 const upcomingEndTime = ref<string | null>(null)
 const locked = ref(false)
@@ -56,16 +59,24 @@ function increase() {
   if (canIncrease.value) minutes.value += STEP_MINUTES
 }
 
-async function loadState() {
-  loading.value = true
-  error.value = ''
+/**
+ * The clock comes from the server, because that is the "now" the shift itself
+ * compares against — a phone with a wrong time must not suggest otherwise.
+ * A silent refresh keeps it, and the set of activities still to come, current.
+ */
+async function loadState(silent = false) {
+  if (!silent) {
+    loading.value = true
+    error.value = ''
+  }
   try {
     const {data} = await props.http.get(`/cockpit/${props.slug}/timeshift/bootstrap`)
+    nowTime.value = data.now_time ?? null
     endOfDayTime.value = data.end_of_day_time ?? null
     upcomingEndTime.value = data.upcoming_end_time ?? null
     locked.value = !!data.locked
   } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Zeiten konnten nicht geladen werden.'
+    if (!silent) error.value = e?.response?.data?.error || 'Zeiten konnten nicht geladen werden.'
   } finally {
     loading.value = false
   }
@@ -82,6 +93,7 @@ async function applyShift() {
     })
     endOfDayTime.value = data.end_of_day_time ?? null
     upcomingEndTime.value = data.upcoming_end_time ?? null
+    nowTime.value = data.now_time ?? nowTime.value
     result.value = `${data.shifted_count} Aktivitäten um ${minutes.value} Minuten verschoben.`
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Verschieben fehlgeschlagen.'
@@ -90,7 +102,18 @@ async function applyShift() {
   }
 }
 
-onMounted(loadState)
+let refreshTimer: ReturnType<typeof setInterval> | undefined
+
+onMounted(() => {
+  loadState()
+  refreshTimer = setInterval(() => {
+    if (!busy.value && !showConfirm.value) loadState(true)
+  }, REFRESH_MS)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
+})
 </script>
 
 <template>
@@ -126,6 +149,11 @@ onMounted(loadState)
         <i class="bi bi-plus" aria-hidden="true"/>
       </button>
     </div>
+
+    <p class="cp-shift__end">
+      Es ist jetzt:
+      <strong>{{ loading ? '…' : (nowTime || '—') }}</strong>
+    </p>
 
     <p class="cp-shift__end">
       Ende der Veranstaltung wäre dann:
