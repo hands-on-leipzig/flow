@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * One program's teams page — mirrors Helfer:innenliste vol-page chrome.
+ * One program's teams page — Zuordnung-style header + dual-scroll panes.
  */
 import {computed, onMounted, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
@@ -124,7 +124,7 @@ watch(
 </script>
 
 <template>
-  <div class="vol-page teams-program">
+  <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Teams</h1>
@@ -145,22 +145,29 @@ watch(
       </div>
     </header>
 
-    <div v-if="loading" class="teams-program__loading">
-      <LoaderFlow/>
-      <LoaderText/>
+    <div
+        v-if="loading"
+        class="vol-staffing-body vol-staffing-body--loading"
+    >
+      <div class="teams-program__loading">
+        <LoaderFlow/>
+        <LoaderText/>
+      </div>
     </div>
 
-    <div v-else-if="attachedProgram" class="teams-program__body">
-      <section class="teams-program__main glass-card liquid-surface-inner vol-tile">
-        <TeamList
-            :key="program"
-            :program="program"
-            :remote-teams="remoteTeams"
-            :remote-capacity="remoteCapacity"
-        />
-      </section>
+    <div v-else-if="attachedProgram" class="vol-staffing-body">
+      <div class="vol-staffing-pane vol-staffing-pane--main">
+        <section class="glass-card liquid-surface-inner vol-tile">
+          <TeamList
+              :key="program"
+              :program="program"
+              :remote-teams="remoteTeams"
+              :remote-capacity="remoteCapacity"
+          />
+        </section>
+      </div>
 
-      <aside class="teams-program__stats">
+      <aside class="vol-staffing-pane vol-staffing-pane--side">
         <TeamsRegistrationStats/>
         <TeamsMultiTeamCoaches/>
       </aside>
@@ -169,39 +176,16 @@ watch(
 </template>
 
 <style scoped>
-.teams-program__body {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-  align-items: start;
-  min-width: 0;
-}
-
-@media (min-width: 960px) {
-  .teams-program__body {
-    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
-  }
-
-  .teams-program__stats {
-    position: sticky;
-    top: 0.25rem;
-  }
-}
-
-.teams-program__main,
-.teams-program__stats {
-  min-width: 0;
+.vol-staffing-body--loading {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  align-items: center;
+  justify-content: center;
 }
 
 .teams-program__loading {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  min-height: 12rem;
   color: var(--color-text-muted);
 }
 </style>
