@@ -10,9 +10,10 @@ import VolunteerMealOptionsPanel from '@/components/molecules/VolunteerMealOptio
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import TeamDataTable from '@/components/teams/TeamDataTable.vue'
 import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
+import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
-import {eventPrograms, programDisplayName} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
 import {
   isTeamPhotoConsentUnset,
   isTeamRowIncomplete,
@@ -134,6 +135,25 @@ const filteredTeams = computed(() => {
   })
 
   return rows
+})
+
+const visibleTeamNumbers = computed(() => {
+  const nums = new Set<number>()
+  for (const team of filteredTeams.value) {
+    if (team.team_number_hot != null) nums.add(team.team_number_hot)
+  }
+  return [...nums]
+})
+
+const visibleProgramSlugs = computed(() => {
+  if (!eventStore.selectedEvent) return []
+  const set = activeProgramFilters.value
+  const programs = eventPrograms(eventStore.selectedEvent)
+  const slugs = programs
+    .filter((p) => p.first_program != null && set.has(Number(p.first_program)))
+    .map((p) => programSlug(p.name))
+  // Deduplicate while preserving order.
+  return [...new Set(slugs)]
 })
 
 function syncProgramFilters() {
@@ -276,6 +296,7 @@ onActivated(() => {
           <i class="bi bi-download" aria-hidden="true"/>
           {{ exportBusy ? 'Export…' : 'Download' }}
         </button>
+        <TeamsEmailOutreach :program-slugs="visibleProgramSlugs" :team-numbers="visibleTeamNumbers"/>
       </div>
     </header>
 

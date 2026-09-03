@@ -102,6 +102,7 @@ final class TeamDataColumns
             'field_key' => $field->field_key,
             'options' => $field->type === 'select' ? ($field->options ?? []) : [],
             'public_form' => (bool) ($field->public_form ?? false),
+            'check_in_show' => (bool) ($field->check_in_show ?? false),
             'sortable' => false,
         ];
     }

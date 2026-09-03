@@ -88,6 +88,7 @@ Route::prefix('check-in/{slug}')->group(function () {
     Route::post('/session', [CheckInController::class, 'openSession']);
     Route::get('/search', [CheckInController::class, 'search']);
     Route::get('/overview', [CheckInController::class, 'overview']);
+    Route::get('/roster', [CheckInController::class, 'roster']);
     Route::get('/organizer', [CheckInController::class, 'organizerContact']);
     Route::get('/share', [CheckInController::class, 'share']);
     Route::get('/{subjectType}/{subjectId}', [CheckInController::class, 'show'])
@@ -113,6 +114,13 @@ Route::prefix('cockpit/{slug}')->group(function () {
     Route::post('/session', [CockpitController::class, 'openSession']);
     Route::get('/rounds', [CockpitController::class, 'getRounds']);
     Route::put('/rounds', [CockpitController::class, 'saveRounds']);
+    Route::get('/organizer', [CockpitController::class, 'organizerContact']);
+    Route::get('/phonebook', [CockpitController::class, 'phonebook']);
+    Route::get('/timeshift/bootstrap', [CockpitController::class, 'timeshiftBootstrap']);
+    Route::post('/timeshift/shift', [CockpitController::class, 'timeshiftShift']);
+    Route::get('/stage-presentations/bootstrap', [CockpitController::class, 'stagePresentationsBootstrap']);
+    Route::put('/stage-presentations/selection', [CockpitController::class, 'stagePresentationsSaveSelection']);
+    Route::put('/stage-presentations/lock', [CockpitController::class, 'stagePresentationsSetLock']);
 });
 
 Route::prefix('contao')->group(function () {
@@ -308,6 +316,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/team-fields', [EventTeamFieldController::class, 'index']);
     Route::post('/events/{event}/team-fields', [EventTeamFieldController::class, 'store']);
     Route::put('/events/{event}/team-fields/public-form', [EventTeamFieldController::class, 'replacePublicForm']);
+    Route::put('/events/{event}/team-fields/check-in-show', [EventTeamFieldController::class, 'replaceCheckInShow']);
     Route::patch('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'update']);
     Route::delete('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'destroy']);
     Route::get('/events/{event}/team-data', [EventTeamDataController::class, 'index']);
@@ -324,6 +333,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'index']);
     Route::post('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'store']);
     Route::put('/events/{event}/volunteer-fields/public-form', [EventVolunteerFieldController::class, 'replacePublicForm']);
+    Route::put('/events/{event}/volunteer-fields/check-in-show', [EventVolunteerFieldController::class, 'replaceCheckInShow']);
     Route::patch('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'update']);
     Route::delete('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'destroy']);
     Route::get('/events/{event}/volunteer-meal-options', [EventVolunteerMealOptionController::class, 'index']);
@@ -465,6 +475,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('events/{event}/cockpit')->group(function () {
         Route::get('/settings', [CockpitController::class, 'getSettings']);
         Route::put('/settings', [CockpitController::class, 'updateSettings']);
+        Route::post('/reset', [CockpitController::class, 'reset']);
     });
 
     Route::prefix('export')->group(function () {

@@ -18,12 +18,14 @@ class EventVolunteerField extends Model
         'options',
         'sequence',
         'public_form',
+        'check_in_show',
     ];
 
     protected $casts = [
         'options' => 'array',
         'sequence' => 'integer',
         'public_form' => 'boolean',
+        'check_in_show' => 'boolean',
     ];
 
     public function event(): BelongsTo

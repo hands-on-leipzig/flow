@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\FirstProgram;
+use App\Support\EventDayClock;
 use App\Support\TableFieldLabels;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -73,7 +74,11 @@ class PublicPlanService
      */
     public function getSchedule(int $planId, array $query): array
     {
-        $plan = DB::table('plan')->where('id', $planId)->first();
+        $plan = DB::table('plan')
+            ->join('event', 'event.id', '=', 'plan.event')
+            ->where('plan.id', $planId)
+            ->select('plan.id', 'event.date as event_date', 'event.days as event_days')
+            ->first();
         if (! $plan) {
             abort(404, 'Plan not found');
         }
@@ -88,7 +93,12 @@ class PublicPlanService
         $table = isset($query['table']) && $query['table'] !== '' ? (int) $query['table'] : null;
         $includeExpired = ! isset($query['expired']) || $query['expired'] === 'yes' || $query['expired'] === '1' || $query['expired'] === true;
 
-        $now = $this->resolveNow($query['now'] ?? null);
+        // Wall clock on the event day (preview/live), matching PublicSchedule’s projection.
+        $now = $this->resolveNow(
+            $query['now'] ?? null,
+            $plan->event_date ? (string) $plan->event_date : null,
+            max(1, (int) ($plan->event_days ?? 1)),
+        );
         $params = $this->planParameters($planId);
 
         $rows = $this->activities->fetchActivities(
@@ -388,7 +398,12 @@ class PublicPlanService
         return (int) $exploreGroup === $expected;
     }
 
-    private function resolveNow(?string $nowParam): Carbon
+    /**
+     * Resolve “now” for expired filtering.
+     * Explicit ?now= wins. Otherwise use the shared event-day clock, which is
+     * also what the Cockpit timeshift tool compares against.
+     */
+    private function resolveNow(?string $nowParam, ?string $eventDate = null, int $eventDays = 1): Carbon
     {
         if ($nowParam && preg_match('/^(\d{2}|\d{4})-(\d{1,2})-(\d{1,2})[ T+](\d{1,2}):(\d{1,2})$/', urldecode(str_replace('+', ' ', $nowParam)), $m)) {
             $year = strlen($m[1]) === 2 ? '20'.$m[1] : $m[1];
@@ -396,11 +411,11 @@ class PublicPlanService
             return Carbon::createFromFormat(
                 'Y-m-d H:i',
                 sprintf('%s-%02d-%02d %02d:%02d', $year, $m[2], $m[3], $m[4], $m[5]),
-                'Europe/Berlin'
+                EventDayClock::TZ
             );
         }
 
-        return now('Europe/Berlin');
+        return EventDayClock::pivot($eventDate, $eventDays);
     }
 
     private function groupActivities(Collection $rows): array

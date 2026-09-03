@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import {RouterLink, useRoute} from 'vue-router'
 import axios from 'axios'
+import QRCode from 'qrcode'
 import {imageUrl} from '@/utils/images'
 import {publicPlanPath} from '@/utils/publicPlanPath'
+import CockpitToolShell from '@/components/molecules/CockpitToolShell.vue'
+import CockpitPhonebookPanel from '@/components/molecules/CockpitPhonebookPanel.vue'
+import CockpitTimeShiftPanel from '@/components/molecules/CockpitTimeShiftPanel.vue'
+import CockpitStagePresentationPanel from '@/components/molecules/CockpitStagePresentationPanel.vue'
 import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
 
 defineOptions({name: 'CockpitApp'})
@@ -16,6 +21,23 @@ type Bootstrap = {
   public_link: string | null
 }
 
+type CockpitToolId =
+  | 'overview'
+  | 'phonebook'
+  | 'slideshow'
+  | 'robot-rounds'
+  | 'timeshift'
+  | 'stage-research'
+
+type CockpitTool = {
+  id: CockpitToolId
+  title: string
+  homeLabel: string
+  explanation: string
+  icon: string
+  ready: boolean
+}
+
 const route = useRoute()
 const slug = computed(() => String(route.params.slug || ''))
 
@@ -25,10 +47,18 @@ const pin = ref('')
 const pinError = ref('')
 const token = ref('')
 const unlocking = ref(false)
+const view = ref<'home' | 'qr' | CockpitToolId>('home')
+const homeScrollY = ref(0)
+const mainEl = ref<HTMLElement | null>(null)
+const organizer = ref<{name: string; mobile: string | null} | null>(null)
+const qrDataUrl = ref('')
+const toolsError = ref('')
 
 const storageKey = computed(() => `flow:cockpit-token:${slug.value}`)
 
 const planPath = computed(() => publicPlanPath(bootstrap.value?.public_link, bootstrap.value?.slug || slug.value))
+
+const showAppHeader = computed(() => view.value === 'home' || view.value === 'qr')
 
 const api = axios.create({
   baseURL: '/api',
@@ -42,38 +72,127 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status
+    if (status === 401 || status === 423) {
+      token.value = ''
+      sessionStorage.removeItem(storageKey.value)
+      if (view.value !== 'home' && view.value !== 'qr') {
+        view.value = 'home'
+      }
+    }
+    return Promise.reject(error)
+  },
+)
+
 const unlocked = computed(() => !!token.value && !!bootstrap.value?.enabled)
 
 const roundsApiPath = computed(() =>
     slug.value ? `/cockpit/${slug.value}/rounds` : null,
 )
 
-/** Placeholder tiles for upcoming Cockpit tools. */
-const overviewTools = [
+const tools: CockpitTool[] = [
   {
+    id: 'overview',
     title: 'Überblick über Teams und Helfer:innen',
-    text: 'Wer fehlt oder kommt gar nicht? Wer ist in welcher Jury-Gruppe?',
+    homeLabel: 'Überblick',
+    explanation: 'Wer fehlt oder kommt gar nicht? Wer ist in welcher Jury-Gruppe?',
+    icon: 'bi-people',
+    ready: false,
   },
   {
+    id: 'phonebook',
     title: 'Telefonbuch',
-    text: 'Man schnell jemand auf dem Handy anrufen ...',
+    homeLabel: 'Telefonbuch',
+    explanation: '',
+    icon: 'bi-telephone',
+    ready: true,
   },
   {
+    id: 'slideshow',
     title: 'Slide-Show Auswahl',
-    text: 'Wähle welche Slide-Show im Karussell läuft.',
+    homeLabel: 'Slide-Show',
+    explanation: 'Wähle, welche Slide-Show im Karussell läuft.',
+    icon: 'bi-images',
+    ready: false,
   },
-] as const
-
-const afterRoundsTools = [
   {
+    id: 'robot-rounds',
+    title: 'Robot-Game Ergebnisse',
+    homeLabel: 'Robot-Game',
+    explanation: 'Wähle aus, welche Runden öffentlich sichtbar sein sollen.',
+    icon: 'bi-trophy',
+    ready: true,
+  },
+  {
+    id: 'timeshift',
     title: 'Zeiten im Plan verschieben',
-    text: 'Verschiebe den Rest des Tages, ohne den Zeitplan neu zu generieren.',
+    homeLabel: 'Zeiten verschieben',
+    explanation: 'Verschiebe den Rest des Tages, ohne den Zeitplan neu zu generieren.',
+    icon: 'bi-clock-history',
+    ready: true,
   },
   {
+    id: 'stage-research',
     title: 'Forschung auf der Bühne',
-    text: 'Jury trägt ein wer kommt und Moderator / Stage Crew sehen es.',
+    homeLabel: 'Forschung',
+    explanation: 'Jury-Verantwortliche können hier eintragen, welche Teams auf die Bühne sollen. Die Anzahl kommt aus dem Veranstaltungsplan.',
+    icon: 'bi-easel',
+    ready: true,
   },
-] as const
+]
+
+const activeTool = computed(() =>
+  view.value === 'home' || view.value === 'qr'
+      ? null
+      : tools.find((tool) => tool.id === view.value) ?? null,
+)
+
+function openTool(toolId: CockpitToolId) {
+  homeScrollY.value = mainEl.value?.scrollTop ?? window.scrollY
+  view.value = toolId
+  void nextTick(() => {
+    if (mainEl.value) mainEl.value.scrollTop = 0
+    else window.scrollTo({top: 0})
+  })
+}
+
+function backHome() {
+  view.value = 'home'
+  toolsError.value = ''
+  void nextTick(() => {
+    if (mainEl.value) mainEl.value.scrollTop = homeScrollY.value
+    else window.scrollTo({top: homeScrollY.value})
+  })
+}
+
+async function openQr() {
+  homeScrollY.value = mainEl.value?.scrollTop ?? window.scrollY
+  view.value = 'qr'
+  qrDataUrl.value = ''
+  const link = bootstrap.value?.public_link
+  if (!link) {
+    toolsError.value = 'Kein öffentlicher Plan-Link.'
+    return
+  }
+  toolsError.value = ''
+  try {
+    qrDataUrl.value = await QRCode.toDataURL(link, {width: 280, margin: 1})
+  } catch {
+    toolsError.value = 'QR-Code konnte nicht erzeugt werden.'
+  }
+}
+
+async function loadOrganizer() {
+  try {
+    const {data} = await api.get(`/cockpit/${slug.value}/organizer`)
+    organizer.value = data.organizer
+  } catch {
+    organizer.value = null
+  }
+}
 
 async function loadBootstrap() {
   bootstrapError.value = ''
@@ -86,10 +205,12 @@ async function loadBootstrap() {
     if (!data.enabled) {
       token.value = ''
       sessionStorage.removeItem(storageKey.value)
+      view.value = 'home'
     }
   } catch (e: any) {
     bootstrapError.value = e?.response?.data?.error || 'Event nicht gefunden.'
     bootstrap.value = null
+    view.value = 'home'
   }
 }
 
@@ -101,6 +222,8 @@ async function unlock() {
     token.value = data.token
     sessionStorage.setItem(storageKey.value, data.token)
     pin.value = ''
+    view.value = 'home'
+    await loadOrganizer()
   } catch (e: any) {
     const status = e?.response?.status
     if (status === 423) {
@@ -126,18 +249,26 @@ watch(token, (next) => {
 
 watch(slug, async () => {
   token.value = sessionStorage.getItem(storageKey.value) || ''
+  view.value = 'home'
+  organizer.value = null
   await loadBootstrap()
+  if (token.value && bootstrap.value?.enabled) {
+    await loadOrganizer()
+  }
 })
 
 onMounted(async () => {
   token.value = sessionStorage.getItem(storageKey.value) || ''
   await loadBootstrap()
+  if (token.value && bootstrap.value?.enabled) {
+    await loadOrganizer()
+  }
 })
 </script>
 
 <template>
   <div class="cp-app">
-    <header class="cp-app__header liquid-surface-inner">
+    <header v-if="showAppHeader" class="cp-app__header liquid-surface-inner">
       <RouterLink
           v-if="planPath"
           :to="planPath"
@@ -157,9 +288,38 @@ onMounted(async () => {
             alt="FLOW"
         />
       </div>
+      <div v-if="unlocked" class="cp-app__tools">
+        <button type="button" class="cp-tool" title="QR öffentlicher Plan" @click="openQr">
+          <i class="bi bi-qr-code" aria-hidden="true"/>
+        </button>
+        <a
+            v-if="organizer?.mobile"
+            class="cp-tool"
+            :href="`tel:${organizer.mobile}`"
+            :title="`Organisator:in anrufen (${organizer.name})`"
+        >
+          <i class="bi bi-telephone" aria-hidden="true"/>
+        </a>
+        <button
+            v-else
+            type="button"
+            class="cp-tool cp-tool--disabled"
+            aria-disabled="true"
+            :title="organizer
+              ? 'Keine Handynummer für Organisator:in'
+              : 'Keine Organisator:in zugewiesen'"
+            @click.prevent
+        >
+          <i class="bi bi-telephone" aria-hidden="true"/>
+        </button>
+      </div>
     </header>
 
-    <main class="cp-app__main">
+    <main
+        ref="mainEl"
+        class="cp-app__main"
+        :class="{'cp-app__main--tool': !!activeTool}"
+    >
       <p v-if="bootstrapError" class="glass-alert-error !mb-0">{{ bootstrapError }}</p>
 
       <template v-else-if="bootstrap && !bootstrap.enabled">
@@ -193,44 +353,70 @@ onMounted(async () => {
         </div>
       </template>
 
-      <template v-else-if="unlocked">
+      <template v-else-if="unlocked && view === 'home'">
         <div class="cp-panel cp-panel--wide">
           <div class="cp-home-brand">
             <div class="cp-home-brand__title">Cockpit</div>
             <div class="cp-home-brand__event">{{ bootstrap?.event_name || slug }}</div>
           </div>
 
-          <section
-              v-for="tool in overviewTools"
-              :key="tool.title"
-              class="glass-card liquid-surface-inner cp-tool"
-          >
-            <h2 class="cp-tool__heading">{{ tool.title }}</h2>
-            <p class="cp-tool__text">{{ tool.text }}</p>
-          </section>
+          <div class="cp-grid" role="list">
+            <button
+                v-for="tool in tools"
+                :key="tool.id"
+                type="button"
+                class="cp-grid__cell glass-card liquid-surface-inner"
+                role="listitem"
+                @click="openTool(tool.id)"
+            >
+              <i class="bi cp-grid__icon" :class="tool.icon" aria-hidden="true"/>
+              <span class="cp-grid__title">{{ tool.homeLabel }}</span>
+              <span v-if="!tool.ready" class="cp-grid__badge">Bald</span>
+            </button>
+          </div>
+        </div>
+      </template>
 
+      <template v-else-if="unlocked && view === 'qr'">
+        <div class="cp-panel cp-panel--center glass-card liquid-surface-inner">
+          <button type="button" class="cp-link" @click="backHome">← Zurück</button>
+          <h1 class="cp-panel__h">Öffentlicher Plan</h1>
+          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR-Code öffentlicher Plan" class="cp-qr"/>
+          <p v-if="toolsError" class="glass-alert-error !mb-0">{{ toolsError }}</p>
+          <p v-if="bootstrap?.public_link" class="cp-muted cp-break">{{ bootstrap.public_link }}</p>
+        </div>
+      </template>
+
+      <template v-else-if="unlocked && activeTool">
+        <CockpitToolShell
+            :title="activeTool.title"
+            :explanation="activeTool.explanation"
+            @back="backHome"
+        >
           <RobotGameRoundsPanel
+              v-if="activeTool.id === 'robot-rounds'"
+              embedded
               :event-id="bootstrap?.event_id ?? null"
               :rounds-api-path="roundsApiPath"
               :http="api"
           />
-
-          <section
-              v-for="tool in afterRoundsTools"
-              :key="tool.title"
-              class="glass-card liquid-surface-inner cp-tool"
-          >
-            <h2 class="cp-tool__heading">{{ tool.title }}</h2>
-            <p class="cp-tool__text">{{ tool.text }}</p>
-          </section>
-
-          <section class="glass-card liquid-surface-inner cp-tool">
-            <h2 class="cp-tool__heading">Weitere Live-Tools</h2>
-            <p class="cp-tool__text">
-              Hier werden später weitere mobile Funktionen für den Veranstaltungstag ergänzt werden.
-            </p>
-          </section>
-        </div>
+          <CockpitPhonebookPanel
+              v-else-if="activeTool.id === 'phonebook'"
+              :slug="slug"
+              :http="api"
+          />
+          <CockpitTimeShiftPanel
+              v-else-if="activeTool.id === 'timeshift'"
+              :slug="slug"
+              :http="api"
+          />
+          <CockpitStagePresentationPanel
+              v-else-if="activeTool.id === 'stage-research'"
+              :slug="slug"
+              :http="api"
+          />
+          <p v-else class="cp-stub">Kommt bald.</p>
+        </CockpitToolShell>
       </template>
     </main>
   </div>
@@ -280,10 +466,46 @@ onMounted(async () => {
   width: auto;
 }
 
+.cp-app__tools {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.cp-tool {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--liquid-border);
+  background: var(--liquid-tile-bg);
+  color: var(--color-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 1.15rem;
+}
+
+.cp-tool:active:not(.cp-tool--disabled) {
+  opacity: 0.85;
+}
+
+.cp-tool--disabled,
+.cp-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  color: var(--color-text-muted);
+}
+
 .cp-app__main {
   flex: 1;
   padding: 1rem;
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  overflow: auto;
+}
+
+.cp-app__main--tool {
+  padding-top: 0;
 }
 
 .cp-panel {
@@ -298,11 +520,50 @@ onMounted(async () => {
   max-width: 48rem;
 }
 
+.cp-panel--center {
+  align-items: center;
+  text-align: center;
+}
+
 .cp-panel__h {
   font-size: 1.35rem;
   font-weight: 750;
   margin: 0;
   color: var(--color-text);
+}
+
+.cp-link {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  align-self: flex-start;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-accent, var(--color-text));
+  cursor: pointer;
+  min-height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.cp-link:active {
+  opacity: 0.75;
+}
+
+.cp-qr {
+  width: min(100%, 17.5rem);
+  height: auto;
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 0.5rem;
+}
+
+.cp-break {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .cp-muted {
@@ -342,20 +603,65 @@ onMounted(async () => {
   color: var(--color-text);
 }
 
-.cp-tool {
-  padding: 1rem 1.25rem;
+.cp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
-.cp-tool__heading {
-  font-size: 1rem;
+.cp-grid__cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 7.5rem;
+  padding: 1rem 0.75rem;
+  border: 0;
+  cursor: pointer;
+  text-align: center;
+  color: inherit;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cp-grid__cell:active {
+  transform: scale(0.98);
+  opacity: 0.92;
+}
+
+.cp-grid__icon {
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--color-accent, var(--color-text));
+}
+
+.cp-grid__title {
+  font-size: 0.95rem;
   font-weight: 700;
-  margin: 0 0 0.35rem;
+  line-height: 1.25;
   color: var(--color-text);
 }
 
-.cp-tool__text {
+.cp-grid__badge {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-text-muted) 14%, transparent);
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+}
+
+.cp-stub {
   margin: 0;
-  font-size: 0.9rem;
+  padding: 1.25rem 0;
+  font-size: 1rem;
   color: var(--color-text-muted);
 }
 </style>

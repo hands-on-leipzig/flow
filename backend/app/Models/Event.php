@@ -31,6 +31,11 @@ class Event extends Model
         'check_in_pin',
         'check_in_text_teams',
         'check_in_text_helpers',
+        'check_in_show_team_photo',
+        'check_in_show_team_meal',
+        'check_in_show_helper_photo',
+        'check_in_show_helper_meal',
+        'check_in_show_helper_t_shirt',
         'cockpit_enabled',
         'cockpit_pin',
         'wifi_ssid',
@@ -48,6 +53,11 @@ class Event extends Model
         'volunteer_collect_t_shirt' => 'boolean',
         'collect_meal' => 'boolean',
         'check_in_enabled' => 'boolean',
+        'check_in_show_team_photo' => 'boolean',
+        'check_in_show_team_meal' => 'boolean',
+        'check_in_show_helper_photo' => 'boolean',
+        'check_in_show_helper_meal' => 'boolean',
+        'check_in_show_helper_t_shirt' => 'boolean',
         'cockpit_enabled' => 'boolean',
     ];
 
