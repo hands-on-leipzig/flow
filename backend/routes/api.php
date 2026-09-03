@@ -88,6 +88,7 @@ Route::prefix('check-in/{slug}')->group(function () {
     Route::post('/session', [CheckInController::class, 'openSession']);
     Route::get('/search', [CheckInController::class, 'search']);
     Route::get('/overview', [CheckInController::class, 'overview']);
+    Route::get('/roster', [CheckInController::class, 'roster']);
     Route::get('/organizer', [CheckInController::class, 'organizerContact']);
     Route::get('/share', [CheckInController::class, 'share']);
     Route::get('/{subjectType}/{subjectId}', [CheckInController::class, 'show'])

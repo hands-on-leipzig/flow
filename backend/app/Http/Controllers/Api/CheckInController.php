@@ -186,6 +186,14 @@ class CheckInController extends Controller
         return response()->json($this->checkIn->overview($event));
     }
 
+    public function roster(Request $request, string $slug): JsonResponse
+    {
+        [$event] = $this->authorizedEvent($request, $slug);
+        $scope = (string) $request->query('scope', '');
+
+        return response()->json($this->checkIn->roster($event, $scope));
+    }
+
     public function organizerContact(Request $request, string $slug): JsonResponse
     {
         [$event] = $this->authorizedEvent($request, $slug);

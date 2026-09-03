@@ -71,6 +71,25 @@ type Overview = {
   }
 }
 
+type RosterGroup = {
+  kind: 'cross' | 'program' | 'local' | string
+  program_id?: number | null
+  logo_stem?: string | null
+  items: SearchHit[]
+}
+
+type RosterSection = {
+  key: 'open' | 'no_show' | string
+  label: string
+  groups: RosterGroup[]
+}
+
+type Roster = {
+  scope: 'teams' | 'helpers'
+  title: string
+  sections: RosterSection[]
+}
+
 const route = useRoute()
 const slug = computed(() => String(route.params.slug || ''))
 
@@ -81,7 +100,7 @@ const pinError = ref('')
 const token = ref('')
 const unlocking = ref(false)
 
-const view = ref<'home' | 'detail' | 'qr' | 'noshow'>('home')
+const view = ref<'home' | 'detail' | 'qr' | 'noshow' | 'roster'>('home')
 const query = ref('')
 const searching = ref(false)
 const results = ref<SearchHit[]>([])
@@ -96,6 +115,10 @@ const noShowReason = ref('')
 const noShowSource = ref('')
 
 const overview = ref<Overview | null>(null)
+const roster = ref<Roster | null>(null)
+const rosterScope = ref<'teams' | 'helpers' | null>(null)
+const rosterLoading = ref(false)
+const rosterError = ref('')
 const organizer = ref<{name: string; mobile: string | null} | null>(null)
 const qrDataUrl = ref('')
 const toolsError = ref('')
@@ -276,6 +299,27 @@ async function loadOverview() {
   }
 }
 
+async function openRoster(scope: 'teams' | 'helpers') {
+  rosterScope.value = scope
+  view.value = 'roster'
+  rosterLoading.value = true
+  rosterError.value = ''
+  try {
+    const {data} = await api.get(`/check-in/${slug.value}/roster`, {params: {scope}})
+    roster.value = data
+  } catch (e: any) {
+    roster.value = null
+    rosterError.value = e?.response?.data?.error || 'Liste konnte nicht geladen werden.'
+    if (e?.response?.status === 401 || e?.response?.status === 423) {
+      token.value = ''
+      sessionStorage.removeItem(storageKey.value)
+      await loadBootstrap()
+    }
+  } finally {
+    rosterLoading.value = false
+  }
+}
+
 async function openQr() {
   view.value = 'qr'
   qrDataUrl.value = ''
@@ -320,12 +364,40 @@ async function shareStatus() {
 }
 
 function backHome() {
+  rosterScope.value = null
+  roster.value = null
   view.value = 'home'
   detail.value = null
   confirmRecheck.value = false
   actionError.value = ''
   void runSearch()
   void loadOverview()
+}
+
+function backFromDetail() {
+  detail.value = null
+  confirmRecheck.value = false
+  actionError.value = ''
+  if (rosterScope.value) {
+    void openRoster(rosterScope.value)
+    return
+  }
+  backHome()
+}
+
+function rosterGroupLogo(group: RosterGroup) {
+  if (group.kind === 'program' && group.logo_stem) return programLogoSrc({logo_stem: group.logo_stem})
+  return ''
+}
+
+function rosterGroupIcon(group: RosterGroup) {
+  if (group.kind === 'cross') return 'bi-intersect'
+  if (group.kind === 'local') return 'bi-star'
+  return ''
+}
+
+function rosterSectionEmpty(section: RosterSection) {
+  return !section.groups.some((group) => group.items.length > 0)
 }
 
 function statusLabel(hit: {status: string | null; checked_in_at?: string | null}) {
@@ -572,7 +644,11 @@ onMounted(async () => {
           </ul>
 
           <div class="ci-stats" aria-label="Check-In Stand">
-            <section class="ci-stats__box glass-card liquid-surface-inner">
+            <button
+                type="button"
+                class="ci-stats__box glass-card liquid-surface-inner ci-stats__box--btn"
+                @click="openRoster('teams')"
+            >
               <h2 class="ci-stats__heading">Teams</h2>
               <ul class="ci-stats__lines">
                 <li
@@ -606,8 +682,12 @@ onMounted(async () => {
                   </template>
                 </li>
               </ul>
-            </section>
-            <section class="ci-stats__box glass-card liquid-surface-inner">
+            </button>
+            <button
+                type="button"
+                class="ci-stats__box glass-card liquid-surface-inner ci-stats__box--btn"
+                @click="openRoster('helpers')"
+            >
               <h2 class="ci-stats__heading">Helfer:innen</h2>
               <ul class="ci-stats__lines">
                 <li v-for="(line, i) in homeHelperStats" :key="`h-${i}`" class="ci-stats__line">
@@ -633,16 +713,76 @@ onMounted(async () => {
                   </template>
                 </li>
               </ul>
-            </section>
+            </button>
           </div>
 
           <p v-if="toolsError" class="ci-muted">{{ toolsError }}</p>
         </div>
       </template>
 
-      <template v-else-if="unlocked && view === 'detail'">
+      <template v-else-if="unlocked && view === 'roster'">
         <div class="ci-panel">
           <button type="button" class="ci-link" @click="backHome">← Zurück</button>
+          <h1 class="ci-panel__h">{{ roster?.title || (rosterScope === 'helpers' ? 'Helfer:innen' : 'Teams') }}</h1>
+          <p v-if="rosterLoading" class="ci-muted">Laden…</p>
+          <p v-else-if="rosterError" class="glass-alert-error !mb-0">{{ rosterError }}</p>
+          <template v-else-if="roster">
+            <section
+                v-for="section in roster.sections"
+                :key="section.key"
+                class="ci-roster__section"
+            >
+              <h2 class="ci-roster__section-title">{{ section.label }}</h2>
+              <p v-if="rosterSectionEmpty(section)" class="ci-muted ci-roster__empty">Niemand</p>
+              <div
+                  v-for="(group, gi) in section.groups"
+                  :key="`${section.key}-${group.kind}-${group.program_id ?? gi}`"
+                  class="ci-roster__group"
+              >
+                <div class="ci-roster__group-head" aria-hidden="true">
+                  <img
+                      v-if="rosterGroupLogo(group)"
+                      class="ci-roster__group-logo"
+                      :src="rosterGroupLogo(group)"
+                      alt=""
+                  />
+                  <i
+                      v-else-if="rosterGroupIcon(group)"
+                      class="bi ci-roster__group-icon"
+                      :class="rosterGroupIcon(group)"
+                  />
+                </div>
+                <ul class="ci-list">
+                  <li v-for="hit in group.items" :key="`${hit.subject_type}-${hit.subject_id}`">
+                    <button type="button" class="ci-hit liquid-surface-inner" @click="openDetail(hit)">
+                      <span class="ci-hit__row">
+                        <span class="ci-hit__label">{{ hit.label }}</span>
+                        <span class="ci-hit__trailing">
+                          <span
+                              class="ci-hit__status"
+                              :class="{'ci-hit__status--no': hit.status === 'no_show'}"
+                              :title="statusLabel(hit)"
+                          >
+                            <i class="bi" :class="statusIcon(hit.status)" aria-hidden="true"/>
+                            <span class="sr-only">{{ statusLabel(hit) }}</span>
+                          </span>
+                        </span>
+                      </span>
+                      <span v-if="hit.subtitle" class="ci-hit__row ci-hit__row--sub">
+                        <span class="ci-hit__sub">{{ hit.subtitle }}</span>
+                      </span>
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </section>
+          </template>
+        </div>
+      </template>
+
+      <template v-else-if="unlocked && view === 'detail'">
+        <div class="ci-panel">
+          <button type="button" class="ci-link" @click="backFromDetail">← Zurück</button>
           <div v-if="detailLoading" class="ci-muted">Laden…</div>
           <template v-else-if="detail">
             <div class="ci-hit ci-hit--detail liquid-surface-inner" aria-live="polite">
@@ -997,6 +1137,59 @@ onMounted(async () => {
 .ci-stats__box {
   padding: 0.75rem;
   min-width: 0;
+}
+
+.ci-stats__box--btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.ci-stats__box--btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.ci-roster__section {
+  margin-top: 1rem;
+}
+
+.ci-roster__section-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.ci-roster__empty {
+  margin: 0 0 0.75rem;
+}
+
+.ci-roster__group {
+  margin-bottom: 0.75rem;
+}
+
+.ci-roster__group-head {
+  display: flex;
+  align-items: center;
+  min-height: 1.35rem;
+  margin-bottom: 0.35rem;
+}
+
+.ci-roster__group-logo {
+  width: 1.35rem;
+  height: 1.35rem;
+  object-fit: contain;
+}
+
+.ci-roster__group-icon {
+  font-size: 1.1rem;
+  color: var(--color-text-muted);
 }
 
 .ci-stats__heading {

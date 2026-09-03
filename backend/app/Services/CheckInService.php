@@ -997,6 +997,216 @@ class CheckInService
     }
 
     /**
+     * Open + no-show lists for Teams or Helfer:innen (checked-in omitted).
+     * Status sections first; within each, same program/scope order as overview.
+     *
+     * @return array{scope: string, title: string, sections: list<array{key: string, label: string, groups: list<array{kind: string, program_id: ?int, logo_stem: ?string, items: list<array<string, mixed>>}>}>}
+     */
+    public function roster(Event $event, string $scope): array
+    {
+        if (! in_array($scope, ['teams', 'helpers'], true)) {
+            abort(422, 'Unknown roster scope');
+        }
+
+        $records = CheckIn::query()
+            ->where('event', $event->id)
+            ->where('subject_type', $scope === 'teams' ? CheckIn::SUBJECT_TEAM : CheckIn::SUBJECT_VOLUNTEER)
+            ->get()
+            ->keyBy(fn (CheckIn $row) => (int) $row->subject_id);
+
+        if ($scope === 'teams') {
+            $items = $this->teamRosterItems($event, $records);
+            $title = 'Teams';
+        } else {
+            $items = $this->helperRosterItems($event, $records);
+            $title = 'Helfer:innen';
+        }
+
+        $open = array_values(array_filter($items, fn (array $hit) => ($hit['status'] ?? null) === null));
+        $noShow = array_values(array_filter($items, fn (array $hit) => ($hit['status'] ?? null) === CheckIn::STATUS_NO_SHOW));
+
+        return [
+            'scope' => $scope,
+            'title' => $title,
+            'sections' => [
+                [
+                    'key' => 'open',
+                    'label' => 'Noch offen',
+                    'groups' => $this->rosterGroups($open, $scope),
+                ],
+                [
+                    'key' => 'no_show',
+                    'label' => 'No-Show',
+                    'groups' => $this->rosterGroups($noShow, $scope),
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CheckIn>  $records
+     * @return list<array<string, mixed>>
+     */
+    private function teamRosterItems(Event $event, Collection $records): array
+    {
+        $rows = DB::table('team')
+            ->leftJoin('m_first_program as fp', 'fp.id', '=', 'team.first_program')
+            ->where('team.event', $event->id)
+            ->select([
+                'team.id',
+                'team.name',
+                'team.first_program',
+                'fp.name as program_name',
+                'fp.logo_stem',
+                'fp.sequence as program_sequence',
+            ])
+            ->orderByRaw('CASE WHEN team.first_program IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('fp.sequence')
+            ->orderBy('team.name')
+            ->get();
+
+        $items = [];
+        foreach ($rows as $row) {
+            $id = (int) $row->id;
+            $record = $records->get($id);
+            if ($record?->isCheckedIn()) {
+                continue;
+            }
+
+            $label = trim((string) ($row->name ?? ''));
+            $items[] = array_merge([
+                'subject_type' => CheckIn::SUBJECT_TEAM,
+                'subject_id' => $id,
+                'label' => $label !== '' ? $label : ('Team '.$id),
+                'subtitle' => 'Team',
+                'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
+                'program_name' => $row->program_name,
+                'program_sequence' => $row->program_sequence !== null ? (int) $row->program_sequence : null,
+                'logo_stem' => $row->logo_stem ?: null,
+                'scope_kind' => $row->first_program === null ? 'cross' : 'program',
+            ], $this->recordStatusPayload($record));
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CheckIn>  $records
+     * @return list<array<string, mixed>>
+     */
+    private function helperRosterItems(Event $event, Collection $records): array
+    {
+        $items = [];
+        foreach ($this->staffedHelpersGrouped($event->id) as $row) {
+            $id = (int) $row->id;
+            $record = $records->get($id);
+            if ($record?->isCheckedIn()) {
+                continue;
+            }
+
+            $roleLabels = $row->role_labels ? explode('||', $row->role_labels) : [];
+            if (! empty($row->is_local)) {
+                $scopeKind = 'local';
+            } elseif ($row->first_program === null) {
+                $scopeKind = 'cross';
+            } else {
+                $scopeKind = 'program';
+            }
+
+            $items[] = array_merge([
+                'subject_type' => CheckIn::SUBJECT_VOLUNTEER,
+                'subject_id' => $id,
+                'label' => trim($row->first_name.' '.$row->last_name),
+                'subtitle' => $roleLabels[0] ?? $row->organization,
+                'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
+                'program_name' => $row->program_name,
+                'program_sequence' => $row->program_sequence !== null ? (int) $row->program_sequence : null,
+                'logo_stem' => $row->logo_stem ?: null,
+                'scope_kind' => $scopeKind,
+                'role_labels' => $roleLabels,
+            ], $this->recordStatusPayload($record));
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     * @return list<array{kind: string, program_id: ?int, logo_stem: ?string, items: list<array<string, mixed>>}>
+     */
+    private function rosterGroups(array $items, string $scope): array
+    {
+        $buckets = [];
+        foreach ($items as $item) {
+            $kind = (string) ($item['scope_kind'] ?? 'program');
+            $programId = $item['program_id'] ?? null;
+            $key = $kind === 'program' ? 'program:'.(int) $programId : $kind;
+            if (! isset($buckets[$key])) {
+                $buckets[$key] = [
+                    'kind' => $kind,
+                    'program_id' => $kind === 'program' ? ($programId !== null ? (int) $programId : null) : null,
+                    'program_sequence' => $item['program_sequence'] ?? null,
+                    'logo_stem' => $item['logo_stem'] ?? null,
+                    'items' => [],
+                ];
+            }
+            if (! $buckets[$key]['logo_stem'] && ! empty($item['logo_stem'])) {
+                $buckets[$key]['logo_stem'] = $item['logo_stem'];
+            }
+            $clean = $item;
+            unset($clean['scope_kind'], $clean['program_sequence']);
+            $buckets[$key]['items'][] = $clean;
+        }
+
+        foreach ($buckets as &$bucket) {
+            usort($bucket['items'], fn (array $a, array $b) => strcasecmp($a['label'], $b['label']));
+        }
+        unset($bucket);
+
+        $orderedKeys = [];
+        if (isset($buckets['cross'])) {
+            $orderedKeys[] = 'cross';
+        }
+
+        $programKeys = array_keys(array_filter(
+            $buckets,
+            fn ($b, $k) => str_starts_with((string) $k, 'program:'),
+            ARRAY_FILTER_USE_BOTH,
+        ));
+        usort($programKeys, function (string $a, string $b) use ($buckets) {
+            $sa = $buckets[$a]['program_sequence'] ?? PHP_INT_MAX;
+            $sb = $buckets[$b]['program_sequence'] ?? PHP_INT_MAX;
+            if ($sa !== $sb) {
+                return $sa <=> $sb;
+            }
+
+            return ($buckets[$a]['program_id'] ?? 0) <=> ($buckets[$b]['program_id'] ?? 0);
+        });
+        foreach ($programKeys as $key) {
+            $orderedKeys[] = $key;
+        }
+
+        if ($scope === 'helpers' && isset($buckets['local'])) {
+            $orderedKeys[] = 'local';
+        }
+
+        foreach (array_keys($buckets) as $key) {
+            if (! in_array($key, $orderedKeys, true)) {
+                $orderedKeys[] = $key;
+            }
+        }
+
+        $ordered = [];
+        foreach ($orderedKeys as $key) {
+            $bucket = $buckets[$key];
+            unset($bucket['program_sequence']);
+            $ordered[] = $bucket;
+        }
+
+        return $ordered;
+    }
+
+    /**
      * Gesamt + program logos (+ Übergreifend only when mixed with programs).
      *
      * @param  \Illuminate\Support\Collection<int, object>  $teams
