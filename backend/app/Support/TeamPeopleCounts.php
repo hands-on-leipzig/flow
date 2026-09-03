@@ -17,13 +17,35 @@ final class TeamPeopleCounts
      */
     public static function countsByTeamIdForEvent(Event $event): array
     {
-        return app(self::class)->compute($event);
+        $breakdowns = self::breakdownsByTeamIdForEvent($event);
+        $result = [];
+        foreach ($breakdowns as $teamId => $breakdown) {
+            $result[$teamId] = $breakdown['total'] ?? null;
+        }
+
+        return $result;
     }
 
     /**
-     * @return array<int, int|null>
+     * @return array<int, array{coaches: int, players: int, total: int}|null>
      */
-    private function compute(Event $event): array
+    public static function breakdownsByTeamIdForEvent(Event $event): array
+    {
+        return app(self::class)->computeBreakdowns($event);
+    }
+
+    /**
+     * @return array{coaches: int, players: int, total: int}|null
+     */
+    public static function breakdownForTeam(Event $event, int $teamId): ?array
+    {
+        return self::breakdownsByTeamIdForEvent($event)[$teamId] ?? null;
+    }
+
+    /**
+     * @return array<int, array{coaches: int, players: int, total: int}|null>
+     */
+    private function computeBreakdowns(Event $event): array
     {
         $event->loadMissing('programs');
         $teams = Team::query()->where('event', $event->id)->get();
@@ -61,7 +83,11 @@ final class TeamPeopleCounts
 
                 $coaches = is_array($teamData['coaches'] ?? null) ? count($teamData['coaches']) : 0;
                 $players = is_array($teamData['players'] ?? null) ? count($teamData['players']) : 0;
-                $result[$team->id] = $coaches + $players;
+                $result[$team->id] = [
+                    'coaches' => $coaches,
+                    'players' => $players,
+                    'total' => $coaches + $players,
+                ];
             }
         }
 

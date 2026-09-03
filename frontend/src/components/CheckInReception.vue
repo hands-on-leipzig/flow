@@ -46,6 +46,9 @@ type Detail = SearchHit & {
   no_show_source?: string | null
   next_activities?: Array<{start: string | null; room?: string | null; title: string}>
   display_fields?: DisplayField[]
+  coaches_count?: number | null
+  players_count?: number | null
+  people_count?: number | null
 }
 
 type OverviewLine = {
@@ -356,6 +359,20 @@ function roleLabel(hit: {subject_type?: string; subtitle?: string | null; role_l
   return ''
 }
 
+/** Team subtitle with coach/member counts when DRAHT people data is available. */
+function teamPeopleSubtitle(detail: Detail): string {
+  const base = roleLabel(detail) || 'Team'
+  if (detail.subject_type !== 'team') return base
+  if (
+    detail.coaches_count == null
+    || detail.players_count == null
+    || detail.people_count == null
+  ) {
+    return base
+  }
+  return `${base} – ${detail.coaches_count} Coach:innen, ${detail.players_count} Team-Mitglieder (${detail.people_count} gesamt)`
+}
+
 function detailExtraFields(detail: Detail | null): DisplayField[] {
   return (detail?.display_fields || []).filter((field) => field.kind !== 'photo_consent')
 }
@@ -658,7 +675,9 @@ onMounted(async () => {
                     alt=""
                     aria-hidden="true"
                 />
-                <span v-if="roleLabel(detail)" class="ci-hit__sub">{{ roleLabel(detail) }}</span>
+                <span v-if="roleLabel(detail)" class="ci-hit__sub">
+                  {{ detail.subject_type === 'team' ? teamPeopleSubtitle(detail) : roleLabel(detail) }}
+                </span>
               </div>
               <div
                   v-if="detail.display_fields?.length"
@@ -692,6 +711,11 @@ onMounted(async () => {
               </div>
             </div>
 
+            <div v-if="detail.info_text" class="ci-card glass-card liquid-surface-inner">
+              <div class="ci-card__label">Hinweis</div>
+              <div class="ci-card__value ci-card__value--pre">{{ detail.info_text }}</div>
+            </div>
+
             <div v-if="detail.room" class="ci-card glass-card liquid-surface-inner">
               <div class="ci-card__label">Raum</div>
               <div class="ci-card__value">{{ detail.room }}</div>
@@ -708,11 +732,6 @@ onMounted(async () => {
                   </span>
                 </li>
               </ul>
-            </div>
-
-            <div v-if="detail.info_text" class="ci-card glass-card liquid-surface-inner">
-              <div class="ci-card__label">Hinweis</div>
-              <div class="ci-card__value ci-card__value--pre">{{ detail.info_text }}</div>
             </div>
 
             <label class="ci-label" for="ci-note">Notiz</label>

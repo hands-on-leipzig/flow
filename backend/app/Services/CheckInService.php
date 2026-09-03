@@ -543,10 +543,10 @@ class CheckInService
 
         $record = $this->findRecord($event, CheckIn::SUBJECT_TEAM, $teamId);
         $label = trim((string) ($row->name ?? ''));
-        $peopleCounts = TeamPeopleCounts::countsByTeamIdForEvent($event);
+        $peopleBreakdown = TeamPeopleCounts::breakdownForTeam($event, $teamId);
         $photoPayload = PhotoConsentStatus::forTeam(
             TeamPhotoCounts::mapForTeamWithDefaults($teamId),
-            $peopleCounts[$teamId] ?? null,
+            $peopleBreakdown['total'] ?? null,
         );
 
         return array_merge([
@@ -557,6 +557,9 @@ class CheckInService
             'program_name' => $row->program_name,
             'logo_stem' => $row->logo_stem ?: null,
             'room' => $row->room_name ?: null,
+            'coaches_count' => $peopleBreakdown['coaches'] ?? null,
+            'players_count' => $peopleBreakdown['players'] ?? null,
+            'people_count' => $peopleBreakdown['total'] ?? null,
             'info_text' => $event->check_in_text_teams,
             'next_activities' => $this->nextActivitiesForTeam($event, $plan, $row),
             'display_fields' => $this->teamDisplayFields($event, $teamId, $photoPayload),
