@@ -49,6 +49,7 @@ type Detail = SearchHit & {
   coaches_count?: number | null
   players_count?: number | null
   people_count?: number | null
+  call_contacts?: Array<{name: string; mobile: string}>
 }
 
 type OverviewLine = {
@@ -110,6 +111,7 @@ const note = ref('')
 const actionBusy = ref(false)
 const actionError = ref('')
 const confirmRecheck = ref(false)
+const showCallPicker = ref(false)
 
 const noShowReason = ref('')
 const noShowSource = ref('')
@@ -221,6 +223,7 @@ async function openDetail(hit: SearchHit) {
   detailLoading.value = true
   actionError.value = ''
   confirmRecheck.value = false
+  showCallPicker.value = false
   try {
     const {data} = await api.get(`/check-in/${slug.value}/${hit.subject_type}/${hit.subject_id}`)
     detail.value = data
@@ -369,6 +372,7 @@ function backHome() {
   view.value = 'home'
   detail.value = null
   confirmRecheck.value = false
+  showCallPicker.value = false
   actionError.value = ''
   void runSearch()
   void loadOverview()
@@ -377,6 +381,7 @@ function backHome() {
 function backFromDetail() {
   detail.value = null
   confirmRecheck.value = false
+  showCallPicker.value = false
   actionError.value = ''
   if (rosterScope.value) {
     void openRoster(rosterScope.value)
@@ -398,6 +403,12 @@ function rosterGroupIcon(group: RosterGroup) {
 
 function rosterSectionEmpty(section: RosterSection) {
   return !section.groups.some((group) => group.items.length > 0)
+}
+
+const callContacts = computed(() => detail.value?.call_contacts || [])
+
+function telHref(mobile: string) {
+  return `tel:${mobile.replace(/[^\d+]/g, '')}`
 }
 
 function statusLabel(hit: {status: string | null; checked_in_at?: string | null}) {
@@ -792,6 +803,36 @@ onMounted(async () => {
                 <span class="ci-hit__label">{{ detail.label }}</span>
                 <span class="ci-hit__trailing">
                   <span v-if="checkInTime(detail)" class="ci-hit__time">{{ checkInTime(detail) }}</span>
+                  <a
+                      v-if="callContacts.length === 1"
+                      class="ci-call"
+                      :href="telHref(callContacts[0].mobile)"
+                      :title="`Anrufen (${callContacts[0].name})`"
+                  >
+                    <i class="bi bi-telephone-fill" aria-hidden="true"/>
+                    <span class="sr-only">Anrufen</span>
+                  </a>
+                  <button
+                      v-else-if="callContacts.length > 1"
+                      type="button"
+                      class="ci-call"
+                      title="Coach anrufen"
+                      @click="showCallPicker = true"
+                  >
+                    <i class="bi bi-telephone-fill" aria-hidden="true"/>
+                    <span class="sr-only">Coach wählen und anrufen</span>
+                  </button>
+                  <button
+                      v-else
+                      type="button"
+                      class="ci-call ci-call--disabled"
+                      disabled
+                      aria-disabled="true"
+                      title="Keine Nummer gespeichert"
+                  >
+                    <i class="bi bi-telephone-fill" aria-hidden="true"/>
+                    <span class="sr-only">Keine Nummer gespeichert</span>
+                  </button>
                   <span
                       class="ci-hit__status"
                       :class="{
@@ -851,6 +892,30 @@ onMounted(async () => {
                   </span>
                 </div>
               </div>
+            </div>
+
+            <div
+                v-if="showCallPicker && callContacts.length > 1"
+                class="ci-call-picker liquid-surface-inner"
+                role="dialog"
+                aria-label="Coach anrufen"
+            >
+              <div class="ci-call-picker__title">Wen anrufen?</div>
+              <ul class="ci-call-picker__list">
+                <li v-for="(contact, idx) in callContacts" :key="`${contact.mobile}-${idx}`">
+                  <a
+                      class="ci-call-picker__item"
+                      :href="telHref(contact.mobile)"
+                      @click="showCallPicker = false"
+                  >
+                    <span class="ci-call-picker__name">{{ contact.name }}</span>
+                    <i class="bi bi-telephone-fill" aria-hidden="true"/>
+                  </a>
+                </li>
+              </ul>
+              <button type="button" class="ci-link ci-call-picker__cancel" @click="showCallPicker = false">
+                Abbrechen
+              </button>
             </div>
 
             <div v-if="detail.info_text" class="ci-card glass-card liquid-surface-inner">
@@ -1361,6 +1426,83 @@ onMounted(async () => {
   align-items: center;
   gap: 0.45rem;
   flex-shrink: 0;
+}
+
+.ci-call {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+  font-size: 1.05rem;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ci-call:hover {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.ci-call--disabled,
+.ci-call:disabled {
+  background: color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+  color: var(--color-text-muted);
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ci-call-picker {
+  margin: 0.65rem 0 0.85rem;
+  padding: 0.85rem 1rem;
+}
+
+.ci-call-picker__title {
+  margin: 0 0 0.55rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.ci-call-picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ci-call-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, #ffffff 70%, var(--liquid-tile-bg-inner));
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.ci-call-picker__item:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, #ffffff);
+}
+
+.ci-call-picker__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ci-call-picker__cancel {
+  margin-top: 0.55rem;
 }
 
 .ci-hit__time {

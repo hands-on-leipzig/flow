@@ -560,6 +560,7 @@ class CheckInService
             'coaches_count' => $peopleBreakdown['coaches'] ?? null,
             'players_count' => $peopleBreakdown['players'] ?? null,
             'people_count' => $peopleBreakdown['total'] ?? null,
+            'call_contacts' => $this->teamCallContacts($event, $row),
             'info_text' => $event->check_in_text_teams,
             'next_activities' => $this->nextActivitiesForTeam($event, $plan, $row),
             'display_fields' => $this->teamDisplayFields($event, $teamId, $photoPayload),
@@ -587,19 +588,75 @@ class CheckInService
             $consent === null ? null : (bool) $consent,
         );
 
+        $label = trim($row->first_name.' '.$row->last_name);
+
         return array_merge([
             'subject_type' => CheckIn::SUBJECT_VOLUNTEER,
             'subject_id' => (int) $row->id,
-            'label' => trim($row->first_name.' '.$row->last_name),
+            'label' => $label,
             'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
             'program_name' => $row->program_name,
             'logo_stem' => $row->logo_stem ?: null,
             'room' => null,
             'role_labels' => $roleLabels,
+            'call_contacts' => $this->helperCallContacts($row, $label),
             'info_text' => $event->check_in_text_helpers,
             'next_activities' => $this->nextActivitiesForHelper($event, $personId),
             'display_fields' => $this->helperDisplayFields($event, $roster, $photoPayload),
         ], $this->recordStatusPayload($record));
+    }
+
+    /**
+     * @return list<array{name: string, mobile: string}>
+     */
+    private function helperCallContacts(object $row, string $label): array
+    {
+        $mobile = trim((string) ($row->mobile ?? ''));
+        if ($mobile === '') {
+            return [];
+        }
+
+        return [[
+            'name' => $label !== '' ? $label : 'Helfer:in',
+            'mobile' => $mobile,
+        ]];
+    }
+
+    /**
+     * DRAHT coaches with a phone number for this team.
+     *
+     * @return list<array{name: string, mobile: string}>
+     */
+    private function teamCallContacts(Event $event, object $teamRow): array
+    {
+        $hot = trim((string) ($teamRow->team_number_hot ?? ''));
+        if ($hot === '' || $hot === '0') {
+            return [];
+        }
+
+        $peopleByHot = $this->drahtPeopleByHotNumber($event);
+        $teamData = $peopleByHot[$hot] ?? null;
+        if (! is_array($teamData)) {
+            return [];
+        }
+
+        $contacts = [];
+        foreach ($teamData['coaches'] ?? [] as $coach) {
+            if (! is_array($coach)) {
+                continue;
+            }
+            $mobile = trim((string) ($coach['phone'] ?? ''));
+            if ($mobile === '') {
+                continue;
+            }
+            $name = trim((string) ($coach['firstname'] ?? '').' '.(string) ($coach['name'] ?? ''));
+            $contacts[] = [
+                'name' => $name !== '' ? $name : 'Coach',
+                'mobile' => $mobile,
+            ];
+        }
+
+        return $contacts;
     }
 
     /**
