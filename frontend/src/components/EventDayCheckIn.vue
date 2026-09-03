@@ -503,13 +503,13 @@ onBeforeUnmount(() => {
                     @blur="flushFieldSave"
                     @keydown.enter.exact.prevent="flushFieldSave"
                 />
-                <p class="glass-settings-hint !mb-0">
-                  Welche Felder es gibt, wird unter
-                  <RouterLink to="/plan/teams/data" class="glass-settings-hint-link">Teams → Teamdaten</RouterLink>
-                  festgelegt.
-                </p>
                 <div class="ci-form-checklist">
                   <p class="ci-form-checklist-title">Felder in der App</p>
+                  <p class="glass-settings-hint !mb-0">
+                    Welche Felder es gibt, wird unter
+                    <RouterLink to="/plan/teams/data" class="glass-settings-hint-link">Teams → Teamdaten</RouterLink>
+                    festgelegt.
+                  </p>
                   <div class="ci-form-check ci-form-check--fixed" title="Immer in der App">
                     <input type="checkbox" :checked="true" disabled>
                     <span>Fotoerlaubnis</span>
@@ -552,13 +552,13 @@ onBeforeUnmount(() => {
                     @blur="flushFieldSave"
                     @keydown.enter.exact.prevent="flushFieldSave"
                 />
-                <p class="glass-settings-hint !mb-0">
-                  Welche Felder es gibt, wird unter
-                  <RouterLink to="/plan/volunteers/roster" class="glass-settings-hint-link">Helfer:innen → Helferliste</RouterLink>
-                  festgelegt.
-                </p>
                 <div class="ci-form-checklist">
                   <p class="ci-form-checklist-title">Felder in der App</p>
+                  <p class="glass-settings-hint !mb-0">
+                    Welche Felder es gibt, wird unter
+                    <RouterLink to="/plan/volunteers/roster" class="glass-settings-hint-link">Helfer:innen → Helferliste</RouterLink>
+                    festgelegt.
+                  </p>
                   <div class="ci-form-check ci-form-check--fixed" title="Immer in der App">
                     <input type="checkbox" :checked="true" disabled>
                     <span>Fotoerlaubnis</span>
