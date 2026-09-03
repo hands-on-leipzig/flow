@@ -14,7 +14,7 @@ import type {VolunteerTableColumn} from '@/volunteers/columns/types'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import {flowFilename} from '@/utils/flowFilename'
-import {type VolunteerPersonRef, volunteerDisplayName} from '@/utils/volunteerPerson'
+import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 
 type Person = VolunteerPersonRef
 
@@ -97,12 +97,9 @@ function sortIcon(key: SortKey) {
 }
 
 function personMatchesNameFilter(person: Person) {
-  const query = search.value.trim().toLocaleLowerCase('de')
+  const query = search.value.trim().toLowerCase()
   if (!query) return true
-  const haystack = [person.first_name, person.last_name, volunteerDisplayName(person)]
-    .join(' ')
-    .toLocaleLowerCase('de')
-  return haystack.includes(query)
+  return volunteerSearchHaystack(person).includes(query)
 }
 
 const filtered = computed(() => {

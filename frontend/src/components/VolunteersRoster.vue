@@ -26,7 +26,7 @@ import {type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {rosterEntryHasUnsetField} from '@/utils/volunteerRosterUnset'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
-import {type VolunteerPersonRef, volunteerDisplayName} from '@/utils/volunteerPerson'
+import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 import {defaultRosterDetail, type RosterEntry} from '@/volunteers/rosterTypes'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
@@ -101,13 +101,9 @@ const sortedRoster = computed(() => {
 })
 
 function entryMatchesNameFilter(entry: RosterEntry) {
-  const query = nameFilter.value.trim().toLocaleLowerCase('de')
+  const query = nameFilter.value.trim().toLowerCase()
   if (!query) return true
-  const person = entry.person
-  const haystack = [person.first_name, person.last_name, volunteerDisplayName(person)]
-    .join(' ')
-    .toLocaleLowerCase('de')
-  return haystack.includes(query)
+  return volunteerSearchHaystack(entry.person).includes(query)
 }
 
 function entryMatchesFilters(entry: RosterEntry) {
