@@ -129,6 +129,28 @@ class CockpitTimeShiftTest extends TestCase
         $this->assertSame($this->pivot->copy()->addHours(3)->addMinutes(15)->format('H:i'), $after['end_of_day_time']);
     }
 
+    public function test_upcoming_end_excludes_activities_that_already_started(): void
+    {
+        // The latest-ending activity is already running, so it never moves.
+        $this->seedActivity($this->pivot->copy()->subMinutes(10), 180);
+        $this->seedActivity($this->pivot->copy()->addMinutes(30), 30);
+
+        $state = app(CockpitTimeShiftService::class)->state($this->event());
+
+        $this->assertSame($this->pivot->copy()->addMinutes(170)->format('H:i'), $state['end_of_day_time']);
+        $this->assertSame($this->pivot->copy()->addHour()->format('H:i'), $state['upcoming_end_time']);
+    }
+
+    public function test_upcoming_end_is_null_when_nothing_is_left(): void
+    {
+        $this->seedActivity($this->pivot->copy()->subHours(2), 30);
+
+        $state = app(CockpitTimeShiftService::class)->state($this->event());
+
+        $this->assertNull($state['upcoming_end_time']);
+        $this->assertSame($this->pivot->copy()->subMinutes(90)->format('H:i'), $state['end_of_day_time']);
+    }
+
     public function test_extra_block_and_slot_rows_are_untouched(): void
     {
         $this->seedActivity($this->pivot->copy()->addHour(), 30);

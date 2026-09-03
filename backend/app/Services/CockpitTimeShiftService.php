@@ -24,7 +24,7 @@ class CockpitTimeShiftService
     public const STEP_MINUTES = 5;
 
     /**
-     * @return array{plan_id: int, locked: bool, current_day_date: string, now_time: string, end_of_day_time: ?string, upcoming_count: int}
+     * @return array{plan_id: int, locked: bool, current_day_date: string, now_time: string, end_of_day_time: ?string, upcoming_end_time: ?string, upcoming_count: int}
      */
     public function state(Event $event): array
     {
@@ -36,13 +36,13 @@ class CockpitTimeShiftService
             'locked' => $locked,
             'current_day_date' => $day,
             'now_time' => $pivot->format('H:i'),
-            'end_of_day_time' => $this->endOfDayTime($planId, $day),
             'upcoming_count' => $this->upcomingQuery($planId, $day, $pivot)->count(),
+            ...$this->dayTimes($planId, $day, $pivot),
         ];
     }
 
     /**
-     * @return array{shifted_count: int, current_day_date: string, end_of_day_time: ?string}
+     * @return array{shifted_count: int, current_day_date: string, end_of_day_time: ?string, upcoming_end_time: ?string}
      */
     public function shift(Event $event, int $minutes): array
     {
@@ -71,7 +71,7 @@ class CockpitTimeShiftService
         return [
             'shifted_count' => $shifted,
             'current_day_date' => $day,
-            'end_of_day_time' => $this->endOfDayTime($planId, $day),
+            ...$this->dayTimes($planId, $day, $pivot),
         ];
     }
 
@@ -107,24 +107,35 @@ class CockpitTimeShiftService
      */
     private function upcomingQuery(int $planId, string $day, Carbon $pivot)
     {
+        return $this->dayQuery($planId, $day)
+            ->where('start', '>', $pivot->format('Y-m-d H:i:s'));
+    }
+
+    /**
+     * `upcoming_end_time` lets the UI project the new end of day: only the
+     * activities that still move contribute to it, so a day whose last
+     * activity is already running keeps its end.
+     *
+     * @return array{end_of_day_time: ?string, upcoming_end_time: ?string}
+     */
+    private function dayTimes(int $planId, string $day, Carbon $pivot): array
+    {
+        $endOfDay = $this->dayQuery($planId, $day)->max('end');
+        $upcomingEnd = $this->upcomingQuery($planId, $day, $pivot)->max('end');
+
+        return [
+            'end_of_day_time' => $endOfDay ? Carbon::parse($endOfDay)->format('H:i') : null,
+            'upcoming_end_time' => $upcomingEnd ? Carbon::parse($upcomingEnd)->format('H:i') : null,
+        ];
+    }
+
+    private function dayQuery(int $planId, string $day)
+    {
         return DB::table('activity')
             ->whereIn('activity_group', function ($sub) use ($planId) {
                 $sub->select('id')->from('activity_group')->where('plan', $planId);
             })
-            ->whereRaw('DATE(start) = ?', [$day])
-            ->where('start', '>', $pivot->format('Y-m-d H:i:s'));
-    }
-
-    private function endOfDayTime(int $planId, string $day): ?string
-    {
-        $max = DB::table('activity')
-            ->whereIn('activity_group', function ($sub) use ($planId) {
-                $sub->select('id')->from('activity_group')->where('plan', $planId);
-            })
-            ->whereRaw('DATE(start) = ?', [$day])
-            ->max('end');
-
-        return $max ? Carbon::parse($max)->format('H:i') : null;
+            ->whereRaw('DATE(start) = ?', [$day]);
     }
 
     /**

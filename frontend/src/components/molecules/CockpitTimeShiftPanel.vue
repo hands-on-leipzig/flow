@@ -16,6 +16,7 @@ const props = defineProps<{
 
 const minutes = ref(MIN_MINUTES)
 const endOfDayTime = ref<string | null>(null)
+const upcomingEndTime = ref<string | null>(null)
 const locked = ref(false)
 const loading = ref(false)
 const busy = ref(false)
@@ -26,6 +27,26 @@ const showConfirm = ref(false)
 const canDecrease = computed(() => minutes.value > MIN_MINUTES)
 const canIncrease = computed(() => minutes.value < MAX_MINUTES)
 const confirmTitle = computed(() => `Wirklich alles um ${minutes.value} Minuten verschieben?`)
+
+function toMinutes(time: string): number {
+  const [h, m] = time.split(':')
+  return Number(h) * 60 + Number(m)
+}
+
+function toTime(total: number): string {
+  const wrapped = ((total % 1440) + 1440) % 1440
+  return `${String(Math.floor(wrapped / 60)).padStart(2, '0')}:${String(wrapped % 60).padStart(2, '0')}`
+}
+
+/**
+ * Only activities that still move push the end of day out, so a day whose
+ * last activity is already running keeps its current end.
+ */
+const projectedEndTime = computed(() => {
+  if (!endOfDayTime.value) return null
+  if (!upcomingEndTime.value) return endOfDayTime.value
+  return toTime(Math.max(toMinutes(endOfDayTime.value), toMinutes(upcomingEndTime.value) + minutes.value))
+})
 
 function decrease() {
   if (canDecrease.value) minutes.value -= STEP_MINUTES
@@ -41,6 +62,7 @@ async function loadState() {
   try {
     const {data} = await props.http.get(`/cockpit/${props.slug}/timeshift/bootstrap`)
     endOfDayTime.value = data.end_of_day_time ?? null
+    upcomingEndTime.value = data.upcoming_end_time ?? null
     locked.value = !!data.locked
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Zeiten konnten nicht geladen werden.'
@@ -59,6 +81,7 @@ async function applyShift() {
       minutes: minutes.value,
     })
     endOfDayTime.value = data.end_of_day_time ?? null
+    upcomingEndTime.value = data.upcoming_end_time ?? null
     result.value = `${data.shifted_count} Aktivitäten um ${minutes.value} Minuten verschoben.`
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Verschieben fehlgeschlagen.'
@@ -72,7 +95,11 @@ onMounted(loadState)
 
 <template>
   <div class="cp-shift">
-    <p class="glass-alert-warning !mb-0">Die Verschiebung kann hier nicht rückgängig gemacht werden!</p>
+    <p class="cp-shift__warning" role="alert">
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"/>
+      <span>Die Verschiebung kann hier nicht rückgängig gemacht werden!</span>
+      <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"/>
+    </p>
     <p class="cp-shift__note">Im Notfall kann der ganze Plan in FLOW neu generiert werden.</p>
 
     <div class="cp-shift__stepper liquid-surface-inner">
@@ -101,13 +128,12 @@ onMounted(loadState)
     </div>
 
     <p class="cp-shift__end">
-      Ende der Veranstaltung:
-      <strong>{{ loading ? '…' : (endOfDayTime || '—') }}</strong>
+      Ende der Veranstaltung wäre dann:
+      <strong>{{ loading ? '…' : (projectedEndTime || '—') }}</strong>
     </p>
 
     <p v-if="locked" class="cp-shift__note">Der Plan ist gesperrt und kann nicht verschoben werden.</p>
     <p v-if="error" class="glass-alert-error !mb-0">{{ error }}</p>
-    <p v-if="result" class="cp-shift__result">{{ result }}</p>
 
     <button
         type="button"
@@ -117,6 +143,8 @@ onMounted(loadState)
     >
       {{ busy ? 'Verschiebe…' : 'Verschieben' }}
     </button>
+
+    <p v-if="result" class="cp-shift__result">{{ result }}</p>
 
     <ConfirmationModal
         :show="showConfirm"
@@ -137,6 +165,28 @@ onMounted(loadState)
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+}
+
+.cp-shift__warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius);
+  border: 1px solid #b91c1c;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.cp-shift__warning .bi {
+  flex-shrink: 0;
+  font-size: 1.2rem;
 }
 
 .cp-shift__note {
