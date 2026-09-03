@@ -9,6 +9,7 @@ use App\Services\CockpitService;
 use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 class CockpitController extends Controller
 {
@@ -61,10 +62,19 @@ class CockpitController extends Controller
             return response()->json(['error' => 'Cockpit ist nicht geöffnet.'], 423);
         }
 
+        $rateKey = sprintf('day-app-pin:cockpit:%s:%s', $slug, $request->ip());
+        if (RateLimiter::tooManyAttempts($rateKey, 5)) {
+            return response()->json(['error' => 'Zu viele PIN-Versuche. Bitte warte eine Minute.'], 429);
+        }
+
         $pin = (string) $request->input('pin', '');
         if (! $this->cockpit->verifyPin($event, $pin)) {
+            RateLimiter::hit($rateKey, 60);
+
             return response()->json(['error' => 'PIN ungültig.'], 401);
         }
+
+        RateLimiter::clear($rateKey);
 
         return response()->json([
             'token' => $this->cockpit->makeSessionToken($event),
@@ -128,7 +138,7 @@ class CockpitController extends Controller
             abort(423, 'Cockpit ist nicht geöffnet.');
         }
 
-        $token = $request->header('X-Cockpit-Token') ?: $request->query('token');
+        $token = $request->header('X-Cockpit-Token');
         $eventId = $this->cockpit->eventIdFromSessionToken(is_string($token) ? $token : null);
         if ($eventId !== (int) $event->id) {
             abort(401, 'Cockpit Sitzung ungültig.');

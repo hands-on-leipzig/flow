@@ -9,6 +9,7 @@ use App\Services\CheckInService;
 use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 class CheckInController extends Controller
 {
@@ -68,10 +69,19 @@ class CheckInController extends Controller
             return response()->json(['error' => 'Check-In ist nicht geöffnet.'], 423);
         }
 
+        $rateKey = sprintf('day-app-pin:check-in:%s:%s', $slug, $request->ip());
+        if (RateLimiter::tooManyAttempts($rateKey, 5)) {
+            return response()->json(['error' => 'Zu viele PIN-Versuche. Bitte warte eine Minute.'], 429);
+        }
+
         $pin = (string) $request->input('pin', '');
         if (! $this->checkIn->verifyPin($event, $pin)) {
+            RateLimiter::hit($rateKey, 60);
+
             return response()->json(['error' => 'PIN ungültig.'], 401);
         }
+
+        RateLimiter::clear($rateKey);
 
         return response()->json([
             'token' => $this->checkIn->makeSessionToken($event),
@@ -237,7 +247,7 @@ class CheckInController extends Controller
             abort(423, 'Check-In ist nicht geöffnet.');
         }
 
-        $token = $request->header('X-Check-In-Token') ?: $request->query('token');
+        $token = $request->header('X-Check-In-Token');
         $eventId = $this->checkIn->eventIdFromSessionToken(is_string($token) ? $token : null);
         if ($eventId !== (int) $event->id) {
             abort(401, 'Check-In Sitzung ungültig.');

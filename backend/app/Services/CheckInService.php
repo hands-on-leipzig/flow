@@ -140,10 +140,15 @@ class CheckInService
         return hash_equals($expected, preg_replace('/\D/', '', $pin) ?? '');
     }
 
+    public const SESSION_APP = 'check-in';
+
+    public const SESSION_TTL_HOURS = 24;
+
     public function makeSessionToken(Event $event): string
     {
         return Crypt::encryptString(json_encode([
             'event_id' => (int) $event->id,
+            'app' => self::SESSION_APP,
             'issued_at' => now()->toIso8601String(),
         ]));
     }
@@ -159,11 +164,32 @@ class CheckInService
             if (! is_array($payload) || ! isset($payload['event_id'])) {
                 return null;
             }
+            if (($payload['app'] ?? null) !== self::SESSION_APP) {
+                return null;
+            }
+            if (! $this->sessionIssuedAtIsFresh($payload['issued_at'] ?? null)) {
+                return null;
+            }
 
             return (int) $payload['event_id'];
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function sessionIssuedAtIsFresh(mixed $issuedAt): bool
+    {
+        if (! is_string($issuedAt) || $issuedAt === '') {
+            return false;
+        }
+
+        try {
+            $issued = Carbon::parse($issuedAt);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return $issued->greaterThan(now()->subHours(self::SESSION_TTL_HOURS));
     }
 
     public function resetRecords(Event $event): int
