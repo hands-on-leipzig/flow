@@ -368,6 +368,13 @@ async function addSlide(selectedType: string) {
             </ItemCard>
           </div>
         </div>
+
+        <div class="digital-workspace__pane digital-workspace__pane--medien">
+          <h2 class="glass-card__heading">Medien</h2>
+          <p class="glass-settings-hint !mb-0">
+            Hier kommt die Verwaltung für zusätzliche Fotos und Videos hin ... demnächst.
+          </p>
+        </div>
       </section>
 
       <PanelSplitter
@@ -670,6 +677,7 @@ async function addSlide(selectedType: string) {
 .digital-workspace__left {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -697,6 +705,10 @@ async function addSlide(selectedType: string) {
   box-shadow:
     0 10px 28px rgba(15, 23, 42, 0.07),
     0 2px 6px rgba(15, 23, 42, 0.04);
+}
+
+.digital-workspace__pane--medien {
+  flex: 0 0 auto;
 }
 
 .digital-workspace__pane--editor {
