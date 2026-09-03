@@ -187,6 +187,7 @@ class CockpitStagePresentationTest extends TestCase
     public function test_locking_blocks_saving_and_unlocking_reopens_it(): void
     {
         $this->attach(self::CHALLENGE, teams: 6);
+        $this->setParam('c_presentations', 1);
         $a = $this->seedTeam(self::CHALLENGE, 'Alpha');
         $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a]);
 
@@ -210,11 +211,90 @@ class CockpitStagePresentationTest extends TestCase
     {
         $this->attach(self::CHALLENGE, teams: 6);
         $this->attach(self::FUTURE_8, teams: 4);
+        $this->setParam('c_presentations', 1);
+        $a = $this->seedTeam(self::CHALLENGE, 'Alpha');
+        $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a]);
 
         $state = $this->service()->setLock($this->event(), self::CHALLENGE, true);
 
         $this->assertTrue($state['programs'][0]['locked']);
         $this->assertFalse($state['programs'][1]['locked'], 'F8+ must stay open.');
+    }
+
+    public function test_locking_requires_every_slot_to_be_filled(): void
+    {
+        $this->attach(self::CHALLENGE, teams: 6);
+        $a = $this->seedTeam(self::CHALLENGE, 'Alpha');
+        $b = $this->seedTeam(self::CHALLENGE, 'Beta');
+        $c = $this->seedTeam(self::CHALLENGE, 'Gamma');
+
+        // Nothing selected at all.
+        $this->assertAborts(422, fn () => $this->service()->setLock($this->event(), self::CHALLENGE, true));
+
+        // Slots exist but are empty.
+        $this->service()->saveSelection($this->event(), self::CHALLENGE, [null, null, null]);
+        $this->assertAborts(422, fn () => $this->service()->setLock($this->event(), self::CHALLENGE, true));
+
+        // Partially filled is still not enough.
+        $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a, null, $c]);
+        $this->assertAborts(422, fn () => $this->service()->setLock($this->event(), self::CHALLENGE, true));
+
+        $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a, $b, $c]);
+        $state = $this->service()->setLock($this->event(), self::CHALLENGE, true);
+        $this->assertTrue($state['programs'][0]['locked']);
+    }
+
+    public function test_stale_slots_above_the_range_do_not_count_as_filled(): void
+    {
+        $this->attach(self::CHALLENGE, teams: 6);
+        $a = $this->seedTeam(self::CHALLENGE, 'Alpha');
+        $b = $this->seedTeam(self::CHALLENGE, 'Beta');
+        $c = $this->seedTeam(self::CHALLENGE, 'Gamma');
+        $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a, $b, $c]);
+
+        // Two presentations now, but three filled rows are still on file.
+        $this->setParam('c_presentations', 2);
+        $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a, null]);
+
+        $this->assertAborts(422, fn () => $this->service()->setLock($this->event(), self::CHALLENGE, true));
+    }
+
+    public function test_lock_time_is_recorded_in_local_time(): void
+    {
+        $this->attach(self::CHALLENGE, teams: 6);
+        $this->setParam('c_presentations', 1);
+        $a = $this->seedTeam(self::CHALLENGE, 'Alpha');
+        $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a]);
+
+        $this->assertNull($this->service()->state($this->event())['programs'][0]['locked_at_time']);
+
+        $berlin = now('Europe/Berlin');
+        $state = $this->service()->setLock($this->event(), self::CHALLENGE, true);
+
+        // Tolerate a minute rolling over during the call. A UTC-formatted
+        // value would differ by the whole Berlin offset and fail here.
+        $this->assertContains($state['programs'][0]['locked_at_time'], [
+            $berlin->format('H:i'),
+            $berlin->copy()->addMinute()->format('H:i'),
+        ]);
+    }
+
+    public function test_unlocking_keeps_the_last_lock_time(): void
+    {
+        $this->attach(self::CHALLENGE, teams: 6);
+        $this->setParam('c_presentations', 1);
+        $a = $this->seedTeam(self::CHALLENGE, 'Alpha');
+        $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a]);
+        $locked = $this->service()->setLock($this->event(), self::CHALLENGE, true);
+
+        $open = $this->service()->setLock($this->event(), self::CHALLENGE, false);
+
+        $this->assertFalse($open['programs'][0]['locked']);
+        $this->assertSame(
+            $locked['programs'][0]['locked_at_time'],
+            $open['programs'][0]['locked_at_time'],
+            'Last locked is kept; there is no history and no clearing.'
+        );
     }
 
     // --- parameter changes ----------------------------------------------
@@ -281,6 +361,7 @@ class CockpitStagePresentationTest extends TestCase
     public function test_endpoints_save_and_lock_by_program_name(): void
     {
         $this->attach(self::CHALLENGE, teams: 6);
+        $this->setParam('c_presentations', 1);
         $a = $this->seedTeam(self::CHALLENGE, 'Alpha');
         $token = (string) $this->postJson('/api/cockpit/day-event/session', ['pin' => '654321'])->json('token');
         $this->assertNotSame('', $token);
@@ -288,7 +369,7 @@ class CockpitStagePresentationTest extends TestCase
         $this->withHeader('X-Cockpit-Token', $token)
             ->putJson('/api/cockpit/day-event/stage-presentations/selection', [
                 'program' => self::CHALLENGE,
-                'teams' => [$a, null, null],
+                'teams' => [$a],
             ])
             ->assertOk()
             ->assertJsonPath('programs.0.slots.0.team', $a);
@@ -587,6 +668,7 @@ class CockpitStagePresentationTest extends TestCase
                 $table->unsignedInteger('event');
                 $table->unsignedInteger('first_program');
                 $table->boolean('locked')->default(false);
+                $table->dateTime('locked_at')->nullable();
                 $table->timestamps();
                 $table->unique(['event', 'first_program']);
             });

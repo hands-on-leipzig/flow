@@ -14,6 +14,7 @@ type ProgramSection = {
   logo_stem: string | null
   presentations: number
   locked: boolean
+  locked_at_time: string | null
   teams: TeamOption[]
   slots: Slot[]
 }
@@ -37,6 +38,11 @@ const unlockTarget = ref<ProgramSection | null>(null)
  * the other slots. A team that was picked and later marked no-show is no
  * longer offered, so it is added back for its own slot to stay visible.
  */
+/** Locking sets the running order, so every slot needs a team. */
+function isComplete(section: ProgramSection): boolean {
+  return section.slots.every((slot) => slot.team !== null)
+}
+
 function optionsFor(section: ProgramSection, slot: Slot): TeamOption[] {
   const takenElsewhere = new Set(
     section.slots.filter((s) => s.slot !== slot.slot && s.team !== null).map((s) => s.team as number),
@@ -170,7 +176,7 @@ onUnmounted(() => {
           v-if="!section.locked"
           type="button"
           class="glass-btn-accent cp-stage__lock"
-          :disabled="busy === section.program"
+          :disabled="busy === section.program || !isComplete(section)"
           @click="setLock(section, true)"
       >
         <i class="bi bi-lock-fill" aria-hidden="true"/>
@@ -187,6 +193,13 @@ onUnmounted(() => {
         <i class="bi bi-unlock-fill" aria-hidden="true"/>
         Entsperren
       </button>
+
+      <p v-if="section.locked && section.locked_at_time" class="cp-stage__locked-at">
+        Gesperrt um {{ section.locked_at_time }}
+      </p>
+      <p v-else-if="!section.locked && !isComplete(section)" class="cp-stage__hint">
+        Zum Sperren alle {{ section.presentations }} Plätze belegen.
+      </p>
     </section>
 
     <ConfirmationModal
@@ -286,5 +299,18 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+}
+
+.cp-stage__lock:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cp-stage__locked-at {
+  margin: 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 </style>

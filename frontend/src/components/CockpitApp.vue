@@ -138,7 +138,7 @@ const tools: CockpitTool[] = [
     id: 'stage-research',
     title: 'Forschung auf der Bühne',
     homeLabel: 'Forschung',
-    explanation: 'Jury trägt ein, wer kommt — Moderator und Stage Crew sehen es.',
+    explanation: 'Jury-Verantwortliche können hier eintragen, welche Teams auf die Bühne sollen. Die Anzahl kommt aus dem Veranstaltungsplan.',
     icon: 'bi-easel',
     ready: true,
   },

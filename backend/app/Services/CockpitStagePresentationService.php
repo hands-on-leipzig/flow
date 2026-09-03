@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Models\Event;
 use App\Models\FirstProgram;
+use App\Support\EventDayClock;
 use App\Support\PlanParameter;
 use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -130,15 +132,40 @@ class CockpitStagePresentationService
      */
     public function setLock(Event $event, string $programName, bool $locked): array
     {
-        [, $program] = $this->target($event, $programName);
+        [, $program, $slots] = $this->target($event, $programName);
 
         $stageId = $this->stageRowId($event, $program);
-        DB::table('stage_presentation')->where('id', $stageId)->update([
-            'locked' => $locked,
-            'updated_at' => now(),
-        ]);
+
+        // Locking means "this is the running order", so every slot must be
+        // filled — exactly one team per select control.
+        if ($locked && $this->pickedCount($stageId, $slots) < $slots) {
+            abort(422, 'Zum Sperren müssen alle Plätze belegt sein.');
+        }
+
+        $changes = ['locked' => $locked, 'updated_at' => now()];
+        if ($locked) {
+            // "Last locked", overwritten on every lock. Kept on unlock, but the
+            // UI only shows it while the selection is actually locked.
+            $changes['locked_at'] = now();
+        }
+
+        DB::table('stage_presentation')->where('id', $stageId)->update($changes);
 
         return $this->state($event);
+    }
+
+    /**
+     * Filled slots within the current range. Rows above it are stale leftovers
+     * from a higher parameter value and must not count toward completeness.
+     */
+    private function pickedCount(int $stageId, int $slots): int
+    {
+        return DB::table('stage_presentation_team')
+            ->where('stage_presentation', $stageId)
+            ->where('slot', '<=', $slots)
+            ->whereNotNull('team')
+            ->distinct()
+            ->count('slot');
     }
 
     /**
@@ -174,10 +201,11 @@ class CockpitStagePresentationService
      */
     private function section(Event $event, int $planId, FirstProgram $program, int $slots): array
     {
-        $stageId = DB::table('stage_presentation')
+        $stage = DB::table('stage_presentation')
             ->where('event', $event->id)
             ->where('first_program', $program->id)
-            ->value('id');
+            ->first(['id', 'locked', 'locked_at']);
+        $stageId = $stage->id ?? null;
 
         $bySlot = [];
         if ($stageId) {
@@ -215,7 +243,8 @@ class CockpitStagePresentationService
             'program_label' => ProgramCatalog::displayName((string) $program->name, (string) $program->name),
             'logo_stem' => $program->logo_stem ?: null,
             'presentations' => $slots,
-            'locked' => $stageId ? $this->isLocked((int) $stageId) : false,
+            'locked' => (bool) ($stage->locked ?? false),
+            'locked_at_time' => $this->localTime($stage->locked_at ?? null),
             'teams' => $this->teamOptions($event, $planId, $program),
             'slots' => $slotList,
         ];
@@ -279,6 +308,20 @@ class CockpitStagePresentationService
     private function isLocked(int $stageId): bool
     {
         return (bool) DB::table('stage_presentation')->where('id', $stageId)->value('locked');
+    }
+
+    /**
+     * locked_at is a real instant stored in the app timezone (UTC), unlike the
+     * naive Berlin wall-clock times on activity rows, so it is converted for
+     * display. Only the time matters; the day is always the event day.
+     */
+    private function localTime(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return Carbon::parse($value)->setTimezone(EventDayClock::TZ)->format('H:i');
     }
 
     private function plan(Event $event): ?object
