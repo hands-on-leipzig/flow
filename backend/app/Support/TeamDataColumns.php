@@ -55,7 +55,7 @@ final class TeamDataColumns
         $columns = [
             [
                 'key' => 'photo_consent',
-                'label' => 'Foto Erlaubnis',
+                'label' => 'Fotoerlaubnis',
                 'kind' => 'photo',
                 'editor' => 'count_set',
                 'boolean_keys' => TeamPhotoCounts::BUCKETS,
@@ -102,6 +102,7 @@ final class TeamDataColumns
             'field_key' => $field->field_key,
             'options' => $field->type === 'select' ? ($field->options ?? []) : [],
             'public_form' => (bool) ($field->public_form ?? false),
+            'check_in_show' => (bool) ($field->check_in_show ?? false),
             'sortable' => false,
         ];
     }
@@ -122,7 +123,7 @@ final class TeamDataColumns
         foreach (['unknown' => '?', 'yes' => 'Ja', 'no' => 'Nein'] as $bucket => $label) {
             $definitions[] = [
                 'key' => 'photo_consent:'.$bucket,
-                'label' => 'Foto Erlaubnis: '.$label,
+                'label' => 'Fotoerlaubnis: '.$label,
                 'export' => true,
             ];
         }

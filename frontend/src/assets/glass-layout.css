@@ -273,6 +273,41 @@
   font-size: var(--text-sm);
 }
 
+/* Fotoerlaubnis status: pending=yellow, granted=green, denied=pale red */
+.photo-consent--pending {
+  background: color-mix(in srgb, #ca8a04 28%, var(--color-bg-muted, #f8fafc)) !important;
+}
+
+.photo-consent--granted {
+  background: color-mix(in srgb, #16a34a 26%, var(--color-bg-muted, #f8fafc)) !important;
+}
+
+.photo-consent--denied {
+  background: color-mix(in srgb, #dc2626 18%, var(--color-bg-muted, #f8fafc)) !important;
+}
+
+.photo-consent-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius, 0.5rem);
+  font-size: var(--text-sm, 0.875rem);
+  line-height: 1.4;
+}
+
+.photo-consent-banner__icon {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.photo-consent-banner__text {
+  margin: 0;
+  flex: 1 1 auto;
+}
+
 .glass-alert-error {
   padding: 1rem;
   border-radius: var(--radius-lg);

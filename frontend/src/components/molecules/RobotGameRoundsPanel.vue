@@ -20,6 +20,8 @@ const props = defineProps<{
   roundsApiPath?: string | null
   /** Custom axios client (e.g. with Cockpit session header). */
   http?: AxiosInstance
+  /** Hide built-in heading when embedded in CockpitToolShell. */
+  embedded?: boolean
 }>()
 
 const eventStore = useEventStore()
@@ -90,8 +92,8 @@ onMounted(fetchRounds)
 </script>
 
 <template>
-  <section class="glass-surface-lg p-4 sm:p-6">
-    <div class="mb-4">
+  <section :class="embedded ? 'cp-rounds' : 'glass-surface-lg p-4 sm:p-6'">
+    <div v-if="!embedded" class="mb-4">
       <h2 class="text-lg font-semibold text-[var(--color-text)]">Robot-Game Ergebnisse</h2>
       <p class="text-sm text-[var(--color-text-muted)]">
         Wähle aus, welche Runden öffentlich sichtbar sein sollen.

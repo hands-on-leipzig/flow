@@ -151,15 +151,16 @@ function gapStatusClass(tile: StaffingTile) {
           @end="emit('drag-end')"
       >
         <template #item="{element: person}">
-          <span class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move">
-            <i class="bi bi-person-fill text-[var(--color-text-subtle)]"/>
-            <span class="px-1.5 py-1 truncate max-w-[10rem]">{{ volunteerDisplayName(person) }}</span>
+          <span class="glass-row-item glass-row-item--interactive vol-person-chip cursor-move">
+            <i class="bi bi-person-fill vol-person-chip__icon" aria-hidden="true"/>
+            <span class="vol-person-chip__label truncate max-w-[10rem]">{{ volunteerDisplayName(person) }}</span>
             <button
                 type="button"
-                class="ml-0.5 text-sm text-[var(--color-text-subtle)] hover:text-[var(--color-text)] pr-1"
+                class="vol-person-chip__dismiss"
+                aria-label="Zuordnung entfernen"
                 @click.stop="emit('unassign', tile.group, person)"
             >
-              ✖
+              <i class="bi bi-x" aria-hidden="true"/>
             </button>
           </span>
         </template>
@@ -193,7 +194,7 @@ function gapStatusClass(tile: StaffingTile) {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 999px;
-  background: #ef4444;
+  background: var(--color-danger, #ef4444);
 }
 
 .staffing-meta {
@@ -226,15 +227,15 @@ function gapStatusClass(tile: StaffingTile) {
 }
 
 .staffing-status__gap--warn {
-  color: #dc2626;
+  color: var(--color-danger, #dc2626);
 }
 
 .staffing-status__gap--caution {
-  color: #d97706;
+  color: var(--color-warning, #d97706);
 }
 
 .staffing-status__gap--ok {
-  color: #15803d;
+  color: var(--color-success, #15803d);
 }
 
 .staffing-status__gap--muted {
@@ -291,16 +292,35 @@ function gapStatusClass(tile: StaffingTile) {
   color: var(--color-text);
 }
 
+:deep(.staffing-tile--surplus) {
+  border-color: color-mix(in srgb, var(--color-danger, #dc2626) 42%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger, #dc2626) 12%, var(--color-bg-muted));
+}
+
 .staffing-stale-badge {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--color-text-subtle);
+  flex-shrink: 0;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-danger, #dc2626) 14%, transparent);
+  color: var(--color-danger, #b91c1c);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .staffing-surplus {
   margin: 0 0 0.5rem;
-  font-size: 0.8125rem;
-  color: var(--color-text-subtle);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--color-danger, #b91c1c);
+  font-weight: 600;
+}
+
+:deep(.glass-dropzone--blocked) {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--color-danger, #dc2626) 35%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger, #dc2626) 10%, var(--color-bg-muted));
 }
 </style>

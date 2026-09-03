@@ -62,7 +62,6 @@ const draggedPerson = ref<Person | null>(null)
 const roleToDelete = ref<Role | null>(null)
 const boundsEditRole = ref<Role | null>(null)
 const boundsAnchorEl = ref<HTMLElement | null>(null)
-const pickPerson = ref<Person | null>(null)
 const composerRef = ref<{focusTitle?: () => void} | null>(null)
 
 const newRoleName = ref('')
@@ -121,16 +120,6 @@ const assignedIds = computed(() => {
   return ids
 })
 
-const catalogAssignedIds = computed(() => {
-  const ids = new Set<number>()
-  for (const role of roles.value) {
-    if (role.is_local) continue
-    for (const group of role.groups) {
-      for (const person of group.people) ids.add(person.id)
-    }
-  }
-  return ids
-})
 
 const unassignedPeople = computed(() =>
   roster.value
@@ -200,7 +189,7 @@ function canDragFromSearch(person: Person) {
 
 function searchChipIconClass(person: Person) {
   if (isOnRoster(person)) {
-    return 'bi-clipboard-check-fill staffing-search-chip__icon--roster'
+    return 'bi-clipboard-check-fill vol-person-chip__icon--roster'
   }
   return 'bi-person-fill'
 }
@@ -448,41 +437,12 @@ async function confirmDeleteRole() {
   }
 }
 
-function openAssignModal(person: Person) {
-  pickPerson.value = person
-}
-
-function closeAssignModal() {
-  pickPerson.value = null
-}
-
-async function assignPickedTo(group: Group) {
-  const person = pickPerson.value
-  if (!person) return
-  draggedPerson.value = person
-  dragSourceGroupId.value = null
-  closeAssignModal()
-  await handleDrop({item: {__draggable_context: {element: person}}}, group)
-}
-
-function assignableTilesFor(person: Person) {
-  const onCatalog = catalogAssignedIds.value.has(person.id)
-  return tiles.value.filter((tile) => {
-    if (tile.group.surplus) return false
-    if (tile.group.filled >= tile.group.max) return false
-    if (tile.group.people.some((p) => p.id === person.id)) return false
-    if (onCatalog) return false
-    if (!tile.role.is_local && assignedIds.value.has(person.id)) return false
-    return true
-  })
-}
-
 watch(eventId, () => load(), {immediate: true})
 watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: true})
 </script>
 
 <template>
-  <div class="vol-page">
+  <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Zuordnung</h1>
@@ -499,15 +459,17 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
 
     <div
         v-else-if="loading && !roles.length"
-        class="flex items-center justify-center min-h-[400px] flex-col text-[var(--color-text-muted)]"
+        class="vol-staffing-body vol-staffing-body--loading"
     >
-      <LoaderFlow/>
-      <LoaderText/>
+      <div class="vol-staffing-loading">
+        <LoaderFlow/>
+        <LoaderText/>
+      </div>
     </div>
 
-    <div v-else class="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-5">
-      <div class="lg:col-span-3 order-2 lg:order-1">
-        <p v-if="!tiles.length" class="text-sm text-[var(--color-text-subtle)] mb-3">
+    <div v-else class="vol-staffing-body">
+      <div class="vol-staffing-pane vol-staffing-pane--main">
+        <p v-if="!tiles.length" class="vol-sidebar-muted vol-staffing-empty">
           Noch keine Rollen verfügbar. Rollen werden nach jedem Generieren des Veranstaltungsplans aktualisiert.
         </p>
 
@@ -521,11 +483,11 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
             @toggle="onToggleTileFilter"
         />
 
-        <p v-if="tiles.length && !filteredTiles.length" class="text-sm text-[var(--color-text-subtle)] mb-3">
+        <p v-if="tiles.length && !filteredTiles.length" class="vol-sidebar-muted vol-staffing-empty">
           Keine Rollen für die gewählten Filter.
         </p>
 
-        <div v-if="filteredTiles.length" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-4">
+        <div v-if="filteredTiles.length" class="vol-staffing-tiles">
           <VolunteerStaffingTile
               v-for="tile in filteredTiles"
               :key="tile.key"
@@ -595,13 +557,13 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
         </div>
       </div>
 
-      <div class="lg:col-span-1 order-1 lg:order-2 space-y-3 md:space-y-4 lg:sticky lg:top-4 self-start">
-        <div class="glass-card liquid-surface-inner staffing-sidebar-tile">
+      <div class="vol-staffing-pane vol-staffing-pane--side">
+        <div class="glass-card liquid-surface-inner vol-sidebar-tile">
           <div class="vol-person-search-field">
             <input
                 v-model="personSearch"
                 type="search"
-                class="glass-input glass-input--sm staffing-search__input"
+                class="glass-input glass-input--sm vol-search-tile__input"
                 :placeholder="hasPersonPool ? 'Personen suchen…' : ''"
                 :disabled="!hasPersonPool"
                 autocomplete="off"
@@ -614,104 +576,66 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
               Bitte Personen anlegen.
             </RouterLink>
           </div>
-          <div v-if="personSearch.trim()" class="staffing-search-results">
-            <p v-if="!personSearchMatches.length" class="staffing-sidebar-muted">
+          <div v-if="personSearch.trim()" class="vol-search-results">
+            <p v-if="!personSearchMatches.length" class="vol-sidebar-muted">
               Keine Treffer in der Personenliste.
             </p>
-            <div v-else class="staffing-search-chips">
-              <div class="staffing-search-chips__desktop hidden md:block">
-                <draggable
-                    :list="searchDisplayPool"
-                    class="flex flex-wrap gap-1.5 md:gap-2"
-                    :group="searchDragGroup"
-                    :sort="false"
-                    filter=".staffing-search-chip--static"
-                    item-key="id"
-                    @start="onDragStart($event, null)"
-                    @end="onDragEnd"
-                >
-                  <template #item="{element: person}">
-                    <span
-                        class="glass-row-item staffing-search-chip"
-                        :class="canDragFromSearch(person)
-                          ? 'glass-row-item--interactive staffing-search-chip--draggable cursor-move'
-                          : 'staffing-search-chip--static'"
-                    >
-                      <i
-                          class="bi staffing-search-chip__icon"
-                          :class="searchChipIconClass(person)"
-                          aria-hidden="true"
-                      />
-                      <span class="staffing-search-chip__label">{{ volunteerDisplayName(person) }}</span>
-                    </span>
-                  </template>
-                </draggable>
-              </div>
-
-              <div class="staffing-search-chips__mobile flex flex-wrap gap-1.5 md:hidden">
-                <button
-                    v-for="person in personSearchMatches"
-                    :key="`search-mobile-${person.id}`"
-                    type="button"
-                    class="glass-row-item staffing-search-chip"
-                    :class="canDragFromSearch(person)
-                      ? 'glass-row-item--interactive'
-                      : 'staffing-search-chip--static'"
-                    :disabled="!canDragFromSearch(person)"
-                    @click="canDragFromSearch(person) && openAssignModal(person)"
-                >
-                  <i
-                      class="bi staffing-search-chip__icon"
-                      :class="searchChipIconClass(person)"
-                      aria-hidden="true"
-                  />
-                  <span class="staffing-search-chip__label">{{ volunteerDisplayName(person) }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="glass-card liquid-surface-inner staffing-sidebar-tile">
-          <h2 class="glass-card__heading !mb-3 !text-sm md:!text-base">Helfer:innen ohne Zuordnung</h2>
-
-          <p v-if="!roster.length" class="staffing-sidebar-muted">
-            Noch niemand auf der Helfer:innenliste — unter Helfer:innenliste Personen hinzufügen.
-          </p>
-          <p v-else-if="!unassignedPeople.length" class="staffing-sidebar-muted">
-            Alle auf der Helfer:innenliste sind zugeordnet.
-          </p>
-
-          <template v-else>
             <draggable
-                :list="rosterPool"
-                class="hidden md:flex flex-wrap gap-1.5 md:gap-2"
-                :group="peopleGroup"
+                v-else
+                :list="searchDisplayPool"
+                class="vol-search-chips"
+                :group="searchDragGroup"
+                :sort="false"
+                filter=".vol-person-chip--static"
                 item-key="id"
                 @start="onDragStart($event, null)"
                 @end="onDragEnd"
             >
               <template #item="{element: person}">
-                <span class="glass-row-item glass-row-item--interactive text-[11px] md:text-xs cursor-move">
-                  <i class="bi bi-person-fill text-[var(--color-text-subtle)]"/>
-                  <span class="px-1.5 py-1">{{ volunteerDisplayName(person) }}</span>
+                <span
+                    class="glass-row-item vol-person-chip"
+                    :class="canDragFromSearch(person)
+                      ? 'glass-row-item--interactive cursor-move'
+                      : 'vol-person-chip--static'"
+                >
+                  <i
+                      class="bi vol-person-chip__icon"
+                      :class="searchChipIconClass(person)"
+                      aria-hidden="true"
+                  />
+                  <span class="vol-person-chip__label">{{ volunteerDisplayName(person) }}</span>
                 </span>
               </template>
             </draggable>
+          </div>
+        </div>
 
-            <div class="md:hidden flex flex-wrap gap-1.5">
-              <button
-                  v-for="person in unassignedPeople"
-                  :key="`mobile-${person.id}`"
-                  type="button"
-                  class="glass-row-item text-[11px]"
-                  @click="openAssignModal(person)"
-              >
-                <i class="bi bi-person-fill text-[var(--color-text-subtle)]"/>
-                <span class="px-1.5 py-1">{{ volunteerDisplayName(person) }}</span>
-              </button>
-            </div>
-          </template>
+        <div class="glass-card liquid-surface-inner vol-sidebar-tile">
+          <h2 class="vol-sidebar-heading">Helfer:innen ohne Zuordnung</h2>
+
+          <p v-if="!roster.length" class="vol-sidebar-muted">
+            Noch niemand auf der Helfer:innenliste — unter Helfer:innenliste Personen hinzufügen.
+          </p>
+          <p v-else-if="!unassignedPeople.length" class="vol-sidebar-muted">
+            Alle auf der Helfer:innenliste sind zugeordnet.
+          </p>
+
+          <draggable
+              v-else
+              :list="rosterPool"
+              class="vol-search-chips"
+              :group="peopleGroup"
+              item-key="id"
+              @start="onDragStart($event, null)"
+              @end="onDragEnd"
+          >
+            <template #item="{element: person}">
+              <span class="glass-row-item glass-row-item--interactive vol-person-chip cursor-move">
+                <i class="bi bi-person-fill vol-person-chip__icon" aria-hidden="true"/>
+                <span class="vol-person-chip__label">{{ volunteerDisplayName(person) }}</span>
+              </span>
+            </template>
+          </draggable>
         </div>
 
         <VolunteerOpenPositions :open-positions="openPositions"/>
@@ -737,51 +661,45 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
         @save="saveBoundsModal"
     />
 
-    <div
-        v-if="pickPerson"
-        class="glass-scrim fixed inset-0 z-50 flex items-end md:hidden"
-        @click="closeAssignModal"
-    >
-      <div
-          class="w-full max-h-[70vh] overflow-y-auto rounded-t-[var(--radius-xl)] border border-[var(--liquid-border)] bg-[var(--liquid-popover-fill)] backdrop-blur-[var(--liquid-popover-blur)] p-4 shadow-[var(--shadow-lg)]"
-          @click.stop
-      >
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-semibold text-[var(--color-text)]">Zu Rolle zuweisen</h3>
-          <button
-              type="button"
-              class="text-[var(--color-text-subtle)] hover:text-[var(--color-text)]"
-              @click="closeAssignModal"
-          >
-            ✕
-          </button>
-        </div>
-        <div class="text-xs text-[var(--color-text-muted)] mb-3 truncate">
-          {{ volunteerDisplayName(pickPerson) }}
-        </div>
-        <div class="space-y-2">
-          <button
-              v-for="tile in assignableTilesFor(pickPerson)"
-              :key="`assign-${tile.key}`"
-              type="button"
-              class="w-full text-left px-3 py-2.5 liquid-surface-inner rounded-[var(--radius)] hover:bg-[var(--color-bg-hover)] transition-colors"
-              @click="assignPickedTo(tile.group)"
-          >
-            <div class="font-medium text-sm text-[var(--color-text)]">{{ tile.name }}</div>
-            <div class="text-xs text-[var(--color-text-subtle)]">
-              {{ tile.group.filled }} / max {{ tile.group.max }}
-            </div>
-          </button>
-          <p v-if="!assignableTilesFor(pickPerson).length" class="text-sm text-[var(--color-text-subtle)]">
-            Keine freie Rolle für diese Person.
-          </p>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
 <style scoped>
+.vol-staffing-body--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vol-staffing-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--color-text-muted);
+}
+
+.vol-staffing-empty {
+  margin-bottom: 0.75rem;
+}
+
+.vol-staffing-tiles {
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .vol-staffing-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .vol-staffing-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .staffing-bounds {
   display: flex;
   align-items: flex-end;
@@ -814,93 +732,6 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-}
-
-.staffing-tile--surplus {
-  border-color: color-mix(in srgb, #dc2626 42%, var(--color-border));
-  background: color-mix(in srgb, #fecaca 26%, var(--color-bg-muted));
-}
-
-.staffing-stale-badge {
-  flex-shrink: 0;
-  padding: 0.15rem 0.45rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, #dc2626 14%, transparent);
-  color: #b91c1c;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.staffing-surplus {
-  margin: 0;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  color: #b91c1c;
-  font-weight: 600;
-}
-
-.glass-dropzone--blocked {
-  border-style: dashed;
-  border-color: color-mix(in srgb, #dc2626 35%, var(--color-border));
-  background: color-mix(in srgb, #fecaca 28%, var(--color-bg-muted));
-}
-
-.staffing-sidebar-tile {
-  padding: 0.75rem;
-}
-
-@media (min-width: 768px) {
-  .staffing-sidebar-tile {
-    padding: 1rem;
-  }
-}
-
-.staffing-sidebar-muted {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--color-text-subtle);
-}
-
-.staffing-search__input {
-  width: 100%;
-}
-
-.staffing-search-results {
-  margin-top: 0.75rem;
-}
-
-.staffing-search-chips {
-  display: block;
-}
-
-.staffing-search-chip {
-  font-size: 0.75rem;
-  padding: 0.35rem 0.5rem;
-  gap: 0.4rem;
-}
-
-.staffing-search-chip--static {
-  opacity: 0.72;
-  cursor: default;
-}
-
-.staffing-search-chip:disabled {
-  opacity: 0.72;
-  cursor: default;
-}
-
-.staffing-search-chip__icon {
-  color: var(--color-text-subtle);
-}
-
-.staffing-search-chip__icon--roster {
-  color: var(--color-accent);
-}
-
-.staffing-search-chip__label {
-  padding: 0;
 }
 
 .fade-enter-active,

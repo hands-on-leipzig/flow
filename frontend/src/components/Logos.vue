@@ -388,7 +388,14 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="logos-page h-full min-h-0 flex flex-col overflow-hidden">
+  <div class="vol-page vol-page--fill logos-page">
+    <header class="vol-page__header">
+      <div>
+        <h1 class="vol-page__title">Logos</h1>
+        <p class="vol-page__sub">Verwalten von Logos für die verschiedenen Ausgaben</p>
+      </div>
+    </header>
+
     <div
         v-if="!selectedEvent && !eventStore.selectedEvent"
         class="glass-alert-warning flex items-start gap-2 shrink-0"
@@ -408,7 +415,6 @@ onMounted(async () => {
             :style="{ flex: `0 0 ${leftWidth}%` }"
         >
           <div class="logos-workspace__scroll glass-card liquid-surface-inner">
-          <h2 class="glass-card__heading">Logos verwalten</h2>
           <p class="glass-settings-hint !mb-1">
             Logos werden in dieser Reihenfolge angezeigt.
           </p>
@@ -717,14 +723,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.logos-page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
-}
-
 .logos-workspace {
   display: flex;
   flex-direction: column;

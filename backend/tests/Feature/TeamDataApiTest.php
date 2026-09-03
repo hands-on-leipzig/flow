@@ -142,7 +142,7 @@ class TeamDataApiTest extends TestCase
 
         $this->assertContains('Personen', $labels);
         $this->assertContains('Organisation', $labels);
-        $this->assertContains('Foto Erlaubnis: Ja', $labels);
+        $this->assertContains('Fotoerlaubnis: Ja', $labels);
         $this->assertContains('Essen: Standard', $labels);
 
         $rows = iterator_to_array($sheet->rows);

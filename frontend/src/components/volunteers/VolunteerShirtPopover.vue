@@ -11,7 +11,6 @@ const props = defineProps<{
   eventId?: number | null
   entry: RosterEntry | null
   anchor: HTMLElement | null
-  saving?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -20,6 +19,7 @@ const emit = defineEmits<{
 }>()
 
 const draft = ref<{cut: string | null; size: string | null}>({cut: null, size: null})
+const saving = ref(false)
 
 const isOpen = computed(() => !!props.entry && !!props.anchor)
 
@@ -63,7 +63,7 @@ function onSizePick(size: string | null) {
 
 async function confirm() {
   const entry = props.entry
-  if (!entry || !props.eventId) return
+  if (!entry || !props.eventId || saving.value) return
 
   const cut = draft.value.cut
   const size = draft.value.size
@@ -79,6 +79,7 @@ async function confirm() {
   const meal = detail.meal
   const photoConsent = detail.photo_consent
 
+  saving.value = true
   try {
     const {data} = await axios.patch(
       `/events/${props.eventId}/volunteer-roster/${entry.person.id}/detail`,
@@ -98,6 +99,8 @@ async function confirm() {
     emit('close')
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
+  } finally {
+    saving.value = false
   }
 }
 </script>
@@ -170,7 +173,7 @@ async function confirm() {
       </div>
       <div class="vol-shirt-popover__actions">
         <button type="button" class="glass-btn-secondary" :disabled="saving" @click="emit('close')">
-          Abbruch
+          Abbrechen
         </button>
         <button type="button" class="glass-btn-accent" :disabled="saving" @click="confirm">
           Übernehmen

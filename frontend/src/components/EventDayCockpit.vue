@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
- * am Tag → Cockpit
- * Controls left · live iframe preview right
+ * am Tag → Cockpit: shared page header + flexible settings/preview split.
  */
 import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import axios from 'axios'
@@ -10,6 +9,7 @@ import {useEventStore} from '@/stores/event'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
+import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import MobileLivePreview from '@/components/molecules/MobileLivePreview.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 
@@ -38,6 +38,8 @@ const pinDraft = ref('')
 const lastSaved = ref({pin: ''})
 const iframeKey = ref(0)
 const iframeLoading = ref(true)
+const showResetConfirm = ref(false)
+const resetBusy = ref(false)
 const previewNonce = ref(Date.now())
 let fieldSaveTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -140,6 +142,22 @@ function onIframeLoad() {
   iframeLoading.value = false
 }
 
+async function confirmReset() {
+  if (!eventId.value || resetBusy.value) return
+  resetBusy.value = true
+  try {
+    await flushFieldSave()
+    await axios.post(`/events/${eventId.value}/cockpit/reset`)
+    showGlassToast('Auswahl für die Bühne zurückgesetzt.', 'success')
+    showResetConfirm.value = false
+    reloadPreview()
+  } catch {
+    showGlassToast('Zurücksetzen fehlgeschlagen.', 'error')
+  } finally {
+    resetBusy.value = false
+  }
+}
+
 watch(eventId, () => {
   void loadSettings()
 }, {immediate: true})
@@ -150,8 +168,26 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="settings-split">
+  <div class="vol-page vol-page--fill settings-split">
     <SavingToast ref="saving" message="Wird gespeichert…"/>
+    <ConfirmationModal
+        :show="showResetConfirm"
+        type="danger"
+        title="Cockpit zurücksetzen?"
+        message="Die Auswahl der Teams für „Forschung auf der Bühne“ und deren Sperren werden gelöscht. PIN und Zugang bleiben erhalten."
+        confirm-text="Zurücksetzen"
+        cancel-text="Abbrechen"
+        :disable-confirm-button="resetBusy"
+        @confirm="confirmReset"
+        @cancel="showResetConfirm = false"
+    />
+
+    <header class="vol-page__header">
+      <div>
+        <h1 class="vol-page__title">Cockpit App</h1>
+        <p class="vol-page__sub">Einstellen und Ausprobieren der Funktionen zur Steuerung der Veranstaltung</p>
+      </div>
+    </header>
 
     <div class="settings-split__workspace">
       <div class="settings-split__split">
@@ -161,17 +197,11 @@ onBeforeUnmount(() => {
         >
           <div class="settings-split__left-scroll">
             <div class="settings-split__settings">
-              <header>
-                <h1 class="settings-split__page-title">Cockpit App</h1>
-                <p class="settings-split__page-sub">
-                  Steuerung am Veranstaltungstag. Vorschau rechts ist die echte Cockpit-Ansicht.
-                </p>
-                <p class="glass-settings-hint !mb-0 settings-split__header-hint">
-                  Diese Funktion ist nur vom Plan verlinkt, wenn die
-                  <RouterLink to="/plan/publish" class="glass-settings-hint-link">Veröffentlichung</RouterLink>
-                  auf „volle Details“ gesetzt ist.
-                </p>
-              </header>
+              <p class="glass-settings-hint !mb-0 settings-split__header-hint">
+                Diese Funktion ist nur vom Plan verlinkt, wenn die
+                <RouterLink to="/plan/publish" class="glass-settings-hint-link">Veröffentlichung</RouterLink>
+                auf „volle Details“ gesetzt ist.
+              </p>
 
               <p v-if="settings && !settings.has_slug" class="glass-alert-warning !mb-0 !text-xs">
                 Öffentlicher Link fehlt — bitte zuerst unter Ausgabe → Veröffentlichung erzeugen.
@@ -204,6 +234,21 @@ onBeforeUnmount(() => {
                       @blur="flushFieldSave({revertIncompletePin: true})"
                   />
                 </div>
+              </section>
+
+              <section class="glass-card liquid-surface-inner settings-split__tile">
+                <h2 class="glass-card__heading">Alles zurücksetzen</h2>
+                <p class="glass-settings-hint">
+                  Alle Eingaben zurücksetzen, z.B. nach Tests.
+                </p>
+                <button
+                    type="button"
+                    class="glass-btn-secondary"
+                    :disabled="loading || !eventId"
+                    @click="showResetConfirm = true"
+                >
+                  Cockpit zurücksetzen
+                </button>
               </section>
             </div>
           </div>

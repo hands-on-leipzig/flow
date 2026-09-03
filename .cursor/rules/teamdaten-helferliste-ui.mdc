@@ -1,0 +1,19 @@
+---
+description: Unify Teamdaten UI toward Helferliste patterns
+globs: frontend/src/components/teams/TeamsTeamData.vue,frontend/src/components/teams/TeamDataTable.vue,frontend/src/components/VolunteersRoster.vue,frontend/src/components/volunteers/VolunteerRosterTable.vue
+alwaysApply: false
+---
+
+# Teamdaten ↔ Helferliste UI alignment
+
+When changing data-collection grids, treat **Helferliste** as the model unless noted.
+
+## Decided
+
+- **Page chrome**: Teamdaten uses `VolunteerStaffingFilterBar` (leading / middle / trailing); publish toolbar uses `vol-roster-toolbar--solo`.
+- **Sorting**: Teamdaten sorts Nr, Teamname, Organisation (same `vol-sort` header UX as Helferliste).
+- **Table cell editors / save rules**: Helferliste as model (text trim; shared field chrome in `volunteers.css`).
+- **Search casing**: `toLowerCase()` like roster haystack; Teamdaten fields stay name/org/nr.
+- **Shared CSS**: Sticky/detail/tristate field chrome lives in `volunteers.css`.
+- **Popover busy**: Local `saving` around PATCH; buttons **Abbrechen** / **Übernehmen**.
+- **Filter a11y**: All filter chips use `:aria-pressed`.

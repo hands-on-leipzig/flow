@@ -67,27 +67,27 @@ async function onHelperSearchToggle(next: boolean) {
 </script>
 
 <template>
-  <div class="glass-card liquid-surface-inner staffing-sidebar-tile staffing-open-positions">
-    <h2 class="glass-card__heading !mb-3 !text-sm md:!text-base">Offene Positionen</h2>
+  <div class="glass-card liquid-surface-inner vol-sidebar-tile staffing-open-positions">
+    <h2 class="vol-sidebar-heading">Offene Positionen</h2>
 
-    <section class="staffing-open-positions__publish">
-      <div class="staffing-open-positions__publish-row">
-        <span class="staffing-open-positions__publish-label">Suche nach Helfer:innen</span>
+    <section class="vol-roster-publish staffing-open-positions__publish">
+      <div class="vol-roster-publish__row">
+        <span class="vol-roster-publish__label">Suche nach Helfer:innen</span>
         <ToggleSwitch
             :model-value="helperSearchEnabled"
             :disabled="helperSearchLoading || !eventId"
             @update:modelValue="onHelperSearchToggle"
         />
       </div>
-      <p class="glass-settings-hint !mb-0 staffing-open-positions__publish-hint">
+      <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
         Offene Positionen können auf dem öffentlichen Plan erscheinen. Einstellungen unter
-        <RouterLink to="/plan/publish" class="staffing-open-positions__publish-link">
+        <RouterLink to="/plan/publish" class="vol-roster-publish__link">
           Ausgabe → Veröffentlichung
         </RouterLink>.
       </p>
     </section>
 
-    <p v-if="isEmpty" class="staffing-sidebar-muted">
+    <p v-if="isEmpty" class="vol-sidebar-muted">
       Alle Rollen sind ideal besetzt.
     </p>
 
@@ -96,7 +96,7 @@ async function onHelperSearchToggle(next: boolean) {
         <h3 class="staffing-open-positions__heading staffing-open-positions__heading--critical">
           Kritisch
         </h3>
-        <p v-if="!hasCritical" class="staffing-sidebar-muted staffing-open-positions__empty">
+        <p v-if="!hasCritical" class="vol-sidebar-muted staffing-open-positions__empty">
           Keine kritischen Lücken.
         </p>
         <template v-else>
@@ -129,7 +129,7 @@ async function onHelperSearchToggle(next: boolean) {
         <h3 class="staffing-open-positions__heading staffing-open-positions__heading--recommended">
           Zusätzlich empfohlen
         </h3>
-        <p v-if="!hasRecommended" class="staffing-sidebar-muted staffing-open-positions__empty">
+        <p v-if="!hasRecommended" class="vol-sidebar-muted staffing-open-positions__empty">
           Idealbesetzung erreicht.
         </p>
         <template v-else>
@@ -163,39 +163,9 @@ async function onHelperSearchToggle(next: boolean) {
 
 <style scoped>
 .staffing-open-positions__publish {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
   margin-bottom: 0.85rem;
   padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--liquid-border-soft);
-}
-
-.staffing-open-positions__publish-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.65rem;
-}
-
-.staffing-open-positions__publish-label {
-  font-size: 0.8125rem;
-  font-weight: 650;
-  color: var(--color-text);
-}
-
-.staffing-open-positions__publish-hint {
-  line-height: 1.45;
-}
-
-.staffing-open-positions__publish-link {
-  color: var(--color-accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.staffing-open-positions__publish-link:hover {
-  text-decoration: underline;
 }
 
 .staffing-open-positions__section + .staffing-open-positions__section {
@@ -213,11 +183,11 @@ async function onHelperSearchToggle(next: boolean) {
 }
 
 .staffing-open-positions__heading--critical {
-  color: #dc2626;
+  color: var(--color-danger, #dc2626);
 }
 
 .staffing-open-positions__heading--recommended {
-  color: #d97706;
+  color: var(--color-warning, #d97706);
 }
 
 .staffing-open-positions__empty {
@@ -268,10 +238,10 @@ async function onHelperSearchToggle(next: boolean) {
 }
 
 .staffing-open-positions__count--critical {
-  color: #dc2626;
+  color: var(--color-danger, #dc2626);
 }
 
 .staffing-open-positions__count--recommended {
-  color: #d97706;
+  color: var(--color-warning, #d97706);
 }
 </style>

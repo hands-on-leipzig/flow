@@ -5,6 +5,7 @@ import axios from 'axios'
 import QRCode from 'qrcode'
 import {imageUrl, programLogoSrc} from '@/utils/images'
 import {publicPlanPath} from '@/utils/publicPlanPath'
+import {photoConsentStatusClass} from '@/utils/photoConsentStatus'
 
 defineOptions({name: 'CheckInReception'})
 
@@ -28,6 +29,14 @@ type SearchHit = {
   checked_in_at?: string | null
 }
 
+type DisplayField = {
+  key: string
+  kind: 'photo_consent' | 'text' | string
+  label: string
+  value: string
+  status?: 'pending' | 'granted' | 'denied'
+}
+
 type Detail = SearchHit & {
   room?: string | null
   info_text?: string | null
@@ -36,6 +45,11 @@ type Detail = SearchHit & {
   no_show_reason?: string | null
   no_show_source?: string | null
   next_activities?: Array<{start: string | null; room?: string | null; title: string}>
+  display_fields?: DisplayField[]
+  coaches_count?: number | null
+  players_count?: number | null
+  people_count?: number | null
+  call_contacts?: Array<{name: string; mobile: string}>
 }
 
 type OverviewLine = {
@@ -58,6 +72,25 @@ type Overview = {
   }
 }
 
+type RosterGroup = {
+  kind: 'cross' | 'program' | 'local' | string
+  program_id?: number | null
+  logo_stem?: string | null
+  items: SearchHit[]
+}
+
+type RosterSection = {
+  key: 'open' | 'no_show' | string
+  label: string
+  groups: RosterGroup[]
+}
+
+type Roster = {
+  scope: 'teams' | 'helpers'
+  title: string
+  sections: RosterSection[]
+}
+
 const route = useRoute()
 const slug = computed(() => String(route.params.slug || ''))
 
@@ -68,7 +101,7 @@ const pinError = ref('')
 const token = ref('')
 const unlocking = ref(false)
 
-const view = ref<'home' | 'detail' | 'qr' | 'noshow'>('home')
+const view = ref<'home' | 'detail' | 'qr' | 'noshow' | 'roster'>('home')
 const query = ref('')
 const searching = ref(false)
 const results = ref<SearchHit[]>([])
@@ -78,11 +111,16 @@ const note = ref('')
 const actionBusy = ref(false)
 const actionError = ref('')
 const confirmRecheck = ref(false)
+const showCallPicker = ref(false)
 
 const noShowReason = ref('')
 const noShowSource = ref('')
 
 const overview = ref<Overview | null>(null)
+const roster = ref<Roster | null>(null)
+const rosterScope = ref<'teams' | 'helpers' | null>(null)
+const rosterLoading = ref(false)
+const rosterError = ref('')
 const organizer = ref<{name: string; mobile: string | null} | null>(null)
 const qrDataUrl = ref('')
 const toolsError = ref('')
@@ -185,6 +223,7 @@ async function openDetail(hit: SearchHit) {
   detailLoading.value = true
   actionError.value = ''
   confirmRecheck.value = false
+  showCallPicker.value = false
   try {
     const {data} = await api.get(`/check-in/${slug.value}/${hit.subject_type}/${hit.subject_id}`)
     detail.value = data
@@ -263,6 +302,27 @@ async function loadOverview() {
   }
 }
 
+async function openRoster(scope: 'teams' | 'helpers') {
+  rosterScope.value = scope
+  view.value = 'roster'
+  rosterLoading.value = true
+  rosterError.value = ''
+  try {
+    const {data} = await api.get(`/check-in/${slug.value}/roster`, {params: {scope}})
+    roster.value = data
+  } catch (e: any) {
+    roster.value = null
+    rosterError.value = e?.response?.data?.error || 'Liste konnte nicht geladen werden.'
+    if (e?.response?.status === 401 || e?.response?.status === 423) {
+      token.value = ''
+      sessionStorage.removeItem(storageKey.value)
+      await loadBootstrap()
+    }
+  } finally {
+    rosterLoading.value = false
+  }
+}
+
 async function openQr() {
   view.value = 'qr'
   qrDataUrl.value = ''
@@ -307,12 +367,48 @@ async function shareStatus() {
 }
 
 function backHome() {
+  rosterScope.value = null
+  roster.value = null
   view.value = 'home'
   detail.value = null
   confirmRecheck.value = false
+  showCallPicker.value = false
   actionError.value = ''
   void runSearch()
   void loadOverview()
+}
+
+function backFromDetail() {
+  detail.value = null
+  confirmRecheck.value = false
+  showCallPicker.value = false
+  actionError.value = ''
+  if (rosterScope.value) {
+    void openRoster(rosterScope.value)
+    return
+  }
+  backHome()
+}
+
+function rosterGroupLogo(group: RosterGroup) {
+  if (group.kind === 'program' && group.logo_stem) return programLogoSrc({logo_stem: group.logo_stem})
+  return ''
+}
+
+function rosterGroupIcon(group: RosterGroup) {
+  if (group.kind === 'cross') return 'bi-intersect'
+  if (group.kind === 'local') return 'bi-star'
+  return ''
+}
+
+function rosterSectionEmpty(section: RosterSection) {
+  return !section.groups.some((group) => group.items.length > 0)
+}
+
+const callContacts = computed(() => detail.value?.call_contacts || [])
+
+function telHref(mobile: string) {
+  return `tel:${mobile.replace(/[^\d+]/g, '')}`
 }
 
 function statusLabel(hit: {status: string | null; checked_in_at?: string | null}) {
@@ -344,6 +440,24 @@ function roleLabel(hit: {subject_type?: string; subtitle?: string | null; role_l
   if (hit.subject_type === 'team') return 'Team'
   if (hit.role_labels?.length) return hit.role_labels.join(', ')
   return ''
+}
+
+/** Team subtitle with coach/member counts when DRAHT people data is available. */
+function teamPeopleSubtitle(detail: Detail): string {
+  const base = roleLabel(detail) || 'Team'
+  if (detail.subject_type !== 'team') return base
+  if (
+    detail.coaches_count == null
+    || detail.players_count == null
+    || detail.people_count == null
+  ) {
+    return base
+  }
+  return `${base} – ${detail.coaches_count} Coach:innen, ${detail.players_count} Team-Mitglieder (${detail.people_count} gesamt)`
+}
+
+function detailExtraFields(detail: Detail | null): DisplayField[] {
+  return (detail?.display_fields || []).filter((field) => field.kind !== 'photo_consent')
 }
 
 function statsLogo(line: OverviewLine) {
@@ -541,7 +655,11 @@ onMounted(async () => {
           </ul>
 
           <div class="ci-stats" aria-label="Check-In Stand">
-            <section class="ci-stats__box glass-card liquid-surface-inner">
+            <button
+                type="button"
+                class="ci-stats__box glass-card liquid-surface-inner ci-stats__box--btn"
+                @click="openRoster('teams')"
+            >
               <h2 class="ci-stats__heading">Teams</h2>
               <ul class="ci-stats__lines">
                 <li
@@ -575,8 +693,12 @@ onMounted(async () => {
                   </template>
                 </li>
               </ul>
-            </section>
-            <section class="ci-stats__box glass-card liquid-surface-inner">
+            </button>
+            <button
+                type="button"
+                class="ci-stats__box glass-card liquid-surface-inner ci-stats__box--btn"
+                @click="openRoster('helpers')"
+            >
               <h2 class="ci-stats__heading">Helfer:innen</h2>
               <ul class="ci-stats__lines">
                 <li v-for="(line, i) in homeHelperStats" :key="`h-${i}`" class="ci-stats__line">
@@ -602,16 +724,78 @@ onMounted(async () => {
                   </template>
                 </li>
               </ul>
-            </section>
+            </button>
           </div>
 
           <p v-if="toolsError" class="ci-muted">{{ toolsError }}</p>
         </div>
       </template>
 
-      <template v-else-if="unlocked && view === 'detail'">
+      <template v-else-if="unlocked && view === 'roster'">
         <div class="ci-panel">
           <button type="button" class="ci-link" @click="backHome">← Zurück</button>
+          <h1 class="ci-panel__h">{{ roster?.title || (rosterScope === 'helpers' ? 'Helfer:innen' : 'Teams') }}</h1>
+          <p v-if="rosterLoading" class="ci-muted">Laden…</p>
+          <p v-else-if="rosterError" class="glass-alert-error !mb-0">{{ rosterError }}</p>
+          <template v-else-if="roster">
+            <section
+                v-for="section in roster.sections"
+                :key="section.key"
+                class="ci-roster__section"
+            >
+              <p v-if="rosterSectionEmpty(section)" class="ci-muted ci-roster__empty">Niemand</p>
+              <ul
+                  v-for="(group, gi) in section.groups"
+                  :key="`${section.key}-${group.kind}-${group.program_id ?? gi}`"
+                  class="ci-list ci-roster__group"
+              >
+                <li v-for="hit in group.items" :key="`${hit.subject_type}-${hit.subject_id}`">
+                  <button type="button" class="ci-hit liquid-surface-inner" @click="openDetail(hit)">
+                    <span class="ci-hit__row">
+                      <span class="ci-hit__label">{{ hit.label }}</span>
+                      <span class="ci-hit__trailing">
+                        <span
+                            class="ci-hit__status"
+                            :class="{'ci-hit__status--no': hit.status === 'no_show'}"
+                            :title="statusLabel(hit)"
+                        >
+                          <i class="bi" :class="statusIcon(hit.status)" aria-hidden="true"/>
+                          <span class="sr-only">{{ statusLabel(hit) }}</span>
+                        </span>
+                      </span>
+                    </span>
+                    <span
+                        v-if="hit.logo_stem || rosterGroupLogo(group) || rosterGroupIcon(group) || hit.subtitle"
+                        class="ci-hit__row ci-hit__row--sub"
+                    >
+                      <img
+                          v-if="hit.logo_stem || rosterGroupLogo(group)"
+                          class="ci-hit__program"
+                          :src="hit.logo_stem
+                            ? programLogoSrc({logo_stem: hit.logo_stem})
+                            : rosterGroupLogo(group)"
+                          alt=""
+                          aria-hidden="true"
+                      />
+                      <i
+                          v-else-if="rosterGroupIcon(group)"
+                          class="bi ci-hit__program-icon"
+                          :class="rosterGroupIcon(group)"
+                          aria-hidden="true"
+                      />
+                      <span v-if="hit.subtitle" class="ci-hit__sub">{{ hit.subtitle }}</span>
+                    </span>
+                  </button>
+                </li>
+              </ul>
+            </section>
+          </template>
+        </div>
+      </template>
+
+      <template v-else-if="unlocked && view === 'detail'">
+        <div class="ci-panel">
+          <button type="button" class="ci-link" @click="backFromDetail">← Zurück</button>
           <div v-if="detailLoading" class="ci-muted">Laden…</div>
           <template v-else-if="detail">
             <div class="ci-hit ci-hit--detail liquid-surface-inner" aria-live="polite">
@@ -619,6 +803,36 @@ onMounted(async () => {
                 <span class="ci-hit__label">{{ detail.label }}</span>
                 <span class="ci-hit__trailing">
                   <span v-if="checkInTime(detail)" class="ci-hit__time">{{ checkInTime(detail) }}</span>
+                  <a
+                      v-if="callContacts.length === 1"
+                      class="ci-call"
+                      :href="telHref(callContacts[0].mobile)"
+                      :title="`Anrufen (${callContacts[0].name})`"
+                  >
+                    <i class="bi bi-telephone-fill" aria-hidden="true"/>
+                    <span class="sr-only">Anrufen</span>
+                  </a>
+                  <button
+                      v-else-if="callContacts.length > 1"
+                      type="button"
+                      class="ci-call"
+                      title="Coach anrufen"
+                      @click="showCallPicker = true"
+                  >
+                    <i class="bi bi-telephone-fill" aria-hidden="true"/>
+                    <span class="sr-only">Coach wählen und anrufen</span>
+                  </button>
+                  <button
+                      v-else
+                      type="button"
+                      class="ci-call ci-call--disabled"
+                      disabled
+                      aria-disabled="true"
+                      title="Keine Nummer gespeichert"
+                  >
+                    <i class="bi bi-telephone-fill" aria-hidden="true"/>
+                    <span class="sr-only">Keine Nummer gespeichert</span>
+                  </button>
                   <span
                       class="ci-hit__status"
                       :class="{
@@ -644,8 +858,69 @@ onMounted(async () => {
                     alt=""
                     aria-hidden="true"
                 />
-                <span v-if="roleLabel(detail)" class="ci-hit__sub">{{ roleLabel(detail) }}</span>
+                <span v-if="roleLabel(detail)" class="ci-hit__sub">
+                  {{ detail.subject_type === 'team' ? teamPeopleSubtitle(detail) : roleLabel(detail) }}
+                </span>
               </div>
+              <div
+                  v-if="detail.display_fields?.length"
+                  class="ci-display-fields"
+              >
+                <template v-for="field in detail.display_fields" :key="field.key">
+                  <div
+                      v-if="field.kind === 'photo_consent'"
+                      class="ci-photo-consent"
+                      :class="photoConsentStatusClass(field.status ?? 'pending')"
+                      role="status"
+                  >
+                    <i class="bi bi-camera ci-photo-consent__icon" aria-hidden="true"/>
+                    <span>{{ field.value }}</span>
+                  </div>
+                </template>
+                <div
+                    v-if="detailExtraFields(detail).length"
+                    class="ci-display-chips"
+                >
+                  <span
+                      v-for="field in detailExtraFields(detail)"
+                      :key="field.key"
+                      class="ci-chip"
+                      :title="`${field.label}: ${field.value}`"
+                  >
+                    <span class="ci-chip__label">{{ field.label }}</span>
+                    <span class="ci-chip__value">{{ field.value }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div
+                v-if="showCallPicker && callContacts.length > 1"
+                class="ci-call-picker liquid-surface-inner"
+                role="dialog"
+                aria-label="Coach anrufen"
+            >
+              <div class="ci-call-picker__title">Wen anrufen?</div>
+              <ul class="ci-call-picker__list">
+                <li v-for="(contact, idx) in callContacts" :key="`${contact.mobile}-${idx}`">
+                  <a
+                      class="ci-call-picker__item"
+                      :href="telHref(contact.mobile)"
+                      @click="showCallPicker = false"
+                  >
+                    <span class="ci-call-picker__name">{{ contact.name }}</span>
+                    <i class="bi bi-telephone-fill" aria-hidden="true"/>
+                  </a>
+                </li>
+              </ul>
+              <button type="button" class="ci-link ci-call-picker__cancel" @click="showCallPicker = false">
+                Abbrechen
+              </button>
+            </div>
+
+            <div v-if="detail.info_text" class="ci-card glass-card liquid-surface-inner">
+              <div class="ci-card__label">Hinweis</div>
+              <div class="ci-card__value ci-card__value--pre">{{ detail.info_text }}</div>
             </div>
 
             <div v-if="detail.room" class="ci-card glass-card liquid-surface-inner">
@@ -664,11 +939,6 @@ onMounted(async () => {
                   </span>
                 </li>
               </ul>
-            </div>
-
-            <div v-if="detail.info_text" class="ci-card glass-card liquid-surface-inner">
-              <div class="ci-card__label">Hinweis</div>
-              <div class="ci-card__value ci-card__value--pre">{{ detail.info_text }}</div>
             </div>
 
             <label class="ci-label" for="ci-note">Notiz</label>
@@ -936,6 +1206,41 @@ onMounted(async () => {
   min-width: 0;
 }
 
+.ci-stats__box--btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.ci-stats__box--btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.ci-roster__section {
+  margin-top: 1rem;
+}
+
+.ci-roster__empty {
+  margin: 0 0 0.75rem;
+}
+
+.ci-roster__group {
+  margin-bottom: 0.75rem;
+}
+
+.ci-hit__program-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+}
+
 .ci-stats__heading {
   margin: 0 0 0.65rem;
   font-size: 0.85rem;
@@ -1044,6 +1349,70 @@ onMounted(async () => {
   gap: 0.45rem;
 }
 
+.ci-photo-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin-top: 0.45rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: var(--radius, 0.5rem);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ci-photo-consent__icon {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.ci-display-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.ci-display-fields .ci-photo-consent {
+  margin-top: 0;
+}
+
+.ci-display-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ci-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  max-width: 100%;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--liquid-border-soft);
+  background: color-mix(in srgb, var(--color-bg-muted) 70%, #fff);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.ci-chip__label {
+  color: var(--color-text-muted);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ci-chip__value {
+  color: var(--color-text);
+  font-weight: 650;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ci-hit__label {
   font-weight: 700;
   min-width: 0;
@@ -1057,6 +1426,83 @@ onMounted(async () => {
   align-items: center;
   gap: 0.45rem;
   flex-shrink: 0;
+}
+
+.ci-call {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  color: var(--color-accent);
+  font-size: 1.05rem;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ci-call:hover {
+  background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
+
+.ci-call--disabled,
+.ci-call:disabled {
+  background: color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+  color: var(--color-text-muted);
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ci-call-picker {
+  margin: 0.65rem 0 0.85rem;
+  padding: 0.85rem 1rem;
+}
+
+.ci-call-picker__title {
+  margin: 0 0 0.55rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.ci-call-picker__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ci-call-picker__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, #ffffff 70%, var(--liquid-tile-bg-inner));
+  color: var(--color-text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.ci-call-picker__item:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, #ffffff);
+}
+
+.ci-call-picker__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ci-call-picker__cancel {
+  margin-top: 0.55rem;
 }
 
 .ci-hit__time {

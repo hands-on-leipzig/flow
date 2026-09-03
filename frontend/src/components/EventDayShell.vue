@@ -26,6 +26,7 @@ defineOptions({name: 'EventDayShell'})
   padding-bottom: 0;
 }
 
+/* keep-alive has no DOM node — target split page roots explicitly. */
 .event-day-shell--fill :deep(.settings-split) {
   flex: 1 1 0%;
   min-height: 0;

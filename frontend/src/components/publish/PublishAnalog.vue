@@ -8,26 +8,29 @@ defineOptions({name: 'PublishAnalog'})
 </script>
 
 <template>
-  <div class="druck">
-    <header class="druck__intro">
-      <h1 class="druck__title">Drucksachen</h1>
+  <div class="vol-page vol-page--fill druck-page">
+    <header class="vol-page__header">
+      <div>
+        <h1 class="vol-page__title">Drucksachen</h1>
+        <p class="vol-page__sub">Gerade noch im Umbau. Sorry.</p>
+      </div>
     </header>
-    <PdfPlansBox hide-heading section="plans"/>
+
+    <PdfPlansBox hide-heading section="plans" split-panes/>
   </div>
 </template>
 
 <style scoped>
-.druck {
+.druck-page > :deep(.pdf-plans) {
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  overflow: hidden;
 }
 
-.druck__title {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
+.druck-page > :deep(.pdf-plans__plans--split) {
+  flex: 1 1 0%;
 }
 </style>

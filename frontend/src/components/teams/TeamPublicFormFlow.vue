@@ -3,6 +3,10 @@ import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {sumCountMap} from '@/utils/teamDataCompletion'
+import {
+  photoConsentStatusClass,
+  photoConsentStatusForTeam,
+} from '@/utils/photoConsentStatus'
 
 type FormColumn = {
   key: string
@@ -36,12 +40,6 @@ type FormPayload = {
   meal_options: MealOption[]
   touched: {photo: boolean; meal: boolean; custom: Record<string, boolean>}
 }
-
-const PHOTO_BUCKETS = [
-  {key: 'unknown', label: '?'},
-  {key: 'yes', label: 'Ja'},
-  {key: 'no', label: 'Nein'},
-] as const
 
 const props = defineProps<{
   step: 'email' | 'otp' | 'pick-team' | 'data' | 'done'
@@ -85,20 +83,18 @@ const hasMealColumn = computed(() =>
   (formPayload.value?.columns ?? []).some((c) => c.kind === 'meal' || c.editor === 'meal_counts'),
 )
 
-const photoSum = computed(() => sumCountMap(photoDraft.value))
-const mealSum = computed(() => sumCountMap(mealsDraft.value))
+const photoStatus = computed(() =>
+  photoConsentStatusForTeam(photoDraft.value, peopleCount.value),
+)
 
-const photoMismatch = computed(() => {
-  if (!hasPhotoColumn.value || peopleCount.value === null) return false
-  return photoSum.value !== peopleCount.value
-})
+const mealSum = computed(() => sumCountMap(mealsDraft.value))
 
 const mealMismatch = computed(() => {
   if (!hasMealColumn.value || peopleCount.value === null) return false
   return mealSum.value !== peopleCount.value
 })
 
-const saveDisabled = computed(() => saving.value || photoMismatch.value || mealMismatch.value)
+const saveDisabled = computed(() => saving.value || mealMismatch.value)
 
 function proceedFromEmail() {
   const trimmed = props.email.trim()
@@ -181,11 +177,6 @@ async function selectTeam(teamId: number) {
   }
 }
 
-function setPhotoCount(key: string, raw: string) {
-  const n = Number.parseInt(raw, 10)
-  photoDraft.value = {...photoDraft.value, [key]: Number.isFinite(n) && n >= 0 ? n : 0}
-}
-
 function setMealCount(key: string, raw: string) {
   const n = Number.parseInt(raw, 10)
   mealsDraft.value = {...mealsDraft.value, [key]: Number.isFinite(n) && n >= 0 ? n : 0}
@@ -213,9 +204,6 @@ async function submitForm() {
     email: props.email.trim(),
     team: selectedTeamId.value,
     custom: customPayload,
-  }
-  if (hasPhotoColumn.value) {
-    body.photo_consent = {...photoDraft.value}
   }
   if (hasMealColumn.value) {
     body.meals = {...mealsDraft.value}
@@ -371,25 +359,12 @@ watch(
 
           <div
               v-if="hasPhotoColumn"
-              class="vol-public-form__row"
-              :class="{'team-public-form__mismatch': photoMismatch}"
+              class="photo-consent-banner"
+              :class="photoConsentStatusClass(photoStatus.status)"
+              role="status"
           >
-            <span class="vol-public-form__label">Foto Erlaubnis</span>
-            <div class="team-public-form__counts">
-              <label v-for="bucket in PHOTO_BUCKETS" :key="bucket.key" class="team-public-form__count">
-                <span>{{ bucket.label }}</span>
-                <input
-                    type="number"
-                    min="0"
-                    class="glass-input"
-                    :value="photoDraft[bucket.key] ?? 0"
-                    @input="setPhotoCount(bucket.key, ($event.target as HTMLInputElement).value)"
-                >
-              </label>
-              <p v-if="photoMismatch" class="vol-public-form__error">
-                Summe {{ photoSum }} ≠ Personen {{ peopleCount }}
-              </p>
-            </div>
+            <i class="bi bi-camera photo-consent-banner__icon" aria-hidden="true"/>
+            <p class="photo-consent-banner__text">{{ photoStatus.selfServiceMessage }}</p>
           </div>
 
           <div

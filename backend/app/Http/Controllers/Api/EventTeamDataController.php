@@ -14,6 +14,7 @@ use App\Support\TeamDataCustomFields;
 use App\Support\TeamDataIndex;
 use App\Support\TeamIdsFilter;
 use App\Support\TeamMealCounts;
+use App\Support\TeamPeopleCounts;
 use App\Support\TeamPhotoCounts;
 use App\Support\VolunteerCollectOptions;
 use Illuminate\Http\JsonResponse;
@@ -36,11 +37,15 @@ class EventTeamDataController extends Controller
         $collectMeal = VolunteerCollectOptions::collectsMeal($event);
         $customFields = TeamDataColumns::customFieldsForEvent($event->id);
         $fieldsByKey = $customFields->keyBy('field_key');
+        $peopleCount = TeamPeopleCounts::countsByTeamIdForEvent($event)[$team->id] ?? null;
 
         if ($request->has('photo_consent')) {
             $validation = TeamPhotoCounts::validateCountMap($request->input('photo_consent'));
             if (! $validation['ok']) {
                 return response()->json(['error' => $validation['error']], 422);
+            }
+            if ($peopleCount !== null && array_sum($validation['api']) !== (int) $peopleCount) {
+                return response()->json(['error' => 'Fotoerlaubnis muss in der Summe der Personenanzahl entsprechen.'], 422);
             }
             try {
                 TeamPhotoCounts::replaceForTeam($team->id, $validation['api']);
@@ -60,6 +65,9 @@ class EventTeamDataController extends Controller
             $normalized = [];
             foreach ($meals as $key => $count) {
                 $normalized[(string) $key] = (int) $count;
+            }
+            if ($peopleCount !== null && array_sum($normalized) !== (int) $peopleCount) {
+                return response()->json(['error' => 'Essen muss in der Summe der Personenanzahl entsprechen.'], 422);
             }
             try {
                 TeamMealCounts::replaceForTeam($team->id, $event->id, $normalized);

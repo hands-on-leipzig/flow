@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Ausgabe → Digital: Karussell / Slideshow-Startseite (kein Zwischen-Screen).
+ * Ausgabe → Digital: shared page header + flexible dual-scroll workspace.
  */
 import PresentationSettings from '@/components/molecules/PresentationSettings.vue'
 
@@ -8,21 +8,22 @@ defineOptions({name: 'PublishDigital'})
 </script>
 
 <template>
-  <div class="digital-page">
+  <div class="vol-page vol-page--fill digital-page">
+    <header class="vol-page__header">
+      <div>
+        <h1 class="vol-page__title">Digitale Ausgabe</h1>
+        <p class="vol-page__sub">Erstellen und Testen von Slideshows für den Veranstaltungstag</p>
+      </div>
+    </header>
+
     <PresentationSettings/>
   </div>
 </template>
 
 <style scoped>
-.digital-page {
-  height: 100%;
-  min-height: min(72vh, 48rem);
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 .digital-page > :deep(.digital-workspace) {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
 }
 </style>

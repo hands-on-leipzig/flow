@@ -88,27 +88,11 @@ class TeamPublicFormController extends Controller
         $peopleCount = $peopleCounts[$team->id] ?? null;
 
         $collectMeal = VolunteerCollectOptions::collectsMeal($event);
-        $hasPhoto = $request->has('photo_consent');
+        // Fotoerlaubnis is read-only on the public form; only organizers write via team-data API.
         $hasMeals = $request->has('meals');
 
-        if (($hasPhoto || $hasMeals) && $peopleCount === null) {
+        if ($hasMeals && $peopleCount === null) {
             return response()->json(['error' => 'Personenanzahl für dieses Team fehlt.'], 422);
-        }
-
-        if ($hasPhoto) {
-            $validation = TeamPhotoCounts::validateCountMap($request->input('photo_consent'));
-            if (! $validation['ok']) {
-                return response()->json(['error' => $validation['error']], 422);
-            }
-            $sum = array_sum($validation['api']);
-            if ($sum !== (int) $peopleCount) {
-                return response()->json(['error' => 'Foto Erlaubnis muss in der Summe der Personenanzahl entsprechen.'], 422);
-            }
-            try {
-                TeamPhotoCounts::replaceForTeam($team->id, $validation['api']);
-            } catch (\InvalidArgumentException $e) {
-                return response()->json(['error' => $e->getMessage()], 422);
-            }
         }
 
         if ($hasMeals) {

@@ -8,26 +8,14 @@ defineOptions({name: 'PublishNameTags'})
 </script>
 
 <template>
-  <div class="namensschilder">
-    <header class="namensschilder__intro">
-      <h1 class="namensschilder__title">Namensschilder</h1>
+  <div class="vol-page namensschilder-page">
+    <header class="vol-page__header">
+      <div>
+        <h1 class="vol-page__title">Namensschilder</h1>
+        <p class="vol-page__sub">Erstellen von PDFs zum Druck von Aufklebern</p>
+      </div>
     </header>
+
     <PdfPlansBox hide-heading section="labels"/>
   </div>
 </template>
-
-<style scoped>
-.namensschilder {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding-bottom: max(1rem, env(safe-area-inset-bottom));
-}
-
-.namensschilder__title {
-  margin: 0;
-  font-size: 1.35rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-</style>

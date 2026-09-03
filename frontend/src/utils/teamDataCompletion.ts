@@ -98,7 +98,8 @@ export function isTeamRowIncomplete(row: TeamDataRow, columns: TeamDataColumn[])
       if (isScalarColumnIncomplete(row, column)) return true
       continue
     }
-    if (column.editor === 'meal_counts' || column.editor === 'count_set') {
+    // Essen only — Fotoerlaubnis has its own filter chip.
+    if (column.editor === 'meal_counts') {
       if (isCountSetColumnIncomplete(row, column)) return true
     }
   }
@@ -117,7 +118,7 @@ export function countSetTotal(row: TeamDataRow, column: TeamDataColumn): number 
   return sumCountMap(countMapForColumn(row, column))
 }
 
-/** Team has not yet entered Foto-Erlaubnis counts (parallel to volunteer photo unset). */
+/** Team has not yet entered Fotoerlaubnis counts (parallel to volunteer photo unset). */
 export function isTeamPhotoConsentUnset(row: TeamDataRow): boolean {
   return !row.touched?.photo
 }

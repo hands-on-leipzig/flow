@@ -207,7 +207,7 @@ watch(
       <li class="vol-columns-dialog__builtin">Programm</li>
       <li class="vol-columns-dialog__builtin">Organisation</li>
       <li class="vol-columns-dialog__builtin">Personen</li>
-      <li class="vol-columns-dialog__builtin">Foto Erlaubnis</li>
+      <li class="vol-columns-dialog__builtin">Fotoerlaubnis</li>
       <li class="vol-columns-dialog__builtin vol-columns-dialog__builtin--toggle">
         <label class="vol-columns-dialog__check">
           <input

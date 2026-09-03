@@ -5,7 +5,21 @@ namespace App\Services;
 use App\Http\Controllers\Api\DrahtController;
 use App\Models\CheckIn;
 use App\Models\Event;
+use App\Models\EventTeamField;
+use App\Models\EventTeamFieldValue;
+use App\Models\EventVolunteerField;
+use App\Models\EventVolunteerFieldValue;
+use App\Models\EventVolunteerRoster;
 use App\Models\Plan;
+use App\Support\PhotoConsentStatus;
+use App\Support\TeamDataCustomFields;
+use App\Support\TeamMealCounts;
+use App\Support\TeamPeopleCounts;
+use App\Support\TeamPhotoCounts;
+use App\Support\VolunteerCollectOptions;
+use App\Support\VolunteerMealOptions;
+use App\Support\VolunteerRosterCustomFields;
+use App\Support\VolunteerRosterDetailFields;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -71,6 +85,17 @@ class CheckInService
             'text_teams' => $event->check_in_text_teams,
             'text_helpers' => $event->check_in_text_helpers,
             'reception_path' => $event->slug ? '/'.$event->slug.'/check-in' : null,
+            'show_fields' => [
+                'teams' => [
+                    'photo_consent' => (bool) ($event->check_in_show_team_photo ?? true),
+                    'meal' => (bool) ($event->check_in_show_team_meal ?? false),
+                ],
+                'helpers' => [
+                    'photo_consent' => (bool) ($event->check_in_show_helper_photo ?? true),
+                    'meal' => (bool) ($event->check_in_show_helper_meal ?? false),
+                    't_shirt' => (bool) ($event->check_in_show_helper_t_shirt ?? false),
+                ],
+            ],
         ];
     }
 
@@ -115,10 +140,15 @@ class CheckInService
         return hash_equals($expected, preg_replace('/\D/', '', $pin) ?? '');
     }
 
+    public const SESSION_APP = 'check-in';
+
+    public const SESSION_TTL_HOURS = 24;
+
     public function makeSessionToken(Event $event): string
     {
         return Crypt::encryptString(json_encode([
             'event_id' => (int) $event->id,
+            'app' => self::SESSION_APP,
             'issued_at' => now()->toIso8601String(),
         ]));
     }
@@ -134,11 +164,32 @@ class CheckInService
             if (! is_array($payload) || ! isset($payload['event_id'])) {
                 return null;
             }
+            if (($payload['app'] ?? null) !== self::SESSION_APP) {
+                return null;
+            }
+            if (! $this->sessionIssuedAtIsFresh($payload['issued_at'] ?? null)) {
+                return null;
+            }
 
             return (int) $payload['event_id'];
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    private function sessionIssuedAtIsFresh(mixed $issuedAt): bool
+    {
+        if (! is_string($issuedAt) || $issuedAt === '') {
+            return false;
+        }
+
+        try {
+            $issued = Carbon::parse($issuedAt);
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return $issued->greaterThan(now()->subHours(self::SESSION_TTL_HOURS));
     }
 
     public function resetRecords(Event $event): int
@@ -214,6 +265,187 @@ class CheckInService
         });
 
         return array_slice($results, 0, 40);
+    }
+
+    /**
+     * Flat phonebook contacts for Cockpit: DRAHT coaches + staffed helpers.
+     *
+     * @return list<array{
+     *   id: string,
+     *   kind: string,
+     *   name: string,
+     *   subtitle: string|null,
+     *   mobile: string|null,
+     *   status: string|null,
+     *   checked_in_at: string|null
+     * }>
+     */
+    public function phonebookContacts(Event $event, string $query): array
+    {
+        $q = mb_strtolower(trim($query));
+        if (mb_strlen($q) < 2) {
+            return [];
+        }
+
+        $records = CheckIn::query()
+            ->where('event', $event->id)
+            ->get()
+            ->keyBy(fn (CheckIn $row) => $row->subject_type.':'.$row->subject_id);
+
+        $contacts = [];
+
+        foreach ($this->phonebookCoachContacts($event) as $contact) {
+            if (! str_contains($contact['haystack'], $q)) {
+                continue;
+            }
+            $status = $this->recordStatusPayload($records->get(CheckIn::SUBJECT_TEAM.':'.$contact['team_id']));
+            $contacts[] = [
+                'id' => $contact['id'],
+                'kind' => 'coach',
+                'name' => $contact['name'],
+                'subtitle' => $contact['subtitle'],
+                'mobile' => $contact['mobile'],
+                'status' => $status['status'],
+                'checked_in_at' => $status['checked_in_at'],
+            ];
+        }
+
+        foreach ($this->phonebookHelperContacts($event) as $contact) {
+            if (! str_contains($contact['haystack'], $q)) {
+                continue;
+            }
+            $status = $this->recordStatusPayload($records->get(CheckIn::SUBJECT_VOLUNTEER.':'.$contact['person_id']));
+            $contacts[] = [
+                'id' => $contact['id'],
+                'kind' => 'volunteer',
+                'name' => $contact['name'],
+                'subtitle' => $contact['subtitle'],
+                'mobile' => $contact['mobile'],
+                'status' => $status['status'],
+                'checked_in_at' => $status['checked_in_at'],
+            ];
+        }
+
+        usort($contacts, function (array $a, array $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        return array_slice($contacts, 0, 40);
+    }
+
+    /**
+     * @return list<array{id: string, team_id: int, name: string, subtitle: string|null, mobile: string|null, haystack: string}>
+     */
+    private function phonebookCoachContacts(Event $event): array
+    {
+        $peopleByHot = $this->drahtPeopleByHotNumber($event);
+        $teams = DB::table('team')
+            ->where('event', $event->id)
+            ->select(['id', 'name', 'team_number_hot', 'organization'])
+            ->get();
+
+        $contacts = [];
+        foreach ($teams as $team) {
+            $hot = trim((string) ($team->team_number_hot ?? ''));
+            if ($hot === '' || $hot === '0') {
+                continue;
+            }
+            $teamData = $peopleByHot[$hot] ?? $peopleByHot[(string) ((int) $hot)] ?? null;
+            if (! is_array($teamData)) {
+                continue;
+            }
+
+            $teamName = trim((string) ($team->name ?? ''));
+            if ($teamName === '') {
+                $teamName = 'Team '.$team->id;
+            }
+            $org = trim((string) ($team->organization ?? ''));
+            $subtitleParts = array_filter([$teamName, $org !== '' ? $org : null, $hot !== '' ? 'Nr. '.$hot : null]);
+            $subtitle = implode(' · ', $subtitleParts);
+
+            $index = 0;
+            foreach ($teamData['coaches'] ?? [] as $coach) {
+                if (! is_array($coach)) {
+                    continue;
+                }
+                $name = trim((string) ($coach['firstname'] ?? '').' '.(string) ($coach['name'] ?? ''));
+                if ($name === '') {
+                    $name = 'Coach';
+                }
+                $mobile = trim((string) ($coach['phone'] ?? ''));
+                $email = trim((string) ($coach['email'] ?? ''));
+                $mobileOrNull = $mobile !== '' ? $mobile : null;
+
+                $haystack = mb_strtolower(implode(' ', array_filter([
+                    $name,
+                    $email,
+                    $mobile,
+                    $teamName,
+                    $org,
+                    $hot,
+                    'coach',
+                ])));
+
+                $contacts[] = [
+                    'id' => 'coach:'.$team->id.':'.$index,
+                    'team_id' => (int) $team->id,
+                    'name' => $name,
+                    'subtitle' => $subtitle,
+                    'mobile' => $mobileOrNull,
+                    'haystack' => $haystack,
+                ];
+                $index++;
+            }
+        }
+
+        return $contacts;
+    }
+
+    /**
+     * @return list<array{id: string, person_id: int, name: string, subtitle: string|null, mobile: string|null, haystack: string}>
+     */
+    private function phonebookHelperContacts(Event $event): array
+    {
+        $rows = $this->staffedHelpersGrouped($event->id);
+        $contacts = [];
+
+        foreach ($rows as $row) {
+            $roleLabels = $row->role_labels ? explode('||', $row->role_labels) : [];
+            $name = trim(($row->first_name ?? '').' '.($row->last_name ?? ''));
+            if ($name === '') {
+                $name = 'Helfer:in';
+            }
+            $org = trim((string) ($row->organization ?? ''));
+            $subtitleParts = array_filter([
+                $roleLabels !== [] ? implode(', ', $roleLabels) : null,
+                $org !== '' ? $org : null,
+            ]);
+            $subtitle = $subtitleParts !== [] ? implode(' · ', $subtitleParts) : null;
+            $mobile = trim((string) ($row->mobile ?? ''));
+            $mobileOrNull = $mobile !== '' ? $mobile : null;
+            $email = trim((string) ($row->email ?? ''));
+
+            $haystack = mb_strtolower(implode(' ', array_filter([
+                $name,
+                $email,
+                $mobile,
+                $org,
+                ...$roleLabels,
+                'helfer',
+                'volunteer',
+            ])));
+
+            $contacts[] = [
+                'id' => 'volunteer:'.$row->id,
+                'person_id' => (int) $row->id,
+                'name' => $name,
+                'subtitle' => $subtitle,
+                'mobile' => $mobileOrNull,
+                'haystack' => $haystack,
+            ];
+        }
+
+        return $contacts;
     }
 
     /**
@@ -518,6 +750,11 @@ class CheckInService
 
         $record = $this->findRecord($event, CheckIn::SUBJECT_TEAM, $teamId);
         $label = trim((string) ($row->name ?? ''));
+        $peopleBreakdown = TeamPeopleCounts::breakdownForTeam($event, $teamId);
+        $photoPayload = PhotoConsentStatus::forTeam(
+            TeamPhotoCounts::mapForTeamWithDefaults($teamId),
+            $peopleBreakdown['total'] ?? null,
+        );
 
         return array_merge([
             'subject_type' => CheckIn::SUBJECT_TEAM,
@@ -527,8 +764,13 @@ class CheckInService
             'program_name' => $row->program_name,
             'logo_stem' => $row->logo_stem ?: null,
             'room' => $row->room_name ?: null,
+            'coaches_count' => $peopleBreakdown['coaches'] ?? null,
+            'players_count' => $peopleBreakdown['players'] ?? null,
+            'people_count' => $peopleBreakdown['total'] ?? null,
+            'call_contacts' => $this->teamCallContacts($event, $row),
             'info_text' => $event->check_in_text_teams,
             'next_activities' => $this->nextActivitiesForTeam($event, $plan, $row),
+            'display_fields' => $this->teamDisplayFields($event, $teamId, $photoPayload),
         ], $this->recordStatusPayload($record));
     }
 
@@ -543,18 +785,239 @@ class CheckInService
         $record = $this->findRecord($event, CheckIn::SUBJECT_VOLUNTEER, $personId);
         $roleLabels = $row->role_labels ? explode('||', $row->role_labels) : [];
 
+        $roster = EventVolunteerRoster::query()
+            ->where('event', $event->id)
+            ->where('volunteer_person', $personId)
+            ->with('detail')
+            ->first();
+        $consent = $roster?->detail?->photo_consent;
+        $photoPayload = PhotoConsentStatus::forVolunteer(
+            $consent === null ? null : (bool) $consent,
+        );
+
+        $label = trim($row->first_name.' '.$row->last_name);
+
         return array_merge([
             'subject_type' => CheckIn::SUBJECT_VOLUNTEER,
             'subject_id' => (int) $row->id,
-            'label' => trim($row->first_name.' '.$row->last_name),
+            'label' => $label,
             'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
             'program_name' => $row->program_name,
             'logo_stem' => $row->logo_stem ?: null,
             'room' => null,
             'role_labels' => $roleLabels,
+            'call_contacts' => $this->helperCallContacts($row, $label),
             'info_text' => $event->check_in_text_helpers,
             'next_activities' => $this->nextActivitiesForHelper($event, $personId),
+            'display_fields' => $this->helperDisplayFields($event, $roster, $photoPayload),
         ], $this->recordStatusPayload($record));
+    }
+
+    /**
+     * @return list<array{name: string, mobile: string}>
+     */
+    private function helperCallContacts(object $row, string $label): array
+    {
+        $mobile = trim((string) ($row->mobile ?? ''));
+        if ($mobile === '') {
+            return [];
+        }
+
+        return [[
+            'name' => $label !== '' ? $label : 'Helfer:in',
+            'mobile' => $mobile,
+        ]];
+    }
+
+    /**
+     * DRAHT coaches with a phone number for this team.
+     *
+     * @return list<array{name: string, mobile: string}>
+     */
+    private function teamCallContacts(Event $event, object $teamRow): array
+    {
+        $hot = trim((string) ($teamRow->team_number_hot ?? ''));
+        if ($hot === '' || $hot === '0') {
+            return [];
+        }
+
+        $peopleByHot = $this->drahtPeopleByHotNumber($event);
+        $teamData = $peopleByHot[$hot] ?? null;
+        if (! is_array($teamData)) {
+            return [];
+        }
+
+        $contacts = [];
+        foreach ($teamData['coaches'] ?? [] as $coach) {
+            if (! is_array($coach)) {
+                continue;
+            }
+            $mobile = trim((string) ($coach['phone'] ?? ''));
+            if ($mobile === '') {
+                continue;
+            }
+            $name = trim((string) ($coach['firstname'] ?? '').' '.(string) ($coach['name'] ?? ''));
+            $contacts[] = [
+                'name' => $name !== '' ? $name : 'Coach',
+                'mobile' => $mobile,
+            ];
+        }
+
+        return $contacts;
+    }
+
+    /**
+     * @param  array{status: string, check_in_label: string}  $photoPayload
+     * @return list<array{key: string, kind: string, label: string, value: string, status?: string}>
+     */
+    private function teamDisplayFields(Event $event, int $teamId, array $photoPayload): array
+    {
+        $fields = [];
+
+        $fields[] = [
+            'key' => 'photo_consent',
+            'kind' => 'photo_consent',
+            'label' => 'Fotoerlaubnis',
+            'value' => $photoPayload['check_in_label'],
+            'status' => $photoPayload['status'],
+        ];
+
+        if ((bool) ($event->check_in_show_team_meal ?? false) && VolunteerCollectOptions::collectsMeal($event)) {
+            $fields[] = [
+                'key' => 'meal',
+                'kind' => 'text',
+                'label' => 'Essen',
+                'value' => $this->formatTeamMealValue($event->id, $teamId),
+            ];
+        }
+
+        $customFields = EventTeamField::query()
+            ->where('event', $event->id)
+            ->where('check_in_show', true)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get();
+
+        if ($customFields->isNotEmpty()) {
+            $valuesByFieldId = EventTeamFieldValue::query()
+                ->where('team', $teamId)
+                ->whereIn('event_team_field', $customFields->pluck('id'))
+                ->get()
+                ->keyBy('event_team_field');
+
+            foreach ($customFields as $field) {
+                $stored = $valuesByFieldId->get($field->id)?->value;
+                $exported = TeamDataCustomFields::exportValue($field, $stored);
+                $fields[] = [
+                    'key' => $field->field_key,
+                    'kind' => 'text',
+                    'label' => $field->label,
+                    'value' => $exported !== '' ? $exported : '—',
+                ];
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @param  array{status: string, check_in_label: string}  $photoPayload
+     * @return list<array{key: string, kind: string, label: string, value: string, status?: string}>
+     */
+    private function helperDisplayFields(Event $event, ?EventVolunteerRoster $roster, array $photoPayload): array
+    {
+        $fields = [];
+        $collect = VolunteerCollectOptions::forEvent($event);
+        $detail = $roster?->detail;
+
+        $fields[] = [
+            'key' => 'photo_consent',
+            'kind' => 'photo_consent',
+            'label' => 'Fotoerlaubnis',
+            'value' => $photoPayload['check_in_label'],
+            'status' => $photoPayload['status'],
+        ];
+
+        if ((bool) ($event->check_in_show_helper_t_shirt ?? false) && ($collect['t_shirt'] ?? false)) {
+            $cut = VolunteerRosterDetailFields::exportLabel($detail?->t_shirt_cut);
+            $size = trim((string) ($detail?->t_shirt_size ?? ''));
+            $shirt = trim($cut.' '.$size);
+            $fields[] = [
+                'key' => 't_shirt',
+                'kind' => 'text',
+                'label' => 'T-Shirt Größe',
+                'value' => $shirt !== '' ? $shirt : '—',
+            ];
+        }
+
+        if ((bool) ($event->check_in_show_helper_meal ?? false) && ($collect['meal'] ?? false)) {
+            $options = VolunteerMealOptions::optionsForEvent($event->id);
+            $labelMap = VolunteerMealOptions::labelMap($options);
+            $mealLabel = VolunteerRosterDetailFields::exportMealLabel($detail?->meal, $labelMap);
+            $fields[] = [
+                'key' => 'meal',
+                'kind' => 'text',
+                'label' => 'Essen',
+                'value' => $mealLabel !== '' ? $mealLabel : '—',
+            ];
+        }
+
+        $customFields = EventVolunteerField::query()
+            ->where('event', $event->id)
+            ->where('check_in_show', true)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get();
+
+        if ($customFields->isNotEmpty() && $roster) {
+            $valuesByFieldId = EventVolunteerFieldValue::query()
+                ->where('event_volunteer_roster', $roster->id)
+                ->whereIn('event_volunteer_field', $customFields->pluck('id'))
+                ->get()
+                ->keyBy('event_volunteer_field');
+
+            foreach ($customFields as $field) {
+                $stored = $valuesByFieldId->get($field->id)?->value;
+                $exported = VolunteerRosterCustomFields::exportValue($field, $stored);
+                $fields[] = [
+                    'key' => $field->field_key,
+                    'kind' => 'text',
+                    'label' => $field->label,
+                    'value' => $exported !== '' ? $exported : '—',
+                ];
+            }
+        } elseif ($customFields->isNotEmpty()) {
+            foreach ($customFields as $field) {
+                $fields[] = [
+                    'key' => $field->field_key,
+                    'kind' => 'text',
+                    'label' => $field->label,
+                    'value' => '—',
+                ];
+            }
+        }
+
+        return $fields;
+    }
+
+    private function formatTeamMealValue(int $eventId, int $teamId): string
+    {
+        $options = VolunteerMealOptions::optionsForEvent($eventId);
+        if ($options->isEmpty()) {
+            return '—';
+        }
+
+        $counts = TeamMealCounts::mapForTeamWithCatalog($teamId, $eventId);
+        $parts = [];
+        foreach ($options as $option) {
+            $count = (int) ($counts[$option->value] ?? 0);
+            if ($count <= 0) {
+                continue;
+            }
+            $parts[] = $count.'× '.$option->label;
+        }
+
+        return $parts !== [] ? implode(', ', $parts) : '—';
     }
 
     /**
@@ -795,6 +1258,216 @@ class CheckInService
             ],
             'plan_id' => $plan?->id,
         ];
+    }
+
+    /**
+     * Open + no-show lists for Teams or Helfer:innen (checked-in omitted).
+     * Status sections first; within each, same program/scope order as overview.
+     *
+     * @return array{scope: string, title: string, sections: list<array{key: string, label: string, groups: list<array{kind: string, program_id: ?int, logo_stem: ?string, items: list<array<string, mixed>>}>}>}
+     */
+    public function roster(Event $event, string $scope): array
+    {
+        if (! in_array($scope, ['teams', 'helpers'], true)) {
+            abort(422, 'Unknown roster scope');
+        }
+
+        $records = CheckIn::query()
+            ->where('event', $event->id)
+            ->where('subject_type', $scope === 'teams' ? CheckIn::SUBJECT_TEAM : CheckIn::SUBJECT_VOLUNTEER)
+            ->get()
+            ->keyBy(fn (CheckIn $row) => (int) $row->subject_id);
+
+        if ($scope === 'teams') {
+            $items = $this->teamRosterItems($event, $records);
+            $title = 'Teams';
+        } else {
+            $items = $this->helperRosterItems($event, $records);
+            $title = 'Helfer:innen';
+        }
+
+        $open = array_values(array_filter($items, fn (array $hit) => ($hit['status'] ?? null) === null));
+        $noShow = array_values(array_filter($items, fn (array $hit) => ($hit['status'] ?? null) === CheckIn::STATUS_NO_SHOW));
+
+        return [
+            'scope' => $scope,
+            'title' => $title,
+            'sections' => [
+                [
+                    'key' => 'open',
+                    'label' => 'Noch offen',
+                    'groups' => $this->rosterGroups($open, $scope),
+                ],
+                [
+                    'key' => 'no_show',
+                    'label' => 'No-Show',
+                    'groups' => $this->rosterGroups($noShow, $scope),
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CheckIn>  $records
+     * @return list<array<string, mixed>>
+     */
+    private function teamRosterItems(Event $event, Collection $records): array
+    {
+        $rows = DB::table('team')
+            ->leftJoin('m_first_program as fp', 'fp.id', '=', 'team.first_program')
+            ->where('team.event', $event->id)
+            ->select([
+                'team.id',
+                'team.name',
+                'team.first_program',
+                'fp.name as program_name',
+                'fp.logo_stem',
+                'fp.sequence as program_sequence',
+            ])
+            ->orderByRaw('CASE WHEN team.first_program IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('fp.sequence')
+            ->orderBy('team.name')
+            ->get();
+
+        $items = [];
+        foreach ($rows as $row) {
+            $id = (int) $row->id;
+            $record = $records->get($id);
+            if ($record?->isCheckedIn()) {
+                continue;
+            }
+
+            $label = trim((string) ($row->name ?? ''));
+            $items[] = array_merge([
+                'subject_type' => CheckIn::SUBJECT_TEAM,
+                'subject_id' => $id,
+                'label' => $label !== '' ? $label : ('Team '.$id),
+                'subtitle' => 'Team',
+                'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
+                'program_name' => $row->program_name,
+                'program_sequence' => $row->program_sequence !== null ? (int) $row->program_sequence : null,
+                'logo_stem' => $row->logo_stem ?: null,
+                'scope_kind' => $row->first_program === null ? 'cross' : 'program',
+            ], $this->recordStatusPayload($record));
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, CheckIn>  $records
+     * @return list<array<string, mixed>>
+     */
+    private function helperRosterItems(Event $event, Collection $records): array
+    {
+        $items = [];
+        foreach ($this->staffedHelpersGrouped($event->id) as $row) {
+            $id = (int) $row->id;
+            $record = $records->get($id);
+            if ($record?->isCheckedIn()) {
+                continue;
+            }
+
+            $roleLabels = $row->role_labels ? explode('||', $row->role_labels) : [];
+            if (! empty($row->is_local)) {
+                $scopeKind = 'local';
+            } elseif ($row->first_program === null) {
+                $scopeKind = 'cross';
+            } else {
+                $scopeKind = 'program';
+            }
+
+            $items[] = array_merge([
+                'subject_type' => CheckIn::SUBJECT_VOLUNTEER,
+                'subject_id' => $id,
+                'label' => trim($row->first_name.' '.$row->last_name),
+                'subtitle' => $roleLabels[0] ?? $row->organization,
+                'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
+                'program_name' => $row->program_name,
+                'program_sequence' => $row->program_sequence !== null ? (int) $row->program_sequence : null,
+                'logo_stem' => $row->logo_stem ?: null,
+                'scope_kind' => $scopeKind,
+                'role_labels' => $roleLabels,
+            ], $this->recordStatusPayload($record));
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     * @return list<array{kind: string, program_id: ?int, logo_stem: ?string, items: list<array<string, mixed>>}>
+     */
+    private function rosterGroups(array $items, string $scope): array
+    {
+        $buckets = [];
+        foreach ($items as $item) {
+            $kind = (string) ($item['scope_kind'] ?? 'program');
+            $programId = $item['program_id'] ?? null;
+            $key = $kind === 'program' ? 'program:'.(int) $programId : $kind;
+            if (! isset($buckets[$key])) {
+                $buckets[$key] = [
+                    'kind' => $kind,
+                    'program_id' => $kind === 'program' ? ($programId !== null ? (int) $programId : null) : null,
+                    'program_sequence' => $item['program_sequence'] ?? null,
+                    'logo_stem' => $item['logo_stem'] ?? null,
+                    'items' => [],
+                ];
+            }
+            if (! $buckets[$key]['logo_stem'] && ! empty($item['logo_stem'])) {
+                $buckets[$key]['logo_stem'] = $item['logo_stem'];
+            }
+            $clean = $item;
+            unset($clean['scope_kind'], $clean['program_sequence']);
+            $buckets[$key]['items'][] = $clean;
+        }
+
+        foreach ($buckets as &$bucket) {
+            usort($bucket['items'], fn (array $a, array $b) => strcasecmp($a['label'], $b['label']));
+        }
+        unset($bucket);
+
+        $orderedKeys = [];
+        if (isset($buckets['cross'])) {
+            $orderedKeys[] = 'cross';
+        }
+
+        $programKeys = array_keys(array_filter(
+            $buckets,
+            fn ($b, $k) => str_starts_with((string) $k, 'program:'),
+            ARRAY_FILTER_USE_BOTH,
+        ));
+        usort($programKeys, function (string $a, string $b) use ($buckets) {
+            $sa = $buckets[$a]['program_sequence'] ?? PHP_INT_MAX;
+            $sb = $buckets[$b]['program_sequence'] ?? PHP_INT_MAX;
+            if ($sa !== $sb) {
+                return $sa <=> $sb;
+            }
+
+            return ($buckets[$a]['program_id'] ?? 0) <=> ($buckets[$b]['program_id'] ?? 0);
+        });
+        foreach ($programKeys as $key) {
+            $orderedKeys[] = $key;
+        }
+
+        if ($scope === 'helpers' && isset($buckets['local'])) {
+            $orderedKeys[] = 'local';
+        }
+
+        foreach (array_keys($buckets) as $key) {
+            if (! in_array($key, $orderedKeys, true)) {
+                $orderedKeys[] = $key;
+            }
+        }
+
+        $ordered = [];
+        foreach ($orderedKeys as $key) {
+            $bucket = $buckets[$key];
+            unset($bucket['program_sequence']);
+            $ordered[] = $bucket;
+        }
+
+        return $ordered;
     }
 
     /**
