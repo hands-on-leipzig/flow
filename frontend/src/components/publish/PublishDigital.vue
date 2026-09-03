@@ -12,9 +12,7 @@ defineOptions({name: 'PublishDigital'})
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Digitale Ausgabe</h1>
-        <p class="vol-page__sub">
-          Slideshows, die während der Veranstaltung statt gedruckten Material gezeigt werden können.
-        </p>
+        <p class="vol-page__sub">Erstellen und Testen von Slideshows für den Veranstaltungstag</p>
       </div>
     </header>
 

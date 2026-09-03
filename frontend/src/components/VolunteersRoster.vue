@@ -277,7 +277,7 @@ onMounted(() => load())
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Helfer:innenliste</h1>
-        <p class="vol-page__sub">Alle Helfer:innen für diese Veranstaltung</p>
+        <p class="vol-page__sub">Verwalten von Daten für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">
         <button

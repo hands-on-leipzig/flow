@@ -12,7 +12,7 @@ defineOptions({name: 'PublishWlan'})
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">WLAN für Teams, Helfer:innen und Besucher</h1>
-        <p class="vol-page__sub">Login-Daten für das WLAN vor Ort</p>
+        <p class="vol-page__sub">Eingabe der Login-Daten für das WLAN vor Ort</p>
       </div>
     </header>
 

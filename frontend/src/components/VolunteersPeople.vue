@@ -413,7 +413,7 @@ watch(eventId, () => {
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Personen</h1>
-        <p class="vol-page__sub">Saison-übergreifende Kontaktliste</p>
+        <p class="vol-page__sub">Verwalten von Kontakten (saison-übergreifend)</p>
       </div>
       <div class="vol-page__actions">
         <button

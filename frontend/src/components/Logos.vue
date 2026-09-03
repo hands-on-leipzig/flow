@@ -391,8 +391,8 @@ onMounted(async () => {
   <div class="vol-page vol-page--fill logos-page">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Logo</h1>
-        <p class="vol-page__sub">Logos verwalten</p>
+        <h1 class="vol-page__title">Logos</h1>
+        <p class="vol-page__sub">Verwalten von Logos für die verschiedenen Ausgaben</p>
       </div>
     </header>
 

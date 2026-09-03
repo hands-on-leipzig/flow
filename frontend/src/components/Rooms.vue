@@ -849,7 +849,7 @@ const hasWarning = (tab) => {
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Räume</h1>
-        <p class="vol-page__sub">Aktivitäten auf Räume verteilen</p>
+        <p class="vol-page__sub">Verteilen der Aktivitäten auf Räume</p>
       </div>
     </header>
 

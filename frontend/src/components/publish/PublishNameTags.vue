@@ -12,7 +12,7 @@ defineOptions({name: 'PublishNameTags'})
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Namensschilder</h1>
-        <p class="vol-page__sub">Namensaufkleber zum Drucken auf A4-Papier</p>
+        <p class="vol-page__sub">Erstellen von PDFs zum Druck von Aufklebern</p>
       </div>
     </header>
 
