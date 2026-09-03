@@ -3,7 +3,7 @@
 import draggable from "vuedraggable";
 import SlideThumb from "@/components/SlideThumb.vue";
 import {useEventStore} from "@/stores/event";
-import {computed, nextTick, onMounted, ref} from "vue";
+import {computed, nextTick, onMounted, ref, watch} from "vue";
 import {Slideshow} from "@/models/slideshow";
 import axios from "axios";
 import {Slide} from "@/models/slide";
@@ -57,6 +57,27 @@ function getSlideshowLink(slideshow: Slideshow) {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
 }
 
+const previewIframeKey = ref(0);
+const previewUrl = computed(() =>
+  selectedSlideshow.value ? getSlideshowLink(selectedSlideshow.value) : ''
+);
+const previewHasSlides = computed(() => (selectedSlideshow.value?.slides?.length ?? 0) > 0);
+
+watch(
+  () => {
+    const s = selectedSlideshow.value;
+    if (!s) return null;
+    return {
+      id: s.id,
+      transition: s.transition_time,
+      slideIds: (s.slides ?? []).map((slide) => slide.id).join(','),
+    };
+  },
+  () => {
+    previewIframeKey.value += 1;
+  },
+);
+
 function openSlideshowInNewWindow(slideshow: Slideshow) {
   const link = getSlideshowLink(slideshow);
   if (link) {
@@ -73,6 +94,10 @@ function copySlideshowLink(slideshow: Slideshow) {
       copiedSlideshowId.value = null;
     }, 2000);
   }
+}
+
+function reloadLivePreview() {
+  previewIframeKey.value += 1;
 }
 
 const slidesKey = ref(1);
@@ -371,28 +396,70 @@ function copyUrl(url) {
           <template v-else-if="selectedSlideshow">
             <div class="digital-workspace__editor-bar">
               <h2 class="digital-workspace__editor-title">{{ selectedSlideshow.name }}</h2>
-              <div class="digital-workspace__editor-actions">
-                <button
-                    type="button"
-                    class="digital-workspace__editor-btn"
-                    title="Slideshow in neuem Fenster öffnen"
-                    @click="openSlideshowInNewWindow(selectedSlideshow)"
+              <div class="digital-workspace__editor-side">
+                <div class="digital-workspace__editor-actions">
+                  <button
+                      type="button"
+                      class="digital-workspace__editor-btn"
+                      title="Slideshow in neuem Fenster öffnen"
+                      @click="openSlideshowInNewWindow(selectedSlideshow)"
+                  >
+                    <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
+                    <span>Öffnen</span>
+                  </button>
+                  <button
+                      type="button"
+                      class="digital-workspace__editor-btn"
+                      :title="copiedSlideshowId === selectedSlideshow.id ? 'Link kopiert!' : 'Link kopieren'"
+                      @click="copySlideshowLink(selectedSlideshow)"
+                  >
+                    <i
+                        :class="copiedSlideshowId === selectedSlideshow.id ? 'bi bi-check' : 'bi bi-clipboard'"
+                        aria-hidden="true"
+                    />
+                    <span>{{ copiedSlideshowId === selectedSlideshow.id ? 'Kopiert!' : 'Link kopieren' }}</span>
+                  </button>
+                </div>
+
+                <div
+                    class="digital-workspace__live-tile"
+                    :class="{'digital-workspace__live-tile--empty': !previewHasSlides || !previewUrl}"
+                    aria-label="Live-Vorschau der Slideshow"
                 >
-                  <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
-                  <span>Öffnen</span>
-                </button>
-                <button
-                    type="button"
-                    class="digital-workspace__editor-btn"
-                    :title="copiedSlideshowId === selectedSlideshow.id ? 'Link kopiert!' : 'Link kopieren'"
-                    @click="copySlideshowLink(selectedSlideshow)"
-                >
-                  <i
-                      :class="copiedSlideshowId === selectedSlideshow.id ? 'bi bi-check' : 'bi bi-clipboard'"
-                      aria-hidden="true"
-                  />
-                  <span>{{ copiedSlideshowId === selectedSlideshow.id ? 'Kopiert!' : 'Link kopieren' }}</span>
-                </button>
+                  <div class="digital-workspace__live-tile-bar">
+                    <span class="digital-workspace__live-dot" aria-hidden="true"/>
+                    <span class="digital-workspace__live-label">Live</span>
+                    <button
+                        v-if="previewUrl && previewHasSlides"
+                        type="button"
+                        class="digital-workspace__live-reload"
+                        title="Vorschau neu laden"
+                        @click="reloadLivePreview"
+                    >
+                      <i class="bi bi-arrow-clockwise" aria-hidden="true"/>
+                    </button>
+                  </div>
+                  <button
+                      v-if="previewUrl && previewHasSlides"
+                      type="button"
+                      class="digital-workspace__live-stage"
+                      title="Slideshow öffnen"
+                      @click="openSlideshowInNewWindow(selectedSlideshow)"
+                  >
+                    <div class="digital-workspace__live-scaler">
+                      <iframe
+                          :key="previewIframeKey"
+                          class="digital-workspace__live-frame"
+                          :src="previewUrl"
+                          title="Live-Vorschau"
+                          tabindex="-1"
+                      />
+                    </div>
+                  </button>
+                  <div v-else class="digital-workspace__live-empty">
+                    Keine Folien
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -645,7 +712,7 @@ function copyUrl(url) {
 
 .digital-workspace__editor-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
   flex-shrink: 0;
@@ -655,6 +722,7 @@ function copyUrl(url) {
 .digital-workspace__editor-title {
   margin: 0;
   min-width: 0;
+  padding-top: 0.35rem;
   font-size: 0.875rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -662,9 +730,18 @@ function copyUrl(url) {
   color: var(--color-text);
 }
 
+.digital-workspace__editor-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .digital-workspace__editor-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.5rem;
   flex-shrink: 0;
 }
@@ -683,6 +760,111 @@ function copyUrl(url) {
 
 .digital-workspace__editor-btn:hover {
   background: var(--color-bg-hover);
+}
+
+.digital-workspace__live-tile {
+  display: flex;
+  flex-direction: column;
+  width: 13.75rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  background: #0f172a;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.digital-workspace__live-tile-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.45rem;
+  background: color-mix(in srgb, #0f172a 88%, #fff);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.digital-workspace__live-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+
+.digital-workspace__live-label {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.digital-workspace__live-reload {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: none;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+}
+
+.digital-workspace__live-reload:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.digital-workspace__live-stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: none;
+  overflow: hidden;
+  cursor: pointer;
+  background: #000;
+  container-type: inline-size;
+}
+
+.digital-workspace__live-scaler {
+  --live-frame-w: 1280;
+  --live-frame-h: 720;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--live-frame-w) * 1px);
+  height: calc(var(--live-frame-h) * 1px);
+  transform: scale(calc(100cqw / var(--live-frame-w)));
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.digital-workspace__live-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: #000;
+}
+
+.digital-workspace__live-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.55);
+  background: #111827;
+}
+
+.digital-workspace__live-tile--empty .digital-workspace__live-dot {
+  background: #64748b;
+  box-shadow: none;
 }
 
 .digital-workspace__editor-body {
