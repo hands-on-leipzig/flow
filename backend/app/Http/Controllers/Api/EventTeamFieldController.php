@@ -206,7 +206,7 @@ class EventTeamFieldController extends Controller
                 }
             }
 
-            $event->check_in_show_team_photo = (bool) $validated['fixed']['photo_consent'];
+            $event->check_in_show_team_photo = true;
             $event->check_in_show_team_meal = (bool) $validated['fixed']['meal'];
             $event->save();
         });

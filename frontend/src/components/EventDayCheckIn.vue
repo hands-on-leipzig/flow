@@ -250,7 +250,7 @@ async function saveTeamShowFields(next: {
   try {
     const {data} = await axios.put(`/events/${eventId.value}/team-fields/check-in-show`, {
       field_keys: next.fields.filter((f) => f.check_in_show).map((f) => f.field_key),
-      fixed: next.fixed,
+      fixed: {photo_consent: true, meal: next.fixed.meal},
     })
     teamFields.value = (data.fields ?? []).map((field: CustomField) => ({
       field_key: field.field_key,
@@ -311,7 +311,11 @@ async function saveHelperShowFields(next: {
   try {
     const {data} = await axios.put(`/events/${eventId.value}/volunteer-fields/check-in-show`, {
       field_keys: next.fields.filter((f) => f.check_in_show).map((f) => f.field_key),
-      fixed: next.fixed,
+      fixed: {
+        photo_consent: true,
+        meal: next.fixed.meal,
+        t_shirt: next.fixed.t_shirt,
+      },
     })
     helperFields.value = (data.fields ?? []).map((field: CustomField) => ({
       field_key: field.field_key,
@@ -352,10 +356,10 @@ async function saveHelperShowFields(next: {
   }
 }
 
-function toggleTeamFixed(key: 'photo_consent' | 'meal', checked: boolean) {
+function toggleTeamFixed(key: 'meal', checked: boolean) {
   void saveTeamShowFields({
     fields: teamFields.value,
-    fixed: {...teamFixed.value, [key]: checked},
+    fixed: {photo_consent: true, meal: key === 'meal' ? checked : teamFixed.value.meal},
   })
 }
 
@@ -364,14 +368,18 @@ function toggleTeamCustom(fieldKey: string, checked: boolean) {
     fields: teamFields.value.map((f) =>
       f.field_key === fieldKey ? {...f, check_in_show: checked} : f,
     ),
-    fixed: {...teamFixed.value},
+    fixed: {photo_consent: true, meal: teamFixed.value.meal},
   })
 }
 
-function toggleHelperFixed(key: 'photo_consent' | 'meal' | 't_shirt', checked: boolean) {
+function toggleHelperFixed(key: 'meal' | 't_shirt', checked: boolean) {
   void saveHelperShowFields({
     fields: helperFields.value,
-    fixed: {...helperFixed.value, [key]: checked},
+    fixed: {
+      photo_consent: true,
+      meal: key === 'meal' ? checked : helperFixed.value.meal,
+      t_shirt: key === 't_shirt' ? checked : helperFixed.value.t_shirt,
+    },
   })
 }
 
@@ -380,7 +388,11 @@ function toggleHelperCustom(fieldKey: string, checked: boolean) {
     fields: helperFields.value.map((f) =>
       f.field_key === fieldKey ? {...f, check_in_show: checked} : f,
     ),
-    fixed: {...helperFixed.value},
+    fixed: {
+      photo_consent: true,
+      meal: helperFixed.value.meal,
+      t_shirt: helperFixed.value.t_shirt,
+    },
   })
 }
 
@@ -498,15 +510,10 @@ onBeforeUnmount(() => {
                 </p>
                 <div class="ci-form-checklist">
                   <p class="ci-form-checklist-title">Felder in der App</p>
-                  <label class="ci-form-check">
-                    <input
-                        type="checkbox"
-                        :checked="teamFixed.photo_consent"
-                        :disabled="loading || !eventId || teamShowBusy"
-                        @change="toggleTeamFixed('photo_consent', ($event.target as HTMLInputElement).checked)"
-                    >
+                  <div class="ci-form-check ci-form-check--fixed" title="Immer in der App">
+                    <input type="checkbox" :checked="true" disabled>
                     <span>Fotoerlaubnis</span>
-                  </label>
+                  </div>
                   <label v-if="teamCollectMeal" class="ci-form-check">
                     <input
                         type="checkbox"
@@ -552,15 +559,10 @@ onBeforeUnmount(() => {
                 </p>
                 <div class="ci-form-checklist">
                   <p class="ci-form-checklist-title">Felder in der App</p>
-                  <label class="ci-form-check">
-                    <input
-                        type="checkbox"
-                        :checked="helperFixed.photo_consent"
-                        :disabled="loading || !eventId || helperShowBusy"
-                        @change="toggleHelperFixed('photo_consent', ($event.target as HTMLInputElement).checked)"
-                    >
+                  <div class="ci-form-check ci-form-check--fixed" title="Immer in der App">
+                    <input type="checkbox" :checked="true" disabled>
                     <span>Fotoerlaubnis</span>
-                  </label>
+                  </div>
                   <label v-if="helperCollectTShirt" class="ci-form-check">
                     <input
                         type="checkbox"
@@ -718,5 +720,15 @@ onBeforeUnmount(() => {
   gap: 0.4rem;
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+.ci-form-check--fixed {
+  cursor: default;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+}
+
+.ci-form-check--fixed input {
+  cursor: not-allowed;
 }
 </style>

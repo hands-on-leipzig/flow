@@ -205,7 +205,7 @@ class EventVolunteerFieldController extends Controller
                 }
             }
 
-            $event->check_in_show_helper_photo = (bool) $validated['fixed']['photo_consent'];
+            $event->check_in_show_helper_photo = true;
             $event->check_in_show_helper_meal = (bool) $validated['fixed']['meal'];
             $event->check_in_show_helper_t_shirt = (bool) $validated['fixed']['t_shirt'];
             $event->save();

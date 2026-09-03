@@ -607,15 +607,13 @@ class CheckInService
     {
         $fields = [];
 
-        if ((bool) ($event->check_in_show_team_photo ?? true)) {
-            $fields[] = [
-                'key' => 'photo_consent',
-                'kind' => 'photo_consent',
-                'label' => 'Fotoerlaubnis',
-                'value' => $photoPayload['check_in_label'],
-                'status' => $photoPayload['status'],
-            ];
-        }
+        $fields[] = [
+            'key' => 'photo_consent',
+            'kind' => 'photo_consent',
+            'label' => 'Fotoerlaubnis',
+            'value' => $photoPayload['check_in_label'],
+            'status' => $photoPayload['status'],
+        ];
 
         if ((bool) ($event->check_in_show_team_meal ?? false) && VolunteerCollectOptions::collectsMeal($event)) {
             $fields[] = [
@@ -665,15 +663,13 @@ class CheckInService
         $collect = VolunteerCollectOptions::forEvent($event);
         $detail = $roster?->detail;
 
-        if ((bool) ($event->check_in_show_helper_photo ?? true)) {
-            $fields[] = [
-                'key' => 'photo_consent',
-                'kind' => 'photo_consent',
-                'label' => 'Fotoerlaubnis',
-                'value' => $photoPayload['check_in_label'],
-                'status' => $photoPayload['status'],
-            ];
-        }
+        $fields[] = [
+            'key' => 'photo_consent',
+            'kind' => 'photo_consent',
+            'label' => 'Fotoerlaubnis',
+            'value' => $photoPayload['check_in_label'],
+            'status' => $photoPayload['status'],
+        ];
 
         if ((bool) ($event->check_in_show_helper_t_shirt ?? false) && ($collect['t_shirt'] ?? false)) {
             $cut = VolunteerRosterDetailFields::exportLabel($detail?->t_shirt_cut);

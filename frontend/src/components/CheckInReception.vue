@@ -356,6 +356,10 @@ function roleLabel(hit: {subject_type?: string; subtitle?: string | null; role_l
   return ''
 }
 
+function detailExtraFields(detail: Detail | null): DisplayField[] {
+  return (detail?.display_fields || []).filter((field) => field.kind !== 'photo_consent')
+}
+
 function statsLogo(line: OverviewLine) {
   if (line.kind === 'program' && line.logo_stem) return programLogoSrc({logo_stem: line.logo_stem})
   return ''
@@ -670,11 +674,21 @@ onMounted(async () => {
                     <i class="bi bi-camera ci-photo-consent__icon" aria-hidden="true"/>
                     <span>{{ field.value }}</span>
                   </div>
-                  <div v-else class="ci-display-field">
-                    <span class="ci-display-field__label">{{ field.label }}</span>
-                    <span class="ci-display-field__value">{{ field.value }}</span>
-                  </div>
                 </template>
+                <div
+                    v-if="detailExtraFields(detail).length"
+                    class="ci-display-chips"
+                >
+                  <span
+                      v-for="field in detailExtraFields(detail)"
+                      :key="field.key"
+                      class="ci-chip"
+                      :title="`${field.label}: ${field.value}`"
+                  >
+                    <span class="ci-chip__label">{{ field.label }}</span>
+                    <span class="ci-chip__value">{{ field.value }}</span>
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1104,24 +1118,38 @@ onMounted(async () => {
   margin-top: 0;
 }
 
-.ci-display-field {
+.ci-display-chips {
   display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  padding: 0.15rem 0;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
-.ci-display-field__label {
+.ci-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  max-width: 100%;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--liquid-border-soft);
+  background: color-mix(in srgb, var(--color-bg-muted) 70%, #fff);
   font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
+  line-height: 1.25;
 }
 
-.ci-display-field__value {
-  font-size: 0.95rem;
+.ci-chip__label {
+  color: var(--color-text-muted);
   font-weight: 600;
+  flex-shrink: 0;
+}
+
+.ci-chip__value {
   color: var(--color-text);
-  line-height: 1.3;
+  font-weight: 650;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ci-hit__label {
