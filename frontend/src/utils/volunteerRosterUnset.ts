@@ -7,12 +7,11 @@ type RosterDetailLike = {
 }
 
 type RosterEntryLike = {
-  assignments?: unknown[]
   detail?: RosterDetailLike | null
   custom?: Record<string, string | number | boolean | null> | null
 }
 
-export const ROSTER_FIXED_UNSET_KEYS = ['role', 't_shirt', 'meal'] as const
+export const ROSTER_FIXED_UNSET_KEYS = ['t_shirt', 'meal'] as const
 
 function detailOf(entry: RosterEntryLike): RosterDetailLike {
   return entry.detail ?? {
@@ -30,8 +29,6 @@ export function rosterFixedFieldIsUnset(entry: RosterEntryLike, key: (typeof ROS
   const detail = detailOf(entry)
 
   switch (key) {
-    case 'role':
-      return !(entry.assignments?.length)
     case 't_shirt':
       return !detail.t_shirt_cut || !detail.t_shirt_size
     case 'meal':

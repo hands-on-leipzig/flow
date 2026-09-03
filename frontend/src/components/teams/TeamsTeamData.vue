@@ -289,11 +289,11 @@ onActivated(() => {
             class="vol-staffing-filter"
             :class="{'vol-staffing-filter--active': showOnlyPhotoUnset}"
             :aria-pressed="showOnlyPhotoUnset"
-            title="Nur Teams ohne Fotoerlaubnis anzeigen"
+            title="Nur Teams mit fehlender Fotoerlaubnis anzeigen"
             @click="showOnlyPhotoUnset = !showOnlyPhotoUnset"
         >
           <i class="bi bi-camera vol-staffing-filter__icon" aria-hidden="true"/>
-          <span class="vol-staffing-filter__label">Fotoerlaubnis</span>
+          <span class="vol-staffing-filter__label">Fotoerlaubnis fehlt</span>
         </button>
         <button
             type="button"
@@ -303,7 +303,7 @@ onActivated(() => {
             @click="showOnlyIncomplete = !showOnlyIncomplete"
         >
           <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
-          <span class="vol-staffing-filter__label">Unvollständige</span>
+          <span class="vol-staffing-filter__label">Unvollständige Antworten</span>
         </button>
         <span class="vol-toolbar__count vol-staffing-filters__count">
           {{ filteredTeams.length }} / {{ teams.length }}

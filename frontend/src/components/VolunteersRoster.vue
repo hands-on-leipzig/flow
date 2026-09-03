@@ -373,11 +373,11 @@ onMounted(() => load())
               class="vol-staffing-filter"
               :class="{'vol-staffing-filter--active': showOnlyPhotoUnset}"
               :aria-pressed="showOnlyPhotoUnset"
-              title="Nur Helfer:innen ohne Fotoerlaubnis anzeigen"
+              title="Nur Helfer:innen mit fehlender Fotoerlaubnis anzeigen"
               @click="showOnlyPhotoUnset = !showOnlyPhotoUnset"
           >
             <i class="bi bi-camera vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Fotoerlaubnis</span>
+            <span class="vol-staffing-filter__label">Fotoerlaubnis fehlt</span>
           </button>
           <button
               type="button"
@@ -387,7 +387,7 @@ onMounted(() => load())
               @click="showOnlyUnset = !showOnlyUnset"
           >
             <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Unvollständige</span>
+            <span class="vol-staffing-filter__label">Unvollständige Antworten</span>
           </button>
           <span class="vol-toolbar__count vol-staffing-filters__count">
             {{ filteredRoster.length }} / {{ roster.length }}

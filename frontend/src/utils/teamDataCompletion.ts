@@ -98,7 +98,8 @@ export function isTeamRowIncomplete(row: TeamDataRow, columns: TeamDataColumn[])
       if (isScalarColumnIncomplete(row, column)) return true
       continue
     }
-    if (column.editor === 'meal_counts' || column.editor === 'count_set') {
+    // Essen only — Fotoerlaubnis has its own filter chip.
+    if (column.editor === 'meal_counts') {
       if (isCountSetColumnIncomplete(row, column)) return true
     }
   }
