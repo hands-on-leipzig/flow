@@ -260,7 +260,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
             <button
                 v-if="column.editor === 'meal_counts' || column.editor === 'count_set'"
                 type="button"
-                class="vol-detail-trigger glass-input glass-input--sm"
+                class="vol-detail-trigger glass-input glass-input--sm team-data-count-trigger"
                 :class="photoCellClass(row, column)"
                 :title="row.people_count !== null ? `Summe ${countSetTotal(row, column)} von ${row.people_count} Personen` : undefined"
                 @click="onCountCellClick($event, row, column)"
@@ -447,6 +447,12 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 
 .team-data-table__dash {
   opacity: 0.5;
+}
+
+.team-data-count-trigger,
+.team-data-count-trigger.vol-detail-trigger--unset {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .team-data-cell--mismatch {
