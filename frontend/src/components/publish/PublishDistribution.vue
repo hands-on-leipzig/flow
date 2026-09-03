@@ -457,12 +457,19 @@ onActivated(() => {
 </script>
 
 <template>
-  <div class="pub">
+  <div class="vol-page vol-page--fill pub">
     <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
     <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="volunteerDataEntrySaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="teamDataEntrySaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="dayAppsSaving" message="Wird gespeichert…" />
+
+    <header class="vol-page__header">
+      <div>
+        <h1 class="vol-page__title">Veröffentlichung</h1>
+        <p class="vol-page__sub">Festlegen, was der öffentliche Link zeigt</p>
+      </div>
+    </header>
 
     <div class="pub__workspace">
       <div class="pub__split">
@@ -472,10 +479,6 @@ onActivated(() => {
         >
           <div class="pub__left-scroll">
             <div class="pub__settings">
-            <header class="pub__page-head">
-              <h1 class="pub__page-title">Veröffentlichung</h1>
-            </header>
-
             <PublicLinkStrip on-publish-page/>
 
             <section class="pub__tile glass-card liquid-surface-inner">
@@ -900,17 +903,6 @@ onActivated(() => {
   box-shadow:
     0 10px 28px rgba(15, 23, 42, 0.07),
     0 2px 6px rgba(15, 23, 42, 0.04);
-}
-
-.pub__page-head {
-  margin: 0;
-}
-
-.pub__page-title {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 650;
-  line-height: 1.2;
 }
 
 .pub__app-block {
