@@ -482,7 +482,7 @@ onBeforeUnmount(() => {
                       inputmode="numeric"
                       maxlength="6"
                       autocomplete="off"
-                      class="glass-input ci-settings__pin-input"
+                      class="glass-input liquid-surface-control ci-settings__pin-input"
                       :disabled="loading || !eventId"
                       @input="onPinInput"
                       @blur="flushFieldSave({revertIncompletePin: true})"
@@ -497,7 +497,7 @@ onBeforeUnmount(() => {
                     id="checkin-text-teams"
                     v-model="textTeams"
                     rows="3"
-                    class="glass-input ci-settings__textarea"
+                    class="glass-input liquid-surface-control ci-settings__textarea"
                     :disabled="loading || !eventId"
                     placeholder="Optionaler Hinweis für alle Teams…"
                     @blur="flushFieldSave"
@@ -546,7 +546,7 @@ onBeforeUnmount(() => {
                     id="checkin-text-helpers"
                     v-model="textHelpers"
                     rows="3"
-                    class="glass-input ci-settings__textarea"
+                    class="glass-input liquid-surface-control ci-settings__textarea"
                     :disabled="loading || !eventId"
                     placeholder="Optionaler Hinweis für alle Helfer:innen…"
                     @blur="flushFieldSave"
@@ -696,6 +696,12 @@ onBeforeUnmount(() => {
   min-height: 4.5rem;
   resize: vertical;
   margin-bottom: 0.65rem;
+  /* Solid fill so the field reads clearly on whitened liquid-surface-inner cards */
+  background: color-mix(in srgb, #ffffff 94%, var(--color-bg-muted));
+  border-color: color-mix(in srgb, var(--color-border-strong) 42%, var(--liquid-border));
+  box-shadow:
+    inset 0 1px 2px rgba(15, 23, 42, 0.06),
+    0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
 .ci-form-checklist {
