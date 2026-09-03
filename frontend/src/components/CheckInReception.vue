@@ -29,6 +29,14 @@ type SearchHit = {
   checked_in_at?: string | null
 }
 
+type DisplayField = {
+  key: string
+  kind: 'photo_consent' | 'text' | string
+  label: string
+  value: string
+  status?: 'pending' | 'granted' | 'denied'
+}
+
 type Detail = SearchHit & {
   room?: string | null
   info_text?: string | null
@@ -37,7 +45,7 @@ type Detail = SearchHit & {
   no_show_reason?: string | null
   no_show_source?: string | null
   next_activities?: Array<{start: string | null; room?: string | null; title: string}>
-  photo_consent?: {status: 'pending' | 'granted' | 'denied'; label: string} | null
+  display_fields?: DisplayField[]
 }
 
 type OverviewLine = {
@@ -649,13 +657,24 @@ onMounted(async () => {
                 <span v-if="roleLabel(detail)" class="ci-hit__sub">{{ roleLabel(detail) }}</span>
               </div>
               <div
-                  v-if="detail.photo_consent"
-                  class="ci-photo-consent"
-                  :class="photoConsentStatusClass(detail.photo_consent.status)"
-                  role="status"
+                  v-if="detail.display_fields?.length"
+                  class="ci-display-fields"
               >
-                <i class="bi bi-camera ci-photo-consent__icon" aria-hidden="true"/>
-                <span>{{ detail.photo_consent.label }}</span>
+                <template v-for="field in detail.display_fields" :key="field.key">
+                  <div
+                      v-if="field.kind === 'photo_consent'"
+                      class="ci-photo-consent"
+                      :class="photoConsentStatusClass(field.status ?? 'pending')"
+                      role="status"
+                  >
+                    <i class="bi bi-camera ci-photo-consent__icon" aria-hidden="true"/>
+                    <span>{{ field.value }}</span>
+                  </div>
+                  <div v-else class="ci-display-field">
+                    <span class="ci-display-field__label">{{ field.label }}</span>
+                    <span class="ci-display-field__value">{{ field.value }}</span>
+                  </div>
+                </template>
               </div>
             </div>
 
@@ -1072,6 +1091,37 @@ onMounted(async () => {
   margin-top: 0.05rem;
   font-size: 1rem;
   line-height: 1;
+}
+
+.ci-display-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+.ci-display-fields .ci-photo-consent {
+  margin-top: 0;
+}
+
+.ci-display-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.15rem 0;
+}
+
+.ci-display-field__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.ci-display-field__value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.3;
 }
 
 .ci-hit__label {

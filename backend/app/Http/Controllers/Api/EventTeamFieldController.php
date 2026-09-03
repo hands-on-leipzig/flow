@@ -69,6 +69,7 @@ class EventTeamFieldController extends Controller
             'options' => $validation['data']['options'],
             'sequence' => $sequence,
             'public_form' => false,
+            'check_in_show' => false,
         ]);
 
         return response()->json([
@@ -171,6 +172,62 @@ class EventTeamFieldController extends Controller
             ->map(fn (EventTeamField $field) => TeamDataCustomFields::serializeField($field));
 
         return response()->json(['fields' => $serialized]);
+    }
+
+    /**
+     * Checklist save: which fields appear in the Check-In reception app.
+     */
+    public function replaceCheckInShow(Request $request, Event $event): JsonResponse
+    {
+        $validated = $request->validate([
+            'field_keys' => 'present|array',
+            'field_keys.*' => 'string|max:64',
+            'fixed' => 'required|array',
+            'fixed.photo_consent' => 'required|boolean',
+            'fixed.meal' => 'required|boolean',
+        ]);
+
+        $keys = array_values(array_unique(array_map('strval', $validated['field_keys'])));
+        $fields = EventTeamField::query()->where('event', $event->id)->get();
+        $known = $fields->pluck('field_key')->all();
+
+        foreach ($keys as $key) {
+            if (! in_array($key, $known, true)) {
+                return response()->json(['error' => 'Unbekanntes Zusatzfeld.'], 422);
+            }
+        }
+
+        DB::transaction(function () use ($event, $fields, $keys, $validated) {
+            foreach ($fields as $field) {
+                $next = in_array($field->field_key, $keys, true);
+                if ((bool) $field->check_in_show !== $next) {
+                    $field->check_in_show = $next;
+                    $field->save();
+                }
+            }
+
+            $event->check_in_show_team_photo = (bool) $validated['fixed']['photo_consent'];
+            $event->check_in_show_team_meal = (bool) $validated['fixed']['meal'];
+            $event->save();
+        });
+
+        $serialized = EventTeamField::query()
+            ->where('event', $event->id)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (EventTeamField $field) => TeamDataCustomFields::serializeField($field));
+
+        return response()->json([
+            'fields' => $serialized,
+            'collect' => [
+                'meal' => VolunteerCollectOptions::collectsMeal($event->fresh()),
+            ],
+            'show_fields' => [
+                'photo_consent' => (bool) $event->check_in_show_team_photo,
+                'meal' => (bool) $event->check_in_show_team_meal,
+            ],
+        ]);
     }
 
     private function swapSequence(int $eventId, EventTeamField $field, int $direction): void

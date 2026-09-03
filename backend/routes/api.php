@@ -308,6 +308,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/team-fields', [EventTeamFieldController::class, 'index']);
     Route::post('/events/{event}/team-fields', [EventTeamFieldController::class, 'store']);
     Route::put('/events/{event}/team-fields/public-form', [EventTeamFieldController::class, 'replacePublicForm']);
+    Route::put('/events/{event}/team-fields/check-in-show', [EventTeamFieldController::class, 'replaceCheckInShow']);
     Route::patch('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'update']);
     Route::delete('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'destroy']);
     Route::get('/events/{event}/team-data', [EventTeamDataController::class, 'index']);
@@ -324,6 +325,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'index']);
     Route::post('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'store']);
     Route::put('/events/{event}/volunteer-fields/public-form', [EventVolunteerFieldController::class, 'replacePublicForm']);
+    Route::put('/events/{event}/volunteer-fields/check-in-show', [EventVolunteerFieldController::class, 'replaceCheckInShow']);
     Route::patch('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'update']);
     Route::delete('/events/{event}/volunteer-fields/{field}', [EventVolunteerFieldController::class, 'destroy']);
     Route::get('/events/{event}/volunteer-meal-options', [EventVolunteerMealOptionController::class, 'index']);

@@ -68,6 +68,7 @@ class EventVolunteerFieldController extends Controller
             'options' => $validation['data']['options'],
             'sequence' => $sequence,
             'public_form' => false,
+            'check_in_show' => false,
         ]);
 
         return response()->json([
@@ -169,6 +170,64 @@ class EventVolunteerFieldController extends Controller
             ->map(fn (EventVolunteerField $field) => VolunteerRosterCustomFields::serializeField($field));
 
         return response()->json(['fields' => $serialized]);
+    }
+
+    /**
+     * Checklist save: which fields appear in the Check-In reception app.
+     */
+    public function replaceCheckInShow(Request $request, Event $event): JsonResponse
+    {
+        $validated = $request->validate([
+            'field_keys' => 'present|array',
+            'field_keys.*' => 'string|max:64',
+            'fixed' => 'required|array',
+            'fixed.photo_consent' => 'required|boolean',
+            'fixed.meal' => 'required|boolean',
+            'fixed.t_shirt' => 'required|boolean',
+        ]);
+
+        $keys = array_values(array_unique(array_map('strval', $validated['field_keys'])));
+        $fields = EventVolunteerField::query()->where('event', $event->id)->get();
+        $known = $fields->pluck('field_key')->all();
+
+        foreach ($keys as $key) {
+            if (! in_array($key, $known, true)) {
+                return response()->json(['error' => 'Unbekanntes Zusatzfeld.'], 422);
+            }
+        }
+
+        DB::transaction(function () use ($event, $fields, $keys, $validated) {
+            foreach ($fields as $field) {
+                $next = in_array($field->field_key, $keys, true);
+                if ((bool) $field->check_in_show !== $next) {
+                    $field->check_in_show = $next;
+                    $field->save();
+                }
+            }
+
+            $event->check_in_show_helper_photo = (bool) $validated['fixed']['photo_consent'];
+            $event->check_in_show_helper_meal = (bool) $validated['fixed']['meal'];
+            $event->check_in_show_helper_t_shirt = (bool) $validated['fixed']['t_shirt'];
+            $event->save();
+        });
+
+        $event = $event->fresh();
+        $serialized = EventVolunteerField::query()
+            ->where('event', $event->id)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get()
+            ->map(fn (EventVolunteerField $field) => VolunteerRosterCustomFields::serializeField($field));
+
+        return response()->json([
+            'fields' => $serialized,
+            'collect' => VolunteerCollectOptions::forEvent($event),
+            'show_fields' => [
+                'photo_consent' => (bool) $event->check_in_show_helper_photo,
+                'meal' => (bool) $event->check_in_show_helper_meal,
+                't_shirt' => (bool) $event->check_in_show_helper_t_shirt,
+            ],
+        ]);
     }
 
     private function swapSequence(int $eventId, EventVolunteerField $field, int $direction): void

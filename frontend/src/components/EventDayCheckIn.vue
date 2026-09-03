@@ -15,6 +15,11 @@ import {showGlassToast} from '@/composables/useGlassToast'
 
 defineOptions({name: 'EventDayCheckIn'})
 
+type ShowFields = {
+  teams: {photo_consent: boolean; meal: boolean}
+  helpers: {photo_consent: boolean; meal: boolean; t_shirt: boolean}
+}
+
 type Settings = {
   event_id: number
   slug: string | null
@@ -24,6 +29,13 @@ type Settings = {
   text_teams: string | null
   text_helpers: string | null
   reception_path: string | null
+  show_fields?: ShowFields
+}
+
+type CustomField = {
+  field_key: string
+  label: string
+  check_in_show: boolean
 }
 
 const FIELD_SAVE_DEBOUNCE_MS = 450
@@ -46,6 +58,24 @@ const previewNonce = ref(Date.now())
 const showResetConfirm = ref(false)
 const resetBusy = ref(false)
 let fieldSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+const teamFields = ref<CustomField[]>([])
+const helperFields = ref<CustomField[]>([])
+const teamCollectMeal = ref(false)
+const helperCollectMeal = ref(false)
+const helperCollectTShirt = ref(false)
+const teamShowBusy = ref(false)
+const helperShowBusy = ref(false)
+
+const teamFixed = computed(() => settings.value?.show_fields?.teams ?? {
+  photo_consent: true,
+  meal: false,
+})
+const helperFixed = computed(() => settings.value?.show_fields?.helpers ?? {
+  photo_consent: true,
+  meal: false,
+  t_shirt: false,
+})
 
 /** Same-origin reception URL; nonce forces a real network reload after settings change. */
 const receptionUrl = computed(() => {
@@ -74,9 +104,51 @@ function pendingFieldUpdates(): Record<string, string> {
   return payload
 }
 
+async function loadTeamFields() {
+  if (!eventId.value) {
+    teamFields.value = []
+    teamCollectMeal.value = false
+    return
+  }
+  try {
+    const {data} = await axios.get(`/events/${eventId.value}/team-fields`)
+    teamFields.value = (data.fields ?? []).map((field: CustomField) => ({
+      field_key: field.field_key,
+      label: field.label,
+      check_in_show: !!field.check_in_show,
+    }))
+    teamCollectMeal.value = !!data.collect?.meal
+  } catch {
+    teamFields.value = []
+  }
+}
+
+async function loadHelperFields() {
+  if (!eventId.value) {
+    helperFields.value = []
+    helperCollectMeal.value = false
+    helperCollectTShirt.value = false
+    return
+  }
+  try {
+    const {data} = await axios.get(`/events/${eventId.value}/volunteer-fields`)
+    helperFields.value = (data.fields ?? []).map((field: CustomField) => ({
+      field_key: field.field_key,
+      label: field.label,
+      check_in_show: !!field.check_in_show,
+    }))
+    helperCollectMeal.value = !!data.collect?.meal
+    helperCollectTShirt.value = !!data.collect?.t_shirt
+  } catch {
+    helperFields.value = []
+  }
+}
+
 async function loadSettings() {
   if (!eventId.value) {
     settings.value = null
+    teamFields.value = []
+    helperFields.value = []
     return
   }
   loading.value = true
@@ -84,6 +156,7 @@ async function loadSettings() {
     const {data} = await axios.get(`/events/${eventId.value}/check-in/settings`)
     settings.value = data
     syncDraftsFromSettings(data)
+    await Promise.all([loadTeamFields(), loadHelperFields()])
     reloadPreview()
   } catch {
     showGlassToast('Check-In Einstellungen konnten nicht geladen werden.', 'error')
@@ -153,6 +226,162 @@ function reloadPreview() {
 
 function onIframeLoad() {
   iframeLoading.value = false
+}
+
+async function saveTeamShowFields(next: {
+  fields: CustomField[]
+  fixed: {photo_consent: boolean; meal: boolean}
+}) {
+  if (!eventId.value || teamShowBusy.value) return
+  teamShowBusy.value = true
+  saving.value?.show()
+  const prevFields = teamFields.value.map((f) => ({...f}))
+  const prevFixed = {...teamFixed.value}
+  teamFields.value = next.fields
+  if (settings.value?.show_fields) {
+    settings.value = {
+      ...settings.value,
+      show_fields: {
+        ...settings.value.show_fields,
+        teams: {...next.fixed},
+      },
+    }
+  }
+  try {
+    const {data} = await axios.put(`/events/${eventId.value}/team-fields/check-in-show`, {
+      field_keys: next.fields.filter((f) => f.check_in_show).map((f) => f.field_key),
+      fixed: next.fixed,
+    })
+    teamFields.value = (data.fields ?? []).map((field: CustomField) => ({
+      field_key: field.field_key,
+      label: field.label,
+      check_in_show: !!field.check_in_show,
+    }))
+    teamCollectMeal.value = !!data.collect?.meal
+    if (settings.value) {
+      settings.value = {
+        ...settings.value,
+        show_fields: {
+          teams: {
+            photo_consent: !!data.show_fields?.photo_consent,
+            meal: !!data.show_fields?.meal,
+          },
+          helpers: settings.value.show_fields?.helpers ?? helperFixed.value,
+        },
+      }
+    }
+    reloadPreview()
+  } catch (e: any) {
+    teamFields.value = prevFields
+    if (settings.value?.show_fields) {
+      settings.value = {
+        ...settings.value,
+        show_fields: {
+          ...settings.value.show_fields,
+          teams: prevFixed,
+        },
+      }
+    }
+    showGlassToast(e?.response?.data?.error || 'Speichern fehlgeschlagen.', 'error')
+  } finally {
+    teamShowBusy.value = false
+    saving.value?.hide()
+  }
+}
+
+async function saveHelperShowFields(next: {
+  fields: CustomField[]
+  fixed: {photo_consent: boolean; meal: boolean; t_shirt: boolean}
+}) {
+  if (!eventId.value || helperShowBusy.value) return
+  helperShowBusy.value = true
+  saving.value?.show()
+  const prevFields = helperFields.value.map((f) => ({...f}))
+  const prevFixed = {...helperFixed.value}
+  helperFields.value = next.fields
+  if (settings.value?.show_fields) {
+    settings.value = {
+      ...settings.value,
+      show_fields: {
+        ...settings.value.show_fields,
+        helpers: {...next.fixed},
+      },
+    }
+  }
+  try {
+    const {data} = await axios.put(`/events/${eventId.value}/volunteer-fields/check-in-show`, {
+      field_keys: next.fields.filter((f) => f.check_in_show).map((f) => f.field_key),
+      fixed: next.fixed,
+    })
+    helperFields.value = (data.fields ?? []).map((field: CustomField) => ({
+      field_key: field.field_key,
+      label: field.label,
+      check_in_show: !!field.check_in_show,
+    }))
+    helperCollectMeal.value = !!data.collect?.meal
+    helperCollectTShirt.value = !!data.collect?.t_shirt
+    if (settings.value) {
+      settings.value = {
+        ...settings.value,
+        show_fields: {
+          teams: settings.value.show_fields?.teams ?? teamFixed.value,
+          helpers: {
+            photo_consent: !!data.show_fields?.photo_consent,
+            meal: !!data.show_fields?.meal,
+            t_shirt: !!data.show_fields?.t_shirt,
+          },
+        },
+      }
+    }
+    reloadPreview()
+  } catch (e: any) {
+    helperFields.value = prevFields
+    if (settings.value?.show_fields) {
+      settings.value = {
+        ...settings.value,
+        show_fields: {
+          ...settings.value.show_fields,
+          helpers: prevFixed,
+        },
+      }
+    }
+    showGlassToast(e?.response?.data?.error || 'Speichern fehlgeschlagen.', 'error')
+  } finally {
+    helperShowBusy.value = false
+    saving.value?.hide()
+  }
+}
+
+function toggleTeamFixed(key: 'photo_consent' | 'meal', checked: boolean) {
+  void saveTeamShowFields({
+    fields: teamFields.value,
+    fixed: {...teamFixed.value, [key]: checked},
+  })
+}
+
+function toggleTeamCustom(fieldKey: string, checked: boolean) {
+  void saveTeamShowFields({
+    fields: teamFields.value.map((f) =>
+      f.field_key === fieldKey ? {...f, check_in_show: checked} : f,
+    ),
+    fixed: {...teamFixed.value},
+  })
+}
+
+function toggleHelperFixed(key: 'photo_consent' | 'meal' | 't_shirt', checked: boolean) {
+  void saveHelperShowFields({
+    fields: helperFields.value,
+    fixed: {...helperFixed.value, [key]: checked},
+  })
+}
+
+function toggleHelperCustom(fieldKey: string, checked: boolean) {
+  void saveHelperShowFields({
+    fields: helperFields.value.map((f) =>
+      f.field_key === fieldKey ? {...f, check_in_show: checked} : f,
+    ),
+    fixed: {...helperFixed.value},
+  })
 }
 
 async function confirmReset() {
@@ -250,8 +479,10 @@ onBeforeUnmount(() => {
               </section>
 
               <section class="glass-card liquid-surface-inner settings-split__tile">
-                <h2 class="glass-card__heading">Infotext Teams</h2>
+                <h2 class="glass-card__heading">Teams</h2>
+                <label class="ci-settings__infotext-label" for="checkin-text-teams">Infotext</label>
                 <textarea
+                    id="checkin-text-teams"
                     v-model="textTeams"
                     rows="3"
                     class="glass-input ci-settings__textarea"
@@ -260,11 +491,52 @@ onBeforeUnmount(() => {
                     @blur="flushFieldSave"
                     @keydown.enter.exact.prevent="flushFieldSave"
                 />
+                <p class="glass-settings-hint !mb-0">
+                  Welche Felder es gibt, wird unter
+                  <RouterLink to="/plan/teams/data" class="glass-settings-hint-link">Teams → Teamdaten</RouterLink>
+                  festgelegt.
+                </p>
+                <div class="ci-form-checklist">
+                  <p class="ci-form-checklist-title">Felder in der App</p>
+                  <label class="ci-form-check">
+                    <input
+                        type="checkbox"
+                        :checked="teamFixed.photo_consent"
+                        :disabled="loading || !eventId || teamShowBusy"
+                        @change="toggleTeamFixed('photo_consent', ($event.target as HTMLInputElement).checked)"
+                    >
+                    <span>Fotoerlaubnis</span>
+                  </label>
+                  <label v-if="teamCollectMeal" class="ci-form-check">
+                    <input
+                        type="checkbox"
+                        :checked="teamFixed.meal"
+                        :disabled="loading || !eventId || teamShowBusy"
+                        @change="toggleTeamFixed('meal', ($event.target as HTMLInputElement).checked)"
+                    >
+                    <span>Essen</span>
+                  </label>
+                  <label
+                      v-for="field in teamFields"
+                      :key="field.field_key"
+                      class="ci-form-check"
+                  >
+                    <input
+                        type="checkbox"
+                        :checked="field.check_in_show"
+                        :disabled="loading || !eventId || teamShowBusy"
+                        @change="toggleTeamCustom(field.field_key, ($event.target as HTMLInputElement).checked)"
+                    >
+                    <span>{{ field.label }}</span>
+                  </label>
+                </div>
               </section>
 
               <section class="glass-card liquid-surface-inner settings-split__tile">
-                <h2 class="glass-card__heading">Infotext Helfer:innen</h2>
+                <h2 class="glass-card__heading">Helfer:innen</h2>
+                <label class="ci-settings__infotext-label" for="checkin-text-helpers">Infotext</label>
                 <textarea
+                    id="checkin-text-helpers"
                     v-model="textHelpers"
                     rows="3"
                     class="glass-input ci-settings__textarea"
@@ -273,6 +545,54 @@ onBeforeUnmount(() => {
                     @blur="flushFieldSave"
                     @keydown.enter.exact.prevent="flushFieldSave"
                 />
+                <p class="glass-settings-hint !mb-0">
+                  Welche Felder es gibt, wird unter
+                  <RouterLink to="/plan/volunteers/roster" class="glass-settings-hint-link">Helfer:innen → Helferliste</RouterLink>
+                  festgelegt.
+                </p>
+                <div class="ci-form-checklist">
+                  <p class="ci-form-checklist-title">Felder in der App</p>
+                  <label class="ci-form-check">
+                    <input
+                        type="checkbox"
+                        :checked="helperFixed.photo_consent"
+                        :disabled="loading || !eventId || helperShowBusy"
+                        @change="toggleHelperFixed('photo_consent', ($event.target as HTMLInputElement).checked)"
+                    >
+                    <span>Fotoerlaubnis</span>
+                  </label>
+                  <label v-if="helperCollectTShirt" class="ci-form-check">
+                    <input
+                        type="checkbox"
+                        :checked="helperFixed.t_shirt"
+                        :disabled="loading || !eventId || helperShowBusy"
+                        @change="toggleHelperFixed('t_shirt', ($event.target as HTMLInputElement).checked)"
+                    >
+                    <span>T-Shirt Größe</span>
+                  </label>
+                  <label v-if="helperCollectMeal" class="ci-form-check">
+                    <input
+                        type="checkbox"
+                        :checked="helperFixed.meal"
+                        :disabled="loading || !eventId || helperShowBusy"
+                        @change="toggleHelperFixed('meal', ($event.target as HTMLInputElement).checked)"
+                    >
+                    <span>Essen</span>
+                  </label>
+                  <label
+                      v-for="field in helperFields"
+                      :key="field.field_key"
+                      class="ci-form-check"
+                  >
+                    <input
+                        type="checkbox"
+                        :checked="field.check_in_show"
+                        :disabled="loading || !eventId || helperShowBusy"
+                        @change="toggleHelperCustom(field.field_key, ($event.target as HTMLInputElement).checked)"
+                    >
+                    <span>{{ field.label }}</span>
+                  </label>
+                </div>
               </section>
 
               <section class="glass-card liquid-surface-inner settings-split__tile">
@@ -361,9 +681,42 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
+.ci-settings__infotext-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
 .ci-settings__textarea {
   width: 100%;
   min-height: 4.5rem;
   resize: vertical;
+  margin-bottom: 0.65rem;
+}
+
+.ci-form-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid var(--liquid-border-soft);
+}
+
+.ci-form-checklist-title {
+  margin: 0 0 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.ci-form-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 </style>

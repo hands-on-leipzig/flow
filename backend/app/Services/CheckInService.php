@@ -5,11 +5,21 @@ namespace App\Services;
 use App\Http\Controllers\Api\DrahtController;
 use App\Models\CheckIn;
 use App\Models\Event;
+use App\Models\EventTeamField;
+use App\Models\EventTeamFieldValue;
+use App\Models\EventVolunteerField;
+use App\Models\EventVolunteerFieldValue;
 use App\Models\EventVolunteerRoster;
 use App\Models\Plan;
 use App\Support\PhotoConsentStatus;
+use App\Support\TeamDataCustomFields;
+use App\Support\TeamMealCounts;
 use App\Support\TeamPeopleCounts;
 use App\Support\TeamPhotoCounts;
+use App\Support\VolunteerCollectOptions;
+use App\Support\VolunteerMealOptions;
+use App\Support\VolunteerRosterCustomFields;
+use App\Support\VolunteerRosterDetailFields;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -75,6 +85,17 @@ class CheckInService
             'text_teams' => $event->check_in_text_teams,
             'text_helpers' => $event->check_in_text_helpers,
             'reception_path' => $event->slug ? '/'.$event->slug.'/check-in' : null,
+            'show_fields' => [
+                'teams' => [
+                    'photo_consent' => (bool) ($event->check_in_show_team_photo ?? true),
+                    'meal' => (bool) ($event->check_in_show_team_meal ?? false),
+                ],
+                'helpers' => [
+                    'photo_consent' => (bool) ($event->check_in_show_helper_photo ?? true),
+                    'meal' => (bool) ($event->check_in_show_helper_meal ?? false),
+                    't_shirt' => (bool) ($event->check_in_show_helper_t_shirt ?? false),
+                ],
+            ],
         ];
     }
 
@@ -538,10 +559,7 @@ class CheckInService
             'room' => $row->room_name ?: null,
             'info_text' => $event->check_in_text_teams,
             'next_activities' => $this->nextActivitiesForTeam($event, $plan, $row),
-            'photo_consent' => [
-                'status' => $photoPayload['status'],
-                'label' => $photoPayload['check_in_label'],
-            ],
+            'display_fields' => $this->teamDisplayFields($event, $teamId, $photoPayload),
         ], $this->recordStatusPayload($record));
     }
 
@@ -577,11 +595,166 @@ class CheckInService
             'role_labels' => $roleLabels,
             'info_text' => $event->check_in_text_helpers,
             'next_activities' => $this->nextActivitiesForHelper($event, $personId),
-            'photo_consent' => [
-                'status' => $photoPayload['status'],
-                'label' => $photoPayload['check_in_label'],
-            ],
+            'display_fields' => $this->helperDisplayFields($event, $roster, $photoPayload),
         ], $this->recordStatusPayload($record));
+    }
+
+    /**
+     * @param  array{status: string, check_in_label: string}  $photoPayload
+     * @return list<array{key: string, kind: string, label: string, value: string, status?: string}>
+     */
+    private function teamDisplayFields(Event $event, int $teamId, array $photoPayload): array
+    {
+        $fields = [];
+
+        if ((bool) ($event->check_in_show_team_photo ?? true)) {
+            $fields[] = [
+                'key' => 'photo_consent',
+                'kind' => 'photo_consent',
+                'label' => 'Fotoerlaubnis',
+                'value' => $photoPayload['check_in_label'],
+                'status' => $photoPayload['status'],
+            ];
+        }
+
+        if ((bool) ($event->check_in_show_team_meal ?? false) && VolunteerCollectOptions::collectsMeal($event)) {
+            $fields[] = [
+                'key' => 'meal',
+                'kind' => 'text',
+                'label' => 'Essen',
+                'value' => $this->formatTeamMealValue($event->id, $teamId),
+            ];
+        }
+
+        $customFields = EventTeamField::query()
+            ->where('event', $event->id)
+            ->where('check_in_show', true)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get();
+
+        if ($customFields->isNotEmpty()) {
+            $valuesByFieldId = EventTeamFieldValue::query()
+                ->where('team', $teamId)
+                ->whereIn('event_team_field', $customFields->pluck('id'))
+                ->get()
+                ->keyBy('event_team_field');
+
+            foreach ($customFields as $field) {
+                $stored = $valuesByFieldId->get($field->id)?->value;
+                $exported = TeamDataCustomFields::exportValue($field, $stored);
+                $fields[] = [
+                    'key' => $field->field_key,
+                    'kind' => 'text',
+                    'label' => $field->label,
+                    'value' => $exported !== '' ? $exported : '—',
+                ];
+            }
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @param  array{status: string, check_in_label: string}  $photoPayload
+     * @return list<array{key: string, kind: string, label: string, value: string, status?: string}>
+     */
+    private function helperDisplayFields(Event $event, ?EventVolunteerRoster $roster, array $photoPayload): array
+    {
+        $fields = [];
+        $collect = VolunteerCollectOptions::forEvent($event);
+        $detail = $roster?->detail;
+
+        if ((bool) ($event->check_in_show_helper_photo ?? true)) {
+            $fields[] = [
+                'key' => 'photo_consent',
+                'kind' => 'photo_consent',
+                'label' => 'Fotoerlaubnis',
+                'value' => $photoPayload['check_in_label'],
+                'status' => $photoPayload['status'],
+            ];
+        }
+
+        if ((bool) ($event->check_in_show_helper_t_shirt ?? false) && ($collect['t_shirt'] ?? false)) {
+            $cut = VolunteerRosterDetailFields::exportLabel($detail?->t_shirt_cut);
+            $size = trim((string) ($detail?->t_shirt_size ?? ''));
+            $shirt = trim($cut.' '.$size);
+            $fields[] = [
+                'key' => 't_shirt',
+                'kind' => 'text',
+                'label' => 'T-Shirt Größe',
+                'value' => $shirt !== '' ? $shirt : '—',
+            ];
+        }
+
+        if ((bool) ($event->check_in_show_helper_meal ?? false) && ($collect['meal'] ?? false)) {
+            $options = VolunteerMealOptions::optionsForEvent($event->id);
+            $labelMap = VolunteerMealOptions::labelMap($options);
+            $mealLabel = VolunteerRosterDetailFields::exportMealLabel($detail?->meal, $labelMap);
+            $fields[] = [
+                'key' => 'meal',
+                'kind' => 'text',
+                'label' => 'Essen',
+                'value' => $mealLabel !== '' ? $mealLabel : '—',
+            ];
+        }
+
+        $customFields = EventVolunteerField::query()
+            ->where('event', $event->id)
+            ->where('check_in_show', true)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get();
+
+        if ($customFields->isNotEmpty() && $roster) {
+            $valuesByFieldId = EventVolunteerFieldValue::query()
+                ->where('event_volunteer_roster', $roster->id)
+                ->whereIn('event_volunteer_field', $customFields->pluck('id'))
+                ->get()
+                ->keyBy('event_volunteer_field');
+
+            foreach ($customFields as $field) {
+                $stored = $valuesByFieldId->get($field->id)?->value;
+                $exported = VolunteerRosterCustomFields::exportValue($field, $stored);
+                $fields[] = [
+                    'key' => $field->field_key,
+                    'kind' => 'text',
+                    'label' => $field->label,
+                    'value' => $exported !== '' ? $exported : '—',
+                ];
+            }
+        } elseif ($customFields->isNotEmpty()) {
+            foreach ($customFields as $field) {
+                $fields[] = [
+                    'key' => $field->field_key,
+                    'kind' => 'text',
+                    'label' => $field->label,
+                    'value' => '—',
+                ];
+            }
+        }
+
+        return $fields;
+    }
+
+    private function formatTeamMealValue(int $eventId, int $teamId): string
+    {
+        $options = VolunteerMealOptions::optionsForEvent($eventId);
+        if ($options->isEmpty()) {
+            return '—';
+        }
+
+        $counts = TeamMealCounts::mapForTeamWithCatalog($teamId, $eventId);
+        $parts = [];
+        foreach ($options as $option) {
+            $count = (int) ($counts[$option->value] ?? 0);
+            if ($count <= 0) {
+                continue;
+            }
+            $parts[] = $count.'× '.$option->label;
+        }
+
+        return $parts !== [] ? implode(', ', $parts) : '—';
     }
 
     /**
