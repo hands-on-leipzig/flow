@@ -17,8 +17,10 @@ const props = withDefaults(
     hideHeading?: boolean
     /** Which panels to show (Ausgabe splits plans vs name tags). */
     section?: 'plans' | 'labels' | 'all'
+    /** Fixed 50/50 dual panes for the two plans groups (Drucksachen). */
+    splitPanes?: boolean
   }>(),
-  {hideHeading: false, section: 'all'}
+  {hideHeading: false, section: 'all', splitPanes: false}
 )
 
 const showPlans = computed(() => props.section === 'plans' || props.section === 'all')
@@ -690,9 +692,13 @@ const eventTitleNormalized = computed(() => {
 
 <template>
   <div class="pdf-plans">
-    <section v-if="showPlans" class="glass-card liquid-surface-inner pdf-plans__panel">
-      <h3 v-if="!hideHeading" class="glass-card__heading">Drucksachen</h3>
-
+    <div
+        v-if="showPlans"
+        class="pdf-plans__plans"
+        :class="{'pdf-plans__plans--split': splitPanes}"
+    >
+      <section class="glass-card liquid-surface-inner pdf-plans__panel">
+        <h3 v-if="!hideHeading" class="glass-card__heading">Drucksachen</h3>
       <p class="pdf-plans__group-label">
         <i class="bi bi-people" aria-hidden="true"/>
         <span>Zum Aushang bzw. zum Verteilen an Teams und Volunteers</span>
@@ -927,6 +933,9 @@ const eventTitleNormalized = computed(() => {
       </article>
       </div>
 
+      </section>
+
+      <section class="glass-card liquid-surface-inner pdf-plans__panel">
       <p class="pdf-plans__group-label pdf-plans__group-label--next">
         <i class="bi bi-shield-lock" aria-hidden="true"/>
         <span>Nur für Veranstalter – nicht für Teams oder Besucher.</span>
@@ -1070,7 +1079,8 @@ const eventTitleNormalized = computed(() => {
         </footer>
       </article>
       </div>
-    </section>
+          </section>
+    </div>
 
     <template v-if="showLabels">
       <section class="glass-card liquid-surface-inner pdf-plans__panel">
@@ -1479,6 +1489,34 @@ const eventTitleNormalized = computed(() => {
   .pdf-plans__labels-cols {
     grid-template-columns: 1fr;
   }
+}
+
+
+.pdf-plans__plans {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.pdf-plans__plans--split {
+  flex: 1 1 0%;
+  min-height: 0;
+  flex-direction: row;
+  gap: 1rem 1.25rem;
+  overflow: hidden;
+}
+
+.pdf-plans__plans--split > .pdf-plans__panel {
+  flex: 1 1 0%;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.pdf-plans__plans--split .pdf-plans__group-label--next {
+  margin-top: 0;
 }
 
 .pdf-plans__group-label {
