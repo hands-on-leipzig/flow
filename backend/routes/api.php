@@ -118,6 +118,9 @@ Route::prefix('cockpit/{slug}')->group(function () {
     Route::get('/phonebook', [CockpitController::class, 'phonebook']);
     Route::get('/timeshift/bootstrap', [CockpitController::class, 'timeshiftBootstrap']);
     Route::post('/timeshift/shift', [CockpitController::class, 'timeshiftShift']);
+    Route::get('/stage-presentations/bootstrap', [CockpitController::class, 'stagePresentationsBootstrap']);
+    Route::put('/stage-presentations/selection', [CockpitController::class, 'stagePresentationsSaveSelection']);
+    Route::put('/stage-presentations/lock', [CockpitController::class, 'stagePresentationsSetLock']);
 });
 
 Route::prefix('contao')->group(function () {

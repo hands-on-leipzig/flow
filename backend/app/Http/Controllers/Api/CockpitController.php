@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Services\CheckInService;
 use App\Services\CockpitService;
+use App\Services\CockpitStagePresentationService;
 use App\Services\CockpitTimeShiftService;
 use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
@@ -19,6 +20,7 @@ class CockpitController extends Controller
         private CheckInService $checkIn,
         private ContaoController $contao,
         private CockpitTimeShiftService $timeShift,
+        private CockpitStagePresentationService $stagePresentations,
     ) {}
 
     public function getSettings(Event $event): JsonResponse
@@ -140,6 +142,42 @@ class CockpitController extends Controller
 
         // "now" is always resolved server-side; a client-supplied value is ignored.
         return response()->json($this->timeShift->shift($event, $minutes));
+    }
+
+    public function stagePresentationsBootstrap(Request $request, string $slug): JsonResponse
+    {
+        $event = $this->authorizedEvent($request, $slug);
+
+        return response()->json($this->stagePresentations->state($event));
+    }
+
+    public function stagePresentationsSaveSelection(Request $request, string $slug): JsonResponse
+    {
+        $event = $this->authorizedEvent($request, $slug);
+
+        $data = $request->validate([
+            'program' => ['required', 'string', 'max:50'],
+            'teams' => ['present', 'array'],
+            'teams.*' => ['nullable', 'integer'],
+        ]);
+
+        return response()->json(
+            $this->stagePresentations->saveSelection($event, $data['program'], $data['teams'])
+        );
+    }
+
+    public function stagePresentationsSetLock(Request $request, string $slug): JsonResponse
+    {
+        $event = $this->authorizedEvent($request, $slug);
+
+        $data = $request->validate([
+            'program' => ['required', 'string', 'max:50'],
+            'locked' => ['required', 'boolean'],
+        ]);
+
+        return response()->json(
+            $this->stagePresentations->setLock($event, $data['program'], (bool) $data['locked'])
+        );
     }
 
     private function eventBySlug(string $slug): Event

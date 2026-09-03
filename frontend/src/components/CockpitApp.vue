@@ -8,6 +8,7 @@ import {publicPlanPath} from '@/utils/publicPlanPath'
 import CockpitToolShell from '@/components/molecules/CockpitToolShell.vue'
 import CockpitPhonebookPanel from '@/components/molecules/CockpitPhonebookPanel.vue'
 import CockpitTimeShiftPanel from '@/components/molecules/CockpitTimeShiftPanel.vue'
+import CockpitStagePresentationPanel from '@/components/molecules/CockpitStagePresentationPanel.vue'
 import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
 
 defineOptions({name: 'CockpitApp'})
@@ -139,7 +140,7 @@ const tools: CockpitTool[] = [
     homeLabel: 'Forschung',
     explanation: 'Jury trägt ein, wer kommt — Moderator und Stage Crew sehen es.',
     icon: 'bi-easel',
-    ready: false,
+    ready: true,
   },
 ]
 
@@ -406,6 +407,11 @@ onMounted(async () => {
           />
           <CockpitTimeShiftPanel
               v-else-if="activeTool.id === 'timeshift'"
+              :slug="slug"
+              :http="api"
+          />
+          <CockpitStagePresentationPanel
+              v-else-if="activeTool.id === 'stage-research'"
               :slug="slug"
               :http="api"
           />
