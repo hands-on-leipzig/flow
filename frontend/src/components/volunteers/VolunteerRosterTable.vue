@@ -12,6 +12,10 @@ import type {VolunteerMealOption} from '@/composables/useVolunteerMealOptions'
 import type {RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
+import {
+  photoConsentStatusClass,
+  photoConsentStatusForVolunteer,
+} from '@/utils/photoConsentStatus'
 
 const props = defineProps<{
   eventId?: number | null
@@ -263,9 +267,13 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
                 <option v-for="meal in mealOptions" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
               </select>
             </td>
-            <td v-else-if="column.editor === 'photo_consent'" class="vol-table__field">
+            <td
+                v-else-if="column.editor === 'photo_consent'"
+                class="vol-table__field vol-table__field--photo"
+            >
               <div
                   class="glass-segment vol-tristate"
+                  :class="photoConsentStatusClass(photoConsentStatusForVolunteer(entryDetail(entry).photo_consent).status)"
                   role="group"
                   :aria-label="column.label"
               >
@@ -431,17 +439,13 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 }
 
 .vol-table__name-link {
-  font-weight: 600;
-  color: var(--color-accent);
+  color: inherit;
+  font-weight: inherit;
   text-decoration: none;
 }
 
 .vol-table__name-link:hover {
   text-decoration: underline;
-}
-
-.vol-table__name {
-  font-weight: 600;
 }
 
 .vol-table__role {
@@ -466,76 +470,5 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
   height: 1rem;
   flex-shrink: 0;
   object-fit: contain;
-}
-
-.vol-table__field {
-  vertical-align: middle;
-}
-
-.vol-detail-trigger {
-  width: 100%;
-  min-width: 5.5rem;
-  text-align: left;
-  cursor: pointer;
-}
-
-.vol-detail-trigger--unset {
-  color: var(--color-text-subtle);
-  text-align: center;
-}
-
-.vol-detail-trigger:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.vol-detail-select,
-.vol-detail-input {
-  width: 100%;
-  min-width: 0;
-  font-size: 0.8125rem;
-}
-
-.vol-table__field select.select-input {
-  box-sizing: border-box;
-  min-height: var(--field-min-height-sm);
-  height: var(--field-min-height-sm);
-  padding: var(--field-padding-y-sm) 2rem var(--field-padding-y-sm) var(--field-padding-x-sm);
-  font-size: var(--field-font-size-sm);
-  border-radius: var(--field-radius-sm);
-  line-height: 1.4;
-}
-
-.vol-detail-input--number {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.vol-detail-input--number::-webkit-outer-spin-button,
-.vol-detail-input--number::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.vol-detail-select--full {
-  min-width: 6.5rem;
-}
-
-.vol-tristate {
-  display: inline-flex;
-  width: 100%;
-  min-width: 7.5rem;
-}
-
-.vol-tristate .glass-segment__btn {
-  flex: 1;
-  padding: 0.2rem 0.35rem;
-  font-size: 0.75rem;
-  line-height: 1.3;
-}
-
-.vol-tristate .glass-segment__btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 </style>

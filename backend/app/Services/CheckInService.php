@@ -5,7 +5,11 @@ namespace App\Services;
 use App\Http\Controllers\Api\DrahtController;
 use App\Models\CheckIn;
 use App\Models\Event;
+use App\Models\EventVolunteerRoster;
 use App\Models\Plan;
+use App\Support\PhotoConsentStatus;
+use App\Support\TeamPeopleCounts;
+use App\Support\TeamPhotoCounts;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -518,6 +522,11 @@ class CheckInService
 
         $record = $this->findRecord($event, CheckIn::SUBJECT_TEAM, $teamId);
         $label = trim((string) ($row->name ?? ''));
+        $peopleCounts = TeamPeopleCounts::countsByTeamIdForEvent($event);
+        $photoPayload = PhotoConsentStatus::forTeam(
+            TeamPhotoCounts::mapForTeamWithDefaults($teamId),
+            $peopleCounts[$teamId] ?? null,
+        );
 
         return array_merge([
             'subject_type' => CheckIn::SUBJECT_TEAM,
@@ -529,6 +538,10 @@ class CheckInService
             'room' => $row->room_name ?: null,
             'info_text' => $event->check_in_text_teams,
             'next_activities' => $this->nextActivitiesForTeam($event, $plan, $row),
+            'photo_consent' => [
+                'status' => $photoPayload['status'],
+                'label' => $photoPayload['check_in_label'],
+            ],
         ], $this->recordStatusPayload($record));
     }
 
@@ -543,6 +556,16 @@ class CheckInService
         $record = $this->findRecord($event, CheckIn::SUBJECT_VOLUNTEER, $personId);
         $roleLabels = $row->role_labels ? explode('||', $row->role_labels) : [];
 
+        $roster = EventVolunteerRoster::query()
+            ->where('event', $event->id)
+            ->where('volunteer_person', $personId)
+            ->with('detail')
+            ->first();
+        $consent = $roster?->detail?->photo_consent;
+        $photoPayload = PhotoConsentStatus::forVolunteer(
+            $consent === null ? null : (bool) $consent,
+        );
+
         return array_merge([
             'subject_type' => CheckIn::SUBJECT_VOLUNTEER,
             'subject_id' => (int) $row->id,
@@ -554,6 +577,10 @@ class CheckInService
             'role_labels' => $roleLabels,
             'info_text' => $event->check_in_text_helpers,
             'next_activities' => $this->nextActivitiesForHelper($event, $personId),
+            'photo_consent' => [
+                'status' => $photoPayload['status'],
+                'label' => $photoPayload['check_in_label'],
+            ],
         ], $this->recordStatusPayload($record));
     }
 

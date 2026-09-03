@@ -7,6 +7,7 @@ import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import TeamDataColumnsPanel from '@/components/molecules/TeamDataColumnsPanel.vue'
 import VolunteerMealOptionsPanel from '@/components/molecules/VolunteerMealOptionsPanel.vue'
+import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import TeamDataTable from '@/components/teams/TeamDataTable.vue'
 import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
@@ -39,11 +40,12 @@ const showOnlyIncomplete = ref(false)
 const showOnlyPhotoUnset = ref(false)
 const nameFilter = ref('')
 const activeProgramFilters = ref<Set<number>>(new Set())
+const sortKey = ref<'team_number_hot' | 'name' | 'organization'>('name')
+const sortDir = ref<'asc' | 'desc'>('asc')
 
 const countEditTeam = ref<TeamDataRow | null>(null)
 const countEditColumn = ref<TeamDataColumn | null>(null)
 const countAnchorEl = ref<HTMLElement | null>(null)
-const countSaving = ref(false)
 
 const {options: mealOptions, setOptions: setMealOptions} = useVolunteerMealOptions(eventId)
 
@@ -76,7 +78,7 @@ const filteredTeams = computed(() => {
   let rows = [...teams.value]
   rows = rows.filter((row) => row.first_program != null && activeProgramFilters.value.has(row.first_program))
 
-  const query = nameFilter.value.trim().toLocaleLowerCase('de')
+  const query = nameFilter.value.trim().toLowerCase()
   if (query) {
     rows = rows.filter((row) => {
       const haystack = [
@@ -85,7 +87,7 @@ const filteredTeams = computed(() => {
         row.team_number_hot != null ? String(row.team_number_hot) : '',
       ]
         .join(' ')
-        .toLocaleLowerCase('de')
+        .toLowerCase()
       return haystack.includes(query)
     })
   }
@@ -96,6 +98,41 @@ const filteredTeams = computed(() => {
   if (showOnlyIncomplete.value) {
     rows = rows.filter((row) => isTeamRowIncomplete(row, columns.value))
   }
+
+  const dir = sortDir.value === 'asc' ? 1 : -1
+  const key = sortKey.value
+  rows.sort((a, b) => {
+    if (key === 'team_number_hot') {
+      const an = a.team_number_hot
+      const bn = b.team_number_hot
+      if (an == null && bn == null) {
+        /* fall through */
+      } else if (an == null) {
+        return 1
+      } else if (bn == null) {
+        return -1
+      } else if (an !== bn) {
+        return (an - bn) * dir
+      }
+    } else if (key === 'organization') {
+      const av = (a.organization ?? '').toLocaleLowerCase('de')
+      const bv = (b.organization ?? '').toLocaleLowerCase('de')
+      if (av < bv) return -1 * dir
+      if (av > bv) return 1 * dir
+    } else {
+      const av = a.name.toLocaleLowerCase('de')
+      const bv = b.name.toLocaleLowerCase('de')
+      if (av < bv) return -1 * dir
+      if (av > bv) return 1 * dir
+    }
+
+    const aName = a.name.toLocaleLowerCase('de')
+    const bName = b.name.toLocaleLowerCase('de')
+    if (aName < bName) return -1
+    if (aName > bName) return 1
+    return a.id - b.id
+  })
+
   return rows
 })
 
@@ -113,6 +150,15 @@ function toggleProgramFilter(programId: number) {
     next.add(programId)
   }
   activeProgramFilters.value = next
+}
+
+function toggleSort(key: 'team_number_hot' | 'name' | 'organization') {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortKey.value = key
+    sortDir.value = 'asc'
+  }
 }
 
 function onTeamUpdated(updated: TeamDataRow) {
@@ -196,7 +242,7 @@ onActivated(() => {
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Teamdaten</h1>
-        <p class="vol-page__sub">Erfassung pro Team für diese Veranstaltung</p>
+        <p class="vol-page__sub">Verwalten von Daten für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">
         <button
@@ -233,8 +279,8 @@ onActivated(() => {
       </div>
     </header>
 
-    <div class="vol-roster-toolbar">
-      <section class="glass-card liquid-surface-inner vol-tile vol-roster-publish" style="flex: 1 1 100%">
+    <div class="vol-roster-toolbar vol-roster-toolbar--solo">
+      <section class="glass-card liquid-surface-inner vol-tile vol-roster-publish">
         <div class="vol-roster-publish__row">
           <span class="vol-roster-publish__label">Dateneingabe durch Coaches</span>
           <ToggleSwitch
@@ -253,62 +299,71 @@ onActivated(() => {
     </div>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-roster-table-tile">
-      <div v-if="teams.length && !loading" class="vol-staffing-filters">
-        <div class="vol-staffing-filters__name-group">
-          <span class="vol-staffing-filters__name-icon" aria-hidden="true">
-            <i class="bi bi-funnel"/>
-          </span>
-          <input
-              v-model="nameFilter"
-              type="search"
-              class="glass-input glass-input--sm vol-staffing-filters__name"
-              placeholder="Team…"
-              aria-label="Nach Teamname, Organisation oder Nr filtern"
-              autocomplete="off"
+      <VolunteerStaffingFilterBar
+          v-if="teams.length && !loading"
+      >
+        <template #leading>
+          <div class="vol-staffing-filters__name-group">
+            <span class="vol-staffing-filters__name-icon" aria-hidden="true">
+              <i class="bi bi-funnel"/>
+            </span>
+            <input
+                v-model="nameFilter"
+                type="search"
+                class="glass-input glass-input--sm vol-staffing-filters__name"
+                placeholder="Team…"
+                aria-label="Nach Teamname, Organisation oder Nr filtern"
+                autocomplete="off"
+            >
+          </div>
+        </template>
+        <template #middle>
+          <button
+              v-for="program in programFilters"
+              :key="program.first_program"
+              type="button"
+              class="vol-staffing-filter"
+              :class="{'vol-staffing-filter--active': activeProgramFilters.has(Number(program.first_program))}"
+              :aria-pressed="activeProgramFilters.has(Number(program.first_program))"
+              @click="toggleProgramFilter(Number(program.first_program))"
           >
-        </div>
-        <button
-            v-for="program in programFilters"
-            :key="program.first_program"
-            type="button"
-            class="vol-staffing-filter"
-            :class="{'vol-staffing-filter--active': activeProgramFilters.has(Number(program.first_program))}"
-            @click="toggleProgramFilter(Number(program.first_program))"
-        >
-          <ProgramLogo
-              :program="program"
-              size="chip"
-              decorative
-              class="vol-staffing-filter__logo"
-          />
-          <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
-        </button>
-        <span class="vol-staffing-filters__sep" aria-hidden="true"/>
-        <button
-            type="button"
-            class="vol-staffing-filter"
-            :class="{'vol-staffing-filter--active': showOnlyPhotoUnset}"
-            :aria-pressed="showOnlyPhotoUnset"
-            title="Nur Teams ohne Foto-Erlaubnis anzeigen"
-            @click="showOnlyPhotoUnset = !showOnlyPhotoUnset"
-        >
-          <i class="bi bi-camera vol-staffing-filter__icon" aria-hidden="true"/>
-          <span class="vol-staffing-filter__label">Foto Erlaubnis</span>
-        </button>
-        <button
-            type="button"
-            class="vol-staffing-filter"
-            :class="{'vol-staffing-filter--active': showOnlyIncomplete}"
-            :aria-pressed="showOnlyIncomplete"
-            @click="showOnlyIncomplete = !showOnlyIncomplete"
-        >
-          <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
-          <span class="vol-staffing-filter__label">Unvollständige</span>
-        </button>
-        <span class="vol-toolbar__count vol-staffing-filters__count">
-          {{ filteredTeams.length }} / {{ teams.length }}
-        </span>
-      </div>
+            <ProgramLogo
+                :program="program"
+                size="chip"
+                decorative
+                class="vol-staffing-filter__logo"
+            />
+            <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
+          </button>
+        </template>
+        <template #trailing>
+          <span class="vol-staffing-filters__sep" aria-hidden="true"/>
+          <button
+              type="button"
+              class="vol-staffing-filter"
+              :class="{'vol-staffing-filter--active': showOnlyPhotoUnset}"
+              :aria-pressed="showOnlyPhotoUnset"
+              title="Nur Teams mit fehlender Fotoerlaubnis anzeigen"
+              @click="showOnlyPhotoUnset = !showOnlyPhotoUnset"
+          >
+            <i class="bi bi-camera vol-staffing-filter__icon" aria-hidden="true"/>
+            <span class="vol-staffing-filter__label">Fotoerlaubnis fehlt</span>
+          </button>
+          <button
+              type="button"
+              class="vol-staffing-filter"
+              :class="{'vol-staffing-filter--active': showOnlyIncomplete}"
+              :aria-pressed="showOnlyIncomplete"
+              @click="showOnlyIncomplete = !showOnlyIncomplete"
+          >
+            <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
+            <span class="vol-staffing-filter__label">Unvollständige Antworten</span>
+          </button>
+          <span class="vol-toolbar__count vol-staffing-filters__count">
+            {{ filteredTeams.length }} / {{ teams.length }}
+          </span>
+        </template>
+      </VolunteerStaffingFilterBar>
 
       <p v-if="loading" class="vol-muted">Laden…</p>
       <p v-else-if="!teams.length" class="vol-muted">Keine Teams vorhanden.</p>
@@ -318,6 +373,9 @@ onActivated(() => {
           :event-id="eventId"
           :teams="filteredTeams"
           :columns="columns"
+          :sort-key="sortKey"
+          :sort-dir="sortDir"
+          @toggle-sort="toggleSort"
           @open-count="openCountPopover"
           @updated="onTeamUpdated"
       />
@@ -343,7 +401,6 @@ onActivated(() => {
         :column="countEditColumn"
         :anchor="countAnchorEl"
         :meal-options="mealOptions"
-        :saving="countSaving"
         @close="closeCountPopover"
         @saved="onCountSaved"
     />

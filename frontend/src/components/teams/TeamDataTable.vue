@@ -8,16 +8,25 @@ import {
   type TeamDataColumn,
   type TeamDataRow,
 } from '@/utils/teamDataCompletion'
+import {
+  photoConsentStatusClass,
+  photoConsentStatusForTeam,
+} from '@/utils/photoConsentStatus'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
+
+type TeamDataSortKey = 'team_number_hot' | 'name' | 'organization'
 
 const props = defineProps<{
   eventId?: number | null
   teams: TeamDataRow[]
   columns: TeamDataColumn[]
+  sortKey: TeamDataSortKey
+  sortDir: 'asc' | 'desc'
 }>()
 
 const emit = defineEmits<{
+  'toggle-sort': [key: TeamDataSortKey]
   'open-count': [team: TeamDataRow, column: TeamDataColumn, anchor: HTMLElement]
   updated: [team: TeamDataRow]
 }>()
@@ -41,6 +50,26 @@ function displayNumber(value: number | null | undefined) {
 function displayOrganization(value: string | null | undefined) {
   const trimmed = (value ?? '').trim()
   return trimmed === '' ? '—' : trimmed
+}
+
+function photoCellClass(row: TeamDataRow, column: TeamDataColumn) {
+  if (column.key !== 'photo_consent' && column.kind !== 'photo') {
+    return {
+      'vol-detail-trigger--unset': countSetTotal(row, column) === 0,
+      'team-data-cell--mismatch': countSetCellMismatch(row, column),
+    }
+  }
+  const status = photoConsentStatusForTeam(row.photo_consent, row.people_count).status
+  return {
+    [photoConsentStatusClass(status)]: true,
+    'vol-detail-trigger--unset': countSetTotal(row, column) === 0,
+    'team-data-cell--mismatch': countSetCellMismatch(row, column),
+  }
+}
+
+function sortIcon(key: TeamDataSortKey) {
+  if (props.sortKey !== key) return 'bi-arrow-down-up'
+  return props.sortDir === 'asc' ? 'bi-sort-up' : 'bi-sort-down'
 }
 
 function scalarValue(row: TeamDataRow, column: TeamDataColumn): string {
@@ -107,27 +136,34 @@ function setCustomSelect(row: TeamDataRow, column: TeamDataColumn, raw: string) 
 }
 
 function saveScalar(row: TeamDataRow, column: TeamDataColumn, raw: string) {
-  let value: string | number | null = raw
+  // Match Helferliste: trim text; empty → null. Numbers keep non-negative int parse.
   if (column.editor === 'number') {
     const trimmed = raw.trim()
     if (trimmed === '') {
-      value = null
-    } else {
-      const parsed = Number.parseInt(trimmed, 10)
-      if (!Number.isFinite(parsed) || parsed < 0) return
-      value = parsed
+      void saveCustomField(row, column, null)
+      return
     }
-  } else if (raw.trim() === '') {
-    value = null
+    const parsed = Number.parseInt(trimmed, 10)
+    if (!Number.isFinite(parsed) || parsed < 0) return
+    void saveCustomField(row, column, parsed)
+    return
   }
 
-  void saveCustomField(row, column, value)
+  const trimmed = raw.trim()
+  void saveCustomField(row, column, trimmed === '' ? null : trimmed)
 }
 
 function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataColumn) {
   const target = event.currentTarget
   if (!(target instanceof HTMLElement)) return
   emit('open-count', row, column, target)
+}
+
+/** Show entered total against registered people for Fotoerlaubnis / Essen. */
+function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
+  const total = countSetTotal(row, column)
+  if (row.people_count === null) return String(total)
+  return `${total} / ${row.people_count}`
 }
 </script>
 
@@ -151,10 +187,40 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
           <th class="vol-table__roster vol-table__sticky vol-table__sticky--program" scope="col">
             <span class="sr-only">Programm</span>
           </th>
-          <th class="vol-table__sticky vol-table__sticky--nr" scope="col">Nr</th>
-          <th class="vol-table__name vol-table__sticky vol-table__sticky--name" scope="col">Teamname</th>
-          <th class="vol-table__sticky vol-table__sticky--organization" scope="col">Organisation</th>
-          <th class="vol-table__sticky vol-table__sticky--people" scope="col">Personen</th>
+          <th class="vol-table__sticky vol-table__sticky--nr" scope="col">
+            <button
+                type="button"
+                class="vol-sort"
+                :class="{'vol-sort--active': sortKey === 'team_number_hot'}"
+                @click="emit('toggle-sort', 'team_number_hot')"
+            >
+              Nr
+              <i class="bi" :class="sortIcon('team_number_hot')" aria-hidden="true"/>
+            </button>
+          </th>
+          <th class="vol-table__name vol-table__sticky vol-table__sticky--name" scope="col">
+            <button
+                type="button"
+                class="vol-sort"
+                :class="{'vol-sort--active': sortKey === 'name'}"
+                @click="emit('toggle-sort', 'name')"
+            >
+              Teamname
+              <i class="bi" :class="sortIcon('name')" aria-hidden="true"/>
+            </button>
+          </th>
+          <th scope="col">
+            <button
+                type="button"
+                class="vol-sort"
+                :class="{'vol-sort--active': sortKey === 'organization'}"
+                @click="emit('toggle-sort', 'organization')"
+            >
+              Organisation
+              <i class="bi" :class="sortIcon('organization')" aria-hidden="true"/>
+            </button>
+          </th>
+          <th scope="col">Personen</th>
           <th
               v-for="column in columns"
               :key="column.key"
@@ -180,10 +246,10 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
             {{ displayNumber(row.team_number_hot) }}
           </td>
           <td class="vol-table__name vol-table__sticky vol-table__sticky--name">{{ row.name }}</td>
-          <td class="vol-table__role vol-table__sticky vol-table__sticky--organization">
+          <td class="vol-table__role">
             {{ displayOrganization(row.organization) }}
           </td>
-          <td class="vol-table__sticky vol-table__sticky--people team-data-table__people">
+          <td class="team-data-table__people">
             {{ displayNumber(row.people_count) }}
           </td>
           <td
@@ -194,14 +260,12 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
             <button
                 v-if="column.editor === 'meal_counts' || column.editor === 'count_set'"
                 type="button"
-                class="vol-detail-trigger glass-input glass-input--sm"
-                :class="{
-                  'vol-detail-trigger--unset': countSetTotal(row, column) === 0,
-                  'team-data-cell--mismatch': countSetCellMismatch(row, column),
-                }"
+                class="vol-detail-trigger glass-input glass-input--sm team-data-count-trigger"
+                :class="photoCellClass(row, column)"
+                :title="row.people_count !== null ? `Summe ${countSetTotal(row, column)} von ${row.people_count} Personen` : undefined"
                 @click="onCountCellClick($event, row, column)"
             >
-              {{ countSetTotal(row, column) }}
+              {{ countCellLabel(row, column) }}
             </button>
             <div
                 v-else-if="column.editor === 'boolean'"
@@ -263,8 +327,6 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
             <input
                 v-else-if="column.editor === 'number'"
                 type="number"
-                min="0"
-                step="1"
                 class="glass-input glass-input--sm vol-detail-input vol-detail-input--number"
                 :value="scalarValue(row, column)"
                 :disabled="isSaving(row)"
@@ -282,8 +344,6 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
   --td-sticky-program: 2.75rem;
   --td-sticky-nr: 3.25rem;
   --td-sticky-name: 11rem;
-  --td-sticky-organization: 9rem;
-  --td-sticky-people: 4.75rem;
 }
 
 .vol-table--team-data {
@@ -305,19 +365,19 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 }
 
 .vol-col--organization {
-  min-width: var(--td-sticky-organization);
+  min-width: 9rem;
 }
 
 .vol-col--people {
-  min-width: var(--td-sticky-people);
+  min-width: 4.75rem;
 }
 
 .vol-col--meal {
-  min-width: 7rem;
+  min-width: 7.5rem;
 }
 
 .vol-col--photo {
-  min-width: 8rem;
+  min-width: 8.5rem;
 }
 
 .vol-col--custom {
@@ -354,18 +414,6 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 .vol-table__sticky--name {
   left: calc(var(--td-sticky-program) + var(--td-sticky-nr));
   z-index: 2;
-}
-
-.vol-table__sticky--organization {
-  left: calc(var(--td-sticky-program) + var(--td-sticky-nr) + var(--td-sticky-name));
-  z-index: 2;
-}
-
-.vol-table__sticky--people {
-  left: calc(
-    var(--td-sticky-program) + var(--td-sticky-nr) + var(--td-sticky-name) + var(--td-sticky-organization)
-  );
-  z-index: 2;
   box-shadow: 4px 0 8px -4px rgba(15, 23, 42, 0.14);
 }
 
@@ -401,77 +449,14 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
   opacity: 0.5;
 }
 
-.vol-table__field {
-  vertical-align: middle;
-}
-
-.vol-detail-trigger {
-  width: 100%;
-  min-width: 5.5rem;
+.team-data-count-trigger,
+.team-data-count-trigger.vol-detail-trigger--unset {
   text-align: center;
-  cursor: pointer;
-}
-
-.vol-detail-trigger--unset {
-  color: var(--color-text-subtle);
+  font-variant-numeric: tabular-nums;
 }
 
 .team-data-cell--mismatch {
   color: var(--color-warning, #b45309);
   font-weight: 600;
-}
-
-.vol-detail-trigger:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.vol-detail-input {
-  width: 100%;
-  min-width: 0;
-  font-size: 0.8125rem;
-}
-
-.vol-detail-input--number {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.vol-detail-input--number::-webkit-outer-spin-button,
-.vol-detail-input--number::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.vol-table__field select.select-input {
-  box-sizing: border-box;
-  min-height: var(--field-min-height-sm);
-  height: var(--field-min-height-sm);
-  padding: var(--field-padding-y-sm) 2rem var(--field-padding-y-sm) var(--field-padding-x-sm);
-  font-size: var(--field-font-size-sm);
-  border-radius: var(--field-radius-sm);
-  line-height: 1.4;
-}
-
-.vol-detail-select--full {
-  min-width: 6.5rem;
-}
-
-.vol-tristate {
-  display: inline-flex;
-  width: 100%;
-  min-width: 7.5rem;
-}
-
-.vol-tristate .glass-segment__btn {
-  flex: 1;
-  padding: 0.2rem 0.35rem;
-  font-size: 0.75rem;
-  line-height: 1.3;
-}
-
-.vol-tristate .glass-segment__btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 </style>

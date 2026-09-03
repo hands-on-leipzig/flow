@@ -110,7 +110,7 @@ class TeamPublicFormTest extends TestCase
         $team->assertJsonPath('form.team.id', 1);
     }
 
-    public function test_save_rejects_sum_mismatch_and_non_public_custom(): void
+    public function test_save_rejects_meal_sum_mismatch_and_non_public_custom(): void
     {
         $this->mockPeople();
         EventTeamField::create([
@@ -126,7 +126,7 @@ class TeamPublicFormTest extends TestCase
         $badSum = $this->postJson('/api/public-team-form/test/save', [
             'email' => 'coach@example.com',
             'team' => 1,
-            'photo_consent' => ['unknown' => 1, 'yes' => 0, 'no' => 0],
+            'meals' => ['standard' => 1, 'vegetarisch' => 0, 'vegan' => 0, 'keine' => 0],
         ]);
         $badSum->assertStatus(422);
 
@@ -159,38 +159,25 @@ class TeamPublicFormTest extends TestCase
             'custom' => ['note' => 'Hallo'],
         ]);
         $response->assertOk();
-        $response->assertJsonPath('form.photo_consent.yes', 2);
+        // Public save ignores photo_consent (organizer-only); defaults remain.
+        $response->assertJsonPath('form.photo_consent.yes', 0);
         $response->assertJsonPath('form.meals.standard', 2);
         $response->assertJsonPath('form.custom.note', 'Hallo');
-        $this->assertDatabaseHas('event_team_photo_count', ['team' => 1, 'bucket' => 'yes', 'count' => 2]);
+        $this->assertDatabaseMissing('event_team_photo_count', ['team' => 1, 'bucket' => 'yes']);
     }
 
-    public function test_save_photo_without_people_count_returns_422(): void
+    public function test_save_ignores_photo_consent_payload(): void
     {
-        $withCoach = new JsonResponse([
-            10 => [
-                'coaches' => [['email' => 'coach@example.com']],
-                'players' => [['email' => 'p1@example.com']],
-            ],
-        ]);
-        $withoutTeam = new JsonResponse([]);
-
-        $this->mock(DrahtController::class, function ($mock) use ($withCoach, $withoutTeam) {
-            $mock->shouldReceive('getPeople')
-                ->once()
-                ->andReturn($withCoach);
-            $mock->shouldReceive('getPeople')
-                ->once()
-                ->andReturn($withoutTeam);
-        });
+        $this->mockPeople();
 
         $response = $this->postJson('/api/public-team-form/test/save', [
             'email' => 'coach@example.com',
             'team' => 1,
-            'photo_consent' => ['unknown' => 0, 'yes' => 1, 'no' => 0],
+            'photo_consent' => ['unknown' => 0, 'yes' => 3, 'no' => 0],
         ]);
-        $response->assertStatus(422);
-        $response->assertJsonPath('error', 'Personenanzahl für dieses Team fehlt.');
+        $response->assertOk();
+        $response->assertJsonPath('form.photo_consent.yes', 0);
+        $this->assertDatabaseMissing('event_team_photo_count', ['team' => 1, 'bucket' => 'yes']);
     }
 
     /**

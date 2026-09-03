@@ -3,6 +3,10 @@ import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import {T_SHIRT_CUTS, T_SHIRT_SIZES} from '@/volunteers/rosterConstants'
 import {defaultRosterDetail, type RosterDetail} from '@/volunteers/rosterTypes'
+import {
+  photoConsentStatusClass,
+  photoConsentStatusForVolunteer,
+} from '@/utils/photoConsentStatus'
 
 type FormField = {
   key: string
@@ -53,14 +57,7 @@ const emailModel = computed({
   set: (value: string) => emit('update:email', value),
 })
 
-const photoConsentLabel = computed(() => {
-  const consent = detailDraft.value.photo_consent
-  if (consent === true) return 'Ja'
-  if (consent === false) return 'Nein'
-  return '?'
-})
-
-const showPhotoReminder = computed(() => detailDraft.value.photo_consent === null)
+const photoStatus = computed(() => photoConsentStatusForVolunteer(detailDraft.value.photo_consent))
 
 function proceedFromEmail() {
   const trimmed = props.email.trim()
@@ -257,12 +254,14 @@ watch(
           </div>
 
           <template v-for="field in lookupPayload.fields" :key="field.key">
-            <div v-if="field.key === 'photo_consent'" class="vol-public-form__row">
-              <span class="vol-public-form__label">Foto Erlaubnis</span>
-              <span class="vol-public-form__readonly">{{ photoConsentLabel }}</span>
-              <p v-if="showPhotoReminder" class="vol-public-form__reminder">
-                Bitte nicht vergessen, die Fotoerlaubnis zu schicken.
-              </p>
+            <div
+                v-if="field.key === 'photo_consent'"
+                class="photo-consent-banner"
+                :class="photoConsentStatusClass(photoStatus.status)"
+                role="status"
+            >
+              <i class="bi bi-camera photo-consent-banner__icon" aria-hidden="true"/>
+              <p class="photo-consent-banner__text">{{ photoStatus.selfServiceMessage }}</p>
             </div>
 
             <template v-else-if="field.editor === 't_shirt'">

@@ -99,7 +99,7 @@ class VolunteerColumnsTest extends TestCase
                 'Organisation',
                 'Zuordnung 1 Programm',
                 'Zuordnung 1 Rolle',
-                'Foto Erlaubnis',
+                'Fotoerlaubnis',
                 'T-Shirt Schnitt',
                 'T-Shirt Größe',
                 'Essen',
@@ -129,7 +129,7 @@ class VolunteerColumnsTest extends TestCase
 
         $labels = VolunteerRosterColumns::exportLabelsForEvent(2);
         $essenIndex = array_search('Essen', $labels, true);
-        $photoIndex = array_search('Foto Erlaubnis', $labels, true);
+        $photoIndex = array_search('Fotoerlaubnis', $labels, true);
         $shirtIndex = array_search('T-Shirt Schnitt', $labels, true);
         $customIndex = array_search('Parkplatz', $labels, true);
         $zuordnung2Index = array_search('Zuordnung 2 Programm', $labels, true);

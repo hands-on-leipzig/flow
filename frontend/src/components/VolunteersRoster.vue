@@ -26,7 +26,7 @@ import {type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {rosterEntryHasUnsetField} from '@/utils/volunteerRosterUnset'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
-import {type VolunteerPersonRef, volunteerDisplayName} from '@/utils/volunteerPerson'
+import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 import {defaultRosterDetail, type RosterEntry} from '@/volunteers/rosterTypes'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
@@ -101,13 +101,9 @@ const sortedRoster = computed(() => {
 })
 
 function entryMatchesNameFilter(entry: RosterEntry) {
-  const query = nameFilter.value.trim().toLocaleLowerCase('de')
+  const query = nameFilter.value.trim().toLowerCase()
   if (!query) return true
-  const person = entry.person
-  const haystack = [person.first_name, person.last_name, volunteerDisplayName(person)]
-    .join(' ')
-    .toLocaleLowerCase('de')
-  return haystack.includes(query)
+  return volunteerSearchHaystack(entry.person).includes(query)
 }
 
 function entryMatchesFilters(entry: RosterEntry) {
@@ -281,7 +277,7 @@ onMounted(() => load())
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Helfer:innenliste</h1>
-        <p class="vol-page__sub">Alle Helfer:innen für diese Veranstaltung</p>
+        <p class="vol-page__sub">Verwalten von Daten für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">
         <button
@@ -373,11 +369,11 @@ onMounted(() => load())
               class="vol-staffing-filter"
               :class="{'vol-staffing-filter--active': showOnlyPhotoUnset}"
               :aria-pressed="showOnlyPhotoUnset"
-              title="Nur Helfer:innen ohne Foto-Erlaubnis anzeigen"
+              title="Nur Helfer:innen mit fehlender Fotoerlaubnis anzeigen"
               @click="showOnlyPhotoUnset = !showOnlyPhotoUnset"
           >
             <i class="bi bi-camera vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Foto Erlaubnis</span>
+            <span class="vol-staffing-filter__label">Fotoerlaubnis fehlt</span>
           </button>
           <button
               type="button"
@@ -387,7 +383,7 @@ onMounted(() => load())
               @click="showOnlyUnset = !showOnlyUnset"
           >
             <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Unvollständige</span>
+            <span class="vol-staffing-filter__label">Unvollständige Antworten</span>
           </button>
           <span class="vol-toolbar__count vol-staffing-filters__count">
             {{ filteredRoster.length }} / {{ roster.length }}

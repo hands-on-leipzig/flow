@@ -69,7 +69,7 @@ final class TeamPhotoCounts
     public static function validateCountMap(mixed $input): array
     {
         if (! is_array($input)) {
-            return ['ok' => false, 'error' => 'Ungültige Foto-Erlaubnis.'];
+            return ['ok' => false, 'error' => 'Ungültige Fotoerlaubnis.'];
         }
 
         $normalized = [];

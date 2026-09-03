@@ -1,7 +1,6 @@
 <script setup lang="ts">
 /**
- * am Tag → Cockpit
- * Controls left · live iframe preview right
+ * am Tag → Cockpit: shared page header + flexible settings/preview split.
  */
 import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import axios from 'axios'
@@ -150,8 +149,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="settings-split">
+  <div class="vol-page vol-page--fill settings-split">
     <SavingToast ref="saving" message="Wird gespeichert…"/>
+
+    <header class="vol-page__header">
+      <div>
+        <h1 class="vol-page__title">Cockpit App</h1>
+        <p class="vol-page__sub">Einstellen und Ausprobieren der Funktionen zur Steuerung der Veranstaltung</p>
+      </div>
+    </header>
 
     <div class="settings-split__workspace">
       <div class="settings-split__split">
@@ -161,17 +167,11 @@ onBeforeUnmount(() => {
         >
           <div class="settings-split__left-scroll">
             <div class="settings-split__settings">
-              <header>
-                <h1 class="settings-split__page-title">Cockpit App</h1>
-                <p class="settings-split__page-sub">
-                  Steuerung am Veranstaltungstag. Vorschau rechts ist die echte Cockpit-Ansicht.
-                </p>
-                <p class="glass-settings-hint !mb-0 settings-split__header-hint">
-                  Diese Funktion ist nur vom Plan verlinkt, wenn die
-                  <RouterLink to="/plan/publish" class="glass-settings-hint-link">Veröffentlichung</RouterLink>
-                  auf „volle Details“ gesetzt ist.
-                </p>
-              </header>
+              <p class="glass-settings-hint !mb-0 settings-split__header-hint">
+                Diese Funktion ist nur vom Plan verlinkt, wenn die
+                <RouterLink to="/plan/publish" class="glass-settings-hint-link">Veröffentlichung</RouterLink>
+                auf „volle Details“ gesetzt ist.
+              </p>
 
               <p v-if="settings && !settings.has_slug" class="glass-alert-warning !mb-0 !text-xs">
                 Öffentlicher Link fehlt — bitte zuerst unter Ausgabe → Veröffentlichung erzeugen.
