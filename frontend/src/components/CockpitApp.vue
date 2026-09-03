@@ -48,6 +48,33 @@ const roundsApiPath = computed(() =>
     slug.value ? `/cockpit/${slug.value}/rounds` : null,
 )
 
+/** Placeholder tiles for upcoming Cockpit tools. */
+const overviewTools = [
+  {
+    title: 'Überblick über Teams und Helfer:innen',
+    text: 'Wer fehlt oder kommt gar nicht? Wer ist in welcher Jury-Gruppe?',
+  },
+  {
+    title: 'Telefonbuch',
+    text: 'Man schnell jemand auf dem Handy anrufen ...',
+  },
+  {
+    title: 'Slide-Show Auswahl',
+    text: 'Wähle welche Slide-Show im Karussell läuft.',
+  },
+] as const
+
+const afterRoundsTools = [
+  {
+    title: 'Zeiten im Plan verschieben',
+    text: 'Verschiebe den Rest des Tages, ohne den Zeitplan neu zu generieren.',
+  },
+  {
+    title: 'Forschung auf der Bühne',
+    text: 'Jury trägt ein wer kommt und Moderator / Stage Crew sehen es.',
+  },
+] as const
+
 async function loadBootstrap() {
   bootstrapError.value = ''
   try {
@@ -173,15 +200,33 @@ onMounted(async () => {
             <div class="cp-home-brand__event">{{ bootstrap?.event_name || slug }}</div>
           </div>
 
+          <section
+              v-for="tool in overviewTools"
+              :key="tool.title"
+              class="glass-card liquid-surface-inner cp-tool"
+          >
+            <h2 class="cp-tool__heading">{{ tool.title }}</h2>
+            <p class="cp-tool__text">{{ tool.text }}</p>
+          </section>
+
           <RobotGameRoundsPanel
               :event-id="bootstrap?.event_id ?? null"
               :rounds-api-path="roundsApiPath"
               :http="api"
           />
 
-          <section class="glass-card liquid-surface-inner cp-more">
-            <h2 class="cp-more__heading">Weitere Live-Tools</h2>
-            <p class="cp-more__text">
+          <section
+              v-for="tool in afterRoundsTools"
+              :key="tool.title"
+              class="glass-card liquid-surface-inner cp-tool"
+          >
+            <h2 class="cp-tool__heading">{{ tool.title }}</h2>
+            <p class="cp-tool__text">{{ tool.text }}</p>
+          </section>
+
+          <section class="glass-card liquid-surface-inner cp-tool">
+            <h2 class="cp-tool__heading">Weitere Live-Tools</h2>
+            <p class="cp-tool__text">
               Hier werden später weitere mobile Funktionen für den Veranstaltungstag ergänzt werden.
             </p>
           </section>
@@ -297,18 +342,18 @@ onMounted(async () => {
   color: var(--color-text);
 }
 
-.cp-more {
+.cp-tool {
   padding: 1rem 1.25rem;
 }
 
-.cp-more__heading {
+.cp-tool__heading {
   font-size: 1rem;
   font-weight: 700;
   margin: 0 0 0.35rem;
   color: var(--color-text);
 }
 
-.cp-more__text {
+.cp-tool__text {
   margin: 0;
   font-size: 0.9rem;
   color: var(--color-text-muted);

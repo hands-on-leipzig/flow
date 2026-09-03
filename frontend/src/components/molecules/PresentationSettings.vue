@@ -3,7 +3,7 @@
 import draggable from "vuedraggable";
 import SlideThumb from "@/components/SlideThumb.vue";
 import {useEventStore} from "@/stores/event";
-import {computed, nextTick, onMounted, ref} from "vue";
+import {computed, nextTick, onMounted, ref, watch} from "vue";
 import {Slideshow} from "@/models/slideshow";
 import axios from "axios";
 import {Slide} from "@/models/slide";
@@ -13,6 +13,7 @@ import ItemComposer from "@/components/molecules/ItemComposer.vue";
 import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
 import IconDangerButton from "@/components/atoms/IconDangerButton.vue";
 import PanelSplitter from "@/components/atoms/PanelSplitter.vue";
+import {showGlassToast} from "@/composables/useGlassToast";
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
@@ -57,6 +58,27 @@ function getSlideshowLink(slideshow: Slideshow) {
   return event.value ? `${window.location.origin}/carousel/${event.value.id}` : '';
 }
 
+const previewIframeKey = ref(0);
+const previewUrl = computed(() =>
+  selectedSlideshow.value ? getSlideshowLink(selectedSlideshow.value) : ''
+);
+const previewHasSlides = computed(() => (selectedSlideshow.value?.slides?.length ?? 0) > 0);
+
+watch(
+  () => {
+    const s = selectedSlideshow.value;
+    if (!s) return null;
+    return {
+      id: s.id,
+      transition: s.transition_time,
+      slideIds: (s.slides ?? []).map((slide) => slide.id).join(','),
+    };
+  },
+  () => {
+    previewIframeKey.value += 1;
+  },
+);
+
 function openSlideshowInNewWindow(slideshow: Slideshow) {
   const link = getSlideshowLink(slideshow);
   if (link) {
@@ -64,15 +86,19 @@ function openSlideshowInNewWindow(slideshow: Slideshow) {
   }
 }
 
-function copySlideshowLink(slideshow: Slideshow) {
+async function copySlideshowLink(slideshow: Slideshow) {
   const link = getSlideshowLink(slideshow);
-  if (link) {
-    copyUrl(link);
-    copiedSlideshowId.value = slideshow.id;
-    setTimeout(() => {
-      copiedSlideshowId.value = null;
-    }, 2000);
+  if (!link) return;
+  try {
+    await navigator.clipboard.writeText(link);
+    showGlassToast('Link kopiert', 'success');
+  } catch {
+    showGlassToast('Link konnte nicht kopiert werden', 'error');
   }
+}
+
+function reloadLivePreview() {
+  previewIframeKey.value += 1;
 }
 
 const slidesKey = ref(1);
@@ -81,7 +107,6 @@ const slideType = ref("");
 const showSlideTypeModal = ref(false);
 const currentSlideshow = ref<Slideshow | null>(null);
 const creatingSlideType = ref<string | null>(null);
-const copiedSlideshowId = ref<number | null>(null);
 const isDragging = ref(false);
 const draggedSlideId = ref<number | null>(null);
 const publicPlanChoices = [
@@ -298,10 +323,6 @@ async function addSlide(selectedType: string) {
     creatingSlideType.value = null;
   }
 }
-
-function copyUrl(url) {
-  navigator.clipboard.writeText(url);
-}
 </script>
 
 <template>
@@ -347,6 +368,13 @@ function copyUrl(url) {
             </ItemCard>
           </div>
         </div>
+
+        <div class="digital-workspace__pane digital-workspace__pane--medien">
+          <h2 class="glass-card__heading">Medien</h2>
+          <p class="glass-settings-hint !mb-0">
+            Hier kommt die Verwaltung für zusätzliche Fotos und Videos hin ... demnächst.
+          </p>
+        </div>
       </section>
 
       <PanelSplitter
@@ -371,74 +399,115 @@ function copyUrl(url) {
           <template v-else-if="selectedSlideshow">
             <div class="digital-workspace__editor-bar">
               <h2 class="digital-workspace__editor-title">{{ selectedSlideshow.name }}</h2>
-              <div class="digital-workspace__editor-actions">
-                <button
-                    type="button"
-                    class="digital-workspace__editor-btn"
-                    title="Slideshow in neuem Fenster öffnen"
-                    @click="openSlideshowInNewWindow(selectedSlideshow)"
+              <div class="digital-workspace__link-row">
+                <a
+                    v-if="previewUrl"
+                    :href="previewUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="digital-workspace__link-anchor liquid-surface-inner"
+                    :title="previewUrl"
                 >
-                  <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
-                  <span>Öffnen</span>
-                </button>
-                <button
-                    type="button"
-                    class="digital-workspace__editor-btn"
-                    :title="copiedSlideshowId === selectedSlideshow.id ? 'Link kopiert!' : 'Link kopieren'"
-                    @click="copySlideshowLink(selectedSlideshow)"
+                  <span class="digital-workspace__link-text">{{ previewUrl }}</span>
+                  <i class="bi bi-chevron-right text-[var(--color-text-subtle)] shrink-0" aria-hidden="true"/>
+                </a>
+                <div
+                    v-else
+                    class="digital-workspace__link-anchor liquid-surface-inner digital-workspace__link-anchor--empty"
                 >
-                  <i
-                      :class="copiedSlideshowId === selectedSlideshow.id ? 'bi bi-check' : 'bi bi-clipboard'"
-                      aria-hidden="true"
-                  />
-                  <span>{{ copiedSlideshowId === selectedSlideshow.id ? 'Kopiert!' : 'Link kopieren' }}</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="digital-workspace__editor-body">
-            <!-- Settings Row -->
-            <div class="bg-white rounded-lg p-4 mb-4 border border-[var(--color-border)]">
-              <div class="grid grid-cols-1 gap-4 items-end">
-                <!-- Transition Time -->
-                <div class="flex-1">
-                  <label class="block text-sm font-medium text-[var(--color-text-muted)] mb-2">
-                    <i class="bi bi-clock"></i> Anzeigezeit pro Folie
-                  </label>
-                  <div class="flex flex-col gap-2">
-                    <div class="flex items-center gap-2">
-                      <input
-                          type="number"
-                          :min="1"
-                          :max="60"
-                          v-model.number="selectedSlideshow.transition_time"
-                          @change="updateTransitionTime(selectedSlideshow)"
-                          @blur="updateTransitionTime(selectedSlideshow)"
-                          class="w-20 px-3 py-2 border border-[var(--color-border)] rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                          aria-label="Transition time in seconds"
-                      />
-                      <span class="text-sm font-medium text-[var(--color-text-muted)]">Sekunden</span>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                      <button
-                          v-for="preset in [5, 10, 15, 30, 60]"
-                          :key="preset"
-                          @click="selectedSlideshow.transition_time = preset; updateTransitionTime(selectedSlideshow)"
-                          :class="[
-                        'px-3 py-1 text-xs font-medium rounded-md transition-colors',
-                        selectedSlideshow.transition_time === preset
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-hover)]'
-                      ]"
-                      >
-                        {{ preset }}s
-                      </button>
-                    </div>
-                  </div>
+                  <span class="text-sm text-[var(--color-text-subtle)]">Kein Link verfügbar</span>
+                </div>
+                <div class="digital-workspace__link-actions shrink-0">
+                  <button
+                      type="button"
+                      class="glass-btn-secondary digital-workspace__link-icon-btn"
+                      aria-label="Link kopieren"
+                      title="Link kopieren"
+                      :disabled="!previewUrl"
+                      @click="copySlideshowLink(selectedSlideshow)"
+                  >
+                    <i class="bi bi-clipboard" aria-hidden="true"/>
+                  </button>
                 </div>
               </div>
             </div>
 
+            <div class="digital-workspace__editor-meta">
+              <div class="digital-workspace__timing-box">
+                <label class="digital-workspace__timing-label" for="slideshow-transition-time">
+                  <i class="bi bi-clock" aria-hidden="true"/>
+                  Anzeigezeit pro Folie
+                </label>
+                <div class="digital-workspace__timing-row">
+                  <input
+                      id="slideshow-transition-time"
+                      type="number"
+                      :min="1"
+                      :max="60"
+                      v-model.number="selectedSlideshow.transition_time"
+                      @change="updateTransitionTime(selectedSlideshow)"
+                      @blur="updateTransitionTime(selectedSlideshow)"
+                      class="digital-workspace__timing-input"
+                      aria-label="Anzeigezeit in Sekunden"
+                  />
+                  <span class="digital-workspace__timing-unit">Sekunden</span>
+                </div>
+                <div class="digital-workspace__timing-presets">
+                  <button
+                      v-for="preset in [5, 10, 15, 30, 60]"
+                      :key="preset"
+                      type="button"
+                      class="digital-workspace__timing-preset"
+                      :class="{'digital-workspace__timing-preset--active': selectedSlideshow.transition_time === preset}"
+                      @click="selectedSlideshow.transition_time = preset; updateTransitionTime(selectedSlideshow)"
+                  >
+                    {{ preset }}s
+                  </button>
+                </div>
+              </div>
+
+              <div
+                  class="digital-workspace__live-tile"
+                  :class="{'digital-workspace__live-tile--empty': !previewHasSlides || !previewUrl}"
+                  aria-label="Live-Vorschau der Slideshow"
+              >
+                <div class="digital-workspace__live-tile-bar">
+                  <span class="digital-workspace__live-dot" aria-hidden="true"/>
+                  <span class="digital-workspace__live-label">Live</span>
+                  <button
+                      v-if="previewUrl && previewHasSlides"
+                      type="button"
+                      class="digital-workspace__live-reload"
+                      title="Vorschau neu laden"
+                      @click="reloadLivePreview"
+                  >
+                    <i class="bi bi-arrow-clockwise" aria-hidden="true"/>
+                  </button>
+                </div>
+                <button
+                    v-if="previewUrl && previewHasSlides"
+                    type="button"
+                    class="digital-workspace__live-stage"
+                    title="Slideshow öffnen"
+                    @click="openSlideshowInNewWindow(selectedSlideshow)"
+                >
+                  <div class="digital-workspace__live-scaler">
+                    <iframe
+                        :key="previewIframeKey"
+                        class="digital-workspace__live-frame"
+                        :src="previewUrl"
+                        title="Live-Vorschau"
+                        tabindex="-1"
+                    />
+                  </div>
+                </button>
+                <div v-else class="digital-workspace__live-empty">
+                  Keine Folien
+                </div>
+              </div>
+            </div>
+
+            <div class="digital-workspace__editor-body">
             <!-- Slides Grid -->
             <div class="bg-gray-800 rounded-xl p-4 min-h-[200px]">
               <div class="flex flex-wrap gap-3" :class="{ 'dragging': isDragging }">
@@ -608,6 +677,7 @@ function copyUrl(url) {
 .digital-workspace__left {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -637,6 +707,10 @@ function copyUrl(url) {
     0 2px 6px rgba(15, 23, 42, 0.04);
 }
 
+.digital-workspace__pane--medien {
+  flex: 0 0 auto;
+}
+
 .digital-workspace__pane--editor {
   display: flex;
   flex-direction: column;
@@ -645,9 +719,9 @@ function copyUrl(url) {
 
 .digital-workspace__editor-bar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
   flex-shrink: 0;
   margin-bottom: 0.65rem;
 }
@@ -662,27 +736,253 @@ function copyUrl(url) {
   color: var(--color-text);
 }
 
-.digital-workspace__editor-actions {
+.digital-workspace__link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.digital-workspace__link-anchor {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  flex-shrink: 0;
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s ease;
 }
 
-.digital-workspace__editor-btn {
+.digital-workspace__link-anchor:hover {
+  background: var(--color-bg-hover);
+}
+
+.digital-workspace__link-anchor--empty {
+  cursor: default;
+}
+
+.digital-workspace__link-anchor--empty:hover {
+  background: transparent;
+}
+
+.digital-workspace__link-text {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.digital-workspace__link-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.digital-workspace__link-icon-btn {
+  padding: 0.4rem 0.5rem !important;
+  line-height: 1;
+}
+
+.digital-workspace__link-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.digital-workspace__editor-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  margin-bottom: 0.75rem;
+}
+
+.digital-workspace__timing-box {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  background: var(--color-bg, #fff);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+}
+
+.digital-workspace__timing-label {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.35rem 0.65rem;
+  margin: 0;
   font-size: 0.8125rem;
-  border-radius: 0.375rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.digital-workspace__timing-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.digital-workspace__timing-input {
+  width: 4.5rem;
+  padding: 0.4rem 0.55rem;
   border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
   background: var(--color-bg);
   color: var(--color-text);
 }
 
-.digital-workspace__editor-btn:hover {
+.digital-workspace__timing-input:focus {
+  outline: none;
+  border-color: var(--color-accent, #2563eb);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent, #2563eb) 25%, transparent);
+}
+
+.digital-workspace__timing-unit {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.digital-workspace__timing-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.digital-workspace__timing-preset {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  border: 1px solid transparent;
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.digital-workspace__timing-preset:hover {
   background: var(--color-bg-hover);
+}
+
+.digital-workspace__timing-preset--active {
+  background: var(--color-accent, #2563eb);
+  color: var(--color-on-accent, #fff);
+}
+
+.digital-workspace__live-tile {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 13.75rem;
+  width: 13.75rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+  background: #0f172a;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.digital-workspace__live-tile-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.45rem;
+  background: color-mix(in srgb, #0f172a 88%, #fff);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.digital-workspace__live-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25);
+}
+
+.digital-workspace__live-label {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.digital-workspace__live-reload {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: none;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+}
+
+.digital-workspace__live-reload:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.digital-workspace__live-stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: none;
+  overflow: hidden;
+  cursor: pointer;
+  background: #000;
+  container-type: inline-size;
+}
+
+.digital-workspace__live-scaler {
+  --live-frame-w: 1280;
+  --live-frame-h: 720;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(var(--live-frame-w) * 1px);
+  height: calc(var(--live-frame-h) * 1px);
+  transform: scale(calc(100cqw / var(--live-frame-w)));
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+.digital-workspace__live-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  display: block;
+  background: #000;
+}
+
+.digital-workspace__live-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.55);
+  background: #111827;
+}
+
+.digital-workspace__live-tile--empty .digital-workspace__live-dot {
+  background: #64748b;
+  box-shadow: none;
 }
 
 .digital-workspace__editor-body {
