@@ -74,6 +74,13 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     devOrLocalOnly: true,
   },
   {
+    key: 'match-plans',
+    label: 'Matchpläne',
+    icon: 'bi-grid-3x3-gap',
+    group: 'entwicklung',
+    devOrLocalOnly: true,
+  },
+  {
     key: 'quality',
     label: 'Massentest',
     icon: 'bi-flask',

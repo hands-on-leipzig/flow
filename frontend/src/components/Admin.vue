@@ -6,6 +6,7 @@ import Statistics from '@/components/molecules/Statistics.vue'
 import NowAndNext from '@/components/molecules/NowAndNext.vue'
 import UserRegionalPartnerRelations from '@/components/molecules/UserRegionalPartnerRelations.vue'
 import MainTablesAdmin from '@/components/molecules/MainTablesAdmin.vue'
+import MatchPlansAdmin from '@/components/molecules/MatchPlansAdmin.vue'
 import SystemNews from '@/components/molecules/SystemNews.vue'
 import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
@@ -92,6 +93,11 @@ onMounted(() => {
 
     <div v-else-if="activeTab === 'main-tables' && sectionAllowed" class="admin-shell__fill-child">
       <MainTablesAdmin/>
+    </div>
+
+    <div v-else-if="activeTab === 'match-plans' && sectionAllowed">
+      <h2 class="text-xl font-bold mb-4">Matchpläne</h2>
+      <MatchPlansAdmin/>
     </div>
 
     <div v-else-if="activeTab === 'system-news'">

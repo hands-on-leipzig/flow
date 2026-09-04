@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\LogoController;
 use App\Http\Controllers\Api\MainTablesController;
+use App\Http\Controllers\Api\MatchPlanCatalogController;
 use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\ParameterController;
@@ -423,6 +424,15 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/{table}', [MainTablesController::class, 'store']);
         Route::put('/{table}/{id}', [MainTablesController::class, 'update']);
         Route::delete('/{table}/{id}', [MainTablesController::class, 'destroy']);
+    });
+
+    Route::prefix('admin/match-plans')->group(function () {
+        Route::get('/programs', [MatchPlanCatalogController::class, 'programs']);
+        Route::get('/keys', [MatchPlanCatalogController::class, 'keys']);
+        Route::get('/', [MatchPlanCatalogController::class, 'show']);
+        Route::put('/', [MatchPlanCatalogController::class, 'save']);
+        Route::delete('/', [MatchPlanCatalogController::class, 'destroy']);
+        Route::post('/quality', [MatchPlanCatalogController::class, 'quality']);
     });
 
     Route::get('/seasons', function () {

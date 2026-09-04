@@ -34,7 +34,7 @@
         },
         {
             "id": 5,
-            "name": "Er\u00f6ffnung Challenge",
+            "name": "Eröffnung Challenge",
             "sequence": 200,
             "description": null,
             "first_program": 3,
@@ -74,7 +74,7 @@
         },
         {
             "id": 10,
-            "name": "Er\u00f6ffnung Explore",
+            "name": "Eröffnung Explore",
             "sequence": 110,
             "description": null,
             "first_program": 2,
@@ -90,7 +90,7 @@
         },
         {
             "id": 12,
-            "name": "Er\u00f6ffnung",
+            "name": "Eröffnung",
             "sequence": 10,
             "description": null,
             "first_program": null,
@@ -122,7 +122,7 @@
         },
         {
             "id": 16,
-            "name": "Forschung auf der B\u00fchne",
+            "name": "Forschung auf der Bühne",
             "sequence": 40,
             "description": null,
             "first_program": 3,
@@ -162,7 +162,7 @@
         },
         {
             "id": 21,
-            "name": "Forschung auf der B\u00fchne",
+            "name": "Forschung auf der Bühne",
             "sequence": 40,
             "description": null,
             "first_program": 8,
@@ -170,7 +170,7 @@
         },
         {
             "id": 22,
-            "name": "Er\u00f6ffnung Future 8+",
+            "name": "Eröffnung Future 8+",
             "sequence": 200,
             "description": null,
             "first_program": 8,
@@ -240,7 +240,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Alle Gutachter:innen beraten gemeinsam \u00fcber Auszeichnungen f\u00fcr alle Teams",
+            "description": "Alle Gutachter:innen beraten gemeinsam über Auszeichnungen für alle Teams",
             "link": "",
             "link_text": null,
             "activity_type": 3
@@ -257,58 +257,58 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Das Team erkl\u00e4rt den Gutachter:innen sein Modell und sein Poster",
+            "description": "Das Team erklärt den Gutachter:innen sein Modell und sein Poster",
             "link": "",
             "link_text": null,
             "activity_type": 3
         },
         {
             "id": 5,
-            "name": "Er\u00f6ffnung Explore",
+            "name": "Eröffnung Explore",
             "code": "e1_opening",
             "presence": "window",
             "public_time": 1,
-            "name_preview": "Er\u00f6ffnung E",
+            "name_preview": "Eröffnung E",
             "sequence": 10,
             "first_program": 2,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Explore Ausstellung wird er\u00f6ffnet",
+            "description": "Die Explore Ausstellung wird eröffnet",
             "link": "",
             "link_text": null,
             "activity_type": 10
         },
         {
             "id": 6,
-            "name": "Er\u00f6ffnung Challenge",
+            "name": "Eröffnung Challenge",
             "code": "c_opening",
             "presence": "window",
             "public_time": 1,
-            "name_preview": "Er\u00f6ffnung C",
+            "name_preview": "Eröffnung C",
             "sequence": 10,
             "first_program": 3,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Der Challenge Wettbewerb wird er\u00f6ffnet",
+            "description": "Der Challenge Wettbewerb wird eröffnet",
             "link": "",
             "link_text": null,
             "activity_type": 5
         },
         {
             "id": 7,
-            "name": "Gemeinsame Er\u00f6ffnung",
+            "name": "Gemeinsame Eröffnung",
             "code": "g_opening",
             "presence": "window",
             "public_time": 1,
-            "name_preview": "Er\u00f6ffnung",
+            "name_preview": "Eröffnung",
             "sequence": 10,
             "first_program": null,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Explore Ausstellung und der Challenge Wettbewerbe werden er\u00f6ffnet",
+            "description": "Die Explore Ausstellung und der Challenge Wettbewerbe werden eröffnet",
             "link": "",
             "link_text": null,
             "activity_type": 12
@@ -325,7 +325,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Teams testen den Robot-Game-Tisch und kl\u00e4ren Fragen mit den Schiedsrichter:innen",
+            "description": "Die Teams testen den Robot-Game-Tisch und klären Fragen mit den Schiedsrichter:innen",
             "link": "",
             "link_text": null,
             "activity_type": 1
@@ -444,7 +444,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "In einem Match stehen sich zwei Teams gegen\u00fcber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:innen Punkte pro gel\u00f6ster Aufgabe",
+            "description": "In einem Match stehen sich zwei Teams gegenüber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:innen Punkte pro gelöster Aufgabe",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
@@ -468,7 +468,7 @@
         },
         {
             "id": 17,
-            "name": "Jurygespr\u00e4ch",
+            "name": "Jurygespräch",
             "code": "j_with_team",
             "presence": "punctual",
             "public_time": 0,
@@ -478,7 +478,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Zu beiden stellen die Juror:innen Fragen",
+            "description": "Die Teams präsentieren ihre Forschung und ihr Roboterdesign. Zu beiden stellen die Juror:innen Fragen",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
@@ -495,7 +495,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Nachdem das Team den Raum verlassen hat, f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
+            "description": "Nachdem das Team den Raum verlassen hat, füllen die Juror:innen Bewertungsbögen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
@@ -529,7 +529,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Anschlie\u00dfend f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
+            "description": "Die Teams präsentieren ihre Forschung und ihr Roboterdesign. Anschließend füllen die Juror:innen Bewertungsbögen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
@@ -563,14 +563,14 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Medaillen, Urkunden und Pokale f\u00fcr die Challenge Teams",
+            "description": "Medaillen, Urkunden und Pokale für die Challenge Teams",
             "link": "",
             "link_text": null,
             "activity_type": 6
         },
         {
             "id": 33,
-            "name": "Forschung auf der B\u00fchne",
+            "name": "Forschung auf der Bühne",
             "code": "c_presentations",
             "presence": "info",
             "public_time": 0,
@@ -580,7 +580,7 @@
             "afternoon_chain": 0,
             "afternoon_default": 1,
             "afternoon_parameter": 37,
-            "description": "Von den Juror:innen ausgew\u00e4hlte Forschungen werden noch einmal \u00f6ffentlich pr\u00e4sentiert. Eine Fragerunde gibt es nicht",
+            "description": "Von den Juror:innen ausgewählte Forschungen werden noch einmal öffentlich präsentiert. Eine Fragerunde gibt es nicht",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
             "link_text": null,
             "activity_type": 16
@@ -597,7 +597,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Medaillen und Urkunden f\u00fcr die Explore Teams und Medaillen, Urkunden und Pokale f\u00fcr die Challenge Teams",
+            "description": "Medaillen und Urkunden für die Explore Teams und Medaillen, Urkunden und Pokale für die Challenge Teams",
             "link": "",
             "link_text": null,
             "activity_type": 13
@@ -631,7 +631,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Das Jury-Briefing sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
+            "description": "Das Jury-Briefing sorgt dafür, dass alle nach den selben Kriterien bewerten",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
@@ -648,7 +648,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Im Schiedsrichter:innen-Briefing werden aktuelle Regel\u00e4nderungen besprochen und offene Fragen beantwortet",
+            "description": "Im Schiedsrichter:innen-Briefing werden aktuelle Regeländerungen besprochen und offene Fragen beantwortet",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 1
@@ -682,7 +682,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Das Gutachter:innen-Briefing sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
+            "description": "Das Gutachter:innen-Briefing sorgt dafür, dass alle nach den selben Kriterien bewerten",
             "link": "",
             "link_text": null,
             "activity_type": 3
@@ -716,7 +716,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Live Challenge gibt es nur beim Finale. Die Teams m\u00fcssen sich unbekannten Aufgaben stellen. Die Bewertung geht NICHT in die Champion-Wertung ein, aber es gibt einen eigenen Pokal",
+            "description": "Die Live Challenge gibt es nur beim Finale. Die Teams müssen sich unbekannten Aufgaben stellen. Die Bewertung geht NICHT in die Champion-Wertung ein, aber es gibt einen eigenen Pokal",
             "link": "",
             "link_text": null,
             "activity_type": 8
@@ -733,7 +733,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Juror:innen erkl\u00e4ren die Aufgaben, Regeln und wie viel Zeit zur Verf\u00fcgung steht. Dann l\u00f6sen die Teams m\u00f6glichst viele Aufgaben der Live Challenge",
+            "description": "Die Juror:innen erklären die Aufgaben, Regeln und wie viel Zeit zur Verfügung steht. Dann lösen die Teams möglichst viele Aufgaben der Live Challenge",
             "link": "",
             "link_text": null,
             "activity_type": 8
@@ -801,7 +801,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Im Schiedsrichter:innen-Debriefing besprechen die Schiedsrichter:innen besondere Erlebnisse des Tages und besprechen m\u00f6gliche Anpassungen f\u00fcr den n\u00e4chsten Tag",
+            "description": "Im Schiedsrichter:innen-Debriefing besprechen die Schiedsrichter:innen besondere Erlebnisse des Tages und besprechen mögliche Anpassungen für den nächsten Tag",
             "link": null,
             "link_text": null,
             "activity_type": 1
@@ -859,17 +859,17 @@
         },
         {
             "id": 54,
-            "name": "Er\u00f6ffnung Tag 1",
+            "name": "Eröffnung Tag 1",
             "code": "c_opening_day_1",
             "presence": "window",
             "public_time": 1,
-            "name_preview": "Er\u00f6ffnung Tag 1",
+            "name_preview": "Eröffnung Tag 1",
             "sequence": 97,
             "first_program": 3,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Kleine Er\u00f6ffnung vor Live Challenge und Robot-Game Testrunden",
+            "description": "Kleine Eröffnung vor Live Challenge und Robot-Game Testrunden",
             "link": null,
             "link_text": null,
             "activity_type": 5
@@ -886,7 +886,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Das Jury-Briefing (an Tag 1) sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
+            "description": "Das Jury-Briefing (an Tag 1) sorgt dafür, dass alle nach den selben Kriterien bewerten",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 2
@@ -903,7 +903,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Medaillen und Urkunden f\u00fcr die Explore Teams",
+            "description": "Medaillen und Urkunden für die Explore Teams",
             "link": null,
             "link_text": null,
             "activity_type": 11
@@ -937,7 +937,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Essen und Gespr\u00e4che",
+            "description": "Essen und Gespräche",
             "link": null,
             "link_text": null,
             "activity_type": 14
@@ -954,7 +954,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Kindern stellen ihre Modelle und Poster aus und freuen sich \u00fcber Fragen dazu",
+            "description": "Die Kindern stellen ihre Modelle und Poster aus und freuen sich über Fragen dazu",
             "link": null,
             "link_text": null,
             "activity_type": 17
@@ -1022,7 +1022,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Teams testen den Game-Tisch und kl\u00e4ren Fragen mit den Schiedsrichter:innen",
+            "description": "Die Teams testen den Game-Tisch und klären Fragen mit den Schiedsrichter:innen",
             "link": "",
             "link_text": null,
             "activity_type": 19
@@ -1114,7 +1114,7 @@
         },
         {
             "id": 72,
-            "name": "Forschung auf der B\u00fchne",
+            "name": "Forschung auf der Bühne",
             "code": "f8_presentations",
             "presence": "info",
             "public_time": 0,
@@ -1124,24 +1124,24 @@
             "afternoon_chain": 0,
             "afternoon_default": 2,
             "afternoon_parameter": 140,
-            "description": "Von den Juror:innen ausgew\u00e4hlte Forschungen werden noch einmal \u00f6ffentlich pr\u00e4sentiert. Eine Fragerunde gibt es nicht",
+            "description": "Von den Juror:innen ausgewählte Forschungen werden noch einmal öffentlich präsentiert. Eine Fragerunde gibt es nicht",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
             "link_text": null,
             "activity_type": 21
         },
         {
             "id": 73,
-            "name": "Er\u00f6ffnung Future 8+",
+            "name": "Eröffnung Future 8+",
             "code": "f8_opening",
             "presence": "window",
             "public_time": 1,
-            "name_preview": "Er\u00f6ffnung F8+",
+            "name_preview": "Eröffnung F8+",
             "sequence": 10,
             "first_program": 8,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Der Future 8+ Wettbewerb wird er\u00f6ffnet",
+            "description": "Der Future 8+ Wettbewerb wird eröffnet",
             "link": "",
             "link_text": null,
             "activity_type": 22
@@ -1158,14 +1158,14 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "In einem Match stehen sich zwei Teams gegen\u00fcber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:innen Punkte pro gel\u00f6ster Aufgabe",
+            "description": "In einem Match stehen sich zwei Teams gegenüber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:innen Punkte pro gelöster Aufgabe",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 19
         },
         {
             "id": 75,
-            "name": "Jurygespr\u00e4ch",
+            "name": "Jurygespräch",
             "code": "f8_j_with_team",
             "presence": "punctual",
             "public_time": 0,
@@ -1175,7 +1175,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Zu beiden stellen die Juror:innen Fragen",
+            "description": "Die Teams präsentieren ihre Forschung und ihr Roboterdesign. Zu beiden stellen die Juror:innen Fragen",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20
@@ -1192,7 +1192,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Nachdem das Team den Raum verlassen hat, f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
+            "description": "Nachdem das Team den Raum verlassen hat, füllen die Juror:innen Bewertungsbögen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20
@@ -1226,7 +1226,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Anschlie\u00dfend f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
+            "description": "Die Teams präsentieren ihre Forschung und ihr Roboterdesign. Anschließend füllen die Juror:innen Bewertungsbögen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20
@@ -1243,7 +1243,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Medaillen, Urkunden und Pokale f\u00fcr die Future 8+ Teams",
+            "description": "Medaillen, Urkunden und Pokale für die Future 8+ Teams",
             "link": "",
             "link_text": null,
             "activity_type": 23
@@ -1277,7 +1277,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Das Jury-Briefing sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
+            "description": "Das Jury-Briefing sorgt dafür, dass alle nach den selben Kriterien bewerten",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20
@@ -1294,7 +1294,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Im Schiedsrichter:innen-Briefing werden aktuelle Regel\u00e4nderungen besprochen und offene Fragen beantwortet",
+            "description": "Im Schiedsrichter:innen-Briefing werden aktuelle Regeländerungen besprochen und offene Fragen beantwortet",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
             "activity_type": 19
@@ -1352,17 +1352,17 @@
         },
         {
             "id": 86,
-            "name": "Er\u00f6ffnung Explore (Nachmittag)",
+            "name": "Eröffnung Explore (Nachmittag)",
             "code": "e2_opening",
             "presence": "window",
             "public_time": 1,
-            "name_preview": "Er\u00f6ffnung E",
+            "name_preview": "Eröffnung E",
             "sequence": 10,
             "first_program": 2,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Explore Ausstellung wird er\u00f6ffnet",
+            "description": "Die Explore Ausstellung wird eröffnet",
             "link": "",
             "link_text": null,
             "activity_type": 10
@@ -1379,7 +1379,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Medaillen und Urkunden f\u00fcr die Explore Teams",
+            "description": "Medaillen und Urkunden für die Explore Teams",
             "link": null,
             "link_text": null,
             "activity_type": 11
@@ -1396,24 +1396,24 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Medaillen, Urkunden und Pokale f\u00fcr die Challenge und Future 8+ Teams",
+            "description": "Medaillen, Urkunden und Pokale für die Challenge und Future 8+ Teams",
             "link": "",
             "link_text": null,
             "activity_type": 13
         },
         {
             "id": 89,
-            "name": "Gemeinsame Er\u00f6ffnung",
+            "name": "Gemeinsame Eröffnung",
             "code": "c+f8_opening",
             "presence": "window",
             "public_time": 1,
-            "name_preview": "Er\u00f6ffnung",
+            "name_preview": "Eröffnung",
             "sequence": 10,
             "first_program": null,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Challenge und Future 8+ Wettbewerbe werden er\u00f6ffnet",
+            "description": "Die Challenge und Future 8+ Wettbewerbe werden eröffnet",
             "link": "",
             "link_text": null,
             "activity_type": 12
@@ -1513,6 +1513,7 @@
             "letter": "D",
             "ics_postfix": "discover",
             "sequence": 3,
+            "max_match_rounds": null,
             "color_hex": "662D91",
             "logo_stem": null,
             "logo_white": "FLL_Explore_column_heading.png"
@@ -1524,6 +1525,7 @@
             "letter": "E",
             "ics_postfix": "explore",
             "sequence": 1,
+            "max_match_rounds": null,
             "color_hex": "00A651",
             "logo_stem": "fll_explore",
             "logo_white": "FLL_Explore_column_heading.png"
@@ -1535,6 +1537,7 @@
             "letter": "C",
             "ics_postfix": "challenge",
             "sequence": 2,
+            "max_match_rounds": 3,
             "color_hex": "ED1C24",
             "logo_stem": "fll_challenge",
             "logo_white": "FLL_Challenge_column_heading.png"
@@ -1546,6 +1549,7 @@
             "letter": "F5",
             "ics_postfix": "future_5",
             "sequence": 4,
+            "max_match_rounds": null,
             "color_hex": null,
             "logo_stem": null,
             "logo_white": null
@@ -1557,6 +1561,7 @@
             "letter": "F8",
             "ics_postfix": "future_8",
             "sequence": 5,
+            "max_match_rounds": 5,
             "color_hex": "51BFB4",
             "logo_stem": "fll_future8",
             "logo_white": "Bioglow_Future_column.png"
@@ -1576,6 +1581,7 @@
             "name": "Finale"
         }
     ],
+    "m_match": [],
     "m_parameter": [
         {
             "id": 2,
@@ -1589,8 +1595,8 @@
             "step": "5",
             "first_program": null,
             "sequence": 28,
-            "ui_label": "Start gemeinsame Er\u00f6ffnung",
-            "ui_description": "Startzeit der gemeinsamen Er\u00f6ffnung f\u00fcr Explore und Challenge zusammen."
+            "ui_label": "Start gemeinsame Eröffnung",
+            "ui_description": "Startzeit der gemeinsamen Eröffnung für Explore und Challenge zusammen."
         },
         {
             "id": 3,
@@ -1604,8 +1610,8 @@
             "step": "5",
             "first_program": null,
             "sequence": 29,
-            "ui_label": "Dauer gemeinsame Er\u00f6ffnung ",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_label": "Dauer gemeinsame Eröffnung ",
+            "ui_description": "Es sollte genug Zeit dafür sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und für eine gute Stimmung zu sorgen."
         },
         {
             "id": 4,
@@ -1619,8 +1625,8 @@
             "step": "5",
             "first_program": 2,
             "sequence": 35,
-            "ui_label": "Dauer Er\u00f6ffnung (Explore - Gruppe 2 )",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_label": "Dauer Eröffnung (Explore - Gruppe 2 )",
+            "ui_description": "Es sollte genug Zeit dafür sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und für eine gute Stimmung zu sorgen."
         },
         {
             "id": 5,
@@ -1634,8 +1640,8 @@
             "step": "5",
             "first_program": 2,
             "sequence": 34,
-            "ui_label": "Start Er\u00f6ffnung (Explore - Gruppe 2)",
-            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Explore im Nachmittag"
+            "ui_label": "Start Eröffnung (Explore - Gruppe 2)",
+            "ui_description": "Startzeit der Eröffnung für Explore im Nachmittag"
         },
         {
             "id": 6,
@@ -1680,7 +1686,7 @@
             "first_program": 2,
             "sequence": 47,
             "ui_label": "Dauer Coach:innen-Briefing (Vormittag)",
-            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Ablauf des Tages geklärt werden."
         },
         {
             "id": 9,
@@ -1709,8 +1715,8 @@
             "step": "5",
             "first_program": 2,
             "sequence": 51,
-            "ui_label": "Wechsel zur Er\u00f6ffnung",
-            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
+            "ui_label": "Wechsel zur Eröffnung",
+            "ui_description": "Nach den Briefings kommen alle zur Eröffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit für den Raumwechsel."
         },
         {
             "id": 11,
@@ -1724,8 +1730,8 @@
             "step": "5",
             "first_program": 2,
             "sequence": 32,
-            "ui_label": "Dauer Er\u00f6ffnung (Explore - Gruppe 1)",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_label": "Dauer Eröffnung (Explore - Gruppe 1)",
+            "ui_description": "Es sollte genug Zeit dafür sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und für eine gute Stimmung zu sorgen."
         },
         {
             "id": 12,
@@ -1740,7 +1746,7 @@
             "first_program": 2,
             "sequence": 54,
             "ui_label": "Wechsel zur Begutachtung",
-            "ui_description": "Nach der Er\u00f6ffnung gehen die Kinder in den Austellungsbereich. Die Guterachter:innen gehen ebenfalls zur Austellung oder in eigene R\u00e4ume, wenn das vorgesehen ist."
+            "ui_description": "Nach der Eröffnung gehen die Kinder in den Austellungsbereich. Die Guterachter:innen gehen ebenfalls zur Austellung oder in eigene Räume, wenn das vorgesehen ist."
         },
         {
             "id": 13,
@@ -1755,7 +1761,7 @@
             "first_program": 2,
             "sequence": 55,
             "ui_label": "Dauer Pause Gutachter:innen",
-            "ui_description": "Dauer der Pause zwischen zwei Begutachtungen. In der Zeit f\u00fcr eine Begutachtgung ist schon die Zeit f\u00fcr eine Besprechung der Gutacher:innen ohne die Kinder enthalten."
+            "ui_description": "Dauer der Pause zwischen zwei Begutachtungen. In der Zeit für eine Begutachtgung ist schon die Zeit für eine Besprechung der Gutacher:innen ohne die Kinder enthalten."
         },
         {
             "id": 14,
@@ -1785,7 +1791,7 @@
             "first_program": 2,
             "sequence": 56,
             "ui_label": "Wechsel zur Beratung",
-            "ui_description": "Nach der letzter Begutachtung kommen alle Gutachter:innen zur Beratung zusammen. Diese Zeit ist f\u00fcr den n\u00f6tigen Raumwechsel."
+            "ui_description": "Nach der letzter Begutachtung kommen alle Gutachter:innen zur Beratung zusammen. Diese Zeit ist für den nötigen Raumwechsel."
         },
         {
             "id": 16,
@@ -1830,7 +1836,7 @@
             "first_program": 2,
             "sequence": 59,
             "ui_label": "Wechsel zur Preisverleihung",
-            "ui_description": "Vor der Preisverleihung muss ggfs umger\u00e4umt werden. Dieselbe Zeit wird auch f\u00fcr Umr\u00e4umen nach der Preisverleihung verwendet."
+            "ui_description": "Vor der Preisverleihung muss ggfs umgeräumt werden. Dieselbe Zeit wird auch für Umräumen nach der Preisverleihung verwendet."
         },
         {
             "id": 19,
@@ -1845,7 +1851,7 @@
             "first_program": 2,
             "sequence": 33,
             "ui_label": "Dauer Preisverleihung (Explore - Gruppe 1)",
-            "ui_description": "Dauer der Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. F\u00fcr die Kinder ist k\u00fcrzer besser."
+            "ui_description": "Dauer der Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. Für die Kinder ist kürzer besser."
         },
         {
             "id": 20,
@@ -1905,7 +1911,7 @@
             "first_program": 3,
             "sequence": 23,
             "ui_label": "Jurygruppe(n)",
-            "ui_description": "Anzahl Jury-Gruppen, die parallel arbeiten. Die m\u00f6gliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Jury-Gruppen, ergeben sich vier bis sechs Runden, in denen die Teams bewertet werden."
+            "ui_description": "Anzahl Jury-Gruppen, die parallel arbeiten. Die mögliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Jury-Gruppen, ergeben sich vier bis sechs Runden, in denen die Teams bewertet werden."
         },
         {
             "id": 24,
@@ -1920,7 +1926,7 @@
             "first_program": 3,
             "sequence": 92,
             "ui_label": "Tische",
-            "ui_description": "Anzahl Tische (= Spielfelder) im Robot-Game. Die Auswahl wird passend zur Anzahl Team und Jurygruppen angeboten. Vier Tische f\u00fchren zu k\u00fcrzeren Robot-Game-Runden. Das kann gut sein, aber auch zu Leerlauf f\u00fcr Teams und Besucher f\u00fchren. Ausserdem brauchen vier Tische mehr Platz, Material und Schiedsrichter:innen."
+            "ui_description": "Anzahl Tische (= Spielfelder) im Robot-Game. Die Auswahl wird passend zur Anzahl Team und Jurygruppen angeboten. Vier Tische führen zu kürzeren Robot-Game-Runden. Das kann gut sein, aber auch zu Leerlauf für Teams und Besucher führen. Ausserdem brauchen vier Tische mehr Platz, Material und Schiedsrichter:innen."
         },
         {
             "id": 25,
@@ -1935,7 +1941,7 @@
             "first_program": 3,
             "sequence": 60,
             "ui_label": "Dauer Coach:innen-Briefing",
-            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Robot-Game statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Robot-Game statt. Darin sollen alle Fragen zum Ablauf des Tages geklärt werden."
         },
         {
             "id": 26,
@@ -1965,7 +1971,7 @@
             "first_program": 3,
             "sequence": 64,
             "ui_label": "Dauer Schiedsrichter:innen-Briefing",
-            "ui_description": "Das Briefing findet vor dem ersten Robot-Game statt. Darin sollen aktuelle Regel-\u00c4nderungen, die Einteilung zu den Robot-Game-Tischen und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker:innen zu diesem Briefing dazu."
+            "ui_description": "Das Briefing findet vor dem ersten Robot-Game statt. Darin sollen aktuelle Regel-Änderungen, die Einteilung zu den Robot-Game-Tischen und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker:innen zu diesem Briefing dazu."
         },
         {
             "id": 28,
@@ -1979,8 +1985,8 @@
             "step": "5",
             "first_program": 3,
             "sequence": 66,
-            "ui_label": "Wechsel zur Er\u00f6ffnung",
-            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
+            "ui_label": "Wechsel zur Eröffnung",
+            "ui_description": "Nach den Briefings kommen alle zur Eröffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit für den Raumwechsel."
         },
         {
             "id": 29,
@@ -1994,8 +2000,8 @@
             "step": "5",
             "first_program": 3,
             "sequence": 26,
-            "ui_label": "Dauer Er\u00f6ffnung (Challenge)",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_label": "Dauer Eröffnung (Challenge)",
+            "ui_description": "Es sollte genug Zeit dafür sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und für eine gute Stimmung zu sorgen."
         },
         {
             "id": 30,
@@ -2010,7 +2016,7 @@
             "first_program": 3,
             "sequence": 70,
             "ui_label": "Wechsel zu Jury",
-            "ui_description": "Nach der Er\u00f6ffnung gehen die Juror:innen in ihre R\u00e4ume. Die ersten Teams machen sich bereit."
+            "ui_description": "Nach der Eröffnung gehen die Juror:innen in ihre Räume. Die ersten Teams machen sich bereit."
         },
         {
             "id": 31,
@@ -2025,7 +2031,7 @@
             "first_program": 3,
             "sequence": 71,
             "ui_label": "Dauer Pause Juror:innen",
-            "ui_description": "Dauer der Pause zwischen zwei Bewertungen. In der Zeit f\u00fcr eine Bewertung ist schon die Zeit f\u00fcr eine Besprechung der Juror:innen ohne die Kinder enthalten."
+            "ui_description": "Dauer der Pause zwischen zwei Bewertungen. In der Zeit für eine Bewertung ist schon die Zeit für eine Besprechung der Juror:innen ohne die Kinder enthalten."
         },
         {
             "id": 32,
@@ -2040,7 +2046,7 @@
             "first_program": 3,
             "sequence": 72,
             "ui_label": "Dauer Mittagspause Juror:innen",
-            "ui_description": "Dauer der Mittagspause f\u00fcr Challenge Juror:innen"
+            "ui_description": "Dauer der Mittagspause für Challenge Juror:innen"
         },
         {
             "id": 33,
@@ -2055,7 +2061,7 @@
             "first_program": 3,
             "sequence": 79,
             "ui_label": "Dauer Pause Schiedsrichter:innen",
-            "ui_description": "Dauer der Pause zwischen zwei Robot-Game-Runden. Zwischen den Matches haben die Schiedsrichter:innen keine Zeit f\u00fcr eine Pause. Daher ist diese Pause wichtig!"
+            "ui_description": "Dauer der Pause zwischen zwei Robot-Game-Runden. Zwischen den Matches haben die Schiedsrichter:innen keine Zeit für eine Pause. Daher ist diese Pause wichtig!"
         },
         {
             "id": 34,
@@ -2070,7 +2076,7 @@
             "first_program": 3,
             "sequence": 80,
             "ui_label": "Dauer Mittagspause Schiedsrichter:innen",
-            "ui_description": "Dauer der Mittagspause f\u00fcr Schiedsrichter:innen"
+            "ui_description": "Dauer der Mittagspause für Schiedsrichter:innen"
         },
         {
             "id": 35,
@@ -2085,7 +2091,7 @@
             "first_program": 3,
             "sequence": 73,
             "ui_label": "Wechsel zur Beratung",
-            "ui_description": "Nach der letzter Begutachtung kommen alle Juror:innen zur Beratung zusammen. Diese Zeit ist f\u00fcr den n\u00f6tigen Raumwechsel."
+            "ui_description": "Nach der letzter Begutachtung kommen alle Juror:innen zur Beratung zusammen. Diese Zeit ist für den nötigen Raumwechsel."
         },
         {
             "id": 36,
@@ -2114,8 +2120,8 @@
             "step": "1",
             "first_program": 3,
             "sequence": 92,
-            "ui_label": "Pr\u00e4sentationen - Anzahl",
-            "ui_description": "Anzahl der Forschungspr\u00e4sentationen auf der B\u00fchne.\nEs m\u00fcssen nicht unbedingt die Teams pr\u00e4sentieren, die sp\u00e4ter als nominierte vorgestellt werden. Das steht zu diesem Zeitpunkt meist noch gar nicht fest. Statt dessen sollte jede Jury-Gruppe unabh\u00e4ngig von den anderen, Teams aussuchen, die \"sehenswerte\" Pr\u00e4sentationen haben.\nDie Pr\u00e4sentationen auf der B\u00fchne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte m\u00f6glichst nicht darauf verzichtet werden."
+            "ui_label": "Präsentationen - Anzahl",
+            "ui_description": "Anzahl der Forschungspräsentationen auf der Bühne.\nEs müssen nicht unbedingt die Teams präsentieren, die später als nominierte vorgestellt werden. Das steht zu diesem Zeitpunkt meist noch gar nicht fest. Statt dessen sollte jede Jury-Gruppe unabhängig von den anderen, Teams aussuchen, die \"sehenswerte\" Präsentationen haben.\nDie Präsentationen auf der Bühne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte möglichst nicht darauf verzichtet werden."
         },
         {
             "id": 38,
@@ -2129,8 +2135,8 @@
             "step": "5",
             "first_program": 3,
             "sequence": 94,
-            "ui_label": "Wechsel zu\/von den Pr\u00e4sentationen",
-            "ui_description": "Zeit f\u00fcr den Umbau von Robot-Game. Die gleiche Zeit wird auch f\u00fcr den Umbau zur\u00fcck zu den Robot-Game-Finalrunden verwendet."
+            "ui_label": "Wechsel zu\/von den Präsentationen",
+            "ui_description": "Zeit für den Umbau von Robot-Game. Die gleiche Zeit wird auch für den Umbau zurück zu den Robot-Game-Finalrunden verwendet."
         },
         {
             "id": 39,
@@ -2145,7 +2151,7 @@
             "first_program": 3,
             "sequence": 83,
             "ui_label": "Viertelfinale",
-            "ui_description": "Gibt es ein Robot-Game-Viertelfinale? Unabh\u00e4ngig von der Eingabe hier, geht das erst ab 8 Teams.\nF\u00fcr weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams nicht mitmachen d\u00fcrfen. Auf das Viertelfinale zu verzichten kann da besser f\u00fcr die Stimmung sein."
+            "ui_description": "Gibt es ein Robot-Game-Viertelfinale? Unabhängig von der Eingabe hier, geht das erst ab 8 Teams.\nFür weniger als 12 Teams ist das keine gute Idee, weil dann einige wenige Teams nicht mitmachen dürfen. Auf das Viertelfinale zu verzichten kann da besser für die Stimmung sein."
         },
         {
             "id": 40,
@@ -2160,7 +2166,7 @@
             "first_program": 3,
             "sequence": 96,
             "ui_label": "Wechsel zur Preisverleihung",
-            "ui_description": "Zeit f\u00fcr den Umbau von Finalrunden zur Preisverleihung.\n\u00dcblicherweise werden die Robot-Game-Tische zur Seite gestellt. Die Teams der Finalrunden bringen ihr Material in den Vorbereitungsbereich und dann versammeln sich alle wieder vor der \"B\u00fchne\"."
+            "ui_description": "Zeit für den Umbau von Finalrunden zur Preisverleihung.\nÜblicherweise werden die Robot-Game-Tische zur Seite gestellt. Die Teams der Finalrunden bringen ihr Material in den Vorbereitungsbereich und dann versammeln sich alle wieder vor der \"Bühne\"."
         },
         {
             "id": 41,
@@ -2175,7 +2181,7 @@
             "first_program": 3,
             "sequence": 27,
             "ui_label": "Dauer Preisverleihung (Challenge)",
-            "ui_description": "Dauer der Challenge Preisverleihung. 45 Minuten sind sicher ausreichend f\u00fcr bis zu 12 Teams. F\u00fcr mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe l\u00e4nger dauert. Au\u00dferdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Ablauf l\u00e4nger dauert."
+            "ui_description": "Dauer der Challenge Preisverleihung. 45 Minuten sind sicher ausreichend für bis zu 12 Teams. Für mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe länger dauert. Außerdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Ablauf länger dauert."
         },
         {
             "id": 42,
@@ -2234,8 +2240,8 @@
             "step": "5",
             "first_program": 3,
             "sequence": 10,
-            "ui_label": "Dauer Forschungspr\u00e4sentation",
-            "ui_description": "Dauer einer Forschungspr\u00e4senation auf der B\u00fchne."
+            "ui_label": "Dauer Forschungspräsentation",
+            "ui_description": "Dauer einer Forschungspräsenation auf der Bühne."
         },
         {
             "id": 46,
@@ -2265,7 +2271,7 @@
             "first_program": 3,
             "sequence": 9,
             "ui_label": "Dauer Versatz",
-            "ui_description": "Nur f\u00fcr vier Tische: Dauer zwischen dem Start zweier Matches"
+            "ui_description": "Nur für vier Tische: Dauer zwischen dem Start zweier Matches"
         },
         {
             "id": 48,
@@ -2295,7 +2301,7 @@
             "first_program": 2,
             "sequence": 18,
             "ui_label": "Gutacher:innengruppe(n)",
-            "ui_description": "Anzahl Gutacher:innen-Gruppen die parallel arbeiten. Die m\u00f6gliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Gutachter:innen-Gruppen, ergeben sich drei bis f\u00fcnf Runden, in denen die Teams begutachtet werden."
+            "ui_description": "Anzahl Gutacher:innen-Gruppen die parallel arbeiten. Die mögliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Gutachter:innen-Gruppen, ergeben sich drei bis fünf Runden, in denen die Teams begutachtet werden."
         },
         {
             "id": 82,
@@ -2369,8 +2375,8 @@
             "step": "5",
             "first_program": 3,
             "sequence": 37,
-            "ui_label": "Start Er\u00f6ffnung Tag 1",
-            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Live Challenge und Robot-Game-Testrunden"
+            "ui_label": "Start Eröffnung Tag 1",
+            "ui_description": "Startzeit der Eröffnung für Live Challenge und Robot-Game-Testrunden"
         },
         {
             "id": 87,
@@ -2474,8 +2480,8 @@
             "step": "5",
             "first_program": 2,
             "sequence": 31,
-            "ui_label": "Start Er\u00f6ffnung (Explore-Gruppe 1)",
-            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Explore im Vormittag."
+            "ui_label": "Start Eröffnung (Explore-Gruppe 1)",
+            "ui_description": "Startzeit der Eröffnung für Explore im Vormittag."
         },
         {
             "id": 96,
@@ -2489,8 +2495,8 @@
             "step": "5",
             "first_program": 3,
             "sequence": 25,
-            "ui_label": "Start Er\u00f6ffnung (Challenge)",
-            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Challenge."
+            "ui_label": "Start Eröffnung (Challenge)",
+            "ui_description": "Startzeit der Eröffnung für Challenge."
         },
         {
             "id": 97,
@@ -2505,7 +2511,7 @@
             "first_program": null,
             "sequence": 30,
             "ui_label": "Dauer gemeinsame Preisverleihung",
-            "ui_description": "Dauer der gemeinsamen Preisverleihung f\u00fcr Explore und Challenge."
+            "ui_description": "Dauer der gemeinsamen Preisverleihung für Explore und Challenge."
         },
         {
             "id": 99,
@@ -2519,7 +2525,7 @@
             "step": "5",
             "first_program": 3,
             "sequence": 38,
-            "ui_label": "Dauer Er\u00f6ffnung Tag 1",
+            "ui_label": "Dauer Eröffnung Tag 1",
             "ui_description": "Nur ein kurzes Willkommen zu Tag 1"
         },
         {
@@ -2550,7 +2556,7 @@
             "first_program": 3,
             "sequence": 40,
             "ui_label": "Wechsel zu LC \/ RG Testrunden",
-            "ui_description": "Nach der Er\u00f6ffnung machen sich Juroren, Teams, und Schiedsrichter:innen bereit f\u00fcr LC und RG-Testrunden"
+            "ui_description": "Nach der Eröffnung machen sich Juroren, Teams, und Schiedsrichter:innen bereit für LC und RG-Testrunden"
         },
         {
             "id": 103,
@@ -2580,7 +2586,7 @@
             "first_program": 3,
             "sequence": 69,
             "ui_label": "Wechsel zum Jury-Briefing",
-            "ui_description": "Zeit um nach der Er\u00f6ffnung zum Jury-Briefung zu kommen."
+            "ui_description": "Zeit um nach der Eröffnung zum Jury-Briefung zu kommen."
         },
         {
             "id": 105,
@@ -2595,7 +2601,7 @@
             "first_program": 2,
             "sequence": 53,
             "ui_label": "Wechsel zum Briefing",
-            "ui_description": "Zeit um nach der Er\u00f6ffnung zum Gutachter:innen-Briefung zu kommen."
+            "ui_description": "Zeit um nach der Eröffnung zum Gutachter:innen-Briefung zu kommen."
         },
         {
             "id": 106,
@@ -2609,8 +2615,8 @@
             "step": null,
             "first_program": 3,
             "sequence": 68,
-            "ui_label": "Jury-Briefing nach Er\u00f6ffnung",
-            "ui_description": "Soll das Jury-Briefing erst nach der Er\u00f6ffnung stattfinden?"
+            "ui_label": "Jury-Briefing nach Eröffnung",
+            "ui_description": "Soll das Jury-Briefing erst nach der Eröffnung stattfinden?"
         },
         {
             "id": 107,
@@ -2624,8 +2630,8 @@
             "step": null,
             "first_program": 2,
             "sequence": 52,
-            "ui_label": "Gutachter:innen-Briefing nach Er\u00f6ffnung",
-            "ui_description": "Soll das Gutachter:innen-Briefing erst nach der Er\u00f6ffnung stattfinden?"
+            "ui_label": "Gutachter:innen-Briefing nach Eröffnung",
+            "ui_description": "Soll das Gutachter:innen-Briefing erst nach der Eröffnung stattfinden?"
         },
         {
             "id": 108,
@@ -2640,7 +2646,7 @@
             "first_program": 3,
             "sequence": 77,
             "ui_label": "Wechsel zum Schiedsrichter:innen-Briefing",
-            "ui_description": "Zeit um nach der Er\u00f6ffnung zum Schiedsrichter:innen-Briefung zu kommen. Wenn das Briefing vor der Er\u00f6ffnung stattfindet, hat dieser Parameter keine Auswirkungen."
+            "ui_description": "Zeit um nach der Eröffnung zum Schiedsrichter:innen-Briefung zu kommen. Wenn das Briefing vor der Eröffnung stattfindet, hat dieser Parameter keine Auswirkungen."
         },
         {
             "id": 109,
@@ -2654,8 +2660,8 @@
             "step": null,
             "first_program": 3,
             "sequence": 76,
-            "ui_label": "Schiedsrichter:innen-Briefing nach Er\u00f6ffnung",
-            "ui_description": "Soll das Schiedsrichter:innen-Briefing erst nach der Er\u00f6ffnung stattfinden?"
+            "ui_label": "Schiedsrichter:innen-Briefing nach Eröffnung",
+            "ui_description": "Soll das Schiedsrichter:innen-Briefing erst nach der Eröffnung stattfinden?"
         },
         {
             "id": 110,
@@ -2670,7 +2676,7 @@
             "first_program": 2,
             "sequence": 36,
             "ui_label": "Dauer Preisverleihung (Explore-Gruppe 2)",
-            "ui_description": "Dauer der Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. F\u00fcr die Kinder ist k\u00fcrzer besser."
+            "ui_description": "Dauer der Explore Preisverleihung. Je nach Anzahl Teams muss die Dauer nach oben oder unten korrigiert werden. Für die Kinder ist kürzer besser."
         },
         {
             "id": 111,
@@ -2715,7 +2721,7 @@
             "first_program": 2,
             "sequence": 48,
             "ui_label": "Dauer Coach:innen-Briefing (Nachmittag)",
-            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Ablauf des Tages geklärt werden."
         },
         {
             "id": 114,
@@ -2760,7 +2766,7 @@
             "first_program": 3,
             "sequence": 78,
             "ui_label": "Wechsel zum Robot-Game",
-            "ui_description": "Nach der Er\u00f6ffnung gehen gehen die Schiedsrichter:innen zu den Tischen. Die ersten Teams machen sich bereit."
+            "ui_description": "Nach der Eröffnung gehen gehen die Schiedsrichter:innen zu den Tischen. Die ersten Teams machen sich bereit."
         },
         {
             "id": 117,
@@ -2775,7 +2781,7 @@
             "first_program": 2,
             "sequence": 20,
             "ui_label": "Gutacher:innengruppe(n)",
-            "ui_description": "Anzahl Gutacher:innen-Gruppen die parallel arbeiten. Die m\u00f6gliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Gutachter:innen-Gruppen, ergeben sich drei bis f\u00fcnf Runden, in denen die Teams begutachtet werden."
+            "ui_description": "Anzahl Gutacher:innen-Gruppen die parallel arbeiten. Die mögliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Gutachter:innen-Gruppen, ergeben sich drei bis fünf Runden, in denen die Teams begutachtet werden."
         },
         {
             "id": 118,
@@ -2865,7 +2871,7 @@
             "first_program": 3,
             "sequence": 82,
             "ui_label": "Echte Mittagspause",
-            "ui_description": "Wenn hier ein Wert > 0 eingeben wird, dann wird eine Mittagspause eingef\u00fcgt. Sie beginnt nach Robot-Game-Runde 2 bzw nach der zgh Jury-Runde. Die Eingaben f\u00fcr \"Dauer Mittagspause Juror:innen\" und \"Dauer Mittagspause Schiedsrichter:innen\" werden dabei ignoriert."
+            "ui_description": "Wenn hier ein Wert > 0 eingeben wird, dann wird eine Mittagspause eingefügt. Sie beginnt nach Robot-Game-Runde 2 bzw nach der zgh Jury-Runde. Die Eingaben für \"Dauer Mittagspause Juror:innen\" und \"Dauer Mittagspause Schiedsrichter:innen\" werden dabei ignoriert."
         },
         {
             "id": 124,
@@ -2940,7 +2946,7 @@
             "first_program": 3,
             "sequence": 84,
             "ui_label": "Achtelfinale",
-            "ui_description": "Gibt es ein Robot-Game-Achtefinale? Wird nur f\u00fcr das Finale erlaubt."
+            "ui_description": "Gibt es ein Robot-Game-Achtefinale? Wird nur für das Finale erlaubt."
         },
         {
             "id": 129,
@@ -2954,7 +2960,7 @@
             "step": "5",
             "first_program": 3,
             "sequence": 41,
-            "ui_label": "Live Challenge Dauer gro\u00dfe Pause",
+            "ui_label": "Live Challenge Dauer große Pause",
             "ui_description": "Dauer Pause nach drei Teams bzw zwischen den beiden Testrunden"
         },
         {
@@ -2969,8 +2975,8 @@
             "step": null,
             "first_program": 3,
             "sequence": 81,
-            "ui_label": "Fr\u00fche Mittagspause",
-            "ui_description": "Die Mittagspause findet \u00fcblicherweise nach der ersten Runde Robot-Game statt. Je nach Anzahl Jury-Runde entspricht das der zweiten oder dritten Jury-Runde. Damit liegt die Pause ungef\u00e4hr in der Mitte des Plans.\nFalls n\u00f6tig kann die Pause eine Runde nach vorne gezogen werden."
+            "ui_label": "Frühe Mittagspause",
+            "ui_description": "Die Mittagspause findet üblicherweise nach der ersten Runde Robot-Game statt. Je nach Anzahl Jury-Runde entspricht das der zweiten oder dritten Jury-Runde. Damit liegt die Pause ungefähr in der Mitte des Plans.\nFalls nötig kann die Pause eine Runde nach vorne gezogen werden."
         },
         {
             "id": 132,
@@ -2985,7 +2991,7 @@
             "first_program": 3,
             "sequence": 74,
             "ui_label": "Beratung vor Ende Runde 3 erlauben",
-            "ui_description": "F\u00fcr die Pokalvergabe m\u00fcssen die drei Robot-Game-Vorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erlaubt das."
+            "ui_description": "Für die Pokalvergabe müssen die drei Robot-Game-Vorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erlaubt das."
         },
         {
             "id": 133,
@@ -2999,8 +3005,8 @@
             "step": "5",
             "first_program": 3,
             "sequence": 37,
-            "ui_label": "Wechsel zur Er\u00f6ffnung Tag 1",
-            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
+            "ui_label": "Wechsel zur Eröffnung Tag 1",
+            "ui_description": "Nach den Briefings kommen alle zur Eröffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit für den Raumwechsel."
         },
         {
             "id": 134,
@@ -3030,7 +3036,7 @@
             "first_program": 8,
             "sequence": 82,
             "ui_label": "Echte Mittagspause",
-            "ui_description": "Wenn hier ein Wert > 0 eingeben wird, dann wird eine Mittagspause eingef\u00fcgt. Sie beginnt nach Robot-Game-Runde 2 bzw nach der zgh Jury-Runde. Die Eingaben f\u00fcr \"Dauer Mittagspause Juror:innen\" und \"Dauer Mittagspause Schiedsrichter:innen\" werden dabei ignoriert."
+            "ui_description": "Wenn hier ein Wert > 0 eingeben wird, dann wird eine Mittagspause eingefügt. Sie beginnt nach Robot-Game-Runde 2 bzw nach der zgh Jury-Runde. Die Eingaben für \"Dauer Mittagspause Juror:innen\" und \"Dauer Mittagspause Schiedsrichter:innen\" werden dabei ignoriert."
         },
         {
             "id": 136,
@@ -3060,7 +3066,7 @@
             "first_program": 8,
             "sequence": 23,
             "ui_label": "Jurygruppe(n)",
-            "ui_description": "Anzahl Jury-Gruppen, die parallel arbeiten. Die m\u00f6gliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Jury-Gruppen, ergeben sich vier bis sechs Runden, in denen die Teams bewertet werden."
+            "ui_description": "Anzahl Jury-Gruppen, die parallel arbeiten. Die mögliche Auswahl wird von der Anzahl Teams bestimmt. Je nach Team-Anzahl und Anzahl Jury-Gruppen, ergeben sich vier bis sechs Runden, in denen die Teams bewertet werden."
         },
         {
             "id": 138,
@@ -3075,7 +3081,7 @@
             "first_program": 8,
             "sequence": 24,
             "ui_label": "Spielfelder",
-            "ui_description": "Anzahl Spielfelder (2 pro Tisch) im Game. Die Auswahl wird passend zur Anzahl Team und Jurygruppen angeboten. Vier Spielfelder f\u00fchren zu k\u00fcrzeren Game-Runden. Das kann gut sein, aber auch zu Leerlauf f\u00fcr Teams und Besucher f\u00fchren. Ausserdem brauchen vier Spielfelder mehr Platz, Material und Schiedsrichter:innen."
+            "ui_description": "Anzahl Spielfelder (2 pro Tisch) im Game. Die Auswahl wird passend zur Anzahl Team und Jurygruppen angeboten. Vier Spielfelder führen zu kürzeren Game-Runden. Das kann gut sein, aber auch zu Leerlauf für Teams und Besucher führen. Ausserdem brauchen vier Spielfelder mehr Platz, Material und Schiedsrichter:innen."
         },
         {
             "id": 139,
@@ -3089,7 +3095,7 @@
             "step": null,
             "first_program": 8,
             "sequence": 25,
-            "ui_label": "Zus\u00e4tzliche Runde 4",
+            "ui_label": "Zusätzliche Runde 4",
             "ui_description": "Drei Runden sind fest vorgeben. Aber wenn genug Zeit da ist, sollten Teams noch 1 oder 2 weitere Runden bekommen."
         },
         {
@@ -3104,8 +3110,8 @@
             "step": "1",
             "first_program": 8,
             "sequence": 92,
-            "ui_label": "Pr\u00e4sentationen - Anzahl",
-            "ui_description": "Anzahl der Forschungspr\u00e4sentationen auf der B\u00fchne.\nEs m\u00fcssen nicht unbedingt die Teams pr\u00e4sentieren, die sp\u00e4ter als nominierte vorgestellt werden. Das steht zu diesem Zeitpunkt meist noch gar nicht fest. Statt dessen sollte jede Jury-Gruppe unabh\u00e4ngig von den anderen, Teams aussuchen, die \"sehenswerte\" Pr\u00e4sentationen haben.\nDie Pr\u00e4sentationen auf der B\u00fchne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte m\u00f6glichst nicht darauf verzichtet werden."
+            "ui_label": "Präsentationen - Anzahl",
+            "ui_description": "Anzahl der Forschungspräsentationen auf der Bühne.\nEs müssen nicht unbedingt die Teams präsentieren, die später als nominierte vorgestellt werden. Das steht zu diesem Zeitpunkt meist noch gar nicht fest. Statt dessen sollte jede Jury-Gruppe unabhängig von den anderen, Teams aussuchen, die \"sehenswerte\" Präsentationen haben.\nDie Präsentationen auf der Bühne dienen dazu, allen Kindern zu zeigen, was machbar ist. Daher sollte möglichst nicht darauf verzichtet werden."
         },
         {
             "id": 141,
@@ -3119,7 +3125,7 @@
             "step": null,
             "first_program": 8,
             "sequence": 25,
-            "ui_label": "Zus\u00e4tzliche Runde 5",
+            "ui_label": "Zusätzliche Runde 5",
             "ui_description": "Drei Runden sind fest vorgeben. Aber wenn genug Zeit da ist, sollten Teams noch 1 oder 2 weitere Runden bekommen."
         },
         {
@@ -3150,7 +3156,7 @@
             "first_program": 8,
             "sequence": 60,
             "ui_label": "Dauer Coach:innen-Briefing",
-            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Game statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Game statt. Darin sollen alle Fragen zum Ablauf des Tages geklärt werden."
         },
         {
             "id": 144,
@@ -3180,7 +3186,7 @@
             "first_program": 8,
             "sequence": 64,
             "ui_label": "Dauer Schiedsrichter:innen-Briefing",
-            "ui_description": "Das Briefing findet vor dem ersten Game statt. Darin sollen aktuelle Regel-\u00c4nderungen, die Einteilung zu den Game-Tischen und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker:innen zu diesem Briefing dazu."
+            "ui_description": "Das Briefing findet vor dem ersten Game statt. Darin sollen aktuelle Regel-Änderungen, die Einteilung zu den Game-Tischen und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker:innen zu diesem Briefing dazu."
         },
         {
             "id": 146,
@@ -3194,8 +3200,8 @@
             "step": "5",
             "first_program": 8,
             "sequence": 66,
-            "ui_label": "Wechsel zur Er\u00f6ffnung",
-            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
+            "ui_label": "Wechsel zur Eröffnung",
+            "ui_description": "Nach den Briefings kommen alle zur Eröffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit für den Raumwechsel."
         },
         {
             "id": 147,
@@ -3209,8 +3215,8 @@
             "step": "5",
             "first_program": 8,
             "sequence": 26,
-            "ui_label": "Dauer Er\u00f6ffnung (Future 8+)",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_label": "Dauer Eröffnung (Future 8+)",
+            "ui_description": "Es sollte genug Zeit dafür sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und für eine gute Stimmung zu sorgen."
         },
         {
             "id": 148,
@@ -3225,7 +3231,7 @@
             "first_program": 8,
             "sequence": 70,
             "ui_label": "Wechsel zu Jury",
-            "ui_description": "Nach der Er\u00f6ffnung gehen die Juror:innen in ihre R\u00e4ume. Die ersten Teams machen sich bereit."
+            "ui_description": "Nach der Eröffnung gehen die Juror:innen in ihre Räume. Die ersten Teams machen sich bereit."
         },
         {
             "id": 149,
@@ -3240,7 +3246,7 @@
             "first_program": 8,
             "sequence": 71,
             "ui_label": "Dauer Pause Juror:innen",
-            "ui_description": "Dauer der Pause zwischen zwei Bewertungen. In der Zeit f\u00fcr eine Bewertung ist schon die Zeit f\u00fcr eine Besprechung der Juror:innen ohne die Kinder enthalten."
+            "ui_description": "Dauer der Pause zwischen zwei Bewertungen. In der Zeit für eine Bewertung ist schon die Zeit für eine Besprechung der Juror:innen ohne die Kinder enthalten."
         },
         {
             "id": 150,
@@ -3255,7 +3261,7 @@
             "first_program": 8,
             "sequence": 72,
             "ui_label": "Dauer Mittagspause Juror:innen",
-            "ui_description": "Dauer der Mittagspause f\u00fcr Future 8+ Juror:innen"
+            "ui_description": "Dauer der Mittagspause für Future 8+ Juror:innen"
         },
         {
             "id": 151,
@@ -3270,7 +3276,7 @@
             "first_program": 8,
             "sequence": 79,
             "ui_label": "Dauer Pause Schiedsrichter:innen",
-            "ui_description": "Dauer der Pause zwischen zwei Game-Runden. Zwischen den Matches haben die Schiedsrichter:innen keine Zeit f\u00fcr eine Pause. Daher ist diese Pause wichtig!"
+            "ui_description": "Dauer der Pause zwischen zwei Game-Runden. Zwischen den Matches haben die Schiedsrichter:innen keine Zeit für eine Pause. Daher ist diese Pause wichtig!"
         },
         {
             "id": 152,
@@ -3285,7 +3291,7 @@
             "first_program": 8,
             "sequence": 80,
             "ui_label": "Dauer Mittagspause Schiedsrichter:innen",
-            "ui_description": "Dauer der Mittagspause f\u00fcr Schiedsrichter:innen"
+            "ui_description": "Dauer der Mittagspause für Schiedsrichter:innen"
         },
         {
             "id": 153,
@@ -3300,7 +3306,7 @@
             "first_program": 8,
             "sequence": 73,
             "ui_label": "Wechsel zur Beratung",
-            "ui_description": "Nach der letzter Begutachtung kommen alle Juror:innen zur Beratung zusammen. Diese Zeit ist f\u00fcr den n\u00f6tigen Raumwechsel."
+            "ui_description": "Nach der letzter Begutachtung kommen alle Juror:innen zur Beratung zusammen. Diese Zeit ist für den nötigen Raumwechsel."
         },
         {
             "id": 154,
@@ -3329,8 +3335,8 @@
             "step": "5",
             "first_program": 8,
             "sequence": 94,
-            "ui_label": "Wechsel zu\/von den Pr\u00e4sentationen",
-            "ui_description": "Zeit f\u00fcr den Umbau von Game. Die gleiche Zeit wird auch f\u00fcr den Umbau zur\u00fcck zu den Game-Finalrunden verwendet."
+            "ui_label": "Wechsel zu\/von den Präsentationen",
+            "ui_description": "Zeit für den Umbau von Game. Die gleiche Zeit wird auch für den Umbau zurück zu den Game-Finalrunden verwendet."
         },
         {
             "id": 156,
@@ -3345,7 +3351,7 @@
             "first_program": 8,
             "sequence": 96,
             "ui_label": "Wechsel zur Preisverleihung",
-            "ui_description": "Zeit f\u00fcr den Umbau von Finalrunden zur Preisverleihung.\n\u00dcblicherweise werden die Game-Tische zur Seite gestellt. Die Teams der Finalrunden bringen ihr Material in den Vorbereitungsbereich und dann versammeln sich alle wieder vor der \"B\u00fchne\"."
+            "ui_description": "Zeit für den Umbau von Finalrunden zur Preisverleihung.\nÜblicherweise werden die Game-Tische zur Seite gestellt. Die Teams der Finalrunden bringen ihr Material in den Vorbereitungsbereich und dann versammeln sich alle wieder vor der \"Bühne\"."
         },
         {
             "id": 157,
@@ -3360,7 +3366,7 @@
             "first_program": 8,
             "sequence": 27,
             "ui_label": "Dauer Preisverleihung (Future 8+)",
-            "ui_description": "Dauer der Future 8+ Preisverleihung. 45 Minuten sind sicher ausreichend f\u00fcr bis zu 12 Teams. F\u00fcr mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe l\u00e4nger dauert. Au\u00dferdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Ablauf l\u00e4nger dauert."
+            "ui_description": "Dauer der Future 8+ Preisverleihung. 45 Minuten sind sicher ausreichend für bis zu 12 Teams. Für mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe länger dauert. Außerdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Ablauf länger dauert."
         },
         {
             "id": 158,
@@ -3419,8 +3425,8 @@
             "step": "5",
             "first_program": 8,
             "sequence": 10,
-            "ui_label": "Dauer Forschungspr\u00e4sentation",
-            "ui_description": "Dauer einer Forschungspr\u00e4senation auf der B\u00fchne."
+            "ui_label": "Dauer Forschungspräsentation",
+            "ui_description": "Dauer einer Forschungspräsenation auf der Bühne."
         },
         {
             "id": 162,
@@ -3450,7 +3456,7 @@
             "first_program": 8,
             "sequence": 9,
             "ui_label": "Dauer Versatz",
-            "ui_description": "Nur f\u00fcr vier Tische: Dauer zwischen dem Start zweier Matches"
+            "ui_description": "Nur für vier Tische: Dauer zwischen dem Start zweier Matches"
         },
         {
             "id": 164,
@@ -3479,8 +3485,8 @@
             "step": "5",
             "first_program": 8,
             "sequence": 25,
-            "ui_label": "Start Er\u00f6ffnung (Future 8+)",
-            "ui_description": "Startzeit der Er\u00f6ffnung f\u00fcr Future 8+."
+            "ui_label": "Start Eröffnung (Future 8+)",
+            "ui_description": "Startzeit der Eröffnung für Future 8+."
         },
         {
             "id": 167,
@@ -3495,7 +3501,7 @@
             "first_program": 8,
             "sequence": 69,
             "ui_label": "Wechsel zum Jury-Briefing",
-            "ui_description": "Zeit um nach der Er\u00f6ffnung zum Jury-Briefung zu kommen."
+            "ui_description": "Zeit um nach der Eröffnung zum Jury-Briefung zu kommen."
         },
         {
             "id": 168,
@@ -3509,8 +3515,8 @@
             "step": null,
             "first_program": 8,
             "sequence": 68,
-            "ui_label": "Jury-Briefing nach Er\u00f6ffnung",
-            "ui_description": "Soll das Jury-Briefing erst nach der Er\u00f6ffnung stattfinden?"
+            "ui_label": "Jury-Briefing nach Eröffnung",
+            "ui_description": "Soll das Jury-Briefing erst nach der Eröffnung stattfinden?"
         },
         {
             "id": 169,
@@ -3525,7 +3531,7 @@
             "first_program": 8,
             "sequence": 77,
             "ui_label": "Wechsel zum Schiedsrichter:innen-Briefing",
-            "ui_description": "Zeit um nach der Er\u00f6ffnung zum Schiedsrichter:innen-Briefung zu kommen. Wenn das Briefing vor der Er\u00f6ffnung stattfindet, hat dieser Parameter keine Auswirkungen."
+            "ui_description": "Zeit um nach der Eröffnung zum Schiedsrichter:innen-Briefung zu kommen. Wenn das Briefing vor der Eröffnung stattfindet, hat dieser Parameter keine Auswirkungen."
         },
         {
             "id": 170,
@@ -3539,8 +3545,8 @@
             "step": null,
             "first_program": 8,
             "sequence": 76,
-            "ui_label": "Schiedsrichter:innen-Briefing nach Er\u00f6ffnung",
-            "ui_description": "Soll das Schiedsrichter:innen-Briefing erst nach der Er\u00f6ffnung stattfinden?"
+            "ui_label": "Schiedsrichter:innen-Briefing nach Eröffnung",
+            "ui_description": "Soll das Schiedsrichter:innen-Briefing erst nach der Eröffnung stattfinden?"
         },
         {
             "id": 171,
@@ -3555,7 +3561,7 @@
             "first_program": 8,
             "sequence": 78,
             "ui_label": "Wechsel zum Game",
-            "ui_description": "Nach der Er\u00f6ffnung gehen gehen die Schiedsrichter:innen zu den Tischen. Die ersten Teams machen sich bereit."
+            "ui_description": "Nach der Eröffnung gehen gehen die Schiedsrichter:innen zu den Tischen. Die ersten Teams machen sich bereit."
         },
         {
             "id": 172,
@@ -3600,7 +3606,7 @@
             "first_program": 8,
             "sequence": 74,
             "ui_label": "Beratung vor Ende Runde 3 erlauben",
-            "ui_description": "F\u00fcr die Pokalvergabe m\u00fcssen die drei Game-Vorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erlaubt das."
+            "ui_description": "Für die Pokalvergabe müssen die drei Game-Vorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erlaubt das."
         },
         {
             "id": 175,
@@ -3615,7 +3621,7 @@
             "first_program": 8,
             "sequence": 1,
             "ui_label": "Wer hat das erste Match des Tages?",
-            "ui_description": "Welches Program f\u00e4ngt an? Danach wird automatisch gewechselt. Je nach Anzahl Teams pro Programm, kann es ein deutlichen Unterschied machen, wer anf\u00e4ngt."
+            "ui_description": "Welches Program fängt an? Danach wird automatisch gewechselt. Je nach Anzahl Teams pro Programm, kann es ein deutlichen Unterschied machen, wer anfängt."
         },
         {
             "id": 176,
@@ -3630,7 +3636,7 @@
             "first_program": 8,
             "sequence": 2,
             "ui_label": "Wann wird zwischen den Programmen gewechselt?",
-            "ui_description": "Die Runden k\u00f6nnen nach Programmen getrennt hintereinander oder verwoben generiert werden. "
+            "ui_description": "Die Runden können nach Programmen getrennt hintereinander oder verwoben generiert werden. "
         },
         {
             "id": 177,
@@ -3660,7 +3666,7 @@
             "first_program": 8,
             "sequence": 4,
             "ui_label": "Wo finden die Matches statt?",
-            "ui_description": "Wenn die Game-Bereiche der beiden Programm nicht zusammen in einen Raum passen, werden unabh\u00e4ngige Zeitpl\u00e4ne pro Programm erzeugt. Er\u00f6ffnung und Preisverleihung bleiben aber integriert."
+            "ui_description": "Wenn die Game-Bereiche der beiden Programm nicht zusammen in einen Raum passen, werden unabhängige Zeitpläne pro Programm erzeugt. Eröffnung und Preisverleihung bleiben aber integriert."
         },
         {
             "id": 179,
@@ -3675,7 +3681,7 @@
             "first_program": null,
             "sequence": 30,
             "ui_label": "Dauer gemeinsame Preisverleihung",
-            "ui_description": "Dauer der gemeinsamen Preisverleihung f\u00fcr Challenge und Future 8+."
+            "ui_description": "Dauer der gemeinsamen Preisverleihung für Challenge und Future 8+."
         },
         {
             "id": 181,
@@ -3689,8 +3695,8 @@
             "step": "5",
             "first_program": null,
             "sequence": 29,
-            "ui_label": "Dauer gemeinsame Er\u00f6ffnung ",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_label": "Dauer gemeinsame Eröffnung ",
+            "ui_description": "Es sollte genug Zeit dafür sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und für eine gute Stimmung zu sorgen."
         },
         {
             "id": 182,
@@ -3704,8 +3710,8 @@
             "step": "5",
             "first_program": null,
             "sequence": 28,
-            "ui_label": "Start gemeinsame Er\u00f6ffnung",
-            "ui_description": "Startzeit der gemeinsamen Er\u00f6ffnung f\u00fcr Challenge and Future 8+ zusammen."
+            "ui_label": "Start gemeinsame Eröffnung",
+            "ui_description": "Startzeit der gemeinsamen Eröffnung für Challenge and Future 8+ zusammen."
         }
     ],
     "m_parameter_condition": [],
@@ -3716,7 +3722,7 @@
             "name_short": null,
             "sequence": 9,
             "first_program": 3,
-            "description": "K\u00fcmmert sich um alles, was Challenge ist",
+            "description": "Kümmert sich um alles, was Challenge ist",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3730,7 +3736,7 @@
             "name_short": null,
             "sequence": 2,
             "first_program": null,
-            "description": "Moderiert f\u00fcr Explore und Challenge",
+            "description": "Moderiert für Explore und Challenge",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3772,7 +3778,7 @@
             "name_short": "RG F",
             "sequence": 6,
             "first_program": 3,
-            "description": "K\u00fcmmert sich um das Robot-Game der Challenge Teams",
+            "description": "Kümmert sich um das Robot-Game der Challenge Teams",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
@@ -3786,7 +3792,7 @@
             "name_short": null,
             "sequence": 1,
             "first_program": 3,
-            "description": "Interessiert sich f\u00fcr Challenge, macht aber nicht selber mit",
+            "description": "Interessiert sich für Challenge, macht aber nicht selber mit",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3800,7 +3806,7 @@
             "name_short": null,
             "sequence": 6,
             "first_program": 2,
-            "description": "K\u00fcmmert sich um alles, was Explore ist",
+            "description": "Kümmert sich um alles, was Explore ist",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3842,7 +3848,7 @@
             "name_short": null,
             "sequence": 1,
             "first_program": 2,
-            "description": "Interessiert sich f\u00fcr Explore, macht aber nicht selber mit",
+            "description": "Interessiert sich für Explore, macht aber nicht selber mit",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3856,7 +3862,7 @@
             "name_short": "RC F",
             "sequence": 7,
             "first_program": 3,
-            "description": "\u00dcberpr\u00fcft die Roboter und stellt sicher, dass sie regelkonform sind",
+            "description": "Überprüft die Roboter und stellt sicher, dass sie regelkonform sind",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
@@ -3870,7 +3876,7 @@
             "name_short": null,
             "sequence": 5,
             "first_program": 2,
-            "description": "Moderation f\u00fcr Explore",
+            "description": "Moderation für Explore",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3884,7 +3890,7 @@
             "name_short": null,
             "sequence": 8,
             "first_program": 3,
-            "description": "Moderation f\u00fcr Challenge",
+            "description": "Moderation für Challenge",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3898,7 +3904,7 @@
             "name_short": null,
             "sequence": 1,
             "first_program": null,
-            "description": "Besucher f\u00fcr alle Angebote",
+            "description": "Besucher für alle Angebote",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3936,11 +3942,11 @@
         },
         {
             "id": 17,
-            "name": "Gesamt\u00fcberblick",
+            "name": "Gesamtüberblick",
             "name_short": null,
             "sequence": 99,
             "first_program": 2,
-            "description": "Alle Explore-Aktivit\u00e4ten",
+            "description": "Alle Explore-Aktivitäten",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3950,11 +3956,11 @@
         },
         {
             "id": 18,
-            "name": "Gesamt\u00fcberblick",
+            "name": "Gesamtüberblick",
             "name_short": null,
             "sequence": 99,
             "first_program": 3,
-            "description": "Alle Challenge-Aktivit\u00e4ten",
+            "description": "Alle Challenge-Aktivitäten",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3964,11 +3970,11 @@
         },
         {
             "id": 19,
-            "name": "Gesamt\u00fcberblick",
+            "name": "Gesamtüberblick",
             "name_short": null,
             "sequence": 4,
             "first_program": null,
-            "description": "Alle Aktivit\u00e4ten",
+            "description": "Alle Aktivitäten",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -3982,7 +3988,7 @@
             "name_short": null,
             "sequence": 8,
             "first_program": 8,
-            "description": "K\u00fcmmert sich um alles, was Future 8+ ist",
+            "description": "Kümmert sich um alles, was Future 8+ ist",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -4024,7 +4030,7 @@
             "name_short": "F8 G",
             "sequence": 6,
             "first_program": 8,
-            "description": "K\u00fcmmert sich um das Game der Future 8+ Teams",
+            "description": "Kümmert sich um das Game der Future 8+ Teams",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"f8_fields\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
@@ -4038,7 +4044,7 @@
             "name_short": null,
             "sequence": 1,
             "first_program": 8,
-            "description": "Interessiert sich f\u00fcr Future 8+, macht aber nicht selber mit",
+            "description": "Interessiert sich für Future 8+, macht aber nicht selber mit",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -4052,7 +4058,7 @@
             "name_short": null,
             "sequence": 7,
             "first_program": 8,
-            "description": "Moderation f\u00fcr Future 8+",
+            "description": "Moderation für Future 8+",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -4062,11 +4068,11 @@
         },
         {
             "id": 26,
-            "name": "Gesamt\u00fcberblick",
+            "name": "Gesamtüberblick",
             "name_short": null,
             "sequence": 99,
             "first_program": 8,
-            "description": "Alle Future 8+-Aktivit\u00e4ten",
+            "description": "Alle Future 8+-Aktivitäten",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -4094,7 +4100,7 @@
             "name_short": null,
             "sequence": 5,
             "first_program": 3,
-            "description": "Sorgf daf\u00fcr, dass das Robot-Game l\u00e4uft",
+            "description": "Sorgf dafür, dass das Robot-Game läuft",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
@@ -4276,7 +4282,7 @@
         {
             "id": 14,
             "code": "g_opening",
-            "name": "Gemeinsame Er\u00f6ffnung",
+            "name": "Gemeinsame Eröffnung",
             "sequence": 110,
             "room_type_group": 5,
             "level": 1,
@@ -4348,7 +4354,7 @@
         {
             "id": 24,
             "code": "c_presentations",
-            "name": "Forschung auf der B\u00fchne",
+            "name": "Forschung auf der Bühne",
             "sequence": 490,
             "room_type_group": 5,
             "level": 1,
@@ -4411,7 +4417,7 @@
         {
             "id": 32,
             "code": "c_opening_day_1",
-            "name": "Er\u00f6ffnung Tag 1",
+            "name": "Eröffnung Tag 1",
             "sequence": 100,
             "room_type_group": 5,
             "level": 3,
@@ -4465,7 +4471,7 @@
         {
             "id": 45,
             "code": "c_opening",
-            "name": "Er\u00f6ffnung Challenge",
+            "name": "Eröffnung Challenge",
             "sequence": 140,
             "room_type_group": 5,
             "level": 1,
@@ -4474,7 +4480,7 @@
         {
             "id": 46,
             "code": "e_opening",
-            "name": "Er\u00f6ffnung Explore",
+            "name": "Eröffnung Explore",
             "sequence": 130,
             "room_type_group": 5,
             "level": 1,
@@ -4564,7 +4570,7 @@
         {
             "id": 56,
             "code": "e1_opening",
-            "name": "Er\u00f6ffnung Explore (Vormittag)",
+            "name": "Eröffnung Explore (Vormittag)",
             "sequence": 131,
             "room_type_group": 5,
             "level": 1,
@@ -4618,7 +4624,7 @@
         {
             "id": 62,
             "code": "e2_opening",
-            "name": "Er\u00f6ffnung Explore (Nachmittag)",
+            "name": "Eröffnung Explore (Nachmittag)",
             "sequence": 132,
             "room_type_group": 5,
             "level": 1,
@@ -4744,7 +4750,7 @@
         {
             "id": 76,
             "code": "f8_presentations",
-            "name": "Forschung auf der B\u00fchne",
+            "name": "Forschung auf der Bühne",
             "sequence": 490,
             "room_type_group": 5,
             "level": 1,
@@ -4771,7 +4777,7 @@
         {
             "id": 79,
             "code": "f8_opening",
-            "name": "Er\u00f6ffnung Future 8+",
+            "name": "Eröffnung Future 8+",
             "sequence": 140,
             "room_type_group": 5,
             "level": 1,
@@ -4789,7 +4795,7 @@
         {
             "id": 81,
             "code": "c+f8_opening",
-            "name": "Gemeinsame Er\u00f6ffnung",
+            "name": "Gemeinsame Eröffnung",
             "sequence": 110,
             "room_type_group": 5,
             "level": 1,
@@ -4833,7 +4839,7 @@
         },
         {
             "id": 10,
-            "name": "Zus\u00e4tzliche Bl\u00f6cke",
+            "name": "Zusätzliche Blöcke",
             "sequence": 99
         },
         {
@@ -4866,7 +4872,7 @@
             "min": 1,
             "best": 1,
             "max": 2,
-            "ui_description": "Eine Moderator:in muss sein. F\u00fcr gr\u00f6sse Veranstaltungen sind zwei besser, damit sie sich abwechseln k\u00f6nnen."
+            "ui_description": "Eine Moderator:in muss sein. Für grösse Veranstaltungen sind zwei besser, damit sie sich abwechseln können."
         },
         {
             "id": 2,
@@ -4874,7 +4880,7 @@
             "min": 3,
             "best": 5,
             "max": 6,
-            "ui_description": "Idealerweise sollte jemand Expert:in f\u00fcr Roboter-Design und jemand f\u00fcr Forschung sein. Dazu ein weitere:r um den \u00dcberblick zu behalten."
+            "ui_description": "Idealerweise sollte jemand Expert:in für Roboter-Design und jemand für Forschung sein. Dazu ein weitere:r um den Überblick zu behalten."
         },
         {
             "id": 3,
@@ -4890,7 +4896,7 @@
             "min": 1,
             "best": 2,
             "max": 3,
-            "ui_description": "In jeder Gruppe sollten zwei Gutachter:innen sein. Allein geht es auch, macht aber allen weniger Spa\u00df."
+            "ui_description": "In jeder Gruppe sollten zwei Gutachter:innen sein. Allein geht es auch, macht aber allen weniger Spaß."
         },
         {
             "id": 5,
@@ -4898,7 +4904,7 @@
             "min": 1,
             "best": 2,
             "max": 2,
-            "ui_description": "Robot-Check ist mit eine Person gut besetzt. Bei zwei k\u00f6nnte Langeweile aufkommen."
+            "ui_description": "Robot-Check ist mit eine Person gut besetzt. Bei zwei könnte Langeweile aufkommen."
         },
         {
             "id": 6,
@@ -4922,7 +4928,7 @@
             "min": 1,
             "best": 1,
             "max": 2,
-            "ui_description": "Idealerweise ist genau ein:r verantwortlich. Wenn es zwei gibt, sollte den Juror:innenen erk\u00e4rt werden warum."
+            "ui_description": "Idealerweise ist genau ein:r verantwortlich. Wenn es zwei gibt, sollte den Juror:innenen erkärt werden warum."
         },
         {
             "id": 9,
@@ -4930,7 +4936,7 @@
             "min": 1,
             "best": 1,
             "max": 2,
-            "ui_description": "Eine:r muss sein. Bei gr\u00f6\u00dferen Verstaltungen kann es helfen, zu zweit zu sein. Dann m\u00fcssen die beiden aber sehr gut abgestimmt sein."
+            "ui_description": "Eine:r muss sein. Bei größeren Verstaltungen kann es helfen, zu zweit zu sein. Dann müssen die beiden aber sehr gut abgestimmt sein."
         },
         {
             "id": 10,
@@ -4938,7 +4944,7 @@
             "min": 1,
             "best": 1,
             "max": 2,
-            "ui_description": "Idealerweise ist genau ein:r verantwortlich. Wenn es zwei gibt, sollte den Juror:innen erk\u00e4rt werden warum."
+            "ui_description": "Idealerweise ist genau ein:r verantwortlich. Wenn es zwei gibt, sollte den Juror:innen erkärt werden warum."
         },
         {
             "id": 11,
@@ -4946,7 +4952,7 @@
             "min": 1,
             "best": 1,
             "max": 2,
-            "ui_description": "Eine:r muss sein. Bei gr\u00f6\u00dferen Verstaltungen kann es helfen, zu zweit zu sein. Dann m\u00fcssen die beiden aber sehr gut abgestimmt sein."
+            "ui_description": "Eine:r muss sein. Bei größeren Verstaltungen kann es helfen, zu zweit zu sein. Dann müssen die beiden aber sehr gut abgestimmt sein."
         },
         {
             "id": 12,
@@ -4962,7 +4968,7 @@
             "min": 1,
             "best": 1,
             "max": 2,
-            "ui_description": "Idealerweise ist genau ein:r verantwortlich. Wenn es zwei gibt, sollte den Gutachter:innen erk\u00e4rt werden warum."
+            "ui_description": "Idealerweise ist genau ein:r verantwortlich. Wenn es zwei gibt, sollte den Gutachter:innen erkärt werden warum."
         },
         {
             "id": 14,
@@ -4970,7 +4976,7 @@
             "min": 0,
             "best": 1,
             "max": 1,
-            "ui_description": "W\u00e4re sehr nett, wenn es den gibt. Muss aber nicht unbedingt sein."
+            "ui_description": "Wäre sehr nett, wenn es den gibt. Muss aber nicht unbedingt sein."
         }
     ],
     "m_supported_plan": [
@@ -4981,7 +4987,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 8 Teams",
+            "note": "Empfohlene Konfiguration für 8 Teams",
             "alert_level": 1
         },
         {
@@ -5001,7 +5007,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 9 Teams",
+            "note": "Empfohlene Konfiguration für 9 Teams",
             "alert_level": 1
         },
         {
@@ -5021,7 +5027,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 10 Teams",
+            "note": "Empfohlene Konfiguration für 10 Teams",
             "alert_level": 1
         },
         {
@@ -5041,7 +5047,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 11 Teams",
+            "note": "Empfohlene Konfiguration für 11 Teams",
             "alert_level": 1
         },
         {
@@ -5061,7 +5067,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 12 Teams",
+            "note": "Empfohlene Konfiguration für 12 Teams",
             "alert_level": 1
         },
         {
@@ -5101,7 +5107,7 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 13 Teams",
+            "note": "Empfohlene Konfiguration für 13 Teams",
             "alert_level": 1
         },
         {
@@ -5111,7 +5117,7 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 14 Teams",
+            "note": "Empfohlene Konfiguration für 14 Teams",
             "alert_level": 1
         },
         {
@@ -5121,7 +5127,7 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 15 Teams",
+            "note": "Empfohlene Konfiguration für 15 Teams",
             "alert_level": 1
         },
         {
@@ -5131,7 +5137,7 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 16 Teams",
+            "note": "Empfohlene Konfiguration für 16 Teams",
             "alert_level": 1
         },
         {
@@ -5151,7 +5157,7 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 17 Teams",
+            "note": "Empfohlene Konfiguration für 17 Teams",
             "alert_level": 1
         },
         {
@@ -5171,7 +5177,7 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 18 Teams",
+            "note": "Empfohlene Konfiguration für 18 Teams",
             "alert_level": 1
         },
         {
@@ -5191,7 +5197,7 @@
             "lanes": 4,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 19 Teams",
+            "note": "Empfohlene Konfiguration für 19 Teams",
             "alert_level": 1
         },
         {
@@ -5201,7 +5207,7 @@
             "lanes": 4,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 20 Teams",
+            "note": "Empfohlene Konfiguration für 20 Teams",
             "alert_level": 1
         },
         {
@@ -5211,7 +5217,7 @@
             "lanes": 4,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 21 Teams",
+            "note": "Empfohlene Konfiguration für 21 Teams",
             "alert_level": 1
         },
         {
@@ -5221,7 +5227,7 @@
             "lanes": 4,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 22 Teams",
+            "note": "Empfohlene Konfiguration für 22 Teams",
             "alert_level": 1
         },
         {
@@ -5231,7 +5237,7 @@
             "lanes": 4,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 23 Teams",
+            "note": "Empfohlene Konfiguration für 23 Teams",
             "alert_level": 1
         },
         {
@@ -5241,7 +5247,7 @@
             "lanes": 4,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 24 Teams",
+            "note": "Empfohlene Konfiguration für 24 Teams",
             "alert_level": 1
         },
         {
@@ -5501,7 +5507,7 @@
             "lanes": 1,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 4 Teams",
+            "note": "Empfohlene Konfiguration für 4 Teams",
             "alert_level": 1
         },
         {
@@ -5511,7 +5517,7 @@
             "lanes": 1,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 5 Teams",
+            "note": "Empfohlene Konfiguration für 5 Teams",
             "alert_level": 1
         },
         {
@@ -5521,7 +5527,7 @@
             "lanes": 1,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 6 Teams",
+            "note": "Empfohlene Konfiguration für 6 Teams",
             "alert_level": 1
         },
         {
@@ -5831,7 +5837,7 @@
             "lanes": 5,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 25 Teams",
+            "note": "Empfohlene Konfiguration für 25 Teams",
             "alert_level": 1
         },
         {
@@ -5961,7 +5967,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 8 Teams",
+            "note": "Empfohlene Konfiguration für 8 Teams",
             "alert_level": 1
         },
         {
@@ -5981,7 +5987,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 9 Teams",
+            "note": "Empfohlene Konfiguration für 9 Teams",
             "alert_level": 1
         },
         {
@@ -6001,7 +6007,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 10 Teams",
+            "note": "Empfohlene Konfiguration für 10 Teams",
             "alert_level": 1
         },
         {
@@ -6021,7 +6027,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 11 Teams",
+            "note": "Empfohlene Konfiguration für 11 Teams",
             "alert_level": 1
         },
         {
@@ -6041,7 +6047,7 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 12 Teams",
+            "note": "Empfohlene Konfiguration für 12 Teams",
             "alert_level": 1
         },
         {
@@ -6081,7 +6087,7 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 13 Teams",
+            "note": "Empfohlene Konfiguration für 13 Teams",
             "alert_level": 1
         },
         {
@@ -6091,7 +6097,7 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 14 Teams",
+            "note": "Empfohlene Konfiguration für 14 Teams",
             "alert_level": 1
         },
         {
@@ -6101,7 +6107,7 @@
             "lanes": 3,
             "tables": 4,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 15 Teams",
+            "note": "Empfohlene Konfiguration für 15 Teams",
             "alert_level": 1
         },
         {
@@ -6111,7 +6117,7 @@
             "lanes": 1,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 4 Teams",
+            "note": "Empfohlene Konfiguration für 4 Teams",
             "alert_level": 1
         },
         {
@@ -6121,7 +6127,7 @@
             "lanes": 1,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 5 Teams",
+            "note": "Empfohlene Konfiguration für 5 Teams",
             "alert_level": 1
         },
         {
@@ -6131,7 +6137,7 @@
             "lanes": 1,
             "tables": 2,
             "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 6 Teams",
+            "note": "Empfohlene Konfiguration für 6 Teams",
             "alert_level": 1
         },
         {
@@ -9153,13 +9159,14 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-01T09:55:30.597329Z",
+        "exported_at": "2026-09-04T05:15:46.439453Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
             "m_ceremonies",
             "m_first_program",
             "m_level",
+            "m_match",
             "m_parameter",
             "m_parameter_condition",
             "m_role",

@@ -152,6 +152,9 @@ class MainTablesController extends Controller
         if (! $this->schemaService->isAllowedTable($table)) {
             return response()->json(['error' => 'Table not allowed'], 404);
         }
+        if ($blocked = $this->denyMatchCatalogWrites($table)) {
+            return $blocked;
+        }
 
         try {
             $prepared = $this->schemaService->prepareWritePayload($table, $request->all(), true);
@@ -186,6 +189,9 @@ class MainTablesController extends Controller
         if (! $this->schemaService->isAllowedTable($table)) {
             return response()->json(['error' => 'Table not allowed'], 404);
         }
+        if ($blocked = $this->denyMatchCatalogWrites($table)) {
+            return $blocked;
+        }
 
         try {
             $prepared = $this->schemaService->prepareWritePayload($table, $request->all(), false);
@@ -214,6 +220,9 @@ class MainTablesController extends Controller
     {
         if (! $this->schemaService->isAllowedTable($table)) {
             return response()->json(['error' => 'Table not allowed'], 404);
+        }
+        if ($blocked = $this->denyMatchCatalogWrites($table)) {
+            return $blocked;
         }
 
         try {
@@ -377,8 +386,23 @@ class MainTablesController extends Controller
             'm_staffing_rule' => 'Staffing Rules',
             'm_visibility' => 'Visibility Rules',
             'm_supported_plan' => 'Supported Plans',
+            'm_match' => 'Match Plans (use Matchpläne)',
         ];
 
         return $displayNames[$table] ?? $table;
+    }
+
+    /**
+     * Catalog match grids are edited only via Matchpläne admin — not flat Main Tables CRUD.
+     */
+    private function denyMatchCatalogWrites(string $table): ?JsonResponse
+    {
+        if ($table !== 'm_match') {
+            return null;
+        }
+
+        return response()->json([
+            'error' => 'm_match is edited only in Admin → Matchpläne',
+        ], 403);
     }
 }
