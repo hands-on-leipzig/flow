@@ -8,6 +8,8 @@ import {compareStaffingTiles, type StaffingSortable} from '@/utils/volunteerStaf
 
 export type OpenPositionApiEntry = {
   role_id: number
+  group_id: number | null
+  group_index: number | null
   label: string
   wanted: number
   sequence: number
@@ -23,6 +25,7 @@ export type OpenPositionApiScope = {
 
 export type OpenPositionEntry = {
   roleId: number
+  groupId: number | null
   sortable: StaffingSortable
   name: string
   wanted: number
@@ -41,7 +44,7 @@ function sortableFromApi(entry: OpenPositionApiEntry): StaffingSortable {
     sequence: entry.sequence,
     label: entry.label,
     role_id: entry.role_id,
-    group_index: 1,
+    group_index: entry.group_index ?? 0,
     tile_name: entry.label,
   }
 }
@@ -53,6 +56,7 @@ function mapEntries(
   return [...entries]
     .map((entry) => ({
       roleId: entry.role_id,
+      groupId: entry.group_id ?? null,
       sortable: sortableFromApi(entry),
       name: entry.label,
       wanted: Number(entry.wanted) || 0,

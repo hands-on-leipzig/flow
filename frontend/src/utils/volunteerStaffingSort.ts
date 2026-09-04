@@ -62,7 +62,7 @@ export function staffingSortableFromTile(tile: {
     first_program: number | null
     sequence: number
   }
-  group: {group_index: number}
+  group: {group_index: number} | null
 }): StaffingSortable {
   return {
     is_local: tile.role.is_local,
@@ -70,7 +70,7 @@ export function staffingSortableFromTile(tile: {
     sequence: tile.role.sequence,
     label: tile.role.label,
     role_id: tile.role.id,
-    group_index: tile.group.group_index,
+    group_index: tile.group?.group_index ?? 0,
     tile_name: tile.name,
   }
 }
@@ -80,7 +80,7 @@ export function staffingSortableFromAssignment(assignment: {
   first_program: number | null
   is_local: boolean
   sequence: number
-  group_index: number
+  group_index: number | null
   label: string
   role_id: number
 }): StaffingSortable {
@@ -90,7 +90,7 @@ export function staffingSortableFromAssignment(assignment: {
     sequence: assignment.sequence,
     label: assignment.label,
     role_id: assignment.role_id,
-    group_index: assignment.group_index,
+    group_index: assignment.group_index ?? 0,
     tile_name: assignment.tile_name,
   }
 }

@@ -24,6 +24,7 @@ class MRole extends Model
         'preview_matrix',
         'pdf_export',
         'staffable',
+        'group_label',
     ];
 
     protected $casts = [

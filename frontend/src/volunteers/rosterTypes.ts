@@ -15,7 +15,7 @@ export type RosterAssignment = {
   first_program: number | null
   is_local: boolean
   sequence: number
-  group_index: number
+  group_index: number | null
 }
 
 export type RosterEntry = {

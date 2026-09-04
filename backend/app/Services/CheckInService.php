@@ -621,8 +621,8 @@ class CheckInService
     private function staffedHelpersQuery(int $eventId)
     {
         return DB::table('event_staffing_assignment as a')
-            ->join('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
+            ->join('event_staffing_role as r', 'r.id', '=', 'a.event_staffing_role')
+            ->leftJoin('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
             ->join('volunteer_person as p', 'p.id', '=', 'a.volunteer_person')
             ->leftJoin('m_role as mr', 'mr.id', '=', 'r.m_role')
             ->leftJoin('m_first_program as fp', 'fp.id', '=', 'mr.first_program')
@@ -1057,8 +1057,8 @@ class CheckInService
         }
 
         $assignments = DB::table('event_staffing_assignment as a')
-            ->join('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
+            ->join('event_staffing_role as r', 'r.id', '=', 'a.event_staffing_role')
+            ->leftJoin('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
             ->where('r.event', $event->id)
             ->where('a.volunteer_person', $personId)
             ->orderByRaw('CASE WHEN r.m_role IS NULL THEN 1 ELSE 0 END')
@@ -1603,8 +1603,7 @@ class CheckInService
     public function organizerContact(Event $event): ?array
     {
         $row = DB::table('event_staffing_assignment as a')
-            ->join('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
+            ->join('event_staffing_role as r', 'r.id', '=', 'a.event_staffing_role')
             ->join('volunteer_person as p', 'p.id', '=', 'a.volunteer_person')
             ->where('r.event', $event->id)
             ->where('r.m_role', self::ORGANIZER_M_ROLE)

@@ -9,35 +9,39 @@ import {
   boundsLabel,
   slotPositions,
   staffingGap,
+  tileFilled,
   tileNeedsAttention,
-  type StaffingGroup,
+  tilePeople,
+  tileSurplus,
   type StaffingRole,
   type StaffingTile,
 } from '@/volunteers/staffingTypes'
 
-const props = defineProps<{
+defineProps<{
   tile: StaffingTile
   isDragging: boolean
-  dragOverGroupId: number | null
+  dragOverKey: string | null
 }>()
 
 const emit = defineEmits<{
   'persist-role': [role: StaffingRole]
   'delete-role': [role: StaffingRole]
   'open-bounds': [role: StaffingRole, anchor: HTMLElement]
-  drop: [event: unknown, group: StaffingGroup]
-  'drag-start': [event: unknown, groupId: number]
+  drop: [event: unknown, tile: StaffingTile]
+  'drag-start': [event: unknown, tileKey: string]
   'drag-end': []
-  'dropzone-leave': [event: DragEvent, groupId: number]
-  'hover-group': [groupId: number]
-  unassign: [group: StaffingGroup, person: VolunteerPersonRef]
+  'dropzone-leave': [event: DragEvent, tileKey: string]
+  hover: [tileKey: string]
+  unassign: [tile: StaffingTile, person: VolunteerPersonRef]
 }>()
 
-function dropGroup(group: StaffingGroup) {
+function dropGroup(tile: StaffingTile) {
+  const surplus = tileSurplus(tile)
+  const filled = tileFilled(tile)
   return {
     name: 'staffing-people',
     pull: true,
-    put: !group.surplus && group.filled < group.max,
+    put: !surplus && filled < Number(tile.role.max),
   }
 }
 
@@ -48,31 +52,34 @@ function gapStatusClass(tile: StaffingTile) {
 
 <template>
   <ItemCard
-      :inactive="tile.group.surplus"
-      :class="{'staffing-tile--surplus': tile.group.surplus}"
+      :inactive="tileSurplus(tile)"
+      :class="{'staffing-tile--surplus': tileSurplus(tile)}"
   >
     <template #leading>
       <StaffingScopeLeading :role="tile.role" size="base"/>
     </template>
     <template #title>
       <div class="staffing-title">
-        <input
-            v-if="tile.role.is_local"
-            v-model="tile.role.label"
-            class="item-card__title glass-input glass-input--sm liquid-surface-control"
-            @blur="emit('persist-role', tile.role)"
-        >
-        <span v-else class="item-card__title font-semibold truncate flex items-center min-h-[var(--field-min-height-sm)]">
-          {{ tile.name }}
-        </span>
+        <div class="staffing-title__text">
+          <input
+              v-if="tile.role.is_local"
+              v-model="tile.role.label"
+              class="item-card__title glass-input glass-input--sm liquid-surface-control"
+              @blur="emit('persist-role', tile.role)"
+          >
+          <span v-else class="item-card__title font-semibold truncate flex items-center min-h-[var(--field-min-height-sm)]">
+            {{ tile.name }}
+          </span>
+          <span v-if="tile.group" class="staffing-title__subtitle">{{ tile.role.label }}</span>
+        </div>
         <span
             v-if="tileNeedsAttention(tile)"
             class="staffing-need-dot"
-            :title="tile.group.surplus ? 'Überzählig mit Personen' : 'Unter Min'"
+            :title="tileSurplus(tile) ? 'Überzählig mit Personen' : 'Unter Min'"
         />
       </div>
     </template>
-    <template v-if="tile.role.is_local || tile.group.surplus" #trailing>
+    <template v-if="tile.role.is_local || tileSurplus(tile)" #trailing>
       <IconDangerButton
           v-if="tile.role.is_local"
           label="Rolle löschen"
@@ -81,9 +88,9 @@ function gapStatusClass(tile: StaffingTile) {
       <span v-else class="staffing-stale-badge">Überzählig</span>
     </template>
 
-    <div v-if="!tile.group.surplus" class="staffing-meta">
+    <div v-if="!tileSurplus(tile)" class="staffing-meta">
       <div class="staffing-status__primary">
-        <span class="staffing-status__assigned">{{ tile.group.filled }} zugewiesen</span>
+        <span class="staffing-status__assigned">{{ tileFilled(tile) }} zugewiesen</span>
         <span class="staffing-status__sep" aria-hidden="true">·</span>
         <span class="staffing-status__gap" :class="gapStatusClass(tile)">
           {{ staffingGap(tile).label }}
@@ -96,7 +103,7 @@ function gapStatusClass(tile: StaffingTile) {
               v-for="pos in slotPositions(tile.role)"
               :key="`${tile.key}-slot-${pos}`"
               class="staffing-slot__icon bi"
-              :class="pos <= tile.group.filled ? 'bi-person-fill staffing-slot__icon--filled' : 'bi-person'"
+              :class="pos <= tileFilled(tile) ? 'bi-person-fill staffing-slot__icon--filled' : 'bi-person'"
           />
         </div>
 
@@ -117,23 +124,23 @@ function gapStatusClass(tile: StaffingTile) {
       </div>
     </div>
 
-    <p v-if="tile.group.surplus" class="staffing-surplus">
+    <p v-if="tileSurplus(tile)" class="staffing-surplus">
       Nicht mehr benötigt — Personen in andere Rollen ziehen.
     </p>
 
     <div
         class="glass-dropzone"
         :class="{
-          'glass-dropzone--dragging': isDragging && !tile.group.surplus,
-          'glass-dropzone--active': dragOverGroupId === tile.group.id,
-          'glass-dropzone--blocked': tile.group.surplus,
+          'glass-dropzone--dragging': isDragging && !tileSurplus(tile),
+          'glass-dropzone--active': dragOverKey === tile.key,
+          'glass-dropzone--blocked': tileSurplus(tile),
         }"
-        @dragenter.prevent="emit('hover-group', tile.group.id)"
-        @dragover.prevent="emit('hover-group', tile.group.id)"
-        @dragleave="emit('dropzone-leave', $event, tile.group.id)"
+        @dragenter.prevent="emit('hover', tile.key)"
+        @dragover.prevent="emit('hover', tile.key)"
+        @dragleave="emit('dropzone-leave', $event, tile.key)"
     >
       <div
-          v-if="tile.group.people.length === 0"
+          v-if="tilePeople(tile).length === 0"
           class="glass-dropzone__empty"
       >
         <i class="bi bi-box-arrow-in-down glass-dropzone__empty-icon"/>
@@ -142,12 +149,12 @@ function gapStatusClass(tile: StaffingTile) {
         </span>
       </div>
       <draggable
-          :list="tile.group.people"
+          :list="tilePeople(tile)"
           class="glass-dropzone__list"
-          :group="dropGroup(tile.group)"
+          :group="dropGroup(tile)"
           item-key="id"
-          @add="emit('drop', $event, tile.group)"
-          @start="emit('drag-start', $event, tile.group.id)"
+          @add="emit('drop', $event, tile)"
+          @start="emit('drag-start', $event, tile.key)"
           @end="emit('drag-end')"
       >
         <template #item="{element: person}">
@@ -158,7 +165,7 @@ function gapStatusClass(tile: StaffingTile) {
                 type="button"
                 class="vol-person-chip__dismiss"
                 aria-label="Zuordnung entfernen"
-                @click.stop="emit('unassign', tile.group, person)"
+                @click.stop="emit('unassign', tile, person)"
             >
               <i class="bi bi-x" aria-hidden="true"/>
             </button>
@@ -178,6 +185,13 @@ function gapStatusClass(tile: StaffingTile) {
   width: 100%;
 }
 
+.staffing-title__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .staffing-title .item-card__title {
   flex: 0 1 auto;
   min-width: 0;
@@ -187,6 +201,16 @@ function gapStatusClass(tile: StaffingTile) {
 
 .staffing-title .item-card__title.glass-input {
   flex: 1 1 auto;
+}
+
+.staffing-title__subtitle {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-subtle);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .staffing-need-dot {

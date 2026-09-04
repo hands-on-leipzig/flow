@@ -260,7 +260,8 @@ class DayAppSessionAuthTest extends TestCase
         if (! Schema::hasTable('event_staffing_assignment')) {
             Schema::create('event_staffing_assignment', function (Blueprint $table) {
                 $table->increments('id');
-                $table->unsignedInteger('event_staffing_group');
+                $table->unsignedInteger('event_staffing_role');
+                $table->unsignedInteger('event_staffing_group')->nullable();
                 $table->unsignedInteger('volunteer_person');
             });
         }
