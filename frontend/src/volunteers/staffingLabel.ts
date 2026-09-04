@@ -16,6 +16,19 @@ export function staffingTileKey(roleId: number, groupId: number | null): string 
   return groupId != null ? `g-${groupId}` : `r-${roleId}`
 }
 
+/** Role name under a group title (e.g. Jury-Gruppe 1 → Juror:in). */
+export function staffingTileRoleSubtitle(tile: {
+  name: string
+  group: unknown
+  role: Pick<StaffingRole, 'label'>
+}): string | null {
+  if (!tile.group) return null
+  const role = tile.role.label.trim()
+  const title = tile.name.trim()
+  if (!role || role === title) return null
+  return role
+}
+
 export function rosterAssignmentCaption(assignment: {
   label: string
   group_label?: string | null

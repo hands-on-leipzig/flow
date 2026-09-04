@@ -9,7 +9,6 @@ use App\Models\MRole;
 use App\Models\MStaffingRule;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
-use App\Support\StaffingAssignmentLabel;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -206,7 +205,7 @@ class StaffingSyncService
     }
 
     /**
-     * Open staffing gaps per scope, one entry per container (group or ungrouped role).
+     * Open staffing gaps per scope, one entry per role (grouped containers summed).
      *
      * @param  list<int>  $programIds  attached event first_program ids
      * @return list<array{
@@ -247,25 +246,15 @@ class StaffingSyncService
             $roleLabel = trim($role->label ?: ($role->catalogRole?->name ?? '')) ?: 'Unbenannt';
 
             if ($role->isGrouped()) {
+                $meta = $this->openPositionContainerMeta($role, null, null, $roleLabel);
                 foreach ($role->groups as $group) {
                     if ($group->surplus) {
                         continue;
                     }
-                    $filled = $group->assignments->count();
-                    $meta = $this->openPositionContainerMeta(
-                        $role,
-                        $group->id,
-                        (int) $group->group_index,
-                        StaffingAssignmentLabel::containerTitle(
-                            $role->group_label,
-                            (int) $group->group_index,
-                            $roleLabel,
-                        ),
-                    );
                     $this->recordOpenPositionGaps(
                         $accumulators[$scopeKey],
                         $meta,
-                        $filled,
+                        $group->assignments->count(),
                         $min,
                         $best,
                     );
@@ -395,9 +384,7 @@ class StaffingSyncService
      */
     private function recordOpenPositionGaps(array &$scope, array $meta, int $filled, int $min, int $best): void
     {
-        $key = $meta['group_id'] !== null
-            ? 'g'.$meta['group_id']
-            : 'r'.$meta['role_id'];
+        $key = 'r'.$meta['role_id'];
 
         if ($filled < $min) {
             $this->accumulateOpenPosition($scope['critical'], $key, $meta, $min - $filled);

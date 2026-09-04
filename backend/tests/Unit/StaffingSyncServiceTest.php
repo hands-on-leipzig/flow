@@ -234,15 +234,13 @@ class StaffingSyncServiceTest extends TestCase
             ->keyBy('key');
 
         $challenge = $openPositions['program:'.FirstProgram::CHALLENGE->value];
-        $this->assertCount(2, $challenge['critical']);
-        $this->assertSame('Jury-Gruppe 1', $challenge['critical'][0]['label']);
-        $this->assertSame(1, $challenge['critical'][0]['wanted']);
-        $this->assertSame((int) $groups[0]->id, $challenge['critical'][0]['group_id']);
-        $this->assertSame('Jury-Gruppe 2', $challenge['critical'][1]['label']);
-        $this->assertSame(2, $challenge['critical'][1]['wanted']);
-        $this->assertCount(2, $challenge['recommended']);
-        $this->assertSame(2, $challenge['recommended'][0]['wanted']);
-        $this->assertSame(2, $challenge['recommended'][1]['wanted']);
+        $this->assertCount(1, $challenge['critical']);
+        $this->assertSame('Jury', $challenge['critical'][0]['label']);
+        $this->assertSame(3, $challenge['critical'][0]['wanted']);
+        $this->assertNull($challenge['critical'][0]['group_id']);
+        $this->assertCount(1, $challenge['recommended']);
+        $this->assertSame('Jury', $challenge['recommended'][0]['label']);
+        $this->assertSame(4, $challenge['recommended'][0]['wanted']);
         $this->assertArrayNotHasKey('cross', $openPositions->all());
     }
 
@@ -266,7 +264,7 @@ class StaffingSyncServiceTest extends TestCase
         $challenge = collect($openPositions)->firstWhere('key', 'program:'.FirstProgram::CHALLENGE->value);
         $this->assertNotNull($challenge);
         $this->assertSame(2, $challenge['critical'][0]['wanted']);
-        $this->assertSame('Jury-Gruppe 1', $challenge['critical'][0]['label']);
+        $this->assertSame('Jury', $challenge['critical'][0]['label']);
         $this->assertSame(1, $challenge['recommended'][0]['wanted']);
     }
 

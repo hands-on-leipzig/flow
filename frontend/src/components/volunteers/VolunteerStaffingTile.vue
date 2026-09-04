@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import {computed} from 'vue'
 import draggable from 'vuedraggable'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
 import {volunteerDisplayName, type VolunteerPersonRef} from '@/utils/volunteerPerson'
+import {staffingTileRoleSubtitle} from '@/volunteers/staffingLabel'
 import {
   boundsLabel,
   slotPositions,
@@ -17,11 +19,13 @@ import {
   type StaffingTile,
 } from '@/volunteers/staffingTypes'
 
-defineProps<{
+const props = defineProps<{
   tile: StaffingTile
   isDragging: boolean
   dragOverKey: string | null
 }>()
+
+const roleSubtitle = computed(() => staffingTileRoleSubtitle(props.tile))
 
 const emit = defineEmits<{
   'persist-role': [role: StaffingRole]
@@ -53,7 +57,10 @@ function gapStatusClass(tile: StaffingTile) {
 <template>
   <ItemCard
       :inactive="tileSurplus(tile)"
-      :class="{'staffing-tile--surplus': tileSurplus(tile)}"
+      :class="{
+        'staffing-tile--surplus': tileSurplus(tile),
+        'staffing-tile--has-subtitle': !!roleSubtitle,
+      }"
   >
     <template #leading>
       <StaffingScopeLeading :role="tile.role" size="base"/>
@@ -67,10 +74,14 @@ function gapStatusClass(tile: StaffingTile) {
               class="item-card__title glass-input glass-input--sm liquid-surface-control"
               @blur="emit('persist-role', tile.role)"
           >
-          <span v-else class="item-card__title font-semibold truncate flex items-center min-h-[var(--field-min-height-sm)]">
+          <span
+              v-else
+              class="item-card__title font-semibold truncate"
+              :class="{'staffing-title__heading': !roleSubtitle}"
+          >
             {{ tile.name }}
           </span>
-          <span v-if="tile.group" class="staffing-title__subtitle">{{ tile.role.label }}</span>
+          <span v-if="roleSubtitle" class="staffing-title__subtitle">{{ roleSubtitle }}</span>
         </div>
         <span
             v-if="tileNeedsAttention(tile)"
@@ -177,6 +188,10 @@ function gapStatusClass(tile: StaffingTile) {
 </template>
 
 <style scoped>
+.staffing-tile--has-subtitle :deep(.item-card__chrome) {
+  align-items: flex-start;
+}
+
 .staffing-title {
   display: flex;
   align-items: center;
@@ -185,11 +200,16 @@ function gapStatusClass(tile: StaffingTile) {
   width: 100%;
 }
 
+.staffing-tile--has-subtitle .staffing-title {
+  align-items: flex-start;
+}
+
 .staffing-title__text {
   display: flex;
   flex-direction: column;
   min-width: 0;
   flex: 1 1 auto;
+  overflow: visible;
 }
 
 .staffing-title .item-card__title {
@@ -203,11 +223,20 @@ function gapStatusClass(tile: StaffingTile) {
   flex: 1 1 auto;
 }
 
+.staffing-title__heading {
+  display: flex;
+  align-items: center;
+  min-height: var(--field-min-height-sm);
+}
+
 .staffing-title__subtitle {
+  display: block;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
   font-size: 0.75rem;
   font-weight: 500;
   color: var(--color-text-subtle);
-  line-height: 1.2;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -219,6 +248,10 @@ function gapStatusClass(tile: StaffingTile) {
   height: 0.5rem;
   border-radius: 999px;
   background: var(--color-danger, #ef4444);
+}
+
+.staffing-tile--has-subtitle .staffing-need-dot {
+  margin-top: 0.45rem;
 }
 
 .staffing-meta {

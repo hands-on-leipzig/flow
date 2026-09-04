@@ -112,7 +112,7 @@ async function onHelperSearchToggle(next: boolean) {
             <ul class="staffing-open-positions__list">
               <li
                   v-for="entry in scope.entries"
-                  :key="`critical-${scope.key}-${entry.roleId}-${entry.groupId ?? 'r'}`"
+                  :key="`critical-${scope.key}-${entry.roleId}`"
                   class="staffing-open-positions__item"
               >
                 <span class="staffing-open-positions__name">{{ entry.name }}</span>
@@ -145,7 +145,7 @@ async function onHelperSearchToggle(next: boolean) {
             <ul class="staffing-open-positions__list">
               <li
                   v-for="entry in scope.entries"
-                  :key="`recommended-${scope.key}-${entry.roleId}-${entry.groupId ?? 'r'}`"
+                  :key="`recommended-${scope.key}-${entry.roleId}`"
                   class="staffing-open-positions__item"
               >
                 <span class="staffing-open-positions__name">{{ entry.name }}</span>
