@@ -77,15 +77,19 @@ class MainTablesAdminApiTest extends TestCase
             ->assertJson(['error' => 'Table not allowed']);
     }
 
-    public function test_import_route_removed(): void
+    public function test_store_blocks_m_match_writes(): void
     {
-        // Former dedicated import route is gone; POST …/import hits store/{table}=import.
         $this->mock(MainTableSchemaService::class, function ($mock) {
-            $mock->shouldReceive('isAllowedTable')->with('import')->andReturn(false);
+            $mock->shouldReceive('isAllowedTable')->with('m_match')->andReturn(true);
+            $mock->shouldReceive('prepareWritePayload')->never();
         });
 
-        $this->postJson('/api/admin/main-tables/import', [])
-            ->assertNotFound()
-            ->assertJson(['error' => 'Table not allowed']);
+        $this->postJson('/api/admin/main-tables/m_match', [
+            'first_program' => 3,
+            'teams' => 8,
+            'tables' => 2,
+        ])
+            ->assertStatus(403)
+            ->assertJson(['error' => 'm_match is edited only in Admin → Matchpläne']);
     }
 }

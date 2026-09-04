@@ -10,12 +10,14 @@ import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {imageUrl, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
 import {
-  ADMIN_OPS_SECTIONS,
+  ADMIN_SECTIONS,
+  ADMIN_OPS_NAV,
   ADMIN_ENTWICKLUNG_SECTIONS,
   ADMIN_DEFAULT_SECTION,
   adminSectionPath,
   isAdminSectionAvailable,
 } from '@/constants/adminNav'
+import type {AdminSection} from '@/constants/adminNav'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
@@ -179,7 +181,7 @@ const navEntries = computed<NavEntry[]>(() => [
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
 const showBackToOverview = computed(() => isAdminMode.value)
 
-function toAdminNavEntry(item: (typeof ADMIN_OPS_SECTIONS)[number]): NavEntry {
+function toAdminNavEntry(item: AdminSection): NavEntry {
   const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
   return {
     name: item.label,
@@ -192,7 +194,38 @@ function toAdminNavEntry(item: (typeof ADMIN_OPS_SECTIONS)[number]): NavEntry {
   }
 }
 
-const adminOpsNavEntries = computed<NavEntry[]>(() => ADMIN_OPS_SECTIONS.map(toAdminNavEntry))
+function adminSectionByKey(key: string): AdminSection | undefined {
+  return ADMIN_SECTIONS.find((item) => item.key === key)
+}
+
+const adminOpsNavEntries = computed<NavEntry[]>(() =>
+  ADMIN_OPS_NAV.map((node) => {
+    if (node.kind === 'folder') {
+      const children = node.children
+        .map((key) => adminSectionByKey(key))
+        .filter((item): item is AdminSection => !!item)
+        .map((item) => {
+          const entry = toAdminNavEntry(item)
+          return {
+            name: entry.name,
+            path: entry.path ?? item.path,
+            icon: entry.icon,
+          }
+        })
+      return {
+        name: node.label,
+        path: children[0]?.path,
+        icon: node.icon,
+        children,
+      }
+    }
+    const section = adminSectionByKey(node.key)
+    if (!section) {
+      return {name: node.key, icon: 'bi-question', disabled: true}
+    }
+    return toAdminNavEntry(section)
+  }),
+)
 
 const adminEntwicklungNavEntries = computed<NavEntry[]>(() =>
   ADMIN_ENTWICKLUNG_SECTIONS.map(toAdminNavEntry),
@@ -392,7 +425,9 @@ function logout() {
             :warning="entryWarning(entry)"
             :disabled="!!entry.disabled"
             :title="entry.title"
+            :children="entry.children?.map(childNavProps)"
             @select="onNavSelect(entry)"
+            @select-child="onNavChildSelect"
         />
         <div
             class="admin-nav-group"

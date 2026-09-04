@@ -15,6 +15,7 @@ class FirstProgram extends Model
         'letter',
         'ics_postfix',
         'sequence',
+        'max_match_rounds',
         'color_hex',
         'logo_stem',
         'logo_white',

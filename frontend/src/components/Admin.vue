@@ -6,12 +6,14 @@ import Statistics from '@/components/molecules/Statistics.vue'
 import NowAndNext from '@/components/molecules/NowAndNext.vue'
 import UserRegionalPartnerRelations from '@/components/molecules/UserRegionalPartnerRelations.vue'
 import MainTablesAdmin from '@/components/molecules/MainTablesAdmin.vue'
+import MatchPlansAdmin from '@/components/molecules/MatchPlansAdmin.vue'
 import SystemNews from '@/components/molecules/SystemNews.vue'
 import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
 import CalendarFeedsAdmin from '@/components/molecules/CalendarFeedsAdmin.vue'
 import AdminWartung from '@/components/molecules/AdminWartung.vue'
 import PlanQualitaet from '@/components/molecules/PlanQualitaet.vue'
+import Enrollments from '@/components/molecules/Enrollments.vue'
 import {
   ADMIN_DEFAULT_SECTION,
   ADMIN_SECTIONS,
@@ -94,6 +96,11 @@ onMounted(() => {
       <MainTablesAdmin/>
     </div>
 
+    <div v-else-if="activeTab === 'match-plans' && sectionAllowed">
+      <h2 class="text-xl font-bold mb-4">Matchpläne</h2>
+      <MatchPlansAdmin/>
+    </div>
+
     <div v-else-if="activeTab === 'system-news'">
       <SystemNews/>
     </div>
@@ -133,6 +140,10 @@ onMounted(() => {
     <div v-else-if="activeTab === 'plan-qualitaet'">
       <h2 class="text-xl font-bold mb-4">Plan Qualität</h2>
       <PlanQualitaet/>
+    </div>
+
+    <div v-else-if="activeTab === 'enrollments'">
+      <Enrollments/>
     </div>
 
     <div v-else-if="activeTab === 'wartung'">

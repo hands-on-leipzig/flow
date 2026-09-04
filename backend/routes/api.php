@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AfternoonController;
+use App\Http\Controllers\Api\EnrollmentsController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\CheckInController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\LogoController;
 use App\Http\Controllers\Api\MainTablesController;
+use App\Http\Controllers\Api\MatchPlanCatalogController;
 use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\ParameterController;
@@ -38,6 +40,7 @@ use App\Http\Controllers\Api\PublicPlanController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\SeasonPlanBulkController;
 use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
@@ -412,6 +415,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/evaluate/{planId}', [PlanQualityController::class, 'evaluatePlan']);
     });
 
+    Route::get('/admin/enrollments', [EnrollmentsController::class, 'index']);
+
     Route::prefix('admin/main-tables')->group(function () {
         Route::get('/', [MainTablesController::class, 'index']);
         Route::get('/export', [MainTablesController::class, 'export']);
@@ -423,6 +428,15 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/{table}', [MainTablesController::class, 'store']);
         Route::put('/{table}/{id}', [MainTablesController::class, 'update']);
         Route::delete('/{table}/{id}', [MainTablesController::class, 'destroy']);
+    });
+
+    Route::prefix('admin/match-plans')->group(function () {
+        Route::get('/programs', [MatchPlanCatalogController::class, 'programs']);
+        Route::get('/keys', [MatchPlanCatalogController::class, 'keys']);
+        Route::get('/', [MatchPlanCatalogController::class, 'show']);
+        Route::put('/', [MatchPlanCatalogController::class, 'save']);
+        Route::delete('/', [MatchPlanCatalogController::class, 'destroy']);
+        Route::post('/quality', [MatchPlanCatalogController::class, 'quality']);
     });
 
     Route::get('/seasons', function () {
@@ -562,6 +576,11 @@ Route::middleware(['keycloak'])->group(function () {
     // Admin helper functions routes
     Route::prefix('admin/helpers')->group(function () {
         Route::post('/logos/cleanup-orphaned', [LogoController::class, 'cleanupOrphanedLogos']); // Admin: Clean up orphaned logos
+        Route::prefix('season-plans')->group(function () {
+            Route::get('/', [SeasonPlanBulkController::class, 'summary']);
+            Route::post('/empty', [SeasonPlanBulkController::class, 'empty']);
+            Route::post('/regenerate', [SeasonPlanBulkController::class, 'regenerate']);
+        });
     });
 
     Route::prefix('admin/sharepoint')->group(function () {
