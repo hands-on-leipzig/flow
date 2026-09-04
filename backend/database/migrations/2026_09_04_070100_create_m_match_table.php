@@ -20,6 +20,7 @@ return new class extends Migration
             $table->unsignedInteger('id')->autoIncrement();
             $table->unsignedInteger('first_program');
             $table->unsignedInteger('teams');
+            $table->unsignedInteger('lanes')->default(1);
             $table->unsignedInteger('tables');
             $table->unsignedInteger('round');
             $table->unsignedInteger('match_no');
@@ -29,8 +30,8 @@ return new class extends Migration
             $table->unsignedInteger('table_2_team');
 
             $table->unique(
-                ['first_program', 'teams', 'tables', 'round', 'match_no'],
-                'm_match_program_teams_tables_round_match_unique'
+                ['first_program', 'teams', 'lanes', 'tables', 'round', 'match_no'],
+                'm_match_program_teams_lanes_tables_round_match_unique'
             );
 
             $table->foreign('first_program', 'm_match_first_program_foreign')

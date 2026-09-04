@@ -16,6 +16,7 @@ class MMatch extends Model
     protected $fillable = [
         'first_program',
         'teams',
+        'lanes',
         'tables',
         'comment',
         'round',
@@ -29,6 +30,7 @@ class MMatch extends Model
     protected $casts = [
         'first_program' => 'integer',
         'teams' => 'integer',
+        'lanes' => 'integer',
         'tables' => 'integer',
         'round' => 'integer',
         'match_no' => 'integer',

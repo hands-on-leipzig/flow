@@ -45,13 +45,14 @@ class MatchPlanCatalogController extends Controller
         }
 
         $keys = MMatch::query()
-            ->select('first_program', 'teams', 'tables')
+            ->select('first_program', 'teams', 'lanes', 'tables')
             ->selectRaw('COUNT(*) as match_count')
             ->selectRaw('MAX(round) as max_round')
             ->selectRaw('MAX(comment) as comment')
-            ->groupBy('first_program', 'teams', 'tables')
+            ->groupBy('first_program', 'teams', 'lanes', 'tables')
             ->orderBy('first_program')
             ->orderBy('teams')
+            ->orderBy('lanes')
             ->orderBy('tables')
             ->get();
 
@@ -67,6 +68,7 @@ class MatchPlanCatalogController extends Controller
         $data = $request->validate([
             'first_program' => 'required|integer|exists:m_first_program,id',
             'teams' => 'required|integer|min:2',
+            'lanes' => 'required|integer|min:1',
             'tables' => 'required|integer|in:2,4',
         ]);
 
@@ -78,6 +80,7 @@ class MatchPlanCatalogController extends Controller
         $matches = MMatch::query()
             ->where('first_program', $data['first_program'])
             ->where('teams', $data['teams'])
+            ->where('lanes', $data['lanes'])
             ->where('tables', $data['tables'])
             ->orderBy('round')
             ->orderBy('match_no')
@@ -91,6 +94,7 @@ class MatchPlanCatalogController extends Controller
             'exists' => $matches->isNotEmpty(),
             'first_program' => (int) $data['first_program'],
             'teams' => (int) $data['teams'],
+            'lanes' => (int) $data['lanes'],
             'tables' => (int) $data['tables'],
             'comment' => $comment,
             'max_match_rounds' => $maxRounds,
@@ -107,6 +111,7 @@ class MatchPlanCatalogController extends Controller
         $data = $request->validate([
             'first_program' => 'required|integer|exists:m_first_program,id',
             'teams' => 'required|integer|min:2',
+            'lanes' => 'required|integer|min:1',
             'tables' => 'required|integer|in:2,4',
             'comment' => 'nullable|string|max:5000',
             'matches' => 'required|array|min:1',
@@ -120,6 +125,7 @@ class MatchPlanCatalogController extends Controller
 
         $firstProgram = (int) $data['first_program'];
         $teams = (int) $data['teams'];
+        $lanes = (int) $data['lanes'];
         $tables = (int) $data['tables'];
         $comment = isset($data['comment']) ? trim((string) $data['comment']) : '';
         $comment = $comment === '' ? null : $comment;
@@ -138,6 +144,7 @@ class MatchPlanCatalogController extends Controller
             $rows[] = [
                 'first_program' => $firstProgram,
                 'teams' => $teams,
+                'lanes' => $lanes,
                 'tables' => $tables,
                 'comment' => $comment,
                 'round' => (int) $match['round'],
@@ -149,10 +156,11 @@ class MatchPlanCatalogController extends Controller
             ];
         }
 
-        DB::transaction(function () use ($firstProgram, $teams, $tables, $rows) {
+        DB::transaction(function () use ($firstProgram, $teams, $lanes, $tables, $rows) {
             MMatch::query()
                 ->where('first_program', $firstProgram)
                 ->where('teams', $teams)
+                ->where('lanes', $lanes)
                 ->where('tables', $tables)
                 ->delete();
             MMatch::query()->insert($rows);
@@ -161,6 +169,7 @@ class MatchPlanCatalogController extends Controller
         $saved = MMatch::query()
             ->where('first_program', $firstProgram)
             ->where('teams', $teams)
+            ->where('lanes', $lanes)
             ->where('tables', $tables)
             ->orderBy('round')
             ->orderBy('match_no')
@@ -170,6 +179,7 @@ class MatchPlanCatalogController extends Controller
             'exists' => true,
             'first_program' => $firstProgram,
             'teams' => $teams,
+            'lanes' => $lanes,
             'tables' => $tables,
             'comment' => $comment ?? '',
             'max_match_rounds' => $maxRounds,
@@ -186,12 +196,14 @@ class MatchPlanCatalogController extends Controller
         $data = $request->validate([
             'first_program' => 'required|integer|exists:m_first_program,id',
             'teams' => 'required|integer|min:2',
+            'lanes' => 'required|integer|min:1',
             'tables' => 'required|integer|in:2,4',
         ]);
 
         $deleted = MMatch::query()
             ->where('first_program', $data['first_program'])
             ->where('teams', $data['teams'])
+            ->where('lanes', $data['lanes'])
             ->where('tables', $data['tables'])
             ->delete();
 

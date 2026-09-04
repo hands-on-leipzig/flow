@@ -11,6 +11,7 @@ const programs = ref([])
 const storedKeys = ref([])
 const firstProgram = ref(3)
 const teams = ref(8)
+const lanes = ref(1)
 const tables = ref(2)
 /** @type {import('vue').Ref<MatchRow[]>} */
 const matches = ref([])
@@ -67,6 +68,7 @@ const existsWarning = computed(() => {
     (k) =>
       Number(k.first_program) === Number(firstProgram.value) &&
       Number(k.teams) === Number(teams.value) &&
+      Number(k.lanes) === Number(lanes.value) &&
       Number(k.tables) === Number(tables.value),
   )
 })
@@ -77,6 +79,8 @@ const sortedStoredKeys = computed(() => {
     if (pa !== 0) return pa
     const ta = Number(a.teams) - Number(b.teams)
     if (ta !== 0) return ta
+    const la = Number(a.lanes) - Number(b.lanes)
+    if (la !== 0) return la
     return Number(a.tables) - Number(b.tables)
   })
 })
@@ -190,6 +194,22 @@ function onTeamsInput(event) {
   }
   resizeTeams(next)
   event.target.value = String(teams.value)
+}
+
+function onLanesInput(event) {
+  const raw = String(event.target.value).trim()
+  const next = Number(raw)
+  if (!Number.isFinite(next) || next < 1 || !Number.isInteger(next) || next === lanes.value) {
+    event.target.value = String(lanes.value)
+    return
+  }
+  if (!confirmChange(`Lanes von ${lanes.value} auf ${next} ändern?`)) {
+    event.target.value = String(lanes.value)
+    return
+  }
+  lanes.value = next
+  dirty.value = true
+  event.target.value = String(lanes.value)
 }
 
 function onTablesSelect(event) {
@@ -465,16 +485,19 @@ async function loadPlanKey(key) {
   try {
     const programId = Number(key.first_program)
     const teamCount = Number(key.teams)
+    const laneCount = Number(key.lanes ?? 1)
     const tableCount = Number(key.tables)
     const {data} = await axios.get('/admin/match-plans', {
       params: {
         first_program: programId,
         teams: teamCount,
+        lanes: laneCount,
         tables: tableCount,
       },
     })
     firstProgram.value = programId
     teams.value = teamCount
+    lanes.value = laneCount
     tables.value = tableCount
     existsInDb.value = Boolean(data.exists)
     comment.value = data.comment ?? ''
@@ -505,7 +528,7 @@ async function loadPlanKey(key) {
 async function saveToDb() {
   if (existsWarning.value) {
     const ok = window.confirm(
-      `Plan für Programm ${firstProgram.value}, ${teams.value} Teams, ${tables.value} Tische existiert bereits und wird überschrieben. Fortfahren?`,
+      `Plan für Programm ${firstProgram.value}, ${teams.value} Teams, ${lanes.value} Lanes, ${tables.value} Tische existiert bereits und wird überschrieben. Fortfahren?`,
     )
     if (!ok) return
   }
@@ -525,6 +548,7 @@ async function confirmSaveComment() {
     const {data} = await axios.put('/admin/match-plans', {
       first_program: firstProgram.value,
       teams: teams.value,
+      lanes: lanes.value,
       tables: tables.value,
       comment: comment.value,
       matches: matches.value,
@@ -552,6 +576,7 @@ async function deleteFromDb() {
       data: {
         first_program: firstProgram.value,
         teams: teams.value,
+        lanes: lanes.value,
         tables: tables.value,
       },
     })
@@ -596,7 +621,7 @@ onMounted(async () => {
   }
 })
 
-watch([firstProgram, teams, tables], () => {
+watch([firstProgram, teams, lanes, tables], () => {
   // existence flag for current key
   existsInDb.value = existsWarning.value
 })
@@ -631,6 +656,16 @@ watch([firstProgram, teams, tables], () => {
           />
         </label>
         <label class="flex flex-col gap-1 text-sm">
+          <span>Lanes</span>
+          <input
+            type="text"
+            inputmode="numeric"
+            class="glass-input w-24"
+            :value="lanes"
+            @change="onLanesInput"
+          />
+        </label>
+        <label class="flex flex-col gap-1 text-sm">
           <span>Tische</span>
           <select
             class="glass-input w-24"
@@ -654,7 +689,7 @@ watch([firstProgram, teams, tables], () => {
         </div>
       </div>
       <p v-if="existsWarning" class="text-sm text-amber-700">
-        Warnung: Für diese Kombination (Programm / Teams / Tische) existiert bereits ein Plan — Speichern überschreibt.
+        Warnung: Für diese Kombination (Programm / Teams / Lanes / Tische) existiert bereits ein Plan — Speichern überschreibt.
       </p>
       <p v-if="dirty" class="text-sm text-[var(--color-text-muted)]">Ungespeicherte Änderungen</p>
       <div v-if="comment" class="text-sm">
@@ -903,7 +938,7 @@ watch([firstProgram, teams, tables], () => {
         <div class="match-load-list">
           <button
             v-for="key in sortedStoredKeys"
-            :key="`${key.first_program}-${key.teams}-${key.tables}`"
+            :key="`${key.first_program}-${key.teams}-${key.lanes}-${key.tables}`"
             type="button"
             class="match-load-item"
             @click="loadPlanKey(key)"
@@ -911,6 +946,7 @@ watch([firstProgram, teams, tables], () => {
             <div class="match-load-item__main">
               <span class="font-semibold">{{ programLabel(key.first_program) }}</span>
               <span>{{ key.teams }} Teams</span>
+              <span>{{ key.lanes }} Lanes</span>
               <span>{{ key.tables }} Tische</span>
               <span>{{ Number(key.max_round) || 0 }} Runden</span>
             </div>
