@@ -7,6 +7,8 @@ import {
   photoConsentStatusClass,
   photoConsentStatusForTeam,
 } from '@/utils/photoConsentStatus'
+import {isOtpStubAccepted} from '@/utils/otpStub'
+import PublicFormOtpNotice from '@/components/molecules/PublicFormOtpNotice.vue'
 
 type FormColumn = {
   key: string
@@ -106,8 +108,7 @@ function proceedFromEmail() {
 }
 
 async function verifyOtp() {
-  const code = otpCode.value.trim()
-  if (code !== '007008') {
+  if (!isOtpStubAccepted(otpCode.value)) {
     otpError.value = 'Ungültiger Code. Bitte erneut versuchen.'
     return
   }
@@ -261,6 +262,7 @@ watch(
       <p class="vol-public-form__info">
         Wenn diese E-Mail für diese Veranstaltung als Coach registriert ist, erhalten Sie einen Code per E-Mail. Bitte geben Sie den Code ein.
       </p>
+      <PublicFormOtpNotice />
       <label class="vol-public-form__label" for="team-form-otp">Code</label>
       <input
           id="team-form-otp"

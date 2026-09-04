@@ -7,6 +7,8 @@ import {
   photoConsentStatusClass,
   photoConsentStatusForVolunteer,
 } from '@/utils/photoConsentStatus'
+import {isOtpStubAccepted} from '@/utils/otpStub'
+import PublicFormOtpNotice from '@/components/molecules/PublicFormOtpNotice.vue'
 
 type FormField = {
   key: string
@@ -69,8 +71,7 @@ function proceedFromEmail() {
 }
 
 function verifyOtp() {
-  const code = otpCode.value.trim()
-  if (code === '007008') {
+  if (isOtpStubAccepted(otpCode.value)) {
     otpError.value = ''
     emit('update:step', 'data')
     return
@@ -189,6 +190,7 @@ watch(
       <p class="vol-public-form__info">
         Wenn diese E-Mail für diese Veranstaltung als Helfer:in registriert ist, erhalten Sie einen Code per E-Mail. Bitte geben Sie den Code ein.
       </p>
+      <PublicFormOtpNotice />
       <label class="vol-public-form__label" for="vol-form-otp">Code</label>
       <input
           id="vol-form-otp"
