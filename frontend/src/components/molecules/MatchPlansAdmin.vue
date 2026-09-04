@@ -319,6 +319,67 @@ function removeLastRound() {
   void refreshQuality()
 }
 
+/** Clear all team slots; keep round/match/table structure. */
+function clearAllMatches() {
+  matches.value = matches.value.map((m) => ({
+    ...m,
+    table_1_team: 0,
+    table_2_team: 0,
+  }))
+  dirty.value = true
+  void refreshQuality()
+}
+
+/** Copy R1 onto TR 1:1 (teams + table pairs per match_no). */
+function copyR1ToTr() {
+  const r1 = matchesForRound(1)
+  if (!r1.length) return
+
+  const byNo = new Map(r1.map((m) => [Number(m.match_no), m]))
+  const trNos = new Set(matchesForRound(0).map((m) => Number(m.match_no)))
+
+  // Update existing TR rows from R1
+  matches.value = matches.value.map((m) => {
+    if (Number(m.round) !== 0) return m
+    const src = byNo.get(Number(m.match_no))
+    if (!src) return m
+    return {
+      ...m,
+      table_1: Number(src.table_1),
+      table_2: Number(src.table_2),
+      table_1_team: Number(src.table_1_team),
+      table_2_team: Number(src.table_2_team),
+    }
+  })
+
+  // Add any R1 match_nos missing from TR
+  const extras = []
+  for (const src of r1) {
+    const no = Number(src.match_no)
+    if (trNos.has(no)) continue
+    extras.push({
+      round: 0,
+      match_no: no,
+      table_1: Number(src.table_1),
+      table_2: Number(src.table_2),
+      table_1_team: Number(src.table_1_team),
+      table_2_team: Number(src.table_2_team),
+    })
+  }
+  if (extras.length) {
+    matches.value = matches.value.concat(extras)
+  }
+
+  // Drop TR rows that have no counterpart in R1 (keep 1:1)
+  const r1Nos = new Set(r1.map((m) => Number(m.match_no)))
+  matches.value = matches.value.filter(
+    (m) => Number(m.round) !== 0 || r1Nos.has(Number(m.match_no)),
+  )
+
+  dirty.value = true
+  void refreshQuality()
+}
+
 function moveMatch(round, matchNo, direction) {
   const swapWith = matchNo + direction
   const per = matchesPerRound.value
@@ -607,7 +668,13 @@ watch([firstProgram, teams, tables], () => {
     <section class="glass-card liquid-surface-inner !p-4 space-y-4">
       <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="text-sm font-semibold text-[var(--color-text-muted)]">Matches pro Runde</div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
+          <button type="button" class="glass-btn-secondary !px-3 !py-1 !text-sm" @click="clearAllMatches">
+            Alles Löschen
+          </button>
+          <button type="button" class="glass-btn-secondary !px-3 !py-1 !text-sm" @click="copyR1ToTr">
+            R1 → TR
+          </button>
           <button type="button" class="glass-btn-secondary !px-3 !py-1 !text-sm" :disabled="!canAddRound" @click="addRound">
             + Runde
           </button>
@@ -845,10 +912,10 @@ watch([firstProgram, teams, tables], () => {
               <span class="font-semibold">{{ programLabel(key.first_program) }}</span>
               <span>{{ key.teams }} Teams</span>
               <span>{{ key.tables }} Tische</span>
+              <span>{{ Number(key.max_round) || 0 }} Runden</span>
             </div>
-            <div v-if="key.comment" class="match-load-item__comment">{{ key.comment }}</div>
-            <div class="match-load-item__meta text-[var(--color-text-muted)]">
-              {{ key.match_count }} Zeilen · max R{{ key.max_round }}
+            <div class="match-load-item__comment">
+              {{ key.comment || 'Kein Kommentar' }}
             </div>
           </button>
         </div>
@@ -1009,10 +1076,6 @@ watch([firstProgram, teams, tables], () => {
 .match-load-item__comment {
   margin-top: 0.25rem;
   white-space: pre-wrap;
-}
-
-.match-load-item__meta {
-  margin-top: 0.25rem;
-  font-size: 0.8rem;
+  color: var(--color-text-muted);
 }
 </style>
