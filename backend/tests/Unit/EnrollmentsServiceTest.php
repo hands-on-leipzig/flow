@@ -69,9 +69,55 @@ class EnrollmentsServiceTest extends TestCase
 
         $this->assertSame(2, $result['event_count']);
         $this->assertSame(2, $this->cell($result, 8, 'explore'));
+        $this->assertSame(['Alpha', 'Beta'], $this->events($result, 8, 'explore'));
         $this->assertSame(1, $this->cell($result, 4, 'challenge'));
+        $this->assertSame(['Beta'], $this->events($result, 4, 'challenge'));
         $this->assertSame(1, $this->cell($result, '26+', 'challenge'));
+        $this->assertSame(['Alpha'], $this->events($result, '26+', 'challenge'));
         $this->assertSame(0, $this->cell($result, 8, 'challenge'));
+    }
+
+    public function test_hover_and_tables_sort_by_event_name(): void
+    {
+        $this->seedCatalog();
+        $this->insertEvent(1, 'Zebra', '2026-01-01', [
+            $this->program(FirstProgram::EXPLORE->value, 101),
+            $this->program(FirstProgram::CHALLENGE->value, 102),
+            $this->program(FirstProgram::FUTURE_8->value, 103),
+        ]);
+        $this->insertEvent(2, 'Alpha', '2026-06-01', [
+            $this->program(FirstProgram::EXPLORE->value, 201),
+            $this->program(FirstProgram::CHALLENGE->value, 202),
+            $this->program(FirstProgram::FUTURE_8->value, 203),
+        ]);
+        $this->insertEvent(3, 'Mitte', '2026-03-01', [
+            $this->program(FirstProgram::FUTURE_8->value, 301),
+        ]);
+        $this->insertEvent(4, 'Anfang', '2026-08-01', [
+            $this->program(FirstProgram::FUTURE_8->value, 401),
+        ]);
+        $this->setDraht(1, [
+            $this->drahtProgram(FirstProgram::EXPLORE->value, 101, 8),
+            $this->drahtProgram(FirstProgram::CHALLENGE->value, 102, 4, 12),
+            $this->drahtProgram(FirstProgram::FUTURE_8->value, 103, 2, 8),
+        ]);
+        $this->setDraht(2, [
+            $this->drahtProgram(FirstProgram::EXPLORE->value, 201, 8),
+            $this->drahtProgram(FirstProgram::CHALLENGE->value, 202, 4, 12),
+            $this->drahtProgram(FirstProgram::FUTURE_8->value, 203, 2, 8),
+        ]);
+        $this->setDraht(3, [
+            $this->drahtProgram(FirstProgram::FUTURE_8->value, 301, 5, 10),
+        ]);
+        $this->setDraht(4, [
+            $this->drahtProgram(FirstProgram::FUTURE_8->value, 401, 5, 10),
+        ]);
+
+        $result = app(EnrollmentsService::class)->forSeason(2);
+
+        $this->assertSame(['Alpha', 'Zebra'], $this->events($result, 8, 'explore'));
+        $this->assertSame(['Alpha', 'Zebra'], array_column($result['dual'], 'event_name'));
+        $this->assertSame(['Anfang', 'Mitte'], array_column($result['future_standalone'], 'event_name'));
     }
 
     public function test_histogram_skips_zero_enrolled_and_missing_draht_id(): void
@@ -124,6 +170,35 @@ class EnrollmentsServiceTest extends TestCase
         $this->assertSame(12, $result['dual'][0]['challenge']['capacity']);
         $this->assertSame(6, $result['dual'][0]['future8']['enrolled']);
         $this->assertSame(8, $result['dual'][0]['future8']['capacity']);
+        $this->assertSame([], $result['future_standalone']);
+    }
+
+    public function test_future_standalone_when_future8_is_attached_without_challenge(): void
+    {
+        $this->seedCatalog();
+        $this->insertEvent(1, 'F8 only', '2026-03-01', [
+            $this->program(FirstProgram::FUTURE_8->value, 31),
+        ]);
+        $this->insertEvent(2, 'Both', '2026-03-02', [
+            $this->program(FirstProgram::CHALLENGE->value, 41),
+            $this->program(FirstProgram::FUTURE_8->value, 42),
+        ]);
+        $this->setDraht(1, [
+            $this->drahtProgram(FirstProgram::FUTURE_8->value, 31, 5, 10),
+        ]);
+        $this->setDraht(2, [
+            $this->drahtProgram(FirstProgram::CHALLENGE->value, 41, 8, 12),
+            $this->drahtProgram(FirstProgram::FUTURE_8->value, 42, 3, 8),
+        ]);
+
+        $result = app(EnrollmentsService::class)->forSeason(2);
+
+        $this->assertCount(1, $result['future_standalone']);
+        $this->assertSame('F8 only', $result['future_standalone'][0]['event_name']);
+        $this->assertSame(5, $result['future_standalone'][0]['future8']['enrolled']);
+        $this->assertSame(10, $result['future_standalone'][0]['future8']['capacity']);
+        $this->assertArrayNotHasKey('challenge', $result['future_standalone'][0]);
+        $this->assertCount(1, $result['dual']);
     }
 
     /**
@@ -134,6 +209,21 @@ class EnrollmentsServiceTest extends TestCase
         foreach ($result['histogram'] as $row) {
             if ($row['teams'] === $teams) {
                 return (int) $row[$column];
+            }
+        }
+
+        $this->fail("Histogram row {$teams} missing");
+    }
+
+    /**
+     * @param  array<string, mixed>  $result
+     * @return list<string>
+     */
+    private function events(array $result, int|string $teams, string $column): array
+    {
+        foreach ($result['histogram'] as $row) {
+            if ($row['teams'] === $teams) {
+                return $row[$column.'_events'];
             }
         }
 
