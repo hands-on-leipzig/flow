@@ -110,19 +110,59 @@ function teamClass(round, team) {
   return duplicateTeamsInRound(round).has(team) ? 'text-red-600 font-semibold' : ''
 }
 
-function confirmIrreversible(message) {
-  return window.confirm(`${message}\n\nDiese Änderung kann nicht rückgängig gemacht werden!`)
+function confirmChange(message, {irreversible = false} = {}) {
+  const suffix = irreversible
+    ? '\n\nDiese Änderung kann nicht rückgängig gemacht werden!'
+    : ''
+  return window.confirm(`${message}${suffix}`)
+}
+
+function onProgramSelect(event) {
+  const next = Number(event.target.value)
+  if (next === firstProgram.value) return
+  const label = programs.value.find((p) => p.id === next)
+  const name = label?.display_name || label?.name || String(next)
+  if (!confirmChange(`Programm auf „${name}“ wechseln?`)) {
+    event.target.value = String(firstProgram.value)
+    return
+  }
+  changeProgram(next)
+}
+
+function onTeamsInput(event) {
+  const raw = String(event.target.value).trim()
+  const next = Number(raw)
+  if (!Number.isFinite(next) || next < 2 || next === teams.value) {
+    event.target.value = String(teams.value)
+    return
+  }
+  const irreversible = next < teams.value
+  if (!confirmChange(`Teams von ${teams.value} auf ${next} ändern?`, {irreversible})) {
+    event.target.value = String(teams.value)
+    return
+  }
+  resizeTeams(next)
+  event.target.value = String(teams.value)
+}
+
+function onTablesSelect(event) {
+  const next = Number(event.target.value)
+  if (next === tables.value) return
+  if (next !== 2 && next !== 4) {
+    event.target.value = String(tables.value)
+    return
+  }
+  const irreversible = next < tables.value
+  if (!confirmChange(`Tische von ${tables.value} auf ${next} ändern?`, {irreversible})) {
+    event.target.value = String(tables.value)
+    return
+  }
+  changeTables(next)
 }
 
 function resizeTeams(newTeams) {
-  const old = teams.value
-  if (newTeams === old) return
+  if (newTeams === teams.value) return
   if (newTeams < 2) return
-  if (newTeams < old) {
-    if (!confirmIrreversible(`Teams von ${old} auf ${newTeams} verringern.`)) {
-      return
-    }
-  }
   const roundList = roundsPresent.value.length ? roundsPresent.value : [0, 1]
   const per = Math.ceil(newTeams / 2)
   /** @type {MatchRow[]} */
@@ -154,9 +194,6 @@ function changeTables(newTables) {
   if (newTables === tables.value) return
   if (newTables !== 2 && newTables !== 4) return
   if (newTables < tables.value) {
-    if (!confirmIrreversible(`Tische von ${tables.value} auf ${newTables} verringern.`)) {
-      return
-    }
     matches.value = matches.value.map((m) => ({
       ...m,
       table_1: 1,
@@ -170,14 +207,30 @@ function changeTables(newTables) {
 
 function changeProgram(id) {
   firstProgram.value = Number(id)
-  // Drop scoring rounds above new max
   const max = maxMatchRounds.value
-  const keptRounds = roundsPresent.value.filter((r) => r === 0 || r <= max)
-  if (keptRounds.length < roundsPresent.value.length) {
+  if (roundsPresent.value.some((r) => r > max)) {
     matches.value = matches.value.filter((m) => m.round === 0 || m.round <= max)
     dirty.value = true
   }
   void refreshQuality()
+}
+
+function parseTeamField(match, key, event) {
+  const raw = String(event.target.value).trim()
+  if (raw === '') {
+    match[key] = 0
+    event.target.value = '0'
+    onTeamEdit()
+    return
+  }
+  const n = Number(raw)
+  if (!Number.isFinite(n) || n < 0 || n > teams.value || !Number.isInteger(n)) {
+    event.target.value = String(match[key] ?? 0)
+    return
+  }
+  match[key] = n
+  event.target.value = String(n)
+  onTeamEdit()
 }
 
 function addRound() {
@@ -230,6 +283,14 @@ function togglePair(match) {
     match.table_1 = 3
     match.table_2 = 4
   }
+  dirty.value = true
+  void refreshQuality()
+}
+
+function swapTeamsInMatch(match) {
+  const a = match.table_1_team
+  match.table_1_team = match.table_2_team
+  match.table_2_team = a
   dirty.value = true
   void refreshQuality()
 }
@@ -383,7 +444,7 @@ watch([firstProgram, teams, tables], () => {
           <select
             class="glass-input min-w-[10rem]"
             :value="firstProgram"
-            @change="changeProgram(($event.target).value)"
+            @change="onProgramSelect"
           >
             <option v-for="p in programs" :key="p.id" :value="p.id">
               {{ p.display_name || p.name }} (max {{ p.max_match_rounds }})
@@ -393,11 +454,11 @@ watch([firstProgram, teams, tables], () => {
         <label class="flex flex-col gap-1 text-sm">
           <span>Teams</span>
           <input
-            type="number"
-            min="2"
+            type="text"
+            inputmode="numeric"
             class="glass-input w-24"
             :value="teams"
-            @change="resizeTeams(Number(($event.target).value))"
+            @change="onTeamsInput"
           />
         </label>
         <label class="flex flex-col gap-1 text-sm">
@@ -405,7 +466,7 @@ watch([firstProgram, teams, tables], () => {
           <select
             class="glass-input w-24"
             :value="tables"
-            @change="changeTables(Number(($event.target).value))"
+            @change="onTablesSelect"
           >
             <option :value="2">2</option>
             <option :value="4">4</option>
@@ -448,15 +509,13 @@ watch([firstProgram, teams, tables], () => {
           <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
             {{ roundLabel(round) }}
           </div>
-          <table class="table-auto text-sm border-collapse glass-list">
+          <table class="table-auto text-sm border-collapse glass-list match-grid">
             <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
               <tr>
-                <th class="px-1 py-1"></th>
-                <th class="px-2 py-1">T1</th>
-                <th class="px-2 py-1">T2</th>
-                <th class="px-2 py-1" :class="tables === 2 ? 'opacity-40' : ''">T3</th>
-                <th class="px-2 py-1" :class="tables === 2 ? 'opacity-40' : ''">T4</th>
-                <th v-if="tables === 4" class="px-1 py-1"></th>
+                <th class="px-0.5 py-1"></th>
+                <th class="px-1 py-1">T1 ↔ T2</th>
+                <th class="px-1 py-1" :class="tables === 2 ? 'opacity-40' : ''">T3 ↔ T4</th>
+                <th v-if="tables === 4" class="px-0.5 py-1"></th>
               </tr>
             </thead>
             <tbody>
@@ -465,78 +524,84 @@ watch([firstProgram, teams, tables], () => {
                 :key="`${round}-${match.match_no}`"
                 class="border-t"
               >
-                <td class="px-1 py-1 whitespace-nowrap">
+                <td class="px-0.5 py-0.5 whitespace-nowrap">
                   <button
                     type="button"
-                    class="px-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                    class="px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
                     title="Nach oben"
                     :disabled="match.match_no <= 1"
                     @click="moveMatch(round, match.match_no, -1)"
                   >↑</button>
                   <button
                     type="button"
-                    class="px-1 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+                    class="px-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
                     title="Nach unten"
                     :disabled="match.match_no >= matchesPerRound"
                     @click="moveMatch(round, match.match_no, 1)"
                   >↓</button>
                 </td>
-                <td class="px-1 py-1 text-center">
-                  <input
-                    v-if="!isPair34(match)"
-                    v-model.number="match.table_1_team"
-                    type="number"
-                    min="0"
-                    :max="teams"
-                    class="glass-input w-14 text-center"
-                    :class="teamClass(round, match.table_1_team)"
-                    @change="onTeamEdit"
-                  />
-                  <span v-else class="opacity-30">–</span>
+                <td class="px-0.5 py-0.5">
+                  <div v-if="!isPair34(match)" class="match-pair">
+                    <input
+                      type="text"
+                      inputmode="numeric"
+                      maxlength="2"
+                      class="team-num"
+                      :class="teamClass(round, match.table_1_team)"
+                      :value="match.table_1_team"
+                      @change="parseTeamField(match, 'table_1_team', $event)"
+                    />
+                    <button
+                      type="button"
+                      class="swap-btn"
+                      title="Teams tauschen"
+                      @click="swapTeamsInMatch(match)"
+                    >⇄</button>
+                    <input
+                      type="text"
+                      inputmode="numeric"
+                      maxlength="2"
+                      class="team-num"
+                      :class="teamClass(round, match.table_2_team)"
+                      :value="match.table_2_team"
+                      @change="parseTeamField(match, 'table_2_team', $event)"
+                    />
+                  </div>
+                  <span v-else class="opacity-30 px-1">–</span>
                 </td>
-                <td class="px-1 py-1 text-center">
-                  <input
-                    v-if="!isPair34(match)"
-                    v-model.number="match.table_2_team"
-                    type="number"
-                    min="0"
-                    :max="teams"
-                    class="glass-input w-14 text-center"
-                    :class="teamClass(round, match.table_2_team)"
-                    @change="onTeamEdit"
-                  />
-                  <span v-else class="opacity-30">–</span>
+                <td class="px-0.5 py-0.5" :class="tables === 2 ? 'opacity-40' : ''">
+                  <div v-if="tables === 4 && isPair34(match)" class="match-pair">
+                    <input
+                      type="text"
+                      inputmode="numeric"
+                      maxlength="2"
+                      class="team-num"
+                      :class="teamClass(round, match.table_1_team)"
+                      :value="match.table_1_team"
+                      @change="parseTeamField(match, 'table_1_team', $event)"
+                    />
+                    <button
+                      type="button"
+                      class="swap-btn"
+                      title="Teams tauschen"
+                      @click="swapTeamsInMatch(match)"
+                    >⇄</button>
+                    <input
+                      type="text"
+                      inputmode="numeric"
+                      maxlength="2"
+                      class="team-num"
+                      :class="teamClass(round, match.table_2_team)"
+                      :value="match.table_2_team"
+                      @change="parseTeamField(match, 'table_2_team', $event)"
+                    />
+                  </div>
+                  <span v-else class="opacity-30 px-1">–</span>
                 </td>
-                <td class="px-1 py-1 text-center" :class="tables === 2 ? 'opacity-40' : ''">
-                  <input
-                    v-if="tables === 4 && isPair34(match)"
-                    v-model.number="match.table_1_team"
-                    type="number"
-                    min="0"
-                    :max="teams"
-                    class="glass-input w-14 text-center"
-                    :class="teamClass(round, match.table_1_team)"
-                    @change="onTeamEdit"
-                  />
-                  <span v-else class="opacity-30">–</span>
-                </td>
-                <td class="px-1 py-1 text-center" :class="tables === 2 ? 'opacity-40' : ''">
-                  <input
-                    v-if="tables === 4 && isPair34(match)"
-                    v-model.number="match.table_2_team"
-                    type="number"
-                    min="0"
-                    :max="teams"
-                    class="glass-input w-14 text-center"
-                    :class="teamClass(round, match.table_2_team)"
-                    @change="onTeamEdit"
-                  />
-                  <span v-else class="opacity-30">–</span>
-                </td>
-                <td v-if="tables === 4" class="px-1 py-1">
+                <td v-if="tables === 4" class="px-0.5 py-0.5">
                   <button
                     type="button"
-                    class="glass-btn-secondary !px-2 !py-0.5 !text-xs"
+                    class="glass-btn-secondary !px-1.5 !py-0.5 !text-xs"
                     :title="isPair34(match) ? 'Zu Tischen 1–2' : 'Zu Tischen 3–4'"
                     @click="togglePair(match)"
                   >
@@ -554,96 +619,141 @@ watch([firstProgram, teams, tables], () => {
     <section class="glass-card liquid-surface-inner !p-4 space-y-4">
       <div class="text-sm font-semibold text-[var(--color-text-muted)]">Planqualität</div>
 
-      <div v-if="quality" class="text-sm">
-        Q4 Testrunde: {{ quality.q4_ok_count }}/{{ quality.teams }}
-        · Q2 Tische: {{ quality.q2_ok_count }}/{{ quality.teams }}
-        · Q3 Teams gegenüber: {{ quality.q3_ok_count }}/{{ quality.teams }}
-      </div>
-
-      <div v-if="quality?.meeting_matrix" class="overflow-x-auto">
-        <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
-          Begegnungsmatrix (ohne TR)
-        </div>
-        <table class="table-auto text-xs border-collapse glass-list">
-          <thead>
-            <tr>
-              <th class="px-1 py-1"></th>
-              <th
-                v-for="col in teams"
-                :key="`h-${col}`"
-                class="px-1 py-1 text-center"
-              >{{ col }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, ri) in quality.meeting_matrix" :key="`r-${ri}`">
-              <th class="px-1 py-1 text-left">{{ ri + 1 }}</th>
-              <td
-                v-for="(cell, ci) in row"
-                :key="`c-${ri}-${ci}`"
-                class="px-1 py-1 text-center border-t"
-                :class="ri === ci ? 'bg-[color-mix(in_srgb,var(--color-bg-muted)_50%,transparent)]' : ''"
+      <div
+        v-if="quality?.meeting_matrix || quality?.match_summary"
+        class="flex flex-col xl:flex-row gap-4 items-start"
+      >
+        <div v-if="quality?.meeting_matrix" class="overflow-x-auto min-w-0">
+          <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
+            Begegnungsmatrix (ohne TR)
+          </div>
+          <table class="table-auto text-xs border-collapse glass-list">
+            <thead>
+              <tr>
+                <th class="px-1 py-1"></th>
+                <th
+                  v-for="col in quality.meeting_matrix.labels"
+                  :key="`h-${col}`"
+                  class="px-1 py-1 text-center"
+                >{{ col }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(row, ri) in quality.meeting_matrix.cells"
+                :key="`r-${ri}`"
               >
-                {{ cell || '·' }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-if="quality?.match_summary" class="overflow-x-auto">
-        <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
-          Testrunde, Tische und Teams gegenüber
+                <th class="px-1 py-1 text-left">{{ quality.meeting_matrix.labels[ri] }}</th>
+                <td
+                  v-for="(cell, ci) in row"
+                  :key="`c-${ri}-${ci}`"
+                  class="px-1 py-1 text-center border-t"
+                  :class="ri === ci ? 'bg-[color-mix(in_srgb,var(--color-bg-muted)_50%,transparent)]' : ''"
+                >
+                  {{ cell || '·' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <table class="table-auto text-sm border-collapse glass-list">
-          <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
-            <tr>
-              <th class="px-2 py-1 text-left">Team</th>
-              <th class="px-2 py-1">TR</th>
-              <th
-                v-for="r in (quality.scoring_rounds || [])"
-                :key="`th-t-${r}`"
-                class="px-2 py-1"
-              >R{{ r }}</th>
-              <th class="px-2 py-1">Tische</th>
-              <th
-                v-for="r in (quality.scoring_rounds || [])"
-                :key="`th-o-${r}`"
-                class="px-2 py-1"
-              >R{{ r }}</th>
-              <th class="px-2 py-1">Teams</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in quality.match_summary" :key="row.team" class="border-t">
-              <td class="px-2 py-1">{{ row.team }}</td>
-              <td
-                class="text-center"
-                :class="row.tr_table !== row.r1_table ? 'text-red-600 font-semibold' : ''"
-              >{{ formatTeam(row.tr_table) }}</td>
-              <td
-                v-for="r in (quality.scoring_rounds || [])"
-                :key="`td-t-${row.team}-${r}`"
-                class="text-center"
-                :class="r === 1 && row.tr_table !== row.r1_table ? 'text-red-600 font-semibold' : ''"
-              >{{ formatTeam(row[`r${r}_table`]) }}</td>
-              <td class="text-center">
-                <span :class="row.q2_ok ? '' : 'text-amber-700'">{{ row.q2_ok ? '✓' : '⚠️' }}</span>
-                {{ row.tables ?? '–' }}
-              </td>
-              <td
-                v-for="r in (quality.scoring_rounds || [])"
-                :key="`td-o-${row.team}-${r}`"
-                class="text-center"
-              >{{ formatTeam(row[`r${r}_opponent`]) }}</td>
-              <td class="text-center">
-                <span :class="row.q3_ok ? '' : 'text-amber-700'">{{ row.q3_ok ? '✓' : '⚠️' }}</span>
-                {{ row.teams ?? '–' }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+
+        <div v-if="quality?.match_summary" class="overflow-x-auto min-w-0 flex-1">
+          <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
+            Testrunde, Tische und Teams gegenüber
+          </div>
+          <table class="table-auto text-sm border-collapse glass-list">
+            <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
+              <tr>
+                <th class="px-2 py-1 text-left">Team</th>
+                <th class="px-2 py-1">TR</th>
+                <th
+                  v-for="r in (quality.scoring_rounds || [])"
+                  :key="`th-t-${r}`"
+                  class="px-2 py-1"
+                >R{{ r }}</th>
+                <th class="px-2 py-1">Tische</th>
+                <th
+                  v-for="r in (quality.scoring_rounds || [])"
+                  :key="`th-o-${r}`"
+                  class="px-2 py-1"
+                >R{{ r }}</th>
+                <th class="px-2 py-1">Teams</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in quality.match_summary" :key="row.team" class="border-t">
+                <td class="px-2 py-1">{{ row.team }}</td>
+                <td
+                  class="text-center"
+                  :class="row.tr_table !== row.r1_table ? 'text-red-600 font-semibold' : ''"
+                >{{ formatTeam(row.tr_table) }}</td>
+                <td
+                  v-for="r in (quality.scoring_rounds || [])"
+                  :key="`td-t-${row.team}-${r}`"
+                  class="text-center"
+                  :class="r === 1 && row.tr_table !== row.r1_table ? 'text-red-600 font-semibold' : ''"
+                >{{ formatTeam(row[`r${r}_table`]) }}</td>
+                <td class="text-center">
+                  <span :class="row.q2_ok ? '' : 'text-amber-700'">{{ row.q2_ok ? '✓' : '⚠️' }}</span>
+                  {{ row.tables ?? '–' }}
+                </td>
+                <td
+                  v-for="r in (quality.scoring_rounds || [])"
+                  :key="`td-o-${row.team}-${r}`"
+                  class="text-center"
+                >{{ formatTeam(row[`r${r}_opponent`]) }}</td>
+                <td class="text-center">
+                  <span :class="row.q3_ok ? '' : 'text-amber-700'">{{ row.q3_ok ? '✓' : '⚠️' }}</span>
+                  {{ row.teams ?? '–' }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   </div>
 </template>
+
+<style scoped>
+.match-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.team-num {
+  width: 1.75rem;
+  min-width: 1.75rem;
+  max-width: 1.75rem;
+  padding: 0.1rem 0;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+  color: inherit;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.team-num:focus {
+  outline: 1px solid var(--color-accent, #3b82f6);
+  outline-offset: 0;
+}
+
+.swap-btn {
+  padding: 0 0.1rem;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.swap-btn:hover {
+  color: var(--color-text);
+}
+</style>

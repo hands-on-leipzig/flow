@@ -22,7 +22,7 @@ class MatchPlanPairingQuality
      * @return array{
      *   scoring_rounds: list<int>,
      *   match_summary: list<array<string, mixed>>,
-     *   meeting_matrix: list<list<string>>,
+     *   meeting_matrix: array{labels: list<int>, cells: list<list<string>>},
      *   q2_ok_count: int,
      *   q3_ok_count: int,
      *   q4_ok_count: int,
@@ -184,15 +184,19 @@ class MatchPlanPairingQuality
     }
 
     /**
+     * Meeting matrix including volunteer slot 0.
+     *
      * @param  list<MatchRow>  $matches
      * @param  list<int>  $scoringRounds
-     * @return list<list<string>>  1-indexed via padding: matrix[teamA-1][teamB-1]
+     * @return array{labels: list<int>, cells: list<list<string>>}
+     *         cells[i][j] for labels[i] vs labels[j] (labels are 0…teams)
      */
     private function meetingMatrix(array $matches, int $teams, array $scoringRounds): array
     {
+        $labels = range(0, $teams);
         $cells = [];
-        for ($a = 1; $a <= $teams; $a++) {
-            for ($b = 1; $b <= $teams; $b++) {
+        foreach ($labels as $a) {
+            foreach ($labels as $b) {
                 $cells[$a][$b] = [];
             }
         }
@@ -206,7 +210,7 @@ class MatchPlanPairingQuality
             }
             $t1 = (int) $match['table_1_team'];
             $t2 = (int) $match['table_2_team'];
-            if ($t1 < 1 || $t2 < 1 || $t1 > $teams || $t2 > $teams) {
+            if ($t1 < 0 || $t2 < 0 || $t1 > $teams || $t2 > $teams) {
                 continue;
             }
             $cells[$t1][$t2][] = $round;
@@ -214,9 +218,9 @@ class MatchPlanPairingQuality
         }
 
         $matrix = [];
-        for ($a = 1; $a <= $teams; $a++) {
+        foreach ($labels as $a) {
             $row = [];
-            for ($b = 1; $b <= $teams; $b++) {
+            foreach ($labels as $b) {
                 if ($a === $b) {
                     $row[] = '';
                     continue;
@@ -228,6 +232,9 @@ class MatchPlanPairingQuality
             $matrix[] = $row;
         }
 
-        return $matrix;
+        return [
+            'labels' => $labels,
+            'cells' => $matrix,
+        ];
     }
 }

@@ -22,13 +22,17 @@ class MatchPlanPairingQualityTest extends TestCase
         ];
 
         $result = (new MatchPlanPairingQuality())->evaluate($matches, 3, 2);
+        $matrix = $result['meeting_matrix'];
 
         $this->assertSame([1, 2], $result['scoring_rounds']);
         $this->assertSame(3, $result['q4_ok_count']);
-        // Team 1 meets 2 in R1 and 3 in R2 → matrix cell "1,2" wait rounds are 1 and 2
-        $this->assertSame('1', $result['meeting_matrix'][0][1]); // team1 vs team2 in R1
-        $this->assertSame('2', $result['meeting_matrix'][0][2]); // team1 vs team3 in R2
-        $this->assertSame('', $result['meeting_matrix'][0][0]);
+        $this->assertSame([0, 1, 2, 3], $matrix['labels']);
+        // indices: 0=team0, 1=team1, 2=team2, 3=team3
+        $this->assertSame('1', $matrix['cells'][1][2]); // team1 vs team2 in R1
+        $this->assertSame('2', $matrix['cells'][1][3]); // team1 vs team3 in R2
+        $this->assertSame('1', $matrix['cells'][3][0]); // team3 vs 0 in R1
+        $this->assertSame('2', $matrix['cells'][2][0]); // team2 vs 0 in R2
+        $this->assertSame('', $matrix['cells'][1][1]);
 
         $team1 = $result['match_summary'][0];
         $this->assertSame(1, $team1['team']);
