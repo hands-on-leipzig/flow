@@ -22,7 +22,22 @@ const SECTION_ALIASES: Record<string, string> = {
   hilfsfunktionen: 'wartung',
   conditions: 'statistics',
   mparameter: 'statistics',
+  zahlen: 'statistics',
+  schnittstellen: 'user-regional-partners',
 }
+
+/** Sidebar folder in ops (not a page). Children are `AdminSection` keys. */
+export type AdminOpsNavFolder = {
+  kind: 'folder'
+  key: string
+  label: string
+  icon: string
+  children: string[]
+}
+
+export type AdminOpsNavNode =
+  | {kind: 'section'; key: string}
+  | AdminOpsNavFolder
 
 function currentHostname(): string {
   return typeof window === 'undefined' ? '' : window.location.hostname
@@ -45,7 +60,7 @@ export function isEntwicklungEnvironment(isLocal: boolean): boolean {
 
 /**
  * Ops tools (all tiers), then Entwicklung (always listed; Local/Dev enable the entries).
- * Full-page UIs stay top-level; push-button actions live under Wartung.
+ * Ops sidebar grouping lives in ADMIN_OPS_NAV; push-button actions live under Wartung.
  * Every Entwicklung entry uses the same Local+Dev availability gate.
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
@@ -94,6 +109,29 @@ export const ADMIN_SECTIONS: AdminSection[] = [
 
 export const ADMIN_OPS_SECTIONS = ADMIN_SECTIONS.filter((s) => s.group === 'ops')
 export const ADMIN_ENTWICKLUNG_SECTIONS = ADMIN_SECTIONS.filter((s) => s.group === 'entwicklung')
+
+/**
+ * Ops sidebar order. Folders nest existing sections; leftover items stay top-level.
+ */
+export const ADMIN_OPS_NAV: AdminOpsNavNode[] = [
+  {kind: 'section', key: 'system-news'},
+  {
+    kind: 'folder',
+    key: 'zahlen',
+    label: 'Zahlen',
+    icon: 'bi-123',
+    children: ['statistics', 'plan-qualitaet'],
+  },
+  {kind: 'section', key: 'calendar'},
+  {
+    kind: 'folder',
+    key: 'schnittstellen',
+    label: 'Schnittstellen',
+    icon: 'bi-plugin',
+    children: ['user-regional-partners', 'external-api', 'sharepoint'],
+  },
+  {kind: 'section', key: 'wartung'},
+]
 
 export function resolveAdminSection(key: string): string {
   const raw = String(key || '')
