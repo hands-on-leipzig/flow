@@ -19,6 +19,9 @@ const loading = ref(false)
 const saving = ref(false)
 const quality = ref(null)
 const dirty = ref(false)
+const comment = ref('')
+const saveCommentDraft = ref('')
+const showSaveCommentModal = ref(false)
 
 const selectedProgram = computed(() =>
   programs.value.find((p) => p.id === firstProgram.value) ?? null,
@@ -370,6 +373,7 @@ async function loadFromDb() {
       },
     })
     existsInDb.value = Boolean(data.exists)
+    comment.value = data.comment ?? ''
     if (data.exists && Array.isArray(data.matches) && data.matches.length) {
       matches.value = data.matches.map((m) => ({
         round: Number(m.round),
@@ -382,6 +386,7 @@ async function loadFromDb() {
       showGlassToast('Plan geladen', 'success')
     } else {
       matches.value = buildEmptyPlan()
+      comment.value = ''
       showGlassToast('Kein gespeicherter Plan — leeres Raster', 'info')
     }
     dirty.value = false
@@ -400,15 +405,28 @@ async function saveToDb() {
     )
     if (!ok) return
   }
+  saveCommentDraft.value = comment.value ?? ''
+  showSaveCommentModal.value = true
+}
+
+function cancelSaveComment() {
+  showSaveCommentModal.value = false
+}
+
+async function confirmSaveComment() {
+  comment.value = saveCommentDraft.value ?? ''
+  showSaveCommentModal.value = false
   saving.value = true
   try {
     const {data} = await axios.put('/admin/match-plans', {
       first_program: firstProgram.value,
       teams: teams.value,
       tables: tables.value,
+      comment: comment.value,
       matches: matches.value,
     })
     existsInDb.value = true
+    comment.value = data.comment ?? comment.value
     dirty.value = false
     await loadKeys()
     showGlassToast(`Gespeichert (${data.matches?.length ?? 0} Zeilen)`, 'success')
@@ -434,6 +452,7 @@ async function deleteFromDb() {
       },
     })
     existsInDb.value = false
+    comment.value = ''
     await loadKeys()
     showGlassToast('Plan gelöscht', 'success')
   } catch (e) {
@@ -534,6 +553,11 @@ watch([firstProgram, teams, tables], () => {
         Warnung: Für diese Kombination (Programm / Teams / Tische) existiert bereits ein Plan — Speichern überschreibt.
       </p>
       <p v-if="dirty" class="text-sm text-[var(--color-text-muted)]">Ungespeicherte Änderungen</p>
+      <div v-if="comment" class="text-sm">
+        <span class="font-semibold text-[var(--color-text-muted)]">Kommentar:</span>
+        <span class="ml-1 whitespace-pre-wrap">{{ comment }}</span>
+      </div>
+      <div v-else class="text-sm text-[var(--color-text-muted)]">Kein Kommentar</div>
     </section>
 
     <!-- Section 2: Match grid -->
@@ -758,6 +782,36 @@ watch([firstProgram, teams, tables], () => {
         </div>
       </div>
     </section>
+
+    <div
+      v-if="showSaveCommentModal"
+      class="match-comment-overlay"
+      @click.self="cancelSaveComment"
+    >
+      <div class="glass-modal match-comment-dialog" role="dialog" aria-labelledby="match-comment-title">
+        <h3 id="match-comment-title" class="text-sm font-semibold mb-2">Kommentar vor dem Speichern</h3>
+        <textarea
+          v-model="saveCommentDraft"
+          class="glass-input match-comment-textarea"
+          rows="4"
+          maxlength="5000"
+          placeholder="Optionaler Kommentar zum Matchplan…"
+        />
+        <div class="flex flex-wrap gap-2 justify-end mt-3">
+          <button type="button" class="glass-btn-secondary !px-3 !py-1.5 !text-sm" @click="cancelSaveComment">
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            class="glass-btn-accent !px-3 !py-1.5 !text-sm"
+            :disabled="saving"
+            @click="confirmSaveComment"
+          >
+            Speichern
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -808,5 +862,30 @@ watch([firstProgram, teams, tables], () => {
 
 .swap-btn:hover {
   color: var(--color-text);
+}
+
+.match-comment-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: color-mix(in srgb, #000 35%, transparent);
+}
+
+.match-comment-dialog {
+  width: min(28rem, 100%);
+  padding: 1rem 1.25rem;
+}
+
+.match-comment-textarea {
+  width: 100%;
+  min-height: 6rem;
+  resize: vertical;
+  background: #fff;
+  color: #111;
+  font-size: 0.875rem;
 }
 </style>

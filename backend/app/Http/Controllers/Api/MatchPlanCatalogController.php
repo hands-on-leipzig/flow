@@ -82,11 +82,16 @@ class MatchPlanCatalogController extends Controller
             ->orderBy('match_no')
             ->get();
 
+        $comment = $matches->isNotEmpty()
+            ? (string) ($matches->first()->comment ?? '')
+            : '';
+
         return response()->json([
             'exists' => $matches->isNotEmpty(),
             'first_program' => (int) $data['first_program'],
             'teams' => (int) $data['teams'],
             'tables' => (int) $data['tables'],
+            'comment' => $comment,
             'max_match_rounds' => $maxRounds,
             'matches' => $matches,
         ]);
@@ -102,6 +107,7 @@ class MatchPlanCatalogController extends Controller
             'first_program' => 'required|integer|exists:m_first_program,id',
             'teams' => 'required|integer|min:2',
             'tables' => 'required|integer|in:2,4',
+            'comment' => 'nullable|string|max:5000',
             'matches' => 'required|array|min:1',
             'matches.*.round' => 'required|integer|min:0',
             'matches.*.match_no' => 'required|integer|min:1',
@@ -114,6 +120,8 @@ class MatchPlanCatalogController extends Controller
         $firstProgram = (int) $data['first_program'];
         $teams = (int) $data['teams'];
         $tables = (int) $data['tables'];
+        $comment = isset($data['comment']) ? trim((string) $data['comment']) : '';
+        $comment = $comment === '' ? null : $comment;
         $maxRounds = $this->maxMatchRounds($firstProgram);
         if ($maxRounds === null) {
             return response()->json(['error' => 'Program does not support match plans'], 422);
@@ -130,6 +138,7 @@ class MatchPlanCatalogController extends Controller
                 'first_program' => $firstProgram,
                 'teams' => $teams,
                 'tables' => $tables,
+                'comment' => $comment,
                 'round' => (int) $match['round'],
                 'match_no' => (int) $match['match_no'],
                 'table_1' => (int) $match['table_1'],
@@ -161,6 +170,7 @@ class MatchPlanCatalogController extends Controller
             'first_program' => $firstProgram,
             'teams' => $teams,
             'tables' => $tables,
+            'comment' => $comment ?? '',
             'max_match_rounds' => $maxRounds,
             'matches' => $saved,
         ]);

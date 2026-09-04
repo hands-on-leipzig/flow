@@ -17,6 +17,7 @@ class MMatch extends Model
         'first_program',
         'teams',
         'tables',
+        'comment',
         'round',
         'match_no',
         'table_1',
