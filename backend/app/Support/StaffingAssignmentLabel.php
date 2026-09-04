@@ -32,7 +32,8 @@ final class StaffingAssignmentLabel
      *     first_program: ?int,
      *     is_local: bool,
      *     sequence: int,
-     *     group_index: ?int
+     *     group_index: ?int,
+     *     group_label: ?string
      * }>>
      */
     public static function assignmentsByPerson(int $eventId): array
@@ -82,6 +83,9 @@ final class StaffingAssignmentLabel
                 'is_local' => $isLocal,
                 'sequence' => (int) $row->sequence,
                 'group_index' => $groupIndex,
+                'group_label' => $groupIndex !== null && $row->group_label !== null && $row->group_label !== ''
+                    ? (string) $row->group_label
+                    : null,
             ];
 
             if (! isset($assignmentsByPerson[$personId])) {

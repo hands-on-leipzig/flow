@@ -14,3 +14,15 @@ export function staffingContainerTitle(
 export function staffingTileKey(roleId: number, groupId: number | null): string {
   return groupId != null ? `g-${groupId}` : `r-${roleId}`
 }
+
+export function rosterAssignmentCaption(assignment: {
+  label: string
+  group_label?: string | null
+  group_index: number | null
+}): string {
+  const groupLabel = (assignment.group_label || '').trim()
+  if (assignment.group_index != null && assignment.group_index > 0 && groupLabel) {
+    return `${assignment.label} (${groupLabel} ${assignment.group_index})`
+  }
+  return assignment.label
+}

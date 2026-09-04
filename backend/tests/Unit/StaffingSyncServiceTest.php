@@ -414,6 +414,7 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertSame('CHALLENGE: Jury-Gruppe 2', $byPerson[1][0]['tile_name']);
         $this->assertSame('Jury', $byPerson[1][0]['label']);
         $this->assertSame(2, $byPerson[1][0]['group_index']);
+        $this->assertSame('Jury-Gruppe', $byPerson[1][0]['group_label']);
     }
 
     private function insertUngroupedChallengeRole(): void
