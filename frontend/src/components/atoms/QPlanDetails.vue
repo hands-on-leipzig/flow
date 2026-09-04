@@ -43,12 +43,16 @@ const okIcon = (val) => (val == 1 || val === '1') ? '✓' : '⚠️'
 const okClass = (val) => (val == 1 || val === '1') ? 'text-gray-300' : 'text-yellow-500 font-semibold'
 const mismatchClass = (a, b) => a !== b ? 'text-red-500 font-semibold' : ''
 
-const minRequiredTables = () => Math.min(3, details.value?.r_tables ?? 3)
 const scoringRounds = computed(() => details.value?.scoring_rounds ?? [1, 2, 3])
 const opponentTarget = computed(() => scoringRounds.value.length)
 
-const warnClassTables = (val) => val < minRequiredTables() ? 'text-yellow-500 font-semibold' : 'text-gray-300'
-const iconTables = (val) => val < minRequiredTables() ? '⚠️' : '✓'
+const minRequiredTables = (row) => {
+  if (row?.q2_target != null) return row.q2_target
+  return Math.min(details.value?.r_tables ?? 2, scoringRounds.value.length || 0)
+}
+
+const warnClassTables = (row) => (row?.tables ?? 0) < minRequiredTables(row) ? 'text-yellow-500 font-semibold' : 'text-gray-300'
+const iconTables = (row) => (row?.tables ?? 0) < minRequiredTables(row) ? '⚠️' : '✓'
 const warnClassOpponents = (val) => val < opponentTarget.value ? 'text-yellow-500 font-semibold' : 'text-gray-300'
 const iconOpponents = (val) => val < opponentTarget.value ? '⚠️' : '✓'
 
@@ -179,8 +183,8 @@ const transferRows = computed(() => {
                   {{ row[`r${r}_table`] ?? '–' }}
                 </td>
                 <td class="text-center">
-                  <span :class="warnClassTables(row.tables)">
-                    {{ iconTables(row.tables) }}
+                  <span :class="warnClassTables(row)">
+                    {{ iconTables(row) }}
                   </span>
                   {{ row.tables ?? '–' }}
                 </td>

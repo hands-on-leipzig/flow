@@ -77,38 +77,53 @@ class MatchPlanPairingQualityTest extends TestCase
         $this->assertFalse($failN4['match_summary'][0]['q3_ok']);
     }
 
-    public function test_q2_passes_with_at_least_three_of_four_tables(): void
+    public function test_q2_target_is_min_of_tables_and_scoring_rounds(): void
     {
-        $matches = [
+        // 4 tables + 4 rounds → goal 4
+        $fourRounds = [
             ['round' => 1, 'match_no' => 1, 'table_1' => 1, 'table_2' => 2, 'table_1_team' => 1, 'table_2_team' => 2],
             ['round' => 2, 'match_no' => 1, 'table_1' => 2, 'table_2' => 3, 'table_1_team' => 1, 'table_2_team' => 3],
             ['round' => 3, 'match_no' => 1, 'table_1' => 3, 'table_2' => 4, 'table_1_team' => 1, 'table_2_team' => 4],
             ['round' => 4, 'match_no' => 1, 'table_1' => 4, 'table_2' => 1, 'table_1_team' => 1, 'table_2_team' => 5],
         ];
+        $allFour = (new MatchPlanPairingQuality())->evaluate($fourRounds, 5, 4);
+        $this->assertSame(4, $allFour['match_summary'][0]['q2_target']);
+        $this->assertSame(4, $allFour['match_summary'][0]['tables']);
+        $this->assertTrue($allFour['match_summary'][0]['q2_ok']);
 
-        $result = (new MatchPlanPairingQuality())->evaluate($matches, 5, 4);
-        $team1 = $result['match_summary'][0];
-
-        $this->assertSame(4, $team1['tables']);
-        $this->assertTrue($team1['q2_ok']);
-        $this->assertSame(3, $team1['q2_target']);
-
-        $threeTables = [
+        // Same 4 rounds but only 3 distinct tables → fail
+        $threeOfFour = [
             ['round' => 1, 'match_no' => 1, 'table_1' => 1, 'table_2' => 2, 'table_1_team' => 1, 'table_2_team' => 2],
             ['round' => 2, 'match_no' => 1, 'table_1' => 2, 'table_2' => 3, 'table_1_team' => 1, 'table_2_team' => 3],
             ['round' => 3, 'match_no' => 1, 'table_1' => 3, 'table_2' => 1, 'table_1_team' => 1, 'table_2_team' => 4],
+            ['round' => 4, 'match_no' => 1, 'table_1' => 1, 'table_2' => 2, 'table_1_team' => 1, 'table_2_team' => 5],
         ];
-        $ok3 = (new MatchPlanPairingQuality())->evaluate($threeTables, 5, 4);
+        $fail3 = (new MatchPlanPairingQuality())->evaluate($threeOfFour, 5, 4);
+        $this->assertSame(4, $fail3['match_summary'][0]['q2_target']);
+        $this->assertSame(3, $fail3['match_summary'][0]['tables']);
+        $this->assertFalse($fail3['match_summary'][0]['q2_ok']);
+
+        // 4 tables + 3 rounds → goal 3 (max achievable)
+        $threeRounds = [
+            ['round' => 1, 'match_no' => 1, 'table_1' => 1, 'table_2' => 2, 'table_1_team' => 1, 'table_2_team' => 2],
+            ['round' => 2, 'match_no' => 1, 'table_1' => 2, 'table_2' => 3, 'table_1_team' => 1, 'table_2_team' => 3],
+            ['round' => 3, 'match_no' => 1, 'table_1' => 3, 'table_2' => 4, 'table_1_team' => 1, 'table_2_team' => 4],
+        ];
+        $ok3 = (new MatchPlanPairingQuality())->evaluate($threeRounds, 5, 4);
+        $this->assertSame(3, $ok3['match_summary'][0]['q2_target']);
         $this->assertSame(3, $ok3['match_summary'][0]['tables']);
         $this->assertTrue($ok3['match_summary'][0]['q2_ok']);
 
+        // 2 tables → goal always capped at 2
         $twoTables = [
             ['round' => 1, 'match_no' => 1, 'table_1' => 1, 'table_2' => 2, 'table_1_team' => 1, 'table_2_team' => 2],
             ['round' => 2, 'match_no' => 1, 'table_1' => 2, 'table_2' => 1, 'table_1_team' => 1, 'table_2_team' => 3],
             ['round' => 3, 'match_no' => 1, 'table_1' => 1, 'table_2' => 2, 'table_1_team' => 1, 'table_2_team' => 4],
+            ['round' => 4, 'match_no' => 1, 'table_1' => 2, 'table_2' => 1, 'table_1_team' => 1, 'table_2_team' => 5],
         ];
-        $fail2 = (new MatchPlanPairingQuality())->evaluate($twoTables, 5, 4);
-        $this->assertSame(2, $fail2['match_summary'][0]['tables']);
-        $this->assertFalse($fail2['match_summary'][0]['q2_ok']);
+        $t2 = (new MatchPlanPairingQuality())->evaluate($twoTables, 5, 2);
+        $this->assertSame(2, $t2['match_summary'][0]['q2_target']);
+        $this->assertSame(2, $t2['match_summary'][0]['tables']);
+        $this->assertTrue($t2['match_summary'][0]['q2_ok']);
     }
 }

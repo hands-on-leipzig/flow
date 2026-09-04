@@ -43,8 +43,10 @@ class MatchPlanPairingQuality
         $q2Ok = 0;
         $q3Ok = 0;
         $q4Ok = 0;
-        $targetTables = ($tablesAvailable === 2) ? 2 : 3; // Pass: 2 of 2, or ≥3 of 4
-        $targetOpponents = count($scoringRounds);
+        $n = count($scoringRounds);
+        // 2 tables → goal 2; 4 tables → min(4, N) so 3 rounds max 3, 4+ rounds goal 4
+        $targetTables = $n > 0 ? min($tablesAvailable, $n) : 0;
+        $targetOpponents = $n;
 
         for ($team = 1; $team <= $teams; $team++) {
             $entry = ['team' => $team];
@@ -80,8 +82,7 @@ class MatchPlanPairingQuality
             $entry['tables'] = $distinctTables;
             $entry['teams'] = $distinctOpponents;
 
-            $q2Pass = ($tablesAvailable === 2 && $distinctTables === 2)
-                || ($tablesAvailable === 4 && $distinctTables >= 3);
+            $q2Pass = $targetTables > 0 && $distinctTables >= $targetTables;
             $q3Pass = $targetOpponents > 0 && $distinctOpponents === $targetOpponents;
             $q4Pass = $trTable !== null
                 && isset($entry['r1_table'])

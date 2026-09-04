@@ -1020,7 +1020,7 @@ class QualityEvaluatorService
         foreach ($pairing['match_summary'] as $entry) {
             $team = (int) $entry['team'];
             $distinctTables = (int) ($entry['tables'] ?? 0);
-            $targetTables = max(1, (int) ($entry['q2_target'] ?? ($tablesAvailable === 2 ? 2 : 3)));
+            $targetTables = max(1, (int) ($entry['q2_target'] ?? min($tablesAvailable, count($pairing['scoring_rounds'] ?? []))));
 
             QPlanTeam::where('q_plan', $qPlanId)
                 ->where('team', $team)
