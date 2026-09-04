@@ -18,6 +18,7 @@ const rebuildingCalendar = ref(false)
 const syncingRegions = ref(false)
 const syncingEvents = ref(false)
 const updatingMatchSchedule = ref(false)
+const deletingPreviewQRuns = ref(false)
 const contaoEventId = ref(null)
 const contaoRound = ref('af')
 
@@ -222,6 +223,36 @@ function confirmRebuildCalendar() {
     action: runRebuildCalendar,
   })
 }
+
+async function runDeletePreviewQRuns() {
+  deletingPreviewQRuns.value = true
+  try {
+    const {data} = await axios.delete('/quality/preview-runs')
+    const n = data?.q_runs_deleted ?? 0
+    showGlassToast(
+      n < 1 ? 'Keine Preview-QRuns gefunden.' : `${n} Preview-/ReRun-QRun${n === 1 ? '' : 's'} gelöscht.`,
+      n < 1 ? 'info' : 'success',
+    )
+  } catch (error) {
+    showGlassToast(
+      'Löschen der Preview-QRuns fehlgeschlagen: ' + (error.response?.data?.message || error.message),
+      'error',
+    )
+  } finally {
+    deletingPreviewQRuns.value = false
+  }
+}
+
+function confirmDeletePreviewQRuns() {
+  openConfirm({
+    title: 'Preview-QRuns löschen?',
+    message:
+      'Löscht alle Preview-/ReRun-QRuns (ohne selection). Zugehörige Qualitätsdaten (q_plan / Teams / Matches) werden entfernt. Event-Pläne bleiben erhalten. Diese Aktion kann nicht rückgängig gemacht werden.',
+    type: 'danger',
+    confirmText: 'Löschen',
+    action: runDeletePreviewQRuns,
+  })
+}
 </script>
 
 <template>
@@ -311,6 +342,23 @@ function confirmRebuildCalendar() {
         >
           <i class="bi bi-trash3" aria-hidden="true"/>
           {{ cleaningLogos ? 'Bereinige…' : 'Logo-Bereinigung durchführen' }}
+        </button>
+      </div>
+
+      <div class="wartung-tile glass-card liquid-surface-inner">
+        <h3 class="glass-card__title !mb-0">Preview-QRuns löschen</h3>
+        <p class="wartung-tile__body text-sm text-[var(--color-text-muted)]">
+          Löscht alle Preview-/ReRun-QRuns (ohne selection). Zugehörige Qualitätsdaten werden entfernt.
+          Event-Pläne bleiben erhalten.
+        </p>
+        <button
+            type="button"
+            class="wartung-tile__btn glass-btn-accent"
+            :disabled="deletingPreviewQRuns"
+            @click="confirmDeletePreviewQRuns"
+        >
+          <i class="bi bi-trash3" aria-hidden="true"/>
+          {{ deletingPreviewQRuns ? 'Lösche…' : 'Preview-QRuns löschen' }}
         </button>
       </div>
 
