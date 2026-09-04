@@ -22,6 +22,7 @@ const dirty = ref(false)
 const comment = ref('')
 const saveCommentDraft = ref('')
 const showSaveCommentModal = ref(false)
+const showLoadPickerModal = ref(false)
 
 const selectedProgram = computed(() =>
   programs.value.find((p) => p.id === firstProgram.value) ?? null,
@@ -69,6 +70,21 @@ const existsWarning = computed(() => {
       Number(k.tables) === Number(tables.value),
   )
 })
+
+const sortedStoredKeys = computed(() => {
+  return [...storedKeys.value].sort((a, b) => {
+    const pa = Number(a.first_program) - Number(b.first_program)
+    if (pa !== 0) return pa
+    const ta = Number(a.teams) - Number(b.teams)
+    if (ta !== 0) return ta
+    return Number(a.tables) - Number(b.tables)
+  })
+})
+
+function programLabel(programId) {
+  const p = programs.value.find((row) => Number(row.id) === Number(programId))
+  return p?.display_name || p?.name || `Programm ${programId}`
+}
 
 function emptyMatch(round, matchNo, pair = [1, 2]) {
   return {
@@ -362,16 +378,43 @@ async function loadKeys() {
   storedKeys.value = data.keys ?? []
 }
 
-async function loadFromDb() {
+async function openLoadPicker() {
   loading.value = true
   try {
+    await loadKeys()
+    if (!storedKeys.value.length) {
+      showGlassToast('Keine gespeicherten Matchpläne in der DB', 'info')
+      return
+    }
+    showLoadPickerModal.value = true
+  } catch (e) {
+    showGlassToast(e?.response?.data?.error || 'Liste konnte nicht geladen werden', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+function cancelLoadPicker() {
+  showLoadPickerModal.value = false
+}
+
+async function loadPlanKey(key) {
+  showLoadPickerModal.value = false
+  loading.value = true
+  try {
+    const programId = Number(key.first_program)
+    const teamCount = Number(key.teams)
+    const tableCount = Number(key.tables)
     const {data} = await axios.get('/admin/match-plans', {
       params: {
-        first_program: firstProgram.value,
-        teams: teams.value,
-        tables: tables.value,
+        first_program: programId,
+        teams: teamCount,
+        tables: tableCount,
       },
     })
+    firstProgram.value = programId
+    teams.value = teamCount
+    tables.value = tableCount
     existsInDb.value = Boolean(data.exists)
     comment.value = data.comment ?? ''
     if (data.exists && Array.isArray(data.matches) && data.matches.length) {
@@ -538,7 +581,7 @@ watch([firstProgram, teams, tables], () => {
           </select>
         </label>
         <div class="flex flex-wrap gap-2">
-          <button type="button" class="glass-btn-secondary !px-3 !py-1.5 !text-sm" :disabled="loading" @click="loadFromDb">
+          <button type="button" class="glass-btn-secondary !px-3 !py-1.5 !text-sm" :disabled="loading" @click="openLoadPicker">
             Aus DB laden
           </button>
           <button type="button" class="glass-btn-accent !px-3 !py-1.5 !text-sm" :disabled="saving" @click="saveToDb">
@@ -784,6 +827,40 @@ watch([firstProgram, teams, tables], () => {
     </section>
 
     <div
+      v-if="showLoadPickerModal"
+      class="match-comment-overlay"
+      @click.self="cancelLoadPicker"
+    >
+      <div class="glass-modal match-load-dialog" role="dialog" aria-labelledby="match-load-title">
+        <h3 id="match-load-title" class="text-sm font-semibold mb-3">Matchplan aus DB laden</h3>
+        <div class="match-load-list">
+          <button
+            v-for="key in sortedStoredKeys"
+            :key="`${key.first_program}-${key.teams}-${key.tables}`"
+            type="button"
+            class="match-load-item"
+            @click="loadPlanKey(key)"
+          >
+            <div class="match-load-item__main">
+              <span class="font-semibold">{{ programLabel(key.first_program) }}</span>
+              <span>{{ key.teams }} Teams</span>
+              <span>{{ key.tables }} Tische</span>
+            </div>
+            <div v-if="key.comment" class="match-load-item__comment">{{ key.comment }}</div>
+            <div class="match-load-item__meta text-[var(--color-text-muted)]">
+              {{ key.match_count }} Zeilen · max R{{ key.max_round }}
+            </div>
+          </button>
+        </div>
+        <div class="flex justify-end mt-3">
+          <button type="button" class="glass-btn-secondary !px-3 !py-1.5 !text-sm" @click="cancelLoadPicker">
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
       v-if="showSaveCommentModal"
       class="match-comment-overlay"
       @click.self="cancelSaveComment"
@@ -887,5 +964,55 @@ watch([firstProgram, teams, tables], () => {
   background: #fff;
   color: #111;
   font-size: 0.875rem;
+}
+
+.match-load-dialog {
+  width: min(36rem, 100%);
+  padding: 1rem 1.25rem;
+  max-height: min(80vh, 40rem);
+  display: flex;
+  flex-direction: column;
+}
+
+.match-load-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.match-load-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  background: #fff;
+  color: #111;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.match-load-item:hover {
+  border-color: var(--color-accent, #3b82f6);
+  background: color-mix(in srgb, var(--color-accent, #3b82f6) 8%, #fff);
+}
+
+.match-load-item__main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.match-load-item__comment {
+  margin-top: 0.25rem;
+  white-space: pre-wrap;
+}
+
+.match-load-item__meta {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
 }
 </style>

@@ -48,6 +48,7 @@ class MatchPlanCatalogController extends Controller
             ->select('first_program', 'teams', 'tables')
             ->selectRaw('COUNT(*) as match_count')
             ->selectRaw('MAX(round) as max_round')
+            ->selectRaw('MAX(comment) as comment')
             ->groupBy('first_program', 'teams', 'tables')
             ->orderBy('first_program')
             ->orderBy('teams')
