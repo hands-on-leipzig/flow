@@ -309,7 +309,7 @@ class EventVolunteerRosterController extends Controller
     }
 
     /**
-     * @return array<int, list<array{tile_name: string, label: string, role_id: int, first_program: ?int, is_local: bool, sequence: int, group_index: ?int}>>
+     * @return array<int, list<array{tile_name: string, caption: string, label: string, role_id: int, first_program: ?int, is_local: bool, sequence: int, group_index: ?int, group_label: ?string}>>
      */
     private function assignmentsByPerson(int $eventId): array
     {

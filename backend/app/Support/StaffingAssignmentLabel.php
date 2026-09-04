@@ -24,9 +24,20 @@ final class StaffingAssignmentLabel
         return $container;
     }
 
+    public static function assignmentCaption(string $roleLabel, ?string $groupLabel, ?int $groupIndex): string
+    {
+        $container = self::containerTitle($groupLabel, $groupIndex, $roleLabel);
+        if ($container !== $roleLabel) {
+            return $roleLabel.' ('.$container.')';
+        }
+
+        return $roleLabel;
+    }
+
     /**
      * @return array<int, list<array{
      *     tile_name: string,
+     *     caption: string,
      *     label: string,
      *     role_id: int,
      *     first_program: ?int,
@@ -69,23 +80,21 @@ final class StaffingAssignmentLabel
                 ? (int) $row->first_program
                 : null;
             $groupIndex = $row->group_index !== null ? (int) $row->group_index : null;
-            $container = self::containerTitle(
-                $row->group_label !== null ? (string) $row->group_label : null,
-                $groupIndex,
-                $roleLabel,
-            );
+            $groupLabel = $groupIndex !== null && $row->group_label !== null && $row->group_label !== ''
+                ? (string) $row->group_label
+                : null;
+            $container = self::containerTitle($groupLabel, $groupIndex, $roleLabel);
             $programName = $firstProgram ? (string) ($programNames[$firstProgram] ?? '') : null;
             $assignment = [
                 'tile_name' => self::tileName($container, $firstProgram, $programName),
+                'caption' => self::assignmentCaption($roleLabel, $groupLabel, $groupIndex),
                 'label' => $roleLabel,
                 'role_id' => (int) $row->role_id,
                 'first_program' => $firstProgram,
                 'is_local' => $isLocal,
                 'sequence' => (int) $row->sequence,
                 'group_index' => $groupIndex,
-                'group_label' => $groupIndex !== null && $row->group_label !== null && $row->group_label !== ''
-                    ? (string) $row->group_label
-                    : null,
+                'group_label' => $groupLabel,
             ];
 
             if (! isset($assignmentsByPerson[$personId])) {

@@ -13,6 +13,7 @@ use App\Services\VolunteerPersonImportService;
 use App\Support\GermanMobileNumber;
 use App\Support\PersonIdsFilter;
 use App\Support\SpreadsheetExportVariant;
+use App\Support\StaffingAssignmentLabel;
 use App\Support\VolunteerPersonColumns;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -248,8 +249,8 @@ class VolunteerPersonController extends Controller
     private function recentAssignments(int $personId, int $excludeEventId): array
     {
         return DB::table('event_staffing_assignment as a')
-            ->join('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
+            ->join('event_staffing_role as r', 'r.id', '=', 'a.event_staffing_role')
+            ->leftJoin('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
             ->join('event as e', 'e.id', '=', 'r.event')
             ->leftJoin('m_role as mr', 'mr.id', '=', 'r.m_role')
             ->leftJoin('m_season as s', 's.id', '=', 'e.season')
@@ -264,12 +265,22 @@ class VolunteerPersonController extends Controller
                 's.year as season_year',
                 'mr.name as catalog_role',
                 'r.label as local_label',
+                'r.group_label',
+                'g.group_index',
             ])
-            ->map(fn ($row) => [
-                'event_id' => (int) $row->event_id,
-                'role' => $row->catalog_role ?: ($row->local_label ?: 'Rolle'),
-                'year' => $row->season_year ?: ($row->season_name ?: (string) $row->event_date),
-            ])
+            ->map(function ($row) {
+                $roleLabel = trim((string) ($row->local_label ?: ($row->catalog_role ?: 'Rolle')));
+                $groupIndex = $row->group_index !== null ? (int) $row->group_index : null;
+                $groupLabel = $groupIndex !== null && $row->group_label !== null && $row->group_label !== ''
+                    ? (string) $row->group_label
+                    : null;
+
+                return [
+                    'event_id' => (int) $row->event_id,
+                    'role' => StaffingAssignmentLabel::assignmentCaption($roleLabel, $groupLabel, $groupIndex),
+                    'year' => $row->season_year ?: ($row->season_name ?: (string) $row->event_date),
+                ];
+            })
             ->all();
     }
 }

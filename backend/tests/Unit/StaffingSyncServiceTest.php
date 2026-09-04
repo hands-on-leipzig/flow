@@ -412,6 +412,7 @@ class StaffingSyncServiceTest extends TestCase
 
         $byPerson = StaffingAssignmentLabel::assignmentsByPerson(1);
         $this->assertSame('CHALLENGE: Jury-Gruppe 2', $byPerson[1][0]['tile_name']);
+        $this->assertSame('Jury (Jury-Gruppe 2)', $byPerson[1][0]['caption']);
         $this->assertSame('Jury', $byPerson[1][0]['label']);
         $this->assertSame(2, $byPerson[1][0]['group_index']);
         $this->assertSame('Jury-Gruppe', $byPerson[1][0]['group_label']);
