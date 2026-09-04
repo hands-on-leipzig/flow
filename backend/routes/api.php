@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\PublicPlanController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\SeasonPlanBulkController;
 use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
@@ -572,6 +573,11 @@ Route::middleware(['keycloak'])->group(function () {
     // Admin helper functions routes
     Route::prefix('admin/helpers')->group(function () {
         Route::post('/logos/cleanup-orphaned', [LogoController::class, 'cleanupOrphanedLogos']); // Admin: Clean up orphaned logos
+        Route::prefix('season-plans')->group(function () {
+            Route::get('/', [SeasonPlanBulkController::class, 'summary']);
+            Route::post('/empty', [SeasonPlanBulkController::class, 'empty']);
+            Route::post('/regenerate', [SeasonPlanBulkController::class, 'regenerate']);
+        });
     });
 
     Route::prefix('admin/sharepoint')->group(function () {

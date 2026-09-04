@@ -19,6 +19,8 @@ const syncingRegions = ref(false)
 const syncingEvents = ref(false)
 const updatingMatchSchedule = ref(false)
 const deletingPreviewQRuns = ref(false)
+const emptyingSeasonPlans = ref(false)
+const regeneratingSeasonPlans = ref(false)
 const contaoEventId = ref(null)
 const contaoRound = ref('af')
 
@@ -32,6 +34,11 @@ const confirmModal = ref({
 })
 
 const showDevTools = computed(() => isDevOrLocalToolAvailable(isLocal))
+
+const currentSeason = computed(() => {
+  if (!seasons.value.length) return null
+  return seasons.value.reduce((best, season) => (Number(season.id) > Number(best.id) ? season : best))
+})
 
 onMounted(async () => {
   void ensureAdminEnvironment()
@@ -253,6 +260,113 @@ function confirmDeletePreviewQRuns() {
     action: runDeletePreviewQRuns,
   })
 }
+
+function lockedWarning(locked, verb) {
+  if (!locked) return ''
+  return ` Darunter ${locked} gesperrte Pläne — die werden trotzdem ${verb}.`
+}
+
+async function loadSeasonPlanSummary() {
+  const {data} = await axios.get('/admin/helpers/season-plans')
+  return data
+}
+
+async function confirmEmptySeasonPlans() {
+  let summary
+  try {
+    summary = await loadSeasonPlanSummary()
+  } catch (error) {
+    showGlassToast(
+      'Saison-Pläne konnten nicht geladen werden: ' + (error.response?.data?.message || error.message),
+      'error',
+    )
+    return
+  }
+  if (!summary.plans) {
+    showGlassToast('Keine Pläne in der aktuellen Saison.', 'info')
+    return
+  }
+  const seasonLabel = summary.season_name || `ID ${summary.season_id}`
+  openConfirm({
+    title: 'Alle Pläne leeren?',
+    message:
+      `Leert die generierten Aktivitäten aller ${summary.plans} Pläne der Saison „${seasonLabel}“. ` +
+      `Plan-Zeilen und Parameter bleiben erhalten.${lockedWarning(summary.locked, 'geleert')} ` +
+      'Diese Aktion kann nicht rückgängig gemacht werden.',
+    type: 'danger',
+    confirmText: 'Leeren',
+    action: runEmptySeasonPlans,
+  })
+}
+
+async function runEmptySeasonPlans() {
+  emptyingSeasonPlans.value = true
+  try {
+    const {data} = await axios.post('/admin/helpers/season-plans/empty')
+    showGlassToast(
+      `${data.plans} Pläne geleert (${data.activity_groups_deleted} Aktivitätsgruppen` +
+        (data.matches_deleted ? `, ${data.matches_deleted} Matches` : '') +
+        ').',
+      'success',
+    )
+  } catch (error) {
+    showGlassToast(
+      'Leeren der Pläne fehlgeschlagen: ' + (error.response?.data?.message || error.message),
+      'error',
+    )
+  } finally {
+    emptyingSeasonPlans.value = false
+  }
+}
+
+async function confirmRegenerateSeasonPlans() {
+  let summary
+  try {
+    summary = await loadSeasonPlanSummary()
+  } catch (error) {
+    showGlassToast(
+      'Saison-Pläne konnten nicht geladen werden: ' + (error.response?.data?.message || error.message),
+      'error',
+    )
+    return
+  }
+  if (!summary.plans) {
+    showGlassToast('Keine Pläne in der aktuellen Saison.', 'info')
+    return
+  }
+  const seasonLabel = summary.season_name || `ID ${summary.season_id}`
+  openConfirm({
+    title: 'Alle Pläne regenerieren?',
+    message:
+      `Generiert alle ${summary.plans} bestehenden Pläne der Saison „${seasonLabel}“ nacheinander neu. ` +
+      `Nicht unterstützte Konfigurationen werden übersprungen.${lockedWarning(summary.locked, 'regeneriert')} ` +
+      'Das kann mehrere Minuten dauern.',
+    type: 'warning',
+    confirmText: 'Regenerieren',
+    action: runRegenerateSeasonPlans,
+  })
+}
+
+async function runRegenerateSeasonPlans() {
+  regeneratingSeasonPlans.value = true
+  try {
+    const {data} = await axios.post('/admin/helpers/season-plans/regenerate', null, {timeout: 0})
+    const parts = [`${data.regenerated} regeneriert`]
+    if (data.skipped_unsupported) parts.push(`${data.skipped_unsupported} übersprungen`)
+    if (data.failed) parts.push(`${data.failed} fehlgeschlagen`)
+    showGlassToast(
+      `Saison-Pläne: ${parts.join(', ')}.`,
+      data.failed ? 'error' : 'success',
+    )
+  } catch (error) {
+    showGlassToast(
+      'Regenerieren der Pläne fehlgeschlagen: ' + (error.response?.data?.message || error.message),
+      'error',
+    )
+  } finally {
+    regeneratingSeasonPlans.value = false
+  }
+}
 </script>
 
 <template>
@@ -359,6 +473,42 @@ function confirmDeletePreviewQRuns() {
         >
           <i class="bi bi-trash3" aria-hidden="true"/>
           {{ deletingPreviewQRuns ? 'Lösche…' : 'Preview-QRuns löschen' }}
+        </button>
+      </div>
+
+      <div class="wartung-tile glass-card liquid-surface-inner">
+        <h3 class="glass-card__title !mb-0">Alle Pläne leeren</h3>
+        <p class="wartung-tile__body text-sm text-[var(--color-text-muted)]">
+          Entfernt die generierten Aktivitäten aller Pläne der aktuellen Saison
+          <span v-if="currentSeason"> ({{ currentSeason.name }})</span>.
+          Plan-Zeilen und Parameter bleiben erhalten.
+        </p>
+        <button
+            type="button"
+            class="wartung-tile__btn glass-btn-accent"
+            :disabled="emptyingSeasonPlans || regeneratingSeasonPlans"
+            @click="confirmEmptySeasonPlans"
+        >
+          <i class="bi bi-eraser" aria-hidden="true"/>
+          {{ emptyingSeasonPlans ? 'Leere…' : 'Alle Pläne leeren' }}
+        </button>
+      </div>
+
+      <div class="wartung-tile glass-card liquid-surface-inner">
+        <h3 class="glass-card__title !mb-0">Alle Pläne regenerieren</h3>
+        <p class="wartung-tile__body text-sm text-[var(--color-text-muted)]">
+          Generiert alle bestehenden Pläne der aktuellen Saison
+          <span v-if="currentSeason"> ({{ currentSeason.name }})</span>
+          nacheinander neu. Extra-Blöcke bleiben erhalten.
+        </p>
+        <button
+            type="button"
+            class="wartung-tile__btn glass-btn-accent"
+            :disabled="regeneratingSeasonPlans || emptyingSeasonPlans"
+            @click="confirmRegenerateSeasonPlans"
+        >
+          <i class="bi bi-arrow-repeat" aria-hidden="true"/>
+          {{ regeneratingSeasonPlans ? 'Regeneriere…' : 'Alle Pläne regenerieren' }}
         </button>
       </div>
 
