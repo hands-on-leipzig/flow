@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AfternoonController;
+use App\Http\Controllers\Api\EnrollmentsController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\CheckInController;
@@ -413,6 +414,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/events', [PlanQualityController::class, 'listEvents']);
         Route::post('/evaluate/{planId}', [PlanQualityController::class, 'evaluatePlan']);
     });
+
+    Route::get('/admin/enrollments', [EnrollmentsController::class, 'index']);
 
     Route::prefix('admin/main-tables')->group(function () {
         Route::get('/', [MainTablesController::class, 'index']);

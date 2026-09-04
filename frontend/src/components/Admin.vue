@@ -13,6 +13,7 @@ import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
 import CalendarFeedsAdmin from '@/components/molecules/CalendarFeedsAdmin.vue'
 import AdminWartung from '@/components/molecules/AdminWartung.vue'
 import PlanQualitaet from '@/components/molecules/PlanQualitaet.vue'
+import Enrollments from '@/components/molecules/Enrollments.vue'
 import {
   ADMIN_DEFAULT_SECTION,
   ADMIN_SECTIONS,
@@ -139,6 +140,10 @@ onMounted(() => {
     <div v-else-if="activeTab === 'plan-qualitaet'">
       <h2 class="text-xl font-bold mb-4">Plan Qualität</h2>
       <PlanQualitaet/>
+    </div>
+
+    <div v-else-if="activeTab === 'enrollments'">
+      <Enrollments/>
     </div>
 
     <div v-else-if="activeTab === 'wartung'">
