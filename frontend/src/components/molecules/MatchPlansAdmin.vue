@@ -28,14 +28,28 @@ const maxMatchRounds = computed(() =>
   Number(selectedProgram.value?.max_match_rounds ?? 3),
 )
 
-const matchesPerRound = computed(() => Math.ceil(Math.max(2, teams.value) / 2))
+const matchesPerRound = computed(() =>
+  Math.ceil(Math.max(2, Number(teams.value) || 2) / 2),
+)
 
 const roundsPresent = computed(() => {
-  const set = new Set(matches.value.map((m) => m.round))
+  const set = new Set(matches.value.map((m) => Number(m.round)))
   return [...set].sort((a, b) => a - b)
 })
 
 const scoringRounds = computed(() => roundsPresent.value.filter((r) => r >= 1))
+
+/** How many match rows a round must have (never below R1 / densest scoring round). */
+function neededMatchCount() {
+  const fromFormula = matchesPerRound.value
+  let fromExisting = 0
+  for (const r of scoringRounds.value) {
+    fromExisting = Math.max(fromExisting, matchesForRound(r).length)
+  }
+  // Include TR in case scoring rounds are empty/short
+  fromExisting = Math.max(fromExisting, matchesForRound(0).length)
+  return Math.max(fromFormula, fromExisting)
+}
 
 const canAddRound = computed(() => {
   const max = Math.max(...scoringRounds.value, 0)
@@ -67,20 +81,22 @@ function emptyMatch(round, matchNo, pair = [1, 2]) {
 function buildEmptyPlan(roundList = [0, 1]) {
   /** @type {MatchRow[]} */
   const rows = []
-  const per = Math.ceil(Math.max(2, teams.value) / 2)
+  const per = matchesPerRound.value
   for (const round of roundList) {
     for (let i = 1; i <= per; i++) {
-      rows.push(emptyMatch(round, i))
+      // Start every slot on pair 1–2; user moves to 3–4 when needed.
+      rows.push(emptyMatch(round, i, [1, 2]))
     }
   }
   return rows
 }
 
 function matchesForRound(round) {
+  const r = Number(round)
   return matches.value
-    .filter((m) => m.round === round)
+    .filter((m) => Number(m.round) === r)
     .slice()
-    .sort((a, b) => a.match_no - b.match_no)
+    .sort((a, b) => Number(a.match_no) - Number(b.match_no))
 }
 
 function roundLabel(round) {
@@ -88,14 +104,25 @@ function roundLabel(round) {
 }
 
 function isPair34(match) {
-  return match.table_1 === 3 && match.table_2 === 4
+  return Number(match.table_1) === 3 && Number(match.table_2) === 4
+}
+
+/** Active pair inputs: always T1–T2 when only 2 tables; otherwise by stored pair. */
+function showsPair12(match) {
+  return tables.value === 2 || !isPair34(match)
+}
+
+function showsPair34(match) {
+  return tables.value === 4 && isPair34(match)
 }
 
 function duplicateTeamsInRound(round) {
   const counts = new Map()
   for (const m of matchesForRound(round)) {
     for (const t of [m.table_1_team, m.table_2_team]) {
-      if (t > 0) counts.set(t, (counts.get(t) ?? 0) + 1)
+      const n = Number(t)
+      if (!Number.isFinite(n) || n <= 0) continue
+      counts.set(n, (counts.get(n) ?? 0) + 1)
     }
   }
   const dups = new Set()
@@ -106,8 +133,9 @@ function duplicateTeamsInRound(round) {
 }
 
 function teamClass(round, team) {
-  if (!team || team <= 0) return ''
-  return duplicateTeamsInRound(round).has(team) ? 'text-red-600 font-semibold' : ''
+  const n = Number(team)
+  if (!Number.isFinite(n) || n <= 0) return ''
+  return duplicateTeamsInRound(round).has(n) ? 'team-num--dup' : ''
 }
 
 function confirmChange(message, {irreversible = false} = {}) {
@@ -235,12 +263,30 @@ function parseTeamField(match, key, event) {
 
 function addRound() {
   if (!canAddRound.value) return
-  const nextRound = Math.max(...scoringRounds.value, 0) + 1
+  const scoring = scoringRounds.value
+  const nextRound = (scoring.length ? Math.max(...scoring.map(Number)) : 0) + 1
   if (nextRound > maxMatchRounds.value) return
-  const per = matchesPerRound.value
-  for (let i = 1; i <= per; i++) {
-    matches.value.push(emptyMatch(nextRound, i))
+
+  const per = neededMatchCount()
+  const template = matchesForRound(1)
+  const added = []
+  for (let matchNo = 1; matchNo <= per; matchNo++) {
+    const src = template.find((m) => Number(m.match_no) === matchNo)
+    let pair = [1, 2]
+    if (tables.value === 4 && src) {
+      const t1 = Number(src.table_1)
+      const t2 = Number(src.table_2)
+      if (t1 === 3 && t2 === 4) {
+        pair = [3, 4]
+      } else if (t1 === 1 && t2 === 2) {
+        pair = [1, 2]
+      } else {
+        pair = [1, 2]
+      }
+    }
+    added.push(emptyMatch(nextRound, matchNo, pair))
   }
+  matches.value = matches.value.concat(added)
   dirty.value = true
   void refreshQuality()
 }
@@ -541,7 +587,7 @@ watch([firstProgram, teams, tables], () => {
                   >↓</button>
                 </td>
                 <td class="px-0.5 py-0.5">
-                  <div v-if="!isPair34(match)" class="match-pair">
+                  <div v-if="showsPair12(match)" class="match-pair">
                     <input
                       type="text"
                       inputmode="numeric"
@@ -570,7 +616,7 @@ watch([firstProgram, teams, tables], () => {
                   <span v-else class="opacity-30 px-1">–</span>
                 </td>
                 <td class="px-0.5 py-0.5" :class="tables === 2 ? 'opacity-40' : ''">
-                  <div v-if="tables === 4 && isPair34(match)" class="match-pair">
+                  <div v-if="showsPair34(match)" class="match-pair">
                     <input
                       type="text"
                       inputmode="numeric"
@@ -601,7 +647,7 @@ watch([firstProgram, teams, tables], () => {
                 <td v-if="tables === 4" class="px-0.5 py-0.5">
                   <button
                     type="button"
-                    class="glass-btn-secondary !px-1.5 !py-0.5 !text-xs"
+                    class="glass-btn-secondary !px-1.5 !py-0.5 !text-sm"
                     :title="isPair34(match) ? 'Zu Tischen 1–2' : 'Zu Tischen 3–4'"
                     @click="togglePair(match)"
                   >
@@ -625,9 +671,9 @@ watch([firstProgram, teams, tables], () => {
       >
         <div v-if="quality?.meeting_matrix" class="overflow-x-auto min-w-0">
           <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
-            Begegnungsmatrix (ohne TR)
+            Begegnungsmatrix
           </div>
-          <table class="table-auto text-xs border-collapse glass-list">
+          <table class="table-auto text-sm border-collapse glass-list">
             <thead>
               <tr>
                 <th class="px-1 py-1"></th>
@@ -723,17 +769,17 @@ watch([firstProgram, teams, tables], () => {
 }
 
 .team-num {
-  width: 1.75rem;
-  min-width: 1.75rem;
-  max-width: 1.75rem;
-  padding: 0.1rem 0;
+  width: 2rem;
+  min-width: 2rem;
+  max-width: 2rem;
+  padding: 0.15rem 0;
   margin: 0;
   border: 1px solid var(--color-border);
   border-radius: 0.25rem;
-  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
-  color: inherit;
-  font-size: 0.75rem;
-  line-height: 1.2;
+  background: #fff;
+  color: #111;
+  font-size: 0.875rem;
+  line-height: 1.25;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
@@ -743,12 +789,19 @@ watch([firstProgram, teams, tables], () => {
   outline-offset: 0;
 }
 
+.team-num--dup {
+  background: #fecaca;
+  border-color: #ef4444;
+  color: #991b1b;
+  font-weight: 600;
+}
+
 .swap-btn {
-  padding: 0 0.1rem;
+  padding: 0 0.15rem;
   border: none;
   background: transparent;
   color: var(--color-text-muted);
-  font-size: 0.7rem;
+  font-size: 0.875rem;
   line-height: 1;
   cursor: pointer;
 }
