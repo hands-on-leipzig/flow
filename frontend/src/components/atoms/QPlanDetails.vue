@@ -41,13 +41,16 @@ watch(() => [props.planId, props.firstProgram], loadDetails, { immediate: true }
 
 const okIcon = (val) => (val == 1 || val === '1') ? '✓' : '⚠️'
 const okClass = (val) => (val == 1 || val === '1') ? 'text-gray-300' : 'text-yellow-500 font-semibold'
-const warnClass = (condition) => condition ? 'text-yellow-500 font-semibold' : 'text-gray-300'
 const mismatchClass = (a, b) => a !== b ? 'text-red-500 font-semibold' : ''
 
 const minRequiredTables = () => Math.min(3, details.value?.r_tables ?? 3)
+const scoringRounds = computed(() => details.value?.scoring_rounds ?? [1, 2, 3])
+const opponentTarget = computed(() => scoringRounds.value.length)
 
 const warnClassTables = (val) => val < minRequiredTables() ? 'text-yellow-500 font-semibold' : 'text-gray-300'
 const iconTables = (val) => val < minRequiredTables() ? '⚠️' : '✓'
+const warnClassOpponents = (val) => val < opponentTarget.value ? 'text-yellow-500 font-semibold' : 'text-gray-300'
+const iconOpponents = (val) => val < opponentTarget.value ? '⚠️' : '✓'
 
 const formatTeam = (teamNum) => {
   // Format team display: Team 0 = '–' (volunteer/BYE), null/undefined = empty, others = number
@@ -147,13 +150,17 @@ const transferRows = computed(() => {
               <tr>
                 <th class="px-2 py-1 text-left">Team</th>
                 <th class="px-2 py-1">TR</th>
-                <th class="px-2 py-1">R1</th>
-                <th class="px-2 py-1">R2</th>
-                <th class="px-2 py-1">R3</th>
+                <th
+                  v-for="r in scoringRounds"
+                  :key="`th-t-${r}`"
+                  class="px-2 py-1"
+                >R{{ r }}</th>
                 <th class="px-2 py-1">Tische</th>
-                <th class="px-2 py-1">R1</th>
-                <th class="px-2 py-1">R2</th>
-                <th class="px-2 py-1">R3</th>
+                <th
+                  v-for="r in scoringRounds"
+                  :key="`th-o-${r}`"
+                  class="px-2 py-1"
+                >R{{ r }}</th>
                 <th class="px-2 py-1">Teams</th>
               </tr>
             </thead>
@@ -163,23 +170,30 @@ const transferRows = computed(() => {
                 <td class="text-center" :class="mismatchClass(row.tr_table, row.r1_table)">
                   {{ row.tr_table ?? '–' }}
                 </td>
-                <td class="text-center" :class="mismatchClass(row.tr_table, row.r1_table)">
-                  {{ row.r1_table ?? '–' }}
+                <td
+                  v-for="r in scoringRounds"
+                  :key="`td-t-${row.team}-${r}`"
+                  class="text-center"
+                  :class="r === 1 ? mismatchClass(row.tr_table, row.r1_table) : ''"
+                >
+                  {{ row[`r${r}_table`] ?? '–' }}
                 </td>
-                <td class="text-center">{{ row.r2_table ?? '–' }}</td>
-                <td class="text-center">{{ row.r3_table ?? '–' }}</td>
                 <td class="text-center">
                   <span :class="warnClassTables(row.tables)">
                     {{ iconTables(row.tables) }}
                   </span>
                   {{ row.tables ?? '–' }}
                 </td>
-                <td class="text-center">{{ row.r1_opponent ?? '–' }}</td>
-                <td class="text-center">{{ row.r2_opponent ?? '–' }}</td>
-                <td class="text-center">{{ row.r3_opponent ?? '–' }}</td>
+                <td
+                  v-for="r in scoringRounds"
+                  :key="`td-o-${row.team}-${r}`"
+                  class="text-center"
+                >
+                  {{ row[`r${r}_opponent`] ?? '–' }}
+                </td>
                 <td class="text-center">
-                  <span :class="warnClass(row.teams < 3)">
-                    {{ row.teams < 3 ? '⚠️' : '✓' }}
+                  <span :class="warnClassOpponents(row.teams)">
+                    {{ iconOpponents(row.teams) }}
                   </span>
                   {{ row.teams ?? '–' }}
                 </td>

@@ -345,11 +345,14 @@ class QualityEvaluatorService
     public function evaluate(int $qPlanId): void
     {
         $activities = $this->prepareEvaluationData($qPlanId);
-   
+
         $this->calculateQ1($qPlanId, $activities);
-        $this->calculateQ2($qPlanId);
-        $this->calculateQ3($qPlanId);
-        $this->calculateQ4($qPlanId);
+
+        $pairing = $this->pairingQualityForQPlan($qPlanId);
+        $this->persistQ2FromPairing($qPlanId, $pairing);
+        $this->persistQ3FromPairing($qPlanId, $pairing);
+        $this->persistQ4FromPairing($qPlanId, $pairing);
+
         $this->calculateQ5($qPlanId);
         $this->calculateQ6($qPlanId, $activities);
 
@@ -442,14 +445,14 @@ class QualityEvaluatorService
             $reasons[] = 'Keine Team-Aktivitäten im Plan';
         }
 
-        $matchCountR1to3 = DB::table('match')
+        $matchCountScoring = DB::table('match')
             ->where('plan', $planId)
             ->where('first_program', $firstProgram)
-            ->whereIn('round', [1, 2, 3])
+            ->where('round', '>=', 1)
             ->count();
 
-        if ($matchCountR1to3 === 0) {
-            $reasons[] = 'Kein Matchplan (Runden 1–3)';
+        if ($matchCountScoring === 0) {
+            $reasons[] = 'Kein Matchplan (Scoring-Runden)';
         }
 
         return [
@@ -478,7 +481,7 @@ class QualityEvaluatorService
         $teamsInMatches = DB::table('match')
             ->where('plan', $planId)
             ->where('first_program', $firstProgram)
-            ->whereIn('round', [1, 2, 3])
+            ->where('round', '>=', 1)
             ->get(['table_1_team', 'table_2_team']);
 
         $seenTeams = [];
@@ -509,11 +512,15 @@ class QualityEvaluatorService
         try {
             $pp = PlanParameter::load($planId);
             $spec = MatchPlanSpec::for(FirstProgram::from($firstProgram), $pp);
-            $expectedMatches = $spec->matchesPerRound * 4;
+            $maxRound = (int) (DB::table('match')
+                ->where('plan', $planId)
+                ->where('first_program', $firstProgram)
+                ->max('round') ?? -1);
+            $roundSlots = $maxRound >= 0 ? $maxRound + 1 : 0;
+            $expectedMatches = $spec->matchesPerRound * max(4, $roundSlots);
             $actualMatches = DB::table('match')
                 ->where('plan', $planId)
                 ->where('first_program', $firstProgram)
-                ->whereIn('round', [0, 1, 2, 3])
                 ->count();
 
             if ($actualMatches < $expectedMatches) {
@@ -963,78 +970,81 @@ class QualityEvaluatorService
     }
 
     /**
-     * Evaluate Q2: Check how many different tables the team played on.
+     * Single pairing calculator for Q2/Q3/Q4 — MatchPlanPairingQuality only.
+     *
+     * @return array{
+     *   scoring_rounds: list<int>,
+     *   match_summary: list<array<string, mixed>>,
+     *   q2_ok_count: int,
+     *   q3_ok_count: int,
+     *   q4_ok_count: int,
+     *   teams: int,
+     *   tables: int
+     * }
      */
-    private function calculateQ2(int $qPlanId): void
+    private function pairingQualityForQPlan(int $qPlanId): array
     {
-        $tablesAvailable = $this->tablesForQPlan($qPlanId);
-        $matches = $this->matchesForQPlan($qPlanId, [1, 2, 3]);
+        $row = $this->qPlanRow($qPlanId);
+        $teams = $this->teamsForQPlan($qPlanId);
+        $tables = $this->tablesForQPlan($qPlanId);
 
-        $teamTables = [];
+        $matches = DB::table('match')
+            ->where('plan', $row->plan)
+            ->where('first_program', $row->first_program)
+            ->orderBy('round')
+            ->orderBy('match_no')
+            ->get()
+            ->map(static fn ($m) => [
+                'round' => (int) $m->round,
+                'match_no' => (int) $m->match_no,
+                'table_1' => (int) $m->table_1,
+                'table_2' => (int) $m->table_2,
+                'table_1_team' => (int) $m->table_1_team,
+                'table_2_team' => (int) $m->table_2_team,
+            ])
+            ->all();
 
-        foreach ($matches as $match) {
-            foreach (['table_1_team' => 'table_1', 'table_2_team' => 'table_2'] as $teamKey => $tableKey) {
-                $team = $match->$teamKey;
-                if ($team === null || $team == 0) {
-                    continue;
-                }
+        return app(MatchPlanPairingQuality::class)->evaluate($matches, $teams, $tables);
+    }
 
-                $teamTables[$team][] = $match->$tableKey;
-            }
-        }
-
-        // Distribution counters
+    /**
+     * @param  array{match_summary: list<array<string, mixed>>, tables: int}  $pairing
+     */
+    private function persistQ2FromPairing(int $qPlanId, array $pairing): void
+    {
         $distribution = [1 => 0, 2 => 0, 3 => 0];
         $totalScore = 0;
         $teamsProcessed = 0;
-        $targetTables = ($tablesAvailable === 2) ? 2 : 3; // Target: 2 for r_tables=2, 3 for r_tables=4
+        $tablesAvailable = (int) $pairing['tables'];
 
-        foreach ($teamTables as $team => $tables) {
-            $distinctTables = count(array_unique($tables));
-
-            $q2_ok = false;
-            if ($tablesAvailable === 2 && $distinctTables === 2) {
-                $q2_ok = true;
-            } elseif ($tablesAvailable === 4 && $distinctTables === 3) {
-                $q2_ok = true;
-            }
+        foreach ($pairing['match_summary'] as $entry) {
+            $team = (int) $entry['team'];
+            $distinctTables = (int) ($entry['tables'] ?? 0);
+            $targetTables = max(1, (int) ($entry['q2_target'] ?? ($tablesAvailable === 2 ? 2 : 3)));
 
             QPlanTeam::where('q_plan', $qPlanId)
                 ->where('team', $team)
                 ->update([
-                    'q2_ok' => $q2_ok,
+                    'q2_ok' => (bool) ($entry['q2_ok'] ?? false),
                     'q2_tables' => $distinctTables,
                 ]);
 
-            // Update distribution
-            if ($distinctTables >= 1 && $distinctTables <= 3) {
+            if ($distinctTables >= 3) {
+                $distribution[3]++;
+            } elseif ($distinctTables >= 1) {
                 $distribution[$distinctTables]++;
             }
 
-            // Calculate score for this team (distinctTables / targetTables) * 100
-            $totalScore += ($distinctTables / $targetTables) * 100;
+            $totalScore += min(100, ($distinctTables / $targetTables) * 100);
             $teamsProcessed++;
         }
 
-        // Log::debug("Q2 calculation for qPlan {$qPlanId}", [
-        //     'c_teams' => $teamCount,
-        //     'teams_processed' => $teamsProcessed,
-        //     'distribution' => $distribution,
-        //     'total_score' => $totalScore,
-        // ]);
-
-        // Count number of teams that passed Q2
-        $ok_count = QPlanTeam::where('q_plan', $qPlanId)
-            ->where('q2_ok', true)
-            ->count();
-
-        // Calculate average score based on actual teams processed
         $avgScore = $teamsProcessed > 0 ? $totalScore / $teamsProcessed : 0;
 
         DB::table('q_plan')
             ->where('id', $qPlanId)
             ->update([
-                'q2_ok_count' => $ok_count,
+                'q2_ok_count' => (int) ($pairing['q2_ok_count'] ?? 0),
                 'q2_1_count' => $distribution[1],
                 'q2_2_count' => $distribution[2],
                 'q2_3_count' => $distribution[3],
@@ -1043,74 +1053,45 @@ class QualityEvaluatorService
     }
 
     /**
-     * Evaluate Q3: Check how many different opponents each team had.
+     * @param  array{match_summary: list<array<string, mixed>>, scoring_rounds: list<int>}  $pairing
      */
-    private function calculateQ3(int $qPlanId): void
+    private function persistQ3FromPairing(int $qPlanId, array $pairing): void
     {
-        $matches = $this->matchesForQPlan($qPlanId, [1, 2, 3]);
-
-        $opponents = [];
-
-        foreach ($matches as $match) {
-            $t1 = $match->table_1_team;
-            $t2 = $match->table_2_team;
-
-            // Include all teams, even team 0 (volunteer counts as a valid opponent)
-            if ($t1 !== null && $t2 !== null) {
-                $opponents[$t1][] = $t2;
-                $opponents[$t2][] = $t1;
-            }
-        }
-
-        // Distribution counters
         $distribution = [1 => 0, 2 => 0, 3 => 0];
         $totalScore = 0;
         $teamsProcessed = 0;
+        $targetOpponents = max(1, count($pairing['scoring_rounds'] ?? []));
 
-        foreach ($opponents as $team => $faced) {
-            // Skip team 0 (volunteer) in the distribution - it's not a real team being evaluated
-            if ($team === 0) {
-                continue;
-            }
-            
-            $uniqueOpponents = count(array_unique($faced));
+        foreach ($pairing['match_summary'] as $entry) {
+            $team = (int) $entry['team'];
+            $uniqueOpponents = (int) ($entry['teams'] ?? 0);
+            $q3Ok = (bool) ($entry['q3_ok'] ?? false);
 
             QPlanTeam::where('q_plan', $qPlanId)
                 ->where('team', $team)
                 ->update([
-                    'q3_ok' => $uniqueOpponents === 3,
+                    'q3_ok' => $q3Ok,
                     'q3_teams' => $uniqueOpponents,
                 ]);
 
-            // Update distribution
-            if ($uniqueOpponents >= 1 && $uniqueOpponents <= 3) {
-                $distribution[$uniqueOpponents]++;
+            if ($q3Ok) {
+                $distribution[3]++;
+            } elseif ($uniqueOpponents === 1) {
+                $distribution[1]++;
+            } elseif ($uniqueOpponents >= 2) {
+                $distribution[2]++;
             }
 
-            // Calculate score for this team (uniqueOpponents / 3) * 100
-            $totalScore += ($uniqueOpponents / 3) * 100;
+            $totalScore += min(100, ($uniqueOpponents / $targetOpponents) * 100);
             $teamsProcessed++;
         }
 
-        // Log::debug("Q3 calculation for qPlan {$qPlanId}", [
-        //     'c_teams' => $teamCount,
-        //     'teams_processed' => $teamsProcessed,
-        //     'distribution' => $distribution,
-        //     'total_score' => $totalScore,
-        // ]);
-
-        // Count number of teams that passed Q3
-        $ok_count = QPlanTeam::where('q_plan', $qPlanId)
-            ->where('q3_ok', true)
-            ->count();
-
-        // Calculate average score based on actual teams processed
         $avgScore = $teamsProcessed > 0 ? $totalScore / $teamsProcessed : 0;
 
         DB::table('q_plan')
             ->where('id', $qPlanId)
             ->update([
-                'q3_ok_count' => $ok_count,
+                'q3_ok_count' => (int) ($pairing['q3_ok_count'] ?? 0),
                 'q3_1_count' => $distribution[1],
                 'q3_2_count' => $distribution[2],
                 'q3_3_count' => $distribution[3],
@@ -1119,46 +1100,23 @@ class QualityEvaluatorService
     }
 
     /**
-     * Evaluate Q4: Check if test and first match are on the same table.
+     * @param  array{match_summary: list<array<string, mixed>>, q4_ok_count: int}  $pairing
      */
-    private function calculateQ4(int $qPlanId): void
+    private function persistQ4FromPairing(int $qPlanId, array $pairing): void
     {
-        $matches = $this->matchesForQPlan($qPlanId, [0, 1]);
-
-        $testTables = [];
-        $round1Tables = [];
-
-        foreach ($matches as $match) {
-            foreach (['table_1_team' => 'table_1', 'table_2_team' => 'table_2'] as $teamKey => $tableKey) {
-                $team = $match->$teamKey;
-                $table = $match->$tableKey;
-
-                if ($match->round === 0) {
-                    $testTables[$team] = $table;
-                } elseif ($match->round === 1) {
-                    $round1Tables[$team] = $table;
-                }
-            }
-        }
-
-        foreach ($testTables as $team => $testTable) {
-            $firstTable = $round1Tables[$team] ?? null;
-
+        foreach ($pairing['match_summary'] as $entry) {
             QPlanTeam::where('q_plan', $qPlanId)
-                ->where('team', $team)
+                ->where('team', (int) $entry['team'])
                 ->update([
-                    'q4_ok' => $firstTable === $testTable,
+                    'q4_ok' => (bool) ($entry['q4_ok'] ?? false),
                 ]);
         }
 
-        // Count number of teams that passed Q4
-        $ok_count = QPlanTeam::where('q_plan', $qPlanId)
-            ->where('q4_ok', true)
-            ->count();
-
         DB::table('q_plan')
             ->where('id', $qPlanId)
-            ->update(['q4_ok_count' => $ok_count]);        
+            ->update([
+                'q4_ok_count' => (int) ($pairing['q4_ok_count'] ?? 0),
+            ]);
     }
 
     /**

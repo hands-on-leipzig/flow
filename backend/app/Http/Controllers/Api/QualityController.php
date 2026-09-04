@@ -271,6 +271,22 @@ class QualityController extends Controller
             ->orderBy('round')
             ->orderBy('match_no')
             ->get();
+
+        $c_teams = (int) $qplan->c_teams;
+        $matchRows = $matches->map(static fn ($m) => [
+            'round' => (int) $m->round,
+            'match_no' => (int) $m->match_no,
+            'table_1' => (int) $m->table_1,
+            'table_2' => (int) $m->table_2,
+            'table_1_team' => (int) $m->table_1_team,
+            'table_2_team' => (int) $m->table_2_team,
+        ])->all();
+        $pairing = app(\App\Services\MatchPlanPairingQuality::class)->evaluate(
+            $matchRows,
+            $c_teams,
+            (int) $qplan->r_tables
+        );
+
         $matchPlanRounds = [];
 
         if ($isTwoDayEvent) {
@@ -323,7 +339,7 @@ class QualityController extends Controller
                 ];
             }
 
-            foreach ([1, 2, 3] as $roundNum) {
+            foreach ($pairing['scoring_rounds'] as $roundNum) {
                 $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
                 $matchPlanRounds[] = [
                     'key' => "r{$roundNum}",
@@ -342,11 +358,12 @@ class QualityController extends Controller
                 ];
             }
         } else {
-            foreach ([0, 1, 2, 3] as $roundNum) {
+            $roundNums = $matches->pluck('round')->unique()->sort()->values();
+            foreach ($roundNums as $roundNum) {
                 $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
                 $matchPlanRounds[] = [
                     'key' => (string) $roundNum,
-                    'label' => [0 => 'Testrunde', 1 => 'Runde 1', 2 => 'Runde 2', 3 => 'Runde 3'][$roundNum],
+                    'label' => $roundNum === 0 ? 'Testrunde' : "Runde {$roundNum}",
                     'matches' => $roundMatches->map(function ($m) {
                         return [
                             'id' => $m->id,
@@ -362,49 +379,9 @@ class QualityController extends Controller
             }
         }
 
-        $c_teams = $qplan->c_teams;
         $transferSummary = $isTwoDayEvent
-            ? $this->buildTwoDayTransferSummary($planId, (int) $c_teams, (int) $qplan->c_duration_transfer)
+            ? $this->buildTwoDayTransferSummary($planId, $c_teams, (int) $qplan->c_duration_transfer)
             : [];
-
-        $matchesByRound = $matches->groupBy('round');
-
-        $summary = [];
-
-        for ($team = 1; $team <= $c_teams; $team++) {
-            $entry = ['team' => $team];
-
-            $round0 = $matchesByRound[0]->first(fn ($m) => $m->table_1_team == $team || $m->table_2_team == $team);
-            $entry['tr_table'] = $round0?->table_1_team == $team ? $round0->table_1 : $round0?->table_2;
-
-            $tables = [];
-            $opponents = [];
-
-            foreach ([1, 2, 3] as $r) {
-                $match = $matchesByRound[$r]?->first(fn ($m) => $m->table_1_team == $team || $m->table_2_team == $team);
-                if ($match) {
-                    $tableKey = "r{$r}_table";
-                    $oppKey = "r{$r}_opponent";
-
-                    $table = $match->table_1_team == $team ? $match->table_1 : $match->table_2;
-                    $opponent = $match->table_1_team == $team ? $match->table_2_team : $match->table_1_team;
-
-                    $entry[$tableKey] = $table;
-                    $entry[$oppKey] = $opponent;
-
-                    $tables[] = $table;
-                    $opponents[] = $opponent;
-                } else {
-                    $entry["r{$r}_table"] = null;
-                    $entry["r{$r}_opponent"] = null;
-                }
-            }
-
-            $entry['tables'] = count(array_unique($tables));
-            $entry['teams'] = count(array_unique($opponents));
-
-            $summary[] = $entry;
-        }
 
         return response()->json([
             'first_program' => $firstProgram,
@@ -415,7 +392,8 @@ class QualityController extends Controller
             'transfer_summary' => $transferSummary,
             'c_duration_transfer' => (int) $qplan->c_duration_transfer,
             'r_tables' => (int) $qplan->r_tables,
-            'match_summary' => $summary,
+            'scoring_rounds' => $pairing['scoring_rounds'],
+            'match_summary' => $pairing['match_summary'],
         ]);
     }
 
