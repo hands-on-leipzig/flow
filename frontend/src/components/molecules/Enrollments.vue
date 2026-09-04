@@ -15,14 +15,20 @@ const seasonName = ref('')
 const eventCount = ref(0)
 const histogram = ref([])
 const dual = ref([])
+const futureStandalone = ref([])
 
 function cell(value) {
   return value > 0 ? String(value) : ''
 }
 
+function namesTitle(names) {
+  if (!Array.isArray(names) || names.length === 0) return undefined
+  return names.join('\n')
+}
+
 function enrolledLabel(row) {
   if (!row?.draht_id) return '—'
-  return `${row.enrolled} von ${row.capacity}`
+  return `${row.enrolled} / ${row.capacity}`
 }
 
 function overCapacity(row) {
@@ -37,6 +43,7 @@ async function load() {
     eventCount.value = data.event_count ?? 0
     histogram.value = Array.isArray(data.histogram) ? data.histogram : []
     dual.value = Array.isArray(data.dual) ? data.dual : []
+    futureStandalone.value = Array.isArray(data.future_standalone) ? data.future_standalone : []
   } catch (error) {
     showGlassToast(
       'Anmeldungen konnten nicht geladen werden: ' + (error.response?.data?.message || error.message),
@@ -44,6 +51,7 @@ async function load() {
     )
     histogram.value = []
     dual.value = []
+    futureStandalone.value = []
   } finally {
     loading.value = false
   }
@@ -117,78 +125,144 @@ onMounted(() => {
               :class="row.teams === '26+' ? 'font-medium' : ''"
             >
               <td class="py-1 pr-3 tabular-nums text-[var(--color-text-muted)]">{{ row.teams }}</td>
-              <td class="py-1 px-2 text-right tabular-nums">{{ cell(row.explore) }}</td>
-              <td class="py-1 px-2 text-right tabular-nums">{{ cell(row.challenge) }}</td>
-              <td class="py-1 pl-2 text-right tabular-nums">{{ cell(row.future8) }}</td>
+              <td
+                class="py-1 px-2 text-right tabular-nums"
+                :class="row.explore ? 'cursor-help' : ''"
+                :title="namesTitle(row.explore_events)"
+              >{{ cell(row.explore) }}</td>
+              <td
+                class="py-1 px-2 text-right tabular-nums"
+                :class="row.challenge ? 'cursor-help' : ''"
+                :title="namesTitle(row.challenge_events)"
+              >{{ cell(row.challenge) }}</td>
+              <td
+                class="py-1 pl-2 text-right tabular-nums"
+                :class="row.future8 ? 'cursor-help' : ''"
+                :title="namesTitle(row.future8_events)"
+              >{{ cell(row.future8) }}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <div class="glass-card liquid-surface-inner overflow-auto">
-        <h3 class="glass-card__title">Challenge + Future 8+</h3>
-        <p class="text-xs text-[var(--color-text-muted)] mb-3">
-          Events mit beiden Programmen. Angemeldet von DRAHT-Kapazität.
-        </p>
-        <p v-if="dual.length === 0" class="text-sm text-[var(--color-text-subtle)]">
-          Keine Events mit Challenge und Future 8+.
-        </p>
-        <table v-else class="table-auto w-full text-sm border-collapse glass-list">
-          <thead>
-            <tr class="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
-              <th class="text-left font-semibold py-1.5 pr-3">Event</th>
-              <th class="text-left font-semibold py-1.5 px-2">Datum</th>
-              <th class="text-right font-semibold py-1.5 px-2">
-                <img
-                  :src="programLogoSrc('CHALLENGE')"
-                  :alt="programLogoAlt('CHALLENGE')"
-                  title="Challenge"
-                  class="inline-block h-6 w-6 object-contain"
-                />
-              </th>
-              <th class="text-right font-semibold py-1.5 pl-2">
-                <img
-                  :src="programLogoSrc('FUTURE_8')"
-                  :alt="programLogoAlt('FUTURE_8')"
-                  title="Future 8+"
-                  class="inline-block h-6 w-6 object-contain"
-                />
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="row in dual"
-              :key="row.event_id"
-              class="border-t border-[var(--color-border)] glass-table-row--hover"
-            >
-              <td class="py-1.5 pr-3">
-                <button
-                  type="button"
-                  class="text-left hover:text-[var(--color-accent)]"
-                  @click="openEvent(row)"
+      <div class="enrollments-stack">
+        <div class="glass-card liquid-surface-inner overflow-auto">
+          <h3 class="glass-card__title">Challenge + Future 8+</h3>
+          <p class="text-xs text-[var(--color-text-muted)] mb-3">
+            Events mit beiden Programmen. Angemeldet / DRAHT-Kapazität.
+          </p>
+          <p v-if="dual.length === 0" class="text-sm text-[var(--color-text-subtle)]">
+            Keine Events mit Challenge und Future 8+.
+          </p>
+          <table v-else class="table-auto w-full text-sm border-collapse glass-list">
+            <thead>
+              <tr class="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
+                <th class="text-left font-semibold py-1.5 pr-3">Event</th>
+                <th class="text-left font-semibold py-1.5 px-2">Datum</th>
+                <th class="text-right font-semibold py-1.5 px-2">
+                  <img
+                    :src="programLogoSrc('CHALLENGE')"
+                    :alt="programLogoAlt('CHALLENGE')"
+                    title="Challenge"
+                    class="inline-block h-6 w-6 object-contain"
+                  />
+                </th>
+                <th class="text-right font-semibold py-1.5 pl-2">
+                  <img
+                    :src="programLogoSrc('FUTURE_8')"
+                    :alt="programLogoAlt('FUTURE_8')"
+                    title="Future 8+"
+                    class="inline-block h-6 w-6 object-contain"
+                  />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in dual"
+                :key="row.event_id"
+                class="border-t border-[var(--color-border)] glass-table-row--hover"
+              >
+                <td class="py-1.5 pr-3">
+                  <button
+                    type="button"
+                    class="text-left hover:text-[var(--color-accent)]"
+                    @click="openEvent(row)"
+                  >
+                    {{ row.event_name }}
+                  </button>
+                </td>
+                <td class="py-1.5 px-2 whitespace-nowrap text-[var(--color-text-muted)]">
+                  {{ formatDateOnly(row.event_date) }}
+                </td>
+                <td
+                  class="py-1.5 px-2 text-right tabular-nums whitespace-nowrap"
+                  :class="overCapacity(row.challenge) ? 'text-red-700' : ''"
                 >
-                  {{ row.event_name }}
-                </button>
-              </td>
-              <td class="py-1.5 px-2 whitespace-nowrap text-[var(--color-text-muted)]">
-                {{ formatDateOnly(row.event_date) }}
-              </td>
-              <td
-                class="py-1.5 px-2 text-right tabular-nums whitespace-nowrap"
-                :class="overCapacity(row.challenge) ? 'text-red-700' : ''"
+                  {{ enrolledLabel(row.challenge) }}
+                </td>
+                <td
+                  class="py-1.5 pl-2 text-right tabular-nums whitespace-nowrap"
+                  :class="overCapacity(row.future8) ? 'text-red-700' : ''"
+                >
+                  {{ enrolledLabel(row.future8) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="glass-card liquid-surface-inner overflow-auto">
+          <h3 class="glass-card__title">Future 8+ allein</h3>
+          <p class="text-xs text-[var(--color-text-muted)] mb-3">
+            Events mit Future 8+, ohne Challenge. Angemeldet / DRAHT-Kapazität.
+          </p>
+          <p v-if="futureStandalone.length === 0" class="text-sm text-[var(--color-text-subtle)]">
+            Keine eigenständigen Future 8+-Events.
+          </p>
+          <table v-else class="table-auto w-full text-sm border-collapse glass-list">
+            <thead>
+              <tr class="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
+                <th class="text-left font-semibold py-1.5 pr-3">Event</th>
+                <th class="text-left font-semibold py-1.5 px-2">Datum</th>
+                <th class="text-right font-semibold py-1.5 pl-2">
+                  <img
+                    :src="programLogoSrc('FUTURE_8')"
+                    :alt="programLogoAlt('FUTURE_8')"
+                    title="Future 8+"
+                    class="inline-block h-6 w-6 object-contain"
+                  />
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in futureStandalone"
+                :key="row.event_id"
+                class="border-t border-[var(--color-border)] glass-table-row--hover"
               >
-                {{ enrolledLabel(row.challenge) }}
-              </td>
-              <td
-                class="py-1.5 pl-2 text-right tabular-nums whitespace-nowrap"
-                :class="overCapacity(row.future8) ? 'text-red-700' : ''"
-              >
-                {{ enrolledLabel(row.future8) }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                <td class="py-1.5 pr-3">
+                  <button
+                    type="button"
+                    class="text-left hover:text-[var(--color-accent)]"
+                    @click="openEvent(row)"
+                  >
+                    {{ row.event_name }}
+                  </button>
+                </td>
+                <td class="py-1.5 px-2 whitespace-nowrap text-[var(--color-text-muted)]">
+                  {{ formatDateOnly(row.event_date) }}
+                </td>
+                <td
+                  class="py-1.5 pl-2 text-right tabular-nums whitespace-nowrap"
+                  :class="overCapacity(row.future8) ? 'text-red-700' : ''"
+                >
+                  {{ enrolledLabel(row.future8) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -200,6 +274,13 @@ onMounted(() => {
   grid-template-columns: 1fr;
   gap: 1rem;
   align-items: start;
+}
+
+.enrollments-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
 }
 
 @media (min-width: 64rem) {
