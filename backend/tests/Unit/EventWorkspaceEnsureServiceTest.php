@@ -173,8 +173,6 @@ class EventWorkspaceEnsureServiceTest extends TestCase
             $table->string('name');
             $table->unsignedInteger('sequence')->default(0);
             $table->unsignedInteger('first_program')->nullable();
-            $table->string('differentiation_type')->nullable();
-            $table->text('differentiation_source')->nullable();
             $table->string('differentiation_parameter')->nullable();
             $table->boolean('staffable')->default(false);
             $table->string('group_label')->nullable();
@@ -261,8 +259,6 @@ class EventWorkspaceEnsureServiceTest extends TestCase
             'name' => 'Jury',
             'sequence' => 3,
             'first_program' => FirstProgram::CHALLENGE->value,
-            'differentiation_type' => 'number',
-            'differentiation_source' => 'select set_value from plan_param_value where parameter=50 and plan=[plan]',
             'differentiation_parameter' => 'lane',
             'staffable' => 1,
             'group_label' => 'Jury-Gruppe',

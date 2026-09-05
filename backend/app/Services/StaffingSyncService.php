@@ -9,6 +9,7 @@ use App\Models\MRole;
 use App\Models\MStaffingRule;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
+use App\Support\RoleDifferentiation;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -87,7 +88,11 @@ class StaffingSyncService
 
             $grouped = $role->group_label !== null && $role->group_label !== '';
             $expectedGroups = ($programOn && $grouped)
-                ? $this->expectedGroupCount($role, $planId)
+                ? RoleDifferentiation::optionCount(
+                    $role->first_program !== null ? (int) $role->first_program : null,
+                    $role->differentiation_parameter,
+                    $params,
+                )
                 : 0;
 
             $eventRole = EventStaffingRole::query()->updateOrCreate(
@@ -452,40 +457,6 @@ class StaffingSyncService
         }
 
         return $ids;
-    }
-
-    private function expectedGroupCount(MRole $role, int $planId): int
-    {
-        if ($role->group_label === null || $role->group_label === '') {
-            return 0;
-        }
-
-        if ($role->differentiation_type === 'number' && $role->differentiation_source) {
-            return max(0, $this->runDifferentiationCount($role->differentiation_source, $planId));
-        }
-
-        return 0;
-    }
-
-    private function runDifferentiationCount(string $source, int $planId): int
-    {
-        $sql = str_replace('[plan]', (string) $planId, $source);
-        try {
-            $row = DB::selectOne($sql);
-        } catch (\Throwable $e) {
-            Log::error('[staffing-sync] differentiation SQL failed: '.$e->getMessage(), [
-                'sql' => $sql,
-            ]);
-
-            return 0;
-        }
-
-        if (! $row) {
-            return 0;
-        }
-        $values = array_values((array) $row);
-
-        return (int) ($values[0] ?? 0);
     }
 
     /**

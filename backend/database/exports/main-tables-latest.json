@@ -3717,34 +3717,18 @@
     "m_parameter_condition": [],
     "m_role": [
         {
-            "id": 1,
-            "name": "Organisation",
-            "name_short": null,
-            "sequence": 9,
-            "first_program": 3,
-            "description": "K\u00fcmmert sich um alles, was Challenge ist",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 0,
-            "staffable": 0,
-            "group_label": null
-        },
-        {
             "id": 2,
             "name": "Moderation",
             "name_short": null,
             "sequence": 2,
             "first_program": null,
             "description": "Moderiert f\u00fcr Explore und Challenge",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 1,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 3,
@@ -3753,13 +3737,12 @@
             "sequence": 2,
             "first_program": 3,
             "description": "Nimmt als Challenge Team teil",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"c_teams\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "team",
             "preview_matrix": 1,
             "pdf_export": 1,
             "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 4,
@@ -3768,13 +3751,12 @@
             "sequence": 4,
             "first_program": 3,
             "description": "Bewertet die Challenge Teams",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"j_lanes\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
             "staffable": 1,
-            "group_label": "Jury-Gruppe"
+            "group_label": "Jury-Gruppe",
+            "public_plan": 1
         },
         {
             "id": 5,
@@ -3783,13 +3765,12 @@
             "sequence": 6,
             "first_program": 3,
             "description": "K\u00fcmmert sich um das Robot-Game der Challenge Teams",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
             "staffable": 1,
-            "group_label": "Tisch"
+            "group_label": "Tisch",
+            "public_plan": 1
         },
         {
             "id": 6,
@@ -3798,28 +3779,12 @@
             "sequence": 1,
             "first_program": 3,
             "description": "Interessiert sich f\u00fcr Challenge, macht aber nicht selber mit",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 0,
-            "group_label": null
-        },
-        {
-            "id": 7,
-            "name": "Organisation",
-            "name_short": null,
-            "sequence": 6,
-            "first_program": 2,
-            "description": "K\u00fcmmert sich um alles, was Explore ist",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 0,
-            "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 8,
@@ -3828,13 +3793,12 @@
             "sequence": 2,
             "first_program": 2,
             "description": "Nimmt als Explore Team teil",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"e_teams\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "team",
             "preview_matrix": 1,
             "pdf_export": 1,
             "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 9,
@@ -3843,13 +3807,12 @@
             "sequence": 4,
             "first_program": 2,
             "description": "Begutachtet und bewertet die Explore Teams",
-            "differentiation_type": "number",
-            "differentiation_source": "select sum(set_value) from plan_param_value as ppv join m_parameter on ppv.parameter=m_parameter.id where (m_parameter.name=\"e1_lanes\" or m_parameter.name=\"e2_lanes\") and ppv.plan=[plan]",
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
             "staffable": 1,
-            "group_label": "Gutachter:innengruppe"
+            "group_label": "Gutachter:innengruppe",
+            "public_plan": 1
         },
         {
             "id": 10,
@@ -3858,13 +3821,12 @@
             "sequence": 1,
             "first_program": 2,
             "description": "Interessiert sich f\u00fcr Explore, macht aber nicht selber mit",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 11,
@@ -3873,13 +3835,12 @@
             "sequence": 7,
             "first_program": 3,
             "description": "\u00dcberpr\u00fcft die Roboter und stellt sicher, dass sie regelkonform sind",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
             "staffable": 1,
-            "group_label": "Robot-Check"
+            "group_label": "Robot-Check",
+            "public_plan": 1
         },
         {
             "id": 12,
@@ -3888,13 +3849,12 @@
             "sequence": 5,
             "first_program": 2,
             "description": "Moderation f\u00fcr Explore",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
             "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 13,
@@ -3903,13 +3863,12 @@
             "sequence": 8,
             "first_program": 3,
             "description": "Moderation f\u00fcr Challenge",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
             "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 14,
@@ -3918,28 +3877,12 @@
             "sequence": 1,
             "first_program": null,
             "description": "Besucher f\u00fcr alle Angebote",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 0,
-            "group_label": null
-        },
-        {
-            "id": 15,
-            "name": "Organisation",
-            "name_short": null,
-            "sequence": 3,
-            "first_program": null,
-            "description": "Gesamt-Organisation",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 0,
-            "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 16,
@@ -3948,73 +3891,12 @@
             "sequence": 80,
             "first_program": 3,
             "description": "Leitet die Live Challenge",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"j_lanes\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
             "staffable": 0,
-            "group_label": null
-        },
-        {
-            "id": 17,
-            "name": "Gesamtüberblick",
-            "name_short": null,
-            "sequence": 99,
-            "first_program": 2,
-            "description": "Alle Explore-Aktivit\u00e4ten",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 1,
-            "staffable": 0,
-            "group_label": null
-        },
-        {
-            "id": 18,
-            "name": "Gesamtüberblick",
-            "name_short": null,
-            "sequence": 99,
-            "first_program": 3,
-            "description": "Alle Challenge-Aktivit\u00e4ten",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 1,
-            "staffable": 0,
-            "group_label": null
-        },
-        {
-            "id": 19,
-            "name": "Gesamtüberblick",
-            "name_short": null,
-            "sequence": 4,
-            "first_program": null,
-            "description": "Alle Aktivit\u00e4ten",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 0,
-            "staffable": 0,
-            "group_label": null
-        },
-        {
-            "id": 20,
-            "name": "Organisation",
-            "name_short": null,
-            "sequence": 8,
-            "first_program": 8,
-            "description": "K\u00fcmmert sich um alles, was Future 8+ ist",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 0,
-            "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 21,
@@ -4023,13 +3905,12 @@
             "sequence": 2,
             "first_program": 8,
             "description": "Nimmt als Future 8+ Team teil",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"f8_teams\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "team",
             "preview_matrix": 1,
             "pdf_export": 1,
             "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 22,
@@ -4038,13 +3919,12 @@
             "sequence": 4,
             "first_program": 8,
             "description": "Bewertet die Future 8+ Teams",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"f8_lanes\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
             "staffable": 1,
-            "group_label": "Jury-Gruppe"
+            "group_label": "Jury-Gruppe",
+            "public_plan": 1
         },
         {
             "id": 23,
@@ -4053,13 +3933,12 @@
             "sequence": 6,
             "first_program": 8,
             "description": "K\u00fcmmert sich um das Game der Future 8+ Teams",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"f8_fields\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
             "staffable": 1,
-            "group_label": "Feld"
+            "group_label": "Feld",
+            "public_plan": 1
         },
         {
             "id": 24,
@@ -4068,13 +3947,12 @@
             "sequence": 1,
             "first_program": 8,
             "description": "Interessiert sich f\u00fcr Future 8+, macht aber nicht selber mit",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 25,
@@ -4083,28 +3961,12 @@
             "sequence": 7,
             "first_program": 8,
             "description": "Moderation f\u00fcr Future 8+",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
             "staffable": 0,
-            "group_label": null
-        },
-        {
-            "id": 26,
-            "name": "Gesamtüberblick",
-            "name_short": null,
-            "sequence": 99,
-            "first_program": 8,
-            "description": "Alle Future 8+-Aktivit\u00e4ten",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 1,
-            "staffable": 0,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 1
         },
         {
             "id": 27,
@@ -4113,13 +3975,12 @@
             "sequence": 3,
             "first_program": 3,
             "description": "Leitet die Challenge Jury",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 1,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 0
         },
         {
             "id": 28,
@@ -4128,13 +3989,12 @@
             "sequence": 5,
             "first_program": 3,
             "description": "Sorgf daf\u00fcr, dass das Robot-Game l\u00e4uft",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 1,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 0
         },
         {
             "id": 29,
@@ -4143,13 +4003,12 @@
             "sequence": 3,
             "first_program": 8,
             "description": "F8+ Jury Head",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 1,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 0
         },
         {
             "id": 30,
@@ -4158,13 +4017,12 @@
             "sequence": 5,
             "first_program": 8,
             "description": "F8+ Schiri Head",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 1,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 0
         },
         {
             "id": 31,
@@ -4173,13 +4031,12 @@
             "sequence": 0,
             "first_program": null,
             "description": "Du bist schuld!",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 1,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 0
         },
         {
             "id": 32,
@@ -4188,13 +4045,12 @@
             "sequence": 3,
             "first_program": 2,
             "description": "E Chef",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 1,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 0
         },
         {
             "id": 33,
@@ -4203,13 +4059,12 @@
             "sequence": 20,
             "first_program": null,
             "description": "Macht coole Mucke",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
             "staffable": 1,
-            "group_label": null
+            "group_label": null,
+            "public_plan": 0
         }
     ],
     "m_room_type": [
@@ -6306,19 +6161,9 @@
     ],
     "m_visibility": [
         {
-            "id": 875,
-            "activity_type_detail": 1,
-            "role": 1
-        },
-        {
             "id": 702,
             "activity_type_detail": 1,
             "role": 2
-        },
-        {
-            "id": 871,
-            "activity_type_detail": 1,
-            "role": 7
         },
         {
             "id": 8,
@@ -6341,44 +6186,9 @@
             "role": 14
         },
         {
-            "id": 703,
-            "activity_type_detail": 1,
-            "role": 15
-        },
-        {
-            "id": 593,
-            "activity_type_detail": 1,
-            "role": 17
-        },
-        {
-            "id": 632,
-            "activity_type_detail": 1,
-            "role": 19
-        },
-        {
-            "id": 872,
-            "activity_type_detail": 2,
-            "role": 7
-        },
-        {
             "id": 19,
             "activity_type_detail": 2,
             "role": 9
-        },
-        {
-            "id": 596,
-            "activity_type_detail": 2,
-            "role": 17
-        },
-        {
-            "id": 634,
-            "activity_type_detail": 2,
-            "role": 19
-        },
-        {
-            "id": 27,
-            "activity_type_detail": 3,
-            "role": 7
         },
         {
             "id": 29,
@@ -6386,29 +6196,9 @@
             "role": 9
         },
         {
-            "id": 450,
-            "activity_type_detail": 3,
-            "role": 15
-        },
-        {
-            "id": 595,
-            "activity_type_detail": 3,
-            "role": 17
-        },
-        {
-            "id": 633,
-            "activity_type_detail": 3,
-            "role": 19
-        },
-        {
             "id": 448,
             "activity_type_detail": 4,
             "role": 2
-        },
-        {
-            "id": 390,
-            "activity_type_detail": 4,
-            "role": 7
         },
         {
             "id": 38,
@@ -6436,29 +6226,9 @@
             "role": 14
         },
         {
-            "id": 449,
-            "activity_type_detail": 4,
-            "role": 15
-        },
-        {
-            "id": 829,
-            "activity_type_detail": 4,
-            "role": 17
-        },
-        {
-            "id": 631,
-            "activity_type_detail": 4,
-            "role": 19
-        },
-        {
             "id": 453,
             "activity_type_detail": 5,
             "role": 2
-        },
-        {
-            "id": 47,
-            "activity_type_detail": 5,
-            "role": 7
         },
         {
             "id": 48,
@@ -6484,26 +6254,6 @@
             "id": 454,
             "activity_type_detail": 5,
             "role": 14
-        },
-        {
-            "id": 452,
-            "activity_type_detail": 5,
-            "role": 15
-        },
-        {
-            "id": 592,
-            "activity_type_detail": 5,
-            "role": 17
-        },
-        {
-            "id": 636,
-            "activity_type_detail": 5,
-            "role": 19
-        },
-        {
-            "id": 51,
-            "activity_type_detail": 6,
-            "role": 1
         },
         {
             "id": 52,
@@ -6546,29 +6296,9 @@
             "role": 14
         },
         {
-            "id": 418,
-            "activity_type_detail": 6,
-            "role": 15
-        },
-        {
             "id": 857,
             "activity_type_detail": 6,
             "role": 16
-        },
-        {
-            "id": 510,
-            "activity_type_detail": 6,
-            "role": 18
-        },
-        {
-            "id": 601,
-            "activity_type_detail": 6,
-            "role": 19
-        },
-        {
-            "id": 61,
-            "activity_type_detail": 7,
-            "role": 1
         },
         {
             "id": 62,
@@ -6594,11 +6324,6 @@
             "id": 66,
             "activity_type_detail": 7,
             "role": 6
-        },
-        {
-            "id": 67,
-            "activity_type_detail": 7,
-            "role": 7
         },
         {
             "id": 68,
@@ -6636,34 +6361,9 @@
             "role": 14
         },
         {
-            "id": 401,
-            "activity_type_detail": 7,
-            "role": 15
-        },
-        {
             "id": 491,
             "activity_type_detail": 7,
             "role": 16
-        },
-        {
-            "id": 587,
-            "activity_type_detail": 7,
-            "role": 17
-        },
-        {
-            "id": 542,
-            "activity_type_detail": 7,
-            "role": 18
-        },
-        {
-            "id": 643,
-            "activity_type_detail": 7,
-            "role": 19
-        },
-        {
-            "id": 380,
-            "activity_type_detail": 8,
-            "role": 1
         },
         {
             "id": 72,
@@ -6701,26 +6401,6 @@
             "role": 14
         },
         {
-            "id": 438,
-            "activity_type_detail": 8,
-            "role": 15
-        },
-        {
-            "id": 534,
-            "activity_type_detail": 8,
-            "role": 18
-        },
-        {
-            "id": 626,
-            "activity_type_detail": 8,
-            "role": 19
-        },
-        {
-            "id": 386,
-            "activity_type_detail": 9,
-            "role": 1
-        },
-        {
             "id": 81,
             "activity_type_detail": 9,
             "role": 2
@@ -6754,26 +6434,6 @@
             "id": 441,
             "activity_type_detail": 9,
             "role": 14
-        },
-        {
-            "id": 442,
-            "activity_type_detail": 9,
-            "role": 15
-        },
-        {
-            "id": 536,
-            "activity_type_detail": 9,
-            "role": 18
-        },
-        {
-            "id": 627,
-            "activity_type_detail": 9,
-            "role": 19
-        },
-        {
-            "id": 387,
-            "activity_type_detail": 10,
-            "role": 1
         },
         {
             "id": 91,
@@ -6811,26 +6471,6 @@
             "role": 14
         },
         {
-            "id": 444,
-            "activity_type_detail": 10,
-            "role": 15
-        },
-        {
-            "id": 537,
-            "activity_type_detail": 10,
-            "role": 18
-        },
-        {
-            "id": 628,
-            "activity_type_detail": 10,
-            "role": 19
-        },
-        {
-            "id": 388,
-            "activity_type_detail": 11,
-            "role": 1
-        },
-        {
             "id": 101,
             "activity_type_detail": 11,
             "role": 2
@@ -6864,26 +6504,6 @@
             "id": 445,
             "activity_type_detail": 11,
             "role": 14
-        },
-        {
-            "id": 446,
-            "activity_type_detail": 11,
-            "role": 15
-        },
-        {
-            "id": 538,
-            "activity_type_detail": 11,
-            "role": 18
-        },
-        {
-            "id": 629,
-            "activity_type_detail": 11,
-            "role": 19
-        },
-        {
-            "id": 382,
-            "activity_type_detail": 12,
-            "role": 1
         },
         {
             "id": 111,
@@ -6921,26 +6541,6 @@
             "role": 14
         },
         {
-            "id": 440,
-            "activity_type_detail": 12,
-            "role": 15
-        },
-        {
-            "id": 535,
-            "activity_type_detail": 12,
-            "role": 18
-        },
-        {
-            "id": 625,
-            "activity_type_detail": 12,
-            "role": 19
-        },
-        {
-            "id": 369,
-            "activity_type_detail": 13,
-            "role": 1
-        },
-        {
             "id": 121,
             "activity_type_detail": 13,
             "role": 2
@@ -6974,26 +6574,6 @@
             "id": 468,
             "activity_type_detail": 13,
             "role": 14
-        },
-        {
-            "id": 424,
-            "activity_type_detail": 13,
-            "role": 15
-        },
-        {
-            "id": 532,
-            "activity_type_detail": 13,
-            "role": 18
-        },
-        {
-            "id": 624,
-            "activity_type_detail": 13,
-            "role": 19
-        },
-        {
-            "id": 363,
-            "activity_type_detail": 14,
-            "role": 1
         },
         {
             "id": 131,
@@ -7036,24 +6616,9 @@
             "role": 14
         },
         {
-            "id": 420,
-            "activity_type_detail": 14,
-            "role": 15
-        },
-        {
             "id": 858,
             "activity_type_detail": 14,
             "role": 16
-        },
-        {
-            "id": 531,
-            "activity_type_detail": 14,
-            "role": 18
-        },
-        {
-            "id": 623,
-            "activity_type_detail": 14,
-            "role": 19
         },
         {
             "id": 141,
@@ -7086,16 +6651,6 @@
             "role": 14
         },
         {
-            "id": 533,
-            "activity_type_detail": 15,
-            "role": 18
-        },
-        {
-            "id": 621,
-            "activity_type_detail": 15,
-            "role": 19
-        },
-        {
             "id": 152,
             "activity_type_detail": 16,
             "role": 3
@@ -7104,21 +6659,6 @@
             "id": 471,
             "activity_type_detail": 16,
             "role": 11
-        },
-        {
-            "id": 529,
-            "activity_type_detail": 16,
-            "role": 18
-        },
-        {
-            "id": 619,
-            "activity_type_detail": 16,
-            "role": 19
-        },
-        {
-            "id": 870,
-            "activity_type_detail": 17,
-            "role": 1
         },
         {
             "id": 179,
@@ -7141,64 +6681,14 @@
             "role": 14
         },
         {
-            "id": 516,
-            "activity_type_detail": 17,
-            "role": 18
-        },
-        {
-            "id": 607,
-            "activity_type_detail": 17,
-            "role": 19
-        },
-        {
-            "id": 831,
-            "activity_type_detail": 18,
-            "role": 1
-        },
-        {
             "id": 191,
             "activity_type_detail": 18,
             "role": 4
         },
         {
-            "id": 515,
-            "activity_type_detail": 18,
-            "role": 18
-        },
-        {
-            "id": 606,
-            "activity_type_detail": 18,
-            "role": 19
-        },
-        {
-            "id": 199,
-            "activity_type_detail": 19,
-            "role": 1
-        },
-        {
             "id": 460,
             "activity_type_detail": 19,
             "role": 4
-        },
-        {
-            "id": 428,
-            "activity_type_detail": 19,
-            "role": 15
-        },
-        {
-            "id": 514,
-            "activity_type_detail": 19,
-            "role": 18
-        },
-        {
-            "id": 605,
-            "activity_type_detail": 19,
-            "role": 19
-        },
-        {
-            "id": 371,
-            "activity_type_detail": 20,
-            "role": 1
         },
         {
             "id": 869,
@@ -7219,26 +6709,6 @@
             "id": 421,
             "activity_type_detail": 20,
             "role": 14
-        },
-        {
-            "id": 423,
-            "activity_type_detail": 20,
-            "role": 15
-        },
-        {
-            "id": 513,
-            "activity_type_detail": 20,
-            "role": 18
-        },
-        {
-            "id": 604,
-            "activity_type_detail": 20,
-            "role": 19
-        },
-        {
-            "id": 374,
-            "activity_type_detail": 21,
-            "role": 1
         },
         {
             "id": 431,
@@ -7281,26 +6751,6 @@
             "role": 14
         },
         {
-            "id": 429,
-            "activity_type_detail": 21,
-            "role": 15
-        },
-        {
-            "id": 522,
-            "activity_type_detail": 21,
-            "role": 18
-        },
-        {
-            "id": 613,
-            "activity_type_detail": 21,
-            "role": 19
-        },
-        {
-            "id": 377,
-            "activity_type_detail": 32,
-            "role": 1
-        },
-        {
             "id": 433,
             "activity_type_detail": 32,
             "role": 2
@@ -7341,29 +6791,9 @@
             "role": 14
         },
         {
-            "id": 358,
-            "activity_type_detail": 32,
-            "role": 15
-        },
-        {
             "id": 859,
             "activity_type_detail": 32,
             "role": 16
-        },
-        {
-            "id": 523,
-            "activity_type_detail": 32,
-            "role": 18
-        },
-        {
-            "id": 614,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 367,
-            "activity_type_detail": 33,
-            "role": 1
         },
         {
             "id": 425,
@@ -7401,29 +6831,9 @@
             "role": 14
         },
         {
-            "id": 427,
-            "activity_type_detail": 33,
-            "role": 15
-        },
-        {
             "id": 890,
             "activity_type_detail": 33,
             "role": 16
-        },
-        {
-            "id": 511,
-            "activity_type_detail": 33,
-            "role": 18
-        },
-        {
-            "id": 602,
-            "activity_type_detail": 33,
-            "role": 19
-        },
-        {
-            "id": 408,
-            "activity_type_detail": 34,
-            "role": 1
         },
         {
             "id": 415,
@@ -7449,11 +6859,6 @@
             "id": 402,
             "activity_type_detail": 34,
             "role": 6
-        },
-        {
-            "id": 413,
-            "activity_type_detail": 34,
-            "role": 7
         },
         {
             "id": 410,
@@ -7491,34 +6896,9 @@
             "role": 14
         },
         {
-            "id": 416,
-            "activity_type_detail": 34,
-            "role": 15
-        },
-        {
             "id": 543,
             "activity_type_detail": 34,
             "role": 16
-        },
-        {
-            "id": 586,
-            "activity_type_detail": 34,
-            "role": 17
-        },
-        {
-            "id": 541,
-            "activity_type_detail": 34,
-            "role": 18
-        },
-        {
-            "id": 644,
-            "activity_type_detail": 34,
-            "role": 19
-        },
-        {
-            "id": 359,
-            "activity_type_detail": 35,
-            "role": 1
         },
         {
             "id": 341,
@@ -7526,49 +6906,9 @@
             "role": 3
         },
         {
-            "id": 805,
-            "activity_type_detail": 35,
-            "role": 15
-        },
-        {
-            "id": 509,
-            "activity_type_detail": 35,
-            "role": 18
-        },
-        {
-            "id": 600,
-            "activity_type_detail": 35,
-            "role": 19
-        },
-        {
-            "id": 370,
-            "activity_type_detail": 36,
-            "role": 1
-        },
-        {
             "id": 345,
             "activity_type_detail": 36,
             "role": 4
-        },
-        {
-            "id": 806,
-            "activity_type_detail": 36,
-            "role": 15
-        },
-        {
-            "id": 512,
-            "activity_type_detail": 36,
-            "role": 18
-        },
-        {
-            "id": 603,
-            "activity_type_detail": 36,
-            "role": 19
-        },
-        {
-            "id": 356,
-            "activity_type_detail": 37,
-            "role": 1
         },
         {
             "id": 351,
@@ -7581,49 +6921,9 @@
             "role": 11
         },
         {
-            "id": 436,
-            "activity_type_detail": 37,
-            "role": 15
-        },
-        {
-            "id": 539,
-            "activity_type_detail": 37,
-            "role": 18
-        },
-        {
-            "id": 630,
-            "activity_type_detail": 37,
-            "role": 19
-        },
-        {
-            "id": 391,
-            "activity_type_detail": 38,
-            "role": 7
-        },
-        {
             "id": 339,
             "activity_type_detail": 38,
             "role": 8
-        },
-        {
-            "id": 451,
-            "activity_type_detail": 38,
-            "role": 15
-        },
-        {
-            "id": 597,
-            "activity_type_detail": 38,
-            "role": 17
-        },
-        {
-            "id": 635,
-            "activity_type_detail": 38,
-            "role": 19
-        },
-        {
-            "id": 393,
-            "activity_type_detail": 39,
-            "role": 7
         },
         {
             "id": 338,
@@ -7631,49 +6931,9 @@
             "role": 9
         },
         {
-            "id": 455,
-            "activity_type_detail": 39,
-            "role": 15
-        },
-        {
-            "id": 598,
-            "activity_type_detail": 39,
-            "role": 17
-        },
-        {
-            "id": 637,
-            "activity_type_detail": 39,
-            "role": 19
-        },
-        {
-            "id": 489,
-            "activity_type_detail": 40,
-            "role": 1
-        },
-        {
-            "id": 807,
-            "activity_type_detail": 40,
-            "role": 15
-        },
-        {
             "id": 481,
             "activity_type_detail": 40,
             "role": 16
-        },
-        {
-            "id": 518,
-            "activity_type_detail": 40,
-            "role": 18
-        },
-        {
-            "id": 609,
-            "activity_type_detail": 40,
-            "role": 19
-        },
-        {
-            "id": 487,
-            "activity_type_detail": 41,
-            "role": 1
         },
         {
             "id": 486,
@@ -7691,29 +6951,9 @@
             "role": 14
         },
         {
-            "id": 808,
-            "activity_type_detail": 41,
-            "role": 15
-        },
-        {
             "id": 484,
             "activity_type_detail": 41,
             "role": 16
-        },
-        {
-            "id": 521,
-            "activity_type_detail": 41,
-            "role": 18
-        },
-        {
-            "id": 612,
-            "activity_type_detail": 41,
-            "role": 19
-        },
-        {
-            "id": 873,
-            "activity_type_detail": 42,
-            "role": 1
         },
         {
             "id": 485,
@@ -7736,69 +6976,14 @@
             "role": 16
         },
         {
-            "id": 519,
-            "activity_type_detail": 42,
-            "role": 18
-        },
-        {
-            "id": 610,
-            "activity_type_detail": 42,
-            "role": 19
-        },
-        {
-            "id": 874,
-            "activity_type_detail": 43,
-            "role": 1
-        },
-        {
-            "id": 810,
-            "activity_type_detail": 43,
-            "role": 15
-        },
-        {
             "id": 483,
             "activity_type_detail": 43,
             "role": 16
         },
         {
-            "id": 520,
-            "activity_type_detail": 43,
-            "role": 18
-        },
-        {
-            "id": 611,
-            "activity_type_detail": 43,
-            "role": 19
-        },
-        {
-            "id": 834,
-            "activity_type_detail": 44,
-            "role": 1
-        },
-        {
-            "id": 835,
-            "activity_type_detail": 44,
-            "role": 15
-        },
-        {
             "id": 480,
             "activity_type_detail": 44,
             "role": 16
-        },
-        {
-            "id": 517,
-            "activity_type_detail": 44,
-            "role": 18
-        },
-        {
-            "id": 608,
-            "activity_type_detail": 44,
-            "role": 19
-        },
-        {
-            "id": 504,
-            "activity_type_detail": 45,
-            "role": 1
         },
         {
             "id": 507,
@@ -7836,26 +7021,6 @@
             "role": 14
         },
         {
-            "id": 508,
-            "activity_type_detail": 45,
-            "role": 15
-        },
-        {
-            "id": 530,
-            "activity_type_detail": 45,
-            "role": 18
-        },
-        {
-            "id": 622,
-            "activity_type_detail": 45,
-            "role": 19
-        },
-        {
-            "id": 813,
-            "activity_type_detail": 46,
-            "role": 1
-        },
-        {
             "id": 645,
             "activity_type_detail": 46,
             "role": 5
@@ -7864,26 +7029,6 @@
             "id": 646,
             "activity_type_detail": 46,
             "role": 11
-        },
-        {
-            "id": 814,
-            "activity_type_detail": 46,
-            "role": 15
-        },
-        {
-            "id": 785,
-            "activity_type_detail": 46,
-            "role": 18
-        },
-        {
-            "id": 786,
-            "activity_type_detail": 46,
-            "role": 19
-        },
-        {
-            "id": 743,
-            "activity_type_detail": 50,
-            "role": 1
         },
         {
             "id": 752,
@@ -7909,11 +7054,6 @@
             "id": 730,
             "activity_type_detail": 50,
             "role": 6
-        },
-        {
-            "id": 749,
-            "activity_type_detail": 50,
-            "role": 7
         },
         {
             "id": 746,
@@ -7951,39 +7091,14 @@
             "role": 14
         },
         {
-            "id": 753,
-            "activity_type_detail": 50,
-            "role": 15
-        },
-        {
             "id": 741,
             "activity_type_detail": 50,
             "role": 16
         },
         {
-            "id": 750,
-            "activity_type_detail": 50,
-            "role": 17
-        },
-        {
-            "id": 744,
-            "activity_type_detail": 50,
-            "role": 18
-        },
-        {
-            "id": 754,
-            "activity_type_detail": 50,
-            "role": 19
-        },
-        {
             "id": 727,
             "activity_type_detail": 51,
             "role": 2
-        },
-        {
-            "id": 738,
-            "activity_type_detail": 51,
-            "role": 7
         },
         {
             "id": 735,
@@ -8009,26 +7124,6 @@
             "id": 726,
             "activity_type_detail": 51,
             "role": 14
-        },
-        {
-            "id": 728,
-            "activity_type_detail": 51,
-            "role": 15
-        },
-        {
-            "id": 739,
-            "activity_type_detail": 51,
-            "role": 17
-        },
-        {
-            "id": 729,
-            "activity_type_detail": 51,
-            "role": 19
-        },
-        {
-            "id": 705,
-            "activity_type_detail": 52,
-            "role": 1
         },
         {
             "id": 715,
@@ -8071,29 +7166,9 @@
             "role": 14
         },
         {
-            "id": 716,
-            "activity_type_detail": 52,
-            "role": 15
-        },
-        {
             "id": 712,
             "activity_type_detail": 52,
             "role": 16
-        },
-        {
-            "id": 706,
-            "activity_type_detail": 52,
-            "role": 18
-        },
-        {
-            "id": 717,
-            "activity_type_detail": 52,
-            "role": 19
-        },
-        {
-            "id": 766,
-            "activity_type_detail": 54,
-            "role": 1
         },
         {
             "id": 769,
@@ -8131,29 +7206,9 @@
             "role": 14
         },
         {
-            "id": 770,
-            "activity_type_detail": 54,
-            "role": 15
-        },
-        {
             "id": 764,
             "activity_type_detail": 54,
             "role": 16
-        },
-        {
-            "id": 767,
-            "activity_type_detail": 54,
-            "role": 18
-        },
-        {
-            "id": 771,
-            "activity_type_detail": 54,
-            "role": 19
-        },
-        {
-            "id": 788,
-            "activity_type_detail": 55,
-            "role": 1
         },
         {
             "id": 787,
@@ -8161,29 +7216,9 @@
             "role": 4
         },
         {
-            "id": 791,
-            "activity_type_detail": 55,
-            "role": 15
-        },
-        {
-            "id": 789,
-            "activity_type_detail": 55,
-            "role": 18
-        },
-        {
-            "id": 790,
-            "activity_type_detail": 55,
-            "role": 19
-        },
-        {
             "id": 822,
             "activity_type_detail": 56,
             "role": 2
-        },
-        {
-            "id": 819,
-            "activity_type_detail": 56,
-            "role": 7
         },
         {
             "id": 816,
@@ -8209,26 +7244,6 @@
             "id": 821,
             "activity_type_detail": 56,
             "role": 14
-        },
-        {
-            "id": 823,
-            "activity_type_detail": 56,
-            "role": 15
-        },
-        {
-            "id": 820,
-            "activity_type_detail": 56,
-            "role": 17
-        },
-        {
-            "id": 824,
-            "activity_type_detail": 56,
-            "role": 19
-        },
-        {
-            "id": 842,
-            "activity_type_detail": 59,
-            "role": 1
         },
         {
             "id": 851,
@@ -8261,29 +7276,9 @@
             "role": 13
         },
         {
-            "id": 853,
-            "activity_type_detail": 59,
-            "role": 15
-        },
-        {
             "id": 840,
             "activity_type_detail": 59,
             "role": 16
-        },
-        {
-            "id": 843,
-            "activity_type_detail": 59,
-            "role": 18
-        },
-        {
-            "id": 855,
-            "activity_type_detail": 59,
-            "role": 19
-        },
-        {
-            "id": 849,
-            "activity_type_detail": 60,
-            "role": 1
         },
         {
             "id": 852,
@@ -8311,24 +7306,9 @@
             "role": 13
         },
         {
-            "id": 854,
-            "activity_type_detail": 60,
-            "role": 15
-        },
-        {
             "id": 847,
             "activity_type_detail": 60,
             "role": 16
-        },
-        {
-            "id": 850,
-            "activity_type_detail": 60,
-            "role": 18
-        },
-        {
-            "id": 856,
-            "activity_type_detail": 60,
-            "role": 19
         },
         {
             "id": 866,
@@ -8346,29 +7326,9 @@
             "role": 14
         },
         {
-            "id": 863,
-            "activity_type_detail": 62,
-            "role": 17
-        },
-        {
-            "id": 865,
-            "activity_type_detail": 62,
-            "role": 19
-        },
-        {
-            "id": 884,
-            "activity_type_detail": 63,
-            "role": 1
-        },
-        {
             "id": 883,
             "activity_type_detail": 63,
             "role": 3
-        },
-        {
-            "id": 882,
-            "activity_type_detail": 63,
-            "role": 7
         },
         {
             "id": 881,
@@ -8376,39 +7336,14 @@
             "role": 8
         },
         {
-            "id": 885,
-            "activity_type_detail": 63,
-            "role": 15
-        },
-        {
-            "id": 880,
-            "activity_type_detail": 64,
-            "role": 7
-        },
-        {
             "id": 879,
             "activity_type_detail": 64,
             "role": 8
         },
         {
-            "id": 889,
-            "activity_type_detail": 64,
-            "role": 15
-        },
-        {
-            "id": 887,
-            "activity_type_detail": 65,
-            "role": 1
-        },
-        {
             "id": 886,
             "activity_type_detail": 65,
             "role": 3
-        },
-        {
-            "id": 888,
-            "activity_type_detail": 65,
-            "role": 15
         },
         {
             "id": 903,
@@ -8419,21 +7354,6 @@
             "id": 908,
             "activity_type_detail": 66,
             "role": 14
-        },
-        {
-            "id": 909,
-            "activity_type_detail": 66,
-            "role": 15
-        },
-        {
-            "id": 911,
-            "activity_type_detail": 66,
-            "role": 19
-        },
-        {
-            "id": 902,
-            "activity_type_detail": 66,
-            "role": 20
         },
         {
             "id": 904,
@@ -8456,11 +7376,6 @@
             "role": 25
         },
         {
-            "id": 910,
-            "activity_type_detail": 66,
-            "role": 26
-        },
-        {
             "id": 913,
             "activity_type_detail": 67,
             "role": 2
@@ -8469,21 +7384,6 @@
             "id": 918,
             "activity_type_detail": 67,
             "role": 14
-        },
-        {
-            "id": 919,
-            "activity_type_detail": 67,
-            "role": 15
-        },
-        {
-            "id": 921,
-            "activity_type_detail": 67,
-            "role": 19
-        },
-        {
-            "id": 912,
-            "activity_type_detail": 67,
-            "role": 20
         },
         {
             "id": 914,
@@ -8506,11 +7406,6 @@
             "role": 25
         },
         {
-            "id": 920,
-            "activity_type_detail": 67,
-            "role": 26
-        },
-        {
             "id": 923,
             "activity_type_detail": 68,
             "role": 2
@@ -8519,21 +7414,6 @@
             "id": 928,
             "activity_type_detail": 68,
             "role": 14
-        },
-        {
-            "id": 929,
-            "activity_type_detail": 68,
-            "role": 15
-        },
-        {
-            "id": 931,
-            "activity_type_detail": 68,
-            "role": 19
-        },
-        {
-            "id": 922,
-            "activity_type_detail": 68,
-            "role": 20
         },
         {
             "id": 924,
@@ -8556,11 +7436,6 @@
             "role": 25
         },
         {
-            "id": 930,
-            "activity_type_detail": 68,
-            "role": 26
-        },
-        {
             "id": 933,
             "activity_type_detail": 69,
             "role": 2
@@ -8569,21 +7444,6 @@
             "id": 938,
             "activity_type_detail": 69,
             "role": 14
-        },
-        {
-            "id": 939,
-            "activity_type_detail": 69,
-            "role": 15
-        },
-        {
-            "id": 941,
-            "activity_type_detail": 69,
-            "role": 19
-        },
-        {
-            "id": 932,
-            "activity_type_detail": 69,
-            "role": 20
         },
         {
             "id": 934,
@@ -8606,11 +7466,6 @@
             "role": 25
         },
         {
-            "id": 940,
-            "activity_type_detail": 69,
-            "role": 26
-        },
-        {
             "id": 1025,
             "activity_type_detail": 70,
             "role": 2
@@ -8619,21 +7474,6 @@
             "id": 1030,
             "activity_type_detail": 70,
             "role": 14
-        },
-        {
-            "id": 1031,
-            "activity_type_detail": 70,
-            "role": 15
-        },
-        {
-            "id": 1033,
-            "activity_type_detail": 70,
-            "role": 19
-        },
-        {
-            "id": 1024,
-            "activity_type_detail": 70,
-            "role": 20
         },
         {
             "id": 1026,
@@ -8656,11 +7496,6 @@
             "role": 25
         },
         {
-            "id": 1032,
-            "activity_type_detail": 70,
-            "role": 26
-        },
-        {
             "id": 1035,
             "activity_type_detail": 71,
             "role": 2
@@ -8669,21 +7504,6 @@
             "id": 1040,
             "activity_type_detail": 71,
             "role": 14
-        },
-        {
-            "id": 1041,
-            "activity_type_detail": 71,
-            "role": 15
-        },
-        {
-            "id": 1043,
-            "activity_type_detail": 71,
-            "role": 19
-        },
-        {
-            "id": 1034,
-            "activity_type_detail": 71,
-            "role": 20
         },
         {
             "id": 1036,
@@ -8706,11 +7526,6 @@
             "role": 25
         },
         {
-            "id": 1042,
-            "activity_type_detail": 71,
-            "role": 26
-        },
-        {
             "id": 986,
             "activity_type_detail": 72,
             "role": 2
@@ -8719,21 +7534,6 @@
             "id": 991,
             "activity_type_detail": 72,
             "role": 14
-        },
-        {
-            "id": 992,
-            "activity_type_detail": 72,
-            "role": 15
-        },
-        {
-            "id": 994,
-            "activity_type_detail": 72,
-            "role": 19
-        },
-        {
-            "id": 985,
-            "activity_type_detail": 72,
-            "role": 20
         },
         {
             "id": 987,
@@ -8756,11 +7556,6 @@
             "role": 25
         },
         {
-            "id": 993,
-            "activity_type_detail": 72,
-            "role": 26
-        },
-        {
             "id": 892,
             "activity_type_detail": 73,
             "role": 2
@@ -8769,21 +7564,6 @@
             "id": 898,
             "activity_type_detail": 73,
             "role": 14
-        },
-        {
-            "id": 899,
-            "activity_type_detail": 73,
-            "role": 15
-        },
-        {
-            "id": 901,
-            "activity_type_detail": 73,
-            "role": 19
-        },
-        {
-            "id": 891,
-            "activity_type_detail": 73,
-            "role": 20
         },
         {
             "id": 893,
@@ -8811,11 +7591,6 @@
             "role": 25
         },
         {
-            "id": 900,
-            "activity_type_detail": 73,
-            "role": 26
-        },
-        {
             "id": 942,
             "activity_type_detail": 74,
             "role": 2
@@ -8824,11 +7599,6 @@
             "id": 947,
             "activity_type_detail": 74,
             "role": 14
-        },
-        {
-            "id": 949,
-            "activity_type_detail": 74,
-            "role": 19
         },
         {
             "id": 943,
@@ -8851,24 +7621,9 @@
             "role": 25
         },
         {
-            "id": 948,
-            "activity_type_detail": 74,
-            "role": 26
-        },
-        {
             "id": 954,
             "activity_type_detail": 75,
             "role": 14
-        },
-        {
-            "id": 956,
-            "activity_type_detail": 75,
-            "role": 19
-        },
-        {
-            "id": 950,
-            "activity_type_detail": 75,
-            "role": 20
         },
         {
             "id": 951,
@@ -8886,44 +7641,9 @@
             "role": 24
         },
         {
-            "id": 955,
-            "activity_type_detail": 75,
-            "role": 26
-        },
-        {
-            "id": 960,
-            "activity_type_detail": 76,
-            "role": 19
-        },
-        {
-            "id": 957,
-            "activity_type_detail": 76,
-            "role": 20
-        },
-        {
             "id": 958,
             "activity_type_detail": 76,
             "role": 22
-        },
-        {
-            "id": 959,
-            "activity_type_detail": 76,
-            "role": 26
-        },
-        {
-            "id": 963,
-            "activity_type_detail": 77,
-            "role": 15
-        },
-        {
-            "id": 965,
-            "activity_type_detail": 77,
-            "role": 19
-        },
-        {
-            "id": 961,
-            "activity_type_detail": 77,
-            "role": 20
         },
         {
             "id": 962,
@@ -8931,29 +7651,9 @@
             "role": 22
         },
         {
-            "id": 964,
-            "activity_type_detail": 77,
-            "role": 26
-        },
-        {
             "id": 970,
             "activity_type_detail": 78,
             "role": 14
-        },
-        {
-            "id": 971,
-            "activity_type_detail": 78,
-            "role": 15
-        },
-        {
-            "id": 973,
-            "activity_type_detail": 78,
-            "role": 19
-        },
-        {
-            "id": 966,
-            "activity_type_detail": 78,
-            "role": 20
         },
         {
             "id": 967,
@@ -8971,11 +7671,6 @@
             "role": 24
         },
         {
-            "id": 972,
-            "activity_type_detail": 78,
-            "role": 26
-        },
-        {
             "id": 975,
             "activity_type_detail": 79,
             "role": 2
@@ -8984,21 +7679,6 @@
             "id": 981,
             "activity_type_detail": 79,
             "role": 14
-        },
-        {
-            "id": 982,
-            "activity_type_detail": 79,
-            "role": 15
-        },
-        {
-            "id": 984,
-            "activity_type_detail": 79,
-            "role": 19
-        },
-        {
-            "id": 974,
-            "activity_type_detail": 79,
-            "role": 20
         },
         {
             "id": 976,
@@ -9026,49 +7706,9 @@
             "role": 25
         },
         {
-            "id": 983,
-            "activity_type_detail": 79,
-            "role": 26
-        },
-        {
-            "id": 997,
-            "activity_type_detail": 80,
-            "role": 15
-        },
-        {
-            "id": 999,
-            "activity_type_detail": 80,
-            "role": 19
-        },
-        {
-            "id": 995,
-            "activity_type_detail": 80,
-            "role": 20
-        },
-        {
             "id": 996,
             "activity_type_detail": 80,
             "role": 21
-        },
-        {
-            "id": 998,
-            "activity_type_detail": 80,
-            "role": 26
-        },
-        {
-            "id": 1002,
-            "activity_type_detail": 81,
-            "role": 15
-        },
-        {
-            "id": 1004,
-            "activity_type_detail": 81,
-            "role": 19
-        },
-        {
-            "id": 1000,
-            "activity_type_detail": 81,
-            "role": 20
         },
         {
             "id": 1001,
@@ -9076,34 +7716,9 @@
             "role": 22
         },
         {
-            "id": 1003,
-            "activity_type_detail": 81,
-            "role": 26
-        },
-        {
-            "id": 1007,
-            "activity_type_detail": 82,
-            "role": 15
-        },
-        {
-            "id": 1009,
-            "activity_type_detail": 82,
-            "role": 19
-        },
-        {
-            "id": 1005,
-            "activity_type_detail": 82,
-            "role": 20
-        },
-        {
             "id": 1006,
             "activity_type_detail": 82,
             "role": 23
-        },
-        {
-            "id": 1008,
-            "activity_type_detail": 82,
-            "role": 26
         },
         {
             "id": 1011,
@@ -9114,21 +7729,6 @@
             "id": 1017,
             "activity_type_detail": 83,
             "role": 14
-        },
-        {
-            "id": 1018,
-            "activity_type_detail": 83,
-            "role": 15
-        },
-        {
-            "id": 1020,
-            "activity_type_detail": 83,
-            "role": 19
-        },
-        {
-            "id": 1010,
-            "activity_type_detail": 83,
-            "role": 20
         },
         {
             "id": 1012,
@@ -9156,39 +7756,9 @@
             "role": 25
         },
         {
-            "id": 1019,
-            "activity_type_detail": 83,
-            "role": 26
-        },
-        {
-            "id": 1023,
-            "activity_type_detail": 84,
-            "role": 15
-        },
-        {
-            "id": 1021,
-            "activity_type_detail": 84,
-            "role": 20
-        },
-        {
             "id": 1022,
             "activity_type_detail": 84,
             "role": 21
-        },
-        {
-            "id": 1044,
-            "activity_type_detail": 85,
-            "role": 7
-        },
-        {
-            "id": 1045,
-            "activity_type_detail": 85,
-            "role": 15
-        },
-        {
-            "id": 1046,
-            "activity_type_detail": 85,
-            "role": 20
         }
     ],
     "_metadata": {

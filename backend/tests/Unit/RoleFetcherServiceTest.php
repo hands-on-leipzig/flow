@@ -52,6 +52,7 @@ class RoleFetcherServiceTest extends TestCase
         $ids = $this->roles->fetchRoles(1)->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all();
 
         $this->assertSame([4, 14], $ids);
+        $this->assertSame([], array_values(array_intersect($ids, [1, 7, 15, 17, 18, 19, 20, 26])));
     }
 
     public function test_free_block_activities_do_not_contribute_roles(): void
@@ -141,6 +142,45 @@ class RoleFetcherServiceTest extends TestCase
         $this->assertSame([4, 5], $withPast);
     }
 
+    public function test_fetch_roles_includes_public_plan_zero_and_one(): void
+    {
+        $this->seedBasePlan();
+
+        DB::table('m_visibility')->insert([
+            ['id' => 1, 'activity_type_detail' => 10, 'role' => 4],
+            ['id' => 2, 'activity_type_detail' => 11, 'role' => 5],
+        ]);
+
+        DB::table('activity_group')->insert([
+            ['id' => 1, 'activity_type_detail' => 10, 'plan' => 1],
+            ['id' => 2, 'activity_type_detail' => 11, 'plan' => 1],
+        ]);
+        DB::table('activity')->insert([
+            [
+                'id' => 1,
+                'activity_group' => 1,
+                'start' => '2026-03-15 09:00:00',
+                'end' => '2026-03-15 09:30:00',
+                'activity_type_detail' => 10,
+                'extra_block' => null,
+            ],
+            [
+                'id' => 2,
+                'activity_group' => 2,
+                'start' => '2026-03-15 10:00:00',
+                'end' => '2026-03-15 10:30:00',
+                'activity_type_detail' => 11,
+                'extra_block' => null,
+            ],
+        ]);
+
+        $roles = $this->roles->fetchRoles(1)->keyBy(fn ($row) => (int) $row->id);
+
+        $this->assertTrue((bool) $roles[4]->public_plan);
+        $this->assertFalse((bool) $roles[5]->public_plan);
+        $this->assertSame([4, 5], $roles->keys()->sort()->values()->all());
+    }
+
     private function createSchema(): void
     {
         Schema::dropAllTables();
@@ -181,12 +221,12 @@ class RoleFetcherServiceTest extends TestCase
             $table->string('name_short')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->unsignedInteger('first_program')->nullable();
-            $table->string('differentiation_type')->nullable();
-            $table->text('differentiation_source')->nullable();
             $table->string('differentiation_parameter')->nullable();
             $table->boolean('preview_matrix')->default(false);
             $table->boolean('pdf_export')->default(false);
             $table->boolean('staffable')->default(false);
+            $table->boolean('public_plan')->default(false);
+            $table->string('group_label')->nullable();
         });
 
         Schema::create('m_visibility', function (Blueprint $table) {
@@ -286,6 +326,7 @@ class RoleFetcherServiceTest extends TestCase
                 'preview_matrix' => 1,
                 'pdf_export' => 1,
                 'staffable' => 1,
+                'public_plan' => 1,
             ],
             [
                 'id' => 5,
@@ -297,6 +338,7 @@ class RoleFetcherServiceTest extends TestCase
                 'preview_matrix' => 1,
                 'pdf_export' => 1,
                 'staffable' => 1,
+                'public_plan' => 0,
             ],
             [
                 'id' => 14,
@@ -308,6 +350,7 @@ class RoleFetcherServiceTest extends TestCase
                 'preview_matrix' => 0,
                 'pdf_export' => 0,
                 'staffable' => 0,
+                'public_plan' => 1,
             ],
             [
                 'id' => 99,
@@ -319,6 +362,7 @@ class RoleFetcherServiceTest extends TestCase
                 'preview_matrix' => 0,
                 'pdf_export' => 0,
                 'staffable' => 0,
+                'public_plan' => 0,
             ],
         ]);
     }
