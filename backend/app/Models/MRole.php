@@ -18,8 +18,6 @@ class MRole extends Model
         'sequence',
         'first_program',
         'description',
-        'differentiation_type',
-        'differentiation_source',
         'differentiation_parameter',
         'preview_matrix',
         'pdf_export',

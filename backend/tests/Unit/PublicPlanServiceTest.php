@@ -35,7 +35,7 @@ class PublicPlanServiceTest extends TestCase
         $this->bindRoles([
             $this->roleRow(4, publicPlan: 1, name: 'Juror:in'),
             $this->roleRow(33, publicPlan: 0, name: 'DJ'),
-            $this->roleRow(14, publicPlan: 1, name: 'Publikum', differentiationType: null, differentiationSource: null, differentiationParameter: null),
+            $this->roleRow(14, publicPlan: 1, name: 'Publikum', differentiationParameter: null),
         ]);
 
         $payload = app(PublicPlanService::class)->getRoles(1);
@@ -52,8 +52,6 @@ class PublicPlanServiceTest extends TestCase
                 publicPlan: 1,
                 name: 'Juror:in',
                 groupLabel: 'Jury-Gruppe',
-                differentiationType: 'number',
-                differentiationSource: 'select 3 as n',
                 differentiationParameter: 'lane',
             ),
         ]);
@@ -76,8 +74,6 @@ class PublicPlanServiceTest extends TestCase
         int $publicPlan,
         string $name,
         ?string $groupLabel = null,
-        ?string $differentiationType = 'number',
-        ?string $differentiationSource = 'select 0 as n',
         ?string $differentiationParameter = 'lane',
     ): object {
         return (object) [
@@ -89,8 +85,6 @@ class PublicPlanServiceTest extends TestCase
             'color_hex' => 'ed1c24',
             'logo_stem' => 'fll_challenge',
             'logo_white' => 'challenge.png',
-            'differentiation_type' => $differentiationType,
-            'differentiation_source' => $differentiationSource,
             'differentiation_parameter' => $differentiationParameter,
             'public_plan' => $publicPlan,
             'group_label' => $groupLabel,
@@ -105,6 +99,8 @@ class PublicPlanServiceTest extends TestCase
             $table->unsignedInteger('id')->primary();
             $table->string('name')->nullable();
             $table->unsignedTinyInteger('level')->default(1);
+            $table->date('date')->nullable();
+            $table->unsignedTinyInteger('days')->default(1);
             $table->string('slug')->nullable();
             $table->boolean('check_in_enabled')->default(false);
             $table->boolean('cockpit_enabled')->default(false);
@@ -114,6 +110,30 @@ class PublicPlanServiceTest extends TestCase
             $table->unsignedInteger('id')->primary();
             $table->unsignedInteger('event');
             $table->string('name')->nullable();
+        });
+
+        Schema::create('event_program', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('event');
+            $table->unsignedInteger('first_program');
+        });
+
+        Schema::create('m_parameter', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name');
+            $table->string('type')->default('integer');
+            $table->string('value')->nullable();
+            $table->unsignedInteger('first_program')->nullable();
+            $table->string('min')->nullable();
+            $table->string('max')->nullable();
+            $table->string('step')->nullable();
+        });
+
+        Schema::create('plan_param_value', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('plan');
+            $table->unsignedInteger('parameter');
+            $table->string('set_value')->nullable();
         });
 
         Schema::create('team', function (Blueprint $table) {
@@ -147,10 +167,26 @@ class PublicPlanServiceTest extends TestCase
             'id' => 1,
             'name' => 'Test Event',
             'level' => 1,
+            'date' => '2026-03-15',
+            'days' => 1,
             'slug' => 'test',
             'check_in_enabled' => 0,
             'cockpit_enabled' => 0,
         ]);
         DB::table('plan')->insert(['id' => 1, 'event' => 1, 'name' => 'Plan']);
+        DB::table('event_program')->insert(['id' => 1, 'event' => 1, 'first_program' => 3]);
+        DB::table('m_parameter')->insert([
+            'id' => 50,
+            'name' => 'j_lanes',
+            'type' => 'integer',
+            'value' => '0',
+            'first_program' => 3,
+        ]);
+        DB::table('plan_param_value')->insert([
+            'id' => 1,
+            'plan' => 1,
+            'parameter' => 50,
+            'set_value' => '3',
+        ]);
     }
 }

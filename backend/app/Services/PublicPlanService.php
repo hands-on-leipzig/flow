@@ -4,6 +4,8 @@ namespace App\Services;
 
 use App\Enums\FirstProgram;
 use App\Support\EventDayClock;
+use App\Support\PlanParameter;
+use App\Support\RoleDifferentiation;
 use App\Support\RoleScheduleSlice;
 use App\Support\TableFieldLabels;
 use Carbon\Carbon;
@@ -42,6 +44,7 @@ class PublicPlanService
 
         $teams = $this->teamsByPlanNumber($planId);
         $tableNames = $this->tableNamesForEvent((int) $plan->event_id);
+        $params = PlanParameter::load($planId);
 
         $roles = [];
         foreach ($this->roleFetcher->fetchRoles($planId) as $role) {
@@ -59,7 +62,7 @@ class PublicPlanService
                 'logo_stem' => $role->logo_stem,
                 'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
                 'differentiation_parameter' => $role->differentiation_parameter,
-                'options' => $this->roleOptions($role, $planId, $teams, $tableNames),
+                'options' => $this->roleOptions($role, $teams, $tableNames, $params),
             ];
         }
 
@@ -158,15 +161,14 @@ class PublicPlanService
         ];
     }
 
-    private function roleOptions(object $role, int $planId, array $teams, array $tableNames): array
+    private function roleOptions(object $role, array $teams, array $tableNames, PlanParameter $params): array
     {
-        $type = $role->differentiation_type;
         $parameter = $role->differentiation_parameter;
         $roleId = (int) $role->id;
         $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
+        $count = RoleDifferentiation::optionCount($firstProgram, $parameter, $params);
 
-        if ($type === 'number' && $role->differentiation_source) {
-            $count = $this->runDifferentiationCount($role->differentiation_source, $planId);
+        if (in_array($parameter, ['lane', 'table', 'team'], true)) {
             $options = [];
             $groupLabel = trim((string) ($role->group_label ?? ''));
             for ($i = 1; $i <= $count; $i++) {
@@ -205,7 +207,6 @@ class PublicPlanService
                 ];
             }
 
-            // If j_lanes / team count is unset, still allow opening the role view
             if ($options === []) {
                 return [[
                     'value' => null,
@@ -218,42 +219,12 @@ class PublicPlanService
             return $options;
         }
 
-        if ($type === 'list' && $role->differentiation_source) {
-            $sql = str_replace('[plan]', (string) $planId, $role->differentiation_source);
-            $rows = DB::select($sql);
-            $options = [];
-            foreach ($rows as $row) {
-                $values = array_values((array) $row);
-                $options[] = [
-                    'value' => $values[0] ?? null,
-                    'label' => (string) ($values[1] ?? $values[0] ?? ''),
-                    'parameter' => $parameter ?: 'team',
-                    'noshow' => false,
-                ];
-            }
-
-            return $options;
-        }
-
-        // No differentiation — single entry for the role itself
         return [[
             'value' => null,
             'label' => $role->name,
             'parameter' => null,
             'noshow' => false,
         ]];
-    }
-
-    private function runDifferentiationCount(string $source, int $planId): int
-    {
-        $sql = str_replace('[plan]', (string) $planId, $source);
-        $row = DB::selectOne($sql);
-        if (! $row) {
-            return 0;
-        }
-        $values = array_values((array) $row);
-
-        return (int) ($values[0] ?? 0);
     }
 
     private function planParameters(int $planId): array

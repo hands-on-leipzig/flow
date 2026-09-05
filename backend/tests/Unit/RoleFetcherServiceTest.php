@@ -221,8 +221,6 @@ class RoleFetcherServiceTest extends TestCase
             $table->string('name_short')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->unsignedInteger('first_program')->nullable();
-            $table->string('differentiation_type')->nullable();
-            $table->text('differentiation_source')->nullable();
             $table->string('differentiation_parameter')->nullable();
             $table->boolean('preview_matrix')->default(false);
             $table->boolean('pdf_export')->default(false);

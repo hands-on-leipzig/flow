@@ -29,5 +29,11 @@ class DeletedOverviewRolesTest extends TestCase
         foreach ([3, 6, 8, 10, 14, 21, 24] as $id) {
             $this->assertContains($id, $roleIds);
         }
+
+        foreach ($data['m_role'] as $row) {
+            $this->assertArrayNotHasKey('differentiation_type', $row);
+            $this->assertArrayNotHasKey('differentiation_source', $row);
+            $this->assertArrayHasKey('differentiation_parameter', $row);
+        }
     }
 }

@@ -54,8 +54,6 @@ class RoleFetcherService
                 'r.name_short',
                 'r.sequence',
                 'r.first_program',
-                'r.differentiation_type',
-                'r.differentiation_source',
                 'r.differentiation_parameter',
                 'r.preview_matrix',
                 'r.pdf_export',
