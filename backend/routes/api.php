@@ -121,6 +121,7 @@ Route::prefix('cockpit/{slug}')->group(function () {
     Route::put('/rounds', [CockpitController::class, 'saveRounds']);
     Route::get('/organizer', [CockpitController::class, 'organizerContact']);
     Route::get('/phonebook', [CockpitController::class, 'phonebook']);
+    Route::get('/overview', [CockpitController::class, 'overview']);
     Route::get('/timeshift/bootstrap', [CockpitController::class, 'timeshiftBootstrap']);
     Route::post('/timeshift/shift', [CockpitController::class, 'timeshiftShift']);
     Route::get('/stage-presentations/bootstrap', [CockpitController::class, 'stagePresentationsBootstrap']);

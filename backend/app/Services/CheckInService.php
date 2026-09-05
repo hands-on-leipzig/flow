@@ -1337,6 +1337,201 @@ class CheckInService
     }
 
     /**
+     * Cockpit Überblick: one attendance tree. UI filters Alle / Eingecheckt / Fehlt.
+     *
+     * @return array{scopes: list<array{
+     *   kind: string,
+     *   program_id: int|null,
+     *   label: string,
+     *   logo_stem: string|null,
+     *   teams: list<array<string, mixed>>,
+     *   helper_buckets: list<array{label: string, people: list<array<string, mixed>>}>
+     * }>}
+     */
+    public function overviewAttendance(Event $event): array
+    {
+        $records = CheckIn::query()
+            ->where('event', $event->id)
+            ->get()
+            ->keyBy(fn (CheckIn $row) => $row->subject_type.':'.$row->subject_id);
+
+        /** @var array<string, array<string, mixed>> $scopes */
+        $scopes = [];
+
+        $ensureScope = function (
+            string $kind,
+            ?int $programId,
+            ?int $sequence,
+            string $label,
+            ?string $logoStem,
+        ) use (&$scopes): string {
+            $key = $kind === 'program' ? 'program:'.(int) $programId : $kind;
+            if (! isset($scopes[$key])) {
+                $scopes[$key] = [
+                    'kind' => $kind,
+                    'program_id' => $kind === 'program' ? $programId : null,
+                    'program_sequence' => $sequence,
+                    'label' => $label,
+                    'logo_stem' => $logoStem,
+                    'teams' => [],
+                    'helper_buckets' => [],
+                    '_helper_map' => [],
+                ];
+            } elseif (! $scopes[$key]['logo_stem'] && $logoStem) {
+                $scopes[$key]['logo_stem'] = $logoStem;
+            }
+
+            return $key;
+        };
+
+        $teamRows = DB::table('team')
+            ->leftJoin('m_first_program as fp', 'fp.id', '=', 'team.first_program')
+            ->where('team.event', $event->id)
+            ->select([
+                'team.id',
+                'team.name',
+                'team.team_number_hot',
+                'team.organization',
+                'team.first_program',
+                'fp.name as program_name',
+                'fp.display_name as program_display_name',
+                'fp.logo_stem',
+                'fp.sequence as program_sequence',
+            ])
+            ->get();
+
+        foreach ($teamRows as $row) {
+            $programId = $row->first_program !== null ? (int) $row->first_program : null;
+            if ($programId === null) {
+                $key = $ensureScope('cross', null, -1, 'Übergreifend', null);
+            } else {
+                $label = (string) ($row->program_display_name ?: $row->program_name ?: 'Programm');
+                $key = $ensureScope(
+                    'program',
+                    $programId,
+                    $row->program_sequence !== null ? (int) $row->program_sequence : PHP_INT_MAX,
+                    $label,
+                    $row->logo_stem ?: null,
+                );
+            }
+
+            $name = trim((string) ($row->name ?? ''));
+            $status = $this->recordStatusPayload(
+                $records->get(CheckIn::SUBJECT_TEAM.':'.(int) $row->id)
+            );
+            $scopes[$key]['teams'][] = [
+                'id' => (int) $row->id,
+                'kind' => 'team',
+                'label' => $name !== '' ? $name : ('Team '.$row->id),
+                'subtitle' => $this->teamHitSubtitle($row->organization, $row->team_number_hot),
+                'logo_stem' => $row->logo_stem ?: null,
+                'status' => $status['status'],
+                'checked_in_at' => $status['checked_in_at'],
+            ];
+        }
+
+        foreach ($this->staffedHelpersGrouped($event->id) as $helper) {
+            $scopeKind = $this->helperScopeKind($helper);
+            if ($scopeKind === 'local') {
+                $key = $ensureScope('local', null, PHP_INT_MAX, 'Zusätzlich', null);
+            } elseif ($scopeKind === 'cross') {
+                $key = $ensureScope('cross', null, -1, 'Übergreifend', null);
+            } else {
+                $programId = $helper->first_program !== null ? (int) $helper->first_program : null;
+                $label = (string) ($helper->program_display_name ?: $helper->program_name ?: 'Programm');
+                $key = $ensureScope(
+                    'program',
+                    $programId,
+                    $helper->program_sequence !== null ? (int) $helper->program_sequence : PHP_INT_MAX - 1,
+                    $label,
+                    $helper->logo_stem ?: null,
+                );
+            }
+
+            $bucketLabel = trim((string) ($helper->role_label ?? ''));
+            if ($bucketLabel === '') {
+                $bucketLabel = 'Rolle';
+            }
+            if (! isset($scopes[$key]['_helper_map'][$bucketLabel])) {
+                $scopes[$key]['_helper_map'][$bucketLabel] = [];
+            }
+
+            $name = trim(($helper->first_name ?? '').' '.($helper->last_name ?? ''));
+            $status = $this->recordStatusPayload(
+                $records->get(CheckIn::SUBJECT_VOLUNTEER.':'.(int) $helper->id)
+            );
+            $scopes[$key]['_helper_map'][$bucketLabel][] = [
+                'id' => (int) $helper->id,
+                'kind' => 'volunteer',
+                'label' => $name !== '' ? $name : 'Helfer:in',
+                'subtitle' => $bucketLabel,
+                'logo_stem' => $helper->logo_stem ?: null,
+                'status' => $status['status'],
+                'checked_in_at' => $status['checked_in_at'],
+            ];
+        }
+
+        foreach ($scopes as &$scope) {
+            usort($scope['teams'], fn (array $a, array $b) => strcasecmp($a['label'], $b['label']));
+
+            $buckets = [];
+            foreach ($scope['_helper_map'] as $bucketLabel => $people) {
+                usort($people, fn (array $a, array $b) => strcasecmp($a['label'], $b['label']));
+                $buckets[] = [
+                    'label' => $bucketLabel,
+                    'people' => $people,
+                ];
+            }
+            usort($buckets, fn (array $a, array $b) => strcasecmp($a['label'], $b['label']));
+            $scope['helper_buckets'] = $buckets;
+            unset($scope['_helper_map']);
+        }
+        unset($scope);
+
+        $orderedKeys = [];
+        if (isset($scopes['cross'])) {
+            $orderedKeys[] = 'cross';
+        }
+        $programKeys = array_keys(array_filter(
+            $scopes,
+            fn ($_, $k) => str_starts_with((string) $k, 'program:'),
+            ARRAY_FILTER_USE_BOTH,
+        ));
+        usort($programKeys, function (string $a, string $b) use ($scopes) {
+            $sa = $scopes[$a]['program_sequence'] ?? PHP_INT_MAX;
+            $sb = $scopes[$b]['program_sequence'] ?? PHP_INT_MAX;
+            if ($sa !== $sb) {
+                return $sa <=> $sb;
+            }
+
+            return ($scopes[$a]['program_id'] ?? 0) <=> ($scopes[$b]['program_id'] ?? 0);
+        });
+        foreach ($programKeys as $key) {
+            $orderedKeys[] = $key;
+        }
+        if (isset($scopes['local'])) {
+            $orderedKeys[] = 'local';
+        }
+        foreach (array_keys($scopes) as $key) {
+            if (! in_array($key, $orderedKeys, true)) {
+                $orderedKeys[] = $key;
+            }
+        }
+
+        $out = [];
+        foreach ($orderedKeys as $key) {
+            $scope = $scopes[$key];
+            unset($scope['program_sequence']);
+            if ($scope['teams'] === [] && $scope['helper_buckets'] === []) {
+                continue;
+            }
+            $out[] = $scope;
+        }
+
+        return ['scopes' => $out];
+    }
+
+    /**
      * Open + no-show lists for Teams or Helfer:innen (checked-in omitted).
      * Status sections first; within each, same program/scope order as overview.
      *
