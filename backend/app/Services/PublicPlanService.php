@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\FirstProgram;
 use App\Support\EventDayClock;
+use App\Support\RoleScheduleSlice;
 use App\Support\TableFieldLabels;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -44,6 +45,10 @@ class PublicPlanService
 
         $roles = [];
         foreach ($this->roleFetcher->fetchRoles($planId) as $role) {
+            if ((int) ($role->public_plan ?? 0) !== 1) {
+                continue;
+            }
+
             $roles[] = [
                 'id' => (int) $role->id,
                 'name' => $role->name,
@@ -117,23 +122,13 @@ class PublicPlanService
             ->pluck('explore_group', 'id');
 
         $rows = $rows->filter(function ($row) use ($team, $lane, $table, $role, $params, $exploreGroups, $includeExpired, $now) {
-            if ($lane !== null) {
-                if ($row->lane !== null && (int) $row->lane !== $lane) {
-                    return false;
-                }
-            }
-
-            if ($table !== null) {
-                $t1 = $row->table_1 !== null ? (int) $row->table_1 : null;
-                $t2 = $row->table_2 !== null ? (int) $row->table_2 : null;
-                if ($t1 !== null || $t2 !== null) {
-                    if ($t1 !== $table && $t2 !== $table) {
-                        return false;
-                    }
-                }
-            }
-
-            if ($team !== null && ! $this->activityMatchesTeam($row, $team)) {
+            if (! RoleScheduleSlice::matches(
+                $row,
+                $lane,
+                $table,
+                $team,
+                fn (object $activity, int $teamNumber): bool => $this->activityMatchesTeam($activity, $teamNumber),
+            )) {
                 return false;
             }
 
@@ -173,9 +168,14 @@ class PublicPlanService
         if ($type === 'number' && $role->differentiation_source) {
             $count = $this->runDifferentiationCount($role->differentiation_source, $planId);
             $options = [];
+            $groupLabel = trim((string) ($role->group_label ?? ''));
             for ($i = 1; $i <= $count; $i++) {
                 $label = "{$role->name} {$i}";
                 $noshow = false;
+
+                if ($parameter === 'lane' && $groupLabel !== '') {
+                    $label = $groupLabel.' '.$i;
+                }
 
                 if (in_array($roleId, [3, 8], true) && $firstProgram) {
                     $team = $teams[$firstProgram][$i] ?? null;

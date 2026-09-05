@@ -87,11 +87,11 @@ class VisibilityApiTest extends TestCase
             'first_program' => null,
             'order' => [
                 ['id' => 14, 'sequence' => 1],
-                ['id' => 15, 'sequence' => 2],
+                ['id' => 2, 'sequence' => 2],
             ],
         ])->assertOk();
 
-        $this->assertSame(2, (int) DB::table('m_role')->where('id', 15)->value('sequence'));
+        $this->assertSame(2, (int) DB::table('m_role')->where('id', 2)->value('sequence'));
         $this->assertSame(1, (int) DB::table('m_role')->where('id', 4)->value('sequence'));
         $this->assertSame(1, (int) DB::table('m_role')->where('id', 9)->value('sequence'));
     }
@@ -174,11 +174,11 @@ class VisibilityApiTest extends TestCase
         ]);
 
         DB::table('m_role')->insert([
+            ['id' => 2, 'name' => 'Moderation', 'name_short' => null, 'sequence' => 3, 'first_program' => null],
             ['id' => 4, 'name' => 'Juror:in', 'name_short' => 'C J', 'sequence' => 1, 'first_program' => 3],
             ['id' => 5, 'name' => 'Schiedsrichter:in', 'name_short' => 'RG F', 'sequence' => 2, 'first_program' => 3],
             ['id' => 9, 'name' => 'Gutachter:in', 'name_short' => 'E G', 'sequence' => 1, 'first_program' => 2],
             ['id' => 14, 'name' => 'Publikum', 'name_short' => null, 'sequence' => 1, 'first_program' => null],
-            ['id' => 15, 'name' => 'Organisation', 'name_short' => null, 'sequence' => 3, 'first_program' => null],
             ['id' => 22, 'name' => 'Juror:in', 'name_short' => 'F8 J', 'sequence' => 4, 'first_program' => 8],
         ]);
 

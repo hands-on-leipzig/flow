@@ -23,6 +23,7 @@ class MRole extends Model
         'differentiation_parameter',
         'preview_matrix',
         'pdf_export',
+        'public_plan',
         'staffable',
         'group_label',
     ];
@@ -30,6 +31,7 @@ class MRole extends Model
     protected $casts = [
         'preview_matrix' => 'boolean',
         'pdf_export' => 'boolean',
+        'public_plan' => 'boolean',
         'staffable' => 'boolean',
     ];
 
