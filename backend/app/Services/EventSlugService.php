@@ -189,6 +189,14 @@ class EventSlugService
         return $this->sanitize($base) ?: 'event-'.$event->id;
     }
 
+    /**
+     * @return array<int, string>
+     */
+    public function reserved(): array
+    {
+        return self::RESERVED;
+    }
+
     public function isReserved(string $slug): bool
     {
         // A purely numeric slug would be read as the season prefix of an archive URL.

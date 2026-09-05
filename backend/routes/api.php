@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SeasonPlanBulkController;
 use App\Http\Controllers\Api\SharepointController;
+use App\Http\Controllers\Api\SlugRegistryController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\TeamPublicFormController;
@@ -469,6 +470,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/feeds/{key}', [CalendarFeedController::class, 'preview'])
             ->where('key', '[A-Za-z0-9_]+');
     });
+
+    Route::get('/admin/slugs', [SlugRegistryController::class, 'index']); // Übersicht der Slugs und öffentlichen Links einer Saison
 
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren

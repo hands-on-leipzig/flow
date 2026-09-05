@@ -13,6 +13,7 @@ import SystemNews from '@/components/molecules/SystemNews.vue'
 import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
 import CalendarFeedsAdmin from '@/components/molecules/CalendarFeedsAdmin.vue'
+import SlugRegistryAdmin from '@/components/molecules/SlugRegistryAdmin.vue'
 import AdminWartung from '@/components/molecules/AdminWartung.vue'
 import PlanQualitaet from '@/components/molecules/PlanQualitaet.vue'
 import Enrollments from '@/components/molecules/Enrollments.vue'
@@ -134,6 +135,10 @@ onMounted(() => {
 
     <div v-else-if="activeTab === 'calendar'">
       <CalendarFeedsAdmin/>
+    </div>
+
+    <div v-else-if="activeTab === 'slugs'">
+      <SlugRegistryAdmin/>
     </div>
 
     <div v-else-if="activeTab === 'statistics'">
