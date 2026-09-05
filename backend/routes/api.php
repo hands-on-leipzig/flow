@@ -545,6 +545,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/matrix', [VisibilityController::class, 'getMatrix']);
         Route::post('/toggle', [VisibilityController::class, 'toggleVisibility']);
         Route::post('/bulk-toggle', [VisibilityController::class, 'bulkToggle']);
+        Route::post('/roles/reorder', [VisibilityController::class, 'reorderRoles']);
     });
 
     // News controller
