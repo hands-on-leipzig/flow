@@ -143,6 +143,9 @@ const publicFormFieldsBusy = ref(false)
 const collectTShirt = ref(true)
 const collectMeal = ref(true)
 
+/** Always present on Dateneingabe für Helfer:innen (labels match VolunteerPublicFormFlow). */
+const volunteerFixedPersonFields = ['Vorname', 'Name', 'Mobil', 'Organisation'] as const
+
 const teamPublicFormFields = ref<Array<{field_key: string; label: string; public_form: boolean}>>([])
 const teamPublicFormFieldsBusy = ref(false)
 const teamCollectMeal = ref(true)
@@ -553,10 +556,10 @@ onActivated(() => {
               <p class="pub__form-checklist-title">Felder im Formular</p>
               <div
                   class="pub__form-check pub__form-check--fixed"
-                  title="Immer im Formular"
+                  title="Immer im Formular (Status, nicht editierbar)"
               >
                 <input type="checkbox" :checked="true" disabled>
-                <span>Fotoerlaubnis</span>
+                <span>Fotoerlaubnis ( nur Anzeige des Status)</span>
               </div>
               <div
                   v-if="teamCollectMeal"
@@ -615,12 +618,38 @@ onActivated(() => {
             >
               <p class="pub__form-checklist-title">Felder im Formular</p>
               <div
-                  v-if="collectTShirt"
+                  class="pub__form-check-row"
+                  title="Immer im Formular"
+              >
+                <div
+                    v-for="label in volunteerFixedPersonFields"
+                    :key="label"
+                    class="pub__form-check pub__form-check--fixed"
+                >
+                  <input type="checkbox" :checked="true" disabled>
+                  <span>{{ label }}</span>
+                </div>
+              </div>
+              <div
                   class="pub__form-check pub__form-check--fixed"
-                  title="Immer im Formular, solange T-Shirt in der Helferliste aktiv ist"
+                  title="Immer im Formular (Status, nicht editierbar)"
               >
                 <input type="checkbox" :checked="true" disabled>
-                <span>T-Shirt Größe</span>
+                <span>Fotoerlaubnis ( nur Anzeige des Status)</span>
+              </div>
+              <div
+                  v-if="collectTShirt"
+                  class="pub__form-check-row"
+                  title="Immer im Formular, solange T-Shirt in der Helferliste aktiv ist"
+              >
+                <div class="pub__form-check pub__form-check--fixed">
+                  <input type="checkbox" :checked="true" disabled>
+                  <span>T-Shirt Schnitt</span>
+                </div>
+                <div class="pub__form-check pub__form-check--fixed">
+                  <input type="checkbox" :checked="true" disabled>
+                  <span>T-Shirt Größe</span>
+                </div>
               </div>
               <div
                   v-if="collectMeal"
@@ -933,6 +962,13 @@ onActivated(() => {
   gap: 0.4rem;
   font-size: 0.85rem;
   cursor: pointer;
+}
+
+.pub__form-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.85rem;
 }
 
 .pub__form-check--fixed {
