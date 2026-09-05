@@ -57,14 +57,16 @@ class CockpitOverviewTest extends TestCase
         $this->assertSame($challengeId, $scope['program_id']);
         $this->assertSame('Challenge', $scope['label']);
 
-        $this->assertSame(['Alpha', 'Beta'], array_column($scope['teams'], 'label'));
-        $this->assertSame('Acme · (1001)', $scope['teams'][0]['subtitle']);
+        $this->assertSame(['Alpha (1001)', 'Beta (1002)'], array_column($scope['teams'], 'label'));
+        $this->assertNull($scope['teams'][0]['subtitle']);
         $this->assertSame(CheckIn::STATUS_CHECKED_IN, $scope['teams'][0]['status']);
         $this->assertSame(CheckIn::STATUS_NO_SHOW, $scope['teams'][1]['status']);
 
         $this->assertCount(1, $scope['helper_buckets']);
         $this->assertSame('Juror:in', $scope['helper_buckets'][0]['label']);
         $this->assertSame($helperId, $scope['helper_buckets'][0]['people'][0]['id']);
+        $this->assertSame('Greta Guide', $scope['helper_buckets'][0]['people'][0]['label']);
+        $this->assertNull($scope['helper_buckets'][0]['people'][0]['subtitle']);
         $this->assertNull($scope['helper_buckets'][0]['people'][0]['status']);
     }
 
@@ -81,7 +83,7 @@ class CockpitOverviewTest extends TestCase
         $this->withHeader('X-Cockpit-Token', $token)
             ->getJson('/api/cockpit/day-event/overview')
             ->assertOk()
-            ->assertJsonPath('scopes.0.teams.0.label', 'Alpha');
+            ->assertJsonPath('scopes.0.teams.0.label', 'Alpha (42)');
     }
 
     private function event(): Event

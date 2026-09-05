@@ -100,7 +100,7 @@ const tools: CockpitTool[] = [
     id: 'overview',
     title: 'Teams und Helfer:innen',
     homeLabel: 'Teams und Helfer:innen',
-    explanation: 'Wer fehlt oder kommt gar nicht? Wer ist in welcher Jury-Gruppe?',
+    explanation: '',
     icons: ['bi-people', 'bi-person-heart'],
     ready: true,
   },

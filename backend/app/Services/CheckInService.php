@@ -1416,15 +1416,22 @@ class CheckInService
             }
 
             $name = trim((string) ($row->name ?? ''));
+            if ($name === '') {
+                $name = 'Team '.$row->id;
+            }
+            $hot = trim((string) ($row->team_number_hot ?? ''));
+            if ($hot !== '' && $hot !== '0') {
+                $name .= ' ('.$hot.')';
+            }
             $status = $this->recordStatusPayload(
                 $records->get(CheckIn::SUBJECT_TEAM.':'.(int) $row->id)
             );
             $scopes[$key]['teams'][] = [
                 'id' => (int) $row->id,
                 'kind' => 'team',
-                'label' => $name !== '' ? $name : ('Team '.$row->id),
-                'subtitle' => $this->teamHitSubtitle($row->organization, $row->team_number_hot),
-                'logo_stem' => $row->logo_stem ?: null,
+                'label' => $name,
+                'subtitle' => null,
+                'logo_stem' => null,
                 'status' => $status['status'],
                 'checked_in_at' => $status['checked_in_at'],
             ];
@@ -1456,16 +1463,16 @@ class CheckInService
                 $scopes[$key]['_helper_map'][$bucketLabel] = [];
             }
 
-            $name = trim(($helper->first_name ?? '').' '.($helper->last_name ?? ''));
+            $personName = trim(($helper->first_name ?? '').' '.($helper->last_name ?? ''));
             $status = $this->recordStatusPayload(
                 $records->get(CheckIn::SUBJECT_VOLUNTEER.':'.(int) $helper->id)
             );
             $scopes[$key]['_helper_map'][$bucketLabel][] = [
                 'id' => (int) $helper->id,
                 'kind' => 'volunteer',
-                'label' => $name !== '' ? $name : 'Helfer:in',
-                'subtitle' => $bucketLabel,
-                'logo_stem' => $helper->logo_stem ?: null,
+                'label' => $personName !== '' ? $personName : 'Helfer:in',
+                'subtitle' => null,
+                'logo_stem' => null,
                 'status' => $status['status'],
                 'checked_in_at' => $status['checked_in_at'],
             ];

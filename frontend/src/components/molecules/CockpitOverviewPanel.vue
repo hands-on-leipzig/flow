@@ -161,6 +161,7 @@ onUnmounted(() => {
         v-for="(scope, si) in visibleScopes"
         :key="`${scope.kind}-${scope.label}-${si}`"
         class="cp-overview__scope"
+        :class="{'cp-overview__scope--divide': si < visibleScopes.length - 1}"
     >
       <header class="cp-overview__scope-head">
         <img
@@ -180,13 +181,10 @@ onUnmounted(() => {
       </header>
 
       <div v-if="scope.teams.length" class="cp-overview__block">
-        <h3 class="cp-overview__l2">Teams ({{ scope.teams.length }})</h3>
         <ul class="ci-list">
           <li v-for="leaf in scope.teams" :key="`team-${leaf.id}`">
             <PersonListHit
                 :label="leaf.label"
-                :subtitle="leaf.subtitle"
-                :logo-stem="leaf.logo_stem"
                 :status="leaf.status"
                 :status-title="statusTitle(leaf.status)"
             />
@@ -195,22 +193,16 @@ onUnmounted(() => {
       </div>
 
       <div v-if="scope.helper_buckets.length" class="cp-overview__block">
-        <h3 class="cp-overview__l2">
-          Helfer:innen ({{ scope.helper_buckets.reduce((n, b) => n + b.people.length, 0) }})
-        </h3>
         <div
             v-for="bucket in scope.helper_buckets"
             :key="bucket.label"
             class="cp-overview__bucket"
         >
-          <h4 class="cp-overview__l3">{{ bucket.label }} ({{ bucket.people.length }})</h4>
+          <h3 class="cp-overview__l3">{{ bucket.label }}</h3>
           <ul class="ci-list">
             <li v-for="leaf in bucket.people" :key="`vol-${leaf.id}`">
               <PersonListHit
                   :label="leaf.label"
-                  :subtitle="leaf.subtitle"
-                  :logo-stem="leaf.logo_stem"
-                  :scope-icon="!leaf.logo_stem ? scopeIcon(scope.kind) : ''"
                   :status="leaf.status"
                   :status-title="statusTitle(leaf.status)"
               />
@@ -226,7 +218,7 @@ onUnmounted(() => {
 .cp-overview {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .cp-overview__filters {
@@ -250,7 +242,13 @@ onUnmounted(() => {
 .cp-overview__scope {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.45rem;
+}
+
+.cp-overview__scope--divide {
+  padding-bottom: 1.15rem;
+  margin-bottom: 0.35rem;
+  border-bottom: 2px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
 }
 
 .cp-overview__scope-head {
@@ -260,14 +258,14 @@ onUnmounted(() => {
 }
 
 .cp-overview__scope-logo {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.35rem;
+  height: 1.35rem;
   object-fit: contain;
   flex-shrink: 0;
 }
 
 .cp-overview__scope-icon {
-  font-size: 1.25rem;
+  font-size: 1.15rem;
   line-height: 1;
   color: var(--color-text-muted);
   flex-shrink: 0;
@@ -275,7 +273,7 @@ onUnmounted(() => {
 
 .cp-overview__scope-title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 750;
   color: var(--color-text);
 }
@@ -283,29 +281,21 @@ onUnmounted(() => {
 .cp-overview__block {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-}
-
-.cp-overview__l2 {
-  margin: 0;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
+  gap: 0.4rem;
 }
 
 .cp-overview__bucket {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.3rem;
 }
 
 .cp-overview__l3 {
-  margin: 0.15rem 0 0;
-  font-size: 0.9rem;
-  font-weight: 650;
-  color: var(--color-text);
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
 }
 
 .ci-list {
@@ -314,6 +304,11 @@ onUnmounted(() => {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.3rem;
+}
+
+.ci-list :deep(.ci-hit) {
+  padding: 0.55rem 0.7rem;
+  gap: 0;
 }
 </style>
