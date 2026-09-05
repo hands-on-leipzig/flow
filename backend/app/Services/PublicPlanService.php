@@ -2,12 +2,10 @@
 
 namespace App\Services;
 
-use App\Enums\FirstProgram;
 use App\Support\EventDayClock;
 use App\Support\PlanParameter;
 use App\Support\RoleDifferentiation;
 use App\Support\RoleScheduleSlice;
-use App\Support\TableFieldLabels;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -43,7 +41,6 @@ class PublicPlanService
         }
 
         $teams = $this->teamsByPlanNumber($planId);
-        $tableNames = $this->tableNamesForEvent((int) $plan->event_id);
         $params = PlanParameter::load($planId);
 
         $roles = [];
@@ -52,17 +49,26 @@ class PublicPlanService
                 continue;
             }
 
+            $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
+            $displayName = trim((string) ($role->first_program_display_name ?? ''));
+
             $roles[] = [
                 'id' => (int) $role->id,
                 'name' => $role->name,
                 'name_short' => $role->name_short,
-                'first_program' => $role->first_program !== null ? (int) $role->first_program : null,
+                'first_program' => $firstProgram,
                 'first_program_name' => $role->first_program_name,
+                'first_program_sequence' => $role->first_program_sequence !== null
+                    ? (int) $role->first_program_sequence
+                    : null,
+                'first_program_display_name' => $firstProgram === null
+                    ? null
+                    : ($displayName !== '' ? $displayName : ($role->first_program_name ?: null)),
                 'color_hex' => $role->color_hex ?: '888888',
                 'logo_stem' => $role->logo_stem,
                 'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
                 'differentiation_parameter' => $role->differentiation_parameter,
-                'options' => $this->roleOptions($role, $teams, $tableNames, $params),
+                'options' => $this->roleOptions($role, $teams, $params),
             ];
         }
 
@@ -73,6 +79,7 @@ class PublicPlanService
             'slug' => $plan->event_slug ?: null,
             'check_in_enabled' => (bool) $plan->check_in_enabled,
             'cockpit_enabled' => (bool) $plan->cockpit_enabled,
+            'programs' => $this->eventPrograms((int) $plan->event_id),
             'roles' => $roles,
         ];
     }
@@ -161,10 +168,9 @@ class PublicPlanService
         ];
     }
 
-    private function roleOptions(object $role, array $teams, array $tableNames, PlanParameter $params): array
+    private function roleOptions(object $role, array $teams, PlanParameter $params): array
     {
         $parameter = $role->differentiation_parameter;
-        $roleId = (int) $role->id;
         $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
         $count = RoleDifferentiation::optionCount($firstProgram, $parameter, $params);
 
@@ -175,28 +181,19 @@ class PublicPlanService
                 $label = "{$role->name} {$i}";
                 $noshow = false;
 
-                if ($parameter === 'lane' && $groupLabel !== '') {
-                    $label = $groupLabel.' '.$i;
-                }
-
-                if (in_array($roleId, [3, 8], true) && $firstProgram) {
+                if ($parameter === 'team' && $firstProgram) {
                     $team = $teams[$firstProgram][$i] ?? null;
-                    if ($team) {
-                        $label = $team['name'];
-                        if (! empty($team['location'])) {
-                            $label .= ' · '.$team['location'];
-                        }
-                        $noshow = (bool) $team['noshow'];
-                    }
-                } elseif (in_array($roleId, [5, 11], true)) {
-                    $fp = $firstProgram ?? FirstProgram::CHALLENGE->value;
-                    $byProgram = $tableNames[$fp] ?? [];
-                    $custom = $byProgram[$i] ?? null;
-                    if (TableFieldLabels::supports($fp)) {
-                        $label = TableFieldLabels::effective($fp, $i, $custom);
+                    $name = trim((string) ($team['name'] ?? ''));
+                    if ($name !== '') {
+                        $hot = $team['team_number_hot'] ?? null;
+                        $hotStr = $hot !== null && $hot !== '' ? (string) $hot : '';
+                        $label = $hotStr !== '' ? "{$name} ({$hotStr})" : $name;
+                        $noshow = (bool) ($team['noshow'] ?? false);
                     } else {
-                        $label = TableFieldLabels::defaultLabel(FirstProgram::CHALLENGE->value, $i);
+                        $label = 'T'.$i.' (Noch nicht angemeldet)';
                     }
+                } elseif (in_array($parameter, ['lane', 'table'], true) && $groupLabel !== '') {
+                    $label = $groupLabel.' '.$i;
                 }
 
                 $options[] = [
@@ -237,7 +234,43 @@ class PublicPlanService
     }
 
     /**
-     * @return array<int, array<int, array{name:string,location:?string,noshow:bool}>>
+     * @return list<array{id:int,display_name:string,sequence:int,logo_stem:?string,logo_white:?string,color_hex:string}>
+     */
+    private function eventPrograms(int $eventId): array
+    {
+        $rows = DB::table('event_program as ep')
+            ->join('m_first_program as fp', 'fp.id', '=', 'ep.first_program')
+            ->where('ep.event', $eventId)
+            ->orderBy('fp.sequence')
+            ->orderBy('fp.id')
+            ->get([
+                'fp.id',
+                'fp.name',
+                'fp.display_name',
+                'fp.sequence',
+                'fp.logo_stem',
+                'fp.logo_white',
+                'fp.color_hex',
+            ]);
+
+        $programs = [];
+        foreach ($rows as $row) {
+            $display = trim((string) ($row->display_name ?? ''));
+            $programs[] = [
+                'id' => (int) $row->id,
+                'display_name' => $display !== '' ? $display : (string) $row->name,
+                'sequence' => (int) $row->sequence,
+                'logo_stem' => $row->logo_stem,
+                'logo_white' => $row->logo_white,
+                'color_hex' => $row->color_hex ?: '888888',
+            ];
+        }
+
+        return $programs;
+    }
+
+    /**
+     * @return array<int, array<int, array{name:string,location:?string,noshow:bool,team_number_hot:int|null}>>
      */
     private function teamsByPlanNumber(int $planId): array
     {
@@ -249,6 +282,7 @@ class PublicPlanService
                 'team.first_program',
                 'team.name',
                 'team.location',
+                'team.team_number_hot',
                 'team_plan.noshow',
             ])
             ->get();
@@ -257,10 +291,12 @@ class PublicPlanService
         foreach ($rows as $row) {
             $fp = (int) $row->first_program;
             $num = (int) $row->team_number_plan;
+            $hot = $row->team_number_hot;
             $map[$fp][$num] = [
                 'name' => $row->name,
                 'location' => $row->location,
                 'noshow' => (bool) $row->noshow,
+                'team_number_hot' => $hot !== null && $hot !== '' ? (int) $hot : null,
             ];
         }
 

@@ -188,6 +188,7 @@ class RoleFetcherServiceTest extends TestCase
         Schema::create('m_first_program', function (Blueprint $table) {
             $table->unsignedInteger('id')->primary();
             $table->string('name')->nullable();
+            $table->string('display_name')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->string('color_hex')->nullable();
             $table->string('logo_stem')->nullable();
@@ -293,6 +294,7 @@ class RoleFetcherServiceTest extends TestCase
             [
                 'id' => 3,
                 'name' => 'Challenge',
+                'display_name' => 'Challenge',
                 'sequence' => 2,
                 'color_hex' => 'ed1c24',
                 'logo_stem' => 'fll_challenge',

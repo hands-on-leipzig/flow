@@ -8,7 +8,6 @@ import {
   projectClockOntoBerlinDay,
 } from '@/utils/dateTimeFormat'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
-import {PROGRAM_COLOR_HEX} from '@/utils/programTheme'
 
 const props = defineProps<{
   planId: number | string
@@ -22,11 +21,22 @@ type RoleOption = {
   noshow: boolean
 }
 
+type VisitorProgram = {
+  id: number
+  display_name: string
+  sequence: number
+  logo_stem?: string | null
+  logo_white?: string | null
+  color_hex: string
+}
+
 type Role = {
   id: number
   name: string
   first_program: number | null
   first_program_name?: string | null
+  first_program_sequence?: number | null
+  first_program_display_name?: string | null
   color_hex: string
   logo_stem?: string | null
   logo_white: string
@@ -125,8 +135,8 @@ const eventSlug = ref<string | null>(null)
 const checkInEnabled = ref(false)
 const cockpitEnabled = ref(false)
 const roles = ref<Role[]>([])
+const programs = ref<VisitorProgram[]>([])
 const groups = ref<Group[]>([])
-const openRoleId = ref<number | null>(null)
 const nowMs = ref(Date.now())
 const roleFilter = ref('')
 const selectedBlockId = ref<number | null>(null)
@@ -138,6 +148,11 @@ const selectedTable = ref<number | null>(null)
 const includeExpired = ref(false)
 const filterOpen = ref(false)
 const roleSheetOpen = ref(false)
+const pickerLevel = ref<1 | 2 | 3>(1)
+const pickerProgramKey = ref<number | 'allgemein' | null>(null)
+const pickerRole = ref<Role | null>(null)
+const teamInfo = ref<{team: number, firstProgram: number | null} | null>(null)
+const teamInfoConfirm = ref(false)
 
 let nowTimer: ReturnType<typeof setInterval> | null = null
 /** Which teleported sheet owns the shared swipe-dismiss gesture */
@@ -176,36 +191,38 @@ const roleAccent = computed(() => {
   return hex ? `#${hex}` : '#ea580c'
 })
 
-type RoleSection = {
-  key: 'challenge' | 'explore' | 'general'
-  label: string
-  accent: string
-  roles: Role[]
-}
+const ALLGEMEIN_LOGO = {logo_white: 'FLL_column_heading.png'}
 
-/** Sections for the flat role picker (Challenge → Explore → Allgemein) */
-const roleSections = computed((): RoleSection[] => {
-  const buckets: Record<RoleSection['key'], RoleSection> = {
-    challenge: {key: 'challenge', label: 'Challenge', accent: PROGRAM_COLOR_HEX.CHALLENGE, roles: []},
-    explore: {key: 'explore', label: 'Explore', accent: PROGRAM_COLOR_HEX.EXPLORE, roles: []},
-    general: {key: 'general', label: 'Allgemein', accent: '#6b7280', roles: []},
+const attachedCount = computed(() => programs.value.length)
+
+const pickerRoles = computed(() => {
+  if (attachedCount.value === 1) {
+    return roles.value.filter((r) => r.first_program != null)
   }
+  return roles.value
+})
 
-  for (const role of roles.value) {
-    if (role.first_program === 3) {
-      if (role.color_hex) buckets.challenge.accent = `#${role.color_hex}`
-      buckets.challenge.roles.push(role)
-    } else if (role.first_program === 2) {
-      if (role.color_hex) buckets.explore.accent = `#${role.color_hex}`
-      buckets.explore.roles.push(role)
-    } else {
-      buckets.general.roles.push(role)
-    }
+const programRows = computed(() =>
+    programs.value.filter((program) =>
+        pickerRoles.value.some((role) => role.first_program === program.id),
+    ),
+)
+
+const showAllgemein = computed(() =>
+    attachedCount.value >= 2
+    && pickerRoles.value.some((role) => role.first_program == null),
+)
+
+const showProgramLevel = computed(() =>
+    programRows.value.length + (showAllgemein.value ? 1 : 0) >= 2,
+)
+
+const pickerLevel2Roles = computed(() => {
+  if (pickerProgramKey.value === 'allgemein') {
+    return pickerRoles.value.filter((role) => role.first_program == null)
   }
-
-  return (['challenge', 'explore', 'general'] as const)
-      .map((key) => buckets[key])
-      .filter((section) => section.roles.length > 0)
+  if (pickerProgramKey.value == null) return []
+  return pickerRoles.value.filter((role) => role.first_program === pickerProgramKey.value)
 })
 
 function roleNeedsPicker(role: Role): boolean {
@@ -229,11 +246,12 @@ const selectionLabel = computed(() => {
   return option ? `${role.name}: ${option.label}` : `${role.name} ${value}`
 })
 
-const roleChipLabel = computed(() => selectionLabel.value || 'Rolle wählen')
+const roleChipLabel = computed(() => selectionLabel.value || 'Überblick')
 
 const pageTitle = computed(() => {
   if (selectionLabel.value) return `${selectionLabel.value} · ${eventName.value || 'Zeitplan'}`
-  return eventName.value ? `Zeitplan · ${eventName.value}` : 'Online-Zeitplan'
+  if (eventName.value) return `Überblick · ${eventName.value}`
+  return 'Überblick'
 })
 
 function timeLabel(value: string | null | undefined) {
@@ -244,8 +262,8 @@ function clockLabel(ms: number = nowMs.value) {
   return formatBerlinTimeOnly(ms)
 }
 
-function programLogo(role: Role | null | undefined) {
-  return programLogoSrc(role)
+function programLogo(program: Parameters<typeof programLogoSrc>[0]) {
+  return programLogoSrc(program)
 }
 
 function durationLabel(minutes: number): string {
@@ -654,12 +672,61 @@ function closeDetail() {
   resetSheetDrag()
 }
 
+function closeTeamInfo() {
+  teamInfo.value = null
+  teamInfoConfirm.value = false
+}
+
+function matchingTeamRole(firstProgramId: number | null | undefined): Role | undefined {
+  return roles.value.find(
+      (r) => r.first_program === firstProgramId && r.differentiation_parameter === 'team',
+  )
+}
+
+const teamInfoTitle = computed(() => {
+  if (!teamInfo.value) return 'Team'
+  const role = matchingTeamRole(teamInfo.value.firstProgram)
+  const option = role?.options.find((o) => o.value === teamInfo.value?.team)
+  return option?.label || 'Team'
+})
+
+function resetPickerToTop() {
+  roleFilter.value = ''
+  pickerRole.value = null
+  if (showProgramLevel.value) {
+    pickerLevel.value = 1
+    pickerProgramKey.value = null
+    return
+  }
+  pickerLevel.value = 2
+  pickerProgramKey.value = programRows.value[0]?.id
+      ?? (showAllgemein.value ? 'allgemein' : null)
+}
+
+function pickerGoBack() {
+  roleFilter.value = ''
+  if (pickerLevel.value === 3) {
+    pickerRole.value = null
+    pickerLevel.value = 2
+    return
+  }
+  if (pickerLevel.value === 2 && showProgramLevel.value) {
+    pickerProgramKey.value = null
+    pickerLevel.value = 1
+  }
+}
+
+const pickerAtTop = computed(() =>
+    showProgramLevel.value ? pickerLevel.value === 1 : pickerLevel.value === 2,
+)
+
 function openRoleSheet() {
   closeFilterMenu()
   closeDetail()
+  closeTeamInfo()
+  resetPickerToTop()
   activeSheet.value = 'role'
   roleSheetOpen.value = true
-  if (selectedRole.value) openRoleId.value = selectedRole.value
   resetSheetDrag()
 }
 
@@ -763,12 +830,12 @@ async function scrollToNow() {
 
 function filteredOptions(role: Role): RoleOption[] {
   const q = roleFilter.value.trim().toLowerCase()
-  if (!q || openRoleId.value !== role.id) return role.options
+  if (!q) return role.options
   return role.options.filter((o) => o.label.toLowerCase().includes(q))
 }
 
 function showRoleSearch(role: Role): boolean {
-  return openRoleId.value === role.id && role.options.length > 8
+  return role.options.length > 8
 }
 
 type StoredPrefs = {
@@ -829,7 +896,6 @@ function applyPrefs(prefs: Partial<StoredPrefs>) {
   if (prefs.lane !== undefined) selectedLane.value = prefs.lane
   if (prefs.table !== undefined) selectedTable.value = prefs.table
   if (prefs.expired !== undefined) includeExpired.value = prefs.expired
-  if (selectedRole.value) openRoleId.value = selectedRole.value
 }
 
 function selectionStillValid(): boolean {
@@ -855,7 +921,6 @@ function syncFromQuery() {
     table: q.table != null && q.table !== '' ? Number(q.table) : null,
     expired: q.expired === 'yes',
   })
-  writeStoredPrefs()
 }
 
 function restorePrefsFromStorage() {
@@ -865,7 +930,7 @@ function restorePrefsFromStorage() {
   return true
 }
 
-async function pushQuery(next: Record<string, string | null>) {
+async function pushQuery(next: Record<string, string | null>, persist = true) {
   const query: Record<string, string> = {}
   const merged = {
     role: selectedRole.value != null ? String(selectedRole.value) : null,
@@ -878,7 +943,7 @@ async function pushQuery(next: Record<string, string | null>) {
   for (const [key, value] of Object.entries(merged)) {
     if (value != null && value !== '') query[key] = value
   }
-  writeStoredPrefs()
+  if (persist) writeStoredPrefs()
   await router.replace({query})
 }
 
@@ -889,6 +954,7 @@ async function loadRoles() {
   try {
     const {data} = await axios.get(`/plans/${numericPlanId.value}/visitor/roles`)
     roles.value = data.roles || []
+    programs.value = data.programs || []
     eventName.value = data.event_name || ''
     eventSlug.value = typeof data.slug === 'string' && data.slug !== '' ? data.slug : null
     checkInEnabled.value = !!data.check_in_enabled
@@ -938,18 +1004,16 @@ async function loadSchedule() {
   }
 }
 
-async function selectOption(role: Role, option: RoleOption) {
+async function applyRole(
+    role: Role,
+    slice: {team?: number | null, lane?: number | null, table?: number | null} = {},
+) {
+  closeTeamInfo()
   selectedRole.value = role.id
-  selectedTeam.value = null
-  selectedLane.value = null
-  selectedTable.value = null
+  selectedTeam.value = slice.team ?? null
+  selectedLane.value = slice.lane ?? null
+  selectedTable.value = slice.table ?? null
   roleFilter.value = ''
-
-  const parameter = option.parameter || role.differentiation_parameter
-  if (parameter === 'team' && option.value != null) selectedTeam.value = Number(option.value)
-  if (parameter === 'lane' && option.value != null) selectedLane.value = Number(option.value)
-  if (parameter === 'table' && option.value != null) selectedTable.value = Number(option.value)
-
   await pushQuery({
     role: String(role.id),
     team: selectedTeam.value != null ? String(selectedTeam.value) : null,
@@ -957,15 +1021,48 @@ async function selectOption(role: Role, option: RoleOption) {
     table: selectedTable.value != null ? String(selectedTable.value) : null,
   })
   closeRoleSheet()
+  await loadSchedule()
+}
+
+async function selectOption(role: Role, option: RoleOption) {
+  const parameter = option.parameter || role.differentiation_parameter
+  const slice: {team?: number | null, lane?: number | null, table?: number | null} = {}
+  if (parameter === 'team' && option.value != null) slice.team = Number(option.value)
+  if (parameter === 'lane' && option.value != null) slice.lane = Number(option.value)
+  if (parameter === 'table' && option.value != null) slice.table = Number(option.value)
+  await applyRole(role, slice)
 }
 
 async function onRoleClick(role: Role) {
-  if (role.options.length === 1 && role.options[0].value == null) {
-    await selectOption(role, role.options[0])
+  if (!roleNeedsPicker(role)) {
+    await applyRole(role)
     return
   }
-  openRoleId.value = openRoleId.value === role.id ? null : role.id
+  pickerRole.value = role
+  pickerLevel.value = 3
   roleFilter.value = ''
+}
+
+function onProgramRowClick(programId: number | 'allgemein') {
+  pickerProgramKey.value = programId
+  pickerLevel.value = 2
+}
+
+async function goToOverview() {
+  closeTeamInfo()
+  selectedRole.value = null
+  selectedTeam.value = null
+  selectedLane.value = null
+  selectedTable.value = null
+  groups.value = []
+  closeRoleSheet()
+  await pushQuery({
+    role: null,
+    team: null,
+    lane: null,
+    table: null,
+    expired: includeExpired.value ? 'yes' : 'no',
+  }, false)
 }
 
 async function toggleExpired() {
@@ -993,35 +1090,29 @@ function onDocumentPointerDown(event: PointerEvent) {
   if (root && target && !root.contains(target)) closeFilterMenu()
 }
 
-async function openTeamPlan(teamNumber: number | null | undefined, firstProgram: number | null | undefined) {
+function openTeamInfo(teamNumber: number | null | undefined, firstProgram: number | null | undefined) {
   if (!teamNumber) return
-  const roleId = firstProgram === 2 ? 8 : 3
-  selectedRole.value = roleId
-  selectedTeam.value = teamNumber
-  selectedLane.value = null
-  selectedTable.value = null
-  await pushQuery({
-    role: String(roleId),
-    team: String(teamNumber),
-    lane: null,
-    table: null,
-  })
+  closeDetail()
+  teamInfoConfirm.value = false
+  teamInfo.value = {team: teamNumber, firstProgram: firstProgram ?? null}
 }
 
-watch(pageTitle, (title) => {
-  if (typeof document !== 'undefined') document.title = title
-}, {immediate: true})
+function confirmTeamInfoSwitch() {
+  if (!teamInfo.value) return
+  const role = matchingTeamRole(teamInfo.value.firstProgram)
+  if (!role) return
+  const team = teamInfo.value.team
+  void applyRole(role, {team, lane: null, table: null})
+}
 
-onMounted(async () => {
+async function resolveSelectionAfterRoles() {
   const hasQueryRole = route.query.role != null && route.query.role !== ''
   if (hasQueryRole) {
     syncFromQuery()
   } else if (!restorePrefsFromStorage()) {
-    syncFromQuery()
+    applyPrefs({role: null, team: null, lane: null, table: null})
     if (route.query.expired == null) includeExpired.value = false
   }
-
-  await loadRoles()
 
   if (selectedRole.value != null && !selectionStillValid()) {
     applyPrefs({role: null, team: null, lane: null, table: null})
@@ -1038,10 +1129,23 @@ onMounted(async () => {
     })
     await loadSchedule()
   } else {
-    if (route.query.expired == null) await pushQuery({expired: 'no'})
-    else writeStoredPrefs()
-    openRoleSheet()
+    await pushQuery({
+      role: null,
+      team: null,
+      lane: null,
+      table: null,
+      expired: includeExpired.value ? 'yes' : 'no',
+    }, false)
   }
+}
+
+watch(pageTitle, (title) => {
+  if (typeof document !== 'undefined') document.title = title
+}, {immediate: true})
+
+onMounted(async () => {
+  await loadRoles()
+  await resolveSelectionAfterRoles()
 
   nowTimer = setInterval(() => {
     nowMs.value = Date.now()
@@ -1069,37 +1173,20 @@ watch(
     async (next, prev) => {
       if (prev && next.every((v, i) => v === prev[i])) return
       syncFromQuery()
-      if (selectedRole.value != null) await loadSchedule()
-      else groups.value = []
+      if (selectedRole.value != null) {
+        writeStoredPrefs()
+        await loadSchedule()
+      } else {
+        groups.value = []
+      }
     }
 )
 
 watch(
     () => props.planId,
     async () => {
-      const hasQueryRole = route.query.role != null && route.query.role !== ''
-      if (hasQueryRole) syncFromQuery()
-      else if (!restorePrefsFromStorage()) {
-        applyPrefs({role: null, team: null, lane: null, table: null, expired: false})
-      }
       await loadRoles()
-      if (selectedRole.value != null && !selectionStillValid()) {
-        applyPrefs({role: null, team: null, lane: null, table: null})
-        writeStoredPrefs()
-      }
-      if (selectedRole.value != null) {
-        await pushQuery({
-          role: String(selectedRole.value),
-          team: selectedTeam.value != null ? String(selectedTeam.value) : null,
-          lane: selectedLane.value != null ? String(selectedLane.value) : null,
-          table: selectedTable.value != null ? String(selectedTable.value) : null,
-          expired: includeExpired.value ? 'yes' : 'no',
-        })
-        await loadSchedule()
-      } else {
-        writeStoredPrefs()
-        openRoleSheet()
-      }
+      await resolveSelectionAfterRoles()
     }
 )
 
@@ -1144,7 +1231,7 @@ watch(
                   class="public-schedule__role-chip"
                   :aria-expanded="roleSheetOpen"
                   aria-haspopup="dialog"
-                  :aria-label="hasRoleSelection ? `Rolle wechseln: ${roleChipLabel}` : 'Rolle wählen'"
+                  :aria-label="hasRoleSelection ? `Rolle wechseln: ${roleChipLabel}` : 'Überblick'"
                   @click="openRoleSheet"
               >
                 <img
@@ -1152,11 +1239,6 @@ watch(
                     :src="programLogo(selectedRoleMeta)"
                     :alt="programLogoAlt(selectedRoleMeta)"
                     class="public-schedule__role-chip-logo"
-                />
-                <i
-                    v-else
-                    class="bi bi-person-circle public-schedule__role-chip-placeholder"
-                    aria-hidden="true"
                 />
                 <span class="public-schedule__role-chip-text">
                   <span class="public-schedule__toolbar-event">
@@ -1192,7 +1274,7 @@ watch(
                   class="public-schedule__role-chip-action"
                   :aria-expanded="roleSheetOpen"
                   aria-haspopup="dialog"
-                  :aria-label="hasRoleSelection ? `Rolle wechseln: ${roleChipLabel}` : 'Rolle wählen'"
+                  :aria-label="hasRoleSelection ? `Rolle wechseln: ${roleChipLabel}` : 'Überblick'"
                   @click="openRoleSheet"
               >
                 <span class="public-schedule__role-chip-action-label">
@@ -1202,7 +1284,7 @@ watch(
               </button>
             </div>
 
-            <div ref="filterRootEl" class="public-schedule__filter">
+            <div v-if="hasRoleSelection" ref="filterRootEl" class="public-schedule__filter">
               <button
                   type="button"
                   class="public-schedule__filter-btn"
@@ -1239,13 +1321,40 @@ watch(
 
         <div ref="planScrollEl" class="public-schedule__plan-scroll">
           <div
-              v-if="!hasRoleSelection"
+              v-if="teamInfo"
               class="public-schedule__card public-schedule__card--center"
           >
-            Wähle oben deine Rolle, um den Zeitplan zu sehen.
-            <button type="button" class="public-schedule__text-action" @click="openRoleSheet">
-              Rolle wählen
-            </button>
+            <h2 class="public-schedule__dummy-title">{{ teamInfoTitle }}</h2>
+            <p class="public-schedule__dummy-body">Weitere Informationen zu diesem Team folgen.</p>
+            <div class="public-schedule__dummy-actions">
+              <template v-if="matchingTeamRole(teamInfo.firstProgram)">
+                <template v-if="!teamInfoConfirm">
+                  <button type="button" class="public-schedule__text-action" @click="teamInfoConfirm = true">
+                    Sicht für dieses Team
+                  </button>
+                </template>
+                <template v-else>
+                  <button type="button" class="public-schedule__text-action" @click="confirmTeamInfoSwitch">
+                    Wechseln
+                  </button>
+                  <button type="button" class="public-schedule__text-action" @click="teamInfoConfirm = false">
+                    Abbrechen
+                  </button>
+                </template>
+              </template>
+              <button type="button" class="public-schedule__text-action" @click="closeTeamInfo">
+                Zurück
+              </button>
+            </div>
+          </div>
+
+          <div
+              v-else-if="!hasRoleSelection"
+              class="public-schedule__card public-schedule__card--center"
+          >
+            <h2 class="public-schedule__dummy-title">Überblick</h2>
+            <p class="public-schedule__dummy-body">Die Übersicht folgt in Kürze.</p>
+            <p class="public-schedule__dummy-body">Wähle oben, wer du bist.</p>
           </div>
 
           <div
@@ -1389,9 +1498,31 @@ watch(
             <div class="public-schedule__sheet-handle" aria-hidden="true"/>
             <div class="public-schedule__detail-head-row">
               <div>
+                <div class="public-schedule__picker-nav">
+                  <button
+                      type="button"
+                      class="public-schedule__text-action"
+                      @pointerdown.stop
+                      @click="goToOverview"
+                  >
+                    Überblick
+                  </button>
+                  <button
+                      v-if="!pickerAtTop"
+                      type="button"
+                      class="public-schedule__picker-back"
+                      aria-label="Zurück"
+                      @pointerdown.stop
+                      @click="pickerGoBack"
+                  >
+                    <i class="bi bi-chevron-left" aria-hidden="true"/>
+                  </button>
+                </div>
                 <p class="public-schedule__detail-kicker">Online-Zeitplan</p>
                 <h3 class="public-schedule__detail-title">Wer bist du?</h3>
-                <p class="public-schedule__detail-time">Tippe auf deine Rolle</p>
+                <p class="public-schedule__detail-time">
+                  {{ pickerLevel === 3 && pickerRole ? pickerRole.name : 'Tippe auf deine Rolle' }}
+                </p>
               </div>
               <button
                   type="button"
@@ -1414,30 +1545,47 @@ watch(
               @pointercancel="onSheetPointerUp"
           >
             <div class="public-schedule__role-list">
-              <section
-                  v-for="section in roleSections"
-                  :key="section.key"
-                  class="public-schedule__role-section"
-              >
-                <h2 class="public-schedule__role-section-label">
-                  <span
-                      class="public-schedule__role-section-dot"
-                      :style="{background: section.accent}"
-                      aria-hidden="true"
+              <template v-if="pickerLevel === 1">
+                <button
+                    v-for="program in programRows"
+                    :key="program.id"
+                    type="button"
+                    class="public-schedule__role-btn"
+                    @click="onProgramRowClick(program.id)"
+                >
+                  <img
+                      :src="programLogo(program)"
+                      :alt="programLogoAlt(program)"
+                      class="public-schedule__role-logo"
                   />
-                  {{ section.label }}
-                </h2>
+                  <span class="public-schedule__role-name">{{ program.display_name }}</span>
+                  <i class="bi bi-chevron-right public-schedule__role-chevron" aria-hidden="true"/>
+                </button>
+                <button
+                    v-if="showAllgemein"
+                    type="button"
+                    class="public-schedule__role-btn"
+                    @click="onProgramRowClick('allgemein')"
+                >
+                  <img
+                      :src="programLogo(ALLGEMEIN_LOGO)"
+                      :alt="programLogoAlt(ALLGEMEIN_LOGO)"
+                      class="public-schedule__role-logo"
+                  />
+                  <span class="public-schedule__role-name">Allgemein</span>
+                  <i class="bi bi-chevron-right public-schedule__role-chevron" aria-hidden="true"/>
+                </button>
+              </template>
 
+              <template v-else-if="pickerLevel === 2">
                 <div
-                    v-for="role in section.roles"
+                    v-for="role in pickerLevel2Roles"
                     :key="role.id"
                     class="public-schedule__role-item"
-                    :class="{'public-schedule__role-item--open': openRoleId === role.id}"
                 >
                   <button
                       type="button"
                       class="public-schedule__role-btn"
-                      :aria-expanded="roleNeedsPicker(role) ? openRoleId === role.id : undefined"
                       @click="onRoleClick(role)"
                   >
                     <span
@@ -1451,45 +1599,41 @@ watch(
                         class="public-schedule__role-logo"
                     />
                     <span class="public-schedule__role-name">{{ role.name }}</span>
-                    <i
-                        class="bi public-schedule__role-chevron"
-                        :class="roleNeedsPicker(role)
-                          ? (openRoleId === role.id ? 'bi-chevron-up' : 'bi-chevron-down')
-                          : 'bi-chevron-right'"
-                        aria-hidden="true"
-                    />
+                    <i class="bi bi-chevron-right public-schedule__role-chevron" aria-hidden="true"/>
                   </button>
-
-                  <div v-if="openRoleId === role.id && roleNeedsPicker(role)" class="public-schedule__options">
-                    <div v-if="showRoleSearch(role)" class="public-schedule__search-wrap">
-                      <input
-                          v-model="roleFilter"
-                          type="search"
-                          enterkeyhint="search"
-                          autocomplete="off"
-                          class="public-schedule__search"
-                          placeholder="Suchen…"
-                          :aria-label="`${role.name} suchen`"
-                      />
-                    </div>
-                    <button
-                        v-for="(option, idx) in filteredOptions(role)"
-                        :key="`${role.id}-${idx}-${option.value}`"
-                        type="button"
-                        class="public-schedule__option-btn"
-                        @click="selectOption(role, option)"
-                    >
-                      <span :class="{'line-through opacity-50': option.noshow}">
-                        {{ option.label }}
-                      </span>
-                      <i class="bi bi-chevron-right opacity-40" aria-hidden="true"/>
-                    </button>
-                    <p v-if="filteredOptions(role).length === 0" class="public-schedule__empty-filter">
-                      Keine Treffer.
-                    </p>
-                  </div>
                 </div>
-              </section>
+              </template>
+
+              <div v-else-if="pickerRole" class="public-schedule__role-item public-schedule__role-item--open">
+                <div class="public-schedule__options">
+                  <div v-if="showRoleSearch(pickerRole)" class="public-schedule__search-wrap">
+                    <input
+                        v-model="roleFilter"
+                        type="search"
+                        enterkeyhint="search"
+                        autocomplete="off"
+                        class="public-schedule__search"
+                        placeholder="Suchen…"
+                        :aria-label="`${pickerRole.name} suchen`"
+                    />
+                  </div>
+                  <button
+                      v-for="(option, idx) in filteredOptions(pickerRole)"
+                      :key="`${pickerRole.id}-${idx}-${option.value}`"
+                      type="button"
+                      class="public-schedule__option-btn"
+                      @click="pickerRole && selectOption(pickerRole, option)"
+                  >
+                    <span :class="{'line-through opacity-50': option.noshow}">
+                      {{ option.label }}
+                    </span>
+                    <i class="bi bi-chevron-right opacity-40" aria-hidden="true"/>
+                  </button>
+                  <p v-if="filteredOptions(pickerRole).length === 0" class="public-schedule__empty-filter">
+                    Keine Treffer.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -1598,7 +1742,7 @@ watch(
                       v-if="activity.team_name && activity.team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openTeamPlan(activity.team, activity.meta?.first_program_id)"
+                      @click="openTeamInfo(activity.team, activity.meta?.first_program_id)"
                   >
                     {{ activity.team_name }}
                   </button>
@@ -1606,7 +1750,7 @@ watch(
                       v-if="activity.table_1_team_name && activity.table_1_team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openTeamPlan(activity.table_1_team, activity.meta?.first_program_id)"
+                      @click="openTeamInfo(activity.table_1_team, activity.meta?.first_program_id)"
                   >
                     <span v-if="activity.table_1_name" class="opacity-70">{{ activity.table_1_name }} · </span>
                     {{ activity.table_1_team_name }}
@@ -1615,7 +1759,7 @@ watch(
                       v-if="activity.table_2_team_name && activity.table_2_team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openTeamPlan(activity.table_2_team, activity.meta?.first_program_id)"
+                      @click="openTeamInfo(activity.table_2_team, activity.meta?.first_program_id)"
                   >
                     <span v-if="activity.table_2_name" class="opacity-70">{{ activity.table_2_name }} · </span>
                     {{ activity.table_2_team_name }}
@@ -1821,6 +1965,40 @@ watch(
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
+}
+
+.public-schedule__dummy-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.public-schedule__dummy-body {
+  margin: 0;
+}
+
+.public-schedule__dummy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.public-schedule__picker-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.25rem;
+}
+
+.public-schedule__picker-back {
+  border: 0;
+  background: transparent;
+  padding: 0.2rem;
+  line-height: 1;
+  font-size: 1.15rem;
+  color: #374151;
 }
 
 .public-schedule__card--error {

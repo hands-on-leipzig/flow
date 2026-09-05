@@ -62,6 +62,83 @@ class PublicPlanServiceTest extends TestCase
         $this->assertSame(['Jury-Gruppe 1', 'Jury-Gruppe 2', 'Jury-Gruppe 3'], $labels);
     }
 
+    public function test_get_roles_includes_programs_and_catalog_identity(): void
+    {
+        $this->bindRoles([
+            $this->roleRow(4, publicPlan: 1, name: 'Juror:in'),
+        ]);
+
+        $payload = app(PublicPlanService::class)->getRoles(1);
+
+        $this->assertSame([
+            [
+                'id' => 3,
+                'display_name' => 'Challenge',
+                'sequence' => 2,
+                'logo_stem' => 'fll_challenge',
+                'logo_white' => 'challenge.png',
+                'color_hex' => 'ed1c24',
+            ],
+        ], $payload['programs']);
+        $this->assertSame(2, $payload['roles'][0]['first_program_sequence']);
+        $this->assertSame('Challenge', $payload['roles'][0]['first_program_display_name']);
+    }
+
+    public function test_team_option_labels_use_name_and_draht_id(): void
+    {
+        $this->attachFuture8(teams: 2);
+        DB::table('team')->insert([
+            'id' => 1,
+            'event' => 1,
+            'first_program' => 8,
+            'name' => 'Robo',
+            'location' => 'Leipzig',
+            'team_number_hot' => 42,
+        ]);
+        DB::table('team_plan')->insert([
+            'id' => 1,
+            'plan' => 1,
+            'team' => 1,
+            'team_number_plan' => 1,
+            'noshow' => 0,
+        ]);
+
+        $this->bindRoles([
+            $this->roleRow(
+                21,
+                publicPlan: 1,
+                name: 'Team',
+                differentiationParameter: 'team',
+                firstProgram: 8,
+            ),
+        ]);
+
+        $payload = app(PublicPlanService::class)->getRoles(1);
+        $labels = collect($payload['roles'][0]['options'])->pluck('label')->all();
+
+        $this->assertSame(['Robo (42)', 'T2 (Noch nicht angemeldet)'], $labels);
+    }
+
+    public function test_table_option_labels_use_group_label(): void
+    {
+        $this->attachFuture8(fields: 1);
+        $this->bindRoles([
+            $this->roleRow(
+                23,
+                publicPlan: 1,
+                name: 'Schiedsrichter:in',
+                groupLabel: 'Feld',
+                differentiationParameter: 'table',
+                firstProgram: 8,
+            ),
+        ]);
+
+        $payload = app(PublicPlanService::class)->getRoles(1);
+        $labels = collect($payload['roles'][0]['options'])->pluck('label')->all();
+
+        $this->assertSame(['Feld 1'], $labels);
+    }
+
     private function bindRoles(array $roles): void
     {
         $fetcher = Mockery::mock(RoleFetcherService::class);
@@ -75,16 +152,21 @@ class PublicPlanServiceTest extends TestCase
         string $name,
         ?string $groupLabel = null,
         ?string $differentiationParameter = 'lane',
+        int $firstProgram = 3,
     ): object {
+        $isF8 = $firstProgram === 8;
+
         return (object) [
             'id' => $id,
             'name' => $name,
             'name_short' => null,
-            'first_program' => 3,
-            'first_program_name' => 'Challenge',
-            'color_hex' => 'ed1c24',
-            'logo_stem' => 'fll_challenge',
-            'logo_white' => 'challenge.png',
+            'first_program' => $firstProgram,
+            'first_program_name' => $isF8 ? 'FUTURE_8' : 'Challenge',
+            'first_program_sequence' => $isF8 ? 5 : 2,
+            'first_program_display_name' => $isF8 ? 'Future 8+' : 'Challenge',
+            'color_hex' => $isF8 ? '51bfb4' : 'ed1c24',
+            'logo_stem' => $isF8 ? 'fll_future' : 'fll_challenge',
+            'logo_white' => $isF8 ? 'future.png' : 'challenge.png',
             'differentiation_parameter' => $differentiationParameter,
             'public_plan' => $publicPlan,
             'group_label' => $groupLabel,
@@ -104,6 +186,16 @@ class PublicPlanServiceTest extends TestCase
             $table->string('slug')->nullable();
             $table->boolean('check_in_enabled')->default(false);
             $table->boolean('cockpit_enabled')->default(false);
+        });
+
+        Schema::create('m_first_program', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name')->nullable();
+            $table->string('display_name')->nullable();
+            $table->unsignedSmallInteger('sequence')->default(0);
+            $table->string('color_hex')->nullable();
+            $table->string('logo_stem')->nullable();
+            $table->string('logo_white')->nullable();
         });
 
         Schema::create('plan', function (Blueprint $table) {
@@ -142,6 +234,7 @@ class PublicPlanServiceTest extends TestCase
             $table->unsignedInteger('first_program')->nullable();
             $table->string('name')->nullable();
             $table->string('location')->nullable();
+            $table->unsignedInteger('team_number_hot')->nullable();
         });
 
         Schema::create('team_plan', function (Blueprint $table) {
@@ -174,6 +267,17 @@ class PublicPlanServiceTest extends TestCase
             'cockpit_enabled' => 0,
         ]);
         DB::table('plan')->insert(['id' => 1, 'event' => 1, 'name' => 'Plan']);
+        DB::table('m_first_program')->insert([
+            [
+                'id' => 3,
+                'name' => 'CHALLENGE',
+                'display_name' => 'Challenge',
+                'sequence' => 2,
+                'color_hex' => 'ed1c24',
+                'logo_stem' => 'fll_challenge',
+                'logo_white' => 'challenge.png',
+            ],
+        ]);
         DB::table('event_program')->insert(['id' => 1, 'event' => 1, 'first_program' => 3]);
         DB::table('m_parameter')->insert([
             'id' => 50,
@@ -188,5 +292,53 @@ class PublicPlanServiceTest extends TestCase
             'parameter' => 50,
             'set_value' => '3',
         ]);
+    }
+
+    private function attachFuture8(int $teams = 0, int $fields = 0): void
+    {
+        DB::table('m_first_program')->insert([
+            [
+                'id' => 8,
+                'name' => 'FUTURE_8',
+                'display_name' => 'Future 8+',
+                'sequence' => 5,
+                'color_hex' => '51bfb4',
+                'logo_stem' => 'fll_future',
+                'logo_white' => 'future.png',
+            ],
+        ]);
+        DB::table('event_program')->insert(['id' => 2, 'event' => 1, 'first_program' => 8]);
+
+        if ($teams > 0) {
+            DB::table('m_parameter')->insert([
+                'id' => 80,
+                'name' => 'f8_teams',
+                'type' => 'integer',
+                'value' => '0',
+                'first_program' => 8,
+            ]);
+            DB::table('plan_param_value')->insert([
+                'id' => 80,
+                'plan' => 1,
+                'parameter' => 80,
+                'set_value' => (string) $teams,
+            ]);
+        }
+
+        if ($fields > 0) {
+            DB::table('m_parameter')->insert([
+                'id' => 81,
+                'name' => 'f8_fields',
+                'type' => 'integer',
+                'value' => '0',
+                'first_program' => 8,
+            ]);
+            DB::table('plan_param_value')->insert([
+                'id' => 81,
+                'plan' => 1,
+                'parameter' => 81,
+                'set_value' => (string) $fields,
+            ]);
+        }
     }
 }

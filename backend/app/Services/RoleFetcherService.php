@@ -61,6 +61,7 @@ class RoleFetcherService
                 'r.staffable',
                 'r.group_label',
                 'fp.name as first_program_name',
+                'fp.display_name as first_program_display_name',
                 'fp.color_hex',
                 'fp.logo_stem',
                 'fp.logo_white',
