@@ -276,6 +276,8 @@ class CheckInService
      *   kind: string,
      *   name: string,
      *   subtitle: string|null,
+     *   logo_stem: string|null,
+     *   scope_kind: string|null,
      *   mobile: string|null,
      *   status: string|null,
      *   checked_in_at: string|null
@@ -305,6 +307,8 @@ class CheckInService
                 'kind' => 'coach',
                 'name' => $contact['name'],
                 'subtitle' => $contact['subtitle'],
+                'logo_stem' => $contact['logo_stem'],
+                'scope_kind' => $contact['scope_kind'],
                 'mobile' => $contact['mobile'],
                 'status' => $status['status'],
                 'checked_in_at' => $status['checked_in_at'],
@@ -321,6 +325,8 @@ class CheckInService
                 'kind' => 'volunteer',
                 'name' => $contact['name'],
                 'subtitle' => $contact['subtitle'],
+                'logo_stem' => $contact['logo_stem'],
+                'scope_kind' => $contact['scope_kind'],
                 'mobile' => $contact['mobile'],
                 'status' => $status['status'],
                 'checked_in_at' => $status['checked_in_at'],
@@ -335,14 +341,31 @@ class CheckInService
     }
 
     /**
-     * @return list<array{id: string, team_id: int, name: string, subtitle: string|null, mobile: string|null, haystack: string}>
+     * @return list<array{
+     *   id: string,
+     *   team_id: int,
+     *   name: string,
+     *   subtitle: string|null,
+     *   logo_stem: string|null,
+     *   scope_kind: string|null,
+     *   mobile: string|null,
+     *   haystack: string
+     * }>
      */
     private function phonebookCoachContacts(Event $event): array
     {
         $peopleByHot = $this->drahtPeopleByHotNumber($event);
         $teams = DB::table('team')
-            ->where('event', $event->id)
-            ->select(['id', 'name', 'team_number_hot', 'organization'])
+            ->leftJoin('m_first_program as fp', 'fp.id', '=', 'team.first_program')
+            ->where('team.event', $event->id)
+            ->select([
+                'team.id',
+                'team.name',
+                'team.team_number_hot',
+                'team.organization',
+                'team.first_program',
+                'fp.logo_stem',
+            ])
             ->get();
 
         $contacts = [];
@@ -361,8 +384,10 @@ class CheckInService
                 $teamName = 'Team '.$team->id;
             }
             $org = trim((string) ($team->organization ?? ''));
-            $subtitleParts = array_filter([$teamName, $org !== '' ? $org : null, $hot !== '' ? 'Nr. '.$hot : null]);
+            $subtitleParts = array_filter([$teamName, $org !== '' ? $org : null, $hot !== '' ? '('.$hot.')' : null]);
             $subtitle = implode(' · ', $subtitleParts);
+            $logoStem = $team->logo_stem ?: null;
+            $scopeKind = $team->first_program === null ? 'cross' : 'program';
 
             $index = 0;
             foreach ($teamData['coaches'] ?? [] as $coach) {
@@ -392,6 +417,8 @@ class CheckInService
                     'team_id' => (int) $team->id,
                     'name' => $name,
                     'subtitle' => $subtitle,
+                    'logo_stem' => $logoStem,
+                    'scope_kind' => $scopeKind,
                     'mobile' => $mobileOrNull,
                     'haystack' => $haystack,
                 ];
@@ -403,7 +430,16 @@ class CheckInService
     }
 
     /**
-     * @return list<array{id: string, person_id: int, name: string, subtitle: string|null, mobile: string|null, haystack: string}>
+     * @return list<array{
+     *   id: string,
+     *   person_id: int,
+     *   name: string,
+     *   subtitle: string|null,
+     *   logo_stem: string|null,
+     *   scope_kind: string|null,
+     *   mobile: string|null,
+     *   haystack: string
+     * }>
      */
     private function phonebookHelperContacts(Event $event): array
     {
@@ -425,6 +461,7 @@ class CheckInService
             $mobile = trim((string) ($row->mobile ?? ''));
             $mobileOrNull = $mobile !== '' ? $mobile : null;
             $email = trim((string) ($row->email ?? ''));
+            $scopeKind = $this->helperScopeKind($row);
 
             $haystack = mb_strtolower(implode(' ', array_filter([
                 $name,
@@ -441,6 +478,8 @@ class CheckInService
                 'person_id' => (int) $row->id,
                 'name' => $name,
                 'subtitle' => $subtitle,
+                'logo_stem' => $row->logo_stem ?: null,
+                'scope_kind' => $scopeKind,
                 'mobile' => $mobileOrNull,
                 'haystack' => $haystack,
             ];
@@ -500,7 +539,7 @@ class CheckInService
             $hits[] = [
                 'id' => (int) $row->id,
                 'label' => $label !== '' ? $label : ('Team '.$row->id),
-                'subtitle' => 'Team',
+                'subtitle' => $this->teamHitSubtitle($row->organization, $row->team_number_hot),
                 'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
                 'program_name' => $row->program_name,
                 'logo_stem' => $row->logo_stem ?: null,
@@ -723,6 +762,22 @@ class CheckInService
         }
 
         return 'program';
+    }
+
+    /**
+     * Team list subtitle (Check-In search / missing). Label is already the team
+     * name — show organization and Draht id like Telefonbuch, without repeating it.
+     */
+    private function teamHitSubtitle(mixed $organization, mixed $teamNumberHot): string
+    {
+        $org = trim((string) ($organization ?? ''));
+        $hot = trim((string) ($teamNumberHot ?? ''));
+        $parts = array_filter([
+            $org !== '' ? $org : null,
+            $hot !== '' && $hot !== '0' ? '('.$hot.')' : null,
+        ]);
+
+        return $parts !== [] ? implode(' · ', $parts) : 'Team';
     }
 
     public function detail(Event $event, string $subjectType, int $subjectId): array
@@ -1340,6 +1395,8 @@ class CheckInService
             ->select([
                 'team.id',
                 'team.name',
+                'team.team_number_hot',
+                'team.organization',
                 'team.first_program',
                 'fp.name as program_name',
                 'fp.logo_stem',
@@ -1363,7 +1420,7 @@ class CheckInService
                 'subject_type' => CheckIn::SUBJECT_TEAM,
                 'subject_id' => $id,
                 'label' => $label !== '' ? $label : ('Team '.$id),
-                'subtitle' => 'Team',
+                'subtitle' => $this->teamHitSubtitle($row->organization, $row->team_number_hot),
                 'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
                 'program_name' => $row->program_name,
                 'program_sequence' => $row->program_sequence !== null ? (int) $row->program_sequence : null,

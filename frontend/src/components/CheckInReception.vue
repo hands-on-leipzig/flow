@@ -6,6 +6,7 @@ import QRCode from 'qrcode'
 import {imageUrl, programLogoSrc} from '@/utils/images'
 import {publicPlanPath} from '@/utils/publicPlanPath'
 import {photoConsentStatusClass} from '@/utils/photoConsentStatus'
+import PersonListHit from '@/components/molecules/PersonListHit.vue'
 
 defineOptions({name: 'CheckInReception'})
 
@@ -391,11 +392,6 @@ function backFromDetail() {
   backHome()
 }
 
-function rosterGroupLogo(group: RosterGroup) {
-  if (group.kind === 'program' && group.logo_stem) return programLogoSrc({logo_stem: group.logo_stem})
-  return ''
-}
-
 function rosterGroupIcon(group: RosterGroup) {
   if (group.kind === 'cross') return 'bi-intersect'
   if (group.kind === 'local') return 'bi-star'
@@ -406,6 +402,14 @@ function hitScopeIcon(hit: {scope_kind?: string | null}) {
   if (hit.scope_kind === 'cross') return 'bi-intersect'
   if (hit.scope_kind === 'local') return 'bi-star'
   return ''
+}
+
+function rosterHitLogoStem(hit: SearchHit, group: RosterGroup): string | null {
+  return hit.logo_stem || (group.kind === 'program' ? group.logo_stem : null) || null
+}
+
+function rosterHitScopeIcon(hit: SearchHit, group: RosterGroup): string {
+  return hitScopeIcon(hit) || rosterGroupIcon(group)
 }
 
 function rosterSectionEmpty(section: RosterSection) {
@@ -625,45 +629,17 @@ onMounted(async () => {
           <p v-else-if="query.trim().length >= 2 && !results.length" class="ci-muted">Keine Treffer.</p>
           <ul v-if="showSearchResults" class="ci-list">
             <li v-for="hit in results" :key="`${hit.subject_type}-${hit.subject_id}`">
-              <button type="button" class="ci-hit liquid-surface-inner" @click="openDetail(hit)">
-                <span class="ci-hit__row">
-                  <span class="ci-hit__label">{{ hit.label }}</span>
-                  <span class="ci-hit__trailing">
-                    <span v-if="checkInTime(hit)" class="ci-hit__time">{{ checkInTime(hit) }}</span>
-                    <span
-                        class="ci-hit__status"
-                        :class="{
-                          'ci-hit__status--in': hit.status === 'checked_in',
-                          'ci-hit__status--no': hit.status === 'no_show',
-                        }"
-                        :title="statusLabel(hit)"
-                    >
-                      <i
-                          class="bi"
-                          :class="statusIcon(hit.status)"
-                          aria-hidden="true"
-                      />
-                      <span class="sr-only">{{ statusLabel(hit) }}</span>
-                    </span>
-                  </span>
-                </span>
-                <span v-if="hit.logo_stem || hitScopeIcon(hit) || hit.subtitle" class="ci-hit__row ci-hit__row--sub">
-                  <img
-                      v-if="hit.logo_stem"
-                      class="ci-hit__program"
-                      :src="programLogoSrc({logo_stem: hit.logo_stem})"
-                      alt=""
-                      aria-hidden="true"
-                  />
-                  <i
-                      v-else-if="hitScopeIcon(hit)"
-                      class="bi ci-hit__program-icon"
-                      :class="hitScopeIcon(hit)"
-                      aria-hidden="true"
-                  />
-                  <span v-if="hit.subtitle" class="ci-hit__sub">{{ hit.subtitle }}</span>
-                </span>
-              </button>
+              <PersonListHit
+                  interactive
+                  :label="hit.label"
+                  :subtitle="hit.subtitle"
+                  :logo-stem="hit.logo_stem"
+                  :scope-icon="hitScopeIcon(hit)"
+                  :status="hit.status"
+                  :status-title="statusLabel(hit)"
+                  :time="checkInTime(hit)"
+                  @select="openDetail(hit)"
+              />
             </li>
           </ul>
 
@@ -763,42 +739,16 @@ onMounted(async () => {
                   class="ci-list ci-roster__group"
               >
                 <li v-for="hit in group.items" :key="`${hit.subject_type}-${hit.subject_id}`">
-                  <button type="button" class="ci-hit liquid-surface-inner" @click="openDetail(hit)">
-                    <span class="ci-hit__row">
-                      <span class="ci-hit__label">{{ hit.label }}</span>
-                      <span class="ci-hit__trailing">
-                        <span
-                            class="ci-hit__status"
-                            :class="{'ci-hit__status--no': hit.status === 'no_show'}"
-                            :title="statusLabel(hit)"
-                        >
-                          <i class="bi" :class="statusIcon(hit.status)" aria-hidden="true"/>
-                          <span class="sr-only">{{ statusLabel(hit) }}</span>
-                        </span>
-                      </span>
-                    </span>
-                    <span
-                        v-if="hit.logo_stem || rosterGroupLogo(group) || rosterGroupIcon(group) || hit.subtitle"
-                        class="ci-hit__row ci-hit__row--sub"
-                    >
-                      <img
-                          v-if="hit.logo_stem || rosterGroupLogo(group)"
-                          class="ci-hit__program"
-                          :src="hit.logo_stem
-                            ? programLogoSrc({logo_stem: hit.logo_stem})
-                            : rosterGroupLogo(group)"
-                          alt=""
-                          aria-hidden="true"
-                      />
-                      <i
-                          v-else-if="rosterGroupIcon(group)"
-                          class="bi ci-hit__program-icon"
-                          :class="rosterGroupIcon(group)"
-                          aria-hidden="true"
-                      />
-                      <span v-if="hit.subtitle" class="ci-hit__sub">{{ hit.subtitle }}</span>
-                    </span>
-                  </button>
+                  <PersonListHit
+                      interactive
+                      :label="hit.label"
+                      :subtitle="hit.subtitle"
+                      :logo-stem="rosterHitLogoStem(hit, group)"
+                      :scope-icon="rosterHitScopeIcon(hit, group)"
+                      :status="hit.status"
+                      :status-title="statusLabel(hit)"
+                      @select="openDetail(hit)"
+                  />
                 </li>
               </ul>
             </section>
