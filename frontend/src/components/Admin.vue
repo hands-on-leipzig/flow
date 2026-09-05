@@ -108,7 +108,7 @@ onMounted(() => {
 
     <div v-else-if="activeTab === 'roles' && sectionAllowed" class="admin-shell__fill-child">
       <div class="admin-special-editor">
-        <h2 class="text-xl font-bold">Roles</h2>
+        <h2 class="text-xl font-bold">Sichtbarkeit</h2>
         <Visibility/>
       </div>
     </div>

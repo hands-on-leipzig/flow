@@ -111,8 +111,8 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   },
   {
     key: 'roles',
-    label: 'Roles',
-    icon: 'bi-people',
+    label: 'Sichtbarkeit',
+    icon: 'bi-eye',
     group: 'entwicklung',
     devOrLocalOnly: true,
   },
