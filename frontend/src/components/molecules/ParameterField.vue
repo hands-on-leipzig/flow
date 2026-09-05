@@ -1,6 +1,7 @@
 <script setup>
 import {ref, watch, computed} from 'vue'
 import InfoPopover from '@/components/atoms/InfoPopover.vue'
+import {isParameterChangedFromDefault} from '@/utils/parameterDefault'
 
 const props = defineProps({
   param: {
@@ -74,25 +75,8 @@ const showDefaultValue = (param) => {
   }
 }
 
-const isChangedFromDefault = (param) => {
-  if (param.default_value === null || param.default_value === undefined) return false
-  if (param.name && param.name.toLowerCase().includes('team')) return false
-
-  switch (param.type) {
-    case 'boolean':
-      return localValue.value !== normalizeBoolean(param.default_value)
-    case 'integer':
-    case 'decimal':
-      return Number(localValue.value) !== Number(param.default_value)
-    case 'time': {
-      const normalizedCurrent = normalizeTimeFormat(localValue.value)
-      const normalizedDefault = normalizeTimeFormat(param.default_value)
-      return normalizedCurrent !== normalizedDefault
-    }
-    default:
-      return localValue.value !== param.default_value
-  }
-}
+const isChangedFromDefault = (param) =>
+  isParameterChangedFromDefault({...param, value: localValue.value})
 
 function validateValue(value, param) {
   validationError.value = ''

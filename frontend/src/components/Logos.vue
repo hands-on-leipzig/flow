@@ -455,21 +455,19 @@ onMounted(async () => {
                 v-model="manageLogosList"
                 class="logo-manage-list"
                 item-key="id"
-                filter="input, button, a, .no-drag"
-                :prevent-on-filter="true"
+                handle=".logo-card__drag-handle"
                 @start="isDragging = true; hideLogoZoom()"
                 @end="onManageReorderEnd"
             >
               <template #item="{ element: logo }">
                 <ItemCard
                     interactive
-                    class="cursor-move"
                     :inactive="!isLogoOnEvent(logo)"
                     :class="{ 'opacity-55': isDragging }"
                 >
                   <template #leading>
                     <div
-                        class="text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5"
+                        class="logo-card__drag-handle text-[var(--color-text-subtle)] cursor-move select-none leading-none px-0.5"
                         title="Ziehen zum Sortieren"
                         aria-hidden="true"
                     >
@@ -487,7 +485,7 @@ onMounted(async () => {
                         type="text"
                         placeholder="Titel"
                         class="item-card__title glass-input glass-input--sm liquid-surface-control"
-                        @change="updateLogo(logo)"
+                        @blur="updateLogo(logo)"
                     />
                   </template>
                   <template #trailing>
@@ -497,7 +495,7 @@ onMounted(async () => {
                   <div class="logo-card__body">
                     <button
                         type="button"
-                        class="logo-card__art no-drag"
+                        class="logo-card__art"
                         title="Vorschau"
                         @click="openLogoPreview(logo)"
                         @mouseenter="showLogoZoom($event, logo)"
@@ -512,7 +510,7 @@ onMounted(async () => {
                         type="url"
                         placeholder="https://domain.tld"
                         class="glass-input glass-input--sm liquid-surface-control logo-card__link-input"
-                        @change="updateLogo(logo)"
+                        @blur="updateLogo(logo)"
                     />
                   </div>
                 </ItemCard>

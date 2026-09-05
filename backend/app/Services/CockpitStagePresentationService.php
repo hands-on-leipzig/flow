@@ -132,15 +132,9 @@ class CockpitStagePresentationService
      */
     public function setLock(Event $event, string $programName, bool $locked): array
     {
-        [, $program, $slots] = $this->target($event, $programName);
+        [, $program] = $this->target($event, $programName);
 
         $stageId = $this->stageRowId($event, $program);
-
-        // Locking means "this is the running order", so every slot must be
-        // filled — exactly one team per select control.
-        if ($locked && $this->pickedCount($stageId, $slots) < $slots) {
-            abort(422, 'Zum Sperren müssen alle Plätze belegt sein.');
-        }
 
         $changes = ['locked' => $locked, 'updated_at' => now()];
         if ($locked) {
@@ -174,20 +168,6 @@ class CockpitStagePresentationService
 
             return DB::table('stage_presentation')->whereIn('id', $stageIds)->delete();
         });
-    }
-
-    /**
-     * Filled slots within the current range. Rows above it are stale leftovers
-     * from a higher parameter value and must not count toward completeness.
-     */
-    private function pickedCount(int $stageId, int $slots): int
-    {
-        return DB::table('stage_presentation_team')
-            ->where('stage_presentation', $stageId)
-            ->where('slot', '<=', $slots)
-            ->whereNotNull('team')
-            ->distinct()
-            ->count('slot');
     }
 
     /**
@@ -241,10 +221,14 @@ class CockpitStagePresentationService
         }
 
         $names = [];
+        $hots = [];
         $pickedIds = array_values(array_filter($bySlot, fn (?int $id) => $id !== null));
         if ($pickedIds !== []) {
-            foreach (DB::table('team')->whereIn('id', $pickedIds)->get(['id', 'name']) as $row) {
+            foreach (DB::table('team')->whereIn('id', $pickedIds)->get(['id', 'name', 'team_number_hot']) as $row) {
                 $names[(int) $row->id] = (string) $row->name;
+                $hots[(int) $row->id] = $row->team_number_hot !== null && $row->team_number_hot !== ''
+                    ? (string) $row->team_number_hot
+                    : null;
             }
         }
 
@@ -257,6 +241,7 @@ class CockpitStagePresentationService
                 // Carried separately so a team dropped from the options (marked
                 // no-show after being picked) still renders with its name.
                 'team_name' => $teamId !== null ? ($names[$teamId] ?? null) : null,
+                'team_number_hot' => $teamId !== null ? ($hots[$teamId] ?? null) : null,
             ];
         }
 
@@ -275,7 +260,7 @@ class CockpitStagePresentationService
     /**
      * Teams that can still be picked: this event, this program, not a no-show.
      *
-     * @return list<array{id: int, name: string}>
+     * @return list<array{id: int, name: string, team_number_hot: string|null}>
      */
     private function teamOptions(Event $event, int $planId, FirstProgram $program): array
     {
@@ -291,9 +276,15 @@ class CockpitStagePresentationService
             })
             ->orderBy('team.name')
             ->orderBy('team.team_number_hot')
-            ->select('team.id', 'team.name')
+            ->select('team.id', 'team.name', 'team.team_number_hot')
             ->get()
-            ->map(fn ($row) => ['id' => (int) $row->id, 'name' => (string) $row->name])
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'name' => (string) $row->name,
+                'team_number_hot' => $row->team_number_hot !== null && $row->team_number_hot !== ''
+                    ? (string) $row->team_number_hot
+                    : null,
+            ])
             ->all();
     }
 

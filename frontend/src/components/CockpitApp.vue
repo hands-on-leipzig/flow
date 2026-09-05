@@ -7,6 +7,7 @@ import {imageUrl} from '@/utils/images'
 import {publicPlanPath} from '@/utils/publicPlanPath'
 import CockpitToolShell from '@/components/molecules/CockpitToolShell.vue'
 import CockpitPhonebookPanel from '@/components/molecules/CockpitPhonebookPanel.vue'
+import CockpitOverviewPanel from '@/components/molecules/CockpitOverviewPanel.vue'
 import CockpitTimeShiftPanel from '@/components/molecules/CockpitTimeShiftPanel.vue'
 import CockpitStagePresentationPanel from '@/components/molecules/CockpitStagePresentationPanel.vue'
 import RobotGameRoundsPanel from '@/components/molecules/RobotGameRoundsPanel.vue'
@@ -34,7 +35,8 @@ type CockpitTool = {
   title: string
   homeLabel: string
   explanation: string
-  icon: string
+  /** One or more Bootstrap icons (nav: Teams bi-people, Helfer:innen bi-person-heart). */
+  icons: string[]
   ready: boolean
 }
 
@@ -96,18 +98,18 @@ const roundsApiPath = computed(() =>
 const tools: CockpitTool[] = [
   {
     id: 'overview',
-    title: 'Überblick über Teams und Helfer:innen',
-    homeLabel: 'Überblick',
-    explanation: 'Wer fehlt oder kommt gar nicht? Wer ist in welcher Jury-Gruppe?',
-    icon: 'bi-people',
-    ready: false,
+    title: 'Teams und Helfer:innen',
+    homeLabel: 'Teams und Helfer:innen',
+    explanation: '',
+    icons: ['bi-people', 'bi-person-heart'],
+    ready: true,
   },
   {
     id: 'phonebook',
     title: 'Telefonbuch',
     homeLabel: 'Telefonbuch',
     explanation: '',
-    icon: 'bi-telephone',
+    icons: ['bi-telephone'],
     ready: true,
   },
   {
@@ -115,7 +117,7 @@ const tools: CockpitTool[] = [
     title: 'Slide-Show Auswahl',
     homeLabel: 'Slide-Show',
     explanation: 'Wähle, welche Slide-Show im Karussell läuft.',
-    icon: 'bi-images',
+    icons: ['bi-images'],
     ready: false,
   },
   {
@@ -123,7 +125,7 @@ const tools: CockpitTool[] = [
     title: 'Robot-Game Ergebnisse',
     homeLabel: 'Robot-Game',
     explanation: 'Wähle aus, welche Runden öffentlich sichtbar sein sollen.',
-    icon: 'bi-trophy',
+    icons: ['bi-trophy'],
     ready: true,
   },
   {
@@ -131,7 +133,7 @@ const tools: CockpitTool[] = [
     title: 'Zeiten im Plan verschieben',
     homeLabel: 'Zeiten verschieben',
     explanation: 'Verschiebe den Rest des Tages, ohne den Zeitplan neu zu generieren.',
-    icon: 'bi-clock-history',
+    icons: ['bi-clock-history'],
     ready: true,
   },
   {
@@ -139,7 +141,7 @@ const tools: CockpitTool[] = [
     title: 'Forschung auf der Bühne',
     homeLabel: 'Forschung',
     explanation: 'Jury-Verantwortliche können hier eintragen, welche Teams auf die Bühne sollen. Die Anzahl kommt aus dem Veranstaltungsplan.',
-    icon: 'bi-easel',
+    icons: ['bi-easel'],
     ready: true,
   },
 ]
@@ -369,7 +371,9 @@ onMounted(async () => {
                 role="listitem"
                 @click="openTool(tool.id)"
             >
-              <i class="bi cp-grid__icon" :class="tool.icon" aria-hidden="true"/>
+              <span class="cp-grid__icons" aria-hidden="true">
+                <i v-for="icon in tool.icons" :key="icon" class="bi cp-grid__icon" :class="icon"/>
+              </span>
               <span class="cp-grid__title">{{ tool.homeLabel }}</span>
               <span v-if="!tool.ready" class="cp-grid__badge">Bald</span>
             </button>
@@ -398,6 +402,11 @@ onMounted(async () => {
               embedded
               :event-id="bootstrap?.event_id ?? null"
               :rounds-api-path="roundsApiPath"
+              :http="api"
+          />
+          <CockpitOverviewPanel
+              v-else-if="activeTool.id === 'overview'"
+              :slug="slug"
               :http="api"
           />
           <CockpitPhonebookPanel
@@ -629,6 +638,13 @@ onMounted(async () => {
 .cp-grid__cell:active {
   transform: scale(0.98);
   opacity: 0.92;
+}
+
+.cp-grid__icons {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
 }
 
 .cp-grid__icon {

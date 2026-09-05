@@ -127,6 +127,13 @@ class CockpitController extends Controller
         ]);
     }
 
+    public function overview(Request $request, string $slug): JsonResponse
+    {
+        $event = $this->authorizedEvent($request, $slug);
+
+        return response()->json($this->checkIn->overviewAttendance($event));
+    }
+
     public function timeshiftBootstrap(Request $request, string $slug): JsonResponse
     {
         $event = $this->authorizedEvent($request, $slug);
