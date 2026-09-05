@@ -45,15 +45,20 @@ type Role = {
   options: RoleOption[]
 }
 
+type EntityKind = 'team' | 'lane' | 'table'
+
 type Activity = {
   activity_id: number
   start_time: string
   end_time: string
   activity_name: string
+  activity_type_code?: string | null
   team: number | null
   team_name: string | null
+  table_1: number | null
   table_1_team: number | null
   table_1_team_name: string | null
+  table_2: number | null
   table_2_team: number | null
   table_2_team_name: string | null
   lane: number | null
@@ -152,8 +157,13 @@ const roleSheetOpen = ref(false)
 const pickerLevel = ref<1 | 2 | 3>(1)
 const pickerProgramKey = ref<number | 'allgemein' | null>(null)
 const pickerRole = ref<Role | null>(null)
-const teamInfo = ref<{team: number, firstProgram: number | null} | null>(null)
-const teamInfoConfirm = ref(false)
+const entityInfo = ref<{
+  kind: EntityKind
+  value: number
+  firstProgram: number | null
+  activityTypeCode?: string | null
+} | null>(null)
+const entityInfoConfirm = ref(false)
 
 let nowTimer: ReturnType<typeof setInterval> | null = null
 /** Which teleported sheet owns the shared swipe-dismiss gesture */
@@ -323,7 +333,14 @@ function namesRedundant(a: string | null | undefined, b: string | null | undefin
 }
 
 function activityHasLinks(activity: Activity): boolean {
-  return !!(activity.team || activity.table_1_team || activity.table_2_team || activity.lane)
+  return !!(
+      activity.team
+      || activity.table_1
+      || activity.table_1_team
+      || activity.table_2
+      || activity.table_2_team
+      || activity.lane
+  )
 }
 
 function activityAddsDetail(group: Group, activity: Activity): boolean {
@@ -673,22 +690,78 @@ function closeDetail() {
   resetSheetDrag()
 }
 
-function closeTeamInfo() {
-  teamInfo.value = null
-  teamInfoConfirm.value = false
+function closeEntityInfo() {
+  entityInfo.value = null
+  entityInfoConfirm.value = false
 }
 
-function matchingTeamRole(firstProgramId: number | null | undefined): Role | undefined {
-  return roles.value.find(
-      (r) => r.first_program === firstProgramId && r.differentiation_parameter === 'team',
+function matchingSliceRole(
+    kind: EntityKind,
+    firstProgramId: number | null | undefined,
+    activityTypeCode?: string | null,
+): Role | undefined {
+  const matches = roles.value.filter(
+      (r) => r.first_program === firstProgramId && r.differentiation_parameter === kind,
   )
+  if (kind !== 'table' || matches.length <= 1) return matches[0]
+  const isCheck = (activityTypeCode || '').toLowerCase().includes('check')
+  const checkish = (r: Role) =>
+      `${r.group_label || ''} ${r.name}`.toLowerCase().includes('check')
+  const checkRole = matches.find(checkish)
+  const other = matches.find((r) => r !== checkRole)
+  return isCheck ? (checkRole || matches[0]) : (other || matches[0])
 }
 
-const teamInfoTitle = computed(() => {
-  if (!teamInfo.value) return 'Team'
-  const role = matchingTeamRole(teamInfo.value.firstProgram)
-  const option = role?.options.find((o) => o.value === teamInfo.value?.team)
-  return option?.label || 'Team'
+function sliceOptionLabel(
+    kind: EntityKind,
+    value: number,
+    firstProgramId: number | null | undefined,
+    activityTypeCode?: string | null,
+): string {
+  const role = matchingSliceRole(kind, firstProgramId, activityTypeCode)
+  const option = role?.options.find((o) => o.value === value)
+  if (option?.label) return option.label
+  if (kind === 'team') return 'Team'
+  const groupLabel = (role?.group_label || '').trim()
+  if (groupLabel) return `${groupLabel} ${value}`
+  return String(value)
+}
+
+const entityInfoRole = computed(() => {
+  if (!entityInfo.value) return undefined
+  return matchingSliceRole(
+      entityInfo.value.kind,
+      entityInfo.value.firstProgram,
+      entityInfo.value.activityTypeCode,
+  )
+})
+
+const entityInfoTitle = computed(() => {
+  if (!entityInfo.value) return ''
+  return sliceOptionLabel(
+      entityInfo.value.kind,
+      entityInfo.value.value,
+      entityInfo.value.firstProgram,
+      entityInfo.value.activityTypeCode,
+  )
+})
+
+const entityInfoNoun = computed(() => {
+  if (!entityInfo.value) return ''
+  if (entityInfo.value.kind === 'team') return 'dieses Team'
+  const role = entityInfoRole.value
+  return (role?.group_label || '').trim() || role?.name || 'diese Auswahl'
+})
+
+const entityInfoBody = computed(() => {
+  if (entityInfo.value?.kind === 'team') return 'Weitere Informationen zu diesem Team folgen.'
+  const noun = entityInfoNoun.value
+  return noun ? `Weitere Informationen zu ${noun} folgen.` : 'Weitere Informationen folgen.'
+})
+
+const entityInfoCta = computed(() => {
+  if (entityInfo.value?.kind === 'team') return 'Sicht für dieses Team'
+  return `Sicht für ${entityInfoNoun.value}`
 })
 
 function resetPickerToTop() {
@@ -742,7 +815,7 @@ const pickerLead = computed(() => {
 function openRoleSheet() {
   closeFilterMenu()
   closeDetail()
-  closeTeamInfo()
+  closeEntityInfo()
   resetPickerToTop()
   activeSheet.value = 'role'
   roleSheetOpen.value = true
@@ -1029,7 +1102,7 @@ async function applyRole(
     role: Role,
     slice: {team?: number | null, lane?: number | null, table?: number | null} = {},
 ) {
-  closeTeamInfo()
+  closeEntityInfo()
   selectedRole.value = role.id
   selectedTeam.value = slice.team ?? null
   selectedLane.value = slice.lane ?? null
@@ -1070,7 +1143,7 @@ function onProgramRowClick(programId: number | 'allgemein') {
 }
 
 async function goToOverview() {
-  closeTeamInfo()
+  closeEntityInfo()
   selectedRole.value = null
   selectedTeam.value = null
   selectedLane.value = null
@@ -1111,19 +1184,39 @@ function onDocumentPointerDown(event: PointerEvent) {
   if (root && target && !root.contains(target)) closeFilterMenu()
 }
 
-function openTeamInfo(teamNumber: number | null | undefined, firstProgram: number | null | undefined) {
-  if (!teamNumber) return
+function openEntityInfo(
+    kind: EntityKind,
+    value: number | null | undefined,
+    firstProgram: number | null | undefined,
+    activityTypeCode?: string | null,
+) {
+  if (!value) return
   closeDetail()
-  teamInfoConfirm.value = false
-  teamInfo.value = {team: teamNumber, firstProgram: firstProgram ?? null}
+  entityInfoConfirm.value = false
+  entityInfo.value = {
+    kind,
+    value,
+    firstProgram: firstProgram ?? null,
+    activityTypeCode: activityTypeCode ?? null,
+  }
 }
 
-function confirmTeamInfoSwitch() {
-  if (!teamInfo.value) return
-  const role = matchingTeamRole(teamInfo.value.firstProgram)
+function confirmEntityInfoSwitch() {
+  if (!entityInfo.value) return
+  const role = matchingSliceRole(
+      entityInfo.value.kind,
+      entityInfo.value.firstProgram,
+      entityInfo.value.activityTypeCode,
+  )
   if (!role) return
-  const team = teamInfo.value.team
-  void applyRole(role, {team, lane: null, table: null})
+  const value = entityInfo.value.value
+  const slice: {team?: number | null, lane?: number | null, table?: number | null} = {
+    team: null,
+    lane: null,
+    table: null,
+  }
+  slice[entityInfo.value.kind] = value
+  void applyRole(role, slice)
 }
 
 async function resolveSelectionAfterRoles() {
@@ -1342,28 +1435,28 @@ watch(
 
         <div ref="planScrollEl" class="public-schedule__plan-scroll">
           <div
-              v-if="teamInfo"
+              v-if="entityInfo"
               class="public-schedule__card public-schedule__card--center"
           >
-            <h2 class="public-schedule__dummy-title">{{ teamInfoTitle }}</h2>
-            <p class="public-schedule__dummy-body">Weitere Informationen zu diesem Team folgen.</p>
+            <h2 class="public-schedule__dummy-title">{{ entityInfoTitle }}</h2>
+            <p class="public-schedule__dummy-body">{{ entityInfoBody }}</p>
             <div class="public-schedule__dummy-actions">
-              <template v-if="matchingTeamRole(teamInfo.firstProgram)">
-                <template v-if="!teamInfoConfirm">
-                  <button type="button" class="public-schedule__text-action" @click="teamInfoConfirm = true">
-                    Sicht für dieses Team
+              <template v-if="entityInfoRole">
+                <template v-if="!entityInfoConfirm">
+                  <button type="button" class="public-schedule__text-action" @click="entityInfoConfirm = true">
+                    {{ entityInfoCta }}
                   </button>
                 </template>
                 <template v-else>
-                  <button type="button" class="public-schedule__text-action" @click="confirmTeamInfoSwitch">
+                  <button type="button" class="public-schedule__text-action" @click="confirmEntityInfoSwitch">
                     Wechseln
                   </button>
-                  <button type="button" class="public-schedule__text-action" @click="teamInfoConfirm = false">
+                  <button type="button" class="public-schedule__text-action" @click="entityInfoConfirm = false">
                     Abbrechen
                   </button>
                 </template>
               </template>
-              <button type="button" class="public-schedule__text-action" @click="closeTeamInfo">
+              <button type="button" class="public-schedule__text-action" @click="closeEntityInfo">
                 Zurück
               </button>
             </div>
@@ -1556,6 +1649,20 @@ watch(
             <div class="public-schedule__role-list">
               <template v-if="pickerLevel === 1">
                 <button
+                    v-if="showAllgemein"
+                    type="button"
+                    class="public-schedule__role-btn"
+                    @click="onProgramRowClick('allgemein')"
+                >
+                  <img
+                      :src="programLogo(ALLGEMEIN_LOGO)"
+                      :alt="programLogoAlt(ALLGEMEIN_LOGO)"
+                      class="public-schedule__role-logo"
+                  />
+                  <span class="public-schedule__role-name">Alle Programme zusammen</span>
+                  <i class="bi bi-chevron-right public-schedule__role-chevron" aria-hidden="true"/>
+                </button>
+                <button
                     v-for="program in programRows"
                     :key="program.id"
                     type="button"
@@ -1568,20 +1675,6 @@ watch(
                       class="public-schedule__role-logo"
                   />
                   <span class="public-schedule__role-name">{{ program.display_name }}</span>
-                  <i class="bi bi-chevron-right public-schedule__role-chevron" aria-hidden="true"/>
-                </button>
-                <button
-                    v-if="showAllgemein"
-                    type="button"
-                    class="public-schedule__role-btn"
-                    @click="onProgramRowClick('allgemein')"
-                >
-                  <img
-                      :src="programLogo(ALLGEMEIN_LOGO)"
-                      :alt="programLogoAlt(ALLGEMEIN_LOGO)"
-                      class="public-schedule__role-logo"
-                  />
-                  <span class="public-schedule__role-name">Allgemein</span>
                   <i class="bi bi-chevron-right public-schedule__role-chevron" aria-hidden="true"/>
                 </button>
               </template>
@@ -1752,36 +1845,57 @@ watch(
                   </div>
                 </div>
                 <div
-                    v-if="activity.team_name || activity.table_1_team_name || activity.table_2_team_name || activity.lane"
+                    v-if="activityHasLinks(activity)"
                     class="public-schedule__chips"
                 >
                   <button
                       v-if="activity.team_name && activity.team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openTeamInfo(activity.team, activity.meta?.first_program_id)"
+                      @click="openEntityInfo('team', activity.team, activity.meta?.first_program_id)"
                   >
                     {{ activity.team_name }}
+                  </button>
+                  <button
+                      v-if="activity.table_1"
+                      type="button"
+                      class="public-schedule__chip public-schedule__chip--action"
+                      @click="openEntityInfo('table', activity.table_1, activity.meta?.first_program_id, activity.activity_type_code)"
+                  >
+                    {{ sliceOptionLabel('table', activity.table_1, activity.meta?.first_program_id, activity.activity_type_code) }}
                   </button>
                   <button
                       v-if="activity.table_1_team_name && activity.table_1_team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openTeamInfo(activity.table_1_team, activity.meta?.first_program_id)"
+                      @click="openEntityInfo('team', activity.table_1_team, activity.meta?.first_program_id)"
                   >
-                    <span v-if="activity.table_1_name" class="opacity-70">{{ activity.table_1_name }} · </span>
                     {{ activity.table_1_team_name }}
+                  </button>
+                  <button
+                      v-if="activity.table_2"
+                      type="button"
+                      class="public-schedule__chip public-schedule__chip--action"
+                      @click="openEntityInfo('table', activity.table_2, activity.meta?.first_program_id, activity.activity_type_code)"
+                  >
+                    {{ sliceOptionLabel('table', activity.table_2, activity.meta?.first_program_id, activity.activity_type_code) }}
                   </button>
                   <button
                       v-if="activity.table_2_team_name && activity.table_2_team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openTeamInfo(activity.table_2_team, activity.meta?.first_program_id)"
+                      @click="openEntityInfo('team', activity.table_2_team, activity.meta?.first_program_id)"
                   >
-                    <span v-if="activity.table_2_name" class="opacity-70">{{ activity.table_2_name }} · </span>
                     {{ activity.table_2_team_name }}
                   </button>
-                  <span v-if="activity.lane" class="public-schedule__chip">Bahn {{ activity.lane }}</span>
+                  <button
+                      v-if="activity.lane"
+                      type="button"
+                      class="public-schedule__chip public-schedule__chip--action"
+                      @click="openEntityInfo('lane', activity.lane, activity.meta?.first_program_id)"
+                  >
+                    {{ sliceOptionLabel('lane', activity.lane, activity.meta?.first_program_id) }}
+                  </button>
                 </div>
               </li>
             </ul>
