@@ -416,6 +416,116 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertSame('Jury-Gruppe', $byPerson[1][0]['group_label']);
     }
 
+    public function test_ceremony_on_plan_does_not_staff_juror_unless_they_own_the_atd(): void
+    {
+        $this->seedChallengeEvent(lanes: 3);
+        $this->insertUngroupedChallengeRole();
+
+        DB::table('m_role')->insert([
+            'id' => 2,
+            'name' => 'Moderation',
+            'sequence' => 2,
+            'first_program' => null,
+            'staffable' => 1,
+            'group_label' => null,
+        ]);
+        DB::table('m_staffing_rule')->insert([
+            'id' => 3,
+            'm_role' => 2,
+            'min' => 1,
+            'best' => 1,
+            'max' => 1,
+            'ui_description' => null,
+        ]);
+
+        DB::table('m_activity_type_detail')->insert([
+            ['id' => 100, 'name' => 'Judging', 'role' => 4],
+            ['id' => 101, 'name' => 'Awards', 'role' => 2],
+        ]);
+        DB::table('activity_group')->insert([
+            'id' => 1,
+            'activity_type_detail' => 101,
+            'plan' => 1,
+        ]);
+        DB::table('activity')->insert([
+            'id' => 1,
+            'activity_group' => 1,
+            'start' => '2026-01-01 10:00:00',
+            'end' => '2026-01-01 10:30:00',
+            'activity_type_detail' => 101,
+            'extra_block' => null,
+        ]);
+
+        $this->sync->syncForEvent(1);
+
+        $this->assertNull(
+            EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->first()
+        );
+        $this->assertNotNull(
+            EventStaffingRole::query()->where('event', 1)->where('m_role', 2)->first()
+        );
+        $this->assertNotNull(
+            EventStaffingRole::query()->where('event', 1)->where('m_role', 27)->first()
+        );
+    }
+
+    public function test_robot_check_is_staffed_only_when_its_atd_is_on_the_plan(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+
+        DB::table('m_role')->insert([
+            [
+                'id' => 5,
+                'name' => 'Schiedsrichter:in',
+                'sequence' => 6,
+                'first_program' => FirstProgram::CHALLENGE->value,
+                'differentiation_parameter' => 'table',
+                'staffable' => 1,
+                'group_label' => null,
+            ],
+            [
+                'id' => 11,
+                'name' => 'Robot-Check',
+                'sequence' => 7,
+                'first_program' => FirstProgram::CHALLENGE->value,
+                'differentiation_parameter' => 'table',
+                'staffable' => 1,
+                'group_label' => 'Robot-Check',
+            ],
+        ]);
+        DB::table('m_staffing_rule')->insert([
+            ['id' => 5, 'm_role' => 5, 'min' => 1, 'best' => 1, 'max' => 2, 'ui_description' => null],
+            ['id' => 11, 'm_role' => 11, 'min' => 1, 'best' => 1, 'max' => 2, 'ui_description' => null],
+        ]);
+
+        DB::table('m_activity_type_detail')->insert([
+            ['id' => 15, 'name' => 'Match', 'role' => 5],
+            ['id' => 16, 'name' => 'Check', 'role' => 11],
+        ]);
+        DB::table('activity_group')->insert([
+            'id' => 1,
+            'activity_type_detail' => 15,
+            'plan' => 1,
+        ]);
+        DB::table('activity')->insert([
+            'id' => 1,
+            'activity_group' => 1,
+            'start' => '2026-01-01 10:00:00',
+            'end' => '2026-01-01 10:30:00',
+            'activity_type_detail' => 15,
+            'extra_block' => null,
+        ]);
+
+        $this->sync->syncForEvent(1);
+
+        $this->assertNotNull(
+            EventStaffingRole::query()->where('event', 1)->where('m_role', 5)->first()
+        );
+        $this->assertNull(
+            EventStaffingRole::query()->where('event', 1)->where('m_role', 11)->first()
+        );
+    }
+
     private function insertUngroupedChallengeRole(): void
     {
         DB::table('m_role')->insert([
@@ -464,6 +574,10 @@ class StaffingSyncServiceTest extends TestCase
             $table->id();
             $table->integer('sequence');
             $table->string('name')->nullable();
+            $table->string('display_name')->nullable();
+            $table->string('color_hex')->nullable();
+            $table->string('logo_stem')->nullable();
+            $table->string('logo_white')->nullable();
         });
 
         Schema::create('m_parameter', function (Blueprint $table) {
@@ -489,11 +603,42 @@ class StaffingSyncServiceTest extends TestCase
         Schema::create('m_role', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('name_short')->nullable();
             $table->unsignedInteger('sequence')->default(0);
             $table->unsignedInteger('first_program')->nullable();
             $table->string('differentiation_parameter')->nullable();
+            $table->boolean('preview_matrix')->default(false);
+            $table->boolean('pdf_export')->default(false);
+            $table->boolean('public_plan')->default(false);
             $table->boolean('staffable')->default(false);
             $table->string('group_label')->nullable();
+        });
+
+        Schema::create('m_activity_type_detail', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name')->nullable();
+            $table->unsignedInteger('role')->nullable();
+        });
+
+        Schema::create('extra_block', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('plan');
+            $table->string('type')->nullable();
+        });
+
+        Schema::create('activity_group', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('plan');
+        });
+
+        Schema::create('activity', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_group');
+            $table->datetime('start');
+            $table->datetime('end');
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('extra_block')->nullable();
         });
 
         Schema::create('m_staffing_rule', function (Blueprint $table) {

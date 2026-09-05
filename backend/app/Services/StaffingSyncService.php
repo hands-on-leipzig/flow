@@ -19,6 +19,9 @@ use Illuminate\Support\Facades\Log;
  */
 class StaffingSyncService
 {
+    public function __construct(
+        private RoleFetcherService $roleFetcher,
+    ) {}
     /**
      * @return array{roles: int, groups_created: int, groups_surplus: int, groups_collapsed: int, skipped: list<string>}
      */
@@ -65,6 +68,23 @@ class StaffingSyncService
             ->orderBy('sequence')
             ->get();
 
+        $onPlanIds = array_fill_keys(
+            $this->roleFetcher->fetchRoles($planId)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all(),
+            true,
+        );
+        $catalogOwnerIds = array_fill_keys(
+            DB::table('m_activity_type_detail')
+                ->whereNotNull('role')
+                ->pluck('role')
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->all(),
+            true,
+        );
+
         $activeRoleIds = [];
 
         foreach ($catalogRoles as $role) {
@@ -85,6 +105,12 @@ class StaffingSyncService
 
             $programOn = $role->first_program === null
                 || in_array((int) $role->first_program, $programIds, true);
+
+            $onPlan = isset($onPlanIds[(int) $role->id]);
+            $neverOwner = ! isset($catalogOwnerIds[(int) $role->id]);
+            if (! $onPlan && ! ($neverOwner && $programOn)) {
+                continue;
+            }
 
             $grouped = $role->group_label !== null && $role->group_label !== '';
             $expectedGroups = ($programOn && $grouped)
