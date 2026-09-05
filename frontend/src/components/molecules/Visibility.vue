@@ -141,6 +141,22 @@ function toggleRole(id: string) {
   toggleSelected(selectedRoleIds, id)
 }
 
+function clearActivityPrograms() {
+  selectedActivityProgramKeys.value = []
+}
+
+function clearActivityTypes() {
+  selectedActivityTypeIds.value = []
+}
+
+function clearRolePrograms() {
+  selectedRoleProgramKeys.value = []
+}
+
+function clearRoles() {
+  selectedRoleIds.value = []
+}
+
 function matchesSelectedPrograms(
   firstProgram: number | null | undefined,
   keys: string[],
@@ -438,91 +454,129 @@ onMounted(loadMatrix)
         <div class="visibility-admin__filter">
           <div class="visibility-admin__filter-label">Activities</div>
           <div class="visibility-admin__lists">
-            <div
-              class="visibility-admin__listbox"
-              role="listbox"
-              aria-multiselectable="true"
-              aria-label="Activities Programm"
-            >
+            <div class="visibility-admin__list-col">
               <button
-                v-for="program in activityPrograms"
-                :key="programKey(program.id)"
                 type="button"
-                role="option"
-                class="visibility-admin__listbox-option"
-                :class="{ 'visibility-admin__listbox-option--on': selectedActivityProgramKeys.includes(programKey(program.id)) }"
-                :aria-selected="selectedActivityProgramKeys.includes(programKey(program.id))"
-                @click="toggleActivityProgram(programKey(program.id))"
+                class="visibility-admin__list-clear"
+                :disabled="!selectedActivityProgramKeys.length"
+                @click="clearActivityPrograms"
               >
-                {{ programLabel(program) }}
+                Leeren
               </button>
+              <div
+                class="visibility-admin__listbox"
+                role="listbox"
+                aria-multiselectable="true"
+                aria-label="Activities Programm"
+              >
+                <button
+                  v-for="program in activityPrograms"
+                  :key="programKey(program.id)"
+                  type="button"
+                  role="option"
+                  class="visibility-admin__listbox-option"
+                  :class="{ 'visibility-admin__listbox-option--on': selectedActivityProgramKeys.includes(programKey(program.id)) }"
+                  :aria-selected="selectedActivityProgramKeys.includes(programKey(program.id))"
+                  @click="toggleActivityProgram(programKey(program.id))"
+                >
+                  {{ programLabel(program) }}
+                </button>
+              </div>
             </div>
-            <div
-              class="visibility-admin__listbox"
-              role="listbox"
-              aria-multiselectable="true"
-              aria-label="Activities Typ"
-            >
+            <div class="visibility-admin__list-col">
               <button
-                v-for="type in activityTypesForProgram"
-                :key="type.id"
                 type="button"
-                role="option"
-                class="visibility-admin__listbox-option"
-                :class="{ 'visibility-admin__listbox-option--on': selectedActivityTypeIds.includes(String(type.id)) }"
-                :aria-selected="selectedActivityTypeIds.includes(String(type.id))"
-                @click="toggleActivityType(String(type.id))"
+                class="visibility-admin__list-clear"
+                :disabled="!selectedActivityTypeIds.length"
+                @click="clearActivityTypes"
               >
-                {{ type.name }}
+                Leeren
               </button>
+              <div
+                class="visibility-admin__listbox"
+                role="listbox"
+                aria-multiselectable="true"
+                aria-label="Activities Typ"
+              >
+                <button
+                  v-for="type in activityTypesForProgram"
+                  :key="type.id"
+                  type="button"
+                  role="option"
+                  class="visibility-admin__listbox-option"
+                  :class="{ 'visibility-admin__listbox-option--on': selectedActivityTypeIds.includes(String(type.id)) }"
+                  :aria-selected="selectedActivityTypeIds.includes(String(type.id))"
+                  @click="toggleActivityType(String(type.id))"
+                >
+                  {{ type.name }}
+                </button>
+              </div>
             </div>
           </div>
-          <p class="visibility-admin__hint">Rechts leer = alle Typen der gewählten Programme.</p>
         </div>
 
         <div class="visibility-admin__filter">
           <div class="visibility-admin__filter-label">Rollen</div>
           <div class="visibility-admin__lists">
-            <div
-              class="visibility-admin__listbox"
-              role="listbox"
-              aria-multiselectable="true"
-              aria-label="Rollen Programm"
-            >
+            <div class="visibility-admin__list-col">
               <button
-                v-for="program in roleFilterPrograms"
-                :key="programKey(program.id)"
                 type="button"
-                role="option"
-                class="visibility-admin__listbox-option"
-                :class="{ 'visibility-admin__listbox-option--on': selectedRoleProgramKeys.includes(programKey(program.id)) }"
-                :aria-selected="selectedRoleProgramKeys.includes(programKey(program.id))"
-                @click="toggleRoleProgram(programKey(program.id))"
+                class="visibility-admin__list-clear"
+                :disabled="!selectedRoleProgramKeys.length"
+                @click="clearRolePrograms"
               >
-                {{ programLabel(program) }}
+                Leeren
               </button>
+              <div
+                class="visibility-admin__listbox"
+                role="listbox"
+                aria-multiselectable="true"
+                aria-label="Rollen Programm"
+              >
+                <button
+                  v-for="program in roleFilterPrograms"
+                  :key="programKey(program.id)"
+                  type="button"
+                  role="option"
+                  class="visibility-admin__listbox-option"
+                  :class="{ 'visibility-admin__listbox-option--on': selectedRoleProgramKeys.includes(programKey(program.id)) }"
+                  :aria-selected="selectedRoleProgramKeys.includes(programKey(program.id))"
+                  @click="toggleRoleProgram(programKey(program.id))"
+                >
+                  {{ programLabel(program) }}
+                </button>
+              </div>
             </div>
-            <div
-              class="visibility-admin__listbox"
-              role="listbox"
-              aria-multiselectable="true"
-              aria-label="Rollen"
-            >
+            <div class="visibility-admin__list-col">
               <button
-                v-for="role in rolesForProgram"
-                :key="role.id"
                 type="button"
-                role="option"
-                class="visibility-admin__listbox-option"
-                :class="{ 'visibility-admin__listbox-option--on': selectedRoleIds.includes(String(role.id)) }"
-                :aria-selected="selectedRoleIds.includes(String(role.id))"
-                @click="toggleRole(String(role.id))"
+                class="visibility-admin__list-clear"
+                :disabled="!selectedRoleIds.length"
+                @click="clearRoles"
               >
-                {{ role.name }}
+                Leeren
               </button>
+              <div
+                class="visibility-admin__listbox"
+                role="listbox"
+                aria-multiselectable="true"
+                aria-label="Rollen"
+              >
+                <button
+                  v-for="role in rolesForProgram"
+                  :key="role.id"
+                  type="button"
+                  role="option"
+                  class="visibility-admin__listbox-option"
+                  :class="{ 'visibility-admin__listbox-option--on': selectedRoleIds.includes(String(role.id)) }"
+                  :aria-selected="selectedRoleIds.includes(String(role.id))"
+                  @click="toggleRole(String(role.id))"
+                >
+                  {{ role.name }}
+                </button>
+              </div>
             </div>
           </div>
-          <p class="visibility-admin__hint">Rechts leer = alle Rollen der gewählten Programme.</p>
         </div>
       </div>
 
@@ -720,12 +774,6 @@ onMounted(loadMatrix)
   color: var(--color-text-muted);
 }
 
-.visibility-admin__hint {
-  margin: 0;
-  font-size: 0.7rem;
-  color: var(--color-text-subtle);
-}
-
 .visibility-admin__logo {
   width: 0.9rem;
   height: 0.9rem;
@@ -736,6 +784,32 @@ onMounted(loadMatrix)
 .visibility-admin__lists {
   display: flex;
   gap: 0.5rem;
+}
+
+.visibility-admin__list-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.visibility-admin__list-clear {
+  width: 10rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg-muted, #f5f5f5);
+  color: var(--color-text);
+  font-size: 0.7rem;
+  cursor: pointer;
+}
+
+.visibility-admin__list-clear:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent) 10%, #fff);
+}
+
+.visibility-admin__list-clear:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .visibility-admin__select {
