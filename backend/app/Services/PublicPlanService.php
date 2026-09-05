@@ -68,6 +68,7 @@ class PublicPlanService
                 'logo_stem' => $role->logo_stem,
                 'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
                 'differentiation_parameter' => $role->differentiation_parameter,
+                'group_label' => $role->group_label,
                 'options' => $this->roleOptions($role, $teams, $params),
             ];
         }

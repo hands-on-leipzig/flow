@@ -59,6 +59,7 @@ class PublicPlanServiceTest extends TestCase
         $payload = app(PublicPlanService::class)->getRoles(1);
         $labels = collect($payload['roles'][0]['options'])->pluck('label')->all();
 
+        $this->assertSame('Jury-Gruppe', $payload['roles'][0]['group_label']);
         $this->assertSame(['Jury-Gruppe 1', 'Jury-Gruppe 2', 'Jury-Gruppe 3'], $labels);
     }
 

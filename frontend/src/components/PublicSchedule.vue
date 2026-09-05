@@ -41,6 +41,7 @@ type Role = {
   logo_stem?: string | null
   logo_white: string
   differentiation_parameter: string | null
+  group_label?: string | null
   options: RoleOption[]
 }
 
@@ -720,6 +721,24 @@ const pickerAtTop = computed(() =>
     showProgramLevel.value ? pickerLevel.value === 1 : pickerLevel.value === 2,
 )
 
+const pickerSliceNoun = computed(() => {
+  const role = pickerRole.value
+  if (!role) return 'Auswahl'
+  if (role.differentiation_parameter === 'team') return 'Team'
+  const label = (role.group_label || '').trim()
+  return label || role.name
+})
+
+const pickerLead = computed(() => {
+  if (pickerLevel.value === 3 && pickerRole.value) {
+    return `Unten ${pickerSliceNoun.value} wählen ...`
+  }
+  if (pickerLevel.value === 1 && showProgramLevel.value) {
+    return 'Unten Programm und Rolle wählen ...'
+  }
+  return 'Unten Rolle wählen ...'
+})
+
 function openRoleSheet() {
   closeFilterMenu()
   closeDetail()
@@ -756,6 +775,8 @@ function onSheetPointerDown(
   if (e.pointerType === 'mouse' && e.button !== 0) return
   activeSheet.value = kind
   if (fromBody) {
+    const hit = e.target as HTMLElement | null
+    if (hit?.closest('button, a, input, textarea, select, label')) return
     const body = kind === 'role' ? roleBodyEl.value : detailBodyEl.value
     if (body && body.scrollTop > 2) return
   }
@@ -1354,7 +1375,7 @@ watch(
           >
             <h2 class="public-schedule__dummy-title">Überblick</h2>
             <p class="public-schedule__dummy-body">Die Übersicht folgt in Kürze.</p>
-            <p class="public-schedule__dummy-body">Wähle oben, wer du bist.</p>
+            <p class="public-schedule__dummy-body">Wähle oben eine Rolle aus.</p>
           </div>
 
           <div
@@ -1496,43 +1517,31 @@ watch(
               @pointercancel="onSheetPointerUp"
           >
             <div class="public-schedule__sheet-handle" aria-hidden="true"/>
-            <div class="public-schedule__detail-head-row">
-              <div>
-                <div class="public-schedule__picker-nav">
-                  <button
-                      type="button"
-                      class="public-schedule__text-action"
-                      @pointerdown.stop
-                      @click="goToOverview"
-                  >
-                    Überblick
-                  </button>
-                  <button
-                      v-if="!pickerAtTop"
-                      type="button"
-                      class="public-schedule__picker-back"
-                      aria-label="Zurück"
-                      @pointerdown.stop
-                      @click="pickerGoBack"
-                  >
-                    <i class="bi bi-chevron-left" aria-hidden="true"/>
-                  </button>
-                </div>
-                <p class="public-schedule__detail-kicker">Online-Zeitplan</p>
-                <h3 class="public-schedule__detail-title">Wer bist du?</h3>
-                <p class="public-schedule__detail-time">
-                  {{ pickerLevel === 3 && pickerRole ? pickerRole.name : 'Tippe auf deine Rolle' }}
-                </p>
-              </div>
+            <div class="public-schedule__detail-head-row public-schedule__picker-head">
               <button
+                  v-if="!pickerAtTop"
                   type="button"
-                  class="public-schedule__detail-close"
-                  aria-label="Schließen"
+                  class="public-schedule__picker-back"
+                  aria-label="Zurück"
                   @pointerdown.stop
-                  @click="closeRoleSheet"
+                  @click="pickerGoBack"
               >
-                <i class="bi bi-x-lg" aria-hidden="true"/>
+                <i class="bi bi-chevron-left" aria-hidden="true"/>
               </button>
+              <p class="public-schedule__picker-lead">
+                {{ pickerLead }}
+              </p>
+              <p class="public-schedule__picker-aside">
+                ... oder zum
+                <button
+                    type="button"
+                    class="public-schedule__picker-overview"
+                    @pointerdown.stop
+                    @click="goToOverview"
+                >
+                  Überblick
+                </button>
+              </p>
             </div>
           </div>
 
@@ -1624,7 +1633,15 @@ watch(
                       class="public-schedule__option-btn"
                       @click="pickerRole && selectOption(pickerRole, option)"
                   >
-                    <span :class="{'line-through opacity-50': option.noshow}">
+                    <img
+                        :src="programLogo(pickerRole)"
+                        :alt="programLogoAlt(pickerRole)"
+                        class="public-schedule__role-logo"
+                    />
+                    <span
+                        class="public-schedule__option-label"
+                        :class="{'line-through opacity-50': option.noshow}"
+                    >
                       {{ option.label }}
                     </span>
                     <i class="bi bi-chevron-right opacity-40" aria-hidden="true"/>
@@ -1985,20 +2002,49 @@ watch(
   justify-content: center;
 }
 
-.public-schedule__picker-nav {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-bottom: 0.25rem;
+.public-schedule__picker-head {
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.public-schedule__picker-lead {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: #fff;
+}
+
+.public-schedule__picker-aside {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: #fff;
+  text-align: right;
+}
+
+.public-schedule__picker-overview {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #c2410c;
+  font-weight: 700;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .public-schedule__picker-back {
   border: 0;
   background: transparent;
-  padding: 0.2rem;
+  padding: 0.15rem 0.1rem 0.15rem 0;
   line-height: 1;
   font-size: 1.15rem;
-  color: #374151;
+  color: #fff;
+  flex-shrink: 0;
+  align-self: center;
 }
 
 .public-schedule__card--error {
@@ -2084,14 +2130,18 @@ watch(
   min-height: 2.9rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.7rem 1rem 0.7rem 1.35rem;
+  gap: 0.7rem;
+  padding: 0.7rem 1rem 0.7rem 0.75rem;
   text-align: left;
   font-size: 0.98rem;
   border-top: 1px solid #eef2f7;
   line-height: 1.3;
   color: #1f2937;
+}
+
+.public-schedule__option-label {
+  flex: 1;
+  min-width: 0;
 }
 
 .public-schedule__option-btn:active { background: #fff7ed; }
