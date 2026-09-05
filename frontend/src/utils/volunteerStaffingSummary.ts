@@ -50,10 +50,18 @@ export function computeStaffingSummary(
     bucket.roles += 1
 
     const min = Number(role.min)
-    for (const group of role.groups) {
-      bucket.assigned += group.filled
-      if (!group.surplus && group.filled < min) {
-        bucket.missing_min += min - group.filled
+    if (role.grouped) {
+      for (const group of role.groups ?? []) {
+        bucket.assigned += group.filled
+        if (!group.surplus && group.filled < min) {
+          bucket.missing_min += min - group.filled
+        }
+      }
+    } else {
+      const filled = (role.people ?? []).length
+      bucket.assigned += filled
+      if (!role.surplus && filled < min) {
+        bucket.missing_min += min - filled
       }
     }
   }

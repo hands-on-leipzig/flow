@@ -354,6 +354,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/events/{event}/staffing/sync', [EventStaffingController::class, 'sync']);
     Route::post('/events/{event}/staffing/groups/{group}/assignments', [EventStaffingAssignmentController::class, 'store']);
     Route::delete('/events/{event}/staffing/groups/{group}/assignments/{volunteer}', [EventStaffingAssignmentController::class, 'destroy']);
+    Route::post('/events/{event}/staffing/roles/{role}/assignments', [EventStaffingAssignmentController::class, 'storeOnRole']);
+    Route::delete('/events/{event}/staffing/roles/{role}/assignments/{volunteer}', [EventStaffingAssignmentController::class, 'destroyOnRole']);
     Route::post('/events/{event}/staffing/local-roles', [EventStaffingAssignmentController::class, 'storeLocalRole']);
     Route::put('/events/{event}/staffing/local-roles/{role}', [EventStaffingAssignmentController::class, 'updateLocalRole']);
     Route::delete('/events/{event}/staffing/local-roles/{role}', [EventStaffingAssignmentController::class, 'destroyLocalRole']);
@@ -543,6 +545,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/matrix', [VisibilityController::class, 'getMatrix']);
         Route::post('/toggle', [VisibilityController::class, 'toggleVisibility']);
         Route::post('/bulk-toggle', [VisibilityController::class, 'bulkToggle']);
+        Route::post('/roles/reorder', [VisibilityController::class, 'reorderRoles']);
     });
 
     // News controller

@@ -12,12 +12,12 @@ import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programC
 import {
   ADMIN_SECTIONS,
   ADMIN_OPS_NAV,
-  ADMIN_ENTWICKLUNG_SECTIONS,
+  ADMIN_ENTWICKLUNG_NAV,
   ADMIN_DEFAULT_SECTION,
   adminSectionPath,
   isAdminSectionAvailable,
 } from '@/constants/adminNav'
-import type {AdminSection} from '@/constants/adminNav'
+import type {AdminNavNode, AdminSection} from '@/constants/adminNav'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
@@ -83,6 +83,8 @@ type NavChild = {
   path: string
   icon?: string
   iconSrc?: string
+  disabled?: boolean
+  title?: string
 }
 
 type NavEntry = {
@@ -198,8 +200,8 @@ function adminSectionByKey(key: string): AdminSection | undefined {
   return ADMIN_SECTIONS.find((item) => item.key === key)
 }
 
-const adminOpsNavEntries = computed<NavEntry[]>(() =>
-  ADMIN_OPS_NAV.map((node) => {
+function mapAdminNav(nodes: AdminNavNode[]): NavEntry[] {
+  return nodes.map((node) => {
     if (node.kind === 'folder') {
       const children = node.children
         .map((key) => adminSectionByKey(key))
@@ -210,12 +212,17 @@ const adminOpsNavEntries = computed<NavEntry[]>(() =>
             name: entry.name,
             path: entry.path ?? item.path,
             icon: entry.icon,
+            disabled: entry.disabled,
+            title: entry.title,
           }
         })
+      const folderDisabled = children.length > 0 && children.every((child) => child.disabled)
       return {
         name: node.label,
         path: children[0]?.path,
         icon: node.icon,
+        disabled: folderDisabled,
+        title: folderDisabled ? children[0]?.title : undefined,
         children,
       }
     }
@@ -224,12 +231,12 @@ const adminOpsNavEntries = computed<NavEntry[]>(() =>
       return {name: node.key, icon: 'bi-question', disabled: true}
     }
     return toAdminNavEntry(section)
-  }),
-)
+  })
+}
 
-const adminEntwicklungNavEntries = computed<NavEntry[]>(() =>
-  ADMIN_ENTWICKLUNG_SECTIONS.map(toAdminNavEntry),
-)
+const adminOpsNavEntries = computed<NavEntry[]>(() => mapAdminNav(ADMIN_OPS_NAV))
+
+const adminEntwicklungNavEntries = computed<NavEntry[]>(() => mapAdminNav(ADMIN_ENTWICKLUNG_NAV))
 
 const currentNavEntries = computed(() => (isAdminMode.value ? adminOpsNavEntries.value : navEntries.value))
 
@@ -257,6 +264,8 @@ function childNavProps(child: NavChild) {
     path: child.path,
     active: isActive(child.path),
     warning: hasWarning(child.path),
+    disabled: !!child.disabled,
+    title: child.title,
   }
 }
 
@@ -452,7 +461,9 @@ function logout() {
               :warning="entryWarning(entry)"
               :disabled="!!entry.disabled"
               :title="entry.title"
+              :children="entry.children?.map(childNavProps)"
               @select="onNavSelect(entry)"
+              @select-child="onNavChildSelect"
           />
         </div>
       </template>

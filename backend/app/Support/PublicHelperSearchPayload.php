@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Sanitized open-staffing role names for the public event page.
+ * Labels come from open positions (role names, not group titles).
  * Always includes cross, local, and every attached program (empty roles when none open).
  */
 final class PublicHelperSearchPayload

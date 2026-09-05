@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\KeycloakJwtMiddleware;
 use App\Services\MainTableSchemaService;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class MainTablesAdminApiTest extends TestCase
@@ -77,11 +79,26 @@ class MainTablesAdminApiTest extends TestCase
             ->assertJson(['error' => 'Table not allowed']);
     }
 
-    public function test_store_blocks_m_match_writes(): void
+    public function test_store_allows_m_match_writes(): void
     {
         $this->mock(MainTableSchemaService::class, function ($mock) {
             $mock->shouldReceive('isAllowedTable')->with('m_match')->andReturn(true);
-            $mock->shouldReceive('prepareWritePayload')->never();
+            $mock->shouldReceive('prepareWritePayload')
+                ->once()
+                ->andReturn(['ok' => true, 'data' => [
+                    'first_program' => 3,
+                    'teams' => 8,
+                    'tables' => 2,
+                ]]);
+            $mock->shouldReceive('getPrimaryKeyColumn')->with('m_match')->andReturn('id');
+        });
+
+        Schema::dropIfExists('m_match');
+        Schema::create('m_match', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('first_program')->nullable();
+            $table->unsignedInteger('teams')->nullable();
+            $table->unsignedInteger('tables')->nullable();
         });
 
         $this->postJson('/api/admin/main-tables/m_match', [
@@ -89,7 +106,8 @@ class MainTablesAdminApiTest extends TestCase
             'teams' => 8,
             'tables' => 2,
         ])
-            ->assertStatus(403)
-            ->assertJson(['error' => 'm_match is edited only in Admin → Matchpläne']);
+            ->assertOk()
+            ->assertJsonPath('data.first_program', 3)
+            ->assertJsonPath('data.teams', 8);
     }
 }

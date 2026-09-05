@@ -204,7 +204,7 @@ final class VolunteerRosterColumns
     }
 
     /**
-     * @param  array{first_program: ?int, is_local: bool, label: string}|null  $assignment
+     * @param  array{first_program: ?int, is_local: bool, label: string, caption?: string, group_label?: ?string, group_index?: ?int}|null  $assignment
      * @param  array<int, string>  $programNames
      * @return list<string>
      */
@@ -216,7 +216,11 @@ final class VolunteerRosterColumns
 
         return [
             self::assignmentProgramLabel($assignment, $programNames),
-            $assignment['label'],
+            $assignment['caption'] ?? StaffingAssignmentLabel::assignmentCaption(
+                (string) $assignment['label'],
+                $assignment['group_label'] ?? null,
+                $assignment['group_index'] ?? null,
+            ),
         ];
     }
 

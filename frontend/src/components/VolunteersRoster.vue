@@ -26,7 +26,8 @@ import {type RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {rosterEntryHasUnsetField} from '@/utils/volunteerRosterUnset'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
-import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
+import {type VolunteerPersonRef, volunteerDisplayName} from '@/utils/volunteerPerson'
+import {rosterEntrySearchHaystack} from '@/volunteers/staffingLabel'
 import {defaultRosterDetail, type RosterEntry} from '@/volunteers/rosterTypes'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
@@ -103,7 +104,7 @@ const sortedRoster = computed(() => {
 function entryMatchesNameFilter(entry: RosterEntry) {
   const query = nameFilter.value.trim().toLowerCase()
   if (!query) return true
-  return volunteerSearchHaystack(entry.person).includes(query)
+  return rosterEntrySearchHaystack(entry).includes(query)
 }
 
 function entryMatchesFilters(entry: RosterEntry) {
@@ -356,8 +357,8 @@ onMounted(() => load())
                 v-model="nameFilter"
                 type="search"
                 class="glass-input glass-input--sm vol-staffing-filters__name"
-                placeholder="Name…"
-                aria-label="Nach Name filtern"
+                placeholder="Name, Rolle…"
+                aria-label="Nach Name oder Rolle filtern"
                 autocomplete="off"
             >
           </div>

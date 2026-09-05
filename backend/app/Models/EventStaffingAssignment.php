@@ -12,6 +12,7 @@ class EventStaffingAssignment extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'event_staffing_role',
         'event_staffing_group',
         'volunteer_person',
         'created_at',
@@ -20,6 +21,11 @@ class EventStaffingAssignment extends Model
     protected $casts = [
         'created_at' => 'datetime',
     ];
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(EventStaffingRole::class, 'event_staffing_role');
+    }
 
     public function group(): BelongsTo
     {

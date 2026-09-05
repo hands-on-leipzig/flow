@@ -85,7 +85,10 @@ class StaffingSyncService
             $programOn = $role->first_program === null
                 || in_array((int) $role->first_program, $programIds, true);
 
-            $expectedGroups = $programOn ? $this->expectedGroupCount($role, $planId) : 0;
+            $grouped = $role->group_label !== null && $role->group_label !== '';
+            $expectedGroups = ($programOn && $grouped)
+                ? $this->expectedGroupCount($role, $planId)
+                : 0;
 
             $eventRole = EventStaffingRole::query()->updateOrCreate(
                 [
@@ -94,11 +97,13 @@ class StaffingSyncService
                 ],
                 [
                     'label' => $role->name,
+                    'group_label' => $role->group_label,
                     'min' => $rule->min,
                     'best' => $rule->best,
                     'max' => $rule->max,
                     'ui_description' => $rule->ui_description,
                     'sequence' => (int) $role->sequence,
+                    'surplus' => false,
                 ]
             );
 
@@ -111,7 +116,7 @@ class StaffingSyncService
             $stats['groups_collapsed'] += $groupStats['collapsed'];
         }
 
-        // Catalog roles that no longer apply (program off / no longer staffable): surplus all groups
+        // Catalog roles that no longer apply (program off / no longer staffable)
         $obsolete = EventStaffingRole::query()
             ->where('event', $eventId)
             ->whereNotNull('m_role')
@@ -120,9 +125,16 @@ class StaffingSyncService
             ->get();
 
         foreach ($obsolete as $eventRole) {
-            $groupStats = $this->syncGroups($eventRole, 0);
-            $stats['groups_surplus'] += $groupStats['surplus'];
-            $stats['groups_collapsed'] += $groupStats['collapsed'];
+            if ($eventRole->isGrouped()) {
+                $groupStats = $this->syncGroups($eventRole, 0);
+                $stats['groups_surplus'] += $groupStats['surplus'];
+                $stats['groups_collapsed'] += $groupStats['collapsed'];
+            } else {
+                if (! $eventRole->surplus) {
+                    $eventRole->surplus = true;
+                    $eventRole->save();
+                }
+            }
         }
 
         return $stats;
@@ -146,7 +158,7 @@ class StaffingSyncService
 
         $roles = EventStaffingRole::query()
             ->where('event', $eventId)
-            ->with(['catalogRole', 'groups.assignments'])
+            ->with(['catalogRole', 'groups.assignments', 'assignments'])
             ->get();
 
         foreach ($roles as $role) {
@@ -158,11 +170,19 @@ class StaffingSyncService
             $buckets[$scopeKey]['roles']++;
 
             $min = (int) $role->min;
-            foreach ($role->groups as $group) {
-                $filled = $group->assignments->count();
-                $buckets[$scopeKey]['assigned'] += $filled;
+            if ($role->isGrouped()) {
+                foreach ($role->groups as $group) {
+                    $filled = $group->assignments->count();
+                    $buckets[$scopeKey]['assigned'] += $filled;
 
-                if (! $group->surplus && $filled < $min) {
+                    if (! $group->surplus && $filled < $min) {
+                        $buckets[$scopeKey]['missing_min'] += $min - $filled;
+                    }
+                }
+            } else {
+                $filled = $role->assignments->count();
+                $buckets[$scopeKey]['assigned'] += $filled;
+                if (! $role->surplus && $filled < $min) {
                     $buckets[$scopeKey]['missing_min'] += $min - $filled;
                 }
             }
@@ -185,16 +205,13 @@ class StaffingSyncService
     }
 
     /**
-     * Open staffing gaps per scope, aggregated per role across groups.
-     *
-     * Critical: sum(min - filled) per group where filled < min.
-     * Recommended: sum(best - min) per group where filled < best and best > min.
+     * Open staffing gaps per scope, one entry per role (grouped containers summed).
      *
      * @param  list<int>  $programIds  attached event first_program ids
      * @return list<array{
      *     key: string,
-     *     critical: list<array{role_id: int, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>,
-     *     recommended: list<array{role_id: int, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>
+     *     critical: list<array{role_id: int, group_id: int|null, group_index: int|null, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>,
+     *     recommended: list<array{role_id: int, group_id: int|null, group_index: int|null, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>
      * }>
      */
     public function openPositionsByScope(int $eventId, array $programIds): array
@@ -215,7 +232,7 @@ class StaffingSyncService
 
         $roles = EventStaffingRole::query()
             ->where('event', $eventId)
-            ->with(['catalogRole', 'groups.assignments'])
+            ->with(['catalogRole', 'groups.assignments', 'assignments'])
             ->get();
 
         foreach ($roles as $role) {
@@ -226,31 +243,32 @@ class StaffingSyncService
 
             $min = (int) $role->min;
             $best = (int) $role->best;
-            $meta = $this->openPositionRoleMeta($role);
+            $roleLabel = trim($role->label ?: ($role->catalogRole?->name ?? '')) ?: 'Unbenannt';
 
-            foreach ($role->groups as $group) {
-                if ($group->surplus) {
-                    continue;
-                }
-
-                $filled = $group->assignments->count();
-
-                if ($filled < $min) {
-                    $this->accumulateOpenPosition(
-                        $accumulators[$scopeKey]['critical'],
-                        $role->id,
+            if ($role->isGrouped()) {
+                $meta = $this->openPositionContainerMeta($role, null, null, $roleLabel);
+                foreach ($role->groups as $group) {
+                    if ($group->surplus) {
+                        continue;
+                    }
+                    $this->recordOpenPositionGaps(
+                        $accumulators[$scopeKey],
                         $meta,
-                        $min - $filled,
+                        $group->assignments->count(),
+                        $min,
+                        $best,
                     );
                 }
-                if ($filled < $best && $best > $min) {
-                    $this->accumulateOpenPosition(
-                        $accumulators[$scopeKey]['recommended'],
-                        $role->id,
-                        $meta,
-                        $best - $min,
-                    );
-                }
+            } elseif (! $role->surplus) {
+                $filled = $role->assignments->count();
+                $meta = $this->openPositionContainerMeta($role, null, null, $roleLabel);
+                $this->recordOpenPositionGaps(
+                    $accumulators[$scopeKey],
+                    $meta,
+                    $filled,
+                    $min,
+                    $best,
+                );
             }
         }
 
@@ -279,7 +297,7 @@ class StaffingSyncService
     {
         $roles = EventStaffingRole::query()
             ->where('event', $eventId)
-            ->with(['groups.assignments'])
+            ->with(['groups.assignments', 'assignments'])
             ->get();
 
         if ($roles->isEmpty()) {
@@ -287,18 +305,34 @@ class StaffingSyncService
         }
 
         foreach ($roles as $role) {
-            foreach ($role->groups as $group) {
-                $count = $group->assignments->count();
-                if ($group->surplus) {
-                    if ($count > 0) {
+            if ($role->isGrouped()) {
+                foreach ($role->groups as $group) {
+                    $count = $group->assignments->count();
+                    if ($group->surplus) {
+                        if ($count > 0) {
+                            return false;
+                        }
+
+                        continue;
+                    }
+                    if ($count < (int) $role->min) {
                         return false;
                     }
-
-                    continue;
                 }
-                if ($count < (int) $role->min) {
+
+                continue;
+            }
+
+            $count = $role->assignments->count();
+            if ($role->surplus) {
+                if ($count > 0) {
                     return false;
                 }
+
+                continue;
+            }
+            if ($count < (int) $role->min) {
+                return false;
             }
         }
 
@@ -320,11 +354,14 @@ class StaffingSyncService
     }
 
     /**
-     * @return array{role_id: int, label: string, sequence: int, first_program: int|null, is_local: bool}
+     * @return array{role_id: int, group_id: int|null, group_index: int|null, label: string, sequence: int, first_program: int|null, is_local: bool}
      */
-    private function openPositionRoleMeta(EventStaffingRole $role): array
-    {
-        $label = trim($role->label ?: ($role->catalogRole?->name ?? '')) ?: 'Unbenannt';
+    private function openPositionContainerMeta(
+        EventStaffingRole $role,
+        ?int $groupId,
+        ?int $groupIndex,
+        string $label,
+    ): array {
         $firstProgram = null;
         if (! $role->isLocal() && $role->catalogRole?->first_program !== null) {
             $firstProgram = (int) $role->catalogRole->first_program;
@@ -332,6 +369,8 @@ class StaffingSyncService
 
         return [
             'role_id' => (int) $role->id,
+            'group_id' => $groupId,
+            'group_index' => $groupIndex,
             'label' => $label,
             'sequence' => (int) $role->sequence,
             'first_program' => $firstProgram,
@@ -340,25 +379,42 @@ class StaffingSyncService
     }
 
     /**
-     * @param  array<int, array{role_id: int, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>  $byRole
+     * @param  array{critical: array<string, array<string, mixed>>, recommended: array<string, array<string, mixed>>}  $scope
+     * @param  array{role_id: int, group_id: int|null, group_index: int|null, label: string, sequence: int, first_program: int|null, is_local: bool}  $meta
      */
-    private function accumulateOpenPosition(array &$byRole, int $roleId, array $meta, int $amount): void
+    private function recordOpenPositionGaps(array &$scope, array $meta, int $filled, int $min, int $best): void
     {
-        if (! isset($byRole[$roleId])) {
-            $byRole[$roleId] = [...$meta, 'wanted' => 0];
-        }
+        $key = 'r'.$meta['role_id'];
 
-        $byRole[$roleId]['wanted'] += $amount;
+        if ($filled < $min) {
+            $this->accumulateOpenPosition($scope['critical'], $key, $meta, $min - $filled);
+        }
+        if ($filled < $best && $best > $min) {
+            $this->accumulateOpenPosition($scope['recommended'], $key, $meta, $best - $min);
+        }
     }
 
     /**
-     * @param  array<int, array{role_id: int, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>  $byRole
-     * @return list<array{role_id: int, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>
+     * @param  array<string, array{role_id: int, group_id: int|null, group_index: int|null, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>  $byKey
+     * @param  array{role_id: int, group_id: int|null, group_index: int|null, label: string, sequence: int, first_program: int|null, is_local: bool}  $meta
      */
-    private function finalizeOpenPositionEntries(array $byRole): array
+    private function accumulateOpenPosition(array &$byKey, string $key, array $meta, int $amount): void
+    {
+        if (! isset($byKey[$key])) {
+            $byKey[$key] = [...$meta, 'wanted' => 0];
+        }
+
+        $byKey[$key]['wanted'] += $amount;
+    }
+
+    /**
+     * @param  array<string, array{role_id: int, group_id: int|null, group_index: int|null, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>  $byKey
+     * @return list<array{role_id: int, group_id: int|null, group_index: int|null, label: string, wanted: int, sequence: int, first_program: int|null, is_local: bool}>
+     */
+    private function finalizeOpenPositionEntries(array $byKey): array
     {
         $entries = array_values(array_filter(
-            $byRole,
+            $byKey,
             fn (array $entry) => (int) ($entry['wanted'] ?? 0) > 0,
         ));
 
@@ -370,6 +426,11 @@ class StaffingSyncService
             $byLabel = strcasecmp($a['label'], $b['label']);
             if ($byLabel !== 0) {
                 return $byLabel;
+            }
+
+            $byGroup = ($a['group_index'] ?? 0) <=> ($b['group_index'] ?? 0);
+            if ($byGroup !== 0) {
+                return $byGroup;
             }
 
             return $a['role_id'] <=> $b['role_id'];
@@ -395,12 +456,15 @@ class StaffingSyncService
 
     private function expectedGroupCount(MRole $role, int $planId): int
     {
+        if ($role->group_label === null || $role->group_label === '') {
+            return 0;
+        }
+
         if ($role->differentiation_type === 'number' && $role->differentiation_source) {
             return max(0, $this->runDifferentiationCount($role->differentiation_source, $planId));
         }
 
-        // Singular staffable role
-        return 1;
+        return 0;
     }
 
     private function runDifferentiationCount(string $source, int $planId): int

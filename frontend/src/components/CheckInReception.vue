@@ -25,6 +25,7 @@ type SearchHit = {
   program_id?: number | null
   program_name?: string | null
   logo_stem?: string | null
+  scope_kind?: 'cross' | 'program' | 'local' | string | null
   status: 'checked_in' | 'no_show' | null
   checked_in_at?: string | null
 }
@@ -401,6 +402,12 @@ function rosterGroupIcon(group: RosterGroup) {
   return ''
 }
 
+function hitScopeIcon(hit: {scope_kind?: string | null}) {
+  if (hit.scope_kind === 'cross') return 'bi-intersect'
+  if (hit.scope_kind === 'local') return 'bi-star'
+  return ''
+}
+
 function rosterSectionEmpty(section: RosterSection) {
   return !section.groups.some((group) => group.items.length > 0)
 }
@@ -608,7 +615,7 @@ onMounted(async () => {
               v-model="query"
               type="search"
               class="glass-input ci-input"
-              placeholder="Suche nach Name, Team, E-Mail…"
+              placeholder="Suche nach Name, Team, Rolle…"
               autocomplete="off"
               aria-label="Suche"
               @input="onQueryInput"
@@ -640,12 +647,18 @@ onMounted(async () => {
                     </span>
                   </span>
                 </span>
-                <span v-if="hit.logo_stem || hit.subtitle" class="ci-hit__row ci-hit__row--sub">
+                <span v-if="hit.logo_stem || hitScopeIcon(hit) || hit.subtitle" class="ci-hit__row ci-hit__row--sub">
                   <img
                       v-if="hit.logo_stem"
                       class="ci-hit__program"
                       :src="programLogoSrc({logo_stem: hit.logo_stem})"
                       alt=""
+                      aria-hidden="true"
+                  />
+                  <i
+                      v-else-if="hitScopeIcon(hit)"
+                      class="bi ci-hit__program-icon"
+                      :class="hitScopeIcon(hit)"
                       aria-hidden="true"
                   />
                   <span v-if="hit.subtitle" class="ci-hit__sub">{{ hit.subtitle }}</span>
@@ -850,12 +863,18 @@ onMounted(async () => {
                   </span>
                 </span>
               </div>
-              <div v-if="detail.logo_stem || roleLabel(detail)" class="ci-hit__row ci-hit__row--sub">
+              <div v-if="detail.logo_stem || hitScopeIcon(detail) || roleLabel(detail)" class="ci-hit__row ci-hit__row--sub">
                 <img
                     v-if="detail.logo_stem"
                     class="ci-hit__program"
                     :src="programLogoSrc({logo_stem: detail.logo_stem})"
                     alt=""
+                    aria-hidden="true"
+                />
+                <i
+                    v-else-if="hitScopeIcon(detail)"
+                    class="bi ci-hit__program-icon"
+                    :class="hitScopeIcon(detail)"
                     aria-hidden="true"
                 />
                 <span v-if="roleLabel(detail)" class="ci-hit__sub">

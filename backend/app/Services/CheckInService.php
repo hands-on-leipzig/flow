@@ -12,6 +12,7 @@ use App\Models\EventVolunteerFieldValue;
 use App\Models\EventVolunteerRoster;
 use App\Models\Plan;
 use App\Support\PhotoConsentStatus;
+use App\Support\StaffingAssignmentLabel;
 use App\Support\TeamDataCustomFields;
 use App\Support\TeamMealCounts;
 use App\Support\TeamPeopleCounts;
@@ -607,10 +608,11 @@ class CheckInService
             $hits[] = [
                 'id' => (int) $row->id,
                 'label' => trim($row->first_name.' '.$row->last_name),
-                'subtitle' => $roleLabels[0] ?? $row->organization,
+                'subtitle' => $roleLabels !== [] ? implode(', ', $roleLabels) : ($row->organization ?: null),
                 'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
                 'program_name' => $row->program_name,
                 'logo_stem' => $row->logo_stem ?: null,
+                'scope_kind' => $this->helperScopeKind($row),
                 'role_labels' => $roleLabels,
             ];
         }
@@ -621,8 +623,8 @@ class CheckInService
     private function staffedHelpersQuery(int $eventId)
     {
         return DB::table('event_staffing_assignment as a')
-            ->join('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
+            ->join('event_staffing_role as r', 'r.id', '=', 'a.event_staffing_role')
+            ->leftJoin('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
             ->join('volunteer_person as p', 'p.id', '=', 'a.volunteer_person')
             ->leftJoin('m_role as mr', 'mr.id', '=', 'r.m_role')
             ->leftJoin('m_first_program as fp', 'fp.id', '=', 'mr.first_program')
@@ -636,6 +638,8 @@ class CheckInService
                 'p.organization',
                 'r.m_role',
                 'r.label as role_label',
+                'r.group_label',
+                'g.group_index',
                 'mr.name as catalog_role_name',
                 'mr.first_program',
                 'fp.name as program_name',
@@ -678,9 +682,13 @@ class CheckInService
                     'scope_picked' => false,
                 ];
             }
-            $label = $row->role_label ?: $row->catalog_role_name;
-            if ($label && ! in_array($label, $byPerson[$id]->role_labels, true)) {
-                $byPerson[$id]->role_labels[] = $label;
+            $caption = StaffingAssignmentLabel::assignmentCaption(
+                trim((string) ($row->role_label ?: $row->catalog_role_name ?: 'Rolle')),
+                $row->group_label !== null && $row->group_label !== '' ? (string) $row->group_label : null,
+                $row->group_index !== null ? (int) $row->group_index : null,
+            );
+            if (! in_array($caption, $byPerson[$id]->role_labels, true)) {
+                $byPerson[$id]->role_labels[] = $caption;
             }
 
             // Same preference as Zuordnung / check-in role pick: catalog (regular) before local.
@@ -692,7 +700,7 @@ class CheckInService
                 $byPerson[$id]->program_display_name = $row->program_display_name ?: $row->program_name;
                 $byPerson[$id]->program_sequence = $row->program_sequence !== null ? (int) $row->program_sequence : null;
                 $byPerson[$id]->logo_stem = $row->logo_stem ?: null;
-                $byPerson[$id]->role_label = $label ?: null;
+                $byPerson[$id]->role_label = $caption;
                 $byPerson[$id]->scope_picked = true;
             }
         }
@@ -703,6 +711,18 @@ class CheckInService
 
             return $person;
         });
+    }
+
+    private function helperScopeKind(object $row): string
+    {
+        if (! empty($row->is_local)) {
+            return 'local';
+        }
+        if ($row->first_program === null) {
+            return 'cross';
+        }
+
+        return 'program';
     }
 
     public function detail(Event $event, string $subjectType, int $subjectId): array
@@ -804,6 +824,7 @@ class CheckInService
             'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
             'program_name' => $row->program_name,
             'logo_stem' => $row->logo_stem ?: null,
+            'scope_kind' => $this->helperScopeKind($row),
             'room' => null,
             'role_labels' => $roleLabels,
             'call_contacts' => $this->helperCallContacts($row, $label),
@@ -1057,8 +1078,8 @@ class CheckInService
         }
 
         $assignments = DB::table('event_staffing_assignment as a')
-            ->join('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
+            ->join('event_staffing_role as r', 'r.id', '=', 'a.event_staffing_role')
+            ->leftJoin('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
             ->where('r.event', $event->id)
             ->where('a.volunteer_person', $personId)
             ->orderByRaw('CASE WHEN r.m_role IS NULL THEN 1 ELSE 0 END')
@@ -1369,19 +1390,13 @@ class CheckInService
             }
 
             $roleLabels = $row->role_labels ? explode('||', $row->role_labels) : [];
-            if (! empty($row->is_local)) {
-                $scopeKind = 'local';
-            } elseif ($row->first_program === null) {
-                $scopeKind = 'cross';
-            } else {
-                $scopeKind = 'program';
-            }
+            $scopeKind = $this->helperScopeKind($row);
 
             $items[] = array_merge([
                 'subject_type' => CheckIn::SUBJECT_VOLUNTEER,
                 'subject_id' => $id,
                 'label' => trim($row->first_name.' '.$row->last_name),
-                'subtitle' => $roleLabels[0] ?? $row->organization,
+                'subtitle' => $roleLabels !== [] ? implode(', ', $roleLabels) : ($row->organization ?: null),
                 'program_id' => $row->first_program !== null ? (int) $row->first_program : null,
                 'program_name' => $row->program_name,
                 'program_sequence' => $row->program_sequence !== null ? (int) $row->program_sequence : null,
@@ -1603,8 +1618,7 @@ class CheckInService
     public function organizerContact(Event $event): ?array
     {
         $row = DB::table('event_staffing_assignment as a')
-            ->join('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
+            ->join('event_staffing_role as r', 'r.id', '=', 'a.event_staffing_role')
             ->join('volunteer_person as p', 'p.id', '=', 'a.volunteer_person')
             ->where('r.event', $event->id)
             ->where('r.m_role', self::ORGANIZER_M_ROLE)

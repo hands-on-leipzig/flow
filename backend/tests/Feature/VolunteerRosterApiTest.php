@@ -62,14 +62,9 @@ class VolunteerRosterApiTest extends TestCase
             'max' => 2,
             'sequence' => 1,
         ]);
-        DB::table('event_staffing_group')->insert([
-            'id' => 1,
-            'event_staffing_role' => 1,
-            'group_index' => 1,
-            'surplus' => false,
-        ]);
         DB::table('event_staffing_assignment')->insert([
-            'event_staffing_group' => 1,
+            'event_staffing_role' => 1,
+            'event_staffing_group' => null,
             'volunteer_person' => 10,
             'created_at' => now(),
         ]);
@@ -387,10 +382,12 @@ class VolunteerRosterApiTest extends TestCase
                 $table->unsignedInteger('event');
                 $table->unsignedInteger('m_role')->nullable();
                 $table->string('label')->nullable();
+                $table->string('group_label')->nullable();
                 $table->unsignedSmallInteger('min')->default(0);
                 $table->unsignedSmallInteger('best')->default(0);
                 $table->unsignedSmallInteger('max')->default(0);
                 $table->unsignedSmallInteger('sequence')->default(0);
+                $table->boolean('surplus')->default(false);
             });
         }
         if (! Schema::hasTable('event_staffing_group')) {
@@ -404,7 +401,8 @@ class VolunteerRosterApiTest extends TestCase
         if (! Schema::hasTable('event_staffing_assignment')) {
             Schema::create('event_staffing_assignment', function (Blueprint $table) {
                 $table->increments('id');
-                $table->unsignedInteger('event_staffing_group');
+                $table->unsignedInteger('event_staffing_role');
+                $table->unsignedInteger('event_staffing_group')->nullable();
                 $table->unsignedInteger('volunteer_person');
                 $table->timestamp('created_at')->nullable();
             });

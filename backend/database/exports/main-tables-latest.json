@@ -3722,13 +3722,14 @@
             "name_short": null,
             "sequence": 9,
             "first_program": 3,
-            "description": "Kümmert sich um alles, was Challenge ist",
+            "description": "K\u00fcmmert sich um alles, was Challenge ist",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 2,
@@ -3736,13 +3737,14 @@
             "name_short": null,
             "sequence": 2,
             "first_program": null,
-            "description": "Moderiert für Explore und Challenge",
+            "description": "Moderiert f\u00fcr Explore und Challenge",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 3,
@@ -3756,11 +3758,12 @@
             "differentiation_parameter": "team",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 4,
-            "name": "Jury",
+            "name": "Juror:in",
             "name_short": "C J",
             "sequence": 4,
             "first_program": 3,
@@ -3770,7 +3773,8 @@
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": "Jury-Gruppe"
         },
         {
             "id": 5,
@@ -3778,13 +3782,14 @@
             "name_short": "RG F",
             "sequence": 6,
             "first_program": 3,
-            "description": "Kümmert sich um das Robot-Game der Challenge Teams",
+            "description": "K\u00fcmmert sich um das Robot-Game der Challenge Teams",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": "Tisch"
         },
         {
             "id": 6,
@@ -3792,13 +3797,14 @@
             "name_short": null,
             "sequence": 1,
             "first_program": 3,
-            "description": "Interessiert sich für Challenge, macht aber nicht selber mit",
+            "description": "Interessiert sich f\u00fcr Challenge, macht aber nicht selber mit",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 7,
@@ -3806,13 +3812,14 @@
             "name_short": null,
             "sequence": 6,
             "first_program": 2,
-            "description": "Kümmert sich um alles, was Explore ist",
+            "description": "K\u00fcmmert sich um alles, was Explore ist",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 8,
@@ -3826,11 +3833,12 @@
             "differentiation_parameter": "team",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 9,
-            "name": "Gutachter-Gruppe",
+            "name": "Gutachter:in",
             "name_short": "E G",
             "sequence": 4,
             "first_program": 2,
@@ -3840,7 +3848,8 @@
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": "Gutachter:innengruppe"
         },
         {
             "id": 10,
@@ -3848,13 +3857,14 @@
             "name_short": null,
             "sequence": 1,
             "first_program": 2,
-            "description": "Interessiert sich für Explore, macht aber nicht selber mit",
+            "description": "Interessiert sich f\u00fcr Explore, macht aber nicht selber mit",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 11,
@@ -3862,13 +3872,14 @@
             "name_short": "RC F",
             "sequence": 7,
             "first_program": 3,
-            "description": "Überprüft die Roboter und stellt sicher, dass sie regelkonform sind",
+            "description": "\u00dcberpr\u00fcft die Roboter und stellt sicher, dass sie regelkonform sind",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": "Robot-Check"
         },
         {
             "id": 12,
@@ -3876,13 +3887,14 @@
             "name_short": null,
             "sequence": 5,
             "first_program": 2,
-            "description": "Moderation für Explore",
+            "description": "Moderation f\u00fcr Explore",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 13,
@@ -3890,13 +3902,14 @@
             "name_short": null,
             "sequence": 8,
             "first_program": 3,
-            "description": "Moderation für Challenge",
+            "description": "Moderation f\u00fcr Challenge",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 14,
@@ -3904,13 +3917,14 @@
             "name_short": null,
             "sequence": 1,
             "first_program": null,
-            "description": "Besucher für alle Angebote",
+            "description": "Besucher f\u00fcr alle Angebote",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 15,
@@ -3924,7 +3938,8 @@
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 16,
@@ -3938,7 +3953,8 @@
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 17,
@@ -3946,13 +3962,14 @@
             "name_short": null,
             "sequence": 99,
             "first_program": 2,
-            "description": "Alle Explore-Aktivitäten",
+            "description": "Alle Explore-Aktivit\u00e4ten",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 18,
@@ -3960,13 +3977,14 @@
             "name_short": null,
             "sequence": 99,
             "first_program": 3,
-            "description": "Alle Challenge-Aktivitäten",
+            "description": "Alle Challenge-Aktivit\u00e4ten",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 19,
@@ -3974,13 +3992,14 @@
             "name_short": null,
             "sequence": 4,
             "first_program": null,
-            "description": "Alle Aktivitäten",
+            "description": "Alle Aktivit\u00e4ten",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 20,
@@ -3988,13 +4007,14 @@
             "name_short": null,
             "sequence": 8,
             "first_program": 8,
-            "description": "Kümmert sich um alles, was Future 8+ ist",
+            "description": "K\u00fcmmert sich um alles, was Future 8+ ist",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 21,
@@ -4008,11 +4028,12 @@
             "differentiation_parameter": "team",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 22,
-            "name": "Jury",
+            "name": "Juror:in",
             "name_short": "F8 J",
             "sequence": 4,
             "first_program": 8,
@@ -4022,7 +4043,8 @@
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": "Jury-Gruppe"
         },
         {
             "id": 23,
@@ -4030,13 +4052,14 @@
             "name_short": "F8 G",
             "sequence": 6,
             "first_program": 8,
-            "description": "Kümmert sich um das Game der Future 8+ Teams",
+            "description": "K\u00fcmmert sich um das Game der Future 8+ Teams",
             "differentiation_type": "number",
             "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"f8_fields\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": "Feld"
         },
         {
             "id": 24,
@@ -4044,13 +4067,14 @@
             "name_short": null,
             "sequence": 1,
             "first_program": 8,
-            "description": "Interessiert sich für Future 8+, macht aber nicht selber mit",
+            "description": "Interessiert sich f\u00fcr Future 8+, macht aber nicht selber mit",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 25,
@@ -4058,13 +4082,14 @@
             "name_short": null,
             "sequence": 7,
             "first_program": 8,
-            "description": "Moderation für Future 8+",
+            "description": "Moderation f\u00fcr Future 8+",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 26,
@@ -4072,13 +4097,14 @@
             "name_short": null,
             "sequence": 99,
             "first_program": 8,
-            "description": "Alle Future 8+-Aktivitäten",
+            "description": "Alle Future 8+-Aktivit\u00e4ten",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
-            "staffable": 0
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 27,
@@ -4092,7 +4118,8 @@
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 28,
@@ -4100,13 +4127,14 @@
             "name_short": null,
             "sequence": 5,
             "first_program": 3,
-            "description": "Sorgf dafür, dass das Robot-Game läuft",
+            "description": "Sorgf daf\u00fcr, dass das Robot-Game l\u00e4uft",
             "differentiation_type": null,
             "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 29,
@@ -4120,7 +4148,8 @@
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 30,
@@ -4134,7 +4163,8 @@
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 31,
@@ -4148,7 +4178,8 @@
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 32,
@@ -4162,7 +4193,8 @@
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 33,
@@ -4176,7 +4208,8 @@
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "staffable": 1,
+            "group_label": null
         }
     ],
     "m_room_type": [
