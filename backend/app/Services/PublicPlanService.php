@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Support\EventDayClock;
 use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
 use App\Support\RoleDifferentiation;
 use App\Support\RoleScheduleSlice;
 use Carbon\Carbon;
@@ -43,34 +44,23 @@ class PublicPlanService
         $teams = $this->teamsByPlanNumber($planId);
         $params = PlanParameter::load($planId);
 
-        $roles = [];
+        $byId = [];
         foreach ($this->roleFetcher->fetchRoles($planId) as $role) {
             if ((int) ($role->public_plan ?? 0) !== 1) {
                 continue;
             }
+            $byId[(int) $role->id] = $role;
+        }
+        foreach ($this->teamCatalogRoles($planId, $params) as $role) {
+            $id = (int) $role->id;
+            if (! isset($byId[$id])) {
+                $byId[$id] = $role;
+            }
+        }
 
-            $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
-            $displayName = trim((string) ($role->first_program_display_name ?? ''));
-
-            $roles[] = [
-                'id' => (int) $role->id,
-                'name' => $role->name,
-                'name_short' => $role->name_short,
-                'first_program' => $firstProgram,
-                'first_program_name' => $role->first_program_name,
-                'first_program_sequence' => $role->first_program_sequence !== null
-                    ? (int) $role->first_program_sequence
-                    : null,
-                'first_program_display_name' => $firstProgram === null
-                    ? null
-                    : ($displayName !== '' ? $displayName : ($role->first_program_name ?: null)),
-                'color_hex' => $role->color_hex ?: '888888',
-                'logo_stem' => $role->logo_stem,
-                'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
-                'differentiation_parameter' => $role->differentiation_parameter,
-                'group_label' => $role->group_label,
-                'options' => $this->roleOptions($role, $teams, $params),
-            ];
+        $roles = [];
+        foreach ($this->sortPickerRoles($byId) as $role) {
+            $roles[] = $this->serializePickerRole($role, $teams, $params);
         }
 
         return [
@@ -83,6 +73,103 @@ class PublicPlanService
             'programs' => $this->eventPrograms((int) $plan->event_id),
             'roles' => $roles,
         ];
+    }
+
+    /**
+     * @param  array<int, object>  $byId
+     * @return list<object>
+     */
+    private function sortPickerRoles(array $byId): array
+    {
+        $roles = array_values($byId);
+        usort($roles, function (object $a, object $b): int {
+            $aNull = $a->first_program === null ? 0 : 1;
+            $bNull = $b->first_program === null ? 0 : 1;
+            if ($aNull !== $bNull) {
+                return $aNull <=> $bNull;
+            }
+            $bySeq = ((int) ($a->first_program_sequence ?? 0)) <=> ((int) ($b->first_program_sequence ?? 0));
+            if ($bySeq !== 0) {
+                return $bySeq;
+            }
+
+            return ((int) ($a->sequence ?? 0)) <=> ((int) ($b->sequence ?? 0));
+        });
+
+        return $roles;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializePickerRole(object $role, array $teams, PlanParameter $params): array
+    {
+        $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
+        $displayName = trim((string) ($role->first_program_display_name ?? ''));
+
+        return [
+            'id' => (int) $role->id,
+            'name' => $role->name,
+            'name_short' => $role->name_short,
+            'first_program' => $firstProgram,
+            'first_program_name' => $role->first_program_name,
+            'first_program_sequence' => $role->first_program_sequence !== null
+                ? (int) $role->first_program_sequence
+                : null,
+            'first_program_display_name' => $firstProgram === null
+                ? null
+                : ($displayName !== '' ? $displayName : ($role->first_program_name ?: null)),
+            'color_hex' => $role->color_hex ?: '888888',
+            'logo_stem' => $role->logo_stem,
+            'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
+            'differentiation_parameter' => $role->differentiation_parameter,
+            'group_label' => $role->group_label,
+            'options' => $this->roleOptions($role, $teams, $params),
+        ];
+    }
+
+    /**
+     * Team catalog roles for programs that have a team slice on this plan.
+     *
+     * @return Collection<int, object>
+     */
+    private function teamCatalogRoles(int $planId, PlanParameter $params): Collection
+    {
+        $programIds = [];
+        foreach (ProgramPresence::attachedProgramIdsForPlan($planId) as $programId) {
+            if (RoleDifferentiation::optionCount($programId, 'team', $params) > 0) {
+                $programIds[] = $programId;
+            }
+        }
+        if ($programIds === []) {
+            return collect();
+        }
+
+        return DB::table('m_role as r')
+            ->leftJoin('m_first_program as fp', 'r.first_program', '=', 'fp.id')
+            ->where('r.differentiation_parameter', 'team')
+            ->where('r.public_plan', 1)
+            ->whereIn('r.first_program', $programIds)
+            ->select([
+                'r.id',
+                'r.name',
+                'r.name_short',
+                'r.sequence',
+                'r.first_program',
+                'r.differentiation_parameter',
+                'r.preview_matrix',
+                'r.pdf_export',
+                'r.public_plan',
+                'r.staffable',
+                'r.group_label',
+                'fp.name as first_program_name',
+                'fp.display_name as first_program_display_name',
+                'fp.color_hex',
+                'fp.logo_stem',
+                'fp.logo_white',
+                'fp.sequence as first_program_sequence',
+            ])
+            ->get();
     }
 
     /**

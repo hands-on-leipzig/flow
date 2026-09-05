@@ -140,6 +140,39 @@ class PublicPlanServiceTest extends TestCase
         $this->assertSame(['Feld 1'], $labels);
     }
 
+    public function test_get_roles_includes_team_even_when_role_fetcher_omits_it(): void
+    {
+        $this->attachFuture8(teams: 2);
+        DB::table('m_role')->insert([
+            'id' => 21,
+            'name' => 'Team',
+            'name_short' => 'F8 T',
+            'sequence' => 2,
+            'first_program' => 8,
+            'differentiation_parameter' => 'team',
+            'preview_matrix' => 1,
+            'pdf_export' => 1,
+            'public_plan' => 1,
+            'staffable' => 0,
+            'group_label' => null,
+        ]);
+
+        $this->bindRoles([
+            $this->roleRow(14, publicPlan: 1, name: 'Publikum', differentiationParameter: null),
+        ]);
+
+        $payload = app(PublicPlanService::class)->getRoles(1);
+        $byId = collect($payload['roles'])->keyBy('id');
+
+        $this->assertTrue($byId->has(14));
+        $this->assertTrue($byId->has(21));
+        $this->assertSame('team', $byId[21]['differentiation_parameter']);
+        $this->assertSame(
+            ['T1 (Noch nicht angemeldet)', 'T2 (Noch nicht angemeldet)'],
+            collect($byId[21]['options'])->pluck('label')->all(),
+        );
+    }
+
     private function bindRoles(array $roles): void
     {
         $fetcher = Mockery::mock(RoleFetcherService::class);
@@ -171,6 +204,7 @@ class PublicPlanServiceTest extends TestCase
             'differentiation_parameter' => $differentiationParameter,
             'public_plan' => $publicPlan,
             'group_label' => $groupLabel,
+            'sequence' => $isF8 ? 2 : 4,
         ];
     }
 
@@ -244,6 +278,20 @@ class PublicPlanServiceTest extends TestCase
             $table->unsignedInteger('team');
             $table->unsignedInteger('team_number_plan');
             $table->boolean('noshow')->default(false);
+        });
+
+        Schema::create('m_role', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name');
+            $table->string('name_short')->nullable();
+            $table->unsignedSmallInteger('sequence')->default(0);
+            $table->unsignedInteger('first_program')->nullable();
+            $table->string('differentiation_parameter')->nullable();
+            $table->boolean('preview_matrix')->default(false);
+            $table->boolean('pdf_export')->default(false);
+            $table->boolean('public_plan')->default(false);
+            $table->boolean('staffable')->default(false);
+            $table->string('group_label')->nullable();
         });
 
         Schema::create('table_event', function (Blueprint $table) {

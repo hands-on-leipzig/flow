@@ -21,7 +21,6 @@ class TeamsPreviewGridService
 
     public function __construct(
         private ActivityFetcherService $activities,
-        private RoleFetcherService $roleFetcher,
     ) {}
 
     /**
@@ -38,7 +37,7 @@ class TeamsPreviewGridService
         $presence = ProgramPresence::forPlan($planId, $params);
         $programIds = $this->programsOnPlan($presence);
 
-        $rolesByProgram = $this->loadTeamRoles($planId, $programIds);
+        $rolesByProgram = $this->loadTeamRoles($programIds);
         $programs = $this->buildProgramColumns($programIds, $rolesByProgram, $params);
 
         $byProgramTeam = [];
@@ -112,26 +111,17 @@ class TeamsPreviewGridService
      * @param  list<int>  $programIds
      * @return array<int, object|null>
      */
-    private function loadTeamRoles(int $planId, array $programIds): array
+    private function loadTeamRoles(array $programIds): array
     {
         if ($programIds === []) {
             return [];
         }
 
-        $programIdSet = array_fill_keys($programIds, true);
-
-        $roles = $this->roleFetcher->fetchRoles($planId)
-            ->filter(function ($role) use ($programIdSet) {
-                if ((int) $role->preview_matrix !== 1) {
-                    return false;
-                }
-                if ($role->differentiation_parameter !== 'team') {
-                    return false;
-                }
-                $fp = $role->first_program !== null ? (int) $role->first_program : null;
-
-                return $fp !== null && isset($programIdSet[$fp]);
-            });
+        $roles = DB::table('m_role')
+            ->where('differentiation_parameter', 'team')
+            ->where('preview_matrix', 1)
+            ->whereIn('first_program', $programIds)
+            ->get(['id', 'name', 'name_short', 'first_program', 'differentiation_parameter', 'preview_matrix']);
 
         $byProgram = [];
         foreach ($programIds as $id) {
