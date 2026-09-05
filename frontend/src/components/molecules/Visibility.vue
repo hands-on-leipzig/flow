@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, nextTick, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, ref, watch, type Ref} from 'vue'
 import draggable from 'vuedraggable'
 import axios from 'axios'
 import {useAnchoredPanel} from '@/composables/useAnchoredPanel'
@@ -77,7 +77,8 @@ const activityTypePrograms = ref<FilterProgram[]>([])
 const activityTypes = ref<CatalogActivityType[]>([])
 
 const selectedRoleProgramKeys = ref<string[]>([])
-const activityProgramKey = ref('')
+const selectedRoleIds = ref<string[]>([])
+const selectedActivityProgramKeys = ref<string[]>([])
 const selectedActivityTypeIds = ref<string[]>([])
 
 const sortProgramKey = ref('')
@@ -117,22 +118,42 @@ function isVisible(roleId: number, activityId: number): boolean {
   return visibleKeys.value.has(cellKey(roleId, activityId))
 }
 
-function matchesProgram(firstProgram: number | null | undefined, keys: string[]): boolean {
+function toggleSelected(selected: Ref<string[]>, value: string) {
+  const current = selected.value
+  selected.value = current.includes(value)
+    ? current.filter((item) => item !== value)
+    : [...current, value]
+}
+
+function toggleActivityProgram(key: string) {
+  toggleSelected(selectedActivityProgramKeys, key)
+}
+
+function toggleActivityType(id: string) {
+  toggleSelected(selectedActivityTypeIds, id)
+}
+
+function toggleRoleProgram(key: string) {
+  toggleSelected(selectedRoleProgramKeys, key)
+}
+
+function toggleRole(id: string) {
+  toggleSelected(selectedRoleIds, id)
+}
+
+function matchesSelectedPrograms(
+  firstProgram: number | null | undefined,
+  keys: string[],
+): boolean {
   if (!keys.length) return false
   return keys.includes(programKey(firstProgram))
 }
 
-const filteredRoles = computed(() =>
-  roles.value.filter((role) => matchesProgram(role.first_program, selectedRoleProgramKeys.value)),
+const activityTypesForProgram = computed(() =>
+  activityTypes.value.filter((type) =>
+    matchesSelectedPrograms(type.first_program, selectedActivityProgramKeys.value),
+  ),
 )
-
-const activityTypesForProgram = computed(() => {
-  const id = parseProgramKey(activityProgramKey.value)
-  return activityTypes.value.filter((type) => {
-    if (id == null) return type.first_program == null
-    return Number(type.first_program) === id
-  })
-})
 
 const filteredActivities = computed(() => {
   const typeIds = selectedActivityTypeIds.value.map(Number).filter((n) => n > 0)
@@ -159,13 +180,6 @@ function activityTooltip(activity: CatalogActivity): string {
   return program ? `${activity.name} — ${programLabel(program)}` : activity.name
 }
 
-function toggleRoleChip(key: string) {
-  const current = selectedRoleProgramKeys.value
-  selectedRoleProgramKeys.value = current.includes(key)
-    ? current.filter((item) => item !== key)
-    : [...current, key]
-}
-
 function withOverallFirst(programs: FilterProgram[]): FilterProgram[] {
   const overall = programs.filter((program) => program.id == null)
   const rest = programs.filter((program) => program.id != null)
@@ -173,6 +187,7 @@ function withOverallFirst(programs: FilterProgram[]): FilterProgram[] {
 }
 
 const sortPrograms = computed(() => withOverallFirst(rolePrograms.value))
+const roleFilterPrograms = computed(() => withOverallFirst(rolePrograms.value))
 const activityPrograms = computed(() => withOverallFirst(activityTypePrograms.value))
 
 function rolesForSortProgram(key: string): CatalogRole[] {
@@ -182,6 +197,31 @@ function rolesForSortProgram(key: string): CatalogRole[] {
     .slice()
     .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0) || a.id - b.id)
 }
+
+const rolesForProgram = computed(() =>
+  roles.value.filter((role) =>
+    matchesSelectedPrograms(role.first_program, selectedRoleProgramKeys.value),
+  ),
+)
+
+const filteredRoles = computed(() => {
+  const ids = selectedRoleIds.value.map(Number).filter((n) => n > 0)
+  if (!ids.length) return rolesForProgram.value
+  const allowed = new Set(ids)
+  return rolesForProgram.value.filter((role) => allowed.has(role.id))
+})
+
+const roleColWidth = computed(() => {
+  let longest = 0
+  let anyLogo = false
+  for (const role of filteredRoles.value) {
+    longest = Math.max(longest, role.name.length)
+    if (role.first_program != null) anyLogo = true
+  }
+  const textRem = longest * 0.38
+  const chrome = (anyLogo ? 1.15 : 0.25) + 0.8
+  return `${Math.max(2.6, textRem + chrome)}rem`
+})
 
 function syncSortList() {
   if (!sortProgramKey.value && sortPrograms.value.length) {
@@ -194,8 +234,12 @@ watch(sortProgramKey, () => {
   sortRoles.value = rolesForSortProgram(sortProgramKey.value).map((role) => ({...role}))
 })
 
-watch(activityProgramKey, () => {
+watch(selectedActivityProgramKeys, () => {
   selectedActivityTypeIds.value = []
+})
+
+watch(selectedRoleProgramKeys, () => {
+  selectedRoleIds.value = []
 })
 
 function applyMatrixPayload(data: {
@@ -234,11 +278,11 @@ async function loadMatrix() {
     await programsStore.ensureLoaded()
     const {data} = await axios.get('/visibility/matrix')
     applyMatrixPayload(data)
-    if (!selectedRoleProgramKeys.value.length) {
-      selectedRoleProgramKeys.value = rolePrograms.value.map((program) => programKey(program.id))
+    if (!selectedRoleProgramKeys.value.length && roleFilterPrograms.value.length) {
+      selectedRoleProgramKeys.value = [programKey(roleFilterPrograms.value[0].id)]
     }
-    if (!activityProgramKey.value && activityPrograms.value.length) {
-      activityProgramKey.value = programKey(activityPrograms.value[0].id)
+    if (!selectedActivityProgramKeys.value.length && activityPrograms.value.length) {
+      selectedActivityProgramKeys.value = [programKey(activityPrograms.value[0].id)]
     }
     syncSortList()
   } catch (err) {
@@ -394,65 +438,95 @@ onMounted(loadMatrix)
         <div class="visibility-admin__filter">
           <div class="visibility-admin__filter-label">Activities</div>
           <div class="visibility-admin__lists">
-            <select
-              v-model="activityProgramKey"
+            <div
               class="visibility-admin__listbox"
-              size="8"
+              role="listbox"
+              aria-multiselectable="true"
               aria-label="Activities Programm"
             >
-              <option
+              <button
                 v-for="program in activityPrograms"
                 :key="programKey(program.id)"
-                :value="programKey(program.id)"
+                type="button"
+                role="option"
+                class="visibility-admin__listbox-option"
+                :class="{ 'visibility-admin__listbox-option--on': selectedActivityProgramKeys.includes(programKey(program.id)) }"
+                :aria-selected="selectedActivityProgramKeys.includes(programKey(program.id))"
+                @click="toggleActivityProgram(programKey(program.id))"
               >
                 {{ programLabel(program) }}
-              </option>
-            </select>
-            <select
-              v-model="selectedActivityTypeIds"
+              </button>
+            </div>
+            <div
               class="visibility-admin__listbox"
-              multiple
-              size="8"
+              role="listbox"
+              aria-multiselectable="true"
               aria-label="Activities Typ"
             >
-              <option
+              <button
                 v-for="type in activityTypesForProgram"
                 :key="type.id"
-                :value="String(type.id)"
+                type="button"
+                role="option"
+                class="visibility-admin__listbox-option"
+                :class="{ 'visibility-admin__listbox-option--on': selectedActivityTypeIds.includes(String(type.id)) }"
+                :aria-selected="selectedActivityTypeIds.includes(String(type.id))"
+                @click="toggleActivityType(String(type.id))"
               >
                 {{ type.name }}
-              </option>
-            </select>
+              </button>
+            </div>
           </div>
-          <p class="visibility-admin__hint">Rechts leer = alle Typen des gewählten Programms.</p>
+          <p class="visibility-admin__hint">Rechts leer = alle Typen der gewählten Programme.</p>
         </div>
 
         <div class="visibility-admin__filter">
           <div class="visibility-admin__filter-label">Rollen</div>
-          <div class="visibility-admin__chips">
-            <button
-              v-for="program in rolePrograms"
-              :key="programKey(program.id)"
-              type="button"
-              class="visibility-admin__chip"
-              :class="{ 'visibility-admin__chip--on': selectedRoleProgramKeys.includes(programKey(program.id)) }"
-              :aria-pressed="selectedRoleProgramKeys.includes(programKey(program.id))"
-              @click="toggleRoleChip(programKey(program.id))"
+          <div class="visibility-admin__lists">
+            <div
+              class="visibility-admin__listbox"
+              role="listbox"
+              aria-multiselectable="true"
+              aria-label="Rollen Programm"
             >
-              <img
-                v-if="logoFor(program.id, program.name, program.logo_stem)"
-                :src="programLogoSrc(logoFor(program.id, program.name, program.logo_stem))"
-                :alt="programLogoAlt(logoFor(program.id, program.name, program.logo_stem))"
-                class="visibility-admin__logo"
-              />
-              {{ programLabel(program) }}
-            </button>
+              <button
+                v-for="program in roleFilterPrograms"
+                :key="programKey(program.id)"
+                type="button"
+                role="option"
+                class="visibility-admin__listbox-option"
+                :class="{ 'visibility-admin__listbox-option--on': selectedRoleProgramKeys.includes(programKey(program.id)) }"
+                :aria-selected="selectedRoleProgramKeys.includes(programKey(program.id))"
+                @click="toggleRoleProgram(programKey(program.id))"
+              >
+                {{ programLabel(program) }}
+              </button>
+            </div>
+            <div
+              class="visibility-admin__listbox"
+              role="listbox"
+              aria-multiselectable="true"
+              aria-label="Rollen"
+            >
+              <button
+                v-for="role in rolesForProgram"
+                :key="role.id"
+                type="button"
+                role="option"
+                class="visibility-admin__listbox-option"
+                :class="{ 'visibility-admin__listbox-option--on': selectedRoleIds.includes(String(role.id)) }"
+                :aria-selected="selectedRoleIds.includes(String(role.id))"
+                @click="toggleRole(String(role.id))"
+              >
+                {{ role.name }}
+              </button>
+            </div>
           </div>
-          <p class="visibility-admin__hint">Keine Auswahl = nichts. Mehrere Programme: ODER.</p>
+          <p class="visibility-admin__hint">Rechts leer = alle Rollen der gewählten Programme.</p>
         </div>
       </div>
 
-      <div class="matrix-wrapper">
+      <div class="matrix-wrapper" :style="{ '--role-col-width': roleColWidth }">
         <table class="sticky-matrix">
           <thead class="sticky-top">
             <tr>
@@ -488,7 +562,7 @@ onMounted(loadMatrix)
                   <span>{{ activity.name }}</span>
                 </div>
               </td>
-              <td v-for="role in filteredRoles" :key="role.id" class="cell-check">
+              <td v-for="role in filteredRoles" :key="role.id" class="role-col cell-check">
                 <input
                   type="checkbox"
                   :checked="isVisible(role.id, activity.id)"
@@ -652,30 +726,6 @@ onMounted(loadMatrix)
   color: var(--color-text-subtle);
 }
 
-.visibility-admin__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.visibility-admin__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
-  background: #fff;
-  font-size: 0.75rem;
-  cursor: pointer;
-}
-
-.visibility-admin__chip--on {
-  border-color: color-mix(in srgb, var(--color-accent) 50%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent) 14%, #fff);
-  font-weight: 650;
-}
-
 .visibility-admin__logo {
   width: 0.9rem;
   height: 0.9rem;
@@ -688,7 +738,6 @@ onMounted(loadMatrix)
   gap: 0.5rem;
 }
 
-.visibility-admin__listbox,
 .visibility-admin__select {
   min-width: 10rem;
   border: 1px solid var(--color-border);
@@ -700,12 +749,48 @@ onMounted(loadMatrix)
 }
 
 .visibility-admin__listbox {
-  min-height: 8rem;
+  min-width: 10rem;
+  width: 10rem;
+  height: 8rem;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: #fff;
+  padding: 0.15rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.visibility-admin__listbox-option {
+  display: block;
+  width: 100%;
+  flex: 0 0 auto;
+  text-align: left;
+  padding: 0.12rem 0.35rem;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.75rem;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.visibility-admin__listbox-option:hover {
+  background: color-mix(in srgb, var(--color-accent) 10%, #fff);
+}
+
+.visibility-admin__listbox-option--on {
+  background: color-mix(in srgb, var(--color-accent) 22%, #fff);
+  font-weight: 650;
 }
 
 .matrix-wrapper {
   flex: 1 1 auto;
   min-height: 0;
+  width: max-content;
+  max-width: 100%;
+  align-self: flex-start;
   overflow: auto;
   border: 1px solid var(--color-border);
   border-radius: 0.375rem;
@@ -715,7 +800,6 @@ onMounted(loadMatrix)
   border-collapse: separate;
   border-spacing: 0;
   width: max-content;
-  min-width: 100%;
   font-size: 0.7rem;
 }
 
@@ -755,14 +839,16 @@ onMounted(loadMatrix)
 }
 
 .activity-col {
-  min-width: 9.5rem;
+  width: max-content;
   max-width: 14rem;
   padding: 0.2rem 0.45rem;
 }
 
 .role-col {
-  min-width: 4.5rem;
-  max-width: 7.5rem;
+  width: var(--role-col-width);
+  min-width: var(--role-col-width);
+  max-width: var(--role-col-width);
+  box-sizing: border-box;
 }
 
 .cell-head {
