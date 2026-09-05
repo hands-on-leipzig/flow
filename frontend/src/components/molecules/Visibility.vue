@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onMounted, ref, watch} from 'vue'
 import draggable from 'vuedraggable'
 import axios from 'axios'
+import {useAnchoredPanel} from '@/composables/useAnchoredPanel'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {useProgramsStore} from '@/stores/programs'
@@ -53,6 +54,20 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const toggling = ref(false)
 const savingSort = ref(false)
+const showConfirmDialog = ref(false)
+const pendingToggle = ref<{roleId: number; activityId: number; visible: boolean} | null>(null)
+const confirmAnchor = ref<HTMLElement | null>(null)
+const confirmButtonRef = ref<HTMLButtonElement | null>(null)
+
+const {panelRef: confirmPanelRef, panelStyle: confirmPanelStyle} = useAnchoredPanel({
+  isOpen: showConfirmDialog,
+  anchor: confirmAnchor,
+  fallbackWidth: 260,
+  fallbackHeight: 140,
+  side: 'end',
+  closeOn: 'mousedown',
+  onClose: () => cancelToggle(),
+})
 
 const roles = ref<CatalogRole[]>([])
 const activities = ref<CatalogActivity[]>([])
@@ -183,32 +198,45 @@ watch(activityProgramKey, () => {
   selectedActivityTypeIds.value = []
 })
 
+function applyMatrixPayload(data: {
+  roles?: CatalogRole[]
+  activities?: CatalogActivity[]
+  role_programs?: FilterProgram[]
+  activity_type_programs?: FilterProgram[]
+  activity_types?: CatalogActivityType[]
+  matrix?: Array<{
+    role?: {id: number}
+    activities?: Array<{visible?: boolean; activity?: {id: number}}>
+  }>
+}) {
+  roles.value = data.roles || []
+  activities.value = data.activities || []
+  rolePrograms.value = data.role_programs || []
+  activityTypePrograms.value = data.activity_type_programs || []
+  activityTypes.value = data.activity_types || []
+
+  const next = new Set<string>()
+  for (const row of data.matrix || []) {
+    const roleId = row.role?.id
+    for (const cell of row.activities || []) {
+      if (cell.visible && roleId != null && cell.activity?.id != null) {
+        next.add(cellKey(roleId, cell.activity.id))
+      }
+    }
+  }
+  visibleKeys.value = next
+}
+
 async function loadMatrix() {
   loading.value = true
   error.value = null
   try {
     await programsStore.ensureLoaded()
     const {data} = await axios.get('/visibility/matrix')
-    roles.value = data.roles || []
-    activities.value = data.activities || []
-    rolePrograms.value = data.role_programs || []
-    activityTypePrograms.value = data.activity_type_programs || []
-    activityTypes.value = data.activity_types || []
+    applyMatrixPayload(data)
     if (!selectedRoleProgramKeys.value.length) {
       selectedRoleProgramKeys.value = rolePrograms.value.map((program) => programKey(program.id))
     }
-
-    const next = new Set<string>()
-    for (const row of data.matrix || []) {
-      const roleId = row.role?.id
-      for (const cell of row.activities || []) {
-        if (cell.visible && roleId != null && cell.activity?.id != null) {
-          next.add(cellKey(roleId, cell.activity.id))
-        }
-      }
-    }
-    visibleKeys.value = next
-
     if (!activityProgramKey.value && activityPrograms.value.length) {
       activityProgramKey.value = programKey(activityPrograms.value[0].id)
     }
@@ -221,30 +249,80 @@ async function loadMatrix() {
   }
 }
 
-async function toggleCell(roleId: number, activityId: number) {
-  if (toggling.value) return
+function setCellVisible(roleId: number, activityId: number, visible: boolean) {
   const key = cellKey(roleId, activityId)
-  const next = !visibleKeys.value.has(key)
   const updated = new Set(visibleKeys.value)
-  if (next) updated.add(key)
+  if (visible) updated.add(key)
   else updated.delete(key)
   visibleKeys.value = updated
+}
+
+function roleName(roleId: number): string {
+  return roles.value.find((role) => role.id === roleId)?.name || 'Rolle'
+}
+
+function activityName(activityId: number): string {
+  return activities.value.find((activity) => activity.id === activityId)?.name || 'Activity'
+}
+
+const confirmTitle = computed(() => {
+  const pending = pendingToggle.value
+  if (!pending) return 'Sichtbarkeit ändern?'
+  return pending.visible ? 'Sichtbarkeit einschalten?' : 'Sichtbarkeit ausschalten?'
+})
+
+const confirmMessage = computed(() => {
+  const pending = pendingToggle.value
+  if (!pending) return ''
+  return `${activityName(pending.activityId)} für Rolle ${roleName(pending.roleId)}`
+})
+
+function requestToggle(roleId: number, activityId: number, event: MouseEvent) {
+  if (toggling.value) return
+  const target = event.currentTarget
+  confirmAnchor.value = target instanceof HTMLElement ? target : null
+  pendingToggle.value = {
+    roleId,
+    activityId,
+    visible: !isVisible(roleId, activityId),
+  }
+  showConfirmDialog.value = true
+}
+
+function cancelToggle() {
+  showConfirmDialog.value = false
+  pendingToggle.value = null
+  confirmAnchor.value = null
+}
+
+watch(showConfirmDialog, async (open) => {
+  if (!open) return
+  await nextTick()
+  confirmButtonRef.value?.focus()
+})
+
+async function confirmToggle() {
+  if (!pendingToggle.value || toggling.value) return
+  const {roleId, activityId, visible} = pendingToggle.value
   toggling.value = true
+  showConfirmDialog.value = false
   try {
     await axios.post('/visibility/toggle', {
       role_id: roleId,
       activity_type_detail_id: activityId,
-      visible: next,
+      visible,
     })
+    setCellVisible(roleId, activityId, visible)
+    const {data} = await axios.get('/visibility/matrix')
+    applyMatrixPayload(data)
+    syncSortList()
   } catch (err) {
-    const reverted = new Set(visibleKeys.value)
-    if (next) reverted.delete(key)
-    else reverted.add(key)
-    visibleKeys.value = reverted
     showGlassToast('Sichtbarkeit konnte nicht gespeichert werden.', 'error')
     console.error(err)
   } finally {
     toggling.value = false
+    pendingToggle.value = null
+    confirmAnchor.value = null
   }
 }
 
@@ -415,7 +493,7 @@ onMounted(loadMatrix)
                   type="checkbox"
                   :checked="isVisible(role.id, activity.id)"
                   :disabled="toggling"
-                  @click.prevent="toggleCell(role.id, activity.id)"
+                  @click.prevent="requestToggle(role.id, activity.id, $event)"
                 />
               </td>
             </tr>
@@ -471,6 +549,37 @@ onMounted(loadMatrix)
         {{ savingSort ? 'Speichern…' : 'Reihenfolge speichern' }}
       </button>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="showConfirmDialog"
+        ref="confirmPanelRef"
+        class="glass-modal visibility-admin__confirm"
+        :style="confirmPanelStyle"
+        @click.stop
+      >
+        <h3 class="visibility-admin__confirm-title">{{ confirmTitle }}</h3>
+        <p class="visibility-admin__confirm-message">{{ confirmMessage }}</p>
+        <div class="visibility-admin__confirm-actions">
+          <button
+            ref="confirmButtonRef"
+            type="button"
+            class="glass-btn-accent !px-3 !py-1.5 !text-sm"
+            :disabled="toggling"
+            @click="confirmToggle"
+          >
+            Ja
+          </button>
+          <button
+            type="button"
+            class="glass-btn-secondary !px-3 !py-1.5 !text-sm"
+            @click="cancelToggle"
+          >
+            Nein
+          </button>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -716,5 +825,31 @@ onMounted(loadMatrix)
 
 .drag-ghost {
   opacity: 0.45;
+}
+
+.visibility-admin__confirm.glass-modal {
+  width: max-content;
+  max-width: min(18rem, calc(100vw - 1.5rem));
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  z-index: 200;
+}
+
+.visibility-admin__confirm-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.visibility-admin__confirm-message {
+  margin: 0 0 0.65rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.visibility-admin__confirm-actions {
+  display: flex;
+  gap: 0.4rem;
 }
 </style>

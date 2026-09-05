@@ -10,6 +10,7 @@ import {
 import {
   ANCHORED_PANEL_HIDDEN_STYLE,
   type AnchoredPanelAlign,
+  type AnchoredPanelSide,
   computeAnchoredPanelStyle,
 } from '@/utils/anchoredPanelPosition'
 
@@ -17,6 +18,7 @@ export type UseAnchoredPanelOptions = {
   isOpen: MaybeRefOrGetter<boolean>
   anchor: MaybeRefOrGetter<HTMLElement | null>
   align?: AnchoredPanelAlign
+  side?: AnchoredPanelSide
   margin?: number
   fallbackWidth?: number
   fallbackHeight?: number
@@ -40,7 +42,7 @@ export function useAnchoredPanel(options: UseAnchoredPanelOptions) {
         height: panel.offsetHeight || options.fallbackHeight || 80,
       },
       {width: window.innerWidth, height: window.innerHeight},
-      {margin: options.margin, align: options.align},
+        {margin: options.margin, align: options.align, side: options.side},
     )
   }
 
