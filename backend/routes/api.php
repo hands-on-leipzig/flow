@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\PlanQualityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\PublicPlanController;
+use App\Http\Controllers\Api\PublicVolunteerOpeningsController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
@@ -77,6 +78,7 @@ Route::get('/events/{event}/team-coordinates', [DrahtController::class, 'getTeam
 Route::get('/events', [EventController::class, 'index']); // Get list of current events
 Route::get('/programs', [ProgramController::class, 'index']); // Catalog from m_first_program
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
+Route::get('/public/volunteer-openings', [PublicVolunteerOpeningsController::class, 'index']); // Hero: events currently seeking helpers
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
@@ -468,6 +470,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
         Route::post('/regenerate/{eventId}', [PublishController::class, 'regenerateLinkAndQRcode']); // Link und QR-Code neu generieren (Admin)
+        Route::put('/slug/{eventId}', [PublishController::class, 'setSlug']);            // Slug von Hand setzen, Link und QR-Code neu bauen
         Route::post('/regenerate-season/{seasonId}', [PublishController::class, 'regenerateLinksForSeason']); // Links für alle Events einer Saison regenerieren (Admin)
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);

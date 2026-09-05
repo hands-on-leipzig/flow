@@ -15,6 +15,7 @@ class Event extends Model
         'id',
         'name',
         'slug',
+        'slug_manual',
         'regional_partner',
         'level',
         'season',
@@ -47,6 +48,7 @@ class Event extends Model
     ];
 
     protected $casts = [
+        'slug_manual' => 'boolean',
         'public_helper_search' => 'boolean',
         'public_volunteer_data_entry' => 'boolean',
         'public_team_data_entry' => 'boolean',

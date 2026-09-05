@@ -74,7 +74,7 @@ async function regenerateLinkAndQR() {
     if (eventStore.selectedEvent) {
       eventStore.selectedEvent.link = normalizePublicLink(data.link)
       eventStore.selectedEvent.qrcode = String(data.qrcode || '').replace(/^data:image\/png;base64,/, '')
-      eventStore.selectedEvent.slug = data.link
+      eventStore.selectedEvent.slug = data.slug
     }
     showGlassToast('Link und QR neu erzeugt', 'success')
   } catch {

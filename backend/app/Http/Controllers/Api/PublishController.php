@@ -6,10 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Helpers\FlowFilename;
 use App\Models\Event;
 use App\Models\OneLinkAccess;
+use App\Services\EventSlugService;
 use App\Services\ImportantTimesService;
 use App\Services\PdfLayoutService;
 
-use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +34,8 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class PublishController extends Controller
 {
+    public function __construct(private readonly EventSlugService $slugs) {}
+
     public function linkAndQRcode(int $eventId): JsonResponse
     {
         // Event direkt laden
@@ -52,6 +54,7 @@ class PublishController extends Controller
             // But return the clean display link
             return response()->json([
                 'link' => $event->link,  // Clean display link
+                'slug' => $event->slug,
                 'qrcode' => 'data:image/png;base64,' . $event->qrcode,
             ]);
         }
@@ -60,55 +63,23 @@ class PublishController extends Controller
             return response()->json(['error' => 'Event name is required'], 400);
         }
 
-        switch ($event->level) {
-
-            case 1:
-                // Use event name directly
-                $link = $event->name;
-
-                // Prüfen, ob mehrere Regio für diesen Regionalpartner existieren
-                $eventCount = DB::table('event')
-                    ->where('regional_partner', $event->regional_partner)
-                    ->where('level', 1)
-                    ->where('season', SeasonService::currentSeasonId())
-                    ->count();
-
-                if ($eventCount > 1) {
-                    $eventModel = Event::find($event->id);
-                    foreach ($eventModel?->programs ?? [] as $program) {
-                        $suffix = strtolower(str_replace('_', '-', (string) $program->name));
-                        if ($suffix !== '') {
-                            $link .= '-' . $suffix;
-                        }
-                    }
-                }
-                break;
-
-            case 2:
-                // Find first "-" in event name, add 2 to position, use the rest
-                $dashPos = strpos($event->name, '-');
-                if ($dashPos !== false) {
-                    // Add 2 to skip the "-" and space
-                    $position = $dashPos + 2;
-                    $suffix = substr($event->name, $position);
-                    $link = "quali-" . $suffix;
-                } else {
-                    // No dash found, use full event name
-                    $link = "quali-" . $event->name;
-                }
-                break;
-
-            case 3:
-                $link = "finale"; // Region bewusst weggelassen
+        $eventModel = Event::find($event->id);
+        if (! $eventModel) {
+            return response()->json(['error' => 'Event not found'], 404);
         }
 
-        // Link "säubern"
-        $link = trim(strtolower($link));
-        $link = str_replace(array('ä', 'ö', 'ü', 'Ä', 'Ö', 'Ü', 'ß', '/', ' '), array('ae', 'oe', 'ue', 'AE', 'OE', 'UE', 'ss', '-', '-'), $link);
+        // Slug and public URL come from the central registry that DRAHT and JOIN read
+        // through the external API, so the naming rules live in one place.
+        try {
+            $slug = $this->slugs->regenerate($eventModel);
+        } catch (\InvalidArgumentException $e) {
+            Log::error("Failed to assign slug for event {$event->id}", ['error' => $e->getMessage()]);
 
-        $slug = $link;
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
         // Display link (stored in DB, shown to users) - clean without query params
-        $displayLink = config('app.public_url', 'https://handson.tools') . "/" . $link;
+        $displayLink = $this->slugs->url($eventModel);
         // QR code link (includes source parameter for tracking)
         $qrCodeLink = $displayLink . "?source=qr";
 
@@ -138,44 +109,90 @@ class PublishController extends Controller
         $qrcodeRaw = base64_encode($result->getString()); // nur Base64
 
         // In DB speichern (ohne Prefix) - store clean display link without ?source=qr
+        // Slug is already persisted by the registry.
         DB::table('event')
             ->where('id', $event->id)
             ->update([
-                'slug' => $slug,
                 'link' => $displayLink,  // Clean link without ?source=qr
                 'qrcode' => $qrcodeRaw,
             ]);
 
         // Update link in DRAHT for both explore and challenge events if they exist
-        // Only update DRAHT in production environment
-        if (app()->environment('production')) {
-            try {
-                $drahtController = app(\App\Http\Controllers\Api\DrahtController::class);
-
-                $eventModel = Event::find($event->id);
-                foreach ($eventModel?->programs ?? [] as $program) {
-                    if (! empty($program->draht_id)) {
-                        $drahtController->updateEventLink((int) $program->draht_id, $displayLink);
-                    }
-                }
-            } catch (\Exception $e) {
-                // Log error but don't fail the link generation
-                Log::error("Failed to update link in DRAHT for event {$event->id}", [
-                    'error' => $e->getMessage()
-                ]);
+        foreach ($eventModel->programs as $program) {
+            if (! empty($program->draht_id)) {
+                $this->pushLinkToDraht($eventModel, (int) $program->draht_id);
             }
-        } else {
-            // Log that we're skipping DRAHT update in non-production environment
-            Log::info("Skipping DRAHT link update for event {$event->id} (environment: " . app()->environment() . ")");
         }
 
         app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $event->id);
 
-        // In Response Prefix hinzufügen
         return response()->json([
-            'link' => $link,
+            'link' => $displayLink,
+            'slug' => $slug,
             'qrcode' => 'data:image/png;base64,' . $qrcodeRaw,
         ]);
+    }
+
+    /**
+     * Set the slug of an event by hand. It is marked as manual so later regeneration
+     * keeps it, and link, QR code and the copies in DRAHT are rebuilt to match.
+     */
+    public function setSlug(Request $request, int $eventId): JsonResponse
+    {
+        $validated = $request->validate([
+            'slug' => 'required|string|max:255',
+        ]);
+
+        $event = Event::find($eventId);
+        if (! $event) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        try {
+            $this->slugs->assign($event, $validated['slug'], true);
+        } catch (\InvalidArgumentException $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+
+        // Link and QR code carry the slug, so both have to be built again.
+        DB::table('event')
+            ->where('id', $eventId)
+            ->update([
+                'link' => null,
+                'qrcode' => null,
+            ]);
+
+        return $this->linkAndQRcode($eventId);
+    }
+
+    /**
+     * Send the public link of an event to one DRAHT event. Called per program, because
+     * Explore and Challenge are separate events in DRAHT but share the FLOW slug.
+     */
+    public function pushLinkToDraht(Event $event, int $drahtId): void
+    {
+        if (! app()->environment('production')) {
+            Log::info("Skipping DRAHT link update for event {$event->id} (environment: " . app()->environment() . ")");
+
+            return;
+        }
+
+        $link = $this->slugs->url($event);
+        if ($link === null) {
+            Log::warning("No public link to push to DRAHT for event {$event->id}");
+
+            return;
+        }
+
+        try {
+            app(\App\Http\Controllers\Api\DrahtController::class)->updateEventLink($drahtId, $link);
+        } catch (\Exception $e) {
+            // Log error but don't fail the link generation
+            Log::error("Failed to update link in DRAHT for event {$event->id}", [
+                'draht_id' => $drahtId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -192,11 +209,11 @@ class PublishController extends Controller
             return response()->json(['error' => 'Event not found'], 404);
         }
 
-        // Clear existing link and QR code to force regeneration
+        // Clear link and QR code to force regeneration. The slug stays so the registry
+        // can move it to the history and keep the old URL redirectable.
         DB::table('event')
             ->where('id', $eventId)
             ->update([
-                'slug' => null,
                 'link' => null,
                 'qrcode' => null,
             ]);
@@ -244,11 +261,11 @@ class PublishController extends Controller
 
             foreach ($events as $index => $event) {
                 try {
-                    // Clear existing link and QR code to force regeneration
+                    // Clear link and QR code to force regeneration; the registry keeps
+                    // the slug and records a replacement only when it really changes.
                     DB::table('event')
                         ->where('id', $event->id)
                         ->update([
-                            'slug' => null,
                             'link' => null,
                             'qrcode' => null,
                         ]);

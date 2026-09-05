@@ -279,6 +279,7 @@ class DrahtController extends Controller
                                 'level' => $eventData['level'] ?? $existingEvent->level,
                             ]);
                             $event = $existingEvent;
+                            $isNewEvent = false;
                         } else {
                             $event = Event::create([
                                 'name' => $eventData['name'] ?? null,
@@ -289,18 +290,7 @@ class DrahtController extends Controller
                                 'regional_partner' => $regionalPartner?->id,
                                 'level' => $eventData['level'] ?? null,
                             ]);
-
-                            // Automatically generate link and QR code for new events using existing PublishController
-                            try {
-                                $publishController = app(\App\Http\Controllers\Api\PublishController::class);
-                                $publishController->linkAndQRcode($event->id);
-                                Log::info("Automatically generated link and QR code for new event {$event->id}");
-                            } catch (\Exception $e) {
-                                Log::error("Failed to auto-generate link and QR code for event {$event->id}", [
-                                    'error' => $e->getMessage()
-                                ]);
-                                // Don't fail the entire process if link generation fails
-                            }
+                            $isNewEvent = true;
                         }
 
                         ProgramCatalog::upsertDrahtProgram(
@@ -309,6 +299,30 @@ class DrahtController extends Controller
                             (int) $eventData['id'],
                             isset($eventData['contao_id']) ? (int) $eventData['contao_id'] : null
                         );
+
+                        // Link and QR code only after the program is attached: pushing the
+                        // link back to DRAHT needs the draht_id to exist.
+                        try {
+                            $publishController = app(\App\Http\Controllers\Api\PublishController::class);
+                            $hadLink = ! empty($event->link);
+
+                            // Generating the link pushes it to every attached program.
+                            $publishController->linkAndQRcode($event->id);
+
+                            if ($hadLink) {
+                                // Event already had its link; this program is new to it.
+                                $publishController->pushLinkToDraht($event->refresh(), (int) $eventData['id']);
+                            }
+
+                            if ($isNewEvent) {
+                                Log::info("Automatically generated link and QR code for new event {$event->id}");
+                            }
+                        } catch (\Exception $e) {
+                            Log::error("Failed to auto-generate link and QR code for event {$event->id}", [
+                                'error' => $e->getMessage()
+                            ]);
+                            // Don't fail the entire process if link generation fails
+                        }
 
                         $processedEventIds[] = $event->id;
                         $processedDrahtIds[] = $eventData['id'];
