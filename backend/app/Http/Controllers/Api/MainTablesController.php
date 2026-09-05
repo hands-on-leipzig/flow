@@ -30,14 +30,12 @@ class MainTablesController extends Controller
                 $count = DB::table($table)->count();
                 $result[] = [
                     'name' => $table,
-                    'display_name' => $this->getTableDisplayName($table),
                     'count' => $count,
                 ];
             } catch (\Exception $e) {
                 Log::error("Error getting count for table {$table}: ".$e->getMessage());
                 $result[] = [
                     'name' => $table,
-                    'display_name' => $this->getTableDisplayName($table),
                     'count' => 0,
                 ];
             }
@@ -359,26 +357,5 @@ class MainTablesController extends Controller
         ];
 
         return $exportData;
-    }
-
-    private function getTableDisplayName(string $table): string
-    {
-        $displayNames = [
-            'm_season' => 'Seasons',
-            'm_level' => 'Levels',
-            'm_room_type' => 'Room Types',
-            'm_room_type_group' => 'Room Type Groups',
-            'm_parameter' => 'Parameters',
-            'm_parameter_condition' => 'Parameter Conditions',
-            'm_activity_type' => 'Activity Types',
-            'm_activity_type_detail' => 'Activity Type Details',
-            'm_first_program' => 'First Programs',
-            'm_role' => 'Roles',
-            'm_staffing_rule' => 'Staffing Rules',
-            'm_visibility' => 'Visibility Rules',
-            'm_supported_plan' => 'Supported Plans',
-        ];
-
-        return $displayNames[$table] ?? $table;
     }
 }

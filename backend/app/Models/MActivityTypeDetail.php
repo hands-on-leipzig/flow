@@ -29,6 +29,7 @@ class MActivityTypeDetail extends Model
         'link',
         'link_text',
         'activity_type',
+        'role',
         'public_time',
     ];
 

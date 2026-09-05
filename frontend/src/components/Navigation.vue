@@ -10,12 +10,14 @@ import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {imageUrl, programLogoSrc} from '@/utils/images'
 import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
 import {
-  ADMIN_OPS_SECTIONS,
-  ADMIN_ENTWICKLUNG_SECTIONS,
+  ADMIN_SECTIONS,
+  ADMIN_OPS_NAV,
+  ADMIN_ENTWICKLUNG_NAV,
   ADMIN_DEFAULT_SECTION,
   adminSectionPath,
   isAdminSectionAvailable,
 } from '@/constants/adminNav'
+import type {AdminNavNode, AdminSection} from '@/constants/adminNav'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import keycloak from '@/keycloak.js'
 import HelpModal from '@/components/atoms/HelpModal.vue'
@@ -81,6 +83,8 @@ type NavChild = {
   path: string
   icon?: string
   iconSrc?: string
+  disabled?: boolean
+  title?: string
 }
 
 type NavEntry = {
@@ -179,7 +183,7 @@ const navEntries = computed<NavEntry[]>(() => [
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
 const showBackToOverview = computed(() => isAdminMode.value)
 
-function toAdminNavEntry(item: (typeof ADMIN_OPS_SECTIONS)[number]): NavEntry {
+function toAdminNavEntry(item: AdminSection): NavEntry {
   const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
   return {
     name: item.label,
@@ -192,11 +196,47 @@ function toAdminNavEntry(item: (typeof ADMIN_OPS_SECTIONS)[number]): NavEntry {
   }
 }
 
-const adminOpsNavEntries = computed<NavEntry[]>(() => ADMIN_OPS_SECTIONS.map(toAdminNavEntry))
+function adminSectionByKey(key: string): AdminSection | undefined {
+  return ADMIN_SECTIONS.find((item) => item.key === key)
+}
 
-const adminEntwicklungNavEntries = computed<NavEntry[]>(() =>
-  ADMIN_ENTWICKLUNG_SECTIONS.map(toAdminNavEntry),
-)
+function mapAdminNav(nodes: AdminNavNode[]): NavEntry[] {
+  return nodes.map((node) => {
+    if (node.kind === 'folder') {
+      const children = node.children
+        .map((key) => adminSectionByKey(key))
+        .filter((item): item is AdminSection => !!item)
+        .map((item) => {
+          const entry = toAdminNavEntry(item)
+          return {
+            name: entry.name,
+            path: entry.path ?? item.path,
+            icon: entry.icon,
+            disabled: entry.disabled,
+            title: entry.title,
+          }
+        })
+      const folderDisabled = children.length > 0 && children.every((child) => child.disabled)
+      return {
+        name: node.label,
+        path: children[0]?.path,
+        icon: node.icon,
+        disabled: folderDisabled,
+        title: folderDisabled ? children[0]?.title : undefined,
+        children,
+      }
+    }
+    const section = adminSectionByKey(node.key)
+    if (!section) {
+      return {name: node.key, icon: 'bi-question', disabled: true}
+    }
+    return toAdminNavEntry(section)
+  })
+}
+
+const adminOpsNavEntries = computed<NavEntry[]>(() => mapAdminNav(ADMIN_OPS_NAV))
+
+const adminEntwicklungNavEntries = computed<NavEntry[]>(() => mapAdminNav(ADMIN_ENTWICKLUNG_NAV))
 
 const currentNavEntries = computed(() => (isAdminMode.value ? adminOpsNavEntries.value : navEntries.value))
 
@@ -224,6 +264,8 @@ function childNavProps(child: NavChild) {
     path: child.path,
     active: isActive(child.path),
     warning: hasWarning(child.path),
+    disabled: !!child.disabled,
+    title: child.title,
   }
 }
 
@@ -392,7 +434,9 @@ function logout() {
             :warning="entryWarning(entry)"
             :disabled="!!entry.disabled"
             :title="entry.title"
+            :children="entry.children?.map(childNavProps)"
             @select="onNavSelect(entry)"
+            @select-child="onNavChildSelect"
         />
         <div
             class="admin-nav-group"
@@ -417,7 +461,9 @@ function logout() {
               :warning="entryWarning(entry)"
               :disabled="!!entry.disabled"
               :title="entry.title"
+              :children="entry.children?.map(childNavProps)"
               @select="onNavSelect(entry)"
+              @select-child="onNavChildSelect"
           />
         </div>
       </template>

@@ -6,14 +6,19 @@ import Statistics from '@/components/molecules/Statistics.vue'
 import NowAndNext from '@/components/molecules/NowAndNext.vue'
 import UserRegionalPartnerRelations from '@/components/molecules/UserRegionalPartnerRelations.vue'
 import MainTablesAdmin from '@/components/molecules/MainTablesAdmin.vue'
+import MatchPlansAdmin from '@/components/molecules/MatchPlansAdmin.vue'
+import MParameter from '@/components/molecules/MParameter.vue'
+import Visibility from '@/components/molecules/Visibility.vue'
 import SystemNews from '@/components/molecules/SystemNews.vue'
 import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
 import CalendarFeedsAdmin from '@/components/molecules/CalendarFeedsAdmin.vue'
 import AdminWartung from '@/components/molecules/AdminWartung.vue'
 import PlanQualitaet from '@/components/molecules/PlanQualitaet.vue'
+import Enrollments from '@/components/molecules/Enrollments.vue'
 import {
   ADMIN_DEFAULT_SECTION,
+  ADMIN_FILL_SECTIONS,
   ADMIN_SECTIONS,
   isAdminSection,
   isAdminSectionAvailable,
@@ -78,7 +83,7 @@ onMounted(() => {
 <template>
   <div
     class="admin-shell h-full min-h-0 p-4 lg:p-6"
-    :class="activeTab === 'main-tables' ? 'admin-shell--fill' : 'overflow-auto'"
+    :class="ADMIN_FILL_SECTIONS.has(activeTab) ? 'admin-shell--fill' : 'overflow-auto'"
   >
     <div v-if="activeTab === 'user-regional-partners'">
       <h2 class="text-xl font-bold mb-4">User ↔ Regionen</h2>
@@ -92,6 +97,25 @@ onMounted(() => {
 
     <div v-else-if="activeTab === 'main-tables' && sectionAllowed" class="admin-shell__fill-child">
       <MainTablesAdmin/>
+    </div>
+
+    <div v-else-if="activeTab === 'parameters' && sectionAllowed" class="admin-shell__fill-child">
+      <div class="admin-special-editor">
+        <h2 class="text-xl font-bold">Parameters</h2>
+        <MParameter/>
+      </div>
+    </div>
+
+    <div v-else-if="activeTab === 'roles' && sectionAllowed" class="admin-shell__fill-child">
+      <div class="admin-special-editor">
+        <h2 class="text-xl font-bold">Sichtbarkeit</h2>
+        <Visibility/>
+      </div>
+    </div>
+
+    <div v-else-if="activeTab === 'match-plans' && sectionAllowed">
+      <h2 class="text-xl font-bold mb-4">Matchpläne</h2>
+      <MatchPlansAdmin/>
     </div>
 
     <div v-else-if="activeTab === 'system-news'">
@@ -135,6 +159,10 @@ onMounted(() => {
       <PlanQualitaet/>
     </div>
 
+    <div v-else-if="activeTab === 'enrollments'">
+      <Enrollments/>
+    </div>
+
     <div v-else-if="activeTab === 'wartung'">
       <AdminWartung/>
     </div>
@@ -159,5 +187,23 @@ onMounted(() => {
   flex: 1 1 auto;
   min-height: 0;
   height: 100%;
+}
+
+.admin-special-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  height: 100%;
+  min-height: 0;
+}
+
+.admin-special-editor > h2 {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.admin-special-editor > :last-child {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 </style>

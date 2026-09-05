@@ -173,10 +173,9 @@ class EventWorkspaceEnsureServiceTest extends TestCase
             $table->string('name');
             $table->unsignedInteger('sequence')->default(0);
             $table->unsignedInteger('first_program')->nullable();
-            $table->string('differentiation_type')->nullable();
-            $table->text('differentiation_source')->nullable();
             $table->string('differentiation_parameter')->nullable();
             $table->boolean('staffable')->default(false);
+            $table->string('group_label')->nullable();
         });
 
         Schema::create('m_staffing_rule', function (Blueprint $table) {
@@ -193,11 +192,13 @@ class EventWorkspaceEnsureServiceTest extends TestCase
             $table->unsignedInteger('event');
             $table->unsignedInteger('m_role')->nullable();
             $table->string('label')->nullable();
+            $table->string('group_label')->nullable();
             $table->unsignedSmallInteger('min');
             $table->unsignedSmallInteger('best');
             $table->unsignedSmallInteger('max');
             $table->text('ui_description')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
+            $table->boolean('surplus')->default(false);
         });
 
         Schema::create('event_staffing_group', function (Blueprint $table) {
@@ -209,7 +210,8 @@ class EventWorkspaceEnsureServiceTest extends TestCase
 
         Schema::create('event_staffing_assignment', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('event_staffing_group');
+            $table->unsignedInteger('event_staffing_role');
+            $table->unsignedInteger('event_staffing_group')->nullable();
             $table->unsignedInteger('volunteer_person');
             $table->timestamp('created_at')->nullable();
         });
@@ -257,10 +259,9 @@ class EventWorkspaceEnsureServiceTest extends TestCase
             'name' => 'Jury',
             'sequence' => 3,
             'first_program' => FirstProgram::CHALLENGE->value,
-            'differentiation_type' => 'number',
-            'differentiation_source' => 'select set_value from plan_param_value where parameter=50 and plan=[plan]',
             'differentiation_parameter' => 'lane',
             'staffable' => 1,
+            'group_label' => 'Jury-Gruppe',
         ]);
 
         DB::table('m_staffing_rule')->insert([

@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
-use App\Enums\FirstProgram;
 use App\Support\EventDayClock;
-use App\Support\TableFieldLabels;
+use App\Support\PlanParameter;
+use App\Support\ProgramPresence;
+use App\Support\RoleDifferentiation;
+use App\Support\RoleScheduleSlice;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -40,22 +42,25 @@ class PublicPlanService
         }
 
         $teams = $this->teamsByPlanNumber($planId);
-        $tableNames = $this->tableNamesForEvent((int) $plan->event_id);
+        $params = PlanParameter::load($planId);
+
+        $byId = [];
+        foreach ($this->roleFetcher->fetchRoles($planId) as $role) {
+            if ((int) ($role->public_plan ?? 0) !== 1) {
+                continue;
+            }
+            $byId[(int) $role->id] = $role;
+        }
+        foreach ($this->teamCatalogRoles($planId, $params) as $role) {
+            $id = (int) $role->id;
+            if (! isset($byId[$id])) {
+                $byId[$id] = $role;
+            }
+        }
 
         $roles = [];
-        foreach ($this->roleFetcher->fetchRoles($planId) as $role) {
-            $roles[] = [
-                'id' => (int) $role->id,
-                'name' => $role->name,
-                'name_short' => $role->name_short,
-                'first_program' => $role->first_program !== null ? (int) $role->first_program : null,
-                'first_program_name' => $role->first_program_name,
-                'color_hex' => $role->color_hex ?: '888888',
-                'logo_stem' => $role->logo_stem,
-                'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
-                'differentiation_parameter' => $role->differentiation_parameter,
-                'options' => $this->roleOptions($role, $planId, $teams, $tableNames),
-            ];
+        foreach ($this->sortPickerRoles($byId) as $role) {
+            $roles[] = $this->serializePickerRole($role, $teams, $params);
         }
 
         return [
@@ -65,8 +70,106 @@ class PublicPlanService
             'slug' => $plan->event_slug ?: null,
             'check_in_enabled' => (bool) $plan->check_in_enabled,
             'cockpit_enabled' => (bool) $plan->cockpit_enabled,
+            'programs' => $this->eventPrograms((int) $plan->event_id),
             'roles' => $roles,
         ];
+    }
+
+    /**
+     * @param  array<int, object>  $byId
+     * @return list<object>
+     */
+    private function sortPickerRoles(array $byId): array
+    {
+        $roles = array_values($byId);
+        usort($roles, function (object $a, object $b): int {
+            $aNull = $a->first_program === null ? 0 : 1;
+            $bNull = $b->first_program === null ? 0 : 1;
+            if ($aNull !== $bNull) {
+                return $aNull <=> $bNull;
+            }
+            $bySeq = ((int) ($a->first_program_sequence ?? 0)) <=> ((int) ($b->first_program_sequence ?? 0));
+            if ($bySeq !== 0) {
+                return $bySeq;
+            }
+
+            return ((int) ($a->sequence ?? 0)) <=> ((int) ($b->sequence ?? 0));
+        });
+
+        return $roles;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializePickerRole(object $role, array $teams, PlanParameter $params): array
+    {
+        $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
+        $displayName = trim((string) ($role->first_program_display_name ?? ''));
+
+        return [
+            'id' => (int) $role->id,
+            'name' => $role->name,
+            'name_short' => $role->name_short,
+            'first_program' => $firstProgram,
+            'first_program_name' => $role->first_program_name,
+            'first_program_sequence' => $role->first_program_sequence !== null
+                ? (int) $role->first_program_sequence
+                : null,
+            'first_program_display_name' => $firstProgram === null
+                ? null
+                : ($displayName !== '' ? $displayName : ($role->first_program_name ?: null)),
+            'color_hex' => $role->color_hex ?: '888888',
+            'logo_stem' => $role->logo_stem,
+            'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
+            'differentiation_parameter' => $role->differentiation_parameter,
+            'group_label' => $role->group_label,
+            'options' => $this->roleOptions($role, $teams, $params),
+        ];
+    }
+
+    /**
+     * Team catalog roles for programs that have a team slice on this plan.
+     *
+     * @return Collection<int, object>
+     */
+    private function teamCatalogRoles(int $planId, PlanParameter $params): Collection
+    {
+        $programIds = [];
+        foreach (ProgramPresence::attachedProgramIdsForPlan($planId) as $programId) {
+            if (RoleDifferentiation::optionCount($programId, 'team', $params) > 0) {
+                $programIds[] = $programId;
+            }
+        }
+        if ($programIds === []) {
+            return collect();
+        }
+
+        return DB::table('m_role as r')
+            ->leftJoin('m_first_program as fp', 'r.first_program', '=', 'fp.id')
+            ->where('r.differentiation_parameter', 'team')
+            ->where('r.public_plan', 1)
+            ->whereIn('r.first_program', $programIds)
+            ->select([
+                'r.id',
+                'r.name',
+                'r.name_short',
+                'r.sequence',
+                'r.first_program',
+                'r.differentiation_parameter',
+                'r.preview_matrix',
+                'r.pdf_export',
+                'r.public_plan',
+                'r.staffable',
+                'r.group_label',
+                'fp.name as first_program_name',
+                'fp.display_name as first_program_display_name',
+                'fp.color_hex',
+                'fp.logo_stem',
+                'fp.logo_white',
+                'fp.sequence as first_program_sequence',
+            ])
+            ->get();
     }
 
     /**
@@ -117,23 +220,13 @@ class PublicPlanService
             ->pluck('explore_group', 'id');
 
         $rows = $rows->filter(function ($row) use ($team, $lane, $table, $role, $params, $exploreGroups, $includeExpired, $now) {
-            if ($lane !== null) {
-                if ($row->lane !== null && (int) $row->lane !== $lane) {
-                    return false;
-                }
-            }
-
-            if ($table !== null) {
-                $t1 = $row->table_1 !== null ? (int) $row->table_1 : null;
-                $t2 = $row->table_2 !== null ? (int) $row->table_2 : null;
-                if ($t1 !== null || $t2 !== null) {
-                    if ($t1 !== $table && $t2 !== $table) {
-                        return false;
-                    }
-                }
-            }
-
-            if ($team !== null && ! $this->activityMatchesTeam($row, $team)) {
+            if (! RoleScheduleSlice::matches(
+                $row,
+                $lane,
+                $table,
+                $team,
+                fn (object $activity, int $teamNumber): bool => $this->activityMatchesTeam($activity, $teamNumber),
+            )) {
                 return false;
             }
 
@@ -163,38 +256,32 @@ class PublicPlanService
         ];
     }
 
-    private function roleOptions(object $role, int $planId, array $teams, array $tableNames): array
+    private function roleOptions(object $role, array $teams, PlanParameter $params): array
     {
-        $type = $role->differentiation_type;
         $parameter = $role->differentiation_parameter;
-        $roleId = (int) $role->id;
         $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
+        $count = RoleDifferentiation::optionCount($firstProgram, $parameter, $params);
 
-        if ($type === 'number' && $role->differentiation_source) {
-            $count = $this->runDifferentiationCount($role->differentiation_source, $planId);
+        if (in_array($parameter, ['lane', 'table', 'team'], true)) {
             $options = [];
+            $groupLabel = trim((string) ($role->group_label ?? ''));
             for ($i = 1; $i <= $count; $i++) {
                 $label = "{$role->name} {$i}";
                 $noshow = false;
 
-                if (in_array($roleId, [3, 8], true) && $firstProgram) {
+                if ($parameter === 'team' && $firstProgram) {
                     $team = $teams[$firstProgram][$i] ?? null;
-                    if ($team) {
-                        $label = $team['name'];
-                        if (! empty($team['location'])) {
-                            $label .= ' · '.$team['location'];
-                        }
-                        $noshow = (bool) $team['noshow'];
-                    }
-                } elseif (in_array($roleId, [5, 11], true)) {
-                    $fp = $firstProgram ?? FirstProgram::CHALLENGE->value;
-                    $byProgram = $tableNames[$fp] ?? [];
-                    $custom = $byProgram[$i] ?? null;
-                    if (TableFieldLabels::supports($fp)) {
-                        $label = TableFieldLabels::effective($fp, $i, $custom);
+                    $name = trim((string) ($team['name'] ?? ''));
+                    if ($name !== '') {
+                        $hot = $team['team_number_hot'] ?? null;
+                        $hotStr = $hot !== null && $hot !== '' ? (string) $hot : '';
+                        $label = $hotStr !== '' ? "{$name} ({$hotStr})" : $name;
+                        $noshow = (bool) ($team['noshow'] ?? false);
                     } else {
-                        $label = TableFieldLabels::defaultLabel(FirstProgram::CHALLENGE->value, $i);
+                        $label = 'T'.$i.' (Noch nicht angemeldet)';
                     }
+                } elseif (in_array($parameter, ['lane', 'table'], true) && $groupLabel !== '') {
+                    $label = $groupLabel.' '.$i;
                 }
 
                 $options[] = [
@@ -205,7 +292,6 @@ class PublicPlanService
                 ];
             }
 
-            // If j_lanes / team count is unset, still allow opening the role view
             if ($options === []) {
                 return [[
                     'value' => null,
@@ -218,42 +304,12 @@ class PublicPlanService
             return $options;
         }
 
-        if ($type === 'list' && $role->differentiation_source) {
-            $sql = str_replace('[plan]', (string) $planId, $role->differentiation_source);
-            $rows = DB::select($sql);
-            $options = [];
-            foreach ($rows as $row) {
-                $values = array_values((array) $row);
-                $options[] = [
-                    'value' => $values[0] ?? null,
-                    'label' => (string) ($values[1] ?? $values[0] ?? ''),
-                    'parameter' => $parameter ?: 'team',
-                    'noshow' => false,
-                ];
-            }
-
-            return $options;
-        }
-
-        // No differentiation — single entry for the role itself
         return [[
             'value' => null,
             'label' => $role->name,
             'parameter' => null,
             'noshow' => false,
         ]];
-    }
-
-    private function runDifferentiationCount(string $source, int $planId): int
-    {
-        $sql = str_replace('[plan]', (string) $planId, $source);
-        $row = DB::selectOne($sql);
-        if (! $row) {
-            return 0;
-        }
-        $values = array_values((array) $row);
-
-        return (int) ($values[0] ?? 0);
     }
 
     private function planParameters(int $planId): array
@@ -266,7 +322,43 @@ class PublicPlanService
     }
 
     /**
-     * @return array<int, array<int, array{name:string,location:?string,noshow:bool}>>
+     * @return list<array{id:int,display_name:string,sequence:int,logo_stem:?string,logo_white:?string,color_hex:string}>
+     */
+    private function eventPrograms(int $eventId): array
+    {
+        $rows = DB::table('event_program as ep')
+            ->join('m_first_program as fp', 'fp.id', '=', 'ep.first_program')
+            ->where('ep.event', $eventId)
+            ->orderBy('fp.sequence')
+            ->orderBy('fp.id')
+            ->get([
+                'fp.id',
+                'fp.name',
+                'fp.display_name',
+                'fp.sequence',
+                'fp.logo_stem',
+                'fp.logo_white',
+                'fp.color_hex',
+            ]);
+
+        $programs = [];
+        foreach ($rows as $row) {
+            $display = trim((string) ($row->display_name ?? ''));
+            $programs[] = [
+                'id' => (int) $row->id,
+                'display_name' => $display !== '' ? $display : (string) $row->name,
+                'sequence' => (int) $row->sequence,
+                'logo_stem' => $row->logo_stem,
+                'logo_white' => $row->logo_white,
+                'color_hex' => $row->color_hex ?: '888888',
+            ];
+        }
+
+        return $programs;
+    }
+
+    /**
+     * @return array<int, array<int, array{name:string,location:?string,noshow:bool,team_number_hot:int|null}>>
      */
     private function teamsByPlanNumber(int $planId): array
     {
@@ -278,6 +370,7 @@ class PublicPlanService
                 'team.first_program',
                 'team.name',
                 'team.location',
+                'team.team_number_hot',
                 'team_plan.noshow',
             ])
             ->get();
@@ -286,10 +379,12 @@ class PublicPlanService
         foreach ($rows as $row) {
             $fp = (int) $row->first_program;
             $num = (int) $row->team_number_plan;
+            $hot = $row->team_number_hot;
             $map[$fp][$num] = [
                 'name' => $row->name,
                 'location' => $row->location,
                 'noshow' => (bool) $row->noshow,
+                'team_number_hot' => $hot !== null && $hot !== '' ? (int) $hot : null,
             ];
         }
 

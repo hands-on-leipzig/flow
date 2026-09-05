@@ -16,11 +16,13 @@ class EventStaffingRole extends Model
         'event',
         'm_role',
         'label',
+        'group_label',
         'min',
         'best',
         'max',
         'ui_description',
         'sequence',
+        'surplus',
     ];
 
     protected $casts = [
@@ -28,6 +30,7 @@ class EventStaffingRole extends Model
         'best' => 'integer',
         'max' => 'integer',
         'sequence' => 'integer',
+        'surplus' => 'boolean',
     ];
 
     public function event(): BelongsTo
@@ -43,6 +46,16 @@ class EventStaffingRole extends Model
     public function groups(): HasMany
     {
         return $this->hasMany(EventStaffingGroup::class, 'event_staffing_role');
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(EventStaffingAssignment::class, 'event_staffing_role');
+    }
+
+    public function isGrouped(): bool
+    {
+        return $this->group_label !== null && $this->group_label !== '';
     }
 
     public function isLocal(): bool

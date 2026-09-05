@@ -12,6 +12,20 @@ enum FirstProgram: int
     case FUTURE_8 = 8;
 
     /**
+     * Catalog Publikum role for this program (never an ATD job owner).
+     */
+    public function audienceRoleId(): ?int
+    {
+        return match ($this) {
+            self::JOINT => 14,
+            self::DISCOVER, self::EXPLORE => 10,
+            self::CHALLENGE => 6,
+            self::FUTURE_8 => 24,
+            default => null,
+        };
+    }
+
+    /**
      * Check if this program is Explore-related (includes Discover)
      */
     public function isExplore(): bool

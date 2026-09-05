@@ -2,12 +2,11 @@
 import axios from 'axios'
 import {ref} from 'vue'
 import {RouterLink} from 'vue-router'
-import {useEventStore} from '@/stores/event'
-import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
-import {programNameForId} from '@/utils/eventPrograms'
+import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
 import {volunteerDisplayName} from '@/utils/volunteerPerson'
+import {rosterAssignmentCaption} from '@/volunteers/staffingLabel'
 import {T_SHIRT_CUTS} from '@/volunteers/rosterConstants'
-import {defaultRosterDetail, type RosterAssignment, type RosterEntry} from '@/volunteers/rosterTypes'
+import {defaultRosterDetail, type RosterEntry} from '@/volunteers/rosterTypes'
 import type {VolunteerMealOption} from '@/composables/useVolunteerMealOptions'
 import type {RosterColumnMeta} from '@/volunteers/columns/rosterColumns'
 import {showGlassToast} from '@/composables/useGlassToast'
@@ -33,7 +32,6 @@ const emit = defineEmits<{
   'open-shirt': [entry: RosterEntry, anchor: HTMLElement]
 }>()
 
-const eventStore = useEventStore()
 const savingEntryId = ref<number | null>(null)
 
 function columnColClass(column: RosterColumnMeta) {
@@ -72,14 +70,6 @@ function rosterIconTooltip(entry: RosterEntry) {
     return 'Von Helfer:innenliste entfernen — Zuordnungen werden ebenfalls entfernt'
   }
   return 'Von Helfer:innenliste entfernen'
-}
-
-function assignmentProgramRef(assignment: RosterAssignment) {
-  if (!assignment.first_program) return null
-  return {
-    first_program: assignment.first_program,
-    name: programNameForId(eventStore.selectedEvent, assignment.first_program),
-  }
 }
 
 function entryCustom(entry: RosterEntry) {
@@ -233,14 +223,12 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
                     :key="`${entry.id}-assignment-${idx}`"
                     class="vol-table__assignment"
                 >
-                  <ProgramLogo
-                      v-if="assignmentProgramRef(assignment)"
-                      :program="assignmentProgramRef(assignment)!"
+                  <StaffingScopeLeading
+                      :role="assignment"
                       size="chip"
-                      decorative
                       class="vol-table__assignment-icon"
                   />
-                  <span>{{ assignment.tile_name }}</span>
+                  <span>{{ rosterAssignmentCaption(assignment) }}</span>
                 </div>
               </div>
               <span v-else>—</span>

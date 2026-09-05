@@ -22,7 +22,28 @@ const SECTION_ALIASES: Record<string, string> = {
   hilfsfunktionen: 'wartung',
   conditions: 'statistics',
   mparameter: 'statistics',
+  zahlen: 'statistics',
+  schnittstellen: 'user-regional-partners',
+  anmeldungen: 'enrollments',
 }
+
+/** Sidebar folder (not a page). Children are `AdminSection` keys. */
+export type AdminNavFolder = {
+  kind: 'folder'
+  key: string
+  label: string
+  icon: string
+  children: string[]
+}
+
+export type AdminNavNode =
+  | {kind: 'section'; key: string}
+  | AdminNavFolder
+
+/** @deprecated Use AdminNavFolder */
+export type AdminOpsNavFolder = AdminNavFolder
+/** @deprecated Use AdminNavNode */
+export type AdminOpsNavNode = AdminNavNode
 
 function currentHostname(): string {
   return typeof window === 'undefined' ? '' : window.location.hostname
@@ -45,7 +66,7 @@ export function isEntwicklungEnvironment(isLocal: boolean): boolean {
 
 /**
  * Ops tools (all tiers), then Entwicklung (always listed; Local/Dev enable the entries).
- * Full-page UIs stay top-level; push-button actions live under Wartung.
+ * Sidebar grouping lives in ADMIN_OPS_NAV / ADMIN_ENTWICKLUNG_NAV.
  * Every Entwicklung entry uses the same Local+Dev availability gate.
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
@@ -53,6 +74,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {key: 'system-news', label: 'System News', icon: 'bi-newspaper', group: 'ops'},
   {key: 'statistics', label: 'Statistiken', icon: 'bi-bar-chart', group: 'ops'},
   {key: 'plan-qualitaet', label: 'Plan Qualität', icon: 'bi-clipboard-check', group: 'ops'},
+  {key: 'enrollments', label: 'Anmeldungen', icon: 'bi-person-plus', group: 'ops'},
   {key: 'user-regional-partners', label: 'User ↔ Regionen', icon: 'bi-people', group: 'ops'},
   {key: 'calendar', label: 'Kalender-Feeds', icon: 'bi-calendar3', group: 'ops'},
   {key: 'external-api', label: 'External API', icon: 'bi-key', group: 'ops'},
@@ -68,8 +90,29 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   },
   {
     key: 'main-tables',
-    label: 'Main Tables',
-    icon: 'bi-table',
+    label: 'alle m-Tabellen',
+    icon: 'bi-hammer',
+    group: 'entwicklung',
+    devOrLocalOnly: true,
+  },
+  {
+    key: 'match-plans',
+    label: 'Matchpläne',
+    icon: 'bi-grid-3x3-gap',
+    group: 'entwicklung',
+    devOrLocalOnly: true,
+  },
+  {
+    key: 'parameters',
+    label: 'Parameters',
+    icon: 'bi-sliders',
+    group: 'entwicklung',
+    devOrLocalOnly: true,
+  },
+  {
+    key: 'roles',
+    label: 'Sichtbarkeit',
+    icon: 'bi-eye',
     group: 'entwicklung',
     devOrLocalOnly: true,
   },
@@ -87,6 +130,57 @@ export const ADMIN_SECTIONS: AdminSection[] = [
 
 export const ADMIN_OPS_SECTIONS = ADMIN_SECTIONS.filter((s) => s.group === 'ops')
 export const ADMIN_ENTWICKLUNG_SECTIONS = ADMIN_SECTIONS.filter((s) => s.group === 'entwicklung')
+
+/**
+ * Ops sidebar order. Folders nest existing sections; leftover items stay top-level.
+ */
+export const ADMIN_OPS_NAV: AdminNavNode[] = [
+  {kind: 'section', key: 'system-news'},
+  {
+    kind: 'folder',
+    key: 'zahlen',
+    label: 'Zahlen',
+    icon: 'bi-123',
+    children: ['statistics', 'plan-qualitaet', 'enrollments'],
+  },
+  {kind: 'section', key: 'calendar'},
+  {
+    kind: 'folder',
+    key: 'schnittstellen',
+    label: 'Schnittstellen',
+    icon: 'bi-plugin',
+    children: ['user-regional-partners', 'external-api', 'sharepoint'],
+  },
+  {kind: 'section', key: 'wartung'},
+]
+
+/**
+ * Entwicklung sidebar order. Main Tables is a folder; Now and Next / Massentest stay top-level.
+ */
+export const ADMIN_ENTWICKLUNG_NAV: AdminNavNode[] = [
+  {kind: 'section', key: 'nowandnext'},
+  {
+    kind: 'folder',
+    key: 'main-tables-folder',
+    label: 'Main Tables',
+    icon: 'bi-table',
+    children: ['main-tables', 'match-plans', 'parameters', 'roles'],
+  },
+  {kind: 'section', key: 'quality'},
+]
+
+/** Technical m_* table → special-editor section key. */
+export const SPECIAL_M_TABLE_EDITORS: Record<string, string> = {
+  m_match: 'match-plans',
+  m_parameter: 'parameters',
+  m_visibility: 'roles',
+}
+
+export function specialEditorForTable(table: string): AdminSection | undefined {
+  const key = SPECIAL_M_TABLE_EDITORS[table]
+  if (!key) return undefined
+  return ADMIN_SECTIONS.find((item) => item.key === key)
+}
 
 export function resolveAdminSection(key: string): string {
   const raw = String(key || '')
@@ -121,3 +215,5 @@ export function isDevOrLocalToolAvailable(isLocal: boolean): boolean {
 export function adminSectionPath(key: string = ADMIN_DEFAULT_SECTION): string {
   return `/plan/admin/${key}`
 }
+
+export const ADMIN_FILL_SECTIONS = new Set(['main-tables', 'parameters', 'roles'])

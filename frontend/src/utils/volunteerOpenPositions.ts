@@ -6,8 +6,11 @@ import {
 import {parseStaffingSummaryScopeKey} from '@/utils/volunteerStaffingSummary'
 import {compareStaffingTiles, type StaffingSortable} from '@/utils/volunteerStaffingSort'
 
+/** Open-position row: `label` is the role name; grouped containers are summed. */
 export type OpenPositionApiEntry = {
   role_id: number
+  group_id: number | null
+  group_index: number | null
   label: string
   wanted: number
   sequence: number
@@ -41,7 +44,7 @@ function sortableFromApi(entry: OpenPositionApiEntry): StaffingSortable {
     sequence: entry.sequence,
     label: entry.label,
     role_id: entry.role_id,
-    group_index: 1,
+    group_index: 0,
     tile_name: entry.label,
   }
 }

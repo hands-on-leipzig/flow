@@ -45,8 +45,6 @@ class PlanPreviewController extends Controller
                 'color_hex' => $role->color_hex,
                 'logo_stem' => $role->logo_stem,
                 'logo_white' => $role->logo_white,
-                'differentiation_type' => $role->differentiation_type,
-                'differentiation_source' => $role->differentiation_source,
                 'differentiation_parameter' => $role->differentiation_parameter,
                 'preview_matrix' => (int) $role->preview_matrix === 1,
                 'pdf_export' => (int) $role->pdf_export === 1,

@@ -3,7 +3,7 @@
         {
             "id": 1,
             "name": "Robot-Game",
-            "sequence": 220,
+            "sequence": 340,
             "description": null,
             "first_program": 3,
             "overview_plan_column": "Robot-Game"
@@ -11,7 +11,7 @@
         {
             "id": 2,
             "name": "Jury",
-            "sequence": 210,
+            "sequence": 320,
             "description": null,
             "first_program": 3,
             "overview_plan_column": "Challenge"
@@ -19,7 +19,7 @@
         {
             "id": 3,
             "name": "Begutachtung",
-            "sequence": 120,
+            "sequence": 220,
             "description": null,
             "first_program": 2,
             "overview_plan_column": "Explore"
@@ -27,7 +27,7 @@
         {
             "id": 4,
             "name": "Mittagspause",
-            "sequence": 130,
+            "sequence": 222,
             "description": null,
             "first_program": 3,
             "overview_plan_column": ""
@@ -35,7 +35,7 @@
         {
             "id": 5,
             "name": "Er\u00f6ffnung Challenge",
-            "sequence": 200,
+            "sequence": 300,
             "description": null,
             "first_program": 3,
             "overview_plan_column": "Challenge"
@@ -43,7 +43,7 @@
         {
             "id": 6,
             "name": "Preisverleihung Challenge",
-            "sequence": 250,
+            "sequence": 350,
             "description": null,
             "first_program": 3,
             "overview_plan_column": "Challenge"
@@ -59,7 +59,7 @@
         {
             "id": 8,
             "name": "Live Challenge",
-            "sequence": 255,
+            "sequence": 380,
             "description": null,
             "first_program": 3,
             "overview_plan_column": "Live-Challenge"
@@ -75,7 +75,7 @@
         {
             "id": 10,
             "name": "Er\u00f6ffnung Explore",
-            "sequence": 110,
+            "sequence": 210,
             "description": null,
             "first_program": 2,
             "overview_plan_column": "Explore"
@@ -83,7 +83,7 @@
         {
             "id": 11,
             "name": "Preisverleihung Explore",
-            "sequence": 150,
+            "sequence": 250,
             "description": null,
             "first_program": 2,
             "overview_plan_column": "Explore"
@@ -107,7 +107,7 @@
         {
             "id": 14,
             "name": "Party",
-            "sequence": 900,
+            "sequence": 90,
             "description": null,
             "first_program": null,
             "overview_plan_column": ""
@@ -115,7 +115,7 @@
         {
             "id": 15,
             "name": "Zusatzblock Challenge",
-            "sequence": 255,
+            "sequence": 360,
             "description": null,
             "first_program": 3,
             "overview_plan_column": ""
@@ -123,7 +123,7 @@
         {
             "id": 16,
             "name": "Forschung auf der B\u00fchne",
-            "sequence": 40,
+            "sequence": 340,
             "description": null,
             "first_program": 3,
             "overview_plan_column": "Allgemein"
@@ -131,7 +131,7 @@
         {
             "id": 17,
             "name": "Ausstellung",
-            "sequence": 30,
+            "sequence": 230,
             "description": null,
             "first_program": 2,
             "overview_plan_column": "Allgemein"
@@ -139,15 +139,15 @@
         {
             "id": 18,
             "name": "Zusatzblock Explore",
-            "sequence": 160,
+            "sequence": 260,
             "description": null,
             "first_program": 2,
-            "overview_plan_column": null
+            "overview_plan_column": ""
         },
         {
             "id": 19,
             "name": "Game",
-            "sequence": 320,
+            "sequence": 740,
             "description": null,
             "first_program": 8,
             "overview_plan_column": "Game"
@@ -155,7 +155,7 @@
         {
             "id": 20,
             "name": "Jury",
-            "sequence": 310,
+            "sequence": 720,
             "description": null,
             "first_program": 8,
             "overview_plan_column": "Future 8+"
@@ -163,7 +163,7 @@
         {
             "id": 21,
             "name": "Forschung auf der B\u00fchne",
-            "sequence": 40,
+            "sequence": 740,
             "description": null,
             "first_program": 8,
             "overview_plan_column": "Allgemein"
@@ -171,7 +171,7 @@
         {
             "id": 22,
             "name": "Er\u00f6ffnung Future 8+",
-            "sequence": 200,
+            "sequence": 710,
             "description": null,
             "first_program": 8,
             "overview_plan_column": "Future 8+"
@@ -179,7 +179,7 @@
         {
             "id": 23,
             "name": "Preisverleihung Future 8+",
-            "sequence": 250,
+            "sequence": 750,
             "description": null,
             "first_program": 8,
             "overview_plan_column": "Future 8+"
@@ -187,7 +187,7 @@
         {
             "id": 24,
             "name": "Zusatzblock Future 8+",
-            "sequence": 255,
+            "sequence": 760,
             "description": null,
             "first_program": 8,
             "overview_plan_column": ""
@@ -209,7 +209,8 @@
             "description": "Die Gutachter:innen sprechen mit dem Team",
             "link": null,
             "link_text": null,
-            "activity_type": 3
+            "activity_type": 3,
+            "role": 9
         },
         {
             "id": 2,
@@ -226,7 +227,8 @@
             "description": "Die Gutachter:innen beraten nach der Begutachtung eines Teams",
             "link": "",
             "link_text": null,
-            "activity_type": 3
+            "activity_type": 3,
+            "role": 9
         },
         {
             "id": 3,
@@ -243,7 +245,8 @@
             "description": "Alle Gutachter:innen beraten gemeinsam \u00fcber Auszeichnungen f\u00fcr alle Teams",
             "link": "",
             "link_text": null,
-            "activity_type": 3
+            "activity_type": 3,
+            "role": 32
         },
         {
             "id": 4,
@@ -260,7 +263,8 @@
             "description": "Das Team erkl\u00e4rt den Gutachter:innen sein Modell und sein Poster",
             "link": "",
             "link_text": null,
-            "activity_type": 3
+            "activity_type": 3,
+            "role": null
         },
         {
             "id": 5,
@@ -277,7 +281,8 @@
             "description": "Die Explore Ausstellung wird er\u00f6ffnet",
             "link": "",
             "link_text": null,
-            "activity_type": 10
+            "activity_type": 10,
+            "role": 12
         },
         {
             "id": 6,
@@ -294,7 +299,8 @@
             "description": "Der Challenge Wettbewerb wird er\u00f6ffnet",
             "link": "",
             "link_text": null,
-            "activity_type": 5
+            "activity_type": 5,
+            "role": 13
         },
         {
             "id": 7,
@@ -311,7 +317,8 @@
             "description": "Die Explore Ausstellung und der Challenge Wettbewerbe werden er\u00f6ffnet",
             "link": "",
             "link_text": null,
-            "activity_type": 12
+            "activity_type": 12,
+            "role": 2
         },
         {
             "id": 8,
@@ -328,7 +335,8 @@
             "description": "Die Teams testen den Robot-Game-Tisch und kl\u00e4ren Fragen mit den Schiedsrichter:innen",
             "link": "",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": null
         },
         {
             "id": 9,
@@ -345,7 +353,8 @@
             "description": "Die erste von drei Robot-Game Runden",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": null
         },
         {
             "id": 10,
@@ -362,7 +371,8 @@
             "description": "Die zweite von drei Robot-Game Runden",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": null
         },
         {
             "id": 11,
@@ -379,7 +389,8 @@
             "description": "Die dritte von drei Robot-Game Runden",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": null
         },
         {
             "id": 12,
@@ -396,7 +407,8 @@
             "description": "Die besten 8 Teams treten noch einmal an",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": null
         },
         {
             "id": 13,
@@ -413,7 +425,8 @@
             "description": "Die besten 4 Teams treten noch einmal an",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": null
         },
         {
             "id": 14,
@@ -430,7 +443,8 @@
             "description": "Die besten 2 Teams sind im Finale. Es finden zwei Matches statt. Die Summe der erzielten Punkte enscheidet",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": null
         },
         {
             "id": 15,
@@ -447,7 +461,8 @@
             "description": "In einem Match stehen sich zwei Teams gegen\u00fcber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:innen Punkte pro gel\u00f6ster Aufgabe",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": 5
         },
         {
             "id": 16,
@@ -464,7 +479,8 @@
             "description": "Vor einem Match zeigen die Teams, dass ihre Roboter den Regeln des Robot-Games entsprechen",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": 11
         },
         {
             "id": 17,
@@ -481,7 +497,8 @@
             "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Zu beiden stellen die Juror:innen Fragen",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 2
+            "activity_type": 2,
+            "role": 4
         },
         {
             "id": 18,
@@ -498,7 +515,8 @@
             "description": "Nachdem das Team den Raum verlassen hat, f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 2
+            "activity_type": 2,
+            "role": 4
         },
         {
             "id": 19,
@@ -515,7 +533,8 @@
             "description": "Alle Juror:innen beraten gemeinsam, welche Teams Nominierungen und Pokale erhalten ",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 2
+            "activity_type": 2,
+            "role": 27
         },
         {
             "id": 20,
@@ -532,7 +551,8 @@
             "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Anschlie\u00dfend f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 2
+            "activity_type": 2,
+            "role": null
         },
         {
             "id": 21,
@@ -549,7 +569,8 @@
             "description": "Mittagspause ",
             "link": "",
             "link_text": null,
-            "activity_type": 4
+            "activity_type": 4,
+            "role": null
         },
         {
             "id": 32,
@@ -566,7 +587,8 @@
             "description": "Medaillen, Urkunden und Pokale f\u00fcr die Challenge Teams",
             "link": "",
             "link_text": null,
-            "activity_type": 6
+            "activity_type": 6,
+            "role": 13
         },
         {
             "id": 33,
@@ -583,7 +605,8 @@
             "description": "Von den Juror:innen ausgew\u00e4hlte Forschungen werden noch einmal \u00f6ffentlich pr\u00e4sentiert. Eine Fragerunde gibt es nicht",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
             "link_text": null,
-            "activity_type": 16
+            "activity_type": 16,
+            "role": 13
         },
         {
             "id": 34,
@@ -600,7 +623,8 @@
             "description": "Medaillen und Urkunden f\u00fcr die Explore Teams und Medaillen, Urkunden und Pokale f\u00fcr die Challenge Teams",
             "link": "",
             "link_text": null,
-            "activity_type": 13
+            "activity_type": 13,
+            "role": 2
         },
         {
             "id": 35,
@@ -617,7 +641,8 @@
             "description": "Beim Coaches-Briefing wird der Ablauf des Tages besprochen und offene Fragen beantwortet",
             "link": "",
             "link_text": null,
-            "activity_type": 7
+            "activity_type": 7,
+            "role": 31
         },
         {
             "id": 36,
@@ -634,7 +659,8 @@
             "description": "Das Jury-Briefing sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 2
+            "activity_type": 2,
+            "role": 27
         },
         {
             "id": 37,
@@ -651,7 +677,8 @@
             "description": "Im Schiedsrichter:innen-Briefing werden aktuelle Regel\u00e4nderungen besprochen und offene Fragen beantwortet",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": 28
         },
         {
             "id": 38,
@@ -668,7 +695,8 @@
             "description": "Im Coaches-Briefing wir der Ablauf des Tages besprochen und offene Fragen beantwortet",
             "link": "",
             "link_text": null,
-            "activity_type": 7
+            "activity_type": 7,
+            "role": 31
         },
         {
             "id": 39,
@@ -685,7 +713,8 @@
             "description": "Das Gutachter:innen-Briefing sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
             "link": "",
             "link_text": null,
-            "activity_type": 3
+            "activity_type": 3,
+            "role": 32
         },
         {
             "id": 40,
@@ -702,7 +731,8 @@
             "description": "Im Live Challenge Jury-Briefing lernen die Juror:innen die Aufgabe und den zeitlichen Ablauf kennen",
             "link": "",
             "link_text": null,
-            "activity_type": 8
+            "activity_type": 8,
+            "role": 34
         },
         {
             "id": 41,
@@ -719,7 +749,8 @@
             "description": "Die Live Challenge gibt es nur beim Finale. Die Teams m\u00fcssen sich unbekannten Aufgaben stellen. Die Bewertung geht NICHT in die Champion-Wertung ein, aber es gibt einen eigenen Pokal",
             "link": "",
             "link_text": null,
-            "activity_type": 8
+            "activity_type": 8,
+            "role": null
         },
         {
             "id": 42,
@@ -736,7 +767,8 @@
             "description": "Die Juror:innen erkl\u00e4ren die Aufgaben, Regeln und wie viel Zeit zur Verf\u00fcgung steht. Dann l\u00f6sen die Teams m\u00f6glichst viele Aufgaben der Live Challenge",
             "link": "",
             "link_text": null,
-            "activity_type": 8
+            "activity_type": 8,
+            "role": 16
         },
         {
             "id": 43,
@@ -753,7 +785,8 @@
             "description": "Nachdem das Team den Raum verlassen hat, notieren die Juror:innen das Ergebnis",
             "link": "",
             "link_text": null,
-            "activity_type": 8
+            "activity_type": 8,
+            "role": 16
         },
         {
             "id": 44,
@@ -770,7 +803,8 @@
             "description": "Alle Juror:innen bringen die Ergebnisse zur Gesamtwertung zusammen",
             "link": "",
             "link_text": null,
-            "activity_type": 8
+            "activity_type": 8,
+            "role": 34
         },
         {
             "id": 45,
@@ -787,7 +821,8 @@
             "description": "Die besten 16 Teams treten noch einmal an",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": null
         },
         {
             "id": 46,
@@ -804,7 +839,8 @@
             "description": "Im Schiedsrichter:innen-Debriefing besprechen die Schiedsrichter:innen besondere Erlebnisse des Tages und besprechen m\u00f6gliche Anpassungen f\u00fcr den n\u00e4chsten Tag",
             "link": null,
             "link_text": null,
-            "activity_type": 1
+            "activity_type": 1,
+            "role": 28
         },
         {
             "id": 50,
@@ -821,7 +857,8 @@
             "description": null,
             "link": null,
             "link_text": null,
-            "activity_type": 9
+            "activity_type": 9,
+            "role": null
         },
         {
             "id": 51,
@@ -838,7 +875,8 @@
             "description": "",
             "link": null,
             "link_text": null,
-            "activity_type": 18
+            "activity_type": 18,
+            "role": null
         },
         {
             "id": 52,
@@ -855,7 +893,8 @@
             "description": "",
             "link": null,
             "link_text": null,
-            "activity_type": 15
+            "activity_type": 15,
+            "role": null
         },
         {
             "id": 54,
@@ -872,7 +911,8 @@
             "description": "Kleine Er\u00f6ffnung vor Live Challenge und Robot-Game Testrunden",
             "link": null,
             "link_text": null,
-            "activity_type": 5
+            "activity_type": 5,
+            "role": 13
         },
         {
             "id": 55,
@@ -889,7 +929,8 @@
             "description": "Das Jury-Briefing (an Tag 1) sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 2
+            "activity_type": 2,
+            "role": 27
         },
         {
             "id": 56,
@@ -906,7 +947,8 @@
             "description": "Medaillen und Urkunden f\u00fcr die Explore Teams",
             "link": null,
             "link_text": null,
-            "activity_type": 11
+            "activity_type": 11,
+            "role": 12
         },
         {
             "id": 59,
@@ -923,7 +965,8 @@
             "description": "Musik, Tanz und Essen",
             "link": null,
             "link_text": null,
-            "activity_type": 14
+            "activity_type": 14,
+            "role": null
         },
         {
             "id": 60,
@@ -940,7 +983,8 @@
             "description": "Essen und Gespr\u00e4che",
             "link": null,
             "link_text": null,
-            "activity_type": 14
+            "activity_type": 14,
+            "role": null
         },
         {
             "id": 62,
@@ -957,7 +1001,8 @@
             "description": "Die Kindern stellen ihre Modelle und Poster aus und freuen sich \u00fcber Fragen dazu",
             "link": null,
             "link_text": null,
-            "activity_type": 17
+            "activity_type": 17,
+            "role": null
         },
         {
             "id": 63,
@@ -974,7 +1019,8 @@
             "description": null,
             "link": null,
             "link_text": null,
-            "activity_type": 9
+            "activity_type": 9,
+            "role": null
         },
         {
             "id": 64,
@@ -991,7 +1037,8 @@
             "description": "",
             "link": null,
             "link_text": null,
-            "activity_type": 18
+            "activity_type": 18,
+            "role": null
         },
         {
             "id": 65,
@@ -1008,7 +1055,8 @@
             "description": "",
             "link": null,
             "link_text": null,
-            "activity_type": 15
+            "activity_type": 15,
+            "role": null
         },
         {
             "id": 66,
@@ -1025,7 +1073,8 @@
             "description": "Die Teams testen den Game-Tisch und kl\u00e4ren Fragen mit den Schiedsrichter:innen",
             "link": "",
             "link_text": null,
-            "activity_type": 19
+            "activity_type": 19,
+            "role": null
         },
         {
             "id": 67,
@@ -1042,7 +1091,8 @@
             "description": "Die erste von drei Game Runden",
             "link": null,
             "link_text": null,
-            "activity_type": 19
+            "activity_type": 19,
+            "role": null
         },
         {
             "id": 68,
@@ -1059,7 +1109,8 @@
             "description": "Die zweite von drei Game Runden",
             "link": null,
             "link_text": null,
-            "activity_type": 19
+            "activity_type": 19,
+            "role": null
         },
         {
             "id": 69,
@@ -1076,7 +1127,8 @@
             "description": "Die dritte von drei Game Runden",
             "link": null,
             "link_text": null,
-            "activity_type": 19
+            "activity_type": 19,
+            "role": null
         },
         {
             "id": 70,
@@ -1093,7 +1145,8 @@
             "description": "Runde 4",
             "link": null,
             "link_text": null,
-            "activity_type": 19
+            "activity_type": 19,
+            "role": null
         },
         {
             "id": 71,
@@ -1110,7 +1163,8 @@
             "description": "Runde 5",
             "link": null,
             "link_text": null,
-            "activity_type": 19
+            "activity_type": 19,
+            "role": null
         },
         {
             "id": 72,
@@ -1127,7 +1181,8 @@
             "description": "Von den Juror:innen ausgew\u00e4hlte Forschungen werden noch einmal \u00f6ffentlich pr\u00e4sentiert. Eine Fragerunde gibt es nicht",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
             "link_text": null,
-            "activity_type": 21
+            "activity_type": 21,
+            "role": 25
         },
         {
             "id": 73,
@@ -1144,7 +1199,8 @@
             "description": "Der Future 8+ Wettbewerb wird er\u00f6ffnet",
             "link": "",
             "link_text": null,
-            "activity_type": 22
+            "activity_type": 22,
+            "role": 25
         },
         {
             "id": 74,
@@ -1161,7 +1217,8 @@
             "description": "In einem Match stehen sich zwei Teams gegen\u00fcber. Ein Match dauert 2:30 Min. Danach vergeben die Schiedsrichter:innen Punkte pro gel\u00f6ster Aufgabe",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 19
+            "activity_type": 19,
+            "role": 23
         },
         {
             "id": 75,
@@ -1178,7 +1235,8 @@
             "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Zu beiden stellen die Juror:innen Fragen",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 20
+            "activity_type": 20,
+            "role": 22
         },
         {
             "id": 76,
@@ -1195,7 +1253,8 @@
             "description": "Nachdem das Team den Raum verlassen hat, f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 20
+            "activity_type": 20,
+            "role": 22
         },
         {
             "id": 77,
@@ -1212,7 +1271,8 @@
             "description": "Alle Juror:innen beraten gemeinsam, welche Teams Nominierungen und Pokale erhalten ",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 20
+            "activity_type": 20,
+            "role": 29
         },
         {
             "id": 78,
@@ -1229,7 +1289,8 @@
             "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Anschlie\u00dfend f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 20
+            "activity_type": 20,
+            "role": null
         },
         {
             "id": 79,
@@ -1246,7 +1307,8 @@
             "description": "Medaillen, Urkunden und Pokale f\u00fcr die Future 8+ Teams",
             "link": "",
             "link_text": null,
-            "activity_type": 23
+            "activity_type": 23,
+            "role": 25
         },
         {
             "id": 80,
@@ -1263,7 +1325,8 @@
             "description": "Beim Coaches-Briefing wird der Ablauf des Tages besprochen und offene Fragen beantwortet",
             "link": "",
             "link_text": null,
-            "activity_type": 7
+            "activity_type": 7,
+            "role": 31
         },
         {
             "id": 81,
@@ -1280,7 +1343,8 @@
             "description": "Das Jury-Briefing sorgt daf\u00fcr, dass alle nach den selben Kriterien bewerten",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
-            "activity_type": 20
+            "activity_type": 20,
+            "role": 29
         },
         {
             "id": 82,
@@ -1297,7 +1361,8 @@
             "description": "Im Schiedsrichter:innen-Briefing werden aktuelle Regel\u00e4nderungen besprochen und offene Fragen beantwortet",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/robot-game",
             "link_text": null,
-            "activity_type": 19
+            "activity_type": 19,
+            "role": 30
         },
         {
             "id": 83,
@@ -1314,7 +1379,8 @@
             "description": "",
             "link": null,
             "link_text": null,
-            "activity_type": 24
+            "activity_type": 24,
+            "role": null
         },
         {
             "id": 84,
@@ -1331,7 +1397,8 @@
             "description": "",
             "link": null,
             "link_text": null,
-            "activity_type": 24
+            "activity_type": 24,
+            "role": null
         },
         {
             "id": 85,
@@ -1348,7 +1415,8 @@
             "description": "Ende der Veranstaltung",
             "link": null,
             "link_text": null,
-            "activity_type": 7
+            "activity_type": 7,
+            "role": null
         },
         {
             "id": 86,
@@ -1365,7 +1433,8 @@
             "description": "Die Explore Ausstellung wird er\u00f6ffnet",
             "link": "",
             "link_text": null,
-            "activity_type": 10
+            "activity_type": 10,
+            "role": 12
         },
         {
             "id": 87,
@@ -1382,7 +1451,8 @@
             "description": "Medaillen und Urkunden f\u00fcr die Explore Teams",
             "link": null,
             "link_text": null,
-            "activity_type": 11
+            "activity_type": 11,
+            "role": 12
         },
         {
             "id": 88,
@@ -1399,7 +1469,8 @@
             "description": "Medaillen, Urkunden und Pokale f\u00fcr die Challenge und Future 8+ Teams",
             "link": "",
             "link_text": null,
-            "activity_type": 13
+            "activity_type": 13,
+            "role": 2
         },
         {
             "id": 89,
@@ -1416,7 +1487,8 @@
             "description": "Die Challenge und Future 8+ Wettbewerbe werden er\u00f6ffnet",
             "link": "",
             "link_text": null,
-            "activity_type": 12
+            "activity_type": 12,
+            "role": 2
         }
     ],
     "m_ceremonies": [
@@ -1513,6 +1585,7 @@
             "letter": "D",
             "ics_postfix": "discover",
             "sequence": 3,
+            "max_match_rounds": null,
             "color_hex": "662D91",
             "logo_stem": null,
             "logo_white": "FLL_Explore_column_heading.png"
@@ -1524,6 +1597,7 @@
             "letter": "E",
             "ics_postfix": "explore",
             "sequence": 1,
+            "max_match_rounds": null,
             "color_hex": "00A651",
             "logo_stem": "fll_explore",
             "logo_white": "FLL_Explore_column_heading.png"
@@ -1535,6 +1609,7 @@
             "letter": "C",
             "ics_postfix": "challenge",
             "sequence": 2,
+            "max_match_rounds": 3,
             "color_hex": "ED1C24",
             "logo_stem": "fll_challenge",
             "logo_white": "FLL_Challenge_column_heading.png"
@@ -1546,6 +1621,7 @@
             "letter": "F5",
             "ics_postfix": "future_5",
             "sequence": 4,
+            "max_match_rounds": null,
             "color_hex": null,
             "logo_stem": null,
             "logo_white": null
@@ -1557,6 +1633,7 @@
             "letter": "F8",
             "ics_postfix": "future_8",
             "sequence": 5,
+            "max_match_rounds": 5,
             "color_hex": "51BFB4",
             "logo_stem": "fll_future8",
             "logo_white": "Bioglow_Future_column.png"
@@ -1574,6 +1651,2794 @@
         {
             "id": 3,
             "name": "Finale"
+        }
+    ],
+    "m_match": [
+        {
+            "id": 859,
+            "first_program": 8,
+            "teams": 4,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 860,
+            "first_program": 8,
+            "teams": 4,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 861,
+            "first_program": 8,
+            "teams": 4,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 862,
+            "first_program": 8,
+            "teams": 4,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 863,
+            "first_program": 8,
+            "teams": 4,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 2
+        },
+        {
+            "id": 864,
+            "first_program": 8,
+            "teams": 4,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 3
+        },
+        {
+            "id": 865,
+            "first_program": 8,
+            "teams": 4,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 3
+        },
+        {
+            "id": 866,
+            "first_program": 8,
+            "teams": 4,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 1
+        },
+        {
+            "id": 867,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 0,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 0
+        },
+        {
+            "id": 868,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 0,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 869,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 0,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 870,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 1,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 871,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 1,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 0
+        },
+        {
+            "id": 872,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 1,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 873,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 2,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 4
+        },
+        {
+            "id": 874,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 2,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 0
+        },
+        {
+            "id": 875,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 2,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 3
+        },
+        {
+            "id": 876,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 3,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 2
+        },
+        {
+            "id": 877,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 3,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 0,
+            "table_2_team": 3
+        },
+        {
+            "id": 878,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 3,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 1
+        },
+        {
+            "id": 879,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 4,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 3
+        },
+        {
+            "id": 880,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 4,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 0
+        },
+        {
+            "id": 881,
+            "first_program": 8,
+            "teams": 5,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok \nJury braucht nur 4 Runden. Daher eine Match-Runde weniger als f\u00fcr 6 Teams",
+            "round": 4,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 5
+        },
+        {
+            "id": 882,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 6
+        },
+        {
+            "id": 883,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 884,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 885,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 886,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 6
+        },
+        {
+            "id": 887,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 888,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 4
+        },
+        {
+            "id": 889,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 6
+        },
+        {
+            "id": 890,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 3
+        },
+        {
+            "id": 891,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 2
+        },
+        {
+            "id": 892,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 3
+        },
+        {
+            "id": 893,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 4
+        },
+        {
+            "id": 894,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 4
+        },
+        {
+            "id": 895,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 3
+        },
+        {
+            "id": 896,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 1
+        },
+        {
+            "id": 897,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 5,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 2
+        },
+        {
+            "id": 898,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 5,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 5
+        },
+        {
+            "id": 899,
+            "first_program": 8,
+            "teams": 6,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 5,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 6
+        },
+        {
+            "id": 916,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 0,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 917,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 0,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 7
+        },
+        {
+            "id": 918,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 0,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 5
+        },
+        {
+            "id": 919,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 0,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 920,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 1,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 7
+        },
+        {
+            "id": 921,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 1,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 5
+        },
+        {
+            "id": 922,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 1,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 923,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 1,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 924,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 2,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 7
+        },
+        {
+            "id": 925,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 2,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 8
+        },
+        {
+            "id": 926,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 2,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 1
+        },
+        {
+            "id": 927,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 2,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 6
+        },
+        {
+            "id": 928,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 3,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 1
+        },
+        {
+            "id": 929,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 3,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 3
+        },
+        {
+            "id": 930,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 3,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 2
+        },
+        {
+            "id": 931,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 3,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 7,
+            "table_2_team": 8
+        },
+        {
+            "id": 932,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 0,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 933,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 0,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 6,
+            "table_2_team": 7
+        },
+        {
+            "id": 934,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 0,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 5
+        },
+        {
+            "id": 935,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 0,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 936,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 1,
+            "match_no": 1,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 6,
+            "table_2_team": 7
+        },
+        {
+            "id": 937,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 1,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 5
+        },
+        {
+            "id": 938,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 1,
+            "match_no": 3,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 939,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 1,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 940,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 2,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 7
+        },
+        {
+            "id": 941,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 2,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 2,
+            "table_2_team": 8
+        },
+        {
+            "id": 942,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 2,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 3
+        },
+        {
+            "id": 943,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 2,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 5,
+            "table_2_team": 6
+        },
+        {
+            "id": 944,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 3,
+            "match_no": 1,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 4,
+            "table_2_team": 1
+        },
+        {
+            "id": 945,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 3,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 2
+        },
+        {
+            "id": 946,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 3,
+            "match_no": 3,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 3,
+            "table_2_team": 5
+        },
+        {
+            "id": 947,
+            "first_program": 8,
+            "teams": 8,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nNur 3 Match-Runden, weil Jury nicht mehr braucht.",
+            "round": 3,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 7,
+            "table_2_team": 8
+        },
+        {
+            "id": 948,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 949,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 7
+        },
+        {
+            "id": 950,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 9
+        },
+        {
+            "id": 951,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 10
+        },
+        {
+            "id": 952,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 953,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 7
+        },
+        {
+            "id": 954,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 10
+        },
+        {
+            "id": 955,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 9
+        },
+        {
+            "id": 956,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 957,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 958,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 10,
+            "table_2_team": 8
+        },
+        {
+            "id": 959,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 7,
+            "table_2_team": 9
+        },
+        {
+            "id": 960,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 1
+        },
+        {
+            "id": 961,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 2
+        },
+        {
+            "id": 962,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 6
+        },
+        {
+            "id": 963,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 9,
+            "table_2_team": 6
+        },
+        {
+            "id": 964,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 10
+        },
+        {
+            "id": 965,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 4
+        },
+        {
+            "id": 966,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 2
+        },
+        {
+            "id": 967,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 7
+        },
+        {
+            "id": 968,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 5
+        },
+        {
+            "id": 969,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 6
+        },
+        {
+            "id": 970,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 7,
+            "table_2_team": 3
+        },
+        {
+            "id": 971,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 8
+        },
+        {
+            "id": 972,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 10,
+            "table_2_team": 9
+        },
+        {
+            "id": 973,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 0,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 974,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 0,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 8,
+            "table_2_team": 9
+        },
+        {
+            "id": 975,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 0,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 10
+        },
+        {
+            "id": 976,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 0,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 5,
+            "table_2_team": 7
+        },
+        {
+            "id": 977,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 0,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 1
+        },
+        {
+            "id": 978,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 1,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 10
+        },
+        {
+            "id": 979,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 1,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 5,
+            "table_2_team": 7
+        },
+        {
+            "id": 980,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 1,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 1
+        },
+        {
+            "id": 981,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 1,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 8,
+            "table_2_team": 9
+        },
+        {
+            "id": 982,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 1,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 983,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 2,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 10,
+            "table_2_team": 8
+        },
+        {
+            "id": 984,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 2,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 7,
+            "table_2_team": 9
+        },
+        {
+            "id": 985,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 2,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 3
+        },
+        {
+            "id": 986,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 2,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 4,
+            "table_2_team": 2
+        },
+        {
+            "id": 987,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 2,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 6
+        },
+        {
+            "id": 988,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 3,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 9,
+            "table_2_team": 6
+        },
+        {
+            "id": 989,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 3,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 3,
+            "table_2_team": 10
+        },
+        {
+            "id": 990,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 3,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 1
+        },
+        {
+            "id": 991,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 3,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 5,
+            "table_2_team": 2
+        },
+        {
+            "id": 992,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 3,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 7
+        },
+        {
+            "id": 993,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 4,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 7,
+            "table_2_team": 3
+        },
+        {
+            "id": 994,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 4,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 1,
+            "table_2_team": 5
+        },
+        {
+            "id": 995,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 4,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 6
+        },
+        {
+            "id": 996,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 4,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 4,
+            "table_2_team": 8
+        },
+        {
+            "id": 997,
+            "first_program": 8,
+            "teams": 10,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nTische nicht perfekt",
+            "round": 4,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 10,
+            "table_2_team": 9
+        },
+        {
+            "id": 998,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 999,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 11
+        },
+        {
+            "id": 1000,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 9
+        },
+        {
+            "id": 1001,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 10,
+            "table_2_team": 7
+        },
+        {
+            "id": 1002,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 12
+        },
+        {
+            "id": 1003,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 6,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 1004,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 12
+        },
+        {
+            "id": 1005,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 9
+        },
+        {
+            "id": 1006,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 11
+        },
+        {
+            "id": 1007,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 10,
+            "table_2_team": 7
+        },
+        {
+            "id": 1008,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 1009,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 6,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 1010,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 9
+        },
+        {
+            "id": 1011,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 7,
+            "table_2_team": 11
+        },
+        {
+            "id": 1012,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 1
+        },
+        {
+            "id": 1013,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 4
+        },
+        {
+            "id": 1014,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 10,
+            "table_2_team": 12
+        },
+        {
+            "id": 1015,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 6,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 6
+        },
+        {
+            "id": 1016,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 9,
+            "table_2_team": 12
+        },
+        {
+            "id": 1017,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 10,
+            "table_2_team": 3
+        },
+        {
+            "id": 1018,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 5
+        },
+        {
+            "id": 1019,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 11
+        },
+        {
+            "id": 1020,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 4
+        },
+        {
+            "id": 1021,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 6,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 7,
+            "table_2_team": 8
+        },
+        {
+            "id": 1022,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 11,
+            "table_2_team": 2
+        },
+        {
+            "id": 1023,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 12
+        },
+        {
+            "id": 1024,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 8
+        },
+        {
+            "id": 1025,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 7,
+            "table_2_team": 5
+        },
+        {
+            "id": 1026,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 6
+        },
+        {
+            "id": 1027,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 4,
+            "match_no": 6,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 9,
+            "table_2_team": 10
+        },
+        {
+            "id": 1028,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 5,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 6
+        },
+        {
+            "id": 1029,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 5,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 7
+        },
+        {
+            "id": 1030,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 5,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 8
+        },
+        {
+            "id": 1031,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 5,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 9
+        },
+        {
+            "id": 1032,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 5,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 10
+        },
+        {
+            "id": 1033,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 2,
+            "comment": "ok",
+            "round": 5,
+            "match_no": 6,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 12,
+            "table_2_team": 11
+        },
+        {
+            "id": 1034,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 0,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 1035,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 0,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 8,
+            "table_2_team": 11
+        },
+        {
+            "id": 1036,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 0,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 9
+        },
+        {
+            "id": 1037,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 0,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 10,
+            "table_2_team": 7
+        },
+        {
+            "id": 1038,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 0,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 12
+        },
+        {
+            "id": 1039,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 0,
+            "match_no": 6,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 1040,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 1,
+            "match_no": 1,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 8,
+            "table_2_team": 11
+        },
+        {
+            "id": 1041,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 1,
+            "match_no": 2,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 12
+        },
+        {
+            "id": 1042,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 1,
+            "match_no": 3,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 10,
+            "table_2_team": 7
+        },
+        {
+            "id": 1043,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 1,
+            "match_no": 4,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 6,
+            "table_2_team": 9
+        },
+        {
+            "id": 1044,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 1,
+            "match_no": 5,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 1045,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 1,
+            "match_no": 6,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 3,
+            "table_2_team": 4
+        },
+        {
+            "id": 1046,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 2,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 9,
+            "table_2_team": 8
+        },
+        {
+            "id": 1047,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 2,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 3,
+            "table_2_team": 1
+        },
+        {
+            "id": 1048,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 2,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 7,
+            "table_2_team": 11
+        },
+        {
+            "id": 1049,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 2,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 2,
+            "table_2_team": 4
+        },
+        {
+            "id": 1050,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 2,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 12,
+            "table_2_team": 10
+        },
+        {
+            "id": 1051,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 2,
+            "match_no": 6,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 5,
+            "table_2_team": 6
+        },
+        {
+            "id": 1052,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 3,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 9,
+            "table_2_team": 12
+        },
+        {
+            "id": 1053,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 3,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 10,
+            "table_2_team": 3
+        },
+        {
+            "id": 1054,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 3,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 5
+        },
+        {
+            "id": 1055,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 3,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 6,
+            "table_2_team": 11
+        },
+        {
+            "id": 1056,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 3,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 1
+        },
+        {
+            "id": 1057,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 3,
+            "match_no": 6,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 8,
+            "table_2_team": 7
+        },
+        {
+            "id": 1058,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 4,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 11,
+            "table_2_team": 2
+        },
+        {
+            "id": 1059,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 4,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 3,
+            "table_2_team": 12
+        },
+        {
+            "id": 1060,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 4,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 5,
+            "table_2_team": 7
+        },
+        {
+            "id": 1061,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 4,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 1,
+            "table_2_team": 8
+        },
+        {
+            "id": 1062,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 4,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 4,
+            "table_2_team": 6
+        },
+        {
+            "id": 1063,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 4,
+            "match_no": 6,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 9,
+            "table_2_team": 10
+        },
+        {
+            "id": 1064,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 5,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 6
+        },
+        {
+            "id": 1065,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 5,
+            "match_no": 2,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 7,
+            "table_2_team": 2
+        },
+        {
+            "id": 1066,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 5,
+            "match_no": 3,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 8,
+            "table_2_team": 3
+        },
+        {
+            "id": 1067,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 5,
+            "match_no": 4,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 4,
+            "table_2_team": 9
+        },
+        {
+            "id": 1068,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 5,
+            "match_no": 5,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 10,
+            "table_2_team": 5
+        },
+        {
+            "id": 1069,
+            "first_program": 8,
+            "teams": 12,
+            "lanes": 2,
+            "tables": 4,
+            "comment": "ok\nfast perfekt",
+            "round": 5,
+            "match_no": 6,
+            "table_1": 3,
+            "table_2": 4,
+            "table_1_team": 12,
+            "table_2_team": 11
+        },
+        {
+            "id": 1070,
+            "first_program": 8,
+            "teams": 2,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 0,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 1071,
+            "first_program": 8,
+            "teams": 2,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 1,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
+        },
+        {
+            "id": 1072,
+            "first_program": 8,
+            "teams": 2,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 2,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 2,
+            "table_2_team": 1
+        },
+        {
+            "id": 1073,
+            "first_program": 8,
+            "teams": 2,
+            "lanes": 1,
+            "tables": 2,
+            "comment": "ok",
+            "round": 3,
+            "match_no": 1,
+            "table_1": 1,
+            "table_2": 2,
+            "table_1_team": 1,
+            "table_2_team": 2
         }
     ],
     "m_parameter": [
@@ -3711,32 +6576,18 @@
     "m_parameter_condition": [],
     "m_role": [
         {
-            "id": 1,
-            "name": "Organisation",
-            "name_short": null,
-            "sequence": 9,
-            "first_program": 3,
-            "description": "K\u00fcmmert sich um alles, was Challenge ist",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 0,
-            "staffable": 0
-        },
-        {
             "id": 2,
-            "name": "Moderation",
+            "name": "Moderator:in",
             "name_short": null,
             "sequence": 2,
             "first_program": null,
             "description": "Moderiert f\u00fcr Explore und Challenge",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 3,
@@ -3745,40 +6596,40 @@
             "sequence": 2,
             "first_program": 3,
             "description": "Nimmt als Challenge Team teil",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"c_teams\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "team",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 4,
-            "name": "Jury",
+            "name": "Juror:in",
             "name_short": "C J",
             "sequence": 4,
             "first_program": 3,
             "description": "Bewertet die Challenge Teams",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"j_lanes\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": "Jury-Gruppe"
         },
         {
             "id": 5,
             "name": "Schiedsrichter:in",
-            "name_short": "RG F",
+            "name_short": "RG T",
             "sequence": 6,
             "first_program": 3,
             "description": "K\u00fcmmert sich um das Robot-Game der Challenge Teams",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": "Robot-Game Tisch"
         },
         {
             "id": 6,
@@ -3787,26 +6638,12 @@
             "sequence": 1,
             "first_program": 3,
             "description": "Interessiert sich f\u00fcr Challenge, macht aber nicht selber mit",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
-        },
-        {
-            "id": 7,
-            "name": "Organisation",
-            "name_short": null,
-            "sequence": 6,
-            "first_program": 2,
-            "description": "K\u00fcmmert sich um alles, was Explore ist",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 0,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 8,
@@ -3815,26 +6652,26 @@
             "sequence": 2,
             "first_program": 2,
             "description": "Nimmt als Explore Team teil",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"e_teams\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "team",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 9,
-            "name": "Gutachter-Gruppe",
+            "name": "Gutachter:in",
             "name_short": "E G",
             "sequence": 4,
             "first_program": 2,
             "description": "Begutachtet und bewertet die Explore Teams",
-            "differentiation_type": "number",
-            "differentiation_source": "select sum(set_value) from plan_param_value as ppv join m_parameter on ppv.parameter=m_parameter.id where (m_parameter.name=\"e1_lanes\" or m_parameter.name=\"e2_lanes\") and ppv.plan=[plan]",
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": "Gutachter:innengruppe"
         },
         {
             "id": 10,
@@ -3843,54 +6680,54 @@
             "sequence": 1,
             "first_program": 2,
             "description": "Interessiert sich f\u00fcr Explore, macht aber nicht selber mit",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 11,
-            "name": "Robot-Check",
-            "name_short": "RC F",
+            "name": "Robot-Checker:in",
+            "name_short": "RC T",
             "sequence": 7,
             "first_program": 3,
             "description": "\u00dcberpr\u00fcft die Roboter und stellt sicher, dass sie regelkonform sind",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"r_tables\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": "Robot-Check"
         },
         {
             "id": 12,
-            "name": "Moderation",
+            "name": "Moderator:in",
             "name_short": null,
             "sequence": 5,
             "first_program": 2,
             "description": "Moderation f\u00fcr Explore",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 13,
-            "name": "Moderation",
+            "name": "Moderator:in",
             "name_short": null,
             "sequence": 8,
             "first_program": 3,
             "description": "Moderation f\u00fcr Challenge",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 14,
@@ -3899,96 +6736,26 @@
             "sequence": 1,
             "first_program": null,
             "description": "Besucher f\u00fcr alle Angebote",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
-        },
-        {
-            "id": 15,
-            "name": "Organisation",
-            "name_short": null,
-            "sequence": 3,
-            "first_program": null,
-            "description": "Gesamt-Organisation",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 0,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 16,
-            "name": "Live Challenge-Jury-Gruppe",
+            "name": "LC Juror:in",
             "name_short": "LC J",
-            "sequence": 80,
+            "sequence": 11,
             "first_program": 3,
             "description": "Leitet die Live Challenge",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"j_lanes\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 0
-        },
-        {
-            "id": 17,
-            "name": "Gesamt\u00fcberblick",
-            "name_short": null,
-            "sequence": 99,
-            "first_program": 2,
-            "description": "Alle Explore-Aktivit\u00e4ten",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 1,
-            "staffable": 0
-        },
-        {
-            "id": 18,
-            "name": "Gesamt\u00fcberblick",
-            "name_short": null,
-            "sequence": 99,
-            "first_program": 3,
-            "description": "Alle Challenge-Aktivit\u00e4ten",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 1,
-            "staffable": 0
-        },
-        {
-            "id": 19,
-            "name": "Gesamt\u00fcberblick",
-            "name_short": null,
-            "sequence": 4,
-            "first_program": null,
-            "description": "Alle Aktivit\u00e4ten",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 0,
-            "staffable": 0
-        },
-        {
-            "id": 20,
-            "name": "Organisation",
-            "name_short": null,
-            "sequence": 8,
-            "first_program": 8,
-            "description": "K\u00fcmmert sich um alles, was Future 8+ ist",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 0,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": "LC Jury-Gruppe"
         },
         {
             "id": 21,
@@ -3997,40 +6764,40 @@
             "sequence": 2,
             "first_program": 8,
             "description": "Nimmt als Future 8+ Team teil",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"f8_teams\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "team",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 22,
-            "name": "Jury",
+            "name": "Juror:in",
             "name_short": "F8 J",
             "sequence": 4,
             "first_program": 8,
             "description": "Bewertet die Future 8+ Teams",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"f8_lanes\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "lane",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": "Jury-Gruppe"
         },
         {
             "id": 23,
             "name": "Schiedsrichter:in",
-            "name_short": "F8 G",
+            "name_short": "F8 F",
             "sequence": 6,
             "first_program": 8,
             "description": "K\u00fcmmert sich um das Game der Future 8+ Teams",
-            "differentiation_type": "number",
-            "differentiation_source": "select set_value from plan_param_value join m_parameter on plan_param_value.parameter=m_parameter.id where m_parameter.name=\"f8_fields\" and plan_param_value.plan=[plan]",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
-            "staffable": 1
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": "Game Feld"
         },
         {
             "id": 24,
@@ -4039,40 +6806,26 @@
             "sequence": 1,
             "first_program": 8,
             "description": "Interessiert sich f\u00fcr Future 8+, macht aber nicht selber mit",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 0,
+            "group_label": null
         },
         {
             "id": 25,
-            "name": "Moderation",
+            "name": "Moderator:in",
             "name_short": null,
             "sequence": 7,
             "first_program": 8,
             "description": "Moderation f\u00fcr Future 8+",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 1,
-            "staffable": 0
-        },
-        {
-            "id": 26,
-            "name": "Gesamt\u00fcberblick",
-            "name_short": null,
-            "sequence": 99,
-            "first_program": 8,
-            "description": "Alle Future 8+-Aktivit\u00e4ten",
-            "differentiation_type": null,
-            "differentiation_source": null,
-            "differentiation_parameter": null,
-            "preview_matrix": 0,
-            "pdf_export": 1,
-            "staffable": 0
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 27,
@@ -4081,12 +6834,12 @@
             "sequence": 3,
             "first_program": 3,
             "description": "Leitet die Challenge Jury",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "public_plan": 0,
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 28,
@@ -4095,12 +6848,12 @@
             "sequence": 5,
             "first_program": 3,
             "description": "Sorgf daf\u00fcr, dass das Robot-Game l\u00e4uft",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "public_plan": 0,
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 29,
@@ -4109,12 +6862,12 @@
             "sequence": 3,
             "first_program": 8,
             "description": "F8+ Jury Head",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "public_plan": 0,
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 30,
@@ -4123,54 +6876,68 @@
             "sequence": 5,
             "first_program": 8,
             "description": "F8+ Schiri Head",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "public_plan": 0,
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 31,
             "name": "Gesamtverantwortliche:r",
             "name_short": null,
-            "sequence": 0,
+            "sequence": 4,
             "first_program": null,
             "description": "Du bist schuld!",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "public_plan": 0,
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 32,
-            "name": "Gutachter:innen-Chef:in",
+            "name": "Gutachter:innen-Verantwortliche:r",
             "name_short": null,
             "sequence": 3,
             "first_program": 2,
             "description": "E Chef",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "public_plan": 0,
+            "staffable": 1,
+            "group_label": null
         },
         {
             "id": 33,
             "name": "DJ",
             "name_short": null,
-            "sequence": 20,
+            "sequence": 5,
             "first_program": null,
             "description": "Macht coole Mucke",
-            "differentiation_type": null,
-            "differentiation_source": null,
             "differentiation_parameter": null,
             "preview_matrix": 0,
             "pdf_export": 0,
-            "staffable": 1
+            "public_plan": 1,
+            "staffable": 1,
+            "group_label": null
+        },
+        {
+            "id": 34,
+            "name": "LC Verantwortliche:r",
+            "name_short": null,
+            "sequence": 10,
+            "first_program": 3,
+            "description": "LC ",
+            "differentiation_parameter": null,
+            "preview_matrix": 0,
+            "pdf_export": 0,
+            "public_plan": 0,
+            "staffable": 1,
+            "group_label": null
         }
     ],
     "m_room_type": [
@@ -5945,16 +8712,6 @@
             "alert_level": 3
         },
         {
-            "id": 119,
-            "first_program": null,
-            "teams": null,
-            "lanes": null,
-            "tables": null,
-            "calibration": null,
-            "note": null,
-            "alert_level": 3
-        },
-        {
             "id": 120,
             "first_program": 8,
             "teams": 8,
@@ -6055,56 +8812,6 @@
             "alert_level": 0
         },
         {
-            "id": 130,
-            "first_program": 8,
-            "teams": 12,
-            "lanes": 3,
-            "tables": 2,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 131,
-            "first_program": 8,
-            "teams": 12,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 132,
-            "first_program": 8,
-            "teams": 13,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 13 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 133,
-            "first_program": 8,
-            "teams": 14,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 14 Teams",
-            "alert_level": 1
-        },
-        {
-            "id": 134,
-            "first_program": 8,
-            "teams": 15,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Empfohlene Konfiguration f\u00fcr 15 Teams",
-            "alert_level": 1
-        },
-        {
             "id": 147,
             "first_program": 8,
             "teams": 4,
@@ -6141,118 +8848,8 @@
             "lanes": 2,
             "tables": 2,
             "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.",
-            "alert_level": 2
-        },
-        {
-            "id": 151,
-            "first_program": 8,
-            "teams": 7,
-            "lanes": 2,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 1 Jurygruppe umgestellt werden.",
-            "alert_level": 2
-        },
-        {
-            "id": 152,
-            "first_program": 8,
-            "teams": 11,
-            "lanes": 3,
-            "tables": 2,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 153,
-            "first_program": 8,
-            "teams": 11,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 155,
-            "first_program": 8,
-            "teams": 10,
-            "lanes": 3,
-            "tables": 2,
-            "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.",
-            "alert_level": 2
-        },
-        {
-            "id": 156,
-            "first_program": 8,
-            "teams": 10,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Riskio: Wenn 2 Teams nicht kommen, muss auf 2 Jurygruppen umgestellt werden.",
-            "alert_level": 2
-        },
-        {
-            "id": 169,
-            "first_program": 8,
-            "teams": 14,
-            "lanes": 3,
-            "tables": 2,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 171,
-            "first_program": 8,
-            "teams": 13,
-            "lanes": 3,
-            "tables": 2,
-            "calibration": 0,
-            "note": null,
-            "alert_level": 0
-        },
-        {
-            "id": 173,
-            "first_program": 8,
-            "teams": 9,
-            "lanes": 3,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 2 Jurygruppen umgestellt werden.",
-            "alert_level": 3
-        },
-        {
-            "id": 174,
-            "first_program": 8,
-            "teams": 6,
-            "lanes": 2,
-            "tables": 2,
-            "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppe umgestellt werden.",
-            "alert_level": 3
-        },
-        {
-            "id": 175,
-            "first_program": 8,
-            "teams": 6,
-            "lanes": 2,
-            "tables": 4,
-            "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 1 Jurygruppe umgestellt werden.",
-            "alert_level": 3
-        },
-        {
-            "id": 176,
-            "first_program": 8,
-            "teams": 9,
-            "lanes": 3,
-            "tables": 2,
-            "calibration": 0,
-            "note": "Hohes Riskio: Wenn 1 Team nicht kommt, muss auf 2 Jurygruppen umgestellt werden.",
-            "alert_level": 3
+            "note": "Empfohlene Konfiguration f\u00fcr 7 Teams",
+            "alert_level": 1
         },
         {
             "id": 180,
@@ -6261,25 +8858,25 @@
             "lanes": 1,
             "tables": 2,
             "calibration": 0,
-            "note": null,
-            "alert_level": null
+            "note": "Empfohlene Konfiguration f\u00fcr 3 Teams",
+            "alert_level": 1
+        },
+        {
+            "id": 182,
+            "first_program": 8,
+            "teams": 2,
+            "lanes": 1,
+            "tables": 2,
+            "calibration": 0,
+            "note": "Empfohlene Konfiguration f\u00fcr 2 Teams",
+            "alert_level": 1
         }
     ],
     "m_visibility": [
         {
-            "id": 875,
-            "activity_type_detail": 1,
-            "role": 1
-        },
-        {
             "id": 702,
             "activity_type_detail": 1,
             "role": 2
-        },
-        {
-            "id": 871,
-            "activity_type_detail": 1,
-            "role": 7
         },
         {
             "id": 8,
@@ -6302,44 +8899,9 @@
             "role": 14
         },
         {
-            "id": 703,
-            "activity_type_detail": 1,
-            "role": 15
-        },
-        {
-            "id": 593,
-            "activity_type_detail": 1,
-            "role": 17
-        },
-        {
-            "id": 632,
-            "activity_type_detail": 1,
-            "role": 19
-        },
-        {
-            "id": 872,
-            "activity_type_detail": 2,
-            "role": 7
-        },
-        {
             "id": 19,
             "activity_type_detail": 2,
             "role": 9
-        },
-        {
-            "id": 596,
-            "activity_type_detail": 2,
-            "role": 17
-        },
-        {
-            "id": 634,
-            "activity_type_detail": 2,
-            "role": 19
-        },
-        {
-            "id": 27,
-            "activity_type_detail": 3,
-            "role": 7
         },
         {
             "id": 29,
@@ -6347,29 +8909,9 @@
             "role": 9
         },
         {
-            "id": 450,
-            "activity_type_detail": 3,
-            "role": 15
-        },
-        {
-            "id": 595,
-            "activity_type_detail": 3,
-            "role": 17
-        },
-        {
-            "id": 633,
-            "activity_type_detail": 3,
-            "role": 19
-        },
-        {
             "id": 448,
             "activity_type_detail": 4,
             "role": 2
-        },
-        {
-            "id": 390,
-            "activity_type_detail": 4,
-            "role": 7
         },
         {
             "id": 38,
@@ -6397,29 +8939,9 @@
             "role": 14
         },
         {
-            "id": 449,
-            "activity_type_detail": 4,
-            "role": 15
-        },
-        {
-            "id": 829,
-            "activity_type_detail": 4,
-            "role": 17
-        },
-        {
-            "id": 631,
-            "activity_type_detail": 4,
-            "role": 19
-        },
-        {
             "id": 453,
             "activity_type_detail": 5,
             "role": 2
-        },
-        {
-            "id": 47,
-            "activity_type_detail": 5,
-            "role": 7
         },
         {
             "id": 48,
@@ -6445,26 +8967,6 @@
             "id": 454,
             "activity_type_detail": 5,
             "role": 14
-        },
-        {
-            "id": 452,
-            "activity_type_detail": 5,
-            "role": 15
-        },
-        {
-            "id": 592,
-            "activity_type_detail": 5,
-            "role": 17
-        },
-        {
-            "id": 636,
-            "activity_type_detail": 5,
-            "role": 19
-        },
-        {
-            "id": 51,
-            "activity_type_detail": 6,
-            "role": 1
         },
         {
             "id": 52,
@@ -6507,29 +9009,9 @@
             "role": 14
         },
         {
-            "id": 418,
-            "activity_type_detail": 6,
-            "role": 15
-        },
-        {
             "id": 857,
             "activity_type_detail": 6,
             "role": 16
-        },
-        {
-            "id": 510,
-            "activity_type_detail": 6,
-            "role": 18
-        },
-        {
-            "id": 601,
-            "activity_type_detail": 6,
-            "role": 19
-        },
-        {
-            "id": 61,
-            "activity_type_detail": 7,
-            "role": 1
         },
         {
             "id": 62,
@@ -6555,11 +9037,6 @@
             "id": 66,
             "activity_type_detail": 7,
             "role": 6
-        },
-        {
-            "id": 67,
-            "activity_type_detail": 7,
-            "role": 7
         },
         {
             "id": 68,
@@ -6597,34 +9074,74 @@
             "role": 14
         },
         {
-            "id": 401,
-            "activity_type_detail": 7,
-            "role": 15
-        },
-        {
             "id": 491,
             "activity_type_detail": 7,
             "role": 16
         },
         {
-            "id": 587,
+            "id": 1062,
             "activity_type_detail": 7,
-            "role": 17
+            "role": 21
         },
         {
-            "id": 542,
+            "id": 1064,
             "activity_type_detail": 7,
-            "role": 18
+            "role": 22
         },
         {
-            "id": 643,
+            "id": 1066,
             "activity_type_detail": 7,
-            "role": 19
+            "role": 23
         },
         {
-            "id": 380,
-            "activity_type_detail": 8,
-            "role": 1
+            "id": 1061,
+            "activity_type_detail": 7,
+            "role": 24
+        },
+        {
+            "id": 1067,
+            "activity_type_detail": 7,
+            "role": 25
+        },
+        {
+            "id": 1058,
+            "activity_type_detail": 7,
+            "role": 27
+        },
+        {
+            "id": 1059,
+            "activity_type_detail": 7,
+            "role": 28
+        },
+        {
+            "id": 1063,
+            "activity_type_detail": 7,
+            "role": 29
+        },
+        {
+            "id": 1065,
+            "activity_type_detail": 7,
+            "role": 30
+        },
+        {
+            "id": 1056,
+            "activity_type_detail": 7,
+            "role": 31
+        },
+        {
+            "id": 1055,
+            "activity_type_detail": 7,
+            "role": 32
+        },
+        {
+            "id": 1057,
+            "activity_type_detail": 7,
+            "role": 33
+        },
+        {
+            "id": 1060,
+            "activity_type_detail": 7,
+            "role": 34
         },
         {
             "id": 72,
@@ -6662,26 +9179,6 @@
             "role": 14
         },
         {
-            "id": 438,
-            "activity_type_detail": 8,
-            "role": 15
-        },
-        {
-            "id": 534,
-            "activity_type_detail": 8,
-            "role": 18
-        },
-        {
-            "id": 626,
-            "activity_type_detail": 8,
-            "role": 19
-        },
-        {
-            "id": 386,
-            "activity_type_detail": 9,
-            "role": 1
-        },
-        {
             "id": 81,
             "activity_type_detail": 9,
             "role": 2
@@ -6715,26 +9212,6 @@
             "id": 441,
             "activity_type_detail": 9,
             "role": 14
-        },
-        {
-            "id": 442,
-            "activity_type_detail": 9,
-            "role": 15
-        },
-        {
-            "id": 536,
-            "activity_type_detail": 9,
-            "role": 18
-        },
-        {
-            "id": 627,
-            "activity_type_detail": 9,
-            "role": 19
-        },
-        {
-            "id": 387,
-            "activity_type_detail": 10,
-            "role": 1
         },
         {
             "id": 91,
@@ -6772,26 +9249,6 @@
             "role": 14
         },
         {
-            "id": 444,
-            "activity_type_detail": 10,
-            "role": 15
-        },
-        {
-            "id": 537,
-            "activity_type_detail": 10,
-            "role": 18
-        },
-        {
-            "id": 628,
-            "activity_type_detail": 10,
-            "role": 19
-        },
-        {
-            "id": 388,
-            "activity_type_detail": 11,
-            "role": 1
-        },
-        {
             "id": 101,
             "activity_type_detail": 11,
             "role": 2
@@ -6825,26 +9282,6 @@
             "id": 445,
             "activity_type_detail": 11,
             "role": 14
-        },
-        {
-            "id": 446,
-            "activity_type_detail": 11,
-            "role": 15
-        },
-        {
-            "id": 538,
-            "activity_type_detail": 11,
-            "role": 18
-        },
-        {
-            "id": 629,
-            "activity_type_detail": 11,
-            "role": 19
-        },
-        {
-            "id": 382,
-            "activity_type_detail": 12,
-            "role": 1
         },
         {
             "id": 111,
@@ -6882,26 +9319,6 @@
             "role": 14
         },
         {
-            "id": 440,
-            "activity_type_detail": 12,
-            "role": 15
-        },
-        {
-            "id": 535,
-            "activity_type_detail": 12,
-            "role": 18
-        },
-        {
-            "id": 625,
-            "activity_type_detail": 12,
-            "role": 19
-        },
-        {
-            "id": 369,
-            "activity_type_detail": 13,
-            "role": 1
-        },
-        {
             "id": 121,
             "activity_type_detail": 13,
             "role": 2
@@ -6935,26 +9352,6 @@
             "id": 468,
             "activity_type_detail": 13,
             "role": 14
-        },
-        {
-            "id": 424,
-            "activity_type_detail": 13,
-            "role": 15
-        },
-        {
-            "id": 532,
-            "activity_type_detail": 13,
-            "role": 18
-        },
-        {
-            "id": 624,
-            "activity_type_detail": 13,
-            "role": 19
-        },
-        {
-            "id": 363,
-            "activity_type_detail": 14,
-            "role": 1
         },
         {
             "id": 131,
@@ -6997,24 +9394,9 @@
             "role": 14
         },
         {
-            "id": 420,
-            "activity_type_detail": 14,
-            "role": 15
-        },
-        {
             "id": 858,
             "activity_type_detail": 14,
             "role": 16
-        },
-        {
-            "id": 531,
-            "activity_type_detail": 14,
-            "role": 18
-        },
-        {
-            "id": 623,
-            "activity_type_detail": 14,
-            "role": 19
         },
         {
             "id": 141,
@@ -7047,16 +9429,6 @@
             "role": 14
         },
         {
-            "id": 533,
-            "activity_type_detail": 15,
-            "role": 18
-        },
-        {
-            "id": 621,
-            "activity_type_detail": 15,
-            "role": 19
-        },
-        {
             "id": 152,
             "activity_type_detail": 16,
             "role": 3
@@ -7065,21 +9437,6 @@
             "id": 471,
             "activity_type_detail": 16,
             "role": 11
-        },
-        {
-            "id": 529,
-            "activity_type_detail": 16,
-            "role": 18
-        },
-        {
-            "id": 619,
-            "activity_type_detail": 16,
-            "role": 19
-        },
-        {
-            "id": 870,
-            "activity_type_detail": 17,
-            "role": 1
         },
         {
             "id": 179,
@@ -7102,64 +9459,14 @@
             "role": 14
         },
         {
-            "id": 516,
-            "activity_type_detail": 17,
-            "role": 18
-        },
-        {
-            "id": 607,
-            "activity_type_detail": 17,
-            "role": 19
-        },
-        {
-            "id": 831,
-            "activity_type_detail": 18,
-            "role": 1
-        },
-        {
             "id": 191,
             "activity_type_detail": 18,
             "role": 4
         },
         {
-            "id": 515,
-            "activity_type_detail": 18,
-            "role": 18
-        },
-        {
-            "id": 606,
-            "activity_type_detail": 18,
-            "role": 19
-        },
-        {
-            "id": 199,
-            "activity_type_detail": 19,
-            "role": 1
-        },
-        {
             "id": 460,
             "activity_type_detail": 19,
             "role": 4
-        },
-        {
-            "id": 428,
-            "activity_type_detail": 19,
-            "role": 15
-        },
-        {
-            "id": 514,
-            "activity_type_detail": 19,
-            "role": 18
-        },
-        {
-            "id": 605,
-            "activity_type_detail": 19,
-            "role": 19
-        },
-        {
-            "id": 371,
-            "activity_type_detail": 20,
-            "role": 1
         },
         {
             "id": 869,
@@ -7180,26 +9487,6 @@
             "id": 421,
             "activity_type_detail": 20,
             "role": 14
-        },
-        {
-            "id": 423,
-            "activity_type_detail": 20,
-            "role": 15
-        },
-        {
-            "id": 513,
-            "activity_type_detail": 20,
-            "role": 18
-        },
-        {
-            "id": 604,
-            "activity_type_detail": 20,
-            "role": 19
-        },
-        {
-            "id": 374,
-            "activity_type_detail": 21,
-            "role": 1
         },
         {
             "id": 431,
@@ -7242,26 +9529,6 @@
             "role": 14
         },
         {
-            "id": 429,
-            "activity_type_detail": 21,
-            "role": 15
-        },
-        {
-            "id": 522,
-            "activity_type_detail": 21,
-            "role": 18
-        },
-        {
-            "id": 613,
-            "activity_type_detail": 21,
-            "role": 19
-        },
-        {
-            "id": 377,
-            "activity_type_detail": 32,
-            "role": 1
-        },
-        {
             "id": 433,
             "activity_type_detail": 32,
             "role": 2
@@ -7302,29 +9569,9 @@
             "role": 14
         },
         {
-            "id": 358,
-            "activity_type_detail": 32,
-            "role": 15
-        },
-        {
             "id": 859,
             "activity_type_detail": 32,
             "role": 16
-        },
-        {
-            "id": 523,
-            "activity_type_detail": 32,
-            "role": 18
-        },
-        {
-            "id": 614,
-            "activity_type_detail": 32,
-            "role": 19
-        },
-        {
-            "id": 367,
-            "activity_type_detail": 33,
-            "role": 1
         },
         {
             "id": 425,
@@ -7362,29 +9609,9 @@
             "role": 14
         },
         {
-            "id": 427,
-            "activity_type_detail": 33,
-            "role": 15
-        },
-        {
             "id": 890,
             "activity_type_detail": 33,
             "role": 16
-        },
-        {
-            "id": 511,
-            "activity_type_detail": 33,
-            "role": 18
-        },
-        {
-            "id": 602,
-            "activity_type_detail": 33,
-            "role": 19
-        },
-        {
-            "id": 408,
-            "activity_type_detail": 34,
-            "role": 1
         },
         {
             "id": 415,
@@ -7410,11 +9637,6 @@
             "id": 402,
             "activity_type_detail": 34,
             "role": 6
-        },
-        {
-            "id": 413,
-            "activity_type_detail": 34,
-            "role": 7
         },
         {
             "id": 410,
@@ -7452,34 +9674,69 @@
             "role": 14
         },
         {
-            "id": 416,
-            "activity_type_detail": 34,
-            "role": 15
-        },
-        {
             "id": 543,
             "activity_type_detail": 34,
             "role": 16
         },
         {
-            "id": 586,
+            "id": 1095,
             "activity_type_detail": 34,
-            "role": 17
+            "role": 21
         },
         {
-            "id": 541,
+            "id": 1099,
             "activity_type_detail": 34,
-            "role": 18
+            "role": 22
         },
         {
-            "id": 644,
+            "id": 1103,
             "activity_type_detail": 34,
-            "role": 19
+            "role": 23
         },
         {
-            "id": 359,
-            "activity_type_detail": 35,
-            "role": 1
+            "id": 1093,
+            "activity_type_detail": 34,
+            "role": 24
+        },
+        {
+            "id": 1105,
+            "activity_type_detail": 34,
+            "role": 25
+        },
+        {
+            "id": 1072,
+            "activity_type_detail": 34,
+            "role": 27
+        },
+        {
+            "id": 1073,
+            "activity_type_detail": 34,
+            "role": 28
+        },
+        {
+            "id": 1097,
+            "activity_type_detail": 34,
+            "role": 29
+        },
+        {
+            "id": 1101,
+            "activity_type_detail": 34,
+            "role": 30
+        },
+        {
+            "id": 1070,
+            "activity_type_detail": 34,
+            "role": 31
+        },
+        {
+            "id": 1071,
+            "activity_type_detail": 34,
+            "role": 33
+        },
+        {
+            "id": 1074,
+            "activity_type_detail": 34,
+            "role": 34
         },
         {
             "id": 341,
@@ -7487,49 +9744,14 @@
             "role": 3
         },
         {
-            "id": 805,
+            "id": 1054,
             "activity_type_detail": 35,
-            "role": 15
-        },
-        {
-            "id": 509,
-            "activity_type_detail": 35,
-            "role": 18
-        },
-        {
-            "id": 600,
-            "activity_type_detail": 35,
-            "role": 19
-        },
-        {
-            "id": 370,
-            "activity_type_detail": 36,
-            "role": 1
+            "role": 31
         },
         {
             "id": 345,
             "activity_type_detail": 36,
             "role": 4
-        },
-        {
-            "id": 806,
-            "activity_type_detail": 36,
-            "role": 15
-        },
-        {
-            "id": 512,
-            "activity_type_detail": 36,
-            "role": 18
-        },
-        {
-            "id": 603,
-            "activity_type_detail": 36,
-            "role": 19
-        },
-        {
-            "id": 356,
-            "activity_type_detail": 37,
-            "role": 1
         },
         {
             "id": 351,
@@ -7542,49 +9764,14 @@
             "role": 11
         },
         {
-            "id": 436,
-            "activity_type_detail": 37,
-            "role": 15
-        },
-        {
-            "id": 539,
-            "activity_type_detail": 37,
-            "role": 18
-        },
-        {
-            "id": 630,
-            "activity_type_detail": 37,
-            "role": 19
-        },
-        {
-            "id": 391,
-            "activity_type_detail": 38,
-            "role": 7
-        },
-        {
             "id": 339,
             "activity_type_detail": 38,
             "role": 8
         },
         {
-            "id": 451,
+            "id": 1053,
             "activity_type_detail": 38,
-            "role": 15
-        },
-        {
-            "id": 597,
-            "activity_type_detail": 38,
-            "role": 17
-        },
-        {
-            "id": 635,
-            "activity_type_detail": 38,
-            "role": 19
-        },
-        {
-            "id": 393,
-            "activity_type_detail": 39,
-            "role": 7
+            "role": 31
         },
         {
             "id": 338,
@@ -7592,49 +9779,9 @@
             "role": 9
         },
         {
-            "id": 455,
-            "activity_type_detail": 39,
-            "role": 15
-        },
-        {
-            "id": 598,
-            "activity_type_detail": 39,
-            "role": 17
-        },
-        {
-            "id": 637,
-            "activity_type_detail": 39,
-            "role": 19
-        },
-        {
-            "id": 489,
-            "activity_type_detail": 40,
-            "role": 1
-        },
-        {
-            "id": 807,
-            "activity_type_detail": 40,
-            "role": 15
-        },
-        {
             "id": 481,
             "activity_type_detail": 40,
             "role": 16
-        },
-        {
-            "id": 518,
-            "activity_type_detail": 40,
-            "role": 18
-        },
-        {
-            "id": 609,
-            "activity_type_detail": 40,
-            "role": 19
-        },
-        {
-            "id": 487,
-            "activity_type_detail": 41,
-            "role": 1
         },
         {
             "id": 486,
@@ -7652,29 +9799,9 @@
             "role": 14
         },
         {
-            "id": 808,
-            "activity_type_detail": 41,
-            "role": 15
-        },
-        {
             "id": 484,
             "activity_type_detail": 41,
             "role": 16
-        },
-        {
-            "id": 521,
-            "activity_type_detail": 41,
-            "role": 18
-        },
-        {
-            "id": 612,
-            "activity_type_detail": 41,
-            "role": 19
-        },
-        {
-            "id": 873,
-            "activity_type_detail": 42,
-            "role": 1
         },
         {
             "id": 485,
@@ -7697,69 +9824,14 @@
             "role": 16
         },
         {
-            "id": 519,
-            "activity_type_detail": 42,
-            "role": 18
-        },
-        {
-            "id": 610,
-            "activity_type_detail": 42,
-            "role": 19
-        },
-        {
-            "id": 874,
-            "activity_type_detail": 43,
-            "role": 1
-        },
-        {
-            "id": 810,
-            "activity_type_detail": 43,
-            "role": 15
-        },
-        {
             "id": 483,
             "activity_type_detail": 43,
             "role": 16
         },
         {
-            "id": 520,
-            "activity_type_detail": 43,
-            "role": 18
-        },
-        {
-            "id": 611,
-            "activity_type_detail": 43,
-            "role": 19
-        },
-        {
-            "id": 834,
-            "activity_type_detail": 44,
-            "role": 1
-        },
-        {
-            "id": 835,
-            "activity_type_detail": 44,
-            "role": 15
-        },
-        {
             "id": 480,
             "activity_type_detail": 44,
             "role": 16
-        },
-        {
-            "id": 517,
-            "activity_type_detail": 44,
-            "role": 18
-        },
-        {
-            "id": 608,
-            "activity_type_detail": 44,
-            "role": 19
-        },
-        {
-            "id": 504,
-            "activity_type_detail": 45,
-            "role": 1
         },
         {
             "id": 507,
@@ -7797,26 +9869,6 @@
             "role": 14
         },
         {
-            "id": 508,
-            "activity_type_detail": 45,
-            "role": 15
-        },
-        {
-            "id": 530,
-            "activity_type_detail": 45,
-            "role": 18
-        },
-        {
-            "id": 622,
-            "activity_type_detail": 45,
-            "role": 19
-        },
-        {
-            "id": 813,
-            "activity_type_detail": 46,
-            "role": 1
-        },
-        {
             "id": 645,
             "activity_type_detail": 46,
             "role": 5
@@ -7825,26 +9877,6 @@
             "id": 646,
             "activity_type_detail": 46,
             "role": 11
-        },
-        {
-            "id": 814,
-            "activity_type_detail": 46,
-            "role": 15
-        },
-        {
-            "id": 785,
-            "activity_type_detail": 46,
-            "role": 18
-        },
-        {
-            "id": 786,
-            "activity_type_detail": 46,
-            "role": 19
-        },
-        {
-            "id": 743,
-            "activity_type_detail": 50,
-            "role": 1
         },
         {
             "id": 752,
@@ -7870,11 +9902,6 @@
             "id": 730,
             "activity_type_detail": 50,
             "role": 6
-        },
-        {
-            "id": 749,
-            "activity_type_detail": 50,
-            "role": 7
         },
         {
             "id": 746,
@@ -7912,39 +9939,79 @@
             "role": 14
         },
         {
-            "id": 753,
-            "activity_type_detail": 50,
-            "role": 15
-        },
-        {
             "id": 741,
             "activity_type_detail": 50,
             "role": 16
         },
         {
-            "id": 750,
+            "id": 1112,
             "activity_type_detail": 50,
-            "role": 17
+            "role": 21
         },
         {
-            "id": 744,
+            "id": 1115,
             "activity_type_detail": 50,
-            "role": 18
+            "role": 22
         },
         {
-            "id": 754,
+            "id": 1117,
             "activity_type_detail": 50,
-            "role": 19
+            "role": 23
+        },
+        {
+            "id": 1111,
+            "activity_type_detail": 50,
+            "role": 24
+        },
+        {
+            "id": 1118,
+            "activity_type_detail": 50,
+            "role": 25
+        },
+        {
+            "id": 1124,
+            "activity_type_detail": 50,
+            "role": 27
+        },
+        {
+            "id": 1125,
+            "activity_type_detail": 50,
+            "role": 28
+        },
+        {
+            "id": 1114,
+            "activity_type_detail": 50,
+            "role": 29
+        },
+        {
+            "id": 1116,
+            "activity_type_detail": 50,
+            "role": 30
+        },
+        {
+            "id": 1121,
+            "activity_type_detail": 50,
+            "role": 31
+        },
+        {
+            "id": 1128,
+            "activity_type_detail": 50,
+            "role": 32
+        },
+        {
+            "id": 1129,
+            "activity_type_detail": 50,
+            "role": 33
+        },
+        {
+            "id": 1126,
+            "activity_type_detail": 50,
+            "role": 34
         },
         {
             "id": 727,
             "activity_type_detail": 51,
             "role": 2
-        },
-        {
-            "id": 738,
-            "activity_type_detail": 51,
-            "role": 7
         },
         {
             "id": 735,
@@ -7970,26 +10037,6 @@
             "id": 726,
             "activity_type_detail": 51,
             "role": 14
-        },
-        {
-            "id": 728,
-            "activity_type_detail": 51,
-            "role": 15
-        },
-        {
-            "id": 739,
-            "activity_type_detail": 51,
-            "role": 17
-        },
-        {
-            "id": 729,
-            "activity_type_detail": 51,
-            "role": 19
-        },
-        {
-            "id": 705,
-            "activity_type_detail": 52,
-            "role": 1
         },
         {
             "id": 715,
@@ -8032,29 +10079,9 @@
             "role": 14
         },
         {
-            "id": 716,
-            "activity_type_detail": 52,
-            "role": 15
-        },
-        {
             "id": 712,
             "activity_type_detail": 52,
             "role": 16
-        },
-        {
-            "id": 706,
-            "activity_type_detail": 52,
-            "role": 18
-        },
-        {
-            "id": 717,
-            "activity_type_detail": 52,
-            "role": 19
-        },
-        {
-            "id": 766,
-            "activity_type_detail": 54,
-            "role": 1
         },
         {
             "id": 769,
@@ -8092,29 +10119,9 @@
             "role": 14
         },
         {
-            "id": 770,
-            "activity_type_detail": 54,
-            "role": 15
-        },
-        {
             "id": 764,
             "activity_type_detail": 54,
             "role": 16
-        },
-        {
-            "id": 767,
-            "activity_type_detail": 54,
-            "role": 18
-        },
-        {
-            "id": 771,
-            "activity_type_detail": 54,
-            "role": 19
-        },
-        {
-            "id": 788,
-            "activity_type_detail": 55,
-            "role": 1
         },
         {
             "id": 787,
@@ -8122,29 +10129,9 @@
             "role": 4
         },
         {
-            "id": 791,
-            "activity_type_detail": 55,
-            "role": 15
-        },
-        {
-            "id": 789,
-            "activity_type_detail": 55,
-            "role": 18
-        },
-        {
-            "id": 790,
-            "activity_type_detail": 55,
-            "role": 19
-        },
-        {
             "id": 822,
             "activity_type_detail": 56,
             "role": 2
-        },
-        {
-            "id": 819,
-            "activity_type_detail": 56,
-            "role": 7
         },
         {
             "id": 816,
@@ -8170,26 +10157,6 @@
             "id": 821,
             "activity_type_detail": 56,
             "role": 14
-        },
-        {
-            "id": 823,
-            "activity_type_detail": 56,
-            "role": 15
-        },
-        {
-            "id": 820,
-            "activity_type_detail": 56,
-            "role": 17
-        },
-        {
-            "id": 824,
-            "activity_type_detail": 56,
-            "role": 19
-        },
-        {
-            "id": 842,
-            "activity_type_detail": 59,
-            "role": 1
         },
         {
             "id": 851,
@@ -8222,29 +10189,64 @@
             "role": 13
         },
         {
-            "id": 853,
-            "activity_type_detail": 59,
-            "role": 15
-        },
-        {
             "id": 840,
             "activity_type_detail": 59,
             "role": 16
         },
         {
-            "id": 843,
+            "id": 1136,
             "activity_type_detail": 59,
-            "role": 18
+            "role": 21
         },
         {
-            "id": 855,
+            "id": 1138,
             "activity_type_detail": 59,
-            "role": 19
+            "role": 22
         },
         {
-            "id": 849,
-            "activity_type_detail": 60,
-            "role": 1
+            "id": 1140,
+            "activity_type_detail": 59,
+            "role": 23
+        },
+        {
+            "id": 1141,
+            "activity_type_detail": 59,
+            "role": 25
+        },
+        {
+            "id": 1130,
+            "activity_type_detail": 59,
+            "role": 27
+        },
+        {
+            "id": 1131,
+            "activity_type_detail": 59,
+            "role": 28
+        },
+        {
+            "id": 1137,
+            "activity_type_detail": 59,
+            "role": 29
+        },
+        {
+            "id": 1139,
+            "activity_type_detail": 59,
+            "role": 30
+        },
+        {
+            "id": 1151,
+            "activity_type_detail": 59,
+            "role": 31
+        },
+        {
+            "id": 1153,
+            "activity_type_detail": 59,
+            "role": 33
+        },
+        {
+            "id": 1132,
+            "activity_type_detail": 59,
+            "role": 34
         },
         {
             "id": 852,
@@ -8272,24 +10274,64 @@
             "role": 13
         },
         {
-            "id": 854,
-            "activity_type_detail": 60,
-            "role": 15
-        },
-        {
             "id": 847,
             "activity_type_detail": 60,
             "role": 16
         },
         {
-            "id": 850,
+            "id": 1145,
             "activity_type_detail": 60,
-            "role": 18
+            "role": 22
         },
         {
-            "id": 856,
+            "id": 1147,
             "activity_type_detail": 60,
-            "role": 19
+            "role": 23
+        },
+        {
+            "id": 1148,
+            "activity_type_detail": 60,
+            "role": 25
+        },
+        {
+            "id": 1133,
+            "activity_type_detail": 60,
+            "role": 27
+        },
+        {
+            "id": 1134,
+            "activity_type_detail": 60,
+            "role": 28
+        },
+        {
+            "id": 1144,
+            "activity_type_detail": 60,
+            "role": 29
+        },
+        {
+            "id": 1146,
+            "activity_type_detail": 60,
+            "role": 30
+        },
+        {
+            "id": 1152,
+            "activity_type_detail": 60,
+            "role": 31
+        },
+        {
+            "id": 1154,
+            "activity_type_detail": 60,
+            "role": 33
+        },
+        {
+            "id": 1135,
+            "activity_type_detail": 60,
+            "role": 34
+        },
+        {
+            "id": 1157,
+            "activity_type_detail": 62,
+            "role": 2
         },
         {
             "id": 866,
@@ -8307,29 +10349,9 @@
             "role": 14
         },
         {
-            "id": 863,
-            "activity_type_detail": 62,
-            "role": 17
-        },
-        {
-            "id": 865,
-            "activity_type_detail": 62,
-            "role": 19
-        },
-        {
-            "id": 884,
-            "activity_type_detail": 63,
-            "role": 1
-        },
-        {
             "id": 883,
             "activity_type_detail": 63,
             "role": 3
-        },
-        {
-            "id": 882,
-            "activity_type_detail": 63,
-            "role": 7
         },
         {
             "id": 881,
@@ -8337,14 +10359,14 @@
             "role": 8
         },
         {
-            "id": 885,
+            "id": 1113,
             "activity_type_detail": 63,
-            "role": 15
+            "role": 21
         },
         {
-            "id": 880,
-            "activity_type_detail": 64,
-            "role": 7
+            "id": 1123,
+            "activity_type_detail": 63,
+            "role": 31
         },
         {
             "id": 879,
@@ -8352,24 +10374,9 @@
             "role": 8
         },
         {
-            "id": 889,
-            "activity_type_detail": 64,
-            "role": 15
-        },
-        {
-            "id": 887,
-            "activity_type_detail": 65,
-            "role": 1
-        },
-        {
             "id": 886,
             "activity_type_detail": 65,
             "role": 3
-        },
-        {
-            "id": 888,
-            "activity_type_detail": 65,
-            "role": 15
         },
         {
             "id": 903,
@@ -8380,21 +10387,6 @@
             "id": 908,
             "activity_type_detail": 66,
             "role": 14
-        },
-        {
-            "id": 909,
-            "activity_type_detail": 66,
-            "role": 15
-        },
-        {
-            "id": 911,
-            "activity_type_detail": 66,
-            "role": 19
-        },
-        {
-            "id": 902,
-            "activity_type_detail": 66,
-            "role": 20
         },
         {
             "id": 904,
@@ -8417,9 +10409,19 @@
             "role": 25
         },
         {
-            "id": 910,
+            "id": 1172,
             "activity_type_detail": 66,
-            "role": 26
+            "role": 30
+        },
+        {
+            "id": 1189,
+            "activity_type_detail": 66,
+            "role": 31
+        },
+        {
+            "id": 1201,
+            "activity_type_detail": 66,
+            "role": 33
         },
         {
             "id": 913,
@@ -8430,21 +10432,6 @@
             "id": 918,
             "activity_type_detail": 67,
             "role": 14
-        },
-        {
-            "id": 919,
-            "activity_type_detail": 67,
-            "role": 15
-        },
-        {
-            "id": 921,
-            "activity_type_detail": 67,
-            "role": 19
-        },
-        {
-            "id": 912,
-            "activity_type_detail": 67,
-            "role": 20
         },
         {
             "id": 914,
@@ -8467,9 +10454,19 @@
             "role": 25
         },
         {
-            "id": 920,
+            "id": 1173,
             "activity_type_detail": 67,
-            "role": 26
+            "role": 30
+        },
+        {
+            "id": 1190,
+            "activity_type_detail": 67,
+            "role": 31
+        },
+        {
+            "id": 1202,
+            "activity_type_detail": 67,
+            "role": 33
         },
         {
             "id": 923,
@@ -8480,21 +10477,6 @@
             "id": 928,
             "activity_type_detail": 68,
             "role": 14
-        },
-        {
-            "id": 929,
-            "activity_type_detail": 68,
-            "role": 15
-        },
-        {
-            "id": 931,
-            "activity_type_detail": 68,
-            "role": 19
-        },
-        {
-            "id": 922,
-            "activity_type_detail": 68,
-            "role": 20
         },
         {
             "id": 924,
@@ -8517,9 +10499,19 @@
             "role": 25
         },
         {
-            "id": 930,
+            "id": 1174,
             "activity_type_detail": 68,
-            "role": 26
+            "role": 30
+        },
+        {
+            "id": 1191,
+            "activity_type_detail": 68,
+            "role": 31
+        },
+        {
+            "id": 1203,
+            "activity_type_detail": 68,
+            "role": 33
         },
         {
             "id": 933,
@@ -8530,21 +10522,6 @@
             "id": 938,
             "activity_type_detail": 69,
             "role": 14
-        },
-        {
-            "id": 939,
-            "activity_type_detail": 69,
-            "role": 15
-        },
-        {
-            "id": 941,
-            "activity_type_detail": 69,
-            "role": 19
-        },
-        {
-            "id": 932,
-            "activity_type_detail": 69,
-            "role": 20
         },
         {
             "id": 934,
@@ -8567,9 +10544,19 @@
             "role": 25
         },
         {
-            "id": 940,
+            "id": 1175,
             "activity_type_detail": 69,
-            "role": 26
+            "role": 30
+        },
+        {
+            "id": 1192,
+            "activity_type_detail": 69,
+            "role": 31
+        },
+        {
+            "id": 1204,
+            "activity_type_detail": 69,
+            "role": 33
         },
         {
             "id": 1025,
@@ -8580,21 +10567,6 @@
             "id": 1030,
             "activity_type_detail": 70,
             "role": 14
-        },
-        {
-            "id": 1031,
-            "activity_type_detail": 70,
-            "role": 15
-        },
-        {
-            "id": 1033,
-            "activity_type_detail": 70,
-            "role": 19
-        },
-        {
-            "id": 1024,
-            "activity_type_detail": 70,
-            "role": 20
         },
         {
             "id": 1026,
@@ -8617,9 +10589,19 @@
             "role": 25
         },
         {
-            "id": 1032,
+            "id": 1176,
             "activity_type_detail": 70,
-            "role": 26
+            "role": 30
+        },
+        {
+            "id": 1193,
+            "activity_type_detail": 70,
+            "role": 31
+        },
+        {
+            "id": 1205,
+            "activity_type_detail": 70,
+            "role": 33
         },
         {
             "id": 1035,
@@ -8630,21 +10612,6 @@
             "id": 1040,
             "activity_type_detail": 71,
             "role": 14
-        },
-        {
-            "id": 1041,
-            "activity_type_detail": 71,
-            "role": 15
-        },
-        {
-            "id": 1043,
-            "activity_type_detail": 71,
-            "role": 19
-        },
-        {
-            "id": 1034,
-            "activity_type_detail": 71,
-            "role": 20
         },
         {
             "id": 1036,
@@ -8667,9 +10634,19 @@
             "role": 25
         },
         {
-            "id": 1042,
+            "id": 1177,
             "activity_type_detail": 71,
-            "role": 26
+            "role": 30
+        },
+        {
+            "id": 1194,
+            "activity_type_detail": 71,
+            "role": 31
+        },
+        {
+            "id": 1206,
+            "activity_type_detail": 71,
+            "role": 33
         },
         {
             "id": 986,
@@ -8680,21 +10657,6 @@
             "id": 991,
             "activity_type_detail": 72,
             "role": 14
-        },
-        {
-            "id": 992,
-            "activity_type_detail": 72,
-            "role": 15
-        },
-        {
-            "id": 994,
-            "activity_type_detail": 72,
-            "role": 19
-        },
-        {
-            "id": 985,
-            "activity_type_detail": 72,
-            "role": 20
         },
         {
             "id": 987,
@@ -8717,9 +10679,19 @@
             "role": 25
         },
         {
-            "id": 993,
+            "id": 1178,
             "activity_type_detail": 72,
-            "role": 26
+            "role": 30
+        },
+        {
+            "id": 1195,
+            "activity_type_detail": 72,
+            "role": 31
+        },
+        {
+            "id": 1207,
+            "activity_type_detail": 72,
+            "role": 33
         },
         {
             "id": 892,
@@ -8730,21 +10702,6 @@
             "id": 898,
             "activity_type_detail": 73,
             "role": 14
-        },
-        {
-            "id": 899,
-            "activity_type_detail": 73,
-            "role": 15
-        },
-        {
-            "id": 901,
-            "activity_type_detail": 73,
-            "role": 19
-        },
-        {
-            "id": 891,
-            "activity_type_detail": 73,
-            "role": 20
         },
         {
             "id": 893,
@@ -8772,9 +10729,19 @@
             "role": 25
         },
         {
-            "id": 900,
+            "id": 1158,
             "activity_type_detail": 73,
-            "role": 26
+            "role": 29
+        },
+        {
+            "id": 1181,
+            "activity_type_detail": 73,
+            "role": 31
+        },
+        {
+            "id": 1199,
+            "activity_type_detail": 73,
+            "role": 33
         },
         {
             "id": 942,
@@ -8785,11 +10752,6 @@
             "id": 947,
             "activity_type_detail": 74,
             "role": 14
-        },
-        {
-            "id": 949,
-            "activity_type_detail": 74,
-            "role": 19
         },
         {
             "id": 943,
@@ -8812,24 +10774,24 @@
             "role": 25
         },
         {
-            "id": 948,
+            "id": 1171,
             "activity_type_detail": 74,
-            "role": 26
+            "role": 30
+        },
+        {
+            "id": 1188,
+            "activity_type_detail": 74,
+            "role": 31
+        },
+        {
+            "id": 1200,
+            "activity_type_detail": 74,
+            "role": 33
         },
         {
             "id": 954,
             "activity_type_detail": 75,
             "role": 14
-        },
-        {
-            "id": 956,
-            "activity_type_detail": 75,
-            "role": 19
-        },
-        {
-            "id": 950,
-            "activity_type_detail": 75,
-            "role": 20
         },
         {
             "id": 951,
@@ -8847,19 +10809,14 @@
             "role": 24
         },
         {
-            "id": 955,
+            "id": 1161,
             "activity_type_detail": 75,
-            "role": 26
+            "role": 29
         },
         {
-            "id": 960,
-            "activity_type_detail": 76,
-            "role": 19
-        },
-        {
-            "id": 957,
-            "activity_type_detail": 76,
-            "role": 20
+            "id": 1184,
+            "activity_type_detail": 75,
+            "role": 31
         },
         {
             "id": 958,
@@ -8867,24 +10824,14 @@
             "role": 22
         },
         {
-            "id": 959,
+            "id": 1162,
             "activity_type_detail": 76,
-            "role": 26
+            "role": 29
         },
         {
-            "id": 963,
-            "activity_type_detail": 77,
-            "role": 15
-        },
-        {
-            "id": 965,
-            "activity_type_detail": 77,
-            "role": 19
-        },
-        {
-            "id": 961,
-            "activity_type_detail": 77,
-            "role": 20
+            "id": 1185,
+            "activity_type_detail": 76,
+            "role": 31
         },
         {
             "id": 962,
@@ -8892,29 +10839,19 @@
             "role": 22
         },
         {
-            "id": 964,
+            "id": 1163,
             "activity_type_detail": 77,
-            "role": 26
+            "role": 29
+        },
+        {
+            "id": 1186,
+            "activity_type_detail": 77,
+            "role": 31
         },
         {
             "id": 970,
             "activity_type_detail": 78,
             "role": 14
-        },
-        {
-            "id": 971,
-            "activity_type_detail": 78,
-            "role": 15
-        },
-        {
-            "id": 973,
-            "activity_type_detail": 78,
-            "role": 19
-        },
-        {
-            "id": 966,
-            "activity_type_detail": 78,
-            "role": 20
         },
         {
             "id": 967,
@@ -8932,9 +10869,14 @@
             "role": 24
         },
         {
-            "id": 972,
+            "id": 1160,
             "activity_type_detail": 78,
-            "role": 26
+            "role": 29
+        },
+        {
+            "id": 1183,
+            "activity_type_detail": 78,
+            "role": 31
         },
         {
             "id": 975,
@@ -8945,21 +10887,6 @@
             "id": 981,
             "activity_type_detail": 79,
             "role": 14
-        },
-        {
-            "id": 982,
-            "activity_type_detail": 79,
-            "role": 15
-        },
-        {
-            "id": 984,
-            "activity_type_detail": 79,
-            "role": 19
-        },
-        {
-            "id": 974,
-            "activity_type_detail": 79,
-            "role": 20
         },
         {
             "id": 976,
@@ -8987,24 +10914,24 @@
             "role": 25
         },
         {
-            "id": 983,
+            "id": 1167,
             "activity_type_detail": 79,
-            "role": 26
+            "role": 29
         },
         {
-            "id": 997,
-            "activity_type_detail": 80,
-            "role": 15
+            "id": 1179,
+            "activity_type_detail": 79,
+            "role": 30
         },
         {
-            "id": 999,
-            "activity_type_detail": 80,
-            "role": 19
+            "id": 1196,
+            "activity_type_detail": 79,
+            "role": 31
         },
         {
-            "id": 995,
-            "activity_type_detail": 80,
-            "role": 20
+            "id": 1208,
+            "activity_type_detail": 79,
+            "role": 33
         },
         {
             "id": 996,
@@ -9012,24 +10939,9 @@
             "role": 21
         },
         {
-            "id": 998,
+            "id": 1051,
             "activity_type_detail": 80,
-            "role": 26
-        },
-        {
-            "id": 1002,
-            "activity_type_detail": 81,
-            "role": 15
-        },
-        {
-            "id": 1004,
-            "activity_type_detail": 81,
-            "role": 19
-        },
-        {
-            "id": 1000,
-            "activity_type_detail": 81,
-            "role": 20
+            "role": 31
         },
         {
             "id": 1001,
@@ -9037,24 +10949,14 @@
             "role": 22
         },
         {
-            "id": 1003,
+            "id": 1159,
             "activity_type_detail": 81,
-            "role": 26
+            "role": 29
         },
         {
-            "id": 1007,
-            "activity_type_detail": 82,
-            "role": 15
-        },
-        {
-            "id": 1009,
-            "activity_type_detail": 82,
-            "role": 19
-        },
-        {
-            "id": 1005,
-            "activity_type_detail": 82,
-            "role": 20
+            "id": 1182,
+            "activity_type_detail": 81,
+            "role": 31
         },
         {
             "id": 1006,
@@ -9062,9 +10964,14 @@
             "role": 23
         },
         {
-            "id": 1008,
+            "id": 1170,
             "activity_type_detail": 82,
-            "role": 26
+            "role": 30
+        },
+        {
+            "id": 1187,
+            "activity_type_detail": 82,
+            "role": 31
         },
         {
             "id": 1011,
@@ -9075,21 +10982,6 @@
             "id": 1017,
             "activity_type_detail": 83,
             "role": 14
-        },
-        {
-            "id": 1018,
-            "activity_type_detail": 83,
-            "role": 15
-        },
-        {
-            "id": 1020,
-            "activity_type_detail": 83,
-            "role": 19
-        },
-        {
-            "id": 1010,
-            "activity_type_detail": 83,
-            "role": 20
         },
         {
             "id": 1012,
@@ -9117,19 +11009,19 @@
             "role": 25
         },
         {
-            "id": 1019,
+            "id": 1168,
             "activity_type_detail": 83,
-            "role": 26
+            "role": 29
         },
         {
-            "id": 1023,
-            "activity_type_detail": 84,
-            "role": 15
+            "id": 1169,
+            "activity_type_detail": 83,
+            "role": 30
         },
         {
-            "id": 1021,
-            "activity_type_detail": 84,
-            "role": 20
+            "id": 1198,
+            "activity_type_detail": 83,
+            "role": 31
         },
         {
             "id": 1022,
@@ -9137,29 +11029,140 @@
             "role": 21
         },
         {
-            "id": 1044,
-            "activity_type_detail": 85,
-            "role": 7
+            "id": 1197,
+            "activity_type_detail": 84,
+            "role": 31
         },
         {
-            "id": 1045,
+            "id": 1052,
             "activity_type_detail": 85,
-            "role": 15
+            "role": 31
         },
         {
-            "id": 1046,
-            "activity_type_detail": 85,
-            "role": 20
+            "id": 1156,
+            "activity_type_detail": 86,
+            "role": 2
+        },
+        {
+            "id": 1155,
+            "activity_type_detail": 86,
+            "role": 14
+        },
+        {
+            "id": 1088,
+            "activity_type_detail": 88,
+            "role": 2
+        },
+        {
+            "id": 1076,
+            "activity_type_detail": 88,
+            "role": 3
+        },
+        {
+            "id": 1078,
+            "activity_type_detail": 88,
+            "role": 4
+        },
+        {
+            "id": 1080,
+            "activity_type_detail": 88,
+            "role": 5
+        },
+        {
+            "id": 1075,
+            "activity_type_detail": 88,
+            "role": 6
+        },
+        {
+            "id": 1081,
+            "activity_type_detail": 88,
+            "role": 11
+        },
+        {
+            "id": 1082,
+            "activity_type_detail": 88,
+            "role": 13
+        },
+        {
+            "id": 1087,
+            "activity_type_detail": 88,
+            "role": 14
+        },
+        {
+            "id": 1085,
+            "activity_type_detail": 88,
+            "role": 16
+        },
+        {
+            "id": 1096,
+            "activity_type_detail": 88,
+            "role": 21
+        },
+        {
+            "id": 1100,
+            "activity_type_detail": 88,
+            "role": 22
+        },
+        {
+            "id": 1104,
+            "activity_type_detail": 88,
+            "role": 23
+        },
+        {
+            "id": 1094,
+            "activity_type_detail": 88,
+            "role": 24
+        },
+        {
+            "id": 1106,
+            "activity_type_detail": 88,
+            "role": 25
+        },
+        {
+            "id": 1077,
+            "activity_type_detail": 88,
+            "role": 27
+        },
+        {
+            "id": 1079,
+            "activity_type_detail": 88,
+            "role": 28
+        },
+        {
+            "id": 1098,
+            "activity_type_detail": 88,
+            "role": 29
+        },
+        {
+            "id": 1102,
+            "activity_type_detail": 88,
+            "role": 30
+        },
+        {
+            "id": 1090,
+            "activity_type_detail": 88,
+            "role": 31
+        },
+        {
+            "id": 1091,
+            "activity_type_detail": 88,
+            "role": 33
+        },
+        {
+            "id": 1084,
+            "activity_type_detail": 88,
+            "role": 34
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-01T09:55:30.597329Z",
+        "exported_at": "2026-09-05T12:36:38.059311Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
             "m_ceremonies",
             "m_first_program",
             "m_level",
+            "m_match",
             "m_parameter",
             "m_parameter_condition",
             "m_role",

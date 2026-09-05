@@ -3,12 +3,16 @@
 namespace Tests\Unit;
 
 use App\Enums\FirstProgram;
+use App\Http\Controllers\Api\EventStaffingAssignmentController;
+use App\Models\Event;
 use App\Models\EventStaffingAssignment;
 use App\Models\EventStaffingGroup;
 use App\Models\EventStaffingRole;
 use App\Services\StaffingSyncService;
 use App\Support\PlanParameter;
+use App\Support\StaffingAssignmentLabel;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -44,6 +48,7 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertSame(3, $role->best);
         $this->assertSame(5, $role->max);
         $this->assertSame('Jury help text', $role->ui_description);
+        $this->assertSame('Jury-Gruppe', $role->group_label);
         $this->assertSame(3, EventStaffingGroup::query()->where('event_staffing_role', $role->id)->count());
         $this->assertFalse($this->sync->staffingOk(1));
     }
@@ -60,6 +65,7 @@ class StaffingSyncServiceTest extends TestCase
             ->firstOrFail();
 
         EventStaffingAssignment::create([
+            'event_staffing_role' => $role->id,
             'event_staffing_group' => $group3->id,
             'volunteer_person' => 1,
             'created_at' => now(),
@@ -101,6 +107,12 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertSame(1, $role->best);
         $this->assertSame(2, $role->max);
         $this->assertSame('updated', $role->ui_description);
+        $this->assertSame('Jury-Gruppe', $role->group_label);
+
+        DB::table('m_role')->where('id', 4)->update(['group_label' => 'Jury-Spur']);
+        $this->sync->syncForEvent(1);
+        $role->refresh();
+        $this->assertSame('Jury-Spur', $role->group_label);
     }
 
     public function test_sync_allows_optional_catalog_role_with_min_zero(): void
@@ -132,6 +144,7 @@ class StaffingSyncServiceTest extends TestCase
         $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
         $g1 = EventStaffingGroup::query()->where('event_staffing_role', $role->id)->where('group_index', 1)->firstOrFail();
         EventStaffingAssignment::create([
+            'event_staffing_role' => $role->id,
             'event_staffing_group' => $g1->id,
             'volunteer_person' => 1,
             'created_at' => now(),
@@ -156,6 +169,7 @@ class StaffingSyncServiceTest extends TestCase
         $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
         $group = EventStaffingGroup::query()->where('event_staffing_role', $role->id)->firstOrFail();
         EventStaffingAssignment::create([
+            'event_staffing_role' => $role->id,
             'event_staffing_group' => $group->id,
             'volunteer_person' => 1,
             'created_at' => now(),
@@ -177,6 +191,7 @@ class StaffingSyncServiceTest extends TestCase
             ->get();
 
         EventStaffingAssignment::create([
+            'event_staffing_role' => $role->id,
             'event_staffing_group' => $groups[0]->id,
             'volunteer_person' => 1,
             'created_at' => now(),
@@ -209,6 +224,7 @@ class StaffingSyncServiceTest extends TestCase
             ->get();
 
         EventStaffingAssignment::create([
+            'event_staffing_role' => $role->id,
             'event_staffing_group' => $groups[0]->id,
             'volunteer_person' => 1,
             'created_at' => now(),
@@ -221,6 +237,7 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertCount(1, $challenge['critical']);
         $this->assertSame('Jury', $challenge['critical'][0]['label']);
         $this->assertSame(3, $challenge['critical'][0]['wanted']);
+        $this->assertNull($challenge['critical'][0]['group_id']);
         $this->assertCount(1, $challenge['recommended']);
         $this->assertSame('Jury', $challenge['recommended'][0]['label']);
         $this->assertSame(4, $challenge['recommended'][0]['wanted']);
@@ -247,7 +264,287 @@ class StaffingSyncServiceTest extends TestCase
         $challenge = collect($openPositions)->firstWhere('key', 'program:'.FirstProgram::CHALLENGE->value);
         $this->assertNotNull($challenge);
         $this->assertSame(2, $challenge['critical'][0]['wanted']);
+        $this->assertSame('Jury', $challenge['critical'][0]['label']);
         $this->assertSame(1, $challenge['recommended'][0]['wanted']);
+    }
+
+    public function test_ungrouped_catalog_role_creates_no_groups(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+        $this->insertUngroupedChallengeRole();
+
+        $stats = $this->sync->syncForEvent(1);
+
+        $head = EventStaffingRole::query()->where('event', 1)->where('m_role', 27)->first();
+        $this->assertNotNull($head);
+        $this->assertNull($head->group_label);
+        $this->assertFalse((bool) $head->surplus);
+        $this->assertSame(0, EventStaffingGroup::query()->where('event_staffing_role', $head->id)->count());
+        $this->assertGreaterThanOrEqual(2, $stats['roles']);
+    }
+
+    public function test_sync_leaves_local_role_without_groups(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+        $local = EventStaffingRole::create([
+            'event' => 1,
+            'm_role' => null,
+            'label' => 'Catering',
+            'group_label' => null,
+            'min' => 1,
+            'best' => 1,
+            'max' => 2,
+            'sequence' => 90,
+            'surplus' => false,
+        ]);
+
+        $this->sync->syncForEvent(1);
+
+        $this->assertSame(0, EventStaffingGroup::query()->where('event_staffing_role', $local->id)->count());
+        $this->assertFalse((bool) $local->fresh()->surplus);
+    }
+
+    public function test_ungrouped_program_off_sets_role_surplus(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+        $this->insertUngroupedChallengeRole();
+        $this->sync->syncForEvent(1);
+
+        $head = EventStaffingRole::query()->where('event', 1)->where('m_role', 27)->firstOrFail();
+        EventStaffingAssignment::create([
+            'event_staffing_role' => $head->id,
+            'event_staffing_group' => null,
+            'volunteer_person' => 1,
+            'created_at' => now(),
+        ]);
+
+        DB::table('event_program')->where('event', 1)->delete();
+        $this->sync->syncForEvent(1);
+
+        $head->refresh();
+        $this->assertTrue((bool) $head->surplus);
+        $this->assertSame(0, EventStaffingGroup::query()->where('event_staffing_role', $head->id)->count());
+        $this->assertFalse($this->sync->staffingOk(1));
+    }
+
+    public function test_local_role_create_has_no_group(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+        $event = Event::query()->findOrFail(1);
+        $controller = app(EventStaffingAssignmentController::class);
+
+        $response = $controller->storeLocalRole(
+            Request::create('/', 'POST', [
+                'label' => 'Catering A',
+                'min' => 1,
+                'best' => 2,
+                'max' => 3,
+            ]),
+            $event,
+        );
+
+        $this->assertSame(201, $response->getStatusCode());
+        $roleId = $response->getData(true)['role']['id'];
+        $this->assertSame(0, EventStaffingGroup::query()->where('event_staffing_role', $roleId)->count());
+    }
+
+    public function test_assign_via_role_for_ungrouped(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+        $this->insertUngroupedChallengeRole();
+        $this->sync->syncForEvent(1);
+
+        $head = EventStaffingRole::query()->where('event', 1)->where('m_role', 27)->firstOrFail();
+        DB::table('event_volunteer_roster')->insert([
+            'event' => 1,
+            'volunteer_person' => 1,
+            'created_at' => now(),
+        ]);
+
+        $event = Event::query()->findOrFail(1);
+        $controller = app(EventStaffingAssignmentController::class);
+        $response = $controller->storeOnRole(
+            Request::create('/', 'POST', ['volunteer_person' => 1]),
+            $event,
+            $head,
+        );
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertDatabaseHas('event_staffing_assignment', [
+            'event_staffing_role' => $head->id,
+            'event_staffing_group' => null,
+            'volunteer_person' => 1,
+        ]);
+    }
+
+    public function test_open_positions_for_ungrouped_role_min_gap(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+        $this->insertUngroupedChallengeRole();
+        $this->sync->syncForEvent(1);
+
+        $openPositions = collect($this->sync->openPositionsByScope(1, [FirstProgram::CHALLENGE->value]))
+            ->keyBy('key');
+        $challenge = $openPositions['program:'.FirstProgram::CHALLENGE->value];
+        $head = collect($challenge['critical'])->firstWhere('label', 'Jury-Verantwortliche:r');
+        $this->assertNotNull($head);
+        $this->assertNull($head['group_id']);
+        $this->assertSame(1, $head['wanted']);
+    }
+
+    public function test_assignment_tile_name_uses_group_label_and_program(): void
+    {
+        $this->seedChallengeEvent(lanes: 2);
+        $this->sync->syncForEvent(1);
+        $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
+        $group2 = EventStaffingGroup::query()
+            ->where('event_staffing_role', $role->id)
+            ->where('group_index', 2)
+            ->firstOrFail();
+        EventStaffingAssignment::create([
+            'event_staffing_role' => $role->id,
+            'event_staffing_group' => $group2->id,
+            'volunteer_person' => 1,
+            'created_at' => now(),
+        ]);
+
+        $byPerson = StaffingAssignmentLabel::assignmentsByPerson(1);
+        $this->assertSame('CHALLENGE: Jury-Gruppe 2', $byPerson[1][0]['tile_name']);
+        $this->assertSame('Jury (Jury-Gruppe 2)', $byPerson[1][0]['caption']);
+        $this->assertSame('Jury', $byPerson[1][0]['label']);
+        $this->assertSame(2, $byPerson[1][0]['group_index']);
+        $this->assertSame('Jury-Gruppe', $byPerson[1][0]['group_label']);
+    }
+
+    public function test_ceremony_on_plan_does_not_staff_juror_unless_they_own_the_atd(): void
+    {
+        $this->seedChallengeEvent(lanes: 3);
+        $this->insertUngroupedChallengeRole();
+
+        DB::table('m_role')->insert([
+            'id' => 2,
+            'name' => 'Moderation',
+            'sequence' => 2,
+            'first_program' => null,
+            'staffable' => 1,
+            'group_label' => null,
+        ]);
+        DB::table('m_staffing_rule')->insert([
+            'id' => 3,
+            'm_role' => 2,
+            'min' => 1,
+            'best' => 1,
+            'max' => 1,
+            'ui_description' => null,
+        ]);
+
+        DB::table('m_activity_type_detail')->insert([
+            ['id' => 100, 'name' => 'Judging', 'role' => 4],
+            ['id' => 101, 'name' => 'Awards', 'role' => 2],
+        ]);
+        DB::table('activity_group')->insert([
+            'id' => 1,
+            'activity_type_detail' => 101,
+            'plan' => 1,
+        ]);
+        DB::table('activity')->insert([
+            'id' => 1,
+            'activity_group' => 1,
+            'start' => '2026-01-01 10:00:00',
+            'end' => '2026-01-01 10:30:00',
+            'activity_type_detail' => 101,
+            'extra_block' => null,
+        ]);
+
+        $this->sync->syncForEvent(1);
+
+        $this->assertNull(
+            EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->first()
+        );
+        $this->assertNotNull(
+            EventStaffingRole::query()->where('event', 1)->where('m_role', 2)->first()
+        );
+        $this->assertNotNull(
+            EventStaffingRole::query()->where('event', 1)->where('m_role', 27)->first()
+        );
+    }
+
+    public function test_robot_check_is_staffed_only_when_its_atd_is_on_the_plan(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+
+        DB::table('m_role')->insert([
+            [
+                'id' => 5,
+                'name' => 'Schiedsrichter:in',
+                'sequence' => 6,
+                'first_program' => FirstProgram::CHALLENGE->value,
+                'differentiation_parameter' => 'table',
+                'staffable' => 1,
+                'group_label' => null,
+            ],
+            [
+                'id' => 11,
+                'name' => 'Robot-Check',
+                'sequence' => 7,
+                'first_program' => FirstProgram::CHALLENGE->value,
+                'differentiation_parameter' => 'table',
+                'staffable' => 1,
+                'group_label' => 'Robot-Check',
+            ],
+        ]);
+        DB::table('m_staffing_rule')->insert([
+            ['id' => 5, 'm_role' => 5, 'min' => 1, 'best' => 1, 'max' => 2, 'ui_description' => null],
+            ['id' => 11, 'm_role' => 11, 'min' => 1, 'best' => 1, 'max' => 2, 'ui_description' => null],
+        ]);
+
+        DB::table('m_activity_type_detail')->insert([
+            ['id' => 15, 'name' => 'Match', 'role' => 5],
+            ['id' => 16, 'name' => 'Check', 'role' => 11],
+        ]);
+        DB::table('activity_group')->insert([
+            'id' => 1,
+            'activity_type_detail' => 15,
+            'plan' => 1,
+        ]);
+        DB::table('activity')->insert([
+            'id' => 1,
+            'activity_group' => 1,
+            'start' => '2026-01-01 10:00:00',
+            'end' => '2026-01-01 10:30:00',
+            'activity_type_detail' => 15,
+            'extra_block' => null,
+        ]);
+
+        $this->sync->syncForEvent(1);
+
+        $this->assertNotNull(
+            EventStaffingRole::query()->where('event', 1)->where('m_role', 5)->first()
+        );
+        $this->assertNull(
+            EventStaffingRole::query()->where('event', 1)->where('m_role', 11)->first()
+        );
+    }
+
+    private function insertUngroupedChallengeRole(): void
+    {
+        DB::table('m_role')->insert([
+            'id' => 27,
+            'name' => 'Jury-Verantwortliche:r',
+            'sequence' => 3,
+            'first_program' => FirstProgram::CHALLENGE->value,
+            'differentiation_parameter' => null,
+            'staffable' => 1,
+            'group_label' => null,
+        ]);
+        DB::table('m_staffing_rule')->insert([
+            'id' => 2,
+            'm_role' => 27,
+            'min' => 1,
+            'best' => 1,
+            'max' => 2,
+            'ui_description' => null,
+        ]);
     }
 
     private function createSchema(): void
@@ -276,6 +573,11 @@ class StaffingSyncServiceTest extends TestCase
         Schema::create('m_first_program', function (Blueprint $table) {
             $table->id();
             $table->integer('sequence');
+            $table->string('name')->nullable();
+            $table->string('display_name')->nullable();
+            $table->string('color_hex')->nullable();
+            $table->string('logo_stem')->nullable();
+            $table->string('logo_white')->nullable();
         });
 
         Schema::create('m_parameter', function (Blueprint $table) {
@@ -301,12 +603,42 @@ class StaffingSyncServiceTest extends TestCase
         Schema::create('m_role', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('name_short')->nullable();
             $table->unsignedInteger('sequence')->default(0);
             $table->unsignedInteger('first_program')->nullable();
-            $table->string('differentiation_type')->nullable();
-            $table->text('differentiation_source')->nullable();
             $table->string('differentiation_parameter')->nullable();
+            $table->boolean('preview_matrix')->default(false);
+            $table->boolean('pdf_export')->default(false);
+            $table->boolean('public_plan')->default(false);
             $table->boolean('staffable')->default(false);
+            $table->string('group_label')->nullable();
+        });
+
+        Schema::create('m_activity_type_detail', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name')->nullable();
+            $table->unsignedInteger('role')->nullable();
+        });
+
+        Schema::create('extra_block', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('plan');
+            $table->string('type')->nullable();
+        });
+
+        Schema::create('activity_group', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('plan');
+        });
+
+        Schema::create('activity', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_group');
+            $table->datetime('start');
+            $table->datetime('end');
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('extra_block')->nullable();
         });
 
         Schema::create('m_staffing_rule', function (Blueprint $table) {
@@ -332,11 +664,13 @@ class StaffingSyncServiceTest extends TestCase
             $table->unsignedInteger('event');
             $table->unsignedInteger('m_role')->nullable();
             $table->string('label')->nullable();
+            $table->string('group_label')->nullable();
             $table->unsignedSmallInteger('min');
             $table->unsignedSmallInteger('best');
             $table->unsignedSmallInteger('max');
             $table->text('ui_description')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
+            $table->boolean('surplus')->default(false);
         });
 
         Schema::create('event_staffing_group', function (Blueprint $table) {
@@ -348,7 +682,16 @@ class StaffingSyncServiceTest extends TestCase
 
         Schema::create('event_staffing_assignment', function (Blueprint $table) {
             $table->id();
-            $table->unsignedInteger('event_staffing_group');
+            $table->unsignedInteger('event_staffing_role');
+            $table->unsignedInteger('event_staffing_group')->nullable();
+            $table->unsignedInteger('volunteer_person');
+            $table->timestamp('created_at')->nullable();
+            $table->unique(['event_staffing_role', 'volunteer_person']);
+        });
+
+        Schema::create('event_volunteer_roster', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('event');
             $table->unsignedInteger('volunteer_person');
             $table->timestamp('created_at')->nullable();
         });
@@ -357,9 +700,9 @@ class StaffingSyncServiceTest extends TestCase
     private function seedChallengeEvent(int $lanes): void
     {
         DB::table('m_first_program')->insert([
-            ['id' => FirstProgram::EXPLORE->value, 'sequence' => 1],
-            ['id' => FirstProgram::CHALLENGE->value, 'sequence' => 2],
-            ['id' => FirstProgram::FUTURE_8->value, 'sequence' => 5],
+            ['id' => FirstProgram::EXPLORE->value, 'sequence' => 1, 'name' => 'EXPLORE'],
+            ['id' => FirstProgram::CHALLENGE->value, 'sequence' => 2, 'name' => 'CHALLENGE'],
+            ['id' => FirstProgram::FUTURE_8->value, 'sequence' => 5, 'name' => 'FUTURE_8'],
         ]);
 
         DB::table('m_parameter')->insert([
@@ -390,10 +733,9 @@ class StaffingSyncServiceTest extends TestCase
             'name' => 'Jury',
             'sequence' => 3,
             'first_program' => FirstProgram::CHALLENGE->value,
-            'differentiation_type' => 'number',
-            'differentiation_source' => 'select set_value from plan_param_value where parameter=50 and plan=[plan]',
             'differentiation_parameter' => 'lane',
             'staffable' => 1,
+            'group_label' => 'Jury-Gruppe',
         ]);
 
         DB::table('m_staffing_rule')->insert([

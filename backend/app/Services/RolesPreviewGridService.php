@@ -7,6 +7,7 @@ use App\Support\PlanParameter;
 use App\Support\PreviewGridOverlapResolver;
 use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
+use App\Support\RoleDifferentiation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -183,7 +184,7 @@ class RolesPreviewGridService
                     continue;
                 }
 
-                $count = $this->multiplicityForRole($programId, (string) $role->differentiation_parameter, $params);
+                $count = RoleDifferentiation::optionCount($programId, (string) $role->differentiation_parameter, $params);
                 if ($count < 1) {
                     continue;
                 }
@@ -215,29 +216,6 @@ class RolesPreviewGridService
         }
 
         return $programs;
-    }
-
-    private function multiplicityForRole(int $programId, string $diff, PlanParameter $params): int
-    {
-        if ($diff === 'lane') {
-            return match ($programId) {
-                FirstProgram::EXPLORE->value => max(0, (int) $params->get('e1_lanes', 0))
-                    + max(0, (int) $params->get('e2_lanes', 0)),
-                FirstProgram::CHALLENGE->value => max(0, (int) $params->get('j_lanes', 0)),
-                FirstProgram::FUTURE_8->value => max(0, (int) $params->get('f8_lanes', 0)),
-                default => 0,
-            };
-        }
-
-        if ($diff === 'table') {
-            return match ($programId) {
-                FirstProgram::CHALLENGE->value => max(0, (int) $params->get('r_tables', 0)),
-                FirstProgram::FUTURE_8->value => max(0, (int) $params->get('f8_fields', 0)),
-                default => 0,
-            };
-        }
-
-        return 0;
     }
 
     private function styleColumnForProgram(int $programId): string

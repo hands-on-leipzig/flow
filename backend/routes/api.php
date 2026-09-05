@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AfternoonController;
+use App\Http\Controllers\Api\EnrollmentsController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\CheckInController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\LogoController;
 use App\Http\Controllers\Api\MainTablesController;
+use App\Http\Controllers\Api\MatchPlanCatalogController;
 use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\ParameterController;
@@ -35,9 +37,11 @@ use App\Http\Controllers\Api\PlanQualityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\PublicPlanController;
+use App\Http\Controllers\Api\PublicVolunteerOpeningsController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\SeasonPlanBulkController;
 use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
@@ -74,6 +78,7 @@ Route::get('/events/{event}/team-coordinates', [DrahtController::class, 'getTeam
 Route::get('/events', [EventController::class, 'index']); // Get list of current events
 Route::get('/programs', [ProgramController::class, 'index']); // Catalog from m_first_program
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
+Route::get('/public/volunteer-openings', [PublicVolunteerOpeningsController::class, 'index']); // Hero: events currently seeking helpers
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
@@ -351,6 +356,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/events/{event}/staffing/sync', [EventStaffingController::class, 'sync']);
     Route::post('/events/{event}/staffing/groups/{group}/assignments', [EventStaffingAssignmentController::class, 'store']);
     Route::delete('/events/{event}/staffing/groups/{group}/assignments/{volunteer}', [EventStaffingAssignmentController::class, 'destroy']);
+    Route::post('/events/{event}/staffing/roles/{role}/assignments', [EventStaffingAssignmentController::class, 'storeOnRole']);
+    Route::delete('/events/{event}/staffing/roles/{role}/assignments/{volunteer}', [EventStaffingAssignmentController::class, 'destroyOnRole']);
     Route::post('/events/{event}/staffing/local-roles', [EventStaffingAssignmentController::class, 'storeLocalRole']);
     Route::put('/events/{event}/staffing/local-roles/{role}', [EventStaffingAssignmentController::class, 'updateLocalRole']);
     Route::delete('/events/{event}/staffing/local-roles/{role}', [EventStaffingAssignmentController::class, 'destroyLocalRole']);
@@ -412,6 +419,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/evaluate/{planId}', [PlanQualityController::class, 'evaluatePlan']);
     });
 
+    Route::get('/admin/enrollments', [EnrollmentsController::class, 'index']);
+
     Route::prefix('admin/main-tables')->group(function () {
         Route::get('/', [MainTablesController::class, 'index']);
         Route::get('/export', [MainTablesController::class, 'export']);
@@ -423,6 +432,15 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/{table}', [MainTablesController::class, 'store']);
         Route::put('/{table}/{id}', [MainTablesController::class, 'update']);
         Route::delete('/{table}/{id}', [MainTablesController::class, 'destroy']);
+    });
+
+    Route::prefix('admin/match-plans')->group(function () {
+        Route::get('/programs', [MatchPlanCatalogController::class, 'programs']);
+        Route::get('/keys', [MatchPlanCatalogController::class, 'keys']);
+        Route::get('/', [MatchPlanCatalogController::class, 'show']);
+        Route::put('/', [MatchPlanCatalogController::class, 'save']);
+        Route::delete('/', [MatchPlanCatalogController::class, 'destroy']);
+        Route::post('/quality', [MatchPlanCatalogController::class, 'quality']);
     });
 
     Route::get('/seasons', function () {
@@ -452,6 +470,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren
         Route::post('/regenerate/{eventId}', [PublishController::class, 'regenerateLinkAndQRcode']); // Link und QR-Code neu generieren (Admin)
+        Route::put('/slug/{eventId}', [PublishController::class, 'setSlug']);            // Slug von Hand setzen, Link und QR-Code neu bauen
         Route::post('/regenerate-season/{seasonId}', [PublishController::class, 'regenerateLinksForSeason']); // Links für alle Events einer Saison regenerieren (Admin)
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
@@ -529,6 +548,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/matrix', [VisibilityController::class, 'getMatrix']);
         Route::post('/toggle', [VisibilityController::class, 'toggleVisibility']);
         Route::post('/bulk-toggle', [VisibilityController::class, 'bulkToggle']);
+        Route::post('/roles/reorder', [VisibilityController::class, 'reorderRoles']);
     });
 
     // News controller
@@ -562,6 +582,11 @@ Route::middleware(['keycloak'])->group(function () {
     // Admin helper functions routes
     Route::prefix('admin/helpers')->group(function () {
         Route::post('/logos/cleanup-orphaned', [LogoController::class, 'cleanupOrphanedLogos']); // Admin: Clean up orphaned logos
+        Route::prefix('season-plans')->group(function () {
+            Route::get('/', [SeasonPlanBulkController::class, 'summary']);
+            Route::post('/empty', [SeasonPlanBulkController::class, 'empty']);
+            Route::post('/regenerate', [SeasonPlanBulkController::class, 'regenerate']);
+        });
     });
 
     Route::prefix('admin/sharepoint')->group(function () {

@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\KeycloakJwtMiddleware;
 use App\Services\MainTableSchemaService;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class MainTablesAdminApiTest extends TestCase
@@ -77,15 +79,35 @@ class MainTablesAdminApiTest extends TestCase
             ->assertJson(['error' => 'Table not allowed']);
     }
 
-    public function test_import_route_removed(): void
+    public function test_store_allows_m_match_writes(): void
     {
-        // Former dedicated import route is gone; POST …/import hits store/{table}=import.
         $this->mock(MainTableSchemaService::class, function ($mock) {
-            $mock->shouldReceive('isAllowedTable')->with('import')->andReturn(false);
+            $mock->shouldReceive('isAllowedTable')->with('m_match')->andReturn(true);
+            $mock->shouldReceive('prepareWritePayload')
+                ->once()
+                ->andReturn(['ok' => true, 'data' => [
+                    'first_program' => 3,
+                    'teams' => 8,
+                    'tables' => 2,
+                ]]);
+            $mock->shouldReceive('getPrimaryKeyColumn')->with('m_match')->andReturn('id');
         });
 
-        $this->postJson('/api/admin/main-tables/import', [])
-            ->assertNotFound()
-            ->assertJson(['error' => 'Table not allowed']);
+        Schema::dropIfExists('m_match');
+        Schema::create('m_match', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('first_program')->nullable();
+            $table->unsignedInteger('teams')->nullable();
+            $table->unsignedInteger('tables')->nullable();
+        });
+
+        $this->postJson('/api/admin/main-tables/m_match', [
+            'first_program' => 3,
+            'teams' => 8,
+            'tables' => 2,
+        ])
+            ->assertOk()
+            ->assertJsonPath('data.first_program', 3)
+            ->assertJsonPath('data.teams', 8);
     }
 }

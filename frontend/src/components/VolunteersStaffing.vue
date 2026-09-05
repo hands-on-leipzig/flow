@@ -25,10 +25,13 @@ import {
   type StaffingFilterKey,
 } from '@/utils/volunteerStaffingFilters'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
+import {staffingContainerTitle, staffingTileKey} from '@/volunteers/staffingLabel'
 import {
   boundsValidationError,
+  tileFilled,
   tileNeedsAttention,
-  type StaffingGroup,
+  tilePeople,
+  tileSurplus,
   type StaffingRole,
   type StaffingTile,
 } from '@/volunteers/staffingTypes'
@@ -38,7 +41,6 @@ import {type OpenPositionApiScope} from '@/utils/volunteerOpenPositions'
 defineOptions({name: 'VolunteersStaffing'})
 
 type Person = VolunteerPersonRef
-type Group = StaffingGroup
 type Role = StaffingRole
 type Tile = StaffingTile
 
@@ -55,8 +57,8 @@ const loading = ref(false)
 const isSaving = ref(false)
 
 const isDragging = ref(false)
-const dragOverGroupId = ref<number | null>(null)
-const dragSourceGroupId = ref<number | null>(null)
+const dragOverKey = ref<string | null>(null)
+const dragSourceKey = ref<string | null>(null)
 const draggedPerson = ref<Person | null>(null)
 
 const roleToDelete = ref<Role | null>(null)
@@ -76,16 +78,25 @@ const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
 const staffingSummary = computed(() => computeStaffingSummary(roles.value, programFilters.value))
 
 const tiles = computed<Tile[]>(() => {
-  const list = roles.value.flatMap((role) =>
-    role.groups
-      .filter((group) => !(group.surplus && group.people.length === 0))
-      .map((group) => ({
-        key: `${role.id}-${group.id}`,
-        role,
-        group,
-        name: groupTitle(role, group),
-      })),
-  )
+  const list = roles.value.flatMap((role) => {
+    if (role.grouped) {
+      return (role.groups ?? [])
+        .filter((group) => !(group.surplus && group.people.length === 0))
+        .map((group) => ({
+          key: staffingTileKey(role.id, group.id),
+          role,
+          group,
+          name: staffingContainerTitle(role, group),
+        }))
+    }
+    if (role.surplus && (role.people ?? []).length === 0) return []
+    return [{
+      key: staffingTileKey(role.id, null),
+      role,
+      group: null,
+      name: staffingContainerTitle(role, null),
+    }]
+  })
   return [...list].sort((a, b) =>
     compareStaffingTiles(
       staffingSortableFromTile(a),
@@ -103,7 +114,7 @@ const filteredTiles = computed(() => {
 const visibleTilePeople = computed(() => {
   const byId = new Map<number, Person>()
   for (const tile of filteredTiles.value) {
-    for (const person of tile.group.people) {
+    for (const person of tilePeople(tile)) {
       if (!byId.has(person.id)) byId.set(person.id, person)
     }
   }
@@ -113,7 +124,8 @@ const visibleTilePeople = computed(() => {
 const assignedIds = computed(() => {
   const ids = new Set<number>()
   for (const role of roles.value) {
-    for (const group of role.groups) {
+    for (const person of role.people ?? []) ids.add(person.id)
+    for (const group of role.groups ?? []) {
       for (const person of group.people) ids.add(person.id)
     }
   }
@@ -194,11 +206,6 @@ function searchChipIconClass(person: Person) {
   return 'bi-person-fill'
 }
 
-function groupTitle(role: Role, group: Group) {
-  if (role.groups.length <= 1 && !group.surplus) return role.label
-  return `${role.label} ${group.group_index}`
-}
-
 function syncTileFilters() {
   activeTileFilters.value = syncStaffingFilters(
     activeTileFilters.value,
@@ -267,7 +274,11 @@ async function load() {
       axios.get(`/events/${eventId.value}/volunteer-roster`),
       axios.get(`/events/${eventId.value}/volunteers`),
     ])
-    roles.value = staffingRes.data.roles ?? []
+    roles.value = (staffingRes.data.roles ?? []).map((role: Role) => ({
+      ...role,
+      people: role.people ?? [],
+      groups: role.groups ?? [],
+    }))
     openPositions.value = staffingRes.data.open_positions ?? []
     planId.value = staffingRes.data.plan_id ?? null
     roster.value = rosterRes.data.roster ?? []
@@ -287,67 +298,80 @@ async function ensureOnRoster(person: Person) {
   })
 }
 
-function onDragStart(event: any, groupId: number | null) {
+function assignmentCollectionUrl(tile: Tile) {
+  if (tile.group) {
+    return `/events/${eventId.value}/staffing/groups/${tile.group.id}/assignments`
+  }
+  return `/events/${eventId.value}/staffing/roles/${tile.role.id}/assignments`
+}
+
+function assignmentItemUrl(tileKey: string, personId: number) {
+  if (tileKey.startsWith('g-')) {
+    return `/events/${eventId.value}/staffing/groups/${tileKey.slice(2)}/assignments/${personId}`
+  }
+  return `/events/${eventId.value}/staffing/roles/${tileKey.slice(2)}/assignments/${personId}`
+}
+
+function onDragStart(event: any, tileKey: string | null) {
   isDragging.value = true
-  dragSourceGroupId.value = groupId
+  dragSourceKey.value = tileKey
   draggedPerson.value = event.item?.__draggable_context?.element ?? null
 }
 
 function onDragEnd() {
   isDragging.value = false
-  dragOverGroupId.value = null
-  dragSourceGroupId.value = null
+  dragOverKey.value = null
+  dragSourceKey.value = null
   draggedPerson.value = null
 }
 
-function onDropzoneLeave(event: DragEvent, groupId: number) {
+function onDropzoneLeave(event: DragEvent, tileKey: string) {
   const next = event.relatedTarget as Node | null
   if (next && (event.currentTarget as Node)?.contains(next)) return
-  if (dragOverGroupId.value === groupId) dragOverGroupId.value = null
+  if (dragOverKey.value === tileKey) dragOverKey.value = null
 }
 
-async function handleDrop(event: any, group: Group) {
+async function handleDrop(event: any, tile: Tile) {
   const person = draggedPerson.value || event.item?.__draggable_context?.element
-  dragOverGroupId.value = null
+  dragOverKey.value = null
   isDragging.value = false
   if (!person?.id || !eventId.value) return
-  if (dragSourceGroupId.value === group.id) return
-  if (group.surplus) {
+  if (dragSourceKey.value === tile.key) return
+  const surplus = tileSurplus(tile)
+  const filled = tileFilled(tile)
+  const people = tilePeople(tile)
+  if (surplus) {
     showGlassToast('Diese Rolle wird nicht mehr benötigt — Personen nur umsetzen.', 'info')
     await load()
     return
   }
-  if (group.filled >= group.max && !group.people.some((p) => p.id === person.id)) {
+  if (filled >= Number(tile.role.max) && !people.some((p) => p.id === person.id)) {
     showGlassToast('Maximum für diese Rolle erreicht.', 'info')
     await load()
     return
   }
 
   try {
-    if (dragSourceGroupId.value) {
-      await axios.delete(
-        `/events/${eventId.value}/staffing/groups/${dragSourceGroupId.value}/assignments/${person.id}`,
-      )
+    if (dragSourceKey.value) {
+      await axios.delete(assignmentItemUrl(dragSourceKey.value, person.id))
     }
     await ensureOnRoster(person)
-    await axios.post(`/events/${eventId.value}/staffing/groups/${group.id}/assignments`, {
+    await axios.post(assignmentCollectionUrl(tile), {
       volunteer_person: person.id,
     })
   } catch (e: any) {
     showGlassToast(apiError(e, 'Zuweisen fehlgeschlagen'), 'error')
   } finally {
-    dragSourceGroupId.value = null
+    dragSourceKey.value = null
     draggedPerson.value = null
     await load()
   }
 }
 
-async function unassign(group: Group, person: Person) {
+async function unassign(tile: Tile, person: Person) {
   if (!eventId.value) return
   try {
-    await axios.delete(
-      `/events/${eventId.value}/staffing/groups/${group.id}/assignments/${person.id}`,
-    )
+    await axios.delete(assignmentItemUrl(tile.key, person.id))
     await load()
   } catch (e: any) {
     showGlassToast(apiError(e, 'Entfernen fehlgeschlagen'), 'error')
@@ -493,7 +517,7 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
               :key="tile.key"
               :tile="tile"
               :is-dragging="isDragging"
-              :drag-over-group-id="dragOverGroupId"
+              :drag-over-key="dragOverKey"
               @persist-role="persistLocalRole"
               @delete-role="askDeleteRole"
               @open-bounds="openBoundsModal"
@@ -501,7 +525,7 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
               @drag-start="onDragStart"
               @drag-end="onDragEnd"
               @dropzone-leave="onDropzoneLeave"
-              @hover-group="dragOverGroupId = $event"
+              @hover="dragOverKey = $event"
               @unassign="unassign"
           />
 

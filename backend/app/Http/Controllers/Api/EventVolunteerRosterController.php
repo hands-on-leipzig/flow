@@ -13,6 +13,7 @@ use App\Models\EventVolunteerRoster;
 use App\Models\EventVolunteerRosterDetail;
 use App\Models\VolunteerPerson;
 use App\Support\PersonIdsFilter;
+use App\Support\StaffingAssignmentLabel;
 use App\Support\VolunteerCollectOptions;
 use App\Support\VolunteerMealOptions;
 use App\Support\VolunteerRosterColumns;
@@ -298,8 +299,7 @@ class EventVolunteerRosterController extends Controller
     private function assignedPersonIds(int $eventId): array
     {
         return DB::table('event_staffing_assignment as a')
-            ->join('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
+            ->join('event_staffing_role as r', 'r.id', '=', 'a.event_staffing_role')
             ->where('r.event', $eventId)
             ->pluck('a.volunteer_person')
             ->map(fn ($id) => (int) $id)
@@ -309,88 +309,26 @@ class EventVolunteerRosterController extends Controller
     }
 
     /**
-     * @return array<int, list<array{tile_name: string, label: string, role_id: int, first_program: ?int, is_local: bool, sequence: int, group_index: int}>>
+     * @return array<int, list<array{tile_name: string, caption: string, label: string, role_id: int, first_program: ?int, is_local: bool, sequence: int, group_index: ?int, group_label: ?string}>>
      */
     private function assignmentsByPerson(int $eventId): array
     {
-        $groupCounts = DB::table('event_staffing_group as g')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
-            ->where('r.event', $eventId)
-            ->groupBy('g.event_staffing_role')
-            ->pluck(DB::raw('count(*)'), 'g.event_staffing_role');
-
-        $rows = DB::table('event_staffing_assignment as a')
-            ->join('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
-            ->leftJoin('m_role as mr', 'mr.id', '=', 'r.m_role')
-            ->where('r.event', $eventId)
-            ->orderBy('r.sequence')
-            ->orderBy('r.id')
-            ->orderBy('g.group_index')
-            ->get([
-                'a.volunteer_person',
-                'r.id as role_id',
-                'r.label as role_label',
-                'r.sequence',
-                'r.m_role',
-                'mr.name as catalog_name',
-                'mr.first_program',
-                'g.group_index',
-                'g.surplus',
-            ]);
-
-        $assignmentsByPerson = [];
-        foreach ($rows as $row) {
-            $personId = (int) $row->volunteer_person;
-            $roleLabel = trim((string) ($row->role_label ?: ($row->catalog_name ?: 'Rolle')));
-            $groupCount = (int) ($groupCounts[$row->role_id] ?? 1);
-            $tileName = ($groupCount <= 1 && ! $row->surplus)
-                ? $roleLabel
-                : trim($roleLabel.' '.$row->group_index);
-
-            $assignment = [
-                'tile_name' => $tileName,
-                'label' => $roleLabel,
-                'role_id' => (int) $row->role_id,
-                'first_program' => $row->m_role ? (($row->first_program !== null) ? (int) $row->first_program : null) : null,
-                'is_local' => $row->m_role === null,
-                'sequence' => (int) $row->sequence,
-                'group_index' => (int) $row->group_index,
-            ];
-
-            if (! isset($assignmentsByPerson[$personId])) {
-                $assignmentsByPerson[$personId] = [];
-            }
-
-            $exists = false;
-            foreach ($assignmentsByPerson[$personId] as $existing) {
-                if ($existing['tile_name'] === $assignment['tile_name']) {
-                    $exists = true;
-                    break;
-                }
-            }
-            if (! $exists) {
-                $assignmentsByPerson[$personId][] = $assignment;
-            }
-        }
-
-        return $assignmentsByPerson;
+        return StaffingAssignmentLabel::assignmentsByPerson($eventId);
     }
 
     private function deleteAssignmentsOnEvent(int $eventId, int $personId): void
     {
-        $groupIds = DB::table('event_staffing_group as g')
-            ->join('event_staffing_role as r', 'r.id', '=', 'g.event_staffing_role')
-            ->where('r.event', $eventId)
-            ->pluck('g.id');
+        $roleIds = DB::table('event_staffing_role')
+            ->where('event', $eventId)
+            ->pluck('id');
 
-        if ($groupIds->isEmpty()) {
+        if ($roleIds->isEmpty()) {
             return;
         }
 
         EventStaffingAssignment::query()
             ->where('volunteer_person', $personId)
-            ->whereIn('event_staffing_group', $groupIds)
+            ->whereIn('event_staffing_role', $roleIds)
             ->delete();
     }
 }

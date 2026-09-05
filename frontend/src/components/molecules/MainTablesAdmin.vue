@@ -1,7 +1,7 @@
 <template>
   <div class="main-tables-admin">
     <div class="main-tables-admin__header">
-      <h2 class="text-2xl font-bold text-[var(--color-text)]">m-Tabellen-Verwaltung</h2>
+      <h2 class="text-2xl font-bold text-[var(--color-text)]">alle m-Tabellen</h2>
       <button
         type="button"
         @click="createGitHubPR"
@@ -14,17 +14,31 @@
 
     <div class="main-tables-admin__body">
       <aside class="main-tables-admin__nav glass-card liquid-surface-inner !p-2">
-        <button
+        <div
           v-for="table in availableTables"
           :key="table.name"
-          type="button"
           class="main-tables-admin__nav-item"
           :class="{ 'main-tables-admin__nav-item--active': selectedTable === table.name }"
-          @click="selectTable(table.name)"
         >
-          <span class="main-tables-admin__nav-label">{{ table.displayName }}</span>
+          <button
+            type="button"
+            class="main-tables-admin__nav-select"
+            @click="selectTable(table.name)"
+          >
+            <span class="main-tables-admin__nav-label font-mono">{{ table.name }}</span>
+          </button>
+          <RouterLink
+            v-if="specialEditorsByTable[table.name]"
+            :to="specialEditorsByTable[table.name].path"
+            class="main-tables-admin__jump"
+            :title="`Öffne ${specialEditorsByTable[table.name].label}`"
+            @click.stop
+          >
+            <i :class="specialEditorsByTable[table.name].icon" aria-hidden="true"/>
+            <span class="sr-only">{{ specialEditorsByTable[table.name].label }}</span>
+          </RouterLink>
           <span class="glass-chip !px-2 !py-0.5 !text-xs shrink-0">{{ table.recordCount }}</span>
-        </button>
+        </div>
         <p v-if="!availableTables.length && !loadingTables" class="text-sm text-[var(--color-text-subtle)] px-2 py-1">
           Keine m_-Tabellen gefunden.
         </p>
@@ -35,30 +49,6 @@
           <p class="text-[var(--color-text-subtle)]">Tabelle links auswählen</p>
         </div>
 
-        <!-- Special UI for m_parameter -->
-        <div v-else-if="selectedTable === 'm_parameter'" class="main-tables-admin__panel glass-card liquid-surface-inner">
-          <div class="main-tables-admin__panel-toolbar">
-            <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
-              {{ getTableDisplayName(selectedTable) }} — Erweiterter Editor
-            </h3>
-          </div>
-          <div class="main-tables-admin__special-body">
-            <MParameter />
-          </div>
-        </div>
-
-        <!-- Special UI for m_visibility -->
-        <div v-else-if="selectedTable === 'm_visibility'" class="main-tables-admin__panel glass-card liquid-surface-inner">
-          <div class="main-tables-admin__panel-toolbar">
-            <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
-              {{ getTableDisplayName(selectedTable) }} — Erweiterter Editor
-            </h3>
-          </div>
-          <div class="main-tables-admin__special-body">
-            <Visibility />
-          </div>
-        </div>
-
         <!-- Form replaces main pane -->
         <div v-else-if="viewMode === 'form'" class="main-tables-admin__panel glass-card liquid-surface-inner">
           <div class="main-tables-admin__panel-toolbar">
@@ -67,7 +57,7 @@
                 ← Zur Liste
               </button>
               <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0 truncate">
-                {{ formIsCreate ? 'Neu' : 'Bearbeiten' }} — {{ getTableDisplayName(selectedTable) }}
+                {{ formIsCreate ? 'Neu' : 'Bearbeiten' }} — {{ selectedTable }}
               </h3>
             </div>
             <button
@@ -178,7 +168,7 @@
         <div v-else class="main-tables-admin__panel glass-card liquid-surface-inner">
           <div class="main-tables-admin__panel-toolbar">
             <h3 class="text-lg font-medium text-[var(--color-text)] !mb-0">
-              {{ getTableDisplayName(selectedTable) }} —
+              {{ selectedTable }} —
               {{ filteredTableData.length }}{{ listFilter.trim() ? ` / ${tableData.length}` : '' }} Datensätze
             </h3>
             <div class="flex items-center gap-2 shrink-0 flex-wrap">
@@ -284,11 +274,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
 import axios from 'axios'
-import MParameter from './MParameter.vue'
-import Visibility from './Visibility.vue'
 import ConfirmationModal from './ConfirmationModal.vue'
 import { showGlassToast } from '@/composables/useGlassToast'
+import { specialEditorForTable } from '@/constants/adminNav'
 
 const selectedTable = ref('')
 const availableTables = ref([])
@@ -353,7 +343,6 @@ async function loadTables() {
     const { data } = await axios.get('/admin/main-tables/')
     availableTables.value = (data.tables || []).map((t) => ({
       name: t.name,
-      displayName: t.display_name || t.name,
       recordCount: t.count ?? 0,
     }))
   } catch (error) {
@@ -364,10 +353,14 @@ async function loadTables() {
   }
 }
 
-function getTableDisplayName(tableName) {
-  const table = availableTables.value.find((t) => t.name === tableName)
-  return table ? table.displayName : tableName
-}
+const specialEditorsByTable = computed(() => {
+  const map = {}
+  for (const table of availableTables.value) {
+    const editor = specialEditorForTable(table.name)
+    if (editor) map[table.name] = editor
+  }
+  return map
+})
 
 async function selectTable(tableName) {
   selectedTable.value = tableName
@@ -375,11 +368,6 @@ async function selectTable(tableName) {
   formData.value = {}
   listFilter.value = ''
   recordToDelete.value = null
-  if (tableName === 'm_parameter' || tableName === 'm_visibility') {
-    tableData.value = []
-    schema.value = null
-    return
-  }
   await Promise.all([loadSchema(tableName), loadTableData(tableName)])
 }
 
@@ -609,17 +597,28 @@ onMounted(() => {
 .main-tables-admin__nav-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  gap: 0.35rem;
   width: 100%;
   text-align: left;
-  padding: 0.55rem 0.7rem;
+  padding: 0.35rem 0.45rem 0.35rem 0.35rem;
   border-radius: var(--radius);
   border: 1px solid transparent;
   background: transparent;
   color: var(--color-text);
-  cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.main-tables-admin__nav-select {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0.2rem 0.35rem;
+  color: inherit;
+  cursor: pointer;
 }
 
 .main-tables-admin__nav-item:hover {
@@ -632,9 +631,28 @@ onMounted(() => {
 }
 
 .main-tables-admin__nav-label {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.main-tables-admin__jump {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: var(--radius);
+  color: var(--color-text-muted);
+}
+
+.main-tables-admin__jump:hover {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent);
 }
 
 .main-tables-admin__content {
@@ -730,21 +748,6 @@ onMounted(() => {
 .main-tables-admin__textarea {
   resize: vertical;
   min-height: 4.5rem;
-}
-
-.main-tables-admin__special-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding: 0.75rem 1rem 1rem;
-}
-
-.main-tables-admin__special-body > :deep(*) {
-  flex: 1 1 auto;
-  min-height: 0;
-  height: 100%;
 }
 
 .main-tables-admin__th {
