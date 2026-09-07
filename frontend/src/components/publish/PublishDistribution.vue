@@ -253,7 +253,7 @@ function toggleTeamPublicFormField(fieldKey: string, next: boolean) {
 }
 
 const levels = [
-  {id: 0, name: 'Keine Details'},
+  {id: 0, name: 'Keine'},
   {id: 1, name: 'Nur wichtige Zeiten'},
   {id: 2, name: 'Volle Details'},
 ]
@@ -307,7 +307,7 @@ async function setDetailLevel(level: number) {
     reloadPreview()
   } catch {
     detailLevel.value = prev
-    showGlassToast('Details zum Zeitplan konnten nicht gespeichert werden.', 'error')
+    showGlassToast('Informationen zum Ablauf konnten nicht gespeichert werden.', 'error')
   } finally {
     saving.value?.hide()
   }
@@ -456,7 +456,7 @@ onActivated(() => {
 
 <template>
   <div class="vol-page vol-page--fill pub">
-    <SavingToast ref="saving" message="Details zum Zeitplan werden gespeichert…" />
+    <SavingToast ref="saving" message="Informationen zum Ablauf werden gespeichert…" />
     <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="volunteerDataEntrySaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="teamDataEntrySaving" message="Einstellung wird gespeichert…" />
@@ -468,7 +468,7 @@ onActivated(() => {
           <h1 class="vol-page__title">Öffentliche Seite</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Festlegen, was der Link zur öffentlichen Seite zeigt</p>
+        <p class="vol-page__sub">Festlegen, was auf der öffentlichen Seite gezeigt wird</p>
       </div>
     </header>
 
@@ -483,8 +483,8 @@ onActivated(() => {
             <PublicLinkStrip on-publish-page/>
 
             <section class="pub__tile glass-card liquid-surface-inner">
-              <h2 class="glass-card__heading">Details zum Zeitplan</h2>
-              <div class="pub__levels" role="radiogroup" aria-label="Details zum Zeitplan">
+              <h2 class="glass-card__heading">Informationen zum Ablauf</h2>
+              <div class="pub__levels" role="radiogroup" aria-label="Informationen zum Ablauf">
                 <div
                     v-for="level in levels"
                     :key="level.id"
@@ -508,165 +508,161 @@ onActivated(() => {
             </section>
 
             <section class="pub__tile glass-card liquid-surface-inner">
-          <h2 class="glass-card__heading">Teams</h2>
+              <h2 class="glass-card__heading">Zusätzliche Funktionen</h2>
 
-          <div class="pub__app-block">
-            <div class="pub__app-row">
-              <span class="glass-settings-hint-link pub__app-link">Dateneingabe durch Coaches</span>
-              <ToggleSwitch
-                  :model-value="teamDataEntryEnabled"
-                  :disabled="teamDataEntryLoading || !eventId"
-                  @update:modelValue="onTeamDataEntryToggle"
-              />
-            </div>
-            <p class="glass-settings-hint !mb-0">
-              Coaches können Teamdaten eingeben.<br>
-              Hier wird festgelegt, welche Felder erscheinen. Welche Felder es überhaupt gibt, kann unter
-              <RouterLink to="/plan/teams/data" class="pub__helper-link">
-                Teams → Teamdaten
-              </RouterLink>
-              festgelegt werden.
-            </p>
-            <div
-                v-if="teamDataEntryEnabled"
-                class="pub__form-checklist"
-            >
-              <p class="pub__form-checklist-title">Felder im Formular</p>
-              <div
-                  class="pub__form-check pub__form-check--fixed"
-                  title="Immer im Formular (Status, nicht editierbar)"
-              >
-                <input type="checkbox" :checked="true" disabled>
-                <span>Fotoerlaubnis ( nur Anzeige des Status)</span>
-              </div>
-              <div
-                  v-if="teamCollectMeal"
-                  class="pub__form-check pub__form-check--fixed"
-                  title="Immer im Formular, solange Essen in Teamdaten aktiv ist"
-              >
-                <input type="checkbox" :checked="true" disabled>
-                <span>Essen</span>
-              </div>
-              <label
-                  v-for="field in teamPublicFormFields"
-                  :key="field.field_key"
-                  class="pub__form-check"
-              >
-                <input
-                    type="checkbox"
-                    :checked="field.public_form"
-                    :disabled="teamPublicFormFieldsBusy"
-                    @change="toggleTeamPublicFormField(field.field_key, ($event.target as HTMLInputElement).checked)"
-                >
-                <span>{{ field.label }}</span>
-              </label>
-            </div>
-          </div>
-        </section>
-
-        <section class="pub__tile glass-card liquid-surface-inner">
-          <h2 class="glass-card__heading">Helfer:innen</h2>
-
-          <div class="pub__app-block">
-            <div class="pub__app-row">
-              <span class="glass-settings-hint-link pub__app-link">Dateneingabe durch Helfer:innen</span>
-              <ToggleSwitch
-                  :model-value="volunteerDataEntryEnabled"
-                  :disabled="volunteerDataEntryLoading || !eventId"
-                  @update:modelValue="onVolunteerDataEntryToggle"
-              />
-            </div>
-            <p class="glass-settings-hint !mb-0">
-              Helfer:innen können ihre Daten eingeben.<br>
-              Hier wird festgelegt, welche Felder erscheinen. Welche Felder es überhaupt gibt, kann unter
-              <RouterLink to="/plan/volunteers/roster" class="pub__helper-link">
-                Helfer:innen → Helfer:innenliste
-              </RouterLink>
-              festgelegt werden.
-            </p>
-            <div
-                v-if="volunteerDataEntryEnabled"
-                class="pub__form-checklist"
-            >
-              <p class="pub__form-checklist-title">Felder im Formular</p>
-              <div
-                  class="pub__form-check-row"
-                  title="Immer im Formular"
-              >
+              <div class="pub__app-block">
+                <div class="pub__app-row">
+                  <span class="glass-settings-hint-link pub__app-link">Dateneingabe durch Coaches</span>
+                  <ToggleSwitch
+                      :model-value="teamDataEntryEnabled"
+                      :disabled="teamDataEntryLoading || !eventId"
+                      @update:modelValue="onTeamDataEntryToggle"
+                  />
+                </div>
+                <p class="glass-settings-hint !mb-0">
+                  Coaches können Teamdaten eingeben.<br>
+                  Hier wird festgelegt, welche Felder erscheinen. Welche Felder es überhaupt gibt, kann unter
+                  <RouterLink to="/plan/teams/data" class="pub__helper-link">
+                    Teams → Teamdaten
+                  </RouterLink>
+                  festgelegt werden.
+                </p>
                 <div
-                    v-for="label in volunteerFixedPersonFields"
-                    :key="label"
-                    class="pub__form-check pub__form-check--fixed"
+                    v-if="teamDataEntryEnabled"
+                    class="pub__form-checklist"
                 >
-                  <input type="checkbox" :checked="true" disabled>
-                  <span>{{ label }}</span>
+                  <p class="pub__form-checklist-title">Felder im Formular</p>
+                  <div
+                      class="pub__form-check pub__form-check--fixed"
+                      title="Immer im Formular (Status, nicht editierbar)"
+                  >
+                    <input type="checkbox" :checked="true" disabled>
+                    <span>Fotoerlaubnis ( nur Anzeige des Status)</span>
+                  </div>
+                  <div
+                      v-if="teamCollectMeal"
+                      class="pub__form-check pub__form-check--fixed"
+                      title="Immer im Formular, solange Essen in Teamdaten aktiv ist"
+                  >
+                    <input type="checkbox" :checked="true" disabled>
+                    <span>Essen</span>
+                  </div>
+                  <label
+                      v-for="field in teamPublicFormFields"
+                      :key="field.field_key"
+                      class="pub__form-check"
+                  >
+                    <input
+                        type="checkbox"
+                        :checked="field.public_form"
+                        :disabled="teamPublicFormFieldsBusy"
+                        @change="toggleTeamPublicFormField(field.field_key, ($event.target as HTMLInputElement).checked)"
+                    >
+                    <span>{{ field.label }}</span>
+                  </label>
                 </div>
               </div>
-              <div
-                  class="pub__form-check pub__form-check--fixed"
-                  title="Immer im Formular (Status, nicht editierbar)"
-              >
-                <input type="checkbox" :checked="true" disabled>
-                <span>Fotoerlaubnis ( nur Anzeige des Status)</span>
-              </div>
-              <div
-                  v-if="collectTShirt"
-                  class="pub__form-check-row"
-                  title="Immer im Formular, solange T-Shirt in der Helferliste aktiv ist"
-              >
-                <div class="pub__form-check pub__form-check--fixed">
-                  <input type="checkbox" :checked="true" disabled>
-                  <span>T-Shirt Schnitt</span>
-                </div>
-                <div class="pub__form-check pub__form-check--fixed">
-                  <input type="checkbox" :checked="true" disabled>
-                  <span>T-Shirt Größe</span>
-                </div>
-              </div>
-              <div
-                  v-if="collectMeal"
-                  class="pub__form-check pub__form-check--fixed"
-                  title="Immer im Formular, solange Essen in der Helferliste aktiv ist"
-              >
-                <input type="checkbox" :checked="true" disabled>
-                <span>Essen</span>
-              </div>
-              <label
-                  v-for="field in publicFormFields"
-                  :key="field.field_key"
-                  class="pub__form-check"
-              >
-                <input
-                    type="checkbox"
-                    :checked="field.public_form"
-                    :disabled="publicFormFieldsBusy"
-                    @change="togglePublicFormField(field.field_key, ($event.target as HTMLInputElement).checked)"
-                >
-                <span>{{ field.label }}</span>
-              </label>
-            </div>
-          </div>
 
-          <div class="pub__app-block">
-            <div class="pub__app-row">
-              <RouterLink to="/plan/volunteers/staffing" class="glass-settings-hint-link pub__app-link">
-                Suche nach Helfer:innen
-              </RouterLink>
-              <ToggleSwitch
-                  :model-value="helperSearchEnabled"
-                  :disabled="helperSearchLoading || !eventId"
-                  @update:modelValue="onHelperSearchToggle"
-              />
-            </div>
-            <p class="glass-settings-hint !mb-0">
-              Zeigt offene Positionen aus
-              <RouterLink to="/plan/volunteers/staffing" class="pub__helper-link">
-                Helfer:innen → Zuordnung
-              </RouterLink>
-              auf dem öffentlichen Plan zwischen Allgemeine Infos und Angemeldete Teams.
-            </p>
-          </div>
-        </section>
+              <div class="pub__app-block">
+                <div class="pub__app-row">
+                  <span class="glass-settings-hint-link pub__app-link">Dateneingabe durch Helfer:innen</span>
+                  <ToggleSwitch
+                      :model-value="volunteerDataEntryEnabled"
+                      :disabled="volunteerDataEntryLoading || !eventId"
+                      @update:modelValue="onVolunteerDataEntryToggle"
+                  />
+                </div>
+                <p class="glass-settings-hint !mb-0">
+                  Helfer:innen können ihre Daten eingeben.<br>
+                  Hier wird festgelegt, welche Felder erscheinen. Welche Felder es überhaupt gibt, kann unter
+                  <RouterLink to="/plan/volunteers/roster" class="pub__helper-link">
+                    Helfer:innen → Helfer:innenliste
+                  </RouterLink>
+                  festgelegt werden.
+                </p>
+                <div
+                    v-if="volunteerDataEntryEnabled"
+                    class="pub__form-checklist"
+                >
+                  <p class="pub__form-checklist-title">Felder im Formular</p>
+                  <div
+                      class="pub__form-check-row"
+                      title="Immer im Formular"
+                  >
+                    <div
+                        v-for="label in volunteerFixedPersonFields"
+                        :key="label"
+                        class="pub__form-check pub__form-check--fixed"
+                    >
+                      <input type="checkbox" :checked="true" disabled>
+                      <span>{{ label }}</span>
+                    </div>
+                  </div>
+                  <div
+                      class="pub__form-check pub__form-check--fixed"
+                      title="Immer im Formular (Status, nicht editierbar)"
+                  >
+                    <input type="checkbox" :checked="true" disabled>
+                    <span>Fotoerlaubnis ( nur Anzeige des Status)</span>
+                  </div>
+                  <div
+                      v-if="collectTShirt"
+                      class="pub__form-check-row"
+                      title="Immer im Formular, solange T-Shirt in der Helferliste aktiv ist"
+                  >
+                    <div class="pub__form-check pub__form-check--fixed">
+                      <input type="checkbox" :checked="true" disabled>
+                      <span>T-Shirt Schnitt</span>
+                    </div>
+                    <div class="pub__form-check pub__form-check--fixed">
+                      <input type="checkbox" :checked="true" disabled>
+                      <span>T-Shirt Größe</span>
+                    </div>
+                  </div>
+                  <div
+                      v-if="collectMeal"
+                      class="pub__form-check pub__form-check--fixed"
+                      title="Immer im Formular, solange Essen in der Helferliste aktiv ist"
+                  >
+                    <input type="checkbox" :checked="true" disabled>
+                    <span>Essen</span>
+                  </div>
+                  <label
+                      v-for="field in publicFormFields"
+                      :key="field.field_key"
+                      class="pub__form-check"
+                  >
+                    <input
+                        type="checkbox"
+                        :checked="field.public_form"
+                        :disabled="publicFormFieldsBusy"
+                        @change="togglePublicFormField(field.field_key, ($event.target as HTMLInputElement).checked)"
+                    >
+                    <span>{{ field.label }}</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="pub__app-block">
+                <div class="pub__app-row">
+                  <RouterLink to="/plan/volunteers/staffing" class="glass-settings-hint-link pub__app-link">
+                    Suche nach Helfer:innen
+                  </RouterLink>
+                  <ToggleSwitch
+                      :model-value="helperSearchEnabled"
+                      :disabled="helperSearchLoading || !eventId"
+                      @update:modelValue="onHelperSearchToggle"
+                  />
+                </div>
+                <p class="glass-settings-hint !mb-0">
+                  Zeigt offene Positionen aus
+                  <RouterLink to="/plan/volunteers/staffing" class="pub__helper-link">
+                    Helfer:innen → Zuordnung
+                  </RouterLink>
+                  auf dem öffentlichen Plan zwischen Allgemeine Infos und Angemeldete Teams.
+                </p>
+              </div>
+            </section>
 
         <section class="pub__tile glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Apps speziell für den Tag der Veranstaltung</h2>
@@ -961,6 +957,11 @@ onActivated(() => {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.pub__tile > .pub__app-block + .pub__app-block {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--liquid-border-soft);
 }
 
 .pub__helper-warn {
