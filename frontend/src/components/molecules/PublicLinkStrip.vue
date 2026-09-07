@@ -11,7 +11,7 @@ import {normalizePublicLink} from '@/utils/publicLink'
 defineOptions({name: 'PublicLinkStrip'})
 
 const props = withDefaults(defineProps<{
-  /** On Öffentliche Seite: say “hier” instead of linking to this screen. */
+  /** On Öffentliche Seite: hide the overview-only hint. */
   onPublishPage?: boolean
 }>(), {
   onPublishPage: false,
@@ -195,14 +195,14 @@ onMounted(() => {
       </button>
     </div>
 
-    <p class="public-link-strip__hint glass-settings-hint !mb-0">
-      Dieser Link führt zum öffentlichen Zeitplan. Was angezeigt wird, wird
-      <template v-if="props.onPublishPage"><strong>hier</strong></template>
-      <template v-else>
-        unter
-        <RouterLink to="/plan/publish" class="public-link-strip__hint-link">Ausgabe → Öffentliche Seite</RouterLink>
-      </template>
-      festgelegt. Der Link bleibt unverändert — er sollte immer verwendet werden, wenn es um Ablauf und Zeiten geht,
+    <p
+        v-if="!props.onPublishPage"
+        class="public-link-strip__hint glass-settings-hint !mb-0"
+    >
+      Dieser Link führt zur öffentlichen Seite der Veranstaltung, die automatisch angelegt wurde. Was angezeigt wird, wird
+      unter
+      <RouterLink to="/plan/publish" class="public-link-strip__hint-link">Ausgabe → Öffentliche Seite</RouterLink>
+      festgelegt. Der Link verändert sich während der Saison nicht — er sollte immer verwendet werden, wenn es um Ablauf und Zeiten geht,
       damit niemand veraltete Informationen erhält.
     </p>
 

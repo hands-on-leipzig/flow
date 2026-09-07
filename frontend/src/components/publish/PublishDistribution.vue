@@ -253,9 +253,9 @@ function toggleTeamPublicFormField(fieldKey: string, next: boolean) {
 }
 
 const levels = [
-  {id: 0, short: 'Basis', name: 'Planung und Anmeldung', hint: 'Datum, Ort, Kontakt, Teams'},
-  {id: 1, short: 'Ablauf', name: 'Überblick zum Ablauf', hint: '+ wichtige Zeiten'},
-  {id: 2, short: 'Alles', name: 'volle Details', hint: '+ Online-Zeitplan'},
+  {id: 0, name: 'Keine Details'},
+  {id: 1, name: 'Nur wichtige Zeiten'},
+  {id: 2, name: 'Volle Details'},
 ]
 
 const publicUrl = computed(() => normalizePublicLink(event.value?.link))
@@ -307,7 +307,7 @@ async function setDetailLevel(level: number) {
     reloadPreview()
   } catch {
     detailLevel.value = prev
-    showGlassToast('Sichtbarkeit konnte nicht gespeichert werden.', 'error')
+    showGlassToast('Details zum Zeitplan konnten nicht gespeichert werden.', 'error')
   } finally {
     saving.value?.hide()
   }
@@ -456,7 +456,7 @@ onActivated(() => {
 
 <template>
   <div class="vol-page vol-page--fill pub">
-    <SavingToast ref="saving" message="Sichtbarkeit wird gespeichert…" />
+    <SavingToast ref="saving" message="Details zum Zeitplan werden gespeichert…" />
     <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="volunteerDataEntrySaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="teamDataEntrySaving" message="Einstellung wird gespeichert…" />
@@ -483,51 +483,31 @@ onActivated(() => {
             <PublicLinkStrip on-publish-page/>
 
             <section class="pub__tile glass-card liquid-surface-inner">
-          <h2 class="glass-card__heading">Sichtbarkeit</h2>
-          <div class="pub__levels" role="radiogroup" aria-label="Sichtbarkeitsstufe">
-            <div
-                v-for="level in levels"
-                :key="level.id"
-                role="radio"
-                tabindex="0"
-                class="pub__level liquid-surface-inner"
-                :class="{'is-active': detailLevel === level.id}"
-                :aria-checked="detailLevel === level.id"
-                @click="setDetailLevel(level.id)"
-                @keydown.enter.prevent="setDetailLevel(level.id)"
-                @keydown.space.prevent="setDetailLevel(level.id)"
-            >
-              <div class="pub__level-main">
-                <span class="pub__level-mark" aria-hidden="true">
-                  <i v-if="detailLevel === level.id" class="bi bi-check2"/>
-                  <span v-else>{{ level.id + 1 }}</span>
-                </span>
-                <span class="pub__level-copy">
-                  <span class="pub__level-name">{{ level.name }}</span>
-                  <span class="glass-settings-hint !mb-0">{{ level.hint }}</span>
-                </span>
+              <h2 class="glass-card__heading">Details zum Zeitplan</h2>
+              <div class="pub__levels" role="radiogroup" aria-label="Details zum Zeitplan">
+                <div
+                    v-for="level in levels"
+                    :key="level.id"
+                    role="radio"
+                    tabindex="0"
+                    class="pub__level liquid-surface-inner"
+                    :class="{'is-active': detailLevel === level.id}"
+                    :aria-checked="detailLevel === level.id"
+                    @click="setDetailLevel(level.id)"
+                    @keydown.enter.prevent="setDetailLevel(level.id)"
+                    @keydown.space.prevent="setDetailLevel(level.id)"
+                >
+                  <div class="pub__level-main">
+                    <span class="pub__level-mark" aria-hidden="true">
+                      <i v-if="detailLevel === level.id" class="bi bi-check2"/>
+                    </span>
+                    <span class="pub__level-name">{{ level.name }}</span>
+                  </div>
+                </div>
               </div>
-              <div
-                  v-if="level.id === 1"
-                  class="pub__level-explain glass-settings-hint !mb-0"
-              >
-                <p class="pub__level-explain-p">
-                  Die wichtigsten Zeiten werden automatisch aus dem Veranstaltungsplan übernommen.
-                </p>
-                <p class="pub__level-explain-p">
-                  <RouterLink
-                      to="/plan/schedule/free"
-                      class="pub__level-explain-link"
-                      @click.stop
-                  >Zusätzliche Aktivitäten</RouterLink>
-                  z.&nbsp;B. „Check-In“ werden übernommen, wenn sie als „öffentlich zeigen“ gekennzeichnet sind.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
+            </section>
 
-        <section class="pub__tile glass-card liquid-surface-inner">
+            <section class="pub__tile glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Teams</h2>
 
           <div class="pub__app-block">
@@ -692,7 +672,7 @@ onActivated(() => {
           <h2 class="glass-card__heading">Apps speziell für den Tag der Veranstaltung</h2>
 
           <p class="glass-settings-hint !mb-0 pub__day-apps-hint">
-            Diese Apps sind nur vom Plan verlinkt, wenn die Sichtbarkeit auf „volle Details“ gesetzt ist.
+            Diese Apps sind nur vom Plan verlinkt, wenn „Volle Details“ gesetzt ist.
           </p>
 
           <div class="pub__app-block">
@@ -755,7 +735,7 @@ onActivated(() => {
               <span class="pub__preview-dot" aria-hidden="true"/>
               <span class="pub__preview-dot" aria-hidden="true"/>
               <span class="pub__preview-path">
-                Live-Vorschau · {{ activeLevel.short }}
+                Live-Vorschau · {{ activeLevel.name }}
                 <span v-if="isFixedPreviewViewport" class="pub__preview-viewport"> · {{ previewViewportHint }}</span>
               </span>
               <div class="pub__preview-actions">
@@ -1022,7 +1002,6 @@ onActivated(() => {
 .pub__level {
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
   width: 100%;
   text-align: left;
   padding: 0.7rem 0.75rem;
@@ -1050,7 +1029,7 @@ onActivated(() => {
 
 .pub__level-main {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.65rem;
 }
 
@@ -1075,39 +1054,11 @@ onActivated(() => {
   color: var(--color-on-accent, #fff);
 }
 
-.pub__level-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 0;
-}
-
 .pub__level-name {
   font-size: 0.88rem;
   font-weight: 700;
   color: var(--color-text);
   line-height: 1.25;
-}
-
-.pub__level-explain {
-  padding-left: calc(1.45rem + 0.65rem);
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.pub__level-explain-p {
-  margin: 0;
-}
-
-.pub__level-explain-link {
-  color: var(--color-accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.pub__level-explain-link:hover {
-  text-decoration: underline;
 }
 
 .pub__preview-bar {
