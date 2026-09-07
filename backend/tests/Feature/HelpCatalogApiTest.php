@@ -156,6 +156,7 @@ class HelpCatalogApiTest extends TestCase
     private function createSchema(): void
     {
         Schema::dropIfExists('m_help_action_screen');
+        Schema::dropIfExists('help_action_stat');
         Schema::dropIfExists('m_help_action_step');
         Schema::dropIfExists('m_help_action');
         Schema::dropIfExists('m_help_screen');
@@ -184,11 +185,16 @@ class HelpCatalogApiTest extends TestCase
             $table->unsignedInteger('help_topic');
             $table->string('title', 255);
             $table->text('body')->nullable();
+            $table->unsignedInteger('sort_order');
+            $table->foreign('help_topic')->references('id')->on('m_help_topic')->restrictOnDelete();
+        });
+
+        Schema::create('help_action_stat', function (Blueprint $table) {
+            $table->unsignedInteger('help_action')->primary();
             $table->unsignedInteger('open_count')->default(0);
             $table->unsignedInteger('helpful_yes')->default(0);
             $table->unsignedInteger('helpful_no')->default(0);
-            $table->unsignedInteger('sort_order');
-            $table->foreign('help_topic')->references('id')->on('m_help_topic')->restrictOnDelete();
+            $table->foreign('help_action')->references('id')->on('m_help_action')->cascadeOnDelete();
         });
 
         Schema::create('m_help_action_screen', function (Blueprint $table) {

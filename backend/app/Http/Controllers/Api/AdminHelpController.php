@@ -124,10 +124,7 @@ class AdminHelpController extends Controller
     public function actions(): JsonResponse
     {
         $actions = MHelpAction::query()
-            ->with([
-                'topic',
-                'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
-            ])
+            ->with(MHelpAction::payloadEagerLoad())
             ->orderBy('title')
             ->orderBy('id')
             ->get();
@@ -151,10 +148,7 @@ class AdminHelpController extends Controller
             'sort_order' => $max + 1,
         ]);
 
-        $action->load([
-            'topic',
-            'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
-        ]);
+        $action->load(MHelpAction::payloadEagerLoad());
 
         return response()->json($action->toApiPayload(), 201);
     }
@@ -183,10 +177,7 @@ class AdminHelpController extends Controller
 
         $action->fill($validated);
         $action->save();
-        $action->load([
-            'topic',
-            'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
-        ]);
+        $action->load(MHelpAction::payloadEagerLoad());
 
         return response()->json($action->toApiPayload());
     }
@@ -212,10 +203,7 @@ class AdminHelpController extends Controller
         }
 
         $action = MHelpAction::query()
-            ->with([
-                'topic',
-                'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
-            ])
+            ->with(MHelpAction::payloadEagerLoad())
             ->findOrFail($validated['help_action']);
 
         return response()->json($action->toApiPayload(), $created ? 201 : 200);

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\HelpActionStat;
 use App\Models\MHelpAction;
 use App\Models\MHelpScreen;
 use App\Models\MHelpTopic;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class HelpController extends Controller
 {
@@ -16,13 +18,12 @@ class HelpController extends Controller
         $topics = MHelpTopic::query()->orderBy('sort_order')->orderBy('id')->get();
         $screens = MHelpScreen::query()->orderBy('sort_order')->orderBy('id')->get();
         $actions = MHelpAction::query()
-            ->with([
-                'topic',
-                'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
-            ])
-            ->orderByDesc('open_count')
-            ->orderBy('title')
-            ->orderBy('id')
+            ->with(MHelpAction::payloadEagerLoad())
+            ->leftJoin('help_action_stat', 'help_action_stat.help_action', '=', 'm_help_action.id')
+            ->orderByDesc(DB::raw('COALESCE(help_action_stat.open_count, 0)'))
+            ->orderBy('m_help_action.title')
+            ->orderBy('m_help_action.id')
+            ->select('m_help_action.*')
             ->get();
 
         return response()->json([
@@ -40,10 +41,7 @@ class HelpController extends Controller
         }
 
         $actions = $screen->actions()
-            ->with([
-                'topic',
-                'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
-            ])
+            ->with(MHelpAction::payloadEagerLoad())
             ->orderBy('m_help_action.title')
             ->orderBy('m_help_action.id')
             ->get();
@@ -57,10 +55,9 @@ class HelpController extends Controller
     public function open(int $id): JsonResponse
     {
         $action = MHelpAction::query()->findOrFail($id);
-        $action->increment('open_count');
-        $action->refresh();
+        $stat = HelpActionStat::bump($action->id, 'open_count');
 
-        return response()->json($this->counterPayload($action));
+        return response()->json($this->counterPayload($action, $stat));
     }
 
     public function feedback(Request $request, int $id): JsonResponse
@@ -70,10 +67,12 @@ class HelpController extends Controller
         ]);
 
         $action = MHelpAction::query()->findOrFail($id);
-        $action->increment($validated['helpful'] ? 'helpful_yes' : 'helpful_no');
-        $action->refresh();
+        $stat = HelpActionStat::bump(
+            $action->id,
+            $validated['helpful'] ? 'helpful_yes' : 'helpful_no'
+        );
 
-        return response()->json($this->counterPayload($action));
+        return response()->json($this->counterPayload($action, $stat));
     }
 
     /**
@@ -109,13 +108,13 @@ class HelpController extends Controller
     /**
      * @return array<string, int>
      */
-    private function counterPayload(MHelpAction $action): array
+    private function counterPayload(MHelpAction $action, HelpActionStat $stat): array
     {
         return [
             'id' => (int) $action->id,
-            'open_count' => (int) $action->open_count,
-            'helpful_yes' => (int) $action->helpful_yes,
-            'helpful_no' => (int) $action->helpful_no,
+            'open_count' => (int) $stat->open_count,
+            'helpful_yes' => (int) $stat->helpful_yes,
+            'helpful_no' => (int) $stat->helpful_no,
         ];
     }
 }

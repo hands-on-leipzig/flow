@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class MHelpAction extends Model
 {
@@ -22,10 +23,19 @@ class MHelpAction extends Model
     protected $casts = [
         'help_topic' => 'integer',
         'sort_order' => 'integer',
-        'open_count' => 'integer',
-        'helpful_yes' => 'integer',
-        'helpful_no' => 'integer',
     ];
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function payloadEagerLoad(): array
+    {
+        return [
+            'stat',
+            'topic',
+            'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
+        ];
+    }
 
     public function topic(): BelongsTo
     {
@@ -35,6 +45,11 @@ class MHelpAction extends Model
     public function screens(): BelongsToMany
     {
         return $this->belongsToMany(MHelpScreen::class, 'm_help_action_screen', 'help_action', 'help_screen');
+    }
+
+    public function stat(): HasOne
+    {
+        return $this->hasOne(HelpActionStat::class, 'help_action');
     }
 
     /**
@@ -50,15 +65,16 @@ class MHelpAction extends Model
             ['id', 'asc'],
         ])->values();
         $topic = $this->relationLoaded('topic') ? $this->topic : $this->topic()->first();
+        $stat = $this->relationLoaded('stat') ? $this->stat : $this->stat()->first();
 
         return [
             'id' => (int) $this->id,
             'help_topic' => (int) $this->help_topic,
             'title' => $this->title,
             'body' => $this->body,
-            'open_count' => (int) $this->open_count,
-            'helpful_yes' => (int) $this->helpful_yes,
-            'helpful_no' => (int) $this->helpful_no,
+            'open_count' => (int) ($stat?->open_count ?? 0),
+            'helpful_yes' => (int) ($stat?->helpful_yes ?? 0),
+            'helpful_no' => (int) ($stat?->helpful_no ?? 0),
             'sort_order' => (int) $this->sort_order,
             'help_screen_ids' => $sorted->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
             'screens' => $sorted->map(fn (MHelpScreen $screen) => [
