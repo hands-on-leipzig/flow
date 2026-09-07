@@ -11154,17 +11154,74 @@
             "role": 34
         }
     ],
-    "m_help_action": [],
-    "m_help_action_screen": [],
+    "m_help_action": [
+        {
+            "id": 1,
+            "help_topic": 2,
+            "title": "Wie lege ich fest, was auf der öffentlichen Seite gezeigt wird?",
+            "body": "Unter „Informationen zum Ablauf“ eine der drei Stufen wählen: Keine, Nur wichtige Zeiten oder Volle Details.\n\nDie Live-Vorschau rechts zeigt, was der Link gerade anzeigt.",
+            "sort_order": 1
+        },
+        {
+            "id": 2,
+            "help_topic": 1,
+            "title": "Wie schalte ich das Web-Formular für Dateneingabe durch Coach:innen ein bzw. aus?",
+            "body": "Unter „Zusätzliche Funktionen“ den Schalter „Web-Formular für Dateneingabe durch Coach:innen“ setzen.\n\nWelche Felder es gibt, wird unter Teams → Teamdaten festgelegt.",
+            "sort_order": 1
+        },
+        {
+            "id": 3,
+            "help_topic": 1,
+            "title": "Wie wähle ich aus, welche zusätzlichen Informationen über Teams gespeichert werden sollen?",
+            "body": "Über den Button \"Spalten\" am oberen Rad der Seite.\n\nStandardfelder können ein- und ausgeschaltet werden. Zusätzliche eigene Felder können frei definiert werden.\n\nJedes Feld wird zu einer Spalte in der Tabelle.",
+            "sort_order": 2
+        },
+        {
+            "id": 4,
+            "help_topic": 1,
+            "title": "Wie lege ich feste, welche Felder im Web-Formuar für Coach:innen erscheinen?",
+            "body": null,
+            "sort_order": 3
+        },
+        {
+            "id": 6,
+            "help_topic": 3,
+            "title": "Wie wähle ich aus, welche zusätzlichen Informationen pro Helfer:in gespeichert werden sollen?",
+            "body": "Über den Button \"Spalten\" am oberen Rad der Seite.\n\nStandardfelder können ein- und ausgeschaltet werden. Zusätzliche eigene Felder können frei definiert werden.\n\nJedes Feld wird zu einer Spalte in der Tabelle.",
+            "sort_order": 5
+        }
+    ],
+    "m_help_action_screen": [
+        {
+            "help_action": 1,
+            "help_screen": 1
+        },
+        {
+            "help_action": 2,
+            "help_screen": 1
+        },
+        {
+            "help_action": 3,
+            "help_screen": 2
+        },
+        {
+            "help_action": 4,
+            "help_screen": 2
+        },
+        {
+            "help_action": 6,
+            "help_screen": 6
+        }
+    ],
     "m_help_screen": [
         {
             "id": 1,
             "key": "publish-distribution",
             "name": "Öffentliche Seite",
             "route_path": "/plan/publish",
-            "description": null,
-            "must_do": null,
-            "can_do": null,
+            "description": "Hier wird festgelegt, was auf der öffentlichen Seite gezeigt wird.\n\nUnter „Informationen zum Ablauf“ gibt es drei Stufen: Keine, Nur wichtige Zeiten und Volle Details.\n\nUnter „Zusätzliche Funktionen“ können Web-Formulare und die Suche nach Helfer:innen ein- und ausgeschaltet werden.\n\nCheck-In und Cockpit erscheinen nur, wenn „Volle Details“ gesetzt ist. Rechts zeigt eine Live-Vorschau den aktuellen Stand.",
+            "must_do": "Nichts. Der Link zur öffentlichen Seite wird automatisch angelegt. Ohne Änderung bleibt „Informationen zum Ablauf“ auf „Keine“.",
+            "can_do": "Die Stufe unter „Informationen zum Ablauf“ wählen.\n\nWeb-Formular für Dateneingabe durch Coach:innen ein- oder ausschalten.\n\nWeb-Formular für Dateneingabe durch Helfer:innen ein- oder ausschalten.\n\nSuche nach Helfer:innen ein- oder ausschalten.\n\nCheck-In und Cockpit für den Tag der Veranstaltung ein- oder ausschalten.",
             "sort_order": 1
         },
         {
@@ -11172,9 +11229,9 @@
             "key": "teams-data",
             "name": "Teamdaten",
             "route_path": "/plan/teams/data",
-            "description": null,
-            "must_do": null,
-            "can_do": null,
+            "description": "Zu jedem Team kann in FLOW noch was gespeichert werden, was nicht ais der Anmeldung kommt",
+            "must_do": "Nichts. Wer keine Fragen hat, muss keine Stellen",
+            "can_do": "Coaches nach Informationen über ihr Team fragen.\nEssen ist da, kann selber definiert oder auch ganz abgeschaltet werden. Weitere Spalten kann man auch selber anlegen \nDie Antworten kann man selber ein tippen oder die Coaches bitten, das Web-Formular für Dateneingabe durch Coach:innen zu nutzen, das auf der öffentlichen Seite verlinkt ist.",
             "sort_order": 2
         },
         {
