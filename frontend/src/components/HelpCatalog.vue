@@ -22,7 +22,6 @@ type Action = {
 }
 
 const VIDEO_URL = 'https://handsontechnology-my.sharepoint.com/:v:/g/personal/jr_hands-on-technology_org/EYLes-Kq4GlDuBpUaxolgn4B4naGZakiVMW7Dq0xgWmskA?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=T5yiJJ'
-const MAILTO = 'mailto:flow@hands-on-technology.org?subject=' + encodeURIComponent('Frage oder Idee zu FLOW')
 
 const topics = ref<Topic[]>([])
 const screens = ref<Screen[]>([])
@@ -86,6 +85,14 @@ const grouped = computed(() => {
 
 const listEmpty = computed(() => !loading.value && topTen.value.length === 0)
 
+const missingQuery = computed(() => query.value.trim())
+
+const mailto = computed(() => {
+  const q = missingQuery.value
+  const subject = q ? `Aufgabe nicht in der Hilfe: ${q}` : 'Aufgabe nicht in der Hilfe'
+  return 'mailto:flow@hands-on-technology.org?subject=' + encodeURIComponent(subject)
+})
+
 function onToggle(event: Event, id: number) {
   const details = event.currentTarget as HTMLDetailsElement
   const opened = ('newState' in event && (event as ToggleEvent).newState === 'open') || details.open
@@ -141,11 +148,17 @@ function escapeHtml(value: string): string {
 
     <h2 class="text-xl font-semibold mb-3">Typische Aufgaben</h2>
 
-    <div v-if="listEmpty">
-      <p class="text-[var(--color-text-muted)]">Keine Treffer.</p>
-      <p class="text-sm text-[var(--color-text-muted)] mt-2">
-        Fragen oder Ideen gerne per Mail an
-        <a :href="MAILTO" class="text-[var(--color-accent)] hover:underline">flow@hands-on-technology.org</a>
+    <div v-if="listEmpty" class="help-catalog__missing" role="status">
+      <p class="help-catalog__missing-text">
+        <template v-if="missingQuery">
+          Die Aufgabe „{{ missingQuery }}“ ist in der Hilfe noch nicht beschrieben.
+        </template>
+        <template v-else>
+          Diese Aufgabe ist in der Hilfe noch nicht beschrieben.
+        </template>
+        Schreib uns an
+        <a :href="mailto" class="help-catalog__missing-mail">flow@hands-on-technology.org</a>,
+        dann ergänzen wir sie.
       </p>
     </div>
 
@@ -176,3 +189,27 @@ function escapeHtml(value: string): string {
     </div>
   </div>
 </template>
+
+<style scoped>
+.help-catalog__missing {
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-lg, 0.75rem);
+  border: 1px solid var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 14%, #fff);
+}
+.help-catalog__missing-text {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--color-text);
+}
+.help-catalog__missing-mail {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+.help-catalog__missing-mail:hover {
+  text-decoration-thickness: 2px;
+}
+</style>

@@ -168,8 +168,8 @@ const articleActions = computed(() => article.value?.actions ?? [])
     <button
         type="button"
         class="screen-help-btn"
-        aria-label="Über diesen Screen"
-        title="Über diesen Screen"
+        aria-label="Hilfe zu dieser Seite"
+        title="Hilfe zu dieser Seite"
         @click="toggle"
     >
       <i class="bi bi-question-circle" aria-hidden="true"/>
