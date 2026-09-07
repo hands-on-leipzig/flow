@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
-import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import VolunteerRosterColumnsPanel from '@/components/molecules/VolunteerRosterColumnsPanel.vue'
+import PublicFormFieldsDialog from '@/components/molecules/PublicFormFieldsDialog.vue'
 import VolunteerMealOptionsPanel from '@/components/molecules/VolunteerMealOptionsPanel.vue'
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
@@ -68,9 +68,14 @@ const {
   setEnabled: setVolunteerDataEntryEnabled,
 } = usePublicVolunteerDataEntry(eventId)
 
+const formFieldsDialogOpen = ref(false)
+
 async function onVolunteerDataEntryToggle(next: boolean) {
   try {
-    await setVolunteerDataEntryEnabled(next)
+    const saved = await setVolunteerDataEntryEnabled(next)
+    if (saved && next) {
+      formFieldsDialogOpen.value = true
+    }
   } catch {
     // toast from composable
   }
@@ -337,10 +342,7 @@ onMounted(() => load())
           />
         </div>
         <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
-          Helfer:innen können auf dem öffentlichen Plan ihre Daten eingeben. Formular-Felder unter
-          <RouterLink to="/plan/publish" class="vol-roster-publish__link">
-            Ausgabe → Öffentliche Seite
-          </RouterLink>.
+          Helfer:innen können über die öffentliche Seite ihre eigenen Daten eingeben.
         </p>
       </section>
     </div>
@@ -438,6 +440,13 @@ onMounted(() => load())
         :event-id="eventId"
         @close="columnsPanelOpen = false"
         @changed="load"
+    />
+
+    <PublicFormFieldsDialog
+        :open="formFieldsDialogOpen"
+        :event-id="eventId"
+        kind="volunteer"
+        @close="formFieldsDialogOpen = false"
     />
 
     <VolunteerShirtPopover

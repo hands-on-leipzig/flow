@@ -225,11 +225,14 @@ watch(
   <CustomColumnsDialogShell
       :open="open"
       title-id="vol-columns-dialog-title"
-      hint="Name, Rolle und Foto bleiben. T-Shirt und Essen könnt ihr abwählen (dabei werden vorhandene Angaben geleert). Essen ist dieselbe Einstellung wie bei Teamdaten. Eigene Spalten gelten nur für diese Veranstaltung."
       :error="error"
       :loading="loading"
       @close="requestClose"
   >
+    <template #hint>
+      Name, Rolle und Fotoerlaubnis sind immer da.<br>
+      T-Shirt und Essen können abgewählt werden. Die Einstellung für Essen gilt auch für Teamdaten.
+    </template>
     <template #builtins>
       <li class="vol-columns-dialog__builtin">Fotoerlaubnis</li>
       <li class="vol-columns-dialog__builtin vol-columns-dialog__builtin--toggle">

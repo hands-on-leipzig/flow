@@ -196,11 +196,14 @@ watch(
   <CustomColumnsDialogShell
       :open="open"
       title-id="team-columns-dialog-title"
-      hint="Die ersten Spalten kommen aus der Anmeldung. Essen könnt ihr abwählen. Die Einstellung ist dieselbe wie für Helfer:innen. Eigene Spalten gelten nur für diese Veranstaltung."
       :error="error"
       :loading="loading"
       @close="requestClose"
   >
+    <template #hint>
+      Die ersten Spalten kommen aus der Anmeldung. Fotoerlaubnis ist immer da.<br>
+      Essen kann abgewählt werden. Die Einstellung gilt auch für die Helfer:innenliste.
+    </template>
     <template #builtins>
       <li class="vol-columns-dialog__builtin">Teamname</li>
       <li class="vol-columns-dialog__builtin">Nr</li>
