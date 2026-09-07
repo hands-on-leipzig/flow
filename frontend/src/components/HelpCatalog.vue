@@ -131,7 +131,7 @@ function escapeHtml(value: string): string {
         v-model="query"
         type="search"
         class="w-full px-3 py-2 mb-4 border border-[var(--color-border)] rounded-lg bg-white text-[var(--color-text)]"
-        placeholder="Suchen …"
+        placeholder="Suche über alle Bereiche von FLOW …"
     />
 
     <p class="mb-6">
@@ -171,9 +171,9 @@ function escapeHtml(value: string): string {
             class="glass-card liquid-surface-inner p-3 mb-2"
             @toggle="onToggle($event, action.id)"
         >
-          <summary class="cursor-pointer font-medium" v-html="highlight(action.title)"/>
-          <p class="whitespace-pre-wrap text-sm mt-3">{{ action.body }}</p>
-          <div class="mt-3">
+          <summary class="help-catalog__action-title" v-html="highlight(action.title)"/>
+          <p class="help-catalog__action-body">{{ action.body }}</p>
+          <div class="help-catalog__action-feedback">
             <HelpActionFeedback :action-id="action.id"/>
           </div>
           <div v-if="action.screens.length" class="help-catalog__pages">
@@ -214,6 +214,22 @@ function escapeHtml(value: string): string {
 }
 .help-catalog__missing-mail:hover {
   text-decoration-thickness: 2px;
+}
+.help-catalog__action-title {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.help-catalog__action-body {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.help-catalog__action-feedback {
+  margin-top: 0.5rem;
 }
 .help-catalog__pages {
   display: flex;
