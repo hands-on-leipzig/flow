@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
-import {useRoute} from 'vue-router'
+import {RouterLink, useRoute} from 'vue-router'
 import axios from 'axios'
 import HelpActionFeedback from '@/components/atoms/HelpActionFeedback.vue'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
@@ -162,6 +162,16 @@ const descriptionText = computed(() => article.value?.description?.trim() || 'No
 const mustDoText = computed(() => article.value?.must_do?.trim() || 'Alles automatisch')
 const canDoText = computed(() => article.value?.can_do?.trim() || 'Noch nicht beschrieben.')
 const articleActions = computed(() => article.value?.actions ?? [])
+
+function otherScreens(action: Action): ActionScreen[] {
+  const currentId = article.value?.id
+  const currentPath = (route.path || '').replace(/\/$/, '') || '/'
+  return (action.screens ?? []).filter((screen) => {
+    if (currentId != null && screen.id === currentId) return false
+    const path = (screen.route_path || '').replace(/\/$/, '') || '/'
+    return path !== currentPath
+  })
+}
 </script>
 
 <template>
@@ -276,6 +286,17 @@ const articleActions = computed(() => article.value?.actions ?? [])
               <div class="screen-help-panel__action-feedback">
                 <HelpActionFeedback :action-id="action.id"/>
               </div>
+              <div v-if="otherScreens(action).length" class="screen-help-panel__pages">
+                <RouterLink
+                    v-for="screen in otherScreens(action)"
+                    :key="screen.id"
+                    :to="screen.route_path"
+                    class="screen-help-panel__page"
+                >
+                  {{ screen.name }}
+                  <i class="bi bi-arrow-right" aria-hidden="true"/>
+                </RouterLink>
+              </div>
             </details>
           </section>
         </div>
@@ -376,6 +397,31 @@ const articleActions = computed(() => article.value?.actions ?? [])
 }
 .screen-help-panel__action-feedback {
   margin-top: 0.5rem;
+}
+.screen-help-panel__pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.65rem;
+  margin-top: 0.75rem;
+}
+.screen-help-panel__page {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0;
+  color: var(--color-accent);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-decoration: none;
+}
+.screen-help-panel__page:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+.screen-help-panel__page i {
+  font-size: 0.8em;
 }
 .screen-help-panel__input {
   display: block;
