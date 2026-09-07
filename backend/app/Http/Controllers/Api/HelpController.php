@@ -7,6 +7,7 @@ use App\Models\MHelpAction;
 use App\Models\MHelpScreen;
 use App\Models\MHelpTopic;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class HelpController extends Controller
 {
@@ -16,18 +17,18 @@ class HelpController extends Controller
         $screens = MHelpScreen::query()->orderBy('sort_order')->orderBy('id')->get();
         $actions = MHelpAction::query()
             ->with([
-                'steps' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
-                'screen',
                 'topic',
+                'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
             ])
-            ->orderBy('sort_order')
+            ->orderByDesc('open_count')
+            ->orderBy('title')
             ->orderBy('id')
             ->get();
 
         return response()->json([
             'topics' => $topics->map(fn (MHelpTopic $topic) => $this->topicPayload($topic))->values(),
             'screens' => $screens->map(fn (MHelpScreen $screen) => $this->screenPayload($screen))->values(),
-            'actions' => $actions->map(fn (MHelpAction $action) => $this->actionPayload($action))->values(),
+            'actions' => $actions->map(fn (MHelpAction $action) => $action->toApiPayload())->values(),
         ]);
     }
 
@@ -38,21 +39,41 @@ class HelpController extends Controller
             return response()->json(['error' => 'Not found'], 404);
         }
 
-        $actions = MHelpAction::query()
-            ->where('help_screen', $screen->id)
+        $actions = $screen->actions()
             ->with([
-                'steps' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
-                'screen',
                 'topic',
+                'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
             ])
-            ->orderBy('sort_order')
-            ->orderBy('id')
+            ->orderBy('m_help_action.title')
+            ->orderBy('m_help_action.id')
             ->get();
 
         return response()->json([
             ...$this->screenPayload($screen),
-            'actions' => $actions->map(fn (MHelpAction $action) => $this->actionPayload($action))->values(),
+            'actions' => $actions->map(fn (MHelpAction $action) => $action->toApiPayload())->values(),
         ]);
+    }
+
+    public function open(int $id): JsonResponse
+    {
+        $action = MHelpAction::query()->findOrFail($id);
+        $action->increment('open_count');
+        $action->refresh();
+
+        return response()->json($this->counterPayload($action));
+    }
+
+    public function feedback(Request $request, int $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'helpful' => 'required|boolean',
+        ]);
+
+        $action = MHelpAction::query()->findOrFail($id);
+        $action->increment($validated['helpful'] ? 'helpful_yes' : 'helpful_no');
+        $action->refresh();
+
+        return response()->json($this->counterPayload($action));
     }
 
     /**
@@ -86,36 +107,15 @@ class HelpController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, int>
      */
-    private function actionPayload(MHelpAction $action): array
+    private function counterPayload(MHelpAction $action): array
     {
-        $screen = $action->screen;
-        $topic = $action->topic;
-
         return [
             'id' => (int) $action->id,
-            'help_screen' => (int) $action->help_screen,
-            'help_topic' => (int) $action->help_topic,
-            'title' => $action->title,
-            'sort_order' => (int) $action->sort_order,
-            'screen' => $screen ? [
-                'key' => $screen->key,
-                'name' => $screen->name,
-                'route_path' => $screen->route_path,
-            ] : null,
-            'topic' => $topic ? [
-                'key' => $topic->key,
-                'name' => $topic->name,
-            ] : null,
-            'steps' => $action->steps
-                ->map(fn ($step) => [
-                    'id' => (int) $step->id,
-                    'help_action' => (int) $step->help_action,
-                    'body' => $step->body,
-                    'sort_order' => (int) $step->sort_order,
-                ])
-                ->values(),
+            'open_count' => (int) $action->open_count,
+            'helpful_yes' => (int) $action->helpful_yes,
+            'helpful_no' => (int) $action->helpful_no,
         ];
     }
 }

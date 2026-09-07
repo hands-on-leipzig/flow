@@ -185,7 +185,7 @@ export const SPECIAL_M_TABLE_EDITORS: Record<string, string> = {
   m_help_topic: 'help',
   m_help_screen: 'help',
   m_help_action: 'help',
-  m_help_action_step: 'help',
+  m_help_action_screen: 'help',
 }
 
 export function specialEditorForTable(table: string): AdminSection | undefined {

@@ -11155,7 +11155,7 @@
         }
     ],
     "m_help_action": [],
-    "m_help_action_step": [],
+    "m_help_action_screen": [],
     "m_help_screen": [
         {
             "id": 1,
@@ -11265,7 +11265,7 @@
             "m_supported_plan",
             "m_visibility",
             "m_help_action",
-            "m_help_action_step",
+            "m_help_action_screen",
             "m_help_screen",
             "m_help_topic"
         ],

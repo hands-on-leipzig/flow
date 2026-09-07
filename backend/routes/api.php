@@ -563,6 +563,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('help')->group(function () {
         Route::get('/catalog', [HelpController::class, 'catalog']);
         Route::get('/screens/{key}', [HelpController::class, 'show']);
+        Route::post('/actions/{id}/open', [HelpController::class, 'open']);
+        Route::post('/actions/{id}/feedback', [HelpController::class, 'feedback']);
     });
 
     Route::prefix('admin/help')->group(function () {
@@ -574,17 +576,18 @@ Route::middleware(['keycloak'])->group(function () {
 
         Route::get('/screens', [AdminHelpController::class, 'screens']);
         Route::put('/screens/{id}', [AdminHelpController::class, 'updateScreen']);
+        Route::post('/screens/{screenId}/actions', [AdminHelpController::class, 'assignAction']);
+        Route::delete('/screens/{screenId}/actions/{actionId}', [AdminHelpController::class, 'unassignAction']);
 
         Route::get('/actions', [AdminHelpController::class, 'actions']);
         Route::post('/actions', [AdminHelpController::class, 'storeAction']);
-        Route::post('/actions/reorder', [AdminHelpController::class, 'reorderActions']);
         Route::put('/actions/{id}', [AdminHelpController::class, 'updateAction']);
         Route::delete('/actions/{id}', [AdminHelpController::class, 'destroyAction']);
-        Route::post('/actions/{id}/steps', [AdminHelpController::class, 'storeStep']);
-        Route::post('/actions/{id}/steps/reorder', [AdminHelpController::class, 'reorderSteps']);
-
-        Route::put('/steps/{id}', [AdminHelpController::class, 'updateStep']);
-        Route::delete('/steps/{id}', [AdminHelpController::class, 'destroyStep']);
+        Route::post('/actions/reorder', fn () => abort(405));
+        Route::post('/actions/{id}/steps', fn () => abort(405));
+        Route::post('/actions/{id}/steps/reorder', fn () => abort(405));
+        Route::put('/steps/{id}', fn () => abort(405));
+        Route::delete('/steps/{id}', fn () => abort(405));
     });
 
     // Admin news routes (protected by api/admin path check in middleware)

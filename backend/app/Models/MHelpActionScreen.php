@@ -5,25 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class MHelpActionStep extends Model
+class MHelpActionScreen extends Model
 {
-    protected $table = 'm_help_action_step';
+    protected $table = 'm_help_action_screen';
+
+    public $incrementing = false;
 
     public $timestamps = false;
 
     protected $fillable = [
         'help_action',
-        'body',
-        'sort_order',
+        'help_screen',
     ];
 
     protected $casts = [
         'help_action' => 'integer',
-        'sort_order' => 'integer',
+        'help_screen' => 'integer',
     ];
 
     public function action(): BelongsTo
     {
         return $this->belongsTo(MHelpAction::class, 'help_action');
+    }
+
+    public function screen(): BelongsTo
+    {
+        return $this->belongsTo(MHelpScreen::class, 'help_screen');
     }
 }

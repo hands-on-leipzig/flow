@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import {computed, onMounted, ref, watch} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
+import draggable from 'vuedraggable'
 import {apiError} from '@/utils/apiError'
 import {showGlassToast} from '@/composables/useGlassToast'
 
@@ -17,64 +18,89 @@ type HelpScreen = {
   can_do: string | null
   sort_order: number
 }
-type HelpStep = {id: number; help_action: number; body: string; sort_order: number}
 type HelpAction = {
   id: number
-  help_screen: number
   help_topic: number
   title: string
+  body: string | null
+  open_count: number
+  helpful_yes: number
+  helpful_no: number
   sort_order: number
-  steps: HelpStep[]
+  help_screen_ids: number[]
+  screens: {id: number; key: string; name: string; route_path: string}[]
+  topic: {id: number; key: string; name: string} | null
 }
 
+type Tab = 'zuordnung' | 'seiten' | 'aktionen' | 'themen'
+
+const SOURCE_GROUP = {name: 'help-assign', pull: 'clone' as const, put: false}
+const DROP_GROUP = {name: 'help-assign', pull: false, put: true}
+
+const tab = ref<Tab>('zuordnung')
 const screens = ref<HelpScreen[]>([])
 const topics = ref<HelpTopic[]>([])
 const actions = ref<HelpAction[]>([])
-const selectedId = ref<number | null>(null)
 const loading = ref(false)
 const saving = ref(false)
+const selectedScreenId = ref<number | null>(null)
+const selectedActionId = ref<number | null>(null)
+const tapActionId = ref<number | null>(null)
+const isDragging = ref(false)
 const description = ref('')
 const mustDo = ref('')
 const canDo = ref('')
-const newActionTitle = ref('')
-const newActionTopic = ref<number | null>(null)
-const expandedActionId = ref<number | null>(null)
-const newStepBody = ref('')
+const actionTitle = ref('')
+const actionBody = ref('')
+const actionTopic = ref<number | null>(null)
 const newTopicKey = ref('')
 const newTopicName = ref('')
 
-const selected = computed(() => screens.value.find((s) => s.id === selectedId.value) ?? null)
-
-async function loadScreens() {
-  const {data} = await axios.get('/admin/help/screens')
-  screens.value = data
-  if (selectedId.value == null && screens.value.length) {
-    selectedId.value = screens.value[0].id
-  }
+function byTitleDe<T extends {title: string; id: number}>(a: T, b: T) {
+  const t = a.title.localeCompare(b.title, 'de')
+  return t !== 0 ? t : a.id - b.id
 }
 
-async function loadTopics() {
-  const {data} = await axios.get('/admin/help/topics')
-  topics.value = data
-  if (newActionTopic.value == null && topics.value.length) {
-    newActionTopic.value = topics.value[0].id
-  }
+const selectedScreen = computed(() => screens.value.find((s) => s.id === selectedScreenId.value) ?? null)
+const selectedAction = computed(() => actions.value.find((a) => a.id === selectedActionId.value) ?? null)
+
+function assignedTo(screenId: number): HelpAction[] {
+  return actions.value.filter((a) => a.help_screen_ids.includes(screenId)).slice().sort(byTitleDe)
 }
 
-async function loadActions() {
-  if (selectedId.value == null) {
-    actions.value = []
-    return
+function actionsForTopic(topicId: number): HelpAction[] {
+  return actions.value.filter((a) => a.help_topic === topicId).slice().sort(byTitleDe)
+}
+
+function upsertAction(data: HelpAction) {
+  const idx = actions.value.findIndex((a) => a.id === data.id)
+  if (idx >= 0) {
+    const copy = [...actions.value]
+    copy[idx] = data
+    actions.value = copy
+  } else {
+    actions.value = [...actions.value, data]
   }
-  const {data} = await axios.get('/admin/help/actions', {params: {screen_id: selectedId.value}})
-  actions.value = data
 }
 
 async function loadAll() {
   loading.value = true
   try {
-    await Promise.all([loadScreens(), loadTopics()])
-    await loadActions()
+    const [s, t, a] = await Promise.all([
+      axios.get('/admin/help/screens'),
+      axios.get('/admin/help/topics'),
+      axios.get('/admin/help/actions'),
+    ])
+    screens.value = s.data
+    topics.value = t.data
+    actions.value = a.data
+    if (selectedScreenId.value == null && screens.value.length) {
+      selectedScreenId.value = screens.value[0].id
+      fillScreenForm(screens.value[0])
+    }
+    if (selectedActionId.value == null && actions.value.length) {
+      selectAction(actions.value.slice().sort(byTitleDe)[0])
+    }
   } catch (e) {
     showGlassToast(apiError(e, 'Hilfe konnte nicht geladen werden'), 'error')
   } finally {
@@ -82,28 +108,74 @@ async function loadAll() {
   }
 }
 
-watch(selectedId, async (id) => {
-  const screen = screens.value.find((s) => s.id === id)
-  description.value = screen?.description ?? ''
-  mustDo.value = screen?.must_do ?? ''
-  canDo.value = screen?.can_do ?? ''
-  expandedActionId.value = null
-  newStepBody.value = ''
-  newActionTitle.value = ''
-  await loadActions()
-})
+function fillScreenForm(screen: HelpScreen) {
+  description.value = screen.description ?? ''
+  mustDo.value = screen.must_do ?? ''
+  canDo.value = screen.can_do ?? ''
+}
+
+function selectScreen(screen: HelpScreen) {
+  selectedScreenId.value = screen.id
+  fillScreenForm(screen)
+}
+
+function selectAction(action: HelpAction) {
+  selectedActionId.value = action.id
+  actionTitle.value = action.title
+  actionBody.value = action.body ?? ''
+  actionTopic.value = action.help_topic
+}
+
+async function assign(screenId: number, actionId: number) {
+  try {
+    const {data} = await axios.post(`/admin/help/screens/${screenId}/actions`, {help_action: actionId})
+    upsertAction(data)
+  } catch (e) {
+    showGlassToast(apiError(e, 'Zuordnung fehlgeschlagen'), 'error')
+  }
+}
+
+async function unassign(screenId: number, actionId: number) {
+  try {
+    await axios.delete(`/admin/help/screens/${screenId}/actions/${actionId}`)
+    const current = actions.value.find((a) => a.id === actionId)
+    if (current) {
+      upsertAction({
+        ...current,
+        help_screen_ids: current.help_screen_ids.filter((id) => id !== screenId),
+        screens: current.screens.filter((s) => s.id !== screenId),
+      })
+    }
+  } catch (e) {
+    showGlassToast(apiError(e, 'Zuordnung konnte nicht gelöst werden'), 'error')
+  }
+}
+
+function onDrop(screenId: number, event: {added?: {element: HelpAction}}) {
+  const action = event.added?.element
+  if (action) void assign(screenId, action.id)
+}
+
+function onTapScreen(screenId: number) {
+  if (tapActionId.value == null) return
+  void assign(screenId, tapActionId.value)
+}
 
 async function saveScreen() {
-  if (selectedId.value == null) return
+  if (selectedScreenId.value == null) return
   saving.value = true
   try {
-    const {data} = await axios.put(`/admin/help/screens/${selectedId.value}`, {
+    const {data} = await axios.put(`/admin/help/screens/${selectedScreenId.value}`, {
       description: description.value,
       must_do: mustDo.value,
       can_do: canDo.value,
     })
     const idx = screens.value.findIndex((s) => s.id === data.id)
-    if (idx >= 0) screens.value[idx] = data
+    if (idx >= 0) {
+      const copy = [...screens.value]
+      copy[idx] = data
+      screens.value = copy
+    }
     showGlassToast('Gespeichert', 'success')
   } catch (e) {
     showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
@@ -112,117 +184,60 @@ async function saveScreen() {
   }
 }
 
-async function addAction() {
-  if (selectedId.value == null || !newActionTitle.value.trim() || newActionTopic.value == null) {
-    showGlassToast('Titel und Thema sind nötig', 'info')
-    return
-  }
+async function saveAction() {
+  if (selectedActionId.value == null || actionTopic.value == null) return
+  saving.value = true
   try {
-    const {data} = await axios.post('/admin/help/actions', {
-      help_screen: selectedId.value,
-      help_topic: newActionTopic.value,
-      title: newActionTitle.value.trim(),
+    const {data} = await axios.put(`/admin/help/actions/${selectedActionId.value}`, {
+      title: actionTitle.value,
+      body: actionBody.value,
+      help_topic: actionTopic.value,
     })
-    actions.value = [...actions.value, data]
-    newActionTitle.value = ''
+    upsertAction(data)
     showGlassToast('Gespeichert', 'success')
   } catch (e) {
-    showGlassToast(apiError(e, 'Aktion konnte nicht angelegt werden'), 'error')
+    showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
+  } finally {
+    saving.value = false
   }
 }
 
-async function saveAction(action: HelpAction) {
+async function deleteAction() {
+  if (selectedActionId.value == null) return
+  if (!window.confirm('Löschen?')) return
   try {
-    const {data} = await axios.put(`/admin/help/actions/${action.id}`, {
-      title: action.title,
-      help_topic: action.help_topic,
-    })
-    const idx = actions.value.findIndex((a) => a.id === action.id)
-    if (idx >= 0) actions.value[idx] = {...data, steps: action.steps}
-    showGlassToast('Gespeichert', 'success')
-  } catch (e) {
-    showGlassToast(apiError(e, 'Aktion konnte nicht gespeichert werden'), 'error')
-  }
-}
-
-async function deleteAction(action: HelpAction) {
-  try {
-    await axios.delete(`/admin/help/actions/${action.id}`)
-    actions.value = actions.value.filter((a) => a.id !== action.id)
-    if (expandedActionId.value === action.id) expandedActionId.value = null
+    const id = selectedActionId.value
+    await axios.delete(`/admin/help/actions/${id}`)
+    actions.value = actions.value.filter((a) => a.id !== id)
+    selectedActionId.value = actions.value[0]?.id ?? null
+    if (selectedAction.value) selectAction(selectedAction.value)
+    else {
+      actionTitle.value = ''
+      actionBody.value = ''
+      actionTopic.value = topics.value[0]?.id ?? null
+    }
     showGlassToast('Gespeichert', 'success')
   } catch (e) {
     showGlassToast(apiError(e, 'Aktion konnte nicht gelöscht werden'), 'error')
   }
 }
 
-async function moveAction(index: number, direction: -1 | 1) {
-  const next = index + direction
-  if (next < 0 || next >= actions.value.length || selectedId.value == null) return
-  const ids = actions.value.map((a) => a.id)
-  const tmp = ids[index]
-  ids[index] = ids[next]
-  ids[next] = tmp
-  try {
-    await axios.post('/admin/help/actions/reorder', {help_screen: selectedId.value, ids})
-    const copy = [...actions.value]
-    const swapped = copy[index]
-    copy[index] = copy[next]
-    copy[next] = swapped
-    actions.value = copy
-  } catch (e) {
-    showGlassToast(apiError(e, 'Reihenfolge konnte nicht gespeichert werden'), 'error')
+async function addAction() {
+  const topicId = topics.value[0]?.id
+  if (topicId == null) {
+    showGlassToast('Thema ist nötig', 'info')
+    return
   }
-}
-
-async function addStep(action: HelpAction) {
-  if (!newStepBody.value.trim()) return
   try {
-    const {data} = await axios.post(`/admin/help/actions/${action.id}/steps`, {body: newStepBody.value.trim()})
-    action.steps = [...action.steps, data]
-    newStepBody.value = ''
+    const {data} = await axios.post('/admin/help/actions', {
+      help_topic: topicId,
+      title: 'Neue Aktion',
+    })
+    upsertAction(data)
+    selectAction(data)
     showGlassToast('Gespeichert', 'success')
   } catch (e) {
-    showGlassToast(apiError(e, 'Schritt konnte nicht angelegt werden'), 'error')
-  }
-}
-
-async function saveStep(step: HelpStep) {
-  try {
-    const {data} = await axios.put(`/admin/help/steps/${step.id}`, {body: step.body})
-    step.body = data.body
-    showGlassToast('Gespeichert', 'success')
-  } catch (e) {
-    showGlassToast(apiError(e, 'Schritt konnte nicht gespeichert werden'), 'error')
-  }
-}
-
-async function deleteStep(action: HelpAction, step: HelpStep) {
-  try {
-    await axios.delete(`/admin/help/steps/${step.id}`)
-    action.steps = action.steps.filter((s) => s.id !== step.id)
-    showGlassToast('Gespeichert', 'success')
-  } catch (e) {
-    showGlassToast(apiError(e, 'Schritt konnte nicht gelöscht werden'), 'error')
-  }
-}
-
-async function moveStep(action: HelpAction, index: number, direction: -1 | 1) {
-  const next = index + direction
-  if (next < 0 || next >= action.steps.length) return
-  const ids = action.steps.map((s) => s.id)
-  const tmp = ids[index]
-  ids[index] = ids[next]
-  ids[next] = tmp
-  try {
-    await axios.post(`/admin/help/actions/${action.id}/steps/reorder`, {ids})
-    const copy = [...action.steps]
-    const swapped = copy[index]
-    copy[index] = copy[next]
-    copy[next] = swapped
-    action.steps = copy
-  } catch (e) {
-    showGlassToast(apiError(e, 'Reihenfolge konnte nicht gespeichert werden'), 'error')
+    showGlassToast(apiError(e, 'Aktion konnte nicht angelegt werden'), 'error')
   }
 }
 
@@ -248,8 +263,12 @@ async function addTopic() {
 async function saveTopic(topic: HelpTopic) {
   try {
     const {data} = await axios.put(`/admin/help/topics/${topic.id}`, {name: topic.name, key: topic.key})
-    const idx = topics.value.findIndex((t) => t.id === topic.id)
-    if (idx >= 0) topics.value[idx] = data
+    const idx = topics.value.findIndex((t) => t.id === data.id)
+    if (idx >= 0) {
+      const copy = [...topics.value]
+      copy[idx] = data
+      topics.value = copy
+    }
     showGlassToast('Gespeichert', 'success')
   } catch (e) {
     showGlassToast(apiError(e, 'Thema konnte nicht gespeichert werden'), 'error')
@@ -291,34 +310,110 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="help-admin space-y-6">
+  <div class="help-admin space-y-4">
     <h2 class="text-xl font-bold">Hilfe</h2>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="button" class="glass-btn-secondary !px-3 !py-1.5" :class="{'help-admin__tab--on': tab === 'zuordnung'}" @click="tab = 'zuordnung'">Zuordnung</button>
+      <button type="button" class="glass-btn-secondary !px-3 !py-1.5" :class="{'help-admin__tab--on': tab === 'seiten'}" @click="tab = 'seiten'">Seiten</button>
+      <button type="button" class="glass-btn-secondary !px-3 !py-1.5" :class="{'help-admin__tab--on': tab === 'aktionen'}" @click="tab = 'aktionen'">Aktionen</button>
+      <button type="button" class="glass-btn-secondary !px-3 !py-1.5" :class="{'help-admin__tab--on': tab === 'themen'}" @click="tab = 'themen'">Themen</button>
+    </div>
 
     <p v-if="loading" class="text-[var(--color-text-subtle)]">Lade …</p>
 
-    <div v-else class="help-admin__split">
+    <div v-else-if="tab === 'zuordnung'" class="vol-staffing-body help-admin__assign">
+      <div class="vol-staffing-pane vol-staffing-pane--main space-y-3 overflow-auto p-2">
+        <div
+            v-for="screen in screens"
+            :key="screen.id"
+            class="glass-card liquid-surface-inner p-3"
+            @click="onTapScreen(screen.id)"
+        >
+          <p class="font-semibold">{{ screen.name }}</p>
+          <code class="help-admin__key">{{ screen.key }}</code>
+          <div
+              class="glass-dropzone mt-2"
+              :class="{'glass-dropzone--dragging': isDragging}"
+          >
+            <p v-if="!assignedTo(screen.id).length" class="glass-dropzone__empty text-sm">Noch nichts zugewiesen</p>
+            <draggable
+                class="hidden md:flex flex-wrap gap-2 glass-dropzone__list"
+                :list="assignedTo(screen.id)"
+                item-key="id"
+                :group="DROP_GROUP"
+                @start="isDragging = true"
+                @end="isDragging = false"
+                @change="onDrop(screen.id, $event)"
+            >
+              <template #item="{ element }">
+                <span class="help-admin__chip">
+                  {{ element.title }}
+                  <button type="button" class="help-admin__chip-x" aria-label="Entfernen" @click.stop="unassign(screen.id, element.id)">×</button>
+                </span>
+              </template>
+            </draggable>
+            <div class="md:hidden flex flex-wrap gap-2">
+              <span v-for="element in assignedTo(screen.id)" :key="element.id" class="help-admin__chip">
+                {{ element.title }}
+                <button type="button" class="help-admin__chip-x" aria-label="Entfernen" @click.stop="unassign(screen.id, element.id)">×</button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside class="vol-staffing-pane overflow-auto p-2 space-y-2">
+        <details v-for="topic in topics" :key="topic.id" open class="glass-card liquid-surface-inner p-2">
+          <summary class="cursor-pointer font-medium">{{ topic.name }}</summary>
+          <draggable
+              class="hidden md:flex flex-wrap gap-2 mt-2"
+              :list="actionsForTopic(topic.id)"
+              item-key="id"
+              :group="SOURCE_GROUP"
+              :sort="false"
+              @start="isDragging = true"
+              @end="isDragging = false"
+          >
+            <template #item="{ element }">
+              <span class="help-admin__chip help-admin__chip--source">{{ element.title }}</span>
+            </template>
+          </draggable>
+          <div class="md:hidden flex flex-wrap gap-2 mt-2">
+            <button
+                v-for="element in actionsForTopic(topic.id)"
+                :key="element.id"
+                type="button"
+                class="help-admin__chip help-admin__chip--source"
+                :class="{'help-admin__chip--selected': tapActionId === element.id}"
+                @click="tapActionId = element.id"
+            >
+              {{ element.title }}
+            </button>
+          </div>
+        </details>
+      </aside>
+    </div>
+
+    <div v-else-if="tab === 'seiten'" class="help-admin__split">
       <aside class="glass-card liquid-surface-inner !p-2">
         <button
-          v-for="screen in screens"
-          :key="screen.id"
-          type="button"
-          class="help-admin__nav"
-          :class="{'help-admin__nav--active': screen.id === selectedId}"
-          @click="selectedId = screen.id"
+            v-for="screen in screens"
+            :key="screen.id"
+            type="button"
+            class="help-admin__nav"
+            :class="{'help-admin__nav--active': screen.id === selectedScreenId}"
+            @click="selectScreen(screen)"
         >
           <span>{{ screen.name }}</span>
           <code class="help-admin__key">{{ screen.key }}</code>
         </button>
       </aside>
-
-      <section v-if="selected" class="glass-card liquid-surface-inner p-4 space-y-4 min-w-0">
-        <div>
-          <p class="text-sm text-[var(--color-text-muted)]">
-            {{ selected.name }}
-            <code class="help-admin__key">{{ selected.key }}</code>
-            · {{ selected.route_path }}
-          </p>
-        </div>
+      <section v-if="selectedScreen" class="glass-card liquid-surface-inner p-4 space-y-4 min-w-0">
+        <p class="text-sm text-[var(--color-text-muted)]">
+          {{ selectedScreen.name }}
+          <code class="help-admin__key">{{ selectedScreen.key }}</code>
+          · {{ selectedScreen.route_path }}
+        </p>
         <label class="block text-sm font-medium">
           Beschreibung
           <textarea v-model="description" rows="4" class="help-admin__input mt-1"/>
@@ -331,57 +426,53 @@ onMounted(() => {
           Kann ich tun
           <textarea v-model="canDo" rows="3" class="help-admin__input mt-1"/>
         </label>
-        <button type="button" class="glass-btn-accent !px-4 !py-2" :disabled="saving" @click="saveScreen">
-          Speichern
-        </button>
+        <button type="button" class="glass-btn-accent !px-4 !py-2" :disabled="saving" @click="saveScreen">Speichern</button>
+      </section>
+    </div>
 
-        <h3 class="text-lg font-semibold pt-2">Aktionen</h3>
-        <div class="flex flex-wrap gap-2 items-end">
-          <label class="text-sm flex-1 min-w-[12rem]">
-            Titel
-            <input v-model="newActionTitle" class="help-admin__input mt-1" maxlength="255"/>
-          </label>
-          <label class="text-sm">
-            Thema
-            <select v-model.number="newActionTopic" class="help-admin__input mt-1">
-              <option v-for="topic in topics" :key="topic.id" :value="topic.id">{{ topic.name }}</option>
-            </select>
-          </label>
-          <button type="button" class="glass-btn-secondary !px-3 !py-2" @click="addAction">Hinzufügen</button>
-        </div>
-
-        <div v-for="(action, index) in actions" :key="action.id" class="help-admin__action">
-          <div class="flex flex-wrap gap-2 items-center">
-            <input v-model="action.title" class="help-admin__input flex-1 min-w-[10rem]" maxlength="255"/>
-            <select v-model.number="action.help_topic" class="help-admin__input">
-              <option v-for="topic in topics" :key="topic.id" :value="topic.id">{{ topic.name }}</option>
-            </select>
-            <button type="button" class="glass-btn-secondary !px-2 !py-1" :disabled="index === 0" @click="moveAction(index, -1)">↑</button>
-            <button type="button" class="glass-btn-secondary !px-2 !py-1" :disabled="index === actions.length - 1" @click="moveAction(index, 1)">↓</button>
-            <button type="button" class="glass-btn-accent !px-3 !py-1" @click="saveAction(action)">Speichern</button>
-            <button type="button" class="glass-btn-secondary !px-3 !py-1" @click="deleteAction(action)">Löschen</button>
-            <button type="button" class="glass-btn-secondary !px-3 !py-1" @click="expandedActionId = expandedActionId === action.id ? null : action.id">
-              Schritte
-            </button>
-          </div>
-          <div v-if="expandedActionId === action.id" class="mt-3 space-y-2 pl-2 border-l border-[var(--color-border)]">
-            <div v-for="(step, stepIndex) in action.steps" :key="step.id" class="flex gap-2 items-start">
-              <textarea v-model="step.body" rows="2" class="help-admin__input flex-1"/>
-              <button type="button" class="glass-btn-secondary !px-2 !py-1" :disabled="stepIndex === 0" @click="moveStep(action, stepIndex, -1)">↑</button>
-              <button type="button" class="glass-btn-secondary !px-2 !py-1" :disabled="stepIndex === action.steps.length - 1" @click="moveStep(action, stepIndex, 1)">↓</button>
-              <button type="button" class="glass-btn-accent !px-2 !py-1" @click="saveStep(step)">Speichern</button>
-              <button type="button" class="glass-btn-secondary !px-2 !py-1" @click="deleteStep(action, step)">Löschen</button>
-            </div>
-            <div class="flex gap-2">
-              <input v-model="newStepBody" class="help-admin__input flex-1" placeholder="Neuer Schritt"/>
-              <button type="button" class="glass-btn-secondary !px-3 !py-1" @click="addStep(action)">Hinzufügen</button>
-            </div>
-          </div>
+    <div v-else-if="tab === 'aktionen'" class="help-admin__split">
+      <aside class="glass-card liquid-surface-inner !p-2">
+        <button type="button" class="glass-btn-secondary !px-3 !py-1.5 mb-2" @click="addAction">Hinzufügen</button>
+        <template v-for="topic in topics" :key="topic.id">
+          <p class="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)] mt-2 mb-1">{{ topic.name }}</p>
+          <button
+              v-for="action in actionsForTopic(topic.id)"
+              :key="action.id"
+              type="button"
+              class="help-admin__nav"
+              :class="{'help-admin__nav--active': action.id === selectedActionId}"
+              @click="selectAction(action)"
+          >
+            {{ action.title }}
+          </button>
+        </template>
+      </aside>
+      <section v-if="selectedAction" class="glass-card liquid-surface-inner p-4 space-y-4 min-w-0">
+        <label class="block text-sm font-medium">
+          Titel
+          <input v-model="actionTitle" class="help-admin__input mt-1" maxlength="255"/>
+        </label>
+        <label class="block text-sm font-medium">
+          Text
+          <textarea v-model="actionBody" rows="6" class="help-admin__input mt-1"/>
+        </label>
+        <label class="block text-sm font-medium">
+          Thema
+          <select v-model.number="actionTopic" class="help-admin__input mt-1">
+            <option v-for="topic in topics" :key="topic.id" :value="topic.id">{{ topic.name }}</option>
+          </select>
+        </label>
+        <p class="text-sm">Öffnungen: {{ selectedAction.open_count }}</p>
+        <p class="text-sm">Ja: {{ selectedAction.helpful_yes }}</p>
+        <p class="text-sm">Nein: {{ selectedAction.helpful_no }}</p>
+        <div class="flex gap-2">
+          <button type="button" class="glass-btn-accent !px-4 !py-2" :disabled="saving" @click="saveAction">Speichern</button>
+          <button type="button" class="glass-btn-secondary !px-4 !py-2" @click="deleteAction">Löschen</button>
         </div>
       </section>
     </div>
 
-    <section class="glass-card liquid-surface-inner p-4 space-y-3">
+    <section v-else-if="tab === 'themen'" class="glass-card liquid-surface-inner p-4 space-y-3">
       <h3 class="text-lg font-semibold">Themen</h3>
       <div class="flex flex-wrap gap-2 items-end">
         <label class="text-sm">
@@ -407,6 +498,15 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.help-admin__tab--on {
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+  color: var(--color-accent);
+}
+.help-admin__assign {
+  min-height: 24rem;
+  display: flex;
+  gap: 0.75rem;
+}
 .help-admin__split {
   display: grid;
   grid-template-columns: minmax(14rem, 18rem) minmax(0, 1fr);
@@ -439,13 +539,35 @@ onMounted(() => {
   background: #fff;
   color: var(--color-text);
 }
-.help-admin__action {
-  padding: 0.75rem 0;
-  border-top: 1px solid var(--color-border);
+.help-admin__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: #fff;
+  font-size: 0.8rem;
+}
+.help-admin__chip--source {
+  cursor: grab;
+}
+.help-admin__chip--selected {
+  outline: 2px solid var(--color-accent);
+}
+.help-admin__chip-x {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
 }
 @media (max-width: 800px) {
   .help-admin__split {
     grid-template-columns: 1fr;
+  }
+  .help-admin__assign {
+    flex-direction: column;
   }
 }
 </style>

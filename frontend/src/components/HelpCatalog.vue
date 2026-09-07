@@ -2,21 +2,23 @@
 import {computed, onMounted, ref} from 'vue'
 import {RouterLink} from 'vue-router'
 import axios from 'axios'
+import HelpActionFeedback from '@/components/atoms/HelpActionFeedback.vue'
 
 defineOptions({name: 'HelpCatalog'})
 
 type Topic = {id: number; key: string; name: string; sort_order: number}
 type Screen = {id: number; key: string; name: string; route_path: string; description: string | null}
-type Step = {id: number; body: string; sort_order: number}
+type ActionScreen = {id: number; key: string; name: string; route_path: string}
 type Action = {
   id: number
   title: string
+  body: string | null
   sort_order: number
   help_topic: number
-  help_screen: number
-  steps: Step[]
-  screen: {key: string; name: string; route_path: string} | null
-  topic: {key: string; name: string} | null
+  open_count: number
+  help_screen_ids: number[]
+  screens: ActionScreen[]
+  topic: {id: number; key: string; name: string} | null
 }
 
 const VIDEO_URL = 'https://handsontechnology-my.sharepoint.com/:v:/g/personal/jr_hands-on-technology_org/EYLes-Kq4GlDuBpUaxolgn4B4naGZakiVMW7Dq0xgWmskA?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=T5yiJJ'
@@ -39,54 +41,57 @@ onMounted(async () => {
   }
 })
 
-function screenFor(action: Action): Screen | undefined {
-  return screens.value.find((s) => s.id === action.help_screen)
+function byCountThenTitle(a: Action, b: Action) {
+  if (a.open_count !== b.open_count) return b.open_count - a.open_count
+  const title = a.title.localeCompare(b.title, 'de')
+  return title !== 0 ? title : a.id - b.id
 }
 
-function actionMatches(action: Action, q: string): 'title' | 'other' | null {
+function actionMatches(action: Action, q: string): boolean {
   const needle = q.toLowerCase()
-  if ((action.title || '').toLowerCase().includes(needle)) return 'title'
-  const screen = screenFor(action)
-  const other = [
-    ...(action.steps ?? []).map((s) => s.body || ''),
-    action.screen?.name || screen?.name || '',
-    screen?.description || '',
-    action.topic?.name || '',
-  ].join(' ').toLowerCase()
-  if (other.includes(needle)) return 'other'
-  return null
+  if ((action.title || '').toLowerCase().includes(needle)) return true
+  if ((action.body || '').toLowerCase().includes(needle)) return true
+  if ((action.topic?.name || '').toLowerCase().includes(needle)) return true
+  for (const sid of action.help_screen_ids ?? []) {
+    const screen = screens.value.find((s) => s.id === sid)
+    if ((screen?.name || '').toLowerCase().includes(needle)) return true
+    if ((screen?.description || '').toLowerCase().includes(needle)) return true
+    const linked = action.screens?.find((s) => s.id === sid)
+    if ((linked?.name || '').toLowerCase().includes(needle)) return true
+  }
+  return false
 }
 
-const ranked = computed(() => {
+const topTen = computed(() => {
   const q = query.value.trim().toLowerCase()
-  if (!q) {
-    return actions.value.slice().sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
-  }
-  const titleHits: Action[] = []
-  const otherHits: Action[] = []
-  for (const action of actions.value) {
-    const kind = actionMatches(action, q)
-    if (kind === 'title') titleHits.push(action)
-    else if (kind === 'other') otherHits.push(action)
-  }
-  const byOrder = (a: Action, b: Action) => a.sort_order - b.sort_order || a.id - b.id
-  return [...titleHits.sort(byOrder), ...otherHits.sort(byOrder)]
+  const candidates = q
+    ? actions.value.filter((action) => actionMatches(action, q))
+    : actions.value.slice()
+  return candidates.sort(byCountThenTitle).slice(0, 10)
 })
 
 const grouped = computed(() => {
   const byTopic = new Map<number, Action[]>()
-  for (const action of ranked.value) {
+  for (const action of topTen.value) {
     const list = byTopic.get(action.help_topic) ?? []
     list.push(action)
     byTopic.set(action.help_topic, list)
   }
   return topics.value
+    .slice()
+    .sort((a, b) => a.sort_order - b.sort_order || a.id - b.id)
     .map((topic) => ({topic, actions: byTopic.get(topic.id) ?? []}))
     .filter((group) => group.actions.length > 0)
 })
 
-const noActionsAtAll = computed(() => !loading.value && actions.value.length === 0)
-const noHits = computed(() => !loading.value && actions.value.length > 0 && query.value.trim() !== '' && ranked.value.length === 0)
+const listEmpty = computed(() => !loading.value && topTen.value.length === 0)
+
+function onToggle(event: Event, id: number) {
+  const details = event.currentTarget as HTMLDetailsElement
+  const opened = ('newState' in event && (event as ToggleEvent).newState === 'open') || details.open
+  if (!opened) return
+  axios.post(`/help/actions/${id}/open`).catch((e) => console.warn(e))
+}
 
 function highlight(text: string): string {
   const q = query.value.trim()
@@ -136,8 +141,7 @@ function escapeHtml(value: string): string {
 
     <h2 class="text-xl font-semibold mb-3">Typische Aufgaben</h2>
 
-    <p v-if="noActionsAtAll" class="text-[var(--color-text-muted)]">Noch keine Einträge.</p>
-    <div v-else-if="noHits">
+    <div v-if="listEmpty">
       <p class="text-[var(--color-text-muted)]">Keine Treffer.</p>
       <p class="text-sm text-[var(--color-text-muted)] mt-2">
         Fragen oder Ideen gerne per Mail an
@@ -148,19 +152,25 @@ function escapeHtml(value: string): string {
     <div v-else class="space-y-6">
       <section v-for="group in grouped" :key="group.topic.id">
         <h3 class="text-lg font-semibold mb-2">{{ group.topic.name }}</h3>
-        <details v-for="action in group.actions" :key="action.id" class="glass-card liquid-surface-inner p-3 mb-2">
+        <details
+            v-for="action in group.actions"
+            :key="action.id"
+            class="glass-card liquid-surface-inner p-3 mb-2"
+            @toggle="onToggle($event, action.id)"
+        >
           <summary class="cursor-pointer font-medium" v-html="highlight(action.title)"/>
-          <ol class="list-decimal ml-5 mt-3 space-y-1 text-sm">
-            <li v-for="step in action.steps" :key="step.id">{{ step.body }}</li>
-          </ol>
-          <p v-if="action.screen" class="mt-3 text-sm text-[var(--color-text-muted)]">{{ action.screen.name }}</p>
-          <RouterLink
-              v-if="action.screen"
-              :to="action.screen.route_path"
-              class="inline-block mt-2 glass-btn-accent !px-3 !py-1.5 !text-sm"
-          >
-            Zur Seite
-          </RouterLink>
+          <p class="whitespace-pre-wrap text-sm mt-3">{{ action.body }}</p>
+          <div class="mt-3">
+            <HelpActionFeedback :action-id="action.id"/>
+          </div>
+          <p v-for="screen in action.screens" :key="screen.id" class="mt-3">
+            <RouterLink
+                :to="screen.route_path"
+                class="inline-block glass-btn-accent !px-3 !py-1.5 !text-sm"
+            >
+              Zur Seite
+            </RouterLink>
+          </p>
         </details>
       </section>
     </div>

@@ -2,12 +2,22 @@
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import axios from 'axios'
+import HelpActionFeedback from '@/components/atoms/HelpActionFeedback.vue'
+import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
+import {apiError} from '@/utils/apiError'
+import {showGlassToast} from '@/composables/useGlassToast'
 
 defineOptions({name: 'ScreenHelpButton'})
 
-type Step = {id: number; body: string; sort_order: number}
-type Action = {id: number; title: string; sort_order: number; steps: Step[]}
+type ActionScreen = {id: number; key: string; name: string; route_path: string}
+type Action = {
+  id: number
+  title: string
+  body: string | null
+  screens: ActionScreen[]
+}
 type ScreenArticle = {
+  id: number
   key: string
   name: string
   description: string | null
@@ -25,14 +35,26 @@ const ROUTE_KEYS: Record<string, string> = {
 }
 
 const route = useRoute()
+const {showAdminInline} = useAdminInlineVisibility()
 const open = ref(false)
 const article = ref<ScreenArticle | null>(null)
 const available = ref(false)
+const saving = ref(false)
+const description = ref('')
+const mustDo = ref('')
+const canDo = ref('')
 
 const screenKey = computed(() => {
   const path = (route.path || '').replace(/\/$/, '') || '/'
   return ROUTE_KEYS[path] ?? null
 })
+
+function applyArticle(data: ScreenArticle) {
+  article.value = data
+  description.value = data.description ?? ''
+  mustDo.value = data.must_do ?? ''
+  canDo.value = data.can_do ?? ''
+}
 
 async function load() {
   const key = screenKey.value
@@ -43,7 +65,7 @@ async function load() {
   }
   try {
     const {data} = await axios.get(`/help/screens/${key}`)
-    article.value = data
+    applyArticle(data)
     available.value = true
   } catch {
     article.value = null
@@ -65,6 +87,31 @@ async function toggle() {
 
 function onKey(event: KeyboardEvent) {
   if (event.key === 'Escape') open.value = false
+}
+
+function onActionToggle(event: Event, id: number) {
+  const details = event.currentTarget as HTMLDetailsElement
+  const opened = ('newState' in event && (event as ToggleEvent).newState === 'open') || details.open
+  if (!opened) return
+  axios.post(`/help/actions/${id}/open`).catch((e) => console.warn(e))
+}
+
+async function saveScreen() {
+  if (!article.value) return
+  saving.value = true
+  try {
+    const {data} = await axios.put(`/admin/help/screens/${article.value.id}`, {
+      description: description.value,
+      must_do: mustDo.value,
+      can_do: canDo.value,
+    })
+    applyArticle({...article.value, ...data, actions: article.value.actions})
+    showGlassToast('Gespeichert', 'success')
+  } catch (e) {
+    showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
+  } finally {
+    saving.value = false
+  }
 }
 
 watch(screenKey, () => {
@@ -114,22 +161,40 @@ const articleActions = computed(() => article.value?.actions ?? [])
         <div class="screen-help-panel__body">
           <section>
             <h3 class="text-sm font-semibold">Beschreibung</h3>
-            <p class="whitespace-pre-wrap text-sm">{{ descriptionText }}</p>
+            <textarea v-if="showAdminInline" v-model="description" rows="4" class="screen-help-panel__input mt-1"/>
+            <p v-else class="whitespace-pre-wrap text-sm">{{ descriptionText }}</p>
           </section>
           <section>
             <h3 class="text-sm font-semibold">Muss ich tun</h3>
-            <p class="whitespace-pre-wrap text-sm">{{ mustDoText }}</p>
+            <textarea v-if="showAdminInline" v-model="mustDo" rows="3" class="screen-help-panel__input mt-1"/>
+            <p v-else class="whitespace-pre-wrap text-sm">{{ mustDoText }}</p>
           </section>
           <section>
             <h3 class="text-sm font-semibold">Kann ich tun</h3>
-            <p class="whitespace-pre-wrap text-sm">{{ canDoText }}</p>
+            <textarea v-if="showAdminInline" v-model="canDo" rows="3" class="screen-help-panel__input mt-1"/>
+            <p v-else class="whitespace-pre-wrap text-sm">{{ canDoText }}</p>
           </section>
+          <button
+              v-if="showAdminInline"
+              type="button"
+              class="glass-btn-accent !px-4 !py-2"
+              :disabled="saving"
+              @click="saveScreen"
+          >
+            Speichern
+          </button>
           <section v-if="articleActions.length" class="space-y-2">
-            <details v-for="action in articleActions" :key="action.id" class="screen-help-panel__action">
+            <details
+                v-for="action in articleActions"
+                :key="action.id"
+                class="screen-help-panel__action"
+                @toggle="onActionToggle($event, action.id)"
+            >
               <summary class="cursor-pointer font-medium text-sm">{{ action.title }}</summary>
-              <ol class="list-decimal ml-5 mt-2 space-y-1 text-sm">
-                <li v-for="step in action.steps" :key="step.id">{{ step.body }}</li>
-              </ol>
+              <p class="whitespace-pre-wrap text-sm mt-2">{{ action.body }}</p>
+              <div class="mt-2">
+                <HelpActionFeedback :action-id="action.id"/>
+              </div>
             </details>
           </section>
         </div>
@@ -182,5 +247,14 @@ const articleActions = computed(() => article.value?.actions ?? [])
 .screen-help-panel__action {
   border-top: 1px solid var(--color-border);
   padding-top: 0.5rem;
+}
+.screen-help-panel__input {
+  display: block;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: #fff;
+  color: var(--color-text);
 }
 </style>

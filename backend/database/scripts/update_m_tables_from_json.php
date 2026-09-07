@@ -295,6 +295,10 @@ function updateMTable(string $table, array $jsonRecords): array {
         
         // Filter to only include columns that exist in table
         $filteredRecord = array_intersect_key($jsonRecord, array_flip($tableColumns));
+
+        if ($table === 'm_help_action') {
+            unset($filteredRecord['open_count'], $filteredRecord['helpful_yes'], $filteredRecord['helpful_no']);
+        }
         
         if (isset($dbRecords[$id])) {
             // Update existing record

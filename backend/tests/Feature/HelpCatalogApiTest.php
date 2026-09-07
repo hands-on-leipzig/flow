@@ -4,8 +4,6 @@ namespace Tests\Feature;
 
 use App\Http\Middleware\KeycloakJwtMiddleware;
 use App\Models\MHelpAction;
-use App\Models\MHelpActionStep;
-use App\Models\MHelpScreen;
 use App\Models\MHelpTopic;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -96,60 +94,53 @@ class HelpCatalogApiTest extends TestCase
         ])->assertStatus(422);
     }
 
-    public function test_admin_can_create_action_step_and_reorder(): void
+    public function test_admin_creates_action_assigns_and_counts(): void
     {
         $create = $this->postJson('/api/admin/help/actions', [
-            'help_screen' => 1,
             'help_topic' => 2,
-            'title' => 'Wie kann ich veröffentlichen?',
+            'title' => 'X',
         ]);
         $create->assertCreated();
         $actionId = (int) $create->json('id');
-        $this->assertSame(2, (int) $create->json('help_topic'));
-        $this->assertSame('ausgabe', $create->json('topic.key'));
-        $this->assertSame('publish-distribution', $create->json('screen.key'));
+        $this->assertSame([], $create->json('help_screen_ids'));
+        $this->assertNull($create->json('body'));
+        $this->assertSame(0, (int) $create->json('open_count'));
+        $this->assertSame(0, (int) $create->json('helpful_yes'));
+        $this->assertSame(0, (int) $create->json('helpful_no'));
+        $this->assertArrayNotHasKey('steps', $create->json());
 
-        $stepA = $this->postJson("/api/admin/help/actions/{$actionId}/steps", ['body' => 'First']);
-        $stepB = $this->postJson("/api/admin/help/actions/{$actionId}/steps", ['body' => 'Second']);
-        $stepA->assertCreated();
-        $stepB->assertCreated();
-        $idA = (int) $stepA->json('id');
-        $idB = (int) $stepB->json('id');
+        $this->postJson('/api/admin/help/screens/1/actions', [
+            'help_action' => $actionId,
+        ])->assertCreated();
 
-        $this->postJson("/api/admin/help/actions/{$actionId}/steps/reorder", [
-            'ids' => [$idB, $idA],
-        ])->assertOk();
+        $show = $this->getJson('/api/help/screens/publish-distribution');
+        $show->assertOk();
+        $this->assertCount(1, $show->json('actions'));
+        $this->assertSame($actionId, (int) $show->json('actions.0.id'));
+        $this->assertArrayHasKey('body', $show->json('actions.0'));
+        $this->assertArrayNotHasKey('steps', $show->json('actions.0'));
 
-        $this->assertSame(1, (int) MHelpActionStep::query()->findOrFail($idB)->sort_order);
-        $this->assertSame(2, (int) MHelpActionStep::query()->findOrFail($idA)->sort_order);
+        $this->postJson("/api/help/actions/{$actionId}/open")->assertOk();
+        $open = $this->postJson("/api/help/actions/{$actionId}/open");
+        $open->assertOk()->assertJsonPath('open_count', 2);
 
-        $second = $this->postJson('/api/admin/help/actions', [
-            'help_screen' => 1,
-            'help_topic' => 2,
-            'title' => 'Wie kann ich Logos setzen?',
-        ]);
-        $second->assertCreated();
-        $id2 = (int) $second->json('id');
+        $this->postJson("/api/help/actions/{$actionId}/feedback", ['helpful' => true])->assertOk();
+        $feedback = $this->postJson("/api/help/actions/{$actionId}/feedback", ['helpful' => false]);
+        $feedback->assertOk()
+            ->assertJsonPath('helpful_yes', 1)
+            ->assertJsonPath('helpful_no', 1);
 
-        $this->postJson('/api/admin/help/actions/reorder', [
-            'help_screen' => 1,
-            'ids' => [$id2, $actionId],
-        ])->assertOk();
+        $this->postJson("/api/admin/help/actions/{$actionId}/steps", ['body' => 'First'])
+            ->assertStatus(405);
 
-        $this->assertSame(1, (int) MHelpAction::query()->findOrFail($id2)->sort_order);
-        $this->assertSame(2, (int) MHelpAction::query()->findOrFail($actionId)->sort_order);
-
-        $catalog = $this->getJson('/api/help/catalog');
-        $catalog->assertOk();
-        $this->assertCount(2, $catalog->json('actions'));
-        $this->assertSame($id2, (int) $catalog->json('actions.0.id'));
-        $this->assertSame(['Second', 'First'], array_column($catalog->json('actions.1.steps'), 'body'));
+        $this->putJson("/api/admin/help/actions/{$actionId}", [
+            'open_count' => 99,
+        ])->assertStatus(422);
     }
 
     public function test_cannot_delete_topic_that_still_has_actions(): void
     {
         MHelpAction::query()->create([
-            'help_screen' => 1,
             'help_topic' => 2,
             'title' => 'Keep me',
             'sort_order' => 1,
@@ -164,6 +155,7 @@ class HelpCatalogApiTest extends TestCase
 
     private function createSchema(): void
     {
+        Schema::dropIfExists('m_help_action_screen');
         Schema::dropIfExists('m_help_action_step');
         Schema::dropIfExists('m_help_action');
         Schema::dropIfExists('m_help_screen');
@@ -189,20 +181,22 @@ class HelpCatalogApiTest extends TestCase
 
         Schema::create('m_help_action', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
-            $table->unsignedInteger('help_screen');
             $table->unsignedInteger('help_topic');
             $table->string('title', 255);
+            $table->text('body')->nullable();
+            $table->unsignedInteger('open_count')->default(0);
+            $table->unsignedInteger('helpful_yes')->default(0);
+            $table->unsignedInteger('helpful_no')->default(0);
             $table->unsignedInteger('sort_order');
-            $table->foreign('help_screen')->references('id')->on('m_help_screen')->restrictOnDelete();
             $table->foreign('help_topic')->references('id')->on('m_help_topic')->restrictOnDelete();
         });
 
-        Schema::create('m_help_action_step', function (Blueprint $table) {
-            $table->unsignedInteger('id')->autoIncrement();
+        Schema::create('m_help_action_screen', function (Blueprint $table) {
             $table->unsignedInteger('help_action');
-            $table->text('body');
-            $table->unsignedInteger('sort_order');
+            $table->unsignedInteger('help_screen');
+            $table->unique(['help_action', 'help_screen']);
             $table->foreign('help_action')->references('id')->on('m_help_action')->cascadeOnDelete();
+            $table->foreign('help_screen')->references('id')->on('m_help_screen')->restrictOnDelete();
         });
     }
 

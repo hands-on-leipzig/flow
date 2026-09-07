@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class MHelpScreen extends Model
 {
@@ -25,8 +25,8 @@ class MHelpScreen extends Model
         'sort_order' => 'integer',
     ];
 
-    public function actions(): HasMany
+    public function actions(): BelongsToMany
     {
-        return $this->hasMany(MHelpAction::class, 'help_screen');
+        return $this->belongsToMany(MHelpAction::class, 'm_help_action_screen', 'help_screen', 'help_action');
     }
 }

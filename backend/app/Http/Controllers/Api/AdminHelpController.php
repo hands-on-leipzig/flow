@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MHelpAction;
-use App\Models\MHelpActionStep;
 use App\Models\MHelpScreen;
 use App\Models\MHelpTopic;
 use Illuminate\Database\QueryException;
@@ -122,70 +121,74 @@ class AdminHelpController extends Controller
         return response()->json($this->screenPayload($screen->fresh()));
     }
 
-    public function actions(Request $request): JsonResponse
+    public function actions(): JsonResponse
     {
-        $validated = $request->validate([
-            'screen_id' => 'required|integer|exists:m_help_screen,id',
-        ]);
-
         $actions = MHelpAction::query()
-            ->where('help_screen', $validated['screen_id'])
             ->with([
-                'steps' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
-                'screen',
                 'topic',
+                'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
             ])
-            ->orderBy('sort_order')
+            ->orderBy('title')
             ->orderBy('id')
             ->get();
 
-        return response()->json($actions->map(fn (MHelpAction $action) => $this->actionPayload($action))->values());
+        return response()->json($actions->map(fn (MHelpAction $action) => $action->toApiPayload())->values());
     }
 
     public function storeAction(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'help_screen' => 'required|integer|exists:m_help_screen,id',
             'help_topic' => 'required|integer|exists:m_help_topic,id',
             'title' => 'required|string|max:255',
-            'sort_order' => 'nullable|integer|min:0',
+            'body' => 'nullable|string',
         ]);
 
-        $max = (int) MHelpAction::query()->where('help_screen', $validated['help_screen'])->max('sort_order');
+        $max = (int) MHelpAction::query()->max('sort_order');
         $action = MHelpAction::query()->create([
-            'help_screen' => $validated['help_screen'],
             'help_topic' => $validated['help_topic'],
             'title' => $validated['title'],
-            'sort_order' => $validated['sort_order'] ?? ($max + 1),
+            'body' => $this->nullIfEmpty($validated['body'] ?? null),
+            'sort_order' => $max + 1,
         ]);
 
         $action->load([
-            'steps' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
-            'screen',
             'topic',
+            'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
         ]);
 
-        return response()->json($this->actionPayload($action), 201);
+        return response()->json($action->toApiPayload(), 201);
     }
 
     public function updateAction(Request $request, int $id): JsonResponse
     {
         $action = MHelpAction::query()->findOrFail($id);
+
+        foreach (['open_count', 'helpful_yes', 'helpful_no', 'help_screen_ids'] as $locked) {
+            if ($request->exists($locked)) {
+                throw ValidationException::withMessages([
+                    $locked => 'This field cannot be changed',
+                ]);
+            }
+        }
+
         $validated = $request->validate([
             'help_topic' => 'sometimes|required|integer|exists:m_help_topic,id',
             'title' => 'sometimes|required|string|max:255',
-            'sort_order' => 'sometimes|integer|min:0',
+            'body' => 'nullable|string',
         ]);
+
+        if (array_key_exists('body', $validated)) {
+            $validated['body'] = $this->nullIfEmpty($validated['body'] ?? null);
+        }
 
         $action->fill($validated);
         $action->save();
         $action->load([
-            'steps' => fn ($q) => $q->orderBy('sort_order')->orderBy('id'),
-            'screen',
             'topic',
+            'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
         ]);
 
-        return response()->json($this->actionPayload($action));
+        return response()->json($action->toApiPayload());
     }
 
     public function destroyAction(int $id): JsonResponse
@@ -196,88 +199,32 @@ class AdminHelpController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function reorderActions(Request $request): JsonResponse
+    public function assignAction(Request $request, int $screenId): JsonResponse
     {
+        $screen = MHelpScreen::query()->findOrFail($screenId);
         $validated = $request->validate([
-            'help_screen' => 'required|integer|exists:m_help_screen,id',
-            'ids' => 'required|array|min:1',
-            'ids.*' => 'integer|exists:m_help_action,id',
+            'help_action' => 'required|integer|exists:m_help_action,id',
         ]);
 
-        $count = MHelpAction::query()
-            ->where('help_screen', $validated['help_screen'])
-            ->whereIn('id', $validated['ids'])
-            ->count();
-        if ($count !== count($validated['ids'])) {
-            throw ValidationException::withMessages([
-                'ids' => 'All actions must belong to the given screen',
-            ]);
+        $created = ! $screen->actions()->where('m_help_action.id', $validated['help_action'])->exists();
+        if ($created) {
+            $screen->actions()->attach($validated['help_action']);
         }
 
-        $this->applyOrder(MHelpAction::class, $validated['ids']);
+        $action = MHelpAction::query()
+            ->with([
+                'topic',
+                'screens' => fn ($q) => $q->orderBy('name')->orderBy('id'),
+            ])
+            ->findOrFail($validated['help_action']);
 
-        return response()->json(['ok' => true]);
+        return response()->json($action->toApiPayload(), $created ? 201 : 200);
     }
 
-    public function storeStep(Request $request, int $id): JsonResponse
+    public function unassignAction(int $screenId, int $actionId): JsonResponse
     {
-        $action = MHelpAction::query()->findOrFail($id);
-        $validated = $request->validate([
-            'body' => 'required|string',
-            'sort_order' => 'nullable|integer|min:0',
-        ]);
-
-        $max = (int) MHelpActionStep::query()->where('help_action', $action->id)->max('sort_order');
-        $step = MHelpActionStep::query()->create([
-            'help_action' => $action->id,
-            'body' => $validated['body'],
-            'sort_order' => $validated['sort_order'] ?? ($max + 1),
-        ]);
-
-        return response()->json($this->stepPayload($step), 201);
-    }
-
-    public function updateStep(Request $request, int $id): JsonResponse
-    {
-        $step = MHelpActionStep::query()->findOrFail($id);
-        $validated = $request->validate([
-            'body' => 'sometimes|required|string',
-            'sort_order' => 'sometimes|integer|min:0',
-        ]);
-
-        $step->fill($validated);
-        $step->save();
-
-        return response()->json($this->stepPayload($step->fresh()));
-    }
-
-    public function destroyStep(int $id): JsonResponse
-    {
-        $step = MHelpActionStep::query()->findOrFail($id);
-        $step->delete();
-
-        return response()->json(['ok' => true]);
-    }
-
-    public function reorderSteps(Request $request, int $id): JsonResponse
-    {
-        $action = MHelpAction::query()->findOrFail($id);
-        $validated = $request->validate([
-            'ids' => 'required|array|min:1',
-            'ids.*' => 'integer|exists:m_help_action_step,id',
-        ]);
-
-        $count = MHelpActionStep::query()
-            ->where('help_action', $action->id)
-            ->whereIn('id', $validated['ids'])
-            ->count();
-        if ($count !== count($validated['ids'])) {
-            throw ValidationException::withMessages([
-                'ids' => 'All steps must belong to the given action',
-            ]);
-        }
-
-        $this->applyOrder(MHelpActionStep::class, $validated['ids']);
+        $screen = MHelpScreen::query()->findOrFail($screenId);
+        $screen->actions()->detach($actionId);
 
         return response()->json(['ok' => true]);
     }
@@ -330,48 +277,6 @@ class AdminHelpController extends Controller
             'must_do' => $screen->must_do,
             'can_do' => $screen->can_do,
             'sort_order' => (int) $screen->sort_order,
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function actionPayload(MHelpAction $action): array
-    {
-        $screen = $action->screen;
-        $topic = $action->topic;
-
-        return [
-            'id' => (int) $action->id,
-            'help_screen' => (int) $action->help_screen,
-            'help_topic' => (int) $action->help_topic,
-            'title' => $action->title,
-            'sort_order' => (int) $action->sort_order,
-            'screen' => $screen ? [
-                'key' => $screen->key,
-                'name' => $screen->name,
-                'route_path' => $screen->route_path,
-            ] : null,
-            'topic' => $topic ? [
-                'key' => $topic->key,
-                'name' => $topic->name,
-            ] : null,
-            'steps' => $action->steps
-                ->map(fn ($step) => $this->stepPayload($step))
-                ->values(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function stepPayload(MHelpActionStep $step): array
-    {
-        return [
-            'id' => (int) $step->id,
-            'help_action' => (int) $step->help_action,
-            'body' => $step->body,
-            'sort_order' => (int) $step->sort_order,
         ];
     }
 }
