@@ -20,7 +20,6 @@ import {
 import type {AdminNavNode, AdminSection} from '@/constants/adminNav'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import keycloak from '@/keycloak.js'
-import HelpModal from '@/components/atoms/HelpModal.vue'
 import {theme, setTheme} from '@hands-on/glass/theme'
 import AppShell from '@hands-on/glass/app-shell'
 import SidebarFooter from '@hands-on/glass/sidebar-footer'
@@ -343,17 +342,7 @@ function hasWarning(tabPath: string): boolean {
   }
 }
 
-const showHelpModal = ref(false)
 const mobileMenuOpen = ref(false)
-
-function openHelpModal() {
-  showHelpModal.value = true
-  mobileMenuOpen.value = false
-}
-
-function closeHelpModal() {
-  showHelpModal.value = false
-}
 
 function normalizePlanPath(path: string): string {
   const raw = (path || '').trim()
@@ -583,7 +572,7 @@ function logout() {
               type="button"
               class="glass-sidebar-footer__menu-item"
               role="menuitem"
-              @click="openHelpModal(); close()"
+              @click="goToPath('/plan/help'); close()"
           >
             <i class="bi bi-question-circle" aria-hidden="true"/>
             <span>Hilfe</span>
@@ -608,8 +597,6 @@ function logout() {
     </template>
 
     <slot />
-
-    <HelpModal :show="showHelpModal" @close="closeHelpModal"/>
   </AppShell>
 </template>
 

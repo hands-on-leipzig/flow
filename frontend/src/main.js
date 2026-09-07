@@ -22,6 +22,7 @@ import dayjs from "dayjs";
 import 'dayjs/locale/de';
 import Rooms from "@/components/Rooms.vue";
 import HomeOverview from "@/components/HomeOverview.vue";
+import HelpCatalog from "@/components/HelpCatalog.vue";
 import PublishControl from "@/components/PublishControl.vue";
 import PublishDistribution from "@/components/publish/PublishDistribution.vue";
 import PublishWlan from "@/components/publish/PublishWlan.vue";
@@ -77,6 +78,7 @@ const routes = [
         redirect: '/plan/overview',
         children: [
             {path: 'overview', component: HomeOverview},
+            {path: 'help', component: HelpCatalog},
             {path: 'event', redirect: '/plan/overview'},
             {
                 path: 'schedule',

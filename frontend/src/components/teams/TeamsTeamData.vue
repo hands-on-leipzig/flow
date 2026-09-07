@@ -11,6 +11,7 @@ import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffing
 import TeamDataTable from '@/components/teams/TeamDataTable.vue'
 import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
@@ -297,6 +298,7 @@ onActivated(() => {
           {{ exportBusy ? 'Export…' : 'Download' }}
         </button>
         <TeamsEmailOutreach :program-slugs="visibleProgramSlugs" :team-numbers="visibleTeamNumbers"/>
+        <ScreenHelpButton/>
       </div>
     </header>
 

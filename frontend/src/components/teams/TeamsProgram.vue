@@ -11,6 +11,7 @@ import TeamList from '@/components/molecules/TeamList.vue'
 import TeamsRegistrationStats from '@/components/teams/TeamsRegistrationStats.vue'
 import TeamsMultiTeamCoaches from '@/components/teams/TeamsMultiTeamCoaches.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import {findProgram, firstTeamsPath} from '@/utils/eventPrograms'
@@ -142,6 +143,7 @@ watch(
           {{ exportBusy ? 'Export…' : 'Download' }}
         </button>
         <TeamsEmailOutreach :current-program="program"/>
+        <ScreenHelpButton/>
       </div>
     </header>
 

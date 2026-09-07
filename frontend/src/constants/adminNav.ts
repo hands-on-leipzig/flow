@@ -89,6 +89,13 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     devOrLocalOnly: true,
   },
   {
+    key: 'help',
+    label: 'Hilfe',
+    icon: 'bi-question-circle',
+    group: 'entwicklung',
+    devOrLocalOnly: true,
+  },
+  {
     key: 'main-tables',
     label: 'alle m-Tabellen',
     icon: 'bi-hammer',
@@ -159,6 +166,7 @@ export const ADMIN_OPS_NAV: AdminNavNode[] = [
  */
 export const ADMIN_ENTWICKLUNG_NAV: AdminNavNode[] = [
   {kind: 'section', key: 'nowandnext'},
+  {kind: 'section', key: 'help'},
   {
     kind: 'folder',
     key: 'main-tables-folder',
@@ -174,6 +182,10 @@ export const SPECIAL_M_TABLE_EDITORS: Record<string, string> = {
   m_match: 'match-plans',
   m_parameter: 'parameters',
   m_visibility: 'roles',
+  m_help_topic: 'help',
+  m_help_screen: 'help',
+  m_help_action: 'help',
+  m_help_action_step: 'help',
 }
 
 export function specialEditorForTable(table: string): AdminSection | undefined {

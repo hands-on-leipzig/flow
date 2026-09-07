@@ -11,6 +11,7 @@ import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
@@ -471,6 +472,9 @@ onActivated(() => {
       <div>
         <h1 class="vol-page__title">Veröffentlichung</h1>
         <p class="vol-page__sub">Festlegen, was der öffentliche Link zeigt</p>
+      </div>
+      <div class="vol-page__actions">
+        <ScreenHelpButton/>
       </div>
     </header>
 
