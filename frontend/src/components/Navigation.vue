@@ -579,7 +579,7 @@ function logout() {
               title="Hilfe"
               @click="goToPath('/plan/help'); close()"
           >
-            <i class="bi bi-question-circle-fill" aria-hidden="true"/>
+            <i class="bi bi-question-circle" aria-hidden="true"/>
           </button>
         </template>
 

@@ -202,7 +202,7 @@ const articleActions = computed(() => article.value?.actions ?? [])
               </div>
             </div>
             <template v-if="editingField === 'description'">
-              <textarea v-model="description" rows="4" class="screen-help-panel__input mt-1"/>
+              <textarea v-model="description" rows="16" class="screen-help-panel__input mt-1"/>
               <button
                   type="button"
                   class="glass-btn-accent !px-4 !py-2 mt-2"
@@ -227,7 +227,7 @@ const articleActions = computed(() => article.value?.actions ?? [])
               </div>
             </div>
             <template v-if="editingField === 'must_do'">
-              <textarea v-model="mustDo" rows="3" class="screen-help-panel__input mt-1"/>
+              <textarea v-model="mustDo" rows="16" class="screen-help-panel__input mt-1"/>
               <button
                   type="button"
                   class="glass-btn-accent !px-4 !py-2 mt-2"
@@ -252,7 +252,7 @@ const articleActions = computed(() => article.value?.actions ?? [])
               </div>
             </div>
             <template v-if="editingField === 'can_do'">
-              <textarea v-model="canDo" rows="3" class="screen-help-panel__input mt-1"/>
+              <textarea v-model="canDo" rows="16" class="screen-help-panel__input mt-1"/>
               <button
                   type="button"
                   class="glass-btn-accent !px-4 !py-2 mt-2"
@@ -380,10 +380,12 @@ const articleActions = computed(() => article.value?.actions ?? [])
 .screen-help-panel__input {
   display: block;
   width: 100%;
+  min-height: 50vh;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
   background: #fff;
   color: var(--color-text);
+  resize: vertical;
 }
 </style>
