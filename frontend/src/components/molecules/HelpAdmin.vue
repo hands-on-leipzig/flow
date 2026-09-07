@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, onMounted, ref} from 'vue'
+import {RouterLink} from 'vue-router'
 import axios from 'axios'
 import draggable from 'vuedraggable'
 import {apiError} from '@/utils/apiError'
@@ -32,12 +33,12 @@ type HelpAction = {
   topic: {id: number; key: string; name: string} | null
 }
 
-type Tab = 'zuordnung' | 'seiten' | 'aktionen' | 'themen'
+type Tab = 'seiten' | 'aktionen' | 'zuordnung' | 'themen'
 
 const SOURCE_GROUP = {name: 'help-assign', pull: 'clone' as const, put: false}
 const DROP_GROUP = {name: 'help-assign', pull: false, put: true}
 
-const tab = ref<Tab>('zuordnung')
+const tab = ref<Tab>('seiten')
 const screens = ref<HelpScreen[]>([])
 const topics = ref<HelpTopic[]>([])
 const actions = ref<HelpAction[]>([])
@@ -314,9 +315,9 @@ onMounted(() => {
     <h2 class="text-xl font-bold">Hilfe</h2>
 
     <div class="flex flex-wrap gap-2">
-      <button type="button" class="glass-btn-secondary !px-3 !py-1.5" :class="{'help-admin__tab--on': tab === 'zuordnung'}" @click="tab = 'zuordnung'">Zuordnung</button>
       <button type="button" class="glass-btn-secondary !px-3 !py-1.5" :class="{'help-admin__tab--on': tab === 'seiten'}" @click="tab = 'seiten'">Seiten</button>
       <button type="button" class="glass-btn-secondary !px-3 !py-1.5" :class="{'help-admin__tab--on': tab === 'aktionen'}" @click="tab = 'aktionen'">Aktionen</button>
+      <button type="button" class="glass-btn-secondary !px-3 !py-1.5" :class="{'help-admin__tab--on': tab === 'zuordnung'}" @click="tab = 'zuordnung'">Zuordnung</button>
       <button type="button" class="glass-btn-secondary !px-3 !py-1.5" :class="{'help-admin__tab--on': tab === 'themen'}" @click="tab = 'themen'">Themen</button>
     </div>
 
@@ -396,23 +397,23 @@ onMounted(() => {
 
     <div v-else-if="tab === 'seiten'" class="help-admin__split">
       <aside class="glass-card liquid-surface-inner !p-2">
-        <button
+        <div
             v-for="screen in screens"
             :key="screen.id"
-            type="button"
             class="help-admin__nav"
             :class="{'help-admin__nav--active': screen.id === selectedScreenId}"
-            @click="selectScreen(screen)"
         >
-          <span>{{ screen.name }}</span>
-          <code class="help-admin__key">{{ screen.key }}</code>
-        </button>
+          <button type="button" class="help-admin__nav-name" @click="selectScreen(screen)">
+            {{ screen.name }}
+          </button>
+          <RouterLink :to="screen.route_path" class="help-admin__route">{{ screen.route_path }}</RouterLink>
+        </div>
       </aside>
       <section v-if="selectedScreen" class="glass-card liquid-surface-inner p-4 space-y-4 min-w-0">
         <p class="text-sm text-[var(--color-text-muted)]">
           {{ selectedScreen.name }}
-          <code class="help-admin__key">{{ selectedScreen.key }}</code>
-          · {{ selectedScreen.route_path }}
+          ·
+          <RouterLink :to="selectedScreen.route_path" class="help-admin__route">{{ selectedScreen.route_path }}</RouterLink>
         </p>
         <label class="block text-sm font-medium">
           Worum geht es hier?
@@ -523,12 +524,26 @@ onMounted(() => {
   border-radius: 0.5rem;
   color: var(--color-text);
 }
+.help-admin__nav-name {
+  width: 100%;
+  text-align: left;
+  color: inherit;
+}
 .help-admin__nav--active {
   background: var(--color-bg-hover, rgba(0, 0, 0, 0.06));
 }
 .help-admin__key {
   font-size: 0.75rem;
   color: var(--color-text-subtle);
+}
+.help-admin__route {
+  font-size: 0.75rem;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.help-admin__route:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
 }
 .help-admin__input {
   display: block;

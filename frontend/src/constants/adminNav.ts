@@ -166,13 +166,12 @@ export const ADMIN_OPS_NAV: AdminNavNode[] = [
  */
 export const ADMIN_ENTWICKLUNG_NAV: AdminNavNode[] = [
   {kind: 'section', key: 'nowandnext'},
-  {kind: 'section', key: 'help'},
   {
     kind: 'folder',
     key: 'main-tables-folder',
     label: 'Main Tables',
     icon: 'bi-table',
-    children: ['main-tables', 'match-plans', 'parameters', 'roles'],
+    children: ['main-tables', 'help', 'match-plans', 'parameters', 'roles'],
   },
   {kind: 'section', key: 'quality'},
 ]
