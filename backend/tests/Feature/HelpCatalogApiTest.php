@@ -124,18 +124,46 @@ class HelpCatalogApiTest extends TestCase
         $open = $this->postJson("/api/help/actions/{$actionId}/open");
         $open->assertOk()->assertJsonPath('open_count', 2);
 
-        $this->postJson("/api/help/actions/{$actionId}/feedback", ['helpful' => true])->assertOk();
-        $feedback = $this->postJson("/api/help/actions/{$actionId}/feedback", ['helpful' => false]);
-        $feedback->assertOk()
-            ->assertJsonPath('helpful_yes', 1)
-            ->assertJsonPath('helpful_no', 1);
-
         $this->postJson("/api/admin/help/actions/{$actionId}/steps", ['body' => 'First'])
             ->assertStatus(405);
 
         $this->putJson("/api/admin/help/actions/{$actionId}", [
             'open_count' => 99,
         ])->assertStatus(422);
+    }
+
+    public function test_feedback_replaces_previous_vote(): void
+    {
+        $create = $this->postJson('/api/admin/help/actions', [
+            'help_topic' => 2,
+            'title' => 'Vote me',
+        ]);
+        $create->assertCreated();
+        $actionId = (int) $create->json('id');
+
+        $first = $this->postJson("/api/help/actions/{$actionId}/feedback", [
+            'helpful' => true,
+            'previous' => null,
+        ]);
+        $first->assertOk()
+            ->assertJsonPath('helpful_yes', 1)
+            ->assertJsonPath('helpful_no', 0);
+
+        $switch = $this->postJson("/api/help/actions/{$actionId}/feedback", [
+            'helpful' => false,
+            'previous' => true,
+        ]);
+        $switch->assertOk()
+            ->assertJsonPath('helpful_yes', 0)
+            ->assertJsonPath('helpful_no', 1);
+
+        $same = $this->postJson("/api/help/actions/{$actionId}/feedback", [
+            'helpful' => false,
+            'previous' => false,
+        ]);
+        $same->assertOk()
+            ->assertJsonPath('helpful_yes', 0)
+            ->assertJsonPath('helpful_no', 1);
     }
 
     public function test_cannot_delete_topic_that_still_has_actions(): void

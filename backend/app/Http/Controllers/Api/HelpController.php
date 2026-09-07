@@ -64,12 +64,14 @@ class HelpController extends Controller
     {
         $validated = $request->validate([
             'helpful' => 'required|boolean',
+            'previous' => 'nullable|boolean',
         ]);
 
         $action = MHelpAction::query()->findOrFail($id);
-        $stat = HelpActionStat::bump(
+        $stat = HelpActionStat::replaceHelpful(
             $action->id,
-            $validated['helpful'] ? 'helpful_yes' : 'helpful_no'
+            (bool) $validated['helpful'],
+            array_key_exists('previous', $validated) ? $validated['previous'] : null
         );
 
         return response()->json($this->counterPayload($action, $stat));
