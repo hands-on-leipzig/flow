@@ -415,15 +415,15 @@ onMounted(() => {
           · {{ selectedScreen.route_path }}
         </p>
         <label class="block text-sm font-medium">
-          Beschreibung
+          Worum geht es hier?
           <textarea v-model="description" rows="4" class="help-admin__input mt-1"/>
         </label>
         <label class="block text-sm font-medium">
-          Muss ich tun
+          Was muss man hier tun?
           <textarea v-model="mustDo" rows="3" class="help-admin__input mt-1"/>
         </label>
         <label class="block text-sm font-medium">
-          Kann ich tun
+          Was kann man hier tun?
           <textarea v-model="canDo" rows="3" class="help-admin__input mt-1"/>
         </label>
         <button type="button" class="glass-btn-accent !px-4 !py-2" :disabled="saving" @click="saveScreen">Speichern</button>

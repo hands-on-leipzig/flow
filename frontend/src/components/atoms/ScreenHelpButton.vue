@@ -36,10 +36,13 @@ const ROUTE_KEYS: Record<string, string> = {
 
 const route = useRoute()
 const {showAdminInline} = useAdminInlineVisibility()
+type ScreenTextField = 'description' | 'must_do' | 'can_do'
+
 const open = ref(false)
 const article = ref<ScreenArticle | null>(null)
 const available = ref(false)
 const saving = ref(false)
+const editingField = ref<ScreenTextField | null>(null)
 const description = ref('')
 const mustDo = ref('')
 const canDo = ref('')
@@ -54,6 +57,24 @@ function applyArticle(data: ScreenArticle) {
   description.value = data.description ?? ''
   mustDo.value = data.must_do ?? ''
   canDo.value = data.can_do ?? ''
+}
+
+function resetDraftsFromArticle() {
+  if (!article.value) return
+  description.value = article.value.description ?? ''
+  mustDo.value = article.value.must_do ?? ''
+  canDo.value = article.value.can_do ?? ''
+}
+
+function startEdit(field: ScreenTextField) {
+  resetDraftsFromArticle()
+  editingField.value = field
+}
+
+function draftFor(field: ScreenTextField): string {
+  if (field === 'description') return description.value
+  if (field === 'must_do') return mustDo.value
+  return canDo.value
 }
 
 async function load() {
@@ -96,16 +117,15 @@ function onActionToggle(event: Event, id: number) {
   axios.post(`/help/actions/${id}/open`).catch((e) => console.warn(e))
 }
 
-async function saveScreen() {
+async function saveField(field: ScreenTextField) {
   if (!article.value) return
   saving.value = true
   try {
     const {data} = await axios.put(`/admin/help/screens/${article.value.id}`, {
-      description: description.value,
-      must_do: mustDo.value,
-      can_do: canDo.value,
+      [field]: draftFor(field),
     })
     applyArticle({...article.value, ...data, actions: article.value.actions})
+    editingField.value = null
     showGlassToast('Gespeichert', 'success')
   } catch (e) {
     showGlassToast(apiError(e, 'Speichern fehlgeschlagen'), 'error')
@@ -116,7 +136,16 @@ async function saveScreen() {
 
 watch(screenKey, () => {
   open.value = false
+  editingField.value = null
   void load()
+})
+
+watch(open, (isOpen) => {
+  if (!isOpen) editingField.value = null
+})
+
+watch(showAdminInline, (visible) => {
+  if (!visible) editingField.value = null
 })
 
 onMounted(() => {
@@ -160,29 +189,80 @@ const articleActions = computed(() => article.value?.actions ?? [])
         </div>
         <div class="screen-help-panel__body">
           <section>
-            <h3 class="text-sm font-semibold">Beschreibung</h3>
-            <textarea v-if="showAdminInline" v-model="description" rows="4" class="screen-help-panel__input mt-1"/>
-            <p v-else class="whitespace-pre-wrap text-sm">{{ descriptionText }}</p>
+            <div class="screen-help-panel__section-head">
+              <h3 class="text-sm font-semibold !mb-0">Worum geht es hier?</h3>
+              <div v-if="showAdminInline && editingField !== 'description'" class="screen-help-panel__admin">
+                <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
+                  <i class="bi bi-shield-lock"/>
+                </span>
+                <button type="button" class="glass-btn-secondary !px-3 !py-1" @click="startEdit('description')">
+                  Ändern
+                </button>
+              </div>
+            </div>
+            <template v-if="editingField === 'description'">
+              <textarea v-model="description" rows="4" class="screen-help-panel__input mt-1"/>
+              <button
+                  type="button"
+                  class="glass-btn-accent !px-4 !py-2 mt-2"
+                  :disabled="saving"
+                  @click="saveField('description')"
+              >
+                Speichern
+              </button>
+            </template>
+            <p v-else class="whitespace-pre-wrap text-sm mt-1">{{ descriptionText }}</p>
           </section>
           <section>
-            <h3 class="text-sm font-semibold">Muss ich tun</h3>
-            <textarea v-if="showAdminInline" v-model="mustDo" rows="3" class="screen-help-panel__input mt-1"/>
-            <p v-else class="whitespace-pre-wrap text-sm">{{ mustDoText }}</p>
+            <div class="screen-help-panel__section-head">
+              <h3 class="text-sm font-semibold !mb-0">Was muss man hier tun?</h3>
+              <div v-if="showAdminInline && editingField !== 'must_do'" class="screen-help-panel__admin">
+                <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
+                  <i class="bi bi-shield-lock"/>
+                </span>
+                <button type="button" class="glass-btn-secondary !px-3 !py-1" @click="startEdit('must_do')">
+                  Ändern
+                </button>
+              </div>
+            </div>
+            <template v-if="editingField === 'must_do'">
+              <textarea v-model="mustDo" rows="3" class="screen-help-panel__input mt-1"/>
+              <button
+                  type="button"
+                  class="glass-btn-accent !px-4 !py-2 mt-2"
+                  :disabled="saving"
+                  @click="saveField('must_do')"
+              >
+                Speichern
+              </button>
+            </template>
+            <p v-else class="whitespace-pre-wrap text-sm mt-1">{{ mustDoText }}</p>
           </section>
           <section>
-            <h3 class="text-sm font-semibold">Kann ich tun</h3>
-            <textarea v-if="showAdminInline" v-model="canDo" rows="3" class="screen-help-panel__input mt-1"/>
-            <p v-else class="whitespace-pre-wrap text-sm">{{ canDoText }}</p>
+            <div class="screen-help-panel__section-head">
+              <h3 class="text-sm font-semibold !mb-0">Was kann man hier tun?</h3>
+              <div v-if="showAdminInline && editingField !== 'can_do'" class="screen-help-panel__admin">
+                <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
+                  <i class="bi bi-shield-lock"/>
+                </span>
+                <button type="button" class="glass-btn-secondary !px-3 !py-1" @click="startEdit('can_do')">
+                  Ändern
+                </button>
+              </div>
+            </div>
+            <template v-if="editingField === 'can_do'">
+              <textarea v-model="canDo" rows="3" class="screen-help-panel__input mt-1"/>
+              <button
+                  type="button"
+                  class="glass-btn-accent !px-4 !py-2 mt-2"
+                  :disabled="saving"
+                  @click="saveField('can_do')"
+              >
+                Speichern
+              </button>
+            </template>
+            <p v-else class="whitespace-pre-wrap text-sm mt-1">{{ canDoText }}</p>
           </section>
-          <button
-              v-if="showAdminInline"
-              type="button"
-              class="glass-btn-accent !px-4 !py-2"
-              :disabled="saving"
-              @click="saveScreen"
-          >
-            Speichern
-          </button>
           <section v-if="articleActions.length" class="space-y-2">
             <details
                 v-for="action in articleActions"
@@ -243,6 +323,25 @@ const articleActions = computed(() => article.value?.actions ?? [])
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+.screen-help-panel__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.screen-help-panel__admin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+.screen-help-panel__admin-mark {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  opacity: 0.85;
+  line-height: 1;
 }
 .screen-help-panel__action {
   border-top: 1px solid var(--color-border);
