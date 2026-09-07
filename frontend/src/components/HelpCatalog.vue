@@ -134,6 +134,8 @@ function escapeHtml(value: string): string {
       </a>
     </p>
 
+    <h2 class="text-xl font-semibold mb-3">Typische Aufgaben</h2>
+
     <p v-if="noActionsAtAll" class="text-[var(--color-text-muted)]">Noch keine Einträge.</p>
     <div v-else-if="noHits">
       <p class="text-[var(--color-text-muted)]">Keine Treffer.</p>
@@ -145,7 +147,7 @@ function escapeHtml(value: string): string {
 
     <div v-else class="space-y-6">
       <section v-for="group in grouped" :key="group.topic.id">
-        <h2 class="text-lg font-semibold mb-2">{{ group.topic.name }}</h2>
+        <h3 class="text-lg font-semibold mb-2">{{ group.topic.name }}</h3>
         <details v-for="action in group.actions" :key="action.id" class="glass-card liquid-surface-inner p-3 mb-2">
           <summary class="cursor-pointer font-medium" v-html="highlight(action.title)"/>
           <ol class="list-decimal ml-5 mt-3 space-y-1 text-sm">

@@ -91,10 +91,12 @@ const articleActions = computed(() => article.value?.actions ?? [])
   <template v-if="available">
     <button
         type="button"
-        class="glass-btn-secondary vol-upload-trigger"
+        class="screen-help-btn"
+        aria-label="Über diesen Screen"
+        title="Über diesen Screen"
         @click="toggle"
     >
-      Über diesen Screen
+      <i class="bi bi-question-circle" aria-hidden="true"/>
     </button>
     <Teleport to="body">
       <aside
@@ -137,6 +139,19 @@ const articleActions = computed(() => article.value?.actions ?? [])
 </template>
 
 <style scoped>
+.screen-help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 1.35rem;
+  line-height: 1;
+  cursor: pointer;
+}
 .screen-help-panel {
   position: fixed;
   top: 0;
@@ -146,9 +161,9 @@ const articleActions = computed(() => article.value?.actions ?? [])
   max-width: 100%;
   height: 100vh;
   overflow: auto;
-  background: var(--color-bg, #fff);
+  background: #fff;
   color: var(--color-text);
-  border-left: 1px solid var(--color-border);
+  border: 1px solid var(--color-accent);
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
   padding: 1rem 1.25rem 2rem;
 }

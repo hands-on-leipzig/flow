@@ -470,11 +470,11 @@ onActivated(() => {
 
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Veröffentlichung</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Veröffentlichung</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Festlegen, was der öffentliche Link zeigt</p>
-      </div>
-      <div class="vol-page__actions">
-        <ScreenHelpButton/>
       </div>
     </header>
 

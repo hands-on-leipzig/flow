@@ -128,7 +128,10 @@ watch(
   <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Details pro Team</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Details pro Team</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Verteilen der Teams auf die Nummern im Plan. Anschauen der Details aus der Anmeldung</p>
       </div>
       <div class="vol-page__actions">
@@ -143,7 +146,6 @@ watch(
           {{ exportBusy ? 'Export…' : 'Download' }}
         </button>
         <TeamsEmailOutreach :current-program="program"/>
-        <ScreenHelpButton/>
       </div>
     </header>
 

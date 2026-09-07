@@ -436,7 +436,7 @@ onMounted(() => {
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--color-border);
   border-radius: 0.5rem;
-  background: var(--color-bg, transparent);
+  background: #fff;
   color: var(--color-text);
 }
 .help-admin__action {

@@ -262,7 +262,10 @@ onActivated(() => {
   <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Teamdaten</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Teamdaten</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Verwalten von Daten für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">
@@ -298,7 +301,6 @@ onActivated(() => {
           {{ exportBusy ? 'Export…' : 'Download' }}
         </button>
         <TeamsEmailOutreach :program-slugs="visibleProgramSlugs" :team-numbers="visibleTeamNumbers"/>
-        <ScreenHelpButton/>
       </div>
     </header>
 
