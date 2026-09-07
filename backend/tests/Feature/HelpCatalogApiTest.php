@@ -37,11 +37,13 @@ class HelpCatalogApiTest extends TestCase
         $this->assertSame(['Teams', 'Ausgabe', 'Helfer:innen', 'Ablauf', 'am Tag', 'Allgemein'], array_column($topics, 'name'));
 
         $screens = $response->json('screens');
-        $this->assertCount(6, $screens);
+        $this->assertCount(4, $screens);
         $this->assertSame('publish-distribution', $screens[0]['key']);
         $this->assertSame('/plan/publish', $screens[0]['route_path']);
         $this->assertNull($screens[0]['description']);
-        $this->assertSame('volunteers-roster', $screens[5]['key']);
+        $this->assertSame('teams-program', $screens[2]['key']);
+        $this->assertSame('/plan/teams/:program', $screens[2]['route_path']);
+        $this->assertSame('volunteers-roster', $screens[3]['key']);
         $this->assertSame([], $response->json('actions'));
     }
 
@@ -53,6 +55,16 @@ class HelpCatalogApiTest extends TestCase
             ->assertJsonPath('name', 'Teamdaten')
             ->assertJsonPath('route_path', '/plan/teams/data')
             ->assertJsonPath('actions', []);
+
+        $this->getJson('/api/help/screens/teams-program')
+            ->assertOk()
+            ->assertJsonPath('key', 'teams-program')
+            ->assertJsonPath('name', 'Details pro Team')
+            ->assertJsonPath('route_path', '/plan/teams/:program')
+            ->assertJsonPath('actions', []);
+
+        $this->getJson('/api/help/screens/teams-explore')
+            ->assertNotFound();
 
         $this->getJson('/api/help/screens/nope')
             ->assertNotFound()
@@ -248,9 +260,7 @@ class HelpCatalogApiTest extends TestCase
         DB::table('m_help_screen')->insert([
             ['id' => 1, 'key' => 'publish-distribution', 'name' => 'Öffentliche Seite', 'route_path' => '/plan/publish', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 1],
             ['id' => 2, 'key' => 'teams-data', 'name' => 'Teamdaten', 'route_path' => '/plan/teams/data', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 2],
-            ['id' => 3, 'key' => 'teams-explore', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/explore', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 3],
-            ['id' => 4, 'key' => 'teams-challenge', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/challenge', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 4],
-            ['id' => 5, 'key' => 'teams-future_8', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/future_8', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 5],
+            ['id' => 3, 'key' => 'teams-program', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/:program', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 3],
             ['id' => 6, 'key' => 'volunteers-roster', 'name' => 'Helfer:innenliste', 'route_path' => '/plan/volunteers/roster', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 6],
         ]);
     }

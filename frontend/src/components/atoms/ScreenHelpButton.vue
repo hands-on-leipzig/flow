@@ -4,8 +4,10 @@ import {RouterLink, useRoute} from 'vue-router'
 import axios from 'axios'
 import HelpActionFeedback from '@/components/atoms/HelpActionFeedback.vue'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
+import {useEventStore} from '@/stores/event'
 import {apiError} from '@/utils/apiError'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {helpJumpPath, isHelpScreenCurrent, TEAMS_PROGRAM_HELP_KEY} from '@/utils/helpRoutes'
 
 defineOptions({name: 'ScreenHelpButton'})
 
@@ -29,13 +31,11 @@ type ScreenArticle = {
 const ROUTE_KEYS: Record<string, string> = {
   '/plan/publish': 'publish-distribution',
   '/plan/teams/data': 'teams-data',
-  '/plan/teams/explore': 'teams-explore',
-  '/plan/teams/challenge': 'teams-challenge',
-  '/plan/teams/future_8': 'teams-future_8',
   '/plan/volunteers/roster': 'volunteers-roster',
 }
 
 const route = useRoute()
+const eventStore = useEventStore()
 const {showAdminInline} = useAdminInlineVisibility()
 type ScreenTextField = 'description' | 'must_do' | 'can_do'
 
@@ -49,6 +49,7 @@ const mustDo = ref('')
 const canDo = ref('')
 
 const screenKey = computed(() => {
+  if (route.name === 'teams-program') return TEAMS_PROGRAM_HELP_KEY
   const path = (route.path || '').replace(/\/$/, '') || '/'
   return ROUTE_KEYS[path] ?? null
 })
@@ -164,13 +165,14 @@ const canDoText = computed(() => article.value?.can_do?.trim() || 'Noch nicht be
 const articleActions = computed(() => article.value?.actions ?? [])
 
 function otherScreens(action: Action): ActionScreen[] {
-  const currentId = article.value?.id
-  const currentPath = (route.path || '').replace(/\/$/, '') || '/'
   return (action.screens ?? []).filter((screen) => {
-    if (currentId != null && screen.id === currentId) return false
-    const path = (screen.route_path || '').replace(/\/$/, '') || '/'
-    return path !== currentPath
+    if (isHelpScreenCurrent(screen, route, article.value?.id)) return false
+    return helpJumpPath(screen, eventStore.selectedEvent) != null
   })
+}
+
+function screenHref(screen: ActionScreen): string {
+  return helpJumpPath(screen, eventStore.selectedEvent) ?? screen.route_path
 }
 </script>
 
@@ -290,7 +292,7 @@ function otherScreens(action: Action): ActionScreen[] {
                 <RouterLink
                     v-for="screen in otherScreens(action)"
                     :key="screen.id"
-                    :to="screen.route_path"
+                    :to="screenHref(screen)"
                     class="screen-help-panel__page"
                 >
                   {{ screen.name }}

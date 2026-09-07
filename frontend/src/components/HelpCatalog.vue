@@ -3,6 +3,8 @@ import {computed, onMounted, ref} from 'vue'
 import {RouterLink} from 'vue-router'
 import axios from 'axios'
 import HelpActionFeedback from '@/components/atoms/HelpActionFeedback.vue'
+import {useEventStore} from '@/stores/event'
+import {helpJumpPath} from '@/utils/helpRoutes'
 
 defineOptions({name: 'HelpCatalog'})
 
@@ -23,6 +25,7 @@ type Action = {
 
 const VIDEO_URL = 'https://handsontechnology-my.sharepoint.com/:v:/g/personal/jr_hands-on-technology_org/EYLes-Kq4GlDuBpUaxolgn4B4naGZakiVMW7Dq0xgWmskA?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=T5yiJJ'
 
+const eventStore = useEventStore()
 const topics = ref<Topic[]>([])
 const screens = ref<Screen[]>([])
 const actions = ref<Action[]>([])
@@ -98,6 +101,12 @@ function onToggle(event: Event, id: number) {
   const opened = ('newState' in event && (event as ToggleEvent).newState === 'open') || details.open
   if (!opened) return
   axios.post(`/help/actions/${id}/open`).catch((e) => console.warn(e))
+}
+
+function jumpScreens(action: Action): {screen: ActionScreen; to: string}[] {
+  return (action.screens ?? [])
+    .map((screen) => ({screen, to: helpJumpPath(screen, eventStore.selectedEvent)}))
+    .filter((row): row is {screen: ActionScreen; to: string} => row.to != null)
 }
 
 function highlight(text: string): string {
@@ -176,14 +185,14 @@ function escapeHtml(value: string): string {
           <div class="help-catalog__action-feedback">
             <HelpActionFeedback :action-id="action.id"/>
           </div>
-          <div v-if="action.screens.length" class="help-catalog__pages">
+          <div v-if="jumpScreens(action).length" class="help-catalog__pages">
             <RouterLink
-                v-for="screen in action.screens"
-                :key="screen.id"
-                :to="screen.route_path"
+                v-for="row in jumpScreens(action)"
+                :key="row.screen.id"
+                :to="row.to"
                 class="help-catalog__page"
             >
-              {{ screen.name }}
+              {{ row.screen.name }}
               <i class="bi bi-arrow-right" aria-hidden="true"/>
             </RouterLink>
           </div>

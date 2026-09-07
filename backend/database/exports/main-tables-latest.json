@@ -11236,33 +11236,13 @@
         },
         {
             "id": 3,
-            "key": "teams-explore",
+            "key": "teams-program",
             "name": "Details pro Team",
-            "route_path": "/plan/teams/explore",
+            "route_path": "/plan/teams/:program",
             "description": null,
             "must_do": null,
             "can_do": null,
             "sort_order": 3
-        },
-        {
-            "id": 4,
-            "key": "teams-challenge",
-            "name": "Details pro Team",
-            "route_path": "/plan/teams/challenge",
-            "description": null,
-            "must_do": null,
-            "can_do": null,
-            "sort_order": 4
-        },
-        {
-            "id": 5,
-            "key": "teams-future_8",
-            "name": "Details pro Team",
-            "route_path": "/plan/teams/future_8",
-            "description": null,
-            "must_do": null,
-            "can_do": null,
-            "sort_order": 5
         },
         {
             "id": 6,

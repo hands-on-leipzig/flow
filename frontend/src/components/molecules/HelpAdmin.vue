@@ -5,6 +5,8 @@ import axios from 'axios'
 import draggable from 'vuedraggable'
 import {apiError} from '@/utils/apiError'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {useEventStore} from '@/stores/event'
+import {helpJumpPath} from '@/utils/helpRoutes'
 
 defineOptions({name: 'HelpAdmin'})
 
@@ -64,6 +66,15 @@ function byTitleDe<T extends {title: string; id: number}>(a: T, b: T) {
 
 const selectedScreen = computed(() => screens.value.find((s) => s.id === selectedScreenId.value) ?? null)
 const selectedAction = computed(() => actions.value.find((a) => a.id === selectedActionId.value) ?? null)
+const eventStore = useEventStore()
+
+function screenHref(screen: HelpScreen): string | null {
+  return helpJumpPath(screen, eventStore.selectedEvent)
+}
+
+function screenPathLabel(screen: HelpScreen): string {
+  return screenHref(screen) ?? screen.route_path
+}
 
 function assignedTo(screenId: number): HelpAction[] {
   return actions.value.filter((a) => a.help_screen_ids.includes(screenId)).slice().sort(byTitleDe)
@@ -406,14 +417,20 @@ onMounted(() => {
           <button type="button" class="help-admin__nav-name" @click="selectScreen(screen)">
             {{ screen.name }}
           </button>
-          <RouterLink :to="screen.route_path" class="help-admin__route">{{ screen.route_path }}</RouterLink>
+          <RouterLink v-if="screenHref(screen)" :to="screenPathLabel(screen)" class="help-admin__route">
+            {{ screenPathLabel(screen) }}
+          </RouterLink>
+          <code v-else class="help-admin__key">{{ screen.route_path }}</code>
         </div>
       </aside>
       <section v-if="selectedScreen" class="glass-card liquid-surface-inner p-4 space-y-4 min-w-0">
         <p class="text-sm text-[var(--color-text-muted)]">
           {{ selectedScreen.name }}
           ·
-          <RouterLink :to="selectedScreen.route_path" class="help-admin__route">{{ selectedScreen.route_path }}</RouterLink>
+          <RouterLink v-if="screenHref(selectedScreen)" :to="screenPathLabel(selectedScreen)" class="help-admin__route">
+            {{ screenPathLabel(selectedScreen) }}
+          </RouterLink>
+          <code v-else class="help-admin__key">{{ selectedScreen.route_path }}</code>
         </p>
         <label class="block text-sm font-medium">
           Worum geht es hier?
