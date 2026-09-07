@@ -11206,6 +11206,16 @@
             "must_do": null,
             "can_do": null,
             "sort_order": 5
+        },
+        {
+            "id": 6,
+            "key": "volunteers-roster",
+            "name": "Helfer:innenliste",
+            "route_path": "/plan/volunteers/roster",
+            "description": null,
+            "must_do": null,
+            "can_do": null,
+            "sort_order": 6
         }
     ],
     "m_help_topic": [

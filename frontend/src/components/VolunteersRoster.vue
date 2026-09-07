@@ -31,6 +31,7 @@ import {rosterEntrySearchHaystack} from '@/volunteers/staffingLabel'
 import {defaultRosterDetail, type RosterEntry} from '@/volunteers/rosterTypes'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 
 type Person = VolunteerPersonRef
 
@@ -277,7 +278,10 @@ onMounted(() => load())
   <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Helfer:innenliste</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Helfer:innenliste</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Verwalten von Daten für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">

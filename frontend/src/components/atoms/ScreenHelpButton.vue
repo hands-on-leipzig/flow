@@ -32,6 +32,7 @@ const ROUTE_KEYS: Record<string, string> = {
   '/plan/teams/explore': 'teams-explore',
   '/plan/teams/challenge': 'teams-challenge',
   '/plan/teams/future_8': 'teams-future_8',
+  '/plan/volunteers/roster': 'volunteers-roster',
 }
 
 const route = useRoute()
@@ -190,7 +191,7 @@ const articleActions = computed(() => article.value?.actions ?? [])
         <div class="screen-help-panel__body">
           <section>
             <div class="screen-help-panel__section-head">
-              <h3 class="text-sm font-semibold !mb-0">Worum geht es hier?</h3>
+              <h3 class="screen-help-panel__heading">Worum geht es hier?</h3>
               <div v-if="showAdminInline && editingField !== 'description'" class="screen-help-panel__admin">
                 <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
                   <i class="bi bi-shield-lock"/>
@@ -211,11 +212,11 @@ const articleActions = computed(() => article.value?.actions ?? [])
                 Speichern
               </button>
             </template>
-            <p v-else class="whitespace-pre-wrap text-sm mt-1">{{ descriptionText }}</p>
+            <p v-else class="screen-help-panel__copy">{{ descriptionText }}</p>
           </section>
           <section>
             <div class="screen-help-panel__section-head">
-              <h3 class="text-sm font-semibold !mb-0">Was muss man hier tun?</h3>
+              <h3 class="screen-help-panel__heading">Was muss man hier tun?</h3>
               <div v-if="showAdminInline && editingField !== 'must_do'" class="screen-help-panel__admin">
                 <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
                   <i class="bi bi-shield-lock"/>
@@ -236,11 +237,11 @@ const articleActions = computed(() => article.value?.actions ?? [])
                 Speichern
               </button>
             </template>
-            <p v-else class="whitespace-pre-wrap text-sm mt-1">{{ mustDoText }}</p>
+            <p v-else class="screen-help-panel__copy">{{ mustDoText }}</p>
           </section>
           <section>
             <div class="screen-help-panel__section-head">
-              <h3 class="text-sm font-semibold !mb-0">Was kann man hier tun?</h3>
+              <h3 class="screen-help-panel__heading">Was kann man hier tun?</h3>
               <div v-if="showAdminInline && editingField !== 'can_do'" class="screen-help-panel__admin">
                 <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
                   <i class="bi bi-shield-lock"/>
@@ -261,7 +262,7 @@ const articleActions = computed(() => article.value?.actions ?? [])
                 Speichern
               </button>
             </template>
-            <p v-else class="whitespace-pre-wrap text-sm mt-1">{{ canDoText }}</p>
+            <p v-else class="screen-help-panel__copy">{{ canDoText }}</p>
           </section>
           <section v-if="articleActions.length" class="space-y-2">
             <details
@@ -270,9 +271,9 @@ const articleActions = computed(() => article.value?.actions ?? [])
                 class="screen-help-panel__action"
                 @toggle="onActionToggle($event, action.id)"
             >
-              <summary class="cursor-pointer font-medium text-sm">{{ action.title }}</summary>
-              <p class="whitespace-pre-wrap text-sm mt-2">{{ action.body }}</p>
-              <div class="mt-2">
+              <summary class="screen-help-panel__action-title">{{ action.title }}</summary>
+              <p class="screen-help-panel__action-body">{{ action.body }}</p>
+              <div class="screen-help-panel__action-feedback">
                 <HelpActionFeedback :action-id="action.id"/>
               </div>
             </details>
@@ -343,9 +344,38 @@ const articleActions = computed(() => article.value?.actions ?? [])
   opacity: 0.85;
   line-height: 1;
 }
+.screen-help-panel__heading {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.screen-help-panel__copy {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
 .screen-help-panel__action {
   border-top: 1px solid var(--color-border);
   padding-top: 0.5rem;
+}
+.screen-help-panel__action-title {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.screen-help-panel__action-body {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+.screen-help-panel__action-feedback {
+  margin-top: 0.5rem;
 }
 .screen-help-panel__input {
   display: block;

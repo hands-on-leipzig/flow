@@ -37,11 +37,11 @@ class HelpCatalogApiTest extends TestCase
         $this->assertSame(['Teams', 'Ausgabe', 'Helfer:innen', 'Ablauf', 'am Tag', 'Allgemein'], array_column($topics, 'name'));
 
         $screens = $response->json('screens');
-        $this->assertCount(5, $screens);
+        $this->assertCount(6, $screens);
         $this->assertSame('publish-distribution', $screens[0]['key']);
         $this->assertSame('/plan/publish', $screens[0]['route_path']);
         $this->assertNull($screens[0]['description']);
-        $this->assertSame('teams-future_8', $screens[4]['key']);
+        $this->assertSame('volunteers-roster', $screens[5]['key']);
         $this->assertSame([], $response->json('actions'));
     }
 
@@ -251,6 +251,7 @@ class HelpCatalogApiTest extends TestCase
             ['id' => 3, 'key' => 'teams-explore', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/explore', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 3],
             ['id' => 4, 'key' => 'teams-challenge', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/challenge', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 4],
             ['id' => 5, 'key' => 'teams-future_8', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/future_8', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 5],
+            ['id' => 6, 'key' => 'volunteers-roster', 'name' => 'Helfer:innenliste', 'route_path' => '/plan/volunteers/roster', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 6],
         ]);
     }
 }

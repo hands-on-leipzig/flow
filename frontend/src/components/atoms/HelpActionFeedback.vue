@@ -52,7 +52,7 @@ async function send(helpful: boolean) {
 
 <template>
   <div class="help-action-feedback">
-    <p class="text-sm font-medium !mb-0">War das hilfreich?</p>
+    <p class="help-action-feedback__label">War das hilfreich?</p>
     <button
         type="button"
         class="help-action-feedback__vote"
@@ -83,6 +83,13 @@ async function send(helpful: boolean) {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+.help-action-feedback__label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.3;
+  color: var(--color-text-muted);
 }
 .help-action-feedback__vote {
   display: inline-flex;
