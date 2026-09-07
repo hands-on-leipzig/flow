@@ -226,7 +226,7 @@ watch(
             Online-Plan
           </h3>
           <p class="qr-wifi__col-sub">
-            Druckposter mit QR zum öffentlichen Plan-Link.
+            Druckposter mit QR zum Link zur öffentlichen Seite.
           </p>
         </header>
 

@@ -11160,7 +11160,7 @@
         {
             "id": 1,
             "key": "publish-distribution",
-            "name": "Veröffentlichung",
+            "name": "Öffentliche Seite",
             "route_path": "/plan/publish",
             "description": null,
             "must_do": null,

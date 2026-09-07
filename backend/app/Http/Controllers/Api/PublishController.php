@@ -354,15 +354,15 @@ class PublishController extends Controller
 
         $payload = \App\Support\PublicSchedulePayload::from($event, $drahtData, $level, $plan);
 
-        if ($level < 4 && (bool) $event->public_helper_search) {
+        if ((bool) $event->public_helper_search) {
             $payload['helper_search'] = \App\Support\PublicHelperSearchPayload::forEvent($event);
         }
 
-        if ($level < 4 && (bool) $event->public_volunteer_data_entry) {
+        if ((bool) $event->public_volunteer_data_entry) {
             $payload['volunteer_data_entry'] = ['enabled' => true];
         }
 
-        if ($level < 4 && (bool) $event->public_team_data_entry) {
+        if ((bool) $event->public_team_data_entry) {
             $payload['team_data_entry'] = ['enabled' => true];
         }
 

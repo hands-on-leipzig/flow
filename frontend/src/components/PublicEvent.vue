@@ -1,6 +1,6 @@
 <script setup>
 import {ref, computed, onMounted} from 'vue'
-import {useRoute} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
@@ -14,6 +14,7 @@ import VolunteerPublicFormFlow from '@/components/volunteers/VolunteerPublicForm
 import TeamPublicFormFlow from '@/components/teams/TeamPublicFormFlow.vue'
 
 const route = useRoute()
+const router = useRouter()
 const event = ref(null)
 const scheduleInfo = ref(null)
 const loading = ref(true)
@@ -93,11 +94,7 @@ const loadEvent = async () => {
         publicPlanId.value = planResponse.data.id
       } catch (planError) {
         console.error('Error fetching plan ID:', planError)
-        if (planError.response?.status === 404) {
-          error.value = 'Plan nicht gefunden'
-        } else {
-          console.warn('Plan fetch failed, but continuing with page display')
-        }
+        publicPlanId.value = null
       }
     }
 
@@ -176,14 +173,55 @@ const timelineMinHeight = computed(() => {
   return `${maxItems * 70}px`
 })
 
-const isContentVisible = (level) => {
-  if (!scheduleInfo.value) return false
-  return scheduleInfo.value.level >= level
+const publicationLevel = computed(() => Number(scheduleInfo.value?.level ?? 1))
+
+const showPlaceholderBox = computed(() => publicationLevel.value < 3)
+
+const showImportantTimes = computed(() => publicationLevel.value >= 3 && publicationLevel.value < 4)
+
+const showSpringboard = computed(() => publicationLevel.value >= 4)
+
+const zeitplanQueryOn = computed(() => {
+  const raw = route.query.zeitplan
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value === '1' || value === 'true' || value === 'yes'
+})
+
+const showOnlineZeitplan = computed(() =>
+  !loading.value
+  && !error.value
+  && event.value
+  && showSpringboard.value
+  && !!publicPlanId.value
+  && zeitplanQueryOn.value
+)
+
+function queryAsStrings() {
+  const query = {}
+  for (const [key, raw] of Object.entries(route.query)) {
+    const value = Array.isArray(raw) ? raw[0] : raw
+    if (value) query[key] = value
+  }
+  return query
 }
 
-const showInteractiveSchedule = computed(() =>
-  !loading.value && !error.value && event.value && isContentVisible(4) && !!publicPlanId.value
-)
+function openOnlineZeitplan() {
+  if (!publicPlanId.value) return
+  const query = queryAsStrings()
+  query.zeitplan = '1'
+  void router.replace({query})
+}
+
+function exitOnlineZeitplan() {
+  const query = queryAsStrings()
+  delete query.zeitplan
+  delete query.role
+  delete query.team
+  delete query.lane
+  delete query.table
+  delete query.expired
+  void router.replace({query})
+}
 
 const teamLanes = computed(() => {
   const lanes = scheduleInfo.value?.teams?.lanes
@@ -194,27 +232,19 @@ const hasTeamsSection = computed(() => teamLanes.value.length > 0)
 
 const helperSearch = computed(() => scheduleInfo.value?.helper_search ?? null)
 
-const showHelperSearchSection = computed(() => {
-  if (!scheduleInfo.value || !helperSearch.value) return false
-  const level = scheduleInfo.value.level
-  return level >= 1 && level < 4
-})
+const showHelperSearchSection = computed(() => !!scheduleInfo.value && !!helperSearch.value)
 
 const volunteerDataEntry = computed(() => scheduleInfo.value?.volunteer_data_entry ?? null)
 
-const showVolunteerDataEntrySection = computed(() => {
-  if (!scheduleInfo.value || !volunteerDataEntry.value?.enabled) return false
-  const level = scheduleInfo.value.level
-  return level >= 1 && level < 4
-})
+const showVolunteerDataEntrySection = computed(() =>
+  !!scheduleInfo.value && !!volunteerDataEntry.value?.enabled
+)
 
 const teamDataEntry = computed(() => scheduleInfo.value?.team_data_entry ?? null)
 
-const showTeamDataEntrySection = computed(() => {
-  if (!scheduleInfo.value || !teamDataEntry.value?.enabled) return false
-  const level = scheduleInfo.value.level
-  return level >= 1 && level < 4
-})
+const showTeamDataEntrySection = computed(() =>
+  !!scheduleInfo.value && !!teamDataEntry.value?.enabled
+)
 
 function openVolunteerForm() {
   teamFormStep.value = null
@@ -280,7 +310,7 @@ onMounted(async () => {
 <template>
   <div
       class="pe"
-      :class="showInteractiveSchedule ? 'pe--schedule' : 'pe--page'"
+      :class="showOnlineZeitplan ? 'pe--schedule' : 'pe--page'"
   >
     <!-- Loading -->
     <div v-if="loading" class="pe-state">
@@ -320,12 +350,12 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Level 4: interactive schedule -->
-    <div v-else-if="showInteractiveSchedule" class="pe-schedule">
-      <PublicSchedule :plan-id="publicPlanId" embedded/>
+    <!-- DB level 4 + ?zeitplan=1: interactive schedule -->
+    <div v-else-if="showOnlineZeitplan" class="pe-schedule">
+      <PublicSchedule :plan-id="publicPlanId" embedded @exit="exitOnlineZeitplan"/>
     </div>
 
-    <!-- Levels 1–3 -->
+    <!-- Public landing (all publication levels) -->
     <div v-else-if="event" class="pe-content">
       <VolunteerPublicFormFlow
           v-if="formStep"
@@ -358,9 +388,9 @@ onMounted(async () => {
         <h1 class="pe-hero__title">{{ heroTitle }}</h1>
       </header>
 
-      <!-- Zeitplan (Basis) / Wichtige Zeiten (Ablauf+) -->
+      <!-- First box: placeholder / Wichtige Zeiten / springboard -->
       <section class="glass-card liquid-surface-inner pe-section">
-        <template v-if="!isContentVisible(3)">
+        <template v-if="showPlaceholderBox">
           <h2 class="glass-card__title">Zeitplan</h2>
           <p class="pe-muted">
             Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
@@ -369,7 +399,7 @@ onMounted(async () => {
           </p>
         </template>
 
-        <template v-else>
+        <template v-else-if="showImportantTimes">
           <h2 class="glass-card__title">
             <template v-if="planLastChangeDisplay">
               Wichtige Zeiten - Stand {{ planLastChangeDisplay }}.
@@ -425,10 +455,22 @@ onMounted(async () => {
             zu erhalten.
           </p>
         </template>
+
+        <template v-else-if="showSpringboard">
+          <button
+              type="button"
+              class="pe-springboard"
+              :disabled="!publicPlanId"
+              @click="openOnlineZeitplan"
+          >
+            <h2 class="glass-card__title !mb-0">Online Zeitplan mit allen Details</h2>
+            <i class="bi bi-chevron-right shrink-0" aria-hidden="true"/>
+          </button>
+        </template>
       </section>
 
       <!-- Allgemeine Infos -->
-      <section v-if="isContentVisible(1) && scheduleInfo" class="glass-card liquid-surface-inner pe-section">
+      <section v-if="scheduleInfo" class="glass-card liquid-surface-inner pe-section">
         <h2 class="glass-card__title">Allgemeine Infos</h2>
         <div class="pe-info-grid">
           <div class="pe-info-block">
@@ -583,7 +625,7 @@ onMounted(async () => {
 
       <!-- Teams -->
       <section
-          v-if="isContentVisible(1) && scheduleInfo && hasTeamsSection"
+          v-if="scheduleInfo && hasTeamsSection"
           class="glass-card liquid-surface-inner pe-section"
       >
         <h2 class="glass-card__title">Angemeldete Teams</h2>
@@ -816,6 +858,31 @@ onMounted(async () => {
 
 .pe-section {
   padding: 1.25rem 1.25rem 1.4rem !important;
+}
+
+.pe-springboard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.pe-springboard:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.pe-springboard i {
+  font-size: 1.25rem;
+  color: var(--color-text-subtle);
 }
 
 @media (min-width: 768px) {

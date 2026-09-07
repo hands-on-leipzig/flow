@@ -176,7 +176,7 @@ async function openQr() {
   qrDataUrl.value = ''
   const link = bootstrap.value?.public_link
   if (!link) {
-    toolsError.value = 'Kein öffentlicher Plan-Link.'
+    toolsError.value = 'Kein Link zur öffentlichen Seite.'
     return
   }
   toolsError.value = ''

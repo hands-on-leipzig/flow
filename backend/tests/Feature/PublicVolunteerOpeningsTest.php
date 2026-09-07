@@ -72,7 +72,7 @@ class PublicVolunteerOpeningsTest extends TestCase
         $this->assertNotNull($dresden['helper_search']);
     }
 
-    public function test_omits_past_events_and_hides_needs_at_level_four(): void
+    public function test_omits_past_events_and_includes_needs_at_level_four(): void
     {
         $this->mockOpenPositions([
             1 => [[
@@ -97,9 +97,10 @@ class PublicVolunteerOpeningsTest extends TestCase
         $response->assertOk();
         $ids = collect($response->json('data'))->pluck('id')->all();
         $this->assertSame([1, 4, 5, 2], $ids);
-        $hidden = collect($response->json('data'))->firstWhere('id', 4);
-        $this->assertFalse($hidden['seeking']);
-        $this->assertNull($hidden['helper_search']);
+        $this->assertNull(collect($response->json('data'))->firstWhere('id', 3));
+        $levelFour = collect($response->json('data'))->firstWhere('id', 4);
+        $this->assertTrue($levelFour['seeking']);
+        $this->assertNotNull($levelFour['helper_search']);
     }
 
     public function test_includes_events_that_did_not_enable_helper_search(): void

@@ -246,7 +246,7 @@ class HelpCatalogApiTest extends TestCase
         ]);
 
         DB::table('m_help_screen')->insert([
-            ['id' => 1, 'key' => 'publish-distribution', 'name' => 'Veröffentlichung', 'route_path' => '/plan/publish', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 1],
+            ['id' => 1, 'key' => 'publish-distribution', 'name' => 'Öffentliche Seite', 'route_path' => '/plan/publish', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 1],
             ['id' => 2, 'key' => 'teams-data', 'name' => 'Teamdaten', 'route_path' => '/plan/teams/data', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 2],
             ['id' => 3, 'key' => 'teams-explore', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/explore', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 3],
             ['id' => 4, 'key' => 'teams-challenge', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/challenge', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 4],

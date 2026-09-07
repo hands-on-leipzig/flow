@@ -72,6 +72,29 @@ class VolunteerPublicFormTest extends TestCase
         $response->assertJsonPath('volunteer_data_entry.enabled', true);
     }
 
+    public function test_schedule_information_includes_volunteer_data_entry_when_enabled_at_level_four(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        DB::table('publication')->insert([
+            'event' => 1,
+            'level' => 4,
+            'last_change' => now(),
+        ]);
+
+        $this->mock(\App\Http\Controllers\Api\DrahtController::class, function ($mock) {
+            $mock->shouldReceive('show')->andReturn(response()->json([
+                'address' => 'Test',
+                'contact' => [],
+                'programs' => [],
+            ]));
+        });
+
+        $response = $this->getJson('/api/publish/public-information/1');
+
+        $response->assertOk();
+        $response->assertJsonPath('volunteer_data_entry.enabled', true);
+    }
+
     public function test_schedule_information_omits_volunteer_data_entry_when_disabled(): void
     {
         $this->seedEvent(['public_volunteer_data_entry' => false]);
@@ -572,6 +595,14 @@ class VolunteerPublicFormTest extends TestCase
                 $table->boolean('public_volunteer_data_entry')->default(false);
                 $table->boolean('volunteer_collect_t_shirt')->default(true);
                 $table->boolean('collect_meal')->default(true);
+            });
+        }
+
+        if (! Schema::hasTable('plan')) {
+            Schema::create('plan', function (Blueprint $table) {
+                $table->increments('id');
+                $table->unsignedInteger('event');
+                $table->timestamp('last_change')->nullable();
             });
         }
 

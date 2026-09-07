@@ -317,7 +317,7 @@ onActivated(() => {
         <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
           Coaches können auf dem öffentlichen Plan Teamdaten eingeben. Formular-Felder unter
           <RouterLink to="/plan/publish" class="vol-roster-publish__link">
-            Ausgabe → Veröffentlichung
+            Ausgabe → Öffentliche Seite
           </RouterLink>.
         </p>
       </section>

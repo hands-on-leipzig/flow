@@ -11,7 +11,7 @@ import {normalizePublicLink} from '@/utils/publicLink'
 defineOptions({name: 'PublicLinkStrip'})
 
 const props = withDefaults(defineProps<{
-  /** On Veröffentlichung: say “hier” instead of linking to this screen. */
+  /** On Öffentliche Seite: say “hier” instead of linking to this screen. */
   onPublishPage?: boolean
 }>(), {
   onPublishPage: false,
@@ -46,7 +46,7 @@ async function ensurePublicLink() {
     const {data} = await axios.get(`/publish/link/${id}`)
     applyPublishResponse(data)
   } catch {
-    showGlassToast('Öffentlicher Link konnte nicht geladen werden.', 'error')
+    showGlassToast('Link zur öffentlichen Seite konnte nicht geladen werden.', 'error')
   } finally {
     linkLoading.value = false
   }
@@ -122,7 +122,7 @@ onMounted(() => {
 
 <template>
   <div class="glass-card liquid-surface-inner public-link-strip">
-    <h2 class="glass-card__title !mb-0">Öffentlicher Link</h2>
+    <h2 class="glass-card__title !mb-0">Link zur öffentlichen Seite</h2>
 
     <div class="public-link-strip__row">
       <a
@@ -200,7 +200,7 @@ onMounted(() => {
       <template v-if="props.onPublishPage"><strong>hier</strong></template>
       <template v-else>
         unter
-        <RouterLink to="/plan/publish" class="public-link-strip__hint-link">Ausgabe → Veröffentlichung</RouterLink>
+        <RouterLink to="/plan/publish" class="public-link-strip__hint-link">Ausgabe → Öffentliche Seite</RouterLink>
       </template>
       festgelegt. Der Link bleibt unverändert — er sollte immer verwendet werden, wenn es um Ablauf und Zeiten geht,
       damit niemand veraltete Informationen erhält.

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Ausgabe → Veröffentlichung
+ * Ausgabe → Öffentliche Seite
  * Controls left · live iframe of the public page right
  */
 import {computed, onActivated, onMounted, ref, watch} from 'vue'
@@ -258,12 +258,6 @@ const levels = [
   {id: 2, short: 'Alles', name: 'volle Details', hint: '+ Online-Zeitplan'},
 ]
 
-const helperSearchHiddenByLevel = computed(() => detailLevel.value === 2)
-
-const volunteerDataEntryHiddenByLevel = computed(() => detailLevel.value === 2)
-
-const teamDataEntryHiddenByLevel = computed(() => detailLevel.value === 2)
-
 const publicUrl = computed(() => normalizePublicLink(event.value?.link))
 
 const previewSrc = computed(() => {
@@ -471,10 +465,10 @@ onActivated(() => {
     <header class="vol-page__header">
       <div>
         <div class="vol-page__title-row">
-          <h1 class="vol-page__title">Veröffentlichung</h1>
+          <h1 class="vol-page__title">Öffentliche Seite</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Festlegen, was der öffentliche Link zeigt</p>
+        <p class="vol-page__sub">Festlegen, was der Link zur öffentlichen Seite zeigt</p>
       </div>
     </header>
 
@@ -587,12 +581,6 @@ onActivated(() => {
                 <span>{{ field.label }}</span>
               </label>
             </div>
-            <p
-                v-if="teamDataEntryEnabled && teamDataEntryHiddenByLevel"
-                class="glass-settings-hint !mb-0 pub__helper-warn"
-            >
-              Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
-            </p>
           </div>
         </section>
 
@@ -677,12 +665,6 @@ onActivated(() => {
                 <span>{{ field.label }}</span>
               </label>
             </div>
-            <p
-                v-if="volunteerDataEntryEnabled && volunteerDataEntryHiddenByLevel"
-                class="glass-settings-hint !mb-0 pub__helper-warn"
-            >
-              Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
-            </p>
           </div>
 
           <div class="pub__app-block">
@@ -702,12 +684,6 @@ onActivated(() => {
                 Helfer:innen → Zuordnung
               </RouterLink>
               auf dem öffentlichen Plan zwischen Allgemeine Infos und Angemeldete Teams.
-            </p>
-            <p
-                v-if="helperSearchEnabled && helperSearchHiddenByLevel"
-                class="glass-settings-hint !mb-0 pub__helper-warn"
-            >
-              Bei Sichtbarkeit „Alles“ wird dieser Bereich auf dem öffentlichen Plan nicht angezeigt.
             </p>
           </div>
         </section>
@@ -836,7 +812,7 @@ onActivated(() => {
                     @load="onIframeLoad"
                 />
                 <div v-else class="pub__frame-empty">
-                  Kein öffentlicher Link vorhanden.
+                  Kein Link zur öffentlichen Seite vorhanden.
                 </div>
               </div>
             </div>
