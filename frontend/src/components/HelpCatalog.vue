@@ -176,14 +176,17 @@ function escapeHtml(value: string): string {
           <div class="mt-3">
             <HelpActionFeedback :action-id="action.id"/>
           </div>
-          <p v-for="screen in action.screens" :key="screen.id" class="mt-3">
+          <div v-if="action.screens.length" class="help-catalog__pages">
             <RouterLink
+                v-for="screen in action.screens"
+                :key="screen.id"
                 :to="screen.route_path"
-                class="inline-block glass-btn-accent !px-3 !py-1.5 !text-sm"
+                class="help-catalog__page"
             >
-              Zur Seite
+              {{ screen.name }}
+              <i class="bi bi-arrow-right" aria-hidden="true"/>
             </RouterLink>
-          </p>
+          </div>
         </details>
       </section>
     </div>
@@ -211,5 +214,30 @@ function escapeHtml(value: string): string {
 }
 .help-catalog__missing-mail:hover {
   text-decoration-thickness: 2px;
+}
+.help-catalog__pages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.65rem;
+  margin-top: 0.75rem;
+}
+.help-catalog__page {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0;
+  color: var(--color-accent);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  text-decoration: none;
+}
+.help-catalog__page:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+.help-catalog__page i {
+  font-size: 0.8em;
 }
 </style>
