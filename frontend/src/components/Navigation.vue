@@ -568,14 +568,18 @@ function logout() {
             <i class="bi bi-shield-lock" aria-hidden="true"/>
             <span>Admin</span>
           </button>
+        </template>
+
+        <template #extra="{ close }">
           <button
               type="button"
-              class="glass-sidebar-footer__menu-item"
-              role="menuitem"
+              class="glass-sidebar-footer__icon-btn"
+              :class="{ 'glass-sidebar-footer__icon-btn--active': isActive('/plan/help') }"
+              aria-label="Hilfe"
+              title="Hilfe"
               @click="goToPath('/plan/help'); close()"
           >
-            <i class="bi bi-question-circle" aria-hidden="true"/>
-            <span>Hilfe</span>
+            <i class="bi bi-question-circle-fill" aria-hidden="true"/>
           </button>
         </template>
 

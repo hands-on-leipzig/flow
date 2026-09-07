@@ -118,7 +118,7 @@ function escapeHtml(value: string): string {
     <input
         v-model="query"
         type="search"
-        class="w-full px-3 py-2 mb-4 border border-[var(--color-border)] rounded-lg bg-transparent text-[var(--color-text)]"
+        class="w-full px-3 py-2 mb-4 border border-[var(--color-border)] rounded-lg bg-white text-[var(--color-text)]"
         placeholder="Suchen …"
     />
 
