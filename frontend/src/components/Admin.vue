@@ -128,7 +128,7 @@ onMounted(() => {
       <NowAndNext/>
     </div>
 
-    <div v-else-if="activeTab === 'help' && sectionAllowed">
+    <div v-else-if="activeTab === 'help' && sectionAllowed" class="admin-shell__fill-child">
       <HelpAdmin/>
     </div>
 
