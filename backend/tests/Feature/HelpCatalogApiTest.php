@@ -241,6 +241,7 @@ class HelpCatalogApiTest extends TestCase
         });
 
         Schema::create('m_help_action_screen', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
             $table->unsignedInteger('help_action');
             $table->unsignedInteger('help_screen');
             $table->unique(['help_action', 'help_screen']);
