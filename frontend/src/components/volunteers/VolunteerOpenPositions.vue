@@ -82,7 +82,7 @@ async function onHelperSearchToggle(next: boolean) {
       <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
         Offene Positionen können auf dem öffentlichen Plan erscheinen. Einstellungen unter
         <RouterLink to="/plan/publish" class="vol-roster-publish__link">
-          Ausgabe → Veröffentlichung
+          Ausgabe → Öffentliche Seite
         </RouterLink>.
       </p>
     </section>

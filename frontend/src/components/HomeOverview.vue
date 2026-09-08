@@ -8,7 +8,7 @@ import {schedulePlanPrefetch, usePlanCacheStore} from '@/stores/planCache'
 import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBox.vue'
 import EventMap from '@/components/molecules/EventMap.vue'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
-import {imageUrl, seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
+import {seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
 import {eventPrograms, programDisplayName, firstTeamsPath, teamPathFor, programCompact} from '@/utils/eventPrograms'
 import {staffingSummaryFromReadiness, type StaffingScopeSummary} from '@/utils/volunteerStaffingSummary'
@@ -129,11 +129,6 @@ const checklist = computed(() => {
 })
 
 const openChecklistCount = computed(() => checklist.value.filter((item) => !item.ok).length)
-
-const videoUrl =
-    'https://handsontechnology-my.sharepoint.com/:v:/g/personal/jr_hands-on-technology_org/EYLes-Kq4GlDuBpUaxolgn4B4naGZakiVMW7Dq0xgWmskA?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=T5yiJJ'
-const presentationUrl = imageUrl('/flow/FLOW 2025-2026.pdf')
-const noshowUrl = imageUrl('/flow/FLOW - Wenn Teams am Tag der Veranstaltung nicht erscheinen.pdf')
 
 async function loadOverviewData() {
   if (!event.value?.id) return
@@ -413,37 +408,9 @@ watch(
           <h2 class="glass-card__title">Hilfe & Einstieg</h2>
           <ul class="space-y-2 text-sm">
             <li>
-              <a
-                  :href="videoUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="inline-flex items-center gap-2 text-[var(--color-accent)] hover:underline"
-              >
-                <i class="bi bi-play-circle" aria-hidden="true"/>
-                Einführungsvideo
-              </a>
-            </li>
-            <li>
-              <a
-                  :href="presentationUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="inline-flex items-center gap-2 text-[var(--color-accent)] hover:underline"
-              >
-                <i class="bi bi-file-earmark-slides" aria-hidden="true"/>
-                FLOW-Präsentation
-              </a>
-            </li>
-            <li>
-              <a
-                  :href="noshowUrl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="inline-flex items-center gap-2 text-[var(--color-accent)] hover:underline"
-              >
-                <i class="bi bi-file-earmark-text" aria-hidden="true"/>
-                Wenn Teams nicht erscheinen
-              </a>
+              <RouterLink to="/plan/help" class="inline-flex items-center gap-2 text-[var(--color-accent)] hover:underline">
+                Hilfe
+              </RouterLink>
             </li>
           </ul>
         </div>

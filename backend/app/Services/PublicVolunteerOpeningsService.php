@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Event;
 use App\Support\PublicHelperSearchPayload;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Public catalog of current-season events for Hero, with volunteer needs when published.
@@ -31,17 +30,14 @@ class PublicVolunteerOpeningsService
             return [];
         }
 
-        $publicationLevelByEvent = $this->latestPublicationLevels($events->pluck('id')->all());
-
         $out = [];
         foreach ($events as $event) {
             if (! $this->isUpcomingOrCurrent($event, $today)) {
                 continue;
             }
 
-            $level = $publicationLevelByEvent[(int) $event->id] ?? 1;
             $helperSearch = null;
-            if ((bool) $event->public_helper_search && $level < 4) {
+            if ((bool) $event->public_helper_search) {
                 $helperSearch = PublicHelperSearchPayload::forEvent($event);
             }
 
@@ -49,34 +45,6 @@ class PublicVolunteerOpeningsService
         }
 
         return $out;
-    }
-
-    /**
-     * @param  list<int>  $eventIds
-     * @return array<int, int>
-     */
-    private function latestPublicationLevels(array $eventIds): array
-    {
-        if ($eventIds === []) {
-            return [];
-        }
-
-        $rows = DB::table('publication')
-            ->whereIn('event', $eventIds)
-            ->orderByDesc('last_change')
-            ->orderByDesc('id')
-            ->get(['id', 'event', 'level', 'last_change']);
-
-        $levels = [];
-        foreach ($rows as $row) {
-            $eventId = (int) $row->event;
-            if (isset($levels[$eventId])) {
-                continue;
-            }
-            $levels[$eventId] = (int) $row->level;
-        }
-
-        return $levels;
     }
 
     private function isUpcomingOrCurrent(Event $event, Carbon $today): bool

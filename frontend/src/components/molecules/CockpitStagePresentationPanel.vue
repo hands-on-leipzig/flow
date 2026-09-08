@@ -6,8 +6,13 @@ import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
 defineOptions({name: 'CockpitStagePresentationPanel'})
 
-type TeamOption = { id: number, name: string }
-type Slot = { slot: number, team: number | null, team_name: string | null }
+type TeamOption = { id: number, name: string, team_number_hot?: string | null }
+type Slot = {
+  slot: number
+  team: number | null
+  team_name: string | null
+  team_number_hot?: string | null
+}
 type ProgramSection = {
   program: string
   program_label: string
@@ -33,14 +38,14 @@ const busy = ref('')
 const error = ref('')
 const unlockTarget = ref<ProgramSection | null>(null)
 
-/**
- * Options for one slot: everything still available, minus the teams picked in
+/** Options for one slot: everything still available, minus the teams picked in
  * the other slots. A team that was picked and later marked no-show is no
  * longer offered, so it is added back for its own slot to stay visible.
  */
-/** Locking sets the running order, so every slot needs a team. */
-function isComplete(section: ProgramSection): boolean {
-  return section.slots.every((slot) => slot.team !== null)
+function teamLabel(name: string | null | undefined, hot: string | null | undefined, fallbackId?: number | null): string {
+  const base = (name || '').trim() || (fallbackId != null ? `Team ${fallbackId}` : '—')
+  const draht = (hot || '').trim()
+  return draht ? `${base} (${draht})` : base
 }
 
 function optionsFor(section: ProgramSection, slot: Slot): TeamOption[] {
@@ -50,7 +55,11 @@ function optionsFor(section: ProgramSection, slot: Slot): TeamOption[] {
   const options = section.teams.filter((team) => !takenElsewhere.has(team.id))
 
   if (slot.team !== null && !options.some((team) => team.id === slot.team)) {
-    options.unshift({id: slot.team, name: slot.team_name || `Team ${slot.team}`})
+    options.unshift({
+      id: slot.team,
+      name: slot.team_name || `Team ${slot.team}`,
+      team_number_hot: slot.team_number_hot ?? null,
+    })
   }
 
   return options
@@ -113,7 +122,9 @@ async function setLock(section: ProgramSection, locked: boolean) {
 
 function onSlotChange(section: ProgramSection, slot: Slot, value: string) {
   slot.team = value === '' ? null : Number(value)
-  slot.team_name = section.teams.find((team) => team.id === slot.team)?.name ?? null
+  const picked = section.teams.find((team) => team.id === slot.team)
+  slot.team_name = picked?.name ?? null
+  slot.team_number_hot = picked?.team_number_hot ?? null
   saveSelection(section)
 }
 
@@ -162,13 +173,15 @@ onUnmounted(() => {
               :aria-label="`Team für Präsentation ${slot.slot}`"
               @change="onSlotChange(section, slot, ($event.target as HTMLSelectElement).value)"
           >
-            <option value="">— kein Team —</option>
+            <option value="">!! Platz bleibt leer !!</option>
             <option v-for="team in optionsFor(section, slot)" :key="team.id" :value="String(team.id)">
-              {{ team.name }}
+              {{ teamLabel(team.name, team.team_number_hot, team.id) }}
             </option>
           </select>
 
-          <span v-else class="cp-stage__locked-team">{{ slot.team_name || '— kein Team —' }}</span>
+          <span v-else class="cp-stage__locked-team">
+            {{ slot.team == null ? '!! Platz bleibt leer !!' : teamLabel(slot.team_name, slot.team_number_hot, slot.team) }}
+          </span>
         </li>
       </ol>
 
@@ -176,7 +189,7 @@ onUnmounted(() => {
           v-if="!section.locked"
           type="button"
           class="glass-btn-accent cp-stage__lock"
-          :disabled="busy === section.program || !isComplete(section)"
+          :disabled="busy === section.program"
           @click="setLock(section, true)"
       >
         <i class="bi bi-lock-fill" aria-hidden="true"/>
@@ -196,9 +209,6 @@ onUnmounted(() => {
 
       <p v-if="section.locked && section.locked_at_time" class="cp-stage__locked-at">
         Gesperrt um {{ section.locked_at_time }}
-      </p>
-      <p v-else-if="!section.locked && !isComplete(section)" class="cp-stage__hint">
-        Zum Sperren alle {{ section.presentations }} Plätze belegen.
       </p>
     </section>
 

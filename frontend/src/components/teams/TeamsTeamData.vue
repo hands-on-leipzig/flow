@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import {computed, onActivated, ref, watch} from 'vue'
 import axios from 'axios'
-import {RouterLink} from 'vue-router'
 import {useEventStore} from '@/stores/event'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import TeamDataColumnsPanel from '@/components/molecules/TeamDataColumnsPanel.vue'
+import PublicFormFieldsDialog from '@/components/molecules/PublicFormFieldsDialog.vue'
 import VolunteerMealOptionsPanel from '@/components/molecules/VolunteerMealOptionsPanel.vue'
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import TeamDataTable from '@/components/teams/TeamDataTable.vue'
 import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
@@ -57,9 +58,14 @@ const {
   load: loadTeamDataEntry,
 } = usePublicTeamDataEntry(eventId)
 
+const formFieldsDialogOpen = ref(false)
+
 async function onTeamDataEntryToggle(next: boolean) {
   try {
-    await setTeamDataEntryEnabled(next)
+    const saved = await setTeamDataEntryEnabled(next)
+    if (saved && next) {
+      formFieldsDialogOpen.value = true
+    }
   } catch {
     // toast from composable
   }
@@ -261,7 +267,10 @@ onActivated(() => {
   <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Teamdaten</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Teamdaten</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Verwalten von Daten für diese Veranstaltung</p>
       </div>
       <div class="vol-page__actions">
@@ -311,10 +320,7 @@ onActivated(() => {
           />
         </div>
         <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
-          Coaches können auf dem öffentlichen Plan Teamdaten eingeben. Formular-Felder unter
-          <RouterLink to="/plan/publish" class="vol-roster-publish__link">
-            Ausgabe → Veröffentlichung
-          </RouterLink>.
+          Coach:innen können über die öffentliche Seite Daten zu ihren Teams eingeben.
         </p>
       </section>
     </div>
@@ -407,6 +413,13 @@ onActivated(() => {
         :event-id="eventId"
         @close="columnsPanelOpen = false"
         @changed="load"
+    />
+
+    <PublicFormFieldsDialog
+        :open="formFieldsDialogOpen"
+        :event-id="eventId"
+        kind="team"
+        @close="formFieldsDialogOpen = false"
     />
 
     <VolunteerMealOptionsPanel

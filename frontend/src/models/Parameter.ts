@@ -4,8 +4,10 @@ export type Parameter = {
     id: number
     name: string
     value: string | number | boolean | null
+    default_value?: string | number | boolean | null
     type?: string
     context?: string
+    level?: number
     first_program?: number | null
     sequence?: number
     program_name?: string

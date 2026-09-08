@@ -708,7 +708,7 @@ const eventTitleNormalized = computed(() => {
       <article class="pdf-plans__tile liquid-surface-inner">
         <header class="pdf-plans__tile-head">
           <h4 class="pdf-plans__tile-title">Online-Plan</h4>
-          <p class="pdf-plans__tile-sub">Aushang mit QR zum öffentlichen Plan-Link.</p>
+          <p class="pdf-plans__tile-sub">Aushang mit QR zum Link zur öffentlichen Seite.</p>
         </header>
         <div class="pdf-plans__tile-body">
           <img

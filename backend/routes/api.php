@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AfternoonController;
+use App\Http\Controllers\Api\AdminHelpController;
 use App\Http\Controllers\Api\EnrollmentsController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
@@ -9,6 +10,7 @@ use App\Http\Controllers\Api\CockpitController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\EventController;
+use App\Http\Controllers\Api\HelpController;
 use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Http\Controllers\Api\EventStaffingController;
 use App\Http\Controllers\Api\EventTeamDataController;
@@ -121,6 +123,7 @@ Route::prefix('cockpit/{slug}')->group(function () {
     Route::put('/rounds', [CockpitController::class, 'saveRounds']);
     Route::get('/organizer', [CockpitController::class, 'organizerContact']);
     Route::get('/phonebook', [CockpitController::class, 'phonebook']);
+    Route::get('/overview', [CockpitController::class, 'overview']);
     Route::get('/timeshift/bootstrap', [CockpitController::class, 'timeshiftBootstrap']);
     Route::post('/timeshift/shift', [CockpitController::class, 'timeshiftShift']);
     Route::get('/stage-presentations/bootstrap', [CockpitController::class, 'stagePresentationsBootstrap']);
@@ -555,6 +558,36 @@ Route::middleware(['keycloak'])->group(function () {
     Route::prefix('news')->group(function () {
         Route::get('/unread', [NewsController::class, 'getUnreadNews']);
         Route::post('/{id}/mark-read', [NewsController::class, 'markAsRead']);
+    });
+
+    Route::prefix('help')->group(function () {
+        Route::get('/catalog', [HelpController::class, 'catalog']);
+        Route::get('/screens/{key}', [HelpController::class, 'show']);
+        Route::post('/actions/{id}/open', [HelpController::class, 'open']);
+        Route::post('/actions/{id}/feedback', [HelpController::class, 'feedback']);
+    });
+
+    Route::prefix('admin/help')->group(function () {
+        Route::get('/topics', [AdminHelpController::class, 'topics']);
+        Route::post('/topics', [AdminHelpController::class, 'storeTopic']);
+        Route::post('/topics/reorder', [AdminHelpController::class, 'reorderTopics']);
+        Route::put('/topics/{id}', [AdminHelpController::class, 'updateTopic']);
+        Route::delete('/topics/{id}', [AdminHelpController::class, 'destroyTopic']);
+
+        Route::get('/screens', [AdminHelpController::class, 'screens']);
+        Route::put('/screens/{id}', [AdminHelpController::class, 'updateScreen']);
+        Route::post('/screens/{screenId}/actions', [AdminHelpController::class, 'assignAction']);
+        Route::delete('/screens/{screenId}/actions/{actionId}', [AdminHelpController::class, 'unassignAction']);
+
+        Route::get('/actions', [AdminHelpController::class, 'actions']);
+        Route::post('/actions', [AdminHelpController::class, 'storeAction']);
+        Route::put('/actions/{id}', [AdminHelpController::class, 'updateAction']);
+        Route::delete('/actions/{id}', [AdminHelpController::class, 'destroyAction']);
+        Route::post('/actions/reorder', fn () => abort(405));
+        Route::post('/actions/{id}/steps', fn () => abort(405));
+        Route::post('/actions/{id}/steps/reorder', fn () => abort(405));
+        Route::put('/steps/{id}', fn () => abort(405));
+        Route::delete('/steps/{id}', fn () => abort(405));
     });
 
     // Admin news routes (protected by api/admin path check in middleware)

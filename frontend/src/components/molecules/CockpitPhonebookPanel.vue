@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import {onBeforeUnmount, ref, watch} from 'vue'
 import type {AxiosInstance} from 'axios'
+import PersonListHit from '@/components/molecules/PersonListHit.vue'
 
 type PhonebookContact = {
   id: string
   kind: 'coach' | 'volunteer'
   name: string
   subtitle: string | null
+  logo_stem?: string | null
+  scope_kind?: string | null
   mobile: string | null
   status: string | null
   checked_in_at: string | null
@@ -23,20 +26,16 @@ const loading = ref(false)
 const error = ref('')
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-function telHref(mobile: string) {
-  return `tel:${mobile.replace(/[^\d+]/g, '')}`
-}
-
 function statusLabel(hit: PhonebookContact) {
   if (hit.status === 'no_show') return 'No-Show'
   if (hit.status === 'checked_in') return 'Da'
   return 'Offen'
 }
 
-function statusIcon(status: string | null) {
-  if (status === 'no_show') return 'bi-x-circle-fill'
-  if (status === 'checked_in') return 'bi-check-circle-fill'
-  return 'bi-circle'
+function hitScopeIcon(hit: PhonebookContact) {
+  if (hit.scope_kind === 'cross') return 'bi-intersect'
+  if (hit.scope_kind === 'local') return 'bi-star'
+  return ''
 }
 
 async function runSearch() {
@@ -101,39 +100,18 @@ onBeforeUnmount(() => {
       Keine Treffer.
     </p>
 
-    <ul v-if="contacts.length" class="cp-phonebook__list">
+    <ul v-if="contacts.length" class="ci-list">
       <li v-for="hit in contacts" :key="hit.id">
-        <div class="cp-phonebook__hit liquid-surface-inner">
-          <div class="cp-phonebook__main">
-            <div class="cp-phonebook__row">
-              <span class="cp-phonebook__name">{{ hit.name }}</span>
-            </div>
-            <div v-if="hit.subtitle" class="cp-phonebook__sub">{{ hit.subtitle }}</div>
-          </div>
-          <a
-              v-if="hit.mobile"
-              class="cp-phonebook__call"
-              :href="telHref(hit.mobile)"
-              :title="`Anrufen ${hit.mobile}`"
-              @click.stop
-          >
-            <i class="bi bi-telephone-fill" aria-hidden="true"/>
-            <span class="sr-only">Anrufen</span>
-          </a>
-          <span class="cp-phonebook__trailing">
-            <span
-                class="cp-phonebook__status"
-                :class="{
-                  'cp-phonebook__status--in': hit.status === 'checked_in',
-                  'cp-phonebook__status--no': hit.status === 'no_show',
-                }"
-                :title="statusLabel(hit)"
-            >
-              <i class="bi" :class="statusIcon(hit.status)" aria-hidden="true"/>
-              <span class="sr-only">{{ statusLabel(hit) }}</span>
-            </span>
-          </span>
-        </div>
+        <PersonListHit
+            :label="hit.name"
+            :subtitle="hit.subtitle"
+            :logo-stem="hit.logo_stem"
+            :scope-icon="hitScopeIcon(hit)"
+            :status="hit.status"
+            :status-title="statusLabel(hit)"
+            :mobile="hit.mobile"
+            show-call
+        />
       </li>
     </ul>
   </div>
@@ -156,104 +134,12 @@ onBeforeUnmount(() => {
   color: var(--color-text-muted);
 }
 
-.cp-phonebook__list {
+.ci-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-}
-
-.cp-phonebook__hit {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.75rem 0.85rem;
-  border-radius: var(--radius);
-}
-
-.cp-phonebook__main {
-  flex: 1;
-  min-width: 0;
-}
-
-.cp-phonebook__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.cp-phonebook__name {
-  font-weight: 700;
-  font-size: 1rem;
-  line-height: 1.3;
-  color: var(--color-text);
-  overflow-wrap: anywhere;
-}
-
-.cp-phonebook__trailing {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex-shrink: 0;
-}
-
-.cp-phonebook__status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  color: var(--color-text-muted);
-  font-size: 1.05rem;
-}
-
-.cp-phonebook__status--in {
-  color: #16a34a;
-}
-
-.cp-phonebook__status--no {
-  color: #dc2626;
-}
-
-.cp-phonebook__sub {
-  margin-top: 0.2rem;
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.cp-phonebook__call {
-  flex-shrink: 0;
-  width: 2.75rem;
-  height: 2.75rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--liquid-border);
-  background: var(--liquid-tile-bg);
-  color: var(--color-accent, var(--color-text));
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  font-size: 1.2rem;
-}
-
-.cp-phonebook__call:active {
-  opacity: 0.85;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }
 </style>

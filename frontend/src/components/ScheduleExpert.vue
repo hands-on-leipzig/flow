@@ -5,6 +5,10 @@ import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import type { Parameter } from '@/models/Parameter'
 import { programId, type EventProgramRef } from '@/utils/eventPrograms'
 import {
+  changedFromDefaultSuffix,
+  countParametersChangedFromDefault,
+} from '@/utils/parameterDefault'
+import {
   FIRST_PROGRAM_CHALLENGE,
   FIRST_PROGRAM_FUTURE_8,
   TABLE_FIELD_MAX_LENGTH,
@@ -59,6 +63,10 @@ function expertParamsFor(program: EventProgramRef): Parameter[] {
 function visibleParams(params: Parameter[]): Parameter[] {
   return params.filter((param) => visibilityMap.value[param.id])
 }
+
+function changedSuffixFor(params: Parameter[]): string {
+  return changedFromDefaultSuffix(countParametersChangedFromDefault(params))
+}
 </script>
 
 <template>
@@ -67,6 +75,7 @@ function visibleParams(params: Parameter[]): Parameter[] {
         v-for="program in attachedPrograms"
         :key="programId(program)"
         :program="program.name || 'shared'"
+        :heading-suffix="changedSuffixFor(expertParamsFor(program))"
         collapsible
         default-collapsed
     >
@@ -115,6 +124,7 @@ function visibleParams(params: Parameter[]): Parameter[] {
         short-name="Finale"
         title="Finale"
         subtitle="Parameter nur für Finalveranstaltungen"
+        :heading-suffix="changedSuffixFor(visibleParams(finaleExpertParams))"
         :show-logo="false"
         collapsible
         default-collapsed

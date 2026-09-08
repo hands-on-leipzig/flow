@@ -15,6 +15,8 @@ const props = withDefaults(
       title?: string
       /** Optional subtitle under the heading */
       subtitle?: string
+      /** Optional muted text after the heading (e.g. "(3 verändert)"). */
+      headingSuffix?: string
       /** When true, header toggles the body open/closed. */
       collapsible?: boolean
       /** Initial collapsed state when collapsible (ignored after first toggle). */
@@ -83,7 +85,12 @@ function toggleCollapsed() {
               :muted="!active"
           />
           <div class="min-w-0">
-            <h3 class="program-section__title glass-card__title !mb-0">{{ heading }}</h3>
+            <h3 class="program-section__title glass-card__title !mb-0">
+              {{ heading }}<span
+                  v-if="headingSuffix"
+                  class="program-section__title-suffix"
+              >{{ headingSuffix }}</span>
+            </h3>
             <p v-if="subtitleText" class="program-section__subtitle">
               <template v-if="!subtitle && !title">
                 <span class="italic">FIRST</span> LEGO League
@@ -107,7 +114,12 @@ function toggleCollapsed() {
               :muted="!active"
           />
           <div class="min-w-0">
-            <h3 class="program-section__title glass-card__title !mb-0">{{ heading }}</h3>
+            <h3 class="program-section__title glass-card__title !mb-0">
+              {{ heading }}<span
+                  v-if="headingSuffix"
+                  class="program-section__title-suffix"
+              >{{ headingSuffix }}</span>
+            </h3>
             <p v-if="subtitleText" class="program-section__subtitle">
               <template v-if="!subtitle && !title">
                 <span class="italic">FIRST</span> LEGO League
@@ -239,6 +251,12 @@ function toggleCollapsed() {
   margin: 0;
   letter-spacing: -0.03em;
   line-height: 1.2;
+}
+
+.program-section__title-suffix {
+  font-weight: 550;
+  letter-spacing: 0;
+  color: var(--color-text-muted);
 }
 
 .program-section__subtitle {

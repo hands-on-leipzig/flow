@@ -221,30 +221,31 @@ class CockpitStagePresentationTest extends TestCase
         $this->assertFalse($state['programs'][1]['locked'], 'F8+ must stay open.');
     }
 
-    public function test_locking_requires_every_slot_to_be_filled(): void
+    public function test_locking_allows_empty_slots(): void
     {
         $this->attach(self::CHALLENGE, teams: 6);
         $a = $this->seedTeam(self::CHALLENGE, 'Alpha');
-        $b = $this->seedTeam(self::CHALLENGE, 'Beta');
         $c = $this->seedTeam(self::CHALLENGE, 'Gamma');
 
-        // Nothing selected at all.
-        $this->assertAborts(422, fn () => $this->service()->setLock($this->event(), self::CHALLENGE, true));
+        // Nothing selected at all — empty places are allowed.
+        $empty = $this->service()->setLock($this->event(), self::CHALLENGE, true);
+        $this->assertTrue($empty['programs'][0]['locked']);
+        $this->service()->setLock($this->event(), self::CHALLENGE, false);
 
         // Slots exist but are empty.
         $this->service()->saveSelection($this->event(), self::CHALLENGE, [null, null, null]);
-        $this->assertAborts(422, fn () => $this->service()->setLock($this->event(), self::CHALLENGE, true));
+        $allEmpty = $this->service()->setLock($this->event(), self::CHALLENGE, true);
+        $this->assertTrue($allEmpty['programs'][0]['locked']);
+        $this->service()->setLock($this->event(), self::CHALLENGE, false);
 
-        // Partially filled is still not enough.
+        // Partially filled is fine.
         $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a, null, $c]);
-        $this->assertAborts(422, fn () => $this->service()->setLock($this->event(), self::CHALLENGE, true));
-
-        $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a, $b, $c]);
-        $state = $this->service()->setLock($this->event(), self::CHALLENGE, true);
-        $this->assertTrue($state['programs'][0]['locked']);
+        $partial = $this->service()->setLock($this->event(), self::CHALLENGE, true);
+        $this->assertTrue($partial['programs'][0]['locked']);
+        $this->assertNull($partial['programs'][0]['slots'][1]['team']);
     }
 
-    public function test_stale_slots_above_the_range_do_not_count_as_filled(): void
+    public function test_locking_with_lowered_presentations_uses_current_range(): void
     {
         $this->attach(self::CHALLENGE, teams: 6);
         $a = $this->seedTeam(self::CHALLENGE, 'Alpha');
@@ -256,7 +257,10 @@ class CockpitStagePresentationTest extends TestCase
         $this->setParam('c_presentations', 2);
         $this->service()->saveSelection($this->event(), self::CHALLENGE, [$a, null]);
 
-        $this->assertAborts(422, fn () => $this->service()->setLock($this->event(), self::CHALLENGE, true));
+        $state = $this->service()->setLock($this->event(), self::CHALLENGE, true);
+        $this->assertTrue($state['programs'][0]['locked']);
+        $this->assertCount(2, $state['programs'][0]['slots']);
+        $this->assertNull($state['programs'][0]['slots'][1]['team']);
     }
 
     public function test_lock_time_is_recorded_in_local_time(): void
