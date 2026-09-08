@@ -11283,6 +11283,26 @@
             "must_do": null,
             "can_do": null,
             "sort_order": 7
+        },
+        {
+            "id": 10,
+            "key": "live-check-in",
+            "name": "Check-In App",
+            "route_path": "/plan/live/check-in",
+            "description": null,
+            "must_do": null,
+            "can_do": null,
+            "sort_order": 8
+        },
+        {
+            "id": 11,
+            "key": "live-cockpit",
+            "name": "Cockpit App",
+            "route_path": "/plan/live/cockpit",
+            "description": null,
+            "must_do": null,
+            "can_do": null,
+            "sort_order": 9
         }
     ],
     "m_help_topic": [

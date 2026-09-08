@@ -11,6 +11,7 @@ import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import MobileLivePreview from '@/components/molecules/MobileLivePreview.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 
 defineOptions({name: 'EventDayCockpit'})
@@ -184,7 +185,10 @@ onBeforeUnmount(() => {
 
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Cockpit App</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Cockpit App</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Einstellen und Ausprobieren der Funktionen zur Steuerung der Veranstaltung</p>
       </div>
     </header>

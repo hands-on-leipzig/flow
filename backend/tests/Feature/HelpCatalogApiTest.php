@@ -38,7 +38,7 @@ class HelpCatalogApiTest extends TestCase
 
         $screens = $response->json('screens');
         $this->assertSame(
-            ['publish-distribution', 'teams-data', 'teams-program', 'rooms', 'volunteers-people', 'volunteers-roster', 'volunteers-staffing'],
+            ['publish-distribution', 'teams-data', 'teams-program', 'rooms', 'volunteers-people', 'volunteers-roster', 'volunteers-staffing', 'live-check-in', 'live-cockpit'],
             array_column($screens, 'key')
         );
         $this->assertSame('/plan/publish', $screens[0]['route_path']);
@@ -268,6 +268,8 @@ class HelpCatalogApiTest extends TestCase
             ['id' => 7, 'key' => 'rooms', 'name' => 'Räume', 'route_path' => '/plan/rooms', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 4],
             ['id' => 8, 'key' => 'volunteers-people', 'name' => 'Personen', 'route_path' => '/plan/volunteers', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 5],
             ['id' => 9, 'key' => 'volunteers-staffing', 'name' => 'Zuordnung', 'route_path' => '/plan/volunteers/staffing', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 7],
+            ['id' => 10, 'key' => 'live-check-in', 'name' => 'Check-In App', 'route_path' => '/plan/live/check-in', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 8],
+            ['id' => 11, 'key' => 'live-cockpit', 'name' => 'Cockpit App', 'route_path' => '/plan/live/cockpit', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 9],
         ]);
     }
 }

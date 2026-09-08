@@ -35,6 +35,8 @@ const ROUTE_KEYS: Record<string, string> = {
   '/plan/volunteers': 'volunteers-people',
   '/plan/volunteers/roster': 'volunteers-roster',
   '/plan/volunteers/staffing': 'volunteers-staffing',
+  '/plan/live/check-in': 'live-check-in',
+  '/plan/live/cockpit': 'live-cockpit',
 }
 
 const route = useRoute()
