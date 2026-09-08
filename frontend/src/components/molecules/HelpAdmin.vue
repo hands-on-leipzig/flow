@@ -275,6 +275,28 @@ async function addAction() {
   }
 }
 
+async function copyAction() {
+  const topicId = actionTopic.value ?? selectedAction.value?.help_topic ?? null
+  if (topicId == null) {
+    showGlassToast('Thema ist nötig', 'info')
+    return
+  }
+  const sourceTitle = (actionTitle.value.trim() || selectedAction.value?.title || 'Aktion').slice(0, 255)
+  const title = `[Kopie von] ${sourceTitle}`.slice(0, 255)
+  try {
+    const {data} = await axios.post('/admin/help/actions', {
+      help_topic: topicId,
+      title,
+      body: actionBody.value,
+    })
+    upsertAction(data)
+    selectAction(data)
+    showGlassToast('Gespeichert', 'success')
+  } catch (e) {
+    showGlassToast(apiError(e, 'Aktion konnte nicht kopiert werden'), 'error')
+  }
+}
+
 async function addTopic() {
   if (!newTopicKey.value.trim() || !newTopicName.value.trim()) {
     showGlassToast('Schlüssel und Name sind nötig', 'info')
@@ -583,6 +605,7 @@ onMounted(() => {
             </div>
             <div class="flex gap-2 shrink-0">
               <button type="button" class="glass-btn-accent !px-4 !py-2" :disabled="saving" @click="saveAction">Speichern</button>
+              <button type="button" class="glass-btn-secondary !px-4 !py-2" @click="copyAction">Kopieren</button>
               <button type="button" class="glass-btn-secondary !px-4 !py-2" @click="deleteAction">Löschen</button>
             </div>
           </div>
