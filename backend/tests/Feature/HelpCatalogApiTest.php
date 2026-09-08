@@ -37,13 +37,16 @@ class HelpCatalogApiTest extends TestCase
         $this->assertSame(['Teams', 'Ausgabe', 'Helfer:innen', 'Ablauf', 'am Tag', 'Allgemein'], array_column($topics, 'name'));
 
         $screens = $response->json('screens');
-        $this->assertCount(4, $screens);
-        $this->assertSame('publish-distribution', $screens[0]['key']);
+        $this->assertSame(
+            ['publish-distribution', 'teams-data', 'teams-program', 'rooms', 'volunteers-people', 'volunteers-roster', 'volunteers-staffing'],
+            array_column($screens, 'key')
+        );
         $this->assertSame('/plan/publish', $screens[0]['route_path']);
         $this->assertNull($screens[0]['description']);
-        $this->assertSame('teams-program', $screens[2]['key']);
         $this->assertSame('/plan/teams/:program', $screens[2]['route_path']);
-        $this->assertSame('volunteers-roster', $screens[3]['key']);
+        $this->assertSame('/plan/rooms', $screens[3]['route_path']);
+        $this->assertSame('/plan/volunteers', $screens[4]['route_path']);
+        $this->assertSame('/plan/volunteers/staffing', $screens[6]['route_path']);
         $this->assertSame([], $response->json('actions'));
     }
 
@@ -262,6 +265,9 @@ class HelpCatalogApiTest extends TestCase
             ['id' => 2, 'key' => 'teams-data', 'name' => 'Teamdaten', 'route_path' => '/plan/teams/data', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 2],
             ['id' => 3, 'key' => 'teams-program', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/:program', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 3],
             ['id' => 6, 'key' => 'volunteers-roster', 'name' => 'Helfer:innenliste', 'route_path' => '/plan/volunteers/roster', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 6],
+            ['id' => 7, 'key' => 'rooms', 'name' => 'Räume', 'route_path' => '/plan/rooms', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 4],
+            ['id' => 8, 'key' => 'volunteers-people', 'name' => 'Personen', 'route_path' => '/plan/volunteers', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 5],
+            ['id' => 9, 'key' => 'volunteers-staffing', 'name' => 'Zuordnung', 'route_path' => '/plan/volunteers/staffing', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 7],
         ]);
     }
 }

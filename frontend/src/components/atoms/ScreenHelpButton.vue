@@ -31,7 +31,10 @@ type ScreenArticle = {
 const ROUTE_KEYS: Record<string, string> = {
   '/plan/publish': 'publish-distribution',
   '/plan/teams/data': 'teams-data',
+  '/plan/rooms': 'rooms',
+  '/plan/volunteers': 'volunteers-people',
   '/plan/volunteers/roster': 'volunteers-roster',
+  '/plan/volunteers/staffing': 'volunteers-staffing',
 }
 
 const route = useRoute()

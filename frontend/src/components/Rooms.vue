@@ -13,6 +13,7 @@ import IconDangerButton from "@/components/atoms/IconDangerButton.vue";
 import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
 import ItemCard from "@/components/molecules/ItemCard.vue";
 import ItemComposer from "@/components/molecules/ItemComposer.vue";
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 
 defineOptions({name: 'Rooms'})
 
@@ -848,7 +849,10 @@ const hasWarning = (tab) => {
   <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Räume</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Räume</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Verteilen der Aktivitäten auf Räume</p>
       </div>
     </header>

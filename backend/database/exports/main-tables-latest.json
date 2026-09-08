@@ -11253,6 +11253,36 @@
             "must_do": null,
             "can_do": null,
             "sort_order": 6
+        },
+        {
+            "id": 7,
+            "key": "rooms",
+            "name": "Räume",
+            "route_path": "/plan/rooms",
+            "description": null,
+            "must_do": null,
+            "can_do": null,
+            "sort_order": 4
+        },
+        {
+            "id": 8,
+            "key": "volunteers-people",
+            "name": "Personen",
+            "route_path": "/plan/volunteers",
+            "description": null,
+            "must_do": null,
+            "can_do": null,
+            "sort_order": 5
+        },
+        {
+            "id": 9,
+            "key": "volunteers-staffing",
+            "name": "Zuordnung",
+            "route_path": "/plan/volunteers/staffing",
+            "description": null,
+            "must_do": null,
+            "can_do": null,
+            "sort_order": 7
         }
     ],
     "m_help_topic": [
