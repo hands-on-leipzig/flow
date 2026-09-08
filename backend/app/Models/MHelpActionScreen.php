@@ -9,8 +9,6 @@ class MHelpActionScreen extends Model
 {
     protected $table = 'm_help_action_screen';
 
-    public $incrementing = false;
-
     public $timestamps = false;
 
     protected $fillable = [
