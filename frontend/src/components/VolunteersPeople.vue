@@ -15,6 +15,7 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import {flowFilename} from '@/utils/flowFilename'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 
 type Person = VolunteerPersonRef
 
@@ -412,7 +413,10 @@ watch(eventId, () => {
   <div class="vol-page">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Personen</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Personen</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Verwalten von Kontakten (saison-übergreifend)</p>
       </div>
       <div class="vol-page__actions">

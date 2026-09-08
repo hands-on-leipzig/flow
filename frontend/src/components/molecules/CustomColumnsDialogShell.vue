@@ -2,7 +2,7 @@
 defineProps<{
   open: boolean
   titleId: string
-  hint: string
+  hint?: string
   error?: string
   loading?: boolean
 }>()
@@ -36,7 +36,9 @@ function onDialogKeydown(event: KeyboardEvent) {
       >
         <header class="vol-columns-dialog__header">
           <h2 :id="titleId" class="vol-columns-dialog__title">Spalten verwalten</h2>
-          <p class="vol-columns-dialog__hint">{{ hint }}</p>
+          <p v-if="$slots.hint || hint" class="vol-columns-dialog__hint">
+            <slot name="hint">{{ hint }}</slot>
+          </p>
           <ul v-if="$slots.builtins" class="vol-columns-dialog__builtins" aria-label="Feste Spalten">
             <slot name="builtins"/>
           </ul>

@@ -11,6 +11,7 @@ import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import MobileLivePreview from '@/components/molecules/MobileLivePreview.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 
 defineOptions({name: 'EventDayCockpit'})
@@ -184,7 +185,10 @@ onBeforeUnmount(() => {
 
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Cockpit App</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Cockpit App</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Einstellen und Ausprobieren der Funktionen zur Steuerung der Veranstaltung</p>
       </div>
     </header>
@@ -199,12 +203,12 @@ onBeforeUnmount(() => {
             <div class="settings-split__settings">
               <p class="glass-settings-hint !mb-0 settings-split__header-hint">
                 Diese Funktion ist nur vom Plan verlinkt, wenn die
-                <RouterLink to="/plan/publish" class="glass-settings-hint-link">Veröffentlichung</RouterLink>
+                <RouterLink to="/plan/publish" class="glass-settings-hint-link">Öffentliche Seite</RouterLink>
                 auf „volle Details“ gesetzt ist.
               </p>
 
               <p v-if="settings && !settings.has_slug" class="glass-alert-warning !mb-0 !text-xs">
-                Öffentlicher Link fehlt — bitte zuerst unter Ausgabe → Veröffentlichung erzeugen.
+                Link zur öffentlichen Seite fehlt — bitte zuerst unter Ausgabe → Öffentliche Seite erzeugen.
               </p>
 
               <section class="glass-card liquid-surface-inner settings-split__tile">
@@ -266,7 +270,7 @@ onBeforeUnmount(() => {
               :preview-url="appUrl"
               :iframe-key="iframeKey"
               :loading="iframeLoading"
-              empty-text="Kein öffentlicher Link vorhanden."
+              empty-text="Kein Link zur öffentlichen Seite vorhanden."
               iframe-title="Vorschau Cockpit"
               aria-label="Vorschau Cockpit"
               :open-tab-url="appUrl"

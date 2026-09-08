@@ -17,7 +17,7 @@ const props = withDefaults(
     /** Match height of glass-input--sm date/time fields on block rows */
     matchInputHeight?: boolean
     /**
-     * Free blocks only: show “öffentlich zeigen” in the panel and an !
+     * Free blocks only: show “wichtige Zeit” in the panel and an !
      * before the eye when enabled. Omit for slot blocks.
      */
     showPublicTime?: boolean
@@ -96,8 +96,8 @@ function setPublicTime(enabled: boolean) {
           'glass-input glass-input--sm liquid-surface-control extra-block-program-picker__trigger--field': matchInputHeight,
         }"
         :disabled="disabled"
-        :title="showPublicTime && publicTime ? 'Programm-Bereich · öffentlich gezeigt' : 'Programm-Bereich wählen'"
-        :aria-label="showPublicTime && publicTime ? 'Programm-Bereich, öffentlich gezeigt' : 'Programm-Bereich wählen'"
+        :title="showPublicTime && publicTime ? 'Programm-Bereich · wichtige Zeit' : 'Programm-Bereich wählen'"
+        :aria-label="showPublicTime && publicTime ? 'Programm-Bereich, wichtige Zeit' : 'Programm-Bereich wählen'"
         @click.stop="handleToggle"
     >
       <span
@@ -172,7 +172,7 @@ function setPublicTime(enabled: boolean) {
               :disabled="disabled"
               @change="setPublicTime(($event.target as HTMLInputElement).checked)"
           />
-          <span>öffentlich zeigen</span>
+          <span>wichtige Zeit</span>
         </label>
       </div>
     </Teleport>

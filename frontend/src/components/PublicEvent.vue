@@ -1,6 +1,6 @@
 <script setup>
 import {ref, computed, onMounted} from 'vue'
-import {useRoute} from 'vue-router'
+import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
@@ -14,6 +14,7 @@ import VolunteerPublicFormFlow from '@/components/volunteers/VolunteerPublicForm
 import TeamPublicFormFlow from '@/components/teams/TeamPublicFormFlow.vue'
 
 const route = useRoute()
+const router = useRouter()
 const event = ref(null)
 const scheduleInfo = ref(null)
 const loading = ref(true)
@@ -93,11 +94,7 @@ const loadEvent = async () => {
         publicPlanId.value = planResponse.data.id
       } catch (planError) {
         console.error('Error fetching plan ID:', planError)
-        if (planError.response?.status === 404) {
-          error.value = 'Plan nicht gefunden'
-        } else {
-          console.warn('Plan fetch failed, but continuing with page display')
-        }
+        publicPlanId.value = null
       }
     }
 
@@ -176,14 +173,70 @@ const timelineMinHeight = computed(() => {
   return `${maxItems * 70}px`
 })
 
-const isContentVisible = (level) => {
-  if (!scheduleInfo.value) return false
-  return scheduleInfo.value.level >= level
+const publicationLevel = computed(() => Number(scheduleInfo.value?.level ?? 1))
+
+const showPlaceholderBox = computed(() => publicationLevel.value < 3)
+
+const showImportantTimes = computed(() => publicationLevel.value >= 3 && publicationLevel.value < 4)
+
+const showSpringboard = computed(() => publicationLevel.value >= 4)
+
+const springboardLaneColors = computed(() => {
+  const fromPrograms = eventPrograms(event.value)
+    .map((program) => {
+      const hex = program.color_hex ? String(program.color_hex).replace(/^#/, '') : ''
+      return hex ? `#${hex}` : ''
+    })
+    .filter(Boolean)
+  const colors = [...fromPrograms]
+  for (const fallback of ['var(--color-accent)', '#2563eb', '#16a34a']) {
+    if (colors.length >= 3) break
+    colors.push(fallback)
+  }
+  return colors.slice(0, 3)
+})
+
+const zeitplanQueryOn = computed(() => {
+  const raw = route.query.zeitplan
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value === '1' || value === 'true' || value === 'yes'
+})
+
+const showOnlineZeitplan = computed(() =>
+  !loading.value
+  && !error.value
+  && event.value
+  && showSpringboard.value
+  && !!publicPlanId.value
+  && zeitplanQueryOn.value
+)
+
+function queryAsStrings() {
+  const query = {}
+  for (const [key, raw] of Object.entries(route.query)) {
+    const value = Array.isArray(raw) ? raw[0] : raw
+    if (value) query[key] = value
+  }
+  return query
 }
 
-const showInteractiveSchedule = computed(() =>
-  !loading.value && !error.value && event.value && isContentVisible(4) && !!publicPlanId.value
-)
+function openOnlineZeitplan() {
+  if (!publicPlanId.value) return
+  const query = queryAsStrings()
+  query.zeitplan = '1'
+  void router.replace({query})
+}
+
+function exitOnlineZeitplan() {
+  const query = queryAsStrings()
+  delete query.zeitplan
+  delete query.role
+  delete query.team
+  delete query.lane
+  delete query.table
+  delete query.expired
+  void router.replace({query})
+}
 
 const teamLanes = computed(() => {
   const lanes = scheduleInfo.value?.teams?.lanes
@@ -194,27 +247,19 @@ const hasTeamsSection = computed(() => teamLanes.value.length > 0)
 
 const helperSearch = computed(() => scheduleInfo.value?.helper_search ?? null)
 
-const showHelperSearchSection = computed(() => {
-  if (!scheduleInfo.value || !helperSearch.value) return false
-  const level = scheduleInfo.value.level
-  return level >= 1 && level < 4
-})
+const showHelperSearchSection = computed(() => !!scheduleInfo.value && !!helperSearch.value)
 
 const volunteerDataEntry = computed(() => scheduleInfo.value?.volunteer_data_entry ?? null)
 
-const showVolunteerDataEntrySection = computed(() => {
-  if (!scheduleInfo.value || !volunteerDataEntry.value?.enabled) return false
-  const level = scheduleInfo.value.level
-  return level >= 1 && level < 4
-})
+const showVolunteerDataEntrySection = computed(() =>
+  !!scheduleInfo.value && !!volunteerDataEntry.value?.enabled
+)
 
 const teamDataEntry = computed(() => scheduleInfo.value?.team_data_entry ?? null)
 
-const showTeamDataEntrySection = computed(() => {
-  if (!scheduleInfo.value || !teamDataEntry.value?.enabled) return false
-  const level = scheduleInfo.value.level
-  return level >= 1 && level < 4
-})
+const showTeamDataEntrySection = computed(() =>
+  !!scheduleInfo.value && !!teamDataEntry.value?.enabled
+)
 
 function openVolunteerForm() {
   teamFormStep.value = null
@@ -280,7 +325,7 @@ onMounted(async () => {
 <template>
   <div
       class="pe"
-      :class="showInteractiveSchedule ? 'pe--schedule' : 'pe--page'"
+      :class="showOnlineZeitplan ? 'pe--schedule' : 'pe--page'"
   >
     <!-- Loading -->
     <div v-if="loading" class="pe-state">
@@ -320,12 +365,12 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Level 4: interactive schedule -->
-    <div v-else-if="showInteractiveSchedule" class="pe-schedule">
-      <PublicSchedule :plan-id="publicPlanId" embedded/>
+    <!-- DB level 4 + ?zeitplan=1: interactive schedule -->
+    <div v-else-if="showOnlineZeitplan" class="pe-schedule">
+      <PublicSchedule :plan-id="publicPlanId" embedded @exit="exitOnlineZeitplan"/>
     </div>
 
-    <!-- Levels 1–3 -->
+    <!-- Public landing (all publication levels) -->
     <div v-else-if="event" class="pe-content">
       <VolunteerPublicFormFlow
           v-if="formStep"
@@ -358,9 +403,12 @@ onMounted(async () => {
         <h1 class="pe-hero__title">{{ heroTitle }}</h1>
       </header>
 
-      <!-- Zeitplan (Basis) / Wichtige Zeiten (Ablauf+) -->
-      <section class="glass-card liquid-surface-inner pe-section">
-        <template v-if="!isContentVisible(3)">
+      <!-- First box: placeholder / Wichtige Zeiten / springboard -->
+      <section
+          v-if="showPlaceholderBox || showImportantTimes"
+          class="glass-card liquid-surface-inner pe-section"
+      >
+        <template v-if="showPlaceholderBox">
           <h2 class="glass-card__title">Zeitplan</h2>
           <p class="pe-muted">
             Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
@@ -425,10 +473,46 @@ onMounted(async () => {
             zu erhalten.
           </p>
         </template>
+
+      </section>
+
+      <section
+          v-else-if="showSpringboard"
+          class="pe-springboard-card glass-card liquid-surface-inner"
+      >
+        <button
+            type="button"
+            class="pe-springboard"
+            :disabled="!publicPlanId"
+            @click="openOnlineZeitplan"
+        >
+          <span class="pe-springboard__icon" aria-hidden="true">
+            <i class="bi bi-calendar3-week"/>
+          </span>
+          <span class="pe-springboard__copy">
+            <span class="pe-springboard__kicker">Jetzt öffnen</span>
+            <h2 class="pe-springboard__title">Online Zeitplan mit allen Details</h2>
+          </span>
+          <span class="pe-springboard__go" aria-hidden="true">
+            <i class="bi bi-arrow-right"/>
+          </span>
+          <span class="pe-springboard__lanes" aria-hidden="true">
+            <span
+                v-for="(color, index) in springboardLaneColors"
+                :key="index"
+                class="pe-springboard__lane"
+                :style="{ '--pe-lane': color }"
+            >
+              <span class="pe-springboard__block"/>
+              <span class="pe-springboard__block"/>
+              <span class="pe-springboard__block"/>
+            </span>
+          </span>
+        </button>
       </section>
 
       <!-- Allgemeine Infos -->
-      <section v-if="isContentVisible(1) && scheduleInfo" class="glass-card liquid-surface-inner pe-section">
+      <section v-if="scheduleInfo" class="glass-card liquid-surface-inner pe-section">
         <h2 class="glass-card__title">Allgemeine Infos</h2>
         <div class="pe-info-grid">
           <div class="pe-info-block">
@@ -583,7 +667,7 @@ onMounted(async () => {
 
       <!-- Teams -->
       <section
-          v-if="isContentVisible(1) && scheduleInfo && hasTeamsSection"
+          v-if="scheduleInfo && hasTeamsSection"
           class="glass-card liquid-surface-inner pe-section"
       >
         <h2 class="glass-card__title">Angemeldete Teams</h2>
@@ -818,9 +902,245 @@ onMounted(async () => {
   padding: 1.25rem 1.25rem 1.4rem !important;
 }
 
+.pe-springboard-card {
+  padding: 0 !important;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--color-accent) 48%, var(--liquid-border-soft)) !important;
+  box-shadow:
+    0 18px 40px color-mix(in srgb, var(--color-accent) 18%, transparent),
+    0 6px 14px rgba(15, 23, 42, 0.06),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.98) !important;
+}
+
+.pe-springboard {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  margin: 0;
+  padding: 1.25rem 1.15rem 1.35rem;
+  min-height: 5.75rem;
+  border: 0;
+  background:
+    radial-gradient(85% 140% at 100% 12%, color-mix(in srgb, var(--color-accent) 46%, transparent), transparent 56%),
+    linear-gradient(118deg, color-mix(in srgb, var(--color-accent) 22%, #fff) 0%, #fff 54%);
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  overflow: hidden;
+  transition:
+    transform 0.18s ease,
+    filter 0.18s ease;
+}
+
+.pe-springboard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    115deg,
+    transparent 35%,
+    color-mix(in srgb, #fff 55%, transparent) 48%,
+    transparent 62%
+  );
+  transform: translateX(-120%);
+  opacity: 0.7;
+}
+
+.pe-springboard:hover:not(:disabled),
+.pe-springboard:focus-visible:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.pe-springboard:hover:not(:disabled)::after,
+.pe-springboard:focus-visible:not(:disabled)::after {
+  animation: pe-springboard-shine 0.7s ease;
+}
+
+.pe-springboard:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+  outline-offset: -3px;
+}
+
+.pe-springboard:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  filter: grayscale(0.25);
+}
+
+.pe-springboard__icon {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 3.15rem;
+  height: 3.15rem;
+  display: grid;
+  place-items: center;
+  border-radius: 1rem;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 22%, var(--color-accent)) 0%,
+    var(--color-accent) 100%
+  );
+  color: var(--color-on-accent, #fff);
+  font-size: 1.5rem;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 10px 18px color-mix(in srgb, var(--color-accent) 32%, transparent);
+}
+
+.pe-springboard__copy {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.pe-springboard__kicker {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.pe-springboard__title {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.8vw, 1.55rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+
+.pe-springboard__go {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 2.7rem;
+  height: 2.7rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--color-on-accent, #fff);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, #fff 18%, var(--color-accent)) 0%,
+    var(--color-accent) 55%,
+    var(--color-accent-hover) 100%
+  );
+  box-shadow:
+    0 8px 18px color-mix(in srgb, var(--color-accent) 38%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  font-size: 1.2rem;
+  transition: transform 0.18s ease;
+}
+
+.pe-springboard:hover:not(:disabled) .pe-springboard__go,
+.pe-springboard:focus-visible:not(:disabled) .pe-springboard__go {
+  transform: translateX(4px);
+}
+
+.pe-springboard__lanes {
+  position: absolute;
+  right: 4.6rem;
+  top: 50%;
+  z-index: 0;
+  display: none;
+  flex-direction: column;
+  gap: 0.38rem;
+  width: min(42%, 16rem);
+  opacity: 0.8;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.pe-springboard:hover:not(:disabled) .pe-springboard__lanes,
+.pe-springboard:focus-visible:not(:disabled) .pe-springboard__lanes {
+  transform: translate(-0.45rem, -50%);
+  opacity: 1;
+}
+
+.pe-springboard__lane {
+  display: flex;
+  gap: 0.32rem;
+}
+
+.pe-springboard__block {
+  height: 0.62rem;
+  border-radius: 999px;
+  background: var(--pe-lane, var(--color-accent));
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--pe-lane, var(--color-accent)) 35%, transparent);
+}
+
+.pe-springboard__lane:nth-child(1) .pe-springboard__block:nth-child(1) { flex: 1.4; }
+.pe-springboard__lane:nth-child(1) .pe-springboard__block:nth-child(2) { flex: 0.8; }
+.pe-springboard__lane:nth-child(1) .pe-springboard__block:nth-child(3) { flex: 1.1; }
+.pe-springboard__lane:nth-child(2) .pe-springboard__block:nth-child(1) { flex: 0.7; }
+.pe-springboard__lane:nth-child(2) .pe-springboard__block:nth-child(2) { flex: 1.6; }
+.pe-springboard__lane:nth-child(2) .pe-springboard__block:nth-child(3) { flex: 0.9; }
+.pe-springboard__lane:nth-child(3) .pe-springboard__block:nth-child(1) { flex: 1.2; }
+.pe-springboard__lane:nth-child(3) .pe-springboard__block:nth-child(2) { flex: 1.1; }
+.pe-springboard__lane:nth-child(3) .pe-springboard__block:nth-child(3) { flex: 0.7; }
+
+@keyframes pe-springboard-shine {
+  to { transform: translateX(120%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pe-springboard,
+  .pe-springboard__go,
+  .pe-springboard__lanes {
+    transition: none;
+  }
+
+  .pe-springboard:hover:not(:disabled)::after,
+  .pe-springboard:focus-visible:not(:disabled)::after {
+    animation: none;
+  }
+
+  .pe-springboard:hover:not(:disabled) .pe-springboard__lanes,
+  .pe-springboard:focus-visible:not(:disabled) .pe-springboard__lanes {
+    transform: translateY(-50%);
+  }
+}
+
 @media (min-width: 768px) {
   .pe-section {
     padding: 1.5rem 1.6rem 1.65rem !important;
+  }
+
+  .pe-springboard {
+    gap: 1.1rem;
+    padding: 1.45rem 1.45rem 1.55rem;
+    min-height: 7rem;
+  }
+
+  .pe-springboard__icon {
+    width: 3.35rem;
+    height: 3.35rem;
+    font-size: 1.6rem;
+  }
+
+  .pe-springboard__copy {
+    padding-right: min(42%, 14.5rem);
+  }
+
+  .pe-springboard__go {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.3rem;
+  }
+
+  .pe-springboard__lanes {
+    display: flex;
   }
 }
 

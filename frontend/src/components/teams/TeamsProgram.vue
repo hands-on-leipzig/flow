@@ -11,6 +11,7 @@ import TeamList from '@/components/molecules/TeamList.vue'
 import TeamsRegistrationStats from '@/components/teams/TeamsRegistrationStats.vue'
 import TeamsMultiTeamCoaches from '@/components/teams/TeamsMultiTeamCoaches.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import {findProgram, firstTeamsPath} from '@/utils/eventPrograms'
@@ -127,7 +128,10 @@ watch(
   <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Details pro Team</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Details pro Team</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Verteilen der Teams auf die Nummern im Plan. Anschauen der Details aus der Anmeldung</p>
       </div>
       <div class="vol-page__actions">

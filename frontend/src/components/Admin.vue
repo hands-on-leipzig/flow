@@ -16,6 +16,7 @@ import CalendarFeedsAdmin from '@/components/molecules/CalendarFeedsAdmin.vue'
 import AdminWartung from '@/components/molecules/AdminWartung.vue'
 import PlanQualitaet from '@/components/molecules/PlanQualitaet.vue'
 import Enrollments from '@/components/molecules/Enrollments.vue'
+import HelpAdmin from '@/components/molecules/HelpAdmin.vue'
 import {
   ADMIN_DEFAULT_SECTION,
   ADMIN_FILL_SECTIONS,
@@ -125,6 +126,10 @@ onMounted(() => {
     <div v-else-if="activeTab === 'nowandnext' && sectionAllowed">
       <h2 class="text-xl font-bold mb-4">Was passiert gerade? Und was als nächstes?</h2>
       <NowAndNext/>
+    </div>
+
+    <div v-else-if="activeTab === 'help' && sectionAllowed" class="admin-shell__fill-child">
+      <HelpAdmin/>
     </div>
 
     <div v-else-if="activeTab === 'calendar'">

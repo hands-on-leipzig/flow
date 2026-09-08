@@ -202,7 +202,7 @@ function confirmRegenerateLinks() {
   const seasonName = seasons.value.find((s) => s.id === selectedSeason.value)?.name || 'unbekannt'
   openConfirm({
     title: 'Links regenerieren?',
-    message: `Alle öffentlichen Links und QR-Codes für die Saison „${seasonName}“ werden neu erstellt und in DRAHT aktualisiert.`,
+    message: `Alle Links zur öffentlichen Seite und QR-Codes für die Saison „${seasonName}“ werden neu erstellt und in DRAHT aktualisiert.`,
     type: 'warning',
     confirmText: 'Regenerieren',
     action: runRegenerateLinks,
@@ -412,9 +412,9 @@ async function runRegenerateSeasonPlans() {
       </div>
 
       <div class="wartung-tile glass-card liquid-surface-inner">
-        <h3 class="glass-card__title !mb-0">Öffentliche Links regenerieren</h3>
+        <h3 class="glass-card__title !mb-0">Links zur öffentlichen Seite regenerieren</h3>
         <p class="wartung-tile__body text-sm text-[var(--color-text-muted)]">
-          Regeneriert alle öffentlichen Links und QR-Codes für alle Events einer Saison und aktualisiert sie in DRAHT.
+          Regeneriert alle Links zur öffentlichen Seite und QR-Codes für alle Events einer Saison und aktualisiert sie in DRAHT.
         </p>
         <div class="wartung-tile__controls">
           <select

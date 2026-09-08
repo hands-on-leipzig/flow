@@ -14,6 +14,10 @@ const props = defineProps<{
   embedded?: boolean
 }>()
 
+const emit = defineEmits<{
+  exit: []
+}>()
+
 type RoleOption = {
   value: number | null
   label: string
@@ -192,6 +196,17 @@ const cockpitPath = computed(() => {
 
 const showCheckInLink = computed(() => checkInEnabled.value && !!checkInPath.value)
 const showCockpitLink = computed(() => cockpitEnabled.value && !!cockpitPath.value)
+
+const canLeaveToPublicPage = computed(() => props.embedded || !!effectiveSlug.value)
+
+function leaveToPublicPage() {
+  if (props.embedded) {
+    emit('exit')
+    return
+  }
+  const slug = effectiveSlug.value
+  if (slug) void router.push(`/${slug}`)
+}
 
 const selectedRoleMeta = computed(() =>
     roles.value.find((r) => r.id === selectedRole.value) || null
@@ -1026,6 +1041,11 @@ function restorePrefsFromStorage() {
 
 async function pushQuery(next: Record<string, string | null>, persist = true) {
   const query: Record<string, string> = {}
+  for (const [key, raw] of Object.entries(route.query)) {
+    if (key === 'role' || key === 'team' || key === 'lane' || key === 'table' || key === 'expired') continue
+    const value = Array.isArray(raw) ? raw[0] : raw
+    if (value) query[key] = value
+  }
   const merged = {
     role: selectedRole.value != null ? String(selectedRole.value) : null,
     team: selectedTeam.value != null ? String(selectedTeam.value) : null,
@@ -1221,8 +1241,16 @@ function confirmEntityInfoSwitch() {
 
 async function resolveSelectionAfterRoles() {
   const hasQueryRole = route.query.role != null && route.query.role !== ''
+  const zeitplanQuery = (() => {
+    const raw = route.query.zeitplan
+    const value = Array.isArray(raw) ? raw[0] : raw
+    return value === '1' || value === 'true' || value === 'yes'
+  })()
   if (hasQueryRole) {
     syncFromQuery()
+  } else if (props.embedded && zeitplanQuery) {
+    applyPrefs({role: null, team: null, lane: null, table: null})
+    if (route.query.expired == null) includeExpired.value = false
   } else if (!restorePrefsFromStorage()) {
     applyPrefs({role: null, team: null, lane: null, table: null})
     if (route.query.expired == null) includeExpired.value = false
@@ -1469,6 +1497,14 @@ watch(
             <h2 class="public-schedule__dummy-title">Überblick</h2>
             <p class="public-schedule__dummy-body">Die Übersicht folgt in Kürze.</p>
             <p class="public-schedule__dummy-body">Wähle oben eine Rolle aus.</p>
+            <button
+                v-if="canLeaveToPublicPage"
+                type="button"
+                class="public-schedule__text-action"
+                @click="leaveToPublicPage"
+            >
+              Zeitplan verlassen und zurück zur öffentlichen Seite
+            </button>
           </div>
 
           <div

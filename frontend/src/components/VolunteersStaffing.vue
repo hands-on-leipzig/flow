@@ -26,6 +26,7 @@ import {
 } from '@/utils/volunteerStaffingFilters'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 import {staffingContainerTitle, staffingTileKey} from '@/volunteers/staffingLabel'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import {
   boundsValidationError,
   tileFilled,
@@ -469,7 +470,10 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
   <div class="vol-page vol-page--fill">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Zuordnung</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Zuordnung</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Zuordnung der Helfer:innen auf die Rollen im Veranstaltungsplan</p>
       </div>
       <div class="vol-page__actions">

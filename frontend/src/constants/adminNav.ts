@@ -89,6 +89,13 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     devOrLocalOnly: true,
   },
   {
+    key: 'help',
+    label: 'Hilfe',
+    icon: 'bi-question-circle',
+    group: 'entwicklung',
+    devOrLocalOnly: true,
+  },
+  {
     key: 'main-tables',
     label: 'alle m-Tabellen',
     icon: 'bi-hammer',
@@ -164,7 +171,7 @@ export const ADMIN_ENTWICKLUNG_NAV: AdminNavNode[] = [
     key: 'main-tables-folder',
     label: 'Main Tables',
     icon: 'bi-table',
-    children: ['main-tables', 'match-plans', 'parameters', 'roles'],
+    children: ['main-tables', 'help', 'match-plans', 'parameters', 'roles'],
   },
   {kind: 'section', key: 'quality'},
 ]
@@ -174,6 +181,10 @@ export const SPECIAL_M_TABLE_EDITORS: Record<string, string> = {
   m_match: 'match-plans',
   m_parameter: 'parameters',
   m_visibility: 'roles',
+  m_help_topic: 'help',
+  m_help_screen: 'help',
+  m_help_action: 'help',
+  m_help_action_screen: 'help',
 }
 
 export function specialEditorForTable(table: string): AdminSection | undefined {
@@ -216,4 +227,4 @@ export function adminSectionPath(key: string = ADMIN_DEFAULT_SECTION): string {
   return `/plan/admin/${key}`
 }
 
-export const ADMIN_FILL_SECTIONS = new Set(['main-tables', 'parameters', 'roles'])
+export const ADMIN_FILL_SECTIONS = new Set(['main-tables', 'parameters', 'roles', 'help'])
