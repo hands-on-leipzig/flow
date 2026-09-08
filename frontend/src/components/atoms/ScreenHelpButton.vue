@@ -301,6 +301,12 @@ function screenHref(screen: ActionScreen): string {
               </div>
             </details>
           </section>
+          <p class="screen-help-panel__catalog">
+            <RouterLink to="/plan/help" class="screen-help-panel__page" @click="open = false">
+              Alle Hilfe-Themen
+              <i class="bi bi-arrow-right" aria-hidden="true"/>
+            </RouterLink>
+          </p>
         </div>
       </aside>
     </Teleport>
@@ -424,6 +430,11 @@ function screenHref(screen: ActionScreen): string {
 }
 .screen-help-panel__page i {
   font-size: 0.8em;
+}
+.screen-help-panel__catalog {
+  margin-top: 0.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
 }
 .screen-help-panel__input {
   display: block;
