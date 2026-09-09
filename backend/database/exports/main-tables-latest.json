@@ -11546,6 +11546,48 @@
             "title": "Wie kann ich Slots f\u00fcr Helfer:innen anlegen?",
             "body": null,
             "sort_order": 58
+        },
+        {
+            "id": 62,
+            "help_topic": 2,
+            "title": "Wie lade ich ein Logo hoch?",
+            "body": "PNG, JPG oder SVG, maximal 2 MB.\n\nDatei auf \u201eNeues Logo\u201c ziehen oder dort klicken und eine Datei w\u00e4hlen.\n\nEin neu hochgeladenes Logo wird f\u00fcr die aktuelle Veranstaltung automatisch aktiv geschaltet. Es bleibt erhalten und kann bei anderen Veranstaltungen ebenfalls eingeschaltet werden.",
+            "sort_order": 59
+        },
+        {
+            "id": 63,
+            "help_topic": 2,
+            "title": "Wie \u00e4ndere ich die Reihenfolge der Logos?",
+            "body": "Die Reihenfolge l\u00e4sst sich mit Drag-and-Drop ver\u00e4ndern.\n\nIn dieser Reihenfolge erscheinen die Logos auf der \u00f6ffentlichen Seite, in den PDF-Fu\u00dfzeilen und auf dem Aushang mit QR-Code.",
+            "sort_order": 60
+        },
+        {
+            "id": 64,
+            "help_topic": 2,
+            "title": "Wof\u00fcr wird das erste Logo verwendet?",
+            "body": "Das erste aktive Logo erscheint zus\u00e4tzlich auf den Namensaufklebern, zusammen mit Programm- und Saisonlogo.\n\nDie anderen Logos erscheinen dort nicht.",
+            "sort_order": 61
+        },
+        {
+            "id": 65,
+            "help_topic": 2,
+            "title": "Was bewirkt der Link bei einem Logo?",
+            "body": "Wenn ein Link eingetragen ist, wird das Logo auf der \u00f6ffentlichen Seite anklickbar.\n\nIn den PDFs und auf den Namensaufklebern hat der Link keine Wirkung.",
+            "sort_order": 62
+        },
+        {
+            "id": 66,
+            "help_topic": 2,
+            "title": "Wo erscheinen die Logos?",
+            "body": "Alle aktiven Logos erscheinen auf der \u00f6ffentlichen Seite, in der Fu\u00dfzeile der PDFs und auf dem Aushang mit QR-Code.\n\nDas erste Logo erscheint zus\u00e4tzlich auf den Namensaufklebern.\n\nRechts auf der Seite gibt es dazu eine Vorschau.",
+            "sort_order": 63
+        },
+        {
+            "id": 67,
+            "help_topic": 2,
+            "title": "Wie l\u00f6sche ich ein Logo?",
+            "body": "\u00dcber den L\u00f6schen-Button am Logo.\n\nDas Logo wird vollst\u00e4ndig entfernt, auch bei anderen Veranstaltungen.\n\nZum Abschalten nur f\u00fcr diese Veranstaltung reicht der Schalter.",
+            "sort_order": 64
         }
     ],
     "m_help_action_screen": [
@@ -11938,6 +11980,41 @@
             "id": 79,
             "help_action": 58,
             "help_screen": 19
+        },
+        {
+            "id": 80,
+            "help_action": 11,
+            "help_screen": 20
+        },
+        {
+            "id": 81,
+            "help_action": 62,
+            "help_screen": 20
+        },
+        {
+            "id": 82,
+            "help_action": 63,
+            "help_screen": 20
+        },
+        {
+            "id": 83,
+            "help_action": 64,
+            "help_screen": 20
+        },
+        {
+            "id": 84,
+            "help_action": 65,
+            "help_screen": 20
+        },
+        {
+            "id": 85,
+            "help_action": 66,
+            "help_screen": 20
+        },
+        {
+            "id": 86,
+            "help_action": 67,
+            "help_screen": 20
         }
     ],
     "m_help_screen": [
@@ -12110,6 +12187,16 @@
             "must_do": "Nichts.",
             "can_do": "Zus\u00e4tzliche Aktivit\u00e4ten pro Team anlegen, die im Zeitplan der Veranstaltung zus\u00e4tzlich zum Ablauf gezeigt werden.\n\nZeiten pro Team zuordnen.",
             "sort_order": 17
+        },
+        {
+            "id": 20,
+            "key": "publish-logos",
+            "name": "Logos",
+            "route_path": "\/plan\/publish\/logos",
+            "description": "Hier werden die Logos f\u00fcr die \u00f6ffentliche Seite und die PDFs verwaltet.\nLinks die Liste, rechts eine Vorschau.",
+            "must_do": "Nichts.\nOhne eigene Logos erscheinen auf der \u00f6ffentlichen Seite und in den PDFs keine zus\u00e4tzlichen Logos.",
+            "can_do": "Logos hochladen und f\u00fcr diese Veranstaltung ein- oder ausschalten.\n\nDie Reihenfolge \u00e4ndern. Das erste Logo wird f\u00fcr die Namensaufkleber verwendet.\n\nPro Logo einen Titel und optional einen Link vergeben.",
+            "sort_order": 1
         }
     ],
     "m_help_topic": [

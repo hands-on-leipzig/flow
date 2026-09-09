@@ -40,6 +40,7 @@ class HelpCatalogApiTest extends TestCase
         $this->assertSame(
             [
                 'publish-distribution',
+                'publish-logos',
                 'teams-data',
                 'teams-program',
                 'rooms',
@@ -61,10 +62,11 @@ class HelpCatalogApiTest extends TestCase
         );
         $this->assertSame('/plan/publish', $screens[0]['route_path']);
         $this->assertNull($screens[0]['description']);
-        $this->assertSame('/plan/teams/:program', $screens[2]['route_path']);
-        $this->assertSame('/plan/rooms', $screens[3]['route_path']);
-        $this->assertSame('/plan/volunteers', $screens[4]['route_path']);
-        $this->assertSame('/plan/volunteers/staffing', $screens[6]['route_path']);
+        $this->assertSame('/plan/publish/logos', $screens[1]['route_path']);
+        $this->assertSame('/plan/teams/:program', $screens[3]['route_path']);
+        $this->assertSame('/plan/rooms', $screens[4]['route_path']);
+        $this->assertSame('/plan/volunteers', $screens[5]['route_path']);
+        $this->assertSame('/plan/volunteers/staffing', $screens[7]['route_path']);
         $this->assertSame([], $response->json('actions'));
     }
 
@@ -89,6 +91,13 @@ class HelpCatalogApiTest extends TestCase
             ->assertJsonPath('key', 'schedule-general')
             ->assertJsonPath('name', 'Ablauf - Allgemein')
             ->assertJsonPath('route_path', '/plan/schedule')
+            ->assertJsonPath('actions', []);
+
+        $this->getJson('/api/help/screens/publish-logos')
+            ->assertOk()
+            ->assertJsonPath('key', 'publish-logos')
+            ->assertJsonPath('name', 'Logos')
+            ->assertJsonPath('route_path', '/plan/publish/logos')
             ->assertJsonPath('actions', []);
 
         $this->getJson('/api/help/screens/teams-explore')
@@ -289,6 +298,7 @@ class HelpCatalogApiTest extends TestCase
 
         DB::table('m_help_screen')->insert([
             ['id' => 1, 'key' => 'publish-distribution', 'name' => 'Öffentliche Seite', 'route_path' => '/plan/publish', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 1],
+            ['id' => 20, 'key' => 'publish-logos', 'name' => 'Logos', 'route_path' => '/plan/publish/logos', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 1],
             ['id' => 2, 'key' => 'teams-data', 'name' => 'Teamdaten', 'route_path' => '/plan/teams/data', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 2],
             ['id' => 3, 'key' => 'teams-program', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/:program', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 3],
             ['id' => 6, 'key' => 'volunteers-roster', 'name' => 'Helfer:innenliste', 'route_path' => '/plan/volunteers/roster', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 6],
