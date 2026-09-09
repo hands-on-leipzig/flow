@@ -3,6 +3,7 @@
  * Ablauf / Zusatzaktivitäten shell: sidebar picks the left pane; plan preview stays on the right.
  */
 import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
@@ -10,11 +11,52 @@ import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import Preview from '@/components/molecules/Preview.vue'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import { formatDateTime } from '@/utils/dateTimeFormat'
 import { seasonLogoAlt, seasonLogoSrc } from '@/utils/images'
 import { cleanEventName, getAbbreviatedCompetitionType } from '@/utils/eventTitle'
 
 defineOptions({ name: 'Schedule' })
+
+const PAGE_HEADERS: Record<string, {title: string; sub: string}> = {
+  'schedule-general': {
+    title: 'Ablauf - Allgemein',
+    sub: 'Einstellen der grundlegenden Parameter für den Ablauf',
+  },
+  'schedule-integration': {
+    title: 'Ablauf - Integration',
+    sub: 'Verbinden der Programme',
+  },
+  'schedule-times': {
+    title: 'Ablauf - Zeiten',
+    sub: 'Festlegen von Startzeiten und Dauern',
+  },
+  'schedule-afternoon': {
+    title: 'Ablauf - Nachmittag',
+    sub: 'Festlegen der Reihenfolge im Nachmittag',
+  },
+  'schedule-expert': {
+    title: 'Ablauf - Expertenparameter',
+    sub: 'Veränderen des Ablaufs im Detail',
+  },
+  'schedule-protected': {
+    title: 'Ablauf - Geschützte Parameter',
+    sub: 'Testen der Auswirkungen von geschütztzen Parametern',
+  },
+  'schedule-free': {
+    title: 'Zusätzliche Aktivitäten - Freie Blöcke',
+    sub: 'Eintragen von Aktivitäten außerhalb des generierten Ablaufs',
+  },
+  'schedule-slots': {
+    title: 'Zusätzliche Aktivitäten - Slots',
+    sub: 'Eintragen von festen Zeitfenstern mit Team-Zuordnung',
+  },
+}
+
+const route = useRoute()
+const pageHeader = computed(() =>
+  PAGE_HEADERS[String(route.name ?? '')] ?? PAGE_HEADERS['schedule-general']
+)
 
 const {
   selectedEvent,
@@ -101,8 +143,18 @@ watch(
 </script>
 
 <template>
-  <div class="h-full min-h-0 flex flex-col gap-3 overflow-hidden">
-    <div v-if="loading && !selectedPlanId" class="flex items-center justify-start h-full flex-col text-[var(--color-text-muted)]">
+  <div class="vol-page vol-page--fill">
+    <header class="vol-page__header">
+      <div>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">{{ pageHeader.title }}</h1>
+          <ScreenHelpButton/>
+        </div>
+        <p class="vol-page__sub">{{ pageHeader.sub }}</p>
+      </div>
+    </header>
+
+    <div v-if="loading && !selectedPlanId" class="flex items-center justify-start flex-1 min-h-0 flex-col text-[var(--color-text-muted)]">
       <LoaderFlow/>
       <LoaderText/>
     </div>
@@ -164,7 +216,7 @@ watch(
         </div>
       </div>
 
-      <div class="schedule-workspace flex-1 min-h-0 min-w-0">
+      <div class="schedule-workspace">
         <div class="schedule-workspace__split">
           <section
               class="schedule-workspace__left"
@@ -299,6 +351,10 @@ watch(
 .schedule-workspace {
   display: flex;
   flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .schedule-workspace__split {
@@ -332,6 +388,7 @@ watch(
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .schedule-workspace__left--full {
@@ -341,7 +398,8 @@ watch(
 .schedule-workspace__settings {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 1.15rem 1.2rem 1.4rem;
   background: var(--glass-tab-surface, #ffffff);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, transparent);

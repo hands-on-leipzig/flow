@@ -38,7 +38,25 @@ class HelpCatalogApiTest extends TestCase
 
         $screens = $response->json('screens');
         $this->assertSame(
-            ['publish-distribution', 'teams-data', 'teams-program', 'rooms', 'volunteers-people', 'volunteers-roster', 'volunteers-staffing', 'live-check-in', 'live-cockpit'],
+            [
+                'publish-distribution',
+                'teams-data',
+                'teams-program',
+                'rooms',
+                'volunteers-people',
+                'volunteers-roster',
+                'volunteers-staffing',
+                'live-check-in',
+                'live-cockpit',
+                'schedule-general',
+                'schedule-integration',
+                'schedule-times',
+                'schedule-afternoon',
+                'schedule-expert',
+                'schedule-protected',
+                'schedule-free',
+                'schedule-slots',
+            ],
             array_column($screens, 'key')
         );
         $this->assertSame('/plan/publish', $screens[0]['route_path']);
@@ -64,6 +82,13 @@ class HelpCatalogApiTest extends TestCase
             ->assertJsonPath('key', 'teams-program')
             ->assertJsonPath('name', 'Details pro Team')
             ->assertJsonPath('route_path', '/plan/teams/:program')
+            ->assertJsonPath('actions', []);
+
+        $this->getJson('/api/help/screens/schedule-general')
+            ->assertOk()
+            ->assertJsonPath('key', 'schedule-general')
+            ->assertJsonPath('name', 'Ablauf - Allgemein')
+            ->assertJsonPath('route_path', '/plan/schedule')
             ->assertJsonPath('actions', []);
 
         $this->getJson('/api/help/screens/teams-explore')
@@ -271,6 +296,14 @@ class HelpCatalogApiTest extends TestCase
             ['id' => 9, 'key' => 'volunteers-staffing', 'name' => 'Zuordnung', 'route_path' => '/plan/volunteers/staffing', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 7],
             ['id' => 10, 'key' => 'live-check-in', 'name' => 'Check-In App', 'route_path' => '/plan/live/check-in', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 8],
             ['id' => 11, 'key' => 'live-cockpit', 'name' => 'Cockpit App', 'route_path' => '/plan/live/cockpit', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 9],
+            ['id' => 12, 'key' => 'schedule-general', 'name' => 'Ablauf - Allgemein', 'route_path' => '/plan/schedule', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 10],
+            ['id' => 13, 'key' => 'schedule-integration', 'name' => 'Ablauf - Integration', 'route_path' => '/plan/schedule/integration', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 11],
+            ['id' => 14, 'key' => 'schedule-times', 'name' => 'Ablauf - Zeiten', 'route_path' => '/plan/schedule/times', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 12],
+            ['id' => 15, 'key' => 'schedule-afternoon', 'name' => 'Ablauf - Nachmittag', 'route_path' => '/plan/schedule/afternoon', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 13],
+            ['id' => 16, 'key' => 'schedule-expert', 'name' => 'Ablauf - Expertenparameter', 'route_path' => '/plan/schedule/expert', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 14],
+            ['id' => 17, 'key' => 'schedule-protected', 'name' => 'Ablauf - Geschützte Parameter', 'route_path' => '/plan/schedule/protected', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 15],
+            ['id' => 18, 'key' => 'schedule-free', 'name' => 'Zusätzliche Aktivitäten - Freie Blöcke', 'route_path' => '/plan/schedule/free', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 16],
+            ['id' => 19, 'key' => 'schedule-slots', 'name' => 'Zusätzliche Aktivitäten - Slots', 'route_path' => '/plan/schedule/slots', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 17],
         ]);
     }
 }
