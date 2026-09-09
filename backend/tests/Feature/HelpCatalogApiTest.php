@@ -304,7 +304,7 @@ class HelpCatalogApiTest extends TestCase
             ['id' => 16, 'key' => 'schedule-expert', 'name' => 'Ablauf - Expertenparameter', 'route_path' => '/plan/schedule/expert', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 14],
             ['id' => 17, 'key' => 'schedule-protected', 'name' => 'Ablauf - Geschützte Parameter', 'route_path' => '/plan/schedule/protected', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 15],
             ['id' => 18, 'key' => 'schedule-free', 'name' => 'Zusätzliche Aktivitäten - Freie Blöcke', 'route_path' => '/plan/schedule/free', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 16],
-            ['id' => 19, 'key' => 'schedule-slots', 'name' => 'Zusätzliche Aktivitäten - Slots', 'route_path' => '/plan/schedule/slots', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 17],
+            ['id' => 19, 'key' => 'schedule-slots', 'name' => 'Zusätzliche Aktivitäten - Slot-Blöcke', 'route_path' => '/plan/schedule/slots', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 17],
         ]);
     }
 }
