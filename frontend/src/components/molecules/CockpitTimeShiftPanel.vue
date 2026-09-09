@@ -123,7 +123,7 @@ onUnmounted(() => {
       <span>Die Verschiebung kann hier nicht rückgängig gemacht werden!</span>
       <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"/>
     </p>
-    <p class="cp-shift__note">Im Notfall kann der ganze Plan in FLOW neu generiert werden.</p>
+    <p class="cp-shift__note">Im Notfall kann der Ablauf in FLOW neu generiert werden.</p>
 
     <div class="cp-shift__stepper liquid-surface-inner">
       <button
@@ -160,7 +160,7 @@ onUnmounted(() => {
       <strong>{{ loading ? '…' : (projectedEndTime || '—') }}</strong>
     </p>
 
-    <p v-if="locked" class="cp-shift__note">Der Plan ist gesperrt und kann nicht verschoben werden.</p>
+    <p v-if="locked" class="cp-shift__note">Der Zeitplan ist gesperrt und kann nicht verschoben werden.</p>
     <p v-if="error" class="glass-alert-error !mb-0">{{ error }}</p>
 
     <button

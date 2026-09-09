@@ -21,7 +21,7 @@ const plannedAmountNotMatching = computed(() => {
 <template>
   <div class="team-metrics" role="group" aria-label="Teamzahlen">
     <div class="team-metrics__cell team-metrics__cell--plan">
-      <span class="team-metrics__label">Plan für</span>
+      <span class="team-metrics__label">Ablauf für</span>
       <div class="team-metrics__value-row">
         <span
             v-if="plannedAmountNotMatching"

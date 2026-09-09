@@ -148,7 +148,7 @@ function onKeydown(event: KeyboardEvent) {
         :aria-valuemin="minTeams"
         :aria-valuemax="dragMax"
         :aria-valuenow="planTeams"
-        :aria-label="`Plan für ${planTeams} Teams`"
+        :aria-label="`Ablauf für ${planTeams} Teams`"
         @pointerdown="onPointerDown"
         @pointermove="onPointerMove"
         @pointerup="onPointerUp"
@@ -160,11 +160,11 @@ function onKeydown(event: KeyboardEvent) {
         <span class="plan-bar__line"/>
       </div>
       <span class="plan-bar__value glass-chip liquid-surface-inner">
-        Plan für {{ planTeams }} Teams
+        Ablauf für {{ planTeams }} Teams
         <span
             v-if="planMismatch"
             class="plan-bar__warning"
-            title="Angemeldete Teams weichen vom Plan ab"
+            title="Angemeldete Teams weichen vom Ablauf ab"
         />
       </span>
     </div>

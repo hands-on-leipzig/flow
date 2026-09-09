@@ -337,7 +337,7 @@ const hasBlocksOutsideEventDates = computed(() =>
             v-model:title="newBlockName"
             :disabled="!planId"
             title-placeholder="Neuer Block z.B. Mittagessen"
-            empty-hint="Eigener Eintrag im Plan, ohne den generierten Ablauf zu ändern."
+            empty-hint="Eigener Eintrag im Zeitplan, ohne den generierten Ablauf zu ändern."
             @commit="createCustom"
         >
           <div class="free-block__when">

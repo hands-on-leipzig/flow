@@ -132,7 +132,7 @@ watch(
           <h1 class="vol-page__title">Details pro Team</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Verteilen der Teams auf die Nummern im Plan. Anschauen der Details aus der Anmeldung</p>
+        <p class="vol-page__sub">Verteilen der Teams auf die Nummern im Ablauf. Anschauen der Details aus der Anmeldung</p>
       </div>
       <div class="vol-page__actions">
         <button

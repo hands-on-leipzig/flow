@@ -37,6 +37,14 @@ const ROUTE_KEYS: Record<string, string> = {
   '/plan/volunteers/staffing': 'volunteers-staffing',
   '/plan/live/check-in': 'live-check-in',
   '/plan/live/cockpit': 'live-cockpit',
+  '/plan/schedule': 'schedule-general',
+  '/plan/schedule/integration': 'schedule-integration',
+  '/plan/schedule/times': 'schedule-times',
+  '/plan/schedule/afternoon': 'schedule-afternoon',
+  '/plan/schedule/expert': 'schedule-expert',
+  '/plan/schedule/protected': 'schedule-protected',
+  '/plan/schedule/free': 'schedule-free',
+  '/plan/schedule/slots': 'schedule-slots',
 }
 
 const route = useRoute()

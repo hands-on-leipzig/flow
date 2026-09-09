@@ -202,7 +202,7 @@ async function setDetailLevel(level: number) {
     reloadPreview()
   } catch {
     detailLevel.value = prev
-    showGlassToast('Informationen zum Ablauf konnten nicht gespeichert werden.', 'error')
+    showGlassToast('Informationen zum Zeitplan konnten nicht gespeichert werden.', 'error')
   } finally {
     saving.value?.hide()
   }
@@ -343,7 +343,7 @@ onMounted(async () => {
 
 <template>
   <div class="vol-page vol-page--fill pub">
-    <SavingToast ref="saving" message="Informationen zum Ablauf werden gespeichert…" />
+    <SavingToast ref="saving" message="Informationen zum Zeitplan werden gespeichert…" />
     <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="volunteerDataEntrySaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="teamDataEntrySaving" message="Einstellung wird gespeichert…" />
@@ -370,8 +370,8 @@ onMounted(async () => {
             <PublicLinkStrip on-publish-page/>
 
             <section class="pub__tile glass-card liquid-surface-inner">
-              <h2 class="glass-card__heading">Informationen zum Ablauf</h2>
-              <div class="pub__levels" role="radiogroup" aria-label="Informationen zum Ablauf">
+              <h2 class="glass-card__heading">Informationen zum Zeitplan</h2>
+              <div class="pub__levels" role="radiogroup" aria-label="Informationen zum Zeitplan">
                 <div
                     v-for="level in levels"
                     :key="level.id"
@@ -457,7 +457,7 @@ onMounted(async () => {
           <h2 class="glass-card__heading">Apps speziell für den Tag der Veranstaltung</h2>
 
           <p class="glass-settings-hint !mb-0 pub__day-apps-hint">
-            Diese Apps sind nur vom Plan verlinkt, wenn „Volle Details“ gesetzt ist.
+            Diese Apps sind nur von der öffentlichen Seite verlinkt, wenn „Volle Details“ gesetzt ist.
           </p>
 
           <div class="pub__app-block">

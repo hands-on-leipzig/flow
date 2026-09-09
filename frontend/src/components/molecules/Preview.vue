@@ -440,7 +440,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
             type="button"
             class="glass-segment__btn"
             :disabled="!canRegeneratePlan"
-            title="Plan sofort neu generieren (ohne ausstehende Parameter-Änderungen)"
+            title="Ablauf sofort neu generieren (ohne ausstehende Parameter-Änderungen)"
             @click="onRegeneratePlan"
           >Neu generieren</button>
         </div>

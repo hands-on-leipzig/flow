@@ -638,7 +638,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Beim Coaches-Briefing wird der Ablauf des Tages besprochen und offene Fragen beantwortet",
+            "description": "Beim Coaches-Briefing wird der Zeitplan besprochen und offene Fragen beantwortet",
             "link": "",
             "link_text": null,
             "activity_type": 7,
@@ -692,7 +692,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Im Coaches-Briefing wir der Ablauf des Tages besprochen und offene Fragen beantwortet",
+            "description": "Im Coaches-Briefing wir der Zeitplan besprochen und offene Fragen beantwortet",
             "link": "",
             "link_text": null,
             "activity_type": 7,
@@ -728,7 +728,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Im Live Challenge Jury-Briefing lernen die Juror:innen die Aufgabe und den zeitlichen Ablauf kennen",
+            "description": "Im Live Challenge Jury-Briefing lernen die Juror:innen die Aufgabe und den Zeitplan kennen",
             "link": "",
             "link_text": null,
             "activity_type": 8,
@@ -1322,7 +1322,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Beim Coaches-Briefing wird der Ablauf des Tages besprochen und offene Fragen beantwortet",
+            "description": "Beim Coaches-Briefing wird der Zeitplan besprochen und offene Fragen beantwortet",
             "link": "",
             "link_text": null,
             "activity_type": 7,
@@ -1643,9 +1643,9 @@
         {
             "id": 1,
             "help_topic": 2,
-            "title": "Welche Informationen zum Ablauf erscheinen auf der \u00f6ffentlichen Seite?",
+            "title": "Welche Informationen zum Zeitplan erscheinen auf der \u00f6ffentlichen Seite?",
             "sort_order": 1,
-            "body": "Es gibt drei Stufen.\n\nKeine:\nnur das Datum.\n\nWichtige Zeiten:\nEr\u00f6ffnung, Preisverleihung und Briefings und das geplante Ende der Veranstaltung werden automatisch dargestellt.\nZus\u00e4tzlich k\u00f6nnen Freie Bl\u00f6cke mit \"wichtige Zeit\" gekennzeichnet werden. Diese werden dann chronologisch in die Liste einsortiert. Ein typisches Beispiel daf\u00fcr ist, wann der Check-In ge\u00f6ffnet ist."
+            "body": "Es gibt drei Stufen.\n\nKeine:\nnur das Datum.\n\nWichtige Zeiten:\nEr\u00f6ffnung, Preisverleihung und Briefings und das geplante Ende der Veranstaltung werden automatisch dargestellt.\nZus\u00e4tzlich k\u00f6nnen Freie Bl\u00f6cke mit \"wichtige Zeit\" gekennzeichnet werden. Diese werden dann chronologisch in die Liste einsortiert. Ein typisches Beispiel daf\u00fcr ist, wann der Check-In ge\u00f6ffnet ist.\n\nVolle Details:\nDer gesamte Zeitplan ist sichtbar."
         },
         {
             "id": 2,
@@ -1701,7 +1701,7 @@
             "help_topic": 5,
             "title": "Wie schalte ich die Apps (Check-in, Cockpit) ein- bzw. aus?",
             "sort_order": 9,
-            "body": "Die Apps k\u00f6nnen sowohl in den Einstellungen f\u00fcr die \u00f6ffentliche Seite als auch direkt auf den jeweiligen Seiten der Apps ein- und ausgeschaltet werden.\n\nDie Apps sind nur im \u00f6ffentlichen Zeitplan verlinkt. Die Sichtbarkeit muss in den Einstellungen zur \u00f6ffentlichen Seite entsprechend gesetzt sein."
+            "body": "Die Apps k\u00f6nnen sowohl in den Einstellungen f\u00fcr die \u00f6ffentliche Seite als auch direkt auf den jeweiligen Seiten der Apps ein- und ausgeschaltet werden.\n\nDie Apps sind nur von der \u00f6ffentlichen Seite verlinkt. Die Sichtbarkeit muss in den Einstellungen zur \u00f6ffentlichen Seite entsprechend gesetzt sein."
         },
         {
             "id": 11,
@@ -1757,7 +1757,7 @@
             "help_topic": 1,
             "title": "Wie ordne ich die Teams aus der Anmeldung auf die Teamnummern im Ablauf zu?",
             "sort_order": 17,
-            "body": "Der Ablauf-Generator erzeugt einen Plan mit Teamnummer (T01, T02, ...).\n\nDie Zuordnung der Teams auf die Teamnummer ist automatisch, kann aber durch Drag-und-Drop ver\u00e4ndert werden.\n\nWenn die Anzahl angemeldeter Teams nicht zu der Anzahl im Ablauft passt, wird das entsprechend angezeigt."
+            "body": "Der Ablauf-Generator erzeugt einen Ablauf mit Teamnummer (T01, T02, ...).\n\nDie Zuordnung der Teams auf die Teamnummer ist automatisch, kann aber durch Drag-und-Drop ver\u00e4ndert werden.\n\nWenn die Anzahl angemeldeter Teams nicht zu der Anzahl im Ablauf passt, wird das entsprechend angezeigt."
         },
         {
             "id": 19,
@@ -1771,7 +1771,7 @@
             "help_topic": 1,
             "title": "Was sollte ich machen, wenn ein Team kurzfristig absagt?",
             "sort_order": 19,
-            "body": "Das einfachste ist, das Team als \"No-Show zu markieren\".  Dann bleibt dann im Ablauf, wird aber \u00fcberall durchgestrichen angezeigt.  \n\nVorteile: Alle Zeiten bleiben unver\u00e4ndert bleiben.\nNachteile: Eine Jury-Runde und die zgh. Matches bleiben leer. \n\nAlternativ kann auch der Ablauf angepasst werden, in dem die Teamanzahl reduziert wird.  Danach muss die Zuordnung der abgemeldeten Teams auf die Nummer im Plan \u00fcberpr\u00fcft und ggfs angepasst werden. \n\nVorteil: Der Ablauf enth\u00e4lt keine L\u00fccken.\nNachteil: Zeiten \u00e4ndern sich. Falls schon gedruckt wurde, muss neu gedruckt werden."
+            "body": "Das einfachste ist, das Team als \"No-Show zu markieren\".  Dann bleibt dann im Ablauf, wird aber \u00fcberall durchgestrichen angezeigt.  \n\nVorteile: Alle Zeiten bleiben unver\u00e4ndert bleiben.\nNachteile: Eine Jury-Runde und die zgh. Matches bleiben leer. \n\nAlternativ kann auch der Ablauf angepasst werden, in dem die Teamanzahl reduziert wird.  Danach muss die Zuordnung der abgemeldeten Teams auf die Nummer im Ablauf \u00fcberpr\u00fcft und ggfs angepasst werden. \n\nVorteil: Der Ablauf enth\u00e4lt keine L\u00fccken.\nNachteil: Zeiten \u00e4ndern sich. Falls schon gedruckt wurde, muss neu gedruckt werden."
         },
         {
             "id": 21,
@@ -1792,7 +1792,7 @@
             "help_topic": 7,
             "title": "Wie \u00e4ndere ich die Reihenfolge der R\u00e4ume",
             "sort_order": 22,
-            "body": "Die Reihenfolge l\u00e4sst sich mit Drag and Drop ver\u00e4ndern.\n\nF\u00fcr die Pl\u00e4ne ist die Reihenfolge der R\u00e4ume nicht wichtig. Sie hilft aber beim Zuordnen der Aktivit\u00e4ten."
+            "body": "Die Reihenfolge l\u00e4sst sich mit Drag and Drop ver\u00e4ndern.\n\nF\u00fcr den Zeitplan ist die Reihenfolge der R\u00e4ume nicht wichtig. Sie hilft aber beim Zuordnen der Aktivit\u00e4ten."
         },
         {
             "id": 24,
@@ -1813,7 +1813,7 @@
             "help_topic": 7,
             "title": "Wozu dient die Kennzeichnung \"nicht barrierefrei\"?",
             "sort_order": 25,
-            "body": "Wenn ein Raum als \"nicht barrierefrei\" gekennzeichnet ist, erscheint in allen Pl\u00e4nen ein entsprechendes Symbol."
+            "body": "Wenn ein Raum als \"nicht barrierefrei\" gekennzeichnet ist, erscheint im Zeitplan ein entsprechendes Symbol."
         },
         {
             "id": 27,
@@ -2204,7 +2204,7 @@
             "route_path": "\/plan\/publish",
             "description": "Auf der linken Seite wird festgelegt, was auf der \u00f6ffentlichen Seite gezeigt wird.\nRechts zeigt eine Live-Vorschau den aktuellen Stand.",
             "must_do": "Nichts. Der Link zur \u00f6ffentlichen Seite wird automatisch angelegt. Ohne \u00c4nderung wird der Veranstaltungsort, die Kontaktdaten und die Liste der angemeldeten Teams angezeigt.",
-            "can_do": "Die Stufe unter \u201eInformationen zum Ablauf\u201c w\u00e4hlen.\n\nFestlegen, ob Web-Formulare f\u00fcr Dateneingabe durch Coach:innen bzw. Helfer:innen genutzt werden sollen.\n\nDie Suche nach Helfer:innen ein- oder ausschalten.\n\nDie Check-In und Cockpit Apps f\u00fcr den Tag der Veranstaltung ein- oder ausschalten.",
+            "can_do": "Die Stufe unter \u201eInformationen zum Zeitplan\u201c w\u00e4hlen.\n\nFestlegen, ob Web-Formulare f\u00fcr Dateneingabe durch Coach:innen bzw. Helfer:innen genutzt werden sollen.\n\nDie Suche nach Helfer:innen ein- oder ausschalten.\n\nDie Check-In und Cockpit Apps f\u00fcr den Tag der Veranstaltung ein- oder ausschalten.",
             "sort_order": 1
         },
         {
@@ -2224,7 +2224,7 @@
             "route_path": "\/plan\/teams\/:program",
             "description": "Um die Detailsdaten zu den Teams aus der Anmeldung und ihre Zuordnung im Ablauf.",
             "must_do": "Wenn es \u00c4nderungen in der Anmeldung gibt, m\u00fcssen diese nach FLOW \u00fcbernommen werden. Dazu geh\u00f6rt Anmeldungen, Abmeldungen und Namens\u00e4nderungen. \n\nDas passiert bewusst nicht automatische, damit es keine \u00dcberraschungen gibt, weil sich die Daten heimlich ver\u00e4ndert haben.",
-            "can_do": "Die Reihenfolge der Teams im Ablaufplan kann ver\u00e4ndert werden. Und Teams, die kurzfristig abgesagt haben, k\u00f6nnen als \"no-show\" gekennzeichnet werden.\n\nAlle Daten k\u00f6nnen heruntergeladen und Coaches per E-Mail kontaktiert werden.",
+            "can_do": "Die Reihenfolge der Teams im Ablauf kann ver\u00e4ndert werden. Und Teams, die kurzfristig abgesagt haben, k\u00f6nnen als \"no-show\" gekennzeichnet werden.\n\nAlle Daten k\u00f6nnen heruntergeladen und Coaches per E-Mail kontaktiert werden.",
             "sort_order": 3
         },
         {
@@ -2243,7 +2243,7 @@
             "name": "R\u00e4ume",
             "route_path": "\/plan\/rooms",
             "description": "Um die Zuordnung der Aktivit\u00e4ten und Teams auf die R\u00e4ume im Veranstaltungsort.",
-            "must_do": "Wenn man nichts tut, werden in den Pl\u00e4nen Standard-Platzhalter statt echter Raumnamen angezeigt. Die helfen aber Teams, Helfer:innen und Publikum nur wenig, um die richtigen R\u00e4ume zu finden.\n\nDaher sollte man R\u00e4ume anlegen.",
+            "must_do": "Wenn man nichts tut, werden im Zeitplan Standard-Platzhalter statt echter Raumnamen angezeigt. Die helfen aber Teams, Helfer:innen und Publikum nur wenig, um die richtigen R\u00e4ume zu finden.\n\nDaher sollte man R\u00e4ume anlegen.",
             "can_do": "R\u00e4ume anlegen und sortieren.\n\nPro Raum eine Navigationshinweise hinzuf\u00fcgen und eine Kennzeichnung f\u00fcr \"nicht barrierefrei\" vergeben.\n\nAktivit\u00e4ten und Teams auf die R\u00e4ume verteilen.",
             "sort_order": 4
         },
@@ -2286,6 +2286,86 @@
             "must_do": "Nichts. Der gesamte Bereich \"am Tag\" ist optional.",
             "can_do": "Die Cockpit App ein- und ausschalten. Den PIN-Code \u00e4ndern.\n\nAlle Cockpit App Daten zur\u00fccksetzten.",
             "sort_order": 9
+        },
+        {
+            "id": 12,
+            "key": "schedule-general",
+            "name": "Ablauf - Allgemein",
+            "route_path": "\/plan\/schedule",
+            "description": "Um das automatische Erzeugen eine Ablaufs f\u00fcr den Veranstaltungstag.",
+            "must_do": "Die Anzahl der Teams im Ablauf (pro Programm) ausw\u00e4hlen.",
+            "can_do": "Zus\u00e4tzlich zu Anzahl Teams auch noch ausw\u00e4hlen, wie viele Jury-Gruppen, Spielfelder usw. genutzt werden sollen.\n\n\"Was w\u00e4re wenn\" ausprobieren, also z.B. zwischen vier und zwei Spielfeldern umstellen, um den dazu passenden Ablauf zu bekommen.",
+            "sort_order": 10
+        },
+        {
+            "id": 13,
+            "key": "schedule-integration",
+            "name": "Ablauf - Integration",
+            "route_path": "\/plan\/schedule\/integration",
+            "description": "Festlegen, wie die verschiedenen Programme am Veranstaltungsprogramm integriert sind.\nDie Auswirkungen sind u.a., ob Er\u00f6ffnungen und Preisverleihungen gemeinsam oder getrennt sind.   Und f\u00fcr die Kombination aus Founders und Future Edition hat es Auswirkungen auf den Abbau der Matches.",
+            "must_do": "Nichts.\nF\u00fcr alle Kombinationen von Programmen werden automatisch sinnvolle Einstellungen verwendet.",
+            "can_do": null,
+            "sort_order": 11
+        },
+        {
+            "id": 14,
+            "key": "schedule-times",
+            "name": "Ablauf - Zeiten",
+            "route_path": "\/plan\/schedule\/times",
+            "description": "Festlegen, wann Er\u00f6ffnung(en) und Preisverleihung(en) stattfinden und wie lange sie dauern soll(en).",
+            "must_do": "Nichts.\nAlle Felder sind mit passenden Standardwerten versorgt.",
+            "can_do": "Den Start der Er\u00f6ffnung \u00e4ndern. Das ist der zentral Zeitpunkt im Ablauf. Alle anderen Zeiten werden dazu automatisch berechnet.\n\nDie Dauer von Er\u00f6ffnung(en) und Preisverleihung(en) ver\u00e4ndern, z.B. wenn eine wichtiger Mensch kommt, der extra Redezeit braucht.",
+            "sort_order": 12
+        },
+        {
+            "id": 15,
+            "key": "schedule-afternoon",
+            "name": "Ablauf - Nachmittag",
+            "route_path": "\/plan\/schedule\/afternoon",
+            "description": "Festlegen, was nach den Vorrunden passiert.",
+            "must_do": "Nichts.\nEs gibt Standardwerte, die passen.",
+            "can_do": "Die Reihenfolder der Aktivit\u00e4ten ver\u00e4ndern.\nAktivit\u00e4ten ein- und ausschalten bzw. Einstellungen zu einzelnen Aktivit\u00e4ten \u00e4ndern.",
+            "sort_order": 13
+        },
+        {
+            "id": 16,
+            "key": "schedule-expert",
+            "name": "Ablauf - Expertenparameter",
+            "route_path": "\/plan\/schedule\/expert",
+            "description": "Der automatisch generierte Ablauf basiert auf vielen einzelnen Parametern. Die k\u00f6nnen hier ver\u00e4ndert werden.",
+            "must_do": "Nichts.",
+            "can_do": "Ausprobieren, wie sich \u00c4nderungen an den Parametern auf den Ablauf auswirken.\nPro Parameter gibt eine kurze Hilfe, die beschreibt, was er bewirkt.",
+            "sort_order": 14
+        },
+        {
+            "id": 17,
+            "key": "schedule-protected",
+            "name": "Ablauf - Gesch\u00fctzte Parameter",
+            "route_path": "\/plan\/schedule\/protected",
+            "description": "Da ist geheim!",
+            "must_do": "Ganz schnell hier verschwinden und auf eine andere Seite wechseln.",
+            "can_do": "Werte einstellen, die zu kaputten Abl\u00e4ufen f\u00fchren.",
+            "sort_order": 15
+        },
+        {
+            "id": 18,
+            "key": "schedule-free",
+            "name": "Zus\u00e4tzliche Aktivit\u00e4ten - Freie Bl\u00f6cke",
+            "route_path": "\/plan\/schedule\/free",
+            "description": "Zus\u00e4tzliche Aktivit\u00e4ten, die neben dem generierten Ablauf stehen.",
+            "must_do": "Nichts.",
+            "can_do": "Zus\u00e4tzliche Aktivit\u00e4ten, z.B. Mittagessen, anlegen, die im Zeitplan der Veranstaltungen zus\u00e4tzliche zum Ablauf gezeigt werden.\nPro Aktivit\u00e4t festlegen, f\u00fcr welche Programme sie relevant ist und ob es eine \"wichtige Zeit\" ist.",
+            "sort_order": 16
+        },
+        {
+            "id": 19,
+            "key": "schedule-slots",
+            "name": "Zus\u00e4tzliche Aktivit\u00e4ten - Slots",
+            "route_path": "\/plan\/schedule\/slots",
+            "description": "Zus\u00e4tzliche Aktivit\u00e4ten, die neben dem generierten Ablauf stehen.",
+            "must_do": "Nichts",
+            "can_do": "Zus\u00e4tzliche Aktivit\u00e4ten pro Team anlegen, die im Zeitplan der Veranstaltungen zus\u00e4tzliche zum Ablauf gezeigt werden.\n\nZeiten pro Team zuordnen.",
+            "sort_order": 17
         }
     ],
     "m_help_topic": [
@@ -2293,19 +2373,19 @@
             "id": 1,
             "key": "teams",
             "name": "Teams",
-            "sort_order": 3
+            "sort_order": 4
         },
         {
             "id": 2,
             "key": "ausgabe",
             "name": "Ausgabe",
-            "sort_order": 6
+            "sort_order": 7
         },
         {
             "id": 3,
             "key": "helfer",
             "name": "Helfer:innen",
-            "sort_order": 5
+            "sort_order": 6
         },
         {
             "id": 4,
@@ -2317,7 +2397,7 @@
             "id": 5,
             "key": "am-tag",
             "name": "am Tag",
-            "sort_order": 7
+            "sort_order": 8
         },
         {
             "id": 6,
@@ -2329,7 +2409,13 @@
             "id": 7,
             "key": "rooms",
             "name": "R\u00e4ume",
-            "sort_order": 4
+            "sort_order": 5
+        },
+        {
+            "id": 8,
+            "key": "zusatzaktivitaeten",
+            "name": "Zus\u00e4tzliche Aktivit\u00e4ten",
+            "sort_order": 3
         }
     ],
     "m_level": [
@@ -5163,7 +5249,7 @@
             "first_program": null,
             "sequence": 29,
             "ui_label": "Dauer gemeinsame Er\u00f6ffnung ",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Zeitplan zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
         },
         {
             "id": 4,
@@ -5178,7 +5264,7 @@
             "first_program": 2,
             "sequence": 35,
             "ui_label": "Dauer Er\u00f6ffnung (Explore - Gruppe 2 )",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Zeitplan zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
         },
         {
             "id": 5,
@@ -5238,7 +5324,7 @@
             "first_program": 2,
             "sequence": 47,
             "ui_label": "Dauer Coach:innen-Briefing (Vormittag)",
-            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Zeitplan gekl\u00e4rt werden."
         },
         {
             "id": 9,
@@ -5283,7 +5369,7 @@
             "first_program": 2,
             "sequence": 32,
             "ui_label": "Dauer Er\u00f6ffnung (Explore - Gruppe 1)",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Zeitplan zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
         },
         {
             "id": 12,
@@ -5493,7 +5579,7 @@
             "first_program": 3,
             "sequence": 60,
             "ui_label": "Dauer Coach:innen-Briefing",
-            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Robot-Game statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Robot-Game statt. Darin sollen alle Fragen zum Zeitplan gekl\u00e4rt werden."
         },
         {
             "id": 26,
@@ -5553,7 +5639,7 @@
             "first_program": 3,
             "sequence": 26,
             "ui_label": "Dauer Er\u00f6ffnung (Challenge)",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Zeitplan zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
         },
         {
             "id": 30,
@@ -5733,7 +5819,7 @@
             "first_program": 3,
             "sequence": 27,
             "ui_label": "Dauer Preisverleihung (Challenge)",
-            "ui_description": "Dauer der Challenge Preisverleihung. 45 Minuten sind sicher ausreichend f\u00fcr bis zu 12 Teams. F\u00fcr mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe l\u00e4nger dauert. Au\u00dferdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Ablauf l\u00e4nger dauert."
+            "ui_description": "Dauer der Challenge Preisverleihung. 45 Minuten sind sicher ausreichend f\u00fcr bis zu 12 Teams. F\u00fcr mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe l\u00e4nger dauert. Au\u00dferdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Zeitplan l\u00e4nger dauert."
         },
         {
             "id": 42,
@@ -6273,7 +6359,7 @@
             "first_program": 2,
             "sequence": 48,
             "ui_label": "Dauer Coach:innen-Briefing (Nachmittag)",
-            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+            "ui_description": "Das Briefing findet vor der ersten Begutachtung statt. Darin sollen alle Fragen zum Zeitplan gekl\u00e4rt werden."
         },
         {
             "id": 114,
@@ -6528,7 +6614,7 @@
             "first_program": 3,
             "sequence": 81,
             "ui_label": "Fr\u00fche Mittagspause",
-            "ui_description": "Die Mittagspause findet \u00fcblicherweise nach der ersten Runde Robot-Game statt. Je nach Anzahl Jury-Runde entspricht das der zweiten oder dritten Jury-Runde. Damit liegt die Pause ungef\u00e4hr in der Mitte des Plans.\nFalls n\u00f6tig kann die Pause eine Runde nach vorne gezogen werden."
+            "ui_description": "Die Mittagspause findet \u00fcblicherweise nach der ersten Runde Robot-Game statt. Je nach Anzahl Jury-Runde entspricht das der zweiten oder dritten Jury-Runde. Damit liegt die Pause ungef\u00e4hr in der Mitte des Zeitplans.\nFalls n\u00f6tig kann die Pause eine Runde nach vorne gezogen werden."
         },
         {
             "id": 132,
@@ -6708,7 +6794,7 @@
             "first_program": 8,
             "sequence": 60,
             "ui_label": "Dauer Coach:innen-Briefing",
-            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Game statt. Darin sollen alle Fragen zum Ablauf des Tages gekl\u00e4rt werden."
+            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Game statt. Darin sollen alle Fragen zum Zeitplan gekl\u00e4rt werden."
         },
         {
             "id": 144,
@@ -6768,7 +6854,7 @@
             "first_program": 8,
             "sequence": 26,
             "ui_label": "Dauer Er\u00f6ffnung (Future 8+)",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Zeitplan zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
         },
         {
             "id": 148,
@@ -6918,7 +7004,7 @@
             "first_program": 8,
             "sequence": 27,
             "ui_label": "Dauer Preisverleihung (Future 8+)",
-            "ui_description": "Dauer der Future 8+ Preisverleihung. 45 Minuten sind sicher ausreichend f\u00fcr bis zu 12 Teams. F\u00fcr mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe l\u00e4nger dauert. Au\u00dferdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Ablauf l\u00e4nger dauert."
+            "ui_description": "Dauer der Future 8+ Preisverleihung. 45 Minuten sind sicher ausreichend f\u00fcr bis zu 12 Teams. F\u00fcr mehr Teams sollte mehr Zeit eingeplant werden, da die Medaillenvergabe l\u00e4nger dauert. Au\u00dferdem ist die Chance hoch, dass viele unterschiedliche Teams nominiert werden, was im Zeitplan l\u00e4nger dauert."
         },
         {
             "id": 158,
@@ -7218,7 +7304,7 @@
             "first_program": 8,
             "sequence": 4,
             "ui_label": "Wo finden die Matches statt?",
-            "ui_description": "Wenn die Game-Bereiche der beiden Programm nicht zusammen in einen Raum passen, werden unabh\u00e4ngige Zeitpl\u00e4ne pro Programm erzeugt. Er\u00f6ffnung und Preisverleihung bleiben aber integriert."
+            "ui_description": "Wenn die Game-Bereiche der beiden Programm nicht zusammen in einen Raum passen, werden unabh\u00e4ngige Abl\u00e4ufe pro Programm erzeugt. Er\u00f6ffnung und Preisverleihung bleiben aber integriert."
         },
         {
             "id": 179,
@@ -7248,7 +7334,7 @@
             "first_program": null,
             "sequence": 29,
             "ui_label": "Dauer gemeinsame Er\u00f6ffnung ",
-            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Ablauf zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
+            "ui_description": "Es sollte genug Zeit daf\u00fcr sein, alle Teams vorzustellen, die wichtigsten Punkte zum Zeitplan zu nennen und f\u00fcr eine gute Stimmung zu sorgen."
         },
         {
             "id": 182,
@@ -11848,7 +11934,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-08T08:15:50.033252Z",
+        "exported_at": "2026-09-09T07:02:27.053136Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",

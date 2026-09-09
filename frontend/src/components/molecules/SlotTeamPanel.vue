@@ -431,7 +431,7 @@ function formatTooltipDate(slotDate: string | null): string {
             :disabled="!blockId || !hasUnsavedChanges || saving || !blockActive"
             @click="saveAssignments"
         >
-          {{ saving ? 'Speichere…' : 'Speichern und Plan aktualisieren' }}
+          {{ saving ? 'Speichere…' : 'Speichern und Zeitplan aktualisieren' }}
         </button>
       </div>
     </div>
@@ -454,7 +454,7 @@ function formatTooltipDate(slotDate: string | null): string {
               :disabled="!blockId || !hasUnsavedChanges || saving || !blockActive"
               @click="saveAssignments"
           >
-            {{ saving ? 'Speichere…' : 'Speichern und Plan aktualisieren' }}
+            {{ saving ? 'Speichere…' : 'Speichern und Zeitplan aktualisieren' }}
           </button>
         </div>
       </div>
@@ -480,7 +480,7 @@ function formatTooltipDate(slotDate: string | null): string {
       </div>
 
       <div v-else-if="!teams.length" class="text-sm text-[var(--color-text-subtle)] py-4 text-center">
-        Keine Teams im Plan für diesen Slot-Typ.
+        Keine Teams im Ablauf für diesen Slot-Typ.
       </div>
 
       <template v-else>

@@ -332,7 +332,7 @@ watch(
               v-if="!hasPlan && !loading"
               class="mb-3 rounded-lg px-3 py-2 text-sm bg-[color-mix(in_srgb,var(--color-text-subtle)_12%,transparent)] border border-[color-mix(in_srgb,var(--color-border-strong)_35%,transparent)]"
           >
-            Noch kein Ablauf — Rollen erscheinen nach der Planerzeugung.
+            Noch kein Ablauf — Rollen erscheinen nach der Ablauferzeugung.
           </div>
 
           <div

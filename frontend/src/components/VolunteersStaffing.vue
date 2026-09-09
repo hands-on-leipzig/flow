@@ -482,7 +482,7 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
     </header>
 
     <div v-if="!planId && !loading" class="glass-alert-warning">
-      Kein Plan vorhanden — zuerst Ablauf erzeugen.
+      Kein Zeitplan vorhanden — zuerst Ablauf erzeugen.
     </div>
 
     <div
@@ -538,7 +538,7 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
               v-model:title="newRoleName"
               :disabled="isSaving || !planId"
               title-placeholder="Neue Rolle z. B. Check-in"
-              empty-hint="Eigene Rolle für diese Veranstaltung, unabhängig vom Plan."
+              empty-hint="Eigene Rolle für diese Veranstaltung, unabhängig vom Ablauf."
               @commit="createLocalRole"
           >
             <transition name="fade">
