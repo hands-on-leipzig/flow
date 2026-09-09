@@ -202,7 +202,7 @@ onMounted(() => {
       Dieser Link führt zur öffentlichen Seite der Veranstaltung, die automatisch angelegt wurde. Was angezeigt wird, wird
       unter
       <RouterLink to="/plan/publish" class="public-link-strip__hint-link">Ausgabe → Öffentliche Seite</RouterLink>
-      festgelegt. Der Link verändert sich während der Saison nicht — er sollte immer verwendet werden, wenn es um Ablauf und Zeiten geht,
+      festgelegt. Der Link verändert sich während der Saison nicht — er sollte immer verwendet werden, wenn es um den Zeitplan geht,
       damit niemand veraltete Informationen erhält.
     </p>
 
@@ -224,7 +224,7 @@ onMounted(() => {
             </button>
           </div>
           <div class="public-link-strip__qr-body">
-            <img :src="qrSrc" alt="QR-Code zum öffentlichen Zeitplan" class="public-link-strip__qr-img"/>
+            <img :src="qrSrc" alt="QR-Code zur öffentlichen Seite" class="public-link-strip__qr-img"/>
             <button
                 type="button"
                 class="glass-btn-secondary public-link-strip__icon-btn"

@@ -278,7 +278,7 @@ onMounted(async () => {
               Angemeldet: {{ enrolledCount }}
             </span>,
             <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">
-              Plan für: {{ planCapacity }}
+              Ablauf für: {{ planCapacity }}
             </span>,
             Kapazität: {{ venueCapacity }}
           </p>
@@ -296,7 +296,7 @@ onMounted(async () => {
       </div>
 
       <p class="team-list__note vol-muted">
-        „No-show“-Teams bleiben im Plan, werden aber in allen Ausgaben durchgestrichen dargestellt.
+        „No-show“-Teams bleiben im Ablauf, werden aber in allen Ausgaben durchgestrichen dargestellt.
       </p>
     </div>
 

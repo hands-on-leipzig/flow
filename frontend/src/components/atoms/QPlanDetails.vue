@@ -209,7 +209,7 @@ const transferRows = computed(() => {
 
       <!-- Row 2: Matchplan -->
       <div class="overflow-x-auto">
-        <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Matchplan</div>
+        <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Match-Plan</div>
         <div class="flex flex-row gap-4">
           <div
             v-for="col in matchPlanColumns"

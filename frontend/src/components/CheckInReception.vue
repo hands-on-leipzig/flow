@@ -529,7 +529,7 @@ onMounted(async () => {
           v-if="planPath"
           :to="planPath"
           class="ci-app__brand ci-app__brand-link"
-          aria-label="Zum öffentlichen Plan"
+          aria-label="Zur öffentlichen Seite"
       >
         <img
             class="ci-app__logo"
@@ -545,7 +545,7 @@ onMounted(async () => {
         />
       </div>
       <div v-if="unlocked" class="ci-app__tools">
-        <button type="button" class="ci-tool" title="QR öffentlicher Plan" @click="openQr">
+        <button type="button" class="ci-tool" title="QR öffentliche Seite" @click="openQr">
           <i class="bi bi-qr-code" aria-hidden="true"/>
         </button>
         <a
@@ -960,8 +960,8 @@ onMounted(async () => {
       <template v-else-if="unlocked && view === 'qr'">
         <div class="ci-panel ci-panel--center glass-card liquid-surface-inner">
           <button type="button" class="ci-link" @click="view = 'home'">← Zurück</button>
-          <h1 class="ci-panel__h">Öffentlicher Plan</h1>
-          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR-Code öffentlicher Plan" class="ci-qr"/>
+          <h1 class="ci-panel__h">Öffentliche Seite</h1>
+          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR-Code öffentliche Seite" class="ci-qr"/>
           <p v-if="toolsError" class="glass-alert-error !mb-0">{{ toolsError }}</p>
           <p v-if="bootstrap?.public_link" class="ci-muted ci-break">{{ bootstrap.public_link }}</p>
         </div>

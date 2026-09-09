@@ -456,7 +456,7 @@ onBeforeUnmount(() => {
           <div class="settings-split__left-scroll">
             <div class="settings-split__settings">
               <p class="glass-settings-hint !mb-0 settings-split__header-hint">
-                Diese Funktion ist nur vom Plan verlinkt, wenn die
+                Diese Funktion ist nur von der öffentlichen Seite verlinkt, wenn die
                 <RouterLink to="/plan/publish" class="glass-settings-hint-link">Öffentliche Seite</RouterLink>
                 auf „volle Details“ gesetzt ist.
               </p>

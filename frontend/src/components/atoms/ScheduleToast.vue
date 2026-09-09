@@ -17,7 +17,7 @@ const props = withDefaults(defineProps<{
 });
 
 const actionLabel = computed(() => props.action === 'update' ? 'Aktualisieren' : 'Generieren')
-const busyLabel = computed(() => props.action === 'update' ? 'Plan wird aktualisiert' : 'Plan wird generiert')
+const busyLabel = computed(() => props.action === 'update' ? 'Zeitplan wird aktualisiert' : 'Ablauf wird generiert')
 
 const displayCountdownText = computed(() => {
   const seconds = props.countdown;

@@ -354,7 +354,7 @@ async function pollUntilReady(planId: number, timeoutMs = 60000, intervalMs = 10
     if (status === 'done') return
     if (status === 'failed') {
       generatorError.value = 'Die Generierung ist fehlgeschlagen'
-      errorDetails.value = 'Der Plan konnte nicht generiert werden. Bitte überprüfe die Parameter.'
+      errorDetails.value = 'Der Ablauf konnte nicht generiert werden. Bitte überprüfe die Parameter.'
       throw new Error('Generation failed')
     }
     await new Promise(resolve => setTimeout(resolve, intervalMs))
@@ -383,7 +383,7 @@ async function runGeneratorOnce() {
   } catch (error: any) {
     if (import.meta.env.DEV) console.error('Error during generation:', error)
 
-    let errorMessage = 'Unbekannter Fehler bei der Plan-Generierung'
+    let errorMessage = 'Unbekannter Fehler bei der Ablauf-Generierung'
     let details: string | null = null
 
     if (axios.isAxiosError(error)) {
@@ -393,10 +393,10 @@ async function runGeneratorOnce() {
         errorMessage = errorData?.error || 'Die aktuelle Konfiguration wird nicht unterstützt'
         details = errorData?.details || errorData?.message || 'Ungültige Parameter-Kombination'
       } else if (status === 404) {
-        errorMessage = 'Plan nicht gefunden'
-        details = errorData?.error || errorData?.details || `Plan ${selectedPlanId.value} existiert nicht`
+        errorMessage = 'Zeitplan nicht gefunden'
+        details = errorData?.error || errorData?.details || `Zeitplan ${selectedPlanId.value} existiert nicht`
       } else if (status === 500) {
-        errorMessage = errorData?.error || 'Fehler bei der Plan-Generierung'
+        errorMessage = errorData?.error || 'Fehler bei der Ablauf-Generierung'
         details = errorData?.details || errorData?.message || 'Interner Serverfehler'
       } else if (error.message === 'Timeout: Plan generation took too long') {
         errorMessage = 'Zeitüberschreitung'

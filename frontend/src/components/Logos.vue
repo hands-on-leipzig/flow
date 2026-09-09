@@ -533,7 +533,7 @@ onMounted(async () => {
             <div class="logos-workspace__scroll glass-card liquid-surface-inner">
           <h2 class="glass-card__heading">Vorschau</h2>
           <p class="glass-settings-hint !mb-4">
-            So erscheinen die aktiven Logos auf dem öffentlichen Plan und in den PDFs.
+            So erscheinen die aktiven Logos auf der öffentlichen Seite und in den PDFs.
           </p>
 
           <div v-if="assignedLogosList.length === 0" class="text-sm text-[var(--color-text-subtle)] italic">
@@ -541,10 +541,10 @@ onMounted(async () => {
           </div>
 
           <div v-else class="logo-preview-stack">
-            <!-- Öffentlicher Plan — same glass chip footer as PublicEvent -->
+            <!-- Öffentliche Seite — same glass chip footer as PublicEvent -->
             <section class="logo-preview-panel liquid-surface-inner">
-              <h3 class="logo-preview-panel__title">Öffentlicher Plan</h3>
-              <div class="logo-public-stage pe-page" aria-label="Öffentlicher-Plan-Vorschau">
+              <h3 class="logo-preview-panel__title">Öffentliche Seite</h3>
+              <div class="logo-public-stage pe-page" aria-label="Vorschau der öffentlichen Seite">
                 <div class="logo-public-stage__content">
                   <footer class="pe-logos glass-card liquid-surface-inner">
                     <div class="pe-logos__grid">

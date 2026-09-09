@@ -307,7 +307,7 @@ function updateDuration(value: number) {
           <div>
             <label class="text-sm font-medium pl-2">Raum</label>
             <InfoPopover
-                text="Der Raum, dessen Plan angezeigt werden soll. Bei 'Alle Räume' werden alle Aktivitäten der Veranstaltung angezeigt."/>
+                text="Der Raum, dessen Zeitplan angezeigt werden soll. Bei 'Alle Räume' werden alle Aktivitäten der Veranstaltung angezeigt."/>
           </div>
           <div>
             <select class="mt-1 w-full border rounded px-2 py-1" :value="slide.content.room"

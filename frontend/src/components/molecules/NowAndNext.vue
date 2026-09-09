@@ -239,7 +239,7 @@ function openPreview(id: string | number) {
 
       <div v-if="usePoint" class="flex items-end gap-3">
         <div>
-          <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Uhrzeit im Plan</label>
+          <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Uhrzeit im Zeitplan</label>
           <input type="time" v-model="timeStr" class="border rounded px-2 py-1" />
         </div>
       </div>

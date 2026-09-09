@@ -57,7 +57,7 @@ export async function pollPlanUntilReady(
         isGenerating.value = false
         generatorError.value = 'Die Generierung ist fehlgeschlagen'
         errorDetails.value =
-          'Der Plan konnte nicht generiert werden. Bitte überprüfe die Block-Einstellungen.'
+          'Der Zeitplan konnte nicht aktualisiert werden. Bitte überprüfe die Block-Einstellungen.'
         return
       }
 
@@ -74,7 +74,7 @@ export async function pollPlanUntilReady(
       return
     }
 
-    const parsed = parseExtraBlockSaveError(error, 'Fehler bei der Plan-Generierung')
+    const parsed = parseExtraBlockSaveError(error, 'Fehler beim Aktualisieren des Zeitplans')
     generatorError.value = parsed.message
     errorDetails.value = parsed.details
   }
