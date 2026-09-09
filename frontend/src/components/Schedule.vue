@@ -48,7 +48,7 @@ const PAGE_HEADERS: Record<string, {title: string; sub: string}> = {
     sub: 'Eintragen von Aktivitäten außerhalb des generierten Ablaufs',
   },
   'schedule-slots': {
-    title: 'Zusätzliche Aktivitäten - Slots',
+    title: 'Zusätzliche Aktivitäten - Slot-Blöcke',
     sub: 'Eintragen von festen Zeitfenstern mit Team-Zuordnung',
   },
 }
