@@ -1645,7 +1645,7 @@
             "help_topic": 2,
             "title": "Welche Informationen zum Zeitplan erscheinen auf der \u00f6ffentlichen Seite?",
             "sort_order": 1,
-            "body": "Es gibt drei Stufen.\n\nKeine:\nnur das Datum.\n\nWichtige Zeiten:\nEr\u00f6ffnung, Preisverleihung und Briefings und das geplante Ende der Veranstaltung werden automatisch dargestellt.\nZus\u00e4tzlich k\u00f6nnen Freie Bl\u00f6cke mit \"wichtige Zeit\" gekennzeichnet werden. Diese werden dann chronologisch in die Liste einsortiert. Ein typisches Beispiel daf\u00fcr ist, wann der Check-In ge\u00f6ffnet ist.\n\nVolle Details:\nDer gesamte Zeitplan ist sichtbar."
+            "body": "Es gibt drei Stufen.\n\nKeine:\nnur das Datum.\n\nWichtige Zeiten:\nEr\u00f6ffnung, Preisverleihung, Briefings und das geplante Ende der Veranstaltung werden automatisch dargestellt.\nZus\u00e4tzlich k\u00f6nnen freie Bl\u00f6cke mit \u201ewichtige Zeit\u201c gekennzeichnet werden. Diese werden dann chronologisch in die Liste einsortiert. Ein typisches Beispiel daf\u00fcr ist, wann der Check-In ge\u00f6ffnet ist.\n\nVolle Details:\nDer gesamte Zeitplan ist sichtbar."
         },
         {
             "id": 2,
@@ -1659,7 +1659,7 @@
             "help_topic": 1,
             "title": "Wie w\u00e4hle ich aus, welche zus\u00e4tzlichen Informationen \u00fcber Teams gespeichert werden sollen?",
             "sort_order": 2,
-            "body": "\u00dcber den Button \"Spalten\" am oberen Rad der Seite.\n\nStandardfelder k\u00f6nnen ein- und ausgeschaltet werden. Zus\u00e4tzliche eigene Felder k\u00f6nnen frei definiert werden.\n\nJedes Feld wird zu einer Spalte in der Tabelle."
+            "body": "\u00dcber den Button \u201eSpalten\u201c am oberen Rand der Seite.\n\nStandardfelder k\u00f6nnen ein- und ausgeschaltet werden. Zus\u00e4tzliche eigene Felder k\u00f6nnen frei definiert werden.\n\nJedes Feld wird zu einer Spalte in der Tabelle."
         },
         {
             "id": 5,
@@ -1673,7 +1673,7 @@
             "help_topic": 3,
             "title": "Wie w\u00e4hle ich aus, welche zus\u00e4tzlichen Informationen pro Helfer:in gespeichert werden sollen?",
             "sort_order": 5,
-            "body": "\u00dcber den Button \"Spalten\" am oberen Rad der Seite.\n\nStandardfelder k\u00f6nnen ein- und ausgeschaltet werden. Zus\u00e4tzliche eigene Felder k\u00f6nnen frei definiert werden.\n\nJedes Feld wird zu einer Spalte in der Tabelle."
+            "body": "\u00dcber den Button \u201eSpalten\u201c am oberen Rand der Seite.\n\nStandardfelder k\u00f6nnen ein- und ausgeschaltet werden. Zus\u00e4tzliche eigene Felder k\u00f6nnen frei definiert werden.\n\nJedes Feld wird zu einer Spalte in der Tabelle."
         },
         {
             "id": 7,
@@ -1692,14 +1692,14 @@
         {
             "id": 9,
             "help_topic": 3,
-            "title": "Wie schalte ich die Suche nach Helfer:innnen ein- bzw. aus?",
+            "title": "Wie schalte ich die Suche nach Helfer:innen ein- bzw. aus?",
             "sort_order": 8,
             "body": "Die Suche kann sowohl in den Einstellungen f\u00fcr die \u00f6ffentliche Seite als auch direkt auf der Seite Zuordnung ein- und ausgeschaltet werden."
         },
         {
             "id": 10,
             "help_topic": 5,
-            "title": "Wie schalte ich die Apps (Check-in, Cockpit) ein- bzw. aus?",
+            "title": "Wie schalte ich die Apps (Check-In, Cockpit) ein- bzw. aus?",
             "sort_order": 9,
             "body": "Die Apps k\u00f6nnen sowohl in den Einstellungen f\u00fcr die \u00f6ffentliche Seite als auch direkt auf den jeweiligen Seiten der Apps ein- und ausgeschaltet werden.\n\nDie Apps sind nur von der \u00f6ffentlichen Seite verlinkt. Die Sichtbarkeit muss in den Einstellungen zur \u00f6ffentlichen Seite entsprechend gesetzt sein."
         },
@@ -1708,40 +1708,40 @@
             "help_topic": 2,
             "title": "Wie w\u00e4hle ich aus, welche Logos angezeigt werden?",
             "sort_order": 10,
-            "body": "Alle Logos, die aktiv geschalte sind werden angezeigt. \n\nAuf der Seite Logos gibt es dazu eine Preview."
+            "body": "Alle Logos, die aktiv geschaltet sind, werden angezeigt.\n\nAuf der Seite Logos gibt es dazu eine Vorschau."
         },
         {
             "id": 12,
             "help_topic": 1,
-            "title": "Wie filtere ich Teamdaten-Tabelle?",
+            "title": "Wie filtere ich die Teamdaten-Tabelle?",
             "sort_order": 11,
-            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\nJedes Program l\u00e4sst sich ein oder ausschalten.\n\n\"Fotoerlaubnis fehlt\" reduziert die Liste auf alle Teams, deren Fotoerlaubnis noch nicht komplett ist.\n\n\"Unvollst\u00e4ndige Antworten\" reduziert die Liste auf alle Teams, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nAlle Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
+            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\nJedes Programm l\u00e4sst sich ein- oder ausschalten.\n\n\u201eFotoerlaubnis fehlt\u201c reduziert die Liste auf alle Teams, deren Fotoerlaubnis noch nicht komplett ist.\n\n\u201eUnvollst\u00e4ndige Antworten\u201c reduziert die Liste auf alle Teams, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nAlle Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
         },
         {
             "id": 13,
             "help_topic": 1,
             "title": "Wie finde ich die Teams, deren Fotoerlaubnis noch nicht komplett ist?",
             "sort_order": 12,
-            "body": "\"Fotoerlaubnis fehlt\" reduziert die Liste auf alle Teams, deren Fotoerlaubnis noch nicht komplett ist.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
+            "body": "\u201eFotoerlaubnis fehlt\u201c reduziert die Liste auf alle Teams, deren Fotoerlaubnis noch nicht komplett ist.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
         },
         {
             "id": 14,
             "help_topic": 1,
             "title": "Wie finde ich die Teams, deren zus\u00e4tzliche Daten noch nicht komplett sind?",
             "sort_order": 13,
-            "body": "\"Unvollst\u00e4ndige Antworten\" reduziert die Liste auf alle Teams, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
+            "body": "\u201eUnvollst\u00e4ndige Antworten\u201c reduziert die Liste auf alle Teams, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
         },
         {
             "id": 15,
             "help_topic": 6,
             "title": "Wie stelle ich ein, was in der Essensauswahl gezeigt wird?",
             "sort_order": 14,
-            "body": "\u00dcber den Button \"Essen\" am oberen Rand der Seiten Teamdaten oder Helfer:innenliste.\n\nDie Einstellung wirkt sich sowohl auf Teams, als auch auf Helfer:innen aus.\n\nWenn Essen nicht verwendet werden soll, kann es in der Spaltenauswahl abgeschaltet werden."
+            "body": "\u00dcber den Button \u201eEssen\u201c am oberen Rand der Seiten Teamdaten oder Helfer:innenliste.\n\nDie Einstellung wirkt sich sowohl auf Teams als auch auf Helfer:innen aus.\n\nWenn Essen nicht verwendet werden soll, kann es in der Spaltenauswahl abgeschaltet werden."
         },
         {
             "id": 16,
             "help_topic": 6,
-            "title": "Welche Daten kann ich downloaden?",
+            "title": "Welche Daten kann ich herunterladen?",
             "sort_order": 15,
             "body": "Der Download-Button erzeugt eine Excel-Datei mit genau den Daten, die in der Tabelle gezeigt sind.\n\nAlle Filter werden ber\u00fccksichtigt."
         },
@@ -1750,35 +1750,35 @@
             "help_topic": 6,
             "title": "Wie kann ich E-Mails versenden?",
             "sort_order": 16,
-            "body": "FLOW versendet keine E-Mails, aber es gibt eine Funktion, die E-Mails-Adressen aus FLOW in das eigene Mail-Programm zu \u00fcbernehmen.\n\nDer E-Mail-Button nimmt genau die E-Mail-Adressen der Zeilen mit,  die gerade auf der Seite angezeigt werden. \n\nFalls, es auf der Seite Filter gibt,  werden die ber\u00fccksichtigt."
+            "body": "FLOW versendet keine E-Mails, aber es gibt eine Funktion, um E-Mail-Adressen aus FLOW in das eigene Mail-Programm zu \u00fcbernehmen.\n\nDer E-Mail-Button nimmt genau die E-Mail-Adressen der Zeilen mit, die gerade auf der Seite angezeigt werden.\n\nFalls es auf der Seite Filter gibt, werden die ber\u00fccksichtigt."
         },
         {
             "id": 18,
             "help_topic": 1,
             "title": "Wie ordne ich die Teams aus der Anmeldung auf die Teamnummern im Ablauf zu?",
             "sort_order": 17,
-            "body": "Der Ablauf-Generator erzeugt einen Ablauf mit Teamnummer (T01, T02, ...).\n\nDie Zuordnung der Teams auf die Teamnummer ist automatisch, kann aber durch Drag-und-Drop ver\u00e4ndert werden.\n\nWenn die Anzahl angemeldeter Teams nicht zu der Anzahl im Ablauf passt, wird das entsprechend angezeigt."
+            "body": "Der Ablauf-Generator erzeugt einen Ablauf mit Teamnummern (T01, T02, ...).\n\nDie Zuordnung der Teams auf die Teamnummern ist automatisch, kann aber durch Drag-and-Drop ver\u00e4ndert werden.\n\nWenn die Anzahl angemeldeter Teams nicht zu der Anzahl im Ablauf passt, wird das entsprechend angezeigt."
         },
         {
             "id": 19,
             "help_topic": 1,
-            "title": "Wo sehe ich welche Teams zu welchen Jury- bzw. Gutacher:innen-Gruppen zugeordnet ist?",
+            "title": "Wo sehe ich, welche Teams zu welchen Jury- bzw. Gutachter:innen-Gruppen zugeordnet sind?",
             "sort_order": 18,
-            "body": "Die zweite Spalte zeigt dieZuordnung mit \"J1, J2, ...\" bzw. \"G1, G2, ...\".\n\nWenn Teams in der Reihenfolge verschoben werden, \u00e4ndert das die Zuordnung."
+            "body": "Die zweite Spalte zeigt die Zuordnung mit \u201eJ1, J2, ...\u201c bzw. \u201eG1, G2, ...\u201c.\n\nWenn Teams in der Reihenfolge verschoben werden, \u00e4ndert das die Zuordnung."
         },
         {
             "id": 20,
             "help_topic": 1,
             "title": "Was sollte ich machen, wenn ein Team kurzfristig absagt?",
             "sort_order": 19,
-            "body": "Das einfachste ist, das Team als \"No-Show zu markieren\".  Dann bleibt dann im Ablauf, wird aber \u00fcberall durchgestrichen angezeigt.  \n\nVorteile: Alle Zeiten bleiben unver\u00e4ndert bleiben.\nNachteile: Eine Jury-Runde und die zgh. Matches bleiben leer. \n\nAlternativ kann auch der Ablauf angepasst werden, in dem die Teamanzahl reduziert wird.  Danach muss die Zuordnung der abgemeldeten Teams auf die Nummer im Ablauf \u00fcberpr\u00fcft und ggfs angepasst werden. \n\nVorteil: Der Ablauf enth\u00e4lt keine L\u00fccken.\nNachteil: Zeiten \u00e4ndern sich. Falls schon gedruckt wurde, muss neu gedruckt werden."
+            "body": "Das Einfachste ist, das Team als \u201eNo-Show\u201c zu markieren. Dann bleibt es im Ablauf, wird aber \u00fcberall durchgestrichen angezeigt.\n\nVorteile: Alle Zeiten bleiben unver\u00e4ndert.\nNachteile: Eine Jury-Runde und die zugeh\u00f6rigen Matches bleiben leer.\n\nAlternativ kann auch der Ablauf angepasst werden, indem die Teamanzahl reduziert wird. Danach muss die Zuordnung der abgemeldeten Teams auf die Nummern im Ablauf \u00fcberpr\u00fcft und ggf. angepasst werden.\n\nVorteil: Der Ablauf enth\u00e4lt keine L\u00fccken.\nNachteil: Zeiten \u00e4ndern sich. Falls schon gedruckt wurde, muss neu gedruckt werden."
         },
         {
             "id": 21,
             "help_topic": 1,
             "title": "Wo finde ich Informationen zu eine:r Coach:in?",
             "sort_order": 20,
-            "body": "Die Zeilen pro Team lassen sich aufklappen. Dort gibt es Detail zu den Coach:innen und Teilnehmer:innen."
+            "body": "Die Zeilen pro Team lassen sich aufklappen. Dort gibt es Details zu den Coach:innen und Teilnehmer:innen."
         },
         {
             "id": 22,
@@ -1790,9 +1790,9 @@
         {
             "id": 23,
             "help_topic": 7,
-            "title": "Wie \u00e4ndere ich die Reihenfolge der R\u00e4ume",
+            "title": "Wie \u00e4ndere ich die Reihenfolge der R\u00e4ume?",
             "sort_order": 22,
-            "body": "Die Reihenfolge l\u00e4sst sich mit Drag and Drop ver\u00e4ndern.\n\nF\u00fcr den Zeitplan ist die Reihenfolge der R\u00e4ume nicht wichtig. Sie hilft aber beim Zuordnen der Aktivit\u00e4ten."
+            "body": "Die Reihenfolge l\u00e4sst sich mit Drag-and-Drop ver\u00e4ndern.\n\nF\u00fcr den Zeitplan ist die Reihenfolge der R\u00e4ume nicht wichtig. Sie hilft aber beim Zuordnen der Aktivit\u00e4ten."
         },
         {
             "id": 24,
@@ -1806,56 +1806,56 @@
             "help_topic": 3,
             "title": "Wie f\u00fcge ich Personen der Helfer:innenliste hinzu?",
             "sort_order": 24,
-            "body": "Es gibt zwei M\u00f6glichkeiten:\n\n- auf der Seite Helfer:innenliste eine Person suche und ohne Rolle auf die Helferliste \u00fcbernehmen\n\n- auf der Seite Zuordnung eine Person suchen und einer Rolle zuordnen. Damit kommt sie auch auf die Liste"
+            "body": "Es gibt zwei M\u00f6glichkeiten:\n\n- auf der Seite Helfer:innenliste eine Person suchen und ohne Rolle auf die Helfer:innenliste \u00fcbernehmen\n\n- auf der Seite Zuordnung eine Person suchen und einer Rolle zuordnen. Damit kommt sie auch auf die Liste."
         },
         {
             "id": 26,
             "help_topic": 7,
-            "title": "Wozu dient die Kennzeichnung \"nicht barrierefrei\"?",
+            "title": "Wozu dient die Kennzeichnung \u201enicht barrierefrei\u201c?",
             "sort_order": 25,
-            "body": "Wenn ein Raum als \"nicht barrierefrei\" gekennzeichnet ist, erscheint im Zeitplan ein entsprechendes Symbol."
+            "body": "Wenn ein Raum als \u201enicht barrierefrei\u201c gekennzeichnet ist, erscheint im Zeitplan ein entsprechendes Symbol."
         },
         {
             "id": 27,
             "help_topic": 3,
-            "title": "Wie filtere ich Personen-Tabelle?",
+            "title": "Wie filtere ich die Personen-Tabelle?",
             "sort_order": 26,
-            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\n\"Nicht auf Helfer:innenliste\" reduziert die Liste auf alle Personen, die noch nicht auf der Helfer:innenliste sind.\n\nDie Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
+            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\n\u201eNicht auf Helfer:innenliste\u201c reduziert die Liste auf alle Personen, die noch nicht auf der Helfer:innenliste sind.\n\nDie Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
         },
         {
             "id": 28,
             "help_topic": 3,
             "title": "Wie suche ich weitere Helfer:innen?",
             "sort_order": 27,
-            "body": "In FLOW gibt es dazu zwei M\u00f6glichkeiten.\n\n- Die Personenliste l\u00e4sst sich mit einem Klick so filtern, dass nur noch Personen \u00fcberbleiben, die noch nicht Helfer:in der Veranstaltung sind. Diese kann man dann kontaktieren.\n\n- Aus der Zuordnung von Helfer:innen auf Rollen ergibt sich automatisch eine Liste mit konkretem Bedarf pro Rolle. Diese Liste an auf der \u00f6ffentlichen Seite sichtbar gemacht werden."
+            "body": "In FLOW gibt es dazu zwei M\u00f6glichkeiten.\n\n- Die Personenliste l\u00e4sst sich mit einem Klick so filtern, dass nur noch Personen \u00fcberbleiben, die noch nicht Helfer:in der Veranstaltung sind. Diese kann man dann kontaktieren.\n\n- Aus der Zuordnung von Helfer:innen auf Rollen ergibt sich automatisch eine Liste mit konkretem Bedarf pro Rolle. Diese Liste kann auf der \u00f6ffentlichen Seite sichtbar gemacht werden."
         },
         {
             "id": 29,
             "help_topic": 3,
             "title": "Wie \u00fcbernehme ich Personendaten aus meinen Excel-Dateien?",
             "sort_order": 28,
-            "body": "\u00dcber den Button \"Upload\" am oberen Rand der Seite.\n\nVorher in Excel die Daten passend auf bereiten. F\u00fcr den Upload erwartet FLOW:\n\nVorname, Nachname, E-Mail, Mobil, Organisation.\nSpalten durch Tab, Komma oder Semikolon. \nMobil und Organisation optional; E-Mail Pflicht.\n\nDie E-Mail ist der Schl\u00fcssel \u2014 doppelte Adressen werden \u00fcbersprungen."
+            "body": "\u00dcber den Button \u201eUpload\u201c am oberen Rand der Seite.\n\nVorher in Excel die Daten passend aufbereiten. F\u00fcr den Upload erwartet FLOW:\n\nVorname, Nachname, E-Mail, Mobil, Organisation.\nSpalten durch Tab, Komma oder Semikolon.\nMobil und Organisation optional; E-Mail Pflicht.\n\nDie E-Mail ist der Schl\u00fcssel \u2014 doppelte Adressen werden \u00fcbersprungen."
         },
         {
             "id": 30,
             "help_topic": 3,
-            "title": "Wie filtere ich Helfer:innenliste-Tabelle?",
+            "title": "Wie filtere ich die Helfer:innenliste-Tabelle?",
             "sort_order": 29,
-            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\nJedes Program l\u00e4sst sich ein oder ausschalten.\n\n\"Fotoerlaubnis fehlt\" reduziert die Liste auf alle Helfer:innen, deren Fotoerlaubnis noch nicht vorliegt.\n\n\"Unvollst\u00e4ndige Antworten\" reduziert die Liste auf alle Helfer:innen, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nAlle Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
+            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\nJedes Programm l\u00e4sst sich ein- oder ausschalten.\n\n\u201eFotoerlaubnis fehlt\u201c reduziert die Liste auf alle Helfer:innen, deren Fotoerlaubnis noch nicht vorliegt.\n\n\u201eUnvollst\u00e4ndige Antworten\u201c reduziert die Liste auf alle Helfer:innen, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nAlle Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
         },
         {
             "id": 31,
             "help_topic": 3,
             "title": "Wie finde ich die Helfer:innen, deren Fotoerlaubnis noch nicht vorliegt?",
             "sort_order": 30,
-            "body": "\"Fotoerlaubnis fehlt\" reduziert die Liste auf alle Helfer:innen, deren Fotoerlaubnis noch nicht vorliegt.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
+            "body": "\u201eFotoerlaubnis fehlt\u201c reduziert die Liste auf alle Helfer:innen, deren Fotoerlaubnis noch nicht vorliegt.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
         },
         {
             "id": 32,
             "help_topic": 3,
             "title": "Wie finde ich die Helfer:innen, deren zus\u00e4tzliche Daten noch nicht komplett sind?",
             "sort_order": 31,
-            "body": "\"Unvollst\u00e4ndige Antworten\" reduziert die Liste auf alle Helfer:innen, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
+            "body": "\u201eUnvollst\u00e4ndige Antworten\u201c reduziert die Liste auf alle Helfer:innen, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
         },
         {
             "id": 34,
@@ -1869,7 +1869,7 @@
             "help_topic": 3,
             "title": "Wie ordne ich Helfer:innen den Rollen zu?",
             "sort_order": 34,
-            "body": "Drag and Drop von rechts nach links.\n\nAller Helfer:innen auf der Liste, die noch nicht zugeordnet sind, werden rechts aufgelistet.\n\nZus\u00e4tzlich kann auch die gesamte Personenliste durchsucht werden."
+            "body": "Drag-and-Drop von rechts nach links.\n\nAlle Helfer:innen auf der Liste, die noch nicht zugeordnet sind, werden rechts aufgelistet.\n\nZus\u00e4tzlich kann auch die gesamte Personenliste durchsucht werden."
         },
         {
             "id": 38,
@@ -1881,37 +1881,191 @@
         {
             "id": 39,
             "help_topic": 3,
-            "title": "Was bedeutet min, ideal, und max in den Rollen?",
+            "title": "Was bedeuten min, ideal und max in den Rollen?",
             "sort_order": 36,
-            "body": "Das ist sind Vorschl\u00e4ge, wie viele Helfer:innen zugeordnet werden sollten. \n\nF\u00fcr die Rollen, die sich aus dem Ablauf ergeben, kommen Die Zahlen zum Teil aus den Regeln der Programme und zum Teil aus den Erfahrungswerten vieler Jahre.\n\nF\u00fcr eigene Rollen kann man die Zahlen frei w\u00e4hlen. Das hilft, nicht um den Gesamt\u00fcberblick zu behalten, sondern erlaubt auch die Helfersuche zu nutzen.\n\nmin = Minimum, weniger sollten es nicht sein\nideal = beste Anzahl\nmax = Maximum, mehr erlaubt FLOW nicht\n\nFalls mehr Helfer:innen da sein sollten als alle Maximalwerte zusammen, k\u00f6nnen weitere eigenen Rollen hinzugef\u00fcgt werden."
+            "body": "Das sind Vorschl\u00e4ge, wie viele Helfer:innen zugeordnet werden sollten.\n\nF\u00fcr die Rollen, die sich aus dem Ablauf ergeben, kommen die Zahlen zum Teil aus den Regeln der Programme und zum Teil aus den Erfahrungswerten vieler Jahre.\n\nF\u00fcr eigene Rollen kann man die Zahlen frei w\u00e4hlen. Das hilft nicht nur, den Gesamt\u00fcberblick zu behalten, sondern erlaubt auch, die Helfersuche zu nutzen.\n\nmin = Minimum, weniger sollten es nicht sein\nideal = beste Anzahl\nmax = Maximum, mehr erlaubt FLOW nicht\n\nFalls mehr Helfer:innen da sein sollten als alle Maximalwerte zusammen, k\u00f6nnen weitere eigene Rollen hinzugef\u00fcgt werden."
         },
         {
             "id": 40,
             "help_topic": 3,
             "title": "Wie lege ich eigene Rollen an?",
             "sort_order": 37,
-            "body": "Eigene Rollen stehen am Ende der Liste.\n\nDer letzte Eintrag dient zum Anlegen einer neuen Rolle. Einfach einen neuen Rollenamen vergeben und min, ideal, max passend einstellen."
+            "body": "Eigene Rollen stehen am Ende der Liste.\n\nDer letzte Eintrag dient zum Anlegen einer neuen Rolle. Einfach einen neuen Rollennamen vergeben und min, ideal, max passend einstellen."
         },
         {
             "id": 41,
             "help_topic": 3,
-            "title": "Wie \u00e4ndere ich min, ideal und max f\u00fcr ein eigene Rolle?",
+            "title": "Wie \u00e4ndere ich min, ideal und max f\u00fcr eine eigene Rolle?",
             "sort_order": 38,
-            "body": "\u00dcber das Zahnrad den den Werten."
+            "body": "\u00dcber das Zahnrad neben den Werten."
         },
         {
             "id": 42,
             "help_topic": 7,
-            "title": "Wie ordne ich Aktivit\u00e4ten und Teams den R\u00e4umen?",
+            "title": "Wie ordne ich Aktivit\u00e4ten und Teams den R\u00e4umen zu?",
             "sort_order": 39,
-            "body": "Drag and Drop von rechts nach links."
+            "body": "Drag-and-Drop von rechts nach links."
         },
         {
             "id": 43,
             "help_topic": 2,
-            "title": "Wie funktioniert die Live Vorschau?",
+            "title": "Wie funktioniert die Live-Vorschau?",
             "sort_order": 40,
-            "body": "Die Live-Vorschau auf der rechen Seite zeigt, was im Browser angezeigt wird.\n\n\u00dcber die Auswahl \"Ger\u00e4t\" kann testet werden, wie das auf unterschiedlichen Ger\u00e4ten aussieht."
+            "body": "Die Live-Vorschau auf der rechten Seite zeigt, was im Browser angezeigt wird.\n\n\u00dcber die Auswahl \u201eGer\u00e4t\u201c kann getestet werden, wie das auf unterschiedlichen Ger\u00e4ten aussieht."
+        },
+        {
+            "id": 44,
+            "help_topic": 4,
+            "title": "Welche Varianten gibt es f\u00fcr die Anzahl Teams in meiner Veranstaltung?",
+            "sort_order": 41,
+            "body": "Je nach Anzahl der Teams gibt es Varianten mit unterschiedlicher Anzahl von Jury-Gruppen und Tischen\/Spielfeldern.\n\nDer \u00dcberblick \u00fcber alle m\u00f6glichen Varianten pro Programm kann mit dem Tabellen-Icon angezeigt werden."
+        },
+        {
+            "id": 45,
+            "help_topic": 4,
+            "title": "Wie erh\u00f6he ich die Kapazit\u00e4t f\u00fcr meine Veranstaltung?",
+            "sort_order": 42,
+            "body": "Zum Testen von Varianten mit mehr Teams als bisher offiziell geplant kann \u00fcber das Regel-Icon die Kapazit\u00e4t vor\u00fcbergehend ge\u00e4ndert werden. Diese \u00c4nderung wird aber beim n\u00e4chsten Aufruf der Ablauf-Seiten wieder r\u00fcckg\u00e4ngig gemacht.\n\nF\u00fcr eine dauerhafte \u00c4nderung der Kapazit\u00e4t bitte die Gesch\u00e4ftsstelle kontaktieren (info@hands-on-technology.de)."
+        },
+        {
+            "id": 46,
+            "help_topic": 4,
+            "title": "Was bedeutet bei Explore Vormittag\/Nachmittag?",
+            "sort_order": 43,
+            "body": "Bei einer hohen Zahl von Explore-Teams k\u00f6nnen diese in eine Gruppe am Vormittag und eine am Nachmittag geteilt werden.\n\nBeide Gruppen haben dann jeweils eine eigene Er\u00f6ffnung und Preisverleihung."
+        },
+        {
+            "id": 47,
+            "help_topic": 4,
+            "title": "Was bedeutet der rote Punkt in der Navigationsleiste?",
+            "sort_order": 44,
+            "body": "Der rote Punkt bedeutet, dass ein Thema Aufmerksamkeit ben\u00f6tigt.\n\nAblauf: Die Anzahl der Teams im Ablauf passt nicht zur Anzahl angemeldeter Teams.\n\nTeams: Es gibt \u00c4nderungen in den Daten der angemeldeten Teams.\n\nR\u00e4ume: Nicht alle Aktivit\u00e4ten und Teams wurden R\u00e4umen zugeordnet.\n\nHelfer:innen: Nicht alle Rollen, die zur Durchf\u00fchrung der Veranstaltung n\u00f6tig sind, wurden besetzt."
+        },
+        {
+            "id": 48,
+            "help_topic": 4,
+            "title": "Was sind bei Explore die Auswirkungen von integriert\/unabh\u00e4ngig?",
+            "sort_order": 45,
+            "body": "Wenn Explore integriert geplant wird, teilen sich die Programme Er\u00f6ffnung und Preisverleihung wie folgt.\n\nExplore nur am Vormittag: Gemeinsame Er\u00f6ffnung. Explore-Preisverleihung alleine.\nExplore nur am Nachmittag: Explore-Er\u00f6ffnung alleine. Gemeinsame Preisverleihung.\nExplore vormittags und nachmittags: Kombination aus den beiden.\n\nWenn Explore getrennt geplant wird, sind Er\u00f6ffnung und Preisverleihung nur f\u00fcr Explore."
+        },
+        {
+            "id": 49,
+            "help_topic": 4,
+            "title": "Was sind bei \u201eChallenge mit Future 8+\u201c die Auswirkungen von in einem Raum oder in getrennten R\u00e4umen?",
+            "sort_order": 46,
+            "body": "Wenn beide in einem Raum stattfinden, werden die Zeiten f\u00fcr die Matches so erzeugt, dass sie nicht gleichzeitig stattfinden. Die Testrunde ist eine Ausnahme. Um Zeit zu sparen, laufen da Matches parallel.\n\nWenn getrennte R\u00e4ume genutzt werden, haben die beiden Programme entkoppelte Zeitpl\u00e4ne. Damit kann man Zeit sparen, aber es macht es dem Publikum schwer, beide Programme zu verfolgen."
+        },
+        {
+            "id": 51,
+            "help_topic": 4,
+            "title": "Warum kann ich zum Teil nur die Dauer, aber nicht den Start \u00e4ndern?",
+            "sort_order": 48,
+            "body": "Der Ablauf wird automatisch erzeugt. Damit versucht der Generator alle Aktivit\u00e4ten so fr\u00fch wie m\u00f6glich zu starten.\n\nDer Start der Er\u00f6ffnung ist der Zeitpunkt, von dem aus der Ablauf berechnet wird. Weitere Zeiten m\u00fcssen nur eingegeben werden, wenn am Tag der Veranstaltung mehrere Programme unabh\u00e4ngig voneinander stattfinden."
+        },
+        {
+            "id": 52,
+            "help_topic": 4,
+            "title": "Warum kann ich nur den Nachmittag \u00e4ndern, aber nicht den Vormittag?",
+            "sort_order": 49,
+            "body": "Der Ablauf am Vormittag wird automatisch erzeugt. Die Reihenfolge der Matches in Kombination mit den Jury-Bewertungen wird berechnet und kann deshalb nicht ge\u00e4ndert werden.\n\nDie Aktivit\u00e4ten am Nachmittag sind nicht mehr parallel, sondern nacheinander. Die Reihenfolge kann daher angepasst werden."
+        },
+        {
+            "id": 53,
+            "help_topic": 4,
+            "title": "Wie wirken sich die einzelnen Parameter aus?",
+            "sort_order": 50,
+            "body": "Zu jedem Parameter ist \u00fcber das Info-Icon eine Kurzbeschreibung verf\u00fcgbar."
+        },
+        {
+            "id": 54,
+            "help_topic": 8,
+            "title": "Wie lege ich die Sichtbarkeit von freien Bl\u00f6cken fest?",
+            "sort_order": 51,
+            "body": "\u00dcber das Auge-Icon kann sowohl die Sichtbarkeit pro Programm als auch die Kennzeichnung \u201ewichtige Zeit\u201c gesetzt werden."
+        },
+        {
+            "id": 55,
+            "help_topic": 8,
+            "title": "Wie kennzeichne ich einen freien Block als \u201ewichtige Zeit\u201c?",
+            "sort_order": 52,
+            "body": "\u00dcber das Auge-Icon kann sowohl die Sichtbarkeit pro Programm als auch die Kennzeichnung \u201ewichtige Zeit\u201c gesetzt werden."
+        },
+        {
+            "id": 56,
+            "help_topic": 8,
+            "title": "Wo wird der Link verwendet, den ich pro freien Block eingeben kann?",
+            "sort_order": 53,
+            "body": "Der Link wird im \u00f6ffentlichen Zeitplan angezeigt und kann dann von Teams, Helfer:innen und Publikum genutzt werden."
+        },
+        {
+            "id": 57,
+            "help_topic": 8,
+            "title": "Was ist der Unterschied zwischen freien Bl\u00f6cken und Slot-Bl\u00f6cken?",
+            "sort_order": 54,
+            "body": "Freie Bl\u00f6cke sind f\u00fcr alle Teams, Helfer:innen und das Publikum sichtbar.\n\nSlot-Bl\u00f6cke sind nur f\u00fcr die Teams sichtbar, denen ein Slot zugeordnet wurde."
+        },
+        {
+            "id": 58,
+            "help_topic": 8,
+            "title": "Was passiert mit zus\u00e4tzlichen Aktivit\u00e4ten, wenn ein neuer Ablauf generiert wird?",
+            "sort_order": 55,
+            "body": null
+        },
+        {
+            "id": 59,
+            "help_topic": 8,
+            "title": "Wie kann ich sicherstellen, dass die Teams auch Zeit f\u00fcr ihren Slot haben?",
+            "sort_order": 56,
+            "body": "Daf\u00fcr gibt es drei Hilfen:\n\n1. Pro Slot gibt es einen Indikator, der zeigt, ob es zeitliche Konflikte gibt.\n\n2. Wenn man mit dem Mauszeiger \u00fcber dem Teamnamen schwebt, werden die Zeiten der \u00fcbrigen Aktivit\u00e4ten des Teams angezeigt.\n\n3. In der \u00dcbersicht auf der rechten Seite werden die Slots in der Sicht \u201eTeams\u201c gezeigt. Wenn sie mit anderen Aktivit\u00e4ten \u00fcberlappen, wird das schwarz markiert.\n\nAchtung: Wenn ein neuer Ablauf generiert wird, bleiben die Slot-Zuordnungen unver\u00e4ndert und m\u00fcssen \u00fcberpr\u00fcft werden!"
+        },
+        {
+            "id": 60,
+            "help_topic": 8,
+            "title": "Wo wird der Link verwendet, den ich pro Slot-Block eingeben kann?",
+            "sort_order": 57,
+            "body": "Der Link wird im \u00f6ffentlichen Zeitplan angezeigt und kann dann von den Teams genutzt werden."
+        },
+        {
+            "id": 61,
+            "help_topic": 8,
+            "title": "Wie kann ich Slots f\u00fcr Helfer:innen anlegen?",
+            "sort_order": 58,
+            "body": null
+        },
+        {
+            "id": 62,
+            "help_topic": 2,
+            "title": "Wie lade ich ein Logo hoch?",
+            "sort_order": 59,
+            "body": "PNG, JPG oder SVG, maximal 2 MB.\n\nDatei auf \u201eNeues Logo\u201c ziehen oder dort klicken und eine Datei w\u00e4hlen.\n\nEin neu hochgeladenes Logo wird f\u00fcr die aktuelle Veranstaltung automatisch aktiv geschaltet. Es bleibt erhalten und kann bei anderen Veranstaltungen ebenfalls eingeschaltet werden."
+        },
+        {
+            "id": 63,
+            "help_topic": 2,
+            "title": "Wie \u00e4ndere ich die Reihenfolge der Logos?",
+            "sort_order": 60,
+            "body": "Die Reihenfolge l\u00e4sst sich mit Drag-and-Drop ver\u00e4ndern."
+        },
+        {
+            "id": 64,
+            "help_topic": 2,
+            "title": "Welches Logo wird f\u00fcr die Namensaufkleber verwendet?",
+            "sort_order": 61,
+            "body": "Das erste aktive Logo erscheint zus\u00e4tzlich auf den Namensaufklebern, zusammen mit Programm- und Saisonlogo.\n\nDie anderen Logos erscheinen dort nicht."
+        },
+        {
+            "id": 65,
+            "help_topic": 2,
+            "title": "Was bewirkt der Link bei einem Logo?",
+            "sort_order": 62,
+            "body": "Wenn ein Link eingetragen ist, wird das Logo auf der \u00f6ffentlichen Seite anklickbar."
+        },
+        {
+            "id": 67,
+            "help_topic": 2,
+            "title": "Wie l\u00f6sche ich ein Logo?",
+            "sort_order": 64,
+            "body": "\u00dcber den L\u00f6schen-Button am Logo.\n\nDas Logo wird vollst\u00e4ndig entfernt, auch bei anderen Veranstaltungen.\n\nZum Abschalten nur f\u00fcr diese Veranstaltung reicht der Schalter."
         }
     ],
     "m_help_action_screen": [
@@ -1989,6 +2143,11 @@
             "id": 15,
             "help_action": 11,
             "help_screen": 1
+        },
+        {
+            "id": 80,
+            "help_action": 11,
+            "help_screen": 20
         },
         {
             "id": 16,
@@ -2194,6 +2353,141 @@
             "id": 56,
             "help_action": 43,
             "help_screen": 11
+        },
+        {
+            "id": 57,
+            "help_action": 44,
+            "help_screen": 12
+        },
+        {
+            "id": 58,
+            "help_action": 45,
+            "help_screen": 12
+        },
+        {
+            "id": 59,
+            "help_action": 46,
+            "help_screen": 12
+        },
+        {
+            "id": 75,
+            "help_action": 46,
+            "help_screen": 13
+        },
+        {
+            "id": 77,
+            "help_action": 47,
+            "help_screen": 3
+        },
+        {
+            "id": 76,
+            "help_action": 47,
+            "help_screen": 9
+        },
+        {
+            "id": 60,
+            "help_action": 47,
+            "help_screen": 12
+        },
+        {
+            "id": 61,
+            "help_action": 48,
+            "help_screen": 13
+        },
+        {
+            "id": 62,
+            "help_action": 49,
+            "help_screen": 13
+        },
+        {
+            "id": 64,
+            "help_action": 51,
+            "help_screen": 14
+        },
+        {
+            "id": 65,
+            "help_action": 52,
+            "help_screen": 15
+        },
+        {
+            "id": 66,
+            "help_action": 53,
+            "help_screen": 16
+        },
+        {
+            "id": 67,
+            "help_action": 54,
+            "help_screen": 18
+        },
+        {
+            "id": 68,
+            "help_action": 55,
+            "help_screen": 18
+        },
+        {
+            "id": 69,
+            "help_action": 56,
+            "help_screen": 18
+        },
+        {
+            "id": 70,
+            "help_action": 57,
+            "help_screen": 18
+        },
+        {
+            "id": 78,
+            "help_action": 57,
+            "help_screen": 19
+        },
+        {
+            "id": 71,
+            "help_action": 58,
+            "help_screen": 18
+        },
+        {
+            "id": 79,
+            "help_action": 58,
+            "help_screen": 19
+        },
+        {
+            "id": 72,
+            "help_action": 59,
+            "help_screen": 19
+        },
+        {
+            "id": 73,
+            "help_action": 60,
+            "help_screen": 19
+        },
+        {
+            "id": 74,
+            "help_action": 61,
+            "help_screen": 19
+        },
+        {
+            "id": 81,
+            "help_action": 62,
+            "help_screen": 20
+        },
+        {
+            "id": 82,
+            "help_action": 63,
+            "help_screen": 20
+        },
+        {
+            "id": 83,
+            "help_action": 64,
+            "help_screen": 20
+        },
+        {
+            "id": 84,
+            "help_action": 65,
+            "help_screen": 20
+        },
+        {
+            "id": 86,
+            "help_action": 67,
+            "help_screen": 20
         }
     ],
     "m_help_screen": [
@@ -2203,8 +2497,8 @@
             "name": "\u00d6ffentliche Seite",
             "route_path": "\/plan\/publish",
             "description": "Auf der linken Seite wird festgelegt, was auf der \u00f6ffentlichen Seite gezeigt wird.\nRechts zeigt eine Live-Vorschau den aktuellen Stand.",
-            "must_do": "Nichts. Der Link zur \u00f6ffentlichen Seite wird automatisch angelegt. Ohne \u00c4nderung wird der Veranstaltungsort, die Kontaktdaten und die Liste der angemeldeten Teams angezeigt.",
-            "can_do": "Die Stufe unter \u201eInformationen zum Zeitplan\u201c w\u00e4hlen.\n\nFestlegen, ob Web-Formulare f\u00fcr Dateneingabe durch Coach:innen bzw. Helfer:innen genutzt werden sollen.\n\nDie Suche nach Helfer:innen ein- oder ausschalten.\n\nDie Check-In und Cockpit Apps f\u00fcr den Tag der Veranstaltung ein- oder ausschalten.",
+            "must_do": "Nichts. Der Link zur \u00f6ffentlichen Seite wird automatisch angelegt. Ohne \u00c4nderung werden der Veranstaltungsort, die Kontaktdaten und die Liste der angemeldeten Teams angezeigt.",
+            "can_do": "Die Stufe unter \u201eInformationen zum Zeitplan\u201c w\u00e4hlen.\n\nFestlegen, ob Web-Formulare f\u00fcr Dateneingabe durch Coach:innen bzw. Helfer:innen genutzt werden sollen.\n\nDie Suche nach Helfer:innen ein- oder ausschalten.\n\nDie Check-In-App und die Cockpit-App f\u00fcr den Tag der Veranstaltung ein- oder ausschalten.",
             "sort_order": 1
         },
         {
@@ -2213,8 +2507,8 @@
             "name": "Teamdaten",
             "route_path": "\/plan\/teams\/data",
             "description": "Zu jedem Team k\u00f6nnen in FLOW zus\u00e4tzliche Daten gespeichert werden, die nicht aus der Anmeldung zur Veranstaltung kommen.",
-            "must_do": "Nichts. \nWenn die Daten aus der Anmeldung reichen, muss hier nichts passieren.",
-            "can_do": "F\u00fcr die Daten, die man pro Team zus\u00e4tzlich braucht, passende Spalten anlegen.\n\nDie Daten k\u00f6nnen direkt in die Tabelle eingeben werden. Zus\u00e4tzlich gibt es die M\u00f6glichkeit, ein automatisch generiertes Web-Formular zu nutzen, in das die Coach:innen die Daten selber eintragen.\n\nWas zum Thema Essen abgefragt wird, kann passend zur Veranstaltung eingestellt werden. Die Einstellungen greifen auch f\u00fcr die Helfer:innen, sodass die Zahlen der beiden Abfragen zusammengefasst werden k\u00f6nnen.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei herunter geladen werden. Und es gibt eine Funktion, um E-Mails an Coach:innen zu schreiben.",
+            "must_do": "Nichts.\nWenn die Daten aus der Anmeldung reichen, muss hier nichts passieren.",
+            "can_do": "F\u00fcr die Daten, die man pro Team zus\u00e4tzlich braucht, passende Spalten anlegen.\n\nDie Daten k\u00f6nnen direkt in die Tabelle eingegeben werden. Zus\u00e4tzlich gibt es die M\u00f6glichkeit, ein automatisch generiertes Web-Formular zu nutzen, in das die Coach:innen die Daten selber eintragen.\n\nWas zum Thema Essen abgefragt wird, kann passend zur Veranstaltung eingestellt werden. Die Einstellungen greifen auch f\u00fcr die Helfer:innen, sodass die Zahlen der beiden Abfragen zusammengefasst werden k\u00f6nnen.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei heruntergeladen werden. Und es gibt eine Funktion, um E-Mails an Coach:innen zu schreiben.",
             "sort_order": 2
         },
         {
@@ -2222,9 +2516,9 @@
             "key": "teams-program",
             "name": "Details pro Team",
             "route_path": "\/plan\/teams\/:program",
-            "description": "Um die Detailsdaten zu den Teams aus der Anmeldung und ihre Zuordnung im Ablauf.",
-            "must_do": "Wenn es \u00c4nderungen in der Anmeldung gibt, m\u00fcssen diese nach FLOW \u00fcbernommen werden. Dazu geh\u00f6rt Anmeldungen, Abmeldungen und Namens\u00e4nderungen. \n\nDas passiert bewusst nicht automatische, damit es keine \u00dcberraschungen gibt, weil sich die Daten heimlich ver\u00e4ndert haben.",
-            "can_do": "Die Reihenfolge der Teams im Ablauf kann ver\u00e4ndert werden. Und Teams, die kurzfristig abgesagt haben, k\u00f6nnen als \"no-show\" gekennzeichnet werden.\n\nAlle Daten k\u00f6nnen heruntergeladen und Coaches per E-Mail kontaktiert werden.",
+            "description": "Hier werden die Detaildaten der Teams aus der Anmeldung und ihre Zuordnung im Ablauf gezeigt.",
+            "must_do": "Wenn es \u00c4nderungen in der Anmeldung gibt, m\u00fcssen diese nach FLOW \u00fcbernommen werden. Dazu geh\u00f6ren Anmeldungen, Abmeldungen und Namens\u00e4nderungen.\n\nDas passiert bewusst nicht automatisch, damit es keine \u00dcberraschungen gibt, weil sich die Daten heimlich ver\u00e4ndert haben.",
+            "can_do": "Die Reihenfolge der Teams im Ablauf kann ver\u00e4ndert werden. Und Teams, die kurzfristig abgesagt haben, k\u00f6nnen als \u201eNo-Show\u201c gekennzeichnet werden.\n\nAlle Daten k\u00f6nnen heruntergeladen und Coach:innen per E-Mail kontaktiert werden.",
             "sort_order": 3
         },
         {
@@ -2233,8 +2527,8 @@
             "name": "Helfer:innenliste",
             "route_path": "\/plan\/volunteers\/roster",
             "description": "Zu jede:r Helfer:in k\u00f6nnen in FLOW zus\u00e4tzliche Daten gespeichert werden, die sich auf die Veranstaltung beziehen.",
-            "must_do": "Nichts. Der gesamte Bereich \"Helfer:innen\" ist optional.",
-            "can_do": "Personen aus der Kontaktliste in die Helfer:liste \u00fcbernehmen.\n\nF\u00fcr die Daten, die man pro Helfer:in zus\u00e4tzlich braucht, passende Spalten anlegen.\n\nDie Daten k\u00f6nnen direkt in die Tabelle eingeben werden. Zus\u00e4tzlich gibt es die M\u00f6glichkeit, ein automatisch generiertes Web-Formular zu nutzen, in das die Helfer:innen die Daten selber eintragen.\n\nWas zum Thema Essen abgefragt wird, kann passend zur Veranstaltung eingestellt werden. Die Einstellungen greifen auch f\u00fcr die Team, sodass die Zahlen der beiden Abfragen zusammengefasst werden k\u00f6nnen.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei herunter geladen werden. Und es gibt eine Funktion, um E-Mails an Helfer:innen zu schreiben.",
+            "must_do": "Nichts. Der gesamte Bereich \u201eHelfer:innen\u201c ist optional.",
+            "can_do": "Personen aus der Kontaktliste in die Helfer:innenliste \u00fcbernehmen.\n\nF\u00fcr die Daten, die man pro Helfer:in zus\u00e4tzlich braucht, passende Spalten anlegen.\n\nDie Daten k\u00f6nnen direkt in die Tabelle eingegeben werden. Zus\u00e4tzlich gibt es die M\u00f6glichkeit, ein automatisch generiertes Web-Formular zu nutzen, in das die Helfer:innen die Daten selber eintragen.\n\nWas zum Thema Essen abgefragt wird, kann passend zur Veranstaltung eingestellt werden. Die Einstellungen greifen auch f\u00fcr die Teams, sodass die Zahlen der beiden Abfragen zusammengefasst werden k\u00f6nnen.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei heruntergeladen werden. Und es gibt eine Funktion, um E-Mails an Helfer:innen zu schreiben.",
             "sort_order": 6
         },
         {
@@ -2242,9 +2536,9 @@
             "key": "rooms",
             "name": "R\u00e4ume",
             "route_path": "\/plan\/rooms",
-            "description": "Um die Zuordnung der Aktivit\u00e4ten und Teams auf die R\u00e4ume im Veranstaltungsort.",
+            "description": "Hier werden die Aktivit\u00e4ten und Teams den R\u00e4umen im Veranstaltungsort zugeordnet.",
             "must_do": "Wenn man nichts tut, werden im Zeitplan Standard-Platzhalter statt echter Raumnamen angezeigt. Die helfen aber Teams, Helfer:innen und Publikum nur wenig, um die richtigen R\u00e4ume zu finden.\n\nDaher sollte man R\u00e4ume anlegen.",
-            "can_do": "R\u00e4ume anlegen und sortieren.\n\nPro Raum eine Navigationshinweise hinzuf\u00fcgen und eine Kennzeichnung f\u00fcr \"nicht barrierefrei\" vergeben.\n\nAktivit\u00e4ten und Teams auf die R\u00e4ume verteilen.",
+            "can_do": "R\u00e4ume anlegen und sortieren.\n\nPro Raum Navigationshinweise hinzuf\u00fcgen und eine Kennzeichnung f\u00fcr \u201enicht barrierefrei\u201c vergeben.\n\nAktivit\u00e4ten und Teams den R\u00e4umen zuordnen.",
             "sort_order": 4
         },
         {
@@ -2252,9 +2546,9 @@
             "key": "volunteers-people",
             "name": "Personen",
             "route_path": "\/plan\/volunteers",
-            "description": "Zu allen Helfer:innen, die man kennt, die wichtigsten Kontaktdaten verwalten.",
-            "must_do": "Nichts. Der gesamte Bereich \"Helfer:innen\" ist optional.",
-            "can_do": "Zu jeder Person, die man vielleicht als Helfer:in einsetzen m\u00f6chte, die Kontaktdaten speichern.\n\nDie E-Mail-Adresse ist die eindeutige Identifikation pro Person. Alle anderen Daten k\u00f6nnen ge\u00e4ndert werden.\n\nDaten zu Personen k\u00f6nnen hochgeladen werden.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei herunter geladen werden. Und es gibt eine Funktion, um E-Mails an die Kontakte zu schreiben.",
+            "description": "Zu allen Helfer:innen, die man kennt, k\u00f6nnen die wichtigsten Kontaktdaten verwaltet werden.",
+            "must_do": "Nichts. Der gesamte Bereich \u201eHelfer:innen\u201c ist optional.",
+            "can_do": "Zu jeder Person, die man vielleicht als Helfer:in einsetzen m\u00f6chte, die Kontaktdaten speichern.\n\nDie E-Mail-Adresse ist die eindeutige Identifikation pro Person. Alle anderen Daten k\u00f6nnen ge\u00e4ndert werden.\n\nDaten zu Personen k\u00f6nnen hochgeladen werden.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei heruntergeladen werden. Und es gibt eine Funktion, um E-Mails an die Kontakte zu schreiben.",
             "sort_order": 5
         },
         {
@@ -2262,9 +2556,9 @@
             "key": "volunteers-staffing",
             "name": "Zuordnung",
             "route_path": "\/plan\/volunteers\/staffing",
-            "description": "Um die Zuordnung der Helfer:innen auf die Rollen, die sich aus dem Ablauf ergeben.",
-            "must_do": "Nichts. Der gesamte Bereich \"Helfer:innen\" ist optional.",
-            "can_do": "Personen auf Rollen verteilen.\n\nZus\u00e4tzliche Rollen selber anlegen.\n\nDie Suche nach Helfer:innen ein- oder ausschalten.\n\nE-Mails an alle Helfer:innen schreiben. Die Helfer:innenliste hat dazu weitere Funktionen.",
+            "description": "Hier werden die Helfer:innen den Rollen zugeordnet, die sich aus dem Ablauf ergeben.",
+            "must_do": "Nichts. Der gesamte Bereich \u201eHelfer:innen\u201c ist optional.",
+            "can_do": "Personen den Rollen zuordnen.\n\nZus\u00e4tzliche Rollen selber anlegen.\n\nDie Suche nach Helfer:innen ein- oder ausschalten.\n\nE-Mails an alle Helfer:innen schreiben. Die Helfer:innenliste hat dazu weitere Funktionen.",
             "sort_order": 7
         },
         {
@@ -2272,9 +2566,9 @@
             "key": "live-check-in",
             "name": "Check-In App",
             "route_path": "\/plan\/live\/check-in",
-            "description": "Die Check-In App ersetzt das Ausdruck von Team- und Helfer:innen-Listen und manuelles Abhaken.",
-            "must_do": "Nichts. Der gesamte Bereich \"am Tag\" ist optional.",
-            "can_do": "Die Check-In App ein- und ausschalten. Den PIN-Code \u00e4ndern.\n\nF\u00fcr Teams und Helfer-Innen jeweils ausw\u00e4hlen, welchen Informationen in der App angezeigt werden und welche Informationen beim Check-In \n\nAlle Check-In Daten zur\u00fccksetzten.",
+            "description": "Die Check-In-App ersetzt das Ausdrucken von Team- und Helfer:innen-Listen und manuelles Abhaken.",
+            "must_do": "Nichts. Der gesamte Bereich \u201eam Tag\u201c ist optional.",
+            "can_do": "Die Check-In-App ein- und ausschalten. Den PIN-Code \u00e4ndern.\n\nF\u00fcr Teams und Helfer:innen jeweils ausw\u00e4hlen, welche Informationen in der App angezeigt werden und welche Informationen beim Check-In erfasst werden.\n\nAlle Check-In-Daten zur\u00fccksetzen.",
             "sort_order": 8
         },
         {
@@ -2282,9 +2576,9 @@
             "key": "live-cockpit",
             "name": "Cockpit App",
             "route_path": "\/plan\/live\/cockpit",
-            "description": "Die Cockpit App erm\u00f6glicht einen einfachen Zugang zu den wichtigsten Funktionen, die am Tage der Veranstaltung ben\u00f6tigt werden.",
-            "must_do": "Nichts. Der gesamte Bereich \"am Tag\" ist optional.",
-            "can_do": "Die Cockpit App ein- und ausschalten. Den PIN-Code \u00e4ndern.\n\nAlle Cockpit App Daten zur\u00fccksetzten.",
+            "description": "Die Cockpit-App erm\u00f6glicht einen einfachen Zugang zu den wichtigsten Funktionen, die am Tag der Veranstaltung ben\u00f6tigt werden.",
+            "must_do": "Nichts. Der gesamte Bereich \u201eam Tag\u201c ist optional.",
+            "can_do": "Die Cockpit-App ein- und ausschalten. Den PIN-Code \u00e4ndern.\n\nAlle Cockpit-App-Daten zur\u00fccksetzen.",
             "sort_order": 9
         },
         {
@@ -2292,9 +2586,9 @@
             "key": "schedule-general",
             "name": "Ablauf - Allgemein",
             "route_path": "\/plan\/schedule",
-            "description": "Um das automatische Erzeugen eine Ablaufs f\u00fcr den Veranstaltungstag.",
+            "description": "Hier wird automatisch ein Ablauf f\u00fcr den Veranstaltungstag erzeugt.",
             "must_do": "Die Anzahl der Teams im Ablauf (pro Programm) ausw\u00e4hlen.",
-            "can_do": "Zus\u00e4tzlich zu Anzahl Teams auch noch ausw\u00e4hlen, wie viele Jury-Gruppen, Spielfelder usw. genutzt werden sollen.\n\n\"Was w\u00e4re wenn\" ausprobieren, also z.B. zwischen vier und zwei Spielfeldern umstellen, um den dazu passenden Ablauf zu bekommen.",
+            "can_do": "Zus\u00e4tzlich zur Anzahl der Teams auch noch ausw\u00e4hlen, wie viele Jury-Gruppen, Spielfelder usw. genutzt werden sollen.\n\n\u201eWas w\u00e4re wenn\u201c ausprobieren, also z.B. zwischen vier und zwei Spielfeldern umstellen, um den dazu passenden Ablauf zu bekommen.",
             "sort_order": 10
         },
         {
@@ -2302,7 +2596,7 @@
             "key": "schedule-integration",
             "name": "Ablauf - Integration",
             "route_path": "\/plan\/schedule\/integration",
-            "description": "Festlegen, wie die verschiedenen Programme am Veranstaltungsprogramm integriert sind.\nDie Auswirkungen sind u.a., ob Er\u00f6ffnungen und Preisverleihungen gemeinsam oder getrennt sind.   Und f\u00fcr die Kombination aus Founders und Future Edition hat es Auswirkungen auf den Abbau der Matches.",
+            "description": "Hier wird festgelegt, wie die verschiedenen Programme in den Veranstaltungstag integriert sind.\nDie Auswirkungen sind u.a., ob Er\u00f6ffnungen und Preisverleihungen gemeinsam oder getrennt sind. Und f\u00fcr die Kombination aus Founders und Future Edition hat es Auswirkungen auf den Aufbau der Matches.",
             "must_do": "Nichts.\nF\u00fcr alle Kombinationen von Programmen werden automatisch sinnvolle Einstellungen verwendet.",
             "can_do": null,
             "sort_order": 11
@@ -2312,9 +2606,9 @@
             "key": "schedule-times",
             "name": "Ablauf - Zeiten",
             "route_path": "\/plan\/schedule\/times",
-            "description": "Festlegen, wann Er\u00f6ffnung(en) und Preisverleihung(en) stattfinden und wie lange sie dauern soll(en).",
+            "description": "Hier wird festgelegt, wann Er\u00f6ffnung(en) und Preisverleihung(en) stattfinden und wie lange sie dauern soll(en).",
             "must_do": "Nichts.\nAlle Felder sind mit passenden Standardwerten versorgt.",
-            "can_do": "Den Start der Er\u00f6ffnung \u00e4ndern. Das ist der zentral Zeitpunkt im Ablauf. Alle anderen Zeiten werden dazu automatisch berechnet.\n\nDie Dauer von Er\u00f6ffnung(en) und Preisverleihung(en) ver\u00e4ndern, z.B. wenn eine wichtiger Mensch kommt, der extra Redezeit braucht.",
+            "can_do": "Den Start der Er\u00f6ffnung \u00e4ndern. Das ist der zentrale Zeitpunkt im Ablauf. Alle anderen Zeiten werden dazu automatisch berechnet.\n\nDie Dauer von Er\u00f6ffnung(en) und Preisverleihung(en) ver\u00e4ndern, z.B. wenn ein wichtiger Mensch kommt, der extra Redezeit braucht.",
             "sort_order": 12
         },
         {
@@ -2322,9 +2616,9 @@
             "key": "schedule-afternoon",
             "name": "Ablauf - Nachmittag",
             "route_path": "\/plan\/schedule\/afternoon",
-            "description": "Festlegen, was nach den Vorrunden passiert.",
+            "description": "Hier wird festgelegt, was nach den Vorrunden passiert.",
             "must_do": "Nichts.\nEs gibt Standardwerte, die passen.",
-            "can_do": "Die Reihenfolder der Aktivit\u00e4ten ver\u00e4ndern.\nAktivit\u00e4ten ein- und ausschalten bzw. Einstellungen zu einzelnen Aktivit\u00e4ten \u00e4ndern.",
+            "can_do": "Die Reihenfolge der Aktivit\u00e4ten ver\u00e4ndern.\nAktivit\u00e4ten ein- und ausschalten bzw. Einstellungen zu einzelnen Aktivit\u00e4ten \u00e4ndern.",
             "sort_order": 13
         },
         {
@@ -2334,7 +2628,7 @@
             "route_path": "\/plan\/schedule\/expert",
             "description": "Der automatisch generierte Ablauf basiert auf vielen einzelnen Parametern. Die k\u00f6nnen hier ver\u00e4ndert werden.",
             "must_do": "Nichts.",
-            "can_do": "Ausprobieren, wie sich \u00c4nderungen an den Parametern auf den Ablauf auswirken.\nPro Parameter gibt eine kurze Hilfe, die beschreibt, was er bewirkt.",
+            "can_do": "Ausprobieren, wie sich \u00c4nderungen an den Parametern auf den Ablauf auswirken.\nPro Parameter gibt es eine kurze Hilfe, die beschreibt, was er bewirkt.",
             "sort_order": 14
         },
         {
@@ -2352,20 +2646,30 @@
             "key": "schedule-free",
             "name": "Zus\u00e4tzliche Aktivit\u00e4ten - Freie Bl\u00f6cke",
             "route_path": "\/plan\/schedule\/free",
-            "description": "Zus\u00e4tzliche Aktivit\u00e4ten, die neben dem generierten Ablauf stehen.",
+            "description": "Freie Bl\u00f6cke sind zus\u00e4tzliche Aktivit\u00e4ten, die neben dem generierten Ablauf stehen.",
             "must_do": "Nichts.",
-            "can_do": "Zus\u00e4tzliche Aktivit\u00e4ten, z.B. Mittagessen, anlegen, die im Zeitplan der Veranstaltungen zus\u00e4tzliche zum Ablauf gezeigt werden.\nPro Aktivit\u00e4t festlegen, f\u00fcr welche Programme sie relevant ist und ob es eine \"wichtige Zeit\" ist.",
+            "can_do": "Zus\u00e4tzliche Aktivit\u00e4ten, z.B. Mittagessen, anlegen, die im Zeitplan der Veranstaltung zus\u00e4tzlich zum Ablauf gezeigt werden.\nPro Aktivit\u00e4t festlegen, f\u00fcr welche Programme sie relevant ist und ob es eine \u201ewichtige Zeit\u201c ist.",
             "sort_order": 16
         },
         {
             "id": 19,
             "key": "schedule-slots",
-            "name": "Zus\u00e4tzliche Aktivit\u00e4ten - Slots",
+            "name": "Zus\u00e4tzliche Aktivit\u00e4ten - Slot-Bl\u00f6cke",
             "route_path": "\/plan\/schedule\/slots",
-            "description": "Zus\u00e4tzliche Aktivit\u00e4ten, die neben dem generierten Ablauf stehen.",
-            "must_do": "Nichts",
-            "can_do": "Zus\u00e4tzliche Aktivit\u00e4ten pro Team anlegen, die im Zeitplan der Veranstaltungen zus\u00e4tzliche zum Ablauf gezeigt werden.\n\nZeiten pro Team zuordnen.",
+            "description": "Slot-Bl\u00f6cke sind zus\u00e4tzliche Aktivit\u00e4ten, die neben dem generierten Ablauf stehen.",
+            "must_do": "Nichts.",
+            "can_do": "Zus\u00e4tzliche Aktivit\u00e4ten pro Team anlegen, die im Zeitplan der Veranstaltung zus\u00e4tzlich zum Ablauf gezeigt werden.\n\nZeiten pro Team zuordnen.",
             "sort_order": 17
+        },
+        {
+            "id": 20,
+            "key": "publish-logos",
+            "name": "Logos",
+            "route_path": "\/plan\/publish\/logos",
+            "description": "Hier werden die Logos f\u00fcr die \u00f6ffentliche Seite und die PDFs verwaltet.",
+            "must_do": "Nichts.\nOhne eigene Logos erscheinen auf der \u00f6ffentlichen Seite und in den PDFs keine zus\u00e4tzlichen Logos.",
+            "can_do": "Logos hochladen und f\u00fcr diese Veranstaltung ein- oder ausschalten.\nPro Logo einen Titel und optional einen Link vergeben.\nDie Reihenfolge \u00e4ndern.",
+            "sort_order": 1
         }
     ],
     "m_help_topic": [
@@ -11388,9 +11692,11 @@
             "role": 2
         },
         {
-            "id": 1040,
-            "activity_type_detail": 71,
-            "role": 14
+            "id": 1,
+            "help_topic": 2,
+            "title": "Welche Informationen zum Zeitplan erscheinen auf der \u00f6ffentlichen Seite?",
+            "body": "Es gibt drei Stufen.\n\nKeine:\nnur das Datum.\n\nWichtige Zeiten:\nEr\u00f6ffnung, Preisverleihung, Briefings und das geplante Ende der Veranstaltung werden automatisch dargestellt.\nZus\u00e4tzlich k\u00f6nnen freie Bl\u00f6cke mit \u201ewichtige Zeit\u201c gekennzeichnet werden. Diese werden dann chronologisch in die Liste einsortiert. Ein typisches Beispiel daf\u00fcr ist, wann der Check-In ge\u00f6ffnet ist.\n\nVolle Details:\nDer gesamte Zeitplan ist sichtbar.",
+            "sort_order": 1
         },
         {
             "id": 1036,
@@ -11398,9 +11704,11 @@
             "role": 21
         },
         {
-            "id": 1037,
-            "activity_type_detail": 71,
-            "role": 23
+            "id": 3,
+            "help_topic": 1,
+            "title": "Wie w\u00e4hle ich aus, welche zus\u00e4tzlichen Informationen \u00fcber Teams gespeichert werden sollen?",
+            "body": "\u00dcber den Button \u201eSpalten\u201c am oberen Rand der Seite.\n\nStandardfelder k\u00f6nnen ein- und ausgeschaltet werden. Zus\u00e4tzliche eigene Felder k\u00f6nnen frei definiert werden.\n\nJedes Feld wird zu einer Spalte in der Tabelle.",
+            "sort_order": 2
         },
         {
             "id": 1038,
@@ -11408,9 +11716,11 @@
             "role": 24
         },
         {
-            "id": 1039,
-            "activity_type_detail": 71,
-            "role": 25
+            "id": 6,
+            "help_topic": 3,
+            "title": "Wie w\u00e4hle ich aus, welche zus\u00e4tzlichen Informationen pro Helfer:in gespeichert werden sollen?",
+            "body": "\u00dcber den Button \u201eSpalten\u201c am oberen Rand der Seite.\n\nStandardfelder k\u00f6nnen ein- und ausgeschaltet werden. Zus\u00e4tzliche eigene Felder k\u00f6nnen frei definiert werden.\n\nJedes Feld wird zu einer Spalte in der Tabelle.",
+            "sort_order": 5
         },
         {
             "id": 1177,
@@ -11423,69 +11733,95 @@
             "role": 31
         },
         {
-            "id": 1206,
-            "activity_type_detail": 71,
-            "role": 33
+            "id": 9,
+            "help_topic": 3,
+            "title": "Wie schalte ich die Suche nach Helfer:innen ein- bzw. aus?",
+            "body": "Die Suche kann sowohl in den Einstellungen f\u00fcr die \u00f6ffentliche Seite als auch direkt auf der Seite Zuordnung ein- und ausgeschaltet werden.",
+            "sort_order": 8
         },
         {
-            "id": 986,
-            "activity_type_detail": 72,
-            "role": 2
+            "id": 10,
+            "help_topic": 5,
+            "title": "Wie schalte ich die Apps (Check-In, Cockpit) ein- bzw. aus?",
+            "body": "Die Apps k\u00f6nnen sowohl in den Einstellungen f\u00fcr die \u00f6ffentliche Seite als auch direkt auf den jeweiligen Seiten der Apps ein- und ausgeschaltet werden.\n\nDie Apps sind nur von der \u00f6ffentlichen Seite verlinkt. Die Sichtbarkeit muss in den Einstellungen zur \u00f6ffentlichen Seite entsprechend gesetzt sein.",
+            "sort_order": 9
         },
         {
-            "id": 991,
-            "activity_type_detail": 72,
-            "role": 14
+            "id": 11,
+            "help_topic": 2,
+            "title": "Wie w\u00e4hle ich aus, welche Logos angezeigt werden?",
+            "body": "Alle Logos, die aktiv geschaltet sind, werden angezeigt.\n\nAuf der Seite Logos gibt es dazu eine Vorschau.",
+            "sort_order": 10
         },
         {
-            "id": 987,
-            "activity_type_detail": 72,
-            "role": 21
+            "id": 12,
+            "help_topic": 1,
+            "title": "Wie filtere ich die Teamdaten-Tabelle?",
+            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\nJedes Programm l\u00e4sst sich ein- oder ausschalten.\n\n\u201eFotoerlaubnis fehlt\u201c reduziert die Liste auf alle Teams, deren Fotoerlaubnis noch nicht komplett ist.\n\n\u201eUnvollst\u00e4ndige Antworten\u201c reduziert die Liste auf alle Teams, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nAlle Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen.",
+            "sort_order": 11
         },
         {
-            "id": 988,
-            "activity_type_detail": 72,
-            "role": 23
+            "id": 13,
+            "help_topic": 1,
+            "title": "Wie finde ich die Teams, deren Fotoerlaubnis noch nicht komplett ist?",
+            "body": "\u201eFotoerlaubnis fehlt\u201c reduziert die Liste auf alle Teams, deren Fotoerlaubnis noch nicht komplett ist.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen.",
+            "sort_order": 12
         },
         {
-            "id": 989,
-            "activity_type_detail": 72,
-            "role": 24
+            "id": 14,
+            "help_topic": 1,
+            "title": "Wie finde ich die Teams, deren zus\u00e4tzliche Daten noch nicht komplett sind?",
+            "body": "\u201eUnvollst\u00e4ndige Antworten\u201c reduziert die Liste auf alle Teams, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen.",
+            "sort_order": 13
         },
         {
-            "id": 990,
-            "activity_type_detail": 72,
-            "role": 25
+            "id": 15,
+            "help_topic": 6,
+            "title": "Wie stelle ich ein, was in der Essensauswahl gezeigt wird?",
+            "body": "\u00dcber den Button \u201eEssen\u201c am oberen Rand der Seiten Teamdaten oder Helfer:innenliste.\n\nDie Einstellung wirkt sich sowohl auf Teams als auch auf Helfer:innen aus.\n\nWenn Essen nicht verwendet werden soll, kann es in der Spaltenauswahl abgeschaltet werden.",
+            "sort_order": 14
         },
         {
-            "id": 1178,
-            "activity_type_detail": 72,
-            "role": 30
+            "id": 16,
+            "help_topic": 6,
+            "title": "Welche Daten kann ich herunterladen?",
+            "body": "Der Download-Button erzeugt eine Excel-Datei mit genau den Daten, die in der Tabelle gezeigt sind.\n\nAlle Filter werden ber\u00fccksichtigt.",
+            "sort_order": 15
         },
         {
-            "id": 1195,
-            "activity_type_detail": 72,
-            "role": 31
+            "id": 17,
+            "help_topic": 6,
+            "title": "Wie kann ich E-Mails versenden?",
+            "body": "FLOW versendet keine E-Mails, aber es gibt eine Funktion, um E-Mail-Adressen aus FLOW in das eigene Mail-Programm zu \u00fcbernehmen.\n\nDer E-Mail-Button nimmt genau die E-Mail-Adressen der Zeilen mit, die gerade auf der Seite angezeigt werden.\n\nFalls es auf der Seite Filter gibt, werden die ber\u00fccksichtigt.",
+            "sort_order": 16
         },
         {
-            "id": 1207,
-            "activity_type_detail": 72,
-            "role": 33
+            "id": 18,
+            "help_topic": 1,
+            "title": "Wie ordne ich die Teams aus der Anmeldung auf die Teamnummern im Ablauf zu?",
+            "body": "Der Ablauf-Generator erzeugt einen Ablauf mit Teamnummern (T01, T02, ...).\n\nDie Zuordnung der Teams auf die Teamnummern ist automatisch, kann aber durch Drag-and-Drop ver\u00e4ndert werden.\n\nWenn die Anzahl angemeldeter Teams nicht zu der Anzahl im Ablauf passt, wird das entsprechend angezeigt.",
+            "sort_order": 17
         },
         {
-            "id": 892,
-            "activity_type_detail": 73,
-            "role": 2
+            "id": 19,
+            "help_topic": 1,
+            "title": "Wo sehe ich, welche Teams zu welchen Jury- bzw. Gutachter:innen-Gruppen zugeordnet sind?",
+            "body": "Die zweite Spalte zeigt die Zuordnung mit \u201eJ1, J2, ...\u201c bzw. \u201eG1, G2, ...\u201c.\n\nWenn Teams in der Reihenfolge verschoben werden, \u00e4ndert das die Zuordnung.",
+            "sort_order": 18
         },
         {
-            "id": 898,
-            "activity_type_detail": 73,
-            "role": 14
+            "id": 20,
+            "help_topic": 1,
+            "title": "Was sollte ich machen, wenn ein Team kurzfristig absagt?",
+            "body": "Das Einfachste ist, das Team als \u201eNo-Show\u201c zu markieren. Dann bleibt es im Ablauf, wird aber \u00fcberall durchgestrichen angezeigt.\n\nVorteile: Alle Zeiten bleiben unver\u00e4ndert.\nNachteile: Eine Jury-Runde und die zugeh\u00f6rigen Matches bleiben leer.\n\nAlternativ kann auch der Ablauf angepasst werden, indem die Teamanzahl reduziert wird. Danach muss die Zuordnung der abgemeldeten Teams auf die Nummern im Ablauf \u00fcberpr\u00fcft und ggf. angepasst werden.\n\nVorteil: Der Ablauf enth\u00e4lt keine L\u00fccken.\nNachteil: Zeiten \u00e4ndern sich. Falls schon gedruckt wurde, muss neu gedruckt werden.",
+            "sort_order": 19
         },
         {
-            "id": 893,
-            "activity_type_detail": 73,
-            "role": 21
+            "id": 21,
+            "help_topic": 1,
+            "title": "Wo finde ich Informationen zu eine:r Coach:in?",
+            "body": "Die Zeilen pro Team lassen sich aufklappen. Dort gibt es Details zu den Coach:innen und Teilnehmer:innen.",
+            "sort_order": 20
         },
         {
             "id": 894,
@@ -11493,9 +11829,11 @@
             "role": 22
         },
         {
-            "id": 895,
-            "activity_type_detail": 73,
-            "role": 23
+            "id": 23,
+            "help_topic": 7,
+            "title": "Wie \u00e4ndere ich die Reihenfolge der R\u00e4ume?",
+            "body": "Die Reihenfolge l\u00e4sst sich mit Drag-and-Drop ver\u00e4ndern.\n\nF\u00fcr den Zeitplan ist die Reihenfolge der R\u00e4ume nicht wichtig. Sie hilft aber beim Zuordnen der Aktivit\u00e4ten.",
+            "sort_order": 22
         },
         {
             "id": 896,
@@ -11503,44 +11841,60 @@
             "role": 24
         },
         {
-            "id": 897,
-            "activity_type_detail": 73,
-            "role": 25
+            "id": 25,
+            "help_topic": 3,
+            "title": "Wie f\u00fcge ich Personen der Helfer:innenliste hinzu?",
+            "body": "Es gibt zwei M\u00f6glichkeiten:\n\n- auf der Seite Helfer:innenliste eine Person suchen und ohne Rolle auf die Helfer:innenliste \u00fcbernehmen\n\n- auf der Seite Zuordnung eine Person suchen und einer Rolle zuordnen. Damit kommt sie auch auf die Liste.",
+            "sort_order": 24
         },
         {
-            "id": 1158,
-            "activity_type_detail": 73,
-            "role": 29
+            "id": 26,
+            "help_topic": 7,
+            "title": "Wozu dient die Kennzeichnung \u201enicht barrierefrei\u201c?",
+            "body": "Wenn ein Raum als \u201enicht barrierefrei\u201c gekennzeichnet ist, erscheint im Zeitplan ein entsprechendes Symbol.",
+            "sort_order": 25
         },
         {
-            "id": 1181,
-            "activity_type_detail": 73,
-            "role": 31
+            "id": 27,
+            "help_topic": 3,
+            "title": "Wie filtere ich die Personen-Tabelle?",
+            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\n\u201eNicht auf Helfer:innenliste\u201c reduziert die Liste auf alle Personen, die noch nicht auf der Helfer:innenliste sind.\n\nDie Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen.",
+            "sort_order": 26
         },
         {
-            "id": 1199,
-            "activity_type_detail": 73,
-            "role": 33
+            "id": 28,
+            "help_topic": 3,
+            "title": "Wie suche ich weitere Helfer:innen?",
+            "body": "In FLOW gibt es dazu zwei M\u00f6glichkeiten.\n\n- Die Personenliste l\u00e4sst sich mit einem Klick so filtern, dass nur noch Personen \u00fcberbleiben, die noch nicht Helfer:in der Veranstaltung sind. Diese kann man dann kontaktieren.\n\n- Aus der Zuordnung von Helfer:innen auf Rollen ergibt sich automatisch eine Liste mit konkretem Bedarf pro Rolle. Diese Liste kann auf der \u00f6ffentlichen Seite sichtbar gemacht werden.",
+            "sort_order": 27
         },
         {
-            "id": 942,
-            "activity_type_detail": 74,
-            "role": 2
+            "id": 29,
+            "help_topic": 3,
+            "title": "Wie \u00fcbernehme ich Personendaten aus meinen Excel-Dateien?",
+            "body": "\u00dcber den Button \u201eUpload\u201c am oberen Rand der Seite.\n\nVorher in Excel die Daten passend aufbereiten. F\u00fcr den Upload erwartet FLOW:\n\nVorname, Nachname, E-Mail, Mobil, Organisation.\nSpalten durch Tab, Komma oder Semikolon.\nMobil und Organisation optional; E-Mail Pflicht.\n\nDie E-Mail ist der Schl\u00fcssel \u2014 doppelte Adressen werden \u00fcbersprungen.",
+            "sort_order": 28
         },
         {
-            "id": 947,
-            "activity_type_detail": 74,
-            "role": 14
+            "id": 30,
+            "help_topic": 3,
+            "title": "Wie filtere ich die Helfer:innenliste-Tabelle?",
+            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\nJedes Programm l\u00e4sst sich ein- oder ausschalten.\n\n\u201eFotoerlaubnis fehlt\u201c reduziert die Liste auf alle Helfer:innen, deren Fotoerlaubnis noch nicht vorliegt.\n\n\u201eUnvollst\u00e4ndige Antworten\u201c reduziert die Liste auf alle Helfer:innen, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nAlle Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen.",
+            "sort_order": 29
         },
         {
-            "id": 943,
-            "activity_type_detail": 74,
-            "role": 21
+            "id": 31,
+            "help_topic": 3,
+            "title": "Wie finde ich die Helfer:innen, deren Fotoerlaubnis noch nicht vorliegt?",
+            "body": "\u201eFotoerlaubnis fehlt\u201c reduziert die Liste auf alle Helfer:innen, deren Fotoerlaubnis noch nicht vorliegt.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen.",
+            "sort_order": 30
         },
         {
-            "id": 944,
-            "activity_type_detail": 74,
-            "role": 23
+            "id": 32,
+            "help_topic": 3,
+            "title": "Wie finde ich die Helfer:innen, deren zus\u00e4tzliche Daten noch nicht komplett sind?",
+            "body": "\u201eUnvollst\u00e4ndige Antworten\u201c reduziert die Liste auf alle Helfer:innen, f\u00fcr die noch nicht alle Antworten eingetragen sind.\n\nDas l\u00e4sst sich mit anderen Filtern, z.B. der Programmauswahl, kombinieren.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen.",
+            "sort_order": 31
         },
         {
             "id": 945,
@@ -11548,9 +11902,11 @@
             "role": 24
         },
         {
-            "id": 946,
-            "activity_type_detail": 74,
-            "role": 25
+            "id": 37,
+            "help_topic": 3,
+            "title": "Wie ordne ich Helfer:innen den Rollen zu?",
+            "body": "Drag-and-Drop von rechts nach links.\n\nAlle Helfer:innen auf der Liste, die noch nicht zugeordnet sind, werden rechts aufgelistet.\n\nZus\u00e4tzlich kann auch die gesamte Personenliste durchsucht werden.",
+            "sort_order": 34
         },
         {
             "id": 1171,
@@ -11558,29 +11914,207 @@
             "role": 30
         },
         {
-            "id": 1188,
-            "activity_type_detail": 74,
-            "role": 31
+            "id": 39,
+            "help_topic": 3,
+            "title": "Was bedeuten min, ideal und max in den Rollen?",
+            "body": "Das sind Vorschl\u00e4ge, wie viele Helfer:innen zugeordnet werden sollten.\n\nF\u00fcr die Rollen, die sich aus dem Ablauf ergeben, kommen die Zahlen zum Teil aus den Regeln der Programme und zum Teil aus den Erfahrungswerten vieler Jahre.\n\nF\u00fcr eigene Rollen kann man die Zahlen frei w\u00e4hlen. Das hilft nicht nur, den Gesamt\u00fcberblick zu behalten, sondern erlaubt auch, die Helfersuche zu nutzen.\n\nmin = Minimum, weniger sollten es nicht sein\nideal = beste Anzahl\nmax = Maximum, mehr erlaubt FLOW nicht\n\nFalls mehr Helfer:innen da sein sollten als alle Maximalwerte zusammen, k\u00f6nnen weitere eigene Rollen hinzugef\u00fcgt werden.",
+            "sort_order": 36
         },
         {
-            "id": 1200,
-            "activity_type_detail": 74,
-            "role": 33
+            "id": 40,
+            "help_topic": 3,
+            "title": "Wie lege ich eigene Rollen an?",
+            "body": "Eigene Rollen stehen am Ende der Liste.\n\nDer letzte Eintrag dient zum Anlegen einer neuen Rolle. Einfach einen neuen Rollennamen vergeben und min, ideal, max passend einstellen.",
+            "sort_order": 37
         },
         {
-            "id": 954,
-            "activity_type_detail": 75,
-            "role": 14
+            "id": 41,
+            "help_topic": 3,
+            "title": "Wie \u00e4ndere ich min, ideal und max f\u00fcr eine eigene Rolle?",
+            "body": "\u00dcber das Zahnrad neben den Werten.",
+            "sort_order": 38
         },
         {
-            "id": 951,
-            "activity_type_detail": 75,
-            "role": 21
+            "id": 42,
+            "help_topic": 7,
+            "title": "Wie ordne ich Aktivit\u00e4ten und Teams den R\u00e4umen zu?",
+            "body": "Drag-and-Drop von rechts nach links.",
+            "sort_order": 39
         },
         {
-            "id": 952,
-            "activity_type_detail": 75,
-            "role": 22
+            "id": 43,
+            "help_topic": 2,
+            "title": "Wie funktioniert die Live-Vorschau?",
+            "body": "Die Live-Vorschau auf der rechten Seite zeigt, was im Browser angezeigt wird.\n\n\u00dcber die Auswahl \u201eGer\u00e4t\u201c kann getestet werden, wie das auf unterschiedlichen Ger\u00e4ten aussieht.",
+            "sort_order": 40
+        },
+        {
+            "id": 44,
+            "help_topic": 4,
+            "title": "Welche Varianten gibt es f\u00fcr die Anzahl Teams in meiner Veranstaltung?",
+            "body": "Je nach Anzahl der Teams gibt es Varianten mit unterschiedlicher Anzahl von Jury-Gruppen und Tischen\/Spielfeldern.\n\nDer \u00dcberblick \u00fcber alle m\u00f6glichen Varianten pro Programm kann mit dem Tabellen-Icon angezeigt werden.",
+            "sort_order": 41
+        },
+        {
+            "id": 45,
+            "help_topic": 4,
+            "title": "Wie erh\u00f6he ich die Kapazit\u00e4t f\u00fcr meine Veranstaltung?",
+            "body": "Zum Testen von Varianten mit mehr Teams als bisher offiziell geplant kann \u00fcber das Regel-Icon die Kapazit\u00e4t vor\u00fcbergehend ge\u00e4ndert werden. Diese \u00c4nderung wird aber beim n\u00e4chsten Aufruf der Ablauf-Seiten wieder r\u00fcckg\u00e4ngig gemacht.\n\nF\u00fcr eine dauerhafte \u00c4nderung der Kapazit\u00e4t bitte die Gesch\u00e4ftsstelle kontaktieren (info@hands-on-technology.de).",
+            "sort_order": 42
+        },
+        {
+            "id": 46,
+            "help_topic": 4,
+            "title": "Was bedeutet bei Explore Vormittag\/Nachmittag?",
+            "body": "Bei einer hohen Zahl von Explore-Teams k\u00f6nnen diese in eine Gruppe am Vormittag und eine am Nachmittag geteilt werden.\n\nBeide Gruppen haben dann jeweils eine eigene Er\u00f6ffnung und Preisverleihung.",
+            "sort_order": 43
+        },
+        {
+            "id": 47,
+            "help_topic": 4,
+            "title": "Was bedeutet der rote Punkt in der Navigationsleiste?",
+            "body": "Der rote Punkt bedeutet, dass ein Thema Aufmerksamkeit ben\u00f6tigt.\n\nAblauf: Die Anzahl der Teams im Ablauf passt nicht zur Anzahl angemeldeter Teams.\n\nTeams: Es gibt \u00c4nderungen in den Daten der angemeldeten Teams.\n\nR\u00e4ume: Nicht alle Aktivit\u00e4ten und Teams wurden R\u00e4umen zugeordnet.\n\nHelfer:innen: Nicht alle Rollen, die zur Durchf\u00fchrung der Veranstaltung n\u00f6tig sind, wurden besetzt.",
+            "sort_order": 44
+        },
+        {
+            "id": 48,
+            "help_topic": 4,
+            "title": "Was sind bei Explore die Auswirkungen von integriert\/unabh\u00e4ngig?",
+            "body": "Wenn Explore integriert geplant wird, teilen sich die Programme Er\u00f6ffnung und Preisverleihung wie folgt.\n\nExplore nur am Vormittag: Gemeinsame Er\u00f6ffnung. Explore-Preisverleihung alleine.\nExplore nur am Nachmittag: Explore-Er\u00f6ffnung alleine. Gemeinsame Preisverleihung.\nExplore vormittags und nachmittags: Kombination aus den beiden.\n\nWenn Explore getrennt geplant wird, sind Er\u00f6ffnung und Preisverleihung nur f\u00fcr Explore.",
+            "sort_order": 45
+        },
+        {
+            "id": 49,
+            "help_topic": 4,
+            "title": "Was sind bei \u201eChallenge mit Future 8+\u201c die Auswirkungen von in einem Raum oder in getrennten R\u00e4umen?",
+            "body": "Wenn beide in einem Raum stattfinden, werden die Zeiten f\u00fcr die Matches so erzeugt, dass sie nicht gleichzeitig stattfinden. Die Testrunde ist eine Ausnahme. Um Zeit zu sparen, laufen da Matches parallel.\n\nWenn getrennte R\u00e4ume genutzt werden, haben die beiden Programme entkoppelte Zeitpl\u00e4ne. Damit kann man Zeit sparen, aber es macht es dem Publikum schwer, beide Programme zu verfolgen.",
+            "sort_order": 46
+        },
+        {
+            "id": 51,
+            "help_topic": 4,
+            "title": "Warum kann ich zum Teil nur die Dauer, aber nicht den Start \u00e4ndern?",
+            "body": "Der Ablauf wird automatisch erzeugt. Damit versucht der Generator alle Aktivit\u00e4ten so fr\u00fch wie m\u00f6glich zu starten.\n\nDer Start der Er\u00f6ffnung ist der Zeitpunkt, von dem aus der Ablauf berechnet wird. Weitere Zeiten m\u00fcssen nur eingegeben werden, wenn am Tag der Veranstaltung mehrere Programme unabh\u00e4ngig voneinander stattfinden.",
+            "sort_order": 48
+        },
+        {
+            "id": 52,
+            "help_topic": 4,
+            "title": "Warum kann ich nur den Nachmittag \u00e4ndern, aber nicht den Vormittag?",
+            "body": "Der Ablauf am Vormittag wird automatisch erzeugt. Die Reihenfolge der Matches in Kombination mit den Jury-Bewertungen wird berechnet und kann deshalb nicht ge\u00e4ndert werden.\n\nDie Aktivit\u00e4ten am Nachmittag sind nicht mehr parallel, sondern nacheinander. Die Reihenfolge kann daher angepasst werden.",
+            "sort_order": 49
+        },
+        {
+            "id": 53,
+            "help_topic": 4,
+            "title": "Wie wirken sich die einzelnen Parameter aus?",
+            "body": "Zu jedem Parameter ist \u00fcber das Info-Icon eine Kurzbeschreibung verf\u00fcgbar.",
+            "sort_order": 50
+        },
+        {
+            "id": 54,
+            "help_topic": 8,
+            "title": "Wie lege ich die Sichtbarkeit von freien Bl\u00f6cken fest?",
+            "body": "\u00dcber das Auge-Icon kann sowohl die Sichtbarkeit pro Programm als auch die Kennzeichnung \u201ewichtige Zeit\u201c gesetzt werden.",
+            "sort_order": 51
+        },
+        {
+            "id": 55,
+            "help_topic": 8,
+            "title": "Wie kennzeichne ich einen freien Block als \u201ewichtige Zeit\u201c?",
+            "body": "\u00dcber das Auge-Icon kann sowohl die Sichtbarkeit pro Programm als auch die Kennzeichnung \u201ewichtige Zeit\u201c gesetzt werden.",
+            "sort_order": 52
+        },
+        {
+            "id": 56,
+            "help_topic": 8,
+            "title": "Wo wird der Link verwendet, den ich pro freien Block eingeben kann?",
+            "body": "Der Link wird im \u00f6ffentlichen Zeitplan angezeigt und kann dann von Teams, Helfer:innen und Publikum genutzt werden.",
+            "sort_order": 53
+        },
+        {
+            "id": 57,
+            "help_topic": 8,
+            "title": "Was ist der Unterschied zwischen freien Bl\u00f6cken und Slot-Bl\u00f6cken?",
+            "body": "Freie Bl\u00f6cke sind f\u00fcr alle Teams, Helfer:innen und das Publikum sichtbar.\n\nSlot-Bl\u00f6cke sind nur f\u00fcr die Teams sichtbar, denen ein Slot zugeordnet wurde.",
+            "sort_order": 54
+        },
+        {
+            "id": 58,
+            "help_topic": 8,
+            "title": "Was passiert mit zus\u00e4tzlichen Aktivit\u00e4ten, wenn ein neuer Ablauf generiert wird?",
+            "body": null,
+            "sort_order": 55
+        },
+        {
+            "id": 59,
+            "help_topic": 8,
+            "title": "Wie kann ich sicherstellen, dass die Teams auch Zeit f\u00fcr ihren Slot haben?",
+            "body": "Daf\u00fcr gibt es drei Hilfen:\n\n1. Pro Slot gibt es einen Indikator, der zeigt, ob es zeitliche Konflikte gibt.\n\n2. Wenn man mit dem Mauszeiger \u00fcber dem Teamnamen schwebt, werden die Zeiten der \u00fcbrigen Aktivit\u00e4ten des Teams angezeigt.\n\n3. In der \u00dcbersicht auf der rechten Seite werden die Slots in der Sicht \u201eTeams\u201c gezeigt. Wenn sie mit anderen Aktivit\u00e4ten \u00fcberlappen, wird das schwarz markiert.\n\nAchtung: Wenn ein neuer Ablauf generiert wird, bleiben die Slot-Zuordnungen unver\u00e4ndert und m\u00fcssen \u00fcberpr\u00fcft werden!",
+            "sort_order": 56
+        },
+        {
+            "id": 60,
+            "help_topic": 8,
+            "title": "Wo wird der Link verwendet, den ich pro Slot-Block eingeben kann?",
+            "body": "Der Link wird im \u00f6ffentlichen Zeitplan angezeigt und kann dann von den Teams genutzt werden.",
+            "sort_order": 57
+        },
+        {
+            "id": 61,
+            "help_topic": 8,
+            "title": "Wie kann ich Slots f\u00fcr Helfer:innen anlegen?",
+            "body": null,
+            "sort_order": 58
+        },
+        {
+            "id": 62,
+            "help_topic": 2,
+            "title": "Wie lade ich ein Logo hoch?",
+            "body": "PNG, JPG oder SVG, maximal 2 MB.\n\nDatei auf \u201eNeues Logo\u201c ziehen oder dort klicken und eine Datei w\u00e4hlen.\n\nEin neu hochgeladenes Logo wird f\u00fcr die aktuelle Veranstaltung automatisch aktiv geschaltet. Es bleibt erhalten und kann bei anderen Veranstaltungen ebenfalls eingeschaltet werden.",
+            "sort_order": 59
+        },
+        {
+            "id": 63,
+            "help_topic": 2,
+            "title": "Wie \u00e4ndere ich die Reihenfolge der Logos?",
+            "body": "Die Reihenfolge l\u00e4sst sich mit Drag-and-Drop ver\u00e4ndern.\n\nIn dieser Reihenfolge erscheinen die Logos auf der \u00f6ffentlichen Seite, in den PDF-Fu\u00dfzeilen und auf dem Aushang mit QR-Code.",
+            "sort_order": 60
+        },
+        {
+            "id": 64,
+            "help_topic": 2,
+            "title": "Wof\u00fcr wird das erste Logo verwendet?",
+            "body": "Das erste aktive Logo erscheint zus\u00e4tzlich auf den Namensaufklebern, zusammen mit Programm- und Saisonlogo.\n\nDie anderen Logos erscheinen dort nicht.",
+            "sort_order": 61
+        },
+        {
+            "id": 65,
+            "help_topic": 2,
+            "title": "Was bewirkt der Link bei einem Logo?",
+            "body": "Wenn ein Link eingetragen ist, wird das Logo auf der \u00f6ffentlichen Seite anklickbar.\n\nIn den PDFs und auf den Namensaufklebern hat der Link keine Wirkung.",
+            "sort_order": 62
+        },
+        {
+            "id": 66,
+            "help_topic": 2,
+            "title": "Wo erscheinen die Logos?",
+            "body": "Alle aktiven Logos erscheinen auf der \u00f6ffentlichen Seite, in der Fu\u00dfzeile der PDFs und auf dem Aushang mit QR-Code.\n\nDas erste Logo erscheint zus\u00e4tzlich auf den Namensaufklebern.\n\nRechts auf der Seite gibt es dazu eine Vorschau.",
+            "sort_order": 63
+        },
+        {
+            "id": 67,
+            "help_topic": 2,
+            "title": "Wie l\u00f6sche ich ein Logo?",
+            "body": "\u00dcber den L\u00f6schen-Button am Logo.\n\nDas Logo wird vollst\u00e4ndig entfernt, auch bei anderen Veranstaltungen.\n\nZum Abschalten nur f\u00fcr diese Veranstaltung reicht der Schalter.",
+            "sort_order": 64
+        }
+    ],
+    "m_help_action_screen": [
+        {
+            "id": 1,
+            "help_action": 1,
+            "help_screen": 1
         },
         {
             "id": 953,
@@ -11853,88 +12387,390 @@
             "role": 6
         },
         {
-            "id": 1081,
-            "activity_type_detail": 88,
-            "role": 11
+            "id": 56,
+            "help_action": 43,
+            "help_screen": 11
         },
         {
-            "id": 1082,
-            "activity_type_detail": 88,
-            "role": 13
+            "id": 57,
+            "help_action": 44,
+            "help_screen": 12
         },
         {
-            "id": 1087,
-            "activity_type_detail": 88,
-            "role": 14
+            "id": 58,
+            "help_action": 45,
+            "help_screen": 12
         },
         {
-            "id": 1085,
-            "activity_type_detail": 88,
-            "role": 16
+            "id": 59,
+            "help_action": 46,
+            "help_screen": 12
         },
         {
-            "id": 1096,
-            "activity_type_detail": 88,
-            "role": 21
+            "id": 60,
+            "help_action": 47,
+            "help_screen": 12
         },
         {
-            "id": 1100,
-            "activity_type_detail": 88,
-            "role": 22
+            "id": 61,
+            "help_action": 48,
+            "help_screen": 13
         },
         {
-            "id": 1104,
-            "activity_type_detail": 88,
-            "role": 23
+            "id": 62,
+            "help_action": 49,
+            "help_screen": 13
         },
         {
-            "id": 1094,
-            "activity_type_detail": 88,
-            "role": 24
+            "id": 64,
+            "help_action": 51,
+            "help_screen": 14
         },
         {
-            "id": 1106,
-            "activity_type_detail": 88,
-            "role": 25
+            "id": 65,
+            "help_action": 52,
+            "help_screen": 15
         },
         {
-            "id": 1077,
-            "activity_type_detail": 88,
-            "role": 27
+            "id": 66,
+            "help_action": 53,
+            "help_screen": 16
         },
         {
-            "id": 1079,
-            "activity_type_detail": 88,
-            "role": 28
+            "id": 67,
+            "help_action": 54,
+            "help_screen": 18
         },
         {
-            "id": 1098,
-            "activity_type_detail": 88,
-            "role": 29
+            "id": 68,
+            "help_action": 55,
+            "help_screen": 18
         },
         {
-            "id": 1102,
-            "activity_type_detail": 88,
-            "role": 30
+            "id": 69,
+            "help_action": 56,
+            "help_screen": 18
         },
         {
-            "id": 1090,
-            "activity_type_detail": 88,
-            "role": 31
+            "id": 70,
+            "help_action": 57,
+            "help_screen": 18
         },
         {
-            "id": 1091,
-            "activity_type_detail": 88,
-            "role": 33
+            "id": 71,
+            "help_action": 58,
+            "help_screen": 18
         },
         {
-            "id": 1084,
-            "activity_type_detail": 88,
-            "role": 34
+            "id": 72,
+            "help_action": 59,
+            "help_screen": 19
+        },
+        {
+            "id": 73,
+            "help_action": 60,
+            "help_screen": 19
+        },
+        {
+            "id": 74,
+            "help_action": 61,
+            "help_screen": 19
+        },
+        {
+            "id": 75,
+            "help_action": 46,
+            "help_screen": 13
+        },
+        {
+            "id": 76,
+            "help_action": 47,
+            "help_screen": 9
+        },
+        {
+            "id": 77,
+            "help_action": 47,
+            "help_screen": 3
+        },
+        {
+            "id": 78,
+            "help_action": 57,
+            "help_screen": 19
+        },
+        {
+            "id": 79,
+            "help_action": 58,
+            "help_screen": 19
+        },
+        {
+            "id": 80,
+            "help_action": 11,
+            "help_screen": 20
+        },
+        {
+            "id": 81,
+            "help_action": 62,
+            "help_screen": 20
+        },
+        {
+            "id": 82,
+            "help_action": 63,
+            "help_screen": 20
+        },
+        {
+            "id": 83,
+            "help_action": 64,
+            "help_screen": 20
+        },
+        {
+            "id": 84,
+            "help_action": 65,
+            "help_screen": 20
+        },
+        {
+            "id": 85,
+            "help_action": 66,
+            "help_screen": 20
+        },
+        {
+            "id": 86,
+            "help_action": 67,
+            "help_screen": 20
+        }
+    ],
+    "m_help_screen": [
+        {
+            "id": 1,
+            "key": "publish-distribution",
+            "name": "\u00d6ffentliche Seite",
+            "route_path": "\/plan\/publish",
+            "description": "Auf der linken Seite wird festgelegt, was auf der \u00f6ffentlichen Seite gezeigt wird.\nRechts zeigt eine Live-Vorschau den aktuellen Stand.",
+            "must_do": "Nichts. Der Link zur \u00f6ffentlichen Seite wird automatisch angelegt. Ohne \u00c4nderung werden der Veranstaltungsort, die Kontaktdaten und die Liste der angemeldeten Teams angezeigt.",
+            "can_do": "Die Stufe unter \u201eInformationen zum Zeitplan\u201c w\u00e4hlen.\n\nFestlegen, ob Web-Formulare f\u00fcr Dateneingabe durch Coach:innen bzw. Helfer:innen genutzt werden sollen.\n\nDie Suche nach Helfer:innen ein- oder ausschalten.\n\nDie Check-In-App und die Cockpit-App f\u00fcr den Tag der Veranstaltung ein- oder ausschalten.",
+            "sort_order": 1
+        },
+        {
+            "id": 2,
+            "key": "teams-data",
+            "name": "Teamdaten",
+            "route_path": "\/plan\/teams\/data",
+            "description": "Zu jedem Team k\u00f6nnen in FLOW zus\u00e4tzliche Daten gespeichert werden, die nicht aus der Anmeldung zur Veranstaltung kommen.",
+            "must_do": "Nichts.\nWenn die Daten aus der Anmeldung reichen, muss hier nichts passieren.",
+            "can_do": "F\u00fcr die Daten, die man pro Team zus\u00e4tzlich braucht, passende Spalten anlegen.\n\nDie Daten k\u00f6nnen direkt in die Tabelle eingegeben werden. Zus\u00e4tzlich gibt es die M\u00f6glichkeit, ein automatisch generiertes Web-Formular zu nutzen, in das die Coach:innen die Daten selber eintragen.\n\nWas zum Thema Essen abgefragt wird, kann passend zur Veranstaltung eingestellt werden. Die Einstellungen greifen auch f\u00fcr die Helfer:innen, sodass die Zahlen der beiden Abfragen zusammengefasst werden k\u00f6nnen.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei heruntergeladen werden. Und es gibt eine Funktion, um E-Mails an Coach:innen zu schreiben.",
+            "sort_order": 2
+        },
+        {
+            "id": 3,
+            "key": "teams-program",
+            "name": "Details pro Team",
+            "route_path": "\/plan\/teams\/:program",
+            "description": "Hier werden die Detaildaten der Teams aus der Anmeldung und ihre Zuordnung im Ablauf gezeigt.",
+            "must_do": "Wenn es \u00c4nderungen in der Anmeldung gibt, m\u00fcssen diese nach FLOW \u00fcbernommen werden. Dazu geh\u00f6ren Anmeldungen, Abmeldungen und Namens\u00e4nderungen.\n\nDas passiert bewusst nicht automatisch, damit es keine \u00dcberraschungen gibt, weil sich die Daten heimlich ver\u00e4ndert haben.",
+            "can_do": "Die Reihenfolge der Teams im Ablauf kann ver\u00e4ndert werden. Und Teams, die kurzfristig abgesagt haben, k\u00f6nnen als \u201eNo-Show\u201c gekennzeichnet werden.\n\nAlle Daten k\u00f6nnen heruntergeladen und Coach:innen per E-Mail kontaktiert werden.",
+            "sort_order": 3
+        },
+        {
+            "id": 6,
+            "key": "volunteers-roster",
+            "name": "Helfer:innenliste",
+            "route_path": "\/plan\/volunteers\/roster",
+            "description": "Zu jede:r Helfer:in k\u00f6nnen in FLOW zus\u00e4tzliche Daten gespeichert werden, die sich auf die Veranstaltung beziehen.",
+            "must_do": "Nichts. Der gesamte Bereich \u201eHelfer:innen\u201c ist optional.",
+            "can_do": "Personen aus der Kontaktliste in die Helfer:innenliste \u00fcbernehmen.\n\nF\u00fcr die Daten, die man pro Helfer:in zus\u00e4tzlich braucht, passende Spalten anlegen.\n\nDie Daten k\u00f6nnen direkt in die Tabelle eingegeben werden. Zus\u00e4tzlich gibt es die M\u00f6glichkeit, ein automatisch generiertes Web-Formular zu nutzen, in das die Helfer:innen die Daten selber eintragen.\n\nWas zum Thema Essen abgefragt wird, kann passend zur Veranstaltung eingestellt werden. Die Einstellungen greifen auch f\u00fcr die Teams, sodass die Zahlen der beiden Abfragen zusammengefasst werden k\u00f6nnen.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei heruntergeladen werden. Und es gibt eine Funktion, um E-Mails an Helfer:innen zu schreiben.",
+            "sort_order": 6
+        },
+        {
+            "id": 7,
+            "key": "rooms",
+            "name": "R\u00e4ume",
+            "route_path": "\/plan\/rooms",
+            "description": "Hier werden die Aktivit\u00e4ten und Teams den R\u00e4umen im Veranstaltungsort zugeordnet.",
+            "must_do": "Wenn man nichts tut, werden im Zeitplan Standard-Platzhalter statt echter Raumnamen angezeigt. Die helfen aber Teams, Helfer:innen und Publikum nur wenig, um die richtigen R\u00e4ume zu finden.\n\nDaher sollte man R\u00e4ume anlegen.",
+            "can_do": "R\u00e4ume anlegen und sortieren.\n\nPro Raum Navigationshinweise hinzuf\u00fcgen und eine Kennzeichnung f\u00fcr \u201enicht barrierefrei\u201c vergeben.\n\nAktivit\u00e4ten und Teams den R\u00e4umen zuordnen.",
+            "sort_order": 4
+        },
+        {
+            "id": 8,
+            "key": "volunteers-people",
+            "name": "Personen",
+            "route_path": "\/plan\/volunteers",
+            "description": "Zu allen Helfer:innen, die man kennt, k\u00f6nnen die wichtigsten Kontaktdaten verwaltet werden.",
+            "must_do": "Nichts. Der gesamte Bereich \u201eHelfer:innen\u201c ist optional.",
+            "can_do": "Zu jeder Person, die man vielleicht als Helfer:in einsetzen m\u00f6chte, die Kontaktdaten speichern.\n\nDie E-Mail-Adresse ist die eindeutige Identifikation pro Person. Alle anderen Daten k\u00f6nnen ge\u00e4ndert werden.\n\nDaten zu Personen k\u00f6nnen hochgeladen werden.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei heruntergeladen werden. Und es gibt eine Funktion, um E-Mails an die Kontakte zu schreiben.",
+            "sort_order": 5
+        },
+        {
+            "id": 9,
+            "key": "volunteers-staffing",
+            "name": "Zuordnung",
+            "route_path": "\/plan\/volunteers\/staffing",
+            "description": "Hier werden die Helfer:innen den Rollen zugeordnet, die sich aus dem Ablauf ergeben.",
+            "must_do": "Nichts. Der gesamte Bereich \u201eHelfer:innen\u201c ist optional.",
+            "can_do": "Personen den Rollen zuordnen.\n\nZus\u00e4tzliche Rollen selber anlegen.\n\nDie Suche nach Helfer:innen ein- oder ausschalten.\n\nE-Mails an alle Helfer:innen schreiben. Die Helfer:innenliste hat dazu weitere Funktionen.",
+            "sort_order": 7
+        },
+        {
+            "id": 10,
+            "key": "live-check-in",
+            "name": "Check-In App",
+            "route_path": "\/plan\/live\/check-in",
+            "description": "Die Check-In-App ersetzt das Ausdrucken von Team- und Helfer:innen-Listen und manuelles Abhaken.",
+            "must_do": "Nichts. Der gesamte Bereich \u201eam Tag\u201c ist optional.",
+            "can_do": "Die Check-In-App ein- und ausschalten. Den PIN-Code \u00e4ndern.\n\nF\u00fcr Teams und Helfer:innen jeweils ausw\u00e4hlen, welche Informationen in der App angezeigt werden und welche Informationen beim Check-In erfasst werden.\n\nAlle Check-In-Daten zur\u00fccksetzen.",
+            "sort_order": 8
+        },
+        {
+            "id": 11,
+            "key": "live-cockpit",
+            "name": "Cockpit App",
+            "route_path": "\/plan\/live\/cockpit",
+            "description": "Die Cockpit-App erm\u00f6glicht einen einfachen Zugang zu den wichtigsten Funktionen, die am Tag der Veranstaltung ben\u00f6tigt werden.",
+            "must_do": "Nichts. Der gesamte Bereich \u201eam Tag\u201c ist optional.",
+            "can_do": "Die Cockpit-App ein- und ausschalten. Den PIN-Code \u00e4ndern.\n\nAlle Cockpit-App-Daten zur\u00fccksetzen.",
+            "sort_order": 9
+        },
+        {
+            "id": 12,
+            "key": "schedule-general",
+            "name": "Ablauf - Allgemein",
+            "route_path": "\/plan\/schedule",
+            "description": "Hier wird automatisch ein Ablauf f\u00fcr den Veranstaltungstag erzeugt.",
+            "must_do": "Die Anzahl der Teams im Ablauf (pro Programm) ausw\u00e4hlen.",
+            "can_do": "Zus\u00e4tzlich zur Anzahl der Teams auch noch ausw\u00e4hlen, wie viele Jury-Gruppen, Spielfelder usw. genutzt werden sollen.\n\n\u201eWas w\u00e4re wenn\u201c ausprobieren, also z.B. zwischen vier und zwei Spielfeldern umstellen, um den dazu passenden Ablauf zu bekommen.",
+            "sort_order": 10
+        },
+        {
+            "id": 13,
+            "key": "schedule-integration",
+            "name": "Ablauf - Integration",
+            "route_path": "\/plan\/schedule\/integration",
+            "description": "Hier wird festgelegt, wie die verschiedenen Programme in den Veranstaltungstag integriert sind.\nDie Auswirkungen sind u.a., ob Er\u00f6ffnungen und Preisverleihungen gemeinsam oder getrennt sind. Und f\u00fcr die Kombination aus Founders und Future Edition hat es Auswirkungen auf den Aufbau der Matches.",
+            "must_do": "Nichts.\nF\u00fcr alle Kombinationen von Programmen werden automatisch sinnvolle Einstellungen verwendet.",
+            "can_do": null,
+            "sort_order": 11
+        },
+        {
+            "id": 14,
+            "key": "schedule-times",
+            "name": "Ablauf - Zeiten",
+            "route_path": "\/plan\/schedule\/times",
+            "description": "Hier wird festgelegt, wann Er\u00f6ffnung(en) und Preisverleihung(en) stattfinden und wie lange sie dauern soll(en).",
+            "must_do": "Nichts.\nAlle Felder sind mit passenden Standardwerten versorgt.",
+            "can_do": "Den Start der Er\u00f6ffnung \u00e4ndern. Das ist der zentrale Zeitpunkt im Ablauf. Alle anderen Zeiten werden dazu automatisch berechnet.\n\nDie Dauer von Er\u00f6ffnung(en) und Preisverleihung(en) ver\u00e4ndern, z.B. wenn ein wichtiger Mensch kommt, der extra Redezeit braucht.",
+            "sort_order": 12
+        },
+        {
+            "id": 15,
+            "key": "schedule-afternoon",
+            "name": "Ablauf - Nachmittag",
+            "route_path": "\/plan\/schedule\/afternoon",
+            "description": "Hier wird festgelegt, was nach den Vorrunden passiert.",
+            "must_do": "Nichts.\nEs gibt Standardwerte, die passen.",
+            "can_do": "Die Reihenfolge der Aktivit\u00e4ten ver\u00e4ndern.\nAktivit\u00e4ten ein- und ausschalten bzw. Einstellungen zu einzelnen Aktivit\u00e4ten \u00e4ndern.",
+            "sort_order": 13
+        },
+        {
+            "id": 16,
+            "key": "schedule-expert",
+            "name": "Ablauf - Expertenparameter",
+            "route_path": "\/plan\/schedule\/expert",
+            "description": "Der automatisch generierte Ablauf basiert auf vielen einzelnen Parametern. Die k\u00f6nnen hier ver\u00e4ndert werden.",
+            "must_do": "Nichts.",
+            "can_do": "Ausprobieren, wie sich \u00c4nderungen an den Parametern auf den Ablauf auswirken.\nPro Parameter gibt es eine kurze Hilfe, die beschreibt, was er bewirkt.",
+            "sort_order": 14
+        },
+        {
+            "id": 17,
+            "key": "schedule-protected",
+            "name": "Ablauf - Gesch\u00fctzte Parameter",
+            "route_path": "\/plan\/schedule\/protected",
+            "description": "Da ist geheim!",
+            "must_do": "Ganz schnell hier verschwinden und auf eine andere Seite wechseln.",
+            "can_do": "Werte einstellen, die zu kaputten Abl\u00e4ufen f\u00fchren.",
+            "sort_order": 15
+        },
+        {
+            "id": 18,
+            "key": "schedule-free",
+            "name": "Zus\u00e4tzliche Aktivit\u00e4ten - Freie Bl\u00f6cke",
+            "route_path": "\/plan\/schedule\/free",
+            "description": "Freie Bl\u00f6cke sind zus\u00e4tzliche Aktivit\u00e4ten, die neben dem generierten Ablauf stehen.",
+            "must_do": "Nichts.",
+            "can_do": "Zus\u00e4tzliche Aktivit\u00e4ten, z.B. Mittagessen, anlegen, die im Zeitplan der Veranstaltung zus\u00e4tzlich zum Ablauf gezeigt werden.\nPro Aktivit\u00e4t festlegen, f\u00fcr welche Programme sie relevant ist und ob es eine \u201ewichtige Zeit\u201c ist.",
+            "sort_order": 16
+        },
+        {
+            "id": 19,
+            "key": "schedule-slots",
+            "name": "Zus\u00e4tzliche Aktivit\u00e4ten - Slot-Bl\u00f6cke",
+            "route_path": "\/plan\/schedule\/slots",
+            "description": "Slot-Bl\u00f6cke sind zus\u00e4tzliche Aktivit\u00e4ten, die neben dem generierten Ablauf stehen.",
+            "must_do": "Nichts.",
+            "can_do": "Zus\u00e4tzliche Aktivit\u00e4ten pro Team anlegen, die im Zeitplan der Veranstaltung zus\u00e4tzlich zum Ablauf gezeigt werden.\n\nZeiten pro Team zuordnen.",
+            "sort_order": 17
+        },
+        {
+            "id": 20,
+            "key": "publish-logos",
+            "name": "Logos",
+            "route_path": "\/plan\/publish\/logos",
+            "description": "Hier werden die Logos f\u00fcr die \u00f6ffentliche Seite und die PDFs verwaltet.\nLinks die Liste, rechts eine Vorschau.",
+            "must_do": "Nichts.\nOhne eigene Logos erscheinen auf der \u00f6ffentlichen Seite und in den PDFs keine zus\u00e4tzlichen Logos.",
+            "can_do": "Logos hochladen und f\u00fcr diese Veranstaltung ein- oder ausschalten.\n\nDie Reihenfolge \u00e4ndern. Das erste Logo wird f\u00fcr die Namensaufkleber verwendet.\n\nPro Logo einen Titel und optional einen Link vergeben.",
+            "sort_order": 1
+        }
+    ],
+    "m_help_topic": [
+        {
+            "id": 1,
+            "key": "teams",
+            "name": "Teams",
+            "sort_order": 4
+        },
+        {
+            "id": 2,
+            "key": "ausgabe",
+            "name": "Ausgabe",
+            "sort_order": 7
+        },
+        {
+            "id": 3,
+            "key": "helfer",
+            "name": "Helfer:innen",
+            "sort_order": 6
+        },
+        {
+            "id": 4,
+            "key": "ablauf",
+            "name": "Ablauf",
+            "sort_order": 2
+        },
+        {
+            "id": 5,
+            "key": "am-tag",
+            "name": "am Tag",
+            "sort_order": 8
+        },
+        {
+            "id": 6,
+            "key": "allgemein",
+            "name": "Allgemein",
+            "sort_order": 1
+        },
+        {
+            "id": 7,
+            "key": "rooms",
+            "name": "R\u00e4ume",
+            "sort_order": 5
+        },
+        {
+            "id": 8,
+            "key": "zusatzaktivitaeten",
+            "name": "Zus\u00e4tzliche Aktivit\u00e4ten",
+            "sort_order": 3
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-09T07:02:27.053136Z",
+        "exported_at": "2026-09-09T18:33:01.438130Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",

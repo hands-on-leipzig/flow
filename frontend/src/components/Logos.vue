@@ -8,6 +8,7 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {programLogoSrc, seasonLogoSrc} from '@/utils/images'
@@ -391,7 +392,10 @@ onMounted(async () => {
   <div class="vol-page vol-page--fill logos-page">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Logos</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Logos</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Verwalten von Logos für die verschiedenen Ausgaben</p>
       </div>
     </header>
