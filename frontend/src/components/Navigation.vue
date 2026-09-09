@@ -135,7 +135,7 @@ const navEntries = computed<NavEntry[]>(() => [
     icon: 'bi-calendar-plus',
     children: [
       {name: 'Freie Blöcke', path: '/plan/schedule/free', icon: 'bi-calendar2-plus'},
-      {name: 'Slots', path: '/plan/schedule/slots', icon: 'bi-grid-3x3-gap'},
+      {name: 'Slot-Blöcke', path: '/plan/schedule/slots', icon: 'bi-grid-3x3-gap'},
     ],
   },
   {
