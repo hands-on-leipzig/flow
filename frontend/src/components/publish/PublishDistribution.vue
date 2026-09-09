@@ -17,7 +17,6 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
-import {normalizePublicLink} from '@/utils/publicLink'
 
 defineOptions({name: 'PublishDistribution'})
 
@@ -153,7 +152,7 @@ const levels = [
   {id: 2, name: 'Volle Details'},
 ]
 
-const publicUrl = computed(() => normalizePublicLink(event.value?.link))
+const publicUrl = computed(() => event.value?.link || '')
 
 const previewSrc = computed(() => {
   const url = publicUrl.value

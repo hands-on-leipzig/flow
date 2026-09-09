@@ -6,7 +6,6 @@ import {useEventStore} from '@/stores/event'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {flowFilename} from '@/utils/flowFilename'
-import {normalizePublicLink} from '@/utils/publicLink'
 
 defineOptions({name: 'PublicLinkStrip'})
 
@@ -28,7 +27,7 @@ const showQrModal = ref(false)
 function applyPublishResponse(data: {link?: string; qrcode?: string}) {
   if (!eventStore.selectedEvent) return
   if (data.link) {
-    eventStore.selectedEvent.link = normalizePublicLink(data.link)
+    eventStore.selectedEvent.link = data.link
   }
   if (data.qrcode) {
     eventStore.selectedEvent.qrcode = data.qrcode.replace(/^data:image\/png;base64,/, '')
@@ -39,9 +38,10 @@ async function ensurePublicLink() {
   const id = event.value?.id
   if (!id) return
 
-  if (event.value?.link && event.value?.qrcode) return
-
-  linkLoading.value = true
+  // The link on the event was stored with the host that was configured back then, so
+  // it is not trusted: the backend answers with the link for the current base and
+  // rebuilds link and QR code if the two differ.
+  linkLoading.value = !event.value?.link
   try {
     const {data} = await axios.get(`/publish/link/${id}`)
     applyPublishResponse(data)
@@ -52,7 +52,7 @@ async function ensurePublicLink() {
   }
 }
 
-const publicUrl = computed(() => normalizePublicLink(event.value?.link))
+const publicUrl = computed(() => event.value?.link || '')
 
 const qrSrc = computed(() => {
   const raw = event.value?.qrcode
@@ -72,7 +72,7 @@ async function regenerateLinkAndQR() {
   try {
     const {data} = await axios.post(`/publish/regenerate/${id}`)
     if (eventStore.selectedEvent) {
-      eventStore.selectedEvent.link = normalizePublicLink(data.link)
+      eventStore.selectedEvent.link = data.link
       eventStore.selectedEvent.qrcode = String(data.qrcode || '').replace(/^data:image\/png;base64,/, '')
       eventStore.selectedEvent.slug = data.slug
     }

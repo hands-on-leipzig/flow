@@ -38,40 +38,33 @@ class PublishController extends Controller
 
     public function linkAndQRcode(int $eventId): JsonResponse
     {
-        // Event direkt laden
-        $event = DB::table('event')
-            ->where('id', $eventId)
-            ->first();
+        $event = Event::find($eventId);
 
-        if (!$event) {
+        if (! $event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
 
-
-        // Wenn bereits gesetzt → zurückgeben
-        if (!empty($event->link) && !empty($event->qrcode) && !empty($event->slug)) {
-            // For existing QR codes, regenerate with ?source=qr if not already present
-            // But return the clean display link
-            return response()->json([
-                'link' => $event->link,  // Clean display link
-                'slug' => $event->slug,
-                'qrcode' => 'data:image/png;base64,' . $event->qrcode,
-            ]);
+        // Wenn bereits gesetzt und noch aktuell → zurückgeben. A stored link keeps the
+        // host it was built with, so after the public base changes it has to be built
+        // again — otherwise UI and QR code would stay on the old domain forever.
+        if (! empty($event->link) && ! empty($event->qrcode) && ! empty($event->slug)) {
+            if ((string) $event->link === $this->slugs->url($event)) {
+                return response()->json([
+                    'link' => $event->link,  // Clean display link
+                    'slug' => $event->slug,
+                    'qrcode' => 'data:image/png;base64,' . $event->qrcode,
+                ]);
+            }
         }
 
         if (empty($event->name)) {
             return response()->json(['error' => 'Event name is required'], 400);
         }
 
-        $eventModel = Event::find($event->id);
-        if (! $eventModel) {
-            return response()->json(['error' => 'Event not found'], 404);
-        }
-
         // Slug and public URL come from the central registry that DRAHT and JOIN read
         // through the external API, so the naming rules live in one place.
         try {
-            $slug = $this->slugs->regenerate($eventModel);
+            $slug = $this->slugs->regenerate($event);
         } catch (\InvalidArgumentException $e) {
             Log::error("Failed to assign slug for event {$event->id}", ['error' => $e->getMessage()]);
 
@@ -79,7 +72,7 @@ class PublishController extends Controller
         }
 
         // Display link (stored in DB, shown to users) - clean without query params
-        $displayLink = $this->slugs->url($eventModel);
+        $displayLink = $this->slugs->url($event);
         // QR code link (includes source parameter for tracking)
         $qrCodeLink = $displayLink . "?source=qr";
 
@@ -118,9 +111,9 @@ class PublishController extends Controller
             ]);
 
         // Update link in DRAHT for both explore and challenge events if they exist
-        foreach ($eventModel->programs as $program) {
+        foreach ($event->programs as $program) {
             if (! empty($program->draht_id)) {
-                $this->pushLinkToDraht($eventModel, (int) $program->draht_id);
+                $this->pushLinkToDraht($event, (int) $program->draht_id);
             }
         }
 

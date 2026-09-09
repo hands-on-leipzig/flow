@@ -9,10 +9,6 @@ on:
       app_url:
         required: true
         type: string
-      public_url:
-        required: false
-        type: string
-        default: ''
       temp_dir:
         required: true
         type: string
@@ -94,9 +90,8 @@ jobs:
           echo "VITE_APP_NAME=FLOW" >> .env
           echo "VITE_APP_URL=${{ inputs.app_url }}" >> .env
           echo "VITE_FILES_BASE_URL=${{ inputs.app_url }}" >> .env
-          PUBLIC_URL="${{ inputs.public_url }}"
-          if [ -z "$PUBLIC_URL" ]; then PUBLIC_URL="${{ inputs.app_url }}"; fi
-          echo "VITE_PUBLIC_URL=$PUBLIC_URL" >> .env
+          # The host of public event links comes from the backend (config/app.php
+          # public_url, PUBLIC_URL on the server); the UI shows what the API returns.
 
       - name: Build frontend
         working-directory: ./frontend
