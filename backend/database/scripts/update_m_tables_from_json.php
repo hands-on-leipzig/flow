@@ -108,6 +108,20 @@ function validateSchemaMatchesJson(array $jsonData): void {
         
         // Get columns from first JSON record
         $jsonColumns = array_keys($jsonRecords[0]);
+        $expected = $jsonColumns;
+        sort($expected);
+        foreach ($jsonRecords as $index => $record) {
+            $keys = array_keys($record);
+            sort($keys);
+            if ($keys !== $expected) {
+                $id = $record['id'] ?? '#'.$index;
+                $errors[] = "Table {$table} record id={$id} has columns ["
+                    .implode(', ', array_keys($record))
+                    ."] but expected [".implode(', ', $jsonColumns)
+                    ."]. Likely a corrupted export (merge conflict).";
+                break;
+            }
+        }
         
         // Get actual table columns
         $dbColumns = Schema::getColumnListing($table);
@@ -221,6 +235,7 @@ function mTableNaturalUniqueKeys(string $table): array
     return match ($table) {
         'm_visibility' => [['activity_type_detail', 'role']],
         'm_staffing_rule' => [['m_role']],
+        'm_help_action_screen' => [['help_action', 'help_screen']],
         default => [],
     };
 }
@@ -284,6 +299,7 @@ function updateMTable(string $table, array $jsonRecords): array {
     
     // Get table columns to filter JSON data
     $tableColumns = Schema::getColumnListing($table);
+    $expectedJsonKeys = array_keys($jsonRecords[0]);
     
     // Process updates and inserts
     foreach ($jsonRecords as $jsonRecord) {
@@ -291,6 +307,19 @@ function updateMTable(string $table, array $jsonRecords): array {
         
         if ($id === null) {
             throw new \Exception("Record missing 'id' field in table {$table}. All records must have an ID.");
+        }
+
+        $rowKeys = array_keys($jsonRecord);
+        sort($rowKeys);
+        $expected = $expectedJsonKeys;
+        sort($expected);
+        if ($rowKeys !== $expected) {
+            throw new \Exception(
+                "Record id={$id} in {$table} has unexpected columns ["
+                .implode(', ', array_keys($jsonRecord))
+                ."], expected [".implode(', ', $expectedJsonKeys)
+                .']. Likely a corrupted main-tables export (merge conflict).'
+            );
         }
         
         // Filter to only include columns that exist in table
