@@ -23,7 +23,7 @@ function announce(status: 'open' | 'closed' | 'ping') {
 }
 
 onMounted(() => {
-  document.title = 'Plan · FLOW'
+  document.title = 'Zeitplan · FLOW'
   announce('open')
   pingTimer = setInterval(() => announce('ping'), 2000)
   unsubscribe = subscribePlanPreviewReload(

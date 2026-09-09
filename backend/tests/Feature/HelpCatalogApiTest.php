@@ -32,9 +32,9 @@ class HelpCatalogApiTest extends TestCase
 
         $response->assertOk();
         $topics = $response->json('topics');
-        $this->assertCount(6, $topics);
-        $this->assertSame(['teams', 'ausgabe', 'helfer', 'ablauf', 'am-tag', 'allgemein'], array_column($topics, 'key'));
-        $this->assertSame(['Teams', 'Ausgabe', 'Helfer:innen', 'Ablauf', 'am Tag', 'Allgemein'], array_column($topics, 'name'));
+        $this->assertCount(7, $topics);
+        $this->assertSame(['teams', 'ausgabe', 'helfer', 'ablauf', 'zusatzaktivitaeten', 'am-tag', 'allgemein'], array_column($topics, 'key'));
+        $this->assertSame(['Teams', 'Ausgabe', 'Helfer:innen', 'Ablauf', 'Zusätzliche Aktivitäten', 'am Tag', 'Allgemein'], array_column($topics, 'name'));
 
         $screens = $response->json('screens');
         $this->assertSame(
@@ -282,8 +282,9 @@ class HelpCatalogApiTest extends TestCase
             ['id' => 2, 'key' => 'ausgabe', 'name' => 'Ausgabe', 'sort_order' => 2],
             ['id' => 3, 'key' => 'helfer', 'name' => 'Helfer:innen', 'sort_order' => 3],
             ['id' => 4, 'key' => 'ablauf', 'name' => 'Ablauf', 'sort_order' => 4],
-            ['id' => 5, 'key' => 'am-tag', 'name' => 'am Tag', 'sort_order' => 5],
-            ['id' => 6, 'key' => 'allgemein', 'name' => 'Allgemein', 'sort_order' => 6],
+            ['id' => 8, 'key' => 'zusatzaktivitaeten', 'name' => 'Zusätzliche Aktivitäten', 'sort_order' => 5],
+            ['id' => 5, 'key' => 'am-tag', 'name' => 'am Tag', 'sort_order' => 6],
+            ['id' => 6, 'key' => 'allgemein', 'name' => 'Allgemein', 'sort_order' => 7],
         ]);
 
         DB::table('m_help_screen')->insert([

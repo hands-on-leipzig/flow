@@ -342,11 +342,11 @@ onMounted(async () => {
           <i class="bi bi-search" aria-hidden="true"/>
         </div>
         <h1 class="pe-error-title">
-          {{ error === 'Plan nicht gefunden' ? 'Plan nicht gefunden' : 'Event nicht gefunden' }}
+          {{ error === 'Plan nicht gefunden' ? 'Zeitplan nicht gefunden' : 'Event nicht gefunden' }}
         </h1>
         <p class="pe-muted">
           Für die Adresse, die du aufgerufen hast, konnten wir leider
-          {{ error === 'Plan nicht gefunden' ? 'keinen Plan' : 'kein Event' }} finden.
+          {{ error === 'Plan nicht gefunden' ? 'keinen Zeitplan' : 'kein Event' }} finden.
           Bitte prüfe die Adresse noch einmal.
         </p>
         <div class="pe-slug glass-chip liquid-surface-inner">
@@ -491,7 +491,7 @@ onMounted(async () => {
           </span>
           <span class="pe-springboard__copy">
             <span class="pe-springboard__kicker">Jetzt öffnen</span>
-            <h2 class="pe-springboard__title">Online Zeitplan mit allen Details</h2>
+            <h2 class="pe-springboard__title">Online-Zeitplan mit allen Details</h2>
           </span>
           <span class="pe-springboard__go" aria-hidden="true">
             <i class="bi bi-arrow-right"/>

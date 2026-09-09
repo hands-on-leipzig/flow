@@ -173,7 +173,7 @@ watch(
           class="shrink-0 flex flex-wrap items-center justify-between gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2"
       >
         <div class="text-xs md:text-sm text-[var(--color-text-muted)]">
-          Plan im Pop-out
+          Zeitplan im Pop-out
           <span v-if="isGenerating" class="ml-1 text-[var(--color-accent)]">· generiert …</span>
         </div>
         <div class="flex items-center gap-2">
@@ -228,7 +228,7 @@ watch(
                 <div class="flex items-start gap-2">
                   <i class="bi bi-lock-fill text-[#dc2626] mt-0.5 shrink-0" aria-hidden="true"/>
                   <p class="text-sm md:text-base font-medium text-[#dc2626]">
-                    Der Plan ist gegen Änderungen gesperrt.
+                    Der Zeitplan ist gegen Änderungen gesperrt.
                   </p>
                 </div>
                 <button
@@ -288,7 +288,7 @@ watch(
                             type="button"
                             class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                             :disabled="!selectedPlanId"
-                            title="Plan gegen Änderungen sperren"
+                            title="Zeitplan gegen Änderungen sperren"
                             @click="lockPlan"
                         >
                           <i class="bi bi-lock-fill" aria-hidden="true"/>
@@ -305,7 +305,7 @@ watch(
                             type="button"
                             class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                             :disabled="!selectedPlanId"
-                            title="Plan in eigenem Fenster öffnen"
+                            title="Zeitplan in eigenem Fenster öffnen"
                             @click="openPlanPopout"
                         >
                           <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>

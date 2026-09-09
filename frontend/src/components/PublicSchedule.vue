@@ -275,7 +275,7 @@ const selectionLabel = computed(() => {
 const roleChipLabel = computed(() => selectionLabel.value || 'Überblick')
 
 const pageTitle = computed(() => {
-  if (selectionLabel.value) return `${selectionLabel.value} · ${eventName.value || 'Zeitplan'}`
+  if (selectionLabel.value) return `${selectionLabel.value} · ${eventName.value || 'Online-Zeitplan'}`
   if (eventName.value) return `Überblick · ${eventName.value}`
   return 'Überblick'
 })
@@ -1111,7 +1111,7 @@ async function loadSchedule() {
     if (current) selectedBlockId.value = current.group.activity_group_id
     await scrollToNow()
   } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Zeitplan konnte nicht geladen werden.'
+    error.value = e?.response?.data?.error || 'Online-Zeitplan konnte nicht geladen werden.'
     groups.value = []
   } finally {
     loadingSchedule.value = false
@@ -1503,7 +1503,7 @@ watch(
                 class="public-schedule__text-action"
                 @click="leaveToPublicPage"
             >
-              Zeitplan verlassen und zurück zur öffentlichen Seite
+              Online-Zeitplan verlassen und zurück zur öffentlichen Seite
             </button>
           </div>
 
@@ -1512,7 +1512,7 @@ watch(
               class="public-schedule__card public-schedule__card--center"
               role="status"
           >
-            Zeitplan wird geladen…
+            Online-Zeitplan wird geladen…
           </div>
 
           <div

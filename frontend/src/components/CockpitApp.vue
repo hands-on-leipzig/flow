@@ -130,9 +130,9 @@ const tools: CockpitTool[] = [
   },
   {
     id: 'timeshift',
-    title: 'Zeiten im Plan verschieben',
+    title: 'Zeiten im Zeitplan verschieben',
     homeLabel: 'Zeiten verschieben',
-    explanation: 'Verschiebe den Rest des Tages, ohne den Zeitplan neu zu generieren.',
+    explanation: 'Verschiebe den Rest des Tages, ohne den Ablauf neu zu generieren.',
     icons: ['bi-clock-history'],
     ready: true,
   },
@@ -140,7 +140,7 @@ const tools: CockpitTool[] = [
     id: 'stage-research',
     title: 'Forschung auf der Bühne',
     homeLabel: 'Forschung',
-    explanation: 'Jury-Verantwortliche können hier eintragen, welche Teams auf die Bühne sollen. Die Anzahl kommt aus dem Veranstaltungsplan.',
+    explanation: 'Jury-Verantwortliche können hier eintragen, welche Teams auf die Bühne sollen. Die Anzahl kommt aus dem Zeitplan.',
     icons: ['bi-easel'],
     ready: true,
   },
@@ -275,7 +275,7 @@ onMounted(async () => {
           v-if="planPath"
           :to="planPath"
           class="cp-app__brand cp-app__brand-link"
-          aria-label="Zum öffentlichen Plan"
+          aria-label="Zur öffentlichen Seite"
       >
         <img
             class="cp-app__logo"
@@ -291,7 +291,7 @@ onMounted(async () => {
         />
       </div>
       <div v-if="unlocked" class="cp-app__tools">
-        <button type="button" class="cp-tool" title="QR öffentlicher Plan" @click="openQr">
+        <button type="button" class="cp-tool" title="QR öffentliche Seite" @click="openQr">
           <i class="bi bi-qr-code" aria-hidden="true"/>
         </button>
         <a
@@ -384,8 +384,8 @@ onMounted(async () => {
       <template v-else-if="unlocked && view === 'qr'">
         <div class="cp-panel cp-panel--center glass-card liquid-surface-inner">
           <button type="button" class="cp-link" @click="backHome">← Zurück</button>
-          <h1 class="cp-panel__h">Öffentlicher Plan</h1>
-          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR-Code öffentlicher Plan" class="cp-qr"/>
+          <h1 class="cp-panel__h">Öffentliche Seite</h1>
+          <img v-if="qrDataUrl" :src="qrDataUrl" alt="QR-Code öffentliche Seite" class="cp-qr"/>
           <p v-if="toolsError" class="glass-alert-error !mb-0">{{ toolsError }}</p>
           <p v-if="bootstrap?.public_link" class="cp-muted cp-break">{{ bootstrap.public_link }}</p>
         </div>
