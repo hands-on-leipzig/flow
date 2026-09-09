@@ -4,9 +4,11 @@ import {RouterLink, useRoute} from 'vue-router'
 import axios from 'axios'
 import HelpActionFeedback from '@/components/atoms/HelpActionFeedback.vue'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
+import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import {useEventStore} from '@/stores/event'
 import {apiError} from '@/utils/apiError'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {isEntwicklungEnvironment} from '@/constants/adminNav'
 import {helpJumpPath, isHelpScreenCurrent, TEAMS_PROGRAM_HELP_KEY} from '@/utils/helpRoutes'
 
 defineOptions({name: 'ScreenHelpButton'})
@@ -50,6 +52,8 @@ const ROUTE_KEYS: Record<string, string> = {
 const route = useRoute()
 const eventStore = useEventStore()
 const {showAdminInline} = useAdminInlineVisibility()
+const {isLocal} = useAdminEnvironment()
+const canEditHelp = computed(() => showAdminInline.value && isEntwicklungEnvironment(isLocal))
 type ScreenTextField = 'description' | 'must_do' | 'can_do'
 
 const open = ref(false)
@@ -57,6 +61,7 @@ const article = ref<ScreenArticle | null>(null)
 const available = ref(false)
 const saving = ref(false)
 const editingField = ref<ScreenTextField | null>(null)
+const openActionId = ref<number | null>(null)
 const description = ref('')
 const mustDo = ref('')
 const canDo = ref('')
@@ -128,12 +133,16 @@ function onKey(event: KeyboardEvent) {
 function onActionToggle(event: Event, id: number) {
   const details = event.currentTarget as HTMLDetailsElement
   const opened = ('newState' in event && (event as ToggleEvent).newState === 'open') || details.open
-  if (!opened) return
+  if (!opened) {
+    if (openActionId.value === id) openActionId.value = null
+    return
+  }
+  openActionId.value = id
   axios.post(`/help/actions/${id}/open`).catch((e) => console.warn(e))
 }
 
 async function saveField(field: ScreenTextField) {
-  if (!article.value) return
+  if (!article.value || !canEditHelp.value) return
   saving.value = true
   try {
     const {data} = await axios.put(`/admin/help/screens/${article.value.id}`, {
@@ -152,15 +161,19 @@ async function saveField(field: ScreenTextField) {
 watch(screenKey, () => {
   open.value = false
   editingField.value = null
+  openActionId.value = null
   void load()
 })
 
 watch(open, (isOpen) => {
-  if (!isOpen) editingField.value = null
+  if (!isOpen) {
+    editingField.value = null
+    openActionId.value = null
+  }
 })
 
-watch(showAdminInline, (visible) => {
-  if (!visible) editingField.value = null
+watch(canEditHelp, (allowed) => {
+  if (!allowed) editingField.value = null
 })
 
 onMounted(() => {
@@ -217,7 +230,7 @@ function screenHref(screen: ActionScreen): string {
           <section>
             <div class="screen-help-panel__section-head">
               <h3 class="screen-help-panel__heading">Worum geht es hier?</h3>
-              <div v-if="showAdminInline && editingField !== 'description'" class="screen-help-panel__admin">
+              <div v-if="canEditHelp && editingField !== 'description'" class="screen-help-panel__admin">
                 <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
                   <i class="bi bi-shield-lock"/>
                 </span>
@@ -226,7 +239,7 @@ function screenHref(screen: ActionScreen): string {
                 </button>
               </div>
             </div>
-            <template v-if="editingField === 'description'">
+            <template v-if="canEditHelp && editingField === 'description'">
               <textarea v-model="description" rows="16" class="screen-help-panel__input mt-1"/>
               <button
                   type="button"
@@ -242,7 +255,7 @@ function screenHref(screen: ActionScreen): string {
           <section>
             <div class="screen-help-panel__section-head">
               <h3 class="screen-help-panel__heading">Was muss man hier tun?</h3>
-              <div v-if="showAdminInline && editingField !== 'must_do'" class="screen-help-panel__admin">
+              <div v-if="canEditHelp && editingField !== 'must_do'" class="screen-help-panel__admin">
                 <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
                   <i class="bi bi-shield-lock"/>
                 </span>
@@ -251,7 +264,7 @@ function screenHref(screen: ActionScreen): string {
                 </button>
               </div>
             </div>
-            <template v-if="editingField === 'must_do'">
+            <template v-if="canEditHelp && editingField === 'must_do'">
               <textarea v-model="mustDo" rows="16" class="screen-help-panel__input mt-1"/>
               <button
                   type="button"
@@ -267,7 +280,7 @@ function screenHref(screen: ActionScreen): string {
           <section>
             <div class="screen-help-panel__section-head">
               <h3 class="screen-help-panel__heading">Was kann man hier tun?</h3>
-              <div v-if="showAdminInline && editingField !== 'can_do'" class="screen-help-panel__admin">
+              <div v-if="canEditHelp && editingField !== 'can_do'" class="screen-help-panel__admin">
                 <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
                   <i class="bi bi-shield-lock"/>
                 </span>
@@ -276,7 +289,7 @@ function screenHref(screen: ActionScreen): string {
                 </button>
               </div>
             </div>
-            <template v-if="editingField === 'can_do'">
+            <template v-if="canEditHelp && editingField === 'can_do'">
               <textarea v-model="canDo" rows="16" class="screen-help-panel__input mt-1"/>
               <button
                   type="button"
@@ -294,6 +307,8 @@ function screenHref(screen: ActionScreen): string {
                 v-for="action in articleActions"
                 :key="action.id"
                 class="screen-help-panel__action"
+                name="screen-help-actions"
+                :open="openActionId === action.id"
                 @toggle="onActionToggle($event, action.id)"
             >
               <summary class="screen-help-panel__action-title">{{ action.title }}</summary>
