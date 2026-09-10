@@ -46,7 +46,6 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertNotNull($role);
         $this->assertSame(2, $role->min);
         $this->assertSame(3, $role->best);
-        $this->assertSame(5, $role->max);
         $this->assertSame('Jury help text', $role->ui_description);
         $this->assertSame('Jury-Gruppe', $role->group_label);
         $this->assertSame(3, EventStaffingGroup::query()->where('event_staffing_role', $role->id)->count());
@@ -96,7 +95,6 @@ class StaffingSyncServiceTest extends TestCase
         DB::table('m_staffing_rule')->where('m_role', 4)->update([
             'min' => 1,
             'best' => 1,
-            'max' => 2,
             'ui_description' => 'updated',
         ]);
 
@@ -105,7 +103,6 @@ class StaffingSyncServiceTest extends TestCase
         $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
         $this->assertSame(1, $role->min);
         $this->assertSame(1, $role->best);
-        $this->assertSame(2, $role->max);
         $this->assertSame('updated', $role->ui_description);
         $this->assertSame('Jury-Gruppe', $role->group_label);
 
@@ -122,18 +119,16 @@ class StaffingSyncServiceTest extends TestCase
         DB::table('m_staffing_rule')->where('m_role', 4)->update([
             'min' => 0,
             'best' => 1,
-            'max' => 2,
         ]);
 
         $stats = $this->sync->syncForEvent(1);
 
         $this->assertSame(1, $stats['roles']);
-        $this->assertNotContains('invalid min/best/max on rule for role 4', $stats['skipped']);
+        $this->assertNotContains('invalid min/best on rule for role 4', $stats['skipped']);
 
         $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
         $this->assertSame(0, $role->min);
         $this->assertSame(1, $role->best);
-        $this->assertSame(2, $role->max);
     }
 
     public function test_program_off_marks_catalog_groups_surplus(): void
@@ -163,7 +158,7 @@ class StaffingSyncServiceTest extends TestCase
     public function test_staffing_ok_when_min_met_and_no_surplus_people(): void
     {
         $this->seedChallengeEvent(lanes: 1);
-        DB::table('m_staffing_rule')->where('m_role', 4)->update(['min' => 1, 'best' => 1, 'max' => 2]);
+        DB::table('m_staffing_rule')->where('m_role', 4)->update(['min' => 1, 'best' => 1]);
         $this->sync->syncForEvent(1);
 
         $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
@@ -181,7 +176,7 @@ class StaffingSyncServiceTest extends TestCase
     public function test_summary_by_scope_counts_assigned_and_missing_min(): void
     {
         $this->seedChallengeEvent(lanes: 2);
-        DB::table('m_staffing_rule')->where('m_role', 4)->update(['min' => 2, 'best' => 2, 'max' => 3]);
+        DB::table('m_staffing_rule')->where('m_role', 4)->update(['min' => 2, 'best' => 2]);
         $this->sync->syncForEvent(1);
 
         $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
@@ -214,7 +209,7 @@ class StaffingSyncServiceTest extends TestCase
     public function test_open_positions_aggregates_critical_and_recommended_per_role(): void
     {
         $this->seedChallengeEvent(lanes: 2);
-        DB::table('m_staffing_rule')->where('m_role', 4)->update(['min' => 2, 'best' => 4, 'max' => 5]);
+        DB::table('m_staffing_rule')->where('m_role', 4)->update(['min' => 2, 'best' => 4]);
         $this->sync->syncForEvent(1);
 
         $role = EventStaffingRole::query()->where('event', 1)->where('m_role', 4)->firstOrFail();
@@ -293,7 +288,6 @@ class StaffingSyncServiceTest extends TestCase
             'group_label' => null,
             'min' => 1,
             'best' => 1,
-            'max' => 2,
             'sequence' => 90,
             'surplus' => false,
         ]);
@@ -338,7 +332,6 @@ class StaffingSyncServiceTest extends TestCase
                 'label' => 'Catering A',
                 'min' => 1,
                 'best' => 2,
-                'max' => 3,
             ]),
             $event,
         );
@@ -375,6 +368,51 @@ class StaffingSyncServiceTest extends TestCase
             'event_staffing_group' => null,
             'volunteer_person' => 1,
         ]);
+    }
+
+    public function test_second_assign_on_ungrouped_role_is_not_capped(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+        $this->insertUngroupedChallengeRole();
+        $this->sync->syncForEvent(1);
+
+        DB::table('m_staffing_rule')->where('m_role', 27)->update(['min' => 1, 'best' => 1]);
+        $this->sync->syncForEvent(1);
+
+        $head = EventStaffingRole::query()->where('event', 1)->where('m_role', 27)->firstOrFail();
+        $this->assertSame(1, $head->best);
+
+        DB::table('volunteer_person')->insert([
+            'id' => 2,
+            'regional_partner' => 1,
+            'first_name' => 'Grace',
+            'last_name' => 'Hopper',
+            'email' => 'grace@example.com',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('event_volunteer_roster')->insert([
+            ['event' => 1, 'volunteer_person' => 1, 'created_at' => now()],
+            ['event' => 1, 'volunteer_person' => 2, 'created_at' => now()],
+        ]);
+
+        $event = Event::query()->findOrFail(1);
+        $controller = app(EventStaffingAssignmentController::class);
+
+        $first = $controller->storeOnRole(
+            Request::create('/', 'POST', ['volunteer_person' => 1]),
+            $event,
+            $head,
+        );
+        $second = $controller->storeOnRole(
+            Request::create('/', 'POST', ['volunteer_person' => 2]),
+            $event,
+            $head,
+        );
+
+        $this->assertSame(201, $first->getStatusCode());
+        $this->assertSame(201, $second->getStatusCode());
+        $this->assertSame(2, EventStaffingAssignment::query()->where('event_staffing_role', $head->id)->count());
     }
 
     public function test_open_positions_for_ungrouped_role_min_gap(): void
@@ -434,7 +472,6 @@ class StaffingSyncServiceTest extends TestCase
             'm_role' => 2,
             'min' => 1,
             'best' => 1,
-            'max' => 1,
             'ui_description' => null,
         ]);
 
@@ -494,8 +531,8 @@ class StaffingSyncServiceTest extends TestCase
             ],
         ]);
         DB::table('m_staffing_rule')->insert([
-            ['id' => 5, 'm_role' => 5, 'min' => 1, 'best' => 1, 'max' => 2, 'ui_description' => null],
-            ['id' => 11, 'm_role' => 11, 'min' => 1, 'best' => 1, 'max' => 2, 'ui_description' => null],
+            ['id' => 5, 'm_role' => 5, 'min' => 1, 'best' => 1, 'ui_description' => null],
+            ['id' => 11, 'm_role' => 11, 'min' => 1, 'best' => 1, 'ui_description' => null],
         ]);
 
         DB::table('m_activity_type_detail')->insert([
@@ -542,7 +579,6 @@ class StaffingSyncServiceTest extends TestCase
             'm_role' => 27,
             'min' => 1,
             'best' => 1,
-            'max' => 2,
             'ui_description' => null,
         ]);
     }
@@ -646,7 +682,6 @@ class StaffingSyncServiceTest extends TestCase
             $table->unsignedInteger('m_role')->unique();
             $table->unsignedSmallInteger('min');
             $table->unsignedSmallInteger('best');
-            $table->unsignedSmallInteger('max');
             $table->text('ui_description')->nullable();
         });
 
@@ -667,7 +702,6 @@ class StaffingSyncServiceTest extends TestCase
             $table->string('group_label')->nullable();
             $table->unsignedSmallInteger('min');
             $table->unsignedSmallInteger('best');
-            $table->unsignedSmallInteger('max');
             $table->text('ui_description')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->boolean('surplus')->default(false);
@@ -743,7 +777,6 @@ class StaffingSyncServiceTest extends TestCase
             'm_role' => 4,
             'min' => 2,
             'best' => 3,
-            'max' => 5,
             'ui_description' => 'Jury help text',
         ]);
 

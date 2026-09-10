@@ -8,7 +8,6 @@ export type StaffingGroup = {
   filled: number
   min: number
   best: number
-  max: number
   under_min: boolean
   people: VolunteerPersonRef[]
 }
@@ -24,7 +23,6 @@ export type StaffingRole = {
   first_program: number | null
   min: number
   best: number
-  max: number
   ui_description: string | null
   sequence: number
   people: VolunteerPersonRef[]
@@ -71,7 +69,11 @@ export function staffingGap(tile: StaffingTile): {label: string; tone: StaffingG
   if (filled === best) {
     return {label: 'Ideal', tone: 'ok'}
   }
-  return {label: `${filled - best} mehr als ideal`, tone: 'muted'}
+  const extra = filled - best
+  return {
+    label: extra === 1 ? '1 mehr als ideal' : `${extra} mehr als ideal`,
+    tone: 'warn',
+  }
 }
 
 export function tileNeedsAttention(tile: StaffingTile) {
@@ -81,25 +83,29 @@ export function tileNeedsAttention(tile: StaffingTile) {
   return tileFilled(tile) < Number(tile.role.min)
 }
 
-export function slotPositions(role: StaffingRole) {
-  const max = Number(role.max)
-  if (!Number.isInteger(max) || max < 1) return []
-  return Array.from({length: max}, (_, i) => i + 1)
+export function slotPositions(role: StaffingRole, filled: number) {
+  const best = Number(role.best)
+  const count = Math.max(
+    Number.isInteger(best) && best > 0 ? best : 0,
+    Number.isInteger(filled) && filled > 0 ? filled : 0,
+  )
+  if (count < 1) return []
+  return Array.from({length: count}, (_, i) => i + 1)
 }
 
-export function boundsValidationError(min: number, best: number, max: number) {
-  if (!Number.isInteger(min) || !Number.isInteger(best) || !Number.isInteger(max)) {
-    return 'Bitte min, ideal und max eintragen.'
+export function boundsValidationError(min: number, best: number) {
+  if (!Number.isInteger(min) || !Number.isInteger(best)) {
+    return 'Bitte min und ideal eintragen.'
   }
-  if (min < 1 || best < 1 || max < 1) {
-    return 'min, ideal und max müssen mindestens 1 sein.'
+  if (min < 1 || best < 1) {
+    return 'min und ideal müssen mindestens 1 sein.'
   }
-  if (min > best || best > max) {
-    return 'Es muss min ≤ ideal ≤ max gelten.'
+  if (min > best) {
+    return 'Es muss min ≤ ideal gelten.'
   }
   return null
 }
 
 export function boundsLabel(role: StaffingRole) {
-  return `min ${role.min} · ideal ${role.best} · max ${role.max}`
+  return `min ${role.min} · ideal ${role.best}`
 }

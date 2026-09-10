@@ -146,6 +146,11 @@ class EventWorkspaceEnsureServiceTest extends TestCase
         Schema::create('m_first_program', function (Blueprint $table) {
             $table->id();
             $table->integer('sequence');
+            $table->string('name')->nullable();
+            $table->string('display_name')->nullable();
+            $table->string('color_hex')->nullable();
+            $table->string('logo_stem')->nullable();
+            $table->string('logo_white')->nullable();
         });
 
         Schema::create('m_parameter', function (Blueprint $table) {
@@ -171,9 +176,13 @@ class EventWorkspaceEnsureServiceTest extends TestCase
         Schema::create('m_role', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('name_short')->nullable();
             $table->unsignedInteger('sequence')->default(0);
             $table->unsignedInteger('first_program')->nullable();
             $table->string('differentiation_parameter')->nullable();
+            $table->boolean('preview_matrix')->default(false);
+            $table->boolean('pdf_export')->default(false);
+            $table->boolean('public_plan')->default(false);
             $table->boolean('staffable')->default(false);
             $table->string('group_label')->nullable();
         });
@@ -183,7 +192,6 @@ class EventWorkspaceEnsureServiceTest extends TestCase
             $table->unsignedInteger('m_role')->unique();
             $table->unsignedSmallInteger('min');
             $table->unsignedSmallInteger('best');
-            $table->unsignedSmallInteger('max');
             $table->text('ui_description')->nullable();
         });
 
@@ -195,7 +203,6 @@ class EventWorkspaceEnsureServiceTest extends TestCase
             $table->string('group_label')->nullable();
             $table->unsignedSmallInteger('min');
             $table->unsignedSmallInteger('best');
-            $table->unsignedSmallInteger('max');
             $table->text('ui_description')->nullable();
             $table->unsignedSmallInteger('sequence')->default(0);
             $table->boolean('surplus')->default(false);
@@ -214,6 +221,27 @@ class EventWorkspaceEnsureServiceTest extends TestCase
             $table->unsignedInteger('event_staffing_group')->nullable();
             $table->unsignedInteger('volunteer_person');
             $table->timestamp('created_at')->nullable();
+        });
+
+        Schema::create('m_activity_type_detail', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name')->nullable();
+            $table->unsignedInteger('role')->nullable();
+        });
+
+        Schema::create('extra_block', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('plan');
+            $table->string('type')->nullable();
+        });
+
+        Schema::create('activity', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_group');
+            $table->datetime('start');
+            $table->datetime('end');
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('extra_block')->nullable();
         });
     }
 
@@ -269,7 +297,6 @@ class EventWorkspaceEnsureServiceTest extends TestCase
             'm_role' => 4,
             'min' => 2,
             'best' => 3,
-            'max' => 5,
             'ui_description' => 'Jury help text',
         ]);
 

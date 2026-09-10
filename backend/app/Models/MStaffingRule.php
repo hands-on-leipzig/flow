@@ -15,14 +15,12 @@ class MStaffingRule extends Model
         'm_role',
         'min',
         'best',
-        'max',
         'ui_description',
     ];
 
     protected $casts = [
         'min' => 'integer',
         'best' => 'integer',
-        'max' => 'integer',
     ];
 
     public function role(): BelongsTo

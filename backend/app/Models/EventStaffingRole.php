@@ -19,7 +19,6 @@ class EventStaffingRole extends Model
         'group_label',
         'min',
         'best',
-        'max',
         'ui_description',
         'sequence',
         'surplus',
@@ -28,7 +27,6 @@ class EventStaffingRole extends Model
     protected $casts = [
         'min' => 'integer',
         'best' => 'integer',
-        'max' => 'integer',
         'sequence' => 'integer',
         'surplus' => 'boolean',
     ];

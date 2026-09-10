@@ -59,7 +59,6 @@ class VolunteerRosterApiTest extends TestCase
             'label' => 'Laufhilfe',
             'min' => 1,
             'best' => 1,
-            'max' => 2,
             'sequence' => 1,
         ]);
         DB::table('event_staffing_assignment')->insert([
@@ -364,6 +363,7 @@ class VolunteerRosterApiTest extends TestCase
                 $table->json('options')->nullable();
                 $table->unsignedSmallInteger('sequence')->default(0);
                 $table->boolean('public_form')->default(false);
+                $table->boolean('check_in_show')->default(false);
                 $table->timestamps();
             });
         }
@@ -385,7 +385,6 @@ class VolunteerRosterApiTest extends TestCase
                 $table->string('group_label')->nullable();
                 $table->unsignedSmallInteger('min')->default(0);
                 $table->unsignedSmallInteger('best')->default(0);
-                $table->unsignedSmallInteger('max')->default(0);
                 $table->unsignedSmallInteger('sequence')->default(0);
                 $table->boolean('surplus')->default(false);
             });
