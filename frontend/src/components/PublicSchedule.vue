@@ -232,8 +232,15 @@ const selectedRoleMeta = computed(() =>
     roles.value.find((r) => r.id === selectedRole.value) || null
 )
 
+const chromeRole = computed(() => entityInfoRole.value || selectedRoleMeta.value)
+
+const chromeLogo = computed(() => {
+  if (entityInfo.value) return entityInfoProgram.value || entityInfoRole.value || null
+  return selectedRoleMeta.value
+})
+
 const roleAccent = computed(() => {
-  const hex = selectedRoleMeta.value?.color_hex
+  const hex = chromeRole.value?.color_hex
   return hex ? `#${hex}` : '#ea580c'
 })
 
@@ -292,10 +299,19 @@ const selectionLabel = computed(() => {
   return option ? `${role.name}: ${option.label}` : `${role.name} ${value}`
 })
 
-const roleChipLabel = computed(() => selectionLabel.value || 'Überblick')
+const entityPageLabel = computed(() => {
+  if (!entityInfo.value) return ''
+  const role = entityInfoRole.value
+  const title = entityInfoTitle.value
+  if (role && title) return `${role.name}: ${title}`
+  return title
+})
+
+const roleChipLabel = computed(() => entityPageLabel.value || selectionLabel.value || 'Überblick')
 
 const pageTitle = computed(() => {
-  if (selectionLabel.value) return `${selectionLabel.value} · ${eventName.value || 'Online-Zeitplan'}`
+  const label = entityPageLabel.value || selectionLabel.value
+  if (label) return `${label} · ${eventName.value || 'Online-Zeitplan'}`
   if (eventName.value) return `Überblick · ${eventName.value}`
   return 'Überblick'
 })
@@ -846,19 +862,6 @@ const entityInfoProgram = computed(() => {
   return programs.value.find((program) => program.id === id)
       ?? entityInfoRole.value
       ?? null
-})
-
-const entityInfoNoun = computed(() => {
-  if (!entityInfo.value) return ''
-  if (entityInfo.value.kind === 'team') return 'dieses Team'
-  const role = entityInfoRole.value
-  return (role?.group_label || '').trim() || role?.name || 'diese Auswahl'
-})
-
-const entityInfoBody = computed(() => {
-  if (entityInfo.value?.kind === 'team') return 'Weitere Informationen zu diesem Team folgen.'
-  const noun = entityInfoNoun.value
-  return noun ? `Weitere Informationen zu ${noun} folgen.` : 'Weitere Informationen folgen.'
 })
 
 const entityInfoCta = computed(() => 'Detailsicht')
@@ -1522,9 +1525,9 @@ watch(
                   @click="openRoleSheet"
               >
                 <img
-                    v-if="selectedRoleMeta"
-                    :src="programLogo(selectedRoleMeta)"
-                    :alt="programLogoAlt(selectedRoleMeta)"
+                    v-if="chromeLogo"
+                    :src="programLogo(chromeLogo)"
+                    :alt="programLogoAlt(chromeLogo)"
                     class="public-schedule__role-chip-logo"
                 />
                 <span class="public-schedule__role-chip-text">
@@ -1571,7 +1574,7 @@ watch(
               </button>
             </div>
 
-            <div v-if="hasRoleSelection" ref="filterRootEl" class="public-schedule__filter">
+            <div v-if="hasRoleSelection && !entityInfo" ref="filterRootEl" class="public-schedule__filter">
               <button
                   type="button"
                   class="public-schedule__filter-btn"
@@ -1610,13 +1613,15 @@ watch(
           <div
               v-if="entityInfo"
               class="public-schedule__card public-schedule__card--entity"
+              role="region"
+              :aria-label="entityPageLabel || entityInfoTitle"
           >
-            <h2 class="public-schedule__dummy-title">
+            <h2 class="public-schedule__page-title">
               <img
                   v-if="entityInfoProgram"
                   :src="programLogo(entityInfoProgram)"
                   :alt="programLogoAlt(entityInfoProgram)"
-                  class="public-schedule__dummy-title-logo"
+                  class="public-schedule__page-title-logo"
               />
               <span>{{ entityInfoTitle }}</span>
             </h2>
@@ -1662,7 +1667,7 @@ watch(
                 {{ entityInfoLocation }}
               </p>
             </template>
-            <div class="public-schedule__dummy-actions">
+            <div class="public-schedule__page-actions">
               <template v-if="entityInfoRole">
                 <template v-if="entityInfoImmediateSwitch">
                   <button type="button" class="public-schedule__text-action" @click="confirmEntityInfoSwitch">
@@ -2398,6 +2403,7 @@ watch(
   text-align: left;
 }
 
+.public-schedule__page-title,
 .public-schedule__dummy-title {
   margin: 0;
   display: flex;
@@ -2408,6 +2414,7 @@ watch(
   color: #111827;
 }
 
+.public-schedule__page-title-logo,
 .public-schedule__dummy-title-logo {
   width: 1.75rem;
   height: 1.75rem;
@@ -2423,6 +2430,7 @@ watch(
   margin: 0;
 }
 
+.public-schedule__page-actions,
 .public-schedule__dummy-actions {
   display: flex;
   flex-wrap: wrap;
