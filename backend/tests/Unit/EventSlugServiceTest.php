@@ -143,6 +143,22 @@ class EventSlugServiceTest extends TestCase
         $this->assertSame('https://handson.tools/2025/aachen', $this->service()->url($past));
     }
 
+    public function test_public_base_may_address_an_instance_through_a_path(): void
+    {
+        // Dev and Test hang under the vanity host as /dev and /test, so the base carries
+        // a path segment and the slug rules have to stay intact behind it.
+        config(['app.public_url' => 'https://handson.tools/dev']);
+
+        $current = $this->insertEvent(['id' => 1, 'name' => 'Aachen', 'level' => 1]);
+        $this->service()->ensure($current);
+
+        $past = $this->insertEvent(['id' => 2, 'name' => 'Aachen', 'level' => 1, 'season' => self::PAST_SEASON]);
+        $this->service()->ensure($past);
+
+        $this->assertSame('https://handson.tools/dev/aachen', $this->service()->url($current));
+        $this->assertSame('https://handson.tools/dev/2025/aachen', $this->service()->url($past));
+    }
+
     public function test_lookup_without_year_uses_the_current_season(): void
     {
         $current = $this->insertEvent(['id' => 1, 'name' => 'Aachen', 'level' => 1]);
