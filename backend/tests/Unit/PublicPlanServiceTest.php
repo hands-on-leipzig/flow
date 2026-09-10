@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Services\ActivityFetcherService;
 use App\Services\PublicPlanService;
 use App\Services\RoleFetcherService;
 use Illuminate\Database\Schema\Blueprint;
@@ -94,13 +95,21 @@ class PublicPlanServiceTest extends TestCase
             'first_program' => 8,
             'name' => 'Robo',
             'location' => 'Leipzig',
+            'organization' => 'Gymnasium Mockau',
             'team_number_hot' => 42,
+        ]);
+        DB::table('room')->insert([
+            'id' => 1,
+            'name' => 'A2.04',
+            'navigation_instruction' => '2. Etage rechts',
+            'is_accessible' => 0,
         ]);
         DB::table('team_plan')->insert([
             'id' => 1,
             'plan' => 1,
             'team' => 1,
             'team_number_plan' => 1,
+            'room' => 1,
             'noshow' => 0,
         ]);
 
@@ -115,9 +124,19 @@ class PublicPlanServiceTest extends TestCase
         ]);
 
         $payload = app(PublicPlanService::class)->getRoles(1);
-        $labels = collect($payload['roles'][0]['options'])->pluck('label')->all();
+        $options = $payload['roles'][0]['options'];
 
-        $this->assertSame(['Robo (42)', 'T2 (Noch nicht angemeldet)'], $labels);
+        $this->assertSame(['Robo (42)', 'T02 (Noch nicht angemeldet)'], collect($options)->pluck('label')->all());
+        $this->assertSame('Gymnasium Mockau', $options[0]['organization']);
+        $this->assertSame('Leipzig', $options[0]['location']);
+        $this->assertSame([
+            'name' => 'A2.04',
+            'navigation' => '2. Etage rechts',
+            'accessible' => false,
+        ], $options[0]['room']);
+        $this->assertNull($options[1]['organization']);
+        $this->assertNull($options[1]['location']);
+        $this->assertNull($options[1]['room']);
     }
 
     public function test_table_option_labels_use_group_label(): void
@@ -138,6 +157,65 @@ class PublicPlanServiceTest extends TestCase
         $labels = collect($payload['roles'][0]['options'])->pluck('label')->all();
 
         $this->assertSame(['Feld 1'], $labels);
+    }
+
+    public function test_get_schedule_activity_name_uses_atd_name_not_preview(): void
+    {
+        $fetcher = Mockery::mock(ActivityFetcherService::class);
+        $fetcher->shouldReceive('fetchActivities')->once()->andReturn(collect([
+            (object) [
+                'activity_id' => 10,
+                'activity_group_id' => 1,
+                'start_time' => '2026-03-15 11:00:00',
+                'end_time' => '2026-03-15 11:50:00',
+                'activity_name' => 'Mit Team',
+                'activity_atd_name' => 'Jurygespräch',
+                'activity_type_detail_id' => 17,
+                'activity_type_code' => 'j_with_team',
+                'activity_presence' => 'punctual',
+                'activity_first_program_id' => 3,
+                'activity_first_program_name' => 'Challenge',
+                'activity_description' => null,
+                'group_atd_name' => 'Jurybewertung',
+                'group_first_program_id' => 3,
+                'group_first_program_name' => 'Challenge',
+                'group_description' => null,
+                'group_activity_type_code' => 'j_judging',
+                'group_presence' => 'punctual',
+                'lane' => 1,
+                'team' => 1,
+                'table_1' => null,
+                'table_1_name' => null,
+                'table_1_team' => null,
+                'table_2' => null,
+                'table_2_name' => null,
+                'table_2_team' => null,
+                'program_name' => 'Challenge',
+                'jury_team_name' => 'Capricorns',
+                'table_1_team_name' => null,
+                'table_2_team_name' => null,
+                'room_type_id' => null,
+                'room_type_name' => null,
+                'room_id' => null,
+                'room_name' => 'A2.04',
+                'room_navigation' => '2. Etage rechts',
+                'room_is_accessible' => 0,
+            ],
+        ]));
+        $this->app->instance(ActivityFetcherService::class, $fetcher);
+
+        $payload = app(PublicPlanService::class)->getSchedule(1, [
+            'role' => 3,
+            'expired' => 'yes',
+        ]);
+
+        $this->assertSame(
+            'Jurygespräch',
+            $payload['groups'][0]['activities'][0]['activity_name'],
+        );
+        $this->assertSame('A2.04', $payload['groups'][0]['activities'][0]['room']['room_name']);
+        $this->assertSame('2. Etage rechts', $payload['groups'][0]['activities'][0]['room']['navigation']);
+        $this->assertFalse($payload['groups'][0]['activities'][0]['room']['accessible']);
     }
 
     public function test_get_roles_includes_team_even_when_role_fetcher_omits_it(): void
@@ -168,9 +246,142 @@ class PublicPlanServiceTest extends TestCase
         $this->assertTrue($byId->has(21));
         $this->assertSame('team', $byId[21]['differentiation_parameter']);
         $this->assertSame(
-            ['T1 (Noch nicht angemeldet)', 'T2 (Noch nicht angemeldet)'],
+            ['T01 (Noch nicht angemeldet)', 'T02 (Noch nicht angemeldet)'],
             collect($byId[21]['options'])->pluck('label')->all(),
         );
+    }
+
+    public function test_get_lane_meetings_first_with_team_only(): void
+    {
+        $this->seedLaneMeetingCatalog();
+        DB::table('team')->insert([
+            [
+                'id' => 1,
+                'event' => 1,
+                'first_program' => 3,
+                'name' => 'Capricorns',
+                'location' => null,
+                'team_number_hot' => 12,
+            ],
+            [
+                'id' => 2,
+                'event' => 1,
+                'first_program' => 3,
+                'name' => 'NoHot',
+                'location' => null,
+                'team_number_hot' => null,
+            ],
+        ]);
+        DB::table('team_plan')->insert([
+            ['id' => 1, 'plan' => 1, 'team' => 1, 'team_number_plan' => 1, 'noshow' => 0],
+            ['id' => 2, 'plan' => 1, 'team' => 2, 'team_number_plan' => 4, 'noshow' => 0],
+        ]);
+        DB::table('activity_group')->insert([
+            ['id' => 1, 'activity_type_detail' => 17, 'plan' => 1],
+            ['id' => 2, 'activity_type_detail' => 18, 'plan' => 1],
+            ['id' => 3, 'activity_type_detail' => 1, 'plan' => 1],
+        ]);
+        DB::table('activity')->insert([
+            $this->activityRow(1, 2, 18, '2026-03-15 08:00:00', lane: 1, team: 3),
+            $this->activityRow(2, 1, 17, '2026-03-15 08:30:00', lane: 1, team: null),
+            $this->activityRow(3, 1, 17, '2026-03-15 08:00:00', lane: 2, team: 1),
+            $this->activityRow(4, 3, 1, '2026-03-15 08:15:00', lane: 1, team: 9),
+            $this->activityRow(5, 1, 17, '2026-03-15 09:00:00', lane: 1, team: 1),
+            $this->activityRow(6, 1, 17, '2026-03-15 10:00:00', lane: 1, team: 2),
+            $this->activityRow(7, 1, 17, '2026-03-15 11:00:00', lane: 1, team: 1),
+            $this->activityRow(8, 1, 17, '2026-03-15 10:30:00', lane: 1, team: 4),
+        ]);
+
+        $payload = app(PublicPlanService::class)->getLaneMeetings(1, 3, 1);
+
+        $this->assertSame(1, $payload['plan_id']);
+        $this->assertSame(3, $payload['program']);
+        $this->assertSame(1, $payload['lane']);
+        $this->assertSame([
+            [
+                'start_time' => '2026-03-15 09:00:00',
+                'team' => 1,
+                'label' => 'Capricorns (12)',
+            ],
+            [
+                'start_time' => '2026-03-15 10:00:00',
+                'team' => 2,
+                'label' => 'T02 (Noch nicht angemeldet)',
+            ],
+            [
+                'start_time' => '2026-03-15 10:30:00',
+                'team' => 4,
+                'label' => 'NoHot',
+            ],
+        ], $payload['meetings']);
+    }
+
+    public function test_get_table_matches_lists_every_match_on_that_table(): void
+    {
+        $this->seedTableMatchCatalog();
+        DB::table('team')->insert([
+            [
+                'id' => 1,
+                'event' => 1,
+                'first_program' => 3,
+                'name' => 'Capricorns',
+                'location' => null,
+                'team_number_hot' => 12,
+            ],
+            [
+                'id' => 2,
+                'event' => 1,
+                'first_program' => 3,
+                'name' => 'SideTwo',
+                'location' => null,
+                'team_number_hot' => 7,
+            ],
+        ]);
+        DB::table('team_plan')->insert([
+            ['id' => 1, 'plan' => 1, 'team' => 1, 'team_number_plan' => 1, 'noshow' => 0],
+            ['id' => 2, 'plan' => 1, 'team' => 2, 'team_number_plan' => 5, 'noshow' => 0],
+        ]);
+        DB::table('activity_group')->insert([
+            ['id' => 10, 'activity_type_detail' => 15, 'plan' => 1],
+            ['id' => 11, 'activity_type_detail' => 16, 'plan' => 1],
+        ]);
+        DB::table('activity')->insert([
+            $this->matchRow(20, 11, 16, '2026-03-15 09:00:00', table1: 1, team1: 1, table2: 2, team2: 2),
+            $this->matchRow(21, 10, 15, '2026-03-15 09:05:00', table1: 1, team1: 1, table2: 2, team2: 2),
+            $this->matchRow(22, 10, 15, '2026-03-15 09:45:00', table1: 2, team1: 3, table2: 1, team2: 5),
+            $this->matchRow(23, 10, 15, '2026-03-15 10:00:00', table1: 1, team1: 1, table2: 2, team2: 4),
+            $this->matchRow(24, 10, 15, '2026-03-15 10:30:00', table1: 1, team1: null, table2: 2, team2: 2),
+            $this->matchRow(25, 10, 15, '2026-03-15 11:00:00', table1: 2, team1: 4, table2: 3, team2: 6),
+            $this->matchRow(26, 10, 15, '2026-03-15 12:00:00', table1: 1, team1: 8, table2: 2, team2: 9),
+        ]);
+
+        $payload = app(PublicPlanService::class)->getTableMatches(1, 3, 1);
+
+        $this->assertSame(1, $payload['plan_id']);
+        $this->assertSame(3, $payload['program']);
+        $this->assertSame(1, $payload['table']);
+        $this->assertSame([
+            [
+                'start_time' => '2026-03-15 09:05:00',
+                'team' => 1,
+                'label' => 'Capricorns (12)',
+            ],
+            [
+                'start_time' => '2026-03-15 09:45:00',
+                'team' => 5,
+                'label' => 'SideTwo (7)',
+            ],
+            [
+                'start_time' => '2026-03-15 10:00:00',
+                'team' => 1,
+                'label' => 'Capricorns (12)',
+            ],
+            [
+                'start_time' => '2026-03-15 12:00:00',
+                'team' => 8,
+                'label' => 'T08 (Noch nicht angemeldet)',
+            ],
+        ], $payload['matches']);
     }
 
     private function bindRoles(array $roles): void
@@ -269,7 +480,15 @@ class PublicPlanServiceTest extends TestCase
             $table->unsignedInteger('first_program')->nullable();
             $table->string('name')->nullable();
             $table->string('location')->nullable();
+            $table->string('organization')->nullable();
             $table->unsignedInteger('team_number_hot')->nullable();
+        });
+
+        Schema::create('room', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name')->nullable();
+            $table->string('navigation_instruction')->nullable();
+            $table->boolean('is_accessible')->default(true);
         });
 
         Schema::create('team_plan', function (Blueprint $table) {
@@ -277,6 +496,7 @@ class PublicPlanServiceTest extends TestCase
             $table->unsignedInteger('plan');
             $table->unsignedInteger('team');
             $table->unsignedInteger('team_number_plan');
+            $table->unsignedInteger('room')->nullable();
             $table->boolean('noshow')->default(false);
         });
 
@@ -300,6 +520,35 @@ class PublicPlanServiceTest extends TestCase
             $table->unsignedInteger('first_program')->nullable();
             $table->unsignedTinyInteger('table_number');
             $table->string('table_name')->nullable();
+        });
+
+        Schema::create('m_activity_type_detail', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name');
+            $table->string('code')->nullable();
+            $table->unsignedInteger('first_program')->nullable();
+            $table->unsignedInteger('activity_type')->default(0);
+        });
+
+        Schema::create('activity_group', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('plan');
+        });
+
+        Schema::create('activity', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_group');
+            $table->datetime('start');
+            $table->datetime('end');
+            $table->unsignedTinyInteger('jury_lane')->nullable();
+            $table->unsignedInteger('jury_team')->nullable();
+            $table->unsignedTinyInteger('table_1')->nullable();
+            $table->unsignedInteger('table_1_team')->nullable();
+            $table->unsignedTinyInteger('table_2')->nullable();
+            $table->unsignedInteger('table_2_team')->nullable();
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedTinyInteger('explore_group')->nullable();
         });
     }
 
@@ -389,5 +638,104 @@ class PublicPlanServiceTest extends TestCase
                 'set_value' => (string) $fields,
             ]);
         }
+    }
+
+    private function seedLaneMeetingCatalog(): void
+    {
+        DB::table('m_activity_type_detail')->insert([
+            [
+                'id' => 17,
+                'name' => 'Jurygespräch',
+                'code' => 'j_with_team',
+                'first_program' => 3,
+                'activity_type' => 1,
+            ],
+            [
+                'id' => 18,
+                'name' => 'Juryberatung',
+                'code' => 'j_scoring',
+                'first_program' => 3,
+                'activity_type' => 1,
+            ],
+            [
+                'id' => 1,
+                'name' => 'Explore judging',
+                'code' => 'e_with_team',
+                'first_program' => 1,
+                'activity_type' => 1,
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function activityRow(
+        int $id,
+        int $group,
+        int $atd,
+        string $start,
+        int $lane,
+        ?int $team,
+    ): array {
+        return [
+            'id' => $id,
+            'activity_group' => $group,
+            'start' => $start,
+            'end' => $start,
+            'activity_type_detail' => $atd,
+            'jury_lane' => $lane,
+            'jury_team' => $team,
+            'explore_group' => null,
+        ];
+    }
+
+    private function seedTableMatchCatalog(): void
+    {
+        DB::table('m_activity_type_detail')->insert([
+            [
+                'id' => 15,
+                'name' => 'Match',
+                'code' => 'r_match',
+                'first_program' => 3,
+                'activity_type' => 1,
+            ],
+            [
+                'id' => 16,
+                'name' => 'Robot-Check',
+                'code' => 'r_check',
+                'first_program' => 3,
+                'activity_type' => 1,
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function matchRow(
+        int $id,
+        int $group,
+        int $atd,
+        string $start,
+        int $table1,
+        ?int $team1,
+        int $table2,
+        ?int $team2,
+    ): array {
+        return [
+            'id' => $id,
+            'activity_group' => $group,
+            'start' => $start,
+            'end' => $start,
+            'activity_type_detail' => $atd,
+            'jury_lane' => null,
+            'jury_team' => null,
+            'table_1' => $table1,
+            'table_1_team' => $team1,
+            'table_2' => $table2,
+            'table_2_team' => $team2,
+            'explore_group' => null,
+        ];
     }
 }

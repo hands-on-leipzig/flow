@@ -8,6 +8,7 @@ import {
   projectClockOntoBerlinDay,
 } from '@/utils/dateTimeFormat'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import EventMap from '@/components/molecules/EventMap.vue'
 
 const props = defineProps<{
   planId: number | string
@@ -18,11 +19,20 @@ const emit = defineEmits<{
   exit: []
 }>()
 
+type RoomHint = {
+  name: string
+  navigation: string | null
+  accessible: boolean
+}
+
 type RoleOption = {
   value: number | null
   label: string
   parameter: string | null
   noshow: boolean
+  organization?: string | null
+  location?: string | null
+  room?: RoomHint | null
 }
 
 type VisitorProgram = {
@@ -32,6 +42,13 @@ type VisitorProgram = {
   logo_stem?: string | null
   logo_white?: string | null
   color_hex: string
+}
+
+type EventLogo = {
+  id: number
+  title?: string | null
+  link?: string | null
+  url: string
 }
 
 type Role = {
@@ -50,6 +67,12 @@ type Role = {
 }
 
 type EntityKind = 'team' | 'lane' | 'table'
+
+type EntityMeeting = {
+  start_time: string
+  team: number
+  label: string
+}
 
 type Activity = {
   activity_id: number
@@ -75,6 +98,8 @@ type Activity = {
   room: {
     room_name: string | null
     room_type_name: string | null
+    navigation?: string | null
+    accessible?: boolean | null
   }
 }
 
@@ -101,7 +126,7 @@ type TimedGroup = {
   current: boolean
   past: boolean
   parallel: boolean
-  room: string | null
+  room: RoomHint | null
 }
 
 type CalBlock = TimedGroup & {
@@ -120,6 +145,7 @@ type CalBlock = TimedGroup & {
 /** Echter 1:1-Maßstab: 2px pro Minute = 120px pro Stunde */
 const PX_PER_MINUTE = 2
 const GUTTER = 52
+const notAccessibleIcon = '/flow/accessible_no.png'
 
 function groupPresence(group: Group): 'punctual' | 'window' | 'info' {
   const p = group.group_meta?.presence
@@ -141,11 +167,13 @@ const loadingRoles = ref(true)
 const loadingSchedule = ref(false)
 const error = ref<string | null>(null)
 const eventName = ref('')
+const eventId = ref<number | null>(null)
 const eventSlug = ref<string | null>(null)
 const checkInEnabled = ref(false)
 const cockpitEnabled = ref(false)
 const roles = ref<Role[]>([])
 const programs = ref<VisitorProgram[]>([])
+const eventLogos = ref<EventLogo[]>([])
 const groups = ref<Group[]>([])
 const nowMs = ref(Date.now())
 const roleFilter = ref('')
@@ -168,6 +196,8 @@ const entityInfo = ref<{
   activityTypeCode?: string | null
 } | null>(null)
 const entityInfoConfirm = ref(false)
+const entityMeetings = ref<EntityMeeting[]>([])
+let entityMeetingsSeq = 0
 
 let nowTimer: ReturnType<typeof setInterval> | null = null
 /** Which teleported sheet owns the shared swipe-dismiss gesture */
@@ -212,8 +242,15 @@ const selectedRoleMeta = computed(() =>
     roles.value.find((r) => r.id === selectedRole.value) || null
 )
 
+const chromeRole = computed(() => entityInfoRole.value || selectedRoleMeta.value)
+
+const chromeLogo = computed(() => {
+  if (entityInfo.value) return entityInfoProgram.value || entityInfoRole.value || null
+  return selectedRoleMeta.value
+})
+
 const roleAccent = computed(() => {
-  const hex = selectedRoleMeta.value?.color_hex
+  const hex = chromeRole.value?.color_hex
   return hex ? `#${hex}` : '#ea580c'
 })
 
@@ -272,10 +309,19 @@ const selectionLabel = computed(() => {
   return option ? `${role.name}: ${option.label}` : `${role.name} ${value}`
 })
 
-const roleChipLabel = computed(() => selectionLabel.value || 'Überblick')
+const entityPageLabel = computed(() => {
+  if (!entityInfo.value) return ''
+  const role = entityInfoRole.value
+  const title = entityInfoTitle.value
+  if (role && title) return `${role.name}: ${title}`
+  return title
+})
+
+const roleChipLabel = computed(() => entityPageLabel.value || selectionLabel.value || 'Überblick')
 
 const pageTitle = computed(() => {
-  if (selectionLabel.value) return `${selectionLabel.value} · ${eventName.value || 'Online-Zeitplan'}`
+  const label = entityPageLabel.value || selectionLabel.value
+  if (label) return `${label} · ${eventName.value || 'Online-Zeitplan'}`
   if (eventName.value) return `Überblick · ${eventName.value}`
   return 'Überblick'
 })
@@ -370,27 +416,85 @@ function activityAddsDetail(group: Group, activity: Activity): boolean {
   if (aStart != null && gStart != null && Math.abs(aStart - gStart) > 60_000) return true
   if (aEnd != null && gEnd != null && Math.abs(aEnd - gEnd) > 60_000) return true
 
-  const aRoom = activity.room?.room_name || activity.room?.room_type_name
-  const gRoom = primaryRoomRaw(group)
+  const aRoom = roomHintFromActivity(activity)?.name
+  const gRoom = primaryRoomHint(group)?.name
   if (aRoom && gRoom && !namesRedundant(aRoom, gRoom) && !namesRedundant(aRoom, group.group_meta?.name)) {
     return true
   }
   return false
 }
 
-function primaryRoomRaw(group: Group): string | null {
-  for (const a of group.activities) {
-    if (a.room?.room_name) return a.room.room_name
-    if (a.room?.room_type_name) return a.room.room_type_name
+function roomHintFromActivity(activity: Activity): RoomHint | null {
+  const physical = (activity.room?.room_name || '').trim()
+  const typeName = (activity.room?.room_type_name || '').trim()
+  const name = physical || typeName
+  if (!name) return null
+  if (!physical) {
+    return {name, navigation: null, accessible: true}
+  }
+  const navigation = (activity.room?.navigation || '').trim() || null
+  return {
+    name,
+    navigation,
+    accessible: activity.room?.accessible !== false,
+  }
+}
+
+function roomHintFromOption(option: RoleOption | null | undefined): RoomHint | null {
+  const name = (option?.room?.name || '').trim()
+  if (!name) return null
+  return {
+    name,
+    navigation: (option.room?.navigation || '').trim() || null,
+    accessible: option.room?.accessible !== false,
+  }
+}
+
+function roomForTable(table: number, firstProgram: number | null): RoomHint | null {
+  for (const group of groups.value) {
+    for (const activity of group.activities || []) {
+      if (activity.table_1 !== table && activity.table_2 !== table) continue
+      if (
+        firstProgram != null
+        && activity.meta?.first_program_id != null
+        && activity.meta.first_program_id !== firstProgram
+      ) continue
+      const room = roomHintFromActivity(activity)
+      if (room) return room
+    }
+  }
+  return null
+}
+
+function roomForLane(lane: number, firstProgram: number | null): RoomHint | null {
+  for (const group of groups.value) {
+    for (const activity of group.activities || []) {
+      if (activity.lane !== lane) continue
+      if (
+        firstProgram != null
+        && activity.meta?.first_program_id != null
+        && activity.meta.first_program_id !== firstProgram
+      ) continue
+      const room = roomHintFromActivity(activity)
+      if (room) return room
+    }
+  }
+  return null
+}
+
+function primaryRoomHint(group: Group): RoomHint | null {
+  for (const activity of group.activities) {
+    const room = roomHintFromActivity(activity)
+    if (room) return room
   }
   return null
 }
 
 /** Raum nur wenn er nicht schon der Gruppentitel ist */
-function displayRoom(group: Group): string | null {
-  const room = primaryRoomRaw(group)
+function displayRoom(group: Group): RoomHint | null {
+  const room = primaryRoomHint(group)
   if (!room) return null
-  if (namesRedundant(room, group.group_meta?.name)) return null
+  if (namesRedundant(room.name, group.group_meta?.name)) return null
   return room
 }
 
@@ -708,6 +812,7 @@ function closeDetail() {
 function closeEntityInfo() {
   entityInfo.value = null
   entityInfoConfirm.value = false
+  entityMeetings.value = []
 }
 
 function matchingSliceRole(
@@ -761,23 +866,44 @@ const entityInfoTitle = computed(() => {
   )
 })
 
-const entityInfoNoun = computed(() => {
-  if (!entityInfo.value) return ''
-  if (entityInfo.value.kind === 'team') return 'dieses Team'
-  const role = entityInfoRole.value
-  return (role?.group_label || '').trim() || role?.name || 'diese Auswahl'
+const entityInfoProgram = computed(() => {
+  const id = entityInfo.value?.firstProgram
+  if (id == null) return null
+  return programs.value.find((program) => program.id === id)
+      ?? entityInfoRole.value
+      ?? null
 })
 
-const entityInfoBody = computed(() => {
-  if (entityInfo.value?.kind === 'team') return 'Weitere Informationen zu diesem Team folgen.'
-  const noun = entityInfoNoun.value
-  return noun ? `Weitere Informationen zu ${noun} folgen.` : 'Weitere Informationen folgen.'
+const entityInfoCta = computed(() => 'Detailsicht')
+
+const entityInfoTeamOption = computed(() => {
+  if (!entityInfo.value || entityInfo.value.kind !== 'team') return null
+  return entityInfoRole.value?.options.find((option) => option.value === entityInfo.value?.value) ?? null
 })
 
-const entityInfoCta = computed(() => {
-  if (entityInfo.value?.kind === 'team') return 'Sicht für dieses Team'
-  return `Sicht für ${entityInfoNoun.value}`
+const entityInfoOrganization = computed(() => {
+  const value = (entityInfoTeamOption.value?.organization || '').trim()
+  return value || null
 })
+
+const entityInfoLocation = computed(() => {
+  const value = (entityInfoTeamOption.value?.location || '').trim()
+  return value || null
+})
+
+const entityInfoRoom = computed((): RoomHint | null => {
+  if (!entityInfo.value) return null
+  if (entityInfo.value.kind === 'team') return roomHintFromOption(entityInfoTeamOption.value)
+  if (entityInfo.value.kind === 'table') {
+    return roomForTable(entityInfo.value.value, entityInfo.value.firstProgram)
+  }
+  if (entityInfo.value.kind === 'lane') {
+    return roomForLane(entityInfo.value.value, entityInfo.value.firstProgram)
+  }
+  return null
+})
+
+const entityInfoImmediateSwitch = computed(() => entityInfo.value != null)
 
 function resetPickerToTop() {
   roleFilter.value = ''
@@ -1070,9 +1196,19 @@ async function loadRoles() {
     roles.value = data.roles || []
     programs.value = data.programs || []
     eventName.value = data.event_name || ''
+    eventId.value = Number(data.event_id) || null
     eventSlug.value = typeof data.slug === 'string' && data.slug !== '' ? data.slug : null
     checkInEnabled.value = !!data.check_in_enabled
     cockpitEnabled.value = !!data.cockpit_enabled
+    eventLogos.value = []
+    if (eventId.value) {
+      try {
+        const logos = await axios.get(`/events/${eventId.value}/logos`)
+        eventLogos.value = Array.isArray(logos.data) ? logos.data : []
+      } catch {
+        eventLogos.value = []
+      }
+    }
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Rollen konnten nicht geladen werden.'
   } finally {
@@ -1218,6 +1354,38 @@ function openEntityInfo(
     value,
     firstProgram: firstProgram ?? null,
     activityTypeCode: activityTypeCode ?? null,
+  }
+  if (kind === 'lane') void loadLaneMeetings(firstProgram ?? null, value)
+  else if (kind === 'table') void loadTableMatches(firstProgram ?? null, value)
+  else entityMeetings.value = []
+}
+
+async function loadLaneMeetings(program: number | null, lane: number) {
+  await loadEntityMeetings('/visitor/lane-meetings', {program, lane}, 'meetings')
+}
+
+async function loadTableMatches(program: number | null, table: number) {
+  await loadEntityMeetings('/visitor/table-matches', {program, table}, 'matches')
+}
+
+async function loadEntityMeetings(
+    path: string,
+    params: {program: number | null, lane?: number, table?: number},
+    key: 'meetings' | 'matches',
+) {
+  const seq = ++entityMeetingsSeq
+  entityMeetings.value = []
+  const axis = params.lane ?? params.table ?? 0
+  if (!numericPlanId.value || params.program == null || params.program < 1 || axis < 1) return
+  try {
+    const {data} = await axios.get(`/plans/${numericPlanId.value}${path}`, {
+      params: {program: params.program, ...('lane' in params ? {lane: params.lane} : {table: params.table})},
+    })
+    if (seq !== entityMeetingsSeq) return
+    const rows = Array.isArray(data?.[key]) ? data[key] : []
+    entityMeetings.value = rows.filter((row: EntityMeeting) => row?.team && row.start_time)
+  } catch {
+    if (seq !== entityMeetingsSeq) return
   }
 }
 
@@ -1377,9 +1545,9 @@ watch(
                   @click="openRoleSheet"
               >
                 <img
-                    v-if="selectedRoleMeta"
-                    :src="programLogo(selectedRoleMeta)"
-                    :alt="programLogoAlt(selectedRoleMeta)"
+                    v-if="chromeLogo"
+                    :src="programLogo(chromeLogo)"
+                    :alt="programLogoAlt(chromeLogo)"
                     class="public-schedule__role-chip-logo"
                 />
                 <span class="public-schedule__role-chip-text">
@@ -1426,7 +1594,7 @@ watch(
               </button>
             </div>
 
-            <div v-if="hasRoleSelection" ref="filterRootEl" class="public-schedule__filter">
+            <div v-if="hasRoleSelection && !entityInfo" ref="filterRootEl" class="public-schedule__filter">
               <button
                   type="button"
                   class="public-schedule__filter-btn"
@@ -1464,13 +1632,80 @@ watch(
         <div ref="planScrollEl" class="public-schedule__plan-scroll">
           <div
               v-if="entityInfo"
-              class="public-schedule__card public-schedule__card--center"
+              class="public-schedule__card public-schedule__card--entity"
+              role="region"
+              :aria-label="entityPageLabel || entityInfoTitle"
           >
-            <h2 class="public-schedule__dummy-title">{{ entityInfoTitle }}</h2>
-            <p class="public-schedule__dummy-body">{{ entityInfoBody }}</p>
-            <div class="public-schedule__dummy-actions">
+            <h2 class="public-schedule__page-title">
+              <img
+                  v-if="entityInfoProgram"
+                  :src="programLogo(entityInfoProgram)"
+                  :alt="programLogoAlt(entityInfoProgram)"
+                  class="public-schedule__page-title-logo"
+              />
+              <span>{{ entityInfoTitle }}</span>
+            </h2>
+            <div v-if="entityInfoRoom" class="public-schedule__room-hint">
+              <p class="public-schedule__entity-row">
+                <i class="bi bi-geo" aria-hidden="true"/>
+                <span>{{ entityInfoRoom.name }}</span>
+                <img
+                    v-if="entityInfoRoom.accessible === false"
+                    :src="notAccessibleIcon"
+                    alt="Nicht barrierefrei"
+                    title="Nicht barrierefrei"
+                    class="public-schedule__room-access"
+                />
+              </p>
+              <p v-if="entityInfoRoom.navigation" class="public-schedule__room-nav">
+                {{ entityInfoRoom.navigation }}
+              </p>
+            </div>
+            <template v-if="entityInfo.kind === 'lane' || entityInfo.kind === 'table'">
+              <p
+                  v-for="(meeting, meetingIndex) in entityMeetings"
+                  :key="`${meeting.start_time}-${meeting.team}-${meetingIndex}`"
+                  class="public-schedule__entity-row"
+              >
+                <span>{{ timeLabel(meeting.start_time) }}</span>
+                <button
+                    type="button"
+                    class="public-schedule__entity-team"
+                    @click="openEntityInfo('team', meeting.team, entityInfo.firstProgram)"
+                >
+                  {{ meeting.label }}
+                </button>
+              </p>
+            </template>
+            <template v-else-if="entityInfo.kind === 'team'">
+              <p v-if="entityInfoOrganization" class="public-schedule__entity-row">
+                <i class="bi bi-building" aria-hidden="true"/>
+                {{ entityInfoOrganization }}
+              </p>
+              <p v-if="entityInfoLocation" class="public-schedule__entity-row">
+                <i class="bi bi-geo-alt" aria-hidden="true"/>
+                {{ entityInfoLocation }}
+              </p>
+              <div
+                  v-if="entityInfoLocation && eventId"
+                  class="public-schedule__entity-map"
+              >
+                <EventMap
+                    :address="entityInfoLocation"
+                    :event-id="eventId"
+                    :event-name="entityInfoTitle || 'Team'"
+                    :show-q-r-code="false"
+                />
+              </div>
+            </template>
+            <div class="public-schedule__page-actions">
               <template v-if="entityInfoRole">
-                <template v-if="!entityInfoConfirm">
+                <template v-if="entityInfoImmediateSwitch">
+                  <button type="button" class="public-schedule__text-action" @click="confirmEntityInfoSwitch">
+                    {{ entityInfoCta }}
+                  </button>
+                </template>
+                <template v-else-if="!entityInfoConfirm">
                   <button type="button" class="public-schedule__text-action" @click="entityInfoConfirm = true">
                     {{ entityInfoCta }}
                   </button>
@@ -1492,18 +1727,56 @@ watch(
 
           <div
               v-else-if="!hasRoleSelection"
-              class="public-schedule__card public-schedule__card--center"
+              class="public-schedule__card public-schedule__card--center public-schedule__card--overview"
           >
-            <h2 class="public-schedule__dummy-title">Überblick</h2>
-            <p class="public-schedule__dummy-body">Die Übersicht folgt in Kürze.</p>
-            <p class="public-schedule__dummy-body">Wähle oben eine Rolle aus.</p>
+            <h2 class="public-schedule__page-title">
+              Willkommen zu {{ eventName || 'dieser Veranstaltung' }}
+            </h2>
+            <div
+                v-if="programs.length"
+                class="public-schedule__overview-programs"
+            >
+              <img
+                  v-for="program in programs"
+                  :key="program.id"
+                  :src="programLogo(program)"
+                  :alt="programLogoAlt(program)"
+                  class="public-schedule__overview-program-logo"
+              />
+            </div>
+            <template v-if="eventLogos.length">
+              <p class="public-schedule__overview-sponsors-label">
+                Mit freundlicher Unterstützung von
+              </p>
+              <div class="public-schedule__overview-sponsors">
+                <a
+                    v-for="logo in eventLogos"
+                    :key="logo.id"
+                    class="public-schedule__overview-sponsor"
+                    :class="{'public-schedule__overview-sponsor--static': !logo.link}"
+                    :href="logo.link || undefined"
+                    :rel="logo.link ? 'noopener noreferrer' : undefined"
+                    :target="logo.link ? '_blank' : undefined"
+                    @click="!logo.link && $event.preventDefault()"
+                >
+                  <img :alt="logo.title || 'Logo'" :src="logo.url"/>
+                </a>
+              </div>
+            </template>
+            <button
+                type="button"
+                class="public-schedule__overview-pick"
+                @click="openRoleSheet"
+            >
+              Für den detaillierten Zeitplan bitte oben eine Rolle wählen.
+            </button>
             <button
                 v-if="canLeaveToPublicPage"
                 type="button"
-                class="public-schedule__text-action"
+                class="public-schedule__overview-leave"
                 @click="leaveToPublicPage"
             >
-              Online-Zeitplan verlassen und zurück zur öffentlichen Seite
+              Zurück zur öffentlichen Seite
             </button>
           </div>
 
@@ -1606,7 +1879,14 @@ watch(
                         {{ block.group.group_meta?.name || 'Programmpunkt' }}
                       </div>
                       <div v-if="block.height >= 56 && block.room" class="public-schedule__block-room">
-                        {{ block.room }}
+                        <span>{{ block.room.name }}</span>
+                        <img
+                            v-if="block.room.accessible === false"
+                            :src="notAccessibleIcon"
+                            alt="Nicht barrierefrei"
+                            title="Nicht barrierefrei"
+                            class="public-schedule__room-access"
+                        />
                       </div>
                     </div>
                   </template>
@@ -1857,10 +2137,22 @@ watch(
               {{ selectedItem.group.group_meta.description }}
             </p>
 
-            <p v-if="selectedItem.room" class="public-schedule__detail-room">
-              <i class="bi bi-geo" aria-hidden="true"/>
-              {{ selectedItem.room }}
-            </p>
+            <div v-if="selectedItem.room" class="public-schedule__detail-room">
+              <p class="public-schedule__entity-row">
+                <i class="bi bi-geo" aria-hidden="true"/>
+                <span>{{ selectedItem.room.name }}</span>
+                <img
+                    v-if="selectedItem.room.accessible === false"
+                    :src="notAccessibleIcon"
+                    alt="Nicht barrierefrei"
+                    title="Nicht barrierefrei"
+                    class="public-schedule__room-access"
+                />
+              </p>
+              <p v-if="selectedItem.room.navigation" class="public-schedule__room-nav">
+                {{ selectedItem.room.navigation }}
+              </p>
+            </div>
 
             <ul
                 v-if="hasExpandableDetail(selectedItem.group)"
@@ -2134,17 +2426,157 @@ watch(
   gap: 0.75rem;
 }
 
+.public-schedule__card--entity {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.public-schedule__entity-row {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.public-schedule__room-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.public-schedule__room-nav {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  line-height: 1.35;
+}
+
+.public-schedule__room-access {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.public-schedule__entity-team {
+  color: #c2410c;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0;
+  min-height: 0;
+  text-align: left;
+}
+
+.public-schedule__entity-map {
+  margin-top: 0.15rem;
+  min-width: 0;
+}
+
+.public-schedule__page-title,
 .public-schedule__dummy-title {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   font-size: 1.25rem;
   font-weight: 700;
   color: #111827;
+}
+
+.public-schedule__page-title-logo,
+.public-schedule__dummy-title-logo {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.public-schedule__card--center .public-schedule__page-title,
+.public-schedule__card--center .public-schedule__dummy-title {
+  justify-content: center;
+  text-align: center;
 }
 
 .public-schedule__dummy-body {
   margin: 0;
 }
 
+.public-schedule__card--overview {
+  gap: 1rem;
+  padding: 1.4rem 1rem 1.25rem;
+}
+
+.public-schedule__overview-programs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem 1rem;
+}
+
+.public-schedule__overview-program-logo {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: contain;
+}
+
+.public-schedule__overview-sponsors-label {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.public-schedule__overview-sponsors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem 1rem;
+}
+
+.public-schedule__overview-sponsor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.public-schedule__overview-sponsor--static {
+  pointer-events: none;
+}
+
+.public-schedule__overview-sponsor img {
+  height: 2.4rem;
+  max-width: 7rem;
+  object-fit: contain;
+}
+
+.public-schedule__overview-pick {
+  margin: 0.35rem 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #c2410c;
+  font-weight: 800;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.public-schedule__overview-leave {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #6b7280;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.public-schedule__page-actions,
 .public-schedule__dummy-actions {
   display: flex;
   flex-wrap: wrap;
@@ -2732,11 +3164,24 @@ watch(
 }
 
 .public-schedule__block-room {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
   font-size: 0.68rem;
   color: #6b7280;
-  white-space: nowrap;
+  min-width: 0;
+}
+
+.public-schedule__block-room span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-schedule__block-room .public-schedule__room-access {
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 /* Fixed to viewport (teleported) — ignores iframe/parent max-width frames */
@@ -2885,11 +3330,9 @@ watch(
 .public-schedule__detail-room {
   padding: 0.45rem 0.9rem 0;
   margin: 0;
-  font-size: 0.85rem;
-  color: #6b7280;
   display: flex;
-  align-items: center;
-  gap: 0.3rem;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
 .public-schedule__activities {

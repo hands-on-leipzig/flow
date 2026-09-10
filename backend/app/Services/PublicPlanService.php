@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\DB;
 
 class PublicPlanService
 {
+    private const LANE_MEETING_CODES = ['j_with_team', 'e_with_team', 'f8_j_with_team'];
+    private const TABLE_MATCH_CODES = ['r_match', 'f8_r_match'];
+
     public function __construct(
         private ActivityFetcherService $activities,
         private RoleFetcherService $roleFetcher,
@@ -256,6 +259,118 @@ class PublicPlanService
         ];
     }
 
+    /**
+     * First with-team meeting per jury slot on one lane (visitor jury-group overview).
+     *
+     * @return array{plan_id:int,program:int,lane:int,meetings:list<array{start_time:mixed,team:int,label:string}>}
+     */
+    public function getLaneMeetings(int $planId, int $firstProgram, int $lane): array
+    {
+        $plan = DB::table('plan')->where('id', $planId)->first();
+        if (! $plan) {
+            abort(404, 'Plan not found');
+        }
+
+        $meetings = [];
+        if ($firstProgram >= 1 && $lane >= 1) {
+            $teams = $this->teamsByPlanNumber($planId);
+            $rows = DB::table('activity as a')
+                ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+                ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+                ->where('ag.plan', $planId)
+                ->where('atd.first_program', $firstProgram)
+                ->where('a.jury_lane', $lane)
+                ->whereIn('atd.code', self::LANE_MEETING_CODES)
+                ->whereNotNull('a.jury_team')
+                ->where('a.jury_team', '>', 0)
+                ->orderBy('a.start')
+                ->get([
+                    'a.start as start_time',
+                    'a.jury_team as team',
+                ]);
+
+            $seen = [];
+            foreach ($rows as $row) {
+                $team = (int) $row->team;
+                if (isset($seen[$team])) {
+                    continue;
+                }
+                $seen[$team] = true;
+                $meetings[] = [
+                    'start_time' => $row->start_time,
+                    'team' => $team,
+                    'label' => $this->teamPickerLabel($team, $teams[$firstProgram][$team] ?? null),
+                ];
+            }
+        }
+
+        return [
+            'plan_id' => $planId,
+            'program' => $firstProgram,
+            'lane' => $lane,
+            'meetings' => $meetings,
+        ];
+    }
+
+    /**
+     * Matches on one robot-game table (visitor table overview). Robot-check omitted.
+     *
+     * @return array{plan_id:int,program:int,table:int,matches:list<array{start_time:mixed,team:int,label:string}>}
+     */
+    public function getTableMatches(int $planId, int $firstProgram, int $table): array
+    {
+        $plan = DB::table('plan')->where('id', $planId)->first();
+        if (! $plan) {
+            abort(404, 'Plan not found');
+        }
+
+        $matches = [];
+        if ($firstProgram >= 1 && $table >= 1) {
+            $teams = $this->teamsByPlanNumber($planId);
+            $rows = DB::table('activity as a')
+                ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+                ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+                ->where('ag.plan', $planId)
+                ->where('atd.first_program', $firstProgram)
+                ->whereIn('atd.code', self::TABLE_MATCH_CODES)
+                ->where(function ($q) use ($table) {
+                    $q->where('a.table_1', $table)->orWhere('a.table_2', $table);
+                })
+                ->orderBy('a.start')
+                ->get([
+                    'a.start as start_time',
+                    'a.table_1',
+                    'a.table_1_team',
+                    'a.table_2',
+                    'a.table_2_team',
+                ]);
+
+            foreach ($rows as $row) {
+                $team = 0;
+                if ((int) $row->table_1 === $table) {
+                    $team = $row->table_1_team !== null ? (int) $row->table_1_team : 0;
+                } elseif ((int) $row->table_2 === $table) {
+                    $team = $row->table_2_team !== null ? (int) $row->table_2_team : 0;
+                }
+                if ($team < 1) {
+                    continue;
+                }
+                $matches[] = [
+                    'start_time' => $row->start_time,
+                    'team' => $team,
+                    'label' => $this->teamPickerLabel($team, $teams[$firstProgram][$team] ?? null),
+                ];
+            }
+        }
+
+        return [
+            'plan_id' => $planId,
+            'program' => $firstProgram,
+            'table' => $table,
+            'matches' => $matches,
+        ];
+    }
+
     private function roleOptions(object $role, array $teams, PlanParameter $params): array
     {
         $parameter = $role->differentiation_parameter;
@@ -268,28 +383,33 @@ class PublicPlanService
             for ($i = 1; $i <= $count; $i++) {
                 $label = "{$role->name} {$i}";
                 $noshow = false;
+                $team = null;
 
                 if ($parameter === 'team' && $firstProgram) {
                     $team = $teams[$firstProgram][$i] ?? null;
+                    $label = $this->teamPickerLabel($i, $team);
                     $name = trim((string) ($team['name'] ?? ''));
                     if ($name !== '') {
-                        $hot = $team['team_number_hot'] ?? null;
-                        $hotStr = $hot !== null && $hot !== '' ? (string) $hot : '';
-                        $label = $hotStr !== '' ? "{$name} ({$hotStr})" : $name;
                         $noshow = (bool) ($team['noshow'] ?? false);
-                    } else {
-                        $label = 'T'.$i.' (Noch nicht angemeldet)';
                     }
                 } elseif (in_array($parameter, ['lane', 'table'], true) && $groupLabel !== '') {
                     $label = $groupLabel.' '.$i;
                 }
 
-                $options[] = [
+                $option = [
                     'value' => $i,
                     'label' => $label,
                     'parameter' => $parameter ?: 'team',
                     'noshow' => $noshow,
                 ];
+                if ($parameter === 'team') {
+                    $org = trim((string) ($team['organization'] ?? ''));
+                    $loc = trim((string) ($team['location'] ?? ''));
+                    $option['organization'] = $org !== '' ? $org : null;
+                    $option['location'] = $loc !== '' ? $loc : null;
+                    $option['room'] = $team['room'] ?? null;
+                }
+                $options[] = $option;
             }
 
             if ($options === []) {
@@ -358,18 +478,23 @@ class PublicPlanService
     }
 
     /**
-     * @return array<int, array<int, array{name:string,location:?string,noshow:bool,team_number_hot:int|null}>>
+     * @return array<int, array<int, array{name:string,location:?string,organization:?string,room:?array{name:string,navigation:?string,accessible:bool},noshow:bool,team_number_hot:int|null}>>
      */
     private function teamsByPlanNumber(int $planId): array
     {
         $rows = DB::table('team_plan')
             ->join('team', 'team.id', '=', 'team_plan.team')
+            ->leftJoin('room', 'room.id', '=', 'team_plan.room')
             ->where('team_plan.plan', $planId)
             ->select([
                 'team_plan.team_number_plan',
                 'team.first_program',
                 'team.name',
                 'team.location',
+                'team.organization',
+                'room.name as room_name',
+                'room.navigation_instruction as room_navigation',
+                'room.is_accessible as room_is_accessible',
                 'team.team_number_hot',
                 'team_plan.noshow',
             ])
@@ -383,12 +508,52 @@ class PublicPlanService
             $map[$fp][$num] = [
                 'name' => $row->name,
                 'location' => $row->location,
+                'organization' => $row->organization,
+                'room' => $this->roomHint(
+                    $row->room_name ?? null,
+                    $row->room_navigation ?? null,
+                    $row->room_is_accessible ?? null,
+                ),
                 'noshow' => (bool) $row->noshow,
                 'team_number_hot' => $hot !== null && $hot !== '' ? (int) $hot : null,
             ];
         }
 
         return $map;
+    }
+
+    /**
+     * @return array{name:string,navigation:?string,accessible:bool}|null
+     */
+    private function roomHint(?string $name, ?string $navigation, mixed $accessible): ?array
+    {
+        $label = trim((string) $name);
+        if ($label === '') {
+            return null;
+        }
+        $nav = trim((string) $navigation);
+
+        return [
+            'name' => $label,
+            'navigation' => $nav !== '' ? $nav : null,
+            'accessible' => $accessible === null ? true : (bool) $accessible,
+        ];
+    }
+
+    /**
+     * @param  array{name:string,location:?string,organization:?string,room:?array{name:string,navigation:?string,accessible:bool},noshow:bool,team_number_hot:int|null}|null  $team
+     */
+    private function teamPickerLabel(int $slot, ?array $team): string
+    {
+        $name = trim((string) ($team['name'] ?? ''));
+        if ($name !== '') {
+            $hot = $team['team_number_hot'] ?? null;
+            $hotStr = $hot !== null && $hot !== '' ? (string) $hot : '';
+
+            return $hotStr !== '' ? "{$name} ({$hotStr})" : $name;
+        }
+
+        return sprintf('T%02d (Noch nicht angemeldet)', $slot);
     }
 
     /**
@@ -546,11 +711,13 @@ class PublicPlanService
 
             $aid = $row->activity_id;
             if (! isset($groups[$gid]['activities'][$aid])) {
+                $roomNav = trim((string) ($row->room_navigation ?? ''));
+                $roomAccessible = $row->room_is_accessible ?? null;
                 $groups[$gid]['activities'][$aid] = [
                     'activity_id' => $row->activity_id,
                     'start_time' => $row->start_time,
                     'end_time' => $row->end_time,
-                    'activity_name' => $row->activity_name,
+                    'activity_name' => $row->activity_atd_name ?? $row->activity_name,
                     'activity_type_detail_id' => $row->activity_type_detail_id ?? null,
                     'activity_type_code' => $row->activity_type_code ?? null,
                     'presence' => $row->activity_presence ?? 'punctual',
@@ -577,6 +744,8 @@ class PublicPlanService
                         'room_type_name' => $row->room_type_name ?? null,
                         'room_id' => $row->room_id ?? null,
                         'room_name' => $row->room_name ?? null,
+                        'navigation' => $roomNav !== '' ? $roomNav : null,
+                        'accessible' => $roomAccessible === null ? true : (bool) $roomAccessible,
                     ],
                 ];
             }
