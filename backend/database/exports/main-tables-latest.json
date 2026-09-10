@@ -2066,6 +2066,20 @@
             "title": "Wie l\u00f6sche ich ein Logo?",
             "sort_order": 64,
             "body": "\u00dcber den L\u00f6schen-Button am Logo.\n\nDas Logo wird vollst\u00e4ndig entfernt, auch bei anderen Veranstaltungen.\n\nZum Abschalten nur f\u00fcr diese Veranstaltung reicht der Schalter."
+        },
+        {
+            "id": 68,
+            "help_topic": 2,
+            "title": "Wie entsteht der Link zur \u00f6ffentlichen Seite?",
+            "sort_order": 65,
+            "body": "Der Link besteht aus der festen Adresse handson.tools und einem Kurznamen f\u00fcr die Veranstaltung, dem Slug.\n\nDer Slug entsteht aus dem Namen der Veranstaltung:\nRegionalwettbewerb und Ausstellung: der Name der Veranstaltung, zum Beispiel handson.tools\/aachen.\nQualifikationswettbewerb: quali und der Ort, zum Beispiel handson.tools\/quali-koeln.\nFinale: immer handson.tools\/finale.\n\nGro\u00dfbuchstaben werden klein, Umlaute werden umgeschrieben (\u00e4 zu ae, \u00df zu ss), Leerzeichen werden Bindestriche, alles andere f\u00e4llt weg.\n\nTr\u00e4gt ein Regionalpartner in einer Saison zwei Veranstaltungen mit demselben Namen, kommt ein kurzer Zusatz f\u00fcr die Programme dazu: e f\u00fcr Explore, c f\u00fcr Challenge, f f\u00fcr Future. Aus zwei Veranstaltungen in Aachen werden so handson.tools\/aachen-e und handson.tools\/aachen-c. Eine Veranstaltung mit Explore und Challenge zusammen wird handson.tools\/aachen-ec.\n\nDer Link bleibt so kurz wie m\u00f6glich: der Zusatz kommt nur dazu, wenn er zum Unterscheiden gebraucht wird. Ist ein Slug in derselben Saison trotzdem schon belegt, h\u00e4ngt FLOW eine Zahl an, zum Beispiel aachen-2.\n\nJeder Slug gilt genau einmal pro Saison. Die laufende Saison antwortet ohne Jahresangabe, \u00e4ltere Saisons unter ihrem Jahr: handson.tools\/2025\/aachen.\n\nLink und QR-Code stehen auf dieser Seite und auf der Startseite. Beide entstehen automatisch, es ist nichts einzurichten."
+        },
+        {
+            "id": 69,
+            "help_topic": 2,
+            "title": "Kann der Slug im Link ge\u00e4ndert werden?",
+            "sort_order": 66,
+            "body": "Ja. Der Slug entsteht beim Anlegen der Veranstaltung automatisch; auf Wunsch setzt das FLOW-Team einen eigenen.\n\n\u00c4ndert sich der Name der Veranstaltung, zieht ein automatisch erzeugter Slug nach. Ein von Hand gesetzter Slug bleibt dagegen unver\u00e4ndert stehen.\n\nAlte Adressen bleiben g\u00fcltig: FLOW merkt sich jeden fr\u00fcheren Slug einer Veranstaltung und leitet ihn auf den aktuellen weiter. Bereits gedruckte QR-Codes und Plakate funktionieren also weiter.\n\nNicht m\u00f6glich sind Slugs, die mit Adressen von FLOW oder von handson.tools zusammensto\u00dfen, zum Beispiel plan, admin, flow oder dev. Ebenfalls nicht m\u00f6glich sind Slugs, die nur aus Zahlen bestehen, weil Zahlen f\u00fcr die Jahresangabe \u00e4lterer Saisons reserviert sind. Und innerhalb einer Saison kann jeder Slug nur einmal vergeben werden.\n\nNach einer \u00c4nderung werden Link und QR-Code neu erzeugt. F\u00fcr neue Aush\u00e4nge sollte dann der neue QR-Code verwendet werden."
         }
     ],
     "m_help_action_screen": [
@@ -2488,6 +2502,16 @@
             "id": 86,
             "help_action": 67,
             "help_screen": 20
+        },
+        {
+            "id": 87,
+            "help_action": 68,
+            "help_screen": 1
+        },
+        {
+            "id": 88,
+            "help_action": 69,
+            "help_screen": 1
         }
     ],
     "m_help_screen": [

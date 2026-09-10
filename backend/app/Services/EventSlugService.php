@@ -371,25 +371,58 @@ class EventSlugService
         $name = (string) $event->name;
         $level = (int) $event->level;
 
-        // One regional partner with several regional events in a season: the program
-        // names are what keeps those slugs apart.
-        if ($level > 0) {
-            $siblings = Event::where('regional_partner', $event->regional_partner)
-                ->where('level', $level)
-                ->where('season', $event->season)
-                ->count();
-
-            if ($siblings > 1) {
-                foreach ($event->programs as $program) {
-                    $suffix = (string) $program->name;
-                    if ($suffix !== '') {
-                        $name .= '-'.$suffix;
-                    }
-                }
+        // One regional partner running two events of the same name in a season: the
+        // program letters are what keeps those slugs apart. Events that already differ
+        // by name get no suffix, so the slug stays as short as it can be.
+        if ($level > 0 && $this->hasNamesake($event)) {
+            $letters = $this->programLetters($event);
+            if ($letters !== '') {
+                $name .= '-'.$letters;
             }
         }
 
         return $name;
+    }
+
+    /**
+     * Whether the same regional partner runs another event of the same level and name
+     * in this season. Names are compared after normalization, because that is what ends
+     * up in the slug.
+     */
+    private function hasNamesake(Event $event): bool
+    {
+        $mine = $this->sanitize((string) $event->name);
+
+        return Event::where('regional_partner', $event->regional_partner)
+            ->where('level', (int) $event->level)
+            ->where('season', $event->season)
+            ->when($event->id, fn ($query) => $query->where('id', '<>', (int) $event->id))
+            ->pluck('name')
+            ->contains(fn ($other) => $this->sanitize((string) $other) === $mine);
+    }
+
+    /**
+     * Program letters in catalog order: Explore e, Challenge c, Future f. The catalog
+     * letter is the source; its digits (F5, F8) drop out, because the suffix only has to
+     * tell one partner's events apart, and a repeated letter is written once.
+     */
+    private function programLetters(Event $event): string
+    {
+        $letters = '';
+
+        foreach ($event->programs as $program) {
+            $letter = preg_replace('/[^a-z]/', '', mb_strtolower((string) $program->letter, 'UTF-8')) ?? '';
+
+            if ($letter === '') {
+                $letter = mb_substr(mb_strtolower((string) $program->name, 'UTF-8'), 0, 1);
+            }
+
+            if ($letter !== '' && ! str_contains($letters, $letter)) {
+                $letters .= $letter;
+            }
+        }
+
+        return $letters;
     }
 
     private function qualiBase(string $name): string
