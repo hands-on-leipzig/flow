@@ -32,6 +32,15 @@ class EventSlugService
         'unauthorized', 'volunteers',
     ];
 
+    /**
+     * The vanity host resolves its own short links before it falls back to FLOW, so
+     * those names have to stay free as well. Keep in sync with urls.json and the
+     * routes of the handson.tools shortener.
+     */
+    private const RESERVED_SHORTENER = [
+        'auth', 'flow', 'jury', 'pfand', 'rg', 's',
+    ];
+
     /** @var array<int, int|null> */
     private array $seasonYears = [];
 
@@ -194,13 +203,18 @@ class EventSlugService
      */
     public function reserved(): array
     {
-        return self::RESERVED;
+        $reserved = array_merge(self::RESERVED, self::RESERVED_SHORTENER);
+        sort($reserved);
+
+        return $reserved;
     }
 
     public function isReserved(string $slug): bool
     {
         // A purely numeric slug would be read as the season prefix of an archive URL.
-        return in_array($slug, self::RESERVED, true) || preg_match('/^\d+$/', $slug) === 1;
+        return in_array($slug, self::RESERVED, true)
+            || in_array($slug, self::RESERVED_SHORTENER, true)
+            || preg_match('/^\d+$/', $slug) === 1;
     }
 
     public function isAvailable(string $slug, int $season, ?int $exceptEventId = null): bool

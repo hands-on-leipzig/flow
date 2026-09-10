@@ -51,8 +51,16 @@ const loadEvent = async () => {
     loading.value = true
     error.value = null
 
-    const eventResponse = await axios.get(`/events/slug/${route.params.slug}`)
+    const eventResponse = await axios.get(`/events/slug/${route.params.slug}`, {
+      params: route.params.year ? {year: route.params.year} : {},
+    })
     event.value = eventResponse.data
+
+    // Old slug: the event was found through its history, so the address bar moves on
+    // to the current one. Printed QR codes keep working.
+    if (eventResponse.data.redirect_to) {
+      void router.replace({path: eventResponse.data.redirect_to, query: route.query})
+    }
 
     try {
       let source = 'unknown'

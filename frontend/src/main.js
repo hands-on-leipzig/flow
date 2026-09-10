@@ -178,6 +178,8 @@ const routes = [
     // Public slug-based routes (must be after all specific routes)
     {path: '/:slug/check-in', component: CheckInReception, props: true, meta: {public: true}},
     {path: '/:slug/cockpit', component: CockpitApp, props: true, meta: {public: true}},
+    // Past seasons keep their plans reachable under the season year (handson.tools/2025/aachen).
+    {path: '/:year(\\d{4})/:slug', component: PublicEvent, props: true, meta: {public: true}},
     {path: '/:slug', component: PublicEvent, props: true, meta: {public: true}},
     // Unauthorized access route
     {path: '/unauthorized', component: UnauthorizedAccess, meta: {public: true}},
