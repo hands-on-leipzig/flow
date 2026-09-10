@@ -405,8 +405,10 @@ class PublicPlanService
                 if ($parameter === 'team') {
                     $org = trim((string) ($team['organization'] ?? ''));
                     $loc = trim((string) ($team['location'] ?? ''));
+                    $room = trim((string) ($team['room'] ?? ''));
                     $option['organization'] = $org !== '' ? $org : null;
                     $option['location'] = $loc !== '' ? $loc : null;
+                    $option['room'] = $room !== '' ? $room : null;
                 }
                 $options[] = $option;
             }
@@ -477,12 +479,13 @@ class PublicPlanService
     }
 
     /**
-     * @return array<int, array<int, array{name:string,location:?string,organization:?string,noshow:bool,team_number_hot:int|null}>>
+     * @return array<int, array<int, array{name:string,location:?string,organization:?string,room:?string,noshow:bool,team_number_hot:int|null}>>
      */
     private function teamsByPlanNumber(int $planId): array
     {
         $rows = DB::table('team_plan')
             ->join('team', 'team.id', '=', 'team_plan.team')
+            ->leftJoin('room', 'room.id', '=', 'team_plan.room')
             ->where('team_plan.plan', $planId)
             ->select([
                 'team_plan.team_number_plan',
@@ -490,6 +493,7 @@ class PublicPlanService
                 'team.name',
                 'team.location',
                 'team.organization',
+                'room.name as room_name',
                 'team.team_number_hot',
                 'team_plan.noshow',
             ])
@@ -500,10 +504,12 @@ class PublicPlanService
             $fp = (int) $row->first_program;
             $num = (int) $row->team_number_plan;
             $hot = $row->team_number_hot;
+            $room = trim((string) ($row->room_name ?? ''));
             $map[$fp][$num] = [
                 'name' => $row->name,
                 'location' => $row->location,
                 'organization' => $row->organization,
+                'room' => $room !== '' ? $room : null,
                 'noshow' => (bool) $row->noshow,
                 'team_number_hot' => $hot !== null && $hot !== '' ? (int) $hot : null,
             ];
@@ -513,7 +519,7 @@ class PublicPlanService
     }
 
     /**
-     * @param  array{name:string,location:?string,organization:?string,noshow:bool,team_number_hot:int|null}|null  $team
+     * @param  array{name:string,location:?string,organization:?string,room:?string,noshow:bool,team_number_hot:int|null}|null  $team
      */
     private function teamPickerLabel(int $slot, ?array $team): string
     {

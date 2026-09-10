@@ -25,6 +25,7 @@ type RoleOption = {
   noshow: boolean
   organization?: string | null
   location?: string | null
+  room?: string | null
 }
 
 type VisitorProgram = {
@@ -394,26 +395,6 @@ function activityRoomLabel(activity: Activity): string | null {
   if (name) return name
   const typeName = (activity.room?.room_type_name || '').trim()
   return typeName || null
-}
-
-function roomForTeam(team: number, firstProgram: number | null): string | null {
-  for (const group of groups.value) {
-    for (const activity of group.activities || []) {
-      if (
-        activity.team !== team
-        && activity.table_1_team !== team
-        && activity.table_2_team !== team
-      ) continue
-      if (
-        firstProgram != null
-        && activity.meta?.first_program_id != null
-        && activity.meta.first_program_id !== firstProgram
-      ) continue
-      const room = activityRoomLabel(activity)
-      if (room) return room
-    }
-  }
-  return null
 }
 
 function roomForTable(table: number, firstProgram: number | null): string | null {
@@ -870,14 +851,17 @@ const entityInfoLocation = computed(() => {
   return value || null
 })
 
+const entityInfoAssignedRoom = computed(() => {
+  const value = (entityInfoTeamOption.value?.room || '').trim()
+  return value || null
+})
+
 const entityInfoRoom = computed(() => {
   if (!entityInfo.value) return null
+  if (entityInfo.value.kind === 'team') return entityInfoAssignedRoom.value
   if (entityInfo.value.room) return entityInfo.value.room
   if (entityInfo.value.kind === 'table') {
     return roomForTable(entityInfo.value.value, entityInfo.value.firstProgram)
-  }
-  if (entityInfo.value.kind === 'team') {
-    return roomForTeam(entityInfo.value.value, entityInfo.value.firstProgram)
   }
   if (entityInfo.value.kind === 'lane') {
     return roomForLane(entityInfo.value.value, entityInfo.value.firstProgram)
@@ -1631,7 +1615,7 @@ watch(
                 <button
                     type="button"
                     class="public-schedule__entity-team"
-                    @click="openEntityInfo('team', meeting.team, entityInfo.firstProgram, null, entityInfoRoom)"
+                    @click="openEntityInfo('team', meeting.team, entityInfo.firstProgram)"
                 >
                   {{ meeting.label }}
                 </button>
@@ -2072,7 +2056,7 @@ watch(
                       v-if="activity.team_name && activity.team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('team', activity.team, activity.meta?.first_program_id, null, activityRoomLabel(activity))"
+                      @click="openEntityInfo('team', activity.team, activity.meta?.first_program_id)"
                   >
                     {{ activity.team_name }}
                   </button>
@@ -2088,7 +2072,7 @@ watch(
                       v-if="activity.table_1_team_name && activity.table_1_team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('team', activity.table_1_team, activity.meta?.first_program_id, null, activityRoomLabel(activity))"
+                      @click="openEntityInfo('team', activity.table_1_team, activity.meta?.first_program_id)"
                   >
                     {{ activity.table_1_team_name }}
                   </button>
@@ -2104,7 +2088,7 @@ watch(
                       v-if="activity.table_2_team_name && activity.table_2_team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('team', activity.table_2_team, activity.meta?.first_program_id, null, activityRoomLabel(activity))"
+                      @click="openEntityInfo('team', activity.table_2_team, activity.meta?.first_program_id)"
                   >
                     {{ activity.table_2_team_name }}
                   </button>
