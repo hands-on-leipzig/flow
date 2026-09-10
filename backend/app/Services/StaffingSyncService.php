@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 
 /**
  * Materialize event staffing roles/groups from staffable m_role + m_staffing_rule
- * after plan generation. Snapshots min/best/max/ui_description onto event roles.
+ * after plan generation. Snapshots min/best/ui_description onto event roles.
  */
 class StaffingSyncService
 {
@@ -96,8 +96,8 @@ class StaffingSyncService
                 continue;
             }
 
-            if ($rule->min > $rule->best || $rule->best > $rule->max || $rule->min < 0) {
-                $msg = "invalid min/best/max on rule for role {$role->id}";
+            if ($rule->min > $rule->best || $rule->min < 0) {
+                $msg = "invalid min/best on rule for role {$role->id}";
                 Log::warning('[staffing-sync] '.$msg);
                 $stats['skipped'][] = $msg;
                 continue;
@@ -131,7 +131,6 @@ class StaffingSyncService
                     'group_label' => $role->group_label,
                     'min' => $rule->min,
                     'best' => $rule->best,
-                    'max' => $rule->max,
                     'ui_description' => $rule->ui_description,
                     'sequence' => (int) $role->sequence,
                     'surplus' => false,

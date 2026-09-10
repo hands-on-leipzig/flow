@@ -2,12 +2,12 @@
 import {computed, ref, watch} from 'vue'
 import {useAnchoredPanel} from '@/composables/useAnchoredPanel'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {boundsValidationError} from '@/volunteers/staffingTypes'
 
 export type StaffingRoleBounds = {
   label: string
   min: number
   best: number
-  max: number
 }
 
 const props = defineProps<{
@@ -18,10 +18,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
-  save: [bounds: {min: number; best: number; max: number}]
+  save: [bounds: {min: number; best: number}]
 }>()
 
-const draft = ref({min: 1, best: 1, max: 1})
+const draft = ref({min: 1, best: 1})
 
 const isOpen = computed(() => !!props.role && !!props.anchor)
 
@@ -41,35 +41,20 @@ watch(
     draft.value = {
       min: Number(role.min),
       best: Number(role.best),
-      max: Number(role.max),
     }
   },
   {immediate: true},
 )
 
-function boundsValidationError(min: number, best: number, max: number) {
-  if (!Number.isInteger(min) || !Number.isInteger(best) || !Number.isInteger(max)) {
-    return 'Bitte min, ideal und max eintragen.'
-  }
-  if (min < 1 || best < 1 || max < 1) {
-    return 'min, ideal und max müssen mindestens 1 sein.'
-  }
-  if (min > best || best > max) {
-    return 'Es muss min ≤ ideal ≤ max gelten.'
-  }
-  return null
-}
-
 function save() {
   const min = Number(draft.value.min)
   const best = Number(draft.value.best)
-  const max = Number(draft.value.max)
-  const validationError = boundsValidationError(min, best, max)
+  const validationError = boundsValidationError(min, best)
   if (validationError) {
     showGlassToast(validationError, 'info')
     return
   }
-  emit('save', {min, best, max})
+  emit('save', {min, best})
 }
 </script>
 
@@ -103,17 +88,8 @@ function save() {
               min="1"
           >
         </label>
-        <label class="staffing-bounds__field">
-          <span>max</span>
-          <input
-              v-model.number="draft.max"
-              class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-              type="number"
-              min="1"
-          >
-        </label>
       </div>
-      <p class="item-card__hint">min ≤ ideal ≤ max — wie viele Personen diese Rolle braucht.</p>
+      <p class="item-card__hint">min ≤ ideal — wie viele Personen diese Rolle braucht.</p>
       <div class="staffing-bounds-modal__actions">
         <button type="button" class="glass-btn-secondary" :disabled="saving" @click="emit('close')">
           Abbrechen

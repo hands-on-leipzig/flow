@@ -56,7 +56,6 @@ class EventStaffingController extends Controller
                         'filled' => $filled,
                         'min' => $role->min,
                         'best' => $role->best,
-                        'max' => $role->max,
                         'under_min' => ! $group->surplus && $filled < $role->min,
                         'people' => $people,
                     ];
@@ -78,7 +77,6 @@ class EventStaffingController extends Controller
                 'first_program' => $role->catalogRole?->first_program,
                 'min' => $role->min,
                 'best' => $role->best,
-                'max' => $role->max,
                 'ui_description' => $role->ui_description,
                 'sequence' => $role->sequence,
                 'people' => $grouped ? [] : $rolePeople->all(),

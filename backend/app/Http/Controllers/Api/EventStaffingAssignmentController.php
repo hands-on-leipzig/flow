@@ -33,13 +33,6 @@ class EventStaffingAssignmentController extends Controller
             return $personId;
         }
 
-        $filled = EventStaffingAssignment::query()
-            ->where('event_staffing_group', $group->id)
-            ->count();
-        if ($filled >= (int) $role->max) {
-            return response()->json(['error' => 'Maximum für diese Gruppe erreicht.'], 409);
-        }
-
         if ($conflict = $this->exclusivityConflict($event->id, $personId, $role)) {
             return response()->json(['error' => $conflict], 409);
         }
@@ -92,14 +85,6 @@ class EventStaffingAssignmentController extends Controller
             return $personId;
         }
 
-        $filled = EventStaffingAssignment::query()
-            ->where('event_staffing_role', $role->id)
-            ->whereNull('event_staffing_group')
-            ->count();
-        if ($filled >= (int) $role->max) {
-            return response()->json(['error' => 'Maximum für diese Rolle erreicht.'], 409);
-        }
-
         if ($conflict = $this->exclusivityConflict($event->id, $personId, $role)) {
             return response()->json(['error' => $conflict], 409);
         }
@@ -141,12 +126,11 @@ class EventStaffingAssignmentController extends Controller
             'label' => 'required|string|max:150',
             'min' => 'required|integer|min:1',
             'best' => 'required|integer|min:1',
-            'max' => 'required|integer|min:1',
             'ui_description' => 'nullable|string',
         ]);
 
-        if ($validated['min'] > $validated['best'] || $validated['best'] > $validated['max']) {
-            return response()->json(['error' => 'Es muss min ≤ best ≤ max gelten.'], 422);
+        if ($validated['min'] > $validated['best']) {
+            return response()->json(['error' => 'Es muss min ≤ best gelten.'], 422);
         }
 
         $maxSeq = (int) EventStaffingRole::query()->where('event', $event->id)->max('sequence');
@@ -158,7 +142,6 @@ class EventStaffingAssignmentController extends Controller
             'group_label' => null,
             'min' => $validated['min'],
             'best' => $validated['best'],
-            'max' => $validated['max'],
             'ui_description' => $validated['ui_description'] ?? null,
             'sequence' => $maxSeq + 10,
             'surplus' => false,
@@ -177,15 +160,13 @@ class EventStaffingAssignmentController extends Controller
             'label' => 'sometimes|required|string|max:150',
             'min' => 'sometimes|required|integer|min:1',
             'best' => 'sometimes|required|integer|min:1',
-            'max' => 'sometimes|required|integer|min:1',
             'ui_description' => 'nullable|string',
         ]);
 
         $min = $validated['min'] ?? $role->min;
         $best = $validated['best'] ?? $role->best;
-        $max = $validated['max'] ?? $role->max;
-        if ($min > $best || $best > $max) {
-            return response()->json(['error' => 'Es muss min ≤ best ≤ max gelten.'], 422);
+        if ($min > $best) {
+            return response()->json(['error' => 'Es muss min ≤ best gelten.'], 422);
         }
 
         $role->fill($validated);

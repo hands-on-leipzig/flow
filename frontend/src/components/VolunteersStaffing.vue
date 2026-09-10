@@ -29,7 +29,6 @@ import {staffingContainerTitle, staffingTileKey} from '@/volunteers/staffingLabe
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import {
   boundsValidationError,
-  tileFilled,
   tileNeedsAttention,
   tilePeople,
   tileSurplus,
@@ -70,7 +69,6 @@ const composerRef = ref<{focusTitle?: () => void} | null>(null)
 const newRoleName = ref('')
 const newRoleMin = ref<number | ''>('')
 const newRoleBest = ref<number | ''>('')
-const newRoleMax = ref<number | ''>('')
 
 const activeTileFilters = ref<Set<StaffingFilterKey>>(new Set())
 
@@ -226,18 +224,17 @@ function filterHasAttention(key: StaffingFilterKey) {
   return tiles.value.some((tile) => tileFilterKey(tile) === key && tileNeedsAttention(tile))
 }
 
-function resolveRoleBounds(minRaw: number | '', bestRaw: number | '', maxRaw: number | '') {
+function resolveRoleBounds(minRaw: number | '', bestRaw: number | '') {
   const isEmpty = (value: number | '') =>
     value === '' || value === null || value === undefined || Number.isNaN(Number(value))
 
-  if (isEmpty(minRaw) && isEmpty(bestRaw) && isEmpty(maxRaw)) {
-    return {min: 1, best: 1, max: 2}
+  if (isEmpty(minRaw) && isEmpty(bestRaw)) {
+    return {min: 1, best: 1}
   }
 
   return {
     min: Number(minRaw),
     best: Number(bestRaw),
-    max: Number(maxRaw),
   }
 }
 
@@ -251,14 +248,13 @@ function closeBoundsModal() {
   boundsAnchorEl.value = null
 }
 
-async function saveBoundsModal(bounds: {min: number; best: number; max: number}) {
+async function saveBoundsModal(bounds: {min: number; best: number}) {
   const role = boundsEditRole.value
   if (!role || isSaving.value) return
   isSaving.value = true
   try {
     role.min = bounds.min
     role.best = bounds.best
-    role.max = bounds.max
     await persistLocalRole(role)
     closeBoundsModal()
   } finally {
@@ -339,15 +335,8 @@ async function handleDrop(event: any, tile: Tile) {
   if (!person?.id || !eventId.value) return
   if (dragSourceKey.value === tile.key) return
   const surplus = tileSurplus(tile)
-  const filled = tileFilled(tile)
-  const people = tilePeople(tile)
   if (surplus) {
     showGlassToast('Diese Rolle wird nicht mehr benötigt — Personen nur umsetzen.', 'info')
-    await load()
-    return
-  }
-  if (filled >= Number(tile.role.max) && !people.some((p) => p.id === person.id)) {
-    showGlassToast('Maximum für diese Rolle erreicht.', 'info')
     await load()
     return
   }
@@ -382,9 +371,9 @@ async function unassign(tile: Tile, person: Person) {
 async function createLocalRole() {
   if (!eventId.value || isSaving.value) return
   const label = newRoleName.value.trim()
-  const {min, best, max} = resolveRoleBounds(newRoleMin.value, newRoleBest.value, newRoleMax.value)
+  const {min, best} = resolveRoleBounds(newRoleMin.value, newRoleBest.value)
   if (!label) return
-  const validationError = boundsValidationError(min, best, max)
+  const validationError = boundsValidationError(min, best)
   if (validationError) {
     showGlassToast(validationError, 'info')
     return
@@ -395,12 +384,10 @@ async function createLocalRole() {
       label,
       min,
       best,
-      max,
     })
     newRoleName.value = ''
     newRoleMin.value = ''
     newRoleBest.value = ''
-    newRoleMax.value = ''
     await load()
     await nextTick()
     composerRef.value?.focusTitle?.()
@@ -419,8 +406,8 @@ async function persistLocalRole(role: Role) {
     await load()
     return
   }
-  if (role.min > role.best || role.best > role.max) {
-    const validationError = boundsValidationError(Number(role.min), Number(role.best), Number(role.max))
+  if (role.min > role.best) {
+    const validationError = boundsValidationError(Number(role.min), Number(role.best))
     if (validationError) {
       showGlassToast(validationError, 'info')
       await load()
@@ -432,7 +419,6 @@ async function persistLocalRole(role: Role) {
       label,
       min: Number(role.min),
       best: Number(role.best),
-      max: Number(role.max),
     })
     await load()
   } catch (e: any) {
@@ -566,19 +552,8 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
                         placeholder="1"
                     />
                   </label>
-                  <label class="staffing-bounds__field">
-                    <span>max</span>
-                    <input
-                        v-model.number="newRoleMax"
-                        :disabled="isSaving"
-                        class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                        type="number"
-                        min="1"
-                        placeholder="2"
-                    />
-                  </label>
                 </div>
-                <p class="item-card__hint">min ≤ ideal ≤ max — wie viele Personen diese Rolle braucht.</p>
+                <p class="item-card__hint">min ≤ ideal — wie viele Personen diese Rolle braucht.</p>
               </div>
             </transition>
           </ItemComposer>
