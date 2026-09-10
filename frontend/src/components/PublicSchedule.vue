@@ -18,6 +18,12 @@ const emit = defineEmits<{
   exit: []
 }>()
 
+type RoomHint = {
+  name: string
+  navigation: string | null
+  accessible: boolean
+}
+
 type RoleOption = {
   value: number | null
   label: string
@@ -25,7 +31,7 @@ type RoleOption = {
   noshow: boolean
   organization?: string | null
   location?: string | null
-  room?: string | null
+  room?: RoomHint | null
 }
 
 type VisitorProgram = {
@@ -84,6 +90,8 @@ type Activity = {
   room: {
     room_name: string | null
     room_type_name: string | null
+    navigation?: string | null
+    accessible?: boolean | null
   }
 }
 
@@ -110,7 +118,7 @@ type TimedGroup = {
   current: boolean
   past: boolean
   parallel: boolean
-  room: string | null
+  room: RoomHint | null
 }
 
 type CalBlock = TimedGroup & {
@@ -129,6 +137,7 @@ type CalBlock = TimedGroup & {
 /** Echter 1:1-Maßstab: 2px pro Minute = 120px pro Stunde */
 const PX_PER_MINUTE = 2
 const GUTTER = 52
+const notAccessibleIcon = '/flow/accessible_no.png'
 
 function groupPresence(group: Group): 'punctual' | 'window' | 'info' {
   const p = group.group_meta?.presence
@@ -175,7 +184,6 @@ const entityInfo = ref<{
   value: number
   firstProgram: number | null
   activityTypeCode?: string | null
-  room?: string | null
 } | null>(null)
 const entityInfoConfirm = ref(false)
 const entityMeetings = ref<EntityMeeting[]>([])
@@ -382,22 +390,41 @@ function activityAddsDetail(group: Group, activity: Activity): boolean {
   if (aStart != null && gStart != null && Math.abs(aStart - gStart) > 60_000) return true
   if (aEnd != null && gEnd != null && Math.abs(aEnd - gEnd) > 60_000) return true
 
-  const aRoom = activity.room?.room_name || activity.room?.room_type_name
-  const gRoom = primaryRoomRaw(group)
+  const aRoom = roomHintFromActivity(activity)?.name
+  const gRoom = primaryRoomHint(group)?.name
   if (aRoom && gRoom && !namesRedundant(aRoom, gRoom) && !namesRedundant(aRoom, group.group_meta?.name)) {
     return true
   }
   return false
 }
 
-function activityRoomLabel(activity: Activity): string | null {
-  const name = (activity.room?.room_name || '').trim()
-  if (name) return name
+function roomHintFromActivity(activity: Activity): RoomHint | null {
+  const physical = (activity.room?.room_name || '').trim()
   const typeName = (activity.room?.room_type_name || '').trim()
-  return typeName || null
+  const name = physical || typeName
+  if (!name) return null
+  if (!physical) {
+    return {name, navigation: null, accessible: true}
+  }
+  const navigation = (activity.room?.navigation || '').trim() || null
+  return {
+    name,
+    navigation,
+    accessible: activity.room?.accessible !== false,
+  }
 }
 
-function roomForTable(table: number, firstProgram: number | null): string | null {
+function roomHintFromOption(option: RoleOption | null | undefined): RoomHint | null {
+  const name = (option?.room?.name || '').trim()
+  if (!name) return null
+  return {
+    name,
+    navigation: (option.room?.navigation || '').trim() || null,
+    accessible: option.room?.accessible !== false,
+  }
+}
+
+function roomForTable(table: number, firstProgram: number | null): RoomHint | null {
   for (const group of groups.value) {
     for (const activity of group.activities || []) {
       if (activity.table_1 !== table && activity.table_2 !== table) continue
@@ -406,14 +433,14 @@ function roomForTable(table: number, firstProgram: number | null): string | null
         && activity.meta?.first_program_id != null
         && activity.meta.first_program_id !== firstProgram
       ) continue
-      const room = activityRoomLabel(activity)
+      const room = roomHintFromActivity(activity)
       if (room) return room
     }
   }
   return null
 }
 
-function roomForLane(lane: number, firstProgram: number | null): string | null {
+function roomForLane(lane: number, firstProgram: number | null): RoomHint | null {
   for (const group of groups.value) {
     for (const activity of group.activities || []) {
       if (activity.lane !== lane) continue
@@ -422,26 +449,26 @@ function roomForLane(lane: number, firstProgram: number | null): string | null {
         && activity.meta?.first_program_id != null
         && activity.meta.first_program_id !== firstProgram
       ) continue
-      const room = activityRoomLabel(activity)
+      const room = roomHintFromActivity(activity)
       if (room) return room
     }
   }
   return null
 }
 
-function primaryRoomRaw(group: Group): string | null {
-  for (const a of group.activities) {
-    if (a.room?.room_name) return a.room.room_name
-    if (a.room?.room_type_name) return a.room.room_type_name
+function primaryRoomHint(group: Group): RoomHint | null {
+  for (const activity of group.activities) {
+    const room = roomHintFromActivity(activity)
+    if (room) return room
   }
   return null
 }
 
 /** Raum nur wenn er nicht schon der Gruppentitel ist */
-function displayRoom(group: Group): string | null {
-  const room = primaryRoomRaw(group)
+function displayRoom(group: Group): RoomHint | null {
+  const room = primaryRoomHint(group)
   if (!room) return null
-  if (namesRedundant(room, group.group_meta?.name)) return null
+  if (namesRedundant(room.name, group.group_meta?.name)) return null
   return room
 }
 
@@ -851,15 +878,9 @@ const entityInfoLocation = computed(() => {
   return value || null
 })
 
-const entityInfoAssignedRoom = computed(() => {
-  const value = (entityInfoTeamOption.value?.room || '').trim()
-  return value || null
-})
-
-const entityInfoRoom = computed(() => {
+const entityInfoRoom = computed((): RoomHint | null => {
   if (!entityInfo.value) return null
-  if (entityInfo.value.kind === 'team') return entityInfoAssignedRoom.value
-  if (entityInfo.value.room) return entityInfo.value.room
+  if (entityInfo.value.kind === 'team') return roomHintFromOption(entityInfoTeamOption.value)
   if (entityInfo.value.kind === 'table') {
     return roomForTable(entityInfo.value.value, entityInfo.value.firstProgram)
   }
@@ -1301,7 +1322,6 @@ function openEntityInfo(
     value: number | null | undefined,
     firstProgram: number | null | undefined,
     activityTypeCode?: string | null,
-    room?: string | null,
 ) {
   if (!value) return
   closeDetail()
@@ -1311,7 +1331,6 @@ function openEntityInfo(
     value,
     firstProgram: firstProgram ?? null,
     activityTypeCode: activityTypeCode ?? null,
-    room: room ?? null,
   }
   if (kind === 'lane') void loadLaneMeetings(firstProgram ?? null, value)
   else if (kind === 'table') void loadTableMatches(firstProgram ?? null, value)
@@ -1601,10 +1620,22 @@ watch(
               />
               <span>{{ entityInfoTitle }}</span>
             </h2>
-            <p v-if="entityInfoRoom" class="public-schedule__entity-row">
-              <i class="bi bi-geo" aria-hidden="true"/>
-              {{ entityInfoRoom }}
-            </p>
+            <div v-if="entityInfoRoom" class="public-schedule__room-hint">
+              <p class="public-schedule__entity-row">
+                <i class="bi bi-geo" aria-hidden="true"/>
+                <span>{{ entityInfoRoom.name }}</span>
+                <img
+                    v-if="entityInfoRoom.accessible === false"
+                    :src="notAccessibleIcon"
+                    alt="Nicht barrierefrei"
+                    title="Nicht barrierefrei"
+                    class="public-schedule__room-access"
+                />
+              </p>
+              <p v-if="entityInfoRoom.navigation" class="public-schedule__room-nav">
+                {{ entityInfoRoom.navigation }}
+              </p>
+            </div>
             <template v-if="entityInfo.kind === 'lane' || entityInfo.kind === 'table'">
               <p
                   v-for="(meeting, meetingIndex) in entityMeetings"
@@ -1774,7 +1805,14 @@ watch(
                         {{ block.group.group_meta?.name || 'Programmpunkt' }}
                       </div>
                       <div v-if="block.height >= 56 && block.room" class="public-schedule__block-room">
-                        {{ block.room }}
+                        <span>{{ block.room.name }}</span>
+                        <img
+                            v-if="block.room.accessible === false"
+                            :src="notAccessibleIcon"
+                            alt="Nicht barrierefrei"
+                            title="Nicht barrierefrei"
+                            class="public-schedule__room-access"
+                        />
                       </div>
                     </div>
                   </template>
@@ -2025,10 +2063,22 @@ watch(
               {{ selectedItem.group.group_meta.description }}
             </p>
 
-            <p v-if="selectedItem.room" class="public-schedule__detail-room">
-              <i class="bi bi-geo" aria-hidden="true"/>
-              {{ selectedItem.room }}
-            </p>
+            <div v-if="selectedItem.room" class="public-schedule__detail-room">
+              <p class="public-schedule__entity-row">
+                <i class="bi bi-geo" aria-hidden="true"/>
+                <span>{{ selectedItem.room.name }}</span>
+                <img
+                    v-if="selectedItem.room.accessible === false"
+                    :src="notAccessibleIcon"
+                    alt="Nicht barrierefrei"
+                    title="Nicht barrierefrei"
+                    class="public-schedule__room-access"
+                />
+              </p>
+              <p v-if="selectedItem.room.navigation" class="public-schedule__room-nav">
+                {{ selectedItem.room.navigation }}
+              </p>
+            </div>
 
             <ul
                 v-if="hasExpandableDetail(selectedItem.group)"
@@ -2064,7 +2114,7 @@ watch(
                       v-if="activity.table_1"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('table', activity.table_1, activity.meta?.first_program_id, activity.activity_type_code, activityRoomLabel(activity))"
+                      @click="openEntityInfo('table', activity.table_1, activity.meta?.first_program_id, activity.activity_type_code)"
                   >
                     {{ sliceOptionLabel('table', activity.table_1, activity.meta?.first_program_id, activity.activity_type_code) }}
                   </button>
@@ -2080,7 +2130,7 @@ watch(
                       v-if="activity.table_2"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('table', activity.table_2, activity.meta?.first_program_id, activity.activity_type_code, activityRoomLabel(activity))"
+                      @click="openEntityInfo('table', activity.table_2, activity.meta?.first_program_id, activity.activity_type_code)"
                   >
                     {{ sliceOptionLabel('table', activity.table_2, activity.meta?.first_program_id, activity.activity_type_code) }}
                   </button>
@@ -2096,7 +2146,7 @@ watch(
                       v-if="activity.lane"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('lane', activity.lane, activity.meta?.first_program_id, null, activityRoomLabel(activity))"
+                      @click="openEntityInfo('lane', activity.lane, activity.meta?.first_program_id)"
                   >
                     {{ sliceOptionLabel('lane', activity.lane, activity.meta?.first_program_id) }}
                   </button>
@@ -2317,6 +2367,26 @@ watch(
   display: flex;
   align-items: center;
   gap: 0.3rem;
+}
+
+.public-schedule__room-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.public-schedule__room-nav {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  line-height: 1.35;
+}
+
+.public-schedule__room-access {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
 }
 
 .public-schedule__entity-team {
@@ -2940,11 +3010,24 @@ watch(
 }
 
 .public-schedule__block-room {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
   font-size: 0.68rem;
   color: #6b7280;
-  white-space: nowrap;
+  min-width: 0;
+}
+
+.public-schedule__block-room span {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-schedule__block-room .public-schedule__room-access {
+  width: 0.85rem;
+  height: 0.85rem;
 }
 
 /* Fixed to viewport (teleported) — ignores iframe/parent max-width frames */
@@ -3093,11 +3176,9 @@ watch(
 .public-schedule__detail-room {
   padding: 0.45rem 0.9rem 0;
   margin: 0;
-  font-size: 0.85rem;
-  color: #6b7280;
   display: flex;
-  align-items: center;
-  gap: 0.3rem;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
 .public-schedule__activities {

@@ -405,10 +405,9 @@ class PublicPlanService
                 if ($parameter === 'team') {
                     $org = trim((string) ($team['organization'] ?? ''));
                     $loc = trim((string) ($team['location'] ?? ''));
-                    $room = trim((string) ($team['room'] ?? ''));
                     $option['organization'] = $org !== '' ? $org : null;
                     $option['location'] = $loc !== '' ? $loc : null;
-                    $option['room'] = $room !== '' ? $room : null;
+                    $option['room'] = $team['room'] ?? null;
                 }
                 $options[] = $option;
             }
@@ -479,7 +478,7 @@ class PublicPlanService
     }
 
     /**
-     * @return array<int, array<int, array{name:string,location:?string,organization:?string,room:?string,noshow:bool,team_number_hot:int|null}>>
+     * @return array<int, array<int, array{name:string,location:?string,organization:?string,room:?array{name:string,navigation:?string,accessible:bool},noshow:bool,team_number_hot:int|null}>>
      */
     private function teamsByPlanNumber(int $planId): array
     {
@@ -494,6 +493,8 @@ class PublicPlanService
                 'team.location',
                 'team.organization',
                 'room.name as room_name',
+                'room.navigation_instruction as room_navigation',
+                'room.is_accessible as room_is_accessible',
                 'team.team_number_hot',
                 'team_plan.noshow',
             ])
@@ -504,12 +505,15 @@ class PublicPlanService
             $fp = (int) $row->first_program;
             $num = (int) $row->team_number_plan;
             $hot = $row->team_number_hot;
-            $room = trim((string) ($row->room_name ?? ''));
             $map[$fp][$num] = [
                 'name' => $row->name,
                 'location' => $row->location,
                 'organization' => $row->organization,
-                'room' => $room !== '' ? $room : null,
+                'room' => $this->roomHint(
+                    $row->room_name ?? null,
+                    $row->room_navigation ?? null,
+                    $row->room_is_accessible ?? null,
+                ),
                 'noshow' => (bool) $row->noshow,
                 'team_number_hot' => $hot !== null && $hot !== '' ? (int) $hot : null,
             ];
@@ -519,7 +523,25 @@ class PublicPlanService
     }
 
     /**
-     * @param  array{name:string,location:?string,organization:?string,room:?string,noshow:bool,team_number_hot:int|null}|null  $team
+     * @return array{name:string,navigation:?string,accessible:bool}|null
+     */
+    private function roomHint(?string $name, ?string $navigation, mixed $accessible): ?array
+    {
+        $label = trim((string) $name);
+        if ($label === '') {
+            return null;
+        }
+        $nav = trim((string) $navigation);
+
+        return [
+            'name' => $label,
+            'navigation' => $nav !== '' ? $nav : null,
+            'accessible' => $accessible === null ? true : (bool) $accessible,
+        ];
+    }
+
+    /**
+     * @param  array{name:string,location:?string,organization:?string,room:?array{name:string,navigation:?string,accessible:bool},noshow:bool,team_number_hot:int|null}|null  $team
      */
     private function teamPickerLabel(int $slot, ?array $team): string
     {
@@ -689,6 +711,8 @@ class PublicPlanService
 
             $aid = $row->activity_id;
             if (! isset($groups[$gid]['activities'][$aid])) {
+                $roomNav = trim((string) ($row->room_navigation ?? ''));
+                $roomAccessible = $row->room_is_accessible ?? null;
                 $groups[$gid]['activities'][$aid] = [
                     'activity_id' => $row->activity_id,
                     'start_time' => $row->start_time,
@@ -720,6 +744,8 @@ class PublicPlanService
                         'room_type_name' => $row->room_type_name ?? null,
                         'room_id' => $row->room_id ?? null,
                         'room_name' => $row->room_name ?? null,
+                        'navigation' => $roomNav !== '' ? $roomNav : null,
+                        'accessible' => $roomAccessible === null ? true : (bool) $roomAccessible,
                     ],
                 ];
             }

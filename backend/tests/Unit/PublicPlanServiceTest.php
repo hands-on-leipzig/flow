@@ -98,7 +98,12 @@ class PublicPlanServiceTest extends TestCase
             'organization' => 'Gymnasium Mockau',
             'team_number_hot' => 42,
         ]);
-        DB::table('room')->insert(['id' => 1, 'name' => 'A2.04']);
+        DB::table('room')->insert([
+            'id' => 1,
+            'name' => 'A2.04',
+            'navigation_instruction' => '2. Etage rechts',
+            'is_accessible' => 0,
+        ]);
         DB::table('team_plan')->insert([
             'id' => 1,
             'plan' => 1,
@@ -124,7 +129,11 @@ class PublicPlanServiceTest extends TestCase
         $this->assertSame(['Robo (42)', 'T02 (Noch nicht angemeldet)'], collect($options)->pluck('label')->all());
         $this->assertSame('Gymnasium Mockau', $options[0]['organization']);
         $this->assertSame('Leipzig', $options[0]['location']);
-        $this->assertSame('A2.04', $options[0]['room']);
+        $this->assertSame([
+            'name' => 'A2.04',
+            'navigation' => '2. Etage rechts',
+            'accessible' => false,
+        ], $options[0]['room']);
         $this->assertNull($options[1]['organization']);
         $this->assertNull($options[1]['location']);
         $this->assertNull($options[1]['room']);
@@ -189,6 +198,8 @@ class PublicPlanServiceTest extends TestCase
                 'room_type_name' => null,
                 'room_id' => null,
                 'room_name' => 'A2.04',
+                'room_navigation' => '2. Etage rechts',
+                'room_is_accessible' => 0,
             ],
         ]));
         $this->app->instance(ActivityFetcherService::class, $fetcher);
@@ -202,6 +213,9 @@ class PublicPlanServiceTest extends TestCase
             'Jurygespräch',
             $payload['groups'][0]['activities'][0]['activity_name'],
         );
+        $this->assertSame('A2.04', $payload['groups'][0]['activities'][0]['room']['room_name']);
+        $this->assertSame('2. Etage rechts', $payload['groups'][0]['activities'][0]['room']['navigation']);
+        $this->assertFalse($payload['groups'][0]['activities'][0]['room']['accessible']);
     }
 
     public function test_get_roles_includes_team_even_when_role_fetcher_omits_it(): void
@@ -473,6 +487,8 @@ class PublicPlanServiceTest extends TestCase
         Schema::create('room', function (Blueprint $table) {
             $table->unsignedInteger('id')->primary();
             $table->string('name')->nullable();
+            $table->string('navigation_instruction')->nullable();
+            $table->boolean('is_accessible')->default(true);
         });
 
         Schema::create('team_plan', function (Blueprint $table) {
