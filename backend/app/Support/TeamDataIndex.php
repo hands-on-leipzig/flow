@@ -26,7 +26,7 @@ final class TeamDataIndex
         $event->loadMissing('programs.firstProgram');
         $collectMeal = VolunteerCollectOptions::collectsMeal($event);
         $customFields = TeamDataColumns::customFieldsForEvent($event->id);
-        $peopleCounts = TeamPeopleCounts::countsByTeamIdForEvent($event);
+        $peopleBreakdowns = TeamPeopleCounts::breakdownsByTeamIdForEvent($event);
 
         $mealOptions = VolunteerMealOptions::optionsForEvent($event->id);
         if ($mealOptions->isEmpty()) {
@@ -42,7 +42,7 @@ final class TeamDataIndex
             $event,
             $collectMeal,
             $customFields,
-            $peopleCounts,
+            $peopleBreakdowns,
             $fieldValuesByTeam,
             $programMeta,
         ) {
@@ -54,7 +54,7 @@ final class TeamDataIndex
                 $collectMeal,
                 $customFields,
                 $values,
-                $peopleCounts[$team->id] ?? null,
+                $peopleBreakdowns[$team->id] ?? null,
                 $programMeta,
             );
         })->values()->all();
@@ -75,7 +75,7 @@ final class TeamDataIndex
         $event->loadMissing('programs.firstProgram');
         $collectMeal = VolunteerCollectOptions::collectsMeal($event);
         $customFields = TeamDataColumns::customFieldsForEvent($event->id);
-        $peopleCounts = TeamPeopleCounts::countsByTeamIdForEvent($event);
+        $peopleBreakdowns = TeamPeopleCounts::breakdownsByTeamIdForEvent($event);
         $values = self::fieldValuesByTeamId([$team->id], $customFields)[$team->id] ?? collect();
         $programMeta = self::programMeta($event);
         $loaded = self::loadTeams($event)->firstWhere('id', $team->id) ?? $team;
@@ -86,7 +86,7 @@ final class TeamDataIndex
             $collectMeal,
             $customFields,
             $values,
-            $peopleCounts[$team->id] ?? null,
+            $peopleBreakdowns[$team->id] ?? null,
             $programMeta,
         );
     }
@@ -191,6 +191,7 @@ final class TeamDataIndex
 
     /**
      * @param  Collection<int, EventTeamFieldValue>  $values
+     * @param  array{coaches: int, players: int, total: int}|null  $peopleBreakdown
      * @param  array{labels: array<int, string>, sequences: array<int, int>}  $programMeta
      * @return array<string, mixed>
      */
@@ -200,7 +201,7 @@ final class TeamDataIndex
         bool $collectMeal,
         Collection $customFields,
         Collection $values,
-        ?int $peopleCount,
+        ?array $peopleBreakdown,
         array $programMeta,
     ): array {
         $firstProgramId = (int) $team->first_program;
@@ -222,7 +223,8 @@ final class TeamDataIndex
             'team_number_plan' => $team->team_number_plan !== null ? (int) $team->team_number_plan : null,
             'first_program' => $firstProgramId ?: null,
             'program_label' => $programMeta['labels'][$firstProgramId] ?? '',
-            'people_count' => $peopleCount,
+            'people_count' => $peopleBreakdown !== null ? $peopleBreakdown['total'] : null,
+            'players_count' => $peopleBreakdown !== null ? $peopleBreakdown['players'] : null,
             'photo_consent' => TeamPhotoCounts::mapForTeamWithDefaults($team->id),
             'custom' => $custom,
             'touched' => [
