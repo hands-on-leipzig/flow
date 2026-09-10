@@ -389,7 +389,7 @@ onActivated(() => {
               @click="showOnlyIncomplete = !showOnlyIncomplete"
           >
             <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Unvollständige Antworten</span>
+            <span class="vol-staffing-filter__label">Antworten unvollständig</span>
           </button>
           <button
               type="button"
