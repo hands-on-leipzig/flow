@@ -550,7 +550,7 @@ class PublicPlanService
                     'activity_id' => $row->activity_id,
                     'start_time' => $row->start_time,
                     'end_time' => $row->end_time,
-                    'activity_name' => $row->activity_name,
+                    'activity_name' => $row->activity_atd_name ?? $row->activity_name,
                     'activity_type_detail_id' => $row->activity_type_detail_id ?? null,
                     'activity_type_code' => $row->activity_type_code ?? null,
                     'presence' => $row->activity_presence ?? 'punctual',

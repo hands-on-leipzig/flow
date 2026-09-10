@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Services\ActivityFetcherService;
 use App\Services\PublicPlanService;
 use App\Services\RoleFetcherService;
 use Illuminate\Database\Schema\Blueprint;
@@ -138,6 +139,65 @@ class PublicPlanServiceTest extends TestCase
         $labels = collect($payload['roles'][0]['options'])->pluck('label')->all();
 
         $this->assertSame(['Feld 1'], $labels);
+    }
+
+    public function test_get_schedule_activity_name_uses_atd_name_not_preview(): void
+    {
+        Schema::create('activity', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedTinyInteger('explore_group')->nullable();
+        });
+
+        $fetcher = Mockery::mock(ActivityFetcherService::class);
+        $fetcher->shouldReceive('fetchActivities')->once()->andReturn(collect([
+            (object) [
+                'activity_id' => 10,
+                'activity_group_id' => 1,
+                'start_time' => '2026-03-15 11:00:00',
+                'end_time' => '2026-03-15 11:50:00',
+                'activity_name' => 'Mit Team',
+                'activity_atd_name' => 'Jurygespräch',
+                'activity_type_detail_id' => 17,
+                'activity_type_code' => 'j_with_team',
+                'activity_presence' => 'punctual',
+                'activity_first_program_id' => 3,
+                'activity_first_program_name' => 'Challenge',
+                'activity_description' => null,
+                'group_atd_name' => 'Jurybewertung',
+                'group_first_program_id' => 3,
+                'group_first_program_name' => 'Challenge',
+                'group_description' => null,
+                'group_activity_type_code' => 'j_judging',
+                'group_presence' => 'punctual',
+                'lane' => 1,
+                'team' => 1,
+                'table_1' => null,
+                'table_1_name' => null,
+                'table_1_team' => null,
+                'table_2' => null,
+                'table_2_name' => null,
+                'table_2_team' => null,
+                'program_name' => 'Challenge',
+                'jury_team_name' => 'Capricorns',
+                'table_1_team_name' => null,
+                'table_2_team_name' => null,
+                'room_type_id' => null,
+                'room_type_name' => null,
+                'room_id' => null,
+                'room_name' => 'A2.04',
+            ],
+        ]));
+        $this->app->instance(ActivityFetcherService::class, $fetcher);
+
+        $payload = app(PublicPlanService::class)->getSchedule(1, [
+            'role' => 3,
+            'expired' => 'yes',
+        ]);
+
+        $this->assertSame(
+            'Jurygespräch',
+            $payload['groups'][0]['activities'][0]['activity_name'],
+        );
     }
 
     public function test_get_roles_includes_team_even_when_role_fetcher_omits_it(): void
