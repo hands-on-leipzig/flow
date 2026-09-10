@@ -11,6 +11,8 @@ use Carbon\Carbon;
  */
 class PublicVolunteerOpeningsService
 {
+    public function __construct(private readonly EventSlugService $slugs) {}
+
     /**
      * @return list<array<string, mixed>>
      */
@@ -83,10 +85,12 @@ class PublicVolunteerOpeningsService
     private function serialize(Event $event, ?array $helperSearch): array
     {
         $slug = trim((string) $event->slug);
-        $base = rtrim((string) config('app.public_url', 'https://handson.tools'), '/');
+
+        // The registry owns the URL rules (season year, public base), so the stored link
+        // is only a shortcut for the common case.
         $publicUrl = trim((string) $event->link);
         if ($publicUrl === '') {
-            $publicUrl = $slug !== '' ? $base.'/'.$slug : $base;
+            $publicUrl = $this->slugs->url($event) ?? $this->slugs->base();
         }
 
         return [

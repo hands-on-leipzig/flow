@@ -77,6 +77,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {key: 'enrollments', label: 'Anmeldungen', icon: 'bi-person-plus', group: 'ops'},
   {key: 'user-regional-partners', label: 'User ↔ Regionen', icon: 'bi-people', group: 'ops'},
   {key: 'calendar', label: 'Kalender-Feeds', icon: 'bi-calendar3', group: 'ops'},
+  {key: 'slugs', label: 'Öffentliche Links', icon: 'bi-link-45deg', group: 'ops'},
   {key: 'external-api', label: 'External API', icon: 'bi-key', group: 'ops'},
   {key: 'sharepoint', label: 'SharePoint', icon: 'bi-folder', group: 'ops'},
   {key: 'wartung', label: 'Wartung', icon: 'bi-tools', group: 'ops'},
@@ -151,6 +152,7 @@ export const ADMIN_OPS_NAV: AdminNavNode[] = [
     children: ['statistics', 'plan-qualitaet', 'enrollments'],
   },
   {kind: 'section', key: 'calendar'},
+  {kind: 'section', key: 'slugs'},
   {
     kind: 'folder',
     key: 'schnittstellen',

@@ -45,6 +45,7 @@ use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\SeasonPlanBulkController;
 use App\Http\Controllers\Api\SharepointController;
+use App\Http\Controllers\Api\SlugRegistryController;
 use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\TeamPublicFormController;
@@ -74,6 +75,8 @@ Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'action
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?room=24&interval=15&point_in_time=...
 Route::get('/plans/{planId}/visitor/roles', [PublicPlanController::class, 'roles']); // Public role picker for interactive plan
 Route::get('/plans/{planId}/visitor/schedule', [PublicPlanController::class, 'schedule']); // Public role-filtered schedule
+Route::get('/plans/{planId}/visitor/lane-meetings', [PublicPlanController::class, 'laneMeetings']); // Public first with-team meetings on a jury lane
+Route::get('/plans/{planId}/visitor/table-matches', [PublicPlanController::class, 'tableMatches']); // Public matches on a robot-game table
 Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
 Route::get('/events/public/{id}', [EventController::class, 'getPublicEventById']); // Public event lookup by id
 Route::get('/events/{event}/team-coordinates', [DrahtController::class, 'getTeamsCoordinates']);
@@ -469,6 +472,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/feeds/{key}', [CalendarFeedController::class, 'preview'])
             ->where('key', '[A-Za-z0-9_]+');
     });
+
+    Route::get('/admin/slugs', [SlugRegistryController::class, 'index']); // Übersicht der Slugs und öffentlichen Links einer Saison
 
     Route::prefix('publish')->group(function () {
         Route::get('/link/{eventId}', [PublishController::class, 'linkAndQRcode']);      // Link und QR-Code holen, ggfs. generieren

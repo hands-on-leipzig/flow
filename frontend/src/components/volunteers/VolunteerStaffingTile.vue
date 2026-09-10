@@ -41,16 +41,23 @@ const emit = defineEmits<{
 
 function dropGroup(tile: StaffingTile) {
   const surplus = tileSurplus(tile)
-  const filled = tileFilled(tile)
   return {
     name: 'staffing-people',
     pull: true,
-    put: !surplus && filled < Number(tile.role.max),
+    put: !surplus,
   }
 }
 
 function gapStatusClass(tile: StaffingTile) {
   return `staffing-status__gap--${staffingGap(tile).tone}`
+}
+
+function slotIconClass(tile: StaffingTile, pos: number) {
+  const filled = tileFilled(tile)
+  const best = Number(tile.role.best)
+  if (pos > filled) return 'bi-person'
+  if (pos > best) return 'bi-person-fill staffing-slot__icon--filled staffing-slot__icon--extra'
+  return 'bi-person-fill staffing-slot__icon--filled'
 }
 </script>
 
@@ -111,10 +118,10 @@ function gapStatusClass(tile: StaffingTile) {
       <div class="staffing-status__secondary">
         <div class="staffing-slots" aria-hidden="true">
           <i
-              v-for="pos in slotPositions(tile.role)"
+              v-for="pos in slotPositions(tile.role, tileFilled(tile))"
               :key="`${tile.key}-slot-${pos}`"
               class="staffing-slot__icon bi"
-              :class="pos <= tileFilled(tile) ? 'bi-person-fill staffing-slot__icon--filled' : 'bi-person'"
+              :class="slotIconClass(tile, pos)"
           />
         </div>
 
@@ -320,6 +327,10 @@ function gapStatusClass(tile: StaffingTile) {
 
 .staffing-slot__icon--filled {
   color: var(--color-accent);
+}
+
+.staffing-slot__icon--filled.staffing-slot__icon--extra {
+  color: var(--color-danger, #dc2626);
 }
 
 .staffing-status__bounds {

@@ -390,7 +390,7 @@ onMounted(() => load())
               @click="showOnlyUnset = !showOnlyUnset"
           >
             <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Unvollständige Antworten</span>
+            <span class="vol-staffing-filter__label">Antworten unvollständig</span>
           </button>
           <span class="vol-toolbar__count vol-staffing-filters__count">
             {{ filteredRoster.length }} / {{ roster.length }}

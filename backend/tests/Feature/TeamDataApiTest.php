@@ -66,6 +66,8 @@ class TeamDataApiTest extends TestCase
         $this->assertSame('boolean', $flagColumn['editor']);
         $this->assertCount(1, $indexPayload['teams']);
         $this->assertSame('Test School', $indexPayload['teams'][0]['organization']);
+        $this->assertArrayHasKey('players_count', $indexPayload['teams'][0]);
+        $this->assertNull($indexPayload['teams'][0]['players_count']);
 
         $patch = $controller->update(
             Request::create('/', 'PATCH', [
@@ -78,6 +80,8 @@ class TeamDataApiTest extends TestCase
         );
         $this->assertSame(200, $patch->getStatusCode());
         $row = $patch->getData(true);
+        $this->assertArrayHasKey('players_count', $row);
+        $this->assertNull($row['players_count']);
         $this->assertSame(2, $row['meals']['standard']);
         $this->assertTrue($row['touched']['photo']);
         $this->assertTrue($row['touched']['meal']);

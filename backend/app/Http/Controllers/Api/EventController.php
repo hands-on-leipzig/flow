@@ -11,6 +11,7 @@ use App\Models\TableEvent;
 use App\Models\User;
 use App\Services\SeasonService;
 use App\Services\EventAttentionService;
+use App\Services\EventSlugService;
 use App\Support\PlanParameter;
 use App\Support\ProgramCatalog;
 use App\Support\TableFieldLabels;
@@ -84,22 +85,36 @@ class EventController extends Controller
         ];
     }
 
-    public function getEventBySlug($slug)
+    /**
+     * Resolve a public one-link. Without a year the current season answers, a year
+     * addresses that season's archive — the same rules the QR codes are built with.
+     */
+    public function getEventBySlug(Request $request, $slug)
     {
         try {
-            $event = Event::where('slug', $slug)
-                ->where('season', SeasonService::currentSeasonId())
-                ->first();
+            $year = $request->query('year');
+            $match = app(EventSlugService::class)->find((string) $slug, $year === null ? null : (int) $year);
 
-            if (!$event) {
+            if (!$match) {
                 return response()->json(['error' => 'Event not found'], 404);
             }
+
+            $event = $match['event'];
 
             // Load relationships separately to avoid potential issues
             $event->load(['seasonRel', 'levelRel', 'regionalPartner']);
 
             // Return only public information (no sensitive data like wifi_password)
-            return response()->json($this->eventPublicInformationArray($event));
+            $payload = $this->eventPublicInformationArray($event);
+
+            // A hit in the slug history means the caller used an address the event no
+            // longer has, so the current path travels along and the URL gets corrected
+            // instead of the visitor seeing a 404.
+            if ($match['redirect_to'] !== null) {
+                $payload['redirect_to'] = $match['redirect_to'];
+            }
+
+            return response()->json($payload);
         } catch (\Exception $e) {
             Log::error('Error in getEventBySlug: ' . $e->getMessage());
             return response()->json(['error' => 'Internal server error'], 500);

@@ -36,13 +36,46 @@ class EventSlugServiceTest extends TestCase
         $this->assertSame('aachen', $this->service()->suggest($event));
     }
 
-    public function test_regional_slugs_get_program_suffixes_when_partner_runs_several(): void
+    public function test_regional_slugs_get_program_letters_when_partner_runs_several(): void
     {
         $first = $this->insertEvent(['id' => 1, 'name' => 'Aachen', 'level' => 1]);
         $this->insertProgram(1, 1, 2, 1001);
         $this->insertEvent(['id' => 2, 'name' => 'Aachen', 'level' => 1]);
 
-        $this->assertSame('aachen-explore', $this->service()->suggest($first->refresh()));
+        $this->assertSame('aachen-e', $this->service()->suggest($first->refresh()));
+    }
+
+    public function test_program_letters_follow_the_catalog_order_and_drop_digits(): void
+    {
+        $explorePlusChallenge = $this->insertEvent(['id' => 1, 'name' => 'Aachen', 'level' => 1]);
+        $this->insertProgram(1, 1, 3, 1001);
+        $this->insertProgram(2, 1, 2, 1002);
+
+        $future = $this->insertEvent(['id' => 2, 'name' => 'Aachen', 'level' => 1]);
+        $this->insertProgram(3, 2, 8, 1003);
+
+        $this->assertSame('aachen-ec', $this->service()->suggest($explorePlusChallenge->refresh()));
+        // Future 5+ and Future 8+ both carry the letter f; the digit is not part of it.
+        $this->assertSame('aachen-f', $this->service()->suggest($future->refresh()));
+    }
+
+    public function test_single_event_per_partner_keeps_the_bare_name(): void
+    {
+        $event = $this->insertEvent(['id' => 1, 'name' => 'Aachen', 'level' => 1]);
+        $this->insertProgram(1, 1, 2, 1001);
+
+        $this->assertSame('aachen', $this->service()->suggest($event->refresh()));
+    }
+
+    public function test_events_of_one_partner_with_different_names_need_no_letters(): void
+    {
+        $aachen = $this->insertEvent(['id' => 1, 'name' => 'Aachen', 'level' => 1]);
+        $this->insertProgram(1, 1, 2, 1001);
+        $dueren = $this->insertEvent(['id' => 2, 'name' => 'Düren', 'level' => 1]);
+        $this->insertProgram(2, 2, 3, 1002);
+
+        $this->assertSame('aachen', $this->service()->suggest($aachen->refresh()));
+        $this->assertSame('dueren', $this->service()->suggest($dueren->refresh()));
     }
 
     public function test_suggests_quali_from_the_part_after_the_first_dash(): void
@@ -141,6 +174,22 @@ class EventSlugServiceTest extends TestCase
 
         $this->assertSame('https://handson.tools/aachen', $this->service()->url($current));
         $this->assertSame('https://handson.tools/2025/aachen', $this->service()->url($past));
+    }
+
+    public function test_public_base_may_address_an_instance_through_a_path(): void
+    {
+        // Dev and Test hang under the vanity host as /dev and /test, so the base carries
+        // a path segment and the slug rules have to stay intact behind it.
+        config(['app.public_url' => 'https://handson.tools/dev']);
+
+        $current = $this->insertEvent(['id' => 1, 'name' => 'Aachen', 'level' => 1]);
+        $this->service()->ensure($current);
+
+        $past = $this->insertEvent(['id' => 2, 'name' => 'Aachen', 'level' => 1, 'season' => self::PAST_SEASON]);
+        $this->service()->ensure($past);
+
+        $this->assertSame('https://handson.tools/dev/aachen', $this->service()->url($current));
+        $this->assertSame('https://handson.tools/dev/2025/aachen', $this->service()->url($past));
     }
 
     public function test_lookup_without_year_uses_the_current_season(): void
@@ -285,6 +334,7 @@ class EventSlugServiceTest extends TestCase
         DB::table('m_first_program')->insert([
             ['id' => 2, 'name' => 'EXPLORE', 'display_name' => 'Explore', 'letter' => 'E', 'sequence' => 1],
             ['id' => 3, 'name' => 'CHALLENGE', 'display_name' => 'Challenge', 'letter' => 'C', 'sequence' => 2],
+            ['id' => 8, 'name' => 'FUTURE_8', 'display_name' => 'Future 8+', 'letter' => 'F8', 'sequence' => 5],
         ]);
     }
 }
