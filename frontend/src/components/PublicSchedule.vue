@@ -23,6 +23,8 @@ type RoleOption = {
   label: string
   parameter: string | null
   noshow: boolean
+  organization?: string | null
+  location?: string | null
 }
 
 type VisitorProgram = {
@@ -392,6 +394,26 @@ function activityRoomLabel(activity: Activity): string | null {
   if (name) return name
   const typeName = (activity.room?.room_type_name || '').trim()
   return typeName || null
+}
+
+function roomForTeam(team: number, firstProgram: number | null): string | null {
+  for (const group of groups.value) {
+    for (const activity of group.activities || []) {
+      if (
+        activity.team !== team
+        && activity.table_1_team !== team
+        && activity.table_2_team !== team
+      ) continue
+      if (
+        firstProgram != null
+        && activity.meta?.first_program_id != null
+        && activity.meta.first_program_id !== firstProgram
+      ) continue
+      const room = activityRoomLabel(activity)
+      if (room) return room
+    }
+  }
+  return null
 }
 
 function roomForTable(table: number, firstProgram: number | null): string | null {
@@ -831,24 +853,39 @@ const entityInfoBody = computed(() => {
   return noun ? `Weitere Informationen zu ${noun} folgen.` : 'Weitere Informationen folgen.'
 })
 
-const entityInfoCta = computed(() => {
-  if (entityInfo.value?.kind === 'lane') return 'Detailsicht'
-  if (entityInfo.value?.kind === 'team') return 'Sicht für dieses Team'
-  return `Sicht für ${entityInfoNoun.value}`
+const entityInfoCta = computed(() => 'Detailsicht')
+
+const entityInfoTeamOption = computed(() => {
+  if (!entityInfo.value || entityInfo.value.kind !== 'team') return null
+  return entityInfoRole.value?.options.find((option) => option.value === entityInfo.value?.value) ?? null
+})
+
+const entityInfoOrganization = computed(() => {
+  const value = (entityInfoTeamOption.value?.organization || '').trim()
+  return value || null
+})
+
+const entityInfoLocation = computed(() => {
+  const value = (entityInfoTeamOption.value?.location || '').trim()
+  return value || null
 })
 
 const entityInfoRoom = computed(() => {
-  if (!entityInfo.value || (entityInfo.value.kind !== 'lane' && entityInfo.value.kind !== 'table')) {
-    return null
-  }
+  if (!entityInfo.value) return null
   if (entityInfo.value.room) return entityInfo.value.room
   if (entityInfo.value.kind === 'table') {
     return roomForTable(entityInfo.value.value, entityInfo.value.firstProgram)
   }
-  return roomForLane(entityInfo.value.value, entityInfo.value.firstProgram)
+  if (entityInfo.value.kind === 'team') {
+    return roomForTeam(entityInfo.value.value, entityInfo.value.firstProgram)
+  }
+  if (entityInfo.value.kind === 'lane') {
+    return roomForLane(entityInfo.value.value, entityInfo.value.firstProgram)
+  }
+  return null
 })
 
-const entityInfoImmediateSwitch = computed(() => entityInfo.value?.kind === 'lane')
+const entityInfoImmediateSwitch = computed(() => entityInfo.value != null)
 
 function resetPickerToTop() {
   roleFilter.value = ''
@@ -1569,8 +1606,7 @@ watch(
         <div ref="planScrollEl" class="public-schedule__plan-scroll">
           <div
               v-if="entityInfo"
-              class="public-schedule__card"
-              :class="entityInfo.kind === 'team' ? 'public-schedule__card--center' : 'public-schedule__card--entity'"
+              class="public-schedule__card public-schedule__card--entity"
           >
             <h2 class="public-schedule__dummy-title">
               <img
@@ -1581,11 +1617,11 @@ watch(
               />
               <span>{{ entityInfoTitle }}</span>
             </h2>
+            <p v-if="entityInfoRoom" class="public-schedule__entity-row">
+              <i class="bi bi-geo" aria-hidden="true"/>
+              {{ entityInfoRoom }}
+            </p>
             <template v-if="entityInfo.kind === 'lane' || entityInfo.kind === 'table'">
-              <p v-if="entityInfoRoom" class="public-schedule__entity-row">
-                <i class="bi bi-geo" aria-hidden="true"/>
-                {{ entityInfoRoom }}
-              </p>
               <p
                   v-for="(meeting, meetingIndex) in entityMeetings"
                   :key="`${meeting.start_time}-${meeting.team}-${meetingIndex}`"
@@ -1595,13 +1631,22 @@ watch(
                 <button
                     type="button"
                     class="public-schedule__entity-team"
-                    @click="openEntityInfo('team', meeting.team, entityInfo.firstProgram)"
+                    @click="openEntityInfo('team', meeting.team, entityInfo.firstProgram, null, entityInfoRoom)"
                 >
                   {{ meeting.label }}
                 </button>
               </p>
             </template>
-            <p v-else class="public-schedule__dummy-body">{{ entityInfoBody }}</p>
+            <template v-else-if="entityInfo.kind === 'team'">
+              <p v-if="entityInfoOrganization" class="public-schedule__entity-row">
+                <i class="bi bi-building" aria-hidden="true"/>
+                {{ entityInfoOrganization }}
+              </p>
+              <p v-if="entityInfoLocation" class="public-schedule__entity-row">
+                <i class="bi bi-geo-alt" aria-hidden="true"/>
+                {{ entityInfoLocation }}
+              </p>
+            </template>
             <div class="public-schedule__dummy-actions">
               <template v-if="entityInfoRole">
                 <template v-if="entityInfoImmediateSwitch">
@@ -2027,7 +2072,7 @@ watch(
                       v-if="activity.team_name && activity.team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('team', activity.team, activity.meta?.first_program_id)"
+                      @click="openEntityInfo('team', activity.team, activity.meta?.first_program_id, null, activityRoomLabel(activity))"
                   >
                     {{ activity.team_name }}
                   </button>
@@ -2043,7 +2088,7 @@ watch(
                       v-if="activity.table_1_team_name && activity.table_1_team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('team', activity.table_1_team, activity.meta?.first_program_id)"
+                      @click="openEntityInfo('team', activity.table_1_team, activity.meta?.first_program_id, null, activityRoomLabel(activity))"
                   >
                     {{ activity.table_1_team_name }}
                   </button>
@@ -2059,7 +2104,7 @@ watch(
                       v-if="activity.table_2_team_name && activity.table_2_team"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('team', activity.table_2_team, activity.meta?.first_program_id)"
+                      @click="openEntityInfo('team', activity.table_2_team, activity.meta?.first_program_id, null, activityRoomLabel(activity))"
                   >
                     {{ activity.table_2_team_name }}
                   </button>

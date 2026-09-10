@@ -383,6 +383,7 @@ class PublicPlanService
             for ($i = 1; $i <= $count; $i++) {
                 $label = "{$role->name} {$i}";
                 $noshow = false;
+                $team = null;
 
                 if ($parameter === 'team' && $firstProgram) {
                     $team = $teams[$firstProgram][$i] ?? null;
@@ -395,12 +396,19 @@ class PublicPlanService
                     $label = $groupLabel.' '.$i;
                 }
 
-                $options[] = [
+                $option = [
                     'value' => $i,
                     'label' => $label,
                     'parameter' => $parameter ?: 'team',
                     'noshow' => $noshow,
                 ];
+                if ($parameter === 'team') {
+                    $org = trim((string) ($team['organization'] ?? ''));
+                    $loc = trim((string) ($team['location'] ?? ''));
+                    $option['organization'] = $org !== '' ? $org : null;
+                    $option['location'] = $loc !== '' ? $loc : null;
+                }
+                $options[] = $option;
             }
 
             if ($options === []) {
@@ -469,7 +477,7 @@ class PublicPlanService
     }
 
     /**
-     * @return array<int, array<int, array{name:string,location:?string,noshow:bool,team_number_hot:int|null}>>
+     * @return array<int, array<int, array{name:string,location:?string,organization:?string,noshow:bool,team_number_hot:int|null}>>
      */
     private function teamsByPlanNumber(int $planId): array
     {
@@ -481,6 +489,7 @@ class PublicPlanService
                 'team.first_program',
                 'team.name',
                 'team.location',
+                'team.organization',
                 'team.team_number_hot',
                 'team_plan.noshow',
             ])
@@ -494,6 +503,7 @@ class PublicPlanService
             $map[$fp][$num] = [
                 'name' => $row->name,
                 'location' => $row->location,
+                'organization' => $row->organization,
                 'noshow' => (bool) $row->noshow,
                 'team_number_hot' => $hot !== null && $hot !== '' ? (int) $hot : null,
             ];
@@ -503,7 +513,7 @@ class PublicPlanService
     }
 
     /**
-     * @param  array{name:string,location:?string,noshow:bool,team_number_hot:int|null}|null  $team
+     * @param  array{name:string,location:?string,organization:?string,noshow:bool,team_number_hot:int|null}|null  $team
      */
     private function teamPickerLabel(int $slot, ?array $team): string
     {

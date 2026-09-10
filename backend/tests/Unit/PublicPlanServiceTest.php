@@ -95,6 +95,7 @@ class PublicPlanServiceTest extends TestCase
             'first_program' => 8,
             'name' => 'Robo',
             'location' => 'Leipzig',
+            'organization' => 'Gymnasium Mockau',
             'team_number_hot' => 42,
         ]);
         DB::table('team_plan')->insert([
@@ -116,9 +117,13 @@ class PublicPlanServiceTest extends TestCase
         ]);
 
         $payload = app(PublicPlanService::class)->getRoles(1);
-        $labels = collect($payload['roles'][0]['options'])->pluck('label')->all();
+        $options = $payload['roles'][0]['options'];
 
-        $this->assertSame(['Robo (42)', 'T2 (Noch nicht angemeldet)'], $labels);
+        $this->assertSame(['Robo (42)', 'T2 (Noch nicht angemeldet)'], collect($options)->pluck('label')->all());
+        $this->assertSame('Gymnasium Mockau', $options[0]['organization']);
+        $this->assertSame('Leipzig', $options[0]['location']);
+        $this->assertNull($options[1]['organization']);
+        $this->assertNull($options[1]['location']);
     }
 
     public function test_table_option_labels_use_group_label(): void
@@ -457,6 +462,7 @@ class PublicPlanServiceTest extends TestCase
             $table->unsignedInteger('first_program')->nullable();
             $table->string('name')->nullable();
             $table->string('location')->nullable();
+            $table->string('organization')->nullable();
             $table->unsignedInteger('team_number_hot')->nullable();
         });
 
