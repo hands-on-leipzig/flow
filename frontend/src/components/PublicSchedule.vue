@@ -44,6 +44,13 @@ type VisitorProgram = {
   color_hex: string
 }
 
+type EventLogo = {
+  id: number
+  title?: string | null
+  link?: string | null
+  url: string
+}
+
 type Role = {
   id: number
   name: string
@@ -166,6 +173,7 @@ const checkInEnabled = ref(false)
 const cockpitEnabled = ref(false)
 const roles = ref<Role[]>([])
 const programs = ref<VisitorProgram[]>([])
+const eventLogos = ref<EventLogo[]>([])
 const groups = ref<Group[]>([])
 const nowMs = ref(Date.now())
 const roleFilter = ref('')
@@ -1192,6 +1200,15 @@ async function loadRoles() {
     eventSlug.value = typeof data.slug === 'string' && data.slug !== '' ? data.slug : null
     checkInEnabled.value = !!data.check_in_enabled
     cockpitEnabled.value = !!data.cockpit_enabled
+    eventLogos.value = []
+    if (eventId.value) {
+      try {
+        const logos = await axios.get(`/events/${eventId.value}/logos`)
+        eventLogos.value = Array.isArray(logos.data) ? logos.data : []
+      } catch {
+        eventLogos.value = []
+      }
+    }
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Rollen konnten nicht geladen werden.'
   } finally {
@@ -1710,18 +1727,56 @@ watch(
 
           <div
               v-else-if="!hasRoleSelection"
-              class="public-schedule__card public-schedule__card--center"
+              class="public-schedule__card public-schedule__card--center public-schedule__card--overview"
           >
-            <h2 class="public-schedule__dummy-title">Überblick</h2>
-            <p class="public-schedule__dummy-body">Die Übersicht folgt in Kürze.</p>
-            <p class="public-schedule__dummy-body">Wähle oben eine Rolle aus.</p>
+            <h2 class="public-schedule__page-title">
+              Willkommen zu {{ eventName || 'dieser Veranstaltung' }}
+            </h2>
+            <div
+                v-if="programs.length"
+                class="public-schedule__overview-programs"
+            >
+              <img
+                  v-for="program in programs"
+                  :key="program.id"
+                  :src="programLogo(program)"
+                  :alt="programLogoAlt(program)"
+                  class="public-schedule__overview-program-logo"
+              />
+            </div>
+            <template v-if="eventLogos.length">
+              <p class="public-schedule__overview-sponsors-label">
+                Mit freundlicher Unterstützung von
+              </p>
+              <div class="public-schedule__overview-sponsors">
+                <a
+                    v-for="logo in eventLogos"
+                    :key="logo.id"
+                    class="public-schedule__overview-sponsor"
+                    :class="{'public-schedule__overview-sponsor--static': !logo.link}"
+                    :href="logo.link || undefined"
+                    :rel="logo.link ? 'noopener noreferrer' : undefined"
+                    :target="logo.link ? '_blank' : undefined"
+                    @click="!logo.link && $event.preventDefault()"
+                >
+                  <img :alt="logo.title || 'Logo'" :src="logo.url"/>
+                </a>
+              </div>
+            </template>
+            <button
+                type="button"
+                class="public-schedule__overview-pick"
+                @click="openRoleSheet"
+            >
+              Für den detaillierten Zeitplan bitte oben eine Rolle wählen.
+            </button>
             <button
                 v-if="canLeaveToPublicPage"
                 type="button"
-                class="public-schedule__text-action"
+                class="public-schedule__overview-leave"
                 @click="leaveToPublicPage"
             >
-              Online-Zeitplan verlassen und zurück zur öffentlichen Seite
+              Zurück zur öffentlichen Seite
             </button>
           </div>
 
@@ -2441,12 +2496,84 @@ watch(
   object-fit: contain;
 }
 
+.public-schedule__card--center .public-schedule__page-title,
 .public-schedule__card--center .public-schedule__dummy-title {
   justify-content: center;
+  text-align: center;
 }
 
 .public-schedule__dummy-body {
   margin: 0;
+}
+
+.public-schedule__card--overview {
+  gap: 1rem;
+  padding: 1.4rem 1rem 1.25rem;
+}
+
+.public-schedule__overview-programs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem 1rem;
+}
+
+.public-schedule__overview-program-logo {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: contain;
+}
+
+.public-schedule__overview-sponsors-label {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.public-schedule__overview-sponsors {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem 1rem;
+}
+
+.public-schedule__overview-sponsor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.public-schedule__overview-sponsor--static {
+  pointer-events: none;
+}
+
+.public-schedule__overview-sponsor img {
+  height: 2.4rem;
+  max-width: 7rem;
+  object-fit: contain;
+}
+
+.public-schedule__overview-pick {
+  margin: 0.35rem 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #c2410c;
+  font-weight: 800;
+  font-size: 1.05rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.public-schedule__overview-leave {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #6b7280;
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 .public-schedule__page-actions,
