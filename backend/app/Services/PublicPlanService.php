@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 
 class PublicPlanService
 {
+    private const LANE_MEETING_CODES = ['j_with_team', 'e_with_team', 'f8_j_with_team'];
+
     public function __construct(
         private ActivityFetcherService $activities,
         private RoleFetcherService $roleFetcher,
@@ -256,6 +258,59 @@ class PublicPlanService
         ];
     }
 
+    /**
+     * First with-team meeting per jury slot on one lane (visitor jury-group overview).
+     *
+     * @return array{plan_id:int,program:int,lane:int,meetings:list<array{start_time:mixed,team:int,label:string}>}
+     */
+    public function getLaneMeetings(int $planId, int $firstProgram, int $lane): array
+    {
+        $plan = DB::table('plan')->where('id', $planId)->first();
+        if (! $plan) {
+            abort(404, 'Plan not found');
+        }
+
+        $meetings = [];
+        if ($firstProgram >= 1 && $lane >= 1) {
+            $teams = $this->teamsByPlanNumber($planId);
+            $rows = DB::table('activity as a')
+                ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+                ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+                ->where('ag.plan', $planId)
+                ->where('atd.first_program', $firstProgram)
+                ->where('a.jury_lane', $lane)
+                ->whereIn('atd.code', self::LANE_MEETING_CODES)
+                ->whereNotNull('a.jury_team')
+                ->where('a.jury_team', '>', 0)
+                ->orderBy('a.start')
+                ->get([
+                    'a.start as start_time',
+                    'a.jury_team as team',
+                ]);
+
+            $seen = [];
+            foreach ($rows as $row) {
+                $team = (int) $row->team;
+                if (isset($seen[$team])) {
+                    continue;
+                }
+                $seen[$team] = true;
+                $meetings[] = [
+                    'start_time' => $row->start_time,
+                    'team' => $team,
+                    'label' => $this->teamPickerLabel($team, $teams[$firstProgram][$team] ?? null),
+                ];
+            }
+        }
+
+        return [
+            'plan_id' => $planId,
+            'program' => $firstProgram,
+            'lane' => $lane,
+            'meetings' => $meetings,
+        ];
+    }
+
     private function roleOptions(object $role, array $teams, PlanParameter $params): array
     {
         $parameter = $role->differentiation_parameter;
@@ -271,14 +326,10 @@ class PublicPlanService
 
                 if ($parameter === 'team' && $firstProgram) {
                     $team = $teams[$firstProgram][$i] ?? null;
+                    $label = $this->teamPickerLabel($i, $team);
                     $name = trim((string) ($team['name'] ?? ''));
                     if ($name !== '') {
-                        $hot = $team['team_number_hot'] ?? null;
-                        $hotStr = $hot !== null && $hot !== '' ? (string) $hot : '';
-                        $label = $hotStr !== '' ? "{$name} ({$hotStr})" : $name;
                         $noshow = (bool) ($team['noshow'] ?? false);
-                    } else {
-                        $label = 'T'.$i.' (Noch nicht angemeldet)';
                     }
                 } elseif (in_array($parameter, ['lane', 'table'], true) && $groupLabel !== '') {
                     $label = $groupLabel.' '.$i;
@@ -389,6 +440,22 @@ class PublicPlanService
         }
 
         return $map;
+    }
+
+    /**
+     * @param  array{name:string,location:?string,noshow:bool,team_number_hot:int|null}|null  $team
+     */
+    private function teamPickerLabel(int $slot, ?array $team): string
+    {
+        $name = trim((string) ($team['name'] ?? ''));
+        if ($name !== '') {
+            $hot = $team['team_number_hot'] ?? null;
+            $hotStr = $hot !== null && $hot !== '' ? (string) $hot : '';
+
+            return $hotStr !== '' ? "{$name} ({$hotStr})" : $name;
+        }
+
+        return 'T'.$slot.' (Noch nicht angemeldet)';
     }
 
     /**

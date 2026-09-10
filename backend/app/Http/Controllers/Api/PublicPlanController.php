@@ -29,4 +29,17 @@ class PublicPlanController extends Controller
     {
         return response()->json($this->publicPlan->getSchedule($planId, $request->query()));
     }
+
+    /**
+     * First with-team meetings on a jury lane (visitor jury-group overview).
+     *
+     * Query: program (first_program id), lane.
+     */
+    public function laneMeetings(int $planId, Request $request): JsonResponse
+    {
+        $program = (int) ($request->query('program') ?? 0);
+        $lane = (int) ($request->query('lane') ?? 0);
+
+        return response()->json($this->publicPlan->getLaneMeetings($planId, $program, $lane));
+    }
 }

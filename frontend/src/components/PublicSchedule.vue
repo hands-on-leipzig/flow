@@ -51,6 +51,12 @@ type Role = {
 
 type EntityKind = 'team' | 'lane' | 'table'
 
+type LaneMeeting = {
+  start_time: string
+  team: number
+  label: string
+}
+
 type Activity = {
   activity_id: number
   start_time: string
@@ -166,8 +172,11 @@ const entityInfo = ref<{
   value: number
   firstProgram: number | null
   activityTypeCode?: string | null
+  room?: string | null
 } | null>(null)
 const entityInfoConfirm = ref(false)
+const laneMeetings = ref<LaneMeeting[]>([])
+let laneMeetingsSeq = 0
 
 let nowTimer: ReturnType<typeof setInterval> | null = null
 /** Which teleported sheet owns the shared swipe-dismiss gesture */
@@ -376,6 +385,29 @@ function activityAddsDetail(group: Group, activity: Activity): boolean {
     return true
   }
   return false
+}
+
+function activityRoomLabel(activity: Activity): string | null {
+  const name = (activity.room?.room_name || '').trim()
+  if (name) return name
+  const typeName = (activity.room?.room_type_name || '').trim()
+  return typeName || null
+}
+
+function roomForLane(lane: number, firstProgram: number | null): string | null {
+  for (const group of groups.value) {
+    for (const activity of group.activities || []) {
+      if (activity.lane !== lane) continue
+      if (
+        firstProgram != null
+        && activity.meta?.first_program_id != null
+        && activity.meta.first_program_id !== firstProgram
+      ) continue
+      const room = activityRoomLabel(activity)
+      if (room) return room
+    }
+  }
+  return null
 }
 
 function primaryRoomRaw(group: Group): string | null {
@@ -708,6 +740,7 @@ function closeDetail() {
 function closeEntityInfo() {
   entityInfo.value = null
   entityInfoConfirm.value = false
+  laneMeetings.value = []
 }
 
 function matchingSliceRole(
@@ -778,6 +811,12 @@ const entityInfoCta = computed(() => {
   if (entityInfo.value?.kind === 'lane') return 'Detailsicht'
   if (entityInfo.value?.kind === 'team') return 'Sicht für dieses Team'
   return `Sicht für ${entityInfoNoun.value}`
+})
+
+const entityInfoRoom = computed(() => {
+  if (!entityInfo.value || entityInfo.value.kind !== 'lane') return null
+  if (entityInfo.value.room) return entityInfo.value.room
+  return roomForLane(entityInfo.value.value, entityInfo.value.firstProgram)
 })
 
 const entityInfoImmediateSwitch = computed(() => entityInfo.value?.kind === 'lane')
@@ -1212,6 +1251,7 @@ function openEntityInfo(
     value: number | null | undefined,
     firstProgram: number | null | undefined,
     activityTypeCode?: string | null,
+    room?: string | null,
 ) {
   if (!value) return
   closeDetail()
@@ -1221,6 +1261,25 @@ function openEntityInfo(
     value,
     firstProgram: firstProgram ?? null,
     activityTypeCode: activityTypeCode ?? null,
+    room: room ?? null,
+  }
+  if (kind === 'lane') void loadLaneMeetings(firstProgram ?? null, value)
+  else laneMeetings.value = []
+}
+
+async function loadLaneMeetings(program: number | null, lane: number) {
+  const seq = ++laneMeetingsSeq
+  laneMeetings.value = []
+  if (!numericPlanId.value || program == null || program < 1 || lane < 1) return
+  try {
+    const {data} = await axios.get(`/plans/${numericPlanId.value}/visitor/lane-meetings`, {
+      params: {program, lane},
+    })
+    if (seq !== laneMeetingsSeq) return
+    const rows = Array.isArray(data?.meetings) ? data.meetings : []
+    laneMeetings.value = rows.filter((row: LaneMeeting) => row?.team && row.start_time)
+  } catch {
+    if (seq !== laneMeetingsSeq) return
   }
 }
 
@@ -1467,10 +1526,31 @@ watch(
         <div ref="planScrollEl" class="public-schedule__plan-scroll">
           <div
               v-if="entityInfo"
-              class="public-schedule__card public-schedule__card--center"
+              class="public-schedule__card"
+              :class="entityInfo.kind === 'lane' ? 'public-schedule__card--entity' : 'public-schedule__card--center'"
           >
             <h2 class="public-schedule__dummy-title">{{ entityInfoTitle }}</h2>
-            <p class="public-schedule__dummy-body">{{ entityInfoBody }}</p>
+            <template v-if="entityInfo.kind === 'lane'">
+              <p v-if="entityInfoRoom" class="public-schedule__entity-row">
+                <i class="bi bi-geo" aria-hidden="true"/>
+                {{ entityInfoRoom }}
+              </p>
+              <p
+                  v-for="meeting in laneMeetings"
+                  :key="meeting.team"
+                  class="public-schedule__entity-row"
+              >
+                <span>{{ timeLabel(meeting.start_time) }}</span>
+                <button
+                    type="button"
+                    class="public-schedule__entity-team"
+                    @click="openEntityInfo('team', meeting.team, entityInfo.firstProgram)"
+                >
+                  {{ meeting.label }}
+                </button>
+              </p>
+            </template>
+            <p v-else class="public-schedule__dummy-body">{{ entityInfoBody }}</p>
             <div class="public-schedule__dummy-actions">
               <template v-if="entityInfoRole">
                 <template v-if="entityInfoImmediateSwitch">
@@ -1936,7 +2016,7 @@ watch(
                       v-if="activity.lane"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('lane', activity.lane, activity.meta?.first_program_id)"
+                      @click="openEntityInfo('lane', activity.lane, activity.meta?.first_program_id, null, activityRoomLabel(activity))"
                   >
                     {{ sliceOptionLabel('lane', activity.lane, activity.meta?.first_program_id) }}
                   </button>
@@ -2140,6 +2220,32 @@ watch(
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
+}
+
+.public-schedule__card--entity {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.public-schedule__entity-row {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.public-schedule__entity-team {
+  color: #c2410c;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0;
+  min-height: 0;
+  text-align: left;
 }
 
 .public-schedule__dummy-title {

@@ -143,11 +143,6 @@ class PublicPlanServiceTest extends TestCase
 
     public function test_get_schedule_activity_name_uses_atd_name_not_preview(): void
     {
-        Schema::create('activity', function (Blueprint $table) {
-            $table->unsignedInteger('id')->primary();
-            $table->unsignedTinyInteger('explore_group')->nullable();
-        });
-
         $fetcher = Mockery::mock(ActivityFetcherService::class);
         $fetcher->shouldReceive('fetchActivities')->once()->andReturn(collect([
             (object) [
@@ -231,6 +226,71 @@ class PublicPlanServiceTest extends TestCase
             ['T1 (Noch nicht angemeldet)', 'T2 (Noch nicht angemeldet)'],
             collect($byId[21]['options'])->pluck('label')->all(),
         );
+    }
+
+    public function test_get_lane_meetings_first_with_team_only(): void
+    {
+        $this->seedLaneMeetingCatalog();
+        DB::table('team')->insert([
+            [
+                'id' => 1,
+                'event' => 1,
+                'first_program' => 3,
+                'name' => 'Capricorns',
+                'location' => null,
+                'team_number_hot' => 12,
+            ],
+            [
+                'id' => 2,
+                'event' => 1,
+                'first_program' => 3,
+                'name' => 'NoHot',
+                'location' => null,
+                'team_number_hot' => null,
+            ],
+        ]);
+        DB::table('team_plan')->insert([
+            ['id' => 1, 'plan' => 1, 'team' => 1, 'team_number_plan' => 1, 'noshow' => 0],
+            ['id' => 2, 'plan' => 1, 'team' => 2, 'team_number_plan' => 4, 'noshow' => 0],
+        ]);
+        DB::table('activity_group')->insert([
+            ['id' => 1, 'activity_type_detail' => 17, 'plan' => 1],
+            ['id' => 2, 'activity_type_detail' => 18, 'plan' => 1],
+            ['id' => 3, 'activity_type_detail' => 1, 'plan' => 1],
+        ]);
+        DB::table('activity')->insert([
+            $this->activityRow(1, 2, 18, '2026-03-15 08:00:00', lane: 1, team: 3),
+            $this->activityRow(2, 1, 17, '2026-03-15 08:30:00', lane: 1, team: null),
+            $this->activityRow(3, 1, 17, '2026-03-15 08:00:00', lane: 2, team: 1),
+            $this->activityRow(4, 3, 1, '2026-03-15 08:15:00', lane: 1, team: 9),
+            $this->activityRow(5, 1, 17, '2026-03-15 09:00:00', lane: 1, team: 1),
+            $this->activityRow(6, 1, 17, '2026-03-15 10:00:00', lane: 1, team: 2),
+            $this->activityRow(7, 1, 17, '2026-03-15 11:00:00', lane: 1, team: 1),
+            $this->activityRow(8, 1, 17, '2026-03-15 10:30:00', lane: 1, team: 4),
+        ]);
+
+        $payload = app(PublicPlanService::class)->getLaneMeetings(1, 3, 1);
+
+        $this->assertSame(1, $payload['plan_id']);
+        $this->assertSame(3, $payload['program']);
+        $this->assertSame(1, $payload['lane']);
+        $this->assertSame([
+            [
+                'start_time' => '2026-03-15 09:00:00',
+                'team' => 1,
+                'label' => 'Capricorns (12)',
+            ],
+            [
+                'start_time' => '2026-03-15 10:00:00',
+                'team' => 2,
+                'label' => 'T2 (Noch nicht angemeldet)',
+            ],
+            [
+                'start_time' => '2026-03-15 10:30:00',
+                'team' => 4,
+                'label' => 'NoHot',
+            ],
+        ], $payload['meetings']);
     }
 
     private function bindRoles(array $roles): void
@@ -361,6 +421,31 @@ class PublicPlanServiceTest extends TestCase
             $table->unsignedTinyInteger('table_number');
             $table->string('table_name')->nullable();
         });
+
+        Schema::create('m_activity_type_detail', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name');
+            $table->string('code')->nullable();
+            $table->unsignedInteger('first_program')->nullable();
+            $table->unsignedInteger('activity_type')->default(0);
+        });
+
+        Schema::create('activity_group', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('plan');
+        });
+
+        Schema::create('activity', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_group');
+            $table->datetime('start');
+            $table->datetime('end');
+            $table->unsignedTinyInteger('jury_lane')->nullable();
+            $table->unsignedInteger('jury_team')->nullable();
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedTinyInteger('explore_group')->nullable();
+        });
     }
 
     private function seedPlan(): void
@@ -449,5 +534,55 @@ class PublicPlanServiceTest extends TestCase
                 'set_value' => (string) $fields,
             ]);
         }
+    }
+
+    private function seedLaneMeetingCatalog(): void
+    {
+        DB::table('m_activity_type_detail')->insert([
+            [
+                'id' => 17,
+                'name' => 'Jurygespräch',
+                'code' => 'j_with_team',
+                'first_program' => 3,
+                'activity_type' => 1,
+            ],
+            [
+                'id' => 18,
+                'name' => 'Juryberatung',
+                'code' => 'j_scoring',
+                'first_program' => 3,
+                'activity_type' => 1,
+            ],
+            [
+                'id' => 1,
+                'name' => 'Explore judging',
+                'code' => 'e_with_team',
+                'first_program' => 1,
+                'activity_type' => 1,
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function activityRow(
+        int $id,
+        int $group,
+        int $atd,
+        string $start,
+        int $lane,
+        ?int $team,
+    ): array {
+        return [
+            'id' => $id,
+            'activity_group' => $group,
+            'start' => $start,
+            'end' => $start,
+            'activity_type_detail' => $atd,
+            'jury_lane' => $lane,
+            'jury_team' => $team,
+            'explore_group' => null,
+        ];
     }
 }
