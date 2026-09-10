@@ -51,7 +51,7 @@ type Role = {
 
 type EntityKind = 'team' | 'lane' | 'table'
 
-type LaneMeeting = {
+type EntityMeeting = {
   start_time: string
   team: number
   label: string
@@ -175,8 +175,8 @@ const entityInfo = ref<{
   room?: string | null
 } | null>(null)
 const entityInfoConfirm = ref(false)
-const laneMeetings = ref<LaneMeeting[]>([])
-let laneMeetingsSeq = 0
+const entityMeetings = ref<EntityMeeting[]>([])
+let entityMeetingsSeq = 0
 
 let nowTimer: ReturnType<typeof setInterval> | null = null
 /** Which teleported sheet owns the shared swipe-dismiss gesture */
@@ -392,6 +392,22 @@ function activityRoomLabel(activity: Activity): string | null {
   if (name) return name
   const typeName = (activity.room?.room_type_name || '').trim()
   return typeName || null
+}
+
+function roomForTable(table: number, firstProgram: number | null): string | null {
+  for (const group of groups.value) {
+    for (const activity of group.activities || []) {
+      if (activity.table_1 !== table && activity.table_2 !== table) continue
+      if (
+        firstProgram != null
+        && activity.meta?.first_program_id != null
+        && activity.meta.first_program_id !== firstProgram
+      ) continue
+      const room = activityRoomLabel(activity)
+      if (room) return room
+    }
+  }
+  return null
 }
 
 function roomForLane(lane: number, firstProgram: number | null): string | null {
@@ -740,7 +756,7 @@ function closeDetail() {
 function closeEntityInfo() {
   entityInfo.value = null
   entityInfoConfirm.value = false
-  laneMeetings.value = []
+  entityMeetings.value = []
 }
 
 function matchingSliceRole(
@@ -822,8 +838,13 @@ const entityInfoCta = computed(() => {
 })
 
 const entityInfoRoom = computed(() => {
-  if (!entityInfo.value || entityInfo.value.kind !== 'lane') return null
+  if (!entityInfo.value || (entityInfo.value.kind !== 'lane' && entityInfo.value.kind !== 'table')) {
+    return null
+  }
   if (entityInfo.value.room) return entityInfo.value.room
+  if (entityInfo.value.kind === 'table') {
+    return roomForTable(entityInfo.value.value, entityInfo.value.firstProgram)
+  }
   return roomForLane(entityInfo.value.value, entityInfo.value.firstProgram)
 })
 
@@ -1272,22 +1293,36 @@ function openEntityInfo(
     room: room ?? null,
   }
   if (kind === 'lane') void loadLaneMeetings(firstProgram ?? null, value)
-  else laneMeetings.value = []
+  else if (kind === 'table') void loadTableMatches(firstProgram ?? null, value)
+  else entityMeetings.value = []
 }
 
 async function loadLaneMeetings(program: number | null, lane: number) {
-  const seq = ++laneMeetingsSeq
-  laneMeetings.value = []
-  if (!numericPlanId.value || program == null || program < 1 || lane < 1) return
+  await loadEntityMeetings('/visitor/lane-meetings', {program, lane}, 'meetings')
+}
+
+async function loadTableMatches(program: number | null, table: number) {
+  await loadEntityMeetings('/visitor/table-matches', {program, table}, 'matches')
+}
+
+async function loadEntityMeetings(
+    path: string,
+    params: {program: number | null, lane?: number, table?: number},
+    key: 'meetings' | 'matches',
+) {
+  const seq = ++entityMeetingsSeq
+  entityMeetings.value = []
+  const axis = params.lane ?? params.table ?? 0
+  if (!numericPlanId.value || params.program == null || params.program < 1 || axis < 1) return
   try {
-    const {data} = await axios.get(`/plans/${numericPlanId.value}/visitor/lane-meetings`, {
-      params: {program, lane},
+    const {data} = await axios.get(`/plans/${numericPlanId.value}${path}`, {
+      params: {program: params.program, ...('lane' in params ? {lane: params.lane} : {table: params.table})},
     })
-    if (seq !== laneMeetingsSeq) return
-    const rows = Array.isArray(data?.meetings) ? data.meetings : []
-    laneMeetings.value = rows.filter((row: LaneMeeting) => row?.team && row.start_time)
+    if (seq !== entityMeetingsSeq) return
+    const rows = Array.isArray(data?.[key]) ? data[key] : []
+    entityMeetings.value = rows.filter((row: EntityMeeting) => row?.team && row.start_time)
   } catch {
-    if (seq !== laneMeetingsSeq) return
+    if (seq !== entityMeetingsSeq) return
   }
 }
 
@@ -1535,7 +1570,7 @@ watch(
           <div
               v-if="entityInfo"
               class="public-schedule__card"
-              :class="entityInfo.kind === 'lane' ? 'public-schedule__card--entity' : 'public-schedule__card--center'"
+              :class="entityInfo.kind === 'team' ? 'public-schedule__card--center' : 'public-schedule__card--entity'"
           >
             <h2 class="public-schedule__dummy-title">
               <img
@@ -1546,14 +1581,14 @@ watch(
               />
               <span>{{ entityInfoTitle }}</span>
             </h2>
-            <template v-if="entityInfo.kind === 'lane'">
+            <template v-if="entityInfo.kind === 'lane' || entityInfo.kind === 'table'">
               <p v-if="entityInfoRoom" class="public-schedule__entity-row">
                 <i class="bi bi-geo" aria-hidden="true"/>
                 {{ entityInfoRoom }}
               </p>
               <p
-                  v-for="meeting in laneMeetings"
-                  :key="meeting.team"
+                  v-for="(meeting, meetingIndex) in entityMeetings"
+                  :key="`${meeting.start_time}-${meeting.team}-${meetingIndex}`"
                   class="public-schedule__entity-row"
               >
                 <span>{{ timeLabel(meeting.start_time) }}</span>
@@ -2000,7 +2035,7 @@ watch(
                       v-if="activity.table_1"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('table', activity.table_1, activity.meta?.first_program_id, activity.activity_type_code)"
+                      @click="openEntityInfo('table', activity.table_1, activity.meta?.first_program_id, activity.activity_type_code, activityRoomLabel(activity))"
                   >
                     {{ sliceOptionLabel('table', activity.table_1, activity.meta?.first_program_id, activity.activity_type_code) }}
                   </button>
@@ -2016,7 +2051,7 @@ watch(
                       v-if="activity.table_2"
                       type="button"
                       class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('table', activity.table_2, activity.meta?.first_program_id, activity.activity_type_code)"
+                      @click="openEntityInfo('table', activity.table_2, activity.meta?.first_program_id, activity.activity_type_code, activityRoomLabel(activity))"
                   >
                     {{ sliceOptionLabel('table', activity.table_2, activity.meta?.first_program_id, activity.activity_type_code) }}
                   </button>

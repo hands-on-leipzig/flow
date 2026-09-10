@@ -293,6 +293,74 @@ class PublicPlanServiceTest extends TestCase
         ], $payload['meetings']);
     }
 
+    public function test_get_table_matches_lists_every_match_on_that_table(): void
+    {
+        $this->seedTableMatchCatalog();
+        DB::table('team')->insert([
+            [
+                'id' => 1,
+                'event' => 1,
+                'first_program' => 3,
+                'name' => 'Capricorns',
+                'location' => null,
+                'team_number_hot' => 12,
+            ],
+            [
+                'id' => 2,
+                'event' => 1,
+                'first_program' => 3,
+                'name' => 'SideTwo',
+                'location' => null,
+                'team_number_hot' => 7,
+            ],
+        ]);
+        DB::table('team_plan')->insert([
+            ['id' => 1, 'plan' => 1, 'team' => 1, 'team_number_plan' => 1, 'noshow' => 0],
+            ['id' => 2, 'plan' => 1, 'team' => 2, 'team_number_plan' => 5, 'noshow' => 0],
+        ]);
+        DB::table('activity_group')->insert([
+            ['id' => 10, 'activity_type_detail' => 15, 'plan' => 1],
+            ['id' => 11, 'activity_type_detail' => 16, 'plan' => 1],
+        ]);
+        DB::table('activity')->insert([
+            $this->matchRow(20, 11, 16, '2026-03-15 09:00:00', table1: 1, team1: 1, table2: 2, team2: 2),
+            $this->matchRow(21, 10, 15, '2026-03-15 09:05:00', table1: 1, team1: 1, table2: 2, team2: 2),
+            $this->matchRow(22, 10, 15, '2026-03-15 09:45:00', table1: 2, team1: 3, table2: 1, team2: 5),
+            $this->matchRow(23, 10, 15, '2026-03-15 10:00:00', table1: 1, team1: 1, table2: 2, team2: 4),
+            $this->matchRow(24, 10, 15, '2026-03-15 10:30:00', table1: 1, team1: null, table2: 2, team2: 2),
+            $this->matchRow(25, 10, 15, '2026-03-15 11:00:00', table1: 2, team1: 4, table2: 3, team2: 6),
+            $this->matchRow(26, 10, 15, '2026-03-15 12:00:00', table1: 1, team1: 8, table2: 2, team2: 9),
+        ]);
+
+        $payload = app(PublicPlanService::class)->getTableMatches(1, 3, 1);
+
+        $this->assertSame(1, $payload['plan_id']);
+        $this->assertSame(3, $payload['program']);
+        $this->assertSame(1, $payload['table']);
+        $this->assertSame([
+            [
+                'start_time' => '2026-03-15 09:05:00',
+                'team' => 1,
+                'label' => 'Capricorns (12)',
+            ],
+            [
+                'start_time' => '2026-03-15 09:45:00',
+                'team' => 5,
+                'label' => 'SideTwo (7)',
+            ],
+            [
+                'start_time' => '2026-03-15 10:00:00',
+                'team' => 1,
+                'label' => 'Capricorns (12)',
+            ],
+            [
+                'start_time' => '2026-03-15 12:00:00',
+                'team' => 8,
+                'label' => 'T8 (Noch nicht angemeldet)',
+            ],
+        ], $payload['matches']);
+    }
+
     private function bindRoles(array $roles): void
     {
         $fetcher = Mockery::mock(RoleFetcherService::class);
@@ -443,6 +511,10 @@ class PublicPlanServiceTest extends TestCase
             $table->datetime('end');
             $table->unsignedTinyInteger('jury_lane')->nullable();
             $table->unsignedInteger('jury_team')->nullable();
+            $table->unsignedTinyInteger('table_1')->nullable();
+            $table->unsignedInteger('table_1_team')->nullable();
+            $table->unsignedTinyInteger('table_2')->nullable();
+            $table->unsignedInteger('table_2_team')->nullable();
             $table->unsignedInteger('activity_type_detail');
             $table->unsignedTinyInteger('explore_group')->nullable();
         });
@@ -582,6 +654,55 @@ class PublicPlanServiceTest extends TestCase
             'activity_type_detail' => $atd,
             'jury_lane' => $lane,
             'jury_team' => $team,
+            'explore_group' => null,
+        ];
+    }
+
+    private function seedTableMatchCatalog(): void
+    {
+        DB::table('m_activity_type_detail')->insert([
+            [
+                'id' => 15,
+                'name' => 'Match',
+                'code' => 'r_match',
+                'first_program' => 3,
+                'activity_type' => 1,
+            ],
+            [
+                'id' => 16,
+                'name' => 'Robot-Check',
+                'code' => 'r_check',
+                'first_program' => 3,
+                'activity_type' => 1,
+            ],
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function matchRow(
+        int $id,
+        int $group,
+        int $atd,
+        string $start,
+        int $table1,
+        ?int $team1,
+        int $table2,
+        ?int $team2,
+    ): array {
+        return [
+            'id' => $id,
+            'activity_group' => $group,
+            'start' => $start,
+            'end' => $start,
+            'activity_type_detail' => $atd,
+            'jury_lane' => null,
+            'jury_team' => null,
+            'table_1' => $table1,
+            'table_1_team' => $team1,
+            'table_2' => $table2,
+            'table_2_team' => $team2,
             'explore_group' => null,
         ];
     }

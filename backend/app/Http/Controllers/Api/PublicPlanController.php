@@ -42,4 +42,17 @@ class PublicPlanController extends Controller
 
         return response()->json($this->publicPlan->getLaneMeetings($planId, $program, $lane));
     }
+
+    /**
+     * Matches on a robot-game table (visitor table overview).
+     *
+     * Query: program (first_program id), table.
+     */
+    public function tableMatches(int $planId, Request $request): JsonResponse
+    {
+        $program = (int) ($request->query('program') ?? 0);
+        $table = (int) ($request->query('table') ?? 0);
+
+        return response()->json($this->publicPlan->getTableMatches($planId, $program, $table));
+    }
 }

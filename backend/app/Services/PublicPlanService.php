@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 class PublicPlanService
 {
     private const LANE_MEETING_CODES = ['j_with_team', 'e_with_team', 'f8_j_with_team'];
+    private const TABLE_MATCH_CODES = ['r_match', 'f8_r_match'];
 
     public function __construct(
         private ActivityFetcherService $activities,
@@ -308,6 +309,65 @@ class PublicPlanService
             'program' => $firstProgram,
             'lane' => $lane,
             'meetings' => $meetings,
+        ];
+    }
+
+    /**
+     * Matches on one robot-game table (visitor table overview). Robot-check omitted.
+     *
+     * @return array{plan_id:int,program:int,table:int,matches:list<array{start_time:mixed,team:int,label:string}>}
+     */
+    public function getTableMatches(int $planId, int $firstProgram, int $table): array
+    {
+        $plan = DB::table('plan')->where('id', $planId)->first();
+        if (! $plan) {
+            abort(404, 'Plan not found');
+        }
+
+        $matches = [];
+        if ($firstProgram >= 1 && $table >= 1) {
+            $teams = $this->teamsByPlanNumber($planId);
+            $rows = DB::table('activity as a')
+                ->join('activity_group as ag', 'a.activity_group', '=', 'ag.id')
+                ->join('m_activity_type_detail as atd', 'a.activity_type_detail', '=', 'atd.id')
+                ->where('ag.plan', $planId)
+                ->where('atd.first_program', $firstProgram)
+                ->whereIn('atd.code', self::TABLE_MATCH_CODES)
+                ->where(function ($q) use ($table) {
+                    $q->where('a.table_1', $table)->orWhere('a.table_2', $table);
+                })
+                ->orderBy('a.start')
+                ->get([
+                    'a.start as start_time',
+                    'a.table_1',
+                    'a.table_1_team',
+                    'a.table_2',
+                    'a.table_2_team',
+                ]);
+
+            foreach ($rows as $row) {
+                $team = 0;
+                if ((int) $row->table_1 === $table) {
+                    $team = $row->table_1_team !== null ? (int) $row->table_1_team : 0;
+                } elseif ((int) $row->table_2 === $table) {
+                    $team = $row->table_2_team !== null ? (int) $row->table_2_team : 0;
+                }
+                if ($team < 1) {
+                    continue;
+                }
+                $matches[] = [
+                    'start_time' => $row->start_time,
+                    'team' => $team,
+                    'label' => $this->teamPickerLabel($team, $teams[$firstProgram][$team] ?? null),
+                ];
+            }
+        }
+
+        return [
+            'plan_id' => $planId,
+            'program' => $firstProgram,
+            'table' => $table,
+            'matches' => $matches,
         ];
     }
 
