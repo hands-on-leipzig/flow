@@ -794,6 +794,14 @@ const entityInfoTitle = computed(() => {
   )
 })
 
+const entityInfoProgram = computed(() => {
+  const id = entityInfo.value?.firstProgram
+  if (id == null) return null
+  return programs.value.find((program) => program.id === id)
+      ?? entityInfoRole.value
+      ?? null
+})
+
 const entityInfoNoun = computed(() => {
   if (!entityInfo.value) return ''
   if (entityInfo.value.kind === 'team') return 'dieses Team'
@@ -1529,7 +1537,15 @@ watch(
               class="public-schedule__card"
               :class="entityInfo.kind === 'lane' ? 'public-schedule__card--entity' : 'public-schedule__card--center'"
           >
-            <h2 class="public-schedule__dummy-title">{{ entityInfoTitle }}</h2>
+            <h2 class="public-schedule__dummy-title">
+              <img
+                  v-if="entityInfoProgram"
+                  :src="programLogo(entityInfoProgram)"
+                  :alt="programLogoAlt(entityInfoProgram)"
+                  class="public-schedule__dummy-title-logo"
+              />
+              <span>{{ entityInfoTitle }}</span>
+            </h2>
             <template v-if="entityInfo.kind === 'lane'">
               <p v-if="entityInfoRoom" class="public-schedule__entity-row">
                 <i class="bi bi-geo" aria-hidden="true"/>
@@ -2250,9 +2266,23 @@ watch(
 
 .public-schedule__dummy-title {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   font-size: 1.25rem;
   font-weight: 700;
   color: #111827;
+}
+
+.public-schedule__dummy-title-logo {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+.public-schedule__card--center .public-schedule__dummy-title {
+  justify-content: center;
 }
 
 .public-schedule__dummy-body {
