@@ -775,9 +775,12 @@ const entityInfoBody = computed(() => {
 })
 
 const entityInfoCta = computed(() => {
+  if (entityInfo.value?.kind === 'lane') return 'Detailsicht'
   if (entityInfo.value?.kind === 'team') return 'Sicht für dieses Team'
   return `Sicht für ${entityInfoNoun.value}`
 })
+
+const entityInfoImmediateSwitch = computed(() => entityInfo.value?.kind === 'lane')
 
 function resetPickerToTop() {
   roleFilter.value = ''
@@ -1470,7 +1473,12 @@ watch(
             <p class="public-schedule__dummy-body">{{ entityInfoBody }}</p>
             <div class="public-schedule__dummy-actions">
               <template v-if="entityInfoRole">
-                <template v-if="!entityInfoConfirm">
+                <template v-if="entityInfoImmediateSwitch">
+                  <button type="button" class="public-schedule__text-action" @click="confirmEntityInfoSwitch">
+                    {{ entityInfoCta }}
+                  </button>
+                </template>
+                <template v-else-if="!entityInfoConfirm">
                   <button type="button" class="public-schedule__text-action" @click="entityInfoConfirm = true">
                     {{ entityInfoCta }}
                   </button>
