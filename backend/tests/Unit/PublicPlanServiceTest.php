@@ -121,7 +121,7 @@ class PublicPlanServiceTest extends TestCase
         $payload = app(PublicPlanService::class)->getRoles(1);
         $options = $payload['roles'][0]['options'];
 
-        $this->assertSame(['Robo (42)', 'T2 (Noch nicht angemeldet)'], collect($options)->pluck('label')->all());
+        $this->assertSame(['Robo (42)', 'T02 (Noch nicht angemeldet)'], collect($options)->pluck('label')->all());
         $this->assertSame('Gymnasium Mockau', $options[0]['organization']);
         $this->assertSame('Leipzig', $options[0]['location']);
         $this->assertSame('A2.04', $options[0]['room']);
@@ -232,7 +232,7 @@ class PublicPlanServiceTest extends TestCase
         $this->assertTrue($byId->has(21));
         $this->assertSame('team', $byId[21]['differentiation_parameter']);
         $this->assertSame(
-            ['T1 (Noch nicht angemeldet)', 'T2 (Noch nicht angemeldet)'],
+            ['T01 (Noch nicht angemeldet)', 'T02 (Noch nicht angemeldet)'],
             collect($byId[21]['options'])->pluck('label')->all(),
         );
     }
@@ -292,7 +292,7 @@ class PublicPlanServiceTest extends TestCase
             [
                 'start_time' => '2026-03-15 10:00:00',
                 'team' => 2,
-                'label' => 'T2 (Noch nicht angemeldet)',
+                'label' => 'T02 (Noch nicht angemeldet)',
             ],
             [
                 'start_time' => '2026-03-15 10:30:00',
@@ -365,7 +365,7 @@ class PublicPlanServiceTest extends TestCase
             [
                 'start_time' => '2026-03-15 12:00:00',
                 'team' => 8,
-                'label' => 'T8 (Noch nicht angemeldet)',
+                'label' => 'T08 (Noch nicht angemeldet)',
             ],
         ], $payload['matches']);
     }

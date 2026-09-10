@@ -531,7 +531,7 @@ class PublicPlanService
             return $hotStr !== '' ? "{$name} ({$hotStr})" : $name;
         }
 
-        return 'T'.$slot.' (Noch nicht angemeldet)';
+        return sprintf('T%02d (Noch nicht angemeldet)', $slot);
     }
 
     /**
