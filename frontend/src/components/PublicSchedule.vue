@@ -8,6 +8,7 @@ import {
   projectClockOntoBerlinDay,
 } from '@/utils/dateTimeFormat'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import EventMap from '@/components/molecules/EventMap.vue'
 
 const props = defineProps<{
   planId: number | string
@@ -159,6 +160,7 @@ const loadingRoles = ref(true)
 const loadingSchedule = ref(false)
 const error = ref<string | null>(null)
 const eventName = ref('')
+const eventId = ref<number | null>(null)
 const eventSlug = ref<string | null>(null)
 const checkInEnabled = ref(false)
 const cockpitEnabled = ref(false)
@@ -1186,6 +1188,7 @@ async function loadRoles() {
     roles.value = data.roles || []
     programs.value = data.programs || []
     eventName.value = data.event_name || ''
+    eventId.value = Number(data.event_id) || null
     eventSlug.value = typeof data.slug === 'string' && data.slug !== '' ? data.slug : null
     checkInEnabled.value = !!data.check_in_enabled
     cockpitEnabled.value = !!data.cockpit_enabled
@@ -1666,6 +1669,17 @@ watch(
                 <i class="bi bi-geo-alt" aria-hidden="true"/>
                 {{ entityInfoLocation }}
               </p>
+              <div
+                  v-if="entityInfoLocation && eventId"
+                  class="public-schedule__entity-map"
+              >
+                <EventMap
+                    :address="entityInfoLocation"
+                    :event-id="eventId"
+                    :event-name="entityInfoTitle || 'Team'"
+                    :show-q-r-code="false"
+                />
+              </div>
             </template>
             <div class="public-schedule__page-actions">
               <template v-if="entityInfoRole">
@@ -2401,6 +2415,11 @@ watch(
   padding: 0;
   min-height: 0;
   text-align: left;
+}
+
+.public-schedule__entity-map {
+  margin-top: 0.15rem;
+  min-width: 0;
 }
 
 .public-schedule__page-title,
