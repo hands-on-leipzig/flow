@@ -16,6 +16,7 @@ import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
 import {
+  isTeamParticipantListIncomplete,
   isTeamPhotoConsentUnset,
   isTeamRowIncomplete,
   type TeamDataColumn,
@@ -40,6 +41,7 @@ const mealPanelOpen = ref(false)
 const exportBusy = ref(false)
 const showOnlyIncomplete = ref(false)
 const showOnlyPhotoUnset = ref(false)
+const showOnlyParticipantListIncomplete = ref(false)
 const nameFilter = ref('')
 const activeProgramFilters = ref<Set<number>>(new Set())
 const sortKey = ref<'team_number_hot' | 'name' | 'organization'>('name')
@@ -104,6 +106,9 @@ const filteredTeams = computed(() => {
   }
   if (showOnlyIncomplete.value) {
     rows = rows.filter((row) => isTeamRowIncomplete(row, columns.value))
+  }
+  if (showOnlyParticipantListIncomplete.value) {
+    rows = rows.filter((row) => isTeamParticipantListIncomplete(row))
   }
 
   const dir = sortDir.value === 'asc' ? 1 : -1
@@ -384,7 +389,18 @@ onActivated(() => {
               @click="showOnlyIncomplete = !showOnlyIncomplete"
           >
             <i class="bi bi-exclamation-circle vol-staffing-filter__icon" aria-hidden="true"/>
-            <span class="vol-staffing-filter__label">Unvollständige Antworten</span>
+            <span class="vol-staffing-filter__label">Antworten unvollständig</span>
+          </button>
+          <button
+              type="button"
+              class="vol-staffing-filter"
+              :class="{'vol-staffing-filter--active': showOnlyParticipantListIncomplete}"
+              :aria-pressed="showOnlyParticipantListIncomplete"
+              title="Nur Teams ohne Teilnehmer:innen in der Anmeldung anzeigen"
+              @click="showOnlyParticipantListIncomplete = !showOnlyParticipantListIncomplete"
+          >
+            <i class="bi bi-people vol-staffing-filter__icon" aria-hidden="true"/>
+            <span class="vol-staffing-filter__label">Teilnehmerliste unvollständig</span>
           </button>
           <span class="vol-toolbar__count vol-staffing-filters__count">
             {{ filteredTeams.length }} / {{ teams.length }}

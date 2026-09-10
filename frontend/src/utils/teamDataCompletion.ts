@@ -18,6 +18,7 @@ export type TeamDataRow = {
   first_program: number | null
   program_label: string
   people_count: number | null
+  players_count: number | null
   photo_consent?: Record<string, number>
   meals?: Record<string, number>
   custom: Record<string, unknown>
@@ -121,4 +122,9 @@ export function countSetTotal(row: TeamDataRow, column: TeamDataColumn): number 
 /** Team has not yet entered Fotoerlaubnis counts (parallel to volunteer photo unset). */
 export function isTeamPhotoConsentUnset(row: TeamDataRow): boolean {
   return !row.touched?.photo
+}
+
+/** Draht returned a people list and it has zero Teilnehmer (coaches ignored). */
+export function isTeamParticipantListIncomplete(row: TeamDataRow): boolean {
+  return row.players_count === 0
 }
