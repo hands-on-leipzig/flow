@@ -10,7 +10,7 @@ on:
       - main
       - test
   release:
-    types: [ created ]
+    types: [ published ]
 
 jobs:
   deploy-dev:
