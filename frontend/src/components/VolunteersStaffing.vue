@@ -281,11 +281,13 @@ async function load() {
     planId.value = staffingRes.data.plan_id ?? null
     roster.value = rosterRes.data.roster ?? []
     pool.value = poolRes.data.people ?? []
-    await eventStore.refreshReadiness(eventId.value)
   } catch (e: any) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
     loading.value = false
+    if (eventId.value) {
+      await eventStore.refreshReadiness(eventId.value)
+    }
   }
 }
 

@@ -185,15 +185,16 @@ export const useEventStore = defineStore('event', {
         },
     
         async refreshReadiness(eventId: number) {
+            const noticeRefresh = useNoticeStore().refresh(eventId)
             try {
                 const { data } = await axios.get(`/export/ready/${eventId}`)
                 this.readiness = data
-                await useNoticeStore().refresh(eventId)
+                await noticeRefresh
                 return data
             } catch (error) {
                 console.error('Failed to refresh readiness:', error)
                 this.readiness = null
-                await useNoticeStore().refresh(eventId)
+                await noticeRefresh
                 return null
             }
         },

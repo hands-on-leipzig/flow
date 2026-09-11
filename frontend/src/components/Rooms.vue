@@ -573,6 +573,10 @@ const confirmDeleteRoom = async () => {
   })
 
   roomToDelete.value = null
+
+  if (eventStore.selectedEvent?.id) {
+    await eventStore.refreshReadiness(eventStore.selectedEvent.id)
+  }
 }
 
 const cancelDeleteRoom = () => {
