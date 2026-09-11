@@ -132,6 +132,9 @@ async function runSync() {
     await axios.post(`/events/${event.value?.id}/teams/sync`, {program: props.program})
     await reloadTeams()
     await eventStore.updateTeamDiscrepancyStatus()
+    if (event.value?.id) {
+      await eventStore.refreshReadiness(event.value.id)
+    }
     showGlassToast('Abgleich abgeschlossen', 'success')
   } catch (e) {
     showGlassToast(

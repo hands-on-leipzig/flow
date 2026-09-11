@@ -9,7 +9,7 @@ import {useEventStore} from '@/stores/event'
 import {apiError} from '@/utils/apiError'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {isEntwicklungEnvironment} from '@/constants/adminNav'
-import {helpJumpPath, isHelpScreenCurrent, TEAMS_PROGRAM_HELP_KEY} from '@/utils/helpRoutes'
+import {HELP_SCREEN_KEY_BY_PATH, helpJumpPath, isHelpScreenCurrent, TEAMS_PROGRAM_HELP_KEY} from '@/utils/helpRoutes'
 
 defineOptions({name: 'ScreenHelpButton'})
 
@@ -28,26 +28,6 @@ type ScreenArticle = {
   must_do: string | null
   can_do: string | null
   actions: Action[]
-}
-
-const ROUTE_KEYS: Record<string, string> = {
-  '/plan/publish': 'publish-distribution',
-  '/plan/publish/logos': 'publish-logos',
-  '/plan/teams/data': 'teams-data',
-  '/plan/rooms': 'rooms',
-  '/plan/volunteers': 'volunteers-people',
-  '/plan/volunteers/roster': 'volunteers-roster',
-  '/plan/volunteers/staffing': 'volunteers-staffing',
-  '/plan/live/check-in': 'live-check-in',
-  '/plan/live/cockpit': 'live-cockpit',
-  '/plan/schedule': 'schedule-general',
-  '/plan/schedule/integration': 'schedule-integration',
-  '/plan/schedule/times': 'schedule-times',
-  '/plan/schedule/afternoon': 'schedule-afternoon',
-  '/plan/schedule/expert': 'schedule-expert',
-  '/plan/schedule/protected': 'schedule-protected',
-  '/plan/schedule/free': 'schedule-free',
-  '/plan/schedule/slots': 'schedule-slots',
 }
 
 const route = useRoute()
@@ -70,7 +50,7 @@ const canDo = ref('')
 const screenKey = computed(() => {
   if (route.name === 'teams-program') return TEAMS_PROGRAM_HELP_KEY
   const path = (route.path || '').replace(/\/$/, '') || '/'
-  return ROUTE_KEYS[path] ?? null
+  return HELP_SCREEN_KEY_BY_PATH[path] ?? null
 })
 
 function applyArticle(data: ScreenArticle) {

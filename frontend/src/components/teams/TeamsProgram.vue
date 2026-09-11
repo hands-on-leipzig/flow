@@ -12,6 +12,7 @@ import TeamsRegistrationStats from '@/components/teams/TeamsRegistrationStats.vu
 import TeamsMultiTeamCoaches from '@/components/teams/TeamsMultiTeamCoaches.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
 import {findProgram, firstTeamsPath} from '@/utils/eventPrograms'
@@ -132,7 +133,7 @@ watch(
           <h1 class="vol-page__title">Details pro Team</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Verteilen der Teams auf die Nummern im Ablauf. Anschauen der Details aus der Anmeldung</p>
+        <p class="vol-page__sub">Zuordnen der Teams auf die Nummern im Ablauf. Anschauen der Details aus der Anmeldung</p>
       </div>
       <div class="vol-page__actions">
         <button
@@ -148,6 +149,8 @@ watch(
         <TeamsEmailOutreach :current-program="program"/>
       </div>
     </header>
+
+    <NoticePane/>
 
     <div
         v-if="loading"

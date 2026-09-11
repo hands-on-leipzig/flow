@@ -3,6 +3,7 @@
  * Ausgabe → Namensschilder: Namensaufkleber für Teams und Volunteers.
  */
 import PdfPlansBox from '@/components/molecules/PdfPlansBox.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 
 defineOptions({name: 'PublishNameTags'})
 </script>
@@ -15,6 +16,8 @@ defineOptions({name: 'PublishNameTags'})
         <p class="vol-page__sub">Erstellen von PDFs zum Druck von Aufklebern</p>
       </div>
     </header>
+
+    <NoticePane/>
 
     <PdfPlansBox hide-heading section="labels"/>
   </div>

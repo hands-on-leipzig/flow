@@ -9,6 +9,7 @@ import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import ItemCard from '@/components/molecules/ItemCard.vue'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {programLogoSrc, seasonLogoSrc} from '@/utils/images'
@@ -399,6 +400,8 @@ onMounted(async () => {
         <p class="vol-page__sub">Verwalten von Logos für die verschiedenen Ausgaben</p>
       </div>
     </header>
+
+    <NoticePane/>
 
     <div
         v-if="!selectedEvent && !eventStore.selectedEvent"

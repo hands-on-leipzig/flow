@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\MainTablesController;
 use App\Http\Controllers\Api\MatchPlanCatalogController;
 use App\Http\Controllers\Api\MParameterController;
 use App\Http\Controllers\Api\NewsController;
+use App\Http\Controllers\Api\NoticeController;
 use App\Http\Controllers\Api\ParameterController;
 use App\Http\Controllers\Api\PlanActivityController;
 use App\Http\Controllers\Api\PlanCeremonyTimesController;
@@ -384,6 +385,9 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/sharepoint/documents-file-stream', [SharepointController::class, 'streamFile']);
 
     Route::get('/events/{event}/draht-data', [DrahtController::class, 'show']);
+    Route::get('/events/{event}/notices', [NoticeController::class, 'index']);
+    Route::post('/events/{event}/notices/restore', [NoticeController::class, 'restore']);
+    Route::post('/events/{event}/notices/{notice}/hide', [NoticeController::class, 'hide']);
     Route::get('/draht/people/{drahtEventId}', [DrahtController::class, 'getPeople']);
     Route::post('/rooms', [RoomController::class, 'store']);
     Route::put('/rooms/assign-types', [RoomController::class, 'assignRoomType']);

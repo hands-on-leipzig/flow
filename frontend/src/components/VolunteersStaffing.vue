@@ -27,6 +27,7 @@ import {
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 import {staffingContainerTitle, staffingTileKey} from '@/volunteers/staffingLabel'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 import {
   boundsValidationError,
   tileNeedsAttention,
@@ -280,11 +281,13 @@ async function load() {
     planId.value = staffingRes.data.plan_id ?? null
     roster.value = rosterRes.data.roster ?? []
     pool.value = poolRes.data.people ?? []
-    await eventStore.refreshReadiness(eventId.value)
   } catch (e: any) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
     loading.value = false
+    if (eventId.value) {
+      await eventStore.refreshReadiness(eventId.value)
+    }
   }
 }
 
@@ -467,12 +470,10 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
       </div>
     </header>
 
-    <div v-if="!planId && !loading" class="glass-alert-warning">
-      Kein Zeitplan vorhanden — zuerst Ablauf erzeugen.
-    </div>
+    <NoticePane/>
 
     <div
-        v-else-if="loading && !roles.length"
+        v-if="loading && !roles.length"
         class="vol-staffing-body vol-staffing-body--loading"
     >
       <div class="vol-staffing-loading">

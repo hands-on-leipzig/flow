@@ -5,6 +5,7 @@ import axios from 'axios'
 import HelpActionFeedback from '@/components/atoms/HelpActionFeedback.vue'
 import {useEventStore} from '@/stores/event'
 import {helpJumpPath} from '@/utils/helpRoutes'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 
 defineOptions({name: 'HelpCatalog'})
 
@@ -135,6 +136,8 @@ function escapeHtml(value: string): string {
 <template>
   <div class="p-4 lg:p-6 max-w-3xl">
     <h1 class="text-2xl font-bold mb-4">Hilfe</h1>
+
+    <NoticePane/>
 
     <input
         v-model="query"

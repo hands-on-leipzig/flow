@@ -236,6 +236,7 @@ function mTableNaturalUniqueKeys(string $table): array
         'm_visibility' => [['activity_type_detail', 'role']],
         'm_staffing_rule' => [['m_role']],
         'm_help_action_screen' => [['help_action', 'help_screen']],
+        'm_notice' => [['key']],
         default => [],
     };
 }

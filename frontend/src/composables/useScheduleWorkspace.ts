@@ -421,6 +421,9 @@ async function runGeneratorOnce() {
   } finally {
     isGenerating.value = false
     getSaveApi().unfreeze()
+    if (selectedEvent.value?.id) {
+      await eventStore().refreshReadiness(selectedEvent.value.id)
+    }
   }
 }
 
