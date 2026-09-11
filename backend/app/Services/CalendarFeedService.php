@@ -34,11 +34,20 @@ class CalendarFeedService
         private EventTitleService $titles,
     ) {}
 
+    public static function rebuildEnabled(): bool
+    {
+        return (bool) config('calendar.rebuild_enabled');
+    }
+
     /**
      * Rebuild for a write-path hook. Never throws — ICS must not fail slug, plan, or DRAHT sync.
      */
     public function rebuildSafely(int $eventId): void
     {
+        if (! self::rebuildEnabled()) {
+            return;
+        }
+
         try {
             $this->rebuild($eventId);
         } catch (\Throwable $e) {
@@ -55,6 +64,10 @@ class CalendarFeedService
      */
     public function rebuild(int $eventId): string
     {
+        if (! self::rebuildEnabled()) {
+            return self::RESULT_SKIPPED;
+        }
+
         $event = Event::find($eventId);
         if (! $event || $this->slug($event) === '') {
             return self::RESULT_SKIPPED;
@@ -138,6 +151,21 @@ class CalendarFeedService
      */
     public function rebuildWindow(): array
     {
+        if (! self::rebuildEnabled()) {
+            Log::info('ICS window rebuild skipped (calendar.rebuild_enabled=false)');
+
+            return [
+                'success' => true,
+                'rebuilt' => 0,
+                'kept' => 0,
+                'skipped' => 0,
+                'failed' => 0,
+                'removed' => 0,
+                'total' => 0,
+                'errors' => ['ICS rebuild is disabled'],
+            ];
+        }
+
         $ids = DB::table('event')
             ->whereNotNull('slug')
             ->where('slug', '!=', '')

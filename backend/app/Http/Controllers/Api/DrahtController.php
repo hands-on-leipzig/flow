@@ -393,8 +393,14 @@ class DrahtController extends Controller
                 }
             }
 
-            foreach (array_unique($icsEventIds) as $eventId) {
-                app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+            if (\App\Services\CalendarFeedService::rebuildEnabled()) {
+                foreach (array_unique($icsEventIds) as $eventId) {
+                    app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+                }
+            } else {
+                Log::info('DRAHT sync skipped ICS rebuild (calendar.rebuild_enabled=false)', [
+                    'events' => count(array_unique($icsEventIds)),
+                ]);
             }
 
             return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);

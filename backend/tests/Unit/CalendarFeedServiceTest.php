@@ -24,6 +24,7 @@ class CalendarFeedServiceTest extends TestCase
         config([
             'app.env' => 'production',
             'app.url' => 'https://flow.hands-on-technology.org',
+            'calendar.rebuild_enabled' => true,
         ]);
 
         $this->createSchema();
@@ -54,6 +55,39 @@ class CalendarFeedServiceTest extends TestCase
     {
         app(CalendarFeedService::class)->rebuildSafely(999999);
         $this->assertSame(0, EventCalendar::query()->count());
+    }
+
+    public function test_rebuild_is_skipped_when_disabled(): void
+    {
+        config(['calendar.rebuild_enabled' => false]);
+        $this->insertEvent();
+        $this->mock(DrahtController::class, function ($mock) {
+            $mock->shouldReceive('fetchScheduleData')->never();
+        });
+
+        $this->assertSame(
+            CalendarFeedService::RESULT_SKIPPED,
+            app(CalendarFeedService::class)->rebuild(1)
+        );
+        app(CalendarFeedService::class)->rebuildSafely(1);
+        $this->assertSame(0, EventCalendar::query()->count());
+    }
+
+    public function test_rebuild_window_is_skipped_when_disabled(): void
+    {
+        config(['calendar.rebuild_enabled' => false]);
+        $this->insertEvent();
+        $this->insertCalendar(1, '2026-08-24', "BEGIN:VEVENT\r\nSUMMARY:KEEP\r\nEND:VEVENT");
+        $this->mock(DrahtController::class, function ($mock) {
+            $mock->shouldReceive('fetchScheduleData')->never();
+        });
+
+        $result = app(CalendarFeedService::class)->rebuildWindow();
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(0, $result['rebuilt']);
+        $this->assertSame(0, $result['removed']);
+        $this->assertSame(1, EventCalendar::query()->count());
     }
 
     public function test_skips_event_without_slug_and_does_not_call_draht(): void
