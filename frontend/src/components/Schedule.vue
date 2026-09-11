@@ -12,6 +12,7 @@ import LoaderText from '@/components/atoms/LoaderText.vue'
 import Preview from '@/components/molecules/Preview.vue'
 import PanelSplitter from '@/components/atoms/PanelSplitter.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 import { formatDateTime } from '@/utils/dateTimeFormat'
 import { seasonLogoAlt, seasonLogoSrc } from '@/utils/images'
 import { cleanEventName, getAbbreviatedCompetitionType } from '@/utils/eventTitle'
@@ -153,6 +154,8 @@ watch(
         <p class="vol-page__sub">{{ pageHeader.sub }}</p>
       </div>
     </header>
+
+    <NoticePane/>
 
     <div v-if="loading && !selectedPlanId" class="flex items-center justify-start flex-1 min-h-0 flex-col text-[var(--color-text-muted)]">
       <LoaderFlow/>

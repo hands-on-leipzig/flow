@@ -9,6 +9,7 @@ import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
 import { eventPrograms } from '@/utils/eventPrograms'
 import {showGlassToast} from '@/composables/useGlassToast'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 
 
 const regionalPartners = ref([])
@@ -145,6 +146,8 @@ async function createEvent() {
         + Neue Veranstaltung
       </button>
     </div>
+
+    <NoticePane/>
 
     <div v-if="loading" class="flex justify-center">
       <LoaderFlow/>

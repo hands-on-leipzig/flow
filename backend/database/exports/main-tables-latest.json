@@ -1951,7 +1951,7 @@
         {
             "id": 49,
             "help_topic": 4,
-            "title": "Was sind bei \u201eChallenge mit Future 8+\u201c die Auswirkungen von in einem Raum oder in getrennten R\u00e4umen?",
+            "title": "Was sind bei \u201eChallenge und Future 8+\u201c die Auswirkungen von in einem Raum oder in getrennten R\u00e4umen?",
             "sort_order": 46,
             "body": "Wenn beide in einem Raum stattfinden, werden die Zeiten f\u00fcr die Matches so erzeugt, dass sie nicht gleichzeitig stattfinden. Die Testrunde ist eine Ausnahme. Um Zeit zu sparen, laufen da Matches parallel.\n\nWenn getrennte R\u00e4ume genutzt werden, haben die beiden Programme entkoppelte Zeitpl\u00e4ne. Damit kann man Zeit sparen, aber es macht es dem Publikum schwer, beide Programme zu verfolgen."
         },
@@ -2080,6 +2080,41 @@
             "title": "Warum werden bei Zuordnung Teamnummern und nicht -namen angezeigt?",
             "sort_order": 66,
             "body": "Die Zuordnung von Teamnamen zu Teamnummern kann sich \u00e4ndern. \n\nDer Generator erzeugt den Ablauf f\u00fcr Teamnummern. Um zu beurteilen, ob Slots f\u00fcr Teams passen, sind daher die Teamnummern entscheidend."
+        },
+        {
+            "id": 70,
+            "help_topic": 3,
+            "title": "Wie entferne ich jemand von der Helfer:innen-Liste?",
+            "sort_order": 67,
+            "body": "\u00dcber das Icon in der ersten Spalte.\n\nEventuelle Zuordnungen werden dabei auch entfernt."
+        },
+        {
+            "id": 71,
+            "help_topic": 6,
+            "title": "Wo zum Geier sind sie dann?",
+            "sort_order": 68,
+            "body": "Die angemessene Frage lautet: WANN zum Geier sind sie!"
+        },
+        {
+            "id": 72,
+            "help_topic": 6,
+            "title": "Was ist die Fluggeschwindigkeit einer unbeladenen Schwalbe?",
+            "sort_order": 69,
+            "body": "Was meint Ihr? Eine afrikanische oder eine europ\u00e4ische Schwalbe?"
+        },
+        {
+            "id": 73,
+            "help_topic": 6,
+            "title": "Ist Darth Vader mein Vater?",
+            "sort_order": 70,
+            "body": "Dein Vater er ist."
+        },
+        {
+            "id": 74,
+            "help_topic": 6,
+            "title": "Was ist die Antwort auf die ultimative Frage nach dem Leben, dem Universum und dem ganzen Rest?",
+            "sort_order": 71,
+            "body": "42"
         }
     ],
     "m_help_action_screen": [
@@ -2512,6 +2547,11 @@
             "id": 88,
             "help_action": 69,
             "help_screen": 19
+        },
+        {
+            "id": 89,
+            "help_action": 70,
+            "help_screen": 6
         }
     ],
     "m_help_screen": [
@@ -5546,6 +5586,158 @@
             "table_2": 2,
             "table_1_team": 1,
             "table_2_team": 2
+        }
+    ],
+    "m_notice": [
+        {
+            "id": 1,
+            "key": "teams_discrepancy",
+            "kind": "red_dot",
+            "condition_key": "teams_discrepancy",
+            "help_screen": 3,
+            "title": null,
+            "body": "Die Daten f\u00fcr {program} in FLOW weichen von denen der Anmeldung ab..",
+            "sort_order": 1,
+            "time_mode": null,
+            "abs_start": null,
+            "abs_end": null,
+            "rel_start_days": null,
+            "rel_end_days": null
+        },
+        {
+            "id": 2,
+            "key": "schedule_counts",
+            "kind": "red_dot",
+            "condition_key": "schedule_counts",
+            "help_screen": 12,
+            "title": null,
+            "body": "Die Anzahl Teams im Ablauf passt nicht zur den Zahlen aus der Anmeldung.",
+            "sort_order": 2,
+            "time_mode": null,
+            "abs_start": null,
+            "abs_end": null,
+            "rel_start_days": null,
+            "rel_end_days": null
+        },
+        {
+            "id": 3,
+            "key": "rooms_activities",
+            "kind": "red_dot",
+            "condition_key": "rooms_activities",
+            "help_screen": 7,
+            "title": null,
+            "body": "Es wurde noch nicht alle Aktivit\u00e4ten auf R\u00e4ume zugeordnet.",
+            "sort_order": 3,
+            "time_mode": null,
+            "abs_start": null,
+            "abs_end": null,
+            "rel_start_days": null,
+            "rel_end_days": null
+        },
+        {
+            "id": 4,
+            "key": "rooms_teams",
+            "kind": "red_dot",
+            "condition_key": "rooms_teams",
+            "help_screen": 7,
+            "title": null,
+            "body": "Es wurde noch nicht alle Teams auf R\u00e4ume zugeordnet.",
+            "sort_order": 4,
+            "time_mode": null,
+            "abs_start": null,
+            "abs_end": null,
+            "rel_start_days": null,
+            "rel_end_days": null
+        },
+        {
+            "id": 5,
+            "key": "staffing_below_min",
+            "kind": "red_dot",
+            "condition_key": "staffing_below_min",
+            "help_screen": 9,
+            "title": null,
+            "body": "Einige Hefer:innen-Rollen ({scope}) sind noch unter der Mindestempfehlung.",
+            "sort_order": 5,
+            "time_mode": null,
+            "abs_start": null,
+            "abs_end": null,
+            "rel_start_days": null,
+            "rel_end_days": null
+        },
+        {
+            "id": 6,
+            "key": "staffing_surplus",
+            "kind": "red_dot",
+            "condition_key": "staffing_surplus",
+            "help_screen": 9,
+            "title": null,
+            "body": "Es gibt \u00fcberz\u00e4hlige Rollen, die noch mit Helfer:innen besetzt sind.",
+            "sort_order": 6,
+            "time_mode": null,
+            "abs_start": null,
+            "abs_end": null,
+            "rel_start_days": null,
+            "rel_end_days": null
+        },
+        {
+            "id": 7,
+            "key": "time_registration_closed",
+            "kind": "time",
+            "condition_key": null,
+            "help_screen": 12,
+            "title": null,
+            "body": "Der Anmeldeschluss war am 31.10.2026. Die Anzahl Teams pro Programm wird sich nicht mehr \u00e4ndern. Der Ablauf sollte nochmal angeschaut werden.",
+            "sort_order": 10,
+            "time_mode": "absolute",
+            "abs_start": "2026-09-01",
+            "abs_end": "2026-11-30",
+            "rel_start_days": null,
+            "rel_end_days": null
+        },
+        {
+            "id": 8,
+            "key": "time_publish_four_weeks",
+            "kind": "time",
+            "condition_key": null,
+            "help_screen": 1,
+            "title": null,
+            "body": "Es sind weniger als vier Wochen bis zur Veranstaltung.\nDie Informationen zum Zeitplan auf der \u00f6ffentlichen Seite sollten mindestens die \u201ewichtigen Zeiten\u201c enthalten.",
+            "sort_order": 11,
+            "time_mode": "relative",
+            "abs_start": null,
+            "abs_end": null,
+            "rel_start_days": -2799,
+            "rel_end_days": -3
+        },
+        {
+            "id": 9,
+            "key": "time_publish_three_days",
+            "kind": "time",
+            "condition_key": null,
+            "help_screen": 1,
+            "title": null,
+            "body": "Es sind nur noch drei Tage bis zur Veranstaltung. Die Informationen zum Zeitplan auf der \u00f6ffentlichen Seite sollten jetzt \u201eVolle Details\u201c sein.",
+            "sort_order": 12,
+            "time_mode": "relative",
+            "abs_start": null,
+            "abs_end": null,
+            "rel_start_days": -399,
+            "rel_end_days": 0
+        },
+        {
+            "id": 10,
+            "key": "time_event_day",
+            "kind": "time",
+            "condition_key": null,
+            "help_screen": 1,
+            "title": null,
+            "body": "Heute ist die Veranstaltung. Die Apps f\u00fcr den Tag sollten eingeschaltet sein.",
+            "sort_order": 13,
+            "time_mode": "relative",
+            "abs_start": null,
+            "abs_end": null,
+            "rel_start_days": -999,
+            "rel_end_days": 0
         }
     ],
     "m_parameter": [
@@ -12248,7 +12440,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-10T07:40:50.960877Z",
+        "exported_at": "2026-09-11T15:17:56.236148Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
@@ -12260,6 +12452,7 @@
             "m_help_topic",
             "m_level",
             "m_match",
+            "m_notice",
             "m_parameter",
             "m_parameter_condition",
             "m_role",

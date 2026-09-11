@@ -36,7 +36,7 @@ class PublishController extends Controller
 {
     public function __construct(private readonly EventSlugService $slugs) {}
 
-    public function linkAndQRcode(int $eventId): JsonResponse
+    public function linkAndQRcode(int $eventId, bool $tryCalendarRebuild = true): JsonResponse
     {
         $event = Event::find($eventId);
 
@@ -117,7 +117,9 @@ class PublishController extends Controller
             }
         }
 
-        app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $event->id);
+        if ($tryCalendarRebuild) {
+            app(\App\Services\CalendarFeedService::class)->tryRebuildOne((int) $event->id);
+        }
 
         return response()->json([
             'link' => $displayLink,
@@ -264,7 +266,8 @@ class PublishController extends Controller
                         ]);
 
                     // Regenerate link and QR code
-                    $this->linkAndQRcode($event->id);
+                    $this->linkAndQRcode($event->id, tryCalendarRebuild: false);
+                    app(\App\Services\CalendarFeedService::class)->markStale((int) $event->id);
                     $regenerated++;
 
                     // Log progress every 10 events or on last event
@@ -274,6 +277,7 @@ class PublishController extends Controller
                         Log::info("Regenerated link for event {$event->id} ({$event->name})");
                     }
                 } catch (\Exception $e) {
+                    app(\App\Services\CalendarFeedService::class)->markStale((int) $event->id);
                     $failed++;
                     $errorMsg = "Failed to regenerate link for event {$event->id} ({$event->name}): " . $e->getMessage();
                     $errors[] = $errorMsg;
@@ -514,7 +518,7 @@ class PublishController extends Controller
                 'level' => $level,
                 'last_change' => Carbon::now(),
             ]);
-            app(\App\Services\CalendarFeedService::class)->rebuildSafely($eventId);
+            app(\App\Services\CalendarFeedService::class)->tryRebuildOne($eventId);
         }
 
         return response()->json([

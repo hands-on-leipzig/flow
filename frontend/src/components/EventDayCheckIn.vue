@@ -12,6 +12,7 @@ import SavingToast from '@/components/atoms/SavingToast.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import MobileLivePreview from '@/components/molecules/MobileLivePreview.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 
 defineOptions({name: 'EventDayCheckIn'})
@@ -446,6 +447,8 @@ onBeforeUnmount(() => {
         <p class="vol-page__sub">Einstellen und Ausprobieren der Funktionen für den Check-In</p>
       </div>
     </header>
+
+    <NoticePane/>
 
     <div class="settings-split__workspace">
       <div class="settings-split__split">

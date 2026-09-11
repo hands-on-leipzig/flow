@@ -32,6 +32,7 @@ import {defaultRosterDetail, type RosterEntry} from '@/volunteers/rosterTypes'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 
 type Person = VolunteerPersonRef
 
@@ -324,6 +325,8 @@ onMounted(() => load())
         <VolunteerEmailOutreach scope="roster" :people="visibleRosterPeople"/>
       </div>
     </header>
+
+    <NoticePane/>
 
     <div class="vol-roster-toolbar">
       <VolunteerPersonSearch

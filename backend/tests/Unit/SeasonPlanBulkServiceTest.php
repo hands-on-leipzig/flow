@@ -139,6 +139,7 @@ class SeasonPlanBulkServiceTest extends TestCase
         Schema::create('event', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('season');
+            $table->boolean('calendar_stale')->default(true);
         });
 
         Schema::create('plan', function (Blueprint $table) {

@@ -14,6 +14,7 @@ import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
 import ItemCard from "@/components/molecules/ItemCard.vue";
 import ItemComposer from "@/components/molecules/ItemComposer.vue";
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 
 defineOptions({name: 'Rooms'})
 
@@ -572,6 +573,10 @@ const confirmDeleteRoom = async () => {
   })
 
   roomToDelete.value = null
+
+  if (eventStore.selectedEvent?.id) {
+    await eventStore.refreshReadiness(eventStore.selectedEvent.id)
+  }
 }
 
 const cancelDeleteRoom = () => {
@@ -853,9 +858,11 @@ const hasWarning = (tab) => {
           <h1 class="vol-page__title">Räume</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Verteilen der Aktivitäten auf Räume</p>
+        <p class="vol-page__sub">Zuordnen der Aktivitäten auf Räume</p>
       </div>
     </header>
+
+    <NoticePane/>
 
     <div
         v-if="loading"

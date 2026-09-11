@@ -16,6 +16,7 @@ import {apiError} from '@/utils/apiError'
 import {flowFilename} from '@/utils/flowFilename'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 
 type Person = VolunteerPersonRef
 
@@ -442,6 +443,8 @@ watch(eventId, () => {
         <VolunteerEmailOutreach scope="pool" :people="filtered"/>
       </div>
     </header>
+
+    <NoticePane/>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-composer">
       <div class="vol-table-frame">

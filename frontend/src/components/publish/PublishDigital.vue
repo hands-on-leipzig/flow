@@ -3,6 +3,7 @@
  * Ausgabe → Digital: shared page header + flexible dual-scroll workspace.
  */
 import PresentationSettings from '@/components/molecules/PresentationSettings.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 
 defineOptions({name: 'PublishDigital'})
 </script>
@@ -15,6 +16,8 @@ defineOptions({name: 'PublishDigital'})
         <p class="vol-page__sub">Erstellen und Testen von Slideshows für den Veranstaltungstag</p>
       </div>
     </header>
+
+    <NoticePane/>
 
     <PresentationSettings/>
   </div>

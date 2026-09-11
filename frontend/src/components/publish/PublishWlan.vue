@@ -3,6 +3,7 @@
  * Ausgabe → WLAN vor Ort: SSID/Passwort und QR-Code.
  */
 import QrWifiBox from '@/components/molecules/QrWifiBox.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 
 defineOptions({name: 'PublishWlan'})
 </script>
@@ -15,6 +16,8 @@ defineOptions({name: 'PublishWlan'})
         <p class="vol-page__sub">Eingabe der Login-Daten für das WLAN vor Ort</p>
       </div>
     </header>
+
+    <NoticePane/>
 
     <div class="wlan-page__box glass-card liquid-surface-inner">
       <QrWifiBox embed section="wifi"/>

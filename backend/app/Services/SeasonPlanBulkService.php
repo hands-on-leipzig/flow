@@ -178,7 +178,7 @@ class SeasonPlanBulkService
 
         try {
             app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
-            app(CalendarFeedService::class)->rebuildSafely($eventId);
+            app(CalendarFeedService::class)->markStale($eventId);
             if (config('staffing.sync_after_generate')) {
                 try {
                     app(StaffingSyncService::class)->syncForEvent($eventId);

@@ -13,6 +13,7 @@ import PublicFormFieldsDialog from '@/components/molecules/PublicFormFieldsDialo
 import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {usePublicHelperSearch} from '@/composables/usePublicHelperSearch'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
@@ -357,6 +358,8 @@ onMounted(async () => {
         <p class="vol-page__sub">Festlegen, was auf der öffentlichen Seite gezeigt wird</p>
       </div>
     </header>
+
+    <NoticePane/>
 
     <div class="pub__workspace">
       <div class="pub__split">

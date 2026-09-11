@@ -3,6 +3,7 @@ import axios from "axios"
 import FllEvent  from "@/models/FllEvent"
 import {DrahtService} from "@/services/drahtService"
 import {usePlanCacheStore} from '@/stores/planCache'
+import {useNoticeStore} from '@/stores/notice'
 import {setEventProgramLogos} from '@/utils/images'
 
 interface EventStoreState {
@@ -184,15 +185,18 @@ export const useEventStore = defineStore('event', {
         },
     
         async refreshReadiness(eventId: number) {
-        try {
-            const { data } = await axios.get(`/export/ready/${eventId}`)
-            this.readiness = data
-            return data
-        } catch (error) {
-            console.error('Failed to refresh readiness:', error)
-            this.readiness = null
-            return null
-        }
+            const noticeRefresh = useNoticeStore().refresh(eventId)
+            try {
+                const { data } = await axios.get(`/export/ready/${eventId}`)
+                this.readiness = data
+                await noticeRefresh
+                return data
+            } catch (error) {
+                console.error('Failed to refresh readiness:', error)
+                this.readiness = null
+                await noticeRefresh
+                return null
+            }
         },
     },
 })

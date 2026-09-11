@@ -107,7 +107,10 @@ export async function executeScheduleFlush(
 
     if (hasExtraBlocks && deps.freeBlockFlush) {
       const ok = await deps.freeBlockFlush(extraBlockUpdates, {skipPostGeneration: needsFullGenerate})
-      if (!ok) return
+      if (!ok) {
+        await deps.refreshReadiness()
+        return
+      }
     }
 
     if (hasSlotBlocks && !deps.slotBlockFlush) {
@@ -116,14 +119,16 @@ export async function executeScheduleFlush(
 
     if (hasSlotBlocks && deps.slotBlockFlush) {
       const ok = await deps.slotBlockFlush(slotBlockUpdates, {skipPostGeneration: needsFullGenerate})
-      if (!ok) return
+      if (!ok) {
+        await deps.refreshReadiness()
+        return
+      }
     }
 
     if (needsFullGenerate) {
       await deps.runFullGenerate()
-      await deps.refreshReadiness()
     } else if (hasExtraBlocks || hasSlotBlocks) {
-      // Handlers run lite/poll when skipPostGeneration is false.
+      await deps.refreshReadiness()
     }
   } catch (error) {
     if (import.meta.env.DEV) console.error('Error during schedule flush:', error)
