@@ -44,7 +44,8 @@ class Event extends Model
         'wifi_instruction',
         'wifi_qrcode',
         'needs_attention',
-        'needs_attention_checked_at'
+        'needs_attention_checked_at',
+        'calendar_stale',
     ];
 
     protected $casts = [
@@ -61,6 +62,7 @@ class Event extends Model
         'check_in_show_helper_meal' => 'boolean',
         'check_in_show_helper_t_shirt' => 'boolean',
         'cockpit_enabled' => 'boolean',
+        'calendar_stale' => 'boolean',
     ];
 
     public function checkIns()

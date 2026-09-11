@@ -105,7 +105,7 @@ class EventWorkspaceEnsureService
     {
         try {
             app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
-            app(CalendarFeedService::class)->rebuildSafely($eventId);
+            app(CalendarFeedService::class)->tryRebuildOne($eventId);
             if (config('staffing.sync_after_generate')) {
                 try {
                     $this->staffing->syncForEvent($eventId);

@@ -49,6 +49,7 @@ class CalendarFeedAllTest extends TestCase
             'date' => '2026-08-24',
             'days' => 1,
             'link' => 'https://flow.hands-on-technology.org/aachen',
+            'calendar_stale' => false,
         ]);
         DB::table('event_calendar')->insert([
             'event' => 1,
@@ -107,6 +108,7 @@ class CalendarFeedAllTest extends TestCase
             'date' => '2026-08-24',
             'days' => 1,
             'link' => 'https://flow.hands-on-technology.org/aachen',
+            'calendar_stale' => false,
         ]);
         DB::table('event_program')->insert([
             'event' => 1,
@@ -162,6 +164,7 @@ class CalendarFeedAllTest extends TestCase
             $table->date('date');
             $table->unsignedTinyInteger('days')->default(1);
             $table->string('link')->nullable();
+            $table->boolean('calendar_stale')->default(true);
         });
 
         Schema::create('event_program', function (Blueprint $table) {

@@ -131,7 +131,7 @@ class EventController extends BaseController
 
             $icsFields = ['name', 'slug', 'date', 'days', 'link', 'level', 'regional_partner'];
             if (is_array($programs) || array_intersect(array_keys($validated), $icsFields) !== []) {
-                app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $event->id);
+                app(\App\Services\CalendarFeedService::class)->tryRebuildOne((int) $event->id);
             }
 
             // Reload with relationships

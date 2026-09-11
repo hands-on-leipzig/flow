@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Api\PublishController;
 use App\Models\Event;
+use App\Services\CalendarFeedService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -22,6 +23,11 @@ class PublishLinkBaseTest extends TestCase
         }
 
         config(['app.public_url' => 'https://handson.tools']);
+
+        $this->mock(CalendarFeedService::class, function ($mock) {
+            $mock->shouldReceive('tryRebuildOne')->zeroOrMoreTimes()->andReturn(CalendarFeedService::RESULT_SKIPPED);
+            $mock->shouldReceive('markStale')->zeroOrMoreTimes();
+        });
 
         $this->createSchema();
     }
@@ -105,6 +111,7 @@ class PublishLinkBaseTest extends TestCase
             $table->unsignedTinyInteger('days')->default(1);
             $table->string('link')->nullable();
             $table->text('qrcode')->nullable();
+            $table->boolean('calendar_stale')->default(true);
         });
 
         Schema::create('event_program', function (Blueprint $table) {

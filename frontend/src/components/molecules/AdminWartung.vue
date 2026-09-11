@@ -139,11 +139,18 @@ async function runCleanupLogos() {
 async function runRebuildCalendar() {
   rebuildingCalendar.value = true
   try {
-    const response = await axios.post('/admin/calendar/rebuild', null, {timeout: 600000})
+    const response = await axios.post('/admin/calendar/rebuild', null, {timeout: 60000})
     const data = response.data
     if (data.success) {
-      const message =
-        `Kalender aktualisiert.\n\nNeu gebaut: ${data.rebuilt}\nBehalten (DRAHT fehlgeschlagen): ${data.kept}\nÜbersprungen: ${data.skipped}\nEntfernt: ${data.removed}\nFehlgeschlagen: ${data.failed}\nGesamt im Fenster: ${data.total}`
+      const remaining = data.remaining ?? 0
+      const rebuilt = data.rebuilt ?? 0
+      let message =
+        remaining < 1
+          ? 'Kalender aktualisiert. Keine veralteten Einträge mehr.'
+          : `Kalender: ${rebuilt} Eintrag neu gebaut, ${remaining} veraltet übrig.`
+      if (data.removed) {
+        message += `\n${data.removed} Einträge außerhalb des Fensters entfernt.`
+      }
       if (data.errors?.length) {
         showGlassToast(message + `\n\nFehler:\n${data.errors.join('\n')}`, 'error')
       } else {
@@ -224,7 +231,7 @@ function confirmRebuildCalendar() {
   openConfirm({
     title: 'Kalender-Einträge aktualisieren?',
     message:
-      'Schreibt event_calendar für veröffentlichte Events (Zukunft plus 90 Tage zurück) neu und entfernt Einträge außerhalb dieses Fensters. DRAHT wird je Event aufgerufen. Das kann einige Minuten dauern.',
+      'Aktualisiert höchstens einen veralteten Kalender-Eintrag. Es läuft nie mehr als ein Rebuild gleichzeitig. Weitere Einträge folgen beim nächsten Klick oder wenn der Kalender-Feed abgerufen wird.',
     type: 'warning',
     confirmText: 'Aktualisieren',
     action: runRebuildCalendar,
@@ -515,8 +522,9 @@ async function runRegenerateSeasonPlans() {
       <div class="wartung-tile glass-card liquid-surface-inner">
         <h3 class="glass-card__title !mb-0">Kalender-Einträge aktualisieren</h3>
         <p class="wartung-tile__body text-sm text-[var(--color-text-muted)]">
-          Schreibt die gespeicherten iCalendar-Einträge für veröffentlichte Events im Feed-Fenster neu
-          (Zukunft plus 90 Tage zurück). Die Vorschau unter Kalender-Feeds zeigt das Ergebnis sofort.
+          Aktualisiert höchstens einen veralteten iCalendar-Eintrag (Zukunft plus 90 Tage zurück).
+          Weitere folgen beim nächsten Klick oder wenn der Kalender-Feed abgerufen wird.
+          Die Vorschau unter Kalender-Feeds zeigt das Ergebnis sofort.
         </p>
         <button
             type="button"

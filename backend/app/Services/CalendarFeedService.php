@@ -32,98 +32,99 @@ class CalendarFeedService
     public function __construct(
         private DrahtController $draht,
         private EventTitleService $titles,
+        private CalendarRebuildLock $lock,
     ) {}
 
-    /**
-     * Rebuild for a write-path hook. Never throws — ICS must not fail slug, plan, or DRAHT sync.
-     */
-    public function rebuildSafely(int $eventId): void
+    public function markStale(int $eventId): void
     {
+        if ($eventId < 1) {
+            return;
+        }
+
+        DB::table('event')->where('id', $eventId)->update(['calendar_stale' => true]);
+    }
+
+    /**
+     * Rebuild one event if the global ICS lock is free. If not, mark stale and skip.
+     * Never throws — ICS must not fail slug, plan, or DRAHT sync.
+     */
+    public function tryRebuildOne(int $eventId): string
+    {
+        if (! $this->lock->tryAcquire()) {
+            $this->markStale($eventId);
+
+            return self::RESULT_SKIPPED;
+        }
+
         try {
-            $this->rebuild($eventId);
+            return $this->rebuild($eventId);
         } catch (\Throwable $e) {
+            $this->markStale($eventId);
             Log::error('ICS rebuild failed', [
                 'event_id' => $eventId,
                 'error' => $e->getMessage(),
             ]);
+
+            return self::RESULT_SKIPPED;
+        } finally {
+            $this->lock->release();
+        }
+    }
+
+    /**
+     * @deprecated Use tryRebuildOne. Kept so existing single-event callers stay correct.
+     */
+    public function rebuildSafely(int $eventId): void
+    {
+        $this->tryRebuildOne($eventId);
+    }
+
+    /**
+     * Rebuild one stale event in the ICS window if the lock is free.
+     */
+    public function tryRebuildNextStale(): string
+    {
+        if (! $this->lock->tryAcquire()) {
+            return self::RESULT_SKIPPED;
+        }
+
+        try {
+            $eventId = $this->nextStaleEventId();
+            if ($eventId === null) {
+                return self::RESULT_SKIPPED;
+            }
+
+            return $this->rebuild($eventId);
+        } catch (\Throwable $e) {
+            Log::error('ICS next-stale rebuild failed', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return self::RESULT_SKIPPED;
+        } finally {
+            $this->lock->release();
         }
     }
 
     /**
      * Rebuild one event_calendar row. Does not register routes.
      * Open point 7: cancelled is always false until FLOW has a cancel flag.
+     * Used only by tryRebuildOne / tryRebuildNextStale (and tests of the inner write).
      */
     public function rebuild(int $eventId): string
     {
-        $event = Event::find($eventId);
+        $event = Event::query()->with(['programs.firstProgram'])->find($eventId);
         if (! $event || $this->slug($event) === '') {
             return self::RESULT_SKIPPED;
         }
 
-        $existing = EventCalendar::query()->where('event', $eventId)->first();
+        $fetched = $this->fetchDrahtDisconnected($event);
 
-        try {
-            $fetched = $this->draht->fetchScheduleData($event);
-        } catch (\Throwable $e) {
-            Log::warning('ICS rebuild: DRAHT threw', [
-                'event_id' => $eventId,
-                'error' => $e->getMessage(),
-            ]);
-            $fetched = ['ok' => false, 'data' => self::emptyDrahtData()];
-        }
-
-        if (! ($fetched['ok'] ?? false) && $existing) {
-            Log::warning('ICS rebuild: keeping previous vevent after DRAHT failure', [
-                'event_id' => $eventId,
-            ]);
-
-            return self::RESULT_KEPT;
-        }
-
-        $drahtData = is_array($fetched['data'] ?? null) ? $fetched['data'] : self::emptyDrahtData();
-        $payload = PublicSchedulePayload::from($event, $drahtData, 1, null);
-        $description = IcsDescription::fromPublicPayload(
-            $payload,
-            $this->string($event->link),
-            $this->programDisplayNames($event)
-        );
-        $cancelled = false;
-        $sequence = $existing ? ((int) $existing->sequence + 1) : 0;
-        $stamp = Carbon::now('UTC');
-        $start = Carbon::parse((string) $event->date)->startOfDay();
-        $host = self::uidHost();
-
-        $vevent = IcsText::vevent([
-            'eventId' => (int) $event->id,
-            'host' => $host,
-            'title' => $this->titles->getEventTitleLong($event),
-            'start' => $start,
-            'days' => max(1, (int) $event->days),
-            'stamp' => $stamp,
-            'sequence' => $sequence,
-            'description' => $description,
-            'location' => self::locationFromDraht($drahtData['address'] ?? null),
-            'url' => $this->string($event->link) !== '' ? $this->string($event->link) : null,
-            'cancelled' => $cancelled,
-            'environmentLabel' => self::environmentLabel(),
-        ]);
-
-        EventCalendar::query()->updateOrInsert(
-            ['event' => $eventId],
-            [
-                'date' => $start->toDateString(),
-                'uid' => IcsText::uid((int) $event->id, $host),
-                'sequence' => $sequence,
-                'vevent' => $vevent,
-                'built_at' => $stamp,
-            ]
-        );
-
-        return self::RESULT_BUILT;
+        return $this->persistVevent($eventId, $fetched);
     }
 
     /**
-     * Rebuild every published event in the ICS window. Drops stored rows outside it.
+     * Rebuild at most one stale event in the ICS window. Drops stored rows outside it.
      *
      * @return array{
      *     success: bool,
@@ -132,68 +133,46 @@ class CalendarFeedService
      *     skipped: int,
      *     failed: int,
      *     removed: int,
+     *     remaining: int,
      *     total: int,
      *     errors: list<string>
      * }
      */
     public function rebuildWindow(): array
     {
-        $ids = DB::table('event')
+        set_time_limit(60);
+        ini_set('max_execution_time', '60');
+
+        $windowIds = DB::table('event')
             ->whereNotNull('slug')
             ->where('slug', '!=', '')
             ->where('date', '>=', $this->windowStartDate())
             ->orderBy('date')
             ->orderBy('id')
-            ->pluck('id');
-
-        $idList = $ids->map(fn ($id) => (int) $id)->all();
-        $eventCount = count($idList);
-        $estimatedTime = max(60, min(600, $eventCount * 10));
-        set_time_limit($estimatedTime);
-        ini_set('max_execution_time', (string) $estimatedTime);
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
         $removedQuery = DB::table('event_calendar');
-        if ($idList === []) {
+        if ($windowIds === []) {
             $removed = $removedQuery->delete();
         } else {
-            $removed = $removedQuery->whereNotIn('event', $idList)->delete();
+            $removed = $removedQuery->whereNotIn('event', $windowIds)->delete();
         }
 
-        $rebuilt = 0;
-        $kept = 0;
-        $skipped = 0;
-        $failed = 0;
-        $errors = [];
-
-        foreach ($idList as $eventId) {
-            try {
-                $result = $this->rebuild($eventId);
-                if ($result === self::RESULT_BUILT) {
-                    $rebuilt++;
-                } elseif ($result === self::RESULT_KEPT) {
-                    $kept++;
-                } else {
-                    $skipped++;
-                }
-            } catch (\Throwable $e) {
-                $failed++;
-                $errors[] = 'Event '.$eventId.': '.$e->getMessage();
-                Log::error('ICS window rebuild failed', [
-                    'event_id' => $eventId,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
+        $result = $this->tryRebuildNextStale();
+        $remaining = $this->countStaleInWindow();
 
         return [
             'success' => true,
-            'rebuilt' => $rebuilt,
-            'kept' => $kept,
-            'skipped' => $skipped,
-            'failed' => $failed,
+            'rebuilt' => $result === self::RESULT_BUILT ? 1 : 0,
+            'kept' => $result === self::RESULT_KEPT ? 1 : 0,
+            'skipped' => $result === self::RESULT_SKIPPED ? 1 : 0,
+            'failed' => 0,
             'removed' => (int) $removed,
-            'total' => $eventCount,
-            'errors' => $errors,
+            'remaining' => $remaining,
+            'total' => count($windowIds),
+            'errors' => [],
         ];
     }
 
@@ -476,6 +455,129 @@ class CalendarFeedService
             'contact' => [],
             'information' => null,
         ];
+    }
+
+    /**
+     * @return array{ok: bool, data: array<string, mixed>}
+     */
+    private function fetchDrahtDisconnected(Event $event): array
+    {
+        $event->loadMissing('programs.firstProgram');
+        $disconnect = $this->shouldDisconnectDuringHttp();
+        if ($disconnect) {
+            DB::disconnect();
+        }
+
+        try {
+            return $this->draht->fetchScheduleData($event, persistDetach: false);
+        } catch (\Throwable $e) {
+            Log::warning('ICS rebuild: DRAHT threw', [
+                'event_id' => $event->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['ok' => false, 'data' => self::emptyDrahtData()];
+        } finally {
+            if ($disconnect) {
+                DB::reconnect();
+            }
+        }
+    }
+
+    /**
+     * @param  array{ok?: bool, data?: mixed}  $fetched
+     */
+    private function persistVevent(int $eventId, array $fetched): string
+    {
+        $event = Event::query()->with(['programs.firstProgram'])->find($eventId);
+        if (! $event || $this->slug($event) === '') {
+            return self::RESULT_SKIPPED;
+        }
+
+        $existing = EventCalendar::query()->where('event', $eventId)->first();
+
+        if (! ($fetched['ok'] ?? false) && $existing) {
+            Log::warning('ICS rebuild: keeping previous vevent after DRAHT failure', [
+                'event_id' => $eventId,
+            ]);
+
+            return self::RESULT_KEPT;
+        }
+
+        $drahtData = is_array($fetched['data'] ?? null) ? $fetched['data'] : self::emptyDrahtData();
+        $payload = PublicSchedulePayload::from($event, $drahtData, 1, null);
+        $description = IcsDescription::fromPublicPayload(
+            $payload,
+            $this->string($event->link),
+            $this->programDisplayNames($event)
+        );
+        $cancelled = false;
+        $sequence = $existing ? ((int) $existing->sequence + 1) : 0;
+        $stamp = Carbon::now('UTC');
+        $start = Carbon::parse((string) $event->date)->startOfDay();
+        $host = self::uidHost();
+
+        $vevent = IcsText::vevent([
+            'eventId' => (int) $event->id,
+            'host' => $host,
+            'title' => $this->titles->getEventTitleLong($event),
+            'start' => $start,
+            'days' => max(1, (int) $event->days),
+            'stamp' => $stamp,
+            'sequence' => $sequence,
+            'description' => $description,
+            'location' => self::locationFromDraht($drahtData['address'] ?? null),
+            'url' => $this->string($event->link) !== '' ? $this->string($event->link) : null,
+            'cancelled' => $cancelled,
+            'environmentLabel' => self::environmentLabel(),
+        ]);
+
+        EventCalendar::query()->updateOrInsert(
+            ['event' => $eventId],
+            [
+                'date' => $start->toDateString(),
+                'uid' => IcsText::uid((int) $event->id, $host),
+                'sequence' => $sequence,
+                'vevent' => $vevent,
+                'built_at' => $stamp,
+            ]
+        );
+
+        DB::table('event')->where('id', $eventId)->update(['calendar_stale' => false]);
+
+        return self::RESULT_BUILT;
+    }
+
+    private function nextStaleEventId(): ?int
+    {
+        $id = $this->staleInWindowQuery()->orderBy('event.date')->orderBy('event.id')->value('event.id');
+
+        return $id !== null ? (int) $id : null;
+    }
+
+    private function countStaleInWindow(): int
+    {
+        return (int) $this->staleInWindowQuery()->count('event.id');
+    }
+
+    private function staleInWindowQuery()
+    {
+        return DB::table('event')
+            ->leftJoin('event_calendar', 'event_calendar.event', '=', 'event.id')
+            ->whereNotNull('event.slug')
+            ->where('event.slug', '!=', '')
+            ->where('event.date', '>=', $this->windowStartDate())
+            ->where(function ($query) {
+                $query->where('event.calendar_stale', true)
+                    ->orWhereNull('event_calendar.event');
+            });
+    }
+
+    private function shouldDisconnectDuringHttp(): bool
+    {
+        $driver = DB::getDriverName();
+
+        return $driver === 'mysql' || $driver === 'mariadb';
     }
 
     private function windowStartDate(): string
