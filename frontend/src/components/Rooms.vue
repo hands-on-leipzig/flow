@@ -854,7 +854,7 @@ const hasWarning = (tab) => {
           <h1 class="vol-page__title">Räume</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Verteilen der Aktivitäten auf Räume</p>
+        <p class="vol-page__sub">Zuordnen der Aktivitäten auf Räume</p>
       </div>
     </header>
 
