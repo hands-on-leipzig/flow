@@ -4,6 +4,7 @@ import axios from 'axios'
 import dayjs from 'dayjs'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {useEventStore} from '@/stores/event'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 
 defineOptions({name: 'AccessManagement'})
 
@@ -204,6 +205,8 @@ onMounted(async () => {
         Deine Regionalpartner, die Veranstaltungen dazu — und wen du einladen kannst.
       </p>
     </div>
+
+    <NoticePane/>
 
     <div v-if="loading" class="glass-card liquid-surface-inner p-6 text-[var(--color-text-muted)]">
       Lade Zugangsdaten…

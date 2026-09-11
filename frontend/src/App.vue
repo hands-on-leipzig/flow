@@ -5,7 +5,6 @@ import axios from "axios";
 
 const Navigation = defineAsyncComponent(() => import('@/components/Navigation.vue'));
 const NewsModal = defineAsyncComponent(() => import('@/components/atoms/NewsModal.vue'));
-const EventDayBanner = defineAsyncComponent(() => import('@/components/atoms/EventDayBanner.vue'));
 const GlassToast = defineAsyncComponent(() => import('@/components/atoms/GlassToast.vue'));
 
 // Check if current route is public (no navigation needed)
@@ -108,7 +107,6 @@ onMounted(() => {
   </div>
 
   <Navigation v-else class="font-sans">
-    <EventDayBanner/>
     <div
       class="glass-app__panel liquid-surface"
       :class="{ 'glass-app__panel--fill': isPanelFillRoute }"

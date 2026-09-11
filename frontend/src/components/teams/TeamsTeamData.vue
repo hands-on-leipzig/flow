@@ -12,6 +12,7 @@ import TeamDataTable from '@/components/teams/TeamDataTable.vue'
 import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
@@ -313,6 +314,8 @@ onActivated(() => {
         <TeamsEmailOutreach :program-slugs="visibleProgramSlugs" :team-numbers="visibleTeamNumbers"/>
       </div>
     </header>
+
+    <NoticePane/>
 
     <div class="vol-roster-toolbar vol-roster-toolbar--solo">
       <section class="glass-card liquid-surface-inner vol-tile vol-roster-publish">

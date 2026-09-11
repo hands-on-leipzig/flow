@@ -2,6 +2,7 @@
 import {onMounted, ref, computed, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import {useEventStore} from '@/stores/event'
+import {useNoticeStore} from '@/stores/notice'
 import {usePlanCacheStore} from '@/stores/planCache'
 import {useProgramsStore} from '@/stores/programs'
 import {useAuth} from '@/composables/useAuth'
@@ -26,6 +27,7 @@ import SidebarFooter from '@hands-on/glass/sidebar-footer'
 import SidebarNavItem from '@hands-on/glass/sidebar-nav-item'
 
 const eventStore = useEventStore()
+const noticeStore = useNoticeStore()
 const programsStore = useProgramsStore()
 const planCache = usePlanCacheStore()
 const {isAdmin, initializeUserRoles} = useAuth()
@@ -47,34 +49,9 @@ const userLabel = computed(() => {
   return preferred || 'FLOW'
 })
 
-const readiness = ref({
-  explore_teams_ok: true,
-  challenge_teams_ok: true,
-  future_8_teams_ok: true,
-  room_mapping_ok: true,
-  staffing_ok: true,
-})
-
 async function checkDataReadiness() {
   if (!eventStore.selectedEvent?.id) return
-  const data = await eventStore.refreshReadiness(eventStore.selectedEvent.id)
-  if (data) {
-    readiness.value = {
-      explore_teams_ok: !!data.explore_teams_ok,
-      challenge_teams_ok: !!data.challenge_teams_ok,
-      future_8_teams_ok: data.future_8_teams_ok !== false,
-      room_mapping_ok: !!data.room_mapping_ok,
-      staffing_ok: data.staffing_ok !== false,
-    }
-  } else {
-    readiness.value = {
-      explore_teams_ok: false,
-      challenge_teams_ok: false,
-      future_8_teams_ok: false,
-      room_mapping_ok: false,
-      staffing_ok: false,
-    }
-  }
+  await eventStore.refreshReadiness(eventStore.selectedEvent.id)
 }
 
 type NavChild = {
@@ -286,22 +263,6 @@ watch(isAdminMode, (adminMode) => {
 })
 
 watch(
-    () => eventStore.readiness,
-    (newVal) => {
-      if (newVal) {
-        readiness.value = {
-          explore_teams_ok: !!newVal.explore_teams_ok,
-          challenge_teams_ok: !!newVal.challenge_teams_ok,
-          future_8_teams_ok: newVal.future_8_teams_ok !== false,
-          room_mapping_ok: !!newVal.room_mapping_ok,
-          staffing_ok: newVal.staffing_ok !== false,
-        }
-      }
-    },
-    {deep: true, immediate: true}
-)
-
-watch(
     () => eventStore.selectedEvent?.id,
     async (newId, oldId) => {
       if (oldId && newId !== oldId) {
@@ -314,29 +275,22 @@ watch(
 )
 
 function hasWarning(tabPath: string): boolean {
-  if (!readiness.value) return false
+  const dots = noticeStore.dots
   const path = normalizePlanPath(tabPath)
 
   if (path.startsWith('/plan/teams')) {
     const slug = path.replace(/^\/plan\/teams\/?/, '')
-    if (!slug) {
-      return eventPrograms(eventStore.selectedEvent).some((program) =>
-        hasWarning(teamPathFor(program))
-      )
-    }
-    // DRAHT vs FLOW only — plan capacity mismatch belongs on Ablauf/Allgemein
-    return !!eventStore.selectedEvent?.discrepancyByProgram?.[programCompact(slug)]
+    if (!slug || slug === 'data') return false
+    return !!dots.teams_by_program?.[programCompact(slug)]
   }
 
   switch (path) {
     case '/plan/schedule':
-      return !readiness.value.explore_teams_ok
-        || !readiness.value.challenge_teams_ok
-        || !readiness.value.future_8_teams_ok
+      return !!dots.schedule
     case '/plan/rooms':
-      return !readiness.value.room_mapping_ok
+      return !!dots.rooms
     case '/plan/volunteers/staffing':
-      return !readiness.value.staffing_ok
+      return !!dots.volunteers_staffing
     default:
       return false
   }

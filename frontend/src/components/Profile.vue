@@ -3,6 +3,7 @@ import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import {useAuth} from '@/composables/useAuth'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 
 defineOptions({name: 'Profile'})
 
@@ -73,6 +74,8 @@ onMounted(load)
         Deine Kontodaten in FLOW.
       </p>
     </div>
+
+    <NoticePane/>
 
     <div v-if="loading" class="glass-card liquid-surface-inner p-6 text-[var(--color-text-muted)]">
       Lade Profil…

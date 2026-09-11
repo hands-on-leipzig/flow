@@ -27,6 +27,7 @@ import {
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 import {staffingContainerTitle, staffingTileKey} from '@/volunteers/staffingLabel'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import NoticePane from '@/components/molecules/NoticePane.vue'
 import {
   boundsValidationError,
   tileNeedsAttention,
@@ -467,12 +468,10 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
       </div>
     </header>
 
-    <div v-if="!planId && !loading" class="glass-alert-warning">
-      Kein Zeitplan vorhanden — zuerst Ablauf erzeugen.
-    </div>
+    <NoticePane/>
 
     <div
-        v-else-if="loading && !roles.length"
+        v-if="loading && !roles.length"
         class="vol-staffing-body vol-staffing-body--loading"
     >
       <div class="vol-staffing-loading">
