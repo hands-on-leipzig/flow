@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Http\Controllers\Api\DrahtController;
 use App\Models\EventCalendar;
 use App\Services\CalendarFeedService;
+use App\Services\CalendarRebuildLock;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,6 @@ class CalendarFeedServiceTest extends TestCase
         config([
             'app.env' => 'production',
             'app.url' => 'https://flow.hands-on-technology.org',
-            'calendar.rebuild_enabled' => true,
         ]);
 
         $this->createSchema();
@@ -32,6 +32,7 @@ class CalendarFeedServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        CalendarRebuildLock::resetMemoryLock();
         Carbon::setTestNow();
         parent::tearDown();
     }
@@ -57,37 +58,36 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertSame(0, EventCalendar::query()->count());
     }
 
-    public function test_rebuild_is_skipped_when_disabled(): void
+    public function test_mark_stale_and_rebuild_clears_it(): void
     {
-        config(['calendar.rebuild_enabled' => false]);
-        $this->insertEvent();
-        $this->mock(DrahtController::class, function ($mock) {
-            $mock->shouldReceive('fetchScheduleData')->never();
-        });
+        $this->insertEvent(['calendar_stale' => false]);
+        $this->mockDraht(ok: true, data: CalendarFeedService::emptyDrahtData());
 
-        $this->assertSame(
-            CalendarFeedService::RESULT_SKIPPED,
-            app(CalendarFeedService::class)->rebuild(1)
-        );
-        app(CalendarFeedService::class)->rebuildSafely(1);
-        $this->assertSame(0, EventCalendar::query()->count());
+        app(CalendarFeedService::class)->markStale(1);
+        $this->assertTrue((bool) DB::table('event')->where('id', 1)->value('calendar_stale'));
+
+        $result = app(CalendarFeedService::class)->tryRebuildOne(1);
+
+        $this->assertSame(CalendarFeedService::RESULT_BUILT, $result);
+        $this->assertFalse((bool) DB::table('event')->where('id', 1)->value('calendar_stale'));
+        $this->assertSame(1, EventCalendar::query()->count());
     }
 
-    public function test_rebuild_window_is_skipped_when_disabled(): void
+    public function test_try_rebuild_one_skips_when_lock_held(): void
     {
-        config(['calendar.rebuild_enabled' => false]);
         $this->insertEvent();
-        $this->insertCalendar(1, '2026-08-24', "BEGIN:VEVENT\r\nSUMMARY:KEEP\r\nEND:VEVENT");
+        $held = new CalendarRebuildLock();
+        $this->assertTrue($held->tryAcquire());
         $this->mock(DrahtController::class, function ($mock) {
             $mock->shouldReceive('fetchScheduleData')->never();
         });
 
-        $result = app(CalendarFeedService::class)->rebuildWindow();
+        $result = app(CalendarFeedService::class)->tryRebuildOne(1);
 
-        $this->assertTrue($result['success']);
-        $this->assertSame(0, $result['rebuilt']);
-        $this->assertSame(0, $result['removed']);
-        $this->assertSame(1, EventCalendar::query()->count());
+        $this->assertSame(CalendarFeedService::RESULT_SKIPPED, $result);
+        $this->assertTrue((bool) DB::table('event')->where('id', 1)->value('calendar_stale'));
+        $this->assertSame(0, EventCalendar::query()->count());
+        $held->release();
     }
 
     public function test_skips_event_without_slug_and_does_not_call_draht(): void
@@ -169,6 +169,7 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertSame(CalendarFeedService::RESULT_KEPT, $result);
         $this->assertSame(4, (int) $row->sequence);
         $this->assertStringContainsString('SUMMARY:OLD', $row->vevent);
+        $this->assertTrue((bool) DB::table('event')->where('id', 1)->value('calendar_stale'));
     }
 
     public function test_builds_with_empty_location_when_draht_fails_and_no_row(): void
@@ -260,11 +261,35 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertTrue($result['success']);
         $this->assertSame(1, $result['rebuilt']);
         $this->assertSame(1, $result['total']);
+        $this->assertSame(0, $result['remaining']);
         $this->assertSame(1, $result['removed']);
         $this->assertSame(0, $result['failed']);
         $this->assertNotNull(EventCalendar::query()->where('event', 1)->first());
         $this->assertNull(EventCalendar::query()->where('event', 2)->first());
         $this->assertNull(EventCalendar::query()->where('event', 3)->first());
+        $this->assertFalse((bool) DB::table('event')->where('id', 1)->value('calendar_stale'));
+
+        Carbon::setTestNow();
+    }
+
+    public function test_rebuild_window_rebuilds_at_most_one_stale_event(): void
+    {
+        Carbon::setTestNow('2026-08-24');
+        $this->mockDraht(ok: true, data: CalendarFeedService::emptyDrahtData());
+
+        $this->insertEvent(['id' => 1, 'slug' => 'aachen', 'date' => '2026-08-24']);
+        $this->insertEvent(['id' => 2, 'slug' => 'bonn', 'date' => '2026-08-25', 'link' => 'https://flow.hands-on-technology.org/bonn']);
+
+        $result = app(CalendarFeedService::class)->rebuildWindow();
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(1, $result['rebuilt']);
+        $this->assertSame(1, $result['remaining']);
+        $this->assertSame(2, $result['total']);
+        $this->assertSame(1, EventCalendar::query()->count());
+        $this->assertNotNull(EventCalendar::query()->where('event', 1)->first());
+        $this->assertNull(EventCalendar::query()->where('event', 2)->first());
+        $this->assertTrue((bool) DB::table('event')->where('id', 2)->value('calendar_stale'));
 
         Carbon::setTestNow();
     }
@@ -298,6 +323,26 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertStringNotContainsString('UID:too-old', $feed['body']);
         $this->assertStringNotContainsString('UID:no-slug', $feed['body']);
         $this->assertNotNull($feed['lastModified']);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_feed_all_does_not_call_draht_when_nothing_is_stale(): void
+    {
+        Carbon::setTestNow('2026-08-24');
+        $this->mock(DrahtController::class, function ($mock) {
+            $mock->shouldReceive('fetchScheduleData')->never();
+        });
+
+        $this->insertEvent(['id' => 1, 'slug' => 'aachen', 'date' => '2026-08-24', 'calendar_stale' => false]);
+        $this->insertCalendar(1, '2026-08-24', "BEGIN:VEVENT\r\nUID:clean\r\nEND:VEVENT");
+
+        $this->assertSame(
+            CalendarFeedService::RESULT_SKIPPED,
+            app(CalendarFeedService::class)->tryRebuildNextStale()
+        );
+        $feed = app(CalendarFeedService::class)->feedAll();
+        $this->assertStringContainsString('UID:clean', $feed['body']);
 
         Carbon::setTestNow();
     }
@@ -421,6 +466,7 @@ class CalendarFeedServiceTest extends TestCase
             'date' => '2026-03-15',
             'days' => 1,
             'link' => 'https://flow.hands-on-technology.org/aachen',
+            'calendar_stale' => true,
         ], $overrides));
     }
 
@@ -476,6 +522,7 @@ class CalendarFeedServiceTest extends TestCase
             $table->date('date');
             $table->unsignedTinyInteger('days')->default(1);
             $table->string('link')->nullable();
+            $table->boolean('calendar_stale')->default(true);
         });
 
         Schema::create('event_program', function (Blueprint $table) {

@@ -46,7 +46,7 @@ class DrahtController extends Controller
      *
      * @return array{ok: bool, data: array<string, mixed>}
      */
-    public function fetchScheduleData(Event $event): array
+    public function fetchScheduleData(Event $event, bool $persistDetach = true): array
     {
         $event->loadMissing('programs.firstProgram');
 
@@ -92,7 +92,9 @@ class DrahtController extends Controller
             $normalized = DrahtScheduleData::normalize(is_array($payload) ? $payload : null);
 
             if (is_array($payload) && $normalized['program_gone']) {
-                $detachService->detachProgram($event->id, (int) $row->first_program);
+                if ($persistDetach) {
+                    $detachService->detachProgram($event->id, (int) $row->first_program);
+                }
                 $detachedAny = true;
                 continue;
             }
@@ -307,7 +309,7 @@ class DrahtController extends Controller
                             $hadLink = ! empty($event->link);
 
                             // Generating the link pushes it to every attached program.
-                            $publishController->linkAndQRcode($event->id);
+                            $publishController->linkAndQRcode($event->id, tryCalendarRebuild: false);
 
                             if ($hadLink) {
                                 // Event already had its link; this program is new to it.
@@ -393,14 +395,9 @@ class DrahtController extends Controller
                 }
             }
 
-            if (\App\Services\CalendarFeedService::rebuildEnabled()) {
-                foreach (array_unique($icsEventIds) as $eventId) {
-                    app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
-                }
-            } else {
-                Log::info('DRAHT sync skipped ICS rebuild (calendar.rebuild_enabled=false)', [
-                    'events' => count(array_unique($icsEventIds)),
-                ]);
+            $calendar = app(\App\Services\CalendarFeedService::class);
+            foreach (array_unique($icsEventIds) as $eventId) {
+                $calendar->markStale((int) $eventId);
             }
 
             return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);

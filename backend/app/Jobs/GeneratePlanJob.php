@@ -42,7 +42,7 @@ class GeneratePlanJob implements ShouldQueue
         $eventId = DB::table('plan')->where('id', $this->planId)->value('event');
         if ($eventId) {
             app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
-            app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+            app(\App\Services\CalendarFeedService::class)->tryRebuildOne((int) $eventId);
 
             if (config('staffing.sync_after_generate')) {
                 try {

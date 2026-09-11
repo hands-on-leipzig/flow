@@ -16,6 +16,7 @@ class CalendarFeedController extends Controller
 
     public function all(Request $request): Response
     {
+        $this->calendar->tryRebuildNextStale();
         $feed = $this->calendar->feedAll();
 
         return $this->icsResponse($request, $feed['body'], $feed['lastModified']);
@@ -23,6 +24,7 @@ class CalendarFeedController extends Controller
 
     public function postfix(Request $request, string $postfix): Response
     {
+        $this->calendar->tryRebuildNextStale();
         $feed = $this->calendar->feedByPostfix($postfix);
         if ($feed === null) {
             return new Response('', 404);

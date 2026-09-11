@@ -64,7 +64,7 @@ class PlanGeneratorController extends Controller
                     $eventId = DB::table('plan')->where('id', $planId)->value('event');
                     if ($eventId) {
                         app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
-                        app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+                        app(\App\Services\CalendarFeedService::class)->tryRebuildOne((int) $eventId);
                         if (config('staffing.sync_after_generate')) {
                             try {
                                 app(\App\Services\StaffingSyncService::class)->syncForEvent((int) $eventId);
@@ -148,7 +148,7 @@ class PlanGeneratorController extends Controller
             $eventId = DB::table('plan')->where('id', $planId)->value('event');
             if ($eventId) {
                 app(EventAttentionService::class)->updateEventAttentionStatus($eventId);
-                app(\App\Services\CalendarFeedService::class)->rebuildSafely((int) $eventId);
+                app(\App\Services\CalendarFeedService::class)->tryRebuildOne((int) $eventId);
                 if (config('staffing.sync_after_generate')) {
                     try {
                         app(\App\Services\StaffingSyncService::class)->syncForEvent((int) $eventId);
