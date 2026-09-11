@@ -71,45 +71,57 @@ async function restoreAll() {
 
 <template>
   <div v-if="visibleMessages.length || showRestore" class="notice-pane shrink-0">
-    <div v-if="showRestore" class="notice-pane__restore">
-      <button
-          type="button"
-          class="glass-btn-secondary !px-3 !py-1.5 !text-sm"
-          :disabled="restoring"
-          @click="restoreAll"
-      >
-        Ausgeblendete Nachrichten wieder anzeigen
-      </button>
-    </div>
-
-    <ul v-if="visibleMessages.length" class="notice-pane__list">
+    <ul v-if="visibleMessages.length || showRestore" class="notice-pane__list">
       <li
           v-for="row in visibleMessages"
           :key="row.id"
           class="notice-pane__item"
-          :class="row.kind === 'red_dot' ? 'notice-pane__item--warn' : 'notice-pane__item--time'"
       >
-        <div class="notice-pane__row">
-          <i
-              class="bi bi-exclamation-triangle-fill notice-pane__icon"
-              aria-hidden="true"
-          />
-          <component
-              :is="isOverview && row.jump_path ? RouterLink : 'p'"
-              v-bind="isOverview && row.jump_path ? {to: row.jump_path} : {}"
-              class="notice-pane__body"
-          >
-            {{ row.body }}
-          </component>
-          <button
-              v-if="row.hideable"
-              type="button"
-              class="notice-pane__hide"
-              @click="hideTarget = row"
-          >
-            Nicht mehr anzeigen
-          </button>
+        <div
+            class="notice-pane__tile"
+            :class="row.kind === 'red_dot' ? 'notice-pane__tile--warn' : 'notice-pane__tile--time'"
+        >
+          <div class="notice-pane__head">
+            <span
+                v-if="row.kind === 'red_dot'"
+                class="notice-pane__dot"
+                aria-hidden="true"
+            />
+            <i
+                v-else
+                class="bi bi-lightbulb notice-pane__icon"
+                aria-hidden="true"
+            />
+            <div class="notice-pane__content">
+              <component
+                  :is="isOverview && row.jump_path ? RouterLink : 'p'"
+                  v-bind="isOverview && row.jump_path ? {to: row.jump_path} : {}"
+                  class="notice-pane__body"
+              >
+                {{ row.body }}
+              </component>
+              <button
+                  v-if="row.hideable"
+                  type="button"
+                  class="notice-pane__hide"
+                  @click="hideTarget = row"
+              >
+                Nicht mehr anzeigen
+              </button>
+            </div>
+          </div>
         </div>
+      </li>
+      <li v-if="showRestore" class="notice-pane__restore-item">
+        <button
+            type="button"
+            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm cursor-pointer disabled:opacity-50"
+            :disabled="restoring"
+            title="Ausgeblendete Hinweise wieder anzeigen"
+            @click="restoreAll"
+        >
+          Ausgeblendete Hinweise wieder anzeigen
+        </button>
       </li>
     </ul>
 
@@ -139,40 +151,88 @@ async function restoreAll() {
   margin: 0;
   padding: 0;
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: stretch;
 }
 
 .notice-pane__item {
+  flex: 0 0 20%;
+  width: 20%;
+  height: auto;
+  box-sizing: border-box;
+  padding: 0.25rem;
+}
+
+.notice-pane__restore-item {
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  box-sizing: border-box;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+}
+
+.notice-pane__tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  height: auto;
   border-radius: 0.5rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
 }
 
-.notice-pane__item--warn {
+.notice-pane__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.notice-pane__tile--warn {
   background: color-mix(in srgb, var(--color-warning, #f59e0b) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b) 40%, transparent);
 }
 
-.notice-pane__item--time {
-  background: var(--color-bg, transparent);
-  border: 1px solid var(--color-border);
+.notice-pane__tile--time {
+  background: color-mix(in srgb, var(--color-success, #22c55e) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-success, #22c55e) 40%, transparent);
 }
 
-.notice-pane__row {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
+.notice-pane__dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #ef4444;
+  flex-shrink: 0;
+  margin-top: 0.375rem;
 }
 
 .notice-pane__icon {
-  margin-top: 0.125rem;
   flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--color-text-muted, #4b5563);
+}
+
+.notice-pane__content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .notice-pane__body {
   flex: 1 1 auto;
   min-width: 0;
+  margin: 0;
   color: inherit;
   text-decoration: none;
 }
