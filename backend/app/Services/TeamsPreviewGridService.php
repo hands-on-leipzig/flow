@@ -13,7 +13,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Überblick-style teams preview: 5-minute grid, one column per team, cell = G/J/C/F location.
+ * Überblick-style teams preview: 5-minute grid, one column per team.
+ * Cell text is the job-role name_short plus lane/table number; slot-blocks stay "S".
  */
 class TeamsPreviewGridService
 {
@@ -72,7 +73,15 @@ class TeamsPreviewGridService
                 || (int) ($a->slot_team ?? 0) > 0;
         });
 
-        $placed = $this->placeActivities($activities, $byProgramTeam, $programIds, $slotAssignmentPrograms);
+        $roleShortByAtd = $this->loadRoleShortByActivityType($activities);
+
+        $placed = $this->placeActivities(
+            $activities,
+            $byProgramTeam,
+            $programIds,
+            $slotAssignmentPrograms,
+            $roleShortByAtd,
+        );
 
         $overlap = PreviewGridOverlapResolver::resolve($placed);
         $placed = $overlap['events'];
@@ -314,9 +323,58 @@ class TeamsPreviewGridService
 
     /**
      * @param  Collection<int, object>  $activities
+     * @return array<int, string>  activity_type_detail_id => name_short (fallback name)
+     */
+    private function loadRoleShortByActivityType(Collection $activities): array
+    {
+        $ids = $activities
+            ->map(fn ($a) => (int) ($a->activity_type_detail_id ?? 0))
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $rows = DB::table('m_activity_type_detail as atd')
+            ->leftJoin('m_role as r', 'r.id', '=', 'atd.role')
+            ->whereIn('atd.id', $ids)
+            ->get(['atd.id', 'r.name_short', 'r.name']);
+
+        $map = [];
+        foreach ($rows as $row) {
+            $short = trim((string) ($row->name_short ?: $row->name ?: ''));
+            if ($short === '') {
+                continue;
+            }
+            $map[(int) $row->id] = $short;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param  array<int, string>  $roleShortByAtd
+     */
+    private function locationLabel(object $activity, int $number, array $roleShortByAtd): ?string
+    {
+        $atdId = (int) ($activity->activity_type_detail_id ?? 0);
+        $short = $roleShortByAtd[$atdId] ?? '';
+        if ($short === '' || $number < 1) {
+            return null;
+        }
+
+        return $short.$number;
+    }
+
+    /**
+     * @param  Collection<int, object>  $activities
      * @param  array<string, string>  $byProgramTeam  "programId:teamNo" => column key
      * @param  list<int>  $programIds
      * @param  array<string, int>  $slotAssignmentPrograms
+     * @param  array<int, string>  $roleShortByAtd
      * @return list<array{column_key: string, start: Carbon, end: Carbon, text: string, rowspan: int, style_column: string}>
      */
     private function placeActivities(
@@ -324,6 +382,7 @@ class TeamsPreviewGridService
         array $byProgramTeam,
         array $programIds,
         array $slotAssignmentPrograms,
+        array $roleShortByAtd,
     ): array {
         $on = array_fill_keys($programIds, true);
         $placed = [];
@@ -369,18 +428,17 @@ class TeamsPreviewGridService
 
             $programStyle = $this->styleColumnForProgram($programId);
 
-            // Jury / Gutachter: team + lane → Gx / Jx
             $team = (int) ($a->team ?? 0);
             $lane = (int) ($a->lane ?? 0);
             if ($team > 0 && $lane > 0) {
                 $key = $byProgramTeam[$programId.':'.$team] ?? null;
-                if ($key !== null) {
-                    $letter = $programId === FirstProgram::EXPLORE->value ? 'G' : 'J';
+                $text = $this->locationLabel($a, $lane, $roleShortByAtd);
+                if ($key !== null && $text !== null) {
                     $placed[] = [
                         'column_key' => $key,
                         'start' => $gridStart->copy(),
                         'end' => $end->copy(),
-                        'text' => $letter.$lane,
+                        'text' => $text,
                         'rowspan' => $rowspan,
                         'style_column' => $programStyle,
                         'activity_id' => $activityId,
@@ -388,7 +446,6 @@ class TeamsPreviewGridService
                 }
             }
 
-            // Tables: team on table_i → Cx (check) or Fx (game)
             foreach ([1, 2] as $ti) {
                 $tableNo = (int) ($a->{'table_'.$ti} ?? 0);
                 $tableTeam = (int) ($a->{'table_'.$ti.'_team'} ?? 0);
@@ -397,12 +454,12 @@ class TeamsPreviewGridService
                 }
 
                 $key = $byProgramTeam[$programId.':'.$tableTeam] ?? null;
-                if ($key === null) {
+                $text = $this->locationLabel($a, $tableNo, $roleShortByAtd);
+                if ($key === null || $text === null) {
                     continue;
                 }
 
                 $isCheck = $code === 'r_check';
-                $letter = $isCheck ? 'C' : 'F';
                 $style = $isCheck
                     ? 'Robot-Game'
                     : ($programId === FirstProgram::FUTURE_8->value ? 'Game' : 'Robot-Game');
@@ -411,7 +468,7 @@ class TeamsPreviewGridService
                     'column_key' => $key,
                     'start' => $gridStart->copy(),
                     'end' => $end->copy(),
-                    'text' => $letter.$tableNo,
+                    'text' => $text,
                     'rowspan' => $rowspan,
                     'style_column' => $style,
                     'activity_id' => $activityId,

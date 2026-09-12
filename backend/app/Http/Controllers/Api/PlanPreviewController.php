@@ -99,7 +99,7 @@ class PlanPreviewController extends Controller
     }
 
     /**
-     * Überblick-style teams grid (5-minute columns, G/J/C/F cells).
+     * Überblick-style teams grid (5-minute columns, name_short + lane/table cells).
      */
     public function previewTeamsGrid(int $planId, TeamsPreviewGridService $grid)
     {
