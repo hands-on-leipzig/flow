@@ -155,10 +155,43 @@ function duplicateTeamsInRound(round) {
   return dups
 }
 
-function teamClass(round, team) {
+/** Judging block 1 = TR (match round 0); each block judges `lanes` teams in order. */
+const juryTeamsByBlock = computed(() => {
+  const laneCount = Math.max(1, Number(lanes.value) || 1)
+  const teamCount = Math.max(0, Number(teams.value) || 0)
+  const blocks = teamCount > 0 ? Math.ceil(teamCount / laneCount) : 0
+  /** @type {Map<number, Set<number>>} */
+  const map = new Map()
+  for (let block = 1; block <= blocks; block++) {
+    const set = new Set()
+    const start = (block - 1) * laneCount + 1
+    const end = Math.min(block * laneCount, teamCount)
+    for (let t = start; t <= end; t++) set.add(t)
+    map.set(block, set)
+  }
+  return map
+})
+
+function teamClass(round, matchNo, team) {
   const n = Number(team)
   if (!Number.isFinite(n) || n <= 0) return ''
-  return duplicateTeamsInRound(round).has(n) ? 'team-num--dup' : ''
+  const classes = []
+  if (duplicateTeamsInRound(round).has(n)) classes.push('team-num--dup')
+
+  const no = Number(matchNo)
+  const roundMatches = matchesForRound(round)
+  const lastNo = roundMatches.length
+    ? Math.max(...roundMatches.map((m) => Number(m.match_no)))
+    : 0
+  const blueCount = Math.max(1, Number(lanes.value) || 1)
+  const block = Number(round) + 1
+
+  if (no === lastNo && juryTeamsByBlock.value.get(block)?.has(n)) {
+    classes.push('team-num--jury-now')
+  } else if (no >= 1 && no <= blueCount && juryTeamsByBlock.value.get(block + 1)?.has(n)) {
+    classes.push('team-num--jury-next')
+  }
+  return classes.join(' ')
 }
 
 function confirmChange(message, {irreversible = false} = {}) {
@@ -718,6 +751,33 @@ watch([firstProgram, teams, lanes, tables], () => {
           </button>
         </div>
       </div>
+      <div class="match-jury-legend text-sm">
+        <template v-if="Number(lanes) === 1">
+          <div class="match-jury-legend__row">
+            <span class="match-jury-swatch match-jury-swatch--now" aria-hidden="true"></span>
+            <span>Das Team bei der Jury in <strong>dieser</strong> Runde, ist im <strong>letzten</strong> Match der Runde</span>
+          </div>
+          <div class="match-jury-legend__row">
+            <span class="match-jury-swatch match-jury-swatch--next" aria-hidden="true"></span>
+            <span>Das Team, bei der Jury in der <strong>nächsten</strong> Runde, ist im <strong>ersten</strong> Match der Runde</span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="match-jury-legend__row">
+            <span class="match-jury-swatch match-jury-swatch--now" aria-hidden="true"></span>
+            <span>Teams bei der Jury in <strong>dieser</strong> Runde, sind im <strong>letzten</strong> Match der Runde</span>
+          </div>
+          <div class="match-jury-legend__row">
+            <span class="match-jury-swatch match-jury-swatch--next" aria-hidden="true"></span>
+            <span v-if="Number(lanes) === 2">
+              Teams, bei der Jury in der <strong>nächsten</strong> Runde, sind in den <strong>ersten</strong> beiden Matches der Runde
+            </span>
+            <span v-else>
+              Teams, bei der Jury in der <strong>nächsten</strong> Runde, sind in den <strong>ersten</strong> {{ Number(lanes) }} Matches der Runde
+            </span>
+          </div>
+        </template>
+      </div>
 
       <div class="flex flex-row gap-4 overflow-x-auto pb-2">
         <div v-for="round in roundsPresent" :key="round" class="min-w-max">
@@ -762,7 +822,7 @@ watch([firstProgram, teams, lanes, tables], () => {
                       inputmode="numeric"
                       maxlength="2"
                       class="team-num"
-                      :class="teamClass(round, match.table_1_team)"
+                      :class="teamClass(round, match.match_no, match.table_1_team)"
                       :value="match.table_1_team"
                       @change="parseTeamField(match, 'table_1_team', $event)"
                     />
@@ -777,7 +837,7 @@ watch([firstProgram, teams, lanes, tables], () => {
                       inputmode="numeric"
                       maxlength="2"
                       class="team-num"
-                      :class="teamClass(round, match.table_2_team)"
+                      :class="teamClass(round, match.match_no, match.table_2_team)"
                       :value="match.table_2_team"
                       @change="parseTeamField(match, 'table_2_team', $event)"
                     />
@@ -791,7 +851,7 @@ watch([firstProgram, teams, lanes, tables], () => {
                       inputmode="numeric"
                       maxlength="2"
                       class="team-num"
-                      :class="teamClass(round, match.table_1_team)"
+                      :class="teamClass(round, match.match_no, match.table_1_team)"
                       :value="match.table_1_team"
                       @change="parseTeamField(match, 'table_1_team', $event)"
                     />
@@ -806,7 +866,7 @@ watch([firstProgram, teams, lanes, tables], () => {
                       inputmode="numeric"
                       maxlength="2"
                       class="team-num"
-                      :class="teamClass(round, match.table_2_team)"
+                      :class="teamClass(round, match.match_no, match.table_2_team)"
                       :value="match.table_2_team"
                       @change="parseTeamField(match, 'table_2_team', $event)"
                     />
@@ -1023,11 +1083,49 @@ watch([firstProgram, teams, lanes, tables], () => {
   outline-offset: 0;
 }
 
+.team-num--jury-now {
+  background: #facc15;
+}
+
+.team-num--jury-next {
+  background: #93c5fd;
+}
+
 .team-num--dup {
   background: #fecaca;
   border-color: #ef4444;
   color: #991b1b;
   font-weight: 600;
+}
+
+.match-jury-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--color-text-muted);
+}
+
+.match-jury-legend__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.match-jury-swatch {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-top: 0.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.15rem;
+}
+
+.match-jury-swatch--now {
+  background: #facc15;
+}
+
+.match-jury-swatch--next {
+  background: #93c5fd;
 }
 
 .swap-btn {
