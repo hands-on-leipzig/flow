@@ -320,14 +320,14 @@ class RobotGameGenerator
                     $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                 } else {
                     // Normal: regular break after test round
-                    $this->rTime->addMinutes($this->pp($this->write->durationBreak));
+                    $this->addGameRoundBreak();
                 }
                 break;
 
             case 1:
                 if ($this->pp('g_finale')) {
                     // Finale: Simple break after RG1
-                    $this->rTime->addMinutes($this->pp($this->write->durationBreak));
+                    $this->addGameRoundBreak();
                 } else {
                     // Challenge break is the floor for RG2. Explore may only push rTime later.
                     $rg1End = $this->rTime->current();
@@ -366,14 +366,45 @@ class RobotGameGenerator
                     }
                 } else {
                     // Normal events: Regular break after RG2 (lunch was already handled at test round if early)
-                    $this->rTime->addMinutes($this->pp($this->write->durationBreak));
+                    $this->addGameRoundBreak();
                 }
                 break;
 
             case 3:
-                // After RG3 is handled in PlanGeneratorCore::afternoon()
+                // Challenge: after RG3 is handled in PlanGeneratorCore::afternoon().
+                // Future catalog 1:1 may still have later morning rounds.
+                $this->maybeAddCatalogContinuationBreak($round);
+                break;
+
+            default:
+                $this->maybeAddCatalogContinuationBreak($round);
                 break;
         }
+    }
+
+    /**
+     * Referee pause between game rounds. Future: at least f8_duration_transfer.
+     */
+    private function addGameRoundBreak(): void
+    {
+        $break = (int) $this->pp($this->write->durationBreak);
+        $transfer = $this->write->durationTransfer !== null
+            ? (int) $this->pp($this->write->durationTransfer)
+            : null;
+        $this->rTime->addMinutes(RobotGameWriteConfig::gameRoundBreakMinutes($break, $transfer));
+    }
+
+    /** Future-only: pause before the next catalog game round, not after the last. */
+    private function maybeAddCatalogContinuationBreak(int $round): void
+    {
+        if ($this->write->durationTransfer === null) {
+            return;
+        }
+        if ($round >= $this->matchPlan->maxRound()) {
+            return;
+        }
+
+        $this->addGameRoundBreak();
     }
 
     /**

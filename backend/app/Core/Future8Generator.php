@@ -601,7 +601,10 @@ class Future8Generator implements ChallengeShapedLead
             }
         });
 
-        $this->rTime->addMinutes($this->pp('f8_r_duration_break'));
+        $this->rTime->addMinutes(RobotGameWriteConfig::gameRoundBreakMinutes(
+            (int) $this->pp('f8_r_duration_break'),
+            (int) $this->pp('f8_duration_transfer'),
+        ));
     }
 
     public function endAfternoon(): void

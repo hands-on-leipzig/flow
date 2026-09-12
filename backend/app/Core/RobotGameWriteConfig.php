@@ -24,7 +24,22 @@ final class RobotGameWriteConfig
         public readonly string $tablesParam,
         public readonly ?string $lunchBreakEarlyParam,
         public readonly ?string $hardLunchDurationParam,
+        public readonly ?string $durationTransfer = null,
     ) {
+    }
+
+    /**
+     * Pause after a game round. Future floors the referee break to transfer min
+     * so a team last in this round and first in the next still meets Q1.
+     * Challenge passes null transfer and keeps the catalog break as-is.
+     */
+    public static function gameRoundBreakMinutes(int $breakMinutes, ?int $transferMinutes): int
+    {
+        if ($transferMinutes === null) {
+            return $breakMinutes;
+        }
+
+        return max($breakMinutes, $transferMinutes);
     }
 
     public static function challenge(): self
@@ -47,6 +62,7 @@ final class RobotGameWriteConfig
             tablesParam: 'r_tables',
             lunchBreakEarlyParam: 'c_lunch_break_early',
             hardLunchDurationParam: 'c_duration_lunch_break',
+            durationTransfer: null,
         );
     }
 
@@ -72,6 +88,7 @@ final class RobotGameWriteConfig
             tablesParam: 'f8_fields',
             lunchBreakEarlyParam: null,
             hardLunchDurationParam: 'f8_duration_lunch_break',
+            durationTransfer: 'f8_duration_transfer',
         );
     }
 }
