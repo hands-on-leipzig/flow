@@ -245,8 +245,16 @@ class Future8Generator implements ChallengeShapedLead
 
     public function prepareMain(): void
     {
-        $matchPlan = (new MatchPlanBuilder)->build(
-            MatchPlanSpec::for(FirstProgram::FUTURE_8, $this->params)
+        // Pairings from m_match (catalog). Challenge still uses MatchPlanBuilder.
+        // This slice does not override f8_j_rounds or the compress judging↔RG map;
+        // extra catalog rounds sit unused until 1:1 mapping.
+        $spec = MatchPlanSpec::for(FirstProgram::FUTURE_8, $this->params);
+        $matchPlan = (new MatchPlanCatalogLoader)->load(
+            FirstProgram::FUTURE_8,
+            $spec->planId,
+            $spec->teams,
+            $spec->lanes,
+            $spec->tables,
         );
         $this->robotGame = new RobotGameGenerator(
             $this->writer,

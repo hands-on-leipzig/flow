@@ -5,85 +5,113 @@ alwaysApply: true
 
 # Core generator roadmap
 
-Work on `backend/app/Core/` (and its immediate callers) in this order. Do not start a later phase until the user says to.
+Work on `backend/app/Core/` (and its immediate callers) in this order. Do not start a later item until the user has reviewed.
 
-## 1. Revisit, clean up, stabilize (current)
+**Focus:** Challenge alone stays stable. Future 8+ alone is what we improve. Combined C+F8+ only after F8+ alone is solid.
 
-- Understand and tidy the existing generator: `PlanGeneratorCore`, Challenge, Explore, robot game, finale, activity writer, time cursor, parameters.
-- Prefer small, behavior-preserving changes. No afternoon redesign.
-- Fix inconsistency, dead paths, naming, and fragile timing — only with tests or a clear before/after.
+**Out of scope:** Finale. Explore (side effect — do not break `e_mode` recipes; no Explore work). Matchpläne CRUD (already live). Challenge afternoon/finals and Challenge judging↔RG map. A/B coordinator / shared-stage redesign until item 4. Policy C Future follows stand-alone Future (same `main()`).
 
-### Current architecture (read-only map)
+Prefer small, behavior-preserving changes. Fix inconsistency only with tests or a clear before/after. When unsure which item a change belongs to, ask before implementing.
+
+## Current architecture
 
 Entry: `PlanGeneratorController` → `PlanGeneratorService` (`isSupported`, `prepare`, `run` / `GeneratePlanJob`) → `PlanGeneratorCore::generate`.
 
-`PlanParameter` purges off-event overrides, then loads joint + attached program catalog rows only. `ProgramPresence` resolves which programs are on and which Challenge-shaped program leads (by `m_first_program.sequence`).
+`PlanParameter::load` purges off-event overrides, syncs Challenge-shaped modes from team counts, then loads joint + attached program catalog rows. `ProgramPresence` resolves attached / on programs. **Ceremony lead** = lowest `m_first_program.sequence` among Challenge-shaped programs that are on (`leadProgramId`). `$this->lead = $this->challenge ?? $this->future`. When both are on, **both generate** — do not restore skip-generate (`skippedLeadProgramIds()` is leftover naming).
 
-`PlanGeneratorCore` loads params. If `g_finale` (event level 3) → `FinaleGenerator` (Day 2 first, then Day 1). Else `generateOneDayEvent()` from `ProgramPresence` + `e_mode` ceremony recipes.
+If `g_finale` → `FinaleGenerator` (Day 2 via `generateOneDayEvent`, then custom Day 1). **Do not work on Finale.** Else `generateOneDayEvent`: build `ChallengeGenerator` and/or `Future8Generator` (`ChallengeShapedLead`); Core `e_mode` recipes (`runLeadRecipes`) drive the **lead** (Challenge if on, else Future). `e_mode` 6/7 stay reserved.
 
-Clocks: `TimeCursor` (`jTime` judging, `rTime` robot game, `cTime` ceremony, `eTime` Explore). Shared hook: `IntegratedExploreState`. Writer: `ActivityWriter` → `activity_group` + `activity`. After generate: `FreeBlockGenerator`, then `SlotBlockPlanSyncService`.
+`runMain`: one program → `lead->main()`; both on + `g_separate_rooms` → Policy C (Challenge `main()`, then Future `main()` from the same opening end); else `GameRoundCoordinator` Policy A (`g_per_round`) or B (`PolicyBRoundScheduler`). A/B morning is hardcoded game rounds 0–3. Joint ceremony prefix: `c+f8_*` when Explore is off; `g_*` when Explore is integrated.
 
-Challenge `main()` aligns judging rounds with RG (test round 0, then 1–3). Explore groups 1 = morning, 2 = afternoon. Pauses after TR/RG1/RG2/RG3/finals are **duration-only** (`addMinutes`). Inserted extra-blocks are removed; free + slot extra-blocks stay.
+Clocks: each Challenge-shaped generator owns `cTime` / `jTime` / `rTime`. Core owns Explore `eTime`. Coupling: `IntegratedExploreState` (datetime `rg1End` / `startTime`). Writer: `ActivityWriter` → `activity_group` + `activity`. Afternoon: Core walks `AfternoonBlockOrderService`. After generate: `FreeBlockGenerator`, then `SlotBlockPlanSyncService`.
 
-### First cleanup (done)
+Pauses after TR/RG/finals are **duration-only** (`addMinutes`). Free + slot extra-blocks only. Judging and games stay in **one loop**.
 
-Inserted extra-block **content** is gone; **pauses** stay (`addMinutes`). Live DB migrated (no insert-point catalog, no buffers, `extra_block.type` is `free`/`slot`).
+Match lists today: both programs use `MatchPlanSpec::for` → `MatchPlanBuilder` (rounds 0–3) into live `match` (`plan` + `first_program`). Catalog `m_match` CRUD is live; **generate does not read it**.
 
-### Open program combinations (done)
+Nothing currently calls `PlanGeneratorCore::generate` in tests.
 
-- Catalog `*_mode` defaults are **0** (off).
-- Bootstrap writes params only for attached programs; modes turn on from `event_program`.
-- `ProgramPresence`: attached + mode + teams; one Challenge-shaped lead by sequence; no Future attachment bypass.
-- Generator, free blocks, time matrix, workspace flags, and slot paths use presence — not hard-coded E+C.
+## Challenge vs Future 8+ (today)
 
-### Structural cleanup (phase 1, current)
+Same shape: `ChallengeShapedLead` (opening → `main` judging ∥ games → afternoon pieces → awards). Same constructor formulas, same Challenge compress map on Future, same `RobotGameGenerator` write loop.
 
-Constraints: Challenge-shaped judging ∥ games (do not generate as two days). Explore is judging-only. Exactly one Challenge-shaped lead until multi-lead work. Only joint opening/closing (plus after-RG1 handoff) couple programs. Finale stays a separate two-day tweak. No after-RG3 redesign.
+Challenge-only: `c_` / `j_` / `r_`; robot check (`r_robot_check`, `r_check`, `r_duration_robot_check`); `c_lunch_break_early`; hard lunch activity; finale Day 2 map; afternoon presentations + `r_final_16|8|4|2`.
 
-Agreed sequence — do not start the next item until the user has reviewed:
+Future-only today: `f8_*` (`f8_fields` = tables); `RobotGameWriteConfig::future8()` `checkCode: null`; no early-lunch param; hard lunch advances clocks only; afternoon `f8_presentations` plus leftover empty extra rounds (see item 3.4).
 
-1. **Ceremony recipes in Core** — same call order as the old `e_mode` ladder. `e_mode` 6/7 unused (documented below).
-2. Challenge-owned clocks; Explore gets a start from opening/closing/handoff; handoff as datetime not `H:i`.
-3. Named pieces inside Challenge `main()`, formulas unchanged; judging and RG stay in one loop.
-4. Robot game: match list vs write to `rTime`; write stays in the loop.
-5. Explore as a sequence; drop unused `setMode`.
-6. Finale: skip (leave as-is).
-7. Writer/log/constructor hygiene as we go.
+Dual: Policy C = parallel solos. A/B = coordinator. Test round always parallel. Policy C Future uses `setCoordinateExplore(false)`.
 
-## 2. Later: multi Challenge-shaped on one day
+Do not merge the two generator classes until Challenge is locked and F8+ alone is solid (optional item 5).
 
-- **Policy A then B** interleave when Challenge + Future 8+ (or more Challenge-shaped programs) are both on.
-- Until then, `ProgramPresence` picks one lead; others on are logged and skipped.
-- Future 8+ is already a first-class generator program beside Explore and Challenge.
+## Shipped — do not redo
 
-### Prep before multi-lead: match plan (agreed)
+- Extra-block insert-point content gone; pauses stay `addMinutes`.
+- Open program combinations via `ProgramPresence` (not hard-coded E+C).
+- Phase 1 structural cleanup: ceremony recipes in Core; per-program clocks; named pieces in `main()`; match list vs write to `rTime`; Explore called as a sequence (`setMode` gone).
+- Dual-lead Policy A/B/C. `MatchPlanSpec` + `match.first_program`. One rotator (opponents then tables).
+- Future 8+ is a first-class `ChallengeShapedLead` and can run as sole lead.
 
-- Add `match.first_program`; builders delete/insert scoped by plan + program.
-- One pipeline: `MatchPlanSpec::for(FirstProgram, PlanParameter)` → single builder (seed + shared steps + persist). Spec maps program → param names and reads via `PlanParameter` (no recompute of derived rounds/matches/volunteer/asym). Challenge and Future differ only by binding (and Challenge-only finale start-team offsets kept as today).
-- **Remove different objectives** (`MatchPlanObjective` / TABLES vs OPPONENTS). Rotator already prefers opponents first, tables second; keep that one behavior for both. No F8-specific rotation model.
-- Old Quality mass/volume test for rotation baselines: **case closed** (broken after recent generator changes; do not rely on it for this work).
-- Extra blocks, PDF, RG preview, quality UI: out of scope for this prep.
+## Agreed sequence
 
-## 3. Then: rework the afternoon
+1. **This file** — done.
+2. **Challenge alone: lock stability** — characterization tests that actually generate a Challenge-only plan. No Challenge product changes. Fixture/scope when we start this item.
+3. **Future 8+ alone: improve** — rules below. Challenge generator untouched except shared helpers that keep Challenge behavior identical. A/B coordinator loop stays 0–3. Policy C Future inherits these rules (same `main()`).
+4. **Combined C+F8+** — only after (3). Shared afternoon, A/B length when Future has more than TR+3. Not now.
+5. **Deduplicate C/F8 classes** — optional, after (2)+(3).
 
-- “Afternoon” = everything **after robot game round three** (finals, awards, joint ceremonies, integrated Explore hooks, lunch-adjacent sequencing as it sits after RG3).
-- Do this only after §2 multi-lead work, because who shares that part of the day depends on which Challenge-shaped programs run.
+## Future 8+ stand-alone (item 3) — locked product rules
 
-When unsure which phase a change belongs to, ask before implementing.
+### 1. Match list from DB, not the builder
 
-## Explore `e_mode` (generated)
+`Future8Generator::prepareMain` loads `m_match` for Future (`first_program`, teams, lanes, tables). Exact key, else `teams+1` with cells `== teams+1` rewritten to `0` (volunteer). Miss both → fail generate. Persist into live `match` as today. Challenge keeps `MatchPlanBuilder`.
+
+Constructor `f8_j_rounds = max(4, ceil(teams/lanes))` is provisional; catalog load must override it to `max(round) + 1`.
+
+### 2. Judging ↔ matches: not Challenge’s compress map
+
+Challenge (unchanged): 4 judging rounds map blocks 1–4 to TR+RG1–3; 5+ rounds skip RG on block 2.
+
+Future: strict **1:1 including TR**. Judging block `k` writes match round `k − 1`. All catalog rounds run in the Future morning loop. Future lunch placement (after block 2 or 3) stays as-is unless reopened.
+
+### 3. Allianz-Besprechung (before each match)
+
+Catalog already in the live DB (wire it; do not recreate; not yet in this repo’s export):
+
+- `m_parameter.f8_r_alliance_meeting` — on/off (same role as `r_robot_check`)
+- `m_parameter.f8_r_duration_alliance_meeting` — duration
+- `m_activity_type_detail` code `f8_r_alliance`
+
+When the toggle is on, emit `f8_r_alliance` before **every** written Future match (TR, scoring, volunteer). Skip only empty `0+0`, same as Challenge robot-check.
+
+`RobotGameGenerator` currently hard-codes `r_duration_robot_check`. Add a duration param name on `RobotGameWriteConfig`: Challenge stays `r_duration_robot_check`; Future uses `f8_r_duration_alliance_meeting`. Set `future8()` `checkCode` to `f8_r_alliance` and `robotCheckParam` to `f8_r_alliance_meeting`. Challenge `r_check` stays Challenge-only.
+
+### 4. Afternoon = research presentations only
+
+Future has **no** rounds of best 8/4/2. Round count is **only** the catalog. Nachmittag decisions shrink to how many research presentations to show on stage (`f8_presentations`).
+
+`f8_round_4` / `f8_round_5` extra-round **afternoon leftover** — remove from code and DB:
+
+- Delete `m_parameter` `f8_round_4` / `f8_round_5` (“Zusätzliche Runde”).
+- Stop Nachmittag emit (`PlanGeneratorCore` / `insertEmptyGameRound`).
+- Clear `afternoon_default` / `afternoon_parameter` on the ATD rows so they are not Nachmittag blocks.
+
+**Keep** `m_activity_type_detail` codes `f8_round_4` / `f8_round_5` as morning group codes in `RobotGameWriteConfig::future8()` so catalog rounds 4 and 5 can be written. Do not delete those ATD rows.
+
+Item 4 later: when Challenge and Future share a day, presentations vs Challenge finals vs catalog-length Future. Not now.
+
+## Explore `e_mode` (document only — recipes drive the lead, not Challenge specifically)
 
 | Value | Enum | Meaning |
 |---:|---|---|
 | 0 | `NONE` | No Explore |
-| 1 | `INTEGRATED_MORNING` | Joint opening; Explore 1 judging; Explore 1 awards after RG1; Challenge awards alone |
-| 2 | `INTEGRATED_AFTERNOON` | Challenge opening; Explore 2 opening after RG1; Explore 2 judging; joint awards |
-| 3 | `DECOUPLED_MORNING` | Full Challenge, then Explore 1 with own ceremonies |
-| 4 | `DECOUPLED_AFTERNOON` | Full Challenge, then Explore 2 with own ceremonies |
-| 5 | `DECOUPLED_BOTH` | Full Challenge, then Explore 1 and 2 with own ceremonies |
+| 1 | `INTEGRATED_MORNING` | Joint opening; Explore 1 judging; Explore 1 awards after RG1; lead awards alone |
+| 2 | `INTEGRATED_AFTERNOON` | Lead opening; Explore 2 opening after RG1; Explore 2 judging; joint awards |
+| 3 | `DECOUPLED_MORNING` | Full lead day, then Explore 1 with own ceremonies |
+| 4 | `DECOUPLED_AFTERNOON` | Full lead day, then Explore 2 with own ceremonies |
+| 5 | `DECOUPLED_BOTH` | Full lead day, then Explore 1 and 2 with own ceremonies |
 | 8 | `HYBRID_BOTH` | Joint opening; Explore 1 with own awards; joint awards; Explore 2 opening after that + judging (no Explore 2 awards) |
 
 UI never writes 6 or 7 (morning+integrated → 1, afternoon+integrated → 2). Enum has no cases for them. Integers 6 and 7 stay reserved and unimplemented:
 
-- **6** would be hybrid morning (half of 8 vs 1): joint opening like 8; Explore 1 judging; Explore 1 **awards independent of Challenge** (not after RG1); Challenge awards alone.
-- **7** would be hybrid afternoon (half of 8 vs 2): Challenge opening; Explore 2 **opening independent of Challenge** (not after RG1); Explore 2 judging; joint awards.
+- **6** would be hybrid morning (half of 8 vs 1): joint opening like 8; Explore 1 judging; Explore 1 **awards independent of the lead** (not after RG1); lead awards alone.
+- **7** would be hybrid afternoon (half of 8 vs 2): lead opening; Explore 2 **opening independent of the lead** (not after RG1); Explore 2 judging; joint awards.
