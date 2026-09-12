@@ -59,6 +59,11 @@ class RobotGameGenerator
         return $param !== null && (bool) $this->pp($param);
     }
 
+    private function checkDuration(): int
+    {
+        return (int) $this->pp($this->write->durationCheck);
+    }
+
     public function matchPlan(): MatchPlan
     {
         return $this->matchPlan;
@@ -107,10 +112,11 @@ class RobotGameGenerator
         $time = new TimeCursor($startDt instanceof \DateTime ? $startDt : new \DateTime($startDt->format('Y-m-d H:i:s')));
 
         if ($allowRobotCheck && $this->robotCheckEnabled() && $this->write->checkCode !== null) {
+            $checkDuration = $this->checkDuration();
             $this->writer->insertActivity(
                 $this->write->checkCode,
                 $time,
-                $this->pp('r_duration_robot_check'),
+                $checkDuration,
                 null,
                 null,
                 $match['table_1'],
@@ -118,7 +124,7 @@ class RobotGameGenerator
                 $match['table_2'],
                 $match['team_2'] === 0 ? null : $match['team_2']
             );
-            $time->addMinutes($this->pp('r_duration_robot_check'));
+            $time->addMinutes($checkDuration);
         }
 
         $this->writer->insertActivity(
@@ -256,18 +262,19 @@ class RobotGameGenerator
             // Clone time for this match
             $time = $this->rTime->copy();
 
-            // Add robot check activity if needed
+            // Add robot check / alliance meeting if needed
             if ($this->robotCheckEnabled() && $this->write->checkCode !== null) {
+                $checkDuration = $this->checkDuration();
                 $activities[] = $this->prepareActivity(
                     $this->write->checkCode,
                     $time,
-                    $this->pp('r_duration_robot_check'),
+                    $checkDuration,
                     null, null,
                     $match['table_1'], $match['team_1'],
                     $match['table_2'], $match['team_2']
                 );
-                
-                $time->addMinutes($this->pp('r_duration_robot_check'));
+
+                $time->addMinutes($checkDuration);
             }
 
             // Add match activity
@@ -297,9 +304,9 @@ class RobotGameGenerator
             $this->rTime->set($roundEnd->current());
         }
 
-        // Robot check adds additional time at the end of the round
+        // Check / alliance adds additional time at the end of the round
         if ($this->robotCheckEnabled()) {
-            $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
+            $this->rTime->addMinutes($this->checkDuration());
         }
 
         if ($applyPostRoundBreak) {

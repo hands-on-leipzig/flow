@@ -701,7 +701,7 @@ class QualityEvaluatorService
     private function teamActivityCodesForProgram(int $firstProgram): array
     {
         if ($firstProgram === FirstProgram::FUTURE_8->value) {
-            return ['f8_j_with_team', 'f8_r_match'];
+            return ['f8_j_with_team', 'f8_r_match', 'f8_r_alliance'];
         }
 
         return ['j_with_team', 'r_match', 'r_check'];
@@ -866,7 +866,7 @@ class QualityEvaluatorService
 
         $jWithTeamCode = $map->program === FirstProgram::FUTURE_8 ? 'f8_j_with_team' : 'j_with_team';
         $rMatchCode = $map->program === FirstProgram::FUTURE_8 ? 'f8_r_match' : 'r_match';
-        $rCheckCode = $map->program === FirstProgram::FUTURE_8 ? null : 'r_check';
+        $rCheckCode = $map->program === FirstProgram::FUTURE_8 ? 'f8_r_alliance' : 'r_check';
 
         $jWithTeamId = \App\Models\MActivityTypeDetail::where('code', $jWithTeamCode)->value('id');
         $rMatchId = \App\Models\MActivityTypeDetail::where('code', $rMatchCode)->value('id');

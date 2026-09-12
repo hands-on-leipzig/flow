@@ -20,4 +20,17 @@ class RobotGameWriteConfigTest extends TestCase
         $this->assertNull(RobotGameWriteConfig::challenge()->durationTransfer);
         $this->assertSame('f8_duration_transfer', RobotGameWriteConfig::future8()->durationTransfer);
     }
+
+    public function test_future_alliance_check_keys_challenge_keeps_robot_check(): void
+    {
+        $challenge = RobotGameWriteConfig::challenge();
+        $this->assertSame('r_check', $challenge->checkCode);
+        $this->assertSame('r_robot_check', $challenge->robotCheckParam);
+        $this->assertSame('r_duration_robot_check', $challenge->durationCheck);
+
+        $future = RobotGameWriteConfig::future8();
+        $this->assertSame('f8_r_alliance', $future->checkCode);
+        $this->assertSame('f8_r_alliance_meeting', $future->robotCheckParam);
+        $this->assertSame('f8_r_duration_alliance_meeting', $future->durationCheck);
+    }
 }

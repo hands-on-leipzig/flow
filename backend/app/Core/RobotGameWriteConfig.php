@@ -25,6 +25,7 @@ final class RobotGameWriteConfig
         public readonly ?string $lunchBreakEarlyParam,
         public readonly ?string $hardLunchDurationParam,
         public readonly ?string $durationTransfer = null,
+        public readonly string $durationCheck = 'r_duration_robot_check',
     ) {
     }
 
@@ -63,6 +64,7 @@ final class RobotGameWriteConfig
             lunchBreakEarlyParam: 'c_lunch_break_early',
             hardLunchDurationParam: 'c_duration_lunch_break',
             durationTransfer: null,
+            durationCheck: 'r_duration_robot_check',
         );
     }
 
@@ -78,8 +80,8 @@ final class RobotGameWriteConfig
                 5 => 'f8_round_5',
             ],
             matchCode: 'f8_r_match',
-            checkCode: null,
-            robotCheckParam: null,
+            checkCode: 'f8_r_alliance',
+            robotCheckParam: 'f8_r_alliance_meeting',
             durationTestMatch: 'f8_r_duration_test_match',
             durationMatch: 'f8_r_duration_match',
             durationNextStart: 'f8_r_duration_next_start',
@@ -89,6 +91,7 @@ final class RobotGameWriteConfig
             lunchBreakEarlyParam: null,
             hardLunchDurationParam: 'f8_duration_lunch_break',
             durationTransfer: 'f8_duration_transfer',
+            durationCheck: 'f8_r_duration_alliance_meeting',
         );
     }
 }

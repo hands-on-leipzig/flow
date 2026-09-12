@@ -447,6 +447,11 @@ class Future8Generator implements ChallengeShapedLead
                 }
             }
 
+            // Alliance meeting shifts everything, but just once.
+            if ($this->pp('f8_r_alliance_meeting')) {
+                $rA4J += $this->pp('f8_r_duration_alliance_meeting');
+            }
+
             $rA4J += $this->pp('f8_duration_transfer');
         }
 
