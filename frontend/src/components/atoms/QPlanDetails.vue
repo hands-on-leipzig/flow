@@ -45,6 +45,8 @@ const mismatchClass = (a, b) => a !== b ? 'text-red-500 font-semibold' : ''
 
 const scoringRounds = computed(() => details.value?.scoring_rounds ?? [1, 2, 3])
 const opponentTarget = computed(() => scoringRounds.value.length)
+const showTransfer56 = computed(() => scoringRounds.value.includes(4))
+const showTransfer67 = computed(() => scoringRounds.value.includes(5))
 
 const minRequiredTables = (row) => {
   if (row?.q2_target != null) return row.q2_target
@@ -110,6 +112,8 @@ const transferRows = computed(() => {
                   <th class="px-2 py-1">2→3</th>
                   <th class="px-2 py-1">3→4</th>
                   <th class="px-2 py-1">4→5</th>
+                  <th v-if="showTransfer56" class="px-2 py-1">5→6</th>
+                  <th v-if="showTransfer67" class="px-2 py-1">6→7</th>
                 </template>
                 <th v-if="!details.is_two_day_event" class="px-2 py-1">Δ</th>
               </tr>
@@ -139,6 +143,20 @@ const transferRows = computed(() => {
                   </td>
                   <td class="text-center" :class="team.q1_transition_4_5 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''">
                     {{ team.q1_transition_4_5 }}
+                  </td>
+                  <td
+                    v-if="showTransfer56"
+                    class="text-center"
+                    :class="team.q1_transition_5_6 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''"
+                  >
+                    {{ team.q1_transition_5_6 }}
+                  </td>
+                  <td
+                    v-if="showTransfer67"
+                    class="text-center"
+                    :class="team.q1_transition_6_7 < details.c_duration_transfer ? 'text-red-500 font-semibold' : ''"
+                  >
+                    {{ team.q1_transition_6_7 }}
                   </td>
                 </template>
                 <td v-if="!details.is_two_day_event" class="text-center">{{ team.q5_idle_avg?.toFixed(2) ?? '–' }}</td>

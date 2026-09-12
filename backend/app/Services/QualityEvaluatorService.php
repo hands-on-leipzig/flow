@@ -17,6 +17,7 @@ use App\Support\ChallengeShapedParamMap;
 use App\Support\MatchPlanSpec;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
+use App\Support\QualityTeamActivityGroups;
 use Carbon\Carbon;
 
 use Illuminate\Support\Facades\DB;
@@ -423,7 +424,7 @@ class QualityEvaluatorService
             $reasons[] = 'Plan nicht generiert';
         }
 
-        $groupCodes = $this->teamActivityGroupCodesForProgram($firstProgram);
+        $groupCodes = QualityTeamActivityGroups::required($firstProgram);
         $requiredGroupIds = DB::table('m_activity_type_detail')
             ->whereIn('code', $groupCodes)
             ->pluck('id')
@@ -675,6 +676,8 @@ class QualityEvaluatorService
                 'q1_transition_2_3' => 0,
                 'q1_transition_3_4' => 0,
                 'q1_transition_4_5' => 0,
+                'q1_transition_5_6' => 0,
+                'q1_transition_6_7' => 0,
 
                 'q2_ok' => 0,
                 'q2_tables' => 0,
@@ -704,33 +707,10 @@ class QualityEvaluatorService
         return ['j_with_team', 'r_match', 'r_check'];
     }
 
-    /** Judging package + RG rounds 0–3 (exclude finals), per program. */
-    /** @return list<string> */
-    private function teamActivityGroupCodesForProgram(int $firstProgram): array
-    {
-        if ($firstProgram === FirstProgram::FUTURE_8->value) {
-            return [
-                'f8_j_package',
-                'f8_test_round',
-                'f8_round_1',
-                'f8_round_2',
-                'f8_round_3',
-            ];
-        }
-
-        return [
-            'j_package',
-            'r_test_round',
-            'r_round_1',
-            'r_round_2',
-            'r_round_3',
-        ];
-    }
-
     private function fetchTeamActivitiesForPlan(int $planId, int $firstProgram): Collection
     {
         $activityCodes = $this->teamActivityCodesForProgram($firstProgram);
-        $groupCodes = $this->teamActivityGroupCodesForProgram($firstProgram);
+        $groupCodes = QualityTeamActivityGroups::fetch($firstProgram);
 
         $activityIds = DB::table('m_activity_type_detail')
             ->whereIn('code', $activityCodes)
@@ -777,13 +757,13 @@ class QualityEvaluatorService
         return $this->teamActivityCodesForProgram($firstProgram);
     }
 
-    /** Judging package + RG rounds 0–3 (exclude finals), per program. */
+    /** Core morning groups for hard gates (no Future catalog RG4/RG5). */
     /** @return list<string> */
     private function teamActivityGroupCodesForQPlan(int $qPlanId): array
     {
         $firstProgram = (int) ($this->qPlanRow($qPlanId)->first_program ?? FirstProgram::CHALLENGE->value);
 
-        return $this->teamActivityGroupCodesForProgram($firstProgram);
+        return QualityTeamActivityGroups::required($firstProgram);
     }
 
     private function qPlanRow(int $qPlanId): object
@@ -875,7 +855,8 @@ class QualityEvaluatorService
 
 
     /**
-     * Evaluate Q1: Check for minimum gap between the 5 relevant activities.
+     * Evaluate Q1: minimum transfer gap between consecutive team activities
+     * (Challenge: 5; Future 8+: 5–7 including catalog RG4/RG5).
      */
     private function calculateQ1(int $qPlanId, Collection $activities): void
     {
@@ -928,7 +909,7 @@ class QualityEvaluatorService
                 }
             }
 
-            // Calculate all 4 gaps and check if all are >= minGap
+            // Consecutive gaps: Challenge 4; Future 8+ up to 6 when RG4/RG5 exist
             $allTransitions = [];
             $allGapsOk = true;
 
@@ -955,6 +936,8 @@ class QualityEvaluatorService
                     'q1_transition_2_3' => $allTransitions[2] ?? 0,
                     'q1_transition_3_4' => $allTransitions[3] ?? 0,
                     'q1_transition_4_5' => $allTransitions[4] ?? 0,
+                    'q1_transition_5_6' => $allTransitions[5] ?? 0,
+                    'q1_transition_6_7' => $allTransitions[6] ?? 0,
                 ]);
         }
 
