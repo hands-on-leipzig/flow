@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, reactive } from 'vue'
 import axios from 'axios'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
@@ -55,13 +55,25 @@ const filterTeamCount = {
   odd: ref(true),
 }
 
-const filterLanes = {
-  1: ref(true),
-  2: ref(true),
-  3: ref(true),
-  4: ref(true),
-  5: ref(true),
-}
+const filterLanes = reactive({})
+
+const laneFilterOptions = computed(() => {
+  const lanes = new Set()
+  for (const plan of plansRaw.value) {
+    const n = Number(plan.j_lanes)
+    if (Number.isFinite(n) && n > 0) lanes.add(n)
+  }
+  return [...lanes].sort((a, b) => a - b)
+})
+
+watch(laneFilterOptions, (opts) => {
+  for (const key of Object.keys(filterLanes)) {
+    if (!opts.includes(Number(key))) delete filterLanes[key]
+  }
+  for (const n of opts) {
+    if (filterLanes[n] === undefined) filterLanes[n] = true
+  }
+})
 
 const filterTables = {
   2: ref(true),
@@ -114,7 +126,7 @@ const plans = computed(() => {
 
     // Jury-Spuren
     const lanesActive = Object.entries(filterLanes)
-      .filter(([_, refVal]) => refVal.value)
+      .filter(([, on]) => on)
       .map(([lane]) => Number(lane))
     const laneFilterOk = lanesActive.length === 0 || lanesActive.includes(plan.j_lanes)
 
@@ -224,7 +236,10 @@ async function startRerun() {
           </div>
 
           <!-- Filter-Kiste: Jury-Spuren -->
-          <div class="glass-row-item px-2 py-2 flex justify-between items-center">
+          <div
+            v-if="laneFilterOptions.length"
+            class="glass-row-item px-2 py-2 flex justify-between items-center"
+          >
             
             <!-- Label-Teil -->
             <div class="text-sm font-medium text-[var(--color-text-muted)]">
@@ -234,13 +249,13 @@ async function startRerun() {
             <!-- Checkboxen -->
             <div class="flex items-center gap-2 ml-3">
               <label
-                v-for="lane in [1,2,3,4,5]"
+                v-for="lane in laneFilterOptions"
                 :key="lane"
                 class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]"
               >
                 <input
                   type="checkbox"
-                  v-model="filterLanes[lane].value"
+                  v-model="filterLanes[lane]"
                   class="accent-gray-600"
                 />
                 {{ lane }}

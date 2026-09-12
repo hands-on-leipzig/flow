@@ -85,4 +85,52 @@ class MSupportedPlanBestForTest extends TestCase
         $this->assertSame(10, (int) $best->id);
         $this->assertSame(2, (int) $best->lanes);
     }
+
+    public function test_selection_bounds_are_per_program(): void
+    {
+        DB::table('m_supported_plan')->insert([
+            [
+                'id' => 1,
+                'first_program' => FirstProgram::CHALLENGE->value,
+                'teams' => 6,
+                'lanes' => 2,
+                'tables' => 4,
+                'alert_level' => 1,
+            ],
+            [
+                'id' => 2,
+                'first_program' => FirstProgram::CHALLENGE->value,
+                'teams' => 20,
+                'lanes' => 5,
+                'tables' => 4,
+                'alert_level' => 1,
+            ],
+            [
+                'id' => 3,
+                'first_program' => FirstProgram::FUTURE_8->value,
+                'teams' => 8,
+                'lanes' => 1,
+                'tables' => 2,
+                'alert_level' => 1,
+            ],
+            [
+                'id' => 4,
+                'first_program' => FirstProgram::FUTURE_8->value,
+                'teams' => 28,
+                'lanes' => 6,
+                'tables' => 4,
+                'alert_level' => 1,
+            ],
+        ]);
+
+        $this->assertSame(
+            ['min_teams' => 6, 'max_teams' => 20, 'min_lanes' => 2, 'max_lanes' => 5],
+            MSupportedPlan::selectionBounds(FirstProgram::CHALLENGE->value),
+        );
+        $this->assertSame(
+            ['min_teams' => 8, 'max_teams' => 28, 'min_lanes' => 1, 'max_lanes' => 6],
+            MSupportedPlan::selectionBounds(FirstProgram::FUTURE_8->value),
+        );
+        $this->assertNull(MSupportedPlan::selectionBounds(FirstProgram::EXPLORE->value));
+    }
 }

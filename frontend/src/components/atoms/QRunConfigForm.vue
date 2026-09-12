@@ -24,6 +24,9 @@ const props = defineProps({
   qrunComment: String,
   isValid: Boolean,
   robotCheck: Object,
+  teamMin: { type: Number, default: 4 },
+  teamMax: { type: Number, default: 25 },
+  laneOptions: { type: Array, default: () => [1, 2, 3, 4, 5] },
 })
 
 const emit = defineEmits([
@@ -95,8 +98,8 @@ function selectProgram(id) {
         <div class="flex gap-2 items-center">
           <input
             type="number"
-            min="4"
-            max="25"
+            :min="teamMin"
+            :max="teamMax"
             class="glass-input liquid-surface-control !px-3 !py-2 w-20"
             :value="minTeams"
             @input="emit('update:minTeams', Number($event.target.value))"
@@ -104,8 +107,8 @@ function selectProgram(id) {
           <span class="text-[var(--color-text-muted)]">–</span>
           <input
             type="number"
-            min="4"
-            max="25"
+            :min="teamMin"
+            :max="teamMax"
             class="glass-input liquid-surface-control !px-3 !py-2 w-20"
             :value="maxTeams"
             @input="emit('update:maxTeams', Number($event.target.value))"
@@ -117,7 +120,7 @@ function selectProgram(id) {
         <label class="qrun-config__label">Jury-Spuren</label>
         <div class="qrun-config__checks">
           <label
-            v-for="i in 5"
+            v-for="i in laneOptions"
             :key="'lane_' + i"
             class="qrun-config__check"
           >
