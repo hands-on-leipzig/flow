@@ -179,12 +179,11 @@ const registeredTeams = ref(0)
 const drahtCapacity = ref(0)
 const capacityOverride = ref<number | null>(null)
 const effectiveCapacity = computed(() => capacityOverride.value ?? drahtCapacity.value)
-/** Slider ceiling: catalog max, capped by effective (DRAHT or override) capacity. */
+/** Slider ceiling: effective capacity (DRAHT or override); catalog max if unset. */
 const planMax = computed(() => {
-  const maxT = teamLimits.value.max
   const cap = Number(effectiveCapacity.value)
-  if (Number.isFinite(cap) && cap > 0) return Math.min(maxT, Math.round(cap))
-  return maxT
+  if (Number.isFinite(cap) && cap > 0) return Math.round(cap)
+  return teamLimits.value.max
 })
 
 function applyCapacityOverride(value: number) {

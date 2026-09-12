@@ -4,10 +4,10 @@ import {computed, ref, watch} from 'vue'
 const props = defineProps<{
   planTeams: number
   registeredTeams: number
-  /** Venue capacity (DRAHT or override) — label + enrolled fill only. */
+  /** Venue capacity (DRAHT or override) — label, fill, and slider right end. */
   capacity: number
   minTeams: number
-  /** Hard ceiling for the plan slider (parent already applies capacity). */
+  /** Catalog ceiling used when capacity is unset. */
   maxTeams: number
   onUpdate: (value: number) => void
 }>()
@@ -21,22 +21,16 @@ const maxPlan = computed(() => {
   return maxT
 })
 
-/** Plan slider cannot exceed effective capacity (DRAHT or manual override). */
+/** Right-end value: effective capacity, else catalog maxTeams. Track and drag share this so the handle can reach Kapazität. */
 const dragMax = computed(() => {
-  const maxT = maxPlan.value
   const cap = Number(props.capacity)
   if (Number.isFinite(cap) && cap > 0) {
-    return Math.min(maxT, Math.round(cap))
+    return Math.round(cap)
   }
-  return maxT
+  return maxPlan.value
 })
 
-/** Track width aligns handle with the Kapazität label and enrolled fill. */
-const trackScale = computed(() => {
-  const cap = Number(props.capacity)
-  const capN = Number.isFinite(cap) && cap > 0 ? Math.round(cap) : 0
-  return Math.max(dragMax.value, capN, 1)
-})
+const trackScale = computed(() => Math.max(dragMax.value, 1))
 
 const fillPct = computed(() => {
   if (props.capacity <= 0) return 0
