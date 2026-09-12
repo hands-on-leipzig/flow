@@ -11,8 +11,8 @@ use RuntimeException;
 /**
  * Future 8+ match list from catalog m_match (not MatchPlanBuilder).
  *
- * Challenge keeps the builder. Catalog is SoT for pairings; this slice does not
- * change Future judging↔RG mapping or f8_j_rounds.
+ * Challenge keeps the builder. Catalog is SoT for pairings; Future prepareMain
+ * sets f8_j_rounds from max(round)+1 after load.
  */
 class MatchPlanCatalogLoader
 {

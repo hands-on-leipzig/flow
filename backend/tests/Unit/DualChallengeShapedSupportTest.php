@@ -165,7 +165,7 @@ class DualChallengeShapedSupportTest extends TestCase
 
     public function test_game_round_mapping_four_judging_rounds(): void
     {
-        // Mirrors ChallengeGenerator / Future8Generator::gameRoundForJudgingBlock (non-finale).
+        // Mirrors ChallengeGenerator::gameRoundForJudgingBlock (non-finale). Future is 1:1 catalog.
         $mapFour = static fn (int $cBlock): ?int => match ($cBlock) {
             1 => 0,
             2 => 1,

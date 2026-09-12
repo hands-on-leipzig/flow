@@ -68,6 +68,8 @@ class MatchPlanCatalogLoaderTest extends TestCase
         ], $plan->entries[0]);
         $this->assertSame(1, $plan->entries[1]['round']);
         $this->assertSame(1, $plan->entries[1]['team_1']);
+        $this->assertSame(1, $plan->maxRound());
+        $this->assertSame(2, $plan->judgingRoundCount());
 
         $live = MatchEntry::where('plan', 10)->where('first_program', FirstProgram::FUTURE_8->value)->get();
         $this->assertCount(2, $live);
@@ -133,6 +135,18 @@ class MatchPlanCatalogLoaderTest extends TestCase
         $this->expectExceptionMessage('Challenge stays on MatchPlanBuilder');
 
         (new MatchPlanCatalogLoader)->load(FirstProgram::CHALLENGE, 1, 8, 2, 4);
+    }
+
+    public function test_judging_round_count_follows_catalog_max_round(): void
+    {
+        for ($round = 0; $round <= 4; $round++) {
+            $this->insertCatalogRow(8, 2, 4, $round, 1, 1, 2, 1, 2);
+        }
+
+        $plan = (new MatchPlanCatalogLoader)->load(FirstProgram::FUTURE_8, 12, 8, 2, 4);
+
+        $this->assertSame(4, $plan->maxRound());
+        $this->assertSame(5, $plan->judgingRoundCount());
     }
 
     private function insertCatalogRow(
