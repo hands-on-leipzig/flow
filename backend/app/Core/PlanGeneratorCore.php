@@ -558,8 +558,6 @@ class PlanGeneratorCore
             'r_final_8' => $this->insertChallengeFinalRound(8),
             'r_final_4' => $this->insertChallengeFinalRound(4),
             'r_final_2' => $this->insertChallengeFinalRound(2),
-            'f8_round_4' => $this->insertFutureEmptyRound(4),
-            'f8_round_5' => $this->insertFutureEmptyRound(5),
             default => null,
         };
     }
@@ -645,11 +643,6 @@ class PlanGeneratorCore
     private function insertChallengeFinalRound(int $teamCount): void
     {
         $this->challenge?->insertFinalRound($teamCount);
-    }
-
-    private function insertFutureEmptyRound(int $round): void
-    {
-        $this->future?->insertEmptyGameRound($round);
     }
 
     private function afternoonBlockShouldEmit(object $block): bool

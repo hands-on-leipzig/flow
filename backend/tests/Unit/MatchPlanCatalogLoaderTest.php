@@ -149,6 +149,30 @@ class MatchPlanCatalogLoaderTest extends TestCase
         $this->assertSame(5, $plan->judgingRoundCount());
     }
 
+    public function test_peek_max_round_does_not_persist(): void
+    {
+        for ($round = 0; $round <= 4; $round++) {
+            $this->insertCatalogRow(8, 2, 4, $round, 1, 1, 2, 1, 2);
+        }
+
+        $loader = new MatchPlanCatalogLoader;
+        $this->assertSame(4, $loader->peekMaxRound(FirstProgram::FUTURE_8, 8, 2, 4));
+        $this->assertSame(0, MatchEntry::where('plan', 99)->count());
+    }
+
+    public function test_peek_max_round_uses_teams_plus_one_fallback(): void
+    {
+        $this->insertCatalogRow(8, 2, 4, 5, 1, 1, 2, 1, 2);
+
+        $this->assertSame(5, (new MatchPlanCatalogLoader)->peekMaxRound(FirstProgram::FUTURE_8, 7, 2, 4));
+    }
+
+    public function test_peek_max_round_miss_returns_null(): void
+    {
+        $this->assertNull((new MatchPlanCatalogLoader)->peekMaxRound(FirstProgram::FUTURE_8, 9, 2, 4));
+        $this->assertNull((new MatchPlanCatalogLoader)->peekMaxRound(FirstProgram::CHALLENGE, 8, 2, 4));
+    }
+
     private function insertCatalogRow(
         int $teams,
         int $lanes,

@@ -69,6 +69,36 @@ class MatchPlanCatalogLoader
     }
 
     /**
+     * Catalog max(round) for Nachmittag (no live match write).
+     * Same key as load: exact teams/lanes/tables, else teams+1.
+     */
+    public function peekMaxRound(FirstProgram $program, int $teams, int $lanes, int $tables): ?int
+    {
+        if ($program !== FirstProgram::FUTURE_8) {
+            return null;
+        }
+
+        $max = $this->maxRoundForKey($program->value, $teams, $lanes, $tables);
+        if ($max === null) {
+            $max = $this->maxRoundForKey($program->value, $teams + 1, $lanes, $tables);
+        }
+
+        return $max;
+    }
+
+    private function maxRoundForKey(int $programId, int $teams, int $lanes, int $tables): ?int
+    {
+        $max = MMatch::query()
+            ->where('first_program', $programId)
+            ->where('teams', $teams)
+            ->where('lanes', $lanes)
+            ->where('tables', $tables)
+            ->max('round');
+
+        return $max === null ? null : (int) $max;
+    }
+
+    /**
      * @return list<object>
      */
     private function rowsForKey(int $programId, int $teams, int $lanes, int $tables): array

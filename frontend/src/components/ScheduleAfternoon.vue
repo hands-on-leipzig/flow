@@ -14,6 +14,7 @@ defineOptions({ name: 'ScheduleAfternoon' })
 
 const CHALLENGE_FP = 3
 const FUTURE_8_FP = 8
+const MORNING_ROUNDS_ANCHOR = 'Testrunde und Runden 1 bis 3'
 
 type AfternoonBlock = {
   id: number
@@ -34,6 +35,7 @@ const {
   disabledMap,
   handleParamUpdate,
   scheduleBlockTrigger,
+  previewReload,
 } = useScheduleWorkspace()
 const blocks = ref<AfternoonBlock[]>([])
 const lastSavedIds = ref<number[]>([])
@@ -247,6 +249,24 @@ async function saveOrder() {
 }
 
 watch(selectedPlanId, loadBlocks, {immediate: true})
+
+watch(
+  () => [
+    paramValueByName('f8_teams'),
+    paramValueByName('f8_lanes'),
+    paramValueByName('f8_fields'),
+    previewReload.value,
+  ],
+  () => {
+    if (selectedPlanId.value) {
+      loadBlocks()
+    }
+  },
+)
+
+function paramValueByName(name: string): unknown {
+  return Object.values(paramMap.value).find((p) => p.name === name)?.value
+}
 </script>
 
 <template>
@@ -256,7 +276,7 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
       <ProgramSection program="challenge" :short-name="challengeLabel">
         <div class="afternoon-tile flex flex-col">
           <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
-            <h2 class="afternoon-anchor__title">Vorrunden {{ challengeLabel }}</h2>
+            <h2 class="afternoon-anchor__title">{{ MORNING_ROUNDS_ANCHOR }}</h2>
           </section>
           <draggable
               v-model="challengeBlocks"
@@ -306,7 +326,7 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
       <ProgramSection program="future8" :short-name="futureLabel">
         <div class="afternoon-tile flex flex-col">
           <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
-            <h2 class="afternoon-anchor__title">Vorrunden {{ futureLabel }}</h2>
+            <h2 class="afternoon-anchor__title">{{ MORNING_ROUNDS_ANCHOR }}</h2>
           </section>
           <draggable
               v-model="futureBlocks"
@@ -357,7 +377,7 @@ watch(selectedPlanId, loadBlocks, {immediate: true})
     <!-- Other profiles: one shared stage -->
     <template v-else>
       <section class="afternoon-anchor glass-stack-card glass-stack-card--dashed">
-        <h2 class="afternoon-anchor__title">Vorrunden</h2>
+        <h2 class="afternoon-anchor__title">{{ MORNING_ROUNDS_ANCHOR }}</h2>
       </section>
 
       <draggable
