@@ -179,9 +179,9 @@ class PlanGeneratorCore
             Log::info('PlanGeneratorCore: dual Challenge-shaped morning', [
                 'plan_id' => $this->pp('g_plan'),
                 'g_separate_rooms' => $policyC,
-                'g_future_first' => (bool) $this->ppLoaded('g_future_first'),
-                'g_per_round' => (bool) $this->ppLoaded('g_per_round', true),
-                'policy' => $policyC ? 'C' : ((bool) $this->ppLoaded('g_per_round', true) ? 'A' : 'B'),
+                'c+f8_future_first' => (bool) $this->ppLoaded('c+f8_future_first'),
+                'c+f8_flip_after_round' => (bool) $this->ppLoaded('c+f8_flip_after_round', true),
+                'policy' => $policyC ? 'C' : ((bool) $this->ppLoaded('c+f8_flip_after_round', true) ? 'A' : 'B'),
             ]);
         }
     }

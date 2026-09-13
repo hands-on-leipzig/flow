@@ -26,8 +26,8 @@ function updateByName(name: string, value: boolean) {
 }
 
 const roomsParam = computed(() => paramMapByName.value['g_separate_rooms'])
-const switchParam = computed(() => paramMapByName.value['g_per_round'])
-const firstParam = computed(() => paramMapByName.value['g_future_first'])
+const switchParam = computed(() => paramMapByName.value['c+f8_flip_after_round'])
+const firstParam = computed(() => paramMapByName.value['c+f8_future_first'])
 
 /** false = shared room, true = separate rooms */
 const separateRooms = computed({
@@ -49,7 +49,7 @@ const perRound = computed({
     if (raw === undefined || raw === null || raw === '') return true
     return asBool(raw)
   },
-  set: (val: boolean) => updateByName('g_per_round', val),
+  set: (val: boolean) => updateByName('c+f8_flip_after_round', val),
 })
 
 const switchMode = computed<'per_round' | 'within_round'>({
@@ -62,7 +62,7 @@ const switchMode = computed<'per_round' | 'within_round'>({
 /** false = Challenge first, true = Future first */
 const futureFirst = computed({
   get: () => asBool(firstParam.value?.value),
-  set: (val: boolean) => updateByName('g_future_first', val),
+  set: (val: boolean) => updateByName('c+f8_future_first', val),
 })
 
 const firstMatch = computed<'challenge' | 'future8'>({

@@ -21,7 +21,7 @@ Entry: `PlanGeneratorController` → `PlanGeneratorService` (`isSupported`, `pre
 
 If `g_finale` → `FinaleGenerator` (Day 2 via `generateOneDayEvent`, then custom Day 1). **Do not work on Finale.** Else `generateOneDayEvent`: build `ChallengeGenerator` and/or `Future8Generator` (`ChallengeShapedLead`); Core `e_mode` recipes (`runLeadRecipes`) drive the **lead** (Challenge if on, else Future). `e_mode` 6/7 stay reserved.
 
-`runMain`: one program → `lead->main()`; both on + `g_separate_rooms` → Policy C (Challenge `main()`, then Future `main()` from the same opening end); else `GameRoundCoordinator` Policy A (`g_per_round`) or B (`PolicyBRoundScheduler`). A/B morning is hardcoded game rounds 0–3. Joint ceremony prefix: `c+f8_*` when Explore is off; `g_*` when Explore is integrated.
+`runMain`: one program → `lead->main()`; both on + `g_separate_rooms` → Policy C (Challenge `main()`, then Future `main()` from the same opening end); else `GameRoundCoordinator` Policy A (`c+f8_flip_after_round`) or B (`PolicyBRoundScheduler`). A/B morning is hardcoded game rounds 0–3. Joint ceremony prefix: `c+f8_*` when Explore is off; `g_*` when Explore is integrated.
 
 Clocks: each Challenge-shaped generator owns `cTime` / `jTime` / `rTime`. Core owns Explore `eTime`. Coupling: `IntegratedExploreState` (datetime `rg1End` / `startTime`). Writer: `ActivityWriter` → `activity_group` + `activity`. Afternoon: Core walks `AfternoonBlockOrderService`. After generate: `FreeBlockGenerator`, then `SlotBlockPlanSyncService`.
 
