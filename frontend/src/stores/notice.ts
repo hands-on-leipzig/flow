@@ -24,6 +24,8 @@ export type NoticeDots = {
   teams_by_program: Record<string, boolean>
 }
 
+const STORAGE_KEY = 'flow.noticeToday'
+
 const emptyDots = (): NoticeDots => ({
   schedule: false,
   rooms: false,
@@ -33,18 +35,60 @@ const emptyDots = (): NoticeDots => ({
   teams_by_program: {},
 })
 
+function isIsoDate(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+function readSimulatedToday(): string | null {
+  if (typeof sessionStorage === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY)
+    if (!raw || !isIsoDate(raw)) return null
+    return raw
+  } catch {
+    return null
+  }
+}
+
+function writeSimulatedToday(value: string | null) {
+  if (typeof sessionStorage === 'undefined') return
+  try {
+    if (value) sessionStorage.setItem(STORAGE_KEY, value)
+    else sessionStorage.removeItem(STORAGE_KEY)
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 export const useNoticeStore = defineStore('notice', {
   state: () => ({
     eventId: null as number | null,
     messages: [] as NoticeMessage[],
     dots: emptyDots() as NoticeDots,
     restore_available: false,
+    simulatedToday: readSimulatedToday() as string | null,
+    useSimulatedToday: false,
   }),
 
   actions: {
+    setUseSimulatedToday(value: boolean) {
+      this.useSimulatedToday = value
+    },
+
+    async setSimulatedToday(value: string | null) {
+      const next = value && isIsoDate(value) ? value : null
+      this.simulatedToday = next
+      writeSimulatedToday(next)
+      if (this.eventId) await this.refresh(this.eventId)
+    },
+
     async refresh(eventId: number) {
       try {
-        const {data} = await axios.get(`/events/${eventId}/notices`)
+        const params =
+          this.useSimulatedToday && this.simulatedToday
+            ? {today: this.simulatedToday}
+            : undefined
+        const {data} = await axios.get(`/events/${eventId}/notices`, {params})
         this.eventId = eventId
         this.messages = Array.isArray(data?.messages) ? data.messages : []
         this.dots = {

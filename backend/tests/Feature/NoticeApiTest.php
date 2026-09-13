@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Controllers\Api\DrahtController;
 use App\Http\Middleware\KeycloakJwtMiddleware;
 use App\Models\Event;
+use App\Services\NoticeService;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -216,6 +217,32 @@ class NoticeApiTest extends TestCase
 
         Carbon::setTestNow(Carbon::parse('2026-09-21', config('app.timezone')));
         $this->assertNotContains($threeDays, $this->messageBodies());
+    }
+
+    public function test_payload_as_of_date_follows_override_not_now(): void
+    {
+        $this->seedEvent(date: '2026-09-20');
+        Carbon::setTestNow(Carbon::parse('2026-10-15', config('app.timezone')));
+
+        $event = Event::query()->findOrFail(1);
+        $service = app(NoticeService::class);
+
+        $nowKeys = collect($service->payload($event)['messages'])->pluck('key')->all();
+        $this->assertNotContains('time_publish_three_days', $nowKeys);
+
+        $asOf = Carbon::parse('2026-09-18', config('app.timezone'))->startOfDay();
+        $overridden = $service->payload($event, $asOf);
+        $this->assertContains('time_publish_three_days', collect($overridden['messages'])->pluck('key')->all());
+        $this->assertContains('time_publish_four_weeks', collect($overridden['messages'])->pluck('key')->all());
+    }
+
+    public function test_today_query_without_admin_is_ignored(): void
+    {
+        $this->seedEvent(date: '2026-09-20');
+        Carbon::setTestNow(Carbon::parse('2026-10-15', config('app.timezone')));
+
+        $payload = $this->getJson('/api/events/1/notices?today=2026-09-18')->assertOk()->json();
+        $this->assertNotContains('time_publish_three_days', collect($payload['messages'])->pluck('key')->all());
     }
 
     /**
