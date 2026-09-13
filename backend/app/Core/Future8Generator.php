@@ -28,6 +28,10 @@ class Future8Generator implements ChallengeShapedLead
 
     private bool $coordinateExplore = true;
 
+    private ?TimeCursor $sharedAfternoonJudgingEarliest = null;
+
+    private int $sharedAfternoonJudgingOffset = 0;
+
     public function __construct(
         ActivityWriter $writer,
         PlanParameter $params,
@@ -379,6 +383,26 @@ class Future8Generator implements ChallengeShapedLead
     public function applyPostRoundBreak(int $round): void
     {
         $this->robotGame->applyPostRoundBreak($round);
+    }
+
+    /**
+     * Shared-stage Nachmittag: judging block k with catalog game round k−1 (1:1 + transfer).
+     * Morning already wrote judging blocks 1–4 (TR+RG1–3).
+     */
+    public function emitSharedAfternoonGameRound(int $gameRound): void
+    {
+        $block = $gameRound + 1;
+        if ($this->sharedAfternoonJudgingEarliest === null) {
+            $this->sharedAfternoonJudgingEarliest = clone $this->jTime;
+            $this->sharedAfternoonJudgingOffset = 4 * (int) $this->pp('f8_lanes');
+        }
+
+        $this->runJudgingBlock(
+            $block,
+            $this->sharedAfternoonJudgingEarliest,
+            $this->sharedAfternoonJudgingOffset
+        );
+        $this->writeGameRound($gameRound, true);
     }
 
     public function finishMainAfterGames(): void

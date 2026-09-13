@@ -496,13 +496,18 @@ class PlanGeneratorCore
             $blocks = app(AfternoonBlockOrderService::class)
                 ->resolvedBlocks((int) $this->pp('g_plan'));
 
-            foreach ($blocks as $block) {
+            $lastFutureCatalogRoundIndex = $this->lastSharedFutureCatalogRoundIndex($blocks);
+
+            foreach ($blocks as $index => $block) {
                 if (! $this->afternoonBlockShouldEmit($block)) {
                     continue;
                 }
 
                 $this->syncSharedAfternoonClock();
                 $this->emitAfternoonBlock($block);
+                if ($index === $lastFutureCatalogRoundIndex) {
+                    $this->insertFutureDeliberationsAfterLastCatalogRound();
+                }
                 $this->syncSharedAfternoonClock();
             }
 
@@ -559,6 +564,8 @@ class PlanGeneratorCore
             'r_final_8' => $this->insertChallengeFinalRound(8),
             'r_final_4' => $this->insertChallengeFinalRound(4),
             'r_final_2' => $this->insertChallengeFinalRound(2),
+            'f8_round_4' => $this->emitFutureCatalogAfternoonRound(4),
+            'f8_round_5' => $this->emitFutureCatalogAfternoonRound(5),
             default => null,
         };
     }
@@ -646,12 +653,70 @@ class PlanGeneratorCore
         $this->challenge?->insertFinalRound($teamCount);
     }
 
+    private function emitFutureCatalogAfternoonRound(int $gameRound): void
+    {
+        if ($this->isPolicyC() || $this->future === null) {
+            return;
+        }
+
+        $this->future->emitSharedAfternoonGameRound($gameRound);
+        $this->advanceSharedClockToFutureJudgingAndGames();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, object>  $blocks
+     */
+    private function lastSharedFutureCatalogRoundIndex($blocks): ?int
+    {
+        $last = null;
+        foreach ($blocks as $index => $block) {
+            $code = (string) $block->code;
+            if ($code !== 'f8_round_4' && $code !== 'f8_round_5') {
+                continue;
+            }
+            if (! $this->afternoonBlockShouldEmit($block)) {
+                continue;
+            }
+            $last = $index;
+        }
+
+        return $last;
+    }
+
+    private function insertFutureDeliberationsAfterLastCatalogRound(): void
+    {
+        if ($this->future === null) {
+            return;
+        }
+
+        $this->future->insertDeliberations();
+        $this->advanceSharedClockToFutureJudgingAndGames();
+    }
+
+    private function advanceSharedClockToFutureJudgingAndGames(): void
+    {
+        if ($this->future === null) {
+            return;
+        }
+
+        $later = $this->future->jTime()->current();
+        if ($this->future->rTime()->current() > $later) {
+            $later = $this->future->rTime()->current();
+        }
+        $this->future->rTime()->set($later);
+        $this->challenge?->rTime()->set($later);
+    }
+
     private function afternoonBlockShouldEmit(object $block): bool
     {
         $code = (string) $block->code;
 
         if ($code === 'r_final_16' && ! $this->pp('g_finale')) {
             return false;
+        }
+
+        if ($code === 'f8_round_4' || $code === 'f8_round_5') {
+            return $this->future !== null && ! $this->isPolicyC();
         }
 
         if ($block->afternoon_parameter === null) {
