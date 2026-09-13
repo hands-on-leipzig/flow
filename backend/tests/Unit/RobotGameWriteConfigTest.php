@@ -32,5 +32,9 @@ class RobotGameWriteConfigTest extends TestCase
         $this->assertSame('f8_r_alliance', $future->checkCode);
         $this->assertSame('f8_r_alliance_meeting', $future->robotCheckParam);
         $this->assertSame('f8_r_duration_alliance_meeting', $future->durationCheck);
+        $this->assertNull($future->lunchBreakEarlyParam);
+        $this->assertNull($future->hardLunchDurationParam);
+        $this->assertSame('c_lunch_break_early', $challenge->lunchBreakEarlyParam);
+        $this->assertSame('c_duration_lunch_break', $challenge->hardLunchDurationParam);
     }
 }

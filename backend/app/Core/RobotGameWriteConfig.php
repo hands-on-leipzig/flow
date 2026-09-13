@@ -89,7 +89,7 @@ final class RobotGameWriteConfig
             durationLunch: 'f8_r_duration_lunch',
             tablesParam: 'f8_fields',
             lunchBreakEarlyParam: null,
-            hardLunchDurationParam: 'f8_duration_lunch_break',
+            hardLunchDurationParam: null,
             durationTransfer: 'f8_duration_transfer',
             durationCheck: 'f8_r_duration_alliance_meeting',
         );

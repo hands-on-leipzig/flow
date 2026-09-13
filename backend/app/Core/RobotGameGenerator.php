@@ -160,6 +160,13 @@ class RobotGameGenerator
         return $param !== null && (bool) $this->pp($param);
     }
 
+    /** Future catalog 5+ judging rounds: soft lunch after RG2, not RG1. */
+    private function futureSoftLunchAfterRg2(): bool
+    {
+        return $this->write->durationTransfer !== null
+            && (int) $this->pp('f8_j_rounds', 0) > 4;
+    }
+
     private function hardLunchDuration(): mixed
     {
         $param = $this->write->hardLunchDurationParam;
@@ -342,7 +349,9 @@ class RobotGameGenerator
                         $this->integratedExplore->rg1End = $rg1End;
                     }
 
-                    if (!$this->lunchBreakEarly() && $this->hardLunchDuration() === 0) {
+                    if ($this->futureSoftLunchAfterRg2()) {
+                        $this->addGameRoundBreak();
+                    } elseif (! $this->lunchBreakEarly() && $this->hardLunchDuration() === 0) {
                         $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                     }
 
@@ -372,8 +381,11 @@ class RobotGameGenerator
                         }
                     }
                 } else {
-                    // Normal events: Regular break after RG2 (lunch was already handled at test round if early)
-                    $this->addGameRoundBreak();
+                    if ($this->futureSoftLunchAfterRg2() && $this->hardLunchDuration() === 0) {
+                        $this->rTime->addMinutes($this->pp($this->write->durationLunch));
+                    } else {
+                        $this->addGameRoundBreak();
+                    }
                 }
                 break;
 

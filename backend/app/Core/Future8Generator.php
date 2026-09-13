@@ -110,9 +110,7 @@ class Future8Generator implements ChallengeShapedLead
                 || ($this->pp('f8_j_rounds') > 4 && $cBlock == 3));
 
             if ($isLunchRound) {
-                if ($this->pp('f8_duration_lunch_break') == 0) {
-                    $jTime->addMinutes($this->pp('f8_j_duration_lunch'));
-                }
+                $jTime->addMinutes($this->pp('f8_j_duration_lunch'));
             } elseif ($cBlock < $this->pp('f8_j_rounds')) {
                 $jTime->addMinutes($this->pp('f8_j_duration_break'));
             }
@@ -223,7 +221,6 @@ class Future8Generator implements ChallengeShapedLead
                 $this->judgingOneRound($cBlock, $jT);
                 $jT += $this->pp('f8_lanes');
                 $this->insertRobotGameRoundForBlock($cBlock, $afterRG1Callback);
-                $this->maybeInsertHardLunch($cBlock);
             }
 
             $this->finishMainAfterGames();
@@ -315,7 +312,6 @@ class Future8Generator implements ChallengeShapedLead
         $this->alignJudgingWithRobotGame($cBlock, $jTimeEarliest, $this->judgingAwayDuration(), $policyBTiming);
         $this->judgingOneRound($cBlock, $jT);
         $jT += (int) $this->pp('f8_lanes');
-        $this->maybeInsertHardLunch($cBlock);
     }
 
     /**
@@ -477,23 +473,6 @@ class Future8Generator implements ChallengeShapedLead
     {
         if ($afterRG1Callback !== null && $this->exploreMode() == ExploreMode::INTEGRATED_MORNING->value) {
             $afterRG1Callback($this->rTime);
-        }
-    }
-
-    private function maybeInsertHardLunch(int $cBlock): void
-    {
-        $isLunchRound = (($this->pp('f8_j_rounds') == 4 && $cBlock == 2)
-            || ($this->pp('f8_j_rounds') > 4 && $cBlock == 3));
-
-        if ($isLunchRound && $this->pp('f8_duration_lunch_break') > 0) {
-            if ($this->rTime->current() < $this->jTime->current()) {
-                $this->rTime->set($this->jTime->current());
-            } else {
-                $this->jTime->set($this->rTime->current());
-            }
-
-            $this->jTime->addMinutes($this->pp('f8_duration_lunch_break'));
-            $this->rTime->addMinutes($this->pp('f8_duration_lunch_break'));
         }
     }
 
