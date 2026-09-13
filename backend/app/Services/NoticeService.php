@@ -21,7 +21,7 @@ class NoticeService
     /**
      * @return array{messages: list<array<string, mixed>>, dots: array<string, mixed>, restore_available: bool}
      */
-    public function payload(Event $event): array
+    public function payload(Event $event, ?Carbon $today = null): array
     {
         $event->loadMissing('programs.firstProgram');
 
@@ -33,7 +33,7 @@ class NoticeService
             ->all();
         $hiddenSet = array_fill_keys($hiddenIds, true);
 
-        $today = Carbon::today(config('app.timezone'));
+        $today = ($today ?? Carbon::today(config('app.timezone')))->copy()->startOfDay();
         $eventDate = $this->eventDate($event);
 
         $catalog = MNotice::query()
