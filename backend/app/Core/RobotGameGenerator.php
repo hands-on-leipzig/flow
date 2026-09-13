@@ -31,6 +31,9 @@ class RobotGameGenerator
     /** When false, skip Explore rg1End / hole coordination (Policy C Future back-room). */
     private bool $coordinateExplore = true;
 
+    /** Combined A/B morning: no Future field lunch; no pause after RG3 as if round 4 were next. */
+    private bool $sharedStageMorning = false;
+
     public function __construct(
         ActivityWriter $writer,
         PlanParameter $params,
@@ -50,6 +53,11 @@ class RobotGameGenerator
     public function setCoordinateExplore(bool $coordinateExplore): void
     {
         $this->coordinateExplore = $coordinateExplore;
+    }
+
+    public function setSharedStageMorning(bool $sharedStageMorning): void
+    {
+        $this->sharedStageMorning = $sharedStageMorning;
     }
 
     public function robotCheckEnabled(): bool
@@ -165,6 +173,12 @@ class RobotGameGenerator
     {
         return $this->write->durationTransfer !== null
             && (int) $this->pp('f8_j_rounds', 0) > 4;
+    }
+
+    /** Shared-stage A/B: Challenge owns field lunch; Future only uses the transfer-floored break. */
+    private function sharedStageSuppressesFutureFieldLunch(): bool
+    {
+        return $this->sharedStageMorning && $this->write->durationTransfer !== null;
     }
 
     private function hardLunchDuration(): mixed
@@ -349,7 +363,7 @@ class RobotGameGenerator
                         $this->integratedExplore->rg1End = $rg1End;
                     }
 
-                    if ($this->futureSoftLunchAfterRg2()) {
+                    if ($this->sharedStageSuppressesFutureFieldLunch() || $this->futureSoftLunchAfterRg2()) {
                         $this->addGameRoundBreak();
                     } elseif (! $this->lunchBreakEarly() && $this->hardLunchDuration() === 0) {
                         $this->rTime->addMinutes($this->pp($this->write->durationLunch));
@@ -381,7 +395,9 @@ class RobotGameGenerator
                         }
                     }
                 } else {
-                    if ($this->futureSoftLunchAfterRg2() && $this->hardLunchDuration() === 0) {
+                    if ($this->sharedStageSuppressesFutureFieldLunch()) {
+                        $this->addGameRoundBreak();
+                    } elseif ($this->futureSoftLunchAfterRg2() && $this->hardLunchDuration() === 0) {
                         $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                     } else {
                         $this->addGameRoundBreak();
@@ -417,6 +433,9 @@ class RobotGameGenerator
     private function maybeAddCatalogContinuationBreak(int $round): void
     {
         if ($this->write->durationTransfer === null) {
+            return;
+        }
+        if ($this->sharedStageMorning && $round === 3) {
             return;
         }
         if ($round >= $this->matchPlan->maxRound()) {

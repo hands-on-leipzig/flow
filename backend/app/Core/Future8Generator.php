@@ -240,6 +240,12 @@ class Future8Generator implements ChallengeShapedLead
         $this->coordinateExplore = $coordinateExplore;
     }
 
+    /** Combined A/B morning: extra catalog rounds wait for Nachmittag; Challenge owns field lunch. */
+    public function setSharedStageMorning(bool $sharedStageMorning): void
+    {
+        $this->robotGame->setSharedStageMorning($sharedStageMorning);
+    }
+
     public function prepareMain(): void
     {
         // Pairings from m_match. Challenge still uses MatchPlanBuilder.
@@ -381,6 +387,30 @@ class Future8Generator implements ChallengeShapedLead
         $this->insertDeliberations();
     }
 
+    public function syncCeremonyTimeAfterMain(): void
+    {
+        $this->cTime->set($this->jTime->current());
+        $this->cTime->addMinutes(-$this->pp('f8_j_duration_scoring'));
+
+        if ($this->rTime->current() > $this->cTime->current()) {
+            $this->cTime->set($this->rTime->current());
+        }
+    }
+
+    public function insertDeliberations(): void
+    {
+        $this->jTime->addMinutes($this->pp('f8_j_ready_deliberations'));
+
+        if (! $this->pp('f8_j_deliberations_flex') && $this->jTime->current() < $this->rTime->current()) {
+            $this->jTime->set($this->rTime->current());
+        }
+
+        $this->writer->withGroup('f8_j_deliberations', function () {
+            $this->writer->insertActivity('f8_j_deliberations', $this->jTime, $this->pp('f8_j_duration_deliberations'));
+        });
+        $this->jTime->addMinutes($this->pp('f8_j_duration_deliberations'));
+    }
+
     public function syncClocksFrom(ChallengeGenerator|Future8Generator $other): void
     {
         $this->cTime->set($other->cTime()->current());
@@ -474,30 +504,6 @@ class Future8Generator implements ChallengeShapedLead
         if ($afterRG1Callback !== null && $this->exploreMode() == ExploreMode::INTEGRATED_MORNING->value) {
             $afterRG1Callback($this->rTime);
         }
-    }
-
-    private function syncCeremonyTimeAfterMain(): void
-    {
-        $this->cTime->set($this->jTime->current());
-        $this->cTime->addMinutes(-$this->pp('f8_j_duration_scoring'));
-
-        if ($this->rTime->current() > $this->cTime->current()) {
-            $this->cTime->set($this->rTime->current());
-        }
-    }
-
-    private function insertDeliberations(): void
-    {
-        $this->jTime->addMinutes($this->pp('f8_j_ready_deliberations'));
-
-        if (! $this->pp('f8_j_deliberations_flex') && $this->jTime->current() < $this->rTime->current()) {
-            $this->jTime->set($this->rTime->current());
-        }
-
-        $this->writer->withGroup('f8_j_deliberations', function () {
-            $this->writer->insertActivity('f8_j_deliberations', $this->jTime, $this->pp('f8_j_duration_deliberations'));
-        });
-        $this->jTime->addMinutes($this->pp('f8_j_duration_deliberations'));
     }
 
     public function beginAfternoon(): void

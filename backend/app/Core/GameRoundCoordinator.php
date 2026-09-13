@@ -49,6 +49,7 @@ class GameRoundCoordinator
 
         $this->challenge->prepareMain();
         $this->future->prepareMain();
+        $this->future->setSharedStageMorning(true);
         $this->future->syncClocksFrom($this->challenge);
 
         $this->jEarliest = [
@@ -73,10 +74,12 @@ class GameRoundCoordinator
         }
 
         $this->finishRemainingJudging('challenge');
-        $this->finishRemainingJudging('future');
 
         $this->challenge->finishMainAfterGames();
-        $this->future->finishMainAfterGames();
+        $this->future->syncCeremonyTimeAfterMain();
+        if ((int) $this->pp('f8_j_rounds') <= 4) {
+            $this->future->insertDeliberations();
+        }
 
         // Ceremony clock for awards / afternoon: later of both programs.
         $later = $this->challenge->cTime()->current();
@@ -213,6 +216,9 @@ class GameRoundCoordinator
     ): void {
         $prog = $this->program($key);
         $max = $this->judgingRoundCount($key);
+        if ($key === 'future') {
+            $max = min(4, $max);
+        }
 
         while ($this->nextJudgingBlock[$key] <= $max) {
             $block = $this->nextJudgingBlock[$key];
