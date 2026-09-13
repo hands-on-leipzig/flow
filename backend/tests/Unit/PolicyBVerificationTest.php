@@ -18,7 +18,7 @@ use Tests\TestCase;
  *
  * Manual UI check (not automated): event with Challenge + Future 8+ attached,
  * c+f8_flip_after_round=0, g_separate_rooms=0 — generate and confirm R1–3 matches
- * interleave (r_check / f8_r_alliance follow toggles), TR parallel, drain when match counts differ.
+ * interleave (r_check / f8_r_alliance follow toggles), TR parallel unless c+f8_tr_parallel is off, drain when match counts differ.
  */
 class PolicyBVerificationTest extends TestCase
 {

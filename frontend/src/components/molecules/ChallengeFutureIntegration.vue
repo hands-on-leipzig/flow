@@ -2,6 +2,7 @@
 import {computed} from 'vue'
 import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import ParameterField from '@/components/molecules/ParameterField.vue'
 import {programDisplayName, resolveProgramRef} from '@/utils/eventPrograms'
 import {useEventStore} from '@/stores/event'
 
@@ -28,6 +29,7 @@ function updateByName(name: string, value: boolean) {
 const roomsParam = computed(() => paramMapByName.value['g_separate_rooms'])
 const switchParam = computed(() => paramMapByName.value['c+f8_flip_after_round'])
 const firstParam = computed(() => paramMapByName.value['c+f8_future_first'])
+const trParallelParam = computed(() => paramMapByName.value['c+f8_tr_parallel'])
 
 /** false = shared room, true = separate rooms */
 const separateRooms = computed({
@@ -160,7 +162,19 @@ const firstMatchOptions = computed(() => [
               </RadioGroup>
             </template>
 
-            <div v-if="firstParam" class="flex flex-col gap-1.5" :class="switchParam ? 'mt-3' : ''">
+            <div
+                v-if="trParallelParam"
+                class="flex flex-col gap-1.5"
+                :class="switchParam ? 'mt-3' : ''"
+            >
+              <ParameterField
+                  :param="trParallelParam"
+                  with-label
+                  @update="(p: {name: string; value: unknown}) => updateByName(p.name, asBool(p.value))"
+              />
+            </div>
+
+            <div v-if="firstParam" class="flex flex-col gap-1.5" :class="(switchParam || trParallelParam) ? 'mt-3' : ''">
               <span class="glass-settings-label">{{ firstParam.ui_label }}</span>
               <p v-if="firstParam.ui_description" class="integration-desc">
                 {{ firstParam.ui_description }}

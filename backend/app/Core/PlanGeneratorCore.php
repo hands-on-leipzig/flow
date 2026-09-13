@@ -181,6 +181,7 @@ class PlanGeneratorCore
                 'g_separate_rooms' => $policyC,
                 'c+f8_future_first' => (bool) $this->ppLoaded('c+f8_future_first'),
                 'c+f8_flip_after_round' => (bool) $this->ppLoaded('c+f8_flip_after_round', true),
+                'c+f8_tr_parallel' => (bool) $this->ppLoaded('c+f8_tr_parallel', true),
                 'policy' => $policyC ? 'C' : ((bool) $this->ppLoaded('c+f8_flip_after_round', true) ? 'A' : 'B'),
             ]);
         }

@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
  * Policy A (c+f8_flip_after_round): full round then flip; c+f8_duration_flip_after_round between.
  * Policy B (!c+f8_flip_after_round): zip/drain per match/wave; no flip pause.
  * Robot-check / alliance follow r_robot_check and f8_r_alliance_meeting (stand-alone overlay).
- * Test round stays parallel for both policies.
+ * Test round overlaps when c+f8_tr_parallel is on (default); otherwise it uses Policy A or B like rounds 1–3.
  */
 class GameRoundCoordinator
 {
@@ -39,11 +39,13 @@ class GameRoundCoordinator
     public function main(bool $explore = false, ?callable $afterRG1Callback = null): void
     {
         $policyA = (bool) $this->pp('c+f8_flip_after_round', true);
+        $trParallel = (bool) $this->pp('c+f8_tr_parallel', true);
 
         Log::info('GameRoundCoordinator::main', [
             'plan_id' => $this->pp('g_plan'),
             'policy' => $policyA ? 'A' : 'B',
             'c+f8_future_first' => (bool) $this->pp('c+f8_future_first', false),
+            'c+f8_tr_parallel' => $trParallel,
             'explore' => $explore,
         ]);
 
@@ -62,7 +64,7 @@ class GameRoundCoordinator
         $futureFirst = (bool) $this->pp('c+f8_future_first', false);
 
         for ($gameRound = 0; $gameRound <= 3; $gameRound++) {
-            if ($gameRound === 0) {
+            if ($gameRound === 0 && $trParallel) {
                 $this->runJudgingUntilGameRound('challenge', 0);
                 $this->runJudgingUntilGameRound('future', 0);
                 $this->writeTestRoundParallel();
@@ -193,8 +195,8 @@ class GameRoundCoordinator
             $f8Matches,
             (int) $this->pp('r_tables'),
             (int) $this->pp('f8_fields'),
-            (int) $this->pp('r_duration_match'),
-            (int) $this->pp('f8_r_duration_match'),
+            $this->policyBMatchDuration('challenge', $gameRound),
+            $this->policyBMatchDuration('future', $gameRound),
             (int) $this->pp('r_duration_next_start'),
             (int) $this->pp('f8_r_duration_next_start'),
             (int) $this->pp('f8_r_duration_next_start'),
@@ -226,7 +228,7 @@ class GameRoundCoordinator
 
             $timing = null;
             if ($roundMeta !== null && $sharedAnchor !== null && $mapped === $gameRound) {
-                $timing = $this->policyBTimingForBlock($key, $block, $roundMeta, $sharedAnchor);
+                $timing = $this->policyBTimingForBlock($key, $block, $roundMeta, $sharedAnchor, $gameRound);
             }
 
             $prog->runJudgingBlock(
@@ -252,6 +254,7 @@ class GameRoundCoordinator
         int $block,
         array $roundMeta,
         \DateTimeInterface $sharedAnchor,
+        int $gameRound,
     ): array {
         $prog = $this->program($key);
         $protectedIndex = $prog->protectedMatchIndexForBlock($block);
@@ -270,9 +273,7 @@ class GameRoundCoordinator
             ? (int) $this->pp('r_matches_per_round')
             : (int) $this->pp('f8_r_matches_per_round');
         $earlyIdx = self::policyBEarlyMatchIndex($key, $lanes, $matchesPerRound);
-        $duration = $key === 'challenge'
-            ? (int) $this->pp('r_duration_match')
-            : (int) $this->pp('f8_r_duration_match');
+        $duration = $this->policyBMatchDuration($key, $gameRound);
         $transfer = $key === 'challenge'
             ? (int) $this->pp('c_duration_transfer')
             : (int) $this->pp('f8_duration_transfer');
@@ -311,9 +312,7 @@ class GameRoundCoordinator
                 ? (int) $this->pp('r_matches_per_round')
                 : (int) $this->pp('f8_r_matches_per_round');
             $earlyIdx = self::policyBEarlyMatchIndex($key, $lanes, $matchesPerRound);
-            $duration = $key === 'challenge'
-                ? (int) $this->pp('r_duration_match')
-                : (int) $this->pp('f8_r_duration_match');
+            $duration = $this->policyBMatchDuration($key, $gameRound);
             $transfer = $key === 'challenge'
                 ? (int) $this->pp('c_duration_transfer')
                 : (int) $this->pp('f8_duration_transfer');
@@ -352,6 +351,16 @@ class GameRoundCoordinator
         }
 
         return (int) ceil($lanes / 2) - 1;
+    }
+
+    private function policyBMatchDuration(string $key, int $gameRound): int
+    {
+        $isTest = $gameRound === 0;
+        if ($key === 'challenge') {
+            return (int) $this->pp($isTest ? 'r_duration_test_match' : 'r_duration_match');
+        }
+
+        return (int) $this->pp($isTest ? 'f8_r_duration_test_match' : 'f8_r_duration_match');
     }
 
     private function policyBCheckMinutes(string $key): int
