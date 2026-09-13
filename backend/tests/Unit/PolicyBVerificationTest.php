@@ -2,6 +2,8 @@
 
 namespace Tests\Unit;
 
+use App\Core\Future8Generator;
+use App\Core\GameRoundCoordinator;
 use App\Core\PolicyBRoundScheduler;
 use App\Enums\FirstProgram;
 use App\Support\PlanParameter;
@@ -16,7 +18,7 @@ use Tests\TestCase;
  *
  * Manual UI check (not automated): event with Challenge + Future 8+ attached,
  * c+f8_flip_after_round=0, g_separate_rooms=0 — generate and confirm R1–3 matches
- * interleave (no r_check), TR parallel, drain when match counts differ.
+ * interleave (r_check / f8_r_alliance follow toggles), TR parallel, drain when match counts differ.
  */
 class PolicyBVerificationTest extends TestCase
 {
@@ -204,6 +206,24 @@ class PolicyBVerificationTest extends TestCase
             $meta['protectedMatchStart']
         );
         $this->assertGreaterThan(0, $rT2M);
+    }
+
+    public function test_compress_skip_is_challenge_block_2_only(): void
+    {
+        $this->assertTrue(GameRoundCoordinator::policyBChallengeCompressSkipsAlign('challenge', 2, 5));
+        $this->assertFalse(GameRoundCoordinator::policyBChallengeCompressSkipsAlign('challenge', 2, 4));
+        $this->assertFalse(GameRoundCoordinator::policyBChallengeCompressSkipsAlign('challenge', 3, 5));
+        $this->assertFalse(GameRoundCoordinator::policyBChallengeCompressSkipsAlign('future', 2, 5));
+        $this->assertFalse(GameRoundCoordinator::policyBChallengeCompressSkipsAlign('future', 2, 6));
+    }
+
+    public function test_future_two_lane_early_index_is_second_catalog_match(): void
+    {
+        $this->assertSame(2, Future8Generator::catalogEarlyMatchesForNextJudging(2, 4));
+        $this->assertSame(1, GameRoundCoordinator::policyBEarlyMatchIndex('future', 2, 4));
+        $this->assertSame(0, GameRoundCoordinator::policyBEarlyMatchIndex('challenge', 2, 4));
+        $this->assertSame(1, GameRoundCoordinator::policyBEarlyMatchIndex('challenge', 4, 4));
+        $this->assertSame(1, GameRoundCoordinator::policyBEarlyMatchIndex('future', 4, 4));
     }
 
     /**

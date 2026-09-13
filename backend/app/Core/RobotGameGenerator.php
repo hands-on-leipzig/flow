@@ -52,14 +52,14 @@ class RobotGameGenerator
         $this->coordinateExplore = $coordinateExplore;
     }
 
-    private function robotCheckEnabled(): bool
+    public function robotCheckEnabled(): bool
     {
         $param = $this->write->robotCheckParam;
 
         return $param !== null && (bool) $this->pp($param);
     }
 
-    private function checkDuration(): int
+    public function checkDuration(): int
     {
         return (int) $this->pp($this->write->durationCheck);
     }

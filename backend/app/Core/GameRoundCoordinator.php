@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\Log;
  * Coordinates Challenge + Future 8+ mornings when both are on.
  *
  * Policy A (c+f8_flip_after_round): full round then flip; c+f8_duration_flip_after_round between.
- * Policy B (!c+f8_flip_after_round): zip/drain per match/wave; no flip pause; no robot check.
+ * Policy B (!c+f8_flip_after_round): zip/drain per match/wave; no flip pause.
+ * Robot-check / alliance follow r_robot_check and f8_r_alliance_meeting (stand-alone overlay).
  * Test round stays parallel for both policies.
  */
 class GameRoundCoordinator
@@ -139,7 +140,12 @@ class GameRoundCoordinator
                 ? $this->challenge->robotGame()
                 : $this->future->robotGame();
             $rg->activateGroup($event['program'] === 'challenge' ? $chGroup : $f8Group);
-            $rg->writeMatchAt($event['match'], $gameRound, $event['start'], allowRobotCheck: false);
+            $rg->writeMatchAt(
+                $event['match'],
+                $gameRound,
+                $event['start'],
+                allowRobotCheck: $rg->robotCheckEnabled(),
+            );
             if ($event['end'] > $roundEnd) {
                 $roundEnd = clone $event['end'];
             }
@@ -148,10 +154,15 @@ class GameRoundCoordinator
         if (! $roundEnd instanceof DateTime) {
             $roundEnd = DateTime::createFromInterface($roundEnd);
         }
+        $checkExtra = $this->policyBRoundEndCheckMinutes();
+        if ($checkExtra > 0) {
+            $roundEnd = clone $roundEnd;
+            $roundEnd->modify("+{$checkExtra} minutes");
+        }
         $this->challenge->rTime()->set($roundEnd);
         $this->future->rTime()->set($roundEnd);
 
-        // After zip commit, refresh jEarliest from actual early-match ends (no robot check).
+        // After zip commit, refresh jEarliest from actual early-match ends (check overlay once).
         $this->refreshPolicyBJudgingEarliest($gameRound, $plan);
 
         $this->applyJointPostRoundBreak($gameRound);
@@ -244,12 +255,15 @@ class GameRoundCoordinator
         $rT2M = PolicyBRoundScheduler::minutesBetween($sharedAnchor, $protected);
 
         $jRounds = $key === 'challenge' ? (int) $this->pp('j_rounds') : (int) $this->pp('f8_j_rounds');
-        if ($jRounds > 4 && $block === 2) {
+        if (self::policyBChallengeCompressSkipsAlign($key, $block, $jRounds)) {
             return ['rT2MMinutes' => $rT2M, 'rA4JMinutes' => 0];
         }
 
         $lanes = $key === 'challenge' ? (int) $this->pp('j_lanes') : (int) $this->pp('f8_lanes');
-        $earlyIdx = (int) ceil($lanes / 2) - 1;
+        $matchesPerRound = $key === 'challenge'
+            ? (int) $this->pp('r_matches_per_round')
+            : (int) $this->pp('f8_r_matches_per_round');
+        $earlyIdx = self::policyBEarlyMatchIndex($key, $lanes, $matchesPerRound);
         $duration = $key === 'challenge'
             ? (int) $this->pp('r_duration_match')
             : (int) $this->pp('f8_r_duration_match');
@@ -261,6 +275,7 @@ class GameRoundCoordinator
         $earlyEnd = DateTime::createFromInterface($earlyStart);
         $earlyEnd->modify("+{$duration} minutes");
         $rA4J = PolicyBRoundScheduler::minutesBetween($sharedAnchor, $earlyEnd) + $transfer;
+        $rA4J += $this->policyBCheckMinutes($key);
 
         return ['rT2MMinutes' => $rT2M, 'rA4JMinutes' => $rA4J];
     }
@@ -281,12 +296,15 @@ class GameRoundCoordinator
             }
 
             $jRounds = $key === 'challenge' ? (int) $this->pp('j_rounds') : (int) $this->pp('f8_j_rounds');
-            if ($jRounds > 4 && $block === 2) {
+            if (self::policyBChallengeCompressSkipsAlign($key, $block, $jRounds)) {
                 continue;
             }
 
             $lanes = $key === 'challenge' ? (int) $this->pp('j_lanes') : (int) $this->pp('f8_lanes');
-            $earlyIdx = (int) ceil($lanes / 2) - 1;
+            $matchesPerRound = $key === 'challenge'
+                ? (int) $this->pp('r_matches_per_round')
+                : (int) $this->pp('f8_r_matches_per_round');
+            $earlyIdx = self::policyBEarlyMatchIndex($key, $lanes, $matchesPerRound);
             $duration = $key === 'challenge'
                 ? (int) $this->pp('r_duration_match')
                 : (int) $this->pp('f8_r_duration_match');
@@ -301,7 +319,7 @@ class GameRoundCoordinator
             }
 
             $earliest = DateTime::createFromInterface($earlyStart);
-            $earliest->modify('+'.($duration + $transfer).' minutes');
+            $earliest->modify('+'.($duration + $transfer + $this->policyBCheckMinutes($key)).' minutes');
             $this->jEarliest[$key]->set($earliest);
         }
     }
@@ -309,6 +327,43 @@ class GameRoundCoordinator
     private function program(string $key): ChallengeGenerator|Future8Generator
     {
         return $key === 'challenge' ? $this->challenge : $this->future;
+    }
+
+    /** Challenge 5+ judging: block 2 has no robot game. Future is 1:1 — never skip. */
+    public static function policyBChallengeCompressSkipsAlign(string $key, int $block, int $judgingRounds): bool
+    {
+        return $key === 'challenge' && $judgingRounds > 4 && $block === 2;
+    }
+
+    /**
+     * 0-based match index used for Policy B rA4J / jEarliest.
+     * Future two-lane catalog may place those teams in match 1 or 2.
+     */
+    public static function policyBEarlyMatchIndex(string $key, int $lanes, int $matchesPerRound): int
+    {
+        if ($key === 'future') {
+            return max(0, Future8Generator::catalogEarlyMatchesForNextJudging($lanes, $matchesPerRound) - 1);
+        }
+
+        return (int) ceil($lanes / 2) - 1;
+    }
+
+    private function policyBCheckMinutes(string $key): int
+    {
+        $rg = $this->program($key)->robotGame();
+
+        return $rg->robotCheckEnabled() ? $rg->checkDuration() : 0;
+    }
+
+    /** Once per round, like insertOneRound: longer of the two programs' check durations. */
+    private function policyBRoundEndCheckMinutes(): int
+    {
+        $extra = 0;
+        foreach (['challenge', 'future'] as $key) {
+            $extra = max($extra, $this->policyBCheckMinutes($key));
+        }
+
+        return $extra;
     }
 
     private function judgingRoundCount(string $key): int
