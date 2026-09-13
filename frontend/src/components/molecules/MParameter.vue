@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import draggable from 'vuedraggable'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import {showGlassToast} from '@/composables/useGlassToast'
@@ -25,6 +25,13 @@ const catalogPrograms = computed<EventProgramRef[]>(() => {
   })
   return rows
 })
+
+const programsWithParameters = computed<EventProgramRef[]>(() => {
+  const ids = new Set(
+    items.value.map((row) => Number(row.first_program ?? 0)).filter((id) => id > 0),
+  )
+  return catalogPrograms.value.filter((program) => ids.has(programId(program)))
+})
 const loading = ref(true)
 const error = ref<string|null>(null)
 
@@ -48,7 +55,7 @@ function itemProgramFilterKey(item: {first_program?: number | null}): ProgramFil
 }
 
 function programFilterKeys(): ProgramFilterKey[] {
-  return [0, ...catalogPrograms.value.map((program) => programId(program)).filter((id) => id > 0)]
+  return [0, ...programsWithParameters.value.map((program) => programId(program))]
 }
 
 function syncProgramFilters() {
@@ -67,14 +74,6 @@ function toggleProgramFilter(key: ProgramFilterKey) {
   else next.add(key)
   activeProgramFilters.value = next
 }
-
-watch(
-  () => programsStore.loaded,
-  (loaded) => {
-    if (loaded) syncProgramFilters()
-  },
-  {immediate: true},
-)
 
 // Hilfs-Optionen
 const contexts = ['protected', 'input', 'expert', 'afternoon']
@@ -241,7 +240,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
         <span class="vol-staffing-filter__label">Übergreifend</span>
       </button>
       <button
-          v-for="program in catalogPrograms"
+          v-for="program in programsWithParameters"
           :key="`filter-program-${programId(program)}`"
           type="button"
           class="vol-staffing-filter"
