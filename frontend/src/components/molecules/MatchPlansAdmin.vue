@@ -183,12 +183,17 @@ function teamClass(round, matchNo, team) {
   const lastNo = roundMatches.length
     ? Math.max(...roundMatches.map((m) => Number(m.match_no)))
     : 0
-  const blueCount = Math.max(1, Number(lanes.value) || 1)
+  const laneCount = Math.max(1, Number(lanes.value) || 1)
+  const yellowCount = laneCount >= 3 ? 2 : 1
+  const blueCount = laneCount === 1 ? 1 : 2
   const block = Number(round) + 1
 
-  if (no === lastNo && juryTeamsByBlock.value.get(block)?.has(n)) {
+  const inLastMatches = lastNo > 0 && no > lastNo - yellowCount && no <= lastNo
+  const inFirstMatches = no >= 1 && no <= blueCount
+
+  if (inLastMatches && juryTeamsByBlock.value.get(block)?.has(n)) {
     classes.push('team-num--jury-now')
-  } else if (no >= 1 && no <= blueCount && juryTeamsByBlock.value.get(block + 1)?.has(n)) {
+  } else if (inFirstMatches && juryTeamsByBlock.value.get(block + 1)?.has(n)) {
     classes.push('team-num--jury-next')
   }
   return classes.join(' ')
@@ -755,26 +760,31 @@ watch([firstProgram, teams, lanes, tables], () => {
         <template v-if="Number(lanes) === 1">
           <div class="match-jury-legend__row">
             <span class="match-jury-swatch match-jury-swatch--now" aria-hidden="true"></span>
-            <span>Das Team bei der Jury in <strong>dieser</strong> Runde, ist im <strong>letzten</strong> Match der Runde</span>
+            <span>Das Team bei der Jury in <strong>dieser</strong> Runde, ist im <strong>letzten Match</strong> der Runde</span>
           </div>
           <div class="match-jury-legend__row">
             <span class="match-jury-swatch match-jury-swatch--next" aria-hidden="true"></span>
-            <span>Das Team, bei der Jury in der <strong>nächsten</strong> Runde, ist im <strong>ersten</strong> Match der Runde</span>
+            <span>Das Team, bei der Jury in der <strong>nächsten</strong> Runde, ist im <strong>ersten Match</strong> der Runde</span>
+          </div>
+        </template>
+        <template v-else-if="Number(lanes) === 2">
+          <div class="match-jury-legend__row">
+            <span class="match-jury-swatch match-jury-swatch--now" aria-hidden="true"></span>
+            <span>Teams bei der Jury in <strong>dieser</strong> Runde, sind im <strong>letzten Match</strong> der Runde</span>
+          </div>
+          <div class="match-jury-legend__row">
+            <span class="match-jury-swatch match-jury-swatch--next" aria-hidden="true"></span>
+            <span>Teams, bei der Jury in der <strong>nächsten</strong> Runde, sind in den <strong>ersten zwei Matches</strong> der Runde</span>
           </div>
         </template>
         <template v-else>
           <div class="match-jury-legend__row">
             <span class="match-jury-swatch match-jury-swatch--now" aria-hidden="true"></span>
-            <span>Teams bei der Jury in <strong>dieser</strong> Runde, sind im <strong>letzten</strong> Match der Runde</span>
+            <span>Teams bei der Jury in <strong>dieser</strong> Runde, sind in den <strong>letzten zwei Matches</strong> der Runde</span>
           </div>
           <div class="match-jury-legend__row">
             <span class="match-jury-swatch match-jury-swatch--next" aria-hidden="true"></span>
-            <span v-if="Number(lanes) === 2">
-              Teams, bei der Jury in der <strong>nächsten</strong> Runde, sind in den <strong>ersten</strong> beiden Matches der Runde
-            </span>
-            <span v-else>
-              Teams, bei der Jury in der <strong>nächsten</strong> Runde, sind in den <strong>ersten</strong> {{ Number(lanes) }} Matches der Runde
-            </span>
+            <span>Teams, bei der Jury in der <strong>nächsten</strong> Runde, sind in den <strong>ersten zwei Matches</strong> der Runde</span>
           </div>
         </template>
       </div>
