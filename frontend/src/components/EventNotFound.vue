@@ -58,7 +58,7 @@
         <!-- Contact Info -->
         <div class="mt-8 text-sm text-gray-500">
           <p>
-            Falls du glaubst, dass dies ein Fehler ist, wende dich bitte an den Veranstalter.
+            Falls das ein Fehler ist, den Veranstalter kontaktieren.
           </p>
         </div>
       </div>

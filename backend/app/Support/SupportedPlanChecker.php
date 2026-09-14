@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\MSupportedPlan;
+use App\Support\TableFieldLabels;
 use RuntimeException;
 
 class SupportedPlanChecker
@@ -40,7 +41,7 @@ class SupportedPlanChecker
             }
             $desc = implode('-', $parts);
             $programName = $firstProgram === 3 ? 'Challenge' : ($firstProgram === 2 ? 'Explore' : "Programm {$firstProgram}");
-            $tablesInfo = $tables !== null ? ", Tische: {$tables}" : "";
+            $tablesInfo = $tables !== null ? ', '.TableFieldLabels::plural($firstProgram).": {$tables}" : "";
             throw new RuntimeException("Nicht unterstützte Plan-Konfiguration für {$programName}: Teams: {$teams}, Spuren: {$lanes}{$tablesInfo}. Diese Kombination existiert nicht in m_supported_plan.");
         }
 

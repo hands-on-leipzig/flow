@@ -29,7 +29,7 @@ const stalePrograms = computed(() => {
 const canRun = computed(() => !running.value && stalePrograms.value.length > 0)
 
 const runButtonLabel = computed(() => {
-  if (running.value) return 'Prüfe …'
+  if (running.value) return 'Prüfe…'
   if (stalePrograms.value.length === 0) return 'Alles aktuell'
   return `Qualität prüfen (${stalePrograms.value.length})`
 })
@@ -186,7 +186,7 @@ onMounted(async () => {
     </div>
 
     <div v-if="loading" class="text-[var(--color-text-subtle)] text-sm">
-      Lade Events …
+      Lade Events…
     </div>
 
     <EventQualityTable

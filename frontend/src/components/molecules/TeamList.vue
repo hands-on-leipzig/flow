@@ -266,7 +266,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
+  <SavingToast ref="savingToast" message="Änderungen werden gespeichert…"/>
 
   <div class="team-list">
     <div class="team-list__header">

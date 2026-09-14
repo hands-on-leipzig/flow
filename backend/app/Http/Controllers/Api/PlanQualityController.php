@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\FirstProgram;
 use App\Http\Controllers\Controller;
+use App\Models\Event;
 use App\Models\QPlan;
 use App\Services\QualityEvaluatorService;
+use App\Services\EventTitleService;
 use App\Services\SeasonService;
 use App\Support\ChallengeShapedParamMap;
 use App\Support\PlanParameter;
@@ -23,6 +25,7 @@ class PlanQualityController extends Controller
 
     public function __construct(
         private readonly QualityEvaluatorService $evaluator,
+        private readonly EventTitleService $eventTitles,
     ) {}
 
     public function listEvents(Request $request): JsonResponse
@@ -39,6 +42,7 @@ class PlanQualityController extends Controller
             ->get([
                 'event.id as event_id',
                 'event.name as event_name',
+                'event.level as event_level',
                 'event.date as event_date',
                 'regional_partner.name as regional_partner_name',
                 'regional_partner.id as regional_partner_id',
@@ -61,6 +65,14 @@ class PlanQualityController extends Controller
                 if (! isset($qPlansByPlanProgram[$key])) {
                     $qPlansByPlanProgram[$key] = $qp;
                 }
+            }
+        }
+
+        $titleByEventId = [];
+        $eventIds = $rows->pluck('event_id')->unique()->filter()->values();
+        if ($eventIds->isNotEmpty()) {
+            foreach (Event::query()->whereIn('id', $eventIds)->get() as $event) {
+                $titleByEventId[(int) $event->id] = $this->eventTitles->titles($event);
             }
         }
 
@@ -103,15 +115,22 @@ class PlanQualityController extends Controller
                 }
             }
 
+            $titles = $titleByEventId[(int) $row->event_id] ?? $this->eventTitles->titles((object) [
+                'name' => $row->event_name,
+                'level' => $row->event_level ?? 0,
+                'programs' => [],
+            ]);
+
             $events[] = [
                 'event_id' => (int) $row->event_id,
-                'event_name' => $row->event_name,
+                'event_name' => $titles['title_short'],
                 'event_date' => $row->event_date,
                 'regional_partner_name' => $row->regional_partner_name,
                 'regional_partner_id' => $row->regional_partner_id ? (int) $row->regional_partner_id : null,
                 'plan_id' => $planId,
                 'status' => $status,
                 'programs' => $programs,
+                ...$titles,
             ];
         }
 

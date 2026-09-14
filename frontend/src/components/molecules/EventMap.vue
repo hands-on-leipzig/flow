@@ -558,10 +558,10 @@ onBeforeUnmount(() => {
             <div
                 class="bg-white p-3 md:p-4 rounded-lg min-h-[200px] md:min-h-[256px] min-w-[200px] md:min-w-[256px] flex items-center justify-center">
               <canvas ref="qrCodeRef" class="max-w-full max-h-full"></canvas>
-              <div v-if="!mapCoordinates" class="text-[var(--color-text-subtle)] text-xs md:text-sm absolute">Lade Standort...</div>
+              <div v-if="!mapCoordinates" class="text-[var(--color-text-subtle)] text-xs md:text-sm absolute">Lade Standort…</div>
             </div>
             <p class="text-xs md:text-sm text-[var(--color-text-muted)] text-center">
-              Scannen Sie den QR-Code, um den Standort in Google Maps zu öffnen
+              QR-Code scannen, um den Standort in Google Maps zu öffnen
             </p>
           </div>
         </div>

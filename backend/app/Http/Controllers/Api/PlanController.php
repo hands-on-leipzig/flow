@@ -493,15 +493,15 @@ class PlanController extends Controller
         return match ($firstProgramId) {
             FirstProgram::EXPLORE->value => [
                 'name' => 'Check-In FLL Explore',
-                'description' => 'Teams und Gutacher:innen bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
+                'description' => 'Teams und Gutacher:innen bitte beim Check-In melden, damit klar ist, wer da ist.',
             ],
             FirstProgram::CHALLENGE->value => [
                 'name' => 'Check-In FLL Challenge',
-                'description' => 'Teams, Juror:innen und Schiedsrichter:innen bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
+                'description' => 'Teams, Juror:innen und Schiedsrichter:innen bitte beim Check-In melden, damit klar ist, wer da ist.',
             ],
             default => [
                 'name' => 'Check-In FLL '.trim((string) ($displayName ?: 'Programm')),
-                'description' => 'Teams bitte beim Check-In melden, damit wir wissen, dass ihr da seid.',
+                'description' => 'Teams bitte beim Check-In melden, damit klar ist, wer da ist.',
             ],
         };
     }

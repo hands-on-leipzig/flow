@@ -173,7 +173,7 @@ final class TeamsPeopleSpreadsheetSource implements SpreadsheetSource
             [
                 new SpreadsheetSheet('Teams', $columns, $rows),
             ],
-            (string) ($this->event->name ?? ''),
+            app(\App\Services\EventTitleService::class)->getEventTitleShort($this->event),
         );
     }
 

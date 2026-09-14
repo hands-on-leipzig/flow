@@ -194,9 +194,7 @@ Route::middleware(['keycloak'])->group(function () {
             ]);
         }
 
-        $controller = new EventController;
-
-        return $controller->getEvent($eventId);
+        return app(EventController::class)->getEvent($eventId);
     });
 
     Route::delete('/user/selected-event', function (Request $request) {

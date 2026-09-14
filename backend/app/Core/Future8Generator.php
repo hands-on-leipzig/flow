@@ -456,7 +456,7 @@ class Future8Generator implements ChallengeShapedLead
     {
         $rDuration = ($cBlock == 1)
             ? $this->pp('f8_r_duration_test_match')
-            : $this->pp('f8_r_duration_match');
+            : $this->robotGame->scoringMatchDuration();
 
         if ($this->jTime->current() < $jTimeEarliest->current()) {
             $this->jTime->set($jTimeEarliest->current());

@@ -188,7 +188,7 @@ watch(
 
     <div v-else-if="step === 'otp'" class="vol-public-form__step">
       <p class="vol-public-form__info">
-        Wenn diese E-Mail für diese Veranstaltung als Helfer:in registriert ist, erhalten Sie einen Code per E-Mail. Bitte geben Sie den Code ein.
+        Wenn diese E-Mail für diese Veranstaltung als Helfer:in bekannt ist, kommt gleich ein Code.
       </p>
       <PublicFormOtpNotice />
       <label class="vol-public-form__label" for="vol-form-otp">Code</label>
@@ -215,8 +215,8 @@ watch(
 
     <div v-else-if="step === 'done'" class="vol-public-form__step">
       <p class="vol-public-form__thanks">
-        Danke für die Informationen. Du kannst wiederkommen, wenn du noch etwas ändern möchtest.
-        Einige Tage vor der Veranstaltung wird das Formular aber gesperrt.
+        Danke für die Informationen. Später kann noch etwas geändert werden.
+        Einige Tage vor der Veranstaltung wird das Formular gesperrt.
       </p>
       <div class="vol-public-form__actions vol-public-form__actions--inline">
         <button type="button" class="glass-btn-accent" @click="emit('cancel')">

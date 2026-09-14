@@ -72,6 +72,11 @@ class RobotGameGenerator
         return (int) $this->pp($this->write->durationCheck);
     }
 
+    public function scoringMatchDuration(): int
+    {
+        return (int) $this->pp($this->write->scoringMatchDurationParam($this->robotCheckEnabled()));
+    }
+
     public function matchPlan(): MatchPlan
     {
         return $this->matchPlan;
@@ -114,7 +119,7 @@ class RobotGameGenerator
 
         $duration = ($round === 0)
             ? $this->pp($this->write->durationTestMatch)
-            : $this->pp($this->write->durationMatch);
+            : $this->scoringMatchDuration();
 
         $startDt = \DateTime::createFromInterface($start);
         $time = new TimeCursor($startDt instanceof \DateTime ? $startDt : new \DateTime($startDt->format('Y-m-d H:i:s')));
@@ -157,7 +162,7 @@ class RobotGameGenerator
     {
         $duration = ($round === 0)
             ? $this->pp($this->write->durationTestMatch)
-            : $this->pp($this->write->durationMatch);
+            : $this->scoringMatchDuration();
         $this->advanceTimeForMatch($match, $duration);
     }
 
@@ -268,7 +273,7 @@ class RobotGameGenerator
             // Determine duration (TR vs RG)
             $duration = ($round === 0)
                 ? $this->pp($this->write->durationTestMatch)
-                : $this->pp($this->write->durationMatch);
+                : $this->scoringMatchDuration();
 
             $lastMatchStart = $this->rTime->current();
             $lastDuration = $duration;

@@ -5,6 +5,11 @@ export default class FllEvent {
     id: number
     name: string | null
     slug: string | null
+    title_long?: string | null
+    title_short?: string | null
+    title_type?: string | null
+    title_type_short?: string | null
+    title_place?: string | null
     programs: EventProgramRef[]
     regional_partner: number
     level: number

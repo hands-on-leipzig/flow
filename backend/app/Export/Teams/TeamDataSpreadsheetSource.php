@@ -58,7 +58,7 @@ final class TeamDataSpreadsheetSource implements SpreadsheetSource
             [
                 new SpreadsheetSheet('Teamdaten', $columns, $rows),
             ],
-            (string) ($this->event->name ?? ''),
+            app(\App\Services\EventTitleService::class)->getEventTitleShort($this->event),
         );
     }
 }

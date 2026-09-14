@@ -5,6 +5,7 @@ import QRCode from 'qrcode'
 import {useEventStore} from '@/stores/event'
 import {usePdfExport} from '@/composables/usePdfExport'
 import {flowFilename} from '@/utils/flowFilename'
+import Spinner from '@/components/atoms/Spinner.vue'
 import FllEvent from '@/models/FllEvent'
 
 const props = withDefaults(
@@ -245,10 +246,7 @@ watch(
                 class="glass-btn-secondary !px-3 !py-1 !text-sm inline-flex items-center gap-2"
                 @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, flowHint('Plan'))"
             >
-              <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" fill="currentColor"/>
-              </svg>
+              <Spinner v-if="isDownloading.plan" size="sm"/>
               <span>{{ isDownloading.plan ? 'Erzeuge…' : 'PDF' }}</span>
             </button>
           </div>
@@ -321,10 +319,7 @@ watch(
                 class="glass-btn-secondary !px-3 !py-1 !text-sm inline-flex items-center gap-2"
                 @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, flowHint('Plan_mit_WLAN'))"
             >
-              <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" fill="currentColor"/>
-              </svg>
+              <Spinner v-if="isDownloading.plan_wifi" size="sm"/>
               <span>{{ isDownloading.plan_wifi ? 'Erzeuge…' : 'PDF' }}</span>
             </button>
           </div>
@@ -406,10 +401,7 @@ watch(
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
     >
       <div class="glass-row-item inline-flex px-4 py-3 gap-2">
-        <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" fill="currentColor"/>
-        </svg>
+        <Spinner size="sm"/>
         <span>PDF wird erzeugt…</span>
       </div>
     </div>

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import {RouterLink} from 'vue-router'
+import Spinner from '@/components/atoms/Spinner.vue'
 import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
 import {useEventStore} from '@/stores/event'
 import {programDisplayName, programId, programNameForId, type EventProgramRef} from '@/utils/eventPrograms'
@@ -56,7 +57,10 @@ function onSelect(key: StaffingFilterKey) {
       v-if="layout === 'teams'"
       class="vol-staffing-summary vol-staffing-summary--teams space-y-2"
   >
-    <p v-if="loading" class="vol-staffing-summary__muted">Lade Zuordnung…</p>
+    <p v-if="loading" class="text-sm text-[var(--color-text-subtle)] inline-flex items-center gap-2">
+      <Spinner size="sm"/>
+      <span>Lade Zuordnung…</span>
+    </p>
     <template v-else>
       <component
           :is="linkTo ? RouterLink : 'div'"
@@ -99,7 +103,10 @@ function onSelect(key: StaffingFilterKey) {
         'vol-staffing-summary--bar': layout === 'bar',
       }"
   >
-    <p v-if="loading" class="vol-staffing-summary__muted">Lade Zuordnung…</p>
+    <p v-if="loading" class="text-sm text-[var(--color-text-subtle)] inline-flex items-center gap-2">
+      <Spinner size="sm"/>
+      <span>Lade Zuordnung…</span>
+    </p>
     <template v-else>
       <component
           :is="layout === 'list' ? 'button' : 'div'"
@@ -193,11 +200,5 @@ function onSelect(key: StaffingFilterKey) {
 .vol-staffing-summary__gap--warn {
   color: var(--color-warning, #d97706);
   font-weight: 600;
-}
-
-.vol-staffing-summary__muted {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--color-text-subtle);
 }
 </style>

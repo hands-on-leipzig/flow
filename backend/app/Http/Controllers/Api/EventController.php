@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\SeasonService;
 use App\Services\EventAttentionService;
 use App\Services\EventSlugService;
+use App\Services\EventTitleService;
 use App\Support\PlanParameter;
 use App\Support\ProgramCatalog;
 use App\Support\TableFieldLabels;
@@ -27,14 +28,16 @@ use Endroid\QrCode\Encoding\Encoding;
 
 class EventController extends Controller
 {
-    // Test deployment: verifying new deployment workflow with real content change
+    public function __construct(
+        private EventTitleService $eventTitles,
+    ) {}
 
     public function index()
     {
         $events = Event::where('season', SeasonService::currentSeasonId());
         $response = [];
         foreach ($events->get() as $event) {
-            $response[$event->slug] = sprintf('%s (%s)', $event->name, $event->date);
+            $response[$event->slug] = sprintf('%s (%s)', $this->eventTitles->getEventTitleShort($event), $event->date);
         }
         return response()->json($response);
     }
@@ -56,18 +59,17 @@ class EventController extends Controller
         // Restore decrypted password after refresh
         $event->wifi_password = $decryptedPassword;
 
-        // Ensure needs_attention fields are included in response
-        return response()->json([
+        return response()->json($this->eventTitles->withTitles([
             ...$event->toArray(),
             'needs_attention' => $event->needs_attention ?? false,
             'needs_attention_checked_at' => $event->needs_attention_checked_at,
-        ]);
+        ], $event));
     }
 
     // Convert an event to an array containing only public information (e.g. no wifi_password)
     function eventPublicInformationArray($event): array
     {
-        return [
+        return $this->eventTitles->withTitles([
             'id' => $event->id,
             'name' => $event->name,
             'slug' => $event->slug,
@@ -82,7 +84,7 @@ class EventController extends Controller
             'seasonRel' => $event->seasonRel,
             'levelRel' => $event->levelRel,
             'regionalPartnerRel' => $event->regionalPartner,
-        ];
+        ], $event);
     }
 
     /**
@@ -200,7 +202,7 @@ class EventController extends Controller
                         'region' => $rp?->region,
                     ],
                     'events' => $rpEvents->map(function (Event $event) {
-                        return [
+                        return $this->eventTitles->withTitles([
                             'id' => $event->id,
                             'name' => $event->name,
                             'date' => $event->date,
@@ -215,7 +217,7 @@ class EventController extends Controller
                                 'name' => $event->levelRel?->name,
                             ],
                             'programs' => $event->programs,
-                        ];
+                        ], $event);
                     })->values(),
                 ];
             })
@@ -421,7 +423,7 @@ class EventController extends Controller
 
         $tableCount = $this->tableCountForEventProgram($eventId, $firstProgram);
         if ($tableCount < 1) {
-            return response()->json(['error' => 'Keine Tische/Spielfelder für dieses Programm konfiguriert'], 422);
+            return response()->json(['error' => 'Keine '.TableFieldLabels::plural($firstProgram).' für dieses Programm konfiguriert'], 422);
         }
 
         // Build customs for active slots only (1..count); ignore orphan numbers in uniqueness.

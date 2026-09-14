@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\FirstProgram;
 use App\Support\PlanParameter;
 use App\Support\PreviewGridOverlapResolver;
+use App\Support\PreviewTeamLabels;
 use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
 use App\Support\RoleDifferentiation;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Überblick-style roles preview: 5-minute activity grid, param-driven lane/table columns.
  * Cell text is the activity name plus team number " (Txx)" when a team is assigned.
+ * Txx has a native title with the team name (or "Fehlendes Team").
  */
 class RolesPreviewGridService
 {
@@ -77,7 +79,8 @@ class RolesPreviewGridService
 
         $columnIndex = $this->indexColumnsByRole($programs, $rolesByProgram);
         $visibleRolesByAtd = $this->loadVisibleRolesByActivityType($activities, $previewRoleIds);
-        $placed = $this->placeActivities($activities, $columnIndex, $rolesByProgram, $visibleRolesByAtd);
+        $teamNames = PreviewTeamLabels::namesByProgramSlot($planId);
+        $placed = $this->placeActivities($activities, $columnIndex, $rolesByProgram, $visibleRolesByAtd, $teamNames);
 
         $overlap = PreviewGridOverlapResolver::resolve($placed);
         $placed = $overlap['events'];
@@ -321,13 +324,15 @@ class RolesPreviewGridService
      * @param  array{byRoleIndex: array<string, string>, roles: array<int, object>}  $columnIndex
      * @param  array<int, Collection<int, object>>  $rolesByProgram
      * @param  array<int, array<int, true>>  $visibleRolesByAtd
-     * @return list<array{column_key: string, start: Carbon, end: Carbon, text: string, rowspan: int, style_column: string}>
+     * @param  array<int, array<int, string>>  $teamNames
+     * @return list<array{column_key: string, start: Carbon, end: Carbon, text: string, rowspan: int, style_column: string, team_no?: int, team_tooltip?: string}>
      */
     private function placeActivities(
         Collection $activities,
         array $columnIndex,
         array $rolesByProgram,
         array $visibleRolesByAtd,
+        array $teamNames,
     ): array {
         $placed = [];
         $byRoleIndex = $columnIndex['byRoleIndex'];
@@ -370,15 +375,15 @@ class RolesPreviewGridService
                     if ($key === null) {
                         continue;
                     }
-                    $placed[] = [
+                    $placed[] = $this->withTeamTooltip([
                         'column_key' => $key,
                         'start' => $gridStart->copy(),
                         'end' => $end->copy(),
-                        'text' => $this->withTeamNumber($text, (int) ($a->team ?? 0)),
+                        'text' => $text,
                         'rowspan' => $rowspan,
                         'style_column' => $styleColumn,
                         'activity_id' => $activityId,
-                    ];
+                    ], $programId, (int) ($a->team ?? 0), $teamNames);
                 }
             }
 
@@ -399,15 +404,15 @@ class RolesPreviewGridService
                     if ($key === null) {
                         continue;
                     }
-                    $placed[] = [
+                    $placed[] = $this->withTeamTooltip([
                         'column_key' => $key,
                         'start' => $gridStart->copy(),
                         'end' => $end->copy(),
-                        'text' => $this->withTeamNumber($text, (int) ($a->{'table_'.$ti.'_team'} ?? 0)),
+                        'text' => $text,
                         'rowspan' => $rowspan,
                         'style_column' => $tableStyle,
                         'activity_id' => $activityId,
-                    ];
+                    ], $programId, (int) ($a->{'table_'.$ti.'_team'} ?? 0), $teamNames);
                 }
             }
         }
@@ -415,13 +420,22 @@ class RolesPreviewGridService
         return $placed;
     }
 
-    private function withTeamNumber(string $text, int $teamNo): string
+    /**
+     * @param  array<string, mixed>  $event
+     * @param  array<int, array<int, string>>  $teamNames
+     * @return array<string, mixed>
+     */
+    private function withTeamTooltip(array $event, int $programId, int $teamNo, array $teamNames): array
     {
-        if ($teamNo < 1) {
-            return $text;
+        $tooltip = PreviewTeamLabels::tooltipFor($programId, $teamNo, $teamNames);
+        if ($tooltip === null) {
+            return $event;
         }
 
-        return $text.sprintf(' (T%02d)', $teamNo);
+        $event['team_no'] = $teamNo;
+        $event['team_tooltip'] = $tooltip;
+
+        return $event;
     }
 
     /**

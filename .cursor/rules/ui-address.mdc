@@ -1,0 +1,12 @@
+---
+description: German UI address — Du for planner/day-of, passive for public visitors, never Sie
+alwaysApply: true
+---
+
+# How FLOW addresses the user
+
+- **Planner + Check-In/Cockpit:** Du when someone must act (`Bitte wähle…`, `Bitte warte…`, `Bitte korrigiere…`). Status toasts stay impersonal (`Speichern fehlgeschlagen`).
+- **Visitor pages + public self-service** (public event, schedule, EventMap QR, volunteer/coach OTP/forms): no Du, no Sie. Neutral (`Wenn die E-Mail bekannt ist, kommt gleich ein Code.` / `QR-Code scannen…`).
+- **Never Sie** in product copy (`versuchen Sie`, `geben Sie`, `Scannen Sie`).
+
+Do not flip planner empty-hints like `Bitte eintragen` unless the task is about actor clarity.

@@ -10,8 +10,22 @@ export function supportsTableFieldLabels(firstProgramId: number): boolean {
 }
 
 export function tableFieldNoun(firstProgramId: number): string {
-  if (firstProgramId === FIRST_PROGRAM_FUTURE_8) return 'Spielfeld'
+  if (firstProgramId === FIRST_PROGRAM_FUTURE_8) return 'Feld'
   return 'Tisch'
+}
+
+export function tableFieldPlural(firstProgramId: number): string {
+  if (firstProgramId === FIRST_PROGRAM_FUTURE_8) return 'Felder'
+  return 'Tische'
+}
+
+export function tableFieldAbbrev(firstProgramId: number): string {
+  if (firstProgramId === FIRST_PROGRAM_FUTURE_8) return 'F'
+  return 'T'
+}
+
+export function tableFieldPluralSlash(): string {
+  return 'Tische/Felder'
 }
 
 export function defaultTableFieldLabel(firstProgramId: number, tableNumber: number): string {

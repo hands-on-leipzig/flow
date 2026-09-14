@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import axios from 'axios'
+import { tableFieldPlural } from '@/utils/tableFieldLabels'
+import { formatPlanTeamNo } from '@/utils/planTeamLabel'
 
 const props = defineProps({
   planId: {
@@ -44,6 +46,9 @@ const okClass = (val) => (val == 1 || val === '1') ? 'text-gray-300' : 'text-yel
 const mismatchClass = (a, b) => a !== b ? 'text-red-500 font-semibold' : ''
 
 const scoringRounds = computed(() => details.value?.scoring_rounds ?? [1, 2, 3])
+const tablesWord = computed(() =>
+  tableFieldPlural(Number(props.firstProgram ?? details.value?.first_program ?? 3)),
+)
 const opponentTarget = computed(() => scoringRounds.value.length)
 const showTransfer56 = computed(() => scoringRounds.value.includes(4))
 const showTransfer67 = computed(() => scoringRounds.value.includes(5))
@@ -58,12 +63,7 @@ const iconTables = (row) => (row?.tables ?? 0) < minRequiredTables(row) ? '⚠�
 const warnClassOpponents = (val) => val < opponentTarget.value ? 'text-yellow-500 font-semibold' : 'text-gray-300'
 const iconOpponents = (val) => val < opponentTarget.value ? '⚠️' : '✓'
 
-const formatTeam = (teamNum) => {
-  // Format team display: Team 0 = '–' (volunteer/BYE), null/undefined = empty, others = number
-  if (teamNum === null || teamNum === undefined) return ''
-  if (teamNum === 0) return '–'
-  return String(teamNum)
-}
+const formatTeam = (teamNum) => formatPlanTeamNo(teamNum)
 
 const matchPlanColumns = computed(() => {
   if (Array.isArray(details.value?.match_plan_rounds) && details.value.match_plan_rounds.length > 0) {
@@ -88,7 +88,7 @@ const transferRows = computed(() => {
 
 <template>
   <div class="mt-2 border-t border-[var(--color-border)] pt-2">
-    <div v-if="loading" class="text-sm text-[var(--color-text-subtle)]">Lade Plan-Details …</div>
+    <div v-if="loading" class="text-sm text-[var(--color-text-subtle)]">Lade Plan-Details…</div>
     <div v-else-if="error" class="text-sm text-red-500">{{ error }}</div>
     <div v-else class="flex flex-col gap-4">
       <!-- Row 1: Transfer + Tisch-Zuordnung -->
@@ -166,7 +166,7 @@ const transferRows = computed(() => {
         </div>
 
         <div class="overflow-x-auto">
-          <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Testrunde, Tische und Teams gegenüber</div>
+          <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Testrunde, {{ tablesWord }} und Teams gegenüber</div>
           <table class="table-auto text-sm border-collapse glass-list">
             <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
               <tr>
@@ -177,7 +177,7 @@ const transferRows = computed(() => {
                   :key="`th-t-${r}`"
                   class="px-2 py-1"
                 >R{{ r }}</th>
-                <th class="px-2 py-1">Tische</th>
+                <th class="px-2 py-1">{{ tablesWord }}</th>
                 <th
                   v-for="r in scoringRounds"
                   :key="`th-o-${r}`"
@@ -188,7 +188,7 @@ const transferRows = computed(() => {
             </thead>
             <tbody>
               <tr v-for="row in details.match_summary" :key="row.team" class="border-t">
-                <td class="px-2 py-1">{{ row.team }}</td>
+                <td class="px-2 py-1">{{ formatTeam(row.team) }}</td>
                 <td class="text-center" :class="mismatchClass(row.tr_table, row.r1_table)">
                   {{ row.tr_table ?? '–' }}
                 </td>
@@ -211,7 +211,7 @@ const transferRows = computed(() => {
                   :key="`td-o-${row.team}-${r}`"
                   class="text-center"
                 >
-                  {{ row[`r${r}_opponent`] ?? '–' }}
+                  {{ formatTeam(row[`r${r}_opponent`]) || '–' }}
                 </td>
                 <td class="text-center">
                   <span :class="warnClassOpponents(row.teams)">

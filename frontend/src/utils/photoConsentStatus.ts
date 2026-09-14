@@ -20,7 +20,7 @@ const HELPER_COPY: Record<PhotoConsentStatusKind, {checkInLabel: string; selfSer
   denied: {
     checkInLabel: 'Fotoerlaubnis verweigert',
     selfServiceMessage:
-      'Schade, dass du die Fotoerlaubnis nicht erteilt hast. Wenn du deine Meinung noch ändern möchtest, melde dich einfach.',
+      'Schade, dass keine Fotoerlaubnis vorliegt. Eine Änderung kann später mitgeteilt werden.',
   },
 }
 
@@ -59,7 +59,7 @@ export function photoConsentStatusForTeam(
       status: 'denied',
       checkInLabel: 'Mindestens eine Fotoerlaubnis verweigert',
       selfServiceMessage:
-        'Schade, dass nicht alle die Fotoerlaubnis gegeben haben. Wenn sich das noch ändert, melde dich einfach.',
+        'Schade, dass nicht alle Fotoerlaubnisse vorliegen. Eine Änderung kann später mitgeteilt werden.',
       answered,
       peopleCount: peopleCount ?? null,
     }

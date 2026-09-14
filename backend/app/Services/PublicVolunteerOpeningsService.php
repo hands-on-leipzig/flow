@@ -11,7 +11,10 @@ use Carbon\Carbon;
  */
 class PublicVolunteerOpeningsService
 {
-    public function __construct(private readonly EventSlugService $slugs) {}
+    public function __construct(
+        private readonly EventSlugService $slugs,
+        private readonly EventTitleService $eventTitles,
+    ) {}
 
     /**
      * @return list<array<string, mixed>>
@@ -93,7 +96,7 @@ class PublicVolunteerOpeningsService
             $publicUrl = $this->slugs->url($event) ?? $this->slugs->base();
         }
 
-        return [
+        return $this->eventTitles->withTitles([
             'id' => (int) $event->id,
             'name' => $event->name,
             'slug' => $slug !== '' ? $slug : null,
@@ -104,6 +107,6 @@ class PublicVolunteerOpeningsService
             'public_url' => $publicUrl,
             'seeking' => $helperSearch !== null && $this->hasOpenRoles($helperSearch),
             'helper_search' => $helperSearch,
-        ];
+        ], $event);
     }
 }

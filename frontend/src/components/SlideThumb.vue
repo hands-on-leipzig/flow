@@ -109,7 +109,7 @@ const componentSlide = Slide.fromObject(props.slide);
           @blur="updateSlideName(slide)"
           class="text-sm font-medium px-2 py-1 border border-transparent bg-transparent hover:bg-[var(--color-bg-hover)] cursor-text rounded hover:border-[var(--color-border)] focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors mb-1"
           draggable="false"
-          placeholder="Folienname..."
+          placeholder="Folienname…"
       />
 
       <!-- Controls Bar -->

@@ -6,6 +6,7 @@ use App\Enums\FirstProgram;
 use App\Models\MatchEntry;
 use App\Models\MMatch;
 use App\Support\MatchPlan;
+use App\Support\TableFieldLabels;
 use RuntimeException;
 
 /**
@@ -34,7 +35,7 @@ class MatchPlanCatalogLoader
 
         if ($rows === []) {
             throw new RuntimeException(
-                "Kein Future 8+ Matchplan in m_match für Teams={$teams}, Jurygruppen={$lanes}, Spielfelder={$tables}"
+                "Kein Future 8+ Matchplan in m_match für Teams={$teams}, Jurygruppen={$lanes}, ".TableFieldLabels::plural($program->value)."={$tables}"
                 ." (auch nicht Teams+1=".($teams + 1).').'
             );
         }

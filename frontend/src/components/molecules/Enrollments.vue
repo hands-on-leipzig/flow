@@ -78,7 +78,7 @@ onMounted(() => {
     </div>
 
     <p v-if="loading" class="text-sm text-[var(--color-text-subtle)]">
-      Lade Anmeldungen aus DRAHT … das kann etwas dauern.
+      Lade Anmeldungen aus DRAHT… das kann etwas dauern.
     </p>
 
     <div v-else class="enrollments-grid">

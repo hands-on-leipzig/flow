@@ -8,7 +8,6 @@ import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {eventPrograms, programDisplayName, programMatchesSlug, programSlug, programNameForId} from '@/utils/eventPrograms'
 import {getProgramTheme} from '@/utils/programTheme'
 import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
-import LoaderText from "@/components/atoms/LoaderText.vue";
 import IconDangerButton from "@/components/atoms/IconDangerButton.vue";
 import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
 import ItemCard from "@/components/molecules/ItemCard.vue";
@@ -870,7 +869,6 @@ const hasWarning = (tab) => {
     >
       <div class="rooms-loading">
         <LoaderFlow/>
-        <LoaderText/>
       </div>
     </div>
 

@@ -8,11 +8,12 @@ import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBo
 import EventMap from '@/components/molecules/EventMap.vue'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
-import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
+import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleShort} from '@/utils/eventTitle'
 import {eventPrograms, programDisplayName, teamPathFor, programCompact} from '@/utils/eventPrograms'
 import {staffingSummaryFromReadiness, type StaffingScopeSummary} from '@/utils/volunteerStaffingSummary'
 import VolunteerStaffingSummary from '@/components/volunteers/VolunteerStaffingSummary.vue'
 import EventSelectModal from '@/components/molecules/EventSelectModal.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import PublicLinkStrip from '@/components/molecules/PublicLinkStrip.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import AdminDbIdsBox from '@/components/molecules/AdminDbIdsBox.vue'
@@ -47,7 +48,7 @@ const seasonName = computed(() =>
     || null
 )
 const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
-const headingPlace = computed(() => cleanEventName(event.value) || event.value?.name || '—')
+const headingPlace = computed(() => cleanEventName(event.value) || '—')
 const headingDate = computed(() => {
   if (!event.value?.date) return ''
   const start = dayjs(event.value.date)
@@ -214,9 +215,10 @@ watch(
 
             <p
                 v-if="teamStats.length === 0"
-                class="text-sm text-[var(--color-text-subtle)]"
+                class="text-sm text-[var(--color-text-subtle)] inline-flex items-center gap-2"
             >
-              {{ loading ? 'Lade Teamdaten…' : 'Keine Team-Daten verfügbar' }}
+              <Spinner v-if="loading" size="sm"/>
+              <span>{{ loading ? 'Lade Teamdaten…' : 'Keine Team-Daten verfügbar' }}</span>
             </p>
           </div>
         </div>
@@ -253,12 +255,20 @@ watch(
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div class="glass-card liquid-surface-inner">
             <h2 class="glass-card__title">Adresse</h2>
-            <p class="mb-3">{{ event?.address || (loading ? 'Lade Adresse…' : 'Keine Adresse hinterlegt') }}</p>
+            <p
+                v-if="loading && !event?.address"
+                class="mb-3 text-sm text-[var(--color-text-subtle)] inline-flex items-center gap-2"
+            >
+              <Spinner size="sm"/>
+              <span>Lade Adresse…</span>
+            </p>
+            <p v-else-if="event?.address" class="mb-3">{{ event.address }}</p>
+            <p v-else class="mb-3 text-sm text-[var(--color-text-subtle)]">Keine Adresse hinterlegt</p>
             <EventMap
                 v-if="event?.address && event?.id"
                 :address="event.address"
                 :event-id="event.id"
-                :event-name="event.name"
+                :event-name="getEventTitleShort(event) || ''"
                 :show-q-r-code="false"
             />
           </div>
@@ -284,8 +294,9 @@ watch(
                 </p>
               </div>
             </div>
-            <p v-else class="text-sm text-[var(--color-text-subtle)]">
-              {{ loading ? 'Lade Kontakte…' : 'Keine Kontakte hinterlegt' }}
+            <p v-else class="text-sm text-[var(--color-text-subtle)] inline-flex items-center gap-2">
+              <Spinner v-if="loading" size="sm"/>
+              <span>{{ loading ? 'Lade Kontakte…' : 'Keine Kontakte hinterlegt' }}</span>
             </p>
           </div>
         </div>

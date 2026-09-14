@@ -674,10 +674,7 @@ class ExtraBlockController extends Controller
 
         return [
             'team_number_hot' => null,
-            'team_name' => sprintf(
-                'T%02d !Platzhalter, weil nicht genügend Teams angemeldet sind!',
-                $teamNumberPlan
-            ),
+            'team_name' => null,
         ];
     }
 

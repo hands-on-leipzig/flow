@@ -6,6 +6,7 @@ use App\Enums\FirstProgram;
 use App\Support\OverviewPlanStyle;
 use App\Support\PlanParameter;
 use App\Support\PreviewGridOverlapResolver;
+use App\Support\PreviewTeamLabels;
 use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Überblick-style teams preview: 5-minute grid, one column per team (Txx).
+ * Column Txx has a native title with the team name (or "Fehlendes Team").
  * Cell text is name_preview plus role name_short and 1-digit lane/table; slot-blocks stay "S".
  */
 class TeamsPreviewGridService
@@ -39,7 +41,8 @@ class TeamsPreviewGridService
         $programIds = $this->programsOnPlan($presence);
 
         $rolesByProgram = $this->loadTeamRoles($programIds);
-        $programs = $this->buildProgramColumns($programIds, $rolesByProgram, $params);
+        $teamNames = PreviewTeamLabels::namesByProgramSlot($planId);
+        $programs = $this->buildProgramColumns($programIds, $rolesByProgram, $params, $teamNames);
 
         $byProgramTeam = [];
         foreach ($programs as $program) {
@@ -159,9 +162,10 @@ class TeamsPreviewGridService
     /**
      * @param  list<int>  $programIds
      * @param  array<int, object|null>  $rolesByProgram
-     * @return list<array{id: int, label: string, logo: string, style_column: string, columns: list<array{key: string, title: string, style_column: string, program_id: int, index: int}>}>
+     * @param  array<int, array<int, string>>  $teamNames
+     * @return list<array{id: int, label: string, logo: string, style_column: string, columns: list<array{key: string, title: string, style_column: string, program_id: int, index: int, team_tooltip?: string}>}>
      */
-    private function buildProgramColumns(array $programIds, array $rolesByProgram, PlanParameter $params): array
+    private function buildProgramColumns(array $programIds, array $rolesByProgram, PlanParameter $params, array $teamNames): array
     {
         $programs = [];
 
@@ -180,13 +184,18 @@ class TeamsPreviewGridService
             $base = (string) ($role->name_short ?: $role->name);
             $columns = [];
             for ($i = 1; $i <= $count; $i++) {
-                $columns[] = [
+                $column = [
                     'key' => $this->columnKey((int) $role->id, $i),
                     'title' => $base.sprintf('%02d', $i),
                     'style_column' => $styleColumn,
                     'program_id' => $programId,
                     'index' => $i,
                 ];
+                $tooltip = PreviewTeamLabels::tooltipFor($programId, $i, $teamNames);
+                if ($tooltip !== null) {
+                    $column['team_tooltip'] = $tooltip;
+                }
+                $columns[] = $column;
             }
 
             $programs[] = [

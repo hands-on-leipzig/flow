@@ -3,6 +3,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { formatTimeOnly } from '@/utils/dateTimeFormat';
 import { programLogoAlt, programLogoSrc } from '@/utils/images';
 import { useScaleToFit } from '@/composables/useScaleToFit';
+import { defaultTableFieldLabel } from '@/utils/tableFieldLabels';
 
 const props = withDefaults(defineProps<{
   result: any;
@@ -273,7 +274,8 @@ function teamLabel(name?: string | null): string {
 function tableName(a: any, side: 1 | 2): string {
   const name = side === 1 ? a?.table_1_name : a?.table_2_name;
   const num = side === 1 ? a?.table_1 : a?.table_2;
-  return name ?? (num != null ? `Tisch ${num}` : '');
+  const fp = Number(a?.first_program_id ?? a?.activity_first_program_id ?? 3);
+  return name ?? (num != null ? defaultTableFieldLabel(fp, Number(num)) : '');
 }
 
 function hasTables(a: any): boolean {

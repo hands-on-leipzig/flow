@@ -3,6 +3,7 @@ import { computed, ref, watch, onMounted } from 'vue'
 import { useEventStore } from '@/stores/event'
 import { usePdfExport } from '@/composables/usePdfExport'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
@@ -726,10 +727,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="isDownloading.plan || !eventId"
             @click="downloadPdf('plan', `/publish/pdf_download/plan/${eventId}`, flowHint('Plan'))"
           >
-            <svg v-if="isDownloading.plan" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading.plan" size="sm"/>
             <span>{{ isDownloading.plan ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -759,10 +757,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="isDownloading.plan_wifi || !eventId || !hasWifiSsid"
             @click="downloadPdf('plan_wifi', `/publish/pdf_download/plan_wifi/${eventId}`, flowHint('Plan_mit_WLAN'))"
           >
-            <svg v-if="isDownloading.plan_wifi" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading.plan_wifi" size="sm"/>
             <span>{{ isDownloading.plan_wifi ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -782,10 +777,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="isDownloading.overview"
             @click="downloadEventOverviewPdf()"
           >
-            <svg v-if="isDownloading.overview" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading.overview" size="sm"/>
             <span>{{ isDownloading.overview ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -809,10 +801,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="isDownloadingCsv"
             @click="downloadRoomUtilizationCsv"
           >
-            <svg v-if="isDownloadingCsv" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloadingCsv" size="sm"/>
             <span>{{ isDownloadingCsv ? 'Erzeuge…' : 'CSV' }}</span>
           </button>
           <button
@@ -822,10 +811,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="isDownloading.rooms"
             @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, flowHint('Räume'))"
           >
-            <svg v-if="isDownloading.rooms" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading.rooms" size="sm"/>
             <span>{{ isDownloading.rooms ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -876,10 +862,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="!hasSelectedRoles || isDownloading.roles"
             @click="downloadRolesPdf"
           >
-            <svg v-if="isDownloading.roles" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading.roles" size="sm"/>
             <span>{{ isDownloading.roles ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -923,10 +906,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="!hasSelectedPrograms || isDownloading.teams"
             @click="downloadTeamsPdf"
           >
-            <svg v-if="isDownloading.teams" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading.teams" size="sm"/>
             <span>{{ isDownloading.teams ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -958,10 +938,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="isDownloading['team-list']"
             @click="downloadTeamListPdf"
           >
-            <svg v-if="isDownloading['team-list']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading['team-list']" size="sm"/>
             <span>{{ isDownloading['team-list'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -983,10 +960,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="isDownloading['moderator-match-plan']"
             @click="downloadModeratorMatchPlanPdf"
           >
-            <svg v-if="isDownloading['moderator-match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading['moderator-match-plan']" size="sm"/>
             <span>{{ isDownloading['moderator-match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -1008,10 +982,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="isDownloading['slot-assignments']"
             @click="downloadSlotAssignmentsPdf"
           >
-            <svg v-if="isDownloading['slot-assignments']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading['slot-assignments']" size="sm"/>
             <span>{{ isDownloading['slot-assignments'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -1047,10 +1018,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="isDownloading['match-plan']"
             @click="downloadMatchPlanPdf"
           >
-            <svg v-if="isDownloading['match-plan']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading['match-plan']" size="sm"/>
             <span>{{ isDownloading['match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -1070,10 +1038,7 @@ const eventTitleNormalized = computed(() => {
             :disabled="isDownloading.full"
             @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, flowHint('Gesamtplan'))"
           >
-            <svg v-if="isDownloading.full" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
+            <Spinner v-if="isDownloading.full" size="sm"/>
             <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
@@ -1171,11 +1136,7 @@ const eventTitleNormalized = computed(() => {
               :disabled="!canDownloadTeamLabels || isDownloading['name-tags']"
               @click="downloadNameTagsPdf"
             >
-              <svg v-if="isDownloading['name-tags']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                <path class="opacity-75" fill="currentColor"
-                      d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-              </svg>
+              <Spinner v-if="isDownloading['name-tags']" size="sm"/>
               <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
             </button>
           </div>
@@ -1280,11 +1241,7 @@ const eventTitleNormalized = computed(() => {
                 :class="!(hasSubmittedVolunteers && !isDownloading['volunteer-labels']) ? '!opacity-50' : ''"
                 :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
               >
-                <svg v-if="isDownloading['volunteer-labels']" class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                  <path class="opacity-75" fill="currentColor"
-                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                </svg>
+                <Spinner v-if="isDownloading['volunteer-labels']" size="sm"/>
                 <span>{{ isDownloading['volunteer-labels'] ? 'Erzeuge…' : 'PDF' }}</span>
               </button>
             </div>
@@ -1332,11 +1289,8 @@ const eventTitleNormalized = computed(() => {
                 <transition name="fade">
                   <div v-if="openRound === option.value" class="p-4">
                     <div v-if="isLoadingMatches" class="flex items-center justify-center py-8">
-                      <svg class="animate-spin h-8 w-8 text-[var(--color-accent)]" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                      </svg>
-                      <span class="ml-3 text-[var(--color-text-muted)]">Lade Matches...</span>
+                      <Spinner size="md"/>
+                      <span class="ml-3 text-[var(--color-text-muted)]">Lade Matches…</span>
                     </div>
                     
                     <div v-else-if="matches.length === 0" class="text-center py-8 text-[var(--color-text-subtle)]">
@@ -1404,11 +1358,8 @@ const eventTitleNormalized = computed(() => {
         <!-- Modal Content -->
         <div class="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
           <div v-if="isLoadingShifts" class="flex items-center justify-center py-8">
-            <svg class="animate-spin h-8 w-8 text-[var(--color-accent)]" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-            </svg>
-            <span class="ml-3 text-[var(--color-text-muted)]">Lade Schichten...</span>
+            <Spinner size="md"/>
+            <span class="ml-3 text-[var(--color-text-muted)]">Lade Schichten…</span>
           </div>
           
           <div v-else-if="workerShifts?.error" class="text-center py-8 text-red-600">
@@ -1456,11 +1407,7 @@ const eventTitleNormalized = computed(() => {
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
     >
       <div class="glass-row-item inline-flex px-4 py-3 gap-2">
-        <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" fill="currentColor"
-                d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-        </svg>
+        <Spinner size="sm"/>
         <span>PDF wird erzeugt…</span>
       </div>
     </div>

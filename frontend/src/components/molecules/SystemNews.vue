@@ -133,7 +133,7 @@ onMounted(() => {
           </label>
           <textarea
             v-model="newNews.text"
-            placeholder="Beschreibung der Änderung oder Neuigkeit..."
+            placeholder="Beschreibung der Änderung oder Neuigkeit…"
             rows="6"
             class="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
@@ -171,7 +171,7 @@ onMounted(() => {
 
     <!-- Loading State -->
     <div v-if="loading" class="text-center py-8 text-[var(--color-text-subtle)]">
-      Lade News...
+      Lade News…
     </div>
 
     <!-- Error State -->

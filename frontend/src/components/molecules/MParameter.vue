@@ -283,7 +283,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
 
     <!-- Liste -->
     <div class="mparam-shell__list border rounded bg-white">
-      <div v-if="loading" class="p-4 text-[var(--color-text-subtle)]">Lade …</div>
+      <div v-if="loading" class="p-4 text-[var(--color-text-subtle)]">Laden…</div>
       <div v-else-if="error" class="p-4 text-red-600">{{ error }}</div>
       <div v-else class="mparam-shell__list-inner">
         <div class="mparam-shell__list-hint px-3 py-2 text-xs text-[var(--color-text-subtle)] border-b bg-[var(--color-bg-muted)]">

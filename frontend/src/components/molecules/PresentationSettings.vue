@@ -13,6 +13,8 @@ import ItemComposer from "@/components/molecules/ItemComposer.vue";
 import ConfirmationModal from "@/components/molecules/ConfirmationModal.vue";
 import IconDangerButton from "@/components/atoms/IconDangerButton.vue";
 import PanelSplitter from "@/components/atoms/PanelSplitter.vue";
+import LoaderFlow from "@/components/atoms/LoaderFlow.vue";
+import Spinner from "@/components/atoms/Spinner.vue";
 import {showGlassToast} from "@/composables/useGlassToast";
 
 const eventStore = useEventStore();
@@ -327,7 +329,7 @@ async function addSlide(selectedType: string) {
 
 <template>
   <div class="digital-workspace">
-    <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
+    <SavingToast ref="savingToast" message="Änderungen werden gespeichert…"/>
     <div class="digital-workspace__split">
       <section class="digital-workspace__left" :style="{ flex: `0 0 ${leftWidth}%` }">
         <div class="digital-workspace__pane">
@@ -372,7 +374,7 @@ async function addSlide(selectedType: string) {
         <div class="digital-workspace__pane digital-workspace__pane--medien">
           <h2 class="glass-card__heading">Medien</h2>
           <p class="glass-settings-hint !mb-0">
-            Hier kommt die Verwaltung für zusätzliche Fotos und Videos hin ... demnächst.
+            Hier kommt die Verwaltung für zusätzliche Fotos und Videos hin… demnächst.
           </p>
         </div>
       </section>
@@ -388,12 +390,7 @@ async function addSlide(selectedType: string) {
       <section class="digital-workspace__right">
         <div class="digital-workspace__pane digital-workspace__pane--editor">
           <div v-if="loading" class="digital-workspace__empty">
-            <svg class="animate-spin h-10 w-10 text-[var(--color-accent)] mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
-                 viewBox="0 0 24 24" aria-hidden="true">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-            </svg>
-            <p class="text-[var(--color-text-muted)] font-medium">Lädt...</p>
+            <LoaderFlow/>
           </div>
 
           <template v-else-if="selectedSlideshow">
@@ -612,10 +609,7 @@ async function addSlide(selectedType: string) {
             >
               <div v-if="creatingSlideType === type.slide"
                    class="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-75 rounded-lg">
-                <svg class="animate-spin h-8 w-8 text-blue-600" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                </svg>
+                <Spinner size="md"/>
               </div>
               <i :class="[
               `bi ${type.icon} text-4xl mb-3 transition-colors`,

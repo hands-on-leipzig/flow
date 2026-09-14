@@ -167,7 +167,7 @@ async function createEvent() {
           <div class="flex justify-between items-start">
             <!-- Linker Bereich: Text -->
             <div>
-              <h3 class="font-medium text-lg">{{ event.name }}</h3>
+              <h3 class="font-medium text-lg">{{ event.title_short }}</h3>
               <p class="text-sm text-[var(--color-text-subtle)]">{{ dayjs(event.date).format('dddd, DD.MM.YYYY') }}</p>
               <p class="text-sm text-[var(--color-text-subtle)]">{{ event.level.name }}</p>
               <p class="text-sm text-[var(--color-text-subtle)]">{{ event.season.name }} ({{ event.season.year }})</p>
@@ -212,7 +212,7 @@ async function createEvent() {
               required
               class="w-full px-3 py-2 border border-[var(--color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Regional Partner wählen...</option>
+              <option value="">Regional Partner wählen…</option>
               <option
                 v-for="partner in createEventData.regional_partners"
                 :key="partner.id"
@@ -230,7 +230,7 @@ async function createEvent() {
               required
               class="w-full px-3 py-2 border border-[var(--color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">Level wählen...</option>
+              <option value="">Level wählen…</option>
               <option
                 v-for="level in createEventData.levels"
                 :key="level.id"
@@ -296,7 +296,7 @@ async function createEvent() {
               :disabled="creating"
               class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium transition-colors disabled:opacity-50"
             >
-              {{ creating ? 'Erstelle...' : 'Erstellen' }}
+              {{ creating ? 'Erstelle…' : 'Erstellen' }}
             </button>
           </div>
         </form>

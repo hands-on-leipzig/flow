@@ -11,11 +11,15 @@ use App\Http\Controllers\Api\DrahtController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\TeamController;
 use App\Services\EventAttentionService;
+use App\Services\EventTitleService;
 use Carbon\Carbon;
 
 
 class StatisticController extends Controller
-{  
+{
+    public function __construct(
+        private EventTitleService $eventTitles,
+    ) {}
 
     public function listPlans(): JsonResponse
     {
@@ -56,6 +60,7 @@ class StatisticController extends Controller
                 // Event
                 'event.id as event_id',
                 'event.name as event_name',
+                'event.level as event_level',
                 'event.date as event_date',
                 'event.link as event_link',
                 'event.season as event_season_id',
@@ -315,9 +320,15 @@ class StatisticController extends Controller
                     return $program;
                 })->values();
 
+                $titles = $this->eventTitles->titles((object) [
+                    'name' => $row->event_name,
+                    'level' => $row->event_level ?? 0,
+                    'programs' => $programs,
+                ]);
+
                 $groupedSeasons[$seasonKey]['partners'][$partnerKey]['events'][$eventKey] = [
                     'event_id' => $row->event_id,
-                    'event_name' => $row->event_name,
+                    'event_name' => $titles['title_short'],
                     'event_date' => $row->event_date,
                     'event_link' => $row->event_link,
                     'programs' => $programs,
@@ -327,6 +338,7 @@ class StatisticController extends Controller
                     'contact_email' => null, // Will be fetched asynchronously
                     'draht_issue' => false, // Will be checked asynchronously
                     'plans' => [],
+                    ...$titles,
                 ];
             }
 
@@ -846,6 +858,24 @@ class StatisticController extends Controller
             ->orderBy('total_count', 'desc')
             ->get();
 
+        $eventIds = $accesses->pluck('event_id')->unique()->filter()->values();
+        $titleByEventId = [];
+        if ($eventIds->isNotEmpty()) {
+            foreach (Event::query()->whereIn('id', $eventIds)->get() as $event) {
+                $titleByEventId[(int) $event->id] = $this->eventTitles->titles($event);
+            }
+        }
+
+        $accesses = $accesses->map(function ($row) use ($titleByEventId) {
+            $titles = $titleByEventId[(int) $row->event_id] ?? [];
+            $row->event_name = $titles['title_short'] ?? $row->event_name;
+            foreach ($titles as $key => $value) {
+                $row->{$key} = $value;
+            }
+
+            return $row;
+        });
+
         return response()->json([
             'accesses' => $accesses,
         ]);
@@ -1256,11 +1286,20 @@ class StatisticController extends Controller
                 ];
             });
 
+        $titles = [];
+        if ($eventInfo?->event_id) {
+            $event = Event::query()->find($eventInfo->event_id);
+            if ($event) {
+                $titles = $this->eventTitles->titles($event);
+            }
+        }
+
         return response()->json([
             'event_id' => $eventInfo->event_id ?? null,
-            'event_name' => $eventInfo->event_name ?? null,
+            'event_name' => $titles['title_short'] ?? ($eventInfo->event_name ?? null),
             'event_date' => $eventInfo->event_date ? \Carbon\Carbon::parse($eventInfo->event_date)->format('d.m.Y') : null,
             'free_blocks' => $freeBlocks,
+            ...$titles,
         ]);
     }
 }

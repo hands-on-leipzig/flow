@@ -7,6 +7,7 @@ use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
 use App\Support\RoleDifferentiation;
 use App\Support\RoleScheduleSlice;
+use App\Support\TableFieldLabels;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ class PublicPlanService
     public function __construct(
         private ActivityFetcherService $activities,
         private RoleFetcherService $roleFetcher,
+        private EventTitleService $eventTitles,
     ) {}
 
     /**
@@ -61,20 +63,25 @@ class PublicPlanService
             }
         }
 
+        $tableNames = $this->tableNamesForEvent((int) $plan->event_id);
+
         $roles = [];
         foreach ($this->sortPickerRoles($byId) as $role) {
-            $roles[] = $this->serializePickerRole($role, $teams, $params);
+            $roles[] = $this->serializePickerRole($role, $teams, $params, $tableNames);
         }
+
+        $titles = $this->titlesForPlanRow($plan);
 
         return [
             'plan_id' => $planId,
             'event_id' => (int) $plan->event_id,
-            'event_name' => $plan->event_name,
+            'event_name' => $titles['title_long'],
             'slug' => $plan->event_slug ?: null,
             'check_in_enabled' => (bool) $plan->check_in_enabled,
             'cockpit_enabled' => (bool) $plan->cockpit_enabled,
             'programs' => $this->eventPrograms((int) $plan->event_id),
             'roles' => $roles,
+            ...$titles,
         ];
     }
 
@@ -103,9 +110,33 @@ class PublicPlanService
     }
 
     /**
+     * @return array{
+     *     title_long: string,
+     *     title_short: string,
+     *     title_type: string,
+     *     title_type_short: string,
+     *     title_place: string
+     * }
+     */
+    private function titlesForPlanRow(object $plan): array
+    {
+        $programs = DB::table('event_program as ep')
+            ->join('m_first_program as fp', 'fp.id', '=', 'ep.first_program')
+            ->where('ep.event', (int) $plan->event_id)
+            ->get(['fp.name']);
+
+        return $this->eventTitles->titles((object) [
+            'name' => $plan->event_name,
+            'level' => $plan->event_level,
+            'programs' => $programs,
+        ]);
+    }
+
+    /**
+     * @param  array<int, array<int, string>>  $tableNames
      * @return array<string, mixed>
      */
-    private function serializePickerRole(object $role, array $teams, PlanParameter $params): array
+    private function serializePickerRole(object $role, array $teams, PlanParameter $params, array $tableNames): array
     {
         $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
         $displayName = trim((string) ($role->first_program_display_name ?? ''));
@@ -127,7 +158,7 @@ class PublicPlanService
             'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
             'differentiation_parameter' => $role->differentiation_parameter,
             'group_label' => $role->group_label,
-            'options' => $this->roleOptions($role, $teams, $params),
+            'options' => $this->roleOptions($role, $teams, $params, $tableNames),
         ];
     }
 
@@ -371,7 +402,10 @@ class PublicPlanService
         ];
     }
 
-    private function roleOptions(object $role, array $teams, PlanParameter $params): array
+    /**
+     * @param  array<int, array<int, string>>  $tableNames
+     */
+    private function roleOptions(object $role, array $teams, PlanParameter $params, array $tableNames): array
     {
         $parameter = $role->differentiation_parameter;
         $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
@@ -392,6 +426,12 @@ class PublicPlanService
                     if ($name !== '') {
                         $noshow = (bool) ($team['noshow'] ?? false);
                     }
+                } elseif ($parameter === 'table' && $firstProgram) {
+                    $label = TableFieldLabels::effective(
+                        $firstProgram,
+                        $i,
+                        $tableNames[$firstProgram][$i] ?? null
+                    );
                 } elseif (in_array($parameter, ['lane', 'table'], true) && $groupLabel !== '') {
                     $label = $groupLabel.' '.$i;
                 }

@@ -93,7 +93,7 @@ final class VolunteerRosterSpreadsheetSource implements SpreadsheetSource
             [
                 new SpreadsheetSheet('Helfer:innenliste', $columns, $rows),
             ],
-            (string) ($this->event->name ?? ''),
+            app(\App\Services\EventTitleService::class)->getEventTitleShort($this->event),
         );
     }
 

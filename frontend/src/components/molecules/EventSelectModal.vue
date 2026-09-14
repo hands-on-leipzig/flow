@@ -7,6 +7,7 @@ import {useEventStore} from '@/stores/event'
 import {useAuth} from '@/composables/useAuth'
 import {showGlassToast} from '@/composables/useGlassToast'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import {seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
 import {getAbbreviatedCompetitionType, cleanEventName} from '@/utils/eventTitle'
 import {eventPrograms} from '@/utils/eventPrograms'
@@ -27,6 +28,9 @@ type Season = {id: number; name: string; year: number}
 type SelectableEvent = {
   id: number
   name: string
+  title_short?: string
+  title_type_short?: string
+  title_place?: string
   date: string
   programs?: Array<{ first_program?: number; name?: string | null }>
   level?: number | {id?: number; name?: string} | null
@@ -66,11 +70,12 @@ const visibleEvents = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return list
   return list.filter((ev) => {
-    const name = (ev.name || '').toLowerCase()
+    const name = (ev.title_short || ev.name || '').toLowerCase()
     const rp = (ev.regional_partner_name || '').toLowerCase()
     const date = dayjs(ev.date).format('DD.MM.YY').toLowerCase()
     const type = getAbbreviatedCompetitionType(ev).toLowerCase()
-    return name.includes(q) || rp.includes(q) || date.includes(q) || type.includes(q)
+    const place = (ev.title_place || '').toLowerCase()
+    return name.includes(q) || rp.includes(q) || date.includes(q) || type.includes(q) || place.includes(q)
   })
 })
 
@@ -159,7 +164,7 @@ function eventTypeLabel(ev: SelectableEvent) {
 }
 
 function eventPlace(ev: SelectableEvent) {
-  return cleanEventName(ev) || ev.name || '—'
+  return cleanEventName(ev) || '—'
 }
 
 function isSelected(ev: SelectableEvent) {
@@ -298,7 +303,7 @@ onBeforeUnmount(() => {
 
       <div class="event-modal__body">
         <div v-if="loading" class="event-modal__state">
-          <div class="event-modal__spinner" aria-hidden="true"/>
+          <Spinner size="md"/>
           <span>Lade Veranstaltungen…</span>
         </div>
 
@@ -583,19 +588,6 @@ onBeforeUnmount(() => {
   min-height: 12rem;
   color: var(--color-text-muted);
   font-size: 0.9rem;
-}
-
-.event-modal__spinner {
-  width: 1.5rem;
-  height: 1.5rem;
-  border-radius: 999px;
-  border: 2px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
-  border-top-color: var(--color-accent);
-  animation: event-modal-spin 0.7s linear infinite;
-}
-
-@keyframes event-modal-spin {
-  to { transform: rotate(360deg); }
 }
 
 .event-modal__list {

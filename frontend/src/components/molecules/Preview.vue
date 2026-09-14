@@ -2,7 +2,7 @@
 
 import { formatTimeOnly, formatDateTime } from '@/utils/dateTimeFormat'
 
-import {ref, watch, onMounted, computed} from 'vue'
+import {ref, watch, onMounted, onBeforeUnmount, computed} from 'vue'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import axios from 'axios'
 import { useRoute } from 'vue-router'
@@ -11,6 +11,8 @@ import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getProgramTheme } from '@/utils/programTheme'
+import { defaultTableFieldLabel, tableFieldPlural } from '@/utils/tableFieldLabels'
+import { formatPlanTeamNo, isMissingPlanTeamName } from '@/utils/planTeamLabel'
 
 const FIRST_PROGRAM = {
   CHALLENGE: 3,
@@ -126,6 +128,8 @@ const robotGameData = ref<RobotGameData | null>(null)
 const matchPlanPrograms = ref<number[]>([])
 /** Selected program for Match-Plan / Plan-Qualität. */
 const selectedFirstProgram = ref<number | null>(null)
+
+const previewPlaceProgram = computed(() => selectedFirstProgram.value ?? FIRST_PROGRAM.CHALLENGE)
 
 const hasMatchPlan = computed(() => matchPlanPrograms.value.length > 0)
 const dualMatchPlan = computed(() => matchPlanPrograms.value.length > 1)
@@ -296,7 +300,10 @@ watch(() => effectivePlanId.value, async () => {
   await loadMatchPlanMeta()
   load()
 })
-watch(view, () => load())
+watch(view, () => {
+  hideTeamTip()
+  load()
+})
 watch(() => props.reload, async () => {
   await loadMatchPlanMeta()
   load()
@@ -348,13 +355,7 @@ function hasTable34(round: RobotGameRound): boolean {
 }
 
 function formatTeam(teamNum: number | null): string {
-  // Format team display
-  // Empty: no team (shouldn't happen in this context, but handle it)
-  // '–': Team 0 (volunteer/BYE)
-  // Number: Regular team
-  if (teamNum === null) return ''
-  if (teamNum === 0) return '–'
-  return String(teamNum)
+  return formatPlanTeamNo(teamNum)
 }
 
 function matchPlanProgramLabel(programId: number): string {
@@ -378,6 +379,50 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
   if (exploreGroup === 2) return 'Gruppe 2'
   return ''
 }
+
+const TEAM_TIP_DELAY_MS = 80
+const teamTip = ref<{ text: string; x: number; y: number; unregistered: boolean } | null>(null)
+let teamTipTimer: number | null = null
+
+function teamTipEl(target: EventTarget | null): HTMLElement | null {
+  if (!(target instanceof Element)) return null
+  return target.closest('[data-team-tooltip]')
+}
+
+function hideTeamTip() {
+  if (teamTipTimer != null) {
+    window.clearTimeout(teamTipTimer)
+    teamTipTimer = null
+  }
+  teamTip.value = null
+}
+
+function onTeamTipOver(e: PointerEvent) {
+  const el = teamTipEl(e.target)
+  if (!el) return
+  const text = el.getAttribute('data-team-tooltip')?.trim() ?? ''
+  if (text === '') return
+  if (teamTipTimer != null) window.clearTimeout(teamTipTimer)
+  teamTipTimer = window.setTimeout(() => {
+    teamTipTimer = null
+    const r = el.getBoundingClientRect()
+    teamTip.value = {
+      text,
+      x: r.left + r.width / 2,
+      y: r.bottom,
+      unregistered: isMissingPlanTeamName(text),
+    }
+  }, TEAM_TIP_DELAY_MS)
+}
+
+function onTeamTipOut(e: PointerEvent) {
+  const leaving = teamTipEl(e.target)
+  const entering = teamTipEl(e.relatedTarget)
+  if (leaving && leaving === entering) return
+  hideTeamTip()
+}
+
+onBeforeUnmount(hideTeamTip)
 </script>
 
 <template>
@@ -530,8 +575,8 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Rollen (new grid) -->
-    <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+    <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4" @scroll.passive="hideTeamTip" @wheel.passive="hideTeamTip">
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
       <template v-else>
         <div v-if="!rolesHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
           Keine Rollen-Daten gefunden.
@@ -540,14 +585,16 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           v-else
           class="roles-grid-host min-h-0"
           :data-hide-programs="rolesHiddenProgramIds.join(' ')"
+          @pointerover="onTeamTipOver"
+          @pointerout="onTeamTipOut"
           v-html="rolesHtml"
         ></div>
       </template>
     </div>
 
     <!-- ANSICHT: Teams (new grid) -->
-    <div v-else-if="view === 'teams'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+    <div v-else-if="view === 'teams'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4" @scroll.passive="hideTeamTip" @wheel.passive="hideTeamTip">
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
       <template v-else>
         <div v-if="!teamsHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
           Keine Team-Daten gefunden.
@@ -556,6 +603,8 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           v-else
           class="roles-grid-host min-h-0"
           :data-hide-programs="teamsHiddenProgramIds.join(' ')"
+          @pointerover="onTeamTipOver"
+          @pointerout="onTeamTipOut"
           v-html="teamsHtml"
         ></div>
       </template>
@@ -563,7 +612,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
     <!-- ANSICHT: Überblick -->
     <div v-else-if="view === 'overview'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
       
       <template v-else>
         <div v-if="!overviewHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
@@ -576,7 +625,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
     <!-- ANSICHT: Match-Plan -->
     <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
 
       <template v-else>
         <div v-if="!robotGameData || !robotGameData.rounds || robotGameData.rounds.length === 0" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
@@ -597,10 +646,10 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
               <table class="table-auto text-sm border-collapse border border-[var(--color-border)]">
                 <thead class="bg-[var(--color-bg-muted)]">
                   <tr>
-                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 1</th>
-                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 2</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 3</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 4</th>
+                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 1) }}</th>
+                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 2) }}</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 3) }}</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 4) }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -638,7 +687,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
               <thead class="bg-[var(--color-bg-muted)]">
                 <tr>
                   <th class="px-3 py-2 border border-[var(--color-border)] text-left font-normal">Team</th>
-                  <th class="px-3 py-2 border border-[var(--color-border)] text-center font-normal">Verschiedene Tische</th>
+                  <th class="px-3 py-2 border border-[var(--color-border)] text-center font-normal">Verschiedene {{ tableFieldPlural(previewPlaceProgram) }}</th>
                   <th class="px-3 py-2 border border-[var(--color-border)] text-center font-normal">Verschiedene Teams</th>
                 </tr>
               </thead>
@@ -648,7 +697,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
                   :key="summary.team"
                   class="border-t"
                 >
-                  <td class="px-3 py-2 border border-[var(--color-border)]">{{ summary.team }}</td>
+                  <td class="px-3 py-2 border border-[var(--color-border)]">{{ formatTeam(summary.team) }}</td>
                   <td class="px-3 py-2 border border-[var(--color-border)] text-center">{{ summary.different_tables }}</td>
                   <td class="px-3 py-2 border border-[var(--color-border)] text-center">{{ summary.different_opponents }}</td>
                 </tr>
@@ -670,7 +719,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
     <!-- ANSICHT: Power-User „Aktivitäten" -->
     <div v-else-if="view === 'activities'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-3">
-      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
 
       <template v-else>
         <div v-if="activities.length === 0" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
@@ -726,6 +775,15 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
       </template>
     </div>
   </div>
+  <Teleport to="body">
+    <div
+      v-if="teamTip"
+      class="preview-team-tip"
+      :class="{ 'preview-team-tip--unregistered': teamTip.unregistered }"
+      role="tooltip"
+      :style="{ left: `${teamTip.x}px`, top: `${teamTip.y}px` }"
+    >{{ teamTip.text }}</div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -800,5 +858,27 @@ td {
   height: 1.25rem;
   object-fit: contain;
   flex-shrink: 0;
+}
+
+.preview-team-tip {
+  position: fixed;
+  z-index: 80;
+  transform: translate(-50%, 6px);
+  max-width: 16rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 4px;
+  background: #fff;
+  color: #111;
+  border: 1px solid #d1d5db;
+  font-size: 12px;
+  line-height: 1.3;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.preview-team-tip--unregistered {
+  background: #111;
+  color: #fff;
+  border-color: #111;
 }
 </style>
