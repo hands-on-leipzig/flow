@@ -12,7 +12,7 @@
                 <th>Ende</th>
                 <th>Aktivität</th>
                 <th>Team</th>
-                <th>Jury/Tisch</th>
+                <th>{{ $generalBlock['assignHeader'] ?? 'Jury/Tisch' }}</th>
                 <th>Raum</th>
             </tr>
         </thead>

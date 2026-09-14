@@ -34,6 +34,7 @@ class CheckInService
 
     public function __construct(
         private PublicPlanService $publicPlan,
+        private EventTitleService $eventTitles,
     ) {}
 
     public function generatePin(): string
@@ -1903,7 +1904,7 @@ class CheckInService
             ->get()
             ->keyBy(fn (CheckIn $row) => $row->subject_type.':'.$row->subject_id);
 
-        $lines = ['Check-In: '.$event->name, ''];
+        $lines = ['Check-In: '.$this->eventTitles->getEventTitleLong($event), ''];
 
         $teams = DB::table('team')
             ->leftJoin('m_first_program as fp', 'fp.id', '=', 'team.first_program')

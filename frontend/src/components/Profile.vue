@@ -4,6 +4,7 @@ import axios from 'axios'
 import dayjs from 'dayjs'
 import {useAuth} from '@/composables/useAuth'
 import NoticePane from '@/components/molecules/NoticePane.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 
 defineOptions({name: 'Profile'})
 
@@ -77,8 +78,9 @@ onMounted(load)
 
     <NoticePane/>
 
-    <div v-if="loading" class="glass-card liquid-surface-inner p-6 text-[var(--color-text-muted)]">
-      Lade Profil…
+    <div v-if="loading" class="glass-card liquid-surface-inner p-6 text-[var(--color-text-muted)] inline-flex items-center gap-3" role="status">
+      <Spinner size="md"/>
+      <span>Lade Profil…</span>
     </div>
 
     <div v-else-if="error" class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-800">
@@ -146,7 +148,7 @@ onMounted(load)
           Keine Veranstaltung ausgewählt.
         </p>
         <div v-else class="text-sm space-y-1">
-          <p class="font-semibold text-base">{{ data.selected_event.name }}</p>
+          <p class="font-semibold text-base">{{ data.selected_event.title_short }}</p>
           <p class="text-[var(--color-text-muted)]">
             {{ data.selected_event.season || '—' }}
             <span v-if="data.selected_event.regional_partner"> · {{ data.selected_event.regional_partner }}</span>

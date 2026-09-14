@@ -9,6 +9,7 @@ import {
   visibleDrahtTeams,
   type TeamSyncEntry,
 } from '@/utils/teamSync'
+import { formatPlanTeamNo, MISSING_TEAM_NAME } from '@/utils/planTeamLabel'
 
 const props = defineProps({
   program: {type: String, required: true},
@@ -196,10 +197,10 @@ function updateTeamList(value: unknown[]) {
       >
         <div class="team-row__grid">
           <span/>
-          <span/>
+          <span class="text-sm font-semibold tabular-nums">{{ formatPlanTeamNo(placeholder.index + 1) }}</span>
           <span v-if="showJury" class="text-sm tabular-nums">–</span>
           <span class="text-sm tabular-nums">–</span>
-          <span class="text-sm font-medium">Fehlendes Team</span>
+          <span class="text-sm font-medium">{{ MISSING_TEAM_NAME }}</span>
           <span class="hidden md:inline"/>
           <span class="hidden md:inline"/>
           <div class="team-row__people-zone team-row__people-zone--placeholder">

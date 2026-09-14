@@ -32,7 +32,7 @@ onMounted(() => {
     <h2 class="text-xl font-bold mb-3 text-center">Ergebnisse Robot-Game {{ scores?.name || '' }}</h2>
 
     <div v-if="error" class="text-red-600 text-sm mb-3">Beim Laden der Daten ist ein Fehler aufgetreten.</div>
-    <div v-if="!scores && !error" class="text-gray-500 text-center">Lade...</div>
+    <div v-if="!scores && !error" class="text-gray-500 text-center">Laden…</div>
 
     <div v-if="scores && scores.rounds" class="flex flex-col md:flex-row md:space-x-6">
       <div v-for="(_, key) in scores.rounds" :key="key" class="mb-4 md:mb-0 md:flex-1">

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import {computed, ref, watch} from 'vue'
 import axios from 'axios'
-import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import {programDisplayName, programNameForId} from '@/utils/eventPrograms'
@@ -13,6 +13,7 @@ import {
   wallTimeHm,
   wallTimeToDatetimeLocal,
 } from '@/utils/extraBlockDateTime'
+import { formatPlanTeamNo, planTeamName } from '@/utils/planTeamLabel'
 
 export type TeamRow = {
   row_key: string
@@ -256,11 +257,6 @@ function programIcon(fp: number): { src: string; alt: string } {
   return {src: programLogoSrc(name), alt: programLogoAlt(name)}
 }
 
-function formatPlanTeamNo(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(Number(n))) return '–'
-  return `T${String(Math.floor(Number(n))).padStart(2, '0')}`
-}
-
 function collisionDotClass(row: TeamRow): string {
   if (isRowDirty(row)) return 'dot--draft'
   const status = row.collision_status
@@ -467,7 +463,7 @@ function formatTooltipDate(slotDate: string | null): string {
       </div>
 
       <div v-if="loadingTeams" class="slot-teams__loading">
-        <LoaderFlow class="scale-75"/>
+        <Spinner size="md"/>
         <span class="text-sm">Lade Teams…</span>
       </div>
 
@@ -514,7 +510,7 @@ function formatTooltipDate(slotDate: string | null): string {
                   <p v-if="isHoverLoading(row)" class="text-xs text-[var(--color-text-subtle)]">Lade…</p>
                   <template v-else-if="hoverData(row)">
                     <p class="slot-team__hover-program">{{ groupLabel(row.first_program) }}</p>
-                    <p class="slot-team__hover-name">{{ hoverData(row)!.team_name || '–' }}</p>
+                    <p class="slot-team__hover-name">{{ planTeamName(hoverData(row)!.team_name) }}</p>
                     <p v-if="hoverData(row)!.team_number_hot" class="slot-team__hover-hot tabular-nums">
                       DRAHT {{ hoverData(row)!.team_number_hot }}
                     </p>

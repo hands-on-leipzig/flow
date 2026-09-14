@@ -7,7 +7,6 @@ import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
-import LoaderText from '@/components/atoms/LoaderText.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
@@ -478,7 +477,6 @@ watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: t
     >
       <div class="vol-staffing-loading">
         <LoaderFlow/>
-        <LoaderText/>
       </div>
     </div>
 

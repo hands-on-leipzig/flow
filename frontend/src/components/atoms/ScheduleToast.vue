@@ -9,7 +9,7 @@ const props = withDefaults(defineProps<{
   /** Ablauf regenerates the plan; extra activities only refresh it. */
   action?: 'generate' | 'update',
 }>(), {
-  message: "Änderungen werden gespeichert...",
+  message: "Änderungen werden gespeichert…",
   countdown: null,
   isGenerating: false,
   onImmediateSave: undefined,

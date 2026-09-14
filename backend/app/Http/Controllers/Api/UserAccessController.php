@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\User;
+use App\Services\EventTitleService;
 use App\Support\FlowAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,10 @@ use Illuminate\Support\Facades\Log;
 
 class UserAccessController extends Controller
 {
+    public function __construct(
+        private EventTitleService $eventTitles,
+    ) {}
+
     /**
      * Current user profile (DB + roles from JWT).
      */
@@ -29,13 +34,13 @@ class UserAccessController extends Controller
         if ($user->selection_event) {
             $event = Event::with(['seasonRel', 'levelRel', 'regionalPartner'])->find($user->selection_event);
             if ($event) {
-                $selectedEvent = [
+                $selectedEvent = $this->eventTitles->withTitles([
                     'id' => $event->id,
                     'name' => $event->name,
                     'date' => $event->date,
                     'season' => $event->seasonRel?->name,
                     'regional_partner' => $event->regionalPartner?->name,
-                ];
+                ], $event);
             }
         }
 
@@ -94,7 +99,7 @@ class UserAccessController extends Controller
                 ->orderBy('date')
                 ->get();
 
-            $flatEvents = $events->map(fn (Event $e) => [
+            $flatEvents = $events->map(fn (Event $e) => $this->eventTitles->withTitles([
                 'id' => $e->id,
                 'name' => $e->name,
                 'date' => $e->date,
@@ -104,7 +109,7 @@ class UserAccessController extends Controller
                 'season_year' => $e->seasonRel?->year,
                 'regional_partner_id' => (int) $e->regional_partner,
                 'regional_partner_name' => $e->regionalPartner?->name,
-            ])->values()->all();
+            ], $e))->values()->all();
 
             $eventsBySeason = $events
                 ->groupBy(fn (Event $e) => $e->seasonRel?->id ?? 0)
@@ -120,14 +125,14 @@ class UserAccessController extends Controller
                         'events' => $seasonEvents
                             ->sortBy('date')
                             ->values()
-                            ->map(fn (Event $e) => [
+                            ->map(fn (Event $e) => $this->eventTitles->withTitles([
                                 'id' => $e->id,
                                 'name' => $e->name,
                                 'date' => $e->date,
                                 'level' => $e->levelRel?->name,
                                 'regional_partner_id' => (int) $e->regional_partner,
                                 'regional_partner_name' => $e->regionalPartner?->name,
-                            ]),
+                            ], $e)),
                     ];
                 })
                 ->sortByDesc(fn ($g) => $g['season']['year'] ?? 0)
@@ -174,13 +179,13 @@ class UserAccessController extends Controller
         }
 
         return response()->json([
-            'event' => [
+            'event' => $this->eventTitles->withTitles([
                 'id' => $event->id,
                 'name' => $event->name,
                 'date' => $event->date,
                 'regional_partner_id' => (int) $event->regional_partner,
                 'regional_partner_name' => $event->regionalPartner?->name,
-            ],
+            ], $event),
             'users' => $this->usersForPartner((int) $event->regional_partner),
         ]);
     }

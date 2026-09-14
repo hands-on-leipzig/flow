@@ -5,7 +5,7 @@
     </h3>
     
     <div v-if="loading" class="text-[var(--color-text-subtle)] py-4">
-      Lade Parameter...
+      Lade Parameter…
     </div>
     
     <div v-else-if="inputParameters.length === 0 && expertParameters.length === 0 && tableNames.length === 0" class="text-[var(--color-text-subtle)] py-4">
@@ -73,7 +73,7 @@
       
       <!-- Table / field names (per program) -->
       <div v-if="tableNames.length > 0">
-        <h4 class="text-md font-semibold mb-2">Tisch-/Spielfeldnamen (überschrieben)</h4>
+        <h4 class="text-md font-semibold mb-2">Tisch-/Feldnamen (überschrieben)</h4>
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm border-collapse">
             <thead class="bg-[var(--color-bg-muted)] text-left">

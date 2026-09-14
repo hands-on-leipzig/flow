@@ -8,6 +8,7 @@ use App\Services\CheckInService;
 use App\Services\CockpitService;
 use App\Services\CockpitStagePresentationService;
 use App\Services\CockpitTimeShiftService;
+use App\Services\EventTitleService;
 use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class CockpitController extends Controller
         private ContaoController $contao,
         private CockpitTimeShiftService $timeShift,
         private CockpitStagePresentationService $stagePresentations,
+        private EventTitleService $eventTitles,
     ) {}
 
     public function getSettings(Event $event): JsonResponse
@@ -54,13 +56,13 @@ class CockpitController extends Controller
         $event = $this->eventBySlug($slug);
 
         return response()
-            ->json([
+            ->json($this->eventTitles->withTitles([
                 'event_id' => $event->id,
-                'event_name' => $event->name,
+                'event_name' => $this->eventTitles->getEventTitleLong($event),
                 'slug' => $event->slug,
                 'enabled' => (bool) $event->cockpit_enabled,
                 'public_link' => $event->link,
-            ])
+            ], $event))
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate')
             ->header('Pragma', 'no-cache');
     }
@@ -87,11 +89,11 @@ class CockpitController extends Controller
 
         RateLimiter::clear($rateKey);
 
-        return response()->json([
+        return response()->json($this->eventTitles->withTitles([
             'token' => $this->cockpit->makeSessionToken($event),
             'event_id' => $event->id,
-            'event_name' => $event->name,
-        ]);
+            'event_name' => $this->eventTitles->getEventTitleLong($event),
+        ], $event));
     }
 
     public function getRounds(Request $request, string $slug): JsonResponse

@@ -32,6 +32,7 @@ import {defaultRosterDetail, type RosterEntry} from '@/volunteers/rosterTypes'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicVolunteerDataEntry} from '@/composables/usePublicVolunteerDataEntry'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 
 type Person = VolunteerPersonRef
@@ -401,7 +402,10 @@ onMounted(() => load())
         </template>
       </VolunteerStaffingFilterBar>
 
-      <p v-if="loading" class="vol-muted">Laden…</p>
+      <p v-if="loading" class="vol-muted inline-flex items-center gap-2">
+        <Spinner size="sm"/>
+        <span>Laden…</span>
+      </p>
       <p v-else-if="!roster.length" class="vol-muted">Noch niemand auf der Helfer:innenliste.</p>
       <p v-else-if="!filteredRoster.length" class="vol-muted">Keine Helfer:innen für die gewählten Filter.</p>
 

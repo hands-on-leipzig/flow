@@ -353,7 +353,7 @@ onMounted(() => {
 
     <!-- Loading state -->
     <div v-if="loading && applications.length === 0" class="text-center py-8">
-      Loading...
+      Loading…
     </div>
 
     <!-- Applications list -->

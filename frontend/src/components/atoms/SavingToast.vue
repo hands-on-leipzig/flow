@@ -4,7 +4,7 @@ import {onUnmounted, ref} from "vue";
 const props = withDefaults(defineProps<{
   message: string,
 }>(), {
-  message: "Änderungen werden gespeichert...",
+  message: "Änderungen werden gespeichert…",
 });
 
 const visible = ref(false);

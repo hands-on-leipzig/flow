@@ -92,14 +92,12 @@ class PdfLayoutService
 
         $rightLogo = $this->toDataUri(public_path('flow/hot.png'));
 
-        // Use EventTitleService for consistent title formatting
-        $competitionType = $this->eventTitleService->getCompetitionTypeText($event);
-        $cleanedEventName = $this->eventTitleService->cleanEventName($event);
+        $titles = $this->eventTitleService->titles($event);
 
         return [
             'leftLogos'       => $leftLogos,
-            'centerTitleTop'  => 'FIRST LEGO League ' . $competitionType,
-            'centerTitleMain' => trim($cleanedEventName . ' ' . $formattedDate),
+            'centerTitleTop'  => 'FIRST LEGO League ' . $titles['title_type'],
+            'centerTitleMain' => trim($titles['title_place'] . ' ' . $formattedDate),
             'rightLogo'       => $rightLogo,
         ];
     }

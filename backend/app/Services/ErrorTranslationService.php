@@ -40,7 +40,7 @@ class ErrorTranslationService
 
         // Generic fallback
         return [
-            'message' => 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut oder kontaktieren Sie den Support.',
+            'message' => 'Ein Fehler ist aufgetreten. Bitte versuche es erneut oder kontaktiere den Support.',
             'details' => null,
         ];
     }
@@ -60,7 +60,7 @@ class ErrorTranslationService
             if (str_contains($errorMessage, '1451') || str_contains($errorMessage, 'Cannot delete or update a parent row')) {
                 return [
                     'message' => 'Dieses Element kann nicht gelöscht werden, da es von anderen Elementen verwendet wird.',
-                    'details' => 'Bitte entfernen Sie zuerst alle Abhängigkeiten, bevor Sie dieses Element löschen.',
+                    'details' => 'Bitte entferne zuerst alle Abhängigkeiten, bevor du dieses Element löschst.',
                 ];
             }
             
@@ -68,7 +68,7 @@ class ErrorTranslationService
             if (str_contains($errorMessage, '1452') || str_contains($errorMessage, 'Cannot add or update a child row')) {
                 return [
                     'message' => 'Die Aktion kann nicht ausgeführt werden, da die erforderlichen Daten fehlen.',
-                    'details' => 'Bitte überprüfen Sie, ob alle erforderlichen Informationen vorhanden sind.',
+                    'details' => 'Bitte überprüfe, ob alle erforderlichen Informationen vorhanden sind.',
                 ];
             }
 
@@ -79,12 +79,12 @@ class ErrorTranslationService
                     $field = $matches[1] ?? 'Feld';
                     return [
                         'message' => "Ein Eintrag mit diesem Wert existiert bereits.",
-                        'details' => "Bitte verwenden Sie einen anderen Wert für {$field}.",
+                        'details' => "Bitte verwende einen anderen Wert für {$field}.",
                     ];
                 }
                 return [
                     'message' => 'Ein Eintrag mit diesem Wert existiert bereits.',
-                    'details' => 'Bitte verwenden Sie einen anderen Wert.',
+                    'details' => 'Bitte verwende einen anderen Wert.',
                 ];
             }
         }
@@ -93,7 +93,7 @@ class ErrorTranslationService
         if ($sqlState === '42S22' || str_contains($errorMessage, 'Column not found')) {
             return [
                 'message' => 'Die angeforderte Spalte wurde nicht gefunden.',
-                'details' => 'Dieser Fehler tritt normalerweise bei Datenbank-Updates auf. Bitte kontaktieren Sie den Support.',
+                'details' => 'Dieser Fehler tritt normalerweise bei Datenbank-Updates auf. Bitte kontaktiere den Support.',
             ];
         }
 
@@ -101,14 +101,14 @@ class ErrorTranslationService
         if ($sqlState === '42S02' || str_contains($errorMessage, 'Table') && str_contains($errorMessage, "doesn't exist")) {
             return [
                 'message' => 'Die angeforderte Tabelle wurde nicht gefunden.',
-                'details' => 'Dieser Fehler tritt normalerweise bei Datenbank-Updates auf. Bitte kontaktieren Sie den Support.',
+                'details' => 'Dieser Fehler tritt normalerweise bei Datenbank-Updates auf. Bitte kontaktiere den Support.',
             ];
         }
 
         // Generic SQL error
         return [
             'message' => 'Ein Datenbankfehler ist aufgetreten.',
-            'details' => 'Bitte versuchen Sie es erneut oder kontaktieren Sie den Support, wenn das Problem weiterhin besteht.',
+            'details' => 'Bitte versuche es erneut oder kontaktiere den Support, wenn das Problem weiterhin besteht.',
         ];
     }
 
@@ -122,13 +122,13 @@ class ErrorTranslationService
             if (str_contains($errorMessage, 'Cannot delete')) {
                 return [
                     'message' => 'Dieses Element kann nicht gelöscht werden, da es von anderen Elementen verwendet wird.',
-                    'details' => 'Bitte entfernen Sie zuerst alle Abhängigkeiten.',
+                    'details' => 'Bitte entferne zuerst alle Abhängigkeiten.',
                 ];
             }
             if (str_contains($errorMessage, 'Cannot add or update')) {
                 return [
                     'message' => 'Die Aktion kann nicht ausgeführt werden, da die erforderlichen Daten fehlen.',
-                    'details' => 'Bitte überprüfen Sie alle erforderlichen Informationen.',
+                    'details' => 'Bitte überprüfe alle erforderlichen Informationen.',
                 ];
             }
         }
@@ -137,7 +137,7 @@ class ErrorTranslationService
         if (str_contains($errorMessage, 'Duplicate entry')) {
             return [
                 'message' => 'Ein Eintrag mit diesem Wert existiert bereits.',
-                'details' => 'Bitte verwenden Sie einen anderen Wert.',
+                'details' => 'Bitte verwende einen anderen Wert.',
             ];
         }
 
@@ -145,7 +145,7 @@ class ErrorTranslationService
         if (str_contains($errorMessage, 'Column') && (str_contains($errorMessage, 'not found') || str_contains($errorMessage, "doesn't exist"))) {
             return [
                 'message' => 'Die angeforderte Spalte wurde nicht gefunden.',
-                'details' => 'Dieser Fehler tritt normalerweise bei Datenbank-Updates auf. Bitte kontaktieren Sie den Support.',
+                'details' => 'Dieser Fehler tritt normalerweise bei Datenbank-Updates auf. Bitte kontaktiere den Support.',
             ];
         }
 
@@ -153,14 +153,14 @@ class ErrorTranslationService
         if (str_contains($errorMessage, 'Table') && (str_contains($errorMessage, "doesn't exist") || str_contains($errorMessage, 'not found'))) {
             return [
                 'message' => 'Die angeforderte Tabelle wurde nicht gefunden.',
-                'details' => 'Dieser Fehler tritt normalerweise bei Datenbank-Updates auf. Bitte kontaktieren Sie den Support.',
+                'details' => 'Dieser Fehler tritt normalerweise bei Datenbank-Updates auf. Bitte kontaktiere den Support.',
             ];
         }
 
         // Generic fallback
         return [
             'message' => 'Ein Datenbankfehler ist aufgetreten.',
-            'details' => 'Bitte versuchen Sie es erneut oder kontaktieren Sie den Support.',
+            'details' => 'Bitte versuche es erneut oder kontaktiere den Support.',
         ];
     }
 }

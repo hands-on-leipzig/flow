@@ -1,14 +1,13 @@
 <script setup>
-import { onMounted } from 'vue'
+import {onUnmounted} from 'vue'
 
-// Text-Array statt Hardcoded <span>
 const texts = [
   'Münzen werden in die Zeit-Slots geworfen',
   'Wer hat die Bauanleitung für den Zeitplan gesehen?',
   'Jury-Spuren werden gefegt',
   'Das ist kein Chaos, das ist kreative Planung!',
   'Mittagessen wird gekocht',
-  'Bitte Geduld... die Legosteine sortieren sich noch von selbst!',
+  'Bitte Geduld… die Legosteine sortieren sich noch von selbst!',
   'Testdruck wird durchgeführt',
   'QR Code wird an die Wand gesprüht',
   'Fluxkompensator wird kalibriert',
@@ -18,63 +17,77 @@ const texts = [
 
 const numberSentences = texts.length
 
-// Fisher-Yates Shuffle
 for (let i = texts.length - 1; i > 0; i--) {
   const j = Math.floor(Math.random() * (i + 1))
   ;[texts[i], texts[j]] = [texts[j], texts[i]]
 }
 
+const animationName = `loader-text-fly-${Math.random().toString(36).slice(2, 10)}`
 
 let p = 1
 const step = Math.floor(100 / numberSentences)
 const holdIndex = Math.floor(numberSentences / 2)
-let movetext = ''
+let keyframes = ''
 
 for (let i = 0; i <= numberSentences + 1; i++) {
   const progress = i * step
   const left = (p-- * 100) - 5
 
-  movetext += `${progress}% { left: ${left}vw; }\n`
+  keyframes += `${progress}% { left: ${left}vw; }\n`
 
   if (i === holdIndex) {
-    movetext += `${progress + step / 16}% { left: ${left}vw; }\n`
+    keyframes += `${progress + step / 16}% { left: ${left}vw; }\n`
   }
 }
 
-onMounted(() => {
-  const style = document.createElement('style')
-  style.innerHTML = `
-    @keyframes movetext {
-      ${movetext}
-    }
-  `
-  document.head.appendChild(style)
+let styleEl = null
+if (typeof document !== 'undefined') {
+  styleEl = document.createElement('style')
+  styleEl.textContent = `@keyframes ${animationName} { ${keyframes} }`
+  document.head.appendChild(styleEl)
+}
+
+onUnmounted(() => {
+  styleEl?.remove()
 })
 </script>
 
 <template>
-  <div id="text-loader">
-    <span
-      v-for="(text, index) in texts"
-      :key="index"
-    >
-      {{ text }}
-    </span>
+  <div class="text-loader">
+    <div class="text-loader__track">
+      <span
+        v-for="(text, index) in texts"
+        :key="index"
+        :style="{ animationName }"
+      >
+        {{ text }}
+      </span>
+    </div>
   </div>
 </template>
 
 <style scoped>
-#text-loader {
-  display: grid;
-  grid-template-columns: repeat(v-bind('numberSentences'), 100vw);
+.text-loader {
   overflow: clip;
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
 }
 
-#text-loader > span {
+.text-loader__track {
+  display: grid;
+  grid-template-columns: repeat(v-bind('numberSentences'), 100vw);
+  /* 100vw cells are viewport-wide; shift so the pause sits in the overlay, not off to the right. */
+  margin-left: calc(50% - 50vw);
+}
+
+.text-loader__track > span {
   position: relative;
-  animation: movetext 20s infinite;
+  animation-duration: 20s;
+  animation-iteration-count: infinite;
   text-align: center;
   font-size: 1.5rem;
   font-weight: 500;
+  white-space: nowrap;
 }
 </style>

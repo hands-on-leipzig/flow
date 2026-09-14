@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CheckIn;
 use App\Models\Event;
 use App\Services\CheckInService;
+use App\Services\EventTitleService;
 use App\Services\SeasonService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ class CheckInController extends Controller
 {
     public function __construct(
         private CheckInService $checkIn,
+        private EventTitleService $eventTitles,
     ) {}
 
     public function getSettings(Event $event): JsonResponse
@@ -50,13 +52,13 @@ class CheckInController extends Controller
         $event = $this->eventBySlug($slug);
 
         return response()
-            ->json([
+            ->json($this->eventTitles->withTitles([
                 'event_id' => $event->id,
-                'event_name' => $event->name,
+                'event_name' => $this->eventTitles->getEventTitleLong($event),
                 'slug' => $event->slug,
                 'enabled' => (bool) $event->check_in_enabled,
                 'public_link' => $event->link,
-            ])
+            ], $event))
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate')
             ->header('Pragma', 'no-cache');
     }
@@ -83,11 +85,11 @@ class CheckInController extends Controller
 
         RateLimiter::clear($rateKey);
 
-        return response()->json([
+        return response()->json($this->eventTitles->withTitles([
             'token' => $this->checkIn->makeSessionToken($event),
             'event_id' => $event->id,
-            'event_name' => $event->name,
-        ]);
+            'event_name' => $this->eventTitles->getEventTitleLong($event),
+        ], $event));
     }
 
     public function search(Request $request, string $slug): JsonResponse

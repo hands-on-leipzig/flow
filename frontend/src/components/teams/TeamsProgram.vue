@@ -14,7 +14,6 @@ import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
-import LoaderText from '@/components/atoms/LoaderText.vue'
 import {findProgram, firstTeamsPath} from '@/utils/eventPrograms'
 import {flowFilename} from '@/utils/flowFilename'
 import {showGlassToast} from '@/composables/useGlassToast'
@@ -158,7 +157,6 @@ watch(
     >
       <div class="teams-program__loading">
         <LoaderFlow/>
-        <LoaderText/>
       </div>
     </div>
 

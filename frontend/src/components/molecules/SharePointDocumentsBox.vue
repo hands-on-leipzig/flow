@@ -4,6 +4,7 @@ import axios from 'axios'
 import dayjs from 'dayjs'
 import DocumentViewerModal from '@/components/atoms/DocumentViewerModal.vue'
 import DocumentOpeningOverlay from '@/components/atoms/DocumentOpeningOverlay.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import {useSharePointFileOpen} from '@/composables/useSharePointFileOpen'
 
 interface SharePointItem {
@@ -218,7 +219,10 @@ onMounted(async () => {
 
       <p v-if="error" class="text-sm text-red-600 mb-2">{{ error }}</p>
 
-      <div v-if="loading" class="text-sm text-[var(--color-text-muted)] py-4">Lade Dokumente…</div>
+      <div v-if="loading" class="text-sm text-[var(--color-text-subtle)] py-4 inline-flex items-center gap-2">
+        <Spinner size="sm"/>
+        <span>Lade Dokumente…</span>
+      </div>
 
       <div
           v-else-if="items.length === 0 && !error"

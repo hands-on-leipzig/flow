@@ -30,7 +30,7 @@ const SHOW_INDICATOR_DELAY = 1000; // Show "unsaved changes" after 1 second
 
 const saveButtonText = computed(() => {
   if (isSaving.value) {
-    return 'Speichere...';
+    return 'Speichere…';
   }
   if (hasUnsavedChanges.value) {
     return 'Speichern';
@@ -221,7 +221,7 @@ function updateDuration(value: number) {
 </script>
 
 <template>
-  <SavingToast ref="savingToast" message="Änderungen werden gespeichert..."/>
+  <SavingToast ref="savingToast" message="Änderungen werden gespeichert…"/>
 
   <!-- Header -->
   <div class="flex items-center justify-between border-b pb-4 mb-6 mt-4">

@@ -51,6 +51,7 @@ foreach ($programs as $program) {
                                 <th
                                     class="roles-grid-role-header"
                                     data-program-id="{{ $col['program_id'] }}"
+                                    @if(! empty($col['team_tooltip'])) data-team-tooltip="{{ $col['team_tooltip'] }}" @endif
                                 >{{ $col['title'] }}</th>
                             @endforeach
                         </tr>
@@ -215,5 +216,8 @@ foreach ($programs as $program) {
 }
 .roles-grid-row {
     height: 14px;
+}
+[data-team-tooltip] {
+    cursor: help;
 }
 </style>

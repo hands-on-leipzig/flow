@@ -5,6 +5,7 @@ import axios from 'axios'
 import {useAnchoredPanel} from '@/composables/useAnchoredPanel'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {showGlassToast} from '@/composables/useGlassToast'
+import Spinner from '@/components/atoms/Spinner.vue'
 import {useProgramsStore} from '@/stores/programs'
 
 defineOptions({name: 'Visibility'})
@@ -438,7 +439,7 @@ onMounted(loadMatrix)
     </div>
 
     <div v-if="loading" class="text-center py-8">
-      <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-accent)]"/>
+      <Spinner size="md"/>
       <p class="mt-2 text-sm text-[var(--color-text-muted)]">Lade Sichtbarkeitsmatrix…</p>
     </div>
 

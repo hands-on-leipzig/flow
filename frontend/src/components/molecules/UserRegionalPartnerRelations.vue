@@ -1,6 +1,7 @@
 <script setup>
 import {ref, onMounted} from 'vue'
 import axios from 'axios'
+import Spinner from '@/components/atoms/Spinner.vue'
 
 const relations = ref([])
 const statistics = ref({})
@@ -181,7 +182,7 @@ onMounted(() => {
 
     <!-- Loading State -->
     <div v-if="loading" class="flex justify-center items-center py-8">
-      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <Spinner size="md"/>
     </div>
 
     <!-- Add Relation Form -->
@@ -220,7 +221,7 @@ onMounted(() => {
                     @focus="searchUsers"
                     @blur="setTimeout(() => showUserDropdown = false, 200)"
                     type="text"
-                    placeholder="Type to search by name, email, ID or subject..."
+                    placeholder="Type to search by name, email, ID or subject…"
                     class="block w-full px-3 py-2 border border-[var(--color-border)] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                 />
 
@@ -282,7 +283,7 @@ onMounted(() => {
                   v-model="selectedRegionalPartnerId"
                   class="block w-full px-3 py-2 border border-[var(--color-border)] rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Choose a regional partner...</option>
+                <option value="">Choose a regional partner…</option>
                 <option
                     v-for="partner in selectionData.regional_partners"
                     :key="partner.id"
@@ -307,8 +308,8 @@ onMounted(() => {
                 :disabled="addingRelation || !selectedUserId || !selectedRegionalPartnerId"
                 class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span v-if="addingRelation" class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
-              {{ addingRelation ? 'Adding...' : 'Add Relation' }}
+              <Spinner v-if="addingRelation" inherit size="sm" class="mr-2"/>
+              {{ addingRelation ? 'Adding…' : 'Add Relation' }}
             </button>
           </div>
         </div>

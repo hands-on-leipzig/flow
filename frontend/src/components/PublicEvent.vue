@@ -6,10 +6,11 @@ import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {imageUrl} from '@/utils/images'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
-import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
+import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleShort} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import VolunteerPublicFormFlow from '@/components/volunteers/VolunteerPublicFormFlow.vue'
 import TeamPublicFormFlow from '@/components/teams/TeamPublicFormFlow.vue'
 
@@ -28,7 +29,7 @@ const teamFormStep = ref(null)
 const teamFormEmail = ref('')
 
 const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
-const headingPlace = computed(() => cleanEventName(event.value) || event.value?.name || '—')
+const headingPlace = computed(() => cleanEventName(event.value) || '—')
 const headingDate = computed(() => {
   if (!event.value?.date) return ''
   const start = dayjs(event.value.date)
@@ -338,7 +339,7 @@ onMounted(async () => {
     <!-- Loading -->
     <div v-if="loading" class="pe-state">
       <div class="pe-state__card glass-card liquid-surface-inner">
-        <div class="pe-spinner" aria-hidden="true"/>
+        <Spinner size="lg"/>
         <p class="pe-state__text">Veranstaltung wird geladen…</p>
       </div>
     </div>
@@ -353,9 +354,9 @@ onMounted(async () => {
           {{ error === 'Plan nicht gefunden' ? 'Zeitplan nicht gefunden' : 'Event nicht gefunden' }}
         </h1>
         <p class="pe-muted">
-          Für die Adresse, die du aufgerufen hast, konnten wir leider
-          {{ error === 'Plan nicht gefunden' ? 'keinen Zeitplan' : 'kein Event' }} finden.
-          Bitte prüfe die Adresse noch einmal.
+          Für diese Adresse konnte
+          {{ error === 'Plan nicht gefunden' ? 'kein Zeitplan' : 'kein Event' }} gefunden werden.
+          Die Adresse noch einmal prüfen.
         </p>
         <div class="pe-slug glass-chip liquid-surface-inner">
           <span class="pe-slug__label">Aufgerufene Adresse</span>
@@ -419,9 +420,7 @@ onMounted(async () => {
         <template v-if="showPlaceholderBox">
           <h2 class="glass-card__title">Zeitplan</h2>
           <p class="pe-muted">
-            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
-            wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
-            zu erhalten.
+            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald einer veröffentlicht wird, erscheint er hier. Für weitere Informationen das Team direkt kontaktieren.
           </p>
         </template>
 
@@ -476,9 +475,7 @@ onMounted(async () => {
           </div>
 
           <p v-else class="pe-muted">
-            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
-            wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
-            zu erhalten.
+            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald einer veröffentlicht wird, erscheint er hier. Für weitere Informationen das Team direkt kontaktieren.
           </p>
         </template>
 
@@ -536,7 +533,7 @@ onMounted(async () => {
               <EventMap
                   :address="scheduleInfo.address"
                   :event-id="event.id"
-                  :event-name="event.name"
+                  :event-name="getEventTitleShort(event)"
                   :show-q-r-code="true"
               />
             </div>
@@ -791,20 +788,6 @@ onMounted(async () => {
   margin-top: 1rem;
   font-weight: 600;
   color: var(--color-text);
-}
-
-.pe-spinner {
-  width: 2.75rem;
-  height: 2.75rem;
-  margin: 0 auto;
-  border-radius: 999px;
-  border: 3px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
-  border-top-color: var(--color-accent);
-  animation: pe-spin 0.8s linear infinite;
-}
-
-@keyframes pe-spin {
-  to { transform: rotate(360deg); }
 }
 
 .pe-error-badge {

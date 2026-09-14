@@ -12,6 +12,7 @@ import TeamDataTable from '@/components/teams/TeamDataTable.vue'
 import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
@@ -411,7 +412,10 @@ onActivated(() => {
         </template>
       </VolunteerStaffingFilterBar>
 
-      <p v-if="loading" class="vol-muted">Laden…</p>
+      <p v-if="loading" class="vol-muted inline-flex items-center gap-2">
+        <Spinner size="sm"/>
+        <span>Laden…</span>
+      </p>
       <p v-else-if="!teams.length" class="vol-muted">Keine Teams vorhanden.</p>
       <p v-else-if="!filteredTeams.length" class="vol-muted">Keine Teams für die gewählten Filter.</p>
       <TeamDataTable

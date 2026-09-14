@@ -7,82 +7,158 @@ use App\Support\ProgramCatalog;
 class EventTitleService
 {
     /**
-     * Get long format event title
-     * Returns: "FIRST LEGO League Ausstellung und Regionalwettbewerb Aachen"
-     * 
-     * @param object $event Event with programs, level, and name
-     * @return string
+     * First matching rule wins. When-keys that are omitted are unconstrained.
+     *
+     * @var list<array{
+     *     when: array{level?: int, explore?: bool, challenge?: bool, future?: bool},
+     *     type: string,
+     *     type_short: string
+     * }>
      */
+    private const RULES = [
+        [
+            'when' => ['level' => 3],
+            'type' => 'Finale',
+            'type_short' => 'Finale',
+        ],
+        [
+            'when' => ['level' => 2],
+            'type' => 'Qualifikationswettbewerb',
+            'type_short' => 'Quali',
+        ],
+        [
+            'when' => ['future' => true, 'explore' => false, 'challenge' => false],
+            'type' => 'Future Wettbewerb',
+            'type_short' => 'Future Wettbewerb',
+        ],
+        [
+            'when' => ['future' => true],
+            'type' => 'Mixed Wettbewerb',
+            'type_short' => 'Mixed Wettbewerb',
+        ],
+        [
+            'when' => ['level' => 1, 'explore' => true, 'challenge' => true],
+            'type' => 'Ausstellung und Regionalwettbewerb',
+            'type_short' => 'Ausstellung und Regio',
+        ],
+        [
+            'when' => ['level' => 1, 'explore' => true, 'challenge' => false],
+            'type' => 'Ausstellung',
+            'type_short' => 'Ausstellung',
+        ],
+        [
+            'when' => ['level' => 1, 'challenge' => true, 'explore' => false],
+            'type' => 'Regionalwettbewerb',
+            'type_short' => 'Regio',
+        ],
+        [
+            'when' => [],
+            'type' => 'Wettbewerb',
+            'type_short' => 'Wettbewerb',
+        ],
+    ];
+
+    /**
+     * @return array{
+     *     title_long: string,
+     *     title_short: string,
+     *     title_type: string,
+     *     title_type_short: string,
+     *     title_place: string
+     * }
+     */
+    public function titles(object $event): array
+    {
+        $matched = $this->matchRule($event);
+        $place = $this->cleanEventName($event);
+        $type = $matched['type'];
+        $typeShort = $matched['type_short'];
+
+        return [
+            'title_long' => trim('FIRST LEGO League '.$type.' '.$place),
+            'title_short' => trim($typeShort.' '.$place),
+            'title_type' => $type,
+            'title_type_short' => $typeShort,
+            'title_place' => $place,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    public function withTitles(array $payload, object $event): array
+    {
+        return array_merge($payload, $this->titles($event));
+    }
+
     public function getEventTitleLong(object $event): string
     {
-        $competitionType = $this->getCompetitionTypeText($event);
-        $eventName = $this->cleanEventName($event);
-        
-        return trim('FIRST LEGO League ' . $competitionType . ' ' . $eventName);
+        return $this->titles($event)['title_long'];
     }
 
-    /**
-     * Get short format event title
-     * Returns: "Ausstellung und Regio Aachen"
-     * 
-     * @param object $event Event with programs, level, and name
-     * @return string
-     */
     public function getEventTitleShort(object $event): string
     {
-        $competitionType = $this->getCompetitionTypeText($event);
-        $abbreviatedType = $this->abbreviateCompetitionType($competitionType);
-        $eventName = $this->cleanEventName($event);
-        
-        return trim($abbreviatedType . ' ' . $eventName);
+        return $this->titles($event)['title_short'];
     }
 
-    /**
-     * Get competition type text only (for "Art:" display)
-     * Returns: "Ausstellung und Regionalwettbewerb", "Ausstellung", "Regionalwettbewerb", etc.
-     * 
-     * @param object $event Event with programs and level
-     * @return string
-     */
     public function getCompetitionTypeText(object $event): string
     {
-        $flags = $this->programFlags($event);
-        $hasExplore = $flags['explore'];
-        $hasChallenge = $flags['challenge'];
-        $hasFuture = $flags['future'];
-        $level = (int)($event->level ?? 0);
+        return $this->titles($event)['title_type'];
+    }
 
-        // First check level - level 2 and 3 take precedence regardless of E/C
+    public function cleanEventName(object $event): string
+    {
+        $eventName = (string) ($event->name ?? '');
+        $level = (int) ($event->level ?? 0);
+
         if ($level === 2) {
-            return 'Qualifikationswettbewerb';
+            $eventName = preg_replace('/^Qualifikation\s+/i', '', $eventName) ?? $eventName;
         }
 
         if ($level === 3) {
-            return 'Finale';
+            $eventName = preg_replace('/^Finale\s+/i', '', $eventName) ?? $eventName;
         }
 
-        if ($hasFuture && !$hasExplore && !$hasChallenge) {
-            return 'Future Wettbewerb';
-        }
-        if ($hasFuture && ($hasExplore || $hasChallenge)) {
-            return 'Mixed Wettbewerb';
+        return trim($eventName);
+    }
+
+    /**
+     * @return array{type: string, type_short: string}
+     */
+    private function matchRule(object $event): array
+    {
+        $flags = $this->programFlags($event);
+        $level = (int) ($event->level ?? 0);
+
+        foreach (self::RULES as $rule) {
+            if ($this->whenMatches($rule['when'], $level, $flags)) {
+                return [
+                    'type' => $rule['type'],
+                    'type_short' => $rule['type_short'],
+                ];
+            }
         }
 
-        // For level 1, check E/C combinations
-        if ($level === 1) {
-            if ($hasExplore && $hasChallenge) {
-                return 'Ausstellung und Regionalwettbewerb';
-            }
-            if ($hasExplore && !$hasChallenge) {
-                return 'Ausstellung';
-            }
-            if ($hasChallenge && !$hasExplore) {
-                return 'Regionalwettbewerb';
+        return ['type' => 'Wettbewerb', 'type_short' => 'Wettbewerb'];
+    }
+
+    /**
+     * @param  array{level?: int, explore?: bool, challenge?: bool, future?: bool}  $when
+     * @param  array{explore: bool, challenge: bool, future: bool}  $flags
+     */
+    private function whenMatches(array $when, int $level, array $flags): bool
+    {
+        if (array_key_exists('level', $when) && $when['level'] !== $level) {
+            return false;
+        }
+        foreach (['explore', 'challenge', 'future'] as $family) {
+            if (array_key_exists($family, $when) && $when[$family] !== $flags[$family]) {
+                return false;
             }
         }
 
-        // Fallback
-        return 'Wettbewerb';
+        return true;
     }
 
     /**
@@ -112,46 +188,5 @@ class EventTitleService
             'challenge' => $names->contains(ProgramCatalog::CHALLENGE),
             'future' => $names->contains(fn ($name) => ProgramCatalog::isFuture($name)),
         ];
-    }
-
-    /**
-     * Abbreviate competition type for short format
-     * 
-     * @param string $competitionType Full competition type text
-     * @return string Abbreviated version
-     */
-    private function abbreviateCompetitionType(string $competitionType): string
-    {
-        // Replace "Regionalwettbewerb" with "Regio"
-        $abbreviated = str_replace('Regionalwettbewerb', 'Regio', $competitionType);
-        
-        // Replace "Qualifikationswettbewerb" with "Quali"
-        $abbreviated = str_replace('Qualifikationswettbewerb', 'Quali', $abbreviated);
-        
-        return $abbreviated;
-    }
-
-    /**
-     * Clean event name by removing redundant prefixes based on level
-     * 
-     * @param object $event Event object with level and name properties
-     * @return string Cleaned event name
-     */
-    public function cleanEventName(object $event): string
-    {
-        $eventName = $event->name ?? '';
-        $level = (int)($event->level ?? 0);
-
-        // Remove "Qualifikation " prefix if level is 2
-        if ($level === 2) {
-            $eventName = preg_replace('/^Qualifikation\s+/i', '', $eventName);
-        }
-
-        // Remove "Finale " prefix if level is 3
-        if ($level === 3) {
-            $eventName = preg_replace('/^Finale\s+/i', '', $eventName);
-        }
-
-        return trim($eventName);
     }
 }

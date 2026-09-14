@@ -391,7 +391,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <p v-if="loading" class="text-[var(--color-text-subtle)]">Lade …</p>
+    <p v-if="loading" class="text-[var(--color-text-subtle)]">Laden…</p>
 
     <div v-else-if="tab === 'zuordnung'" class="help-admin__split">
       <section class="help-admin__pane help-admin__pane--left" :style="{ flex: `0 0 ${assignLeftWidth}%` }">

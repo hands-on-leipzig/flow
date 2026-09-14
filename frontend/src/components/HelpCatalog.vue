@@ -143,7 +143,7 @@ function escapeHtml(value: string): string {
         v-model="query"
         type="search"
         class="w-full px-3 py-2 mb-4 border border-[var(--color-border)] rounded-lg bg-white text-[var(--color-text)]"
-        placeholder="Suche über alle Bereiche von FLOW …"
+        placeholder="Suche über alle Bereiche von FLOW…"
     />
 
     <p class="mb-6">

@@ -27,7 +27,7 @@ final class PhotoConsentStatus
             return self::payload(
                 self::DENIED,
                 'Fotoerlaubnis verweigert',
-                'Schade, dass du die Fotoerlaubnis nicht erteilt hast. Wenn du deine Meinung noch ändern möchtest, melde dich einfach.',
+                'Schade, dass keine Fotoerlaubnis vorliegt. Eine Änderung kann später mitgeteilt werden.',
             );
         }
 
@@ -71,7 +71,7 @@ final class PhotoConsentStatus
             return array_merge(self::payload(
                 self::DENIED,
                 'Mindestens eine Fotoerlaubnis verweigert',
-                'Schade, dass nicht alle die Fotoerlaubnis gegeben haben. Wenn sich das noch ändert, melde dich einfach.',
+                'Schade, dass nicht alle Fotoerlaubnisse vorliegen. Eine Änderung kann später mitgeteilt werden.',
             ), [
                 'answered' => $answered,
                 'people_count' => $peopleCount,

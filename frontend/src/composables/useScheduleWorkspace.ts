@@ -27,6 +27,7 @@ import {
   supportsTableFieldLabels,
   tableCountParamName,
   tableFieldNoun,
+  tableFieldPlural,
 } from '@/utils/tableFieldLabels'
 
 const SPECIAL_KEYS = new Set([
@@ -469,7 +470,7 @@ async function fetchTableNamesForProgram(firstProgram: number) {
     tableCountByProgram.value = {...tableCountByProgram.value, [firstProgram]: count}
     tableNameErrorsByProgram.value = {...tableNameErrorsByProgram.value, [firstProgram]: null}
   } catch (e) {
-    if (import.meta.env.DEV) console.error('Fehler beim Laden der Tisch-/Spielfeld-Bezeichnungen:', e)
+    if (import.meta.env.DEV) console.error('Fehler beim Laden der Tisch-/Feld-Bezeichnungen:', e)
     tableNamesByProgram.value = {...tableNamesByProgram.value, [firstProgram]: []}
     tableCountByProgram.value = {...tableCountByProgram.value, [firstProgram]: 0}
   }
@@ -493,7 +494,7 @@ function tableNamesFor(firstProgram: number): string[] {
 
 function tableFieldSectionTitle(firstProgram: number): string {
   return firstProgram === FIRST_PROGRAM_FUTURE_8
-    ? 'Bezeichnung der Spielfelder'
+    ? `Bezeichnung der ${tableFieldPlural(firstProgram)}`
     : 'Bezeichnung der Robot-Game-Tische'
 }
 

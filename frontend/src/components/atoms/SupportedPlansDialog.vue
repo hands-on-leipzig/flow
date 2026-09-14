@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
+import {FIRST_PROGRAM_CHALLENGE, FIRST_PROGRAM_FUTURE_8, tableFieldPlural} from '@/utils/tableFieldLabels'
 
 export type SupportedPlanRow = {
   teams?: number | null
@@ -30,6 +31,11 @@ const juryGroupLabel = computed(() =>
     isExplore.value ? 'Gutachter:innengruppen' : 'Jurygruppen'
 )
 const fieldColumns = computed(() => (showFields.value ? [...FIELD_COLUMNS] : []))
+const fieldsGroupLabel = computed(() =>
+  props.program === 'future8'
+    ? tableFieldPlural(FIRST_PROGRAM_FUTURE_8)
+    : tableFieldPlural(FIRST_PROGRAM_CHALLENGE)
+)
 
 const open = ref(false)
 const triggerRef = ref<HTMLElement | null>(null)
@@ -189,7 +195,7 @@ onBeforeUnmount(() => {
                     :colspan="fieldColumns.length"
                     class="supported-plans__group-head"
                 >
-                  Spielfelder
+                  {{ fieldsGroupLabel }}
                 </th>
               </tr>
               <tr>
