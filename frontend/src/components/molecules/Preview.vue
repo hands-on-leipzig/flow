@@ -2,7 +2,7 @@
 
 import { formatTimeOnly, formatDateTime } from '@/utils/dateTimeFormat'
 
-import {ref, watch, onMounted, computed} from 'vue'
+import {ref, watch, onMounted, onBeforeUnmount, computed} from 'vue'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import axios from 'axios'
 import { useRoute } from 'vue-router'
@@ -299,7 +299,10 @@ watch(() => effectivePlanId.value, async () => {
   await loadMatchPlanMeta()
   load()
 })
-watch(view, () => load())
+watch(view, () => {
+  hideTeamTip()
+  load()
+})
 watch(() => props.reload, async () => {
   await loadMatchPlanMeta()
   load()
@@ -381,6 +384,45 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
   if (exploreGroup === 2) return 'Gruppe 2'
   return ''
 }
+
+const TEAM_TIP_DELAY_MS = 80
+const teamTip = ref<{ text: string; x: number; y: number } | null>(null)
+let teamTipTimer: number | null = null
+
+function teamTipEl(target: EventTarget | null): HTMLElement | null {
+  if (!(target instanceof Element)) return null
+  return target.closest('[data-team-tooltip]')
+}
+
+function hideTeamTip() {
+  if (teamTipTimer != null) {
+    window.clearTimeout(teamTipTimer)
+    teamTipTimer = null
+  }
+  teamTip.value = null
+}
+
+function onTeamTipOver(e: PointerEvent) {
+  const el = teamTipEl(e.target)
+  if (!el) return
+  const text = el.getAttribute('data-team-tooltip')?.trim() ?? ''
+  if (text === '') return
+  if (teamTipTimer != null) window.clearTimeout(teamTipTimer)
+  teamTipTimer = window.setTimeout(() => {
+    teamTipTimer = null
+    const r = el.getBoundingClientRect()
+    teamTip.value = { text, x: r.left + r.width / 2, y: r.bottom }
+  }, TEAM_TIP_DELAY_MS)
+}
+
+function onTeamTipOut(e: PointerEvent) {
+  const leaving = teamTipEl(e.target)
+  const entering = teamTipEl(e.relatedTarget)
+  if (leaving && leaving === entering) return
+  hideTeamTip()
+}
+
+onBeforeUnmount(hideTeamTip)
 </script>
 
 <template>
@@ -533,7 +575,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
     </div>
 
     <!-- ANSICHT: Rollen (new grid) -->
-    <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+    <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4" @scroll.passive="hideTeamTip" @wheel.passive="hideTeamTip">
       <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
       <template v-else>
         <div v-if="!rolesHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
@@ -543,13 +585,15 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           v-else
           class="roles-grid-host min-h-0"
           :data-hide-programs="rolesHiddenProgramIds.join(' ')"
+          @pointerover="onTeamTipOver"
+          @pointerout="onTeamTipOut"
           v-html="rolesHtml"
         ></div>
       </template>
     </div>
 
     <!-- ANSICHT: Teams (new grid) -->
-    <div v-else-if="view === 'teams'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+    <div v-else-if="view === 'teams'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4" @scroll.passive="hideTeamTip" @wheel.passive="hideTeamTip">
       <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
       <template v-else>
         <div v-if="!teamsHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
@@ -559,6 +603,8 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
           v-else
           class="roles-grid-host min-h-0"
           :data-hide-programs="teamsHiddenProgramIds.join(' ')"
+          @pointerover="onTeamTipOver"
+          @pointerout="onTeamTipOut"
           v-html="teamsHtml"
         ></div>
       </template>
@@ -729,6 +775,14 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
       </template>
     </div>
   </div>
+  <Teleport to="body">
+    <div
+      v-if="teamTip"
+      class="preview-team-tip"
+      role="tooltip"
+      :style="{ left: `${teamTip.x}px`, top: `${teamTip.y}px` }"
+    >{{ teamTip.text }}</div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -803,5 +857,20 @@ td {
   height: 1.25rem;
   object-fit: contain;
   flex-shrink: 0;
+}
+
+.preview-team-tip {
+  position: fixed;
+  z-index: 80;
+  transform: translate(-50%, 6px);
+  max-width: 16rem;
+  padding: 0.25rem 0.45rem;
+  border-radius: 4px;
+  background: #111;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.3;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 </style>

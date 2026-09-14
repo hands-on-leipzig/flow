@@ -106,7 +106,7 @@ foreach ($programs as $program) {
                                             class="roles-grid-activity"
                                             data-program-id="{{ $col['program_id'] }}"
                                             style="background-color: {{ $colors['bg'] }}; border-left: 3px solid {{ $colors['border'] }};{{ $isOverlapCell ? ' color: #fff;' : '' }}"
-                                        >{{ $starting['text'] }}</td>
+                                        >{{ $starting['text'] }}@if(($starting['team_no'] ?? 0) > 0) (<span data-team-tooltip="{{ $starting['team_tooltip'] }}">T{{ sprintf('%02d', $starting['team_no']) }}</span>)@endif</td>
                                     @else
                                         <td class="roles-grid-empty-cell" data-program-id="{{ $col['program_id'] }}"></td>
                                     @endif
@@ -214,5 +214,8 @@ foreach ($programs as $program) {
 }
 .roles-grid-row {
     height: 14px;
+}
+[data-team-tooltip] {
+    cursor: help;
 }
 </style>
