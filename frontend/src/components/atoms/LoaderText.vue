@@ -1,5 +1,5 @@
 <script setup>
-import {onMounted, onUnmounted, ref} from 'vue'
+import {onUnmounted} from 'vue'
 
 const texts = [
   'Münzen werden in die Zeit-Slots geworfen',
@@ -15,56 +15,79 @@ const texts = [
   'Bis zur Unendlichkeit und noch viel weiter!',
 ]
 
+const numberSentences = texts.length
+
 for (let i = texts.length - 1; i > 0; i--) {
   const j = Math.floor(Math.random() * (i + 1))
   ;[texts[i], texts[j]] = [texts[j], texts[i]]
 }
 
-const index = ref(0)
-let timer
+const animationName = `loader-text-fly-${Math.random().toString(36).slice(2, 10)}`
 
-onMounted(() => {
-  timer = window.setInterval(() => {
-    index.value = (index.value + 1) % texts.length
-  }, 4500)
-})
+let p = 1
+const step = Math.floor(100 / numberSentences)
+const holdIndex = Math.floor(numberSentences / 2)
+let keyframes = ''
+
+for (let i = 0; i <= numberSentences + 1; i++) {
+  const progress = i * step
+  const left = (p-- * 100) - 5
+
+  keyframes += `${progress}% { left: ${left}vw; }\n`
+
+  if (i === holdIndex) {
+    keyframes += `${progress + step / 16}% { left: ${left}vw; }\n`
+  }
+}
+
+let styleEl = null
+if (typeof document !== 'undefined') {
+  styleEl = document.createElement('style')
+  styleEl.textContent = `@keyframes ${animationName} { ${keyframes} }`
+  document.head.appendChild(styleEl)
+}
 
 onUnmounted(() => {
-  if (timer) window.clearInterval(timer)
+  styleEl?.remove()
 })
 </script>
 
 <template>
   <div class="text-loader">
-    <Transition name="loader-text" mode="out-in">
-      <span :key="index" class="text-loader__line">{{ texts[index] }}</span>
-    </Transition>
+    <div class="text-loader__track">
+      <span
+        v-for="(text, index) in texts"
+        :key="index"
+        :style="{ animationName }"
+      >
+        {{ text }}
+      </span>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .text-loader {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.25rem;
+  overflow: clip;
   width: 100%;
-  padding: 0 1rem;
+  min-width: 0;
+  align-self: stretch;
 }
 
-.text-loader__line {
+.text-loader__track {
+  display: grid;
+  grid-template-columns: repeat(v-bind('numberSentences'), 100vw);
+  /* 100vw cells are viewport-wide; shift so the pause sits in the overlay, not off to the right. */
+  margin-left: calc(50% - 50vw);
+}
+
+.text-loader__track > span {
+  position: relative;
+  animation-duration: 20s;
+  animation-iteration-count: infinite;
   text-align: center;
   font-size: 1.5rem;
   font-weight: 500;
-}
-
-.loader-text-enter-active,
-.loader-text-leave-active {
-  transition: opacity 0.35s ease;
-}
-
-.loader-text-enter-from,
-.loader-text-leave-to {
-  opacity: 0;
+  white-space: nowrap;
 }
 </style>
