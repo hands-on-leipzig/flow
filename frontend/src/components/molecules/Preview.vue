@@ -386,7 +386,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 }
 
 const TEAM_TIP_DELAY_MS = 80
-const teamTip = ref<{ text: string; x: number; y: number } | null>(null)
+const teamTip = ref<{ text: string; x: number; y: number; unregistered: boolean } | null>(null)
 let teamTipTimer: number | null = null
 
 function teamTipEl(target: EventTarget | null): HTMLElement | null {
@@ -411,7 +411,12 @@ function onTeamTipOver(e: PointerEvent) {
   teamTipTimer = window.setTimeout(() => {
     teamTipTimer = null
     const r = el.getBoundingClientRect()
-    teamTip.value = { text, x: r.left + r.width / 2, y: r.bottom }
+    teamTip.value = {
+      text,
+      x: r.left + r.width / 2,
+      y: r.bottom,
+      unregistered: text.includes('nicht angemeldet'),
+    }
   }, TEAM_TIP_DELAY_MS)
 }
 
@@ -779,6 +784,7 @@ onBeforeUnmount(hideTeamTip)
     <div
       v-if="teamTip"
       class="preview-team-tip"
+      :class="{ 'preview-team-tip--unregistered': teamTip.unregistered }"
       role="tooltip"
       :style="{ left: `${teamTip.x}px`, top: `${teamTip.y}px` }"
     >{{ teamTip.text }}</div>
@@ -866,11 +872,18 @@ td {
   max-width: 16rem;
   padding: 0.25rem 0.45rem;
   border-radius: 4px;
-  background: #111;
-  color: #fff;
+  background: #fff;
+  color: #111;
+  border: 1px solid #d1d5db;
   font-size: 12px;
   line-height: 1.3;
   pointer-events: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+
+.preview-team-tip--unregistered {
+  background: #111;
+  color: #fff;
+  border-color: #111;
 }
 </style>
