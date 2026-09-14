@@ -486,7 +486,7 @@ class PlanExportController extends Controller
             }));
 
             // Format timestamp like Gesamtplan
-            $eventName = $event->name;
+            $eventName = $this->eventTitleService->getEventTitleLong($event);
             $eventDate = Carbon::parse($event->date)->format('d.m.Y');
             $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
                 ->timezone('Europe/Berlin')
@@ -782,7 +782,7 @@ class PlanExportController extends Controller
             $event = Event::findOrFail($plan->event);
 
             // Format timestamp like Gesamtplan
-            $eventName = $event->name;
+            $eventName = $this->eventTitleService->getEventTitleLong($event);
             $eventDate = Carbon::parse($event->date)->format('d.m.Y');
             $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
                 ->timezone('Europe/Berlin')
@@ -932,7 +932,7 @@ class PlanExportController extends Controller
             $plan = Plan::findOrFail($planId);
             $event = Event::findOrFail($plan->event);
 
-            $eventName = $event->name;
+            $eventName = $this->eventTitleService->getEventTitleLong($event);
             $eventDate = Carbon::parse($event->date)->format('d.m.Y');
             $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
                 ->timezone('Europe/Berlin')
@@ -1177,7 +1177,7 @@ class PlanExportController extends Controller
         $event = Event::findOrFail($plan->event);
 
         // Formatierungen
-        $eventName = $event->name;
+        $eventName = $this->eventTitleService->getEventTitleLong($event);
         $eventDate = Carbon::parse($event->date)->format('d.m.Y');
         $lastUpdated = Carbon::parse($plan->last_change, 'UTC')
             ->timezone('Europe/Berlin')

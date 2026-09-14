@@ -146,7 +146,7 @@ onMounted(load)
           Keine Veranstaltung ausgewählt.
         </p>
         <div v-else class="text-sm space-y-1">
-          <p class="font-semibold text-base">{{ data.selected_event.name }}</p>
+          <p class="font-semibold text-base">{{ data.selected_event.title_short }}</p>
           <p class="text-[var(--color-text-muted)]">
             {{ data.selected_event.season || '—' }}
             <span v-if="data.selected_event.regional_partner"> · {{ data.selected_event.regional_partner }}</span>

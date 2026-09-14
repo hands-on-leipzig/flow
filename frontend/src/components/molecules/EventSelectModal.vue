@@ -27,6 +27,9 @@ type Season = {id: number; name: string; year: number}
 type SelectableEvent = {
   id: number
   name: string
+  title_short?: string
+  title_type_short?: string
+  title_place?: string
   date: string
   programs?: Array<{ first_program?: number; name?: string | null }>
   level?: number | {id?: number; name?: string} | null
@@ -66,11 +69,12 @@ const visibleEvents = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q) return list
   return list.filter((ev) => {
-    const name = (ev.name || '').toLowerCase()
+    const name = (ev.title_short || ev.name || '').toLowerCase()
     const rp = (ev.regional_partner_name || '').toLowerCase()
     const date = dayjs(ev.date).format('DD.MM.YY').toLowerCase()
     const type = getAbbreviatedCompetitionType(ev).toLowerCase()
-    return name.includes(q) || rp.includes(q) || date.includes(q) || type.includes(q)
+    const place = (ev.title_place || '').toLowerCase()
+    return name.includes(q) || rp.includes(q) || date.includes(q) || type.includes(q) || place.includes(q)
   })
 })
 
@@ -159,7 +163,7 @@ function eventTypeLabel(ev: SelectableEvent) {
 }
 
 function eventPlace(ev: SelectableEvent) {
-  return cleanEventName(ev) || ev.name || '—'
+  return cleanEventName(ev) || '—'
 }
 
 function isSelected(ev: SelectableEvent) {

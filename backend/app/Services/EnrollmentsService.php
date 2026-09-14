@@ -11,6 +11,7 @@ class EnrollmentsService
 {
     public function __construct(
         private readonly DrahtController $draht,
+        private readonly EventTitleService $titles,
     ) {}
 
     /**
@@ -58,7 +59,7 @@ class EnrollmentsService
         foreach ($events as $event) {
             $payload = $this->draht->fetchScheduleData($event)['data'] ?? [];
             $byProgram = $this->indexPrograms($payload['programs'] ?? []);
-            $eventName = (string) $event->name;
+            $eventName = $this->titles->getEventTitleShort($event);
 
             $exploreEnrolled = $this->enrolledWithDraht($byProgram, FirstProgram::EXPLORE->value)
                 + $this->enrolledWithDraht($byProgram, FirstProgram::DISCOVER->value);
@@ -245,12 +246,14 @@ class EnrollmentsService
      */
     private function eventCapacityRow(Event $event, array $byProgram, bool $withChallenge): array
     {
+        $titles = $this->titles->titles($event);
         $row = [
             'event_id' => (int) $event->id,
-            'event_name' => (string) $event->name,
+            'event_name' => $titles['title_short'],
             'event_date' => $event->date,
             'regional_partner_id' => $event->regional_partner ? (int) $event->regional_partner : null,
             'future8' => $this->capacityRow($byProgram, FirstProgram::FUTURE_8->value),
+            ...$titles,
         ];
         if ($withChallenge) {
             $row['challenge'] = $this->capacityRow($byProgram, FirstProgram::CHALLENGE->value);

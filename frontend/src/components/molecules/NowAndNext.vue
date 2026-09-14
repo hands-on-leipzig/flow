@@ -186,7 +186,7 @@ function openPreview(id: string | number) {
       <div>
         <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Event Name</label>
         <div class="text-sm font-medium text-[var(--color-text-muted)]">
-          {{ event?.name || 'Kein Event ausgewählt' }}
+          {{ event?.title_short || 'Kein Event ausgewählt' }}
         </div>
       </div>
       

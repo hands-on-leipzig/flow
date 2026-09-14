@@ -20,6 +20,7 @@ class PublicPlanService
     public function __construct(
         private ActivityFetcherService $activities,
         private RoleFetcherService $roleFetcher,
+        private EventTitleService $eventTitles,
     ) {}
 
     /**
@@ -69,15 +70,18 @@ class PublicPlanService
             $roles[] = $this->serializePickerRole($role, $teams, $params, $tableNames);
         }
 
+        $titles = $this->titlesForPlanRow($plan);
+
         return [
             'plan_id' => $planId,
             'event_id' => (int) $plan->event_id,
-            'event_name' => $plan->event_name,
+            'event_name' => $titles['title_long'],
             'slug' => $plan->event_slug ?: null,
             'check_in_enabled' => (bool) $plan->check_in_enabled,
             'cockpit_enabled' => (bool) $plan->cockpit_enabled,
             'programs' => $this->eventPrograms((int) $plan->event_id),
             'roles' => $roles,
+            ...$titles,
         ];
     }
 
@@ -103,6 +107,29 @@ class PublicPlanService
         });
 
         return $roles;
+    }
+
+    /**
+     * @return array{
+     *     title_long: string,
+     *     title_short: string,
+     *     title_type: string,
+     *     title_type_short: string,
+     *     title_place: string
+     * }
+     */
+    private function titlesForPlanRow(object $plan): array
+    {
+        $programs = DB::table('event_program as ep')
+            ->join('m_first_program as fp', 'fp.id', '=', 'ep.first_program')
+            ->where('ep.event', (int) $plan->event_id)
+            ->get(['fp.name']);
+
+        return $this->eventTitles->titles((object) [
+            'name' => $plan->event_name,
+            'level' => $plan->event_level,
+            'programs' => $programs,
+        ]);
     }
 
     /**

@@ -167,7 +167,7 @@ async function createEvent() {
           <div class="flex justify-between items-start">
             <!-- Linker Bereich: Text -->
             <div>
-              <h3 class="font-medium text-lg">{{ event.name }}</h3>
+              <h3 class="font-medium text-lg">{{ event.title_short }}</h3>
               <p class="text-sm text-[var(--color-text-subtle)]">{{ dayjs(event.date).format('dddd, DD.MM.YYYY') }}</p>
               <p class="text-sm text-[var(--color-text-subtle)]">{{ event.level.name }}</p>
               <p class="text-sm text-[var(--color-text-subtle)]">{{ event.season.name }} ({{ event.season.year }})</p>

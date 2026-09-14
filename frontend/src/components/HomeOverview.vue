@@ -8,7 +8,7 @@ import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBo
 import EventMap from '@/components/molecules/EventMap.vue'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
-import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
+import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleShort} from '@/utils/eventTitle'
 import {eventPrograms, programDisplayName, teamPathFor, programCompact} from '@/utils/eventPrograms'
 import {staffingSummaryFromReadiness, type StaffingScopeSummary} from '@/utils/volunteerStaffingSummary'
 import VolunteerStaffingSummary from '@/components/volunteers/VolunteerStaffingSummary.vue'
@@ -47,7 +47,7 @@ const seasonName = computed(() =>
     || null
 )
 const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
-const headingPlace = computed(() => cleanEventName(event.value) || event.value?.name || '—')
+const headingPlace = computed(() => cleanEventName(event.value) || '—')
 const headingDate = computed(() => {
   if (!event.value?.date) return ''
   const start = dayjs(event.value.date)
@@ -258,7 +258,7 @@ watch(
                 v-if="event?.address && event?.id"
                 :address="event.address"
                 :event-id="event.id"
-                :event-name="event.name"
+                :event-name="getEventTitleShort(event) || ''"
                 :show-q-r-code="false"
             />
           </div>

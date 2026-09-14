@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {imageUrl} from '@/utils/images'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
-import {cleanEventName, getAbbreviatedCompetitionType} from '@/utils/eventTitle'
+import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleShort} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
@@ -28,7 +28,7 @@ const teamFormStep = ref(null)
 const teamFormEmail = ref('')
 
 const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
-const headingPlace = computed(() => cleanEventName(event.value) || event.value?.name || '—')
+const headingPlace = computed(() => cleanEventName(event.value) || '—')
 const headingDate = computed(() => {
   if (!event.value?.date) return ''
   const start = dayjs(event.value.date)
@@ -536,7 +536,7 @@ onMounted(async () => {
               <EventMap
                   :address="scheduleInfo.address"
                   :event-id="event.id"
-                  :event-name="event.name"
+                  :event-name="getEventTitleShort(event)"
                   :show-q-r-code="true"
               />
             </div>

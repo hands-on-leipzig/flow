@@ -89,7 +89,7 @@ const seasonName = computed(() =>
   || null
 )
 const headingType = computed(() => getAbbreviatedCompetitionType(selectedEvent.value) || 'Veranstaltung')
-const headingPlace = computed(() => cleanEventName(selectedEvent.value) || selectedEvent.value?.name || '—')
+const headingPlace = computed(() => cleanEventName(selectedEvent.value) || '—')
 const headingDate = computed(() => {
   if (!selectedEvent.value?.date) return ''
   const start = dayjs(selectedEvent.value.date)

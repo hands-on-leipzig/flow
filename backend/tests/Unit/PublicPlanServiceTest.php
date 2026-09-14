@@ -72,6 +72,8 @@ class PublicPlanServiceTest extends TestCase
 
         $payload = app(PublicPlanService::class)->getRoles(1);
 
+        $this->assertSame('FIRST LEGO League Regionalwettbewerb Test Event', $payload['event_name']);
+        $this->assertSame('Regio Test Event', $payload['title_short']);
         $this->assertSame([
             [
                 'id' => 3,
