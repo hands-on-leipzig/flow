@@ -2,20 +2,36 @@
 import draggable from 'vuedraggable'
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
-import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import {showGlassToast} from '@/composables/useGlassToast'
-import { programDisplayName } from '@/utils/eventPrograms'
+import { programDisplayName, programId, type EventProgramRef } from '@/utils/eventPrograms'
+import {useProgramsStore} from '@/stores/programs'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 
-type CatalogProgram = {
-  id: number
-  name: string
-  sequence?: number | null
-  logo_stem?: string | null
-}
+/** 0 = Übergreifend (first_program null), otherwise m_first_program.id */
+type ProgramFilterKey = number
+
+const programsStore = useProgramsStore()
 
 // Daten
 const items = ref<any[]>([])          // Backend-Daten
-const catalogPrograms = ref<CatalogProgram[]>([])
+const catalogPrograms = computed<EventProgramRef[]>(() => {
+  const rows = [...programsStore.catalog]
+  rows.sort((a, b) => {
+    const seqA = a.sequence ?? Number.POSITIVE_INFINITY
+    const seqB = b.sequence ?? Number.POSITIVE_INFINITY
+    if (seqA !== seqB) return seqA - seqB
+    return programId(a) - programId(b)
+  })
+  return rows
+})
+
+const programsWithParameters = computed<EventProgramRef[]>(() => {
+  const ids = new Set(
+    items.value.map((row) => Number(row.first_program ?? 0)).filter((id) => id > 0),
+  )
+  return catalogPrograms.value.filter((program) => ids.has(programId(program)))
+})
 const loading = ref(true)
 const error = ref<string|null>(null)
 
@@ -24,29 +40,40 @@ const expandedId = ref<number|null>(null)
 const draftById = ref<Record<number, any>>({})
 const savingId = ref<number|null>(null)
 
-// Filter (Checkbox-Varianten)
+// Filter
 const filterContexts = ref<string[]>(['input','expert'])
-const filterPrograms = ref<number[]>([0])
+const activeProgramFilters = ref<Set<ProgramFilterKey>>(new Set())
 const filterLevels   = ref<number[]>([1])
 
-// Format program label with italic FIRST
-const formatProgramLabel = (label: string) => {
-  if (label === 'gemeinsam') return label
-  return label.replace(/FIRST/g, '<span class="italic">FIRST</span>')
-}
-
 function logoForProgramId(id: number) {
-    return catalogPrograms.value.find(p => p.id === id) || { first_program: id }
+    return catalogPrograms.value.find(p => programId(p) === id) || { first_program: id }
 }
 
-const programFilterOptions = computed(() => [
-  {value: 0, label: 'gemeinsam', icon: null as string | null},
-  ...catalogPrograms.value.map((program) => ({
-    value: program.id,
-    label: `FIRST LEGO League ${programDisplayName(program)}`,
-    icon: program.name,
-  })),
-])
+function itemProgramFilterKey(item: {first_program?: number | null}): ProgramFilterKey {
+  const id = Number(item.first_program ?? 0)
+  return id > 0 ? id : 0
+}
+
+function programFilterKeys(): ProgramFilterKey[] {
+  return [0, ...programsWithParameters.value.map((program) => programId(program))]
+}
+
+function syncProgramFilters() {
+  const keys = programFilterKeys()
+  const kept = keys.filter((key) => activeProgramFilters.value.has(key))
+  activeProgramFilters.value = new Set(kept.length > 0 ? kept : keys)
+}
+
+function isProgramFilterActive(key: ProgramFilterKey) {
+  return activeProgramFilters.value.has(key)
+}
+
+function toggleProgramFilter(key: ProgramFilterKey) {
+  const next = new Set(activeProgramFilters.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  activeProgramFilters.value = next
+}
 
 // Hilfs-Optionen
 const contexts = ['protected', 'input', 'expert', 'afternoon']
@@ -57,14 +84,13 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    const [{ data: paramData }, { data: programData }] = await Promise.all([
+    const [{ data: paramData }] = await Promise.all([
       axios.get('/mparams'),
-      axios.get('/programs'),
+      programsStore.ensureLoaded(),
     ])
     items.value = Array.isArray(paramData) ? paramData : (paramData?.items ?? [])
     items.value.sort((a,b) => (a.sequence ?? 0) - (b.sequence ?? 0))
-    catalogPrograms.value = Array.isArray(programData) ? programData : []
-    filterPrograms.value = [0, ...catalogPrograms.value.map((program) => program.id)]
+    syncProgramFilters()
   } catch (e) {
     console.error(e)
     error.value = 'Fehler beim Laden.'
@@ -84,10 +110,9 @@ const filtered = computed(() => {
     ? list.filter(i => filterContexts.value.includes(i.context))
     : []
 
-  // Program (null/undefined => 0 = gemeinsam)
-  const norm = (fp: any) => (fp == null ? 0 : Number(fp))
-  list = filterPrograms.value.length
-    ? list.filter(i => filterPrograms.value.includes(norm(i.first_program)))
+  // Program: Übergreifend (null) + catalog programs — same toggle set as Zuordnung
+  list = activeProgramFilters.value.size
+    ? list.filter((i) => activeProgramFilters.value.has(itemProgramFilterKey(i)))
     : []
 
   // Level (Checkbox-Logik)
@@ -203,6 +228,36 @@ const contextBarClass = (ctx: string | null | undefined) => {
 
     <!-- Filterleiste -->
     <div class="mparam-shell__filters flex flex-wrap items-center gap-3">
+    <div class="vol-staffing-filters mparam-shell__program-filters">
+      <button
+          type="button"
+          class="vol-staffing-filter"
+          :class="{'vol-staffing-filter--active': isProgramFilterActive(0)}"
+          :aria-pressed="isProgramFilterActive(0)"
+          @click="toggleProgramFilter(0)"
+      >
+        <i class="bi bi-intersect vol-staffing-filter__icon" aria-hidden="true"/>
+        <span class="vol-staffing-filter__label">Übergreifend</span>
+      </button>
+      <button
+          v-for="program in programsWithParameters"
+          :key="`filter-program-${programId(program)}`"
+          type="button"
+          class="vol-staffing-filter"
+          :class="{'vol-staffing-filter--active': isProgramFilterActive(programId(program))}"
+          :aria-pressed="isProgramFilterActive(programId(program))"
+          @click="toggleProgramFilter(programId(program))"
+      >
+        <ProgramLogo
+            :program="program"
+            size="chip"
+            decorative
+            class="vol-staffing-filter__logo"
+        />
+        <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
+      </button>
+    </div>
+
     <!-- Context -->
     <div class="glass-row-item inline-flex gap-3 px-3 py-2 whitespace-nowrap">
         <div class="text-sm font-medium text-[var(--color-text-muted)]">Context:</div>
@@ -210,20 +265,6 @@ const contextBarClass = (ctx: string | null | undefined) => {
         <label v-for="ctx in contexts" :key="ctx" class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
             <input type="checkbox" v-model="filterContexts" :value="ctx" class="accent-gray-600" />
             {{ ctx }}
-        </label>
-        </div>
-    </div>
-
-    <!-- Program -->
-    <div class="glass-row-item inline-flex gap-3 px-3 py-2 whitespace-nowrap">
-        <div class="text-sm font-medium text-[var(--color-text-muted)]">Programm:</div>
-        <div class="flex items-center gap-3">
-        <label v-for="prog in programFilterOptions"
-                :key="prog.value"
-                class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
-            <input type="checkbox" v-model="filterPrograms" :value="prog.value" class="accent-gray-600" />
-            <img v-if="prog.icon" :src="programLogoSrc(prog.icon)" :alt="programLogoAlt(prog.icon)" class="w-4 h-4 flex-shrink-0" />
-            <span v-html="formatProgramLabel(prog.label)"></span>
         </label>
         </div>
     </div>
@@ -346,7 +387,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
                                 <div>
                                 <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Program</label>
                                 <select v-model="draftById[item.id].first_program" class="w-full border rounded px-2 py-1 bg-white text-sm text-[var(--color-text)] focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
-                                    <option :value="null">(gemeinsam)</option>
+                                    <option :value="null">Übergreifend</option>
                                     <option
                                         v-for="program in catalogPrograms"
                                         :key="program.id"
@@ -449,6 +490,11 @@ const contextBarClass = (ctx: string | null | undefined) => {
 
 .mparam-shell__filters {
   flex-shrink: 0;
+}
+
+.mparam-shell__program-filters {
+  flex: 1 1 100%;
+  margin-bottom: 0;
 }
 
 .mparam-shell__list {

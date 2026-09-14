@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import QRunConfigForm from '@/components/atoms/QRunConfigForm.vue'
 import QRunList from '@/components/atoms/QRunList.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
+import { usePlanCacheStore } from '@/stores/planCache'
 
 /** Challenge = 3, Future 8+ = 8 */
 const FIRST_PROGRAM = {
@@ -11,8 +12,10 @@ const FIRST_PROGRAM = {
   FUTURE_8: 8,
 }
 
+const planCache = usePlanCacheStore()
 const reload = ref(0)
 const firstProgram = ref(FIRST_PROGRAM.CHALLENGE)
+const catalogRows = ref([])
 
 const minTeams = ref(4)
 const maxTeams = ref(25)
@@ -47,17 +50,79 @@ const qrunComment = ref('')
 
 const isFuture8 = computed(() => firstProgram.value === FIRST_PROGRAM.FUTURE_8)
 
+function boundsFromRows(rows, programId) {
+  const mine = rows.filter((row) => Number(row.first_program) === programId)
+  const teams = mine.map((row) => Number(row.teams)).filter((n) => Number.isFinite(n) && n > 0)
+  const lanes = mine.map((row) => Number(row.lanes)).filter((n) => Number.isFinite(n) && n > 0)
+  if (!teams.length || !lanes.length) return null
+  return {
+    minTeams: Math.min(...teams),
+    maxTeams: Math.max(...teams),
+    minLanes: Math.min(...lanes),
+    maxLanes: Math.max(...lanes),
+  }
+}
+
+function laneSelection(minLanes, maxLanes) {
+  const next = {}
+  for (let i = minLanes; i <= maxLanes; i++) {
+    next[`lane_${i}`] = true
+  }
+  return next
+}
+
+function rangeInclusive(min, max) {
+  const out = []
+  for (let i = min; i <= max; i++) out.push(i)
+  return out
+}
+
+const programBounds = computed(() => boundsFromRows(catalogRows.value, firstProgram.value))
+
+const teamMin = computed(() => programBounds.value?.minTeams ?? 4)
+const teamMax = computed(() => programBounds.value?.maxTeams ?? 25)
+const laneOptions = computed(() => {
+  const bounds = programBounds.value
+  if (!bounds) return [1, 2, 3, 4, 5]
+  return rangeInclusive(bounds.minLanes, bounds.maxLanes)
+})
+
+function applyProgramBounds() {
+  const bounds = programBounds.value
+  if (!bounds) return
+  minTeams.value = bounds.minTeams
+  maxTeams.value = bounds.maxTeams
+  juryLanes.value = laneSelection(bounds.minLanes, bounds.maxLanes)
+}
+
 watch(firstProgram, (program) => {
   if (program === FIRST_PROGRAM.FUTURE_8) {
     robotCheck.value = { rc_off: true, rc_on: false }
   }
+  applyProgramBounds()
+})
+
+onMounted(async () => {
+  try {
+    const rows = await planCache.getLanesOptions()
+    catalogRows.value = Array.isArray(rows) ? rows : []
+    applyProgramBounds()
+  } catch (err) {
+    console.error('Fehler beim Laden von m_supported_plan', err)
+    showGlassToast('Unterstützte Pläne konnten nicht geladen werden.', 'error')
+  }
 })
 
 const isValid = computed(() => {
+  const bounds = programBounds.value
+  if (!bounds) return false
   const atLeastOneLane = Object.values(juryLanes.value).some(v => v)
   const atLeastOneTable = Object.values(tables.value).some(v => v)
   const atLeastOneRound = Object.values(juryRounds.value).some(v => v)
-  const validTeamRange = minTeams.value >= 4 && maxTeams.value <= 25 && minTeams.value <= maxTeams.value
+  const validTeamRange =
+    minTeams.value >= bounds.minTeams &&
+    maxTeams.value <= bounds.maxTeams &&
+    minTeams.value <= maxTeams.value
   const hasName = qrunName.value.trim().length > 0
   const robotCheckOk = isFuture8.value || Object.values(robotCheck.value).some(v => v)
   return atLeastOneLane && atLeastOneTable && atLeastOneRound && robotCheckOk && validTeamRange && hasName
@@ -131,6 +196,9 @@ const startVolumeTest = () => {
         v-model:robot-check="robotCheck"
         v-model:qrun-name="qrunName"
         v-model:qrun-comment="qrunComment"
+        :team-min="teamMin"
+        :team-max="teamMax"
+        :lane-options="laneOptions"
         :is-valid="isValid"
         @start="startVolumeTest"
         @refresh="reload++"

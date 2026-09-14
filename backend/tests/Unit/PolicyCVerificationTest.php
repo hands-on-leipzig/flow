@@ -156,14 +156,14 @@ class PolicyCVerificationTest extends TestCase
         $service = app(AfternoonBlockOrderService::class);
 
         // Policy C UI save: Challenge order then Future order (concat).
-        $service->saveOrder(1, [12, 10, 21, 20]);
+        $service->saveOrder(1, [12, 10, 20]);
 
         $resolved = $service->resolvedBlocks(1);
         $challenge = $this->filterByProgram($resolved, FirstProgram::CHALLENGE->value);
         $future = $this->filterByProgram($resolved, FirstProgram::FUTURE_8->value);
 
         $this->assertSame(['c_extra', 'c_presentations'], $challenge->pluck('code')->all());
-        $this->assertSame(['f8_round_4', 'f8_presentations'], $future->pluck('code')->all());
+        $this->assertSame(['f8_presentations'], $future->pluck('code')->all());
     }
 
     /**

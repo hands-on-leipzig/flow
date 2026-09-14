@@ -208,7 +208,6 @@ foreach ($programs as $program) {
     line-height: 1.15;
     font-size: 10px;
     text-align: center;
-    font-weight: 600;
 }
 .roles-grid-empty-cell {
     background: #f9f9f9;

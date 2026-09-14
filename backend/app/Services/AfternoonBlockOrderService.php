@@ -2,8 +2,11 @@
 
 namespace App\Services;
 
+use App\Core\MatchPlanCatalogLoader;
+use App\Enums\FirstProgram;
 use App\Models\AfternoonBlockOrder;
 use App\Models\Plan;
+use App\Support\PlanParameter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -13,7 +16,7 @@ class AfternoonBlockOrderService
     {
         $eventLevel = $this->eventLevel($planId);
 
-        return DB::table('m_activity_type_detail as d')
+        $blocks = DB::table('m_activity_type_detail as d')
             ->leftJoin('m_first_program as p', 'd.first_program', '=', 'p.id')
             ->join('m_activity_type as t', 'd.activity_type', '=', 't.id')
             ->leftJoin('m_parameter as mp', 'd.afternoon_parameter', '=', 'mp.id')
@@ -59,6 +62,45 @@ class AfternoonBlockOrderService
                 $block->first_program = $block->first_program !== null ? (int) $block->first_program : null;
                 return $block;
             });
+
+        $maxRound = $this->futureCatalogMaxRound($planId);
+
+        return $blocks->filter(function ($block) use ($maxRound) {
+            $code = (string) $block->code;
+            if ($code === 'f8_round_4') {
+                return $maxRound !== null && $maxRound >= 4;
+            }
+            if ($code === 'f8_round_5') {
+                return $maxRound !== null && $maxRound >= 5;
+            }
+
+            return true;
+        })->values();
+    }
+
+    /**
+     * Catalog match-plan max(round) for this plan's Future key, or null if unknown.
+     */
+    private function futureCatalogMaxRound(int $planId): ?int
+    {
+        try {
+            $params = PlanParameter::load($planId);
+            $teams = (int) $params->get('f8_teams', 0);
+            $lanes = (int) $params->get('f8_lanes', 0);
+            $tables = (int) $params->get('f8_fields', 0);
+            if ($teams < 1 || $lanes < 1 || $tables < 1) {
+                return null;
+            }
+
+            return (new MatchPlanCatalogLoader)->peekMaxRound(
+                FirstProgram::FUTURE_8,
+                $teams,
+                $lanes,
+                $tables,
+            );
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

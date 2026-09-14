@@ -89,8 +89,8 @@ class DualChallengeShapedSupportTest extends TestCase
             ['id' => 201, 'name' => 'f8_mode', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
             ['id' => 202, 'name' => 'f8_lanes', 'value' => '2', 'first_program' => FirstProgram::FUTURE_8->value],
             ['id' => 203, 'name' => 'f8_fields', 'value' => '4', 'first_program' => FirstProgram::FUTURE_8->value],
-            ['id' => 175, 'name' => 'g_future_first', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
-            ['id' => 176, 'name' => 'g_per_round', 'value' => '1', 'first_program' => FirstProgram::FUTURE_8->value],
+            ['id' => 175, 'name' => 'c+f8_future_first', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
+            ['id' => 176, 'name' => 'c+f8_flip_after_round', 'value' => '1', 'first_program' => FirstProgram::FUTURE_8->value],
             ['id' => 178, 'name' => 'g_separate_rooms', 'value' => '0', 'first_program' => FirstProgram::FUTURE_8->value],
         ];
         foreach ($params as $row) {
@@ -165,7 +165,7 @@ class DualChallengeShapedSupportTest extends TestCase
 
     public function test_game_round_mapping_four_judging_rounds(): void
     {
-        // Mirrors ChallengeGenerator / Future8Generator::gameRoundForJudgingBlock (non-finale).
+        // Mirrors ChallengeGenerator::gameRoundForJudgingBlock (non-finale). Future is 1:1 catalog.
         $mapFour = static fn (int $cBlock): ?int => match ($cBlock) {
             1 => 0,
             2 => 1,

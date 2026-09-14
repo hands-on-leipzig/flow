@@ -10,9 +10,10 @@ use Illuminate\Support\Facades\Log;
 /**
  * Coordinates Challenge + Future 8+ mornings when both are on.
  *
- * Policy A (g_per_round): full round then flip; g_duration_flip_after_round between.
- * Policy B (!g_per_round): zip/drain per match/wave; no flip pause; no robot check.
- * Test round stays parallel for both policies.
+ * Policy A (c+f8_flip_after_round): full round then flip; c+f8_duration_flip_after_round between.
+ * Policy B (!c+f8_flip_after_round): zip/drain per match/wave; no flip pause.
+ * Robot-check / alliance follow r_robot_check and f8_r_alliance_meeting (stand-alone overlay).
+ * Test round overlaps when c+f8_tr_parallel is on (default); otherwise it uses Policy A or B like rounds 1–3.
  */
 class GameRoundCoordinator
 {
@@ -37,17 +38,20 @@ class GameRoundCoordinator
 
     public function main(bool $explore = false, ?callable $afterRG1Callback = null): void
     {
-        $policyA = (bool) $this->pp('g_per_round', true);
+        $policyA = (bool) $this->pp('c+f8_flip_after_round', true);
+        $trParallel = (bool) $this->pp('c+f8_tr_parallel', true);
 
         Log::info('GameRoundCoordinator::main', [
             'plan_id' => $this->pp('g_plan'),
             'policy' => $policyA ? 'A' : 'B',
-            'g_future_first' => (bool) $this->pp('g_future_first', false),
+            'c+f8_future_first' => (bool) $this->pp('c+f8_future_first', false),
+            'c+f8_tr_parallel' => $trParallel,
             'explore' => $explore,
         ]);
 
         $this->challenge->prepareMain();
         $this->future->prepareMain();
+        $this->future->setSharedStageMorning(true);
         $this->future->syncClocksFrom($this->challenge);
 
         $this->jEarliest = [
@@ -57,10 +61,10 @@ class GameRoundCoordinator
         $this->nextJudgingBlock = ['challenge' => 1, 'future' => 1];
         $this->teamOffset = ['challenge' => 0, 'future' => 0];
 
-        $futureFirst = (bool) $this->pp('g_future_first', false);
+        $futureFirst = (bool) $this->pp('c+f8_future_first', false);
 
         for ($gameRound = 0; $gameRound <= 3; $gameRound++) {
-            if ($gameRound === 0) {
+            if ($gameRound === 0 && $trParallel) {
                 $this->runJudgingUntilGameRound('challenge', 0);
                 $this->runJudgingUntilGameRound('future', 0);
                 $this->writeTestRoundParallel();
@@ -72,10 +76,13 @@ class GameRoundCoordinator
         }
 
         $this->finishRemainingJudging('challenge');
-        $this->finishRemainingJudging('future');
+        $this->future->handoffMorningJudgingEarliest($this->jEarliest['future']);
 
         $this->challenge->finishMainAfterGames();
-        $this->future->finishMainAfterGames();
+        $this->future->syncCeremonyTimeAfterMain();
+        if ((int) $this->pp('f8_j_rounds') <= 4) {
+            $this->future->insertDeliberations();
+        }
 
         // Ceremony clock for awards / afternoon: later of both programs.
         $later = $this->challenge->cTime()->current();
@@ -139,7 +146,12 @@ class GameRoundCoordinator
                 ? $this->challenge->robotGame()
                 : $this->future->robotGame();
             $rg->activateGroup($event['program'] === 'challenge' ? $chGroup : $f8Group);
-            $rg->writeMatchAt($event['match'], $gameRound, $event['start'], allowRobotCheck: false);
+            $rg->writeMatchAt(
+                $event['match'],
+                $gameRound,
+                $event['start'],
+                allowRobotCheck: $rg->robotCheckEnabled(),
+            );
             if ($event['end'] > $roundEnd) {
                 $roundEnd = clone $event['end'];
             }
@@ -148,10 +160,15 @@ class GameRoundCoordinator
         if (! $roundEnd instanceof DateTime) {
             $roundEnd = DateTime::createFromInterface($roundEnd);
         }
+        $checkExtra = $this->policyBRoundEndCheckMinutes();
+        if ($checkExtra > 0) {
+            $roundEnd = clone $roundEnd;
+            $roundEnd->modify("+{$checkExtra} minutes");
+        }
         $this->challenge->rTime()->set($roundEnd);
         $this->future->rTime()->set($roundEnd);
 
-        // After zip commit, refresh jEarliest from actual early-match ends (no robot check).
+        // After zip commit, refresh jEarliest from actual early-match ends (check overlay once).
         $this->refreshPolicyBJudgingEarliest($gameRound, $plan);
 
         $this->applyJointPostRoundBreak($gameRound);
@@ -179,12 +196,12 @@ class GameRoundCoordinator
             $f8Matches,
             (int) $this->pp('r_tables'),
             (int) $this->pp('f8_fields'),
-            (int) $this->pp('r_duration_match'),
-            (int) $this->pp('f8_r_duration_match'),
+            $this->policyBMatchDuration('challenge', $gameRound),
+            $this->policyBMatchDuration('future', $gameRound),
             (int) $this->pp('r_duration_next_start'),
             (int) $this->pp('f8_r_duration_next_start'),
             (int) $this->pp('f8_r_duration_next_start'),
-            (bool) $this->pp('g_future_first', false),
+            (bool) $this->pp('c+f8_future_first', false),
             $anchor,
         );
 
@@ -202,6 +219,9 @@ class GameRoundCoordinator
     ): void {
         $prog = $this->program($key);
         $max = $this->judgingRoundCount($key);
+        if ($key === 'future') {
+            $max = min(4, $max);
+        }
 
         while ($this->nextJudgingBlock[$key] <= $max) {
             $block = $this->nextJudgingBlock[$key];
@@ -209,7 +229,7 @@ class GameRoundCoordinator
 
             $timing = null;
             if ($roundMeta !== null && $sharedAnchor !== null && $mapped === $gameRound) {
-                $timing = $this->policyBTimingForBlock($key, $block, $roundMeta, $sharedAnchor);
+                $timing = $this->policyBTimingForBlock($key, $block, $roundMeta, $sharedAnchor, $gameRound);
             }
 
             $prog->runJudgingBlock(
@@ -235,6 +255,7 @@ class GameRoundCoordinator
         int $block,
         array $roundMeta,
         \DateTimeInterface $sharedAnchor,
+        int $gameRound,
     ): array {
         $prog = $this->program($key);
         $protectedIndex = $prog->protectedMatchIndexForBlock($block);
@@ -244,15 +265,16 @@ class GameRoundCoordinator
         $rT2M = PolicyBRoundScheduler::minutesBetween($sharedAnchor, $protected);
 
         $jRounds = $key === 'challenge' ? (int) $this->pp('j_rounds') : (int) $this->pp('f8_j_rounds');
-        if ($jRounds > 4 && $block === 2) {
+        if (self::policyBChallengeCompressSkipsAlign($key, $block, $jRounds)) {
             return ['rT2MMinutes' => $rT2M, 'rA4JMinutes' => 0];
         }
 
         $lanes = $key === 'challenge' ? (int) $this->pp('j_lanes') : (int) $this->pp('f8_lanes');
-        $earlyIdx = (int) ceil($lanes / 2) - 1;
-        $duration = $key === 'challenge'
-            ? (int) $this->pp('r_duration_match')
-            : (int) $this->pp('f8_r_duration_match');
+        $matchesPerRound = $key === 'challenge'
+            ? (int) $this->pp('r_matches_per_round')
+            : (int) $this->pp('f8_r_matches_per_round');
+        $earlyIdx = self::policyBEarlyMatchIndex($key, $lanes, $matchesPerRound);
+        $duration = $this->policyBMatchDuration($key, $gameRound);
         $transfer = $key === 'challenge'
             ? (int) $this->pp('c_duration_transfer')
             : (int) $this->pp('f8_duration_transfer');
@@ -261,6 +283,7 @@ class GameRoundCoordinator
         $earlyEnd = DateTime::createFromInterface($earlyStart);
         $earlyEnd->modify("+{$duration} minutes");
         $rA4J = PolicyBRoundScheduler::minutesBetween($sharedAnchor, $earlyEnd) + $transfer;
+        $rA4J += $this->policyBCheckMinutes($key);
 
         return ['rT2MMinutes' => $rT2M, 'rA4JMinutes' => $rA4J];
     }
@@ -281,15 +304,16 @@ class GameRoundCoordinator
             }
 
             $jRounds = $key === 'challenge' ? (int) $this->pp('j_rounds') : (int) $this->pp('f8_j_rounds');
-            if ($jRounds > 4 && $block === 2) {
+            if (self::policyBChallengeCompressSkipsAlign($key, $block, $jRounds)) {
                 continue;
             }
 
             $lanes = $key === 'challenge' ? (int) $this->pp('j_lanes') : (int) $this->pp('f8_lanes');
-            $earlyIdx = (int) ceil($lanes / 2) - 1;
-            $duration = $key === 'challenge'
-                ? (int) $this->pp('r_duration_match')
-                : (int) $this->pp('f8_r_duration_match');
+            $matchesPerRound = $key === 'challenge'
+                ? (int) $this->pp('r_matches_per_round')
+                : (int) $this->pp('f8_r_matches_per_round');
+            $earlyIdx = self::policyBEarlyMatchIndex($key, $lanes, $matchesPerRound);
+            $duration = $this->policyBMatchDuration($key, $gameRound);
             $transfer = $key === 'challenge'
                 ? (int) $this->pp('c_duration_transfer')
                 : (int) $this->pp('f8_duration_transfer');
@@ -301,7 +325,7 @@ class GameRoundCoordinator
             }
 
             $earliest = DateTime::createFromInterface($earlyStart);
-            $earliest->modify('+'.($duration + $transfer).' minutes');
+            $earliest->modify('+'.($duration + $transfer + $this->policyBCheckMinutes($key)).' minutes');
             $this->jEarliest[$key]->set($earliest);
         }
     }
@@ -309,6 +333,53 @@ class GameRoundCoordinator
     private function program(string $key): ChallengeGenerator|Future8Generator
     {
         return $key === 'challenge' ? $this->challenge : $this->future;
+    }
+
+    /** Challenge 5+ judging: block 2 has no robot game. Future is 1:1 — never skip. */
+    public static function policyBChallengeCompressSkipsAlign(string $key, int $block, int $judgingRounds): bool
+    {
+        return $key === 'challenge' && $judgingRounds > 4 && $block === 2;
+    }
+
+    /**
+     * 0-based match index used for Policy B rA4J / jEarliest.
+     * Future two-lane catalog may place those teams in match 1 or 2.
+     */
+    public static function policyBEarlyMatchIndex(string $key, int $lanes, int $matchesPerRound): int
+    {
+        if ($key === 'future') {
+            return max(0, Future8Generator::catalogEarlyMatchesForNextJudging($lanes, $matchesPerRound) - 1);
+        }
+
+        return (int) ceil($lanes / 2) - 1;
+    }
+
+    private function policyBMatchDuration(string $key, int $gameRound): int
+    {
+        $isTest = $gameRound === 0;
+        if ($key === 'challenge') {
+            return (int) $this->pp($isTest ? 'r_duration_test_match' : 'r_duration_match');
+        }
+
+        return (int) $this->pp($isTest ? 'f8_r_duration_test_match' : 'f8_r_duration_match');
+    }
+
+    private function policyBCheckMinutes(string $key): int
+    {
+        $rg = $this->program($key)->robotGame();
+
+        return $rg->robotCheckEnabled() ? $rg->checkDuration() : 0;
+    }
+
+    /** Once per round, like insertOneRound: longer of the two programs' check durations. */
+    private function policyBRoundEndCheckMinutes(): int
+    {
+        $extra = 0;
+        foreach (['challenge', 'future'] as $key) {
+            $extra = max($extra, $this->policyBCheckMinutes($key));
+        }
+
+        return $extra;
     }
 
     private function judgingRoundCount(string $key): int
@@ -334,10 +405,14 @@ class GameRoundCoordinator
 
     private function writeTestRoundParallel(): void
     {
-        $start = $this->challenge->rTime()->current();
-        if ($this->future->rTime()->current() > $start) {
-            $start = $this->future->rTime()->current();
-        }
+        $chStart = $this->challenge->rTime()->current();
+        $f8Start = $this->future->rTime()->current();
+        $start = $chStart > $f8Start ? $chStart : $f8Start;
+
+        // jEarliest was computed from each program's rTime at judging block 1.
+        // Shared TR start may be later (Challenge/Future align); slide earliest by that delay.
+        $this->shiftJudgingEarliestToSharedTrStart('challenge', $chStart, $start);
+        $this->shiftJudgingEarliestToSharedTrStart('future', $f8Start, $start);
 
         $this->challenge->rTime()->set($start);
         $this->future->rTime()->set($start);
@@ -354,6 +429,14 @@ class GameRoundCoordinator
         $this->future->rTime()->set($end);
     }
 
+    private function shiftJudgingEarliestToSharedTrStart(string $key, DateTime $plannedStart, DateTime $sharedStart): void
+    {
+        $delay = PolicyBRoundScheduler::minutesBetween($plannedStart, $sharedStart);
+        if ($delay > 0) {
+            $this->jEarliest[$key]->addMinutes($delay);
+        }
+    }
+
     private function syncSharedGameClock(): void
     {
         $ch = $this->challenge->rTime()->current();
@@ -365,11 +448,11 @@ class GameRoundCoordinator
 
     /**
      * Pause on the shared game timeline when Policy A flips from one program’s
-     * full round matches to the other’s (g_duration_flip_after_round).
+     * full round matches to the other’s (c+f8_duration_flip_after_round).
      */
     private function applyFlipPause(): void
     {
-        $minutes = (int) $this->pp('g_duration_flip_after_round', 0);
+        $minutes = (int) $this->pp('c+f8_duration_flip_after_round', 0);
         if ($minutes <= 0) {
             return;
         }

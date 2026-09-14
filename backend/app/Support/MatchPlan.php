@@ -44,4 +44,20 @@ class MatchPlan
 
         return $roundEntries;
     }
+
+    /** Highest catalog/live round number (TR = 0). */
+    public function maxRound(): int
+    {
+        if ($this->entries === []) {
+            return -1;
+        }
+
+        return (int) max(array_column($this->entries, 'round'));
+    }
+
+    /** Judging blocks = max(round) + 1, including TR. */
+    public function judgingRoundCount(): int
+    {
+        return $this->maxRound() + 1;
+    }
 }

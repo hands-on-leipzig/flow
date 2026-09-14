@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 import {RouterLink, useRoute} from 'vue-router'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
+import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {useEventStore} from '@/stores/event'
 import {useNoticeStore, type NoticeMessage} from '@/stores/notice'
 import {HELP_SCREEN_KEY_BY_PATH, TEAMS_PROGRAM_HELP_KEY} from '@/utils/helpRoutes'
@@ -12,6 +13,7 @@ defineOptions({name: 'NoticePane'})
 const route = useRoute()
 const eventStore = useEventStore()
 const noticeStore = useNoticeStore()
+const {showAdminInline} = useAdminInlineVisibility()
 
 const hideTarget = ref<NoticeMessage | null>(null)
 const hiding = ref(false)
@@ -46,6 +48,29 @@ const visibleMessages = computed(() => {
 })
 
 const showRestore = computed(() => isOverview.value && noticeStore.restore_available)
+const showTodayOverride = computed(() => showAdminInline.value && !!eventStore.selectedEvent?.id)
+const showPane = computed(() =>
+  visibleMessages.value.length > 0 || showRestore.value || showTodayOverride.value
+)
+
+watch(
+  showAdminInline,
+  async (on) => {
+    noticeStore.setUseSimulatedToday(on)
+    const eventId = eventStore.selectedEvent?.id
+    if (eventId) await noticeStore.refresh(eventId)
+  },
+  {immediate: true}
+)
+
+async function onTodayInput(event: Event) {
+  const value = (event.target as HTMLInputElement).value
+  await noticeStore.setSimulatedToday(value || null)
+}
+
+async function clearSimulatedToday() {
+  await noticeStore.setSimulatedToday(null)
+}
 
 async function confirmHide() {
   const target = hideTarget.value
@@ -70,8 +95,8 @@ async function restoreAll() {
 </script>
 
 <template>
-  <div v-if="visibleMessages.length || showRestore" class="notice-pane shrink-0">
-    <ul v-if="visibleMessages.length || showRestore" class="notice-pane__list">
+  <div v-if="showPane" class="notice-pane shrink-0">
+    <ul v-if="showPane" class="notice-pane__list">
       <li
           v-for="row in visibleMessages"
           :key="row.id"
@@ -122,6 +147,32 @@ async function restoreAll() {
         >
           Ausgeblendete Hinweise wieder anzeigen
         </button>
+      </li>
+      <li v-if="showTodayOverride" class="notice-pane__restore-item">
+        <div
+            class="glass-chip liquid-surface-inner notice-pane__today"
+            title="Admin: Heute überschreiben, um Zeit-Hinweise zu prüfen"
+        >
+          <i class="bi bi-shield-lock notice-pane__today-mark" aria-hidden="true"/>
+          <label class="notice-pane__today-label">
+            Heute
+            <input
+                class="notice-pane__today-input"
+                type="date"
+                :value="noticeStore.simulatedToday ?? ''"
+                @change="onTodayInput"
+            >
+          </label>
+          <button
+              v-if="noticeStore.simulatedToday"
+              type="button"
+              class="notice-pane__today-clear"
+              title="Echtes Datum wiederherstellen"
+              @click="clearSimulatedToday"
+          >
+            <i class="bi bi-x" aria-hidden="true"/>
+          </button>
+        </div>
       </li>
     </ul>
 
@@ -253,6 +304,55 @@ async function restoreAll() {
 }
 
 .notice-pane__hide:hover {
+  color: var(--color-text);
+}
+
+.notice-pane__today {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem !important;
+}
+
+.notice-pane__today-mark {
+  color: var(--color-text-muted);
+  opacity: 0.85;
+  font-size: 0.875rem;
+}
+
+.notice-pane__today-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.notice-pane__today-input {
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  background: var(--color-bg, transparent);
+  color: inherit;
+  font-size: 0.8125rem;
+  padding: 0.1rem 0.25rem;
+}
+
+.notice-pane__today-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.notice-pane__today-clear:hover {
   color: var(--color-text);
 }
 </style>

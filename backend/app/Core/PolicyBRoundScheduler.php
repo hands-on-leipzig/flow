@@ -128,8 +128,9 @@ final class PolicyBRoundScheduler
             $idxRef = $chHas ? $chIdx : $f8Idx;
             $count = $chHas ? $chCount : $f8Count;
 
-            // Zip advance once into the surviving program, then solo advances.
-            if ($lastProgram !== null) {
+            // Last zip event was the other program: zip-flip once into Y, then solo.
+            // Last zip event was already Y: skip zip; first leftover uses solo on Y's tables.
+            if ($lastProgram !== null && $lastProgram !== $program) {
                 $advance = $this->zipAdvanceMinutes(
                     $lastProgram,
                     $bothTwo,
@@ -142,16 +143,14 @@ final class PolicyBRoundScheduler
                 $cursor = $this->addMinutes($cursor, $advance);
             }
 
-            $draining = true;
             while ($idxRef < $count) {
-                if (! $draining && $lastProgram === $program) {
+                if ($lastProgram === $program && $idxRef > 0) {
                     $prev = $matches[$idxRef - 1];
                     $cursor = $this->addMinutes(
                         $cursor,
                         $this->soloAdvanceMinutes($prev, $fields, $duration, $ns)
                     );
                 }
-                $draining = false;
 
                 $match = $matches[$idxRef];
                 $start = clone $cursor;

@@ -172,14 +172,82 @@ class PolicyBRoundSchedulerTest extends TestCase
         );
 
         // Zip: C0@10:00, F0@10:05, C1@10:15 (C empty), F1@10:20 still in zip pair.
-        // Drain: zip advance after F1 (Df8−ns=10) → F2@10:30; solo D=15 → F3@10:45.
+        // Drain: last is already F → solo D=15 → F2@10:35, F3@10:50.
         $this->assertSame([
             ['challenge', 0, '10:00'],
             ['future', 0, '10:05'],
             ['challenge', 1, '10:15'],
             ['future', 1, '10:20'],
-            ['future', 2, '10:30'],
-            ['future', 3, '10:45'],
+            ['future', 2, '10:35'],
+            ['future', 3, '10:50'],
+        ], $starts);
+    }
+
+    public function test_drain_challenge_after_future_exhausted_future_first(): void
+    {
+        // Future-first, F 2 matches, C 4 — pair ends on C, drain C with solo D.
+        $plan = $this->scheduler->plan(
+            $this->matchList(4),
+            $this->matchList(2),
+            2,
+            2,
+            10,
+            15,
+            5,
+            5,
+            5,
+            true,
+            new DateTime('2026-01-01 10:00:00'),
+        );
+
+        $starts = array_map(
+            fn ($e) => [$e['program'], $e['index'], $e['start']->format('H:i')],
+            $plan['events']
+        );
+
+        // Zip: F0@10:00, C0@10:10, F1@10:15 (F empty), C1@10:25.
+        // Drain: last is already C → solo D=10 → C2@10:35, C3@10:45.
+        $this->assertSame([
+            ['future', 0, '10:00'],
+            ['challenge', 0, '10:10'],
+            ['future', 1, '10:15'],
+            ['challenge', 1, '10:25'],
+            ['challenge', 2, '10:35'],
+            ['challenge', 3, '10:45'],
+        ], $starts);
+    }
+
+    public function test_drain_challenge_after_future_exhausted_challenge_first_zip_flips_into_c(): void
+    {
+        // Challenge-first, F shorter: pair ends on F, zip-flip into leftover C, then C solo.
+        $plan = $this->scheduler->plan(
+            $this->matchList(4),
+            $this->matchList(2),
+            2,
+            2,
+            10,
+            15,
+            5,
+            5,
+            5,
+            false,
+            new DateTime('2026-01-01 10:00:00'),
+        );
+
+        $starts = array_map(
+            fn ($e) => [$e['program'], $e['index'], $e['start']->format('H:i')],
+            $plan['events']
+        );
+
+        // Zip: C0@10:00, F0@10:05, C1@10:15, F1@10:20 (F empty).
+        // Drain: last is F → zip Df8−ns=10 → C2@10:30; solo D=10 → C3@10:40.
+        $this->assertSame([
+            ['challenge', 0, '10:00'],
+            ['future', 0, '10:05'],
+            ['challenge', 1, '10:15'],
+            ['future', 1, '10:20'],
+            ['challenge', 2, '10:30'],
+            ['challenge', 3, '10:40'],
         ], $starts);
     }
 
