@@ -237,6 +237,7 @@ function mTableNaturalUniqueKeys(string $table): array
         'm_staffing_rule' => [['m_role']],
         'm_help_action_screen' => [['help_action', 'help_screen']],
         'm_notice' => [['key']],
+        'm_match' => [['first_program', 'teams', 'lanes', 'tables', 'round', 'match_no']],
         default => [],
     };
 }
