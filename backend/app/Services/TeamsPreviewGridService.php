@@ -13,8 +13,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Überblick-style teams preview: 5-minute grid, one column per team.
- * Cell text is the job-role name_short plus lane/table number; slot-blocks stay "S".
+ * Überblick-style teams preview: 5-minute grid, one column per team (Txx).
+ * Cell text is name_preview plus role name_short and 1-digit lane/table; slot-blocks stay "S".
  */
 class TeamsPreviewGridService
 {
@@ -182,7 +182,7 @@ class TeamsPreviewGridService
             for ($i = 1; $i <= $count; $i++) {
                 $columns[] = [
                     'key' => $this->columnKey((int) $role->id, $i),
-                    'title' => $base.$i,
+                    'title' => $base.sprintf('%02d', $i),
                     'style_column' => $styleColumn,
                     'program_id' => $programId,
                     'index' => $i,
@@ -358,7 +358,7 @@ class TeamsPreviewGridService
     /**
      * @param  array<int, string>  $roleShortByAtd
      */
-    private function locationLabel(object $activity, int $number, array $roleShortByAtd): ?string
+    private function activityCellText(object $activity, int $number, array $roleShortByAtd): ?string
     {
         $atdId = (int) ($activity->activity_type_detail_id ?? 0);
         $short = $roleShortByAtd[$atdId] ?? '';
@@ -366,7 +366,13 @@ class TeamsPreviewGridService
             return null;
         }
 
-        return $short.$number;
+        $preview = trim((string) ($activity->activity_name ?? ''));
+        $location = $short.$number;
+        if ($preview === '') {
+            return $location;
+        }
+
+        return $preview.' ('.$location.')';
     }
 
     /**
@@ -432,7 +438,7 @@ class TeamsPreviewGridService
             $lane = (int) ($a->lane ?? 0);
             if ($team > 0 && $lane > 0) {
                 $key = $byProgramTeam[$programId.':'.$team] ?? null;
-                $text = $this->locationLabel($a, $lane, $roleShortByAtd);
+                $text = $this->activityCellText($a, $lane, $roleShortByAtd);
                 if ($key !== null && $text !== null) {
                     $placed[] = [
                         'column_key' => $key,
@@ -454,7 +460,7 @@ class TeamsPreviewGridService
                 }
 
                 $key = $byProgramTeam[$programId.':'.$tableTeam] ?? null;
-                $text = $this->locationLabel($a, $tableNo, $roleShortByAtd);
+                $text = $this->activityCellText($a, $tableNo, $roleShortByAtd);
                 if ($key === null || $text === null) {
                     continue;
                 }
