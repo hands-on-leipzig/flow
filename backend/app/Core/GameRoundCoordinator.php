@@ -404,10 +404,14 @@ class GameRoundCoordinator
 
     private function writeTestRoundParallel(): void
     {
-        $start = $this->challenge->rTime()->current();
-        if ($this->future->rTime()->current() > $start) {
-            $start = $this->future->rTime()->current();
-        }
+        $chStart = $this->challenge->rTime()->current();
+        $f8Start = $this->future->rTime()->current();
+        $start = $chStart > $f8Start ? $chStart : $f8Start;
+
+        // jEarliest was computed from each program's rTime at judging block 1.
+        // Shared TR start may be later (Challenge/Future align); slide earliest by that delay.
+        $this->shiftJudgingEarliestToSharedTrStart('challenge', $chStart, $start);
+        $this->shiftJudgingEarliestToSharedTrStart('future', $f8Start, $start);
 
         $this->challenge->rTime()->set($start);
         $this->future->rTime()->set($start);
@@ -422,6 +426,14 @@ class GameRoundCoordinator
         $end = $chEnd > $f8End ? $chEnd : $f8End;
         $this->challenge->rTime()->set($end);
         $this->future->rTime()->set($end);
+    }
+
+    private function shiftJudgingEarliestToSharedTrStart(string $key, DateTime $plannedStart, DateTime $sharedStart): void
+    {
+        $delay = PolicyBRoundScheduler::minutesBetween($plannedStart, $sharedStart);
+        if ($delay > 0) {
+            $this->jEarliest[$key]->addMinutes($delay);
+        }
     }
 
     private function syncSharedGameClock(): void
