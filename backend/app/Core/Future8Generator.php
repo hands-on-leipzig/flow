@@ -405,6 +405,13 @@ class Future8Generator implements ChallengeShapedLead
         $this->writeGameRound($gameRound, true);
     }
 
+    /** After shared-stage morning: next jury block waits for last written games + transfer, not end of judging 4. */
+    public function handoffMorningJudgingEarliest(TimeCursor $earliest): void
+    {
+        $this->sharedAfternoonJudgingEarliest = clone $earliest;
+        $this->sharedAfternoonJudgingOffset = 4 * (int) $this->pp('f8_lanes');
+    }
+
     public function finishMainAfterGames(): void
     {
         $this->syncCeremonyTimeAfterMain();

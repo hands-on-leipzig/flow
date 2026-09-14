@@ -76,6 +76,7 @@ class GameRoundCoordinator
         }
 
         $this->finishRemainingJudging('challenge');
+        $this->future->handoffMorningJudgingEarliest($this->jEarliest['future']);
 
         $this->challenge->finishMainAfterGames();
         $this->future->syncCeremonyTimeAfterMain();
