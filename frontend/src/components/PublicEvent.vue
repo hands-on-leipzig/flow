@@ -353,9 +353,9 @@ onMounted(async () => {
           {{ error === 'Plan nicht gefunden' ? 'Zeitplan nicht gefunden' : 'Event nicht gefunden' }}
         </h1>
         <p class="pe-muted">
-          Für die Adresse, die du aufgerufen hast, konnten wir leider
-          {{ error === 'Plan nicht gefunden' ? 'keinen Zeitplan' : 'kein Event' }} finden.
-          Bitte prüfe die Adresse noch einmal.
+          Für diese Adresse konnte
+          {{ error === 'Plan nicht gefunden' ? 'kein Zeitplan' : 'kein Event' }} gefunden werden.
+          Die Adresse noch einmal prüfen.
         </p>
         <div class="pe-slug glass-chip liquid-surface-inner">
           <span class="pe-slug__label">Aufgerufene Adresse</span>
@@ -419,9 +419,7 @@ onMounted(async () => {
         <template v-if="showPlaceholderBox">
           <h2 class="glass-card__title">Zeitplan</h2>
           <p class="pe-muted">
-            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
-            wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
-            zu erhalten.
+            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald einer veröffentlicht wird, erscheint er hier. Für weitere Informationen das Team direkt kontaktieren.
           </p>
         </template>
 
@@ -476,9 +474,7 @@ onMounted(async () => {
           </div>
 
           <p v-else class="pe-muted">
-            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald dies geschieht,
-            wirst du ihn hier sehen können. Bitte kontaktiere sie direkt, um weitere Informationen
-            zu erhalten.
+            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald einer veröffentlicht wird, erscheint er hier. Für weitere Informationen das Team direkt kontaktieren.
           </p>
         </template>
 

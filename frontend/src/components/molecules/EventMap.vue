@@ -561,7 +561,7 @@ onBeforeUnmount(() => {
               <div v-if="!mapCoordinates" class="text-[var(--color-text-subtle)] text-xs md:text-sm absolute">Lade Standort...</div>
             </div>
             <p class="text-xs md:text-sm text-[var(--color-text-muted)] text-center">
-              Scannen Sie den QR-Code, um den Standort in Google Maps zu öffnen
+              QR-Code scannen, um den Standort in Google Maps zu öffnen
             </p>
           </div>
         </div>
