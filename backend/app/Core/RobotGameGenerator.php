@@ -31,6 +31,9 @@ class RobotGameGenerator
     /** When false, skip Explore rg1End / hole coordination (Policy C Future back-room). */
     private bool $coordinateExplore = true;
 
+    /** Combined A/B morning: no Future field lunch; no pause after RG3 as if round 4 were next. */
+    private bool $sharedStageMorning = false;
+
     public function __construct(
         ActivityWriter $writer,
         PlanParameter $params,
@@ -52,11 +55,21 @@ class RobotGameGenerator
         $this->coordinateExplore = $coordinateExplore;
     }
 
-    private function robotCheckEnabled(): bool
+    public function setSharedStageMorning(bool $sharedStageMorning): void
+    {
+        $this->sharedStageMorning = $sharedStageMorning;
+    }
+
+    public function robotCheckEnabled(): bool
     {
         $param = $this->write->robotCheckParam;
 
         return $param !== null && (bool) $this->pp($param);
+    }
+
+    public function checkDuration(): int
+    {
+        return (int) $this->pp($this->write->durationCheck);
     }
 
     public function matchPlan(): MatchPlan
@@ -107,10 +120,11 @@ class RobotGameGenerator
         $time = new TimeCursor($startDt instanceof \DateTime ? $startDt : new \DateTime($startDt->format('Y-m-d H:i:s')));
 
         if ($allowRobotCheck && $this->robotCheckEnabled() && $this->write->checkCode !== null) {
+            $checkDuration = $this->checkDuration();
             $this->writer->insertActivity(
                 $this->write->checkCode,
                 $time,
-                $this->pp('r_duration_robot_check'),
+                $checkDuration,
                 null,
                 null,
                 $match['table_1'],
@@ -118,7 +132,7 @@ class RobotGameGenerator
                 $match['table_2'],
                 $match['team_2'] === 0 ? null : $match['team_2']
             );
-            $time->addMinutes($this->pp('r_duration_robot_check'));
+            $time->addMinutes($checkDuration);
         }
 
         $this->writer->insertActivity(
@@ -152,6 +166,19 @@ class RobotGameGenerator
         $param = $this->write->lunchBreakEarlyParam;
 
         return $param !== null && (bool) $this->pp($param);
+    }
+
+    /** Future catalog 5+ judging rounds: soft lunch after RG2, not RG1. */
+    private function futureSoftLunchAfterRg2(): bool
+    {
+        return $this->write->durationTransfer !== null
+            && (int) $this->pp('f8_j_rounds', 0) > 4;
+    }
+
+    /** Shared-stage A/B: Challenge owns field lunch; Future only uses the transfer-floored break. */
+    private function sharedStageSuppressesFutureFieldLunch(): bool
+    {
+        return $this->sharedStageMorning && $this->write->durationTransfer !== null;
     }
 
     private function hardLunchDuration(): mixed
@@ -256,18 +283,19 @@ class RobotGameGenerator
             // Clone time for this match
             $time = $this->rTime->copy();
 
-            // Add robot check activity if needed
+            // Add robot check / alliance meeting if needed
             if ($this->robotCheckEnabled() && $this->write->checkCode !== null) {
+                $checkDuration = $this->checkDuration();
                 $activities[] = $this->prepareActivity(
                     $this->write->checkCode,
                     $time,
-                    $this->pp('r_duration_robot_check'),
+                    $checkDuration,
                     null, null,
                     $match['table_1'], $match['team_1'],
                     $match['table_2'], $match['team_2']
                 );
-                
-                $time->addMinutes($this->pp('r_duration_robot_check'));
+
+                $time->addMinutes($checkDuration);
             }
 
             // Add match activity
@@ -297,9 +325,9 @@ class RobotGameGenerator
             $this->rTime->set($roundEnd->current());
         }
 
-        // Robot check adds additional time at the end of the round
+        // Check / alliance adds additional time at the end of the round
         if ($this->robotCheckEnabled()) {
-            $this->rTime->addMinutes($this->pp("r_duration_robot_check"));
+            $this->rTime->addMinutes($this->checkDuration());
         }
 
         if ($applyPostRoundBreak) {
@@ -320,14 +348,14 @@ class RobotGameGenerator
                     $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                 } else {
                     // Normal: regular break after test round
-                    $this->rTime->addMinutes($this->pp($this->write->durationBreak));
+                    $this->addGameRoundBreak();
                 }
                 break;
 
             case 1:
                 if ($this->pp('g_finale')) {
                     // Finale: Simple break after RG1
-                    $this->rTime->addMinutes($this->pp($this->write->durationBreak));
+                    $this->addGameRoundBreak();
                 } else {
                     // Challenge break is the floor for RG2. Explore may only push rTime later.
                     $rg1End = $this->rTime->current();
@@ -335,7 +363,9 @@ class RobotGameGenerator
                         $this->integratedExplore->rg1End = $rg1End;
                     }
 
-                    if (!$this->lunchBreakEarly() && $this->hardLunchDuration() === 0) {
+                    if ($this->sharedStageSuppressesFutureFieldLunch() || $this->futureSoftLunchAfterRg2()) {
+                        $this->addGameRoundBreak();
+                    } elseif (! $this->lunchBreakEarly() && $this->hardLunchDuration() === 0) {
                         $this->rTime->addMinutes($this->pp($this->write->durationLunch));
                     }
 
@@ -365,15 +395,54 @@ class RobotGameGenerator
                         }
                     }
                 } else {
-                    // Normal events: Regular break after RG2 (lunch was already handled at test round if early)
-                    $this->rTime->addMinutes($this->pp($this->write->durationBreak));
+                    if ($this->sharedStageSuppressesFutureFieldLunch()) {
+                        $this->addGameRoundBreak();
+                    } elseif ($this->futureSoftLunchAfterRg2() && $this->hardLunchDuration() === 0) {
+                        $this->rTime->addMinutes($this->pp($this->write->durationLunch));
+                    } else {
+                        $this->addGameRoundBreak();
+                    }
                 }
                 break;
 
             case 3:
-                // After RG3 is handled in PlanGeneratorCore::afternoon()
+                // Challenge: after RG3 is handled in PlanGeneratorCore::afternoon().
+                // Future catalog 1:1 may still have later morning rounds.
+                $this->maybeAddCatalogContinuationBreak($round);
+                break;
+
+            default:
+                $this->maybeAddCatalogContinuationBreak($round);
                 break;
         }
+    }
+
+    /**
+     * Referee pause between game rounds. Future: at least f8_duration_transfer.
+     */
+    private function addGameRoundBreak(): void
+    {
+        $break = (int) $this->pp($this->write->durationBreak);
+        $transfer = $this->write->durationTransfer !== null
+            ? (int) $this->pp($this->write->durationTransfer)
+            : null;
+        $this->rTime->addMinutes(RobotGameWriteConfig::gameRoundBreakMinutes($break, $transfer));
+    }
+
+    /** Future-only: pause before the next catalog game round, not after the last. */
+    private function maybeAddCatalogContinuationBreak(int $round): void
+    {
+        if ($this->write->durationTransfer === null) {
+            return;
+        }
+        if ($this->sharedStageMorning && $round === 3) {
+            return;
+        }
+        if ($round >= $this->matchPlan->maxRound()) {
+            return;
+        }
+
+        $this->addGameRoundBreak();
     }
 
     /**

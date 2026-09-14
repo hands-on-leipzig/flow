@@ -28,6 +28,10 @@ class Future8Generator implements ChallengeShapedLead
 
     private bool $coordinateExplore = true;
 
+    private ?TimeCursor $sharedAfternoonJudgingEarliest = null;
+
+    private int $sharedAfternoonJudgingOffset = 0;
+
     public function __construct(
         ActivityWriter $writer,
         PlanParameter $params,
@@ -110,9 +114,7 @@ class Future8Generator implements ChallengeShapedLead
                 || ($this->pp('f8_j_rounds') > 4 && $cBlock == 3));
 
             if ($isLunchRound) {
-                if ($this->pp('f8_duration_lunch_break') == 0) {
-                    $jTime->addMinutes($this->pp('f8_j_duration_lunch'));
-                }
+                $jTime->addMinutes($this->pp('f8_j_duration_lunch'));
             } elseif ($cBlock < $this->pp('f8_j_rounds')) {
                 $jTime->addMinutes($this->pp('f8_j_duration_break'));
             }
@@ -223,7 +225,6 @@ class Future8Generator implements ChallengeShapedLead
                 $this->judgingOneRound($cBlock, $jT);
                 $jT += $this->pp('f8_lanes');
                 $this->insertRobotGameRoundForBlock($cBlock, $afterRG1Callback);
-                $this->maybeInsertHardLunch($cBlock);
             }
 
             $this->finishMainAfterGames();
@@ -243,11 +244,25 @@ class Future8Generator implements ChallengeShapedLead
         $this->coordinateExplore = $coordinateExplore;
     }
 
+    /** Combined A/B morning: extra catalog rounds wait for Nachmittag; Challenge owns field lunch. */
+    public function setSharedStageMorning(bool $sharedStageMorning): void
+    {
+        $this->robotGame->setSharedStageMorning($sharedStageMorning);
+    }
+
     public function prepareMain(): void
     {
-        $matchPlan = (new MatchPlanBuilder)->build(
-            MatchPlanSpec::for(FirstProgram::FUTURE_8, $this->params)
+        // Pairings from m_match. Challenge still uses MatchPlanBuilder.
+        // Catalog round count overrides constructor f8_j_rounds (1:1 with TR).
+        $spec = MatchPlanSpec::for(FirstProgram::FUTURE_8, $this->params);
+        $matchPlan = (new MatchPlanCatalogLoader)->load(
+            FirstProgram::FUTURE_8,
+            $spec->planId,
+            $spec->teams,
+            $spec->lanes,
+            $spec->tables,
         );
+        $this->params->add('f8_j_rounds', $matchPlan->judgingRoundCount(), 'integer');
         $this->robotGame = new RobotGameGenerator(
             $this->writer,
             $this->params,
@@ -284,16 +299,22 @@ class Future8Generator implements ChallengeShapedLead
         return $this->pp('f8_j_duration_with_team') + $this->pp('f8_duration_transfer');
     }
 
+    /**
+     * Future catalog 1:1 including TR — not Challenge's compress map.
+     * Judging block k writes match round k−1 when 1…f8_j_rounds.
+     */
+    public static function catalogGameRoundForJudgingBlock(int $cBlock, int $judgingRounds): ?int
+    {
+        if ($cBlock < 1 || $cBlock > $judgingRounds) {
+            return null;
+        }
+
+        return $cBlock - 1;
+    }
+
     public function gameRoundForJudgingBlock(int $cBlock): ?int
     {
-        return match ($cBlock) {
-            1 => 0,
-            2 => $this->pp('f8_j_rounds') == 4 ? 1 : null,
-            3 => $this->pp('f8_j_rounds') == 4 ? 2 : 1,
-            4 => $this->pp('f8_j_rounds') == 4 ? 3 : 2,
-            5 => 3,
-            default => null,
-        };
+        return self::catalogGameRoundForJudgingBlock($cBlock, (int) $this->pp('f8_j_rounds'));
     }
 
     public function runJudgingBlock(int $cBlock, TimeCursor &$jTimeEarliest, int &$jT, ?array $policyBTiming = null): void
@@ -301,30 +322,52 @@ class Future8Generator implements ChallengeShapedLead
         $this->alignJudgingWithRobotGame($cBlock, $jTimeEarliest, $this->judgingAwayDuration(), $policyBTiming);
         $this->judgingOneRound($cBlock, $jT);
         $jT += (int) $this->pp('f8_lanes');
-        $this->maybeInsertHardLunch($cBlock);
     }
 
     /**
-     * Match index (0-based) that align protects for this judging block — same as solo rMB.
+     * Match index (0-based) that align protects for this judging block.
+     * One game round per judging block (catalog 1:1) — not Challenge compress packing.
+     * No builder asym bump; no rMB=0 once every team has had a judging slot.
      */
+    public static function catalogProtectedMatchIndex(
+        int $cBlock,
+        int $judgingRounds,
+        int $teams,
+        int $lanes,
+        int $matchesPerRound,
+    ): int {
+        if ($cBlock === $judgingRounds && ($teams % $lanes) !== 0) {
+            $teamsInLastRound = $teams % $lanes;
+
+            return (int) max(0, $matchesPerRound - $teamsInLastRound);
+        }
+
+        return (int) ($matchesPerRound - ceil($lanes / 2));
+    }
+
     public function protectedMatchIndexForBlock(int $cBlock): int
     {
-        if ($cBlock == $this->pp('f8_j_rounds') && ($this->pp('f8_teams') % $this->pp('f8_lanes')) !== 0) {
-            $teamsInLastRound = $this->pp('f8_teams') % $this->pp('f8_lanes');
-            $rMB = max(0, $this->pp('f8_r_matches_per_round') - $teamsInLastRound);
-        } else {
-            $rMB = $this->pp('f8_r_matches_per_round') - ceil($this->pp('f8_lanes') / 2);
+        return self::catalogProtectedMatchIndex(
+            $cBlock,
+            (int) $this->pp('f8_j_rounds'),
+            (int) $this->pp('f8_teams'),
+            (int) $this->pp('f8_lanes'),
+            (int) $this->pp('f8_r_matches_per_round'),
+        );
+    }
+
+    /**
+     * How many matches at the start of a round can hold the teams who go to the next judging block.
+     * Two lanes: those two teams may be in match 1 or 2 of the catalog plan.
+     */
+    public static function catalogEarlyMatchesForNextJudging(int $lanes, int $matchesPerRound): int
+    {
+        $cap = max(1, $matchesPerRound);
+        if ($lanes === 2) {
+            return min(2, $cap);
         }
 
-        if ($cBlock == 1 && $this->pp('f8_r_asym') && $this->pp('f8_j_rounds') != 4) {
-            $rMB++;
-        }
-
-        if ($cBlock < $this->pp('f8_j_rounds') && $this->pp('f8_teams') <= $cBlock * $this->pp('f8_lanes')) {
-            $rMB = 0;
-        }
-
-        return (int) $rMB;
+        return (int) min($cap, ceil($lanes / 2));
     }
 
     public function writeGameRound(int $round, bool $applyPostRoundBreak = true): void
@@ -342,10 +385,61 @@ class Future8Generator implements ChallengeShapedLead
         $this->robotGame->applyPostRoundBreak($round);
     }
 
+    /**
+     * Shared-stage Nachmittag: judging block k with catalog game round k−1 (1:1 + transfer).
+     * Morning already wrote judging blocks 1–4 (TR+RG1–3).
+     */
+    public function emitSharedAfternoonGameRound(int $gameRound): void
+    {
+        $block = $gameRound + 1;
+        if ($this->sharedAfternoonJudgingEarliest === null) {
+            $this->sharedAfternoonJudgingEarliest = clone $this->jTime;
+            $this->sharedAfternoonJudgingOffset = 4 * (int) $this->pp('f8_lanes');
+        }
+
+        $this->runJudgingBlock(
+            $block,
+            $this->sharedAfternoonJudgingEarliest,
+            $this->sharedAfternoonJudgingOffset
+        );
+        $this->writeGameRound($gameRound, true);
+    }
+
+    /** After shared-stage morning: next jury block waits for last written games + transfer, not end of judging 4. */
+    public function handoffMorningJudgingEarliest(TimeCursor $earliest): void
+    {
+        $this->sharedAfternoonJudgingEarliest = clone $earliest;
+        $this->sharedAfternoonJudgingOffset = 4 * (int) $this->pp('f8_lanes');
+    }
+
     public function finishMainAfterGames(): void
     {
         $this->syncCeremonyTimeAfterMain();
         $this->insertDeliberations();
+    }
+
+    public function syncCeremonyTimeAfterMain(): void
+    {
+        $this->cTime->set($this->jTime->current());
+        $this->cTime->addMinutes(-$this->pp('f8_j_duration_scoring'));
+
+        if ($this->rTime->current() > $this->cTime->current()) {
+            $this->cTime->set($this->rTime->current());
+        }
+    }
+
+    public function insertDeliberations(): void
+    {
+        $this->jTime->addMinutes($this->pp('f8_j_ready_deliberations'));
+
+        if (! $this->pp('f8_j_deliberations_flex') && $this->jTime->current() < $this->rTime->current()) {
+            $this->jTime->set($this->rTime->current());
+        }
+
+        $this->writer->withGroup('f8_j_deliberations', function () {
+            $this->writer->insertActivity('f8_j_deliberations', $this->jTime, $this->pp('f8_j_duration_deliberations'));
+        });
+        $this->jTime->addMinutes($this->pp('f8_j_duration_deliberations'));
     }
 
     public function syncClocksFrom(ChallengeGenerator|Future8Generator $other): void
@@ -392,19 +486,27 @@ class Future8Generator implements ChallengeShapedLead
 
         if ($policyBTiming !== null) {
             $rA4J = $policyBTiming['rA4JMinutes'];
-        } elseif ($this->pp('f8_j_rounds') > 4 && $cBlock == 2) {
-            $rA4J = 0;
         } else {
-            $rMB = ceil($this->pp('f8_lanes') / 2);
+            // Count of matches whose END plus transfer must pass before next judging.
+            // 2 lanes: catalog may put those two teams in either of the first two matches.
+            $earlyMatches = self::catalogEarlyMatchesForNextJudging(
+                (int) $this->pp('f8_lanes'),
+                (int) $this->pp('f8_r_matches_per_round'),
+            );
 
             if ($this->pp('f8_fields') == 2) {
-                $rA4J = $rMB * $rDuration;
+                $rA4J = $earlyMatches * $rDuration;
             } else {
-                if ($rMB % 2 === 0) {
-                    $rA4J = $rMB / 2 * $rDuration + $this->pp('f8_r_duration_next_start');
+                if ($earlyMatches % 2 === 0) {
+                    $rA4J = $earlyMatches / 2 * $rDuration + $this->pp('f8_r_duration_next_start');
                 } else {
-                    $rA4J = ($rMB + 1) / 2 * $rDuration;
+                    $rA4J = ($earlyMatches + 1) / 2 * $rDuration;
                 }
+            }
+
+            // Alliance meeting shifts everything, but just once.
+            if ($this->pp('f8_r_alliance_meeting')) {
+                $rA4J += $this->pp('f8_r_duration_alliance_meeting');
             }
 
             $rA4J += $this->pp('f8_duration_transfer');
@@ -416,39 +518,14 @@ class Future8Generator implements ChallengeShapedLead
 
     private function insertRobotGameRoundForBlock(int $cBlock, ?callable $afterRG1Callback): void
     {
-        $insertedRg1 = false;
-
-        switch ($cBlock) {
-            case 1:
-                $this->robotGame->insertOneRound(0);
-                break;
-            case 2:
-                if ($this->pp('f8_j_rounds') == 4) {
-                    $this->robotGame->insertOneRound(1);
-                    $insertedRg1 = true;
-                }
-                break;
-            case 3:
-                if ($this->pp('f8_j_rounds') == 4) {
-                    $this->robotGame->insertOneRound(2);
-                } else {
-                    $this->robotGame->insertOneRound(1);
-                    $insertedRg1 = true;
-                }
-                break;
-            case 4:
-                if ($this->pp('f8_j_rounds') == 4) {
-                    $this->robotGame->insertOneRound(3);
-                } else {
-                    $this->robotGame->insertOneRound(2);
-                }
-                break;
-            case 5:
-                $this->robotGame->insertOneRound(3);
-                break;
+        $round = $this->gameRoundForJudgingBlock($cBlock);
+        if ($round === null) {
+            return;
         }
 
-        if ($insertedRg1) {
+        $this->robotGame->insertOneRound($round);
+
+        if ($round === 1) {
             $this->maybeRunAfterRG1Handoff($afterRG1Callback);
         }
     }
@@ -458,47 +535,6 @@ class Future8Generator implements ChallengeShapedLead
         if ($afterRG1Callback !== null && $this->exploreMode() == ExploreMode::INTEGRATED_MORNING->value) {
             $afterRG1Callback($this->rTime);
         }
-    }
-
-    private function maybeInsertHardLunch(int $cBlock): void
-    {
-        $isLunchRound = (($this->pp('f8_j_rounds') == 4 && $cBlock == 2)
-            || ($this->pp('f8_j_rounds') > 4 && $cBlock == 3));
-
-        if ($isLunchRound && $this->pp('f8_duration_lunch_break') > 0) {
-            if ($this->rTime->current() < $this->jTime->current()) {
-                $this->rTime->set($this->jTime->current());
-            } else {
-                $this->jTime->set($this->rTime->current());
-            }
-
-            $this->jTime->addMinutes($this->pp('f8_duration_lunch_break'));
-            $this->rTime->addMinutes($this->pp('f8_duration_lunch_break'));
-        }
-    }
-
-    private function syncCeremonyTimeAfterMain(): void
-    {
-        $this->cTime->set($this->jTime->current());
-        $this->cTime->addMinutes(-$this->pp('f8_j_duration_scoring'));
-
-        if ($this->rTime->current() > $this->cTime->current()) {
-            $this->cTime->set($this->rTime->current());
-        }
-    }
-
-    private function insertDeliberations(): void
-    {
-        $this->jTime->addMinutes($this->pp('f8_j_ready_deliberations'));
-
-        if (! $this->pp('f8_j_deliberations_flex') && $this->jTime->current() < $this->rTime->current()) {
-            $this->jTime->set($this->rTime->current());
-        }
-
-        $this->writer->withGroup('f8_j_deliberations', function () {
-            $this->writer->insertActivity('f8_j_deliberations', $this->jTime, $this->pp('f8_j_duration_deliberations'));
-        });
-        $this->jTime->addMinutes($this->pp('f8_j_duration_deliberations'));
     }
 
     public function beginAfternoon(): void
@@ -519,74 +555,6 @@ class Future8Generator implements ChallengeShapedLead
 
         $this->rTime->addMinutes($duration);
         $this->rTime->addMinutes($this->pp('f8_ready_presentations'));
-    }
-
-    /**
-     * Empty field slots for afternoon rounds 4 and 5. Teams are assigned onsite.
-     */
-    public function insertEmptyGameRound(int $round): void
-    {
-        $groupCode = match ($round) {
-            4 => 'f8_round_4',
-            5 => 'f8_round_5',
-            default => throw new \InvalidArgumentException("Future 8+ empty game round must be 4 or 5, got {$round}"),
-        };
-
-        $fields = (int) $this->pp('f8_fields');
-        $matches = (int) $this->pp('f8_r_matches_per_round');
-        $duration = $this->pp('f8_r_duration_match');
-        $nextStart = $this->pp('f8_r_duration_next_start');
-
-        $this->writer->withGroup($groupCode, function () use ($fields, $matches, $duration, $nextStart) {
-            $lastMatchStart = null;
-
-            for ($match = 1; $match <= $matches; $match++) {
-                $lastMatchStart = $this->rTime->current();
-
-                if ($fields == 2) {
-                    $this->writer->insertActivity(
-                        'f8_r_match',
-                        $this->rTime,
-                        $duration,
-                        null,
-                        null,
-                        1,
-                        null,
-                        2,
-                        null
-                    );
-                    $this->rTime->addMinutes($duration);
-                } else {
-                    $table1 = ($match % 2 === 1) ? 1 : 3;
-                    $table2 = ($match % 2 === 1) ? 2 : 4;
-                    $this->writer->insertActivity(
-                        'f8_r_match',
-                        $this->rTime,
-                        $duration,
-                        null,
-                        null,
-                        $table1,
-                        null,
-                        $table2,
-                        null
-                    );
-                    // Same 4-field pair stagger as RobotGameGenerator (ns / D-ns).
-                    if ($match % 2 === 1) {
-                        $this->rTime->addMinutes($nextStart);
-                    } else {
-                        $this->rTime->addMinutes($duration - $nextStart);
-                    }
-                }
-            }
-
-            if ($fields === 4 && $lastMatchStart !== null) {
-                $roundEnd = new TimeCursor($lastMatchStart);
-                $roundEnd->addMinutes($duration);
-                $this->rTime->set($roundEnd->current());
-            }
-        });
-
-        $this->rTime->addMinutes($this->pp('f8_r_duration_break'));
     }
 
     public function endAfternoon(): void

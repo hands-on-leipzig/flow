@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 
 use App\Models\QRun;
+use App\Models\MSupportedPlan;
 use App\Enums\FirstProgram;
 use App\Support\ChallengeShapedParamMap;
 use App\Support\PlanParameter;
@@ -117,17 +118,25 @@ class QualityController extends Controller
     public function startQRun(Request $request)
     {
         try {
-            // Validate every selection key we persist — Laravel's validated()
-            // payload only keeps nested keys that have rules (not the whole array).
+            $firstProgram = (int) $request->input('selection.first_program');
+            $bounds = in_array($firstProgram, [FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value], true)
+                ? MSupportedPlan::selectionBounds($firstProgram)
+                : null;
+            $minTeams = $bounds['min_teams'] ?? 0;
+            $maxTeams = $bounds['max_teams'] ?? 0;
+            $minLanes = $bounds['min_lanes'] ?? 0;
+            $maxLanes = $bounds['max_lanes'] ?? 0;
+
+            // Team/lane extents come from m_supported_plan for that program.
             $payload = $request->validate([
                 'name' => 'required|string|max:100',
                 'comment' => 'nullable|string',
                 'selection' => 'required|array',
                 'selection.first_program' => 'required|integer|in:3,8',
-                'selection.min_teams' => 'required|integer|min:4|max:25',
-                'selection.max_teams' => 'required|integer|min:4|max:25|gte:selection.min_teams',
+                'selection.min_teams' => "required|integer|min:{$minTeams}|max:{$maxTeams}",
+                'selection.max_teams' => "required|integer|min:{$minTeams}|max:{$maxTeams}|gte:selection.min_teams",
                 'selection.jury_lanes' => 'required|array|min:1',
-                'selection.jury_lanes.*' => 'integer|min:1|max:5',
+                'selection.jury_lanes.*' => "integer|min:{$minLanes}|max:{$maxLanes}",
                 'selection.tables' => 'required|array|min:1',
                 'selection.tables.*' => 'integer|in:2,4',
                 'selection.jury_rounds' => 'required|array|min:1',

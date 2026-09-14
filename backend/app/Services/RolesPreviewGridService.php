@@ -10,9 +10,11 @@ use App\Support\ProgramPresence;
 use App\Support\RoleDifferentiation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Überblick-style roles preview: 5-minute activity grid, param-driven lane/table columns.
+ * Cell text is the activity name plus team number " (Txx)" when a team is assigned.
  */
 class RolesPreviewGridService
 {
@@ -59,9 +61,10 @@ class RolesPreviewGridService
             ];
         }
 
+        $previewRoleIds = $this->previewRoleIds($rolesByProgram);
         $raw = $this->activities->fetchActivities(
             plan: $planId,
-            roles: $this->previewRoleIds($rolesByProgram),
+            roles: $previewRoleIds,
             includeActivityMeta: true,
             freeBlocks: false,
         );
@@ -73,7 +76,8 @@ class RolesPreviewGridService
         });
 
         $columnIndex = $this->indexColumnsByRole($programs, $rolesByProgram);
-        $placed = $this->placeActivities($activities, $columnIndex, $rolesByProgram);
+        $visibleRolesByAtd = $this->loadVisibleRolesByActivityType($activities, $previewRoleIds);
+        $placed = $this->placeActivities($activities, $columnIndex, $rolesByProgram, $visibleRolesByAtd);
 
         $overlap = PreviewGridOverlapResolver::resolve($placed);
         $placed = $overlap['events'];
@@ -180,10 +184,6 @@ class RolesPreviewGridService
             $columns = [];
 
             foreach ($roles as $role) {
-                if ($this->isRobotCheckRole($role) && ! (int) $params->get('r_robot_check', 0)) {
-                    continue;
-                }
-
                 $count = RoleDifferentiation::optionCount($programId, (string) $role->differentiation_parameter, $params);
                 if ($count < 1) {
                     continue;
@@ -255,11 +255,40 @@ class RolesPreviewGridService
         return 'r'.$roleId.'_'.$index;
     }
 
-    private function isRobotCheckRole(object $role): bool
+    /**
+     * @param  Collection<int, object>  $activities
+     * @param  list<int>  $roleIds
+     * @return array<int, array<int, true>>  activity_type_detail_id => role id set
+     */
+    private function loadVisibleRolesByActivityType(Collection $activities, array $roleIds): array
     {
-        $short = strtoupper(trim((string) ($role->name_short ?? '')));
+        $atdIds = $activities
+            ->map(fn ($a) => (int) ($a->activity_type_detail_id ?? 0))
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
 
-        return str_starts_with($short, 'RC');
+        if ($atdIds === [] || $roleIds === []) {
+            return [];
+        }
+
+        $rows = DB::table('m_visibility')
+            ->whereIn('activity_type_detail', $atdIds)
+            ->whereIn('role', $roleIds)
+            ->get(['activity_type_detail', 'role']);
+
+        $map = [];
+        foreach ($rows as $row) {
+            $atdId = (int) $row->activity_type_detail;
+            $roleId = (int) $row->role;
+            if ($atdId < 1 || $roleId < 1) {
+                continue;
+            }
+            $map[$atdId][$roleId] = true;
+        }
+
+        return $map;
     }
 
     /**
@@ -291,10 +320,15 @@ class RolesPreviewGridService
      * @param  Collection<int, object>  $activities
      * @param  array{byRoleIndex: array<string, string>, roles: array<int, object>}  $columnIndex
      * @param  array<int, Collection<int, object>>  $rolesByProgram
+     * @param  array<int, array<int, true>>  $visibleRolesByAtd
      * @return list<array{column_key: string, start: Carbon, end: Carbon, text: string, rowspan: int, style_column: string}>
      */
-    private function placeActivities(Collection $activities, array $columnIndex, array $rolesByProgram): array
-    {
+    private function placeActivities(
+        Collection $activities,
+        array $columnIndex,
+        array $rolesByProgram,
+        array $visibleRolesByAtd,
+    ): array {
         $placed = [];
         $byRoleIndex = $columnIndex['byRoleIndex'];
 
@@ -304,7 +338,6 @@ class RolesPreviewGridService
                 continue;
             }
 
-            $code = (string) ($a->activity_type_code ?? '');
             $text = trim((string) ($a->activity_name ?? ''));
             if ($text === '') {
                 $text = '—';
@@ -317,14 +350,20 @@ class RolesPreviewGridService
             // Snap display start to 5-minute grid floor
             $gridStart = $start->copy()->minute((int) (floor($start->minute / self::SLOT_MINUTES) * self::SLOT_MINUTES))->second(0);
             $activityId = (int) ($a->activity_id ?? 0);
+            $atdId = (int) ($a->activity_type_detail_id ?? 0);
+            $visibleRoles = $visibleRolesByAtd[$atdId] ?? [];
 
             $programRoles = $rolesByProgram[$programId];
             $styleColumn = $this->styleColumnForProgram($programId);
+            $tableStyle = $programId === FirstProgram::FUTURE_8->value ? 'Game' : 'Robot-Game';
 
             $lane = (int) ($a->lane ?? 0);
             if ($lane > 0) {
                 foreach ($programRoles as $role) {
                     if ($role->differentiation_parameter !== 'lane') {
+                        continue;
+                    }
+                    if (! isset($visibleRoles[(int) $role->id])) {
                         continue;
                     }
                     $key = $byRoleIndex[$role->id.':'.$lane] ?? null;
@@ -335,7 +374,7 @@ class RolesPreviewGridService
                         'column_key' => $key,
                         'start' => $gridStart->copy(),
                         'end' => $end->copy(),
-                        'text' => $text,
+                        'text' => $this->withTeamNumber($text, (int) ($a->team ?? 0)),
                         'rowspan' => $rowspan,
                         'style_column' => $styleColumn,
                         'activity_id' => $activityId,
@@ -349,16 +388,11 @@ class RolesPreviewGridService
                     continue;
                 }
 
-                $isCheck = $code === 'r_check';
                 foreach ($programRoles as $role) {
                     if ($role->differentiation_parameter !== 'table') {
                         continue;
                     }
-                    $isRcRole = $this->isRobotCheckRole($role);
-                    if ($isCheck && ! $isRcRole) {
-                        continue;
-                    }
-                    if (! $isCheck && $isRcRole) {
+                    if (! isset($visibleRoles[(int) $role->id])) {
                         continue;
                     }
                     $key = $byRoleIndex[$role->id.':'.$tableNo] ?? null;
@@ -369,11 +403,9 @@ class RolesPreviewGridService
                         'column_key' => $key,
                         'start' => $gridStart->copy(),
                         'end' => $end->copy(),
-                        'text' => $text,
+                        'text' => $this->withTeamNumber($text, (int) ($a->{'table_'.$ti.'_team'} ?? 0)),
                         'rowspan' => $rowspan,
-                        'style_column' => $isCheck ? 'Robot-Game' : (
-                            $programId === FirstProgram::FUTURE_8->value ? 'Game' : 'Robot-Game'
-                        ),
+                        'style_column' => $tableStyle,
                         'activity_id' => $activityId,
                     ];
                 }
@@ -381,6 +413,15 @@ class RolesPreviewGridService
         }
 
         return $placed;
+    }
+
+    private function withTeamNumber(string $text, int $teamNo): string
+    {
+        if ($teamNo < 1) {
+            return $text;
+        }
+
+        return $text.sprintf(' (T%02d)', $teamNo);
     }
 
     /**

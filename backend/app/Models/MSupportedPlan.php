@@ -42,4 +42,28 @@ class MSupportedPlan extends Model
             ->orderBy('id')
             ->first();
     }
+
+    /**
+     * Team and lane extents in m_supported_plan for one first_program.
+     *
+     * @return array{min_teams: int, max_teams: int, min_lanes: int, max_lanes: int}|null
+     */
+    public static function selectionBounds(int $firstProgram): ?array
+    {
+        $row = static::query()
+            ->where('first_program', $firstProgram)
+            ->selectRaw('MIN(teams) as min_teams, MAX(teams) as max_teams, MIN(lanes) as min_lanes, MAX(lanes) as max_lanes')
+            ->first();
+
+        if ($row === null || $row->min_teams === null || $row->min_lanes === null) {
+            return null;
+        }
+
+        return [
+            'min_teams' => (int) $row->min_teams,
+            'max_teams' => (int) $row->max_teams,
+            'min_lanes' => (int) $row->min_lanes,
+            'max_lanes' => (int) $row->max_lanes,
+        ];
+    }
 }
