@@ -3,6 +3,12 @@ import { computed, ref } from 'vue'
 import { formatDateOnly } from '@/utils/dateTimeFormat'
 import QPlanSummaryRow from '@/components/atoms/QPlanSummaryRow.vue'
 import { useGoToEventSchedule } from '@/composables/useGoToEventSchedule'
+import {
+  FIRST_PROGRAM_CHALLENGE,
+  FIRST_PROGRAM_FUTURE_8,
+  tableFieldPlural,
+  tableFieldPluralSlash,
+} from '@/utils/tableFieldLabels'
 
 const props = defineProps({
   events: {
@@ -31,13 +37,14 @@ const expandedKey = ref(null)
 
 const tablesHeader = computed(() => {
   const hasF8 = props.events.some((e) =>
-    e.programs?.some((p) => p.first_program === 8),
+    e.programs?.some((p) => p.first_program === FIRST_PROGRAM_FUTURE_8),
   )
   const hasC = props.events.some((e) =>
-    e.programs?.some((p) => p.first_program === 3),
+    e.programs?.some((p) => p.first_program === FIRST_PROGRAM_CHALLENGE),
   )
-  if (hasF8 && !hasC) return 'RG-Felder'
-  return 'RG-Tische'
+  if (hasF8 && hasC) return tableFieldPluralSlash()
+  if (hasF8) return tableFieldPlural(FIRST_PROGRAM_FUTURE_8)
+  return tableFieldPlural(FIRST_PROGRAM_CHALLENGE)
 })
 
 function rowKey(eventId, firstProgram) {
@@ -128,7 +135,7 @@ function eventEvaluationNote(event) {
       <div>Dauer</div>
       <div>Transfer</div>
       <div>Testrunde</div>
-      <div>Tische</div>
+      <div>{{ tablesHeader }}</div>
       <div>Teams</div>
       <div>Abstand</div>
     </div>

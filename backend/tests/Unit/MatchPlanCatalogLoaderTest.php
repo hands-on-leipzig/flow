@@ -91,7 +91,7 @@ class MatchPlanCatalogLoaderTest extends TestCase
     public function test_miss_both_keys_throws_naming_the_lookup(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Teams=9, Jurygruppen=2, Spielfelder=4');
+        $this->expectExceptionMessage('Teams=9, Jurygruppen=2, Felder=4');
         $this->expectExceptionMessage('Teams+1=10');
 
         (new MatchPlanCatalogLoader)->load(FirstProgram::FUTURE_8, 1, 9, 2, 4);

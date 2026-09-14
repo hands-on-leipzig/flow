@@ -2,6 +2,7 @@
 import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {tableFieldPlural} from '@/utils/tableFieldLabels'
 
 defineOptions({name: 'MatchPlansAdmin'})
 
@@ -28,6 +29,8 @@ const showLoadPickerModal = ref(false)
 const selectedProgram = computed(() =>
   programs.value.find((p) => p.id === firstProgram.value) ?? null,
 )
+
+const tablesWord = computed(() => tableFieldPlural(Number(firstProgram.value)))
 
 const maxMatchRounds = computed(() =>
   Number(selectedProgram.value?.max_match_rounds ?? 3),
@@ -258,7 +261,7 @@ function onTablesSelect(event) {
     return
   }
   const irreversible = next < tables.value
-  if (!confirmChange(`Tische von ${tables.value} auf ${next} ändern?`, {irreversible})) {
+  if (!confirmChange(`${tablesWord.value} von ${tables.value} auf ${next} ändern?`, {irreversible})) {
     event.target.value = String(tables.value)
     return
   }
@@ -566,7 +569,7 @@ async function loadPlanKey(key) {
 async function saveToDb() {
   if (existsWarning.value) {
     const ok = window.confirm(
-      `Plan für Programm ${firstProgram.value}, ${teams.value} Teams, ${lanes.value} Lanes, ${tables.value} Tische existiert bereits und wird überschrieben. Fortfahren?`,
+      `Plan für Programm ${firstProgram.value}, ${teams.value} Teams, ${lanes.value} Lanes, ${tables.value} ${tablesWord.value} existiert bereits und wird überschrieben. Fortfahren?`,
     )
     if (!ok) return
   }
@@ -704,7 +707,7 @@ watch([firstProgram, teams, lanes, tables], () => {
           />
         </label>
         <label class="flex flex-col gap-1 text-sm">
-          <span>Tische</span>
+          <span>{{ tablesWord }}</span>
           <select
             class="glass-input w-24"
             :value="tables"
@@ -727,7 +730,7 @@ watch([firstProgram, teams, lanes, tables], () => {
         </div>
       </div>
       <p v-if="existsWarning" class="text-sm text-amber-700">
-        Warnung: Für diese Kombination (Programm / Teams / Lanes / Tische) existiert bereits ein Plan — Speichern überschreibt.
+        Warnung: Für diese Kombination (Programm / Teams / Lanes / {{ tablesWord }}) existiert bereits ein Plan — Speichern überschreibt.
       </p>
       <p v-if="dirty" class="text-sm text-[var(--color-text-muted)]">Ungespeicherte Änderungen</p>
       <div v-if="comment" class="text-sm">
@@ -887,7 +890,7 @@ watch([firstProgram, teams, lanes, tables], () => {
                   <button
                     type="button"
                     class="glass-btn-secondary !px-1.5 !py-0.5 !text-sm"
-                    :title="isPair34(match) ? 'Zu Tischen 1–2' : 'Zu Tischen 3–4'"
+                    :title="isPair34(match) ? `${tablesWord} 1–2` : `${tablesWord} 3–4`"
                     @click="togglePair(match)"
                   >
                     {{ isPair34(match) ? '←1/2' : '3/4→' }}
@@ -944,7 +947,7 @@ watch([firstProgram, teams, lanes, tables], () => {
 
         <div v-if="quality?.match_summary" class="overflow-x-auto min-w-0 flex-1">
           <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">
-            Testrunde, Tische und Teams gegenüber
+            Testrunde, {{ tablesWord }} und Teams gegenüber
           </div>
           <table class="table-auto text-sm border-collapse glass-list">
             <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
@@ -956,7 +959,7 @@ watch([firstProgram, teams, lanes, tables], () => {
                   :key="`th-t-${r}`"
                   class="px-2 py-1"
                 >R{{ r }}</th>
-                <th class="px-2 py-1">Tische</th>
+                <th class="px-2 py-1">{{ tablesWord }}</th>
                 <th
                   v-for="r in (quality.scoring_rounds || [])"
                   :key="`th-o-${r}`"
@@ -1017,7 +1020,7 @@ watch([firstProgram, teams, lanes, tables], () => {
               <span class="font-semibold">{{ programLabel(key.first_program) }}</span>
               <span>{{ key.teams }} Teams</span>
               <span>{{ key.lanes }} Lanes</span>
-              <span>{{ key.tables }} Tische</span>
+              <span>{{ key.tables }} {{ tableFieldPlural(Number(key.first_program)) }}</span>
               <span>{{ Number(key.max_round) || 0 }} Runden</span>
             </div>
             <div class="match-load-item__comment">

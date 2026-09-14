@@ -11,7 +11,7 @@ foreach ($programs as $program) {
 @if($programs === [] || $allColumns === [])
     <div class="roles-grid-empty">Keine Rollen-Spalten für diesen Plan.</div>
 @elseif($eventsByDay === [])
-    <div class="roles-grid-empty">Keine Aktivitäten mit Spur oder Tisch.</div>
+    <div class="roles-grid-empty">Keine Aktivitäten mit Spur, Tisch oder Feld.</div>
 @else
 <div class="roles-grid-container">
     @if($hasOverlaps ?? false)

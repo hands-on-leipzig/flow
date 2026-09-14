@@ -421,7 +421,7 @@ class EventController extends Controller
 
         $tableCount = $this->tableCountForEventProgram($eventId, $firstProgram);
         if ($tableCount < 1) {
-            return response()->json(['error' => 'Keine Tische/Spielfelder für dieses Programm konfiguriert'], 422);
+            return response()->json(['error' => 'Keine '.TableFieldLabels::plural($firstProgram).' für dieses Programm konfiguriert'], 422);
         }
 
         // Build customs for active slots only (1..count); ignore orphan numbers in uniqueness.

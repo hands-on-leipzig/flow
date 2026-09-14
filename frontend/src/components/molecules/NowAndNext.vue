@@ -4,7 +4,8 @@ import axios from 'axios'
 import { useEventStore } from '@/stores/event'
 
 import { formatTimeOnly } from '@/utils/dateTimeFormat'
-import { programLogoSrc, programLogoAlt } from '@/utils/images'  
+import { programLogoSrc, programLogoAlt } from '@/utils/images'
+import { defaultTableFieldLabel } from '@/utils/tableFieldLabels'  
 
 // Event store
 const eventStore = useEventStore()
@@ -144,8 +145,9 @@ const splitWith = (a: any) => {
 
   // Table-Fall
   if (a?.table_1 || a?.table_2) {
-    const t1Right = a?.table_1 ? (a?.table_1_name || `Tisch ${a.table_1}`) : ''
-    const t2Right = a?.table_2 ? (a?.table_2_name || `Tisch ${a.table_2}`) : ''
+    const fp = Number(a?.activity_first_program_id ?? a?.first_program_id ?? 3)
+    const t1Right = a?.table_1 ? (a?.table_1_name || defaultTableFieldLabel(fp, Number(a.table_1))) : ''
+    const t2Right = a?.table_2 ? (a?.table_2_name || defaultTableFieldLabel(fp, Number(a.table_2))) : ''
     const right = [t1Right, t2Right].filter(Boolean).join(' : ')
 
     const t1Team = a?.table_1

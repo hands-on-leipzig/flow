@@ -4,6 +4,7 @@ import axios from 'axios'
 import QPlanDetails from '@/components/atoms/QPlanDetails.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import { useQualityMetrics } from '@/composables/useQualityMetrics'
+import { tableFieldPlural } from '@/utils/tableFieldLabels'
 
 const {
   ampelfarbeQ1Q4,
@@ -34,7 +35,7 @@ const runFirstProgram = computed(() => {
 })
 
 const isFuture8 = computed(() => runFirstProgram.value === 8)
-const tablesHeader = computed(() => (isFuture8.value ? 'RG-Felder' : 'RG-Tische'))
+const tablesHeader = computed(() => tableFieldPlural(runFirstProgram.value))
 
 const filterQ = {
   1: ref(false),
@@ -269,7 +270,7 @@ async function startRerun() {
             
             <!-- Label-Teil -->
             <div class="text-sm font-medium text-[var(--color-text-muted)]">
-              {{ isFuture8 ? 'Felder' : 'Tische' }}:
+              {{ tablesHeader }}:
             </div>
 
             <!-- Checkboxen -->
@@ -407,7 +408,7 @@ async function startRerun() {
             class="accent-gray-600"
             title="Nur QPläne anzeigen, bei denen Q2 nicht ok ist"
           />
-          <span>Tische</span>
+          <span>{{ tablesHeader }}</span>
         </div>
         <div class="flex items-center gap-1">
           <input

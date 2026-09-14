@@ -8,6 +8,7 @@ import { formatDateTime } from '@/utils/dateTimeFormat'
 import {showGlassToast} from '@/composables/useGlassToast'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { getProgramTheme } from '@/utils/programTheme'
+import { tableFieldPlural } from '@/utils/tableFieldLabels'
 
 
 const props = defineProps({
@@ -186,7 +187,7 @@ function programTheme(qrun) {
           <div class="basis-[20%] flex-shrink-0 text-sm text-[var(--color-text-muted)] space-y-1">
             <div><strong>Spuren:</strong> {{ qrun.selection.jury_lanes?.join(', ') ?? '?' }}</div>
             <div>
-              <strong>{{ isFuture8(qrun) ? 'Felder' : 'Tische' }}:</strong>
+              <strong>{{ tableFieldPlural(resolveFirstProgram(qrun)) }}:</strong>
               {{ qrun.selection.tables?.join(', ') ?? '?' }}
             </div>
           </div>

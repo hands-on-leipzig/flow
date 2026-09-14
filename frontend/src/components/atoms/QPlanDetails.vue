@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import axios from 'axios'
+import { tableFieldPlural } from '@/utils/tableFieldLabels'
 
 const props = defineProps({
   planId: {
@@ -44,6 +45,9 @@ const okClass = (val) => (val == 1 || val === '1') ? 'text-gray-300' : 'text-yel
 const mismatchClass = (a, b) => a !== b ? 'text-red-500 font-semibold' : ''
 
 const scoringRounds = computed(() => details.value?.scoring_rounds ?? [1, 2, 3])
+const tablesWord = computed(() =>
+  tableFieldPlural(Number(props.firstProgram ?? details.value?.first_program ?? 3)),
+)
 const opponentTarget = computed(() => scoringRounds.value.length)
 const showTransfer56 = computed(() => scoringRounds.value.includes(4))
 const showTransfer67 = computed(() => scoringRounds.value.includes(5))
@@ -166,7 +170,7 @@ const transferRows = computed(() => {
         </div>
 
         <div class="overflow-x-auto">
-          <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Testrunde, Tische und Teams gegenüber</div>
+          <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-1">Testrunde, {{ tablesWord }} und Teams gegenüber</div>
           <table class="table-auto text-sm border-collapse glass-list">
             <thead class="bg-[color-mix(in_srgb,var(--color-bg-muted)_70%,transparent)]">
               <tr>
@@ -177,7 +181,7 @@ const transferRows = computed(() => {
                   :key="`th-t-${r}`"
                   class="px-2 py-1"
                 >R{{ r }}</th>
-                <th class="px-2 py-1">Tische</th>
+                <th class="px-2 py-1">{{ tablesWord }}</th>
                 <th
                   v-for="r in scoringRounds"
                   :key="`th-o-${r}`"

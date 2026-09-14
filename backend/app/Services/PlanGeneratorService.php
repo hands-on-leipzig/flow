@@ -12,6 +12,7 @@ use App\Jobs\GeneratePlanJob;
 use App\Enums\FirstProgram;
 use App\Enums\GeneratorStatus;
 use App\Support\ExtraBlockActivityTypeCode;
+use App\Support\TableFieldLabels;
 
 class PlanGeneratorService
 {
@@ -74,7 +75,7 @@ class PlanGeneratorService
                     return [
                         'supported' => false,
                         'error' => 'Challenge-Konfiguration wird nicht unterstützt',
-                        'details' => "Die Kombination aus Challenge-Teams ({$cTeams}), Spuren ({$jLanes}) und Tischen (".($rTables ?? '–').") wird nicht unterstützt. Bitte überprüfe diese Parameter."
+                        'details' => "Die Kombination aus Challenge-Teams ({$cTeams}), Spuren ({$jLanes}) und ".TableFieldLabels::plural(FirstProgram::CHALLENGE->value).' ('.($rTables ?? '–').") wird nicht unterstützt. Bitte überprüfe diese Parameter."
                     ];
                 }
             }
@@ -188,7 +189,7 @@ class PlanGeneratorService
                 return [
                     'supported' => false,
                     'error' => 'Future 8+-Konfiguration wird nicht unterstützt',
-                    'details' => 'Die Kombination aus Future 8+-Teams ('.$f8Teams.'), Spuren ('.$f8Lanes.') und Feldern ('.($f8Fields ?? '–').') wird nicht unterstützt. Bitte überprüfe diese Parameter.',
+                    'details' => 'Die Kombination aus Future 8+-Teams ('.$f8Teams.'), Spuren ('.$f8Lanes.') und '.TableFieldLabels::plural(FirstProgram::FUTURE_8->value).' ('.($f8Fields ?? '–').') wird nicht unterstützt. Bitte überprüfe diese Parameter.',
                 ];
             }
         }

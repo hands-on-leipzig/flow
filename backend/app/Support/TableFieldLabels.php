@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace App\Support;
 
 use App\Enums\FirstProgram;
-use InvalidArgumentException;
 
 /**
  * Default nouns and uniqueness for Robot Game table / field display names.
  *
- * Challenge → "Tisch N", Future 8+ → "Spielfeld N".
+ * Challenge and unknown → "Tisch N", Future 8+ → "Feld N".
  * Stored values are full free-text overrides; empty means use the default.
  */
 final class TableFieldLabels
@@ -25,18 +24,47 @@ final class TableFieldLabels
 
     public static function noun(int $firstProgramId): string
     {
-        return match ($firstProgramId) {
-            FirstProgram::CHALLENGE->value => 'Tisch',
-            FirstProgram::FUTURE_8->value => 'Spielfeld',
-            default => throw new InvalidArgumentException(
-                "TableFieldLabels: program {$firstProgramId} has no table/field labels."
-            ),
-        };
+        return $firstProgramId === FirstProgram::FUTURE_8->value ? 'Feld' : 'Tisch';
+    }
+
+    public static function plural(int $firstProgramId): string
+    {
+        return $firstProgramId === FirstProgram::FUTURE_8->value ? 'Felder' : 'Tische';
+    }
+
+    public static function abbrev(int $firstProgramId): string
+    {
+        return $firstProgramId === FirstProgram::FUTURE_8->value ? 'F' : 'T';
+    }
+
+    public static function pluralSlash(): string
+    {
+        return 'Tische/Felder';
     }
 
     public static function defaultLabel(int $firstProgramId, int $tableNumber): string
     {
         return self::noun($firstProgramId).' '.$tableNumber;
+    }
+
+    public static function juryPlaceHeader(int $firstProgramId): string
+    {
+        return 'Jury/'.self::noun($firstProgramId);
+    }
+
+    /**
+     * Strip a leading default noun ("Tisch "/"Feld ") so compact PDFs can show the rest.
+     * Custom names that do not start with the program noun are unchanged.
+     */
+    public static function stripLeadingNoun(int $firstProgramId, string $label): string
+    {
+        $noun = self::noun($firstProgramId);
+        $stripped = preg_replace('/^'.preg_quote($noun, '/').'\\s+/u', '', $label);
+        if (! is_string($stripped) || $stripped === '') {
+            return $label;
+        }
+
+        return $stripped;
     }
 
     /**
@@ -88,12 +116,12 @@ final class TableFieldLabels
 
     /**
      * SQL expression fragment for the default noun from atd.first_program / fp.
-     * Challenge and unknown → Tisch; Future 8+ → Spielfeld.
+     * Challenge and unknown → Tisch; Future 8+ → Feld.
      */
     public static function sqlDefaultNounExpression(string $firstProgramColumn = 'atd.first_program'): string
     {
         $f8 = FirstProgram::FUTURE_8->value;
 
-        return "CASE WHEN {$firstProgramColumn} = {$f8} THEN \"Spielfeld\" ELSE \"Tisch\" END";
+        return "CASE WHEN {$firstProgramColumn} = {$f8} THEN \"Feld\" ELSE \"Tisch\" END";
     }
 }

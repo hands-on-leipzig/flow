@@ -16,6 +16,7 @@ use App\Services\RoleFetcherService;
 use App\Services\TeamJuryAssignmentService;
 use App\Support\OverviewPlanStyle;
 use App\Support\ProgramCatalog;
+use App\Support\TableFieldLabels;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -373,11 +374,12 @@ class PlanExportController extends Controller
                         ];
                     }
 
+                    $fp = (int) ($activity->activity_first_program_id ?? 0);
                     $table1Label = ! empty($activity->table_1_name)
-                        ? preg_replace('/^Tisch\\s+/u', '', (string) $activity->table_1_name)
+                        ? TableFieldLabels::stripLeadingNoun($fp, (string) $activity->table_1_name)
                         : (string) ($activity->table_1 ?? '');
                     $table2Label = ! empty($activity->table_2_name)
-                        ? preg_replace('/^Tisch\\s+/u', '', (string) $activity->table_2_name)
+                        ? TableFieldLabels::stripLeadingNoun($fp, (string) $activity->table_2_name)
                         : (string) ($activity->table_2 ?? '');
 
                     return [
@@ -1231,7 +1233,7 @@ class PlanExportController extends Controller
                 $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
                 $clone->team_id = $a->table_1_team_id ?? null;
                 $clone->team_noshow = (bool) ($a->table_1_team_noshow ?? false);
-                $clone->assign = $a->table_1_name ?? ('Tisch '.$a->table_1);
+                $clone->assign = $this->placeLabel($a, $a->table_1, $a->table_1_name ?? null);
                 $expanded->push($clone);
 
                 if (! $teamInfo->has($a->table_1_team)) {
@@ -1250,7 +1252,7 @@ class PlanExportController extends Controller
                 $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
                 $clone->team_id = $a->table_2_team_id ?? null;
                 $clone->team_noshow = (bool) ($a->table_2_team_noshow ?? false);
-                $clone->assign = $a->table_2_name ?? ('Tisch '.$a->table_2);
+                $clone->assign = $this->placeLabel($a, $a->table_2, $a->table_2_name ?? null);
                 $expanded->push($clone);
 
                 if (! $teamInfo->has($a->table_2_team)) {
@@ -1345,6 +1347,7 @@ class PlanExportController extends Controller
                 'label' => $label,
                 'is_noshow' => $isNoshow,
                 'programName' => $programName,
+                'firstProgramId' => (int) ($firstAct->activity_first_program_id ?? 0),
                 'acts' => $allActs,
             ];
         }
@@ -1370,6 +1373,7 @@ class PlanExportController extends Controller
             $programGroups[$programName][$role->id]['teams'][] = [
                 'teamLabel' => $td['label'],
                 'is_noshow' => $td['is_noshow'] ?? false,
+                'assignHeader' => TableFieldLabels::juryPlaceHeader((int) ($td['firstProgramId'] ?? 0)),
                 'rows' => $td['acts']->map($mapRow)->values()->all(),
             ];
         }
@@ -1529,7 +1533,7 @@ class PlanExportController extends Controller
                 $clone->team_name = $a->table_1_team_name;
                 $clone->team_number_hot = $a->table_1_team_number_hot ?? null;
                 $clone->team_noshow = (bool) ($a->table_1_team_noshow ?? false);
-                $clone->assign = $a->table_1_name ?? ('Tisch '.$a->table_1);
+                $clone->assign = $this->placeLabel($a, $a->table_1, $a->table_1_name ?? null);
                 $expanded->push($clone);
             }
             if (! empty($a->table_2) && ! empty($a->table_2_team)) {
@@ -1539,7 +1543,7 @@ class PlanExportController extends Controller
                 $clone->team_name = $a->table_2_team_name;
                 $clone->team_number_hot = $a->table_2_team_number_hot ?? null;
                 $clone->team_noshow = (bool) ($a->table_2_team_noshow ?? false);
-                $clone->assign = $a->table_2_name ?? ('Tisch '.$a->table_2);
+                $clone->assign = $this->placeLabel($a, $a->table_2, $a->table_2_name ?? null);
                 $expanded->push($clone);
             }
         }
@@ -1586,7 +1590,7 @@ class PlanExportController extends Controller
             $programName = $programNameOverride ?? ($firstAct->activity_first_program_name ?? 'Alles');
 
             // Get custom table name from first activity (already stored in assign field)
-            $tableLabel = $firstAct->assign ?? ('Tisch '.$tableId);
+            $tableLabel = $firstAct->assign ?? $this->placeLabel($firstAct, $tableId, null);
 
             if (! isset($programGroups[$programName])) {
                 $programGroups[$programName] = [];
@@ -1698,15 +1702,15 @@ class PlanExportController extends Controller
             $assign = '–';
             if ($isMatch) {
                 // For matches: show both tables with " / " separator
-                $table1Label = $a->table_1_name ?? ('Tisch '.$a->table_1);
-                $table2Label = $a->table_2_name ?? ('Tisch '.$a->table_2);
+                $table1Label = $this->placeLabel($a, $a->table_1, $a->table_1_name ?? null);
+                $table2Label = $this->placeLabel($a, $a->table_2, $a->table_2_name ?? null);
                 $assign = $table1Label.' / '.$table2Label;
             } elseif (! empty($a->lane)) {
                 $assign = 'Jury '.$a->lane;
             } elseif (! empty($a->table_1)) {
-                $assign = $a->table_1_name ?? ('Tisch '.$a->table_1);
+                $assign = $this->placeLabel($a, $a->table_1, $a->table_1_name ?? null);
             } elseif (! empty($a->table_2)) {
-                $assign = $a->table_2_name ?? ('Tisch '.$a->table_2);
+                $assign = $this->placeLabel($a, $a->table_2, $a->table_2_name ?? null);
             }
 
             return [
@@ -1736,6 +1740,7 @@ class PlanExportController extends Controller
 
         $programGroups[$programName][$role->id]['general'][] = [
             'rows' => $acts->map($mapRow)->values()->all(),
+            'assignHeader' => TableFieldLabels::juryPlaceHeader((int) ($firstAct->activity_first_program_id ?? 0)),
         ];
     }
 
@@ -1781,9 +1786,9 @@ class PlanExportController extends Controller
             if (! empty($a->lane)) {
                 $assign = 'Jury '.$a->lane;
             } elseif (! empty($a->table_1)) {
-                $assign = $a->table_1_name ?? ('Tisch '.$a->table_1);
+                $assign = $this->placeLabel($a, $a->table_1, $a->table_1_name ?? null);
             } elseif (! empty($a->table_2)) {
-                $assign = $a->table_2_name ?? ('Tisch '.$a->table_2);
+                $assign = $this->placeLabel($a, $a->table_2, $a->table_2_name ?? null);
             }
 
             return [
@@ -1805,7 +1810,10 @@ class PlanExportController extends Controller
             0 => [
                 'role' => null,  // No role header
                 'general' => [
-                    ['rows' => $acts->map($mapRow)->values()->all()],
+                    [
+                        'rows' => $acts->map($mapRow)->values()->all(),
+                        'assignHeader' => TableFieldLabels::juryPlaceHeader((int) ($acts->first()->activity_first_program_id ?? 0)),
+                    ],
                 ],
             ],
         ];
@@ -2912,7 +2920,7 @@ class PlanExportController extends Controller
             if ($finalKey === 'ref_table') {
                 $nameMap = $withKey->mapWithKeys(function ($a) use ($finalKey) {
                     $num = (int) $a->{$finalKey};
-                    $name = $a->ref_table_name ?? "Tisch {$num}";
+                    $name = $a->ref_table_name ?? $this->placeLabel($a, $num, null);
 
                     return [$num => $name];
                 })->toArray();
@@ -2924,7 +2932,7 @@ class PlanExportController extends Controller
                     $clone = clone $generic;
                     $clone->{$finalKey} = (int) $keyValue;
                     if ($finalKey === 'ref_table') {
-                        $clone->ref_table_name = $nameMap[(int) $keyValue] ?? 'Tisch '.(int) $keyValue;
+                        $clone->ref_table_name = $nameMap[(int) $keyValue] ?? $this->placeLabel($clone, (int) $keyValue, null);
                     }
                     $withKey->push($clone);
                 }
@@ -2937,7 +2945,7 @@ class PlanExportController extends Controller
                 }
                 if ($finalKey === 'ref_table') {
                     $num = $a->ref_table ?? null;
-                    $name = $a->ref_table_name ?? ($num ? "Tisch {$num}" : 'Tisch');
+                    $name = $a->ref_table_name ?? $this->placeLabel($a, (int) $num, null);
 
                     return "{$labelPrefix}{$name}";
                 }
@@ -3965,6 +3973,17 @@ class PlanExportController extends Controller
         $detailId = (int) ($activity->activity_type_detail_id ?? $activity->activity_type_group ?? 0);
 
         return in_array($detailId, $freeIds, true);
+    }
+
+    private function placeLabel(object $activity, int|string|null $tableNumber, ?string $storedName): string
+    {
+        $fp = (int) ($activity->activity_first_program_id ?? 0);
+        $n = (int) $tableNumber;
+        if ($n < 1) {
+            return TableFieldLabels::noun($fp);
+        }
+
+        return TableFieldLabels::effective($fp, $n, $storedName);
     }
 
     /**

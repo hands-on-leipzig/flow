@@ -139,7 +139,7 @@ class PublicPlanServiceTest extends TestCase
         $this->assertNull($options[1]['room']);
     }
 
-    public function test_table_option_labels_use_group_label(): void
+    public function test_table_option_labels_use_helper_not_group_label(): void
     {
         $this->attachFuture8(fields: 1);
         $this->bindRoles([
@@ -147,7 +147,7 @@ class PublicPlanServiceTest extends TestCase
                 23,
                 publicPlan: 1,
                 name: 'Schiedsrichter:in',
-                groupLabel: 'Feld',
+                groupLabel: 'Game Feld',
                 differentiationParameter: 'table',
                 firstProgram: 8,
             ),
@@ -157,6 +157,33 @@ class PublicPlanServiceTest extends TestCase
         $labels = collect($payload['roles'][0]['options'])->pluck('label')->all();
 
         $this->assertSame(['Feld 1'], $labels);
+    }
+
+    public function test_table_option_labels_prefer_custom_names(): void
+    {
+        $this->attachFuture8(fields: 1);
+        DB::table('table_event')->insert([
+            'id' => 1,
+            'event' => 1,
+            'first_program' => 8,
+            'table_number' => 1,
+            'table_name' => 'Rot',
+        ]);
+        $this->bindRoles([
+            $this->roleRow(
+                23,
+                publicPlan: 1,
+                name: 'Schiedsrichter:in',
+                groupLabel: 'Game Feld',
+                differentiationParameter: 'table',
+                firstProgram: 8,
+            ),
+        ]);
+
+        $payload = app(PublicPlanService::class)->getRoles(1);
+        $labels = collect($payload['roles'][0]['options'])->pluck('label')->all();
+
+        $this->assertSame(['Rot'], $labels);
     }
 
     public function test_get_schedule_activity_name_uses_atd_name_not_preview(): void

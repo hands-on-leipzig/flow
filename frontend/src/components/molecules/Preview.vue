@@ -11,6 +11,7 @@ import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getProgramTheme } from '@/utils/programTheme'
+import { defaultTableFieldLabel, tableFieldPlural } from '@/utils/tableFieldLabels'
 
 const FIRST_PROGRAM = {
   CHALLENGE: 3,
@@ -126,6 +127,8 @@ const robotGameData = ref<RobotGameData | null>(null)
 const matchPlanPrograms = ref<number[]>([])
 /** Selected program for Match-Plan / Plan-Qualität. */
 const selectedFirstProgram = ref<number | null>(null)
+
+const previewPlaceProgram = computed(() => selectedFirstProgram.value ?? FIRST_PROGRAM.CHALLENGE)
 
 const hasMatchPlan = computed(() => matchPlanPrograms.value.length > 0)
 const dualMatchPlan = computed(() => matchPlanPrograms.value.length > 1)
@@ -597,10 +600,10 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
               <table class="table-auto text-sm border-collapse border border-[var(--color-border)]">
                 <thead class="bg-[var(--color-bg-muted)]">
                   <tr>
-                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 1</th>
-                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 2</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 3</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">Tisch 4</th>
+                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 1) }}</th>
+                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 2) }}</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 3) }}</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 4) }}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -638,7 +641,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
               <thead class="bg-[var(--color-bg-muted)]">
                 <tr>
                   <th class="px-3 py-2 border border-[var(--color-border)] text-left font-normal">Team</th>
-                  <th class="px-3 py-2 border border-[var(--color-border)] text-center font-normal">Verschiedene Tische</th>
+                  <th class="px-3 py-2 border border-[var(--color-border)] text-center font-normal">Verschiedene {{ tableFieldPlural(previewPlaceProgram) }}</th>
                   <th class="px-3 py-2 border border-[var(--color-border)] text-center font-normal">Verschiedene Teams</th>
                 </tr>
               </thead>

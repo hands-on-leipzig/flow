@@ -9,7 +9,7 @@
                 <th>Start</th>
                 <th>Ende</th>
                 <th>Aktivität</th>
-                <th>Jury/Tisch</th>
+                <th>{{ $teamTable['assignHeader'] ?? 'Jury/Tisch' }}</th>
                 <th>Raum</th>
             </tr>
         </thead>

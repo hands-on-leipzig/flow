@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { getProgramTheme } from '@/utils/programTheme'
+import { tableFieldPlural } from '@/utils/tableFieldLabels'
 
 const FIRST_PROGRAM = {
   CHALLENGE: 3,
@@ -44,7 +45,7 @@ const emit = defineEmits([
 ])
 
 const isFuture8 = computed(() => props.firstProgram === FIRST_PROGRAM.FUTURE_8)
-const tablesLabel = computed(() => (isFuture8.value ? 'RG-Felder' : 'RG-Tische'))
+const tablesLabel = computed(() => tableFieldPlural(Number(props.firstProgram || FIRST_PROGRAM.CHALLENGE)))
 
 function themeFor(key) {
   return getProgramTheme(key)

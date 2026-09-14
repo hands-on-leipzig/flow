@@ -73,7 +73,7 @@
       
       <!-- Table / field names (per program) -->
       <div v-if="tableNames.length > 0">
-        <h4 class="text-md font-semibold mb-2">Tisch-/Spielfeldnamen (überschrieben)</h4>
+        <h4 class="text-md font-semibold mb-2">Tisch-/Feldnamen (überschrieben)</h4>
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm border-collapse">
             <thead class="bg-[var(--color-bg-muted)] text-left">
