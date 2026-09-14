@@ -26,7 +26,19 @@ final class RobotGameWriteConfig
         public readonly ?string $hardLunchDurationParam,
         public readonly ?string $durationTransfer = null,
         public readonly string $durationCheck = 'r_duration_robot_check',
+        public readonly ?string $durationMatchEx = null,
+        public readonly ?string $durationMatchIn = null,
     ) {
+    }
+
+    /** Scoring-round match length. Future: _ex with alliance on, _in with alliance off. */
+    public function scoringMatchDurationParam(bool $allianceOrRobotCheck): string
+    {
+        if ($this->durationMatchEx !== null && $this->durationMatchIn !== null) {
+            return $allianceOrRobotCheck ? $this->durationMatchEx : $this->durationMatchIn;
+        }
+
+        return $this->durationMatch;
     }
 
     /**
@@ -83,7 +95,7 @@ final class RobotGameWriteConfig
             checkCode: 'f8_r_alliance',
             robotCheckParam: 'f8_r_alliance_meeting',
             durationTestMatch: 'f8_r_duration_test_match',
-            durationMatch: 'f8_r_duration_match',
+            durationMatch: 'f8_r_duration_match_in',
             durationNextStart: 'f8_r_duration_next_start',
             durationBreak: 'f8_r_duration_break',
             durationLunch: 'f8_r_duration_lunch',
@@ -92,6 +104,8 @@ final class RobotGameWriteConfig
             hardLunchDurationParam: null,
             durationTransfer: 'f8_duration_transfer',
             durationCheck: 'f8_r_duration_alliance_meeting',
+            durationMatchEx: 'f8_r_duration_match_ex',
+            durationMatchIn: 'f8_r_duration_match_in',
         );
     }
 }
