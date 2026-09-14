@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Überblick-style roles preview: 5-minute activity grid, param-driven lane/table columns.
  * Cell text is the activity name plus team number " (Txx)" when a team is assigned.
- * Txx has a native title with the team name (or "Noch nicht angemeldet").
+ * Txx has a native title with the team name (or "Fehlendes Team").
  */
 class RolesPreviewGridService
 {

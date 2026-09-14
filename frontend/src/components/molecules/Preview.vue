@@ -12,6 +12,7 @@ import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getProgramTheme } from '@/utils/programTheme'
 import { defaultTableFieldLabel, tableFieldPlural } from '@/utils/tableFieldLabels'
+import { formatPlanTeamNo, isMissingPlanTeamName } from '@/utils/planTeamLabel'
 
 const FIRST_PROGRAM = {
   CHALLENGE: 3,
@@ -354,13 +355,7 @@ function hasTable34(round: RobotGameRound): boolean {
 }
 
 function formatTeam(teamNum: number | null): string {
-  // Format team display
-  // Empty: no team (shouldn't happen in this context, but handle it)
-  // '–': Team 0 (volunteer/BYE)
-  // Number: Regular team
-  if (teamNum === null) return ''
-  if (teamNum === 0) return '–'
-  return String(teamNum)
+  return formatPlanTeamNo(teamNum)
 }
 
 function matchPlanProgramLabel(programId: number): string {
@@ -415,7 +410,7 @@ function onTeamTipOver(e: PointerEvent) {
       text,
       x: r.left + r.width / 2,
       y: r.bottom,
-      unregistered: text.includes('nicht angemeldet'),
+      unregistered: isMissingPlanTeamName(text),
     }
   }, TEAM_TIP_DELAY_MS)
 }
@@ -702,7 +697,7 @@ onBeforeUnmount(hideTeamTip)
                   :key="summary.team"
                   class="border-t"
                 >
-                  <td class="px-3 py-2 border border-[var(--color-border)]">{{ summary.team }}</td>
+                  <td class="px-3 py-2 border border-[var(--color-border)]">{{ formatTeam(summary.team) }}</td>
                   <td class="px-3 py-2 border border-[var(--color-border)] text-center">{{ summary.different_tables }}</td>
                   <td class="px-3 py-2 border border-[var(--color-border)] text-center">{{ summary.different_opponents }}</td>
                 </tr>

@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
  */
 final class PreviewTeamLabels
 {
-    public const UNREGISTERED = 'Noch nicht angemeldet';
+    public const UNREGISTERED = 'Fehlendes Team';
 
     /**
      * @return array<int, array<int, string>> first_program => [team_number_plan => name]

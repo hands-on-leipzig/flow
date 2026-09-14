@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Überblick-style teams preview: 5-minute grid, one column per team (Txx).
- * Column Txx has a native title with the team name (or "Noch nicht angemeldet").
+ * Column Txx has a native title with the team name (or "Fehlendes Team").
  * Cell text is name_preview plus role name_short and 1-digit lane/table; slot-blocks stay "S".
  */
 class TeamsPreviewGridService

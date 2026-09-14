@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import axios from 'axios'
 import { tableFieldPlural } from '@/utils/tableFieldLabels'
+import { formatPlanTeamNo } from '@/utils/planTeamLabel'
 
 const props = defineProps({
   planId: {
@@ -62,12 +63,7 @@ const iconTables = (row) => (row?.tables ?? 0) < minRequiredTables(row) ? '⚠�
 const warnClassOpponents = (val) => val < opponentTarget.value ? 'text-yellow-500 font-semibold' : 'text-gray-300'
 const iconOpponents = (val) => val < opponentTarget.value ? '⚠️' : '✓'
 
-const formatTeam = (teamNum) => {
-  // Format team display: Team 0 = '–' (volunteer/BYE), null/undefined = empty, others = number
-  if (teamNum === null || teamNum === undefined) return ''
-  if (teamNum === 0) return '–'
-  return String(teamNum)
-}
+const formatTeam = (teamNum) => formatPlanTeamNo(teamNum)
 
 const matchPlanColumns = computed(() => {
   if (Array.isArray(details.value?.match_plan_rounds) && details.value.match_plan_rounds.length > 0) {
@@ -192,7 +188,7 @@ const transferRows = computed(() => {
             </thead>
             <tbody>
               <tr v-for="row in details.match_summary" :key="row.team" class="border-t">
-                <td class="px-2 py-1">{{ row.team }}</td>
+                <td class="px-2 py-1">{{ formatTeam(row.team) }}</td>
                 <td class="text-center" :class="mismatchClass(row.tr_table, row.r1_table)">
                   {{ row.tr_table ?? '–' }}
                 </td>
@@ -215,7 +211,7 @@ const transferRows = computed(() => {
                   :key="`td-o-${row.team}-${r}`"
                   class="text-center"
                 >
-                  {{ row[`r${r}_opponent`] ?? '–' }}
+                  {{ formatTeam(row[`r${r}_opponent`]) || '–' }}
                 </td>
                 <td class="text-center">
                   <span :class="warnClassOpponents(row.teams)">

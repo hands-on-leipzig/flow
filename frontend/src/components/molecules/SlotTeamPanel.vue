@@ -13,6 +13,7 @@ import {
   wallTimeHm,
   wallTimeToDatetimeLocal,
 } from '@/utils/extraBlockDateTime'
+import { formatPlanTeamNo, planTeamName } from '@/utils/planTeamLabel'
 
 export type TeamRow = {
   row_key: string
@@ -254,11 +255,6 @@ function groupLabel(programId: number): string {
 function programIcon(fp: number): { src: string; alt: string } {
   const name = programNameForId(selectedEvent.value, fp)
   return {src: programLogoSrc(name), alt: programLogoAlt(name)}
-}
-
-function formatPlanTeamNo(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(Number(n))) return '–'
-  return `T${String(Math.floor(Number(n))).padStart(2, '0')}`
 }
 
 function collisionDotClass(row: TeamRow): string {
@@ -514,7 +510,7 @@ function formatTooltipDate(slotDate: string | null): string {
                   <p v-if="isHoverLoading(row)" class="text-xs text-[var(--color-text-subtle)]">Lade…</p>
                   <template v-else-if="hoverData(row)">
                     <p class="slot-team__hover-program">{{ groupLabel(row.first_program) }}</p>
-                    <p class="slot-team__hover-name">{{ hoverData(row)!.team_name || '–' }}</p>
+                    <p class="slot-team__hover-name">{{ planTeamName(hoverData(row)!.team_name) }}</p>
                     <p v-if="hoverData(row)!.team_number_hot" class="slot-team__hover-hot tabular-nums">
                       DRAHT {{ hoverData(row)!.team_number_hot }}
                     </p>

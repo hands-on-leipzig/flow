@@ -5,7 +5,8 @@ import { useEventStore } from '@/stores/event'
 
 import { formatTimeOnly } from '@/utils/dateTimeFormat'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
-import { defaultTableFieldLabel } from '@/utils/tableFieldLabels'  
+import { defaultTableFieldLabel } from '@/utils/tableFieldLabels'
+import { planTeamName } from '@/utils/planTeamLabel'  
 
 // Event store
 const eventStore = useEventStore()
@@ -117,11 +118,6 @@ async function callNext() {
   }
 }
 
-const padTeam = (n: any) =>
-  typeof n === 'number' || /^\d+$/.test(String(n))
-    ? String(Number(n)).padStart(2, '0')
-    : String(n ?? '').trim()
-
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
   const date = new Date(dateStr)
@@ -132,14 +128,22 @@ function formatDate(dateStr: string | null | undefined): string {
   return `${day}.${month}.${year}`
 }
 
-// Vereinfachte Darstellung: Name > Teamnummer > leer
+function activityTeamCaption(teamNum: unknown, teamName: unknown): string {
+  if (teamNum == null || teamNum === '') return ''
+  const num = Number(teamNum)
+  if (!Number.isFinite(num)) return ''
+  if (num === 0) return '–'
+  return planTeamName(typeof teamName === 'string' ? teamName : teamName == null ? null : String(teamName))
+}
+
+// Vereinfachte Darstellung: Name, sonst Fehlendes Team, Volunteer –
 const splitWith = (a: any) => {
   const roomName: string | null = a?.room?.room_name ?? a?.room_name ?? null
 
   // Lane
   if (a?.lane) {
     const right = roomName || `Lane ${a.lane}`
-    const bottom = a?.team_name || (a?.team ? `Team ${padTeam(a.team)}` : '')
+    const bottom = activityTeamCaption(a?.team, a?.team_name)
     return { right, bottom }
   }
 
@@ -150,12 +154,8 @@ const splitWith = (a: any) => {
     const t2Right = a?.table_2 ? (a?.table_2_name || defaultTableFieldLabel(fp, Number(a.table_2))) : ''
     const right = [t1Right, t2Right].filter(Boolean).join(' : ')
 
-    const t1Team = a?.table_1
-      ? (a?.table_1_team_name || (a?.table_1_team ? `Team ${padTeam(a.table_1_team)}` : ''))
-      : ''
-    const t2Team = a?.table_2
-      ? (a?.table_2_team_name || (a?.table_2_team ? `Team ${padTeam(a.table_2_team)}` : ''))
-      : ''
+    const t1Team = a?.table_1 ? activityTeamCaption(a?.table_1_team, a?.table_1_team_name) : ''
+    const t2Team = a?.table_2 ? activityTeamCaption(a?.table_2_team, a?.table_2_team_name) : ''
     const bottom = [t1Team, t2Team].filter(Boolean).join(' : ')
 
     return { right, bottom }

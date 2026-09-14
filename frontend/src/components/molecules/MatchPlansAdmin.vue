@@ -3,6 +3,7 @@ import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {tableFieldPlural} from '@/utils/tableFieldLabels'
+import {formatPlanTeamNo} from '@/utils/planTeamLabel'
 
 defineOptions({name: 'MatchPlansAdmin'})
 
@@ -651,6 +652,10 @@ function formatTeam(n) {
   return n === 0 || n === null || n === undefined ? '–' : String(n)
 }
 
+function formatMatchTeam(n) {
+  return formatPlanTeamNo(n) || '–'
+}
+
 onMounted(async () => {
   try {
     await loadPrograms()
@@ -970,7 +975,7 @@ watch([firstProgram, teams, lanes, tables], () => {
             </thead>
             <tbody>
               <tr v-for="row in quality.match_summary" :key="row.team" class="border-t">
-                <td class="px-2 py-1">{{ row.team }}</td>
+                <td class="px-2 py-1">{{ formatMatchTeam(row.team) }}</td>
                 <td
                   class="text-center"
                   :class="row.tr_table !== row.r1_table ? 'text-red-600 font-semibold' : ''"
@@ -989,7 +994,7 @@ watch([firstProgram, teams, lanes, tables], () => {
                   v-for="r in (quality.scoring_rounds || [])"
                   :key="`td-o-${row.team}-${r}`"
                   class="text-center"
-                >{{ formatTeam(row[`r${r}_opponent`]) }}</td>
+                >{{ formatMatchTeam(row[`r${r}_opponent`]) }}</td>
                 <td class="text-center">
                   <span :class="row.q3_ok ? '' : 'text-amber-700'">{{ row.q3_ok ? '✓' : '⚠️' }}</span>
                   {{ row.teams ?? '–' }}

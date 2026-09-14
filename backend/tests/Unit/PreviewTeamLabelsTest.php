@@ -18,6 +18,11 @@ class PreviewTeamLabelsTest extends TestCase
         $this->assertSame('Robo', PreviewTeamLabels::tooltip(3, '  Robo  '));
     }
 
+    public function test_unregistered_copy_is_missing_team(): void
+    {
+        $this->assertSame('Fehlendes Team', PreviewTeamLabels::UNREGISTERED);
+    }
+
     public function test_tooltip_uses_placeholder_when_name_is_missing(): void
     {
         $this->assertSame(PreviewTeamLabels::UNREGISTERED, PreviewTeamLabels::tooltip(2, null));
