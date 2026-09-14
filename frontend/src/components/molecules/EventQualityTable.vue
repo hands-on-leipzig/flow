@@ -211,7 +211,7 @@ function eventEvaluationNote(event) {
             @click="emit('run-event', event)"
           >
             <i class="bi bi-clipboard-check" aria-hidden="true" />
-            <span v-if="runningEventId === event.event_id">Prüfe …</span>
+            <span v-if="runningEventId === event.event_id">Prüfe…</span>
             <span v-else>Qualität prüfen</span>
           </button>
         </div>

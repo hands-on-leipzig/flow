@@ -159,7 +159,6 @@ watch(
 
     <div v-if="loading && !selectedPlanId" class="flex items-center justify-start flex-1 min-h-0 flex-col text-[var(--color-text-muted)]">
       <LoaderFlow/>
-      <LoaderText/>
     </div>
 
     <template v-else>
@@ -177,7 +176,7 @@ watch(
       >
         <div class="text-xs md:text-sm text-[var(--color-text-muted)]">
           Zeitplan im Pop-out
-          <span v-if="isGenerating" class="ml-1 text-[var(--color-accent)]">· generiert …</span>
+          <span v-if="isGenerating" class="ml-1 text-[var(--color-accent)]">· generiert…</span>
         </div>
         <div class="flex items-center gap-2">
           <button

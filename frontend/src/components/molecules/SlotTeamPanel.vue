@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import {computed, ref, watch} from 'vue'
 import axios from 'axios'
-import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
 import {programDisplayName, programNameForId} from '@/utils/eventPrograms'
@@ -467,7 +467,7 @@ function formatTooltipDate(slotDate: string | null): string {
       </div>
 
       <div v-if="loadingTeams" class="slot-teams__loading">
-        <LoaderFlow class="scale-75"/>
+        <Spinner size="md"/>
         <span class="text-sm">Lade Teams…</span>
       </div>
 

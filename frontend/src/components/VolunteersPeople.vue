@@ -16,6 +16,7 @@ import {apiError} from '@/utils/apiError'
 import {flowFilename} from '@/utils/flowFilename'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 
 type Person = VolunteerPersonRef
@@ -555,7 +556,10 @@ watch(eventId, () => {
         <span class="vol-toolbar__count">{{ filtered.length }} / {{ people.length }}</span>
       </div>
 
-      <p v-if="loading" class="vol-muted">Laden…</p>
+      <p v-if="loading" class="vol-muted inline-flex items-center gap-2">
+        <Spinner size="sm"/>
+        <span>Laden…</span>
+      </p>
       <p v-else-if="!people.length" class="vol-muted">Noch niemand auf der Kontaktliste.</p>
       <p v-else-if="!filtered.length" class="vol-muted">Keine Treffer für diesen Filter.</p>
 

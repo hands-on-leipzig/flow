@@ -213,7 +213,7 @@ onMounted(() => {
           <input
               v-model="search"
               type="search"
-              placeholder="Event, Slug, Regionalpartner, DRAHT-ID …"
+              placeholder="Event, Slug, Regionalpartner, DRAHT-ID…"
               class="w-full px-4 py-2 border border-[var(--color-border)] rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </label>
@@ -252,7 +252,7 @@ onMounted(() => {
       </p>
     </div>
 
-    <p v-if="loading" class="text-sm text-[var(--color-text-subtle)]">Lade Slugs …</p>
+    <p v-if="loading" class="text-sm text-[var(--color-text-subtle)]">Lade Slugs…</p>
 
     <p v-else-if="filteredEvents.length === 0" class="text-sm text-[var(--color-text-subtle)]">
       Keine Events zu dieser Auswahl.

@@ -146,7 +146,7 @@ function programTheme(qrun) {
       </button>
     </div>
 
-    <div v-if="loading" class="text-[var(--color-text-subtle)]">Lade QRuns …</div>
+    <div v-if="loading" class="text-[var(--color-text-subtle)]">Lade QRuns…</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else-if="qruns.length === 0" class="glass-card liquid-surface-inner text-[var(--color-text-subtle)]">
       Keine QRuns gefunden.

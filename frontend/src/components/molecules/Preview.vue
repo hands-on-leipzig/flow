@@ -534,7 +534,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
     <!-- ANSICHT: Rollen (new grid) -->
     <div v-if="view === 'roles'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
       <template v-else>
         <div v-if="!rolesHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
           Keine Rollen-Daten gefunden.
@@ -550,7 +550,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
     <!-- ANSICHT: Teams (new grid) -->
     <div v-else-if="view === 'teams'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
       <template v-else>
         <div v-if="!teamsHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
           Keine Team-Daten gefunden.
@@ -566,7 +566,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
     <!-- ANSICHT: Überblick -->
     <div v-else-if="view === 'overview'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
       
       <template v-else>
         <div v-if="!overviewHtml" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
@@ -579,7 +579,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
     <!-- ANSICHT: Match-Plan -->
     <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
-      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
 
       <template v-else>
         <div v-if="!robotGameData || !robotGameData.rounds || robotGameData.rounds.length === 0" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">
@@ -673,7 +673,7 @@ function formatExploreGroup(exploreGroup: number | null | undefined): string {
 
     <!-- ANSICHT: Power-User „Aktivitäten" -->
     <div v-else-if="view === 'activities'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-3">
-      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen …</div>
+      <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
 
       <template v-else>
         <div v-if="activities.length === 0" class="px-3 py-6 text-center text-[var(--color-text-subtle)]">

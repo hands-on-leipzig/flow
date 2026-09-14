@@ -100,7 +100,7 @@ onMounted(fetchRounds)
       </p>
     </div>
 
-    <div v-if="loading" class="py-8 text-center text-sm text-[var(--color-text-subtle)]">Lade...</div>
+    <div v-if="loading" class="py-8 text-center text-sm text-[var(--color-text-subtle)]">Laden…</div>
 
     <div v-else-if="rounds" class="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <button

@@ -227,7 +227,7 @@ function selectProgram(id) {
           class="glass-input liquid-surface-control !px-3 !py-2 w-full"
           :value="qrunComment"
           @input="emit('update:qrunComment', $event.target.value)"
-          placeholder="Notizen zum QRun …"
+          placeholder="Notizen zum QRun…"
         />
       </div>
 

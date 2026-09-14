@@ -8,7 +8,7 @@
     </h3>
 
     <div v-if="loading" class="text-[var(--color-text-subtle)] py-4">
-      Lade Extra-Blöcke...
+      Lade Extra-Blöcke…
     </div>
 
     <div v-else-if="freeBlocks.length === 0" class="text-[var(--color-text-subtle)] py-4">

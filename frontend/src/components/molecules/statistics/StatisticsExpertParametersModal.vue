@@ -5,7 +5,7 @@
     </h3>
     
     <div v-if="loading" class="text-[var(--color-text-subtle)] py-4">
-      Lade Parameter...
+      Lade Parameter…
     </div>
     
     <div v-else-if="inputParameters.length === 0 && expertParameters.length === 0 && tableNames.length === 0" class="text-[var(--color-text-subtle)] py-4">

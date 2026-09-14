@@ -204,7 +204,7 @@ async function startRerun() {
 <template>
   <div class="ml-1 mt-1">
 
-    <div v-if="loading" class="text-[var(--color-text-subtle)] text-sm">Lade QPläne …</div>
+    <div v-if="loading" class="text-[var(--color-text-subtle)] text-sm">Lade QPläne…</div>
     <div v-else-if="error" class="text-red-500 text-sm">{{ error }}</div>
     <div v-else>
       

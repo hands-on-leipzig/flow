@@ -263,7 +263,7 @@ onBeforeUnmount(() => {
     <div ref="containerRef" class="w-full h-full" :class="{ 'pointer-events-none': staticMap }"></div>
 
     <div v-if="isLoading || validMarkers.length === 0" class="absolute inset-0 flex items-center justify-center bg-[var(--color-bg-muted)]">
-      <p class="text-[var(--color-text-subtle)] text-sm">Karte wird geladen...</p>
+      <p class="text-[var(--color-text-subtle)] text-sm">Karte wird geladen…</p>
     </div>
   </div>
 </template>

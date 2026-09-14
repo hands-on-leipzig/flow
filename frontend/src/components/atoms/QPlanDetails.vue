@@ -92,7 +92,7 @@ const transferRows = computed(() => {
 
 <template>
   <div class="mt-2 border-t border-[var(--color-border)] pt-2">
-    <div v-if="loading" class="text-sm text-[var(--color-text-subtle)]">Lade Plan-Details …</div>
+    <div v-if="loading" class="text-sm text-[var(--color-text-subtle)]">Lade Plan-Details…</div>
     <div v-else-if="error" class="text-sm text-red-500">{{ error }}</div>
     <div v-else class="flex flex-col gap-4">
       <!-- Row 1: Transfer + Tisch-Zuordnung -->

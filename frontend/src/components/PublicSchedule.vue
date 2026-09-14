@@ -9,6 +9,7 @@ import {
 } from '@/utils/dateTimeFormat'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import EventMap from '@/components/molecules/EventMap.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 
 const props = defineProps<{
   planId: number | string
@@ -945,12 +946,12 @@ const pickerSliceNoun = computed(() => {
 
 const pickerLead = computed(() => {
   if (pickerLevel.value === 3 && pickerRole.value) {
-    return `Unten ${pickerSliceNoun.value} wählen ...`
+    return `Unten ${pickerSliceNoun.value} wählen…`
   }
   if (pickerLevel.value === 1 && showProgramLevel.value) {
-    return 'Unten Programm und Rolle wählen ...'
+    return 'Unten Programm und Rolle wählen…'
   }
-  return 'Unten Rolle wählen ...'
+  return 'Unten Rolle wählen…'
 })
 
 function openRoleSheet() {
@@ -1524,7 +1525,8 @@ watch(
   >
     <div class="public-schedule__inner">
       <div v-if="loadingRoles" class="public-schedule__card public-schedule__card--center" role="status">
-        Rollen werden geladen…
+        <Spinner size="md"/>
+        <span>Rollen werden geladen…</span>
       </div>
 
       <div v-else-if="error" class="public-schedule__card public-schedule__card--error" role="alert">
@@ -1785,7 +1787,8 @@ watch(
               class="public-schedule__card public-schedule__card--center"
               role="status"
           >
-            Online-Zeitplan wird geladen…
+            <Spinner size="md"/>
+            <span>Online-Zeitplan wird geladen…</span>
           </div>
 
           <div
@@ -1941,7 +1944,7 @@ watch(
                 {{ pickerLead }}
               </p>
               <p class="public-schedule__picker-aside">
-                ... oder zum
+                … oder zum
                 <button
                     type="button"
                     class="public-schedule__picker-overview"

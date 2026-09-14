@@ -194,7 +194,7 @@ function openPreview(id: string | number) {
         <label class="block text-xs text-[var(--color-text-subtle)] mb-1">Plan ID</label>
         <div class="flex items-center gap-2">
           <div class="text-sm font-medium text-[var(--color-text-muted)]">
-            {{ planId || 'wird geladen...' }}
+            {{ planId || 'wird geladen…' }}
           </div>
           <button
             v-if="planId"
@@ -262,7 +262,7 @@ function openPreview(id: string | number) {
     </div>
 
     <!-- Result -->
-    <div v-if="loading" class="text-[var(--color-text-subtle)]">Wird geladen …</div>
+    <div v-if="loading" class="text-[var(--color-text-subtle)]">Wird geladen…</div>
     <div v-else-if="error" class="text-red-600">{{ error }}</div>
 
     <div v-else-if="result">

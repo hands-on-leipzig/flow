@@ -10,6 +10,7 @@ import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleShort} from 
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
+import Spinner from '@/components/atoms/Spinner.vue'
 import VolunteerPublicFormFlow from '@/components/volunteers/VolunteerPublicFormFlow.vue'
 import TeamPublicFormFlow from '@/components/teams/TeamPublicFormFlow.vue'
 
@@ -338,7 +339,7 @@ onMounted(async () => {
     <!-- Loading -->
     <div v-if="loading" class="pe-state">
       <div class="pe-state__card glass-card liquid-surface-inner">
-        <div class="pe-spinner" aria-hidden="true"/>
+        <Spinner size="lg"/>
         <p class="pe-state__text">Veranstaltung wird geladen…</p>
       </div>
     </div>
@@ -787,20 +788,6 @@ onMounted(async () => {
   margin-top: 1rem;
   font-weight: 600;
   color: var(--color-text);
-}
-
-.pe-spinner {
-  width: 2.75rem;
-  height: 2.75rem;
-  margin: 0 auto;
-  border-radius: 999px;
-  border: 3px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
-  border-top-color: var(--color-accent);
-  animation: pe-spin 0.8s linear infinite;
-}
-
-@keyframes pe-spin {
-  to { transform: rotate(360deg); }
 }
 
 .pe-error-badge {

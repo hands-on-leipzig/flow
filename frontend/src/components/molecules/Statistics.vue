@@ -943,7 +943,7 @@ function exportToCSV() {
 
 <template>
   <div>
-    <div v-if="loading" class="text-[var(--color-text-subtle)]">Lade Daten …</div>
+    <div v-if="loading" class="text-[var(--color-text-subtle)]">Lade Daten…</div>
     <div v-else-if="error" class="text-red-500">{{ error }}</div>
     <div v-else>
       <!-- Global orphans -->

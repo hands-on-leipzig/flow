@@ -22,7 +22,7 @@
   align-items: center;
   font-weight: bold;
   font-size: 48px;
-  color: #f39200;
+  color: var(--color-accent);
   font-family: sans-serif;
 }
 
@@ -35,7 +35,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background-color: #f39200;
+  background-color: var(--color-accent);
   display: flex;
   align-items: center;
   justify-content: center;
