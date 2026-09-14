@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Überblick-style roles preview: 5-minute activity grid, param-driven lane/table columns.
+ * Cell text is the activity name plus team number " (Txx)" when a team is assigned.
  */
 class RolesPreviewGridService
 {
@@ -373,7 +374,7 @@ class RolesPreviewGridService
                         'column_key' => $key,
                         'start' => $gridStart->copy(),
                         'end' => $end->copy(),
-                        'text' => $text,
+                        'text' => $this->withTeamNumber($text, (int) ($a->team ?? 0)),
                         'rowspan' => $rowspan,
                         'style_column' => $styleColumn,
                         'activity_id' => $activityId,
@@ -402,7 +403,7 @@ class RolesPreviewGridService
                         'column_key' => $key,
                         'start' => $gridStart->copy(),
                         'end' => $end->copy(),
-                        'text' => $text,
+                        'text' => $this->withTeamNumber($text, (int) ($a->{'table_'.$ti.'_team'} ?? 0)),
                         'rowspan' => $rowspan,
                         'style_column' => $tableStyle,
                         'activity_id' => $activityId,
@@ -412,6 +413,15 @@ class RolesPreviewGridService
         }
 
         return $placed;
+    }
+
+    private function withTeamNumber(string $text, int $teamNo): string
+    {
+        if ($teamNo < 1) {
+            return $text;
+        }
+
+        return $text.sprintf(' (T%02d)', $teamNo);
     }
 
     /**
