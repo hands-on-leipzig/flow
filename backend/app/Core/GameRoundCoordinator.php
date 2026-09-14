@@ -361,7 +361,9 @@ class GameRoundCoordinator
             return (int) $this->pp($isTest ? 'r_duration_test_match' : 'r_duration_match');
         }
 
-        return (int) $this->pp($isTest ? 'f8_r_duration_test_match' : 'f8_r_duration_match');
+        return $isTest
+            ? (int) $this->pp('f8_r_duration_test_match')
+            : $this->future->robotGame()->scoringMatchDuration();
     }
 
     private function policyBCheckMinutes(string $key): int
