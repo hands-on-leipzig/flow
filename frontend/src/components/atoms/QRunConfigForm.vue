@@ -199,7 +199,7 @@ function selectProgram(id) {
       </div>
 
       <div class="qrun-config__field">
-        <label class="qrun-config__label">{{ isFuture8 ? 'Allianz-Besprechung' : 'Robot-Check' }}</label>
+        <label class="qrun-config__label">{{ isFuture8 ? 'Allianz-Gespräch' : 'Robot-Check' }}</label>
         <div class="qrun-config__checks">
           <label class="qrun-config__check">
             <input

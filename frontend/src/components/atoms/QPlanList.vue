@@ -336,7 +336,7 @@ async function startRerun() {
             
             <!-- Label-Teil -->
             <div class="text-sm font-medium text-[var(--color-text-muted)]">
-              {{ isFuture8 ? 'Allianz:' : 'Check:' }}
+              {{ isFuture8 ? 'Allianz-Gespräch:' : 'Check:' }}
             </div>
 
             <!-- Checkboxen -->
@@ -378,7 +378,7 @@ async function startRerun() {
         <div>{{ tablesHeader }}</div>
         <div>Runden</div>
         <div>RG asym</div>
-        <div>{{ isFuture8 ? 'Allianz' : 'Robot check' }}</div>
+        <div>{{ isFuture8 ? 'Allianz-Gespräch' : 'Robot check' }}</div>
         <div>Dauer</div>
         <div class="flex items-center gap-1">
           <input
