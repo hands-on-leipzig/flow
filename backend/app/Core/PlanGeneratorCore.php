@@ -342,6 +342,11 @@ class PlanGeneratorCore
             && (bool) $this->pp('g_separate_rooms', false);
     }
 
+    private function isSharedStageAB(): bool
+    {
+        return $this->coordinator !== null && ! $this->isPolicyC();
+    }
+
     /** Joint C+F8 ceremonies use `c+f8_*` when Explore is off; Explore-integrated joint stays `g_*`. */
     private function jointCeremonyPrefix(): string
     {
@@ -655,7 +660,7 @@ class PlanGeneratorCore
 
     private function emitFutureCatalogAfternoonRound(int $gameRound): void
     {
-        if ($this->isPolicyC() || $this->future === null) {
+        if (! $this->isSharedStageAB() || $this->future === null) {
             return;
         }
 
@@ -716,7 +721,7 @@ class PlanGeneratorCore
         }
 
         if ($code === 'f8_round_4' || $code === 'f8_round_5') {
-            return $this->future !== null && ! $this->isPolicyC();
+            return $this->isSharedStageAB();
         }
 
         if ($block->afternoon_parameter === null) {
