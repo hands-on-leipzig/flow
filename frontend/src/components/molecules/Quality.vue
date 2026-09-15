@@ -48,8 +48,6 @@ const robotCheck = ref({
 const qrunName = ref('')
 const qrunComment = ref('')
 
-const isFuture8 = computed(() => firstProgram.value === FIRST_PROGRAM.FUTURE_8)
-
 function boundsFromRows(rows, programId) {
   const mine = rows.filter((row) => Number(row.first_program) === programId)
   const teams = mine.map((row) => Number(row.teams)).filter((n) => Number.isFinite(n) && n > 0)
@@ -95,10 +93,7 @@ function applyProgramBounds() {
   juryLanes.value = laneSelection(bounds.minLanes, bounds.maxLanes)
 }
 
-watch(firstProgram, (program) => {
-  if (program === FIRST_PROGRAM.FUTURE_8) {
-    robotCheck.value = { rc_off: true, rc_on: false }
-  }
+watch(firstProgram, () => {
   applyProgramBounds()
 })
 
@@ -124,7 +119,7 @@ const isValid = computed(() => {
     maxTeams.value <= bounds.maxTeams &&
     minTeams.value <= maxTeams.value
   const hasName = qrunName.value.trim().length > 0
-  const robotCheckOk = isFuture8.value || Object.values(robotCheck.value).some(v => v)
+  const robotCheckOk = Object.values(robotCheck.value).some(v => v)
   return atLeastOneLane && atLeastOneTable && atLeastOneRound && robotCheckOk && validTeamRange && hasName
 })
 
@@ -142,11 +137,9 @@ const startVolumeTest = () => {
     jury_rounds: Object.entries(juryRounds.value)
       .filter(([_, v]) => v)
       .map(([k]) => Number(k.split('_')[1])),
-    robot_check: isFuture8.value
-      ? ['off']
-      : Object.entries(robotCheck.value)
-          .filter(([_, v]) => v)
-          .map(([k]) => k.split('_')[1]),
+    robot_check: Object.entries(robotCheck.value)
+      .filter(([_, v]) => v)
+      .map(([k]) => k.split('_')[1]),
   }
 
   const payload = {

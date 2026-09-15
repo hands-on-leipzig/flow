@@ -198,8 +198,8 @@ function selectProgram(id) {
         </div>
       </div>
 
-      <div v-if="!isFuture8" class="qrun-config__field">
-        <label class="qrun-config__label">Robot-Check</label>
+      <div class="qrun-config__field">
+        <label class="qrun-config__label">{{ isFuture8 ? 'Allianz-Gespräch' : 'Robot-Check' }}</label>
         <div class="qrun-config__checks">
           <label class="qrun-config__check">
             <input
