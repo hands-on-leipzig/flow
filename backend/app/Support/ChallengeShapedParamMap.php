@@ -43,7 +43,7 @@ final class ChallengeShapedParamMap
             'lanes' => 'f8_lanes',
             'tables' => 'f8_fields',
             'transfer' => 'f8_duration_transfer',
-            'robotCheck' => null,
+            'robotCheck' => 'f8_r_alliance_meeting',
         ],
     ];
 
@@ -106,7 +106,7 @@ final class ChallengeShapedParamMap
         return $this->keys['transfer'];
     }
 
-    /** Param name for robot check, or null if this program has none. */
+    /** Challenge: r_robot_check. Future: f8_r_alliance_meeting. */
     public function robotCheck(): ?string
     {
         return $this->keys['robotCheck'];

@@ -73,7 +73,7 @@ Challenge (unchanged): 4 judging rounds map blocks 1–4 to TR+RG1–3; 5+ round
 
 Future: strict **1:1 including TR**. Judging block `k` writes match round `k − 1`. All catalog rounds run in the Future morning loop. Future lunch placement (after block 2 or 3) stays as-is unless reopened.
 
-### 3. Allianz-Besprechung (before each match)
+### 3. Allianz-Gespräch (before each match)
 
 Catalog already in the live DB (wire it; do not recreate; not yet in this repo’s export):
 

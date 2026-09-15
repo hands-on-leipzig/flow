@@ -77,6 +77,25 @@ class MatchPlanPairingQualityTest extends TestCase
         $this->assertFalse($failN4['match_summary'][0]['q3_ok']);
     }
 
+    public function test_q3_target_is_capped_at_other_teams_even_with_more_rounds(): void
+    {
+        $matches = [
+            ['round' => 1, 'match_no' => 1, 'table_1' => 1, 'table_2' => 2, 'table_1_team' => 1, 'table_2_team' => 2],
+            ['round' => 2, 'match_no' => 1, 'table_1' => 1, 'table_2' => 2, 'table_1_team' => 1, 'table_2_team' => 2],
+            ['round' => 3, 'match_no' => 1, 'table_1' => 1, 'table_2' => 2, 'table_1_team' => 1, 'table_2_team' => 2],
+            ['round' => 4, 'match_no' => 1, 'table_1' => 1, 'table_2' => 2, 'table_1_team' => 1, 'table_2_team' => 2],
+        ];
+
+        $result = (new MatchPlanPairingQuality())->evaluate($matches, 2, 2);
+        $team1 = $result['match_summary'][0];
+
+        $this->assertSame([1, 2, 3, 4], $result['scoring_rounds']);
+        $this->assertSame(1, $team1['q3_target']);
+        $this->assertSame(1, $team1['teams']);
+        $this->assertTrue($team1['q3_ok']);
+        $this->assertTrue($result['match_summary'][1]['q3_ok']);
+    }
+
     public function test_q2_target_is_min_of_tables_and_scoring_rounds(): void
     {
         // 4 tables + 4 rounds → goal 4

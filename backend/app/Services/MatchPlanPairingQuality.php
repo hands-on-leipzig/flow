@@ -46,7 +46,8 @@ class MatchPlanPairingQuality
         $n = count($scoringRounds);
         // 2 tables → goal 2; 4 tables → min(4, N) so 3 rounds max 3, 4+ rounds goal 4
         $targetTables = $n > 0 ? min($tablesAvailable, $n) : 0;
-        $targetOpponents = $n;
+        // Cannot meet more other teams than exist, even when there are more scoring rounds.
+        $targetOpponents = $n > 0 ? min($n, max(0, $teams - 1)) : 0;
 
         for ($team = 1; $team <= $teams; $team++) {
             $entry = ['team' => $team];

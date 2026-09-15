@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Core\MatchPlanCatalogLoader;
 use App\Models\Activity;
 use App\Models\QRun;
 use App\Models\QPlan;
@@ -72,19 +73,24 @@ class QualityEvaluatorService
                 continue;
             }
 
-            $rounds = (int) ceil($plan->teams / $plan->lanes);
+            $rounds = $this->judgingRoundsForSupportedPlan($plan);
+            if ($rounds === null) {
+                continue;
+            }
             $tables = (int) ($plan->tables ?? 0);
 
-            // Robot check only exists for Challenge; F8 always off.
             $robotCheckOptions = $paramMap->supportsRobotCheck()
                 ? ($selection['robot_check'] ?? ['off', 'on'])
                 : ['off'];
 
             foreach ($robotCheckOptions as $rc) {
                 $robotCheck = $rc === 'on' ? 1 : 0;
-                $suffix = $paramMap->supportsRobotCheck()
-                    ? ($robotCheck === 1 ? ' RC an' : ' RC aus')
-                    : '';
+                $suffix = '';
+                if ($paramMap->supportsRobotCheck()) {
+                    $suffix = $paramMap->program === FirstProgram::FUTURE_8
+                        ? ($robotCheck === 1 ? ' AB an' : ' AB aus')
+                        : ($robotCheck === 1 ? ' RC an' : ' RC aus');
+                }
 
                 $newPlan = Plan::create([
                     'name' => "{$plan->teams}-{$plan->lanes}-{$tables} ({$rounds}){$suffix}",
@@ -328,7 +334,10 @@ class QualityEvaluatorService
         $tableOptions = $selection['tables'] ?? [];
         $juryRounds = $selection['jury_rounds'] ?? [];
 
-        $rounds = (int) ceil($teams / $lanes);
+        $rounds = $this->judgingRoundsForSupportedPlan($plan);
+        if ($rounds === null) {
+            return false;
+        }
 
         return
             $teams >= $min &&
@@ -337,8 +346,34 @@ class QualityEvaluatorService
             in_array($tables, $tableOptions) &&
             in_array($rounds, $juryRounds);
     }
-        
 
+    /**
+     * Challenge: ceil(teams/lanes). Future: catalog max(round)+1 (same as generate).
+     * Null = skip (Future has no m_match key).
+     */
+    private function judgingRoundsForSupportedPlan(MSupportedPlan $plan): ?int
+    {
+        $teams = (int) $plan->teams;
+        $lanes = max(1, (int) $plan->lanes);
+        $tables = $plan->tables !== null ? (int) $plan->tables : 0;
+
+        if ((int) $plan->first_program === FirstProgram::FUTURE_8->value) {
+            if ($tables < 1) {
+                return null;
+            }
+
+            $maxRound = (new MatchPlanCatalogLoader)->peekMaxRound(
+                FirstProgram::FUTURE_8,
+                $teams,
+                $lanes,
+                $tables,
+            );
+
+            return $maxRound === null ? null : $maxRound + 1;
+        }
+
+        return (int) ceil($teams / $lanes);
+    }
 
     /**
      * Main entry point to evaluate all quality metrics (Q1–Q6) for a given plan.
@@ -1043,12 +1078,14 @@ class QualityEvaluatorService
         $distribution = [1 => 0, 2 => 0, 3 => 0];
         $totalScore = 0;
         $teamsProcessed = 0;
-        $targetOpponents = max(1, count($pairing['scoring_rounds'] ?? []));
+        $scoringRoundCount = count($pairing['scoring_rounds'] ?? []);
+        $teamsInPlan = max(1, (int) ($pairing['teams'] ?? 1));
 
         foreach ($pairing['match_summary'] as $entry) {
             $team = (int) $entry['team'];
             $uniqueOpponents = (int) ($entry['teams'] ?? 0);
             $q3Ok = (bool) ($entry['q3_ok'] ?? false);
+            $targetOpponents = max(1, (int) ($entry['q3_target'] ?? min($scoringRoundCount, $teamsInPlan - 1)));
 
             QPlanTeam::where('q_plan', $qPlanId)
                 ->where('team', $team)
