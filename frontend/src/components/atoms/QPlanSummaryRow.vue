@@ -41,7 +41,6 @@ const {
 } = useQualityMetrics()
 
 const qplan = computed(() => props.program.q_plan)
-const isFuture8 = computed(() => props.program.first_program === 8)
 const evaluationStatus = computed(() => qplan.value?.evaluation_status ?? null)
 const evaluationLabel = computed(() => evaluationStatusLabel(evaluationStatus.value))
 const evaluationTooltip = computed(() => evaluationReasonsTooltip(qplan.value))
@@ -84,7 +83,7 @@ function onRowClick() {
         <div>{{ qplan.r_tables }}</div>
         <div>{{ qplan.j_rounds }}</div>
         <div>{{ qplan.r_asym ? 'Ja' : 'Nein' }}</div>
-        <div>{{ isFuture8 ? '—' : (qplan.r_robot_check ? 'An' : 'Aus') }}</div>
+        <div>{{ qplan.r_robot_check ? 'An' : 'Aus' }}</div>
         <div>{{ formatDuration(qplan.q6_duration) }}</div>
         <div class="flex items-center gap-1">
           <span>{{ ampelfarbeQ1Q4(qplan.q1_ok_count, qplan.c_teams) }}</span>

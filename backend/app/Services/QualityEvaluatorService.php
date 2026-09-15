@@ -79,16 +79,18 @@ class QualityEvaluatorService
             }
             $tables = (int) ($plan->tables ?? 0);
 
-            // Robot check only exists for Challenge; F8 always off.
             $robotCheckOptions = $paramMap->supportsRobotCheck()
                 ? ($selection['robot_check'] ?? ['off', 'on'])
                 : ['off'];
 
             foreach ($robotCheckOptions as $rc) {
                 $robotCheck = $rc === 'on' ? 1 : 0;
-                $suffix = $paramMap->supportsRobotCheck()
-                    ? ($robotCheck === 1 ? ' RC an' : ' RC aus')
-                    : '';
+                $suffix = '';
+                if ($paramMap->supportsRobotCheck()) {
+                    $suffix = $paramMap->program === FirstProgram::FUTURE_8
+                        ? ($robotCheck === 1 ? ' AB an' : ' AB aus')
+                        : ($robotCheck === 1 ? ' RC an' : ' RC aus');
+                }
 
                 $newPlan = Plan::create([
                     'name' => "{$plan->teams}-{$plan->lanes}-{$tables} ({$rounds}){$suffix}",

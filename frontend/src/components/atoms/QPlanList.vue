@@ -331,15 +331,12 @@ async function startRerun() {
             </div>
           </div>
 
-          <!-- Filter-Kiste: Robot-Check -->
-          <div
-            v-if="!isFuture8"
-            class="glass-row-item px-2 py-2 flex justify-between items-center"
-          >
+          <!-- Filter-Kiste: Robot-Check / Allianz -->
+          <div class="glass-row-item px-2 py-2 flex justify-between items-center">
             
             <!-- Label-Teil -->
             <div class="text-sm font-medium text-[var(--color-text-muted)]">
-              Check:
+              {{ isFuture8 ? 'Allianz:' : 'Check:' }}
             </div>
 
             <!-- Checkboxen -->
@@ -381,7 +378,7 @@ async function startRerun() {
         <div>{{ tablesHeader }}</div>
         <div>Runden</div>
         <div>RG asym</div>
-        <div>{{ isFuture8 ? '—' : 'Robot check' }}</div>
+        <div>{{ isFuture8 ? 'Allianz' : 'Robot check' }}</div>
         <div>Dauer</div>
         <div class="flex items-center gap-1">
           <input
@@ -455,7 +452,7 @@ async function startRerun() {
           <div>{{ qplan.r_tables }}</div>
           <div>{{ qplan.j_rounds }}</div>
           <div>{{ qplan.r_asym ? 'Ja' : 'Nein' }}</div>
-          <div>{{ isFuture8 ? '—' : (qplan.r_robot_check ? 'An' : 'Aus') }}</div>
+          <div>{{ qplan.r_robot_check ? 'An' : 'Aus' }}</div>
           
           <!-- Q6: Dauer -->
           <div>{{ formatDuration(qplan.q6_duration) }}</div>
