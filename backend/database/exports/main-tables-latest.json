@@ -1492,11 +1492,11 @@
         },
         {
             "id": 90,
-            "name": "Allianz-Besprechung",
+            "name": "Allianz-Gespr\u00e4ch",
             "code": "f8_r_alliance",
             "presence": "punctual",
             "public_time": 0,
-            "name_preview": "Allianz",
+            "name_preview": "Allianz-Gespr\u00e4ch",
             "sequence": 39,
             "first_program": 8,
             "afternoon_chain": null,
@@ -9501,7 +9501,7 @@
             "step": "5",
             "first_program": 8,
             "sequence": 18,
-            "ui_label": "Dauer Match inklusive Allianz-Gespr\u00e4chj",
+            "ui_label": "Dauer Match inklusive Allianz-Gespr\u00e4ch",
             "ui_description": "Dauer eines Game-Matches inklusive Punktevergabe durch die Schiedsrichter:innen."
         }
     ],
@@ -9873,11 +9873,11 @@
         },
         {
             "id": 35,
-            "name": "Betreuer Allianz-Besprechungen",
+            "name": "Betreuer:in Allianz-Gespr\u00e4che",
             "name_short": "A",
             "sequence": 11,
             "first_program": 8,
-            "description": "Hilft den Teams bei der Allianz-Besprechung",
+            "description": "Hilft den Teams beim Allianz-Gespr\u00e4ch",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
@@ -10520,7 +10520,7 @@
         {
             "id": 83,
             "code": "f8_r_alliance",
-            "name": "Allianz-Besprechungen",
+            "name": "Allianz-Gespr\u00e4che",
             "sequence": 520,
             "room_type_group": 11,
             "level": 1,
@@ -14178,7 +14178,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-14T17:53:55.137996Z",
+        "exported_at": "2026-09-15T07:03:05.491631Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
