@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanQualityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\ProgramController;
+use App\Http\Controllers\Api\PublicEventLinkController;
 use App\Http\Controllers\Api\PublicPlanController;
 use App\Http\Controllers\Api\PublicVolunteerOpeningsController;
 use App\Http\Controllers\Api\PublishController;
@@ -85,6 +86,7 @@ Route::get('/events', [EventController::class, 'index']); // Get list of current
 Route::get('/programs', [ProgramController::class, 'index']); // Catalog from m_first_program
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
 Route::get('/public/volunteer-openings', [PublicVolunteerOpeningsController::class, 'index']); // Hero: events currently seeking helpers
+Route::get('/public/event-links', [PublicEventLinkController::class, 'index']); // JOIN: public links of a season, addressed with DRAHT ids
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint

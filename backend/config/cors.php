@@ -12,6 +12,9 @@ return [
         'https://dev.flow.hands-on-technology.org',
         'https://hero.hands-on-technology.org',
         'https://test.hero.hands-on-technology.org',
+        // JOIN reads the public event links from here; production and test deployment.
+        'https://join.hands-on-technology.org',
+        'https://test.node.hands-on-technology.org',
         'https://handson.tools',
     ],
     'allowed_origins_patterns' => [],
