@@ -19,10 +19,10 @@ class EventTitleServiceTest extends TestCase
     {
         $event = $this->event(1, 'Köln', [['name' => 'EXPLORE']]);
         $this->assertSame([
-            'title_long' => 'FIRST LEGO League Ausstellung Köln',
-            'title_short' => 'Ausstellung Köln',
-            'title_type' => 'Ausstellung',
-            'title_type_short' => 'Ausstellung',
+            'title_long' => 'FIRST LEGO League Explore Event Köln',
+            'title_short' => 'Explore Event Köln',
+            'title_type' => 'Explore Event',
+            'title_type_short' => 'Explore Event',
             'title_place' => 'Köln',
         ], $this->titles->titles($event));
     }
@@ -32,10 +32,19 @@ class EventTitleServiceTest extends TestCase
         $event = $this->event(1, 'Aachen', [['name' => 'CHALLENGE']]);
         $titles = $this->titles->titles($event);
 
-        $this->assertSame('Regionalwettbewerb', $titles['title_type']);
-        $this->assertSame('Regio', $titles['title_type_short']);
-        $this->assertSame('Regio Aachen', $titles['title_short']);
-        $this->assertSame('FIRST LEGO League Regionalwettbewerb Aachen', $titles['title_long']);
+        $this->assertSame('Challenge Event', $titles['title_type']);
+        $this->assertSame('Challenge Event', $titles['title_type_short']);
+        $this->assertSame('Challenge Event Aachen', $titles['title_short']);
+        $this->assertSame('FIRST LEGO League Challenge Event Aachen', $titles['title_long']);
+    }
+
+    public function test_level_1_future_only(): void
+    {
+        $event = $this->event(1, 'Leipzig', [['name' => 'FUTURE_8']]);
+        $titles = $this->titles->titles($event);
+
+        $this->assertSame('Future Edition 8+ Event', $titles['title_type']);
+        $this->assertSame('Future Edition 8+ Event Leipzig', $titles['title_short']);
     }
 
     public function test_level_1_explore_and_challenge(): void
@@ -46,21 +55,24 @@ class EventTitleServiceTest extends TestCase
         ]);
         $titles = $this->titles->titles($event);
 
-        $this->assertSame('Ausstellung und Regionalwettbewerb', $titles['title_type']);
-        $this->assertSame('Ausstellung und Regio', $titles['title_type_short']);
-        $this->assertSame('Ausstellung und Regio Aachen', $titles['title_short']);
+        $this->assertSame('Explore und Challenge Event', $titles['title_type']);
+        $this->assertSame('Explore und Challenge Event Aachen', $titles['title_short']);
     }
 
-    public function test_future_only(): void
+    public function test_level_1_all_three_programs(): void
     {
-        $event = $this->event(1, 'Leipzig', [['name' => 'FUTURE_8']]);
+        $event = $this->event(1, 'Leipzig', [
+            ['name' => 'EXPLORE'],
+            ['name' => 'CHALLENGE'],
+            ['name' => 'FUTURE_8'],
+        ]);
         $titles = $this->titles->titles($event);
 
-        $this->assertSame('Future Wettbewerb', $titles['title_type']);
-        $this->assertSame('Future Wettbewerb Leipzig', $titles['title_short']);
+        $this->assertSame('Explore, Challenge und Future Edition 8+ Event', $titles['title_type']);
+        $this->assertSame('Explore, Challenge und Future Edition 8+ Event Leipzig', $titles['title_short']);
     }
 
-    public function test_mixed_future_and_challenge(): void
+    public function test_level_1_challenge_and_future(): void
     {
         $event = $this->event(1, 'Leipzig', [
             ['name' => 'FUTURE_8'],
@@ -68,30 +80,48 @@ class EventTitleServiceTest extends TestCase
         ]);
         $titles = $this->titles->titles($event);
 
-        $this->assertSame('Mixed Wettbewerb', $titles['title_type']);
-        $this->assertSame('Mixed Wettbewerb Leipzig', $titles['title_short']);
+        $this->assertSame('Challenge und Future Edition 8+ Event', $titles['title_type']);
+        $this->assertSame('Challenge und Future Edition 8+ Event Leipzig', $titles['title_short']);
     }
 
-    public function test_quali_strips_prefix_and_overrides_programs(): void
+    public function test_level_2_challenge_qualifikation(): void
     {
         $event = $this->event(2, 'Qualifikation Berlin', [['name' => 'CHALLENGE']]);
         $titles = $this->titles->titles($event);
 
-        $this->assertSame('Qualifikationswettbewerb', $titles['title_type']);
-        $this->assertSame('Quali', $titles['title_type_short']);
+        $this->assertSame('Challenge (Qualifikation) Event', $titles['title_type']);
         $this->assertSame('Berlin', $titles['title_place']);
-        $this->assertSame('Quali Berlin', $titles['title_short']);
-        $this->assertSame('FIRST LEGO League Qualifikationswettbewerb Berlin', $titles['title_long']);
+        $this->assertSame('Challenge (Qualifikation) Event Berlin', $titles['title_short']);
+        $this->assertSame('FIRST LEGO League Challenge (Qualifikation) Event Berlin', $titles['title_long']);
     }
 
-    public function test_finale_strips_prefix(): void
+    public function test_level_2_regensburg_explore_and_challenge(): void
+    {
+        $event = $this->event(2, 'Regensburg', [
+            ['name' => 'EXPLORE'],
+            ['name' => 'CHALLENGE'],
+        ]);
+        $titles = $this->titles->titles($event);
+
+        $this->assertSame('Explore und Challenge (Qualifikation) Event', $titles['title_type']);
+        $this->assertSame('Explore und Challenge (Qualifikation) Event Regensburg', $titles['title_short']);
+    }
+
+    public function test_finale_is_hardcoded_and_strips_prefix(): void
     {
         $event = $this->event(3, 'Finale Paderborn', [['name' => 'EXPLORE'], ['name' => 'CHALLENGE']]);
         $titles = $this->titles->titles($event);
 
-        $this->assertSame('Finale', $titles['title_type']);
+        $this->assertSame('Challenge und Future Edition 8+ Finale Event', $titles['title_type']);
         $this->assertSame('Paderborn', $titles['title_place']);
-        $this->assertSame('Finale Paderborn', $titles['title_short']);
+        $this->assertSame('Challenge und Future Edition 8+ Finale Event Paderborn', $titles['title_short']);
+    }
+
+    public function test_empty_programs_is_event(): void
+    {
+        $event = $this->event(1, 'Köln', []);
+        $this->assertSame('Event', $this->titles->titles($event)['title_type']);
+        $this->assertSame('Event Köln', $this->titles->titles($event)['title_short']);
     }
 
     /**

@@ -6,57 +6,7 @@ use App\Support\ProgramCatalog;
 
 class EventTitleService
 {
-    /**
-     * First matching rule wins. When-keys that are omitted are unconstrained.
-     *
-     * @var list<array{
-     *     when: array{level?: int, explore?: bool, challenge?: bool, future?: bool},
-     *     type: string,
-     *     type_short: string
-     * }>
-     */
-    private const RULES = [
-        [
-            'when' => ['level' => 3],
-            'type' => 'Finale',
-            'type_short' => 'Finale',
-        ],
-        [
-            'when' => ['level' => 2],
-            'type' => 'Qualifikationswettbewerb',
-            'type_short' => 'Quali',
-        ],
-        [
-            'when' => ['future' => true, 'explore' => false, 'challenge' => false],
-            'type' => 'Future Wettbewerb',
-            'type_short' => 'Future Wettbewerb',
-        ],
-        [
-            'when' => ['future' => true],
-            'type' => 'Mixed Wettbewerb',
-            'type_short' => 'Mixed Wettbewerb',
-        ],
-        [
-            'when' => ['level' => 1, 'explore' => true, 'challenge' => true],
-            'type' => 'Ausstellung und Regionalwettbewerb',
-            'type_short' => 'Ausstellung und Regio',
-        ],
-        [
-            'when' => ['level' => 1, 'explore' => true, 'challenge' => false],
-            'type' => 'Ausstellung',
-            'type_short' => 'Ausstellung',
-        ],
-        [
-            'when' => ['level' => 1, 'challenge' => true, 'explore' => false],
-            'type' => 'Regionalwettbewerb',
-            'type_short' => 'Regio',
-        ],
-        [
-            'when' => [],
-            'type' => 'Wettbewerb',
-            'type_short' => 'Wettbewerb',
-        ],
-    ];
+    private const FINALE_TYPE = 'Challenge und Future Edition 8+ Finale Event';
 
     /**
      * @return array{
@@ -69,16 +19,14 @@ class EventTitleService
      */
     public function titles(object $event): array
     {
-        $matched = $this->matchRule($event);
         $place = $this->cleanEventName($event);
-        $type = $matched['type'];
-        $typeShort = $matched['type_short'];
+        $type = $this->typeFor($event);
 
         return [
             'title_long' => trim('FIRST LEGO League '.$type.' '.$place),
-            'title_short' => trim($typeShort.' '.$place),
+            'title_short' => trim($type.' '.$place),
             'title_type' => $type,
-            'title_type_short' => $typeShort,
+            'title_type_short' => $type,
             'title_place' => $place,
         ];
     }
@@ -123,42 +71,48 @@ class EventTitleService
         return trim($eventName);
     }
 
-    /**
-     * @return array{type: string, type_short: string}
-     */
-    private function matchRule(object $event): array
+    private function typeFor(object $event): string
     {
-        $flags = $this->programFlags($event);
         $level = (int) ($event->level ?? 0);
-
-        foreach (self::RULES as $rule) {
-            if ($this->whenMatches($rule['when'], $level, $flags)) {
-                return [
-                    'type' => $rule['type'],
-                    'type_short' => $rule['type_short'],
-                ];
-            }
+        if ($level === 3) {
+            return self::FINALE_TYPE;
         }
 
-        return ['type' => 'Wettbewerb', 'type_short' => 'Wettbewerb'];
+        $flags = $this->programFlags($event);
+        $parts = [];
+        if ($flags['explore']) {
+            $parts[] = 'Explore';
+        }
+        if ($flags['challenge']) {
+            $parts[] = $level === 2 ? 'Challenge (Qualifikation)' : 'Challenge';
+        }
+        if ($flags['future']) {
+            $parts[] = 'Future Edition 8+';
+        }
+
+        if ($parts === []) {
+            return 'Event';
+        }
+
+        return $this->joinGerman($parts).' Event';
     }
 
     /**
-     * @param  array{level?: int, explore?: bool, challenge?: bool, future?: bool}  $when
-     * @param  array{explore: bool, challenge: bool, future: bool}  $flags
+     * @param  list<string>  $parts
      */
-    private function whenMatches(array $when, int $level, array $flags): bool
+    private function joinGerman(array $parts): string
     {
-        if (array_key_exists('level', $when) && $when['level'] !== $level) {
-            return false;
+        $n = count($parts);
+        if ($n === 1) {
+            return $parts[0];
         }
-        foreach (['explore', 'challenge', 'future'] as $family) {
-            if (array_key_exists($family, $when) && $when[$family] !== $flags[$family]) {
-                return false;
-            }
+        if ($n === 2) {
+            return $parts[0].' und '.$parts[1];
         }
 
-        return true;
+        $last = array_pop($parts);
+
+        return implode(', ', $parts).' und '.$last;
     }
 
     /**
