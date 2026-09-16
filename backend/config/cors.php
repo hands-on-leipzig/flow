@@ -12,15 +12,14 @@ return [
         'https://dev.flow.hands-on-technology.org',
         'https://hero.hands-on-technology.org',
         'https://test.hero.hands-on-technology.org',
-        // JOIN reads the public event links from here; production and test deployment.
         'https://join.hands-on-technology.org',
         'https://test.node.hands-on-technology.org',
         'https://handson.tools',
     ],
-    // Local Vite often uses 127.0.0.1 or another port; HERO/JOIN test hosts vary.
+    // Public HERO/JOIN callers (Vite --host, 127.0.0.1, LAN, preview URLs).
+    // FLOW's own SPA is same-origin (or Vite-proxied); auth is Bearer, not cookies.
     'allowed_origins_patterns' => [
-        '#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#',
-        '#^https://([a-z0-9-]+\.)?(hero|join|node)\.hands-on-technology\.org$#',
+        '#^https?://#',
     ],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],

@@ -65,6 +65,19 @@ class PublicVolunteerOpeningsTest extends TestCase
         $response->assertHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:5175');
     }
 
+    public function test_allows_any_http_origin_for_public_openings(): void
+    {
+        $this->mockOpenPositions([1 => [], 2 => []]);
+
+        $origin = 'http://192.168.10.20:5175';
+        $response = $this->withHeaders([
+            'Origin' => $origin,
+        ])->getJson('/api/public/volunteer-openings');
+
+        $response->assertOk();
+        $response->assertHeader('Access-Control-Allow-Origin', $origin);
+    }
+
     public function test_includes_events_without_open_roles_as_not_seeking(): void
     {
         $this->mockOpenPositions([
