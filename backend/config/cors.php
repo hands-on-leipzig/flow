@@ -17,7 +17,11 @@ return [
         'https://test.node.hands-on-technology.org',
         'https://handson.tools',
     ],
-    'allowed_origins_patterns' => [],
+    // Local Vite often uses 127.0.0.1 or another port; HERO/JOIN test hosts vary.
+    'allowed_origins_patterns' => [
+        '#^https?://(localhost|127\.0\.0\.1)(:\d+)?$#',
+        '#^https://([a-z0-9-]+\.)?(hero|join|node)\.hands-on-technology\.org$#',
+    ],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],
     'max_age' => 0,
