@@ -69,11 +69,11 @@ class EnrollmentsServiceTest extends TestCase
 
         $this->assertSame(2, $result['event_count']);
         $this->assertSame(2, $this->cell($result, 8, 'explore'));
-        $this->assertSame(['Ausstellung und Regio Alpha', 'Ausstellung und Regio Beta'], $this->events($result, 8, 'explore'));
+        $this->assertSame(['Explore und Challenge Event Alpha', 'Explore und Challenge Event Beta'], $this->events($result, 8, 'explore'));
         $this->assertSame(1, $this->cell($result, 4, 'challenge'));
-        $this->assertSame(['Ausstellung und Regio Beta'], $this->events($result, 4, 'challenge'));
+        $this->assertSame(['Explore und Challenge Event Beta'], $this->events($result, 4, 'challenge'));
         $this->assertSame(1, $this->cell($result, '26+', 'challenge'));
-        $this->assertSame(['Ausstellung und Regio Alpha'], $this->events($result, '26+', 'challenge'));
+        $this->assertSame(['Explore und Challenge Event Alpha'], $this->events($result, '26+', 'challenge'));
         $this->assertSame(0, $this->cell($result, 8, 'challenge'));
     }
 
@@ -115,9 +115,9 @@ class EnrollmentsServiceTest extends TestCase
 
         $result = app(EnrollmentsService::class)->forSeason(2);
 
-        $this->assertSame(['Mixed Wettbewerb Alpha', 'Mixed Wettbewerb Zebra'], $this->events($result, 8, 'explore'));
-        $this->assertSame(['Mixed Wettbewerb Alpha', 'Mixed Wettbewerb Zebra'], array_column($result['dual'], 'event_name'));
-        $this->assertSame(['Future Wettbewerb Anfang', 'Future Wettbewerb Mitte'], array_column($result['future_standalone'], 'event_name'));
+        $this->assertSame(['Explore, Challenge und Future Edition 8+ Event Alpha', 'Explore, Challenge und Future Edition 8+ Event Zebra'], $this->events($result, 8, 'explore'));
+        $this->assertSame(['Explore, Challenge und Future Edition 8+ Event Alpha', 'Explore, Challenge und Future Edition 8+ Event Zebra'], array_column($result['dual'], 'event_name'));
+        $this->assertSame(['Future Edition 8+ Event Anfang', 'Future Edition 8+ Event Mitte'], array_column($result['future_standalone'], 'event_name'));
     }
 
     public function test_histogram_skips_zero_enrolled_and_missing_draht_id(): void
@@ -165,7 +165,7 @@ class EnrollmentsServiceTest extends TestCase
         $result = app(EnrollmentsService::class)->forSeason(2);
 
         $this->assertCount(1, $result['dual']);
-        $this->assertSame('Mixed Wettbewerb Both', $result['dual'][0]['event_name']);
+        $this->assertSame('Challenge und Future Edition 8+ Event Both', $result['dual'][0]['event_name']);
         $this->assertSame(4, $result['dual'][0]['challenge']['enrolled']);
         $this->assertSame(12, $result['dual'][0]['challenge']['capacity']);
         $this->assertSame(6, $result['dual'][0]['future8']['enrolled']);
@@ -194,7 +194,7 @@ class EnrollmentsServiceTest extends TestCase
         $result = app(EnrollmentsService::class)->forSeason(2);
 
         $this->assertCount(1, $result['future_standalone']);
-        $this->assertSame('Future Wettbewerb F8 only', $result['future_standalone'][0]['event_name']);
+        $this->assertSame('Future Edition 8+ Event F8 only', $result['future_standalone'][0]['event_name']);
         $this->assertSame(5, $result['future_standalone'][0]['future8']['enrolled']);
         $this->assertSame(10, $result['future_standalone'][0]['future8']['capacity']);
         $this->assertArrayNotHasKey('challenge', $result['future_standalone'][0]);
