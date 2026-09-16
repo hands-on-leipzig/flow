@@ -7,7 +7,9 @@ use App\Models\Event;
 use App\Models\FirstProgram;
 use App\Models\MRoomType;
 use App\Models\MRoomTypeGroup;
+use App\Models\Plan;
 use App\Models\Room;
+use App\Models\Team;
 use App\Services\EventAttentionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -175,10 +177,15 @@ class RoomController extends Controller
             'event' => 'required|integer|exists:event,id',
         ]);
 
-        // Finde Plan für das Event
-        $plan = \App\Models\Plan::where('event', $validated['event'])->firstOrFail();
+        $plan = Plan::where('event', $validated['event'])->firstOrFail();
+        $team = Team::query()->findOrFail($validated['team_id']);
 
-        // Update direkt in team_plan (Eintrag muss existieren)
+        app(PlanController::class)->syncTeamPlanForProgram(
+            (int) $plan->id,
+            (int) $validated['event'],
+            (int) $team->first_program,
+        );
+
         DB::table('team_plan')
             ->where('team', $validated['team_id'])
             ->where('plan', $plan->id)

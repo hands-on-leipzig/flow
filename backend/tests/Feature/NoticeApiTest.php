@@ -201,6 +201,43 @@ class NoticeApiTest extends TestCase
         $this->assertFalse($restored['restore_available']);
     }
 
+    public function test_assigning_team_without_team_plan_clears_rooms_teams_dot(): void
+    {
+        $this->seedEvent(date: '2026-11-20');
+        DB::table('team')->insert([
+            'id' => 1,
+            'name' => 'Alpha',
+            'event' => 1,
+            'first_program' => 1,
+            'team_number_hot' => 10,
+        ]);
+        DB::table('room')->insert([
+            'id' => 1,
+            'event' => 1,
+            'name' => 'Aula',
+        ]);
+
+        $before = $this->getJson('/api/events/1/notices')->assertOk()->json();
+        $this->assertTrue($before['dots']['rooms_teams']);
+        $this->assertDatabaseMissing('team_plan', ['team' => 1, 'plan' => 1]);
+
+        $this->putJson('/api/rooms/assign-teams', [
+            'team_id' => 1,
+            'room_id' => 1,
+            'event' => 1,
+        ])->assertOk()->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('team_plan', [
+            'team' => 1,
+            'plan' => 1,
+            'room' => 1,
+        ]);
+
+        $after = $this->getJson('/api/events/1/notices')->assertOk()->json();
+        $this->assertFalse($after['dots']['rooms_teams']);
+        $this->assertNotContains('rooms_teams', collect($after['messages'])->pluck('key')->all());
+    }
+
     public function test_relative_window_is_inclusive_on_start_and_event_day(): void
     {
         $this->seedEvent(date: '2026-09-20');
@@ -425,7 +462,14 @@ class NoticeApiTest extends TestCase
         Schema::create('team_plan', function (Blueprint $table) {
             $table->unsignedInteger('team');
             $table->unsignedInteger('plan');
+            $table->unsignedInteger('team_number_plan');
             $table->unsignedInteger('room')->nullable();
+        });
+
+        Schema::create('room', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('event');
+            $table->string('name');
         });
 
         Schema::create('m_parameter', function (Blueprint $table) {
