@@ -258,73 +258,13 @@ class PlanController extends Controller
 
 
     /**
-     * Populate team_plan table for a newly created plan
-     * Ensures every team for the event has an entry in team_plan
+     * Populate team_plan table for a newly created plan.
+     * Ensures every team for the event has an entry in team_plan.
      */
     private function populateTeamPlanForNewPlan($planId, $eventId)
     {
         Log::info("populateTeamPlanForNewPlan called for plan $planId, event $eventId");
-
-        // Get all teams for this event
-        $teams = Team::where('event', $eventId)->get();
-        Log::info("Found " . $teams->count() . " teams for event $eventId");
-
-        if ($teams->isEmpty()) {
-            Log::info("No teams found for event $eventId - skipping team_plan population");
-            return; // No teams to add
-        }
-
-        // Group teams by program and assign order
-        $exploreTeams = $teams->where('first_program', FirstProgram::EXPLORE->value)->values();
-        $challengeTeams = $teams->where('first_program', FirstProgram::CHALLENGE->value)->values();
-        $futureTeams = $teams->where('first_program', FirstProgram::FUTURE_8->value)->values();
-
-        Log::info("Explore teams: " . $exploreTeams->count() . ", Challenge teams: " . $challengeTeams->count() . ", Future 8+ teams: " . $futureTeams->count());
-
-        $teamPlanEntries = [];
-
-        // Add explore teams with order (starting from 1)
-        foreach ($exploreTeams as $index => $team) {
-            $teamPlanEntries[] = [
-                'team' => $team->id,
-                'plan' => $planId,
-                'team_number_plan' => $index + 1,
-                'room' => null
-            ];
-        }
-
-        // Add challenge teams with order (also starting from 1, independently)
-        foreach ($challengeTeams as $index => $team) {
-            $teamPlanEntries[] = [
-                'team' => $team->id,
-                'plan' => $planId,
-                'team_number_plan' => $index + 1,
-                'room' => null
-            ];
-        }
-
-        foreach ($futureTeams as $index => $team) {
-            $teamPlanEntries[] = [
-                'team' => $team->id,
-                'plan' => $planId,
-                'team_number_plan' => $index + 1,
-                'room' => null
-            ];
-        }
-
-        Log::info("Prepared " . count($teamPlanEntries) . " team_plan entries to insert");
-
-        // Insert all team_plan entries
-        if (!empty($teamPlanEntries)) {
-            try {
-                TeamPlan::insert($teamPlanEntries);
-                Log::info("Successfully inserted " . count($teamPlanEntries) . " team_plan entries");
-            } catch (\Exception $e) {
-                Log::error("Failed to insert team_plan entries: " . $e->getMessage());
-            }
-        } else {
-            Log::warning("No team_plan entries to insert");
-        }
+        $this->syncTeamPlanForPlan($planId, $eventId);
     }
 
     /**
