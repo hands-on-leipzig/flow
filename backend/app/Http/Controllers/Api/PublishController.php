@@ -164,28 +164,9 @@ class PublishController extends Controller
      */
     public function pushLinkToDraht(Event $event, int $drahtId): void
     {
-        if (! app()->environment('production')) {
-            Log::info("Skipping DRAHT link update for event {$event->id} (environment: " . app()->environment() . ")");
-
-            return;
-        }
-
-        $link = $this->slugs->url($event);
-        if ($link === null) {
-            Log::warning("No public link to push to DRAHT for event {$event->id}");
-
-            return;
-        }
-
-        try {
-            app(\App\Http\Controllers\Api\DrahtController::class)->updateEventLink($drahtId, $link);
-        } catch (\Exception $e) {
-            // Log error but don't fail the link generation
-            Log::error("Failed to update link in DRAHT for event {$event->id}", [
-                'draht_id' => $drahtId,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        // The push itself lives in a service, so the season-wide artisan command shares
+        // the environment guard and the logging with this path.
+        app(\App\Services\DrahtLinkSyncService::class)->push($event, $drahtId);
     }
 
     /**
