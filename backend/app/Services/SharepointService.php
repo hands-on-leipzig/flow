@@ -107,6 +107,7 @@ class SharepointService
                 $driveId = $root['drive_id'];
             }
             $folderName = null;
+            $this->assertItemAllowed($driveId, $itemId, $token);
             $breadcrumbs = $this->buildBreadcrumbs($driveId, $itemId, $token);
         }
 

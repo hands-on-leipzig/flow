@@ -41,6 +41,7 @@ use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\PublicEventLinkController;
 use App\Http\Controllers\Api\PublicPlanController;
+use App\Http\Controllers\Api\PublicVolunteerInquiryController;
 use App\Http\Controllers\Api\PublicVolunteerOpeningsController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
@@ -86,6 +87,12 @@ Route::get('/events', [EventController::class, 'index']); // Get list of current
 Route::get('/programs', [ProgramController::class, 'index']); // Catalog from m_first_program
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
 Route::get('/public/volunteer-openings', [PublicVolunteerOpeningsController::class, 'index']); // Hero: events currently seeking helpers
+Route::post('/public/volunteer-inquiries', [PublicVolunteerInquiryController::class, 'store'])
+    ->middleware('throttle:8,1'); // Hero: ask a regional partner about an open role
+Route::get('/public/sharepoint/status', [SharepointController::class, 'status']);
+Route::get('/public/sharepoint/documents', [SharepointController::class, 'listDocuments']);
+Route::get('/public/sharepoint/documents-file-link', [SharepointController::class, 'getFileLink']);
+Route::get('/public/sharepoint/documents-file-stream', [SharepointController::class, 'streamFile']);
 Route::get('/public/event-links', [PublicEventLinkController::class, 'index']); // JOIN: public links of a season, addressed with DRAHT ids
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event

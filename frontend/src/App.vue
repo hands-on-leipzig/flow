@@ -121,7 +121,9 @@ onMounted(() => {
         'glass-app__panel--embed': isEmbedRoute,
       }"
     >
-      <router-view/>
+      <div class="glass-app__panel-body">
+        <router-view/>
+      </div>
     </div>
 
     <NewsModal
@@ -141,7 +143,13 @@ onMounted(() => {
   flex-direction: column;
 }
 
-.glass-app__panel--fill > :deep(*) {
+.glass-app__panel--fill > :deep(.glass-app__panel-body) {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.glass-app__panel--fill > :deep(.glass-app__panel-body) > * {
   flex: 1 1 0%;
   min-height: 0;
 }
