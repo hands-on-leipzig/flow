@@ -9,6 +9,7 @@ import {VitePWA} from 'vite-plugin-pwa'
 export default defineConfig(({mode}) => {
     const env = loadEnv(mode, process.cwd(), '');
     const serverURL = env.VITE_FILES_BASE_URL || 'http://localhost:8000';
+    const frameAncestors = "frame-ancestors 'self' http://localhost:5173 http://localhost:5174 http://localhost:5175 http://127.0.0.1:5173 http://127.0.0.1:5174 http://127.0.0.1:5175 https://*.hands-on-technology.org https://handson.tools";
 
     return {
         plugins: [
@@ -91,6 +92,7 @@ export default defineConfig(({mode}) => {
             alias: {
                 '@': fileURLToPath(new URL('./src', import.meta.url))
             },
+            dedupe: ['vue', 'vue-i18n', 'leaflet'],
         },
         // Keep glass Vue SFCs out of the dep optimizer (exports resolve via Vite + vue plugin).
         optimizeDeps: {
@@ -100,6 +102,10 @@ export default defineConfig(({mode}) => {
         // Proxy → Laravel (VITE_FILES_BASE_URL or http://localhost:8000). Backend must be running.
         server: {
             port: 5173,
+            headers: {
+                // JOIN / HERO embed the public event page in their main panel.
+                'Content-Security-Policy': frameAncestors,
+            },
             // file:../../glass resolves outside frontend/; without this Vite rewrites
             // @font-face urls to /@fs/... and serves 403 → system UI font instead of Uniform.
             fs: {
@@ -142,6 +148,11 @@ export default defineConfig(({mode}) => {
                 // Event slugs are now handled by Vue Router, not proxied to backend
                 // The backend slug-handler.php is no longer needed for frontend routing
             }
+        },
+        preview: {
+            headers: {
+                'Content-Security-Policy': frameAncestors,
+            },
         }
     };
 })

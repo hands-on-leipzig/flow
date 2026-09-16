@@ -87,6 +87,7 @@ const teamNavChildren = computed<NavChild[]>(() => {
 
 const navEntries = computed<NavEntry[]>(() => [
   {name: 'Übersicht', path: '/plan/overview', icon: 'bi-house-door'},
+  {name: 'Austragungsorte', path: '/plan/venues', icon: 'bi-geo-alt'},
   {
     name: 'Ablauf',
     path: '/plan/schedule',
@@ -309,7 +310,9 @@ function normalizePlanPath(path: string): string {
 function isActive(path: string) {
   const target = normalizePlanPath(path)
   const current = route.path.replace(/\/$/, '') || '/'
-  return current === target
+  if (current === target) return true
+  if (target === '/plan/venues' && current.startsWith('/plan/venues/')) return true
+  return false
 }
 
 function goToPath(path: string) {

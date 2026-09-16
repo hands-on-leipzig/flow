@@ -49,6 +49,7 @@ class PublicVolunteerOpeningsTest extends TestCase
         $this->assertSame([1, 4, 5, 2], $ids);
         $response->assertJsonPath('data.0.name', 'Leipzig');
         $response->assertJsonPath('data.0.seeking', true);
+        $response->assertJsonPath('data.0.draht_ids', [101, 102]);
         $this->assertStringContainsString('Schiedsrichter', json_encode($response->json('data.0.helper_search')));
     }
 
@@ -165,7 +166,7 @@ class PublicVolunteerOpeningsTest extends TestCase
             'slug' => 'leipzig',
             'date' => '2026-11-15',
             'public_helper_search' => true,
-        ]);
+        ], [101, 102]);
         $this->insertEvent(2, [
             'name' => 'Dresden komplett',
             'slug' => 'dresden',
@@ -199,8 +200,9 @@ class PublicVolunteerOpeningsTest extends TestCase
 
     /**
      * @param  array<string, mixed>  $overrides
+     * @param  list<int>  $drahtIds
      */
-    private function insertEvent(int $id, array $overrides): void
+    private function insertEvent(int $id, array $overrides, array $drahtIds = []): void
     {
         DB::table('event')->insert(array_merge([
             'id' => $id,
@@ -214,6 +216,14 @@ class PublicVolunteerOpeningsTest extends TestCase
             'link' => null,
             'public_helper_search' => false,
         ], $overrides));
+
+        foreach ($drahtIds as $drahtId) {
+            DB::table('event_program')->insert([
+                'event' => $id,
+                'first_program' => 2,
+                'draht_id' => $drahtId,
+            ]);
+        }
     }
 
     private function truncateData(): void
@@ -254,6 +264,7 @@ class PublicVolunteerOpeningsTest extends TestCase
                 $table->increments('id');
                 $table->unsignedInteger('event');
                 $table->unsignedInteger('first_program')->nullable();
+                $table->unsignedInteger('draht_id')->nullable();
             });
         }
         if (! Schema::hasTable('event')) {

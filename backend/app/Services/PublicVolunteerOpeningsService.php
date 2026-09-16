@@ -107,6 +107,23 @@ class PublicVolunteerOpeningsService
             'public_url' => $publicUrl,
             'seeking' => $helperSearch !== null && $this->hasOpenRoles($helperSearch),
             'helper_search' => $helperSearch,
+            'draht_ids' => $this->drahtIds($event),
         ], $event);
+    }
+
+    /**
+     * JOIN venues are keyed by DRAHT event id; Explore and Challenge can share one FLOW event.
+     *
+     * @return list<int>
+     */
+    private function drahtIds(Event $event): array
+    {
+        return $event->programs
+            ->pluck('draht_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
     }
 }

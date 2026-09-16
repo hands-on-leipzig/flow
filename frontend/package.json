@@ -23,11 +23,13 @@
     "fabric": "7.2.0",
     "jspdf": "4.2.1",
     "keycloak-js": "26.2.3",
+    "leaflet": "1.9.4",
     "pdfjs-dist": "5.5.207",
     "pinia": "3.0.4",
     "qrcode": "1.5.4",
     "router": "2.2.0",
     "vue": "3.5.29",
+    "vue-i18n": "11.2.8",
     "vue-chartjs": "5.3.3",
     "vue-router": "5.0.3",
     "vuedraggable": "4.1.0"
