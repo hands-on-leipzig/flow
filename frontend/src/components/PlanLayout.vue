@@ -22,8 +22,7 @@ const eventId = computed(() => eventStore.selectedEvent?.id ?? 0)
 /** Split-pane pages need bounded height for independent left/right scroll. */
 const isFullHeightPage = computed(() => {
   const path = route.path.replace(/\/$/, '')
-  return path.startsWith('/plan/venues/e')
-    || path.includes('/plan/admin')
+  return path.includes('/plan/admin')
     || path.includes('/plan/schedule')
     || path === '/plan/publish'
     || path === '/plan/publish/logos'

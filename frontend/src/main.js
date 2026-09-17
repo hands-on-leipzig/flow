@@ -62,7 +62,6 @@ import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
 import '@hands-on/glass/styles.css'
 import {initTheme} from '@hands-on/glass/theme'
-import {i18n} from '@/i18n.js'
 
 initTheme()
 
@@ -79,8 +78,6 @@ const routes = [
         redirect: '/plan/overview',
         children: [
             {path: 'overview', component: HomeOverview},
-            {path: 'venues', name: 'plan-venues', component: () => import('@/components/PlanVenues.vue')},
-            {path: 'venues/e/:publicPath(.*)', name: 'plan-venues-event', component: () => import('@/components/PlanPublicEvent.vue')},
             {path: 'help', component: HelpCatalog},
             {path: 'event', redirect: '/plan/overview'},
             {
@@ -333,5 +330,4 @@ dayjs.locale('de')
 
 app.use(router)
 app.use(pinia)
-app.use(i18n)
 app.mount('#app')

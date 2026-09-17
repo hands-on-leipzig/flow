@@ -18,17 +18,10 @@ const isChromeLess = computed(() => isPublicRoute.value || route.meta?.popout ==
 /** Blank canvas (no orbit/pe-page styling) when a route opts in via meta.plain. */
 const isPlainSurface = computed(() => route.meta?.plain === true)
 
-/** Public event iframe inside the planner shell (sidebar stays). */
-const isEmbedRoute = computed(() => {
-  const path = route.path.replace(/\/$/, '')
-  return path.startsWith('/plan/venues/e')
-})
-
 /** Panel fills viewport height so inner panes scroll (admin tools, Ablauf split, Ausgabe splits). */
 const isPanelFillRoute = computed(() => {
   const path = route.path.replace(/\/$/, '')
-  return isEmbedRoute.value
-    || path.startsWith('/plan/admin')
+  return path.startsWith('/plan/admin')
     || path.startsWith('/plan/schedule')
     || path === '/plan/publish'
     || path === '/plan/publish/logos'
@@ -118,7 +111,6 @@ onMounted(() => {
       class="glass-app__panel liquid-surface"
       :class="{
         'glass-app__panel--fill': isPanelFillRoute,
-        'glass-app__panel--embed': isEmbedRoute,
       }"
     >
       <div class="glass-app__panel-body">
@@ -152,10 +144,5 @@ onMounted(() => {
 .glass-app__panel--fill > :deep(.glass-app__panel-body) > * {
   flex: 1 1 0%;
   min-height: 0;
-}
-
-.glass-app__panel--embed {
-  padding: 0;
-  overflow: hidden;
 }
 </style>
