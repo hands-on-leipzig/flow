@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 class PublicPlanService
 {
     private const LANE_MEETING_CODES = ['j_with_team', 'e_with_team', 'f8_j_with_team'];
+
     private const TABLE_MATCH_CODES = ['r_match', 'f8_r_match'];
 
     public function __construct(
@@ -777,8 +778,14 @@ class PublicPlanService
                     'table_2_name' => $row->table_2_name ?? null,
                     'table_2_team' => $row->table_2_team,
                     'team_name' => $row->jury_team_name ?? null,
+                    'jury_team_number_hot' => $row->jury_team_number_hot ?? null,
+                    'jury_team_noshow' => (bool) ($row->jury_team_noshow ?? false),
                     'table_1_team_name' => $row->table_1_team_name ?? null,
+                    'table_1_team_number_hot' => $row->table_1_team_number_hot ?? null,
+                    'table_1_team_noshow' => (bool) ($row->table_1_team_noshow ?? false),
                     'table_2_team_name' => $row->table_2_team_name ?? null,
+                    'table_2_team_number_hot' => $row->table_2_team_number_hot ?? null,
+                    'table_2_team_noshow' => (bool) ($row->table_2_team_noshow ?? false),
                     'room' => [
                         'room_type_id' => $row->room_type_id ?? null,
                         'room_type_name' => $row->room_type_name ?? null,
