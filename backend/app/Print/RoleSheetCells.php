@@ -110,7 +110,7 @@ final class RoleSheetCells
 
     /**
      * @param  array<string, mixed>  $activity
-     * @return array{text: string, strike: list<string>}
+     * @return array{text: string, strike: list<string>, italic: list<string>, omit: bool}
      */
     public static function action(
         array $activity,
@@ -119,12 +119,51 @@ final class RoleSheetCells
         ?int $selfTeam,
         ?int $selfTable,
     ): array {
-        $extra = self::actionExtra($activity, $roleName, $roleParam, $selfTeam, $selfTable);
-        $text = self::combineAction(self::activityName($activity), $extra);
+        if ($roleParam === 'team' && self::isMatch($activity) && self::bothTeamsUnset($activity)) {
+            return ['text' => '', 'strike' => [], 'italic' => [], 'omit' => true];
+        }
+
+        $atd = self::activityName($activity);
+        $extra = '';
+        $useAtd = true;
+        $italic = [];
+
+        if ($roleName === 'Schiedsrichter:in' && $roleParam === 'table') {
+            if (self::isMatch($activity)) {
+                $useAtd = false;
+                if (self::bothTeamsUnset($activity)) {
+                    $text = self::groupName($activity);
+                    if ($text === '') {
+                        $text = $atd;
+                    }
+
+                    return ['text' => $text, 'strike' => [], 'italic' => [], 'omit' => false];
+                }
+                $own = self::ownSide($activity, $selfTeam, $selfTable);
+                $opp = self::opponentSide($activity, $selfTeam, $selfTable);
+                $oppLabel = self::teamLabel($opp['name'], $opp['number'], $opp['hot'], true);
+                $extra = self::pair(
+                    self::teamLabel($own['name'], $own['number'], $own['hot'], true),
+                    $oppLabel,
+                );
+                if ($oppLabel !== '') {
+                    $italic[] = $oppLabel;
+                }
+            }
+        } else {
+            $extra = self::actionExtra($activity, $roleName, $roleParam, $selfTeam, $selfTable);
+            if ($roleParam === 'team' && (self::isMatch($activity) || self::isAlliance($activity)) && $extra !== '') {
+                $italic[] = $extra;
+            }
+        }
+
+        $text = $useAtd ? self::combineAction($atd, $extra) : $extra;
 
         return [
             'text' => $text,
             'strike' => self::strikeNames($activity, $text),
+            'italic' => $italic,
+            'omit' => false,
         ];
     }
 
@@ -139,6 +178,52 @@ final class RoleSheetCells
         }
 
         return trim((string) ($activity['meta']['name'] ?? ''));
+    }
+
+    /**
+     * @param  array<string, mixed>  $activity
+     */
+    private static function groupName(array $activity): string
+    {
+        $name = trim((string) ($activity['group_name'] ?? ''));
+        if ($name !== '') {
+            return $name;
+        }
+        $meta = $activity['group_meta'] ?? null;
+        if (is_array($meta)) {
+            return trim((string) ($meta['name'] ?? ''));
+        }
+
+        return trim((string) ($activity['activity_type_name'] ?? ''));
+    }
+
+    /**
+     * @param  array<string, mixed>  $activity
+     */
+    private static function bothTeamsUnset(array $activity): bool
+    {
+        return ! self::sideHasTeam($activity, 1) && ! self::sideHasTeam($activity, 2);
+    }
+
+    /**
+     * @param  array<string, mixed>  $activity
+     */
+    private static function sideHasTeam(array $activity, int $which): bool
+    {
+        $number = $which === 2
+            ? ($activity['table_2_team'] ?? null)
+            : ($activity['table_1_team'] ?? null);
+        $name = $which === 2
+            ? trim((string) ($activity['table_2_team_name'] ?? ''))
+            : trim((string) ($activity['table_1_team_name'] ?? ''));
+        if ($name !== '') {
+            return true;
+        }
+        if ($number === null || $number === '') {
+            return false;
+        }
+
+        return true;
     }
 
     private static function combineAction(string $name, string $extra): string
@@ -174,20 +259,10 @@ final class RoleSheetCells
             );
         }
 
-        if ($roleParam === 'team' && self::isMatch($activity)) {
+        if ($roleParam === 'team' && (self::isMatch($activity) || self::isAlliance($activity))) {
             $opp = self::opponentSide($activity, $selfTeam, $selfTable);
 
             return self::teamLabel($opp['name'], $opp['number']);
-        }
-
-        if ($roleName === 'Schiedsrichter:in' && $roleParam === 'table') {
-            $own = self::ownSide($activity, $selfTeam, $selfTable);
-            $opp = self::opponentSide($activity, $selfTeam, $selfTable);
-
-            return self::pair(
-                self::teamLabel($own['name'], $own['number'], $own['hot'], true),
-                self::teamLabel($opp['name'], $opp['number'], $opp['hot'], true),
-            );
         }
 
         if ($roleName === 'Robot-Checker:in') {
@@ -387,16 +462,12 @@ final class RoleSheetCells
     public static function teamLabel(?string $name, mixed $number, mixed $hot = null, bool $withHot = false): string
     {
         $slot = self::intOrNull($number);
-        if ($slot === 0) {
+        $name = trim((string) $name);
+        if ($slot === 0 || ($name === '' && ($slot === null || $slot < 1))) {
             return self::VOLUNTEER;
         }
 
-        $name = trim((string) $name);
         if ($name === '') {
-            if ($slot === null || $slot < 1) {
-                return '';
-            }
-
             return sprintf('T%02d (%s)', $slot, self::UNASSIGNED);
         }
 

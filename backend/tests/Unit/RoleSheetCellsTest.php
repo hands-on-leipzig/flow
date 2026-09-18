@@ -19,6 +19,7 @@ class RoleSheetCellsTest extends TestCase
         $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
 
         $this->assertSame('Robot-Match, '.RoleSheetCells::VOLUNTEER, $action['text']);
+        $this->assertSame([RoleSheetCells::VOLUNTEER], $action['italic']);
     }
 
     public function test_unassigned_slot_uses_two_digit_placeholder(): void
@@ -33,6 +34,7 @@ class RoleSheetCellsTest extends TestCase
         $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
 
         $this->assertSame('Robot-Match, T08 (Noch nicht angemeldet)', $action['text']);
+        $this->assertSame(['T08 (Noch nicht angemeldet)'], $action['italic']);
         $this->assertSame('T08 (Noch nicht angemeldet)', RoleSheetCells::teamLabel(null, 8));
         $this->assertSame(RoleSheetCells::VOLUNTEER, RoleSheetCells::teamLabel(null, 0));
     }
@@ -76,7 +78,8 @@ class RoleSheetCellsTest extends TestCase
 
         $action = RoleSheetCells::action($activity, 'Schiedsrichter:in', 'table', null, 2);
 
-        $this->assertSame('Robot-Match, Beta (0007) – Alpha (0012)', $action['text']);
+        $this->assertSame('Beta (0007) – Alpha (0012)', $action['text']);
+        $this->assertSame(['Alpha (0012)'], $action['italic']);
     }
 
     public function test_jury_without_with_team_code_keeps_activity_name(): void
@@ -91,6 +94,7 @@ class RoleSheetCellsTest extends TestCase
         $action = RoleSheetCells::action($activity, 'Juror:in', 'lane', null, null);
 
         $this->assertSame('Beratung', $action['text']);
+        $this->assertSame([], $action['italic']);
     }
 
     public function test_jury_with_team_appends_hot_name_to_activity_name(): void
@@ -117,6 +121,7 @@ class RoleSheetCellsTest extends TestCase
         $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
 
         $this->assertSame('Eröffnung', $action['text']);
+        $this->assertSame([], $action['italic']);
     }
 
     public function test_moderator_match_uses_names_without_hot(): void
@@ -133,6 +138,7 @@ class RoleSheetCellsTest extends TestCase
         $action = RoleSheetCells::action($activity, 'Moderator:in', '', null, null);
 
         $this->assertSame('Robot-Match, Alpha – Beta', $action['text']);
+        $this->assertSame([], $action['italic']);
         $this->assertStringNotContainsString('0012', $action['text']);
         $this->assertStringNotContainsString('0007', $action['text']);
     }
@@ -159,7 +165,8 @@ class RoleSheetCellsTest extends TestCase
 
         $action = RoleSheetCells::action($activity, 'Schiedsrichter:in', 'table', null, 1);
 
-        $this->assertSame('Robot-Match, Alpha (0012) – Freiwilliges Team ohne Wertung', $action['text']);
+        $this->assertSame('Alpha (0012) – Freiwilliges Team ohne Wertung', $action['text']);
+        $this->assertSame(['Freiwilliges Team ohne Wertung'], $action['italic']);
         $this->assertStringNotContainsString('0099', $action['text']);
     }
 
@@ -192,7 +199,8 @@ class RoleSheetCellsTest extends TestCase
 
         $action = RoleSheetCells::action($activity, 'Schiedsrichter:in', 'table', null, 1);
 
-        $this->assertSame('Robot-Match, Alpha (0012) – Beta (0007)', $action['text']);
+        $this->assertSame('Alpha (0012) – Beta (0007)', $action['text']);
+        $this->assertSame(['Beta (0007)'], $action['italic']);
         $this->assertContains('Beta (0007)', $action['strike']);
         $this->assertNotContains('Alpha (0012)', $action['strike']);
     }
@@ -213,13 +221,137 @@ class RoleSheetCellsTest extends TestCase
         $this->assertContains('T02 (Noch nicht angemeldet)', $action['strike']);
     }
 
+    public function test_team_match_with_both_sides_unset_is_omitted(): void
+    {
+        $activity = $this->matchActivity(
+            table1Team: null,
+            table1Name: null,
+            table2Team: null,
+            table2Name: null,
+        );
+        $activity['group_name'] = 'Robot-Game Halbfinale';
+
+        $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
+
+        $this->assertTrue($action['omit']);
+        $this->assertSame('', $action['text']);
+    }
+
+    public function test_ref_match_omits_activity_name(): void
+    {
+        $activity = $this->matchActivity(
+            table1Team: 1,
+            table1Name: 'Alpha',
+            table1Hot: 12,
+            table2Team: 2,
+            table2Name: 'Beta',
+            table2Hot: 7,
+        );
+
+        $action = RoleSheetCells::action($activity, 'Schiedsrichter:in', 'table', null, 1);
+
+        $this->assertSame('Alpha (0012) – Beta (0007)', $action['text']);
+        $this->assertSame(['Beta (0007)'], $action['italic']);
+        $this->assertStringNotContainsString('Robot-Match', $action['text']);
+    }
+
+    public function test_ref_match_with_both_sides_unset_uses_group_name(): void
+    {
+        $activity = $this->matchActivity(
+            table1Team: null,
+            table1Name: null,
+            table2Team: null,
+            table2Name: null,
+        );
+        $activity['group_name'] = 'Robot-Game Halbfinale';
+
+        $action = RoleSheetCells::action($activity, 'Schiedsrichter:in', 'table', null, 1);
+
+        $this->assertFalse($action['omit']);
+        $this->assertSame('Robot-Game Halbfinale', $action['text']);
+        $this->assertSame([], $action['italic']);
+    }
+
+    public function test_ref_non_match_keeps_activity_name_only(): void
+    {
+        $activity = [
+            'activity_type_code' => 'r_check',
+            'activity_name' => 'Robot-Check',
+            'table_1_team' => 1,
+            'table_1_team_name' => 'Alpha',
+            'table_1_team_number_hot' => 12,
+            'table_2_team' => 2,
+            'table_2_team_name' => 'Beta',
+            'table_2_team_number_hot' => 7,
+        ];
+
+        $action = RoleSheetCells::action($activity, 'Schiedsrichter:in', 'table', null, 1);
+
+        $this->assertSame('Robot-Check', $action['text']);
+    }
+
+    public function test_future_team_alliance_adds_opponent_name(): void
+    {
+        $activity = $this->matchActivity(
+            table1Team: 1,
+            table1Name: 'Alpha',
+            table2Team: 2,
+            table2Name: 'Beta',
+            table1Hot: 12,
+            table2Hot: 7,
+        );
+        $activity['activity_type_code'] = 'f8_r_alliance';
+        $activity['activity_name'] = 'Allianz-Gespräch';
+
+        $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
+
+        $this->assertSame('Allianz-Gespräch, Beta', $action['text']);
+        $this->assertSame(['Beta'], $action['italic']);
+        $this->assertStringNotContainsString('0007', $action['text']);
+    }
+
+    public function test_future_team_match_keeps_opponent_link(): void
+    {
+        $activity = $this->matchActivity(
+            table1Team: 1,
+            table1Name: 'Alpha',
+            table2Team: 2,
+            table2Name: 'Beta',
+        );
+        $activity['activity_type_code'] = 'f8_r_match';
+        $activity['activity_name'] = 'Robot-Match';
+
+        $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
+
+        $this->assertSame('Robot-Match, Beta', $action['text']);
+        $this->assertSame(['Beta'], $action['italic']);
+    }
+
+    public function test_future_ref_match_italics_opponent(): void
+    {
+        $activity = $this->matchActivity(
+            table1Team: 1,
+            table1Name: 'Alpha',
+            table1Hot: 12,
+            table2Team: 2,
+            table2Name: 'Beta',
+            table2Hot: 7,
+        );
+        $activity['activity_type_code'] = 'f8_r_match';
+
+        $action = RoleSheetCells::action($activity, 'Schiedsrichter:in', 'table', null, 1);
+
+        $this->assertSame('Alpha (0012) – Beta (0007)', $action['text']);
+        $this->assertSame(['Beta (0007)'], $action['italic']);
+    }
+
     /**
      * @return array<string, mixed>
      */
     private function matchActivity(
-        int $table1Team,
+        ?int $table1Team,
         ?string $table1Name,
-        int $table2Team,
+        ?int $table2Team,
         ?string $table2Name,
         mixed $table1Hot = null,
         mixed $table2Hot = null,

@@ -41,6 +41,7 @@ final class RoleSheetTcpdfRenderer
         NotoTcpdfFont::register($pdf);
         $pdf->regularFont = NotoTcpdfFont::regular();
         $pdf->boldFont = NotoTcpdfFont::bold();
+        $pdf->italicFont = NotoTcpdfFont::italic();
         $pdf->eventTitle = (string) ($document['title_long'] ?? $document['title_short'] ?? '');
         $pdf->createdAt = (string) ($document['created_at'] ?? '');
         $pdf->hotPath = self::hotLogoPath();
@@ -69,7 +70,7 @@ final class RoleSheetTcpdfRenderer
     }
 
     /**
-     * @param  list<array{start?:string,end?:string,room?:string,action?:string,strike?:list<string>}>  $rows
+     * @param  list<array{start?:string,end?:string,room?:string,action?:string,strike?:list<string>,italic?:list<string>}>  $rows
      */
     private function table(RoleSheetPdf $pdf, string $heading, array $rows): void
     {
@@ -83,6 +84,10 @@ final class RoleSheetTcpdfRenderer
         $pdf->SetTextColor(0, 0, 0);
         $pdf->Cell($usable, 6, $heading, 0, 1, 'L');
 
+        $headerY = $pdf->GetY();
+        $pdf->SetFillColor(236, 238, 241);
+        $pdf->Rect(12, $headerY, $usable, 6, 'F');
+        $pdf->SetXY(12, $headerY);
         $pdf->SetFont($pdf->boldFont, '', 9);
         $pdf->Cell($wStart, 6, 'Start', 0, 0, 'L');
         $pdf->Cell($wEnd, 6, 'Ende', 0, 0, 'L');
@@ -92,12 +97,13 @@ final class RoleSheetTcpdfRenderer
         $pdf->Line(12, $pdf->GetY(), 12 + $usable, $pdf->GetY());
 
         $pdf->SetFont($pdf->regularFont, '', 9);
-        foreach ($rows as $row) {
+        foreach ($rows as $index => $row) {
             $start = (string) ($row['start'] ?? '');
             $end = (string) ($row['end'] ?? '');
             $room = (string) ($row['room'] ?? '');
             $action = (string) ($row['action'] ?? '');
             $strike = $row['strike'] ?? [];
+            $italic = $row['italic'] ?? [];
 
             $startY = $pdf->GetY();
             if ($startY > $pdf->getPageHeight() - 28) {
@@ -108,6 +114,11 @@ final class RoleSheetTcpdfRenderer
             $hRoom = $pdf->getStringHeight($wRoom, $room, false, true, '', 1);
             $hAction = $pdf->getStringHeight($wAction, $action, false, true, '', 1);
             $h = max(6.0, $hRoom, $hAction);
+            $stripe = $index % 2 === 1;
+            if ($stripe) {
+                $pdf->SetFillColor(245, 246, 248);
+                $pdf->Rect(12, $startY, $usable, $h, 'F');
+            }
 
             $pdf->SetXY(12, $startY);
             $pdf->MultiCell($wStart, $h, $start, 0, 'L', false, 0);
@@ -115,15 +126,100 @@ final class RoleSheetTcpdfRenderer
             $pdf->MultiCell($wEnd, $h, $end, 0, 'L', false, 0);
             $pdf->SetXY(12 + $wStart + $wEnd, $startY);
             $pdf->MultiCell($wRoom, $h, $room, 0, 'L', false, 0);
-            $pdf->SetXY(12 + $wStart + $wEnd + $wRoom, $startY);
-            $pdf->MultiCell($wAction, $h, $action, 0, 'L', false, 1);
+            $this->writeAction($pdf, 12 + $wStart + $wEnd + $wRoom, $startY, $h, $wAction, $action, $italic);
 
             if (self::shouldStrike($action, $strike)) {
                 self::strikeNames($pdf, 12 + $wStart + $wEnd + $wRoom, $startY, $h, $wAction, $action, $strike);
             }
 
+            $pdf->SetFont($pdf->regularFont, '', 9);
             $pdf->SetY($startY + $h);
         }
+    }
+
+    /**
+     * @param  list<string>  $italic
+     */
+    private function writeAction(
+        RoleSheetPdf $pdf,
+        float $x,
+        float $y,
+        float $h,
+        float $width,
+        string $action,
+        array $italic,
+    ): void {
+        $parts = self::italicParts($action, $italic);
+        $needsItalic = false;
+        foreach ($parts as $part) {
+            if ($part['italic'] && $part['text'] !== '') {
+                $needsItalic = true;
+                break;
+            }
+        }
+
+        $pdf->SetFont($pdf->regularFont, '', 9);
+        if (! $needsItalic) {
+            $pdf->SetXY($x, $y);
+            $pdf->MultiCell($width, $h, $action, 0, 'L', false, 1);
+
+            return;
+        }
+
+        $html = '';
+        foreach ($parts as $part) {
+            $text = htmlspecialchars($part['text'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $html .= $part['italic'] ? '<i>'.$text.'</i>' : $text;
+        }
+        $pdf->writeHTMLCell($width, $h, $x, $y, $html, 0, 0, false, true, 'L', true);
+    }
+
+    /**
+     * @param  list<string>  $italic
+     * @return list<array{text: string, italic: bool}>
+     */
+    private static function italicParts(string $action, array $italic): array
+    {
+        $names = [];
+        foreach ($italic as $name) {
+            if (is_string($name) && $name !== '' && str_contains($action, $name) && ! in_array($name, $names, true)) {
+                $names[] = $name;
+            }
+        }
+        usort($names, fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
+        if ($action === '' || $names === []) {
+            return [['text' => $action, 'italic' => false]];
+        }
+
+        $parts = [['text' => $action, 'italic' => false]];
+        foreach ($names as $name) {
+            $next = [];
+            foreach ($parts as $part) {
+                if ($part['italic'] || ! str_contains($part['text'], $name)) {
+                    $next[] = $part;
+
+                    continue;
+                }
+                $pos = mb_strpos($part['text'], $name);
+                if ($pos === false) {
+                    $next[] = $part;
+
+                    continue;
+                }
+                $before = mb_substr($part['text'], 0, $pos);
+                $after = mb_substr($part['text'], $pos + mb_strlen($name));
+                if ($before !== '') {
+                    $next[] = ['text' => $before, 'italic' => false];
+                }
+                $next[] = ['text' => $name, 'italic' => true];
+                if ($after !== '') {
+                    $next[] = ['text' => $after, 'italic' => false];
+                }
+            }
+            $parts = $next;
+        }
+
+        return $parts;
     }
 
     /**
@@ -195,7 +291,11 @@ final class RoleSheetTcpdfRenderer
 
     private static function hotLogoPath(): ?string
     {
-        if (! function_exists('public_path')) {
+        if (! function_exists('app') || ! function_exists('public_path')) {
+            return null;
+        }
+        $app = app();
+        if (! is_object($app) || ! method_exists($app, 'publicPath')) {
             return null;
         }
         $path = public_path('flow/hot.png');
@@ -267,6 +367,8 @@ final class RoleSheetPdf extends TCPDF
     public string $regularFont = 'helvetica';
 
     public string $boldFont = 'helvetica';
+
+    public string $italicFont = 'helvetica';
 
     public function Header(): void
     {

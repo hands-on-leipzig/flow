@@ -41,10 +41,23 @@ final class NotoTcpdfFont
         return self::dir().'notosansb.php';
     }
 
+    public static function italic(): string
+    {
+        self::ensure();
+
+        return 'notosans';
+    }
+
+    public static function italicFile(): string
+    {
+        return self::dir().'notosansi.php';
+    }
+
     public static function register(\TCPDF $pdf): void
     {
         $pdf->AddFont(self::regular(), '', self::regularFile());
         $pdf->AddFont(self::bold(), '', self::boldFile());
+        $pdf->AddFont(self::regular(), 'I', self::italicFile());
     }
 
     private static function ensure(): void
@@ -52,7 +65,8 @@ final class NotoTcpdfFont
         $dir = self::dir();
         $regular = $dir.'notosans.php';
         $bold = $dir.'notosansb.php';
-        if (is_file($regular) && is_file($bold)) {
+        $italic = $dir.'notosansi.php';
+        if (is_file($regular) && is_file($bold) && is_file($italic)) {
             return;
         }
 
@@ -66,6 +80,9 @@ final class NotoTcpdfFont
         }
         if (! is_file($bold) && is_file($ttfDir.'/NotoSans-Bold.ttf')) {
             \TCPDF_FONTS::addTTFfont($ttfDir.'/NotoSans-Bold.ttf', 'TrueTypeUnicode', '', 32, $dir);
+        }
+        if (! is_file($italic) && is_file($ttfDir.'/NotoSans-Italic.ttf')) {
+            \TCPDF_FONTS::addTTFfont($ttfDir.'/NotoSans-Italic.ttf', 'TrueTypeUnicode', '', 32, $dir);
         }
     }
 }

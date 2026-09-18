@@ -20,8 +20,8 @@ final class RoleSheetAssembler
      *         noshow: bool,
      *         color_hex: string,
      *         logo_stem: ?string,
-     *         ablauf: list<array{start:string,end:string,room:string,action:string,strike:list<string>}>,
-     *         zusaetzlich?: list<array{start:string,end:string,room:string,action:string,strike:list<string>}>
+     *         ablauf: list<array{start:string,end:string,room:string,action:string,strike:list<string>,italic:list<string>}>,
+     *         zusaetzlich?: list<array{start:string,end:string,room:string,action:string,strike:list<string>,italic:list<string>}>
      *     }>
      * }
      */
@@ -90,7 +90,11 @@ final class RoleSheetAssembler
                 if (! is_array($activity)) {
                     continue;
                 }
+                $activity['group_name'] = trim((string) ($group['group_meta']['name'] ?? ''));
                 $row = $this->row($activity, $roleName, $parameter, $selfTeam, $selfTable, $programId, $option);
+                if ($row === null) {
+                    continue;
+                }
                 if (self::isFreeBlock($activity)) {
                     $extra[] = $row;
                 } else {
@@ -136,7 +140,7 @@ final class RoleSheetAssembler
     /**
      * @param  array<string, mixed>  $activity
      * @param  array<string, mixed>  $option
-     * @return array{start:string,end:string,room:string,action:string,strike:list<string>}
+     * @return array{start:string,end:string,room:string,action:string,strike:list<string>,italic:list<string>}|null
      */
     private function row(
         array $activity,
@@ -146,8 +150,11 @@ final class RoleSheetAssembler
         ?int $selfTable,
         ?int $programId,
         array $option,
-    ): array {
+    ): ?array {
         $action = RoleSheetCells::action($activity, $roleName, $roleParam, $selfTeam, $selfTable);
+        if (! empty($action['omit'])) {
+            return null;
+        }
         $strike = $action['strike'];
         if (! empty($option['noshow'])) {
             $label = trim((string) ($option['label'] ?? ''));
@@ -162,6 +169,7 @@ final class RoleSheetAssembler
             'room' => RoleSheetCells::room($activity, $roleParam, $selfTeam, $selfTable, $programId),
             'action' => $action['text'],
             'strike' => $strike,
+            'italic' => $action['italic'] ?? [],
         ];
     }
 

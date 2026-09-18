@@ -51,7 +51,7 @@ class RoleSheetAssemblerTest extends TestCase
             'groups' => [
                 [
                     'activities' => [
-                        $this->activity('10:00:00', '10:10:00', 'punctual', 'r_match', 'Halle'),
+                        $this->activity('10:00:00', '10:10:00', 'punctual', 'r_match', 'Halle', table1Team: 1, table2Team: 2),
                     ],
                 ],
             ],
@@ -63,7 +63,7 @@ class RoleSheetAssemblerTest extends TestCase
             'groups' => [
                 [
                     'activities' => [
-                        $this->activity('11:00:00', '11:10:00', 'info', 'r_match', 'Halle'),
+                        $this->activity('11:00:00', '11:10:00', 'info', 'r_match', 'Halle', table1Team: 2, table2Team: 1),
                     ],
                 ],
             ],
@@ -84,6 +84,7 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertCount(1, $document['sections'][0]['zusaetzlich']);
 
         $this->assertSame('Team: Alpha', $document['sections'][1]['subject']);
+        $this->assertSame(['Beta'], $document['sections'][1]['ablauf'][0]['italic']);
         $this->assertArrayNotHasKey('zusaetzlich', $document['sections'][1]);
         $this->assertSame('Team: Beta', $document['sections'][2]['subject']);
         $this->assertTrue($document['sections'][2]['noshow']);
@@ -184,7 +185,7 @@ class RoleSheetAssemblerTest extends TestCase
             'groups' => [
                 [
                     'activities' => [
-                        $this->activity('09:00:00', '09:10:00', 'punctual', 'r_match', 'Halle'),
+                        $this->activity('09:00:00', '09:10:00', 'punctual', 'r_match', 'Halle', table1Team: 1, table2Team: 2),
                         $this->activity('11:00:00', '11:20:00', 'punctual', 'c_slot_block', 'Werkstatt', 4, 'slot'),
                         $this->activity('12:00:00', '13:00:00', 'window', 'c_free_block', 'Hof', 9, 'free'),
                     ],
@@ -199,6 +200,35 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertSame('11:00', $document['sections'][0]['ablauf'][1]['start']);
         $this->assertCount(1, $document['sections'][0]['zusaetzlich']);
         $this->assertSame('12:00', $document['sections'][0]['zusaetzlich'][0]['start']);
+    }
+
+    public function test_omits_team_match_when_both_sides_unset(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(5, 'Team', 3, [
+                    ['value' => 1, 'label' => 'Alpha', 'parameter' => 'team', 'noshow' => false],
+                ]),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'group_meta' => ['name' => 'Robot-Game Halbfinale'],
+                    'activities' => [
+                        $this->activity('09:00:00', '09:10:00', 'punctual', 'c_opening', 'Bühne'),
+                        $this->activity('15:00:00', '15:10:00', 'punctual', 'r_match', 'Halle'),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [5]);
+
+        $this->assertCount(1, $document['sections'][0]['ablauf']);
+        $this->assertSame('09:00', $document['sections'][0]['ablauf'][0]['start']);
     }
 
     /**
@@ -222,18 +252,32 @@ class RoleSheetAssemblerTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function activity(string $start, string $end, string $presence, string $code, string $room, ?int $extraBlockId = null, ?string $extraBlockType = null): array
-    {
+    private function activity(
+        string $start,
+        string $end,
+        string $presence,
+        string $code,
+        string $room,
+        ?int $extraBlockId = null,
+        ?string $extraBlockType = null,
+        ?int $table1Team = null,
+        ?int $table2Team = null,
+    ): array {
         return [
             'start_time' => '2026-03-15 '.$start,
             'end_time' => '2026-03-15 '.$end,
             'presence' => $presence,
             'activity_type_code' => $code,
+            'activity_name' => $code === 'r_match' ? 'Robot-Game Match' : '',
             'extra_block_id' => $extraBlockId,
             'extra_block_type' => $extraBlockType,
             'room' => ['room_name' => $room],
             'team_name' => 'Alpha',
             'jury_team_number_hot' => 12,
+            'table_1_team' => $table1Team,
+            'table_2_team' => $table2Team,
+            'table_1_team_name' => $table1Team ? 'Alpha' : null,
+            'table_2_team_name' => $table2Team ? 'Beta' : null,
         ];
     }
 }
