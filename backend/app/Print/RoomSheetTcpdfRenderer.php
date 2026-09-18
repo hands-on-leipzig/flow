@@ -210,7 +210,7 @@ final class RoomSheetTcpdfRenderer
                 self::strikeNames($pdf, $actionX, $startY, $h, $wAction, $action, $strike);
             }
             if ($private) {
-                self::writePrivateMark($pdf, $actionX, $startY, $h, $wAction, $action);
+                self::writePrivateMark($pdf, $actionX, $startY, $wAction, $action);
             }
             $pdf->SetTextColor(0, 0, 0);
             $pdf->SetFont($pdf->regularFont, '', 9);
@@ -248,19 +248,21 @@ final class RoomSheetTcpdfRenderer
         RoleSheetPdf $pdf,
         float $x,
         float $y,
-        float $h,
         float $width,
         string $action,
     ): void {
         $mark = $action === '' ? self::PRIVATE_MARK : self::PRIVATE_SUFFIX;
+        $markH = $pdf->getStringHeight($width, $mark, false, true, '', 1);
         $pdf->SetTextColor(...self::PRIVATE_RGB);
         $pdf->SetFont($pdf->regularFont, '', 9);
         if ($action !== '' && self::suffixFitsSameLine($pdf, $width, $action, $mark)) {
             $pdf->SetXY($x + $pdf->GetStringWidth($action), $y);
-            $pdf->Cell($width - $pdf->GetStringWidth($action), $h, $mark, 0, 0, 'L');
+            $pdf->MultiCell($width - $pdf->GetStringWidth($action), $markH, $mark, 0, 'L', false, 0);
         } else {
-            $markH = $pdf->getStringHeight($width, $mark, false, true, '', 1);
-            $pdf->SetXY($x, $y + $h - $markH);
+            $actionH = $action === ''
+                ? 0.0
+                : $pdf->getStringHeight($width, $action, false, true, '', 1);
+            $pdf->SetXY($x, $y + $actionH);
             $pdf->MultiCell($width, $markH, $mark, 0, 'L', false, 0);
         }
         $pdf->SetTextColor(0, 0, 0);
