@@ -15,7 +15,7 @@ class RoleSheetAssemblerTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_builds_sections_in_catalog_order_and_splits_presence(): void
+    public function test_builds_sections_in_catalog_order_and_splits_extra_blocks(): void
     {
         $publicPlan = Mockery::mock(PublicPlanService::class);
         $publicPlan->shouldReceive('getRoles')->once()->with(1)->andReturn([
@@ -39,7 +39,7 @@ class RoleSheetAssemblerTest extends TestCase
                 [
                     'activities' => [
                         $this->activity('09:00:00', '09:15:00', 'punctual', 'j_with_team', 'Raum A'),
-                        $this->activity('12:00:00', '13:00:00', 'window', 'c_lunch', 'Mensa'),
+                        $this->activity('12:00:00', '13:00:00', 'window', 'c_lunch', 'Mensa', 9),
                     ],
                 ],
             ],
@@ -73,7 +73,7 @@ class RoleSheetAssemblerTest extends TestCase
 
         $this->assertSame('Challenge Event Test', $document['title_short']);
         $this->assertSame('Challenge Event Test', $document['title_long']);
-        $this->assertCount(2, $document['sections']);
+        $this->assertCount(3, $document['sections']);
         $this->assertSame('Jury-Gruppe 1', $document['sections'][0]['subject']);
         $this->assertFalse($document['sections'][0]['noshow']);
         $this->assertCount(1, $document['sections'][0]['ablauf']);
@@ -85,6 +85,9 @@ class RoleSheetAssemblerTest extends TestCase
 
         $this->assertSame('Team: Alpha', $document['sections'][1]['subject']);
         $this->assertArrayNotHasKey('zusaetzlich', $document['sections'][1]);
+        $this->assertSame('Team: Beta', $document['sections'][2]['subject']);
+        $this->assertTrue($document['sections'][2]['noshow']);
+        $this->assertArrayNotHasKey('zusaetzlich', $document['sections'][2]);
     }
 
     public function test_skips_section_when_ablauf_empty(): void
@@ -102,7 +105,7 @@ class RoleSheetAssemblerTest extends TestCase
             'groups' => [
                 [
                     'activities' => [
-                        $this->activity('12:00:00', '13:00:00', 'window', 'c_lunch', 'Mensa'),
+                        $this->activity('12:00:00', '13:00:00', 'window', 'c_lunch', 'Mensa', 9),
                     ],
                 ],
             ],
@@ -187,13 +190,14 @@ class RoleSheetAssemblerTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function activity(string $start, string $end, string $presence, string $code, string $room): array
+    private function activity(string $start, string $end, string $presence, string $code, string $room, ?int $extraBlockId = null): array
     {
         return [
             'start_time' => '2026-03-15 '.$start,
             'end_time' => '2026-03-15 '.$end,
             'presence' => $presence,
             'activity_type_code' => $code,
+            'extra_block_id' => $extraBlockId,
             'room' => ['room_name' => $room],
             'team_name' => 'Alpha',
             'jury_team_number_hot' => 12,

@@ -91,10 +91,10 @@ final class RoleSheetAssembler
                     continue;
                 }
                 $row = $this->row($activity, $roleName, $parameter, $selfTeam, $selfTable, $programId, $option);
-                if (self::isPunctual($activity)) {
-                    $ablauf[] = $row;
-                } else {
+                if (self::isExtraBlock($activity)) {
                     $extra[] = $row;
+                } else {
+                    $ablauf[] = $row;
                 }
             }
         }
@@ -168,14 +168,14 @@ final class RoleSheetAssembler
     /**
      * @param  array<string, mixed>  $activity
      */
-    private static function isPunctual(array $activity): bool
+    private static function isExtraBlock(array $activity): bool
     {
-        $presence = $activity['presence'] ?? 'punctual';
-        if ($presence === null || $presence === '') {
-            return true;
+        $id = $activity['extra_block_id'] ?? null;
+        if ($id === null || $id === '' || $id === false) {
+            return false;
         }
 
-        return $presence === 'punctual';
+        return (int) $id > 0;
     }
 
     private static function clock(mixed $value): string

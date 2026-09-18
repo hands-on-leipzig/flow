@@ -762,6 +762,7 @@ class PublicPlanService
                     'activity_type_detail_id' => $row->activity_type_detail_id ?? null,
                     'activity_type_code' => $row->activity_type_code ?? null,
                     'presence' => $row->activity_presence ?? 'punctual',
+                    'extra_block_id' => self::extraBlockId($row),
                     'meta' => [
                         'name' => $row->activity_atd_name ?? null,
                         'first_program_id' => $row->activity_first_program_id ?? null,
@@ -803,5 +804,16 @@ class PublicPlanService
         }
 
         return array_values($groups);
+    }
+
+    private static function extraBlockId(object $row): ?int
+    {
+        $id = $row->extra_block_id ?? $row->is_extra_block ?? null;
+        if ($id === null || $id === '' || $id === false) {
+            return null;
+        }
+        $id = (int) $id;
+
+        return $id > 0 ? $id : null;
     }
 }
