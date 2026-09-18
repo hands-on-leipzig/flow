@@ -123,9 +123,17 @@ Route::prefix('check-in/{slug}')->group(function () {
         ->where('subjectType', 'team|volunteer');
 });
 
-// Volunteer public data entry (email lookup + save; public; OTP token deferred)
+// Volunteer / team public data entry (OTP session, then lookup + save)
+Route::post('/public-volunteer-form/{slug}/otp', [VolunteerPublicFormController::class, 'requestOtp'])
+    ->middleware('throttle:8,1');
+Route::post('/public-volunteer-form/{slug}/otp/verify', [VolunteerPublicFormController::class, 'verifyOtp'])
+    ->middleware('throttle:20,1');
 Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
 Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
+Route::post('/public-team-form/{slug}/otp', [TeamPublicFormController::class, 'requestOtp'])
+    ->middleware('throttle:8,1');
+Route::post('/public-team-form/{slug}/otp/verify', [TeamPublicFormController::class, 'verifyOtp'])
+    ->middleware('throttle:20,1');
 Route::get('/public-team-form/{slug}/lookup', [TeamPublicFormController::class, 'lookup']);
 Route::get('/public-team-form/{slug}/team/{team}', [TeamPublicFormController::class, 'team']);
 Route::post('/public-team-form/{slug}/save', [TeamPublicFormController::class, 'save']);

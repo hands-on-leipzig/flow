@@ -40,7 +40,7 @@ class MailNotificationCatalog
                 name: 'Anmeldecode',
                 trigger: 'Öffentliches Team- oder Helfer:innen-Formular fordert einen Code an.',
                 audience: 'Die eingegebene E-Mail-Adresse',
-                status: MailNotificationDefinition::STATUS_DRAFT,
+                status: MailNotificationDefinition::STATUS_LIVE,
                 sample: fn () => new PublicOtpMail(
                     eventName: self::SAMPLE_EVENT,
                     code: self::SAMPLE_OTP,
@@ -50,8 +50,8 @@ class MailNotificationCatalog
                 key: 'volunteer-inquiry-planner',
                 name: 'Neue Helfer:innen-Anfrage',
                 trigger: 'Über HERO geht eine Anfrage für eine offene Rolle ein.',
-                audience: 'Regionalpartner zum Event (Empfänger noch festzulegen)',
-                status: MailNotificationDefinition::STATUS_DRAFT,
+                audience: 'FLOW-Nutzer:innen des Regionalpartners',
+                status: MailNotificationDefinition::STATUS_LIVE,
                 sample: fn () => new VolunteerInquiryPlannerMail(
                     eventName: self::SAMPLE_EVENT,
                     personName: self::SAMPLE_PERSON,
@@ -63,7 +63,7 @@ class MailNotificationCatalog
                 name: 'Anfrage übernommen',
                 trigger: 'Im Planner wird eine Anfrage auf die Helfer:innenliste übernommen.',
                 audience: 'Die anfragende Person',
-                status: MailNotificationDefinition::STATUS_DRAFT,
+                status: MailNotificationDefinition::STATUS_LIVE,
                 sample: fn () => new VolunteerInquiryAcceptedMail(
                     eventName: self::SAMPLE_EVENT,
                     personName: self::SAMPLE_PERSON,
@@ -74,7 +74,7 @@ class MailNotificationCatalog
                 name: 'Anfrage abgelehnt',
                 trigger: 'Im Planner wird eine Anfrage abgelehnt.',
                 audience: 'Die anfragende Person',
-                status: MailNotificationDefinition::STATUS_DRAFT,
+                status: MailNotificationDefinition::STATUS_LIVE,
                 sample: fn () => new VolunteerInquiryDeclinedMail(
                     eventName: self::SAMPLE_EVENT,
                 ),

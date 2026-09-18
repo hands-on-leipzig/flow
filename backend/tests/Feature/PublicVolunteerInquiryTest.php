@@ -3,12 +3,16 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Api\EventVolunteerInquiryController;
+use App\Mail\VolunteerInquiryAcceptedMail;
+use App\Mail\VolunteerInquiryDeclinedMail;
+use App\Mail\VolunteerInquiryPlannerMail;
 use App\Models\Event;
 use App\Models\VolunteerInquiry;
 use App\Services\StaffingSyncService;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -26,6 +30,7 @@ class PublicVolunteerInquiryTest extends TestCase
         $this->createSchema();
         $this->truncateData();
         $this->seedBase();
+        Mail::fake();
     }
 
     protected function tearDown(): void
@@ -67,6 +72,14 @@ class PublicVolunteerInquiryTest extends TestCase
         $listed = app(EventVolunteerInquiryController::class)->index(Event::query()->findOrFail(1));
         $this->assertCount(1, $listed->getData(true)['inquiries']);
         $this->assertSame('Ada', $listed->getData(true)['inquiries'][0]['first_name']);
+        Mail::assertSent(VolunteerInquiryPlannerMail::class, function (VolunteerInquiryPlannerMail $mail) {
+            return $mail->hasTo('rp@example.org')
+                && $mail->eventName === 'Leipzig'
+                && $mail->personName === 'Ada Lovelace'
+                && $mail->role === 'Schiedsrichter';
+        });
+        Mail::assertNotSent(VolunteerInquiryAcceptedMail::class);
+        Mail::assertNotSent(VolunteerInquiryDeclinedMail::class);
     }
 
     public function test_accept_creates_person_and_roster(): void
@@ -111,6 +124,11 @@ class PublicVolunteerInquiryTest extends TestCase
             'volunteer_person' => $personId,
         ]);
         $this->assertSame([], $controller->index($event)->getData(true)['inquiries']);
+        Mail::assertSent(VolunteerInquiryAcceptedMail::class, function (VolunteerInquiryAcceptedMail $mail) {
+            return $mail->hasTo('ada@example.org')
+                && $mail->eventName === 'Leipzig'
+                && $mail->personName === 'Ada Lovelace';
+        });
     }
 
     public function test_decline_leaves_person_pool_empty(): void
@@ -145,6 +163,9 @@ class PublicVolunteerInquiryTest extends TestCase
             'volunteer_person' => null,
         ]);
         $this->assertSame([], $controller->index($event)->getData(true)['inquiries']);
+        Mail::assertSent(VolunteerInquiryDeclinedMail::class, function (VolunteerInquiryDeclinedMail $mail) {
+            return $mail->hasTo('ada@example.org') && $mail->eventName === 'Leipzig';
+        });
     }
 
     public function test_rejects_role_that_is_not_open(): void
@@ -209,6 +230,16 @@ class PublicVolunteerInquiryTest extends TestCase
             'name' => 'RP Leipzig',
             'region' => 'Sachsen',
         ]);
+        DB::table('user')->insert([
+            'id' => 9,
+            'subject' => 'rp-leipzig',
+            'name' => 'RP Leipzig',
+            'email' => 'rp@example.org',
+        ]);
+        DB::table('user_regional_partner')->insert([
+            'user' => 9,
+            'regional_partner' => 1,
+        ]);
         DB::table('m_first_program')->insert([
             'id' => 2,
             'name' => 'CHALLENGE',
@@ -251,6 +282,8 @@ class PublicVolunteerInquiryTest extends TestCase
             'volunteer_inquiry',
             'event_volunteer_roster',
             'volunteer_person',
+            'user_regional_partner',
+            'user',
             'event_program',
             'event',
             'regional_partner',
@@ -276,6 +309,21 @@ class PublicVolunteerInquiryTest extends TestCase
                 $table->unsignedInteger('id')->primary();
                 $table->string('name')->nullable();
                 $table->string('region')->nullable();
+            });
+        }
+        if (! Schema::hasTable('user')) {
+            Schema::create('user', function (Blueprint $table) {
+                $table->increments('id');
+                $table->string('subject')->nullable();
+                $table->string('name')->nullable();
+                $table->string('email')->nullable();
+            });
+        }
+        if (! Schema::hasTable('user_regional_partner')) {
+            Schema::create('user_regional_partner', function (Blueprint $table) {
+                $table->increments('id');
+                $table->unsignedInteger('user');
+                $table->unsignedInteger('regional_partner');
             });
         }
         if (! Schema::hasTable('m_first_program')) {

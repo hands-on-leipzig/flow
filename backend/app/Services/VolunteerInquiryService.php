@@ -2,14 +2,21 @@
 
 namespace App\Services;
 
+use App\Mail\VolunteerInquiryAcceptedMail;
+use App\Mail\VolunteerInquiryDeclinedMail;
+use App\Mail\VolunteerInquiryPlannerMail;
 use App\Models\Event;
 use App\Models\EventVolunteerRoster;
+use App\Models\User;
 use App\Models\VolunteerInquiry;
 use App\Models\VolunteerPerson;
 use App\Support\GermanMobileNumber;
 use App\Support\PublicHelperSearchPayload;
 use Carbon\Carbon;
+use Illuminate\Mail\Mailable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\ValidationException;
 
 class VolunteerInquiryService
@@ -81,6 +88,10 @@ class VolunteerInquiryService
             return VolunteerInquiry::create($payload);
         });
 
+        if ($inquiry->wasRecentlyCreated) {
+            $this->notifyPlanners($event, $inquiry);
+        }
+
         return ['inquiry_id' => (int) $inquiry->id];
     }
 
@@ -144,6 +155,14 @@ class VolunteerInquiryService
             return $inquiry->fresh();
         });
 
+        $this->notifyInquirer(
+            $inquiry,
+            new VolunteerInquiryAcceptedMail(
+                eventName: $this->eventName($event),
+                personName: $this->personName($inquiry),
+            ),
+        );
+
         return $this->serialize($inquiry);
     }
 
@@ -158,6 +177,13 @@ class VolunteerInquiryService
         $inquiry->status = VolunteerInquiry::STATUS_DECLINED;
         $inquiry->decided_at = now();
         $inquiry->save();
+
+        $this->notifyInquirer(
+            $inquiry,
+            new VolunteerInquiryDeclinedMail(
+                eventName: $this->eventName($event),
+            ),
+        );
 
         return $this->serialize($inquiry);
     }
@@ -240,6 +266,93 @@ class VolunteerInquiryService
         }
 
         return false;
+    }
+
+    private function notifyPlanners(Event $event, VolunteerInquiry $inquiry): void
+    {
+        $emails = $this->plannerEmails($event);
+        if ($emails === []) {
+            return;
+        }
+
+        $this->sendMailSafely($emails, new VolunteerInquiryPlannerMail(
+            eventName: $this->eventName($event),
+            personName: $this->personName($inquiry),
+            role: (string) $inquiry->role,
+        ));
+    }
+
+    private function notifyInquirer(VolunteerInquiry $inquiry, Mailable $mail): void
+    {
+        $this->sendMailSafely((string) $inquiry->email, $mail);
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function plannerEmails(Event $event): array
+    {
+        $rpId = (int) $event->regional_partner;
+        if ($rpId <= 0) {
+            return [];
+        }
+
+        $userIds = DB::table('user_regional_partner')
+            ->where('regional_partner', $rpId)
+            ->pluck('user');
+
+        if ($userIds->isEmpty()) {
+            return [];
+        }
+
+        return User::query()
+            ->whereIn('id', $userIds)
+            ->whereNotNull('email')
+            ->pluck('email')
+            ->map(fn ($email) => strtolower(trim((string) $email)))
+            ->filter(fn ($email) => $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) !== false)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  string|list<string>  $to
+     */
+    private function sendMailSafely(string|array $to, Mailable $mail): void
+    {
+        $recipients = array_values(array_filter(
+            array_map(
+                fn ($email) => strtolower(trim((string) $email)),
+                is_array($to) ? $to : [$to],
+            ),
+            fn ($email) => $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL) !== false,
+        ));
+
+        if ($recipients === []) {
+            return;
+        }
+
+        try {
+            Mail::to($recipients)->send($mail);
+        } catch (\Throwable $e) {
+            Log::error('Volunteer inquiry mail failed', [
+                'mailable' => $mail::class,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function eventName(Event $event): string
+    {
+        $name = trim((string) $event->name);
+
+        return $name !== '' ? $name : 'Veranstaltung';
+    }
+
+    private function personName(VolunteerInquiry $inquiry): string
+    {
+        return trim($inquiry->first_name.' '.$inquiry->last_name);
     }
 
     private function nullableTrim(mixed $value): ?string

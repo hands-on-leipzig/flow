@@ -62,7 +62,7 @@ class AdminMailTest extends TestCase
             $keys,
         );
         $this->assertSame('live', $this->getJson('/api/admin/mail/notifications')->json('notifications.0.status'));
-        $this->assertSame('draft', $this->getJson('/api/admin/mail/notifications')->json('notifications.1.status'));
+        $this->assertSame('live', $this->getJson('/api/admin/mail/notifications')->json('notifications.1.status'));
     }
 
     public function test_preview_renders_sample_otp_mail(): void

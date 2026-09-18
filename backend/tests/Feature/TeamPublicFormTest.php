@@ -3,11 +3,16 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Api\DrahtController;
+use App\Mail\PublicOtpMail;
 use App\Models\EventTeamField;
+use App\Services\PublicFormOtpService;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -22,6 +27,7 @@ class TeamPublicFormTest extends TestCase
         }
 
         Carbon::setTestNow('2026-09-02');
+        Cache::flush();
         $this->createSchema();
         $this->truncateData();
         $this->seedSeason();
@@ -58,7 +64,7 @@ class TeamPublicFormTest extends TestCase
 
         try {
             $controller->lookup(
-                \Illuminate\Http\Request::create('/api/public-team-form/test/lookup', 'GET', ['email' => 'stranger@example.com']),
+                $this->teamFormRequest('/api/public-team-form/test/lookup', ['email' => 'stranger@example.com']),
                 'test',
             );
             $this->fail('Expected not found exception.');
@@ -71,7 +77,7 @@ class TeamPublicFormTest extends TestCase
     {
         $this->mockPeople();
 
-        $response = $this->getJson('/api/public-team-form/test/lookup?email=coach@example.com');
+        $response = $this->withTeamOtp()->getJson('/api/public-team-form/test/lookup?email=coach@example.com');
         $response->assertOk();
         $response->assertJsonCount(1, 'teams');
         $response->assertJsonPath('teams.0.name', 'Team A');
@@ -100,12 +106,12 @@ class TeamPublicFormTest extends TestCase
             ],
         ]);
 
-        $lookup = $this->getJson('/api/public-team-form/test/lookup?email=coach@example.com');
+        $lookup = $this->withTeamOtp()->getJson('/api/public-team-form/test/lookup?email=coach@example.com');
         $lookup->assertOk();
         $lookup->assertJsonCount(2, 'teams');
         $this->assertArrayNotHasKey('form', $lookup->json());
 
-        $team = $this->getJson('/api/public-team-form/test/team/1?email=coach@example.com');
+        $team = $this->withTeamOtp()->getJson('/api/public-team-form/test/team/1?email=coach@example.com');
         $team->assertOk();
         $team->assertJsonPath('form.team.id', 1);
     }
@@ -123,14 +129,14 @@ class TeamPublicFormTest extends TestCase
             'public_form' => false,
         ]);
 
-        $badSum = $this->postJson('/api/public-team-form/test/save', [
+        $badSum = $this->withTeamOtp()->postJson('/api/public-team-form/test/save', [
             'email' => 'coach@example.com',
             'team' => 1,
             'meals' => ['standard' => 1, 'vegetarisch' => 0, 'vegan' => 0, 'keine' => 0],
         ]);
         $badSum->assertStatus(422);
 
-        $badCustom = $this->postJson('/api/public-team-form/test/save', [
+        $badCustom = $this->withTeamOtp()->postJson('/api/public-team-form/test/save', [
             'email' => 'coach@example.com',
             'team' => 1,
             'custom' => ['note' => 'x'],
@@ -151,7 +157,7 @@ class TeamPublicFormTest extends TestCase
             'public_form' => true,
         ]);
 
-        $response = $this->postJson('/api/public-team-form/test/save', [
+        $response = $this->withTeamOtp()->postJson('/api/public-team-form/test/save', [
             'email' => 'coach@example.com',
             'team' => 1,
             'photo_consent' => ['unknown' => 0, 'yes' => 2, 'no' => 1],
@@ -170,7 +176,7 @@ class TeamPublicFormTest extends TestCase
     {
         $this->mockPeople();
 
-        $response = $this->postJson('/api/public-team-form/test/save', [
+        $response = $this->withTeamOtp()->postJson('/api/public-team-form/test/save', [
             'email' => 'coach@example.com',
             'team' => 1,
             'photo_consent' => ['unknown' => 0, 'yes' => 3, 'no' => 0],
@@ -178,6 +184,56 @@ class TeamPublicFormTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('form.photo_consent.yes', 0);
         $this->assertDatabaseMissing('event_team_photo_count', ['team' => 1, 'bucket' => 'yes']);
+    }
+
+    public function test_otp_mail_goes_to_coach_only(): void
+    {
+        $this->mockPeople();
+        Mail::fake();
+
+        $this->postJson('/api/public-team-form/test/otp', [
+            'email' => 'stranger@example.com',
+        ])->assertOk();
+        Mail::assertNothingSent();
+
+        $this->postJson('/api/public-team-form/test/otp', [
+            'email' => 'coach@example.com',
+        ])->assertOk();
+        Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
+            return $mail->hasTo('coach@example.com') && $mail->eventName === 'Test';
+        });
+    }
+
+    private function withTeamOtp(string $email = 'coach@example.com'): static
+    {
+        $token = app(PublicFormOtpService::class)->issueVerifiedSession(
+            PublicFormOtpService::PURPOSE_TEAM,
+            1,
+            strtolower($email),
+        );
+
+        return $this->withHeader(PublicFormOtpService::TOKEN_HEADER, $token);
+    }
+
+    /**
+     * @param  array<string, mixed>  $query
+     */
+    private function teamFormRequest(string $uri, array $query): Request
+    {
+        $request = Request::create($uri, 'GET', $query);
+        $email = strtolower(trim((string) ($query['email'] ?? '')));
+        if ($email !== '') {
+            $request->headers->set(
+                PublicFormOtpService::TOKEN_HEADER,
+                app(PublicFormOtpService::class)->issueVerifiedSession(
+                    PublicFormOtpService::PURPOSE_TEAM,
+                    1,
+                    $email,
+                ),
+            );
+        }
+
+        return $request;
     }
 
     /**
