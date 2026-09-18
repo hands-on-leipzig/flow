@@ -80,14 +80,14 @@ class IcsDescriptionTest extends TestCase
                     [
                         'name' => 'Explore',
                         'teams' => [
-                            ['ref' => '1234', 'name' => 'Robo'],
+                            ['ref' => '1234', 'name' => 'Robo', 'organization' => 'Schule A', 'location' => 'Köln'],
                         ],
                     ],
                 ],
             ],
         ]);
 
-        $this->assertStringContainsString("Explore\n1234 · Robo", $text);
+        $this->assertStringContainsString("Explore\n1234 · Robo · Schule A · Köln", $text);
     }
 
     public function test_teams_follow_payload_keys_including_unknown_programs(): void

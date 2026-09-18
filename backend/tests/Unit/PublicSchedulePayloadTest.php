@@ -54,7 +54,7 @@ class PublicSchedulePayloadTest extends TestCase
                     'first_program' => 1,
                     'name' => 'EXPLORE',
                     'teams' => [
-                        ['ref' => '1234', 'name' => 'Robo Kids'],
+                        ['ref' => '1234', 'name' => 'Robo Kids', 'organization' => 'Schule A', 'location' => 'Köln'],
                     ],
                 ],
                 [
@@ -74,7 +74,7 @@ class PublicSchedulePayloadTest extends TestCase
                 'sequence' => 1,
                 'color_hex' => '00A651',
                 'teams' => [
-                    ['ref' => '1234', 'name' => 'Robo Kids'],
+                    ['ref' => '1234', 'name' => 'Robo Kids', 'organization' => 'Schule A', 'location' => 'Köln'],
                 ],
             ],
             [
@@ -83,7 +83,7 @@ class PublicSchedulePayloadTest extends TestCase
                 'sequence' => 2,
                 'color_hex' => 'ED1C24',
                 'teams' => [
-                    ['ref' => '5678', 'name' => 'Brick Bots'],
+                    ['ref' => '5678', 'name' => 'Brick Bots', 'organization' => null, 'location' => null],
                 ],
             ],
         ], $payload['teams']['lanes']);
@@ -122,6 +122,10 @@ class PublicSchedulePayloadTest extends TestCase
 
         $this->assertCount(1, $payload['teams']['lanes']);
         $this->assertSame('Explore', $payload['teams']['lanes'][0]['name']);
+        $this->assertSame(
+            [['ref' => '42', 'name' => 'Only Explore', 'organization' => null, 'location' => null]],
+            $payload['teams']['lanes'][0]['teams']
+        );
     }
 
     private function createSchema(): void

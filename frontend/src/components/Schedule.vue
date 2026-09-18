@@ -402,13 +402,9 @@ watch(
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 1.15rem 1.2rem 1.4rem;
-  background: var(--glass-tab-surface, #ffffff);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, transparent);
-  border-radius: var(--radius-lg, 16px);
-  box-shadow:
-    0 10px 28px rgba(15, 23, 42, 0.07),
-    0 2px 6px rgba(15, 23, 42, 0.04);
+  /* Layout group only — program cards float on the page canvas (no nested frame).
+     Keep a little inset so card shadows are not clipped by overflow. */
+  padding: 0.25rem 0.65rem 0.9rem 0.2rem;
 }
 
 .schedule-workspace__right {
