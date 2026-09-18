@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Print;
 
+use App\Enums\FirstProgram;
 use App\Services\ActivityFetcherService;
 use App\Services\EventTitleService;
+use App\Services\RoleFetcherService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -60,7 +62,8 @@ final class RoomSheetAssembler
         );
         $teams = $this->assignedTeams($planId);
         $teamLookup = $this->teamLookup($teams);
-        $activitiesByRoom = $this->activitiesByRoom($rows, $teamLookup);
+        $publicAtds = $this->publicAtdIds(array_column($programs, 'id'));
+        $activitiesByRoom = $this->activitiesByRoom($rows, $teamLookup, $publicAtds);
         $teamsByRoom = $this->teamsByRoom($teams, $programIds);
 
         $roomIds = array_unique(array_merge(array_keys($activitiesByRoom), array_keys($teamsByRoom)));
@@ -187,9 +190,10 @@ final class RoomSheetAssembler
     /**
      * @param  Collection<int, object>  $rows
      * @param  array<int, array<int, object>>  $teamLookup
-     * @return array<int, list<array{start:string,end:string,program_id:?int,action:string,strike:list<string>}>>
+     * @param  array<int, true>  $publicAtds
+     * @return array<int, list<array{start:string,end:string,program_id:?int,action:string,strike:list<string>,private:bool}>>
      */
-    private function activitiesByRoom(Collection $rows, array $teamLookup): array
+    private function activitiesByRoom(Collection $rows, array $teamLookup, array $publicAtds): array
     {
         $seen = [];
         $byRoom = [];
@@ -210,6 +214,7 @@ final class RoomSheetAssembler
             }
             $activity = $this->activityArray($row, $teamLookup);
             $action = RoomSheetCells::action($activity);
+            $atdId = (int) ($row->activity_type_detail_id ?? 0);
             $sortable[$roomId][] = [
                 'start_sort' => (string) ($row->start_time ?? ''),
                 'end_sort' => (string) ($row->end_time ?? ''),
@@ -219,6 +224,7 @@ final class RoomSheetAssembler
                     'program_id' => self::programId($row),
                     'action' => $action['text'],
                     'strike' => $action['strike'],
+                    'private' => $atdId < 1 || ! isset($publicAtds[$atdId]),
                 ],
             ];
         }
@@ -327,6 +333,37 @@ final class RoomSheetAssembler
         }
 
         return $columns;
+    }
+
+    /**
+     * Joint Publikum plus one per attached program. ATD is public if any of these is on.
+     *
+     * @param  list<int>  $programIds
+     * @return array<int, true>
+     */
+    private function publicAtdIds(array $programIds): array
+    {
+        $roles = [RoleFetcherService::JOINT_AUDIENCE_ROLE_ID];
+        foreach ($programIds as $programId) {
+            $roleId = FirstProgram::tryFrom((int) $programId)?->audienceRoleId();
+            if ($roleId !== null) {
+                $roles[] = $roleId;
+            }
+        }
+        $roles = array_values(array_unique($roles));
+        if ($roles === []) {
+            return [];
+        }
+
+        $ids = [];
+        foreach (DB::table('m_visibility')->whereIn('role', $roles)->pluck('activity_type_detail') as $atdId) {
+            $id = (int) $atdId;
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+
+        return $ids;
     }
 
     /**

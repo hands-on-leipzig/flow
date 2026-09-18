@@ -62,6 +62,10 @@ class RoomSheetAssemblerTest extends TestCase
             $table->unsignedInteger('room')->nullable();
             $table->boolean('noshow')->default(false);
         });
+        Schema::create('m_visibility', function (Blueprint $table) {
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('role');
+        });
     }
 
     protected function tearDown(): void
@@ -116,6 +120,7 @@ class RoomSheetAssemblerTest extends TestCase
         $this->assertCount(1, $document['sections'][0]['activities']);
         $this->assertSame('09:00', $document['sections'][0]['activities'][0]['start']);
         $this->assertSame('Eröffnung', $document['sections'][0]['activities'][0]['action']);
+        $this->assertTrue($document['sections'][0]['activities'][0]['private']);
     }
 
     public function test_two_programs_make_logo_column_and_empty_explore_column(): void
@@ -176,6 +181,78 @@ class RoomSheetAssemblerTest extends TestCase
             'Slot, Alpha (0004)',
             $document['sections'][0]['activities'][0]['action']
         );
+        $this->assertTrue($document['sections'][0]['activities'][0]['private']);
+    }
+
+    public function test_publikum_visibility_on_any_audience_role_is_public(): void
+    {
+        $this->seedEvent();
+        $this->attachProgram(2, 'EXPLORE', 'Explore', 1);
+        $this->attachProgram(3, 'CHALLENGE', 'Challenge', 2);
+        $this->insertRoom(10, 'Halle', 1);
+        $this->grantAudience(40, 6);
+
+        $fetcher = Mockery::mock(ActivityFetcherService::class);
+        $fetcher->shouldReceive('fetchActivities')->once()->andReturn(collect([
+            $this->activity(1, 10, '09:00:00', '09:15:00', 'Eröffnung', 'g_opening', 3, atdId: 40),
+        ]));
+
+        $row = (new RoomSheetAssembler($fetcher, new EventTitleService))->assemble(1)['sections'][0]['activities'][0];
+
+        $this->assertSame('Eröffnung', $row['action']);
+        $this->assertFalse($row['private']);
+    }
+
+    public function test_joint_publikum_visibility_is_public(): void
+    {
+        $this->seedEvent();
+        $this->attachProgram(3, 'CHALLENGE', 'Challenge', 2);
+        $this->insertRoom(10, 'Halle', 1);
+        $this->grantAudience(41, 14);
+
+        $fetcher = Mockery::mock(ActivityFetcherService::class);
+        $fetcher->shouldReceive('fetchActivities')->once()->andReturn(collect([
+            $this->activity(1, 10, '09:00:00', '09:15:00', 'Eröffnung', 'g_opening', 3, atdId: 41),
+        ]));
+
+        $this->assertFalse(
+            (new RoomSheetAssembler($fetcher, new EventTitleService))->assemble(1)['sections'][0]['activities'][0]['private']
+        );
+    }
+
+    public function test_future_publikum_visibility_is_public(): void
+    {
+        $this->seedEvent();
+        $this->attachProgram(8, 'FUTURE', 'Future', 3);
+        $this->insertRoom(10, 'Halle', 1);
+        $this->grantAudience(42, 24);
+
+        $fetcher = Mockery::mock(ActivityFetcherService::class);
+        $fetcher->shouldReceive('fetchActivities')->once()->andReturn(collect([
+            $this->activity(1, 10, '09:00:00', '09:15:00', 'Allianz', 'f8_r_alliance', 8, atdId: 42),
+        ]));
+
+        $this->assertFalse(
+            (new RoomSheetAssembler($fetcher, new EventTitleService))->assemble(1)['sections'][0]['activities'][0]['private']
+        );
+    }
+
+    public function test_non_audience_visibility_stays_private_and_keeps_action(): void
+    {
+        $this->seedEvent();
+        $this->attachProgram(3, 'CHALLENGE', 'Challenge', 2);
+        $this->insertRoom(10, 'Halle', 1);
+        $this->grantAudience(43, 5);
+
+        $fetcher = Mockery::mock(ActivityFetcherService::class);
+        $fetcher->shouldReceive('fetchActivities')->once()->andReturn(collect([
+            $this->activity(1, 10, '09:00:00', '09:15:00', 'Briefing', 'c_briefing', 3, atdId: 43),
+        ]));
+
+        $row = (new RoomSheetAssembler($fetcher, new EventTitleService))->assemble(1)['sections'][0]['activities'][0];
+
+        $this->assertSame('Briefing', $row['action']);
+        $this->assertTrue($row['private']);
     }
 
     private function seedEvent(): void
@@ -224,6 +301,14 @@ class RoomSheetAssemblerTest extends TestCase
         ]);
     }
 
+    private function grantAudience(int $atdId, int $roleId): void
+    {
+        DB::table('m_visibility')->insert([
+            'activity_type_detail' => $atdId,
+            'role' => $roleId,
+        ]);
+    }
+
     private function activity(
         int $id,
         int $roomId,
@@ -233,6 +318,7 @@ class RoomSheetAssemblerTest extends TestCase
         string $code,
         int $program,
         ?int $slotTeam = null,
+        int $atdId = 0,
     ): object {
         return (object) [
             'activity_id' => $id,
@@ -243,6 +329,7 @@ class RoomSheetAssemblerTest extends TestCase
             'activity_atd_name' => $name,
             'activity_type_code' => $code,
             'activity_first_program_id' => $program,
+            'activity_type_detail_id' => $atdId > 0 ? $atdId : $id,
             'slot_team' => $slotTeam,
         ];
     }

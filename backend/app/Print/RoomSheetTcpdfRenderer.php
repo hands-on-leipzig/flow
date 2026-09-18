@@ -14,6 +14,13 @@ use Endroid\QrCode\Writer\PngWriter;
 
 final class RoomSheetTcpdfRenderer
 {
+    public const PRIVATE_MARK = 'Nicht öffentlich';
+
+    public const PRIVATE_SUFFIX = ' — Nicht öffentlich';
+
+    /** @var array{0:int,1:int,2:int} */
+    private const PRIVATE_RGB = [180, 40, 40];
+
     /**
      * @param  array{
      *     title_short?:string,
@@ -155,7 +162,7 @@ final class RoomSheetTcpdfRenderer
     }
 
     /**
-     * @param  list<array{start?:string,end?:string,program_id?:?int,action?:string,strike?:list<string>}>  $rows
+     * @param  list<array{start?:string,end?:string,program_id?:?int,action?:string,strike?:list<string>,private?:bool}>  $rows
      */
     private function activityTable(RoleSheetPdf $pdf, array $rows, bool $showLogos): void
     {
@@ -171,12 +178,13 @@ final class RoomSheetTcpdfRenderer
             $end = (string) ($row['end'] ?? '');
             $action = (string) ($row['action'] ?? '');
             $strike = $row['strike'] ?? [];
+            $private = ! empty($row['private']);
             $startY = $pdf->GetY();
             if ($startY > $pdf->getPageHeight() - 28) {
                 $pdf->AddPage();
                 $startY = $pdf->GetY();
             }
-            $h = max(6.0, $pdf->getStringHeight($wAction, $action, false, true, '', 1));
+            $h = self::actionRowHeight($pdf, $wAction, $action, $private);
             if ($index % 2 === 1) {
                 $pdf->SetFillColor(245, 246, 248);
                 $pdf->Rect(12, $startY, $usable, $h, 'F');
@@ -190,19 +198,72 @@ final class RoomSheetTcpdfRenderer
                 }
                 $x += $wLogo;
             }
+            $pdf->SetTextColor(0, 0, 0);
             $pdf->SetXY($x, $startY);
             $pdf->MultiCell($wStart, $h, $start, 0, 'L', false, 0);
             $pdf->SetXY($x + $wStart, $startY);
             $pdf->MultiCell($wEnd, $h, $end, 0, 'L', false, 0);
             $actionX = $x + $wStart + $wEnd;
             $pdf->SetXY($actionX, $startY);
-            $pdf->MultiCell($wAction, $h, $action, 0, 'L', false, 1);
+            $pdf->MultiCell($wAction, $h, $action, 0, 'L', false, 0);
             if (self::shouldStrike($action, $strike)) {
                 self::strikeNames($pdf, $actionX, $startY, $h, $wAction, $action, $strike);
             }
+            if ($private) {
+                self::writePrivateMark($pdf, $actionX, $startY, $h, $wAction, $action);
+            }
+            $pdf->SetTextColor(0, 0, 0);
             $pdf->SetFont($pdf->regularFont, '', 9);
             $pdf->SetY($startY + $h);
         }
+    }
+
+    private static function actionRowHeight(RoleSheetPdf $pdf, float $wAction, string $action, bool $private): float
+    {
+        $base = max(6.0, $pdf->getStringHeight($wAction, $action !== '' ? $action : ' ', false, true, '', 1));
+        if (! $private) {
+            return $base;
+        }
+        $mark = $action === '' ? self::PRIVATE_MARK : self::PRIVATE_SUFFIX;
+        if ($action === '') {
+            return max(6.0, $pdf->getStringHeight($wAction, $mark, false, true, '', 1));
+        }
+        if (self::suffixFitsSameLine($pdf, $wAction, $action, $mark)) {
+            return $base;
+        }
+
+        return $base + $pdf->getStringHeight($wAction, $mark, false, true, '', 1);
+    }
+
+    private static function suffixFitsSameLine(RoleSheetPdf $pdf, float $wAction, string $action, string $suffix): bool
+    {
+        if (method_exists($pdf, 'getNumLines') && $pdf->getNumLines($action, $wAction) > 1) {
+            return false;
+        }
+
+        return ($pdf->GetStringWidth($action) + $pdf->GetStringWidth($suffix)) <= $wAction;
+    }
+
+    private static function writePrivateMark(
+        RoleSheetPdf $pdf,
+        float $x,
+        float $y,
+        float $h,
+        float $width,
+        string $action,
+    ): void {
+        $mark = $action === '' ? self::PRIVATE_MARK : self::PRIVATE_SUFFIX;
+        $pdf->SetTextColor(...self::PRIVATE_RGB);
+        $pdf->SetFont($pdf->regularFont, '', 9);
+        if ($action !== '' && self::suffixFitsSameLine($pdf, $width, $action, $mark)) {
+            $pdf->SetXY($x + $pdf->GetStringWidth($action), $y);
+            $pdf->Cell($width - $pdf->GetStringWidth($action), $h, $mark, 0, 0, 'L');
+        } else {
+            $markH = $pdf->getStringHeight($width, $mark, false, true, '', 1);
+            $pdf->SetXY($x, $y + $h - $markH);
+            $pdf->MultiCell($width, $markH, $mark, 0, 'L', false, 0);
+        }
+        $pdf->SetTextColor(0, 0, 0);
     }
 
     /**

@@ -36,6 +36,7 @@ class RoomSheetTcpdfRendererTest extends TestCase
                             'program_id' => 3,
                             'action' => 'Eröffnung',
                             'strike' => [],
+                            'private' => false,
                         ],
                         [
                             'start' => '09:20',
@@ -43,6 +44,7 @@ class RoomSheetTcpdfRendererTest extends TestCase
                             'program_id' => 3,
                             'action' => 'Robot-Match, Alpha (0001) – Beta (0002)',
                             'strike' => [],
+                            'private' => true,
                         ],
                     ],
                 ],
