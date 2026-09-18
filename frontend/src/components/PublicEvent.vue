@@ -174,6 +174,10 @@ function laneTimelineItems(lane) {
   return mapTimelineItems(lane?.times)
 }
 
+function teamMeta(team) {
+  return [team?.organization, team?.location].filter(Boolean).join(' · ')
+}
+
 const publicationLevel = computed(() => Number(scheduleInfo.value?.level ?? 1))
 
 const showPlaceholderBox = computed(() => publicationLevel.value < 3)
@@ -422,52 +426,42 @@ onMounted(async () => {
             Stand {{ planLastChangeDisplay }}
           </p>
 
-          <div v-if="planLanes.length > 0">
-            <div
+          <div
+              v-if="planLanes.length > 0"
+              class="pe-lane-grid"
+              :style="{ '--pe-lane-count': planLanes.length }"
+          >
+            <article
                 v-for="lane in planLanes"
                 :key="lane.program_id"
-                class="pe-teams-block"
+                class="pe-lane glass-stack-card"
+                :style="{ '--pe-program': laneColor(lane) }"
             >
-              <div
-                  class="pe-teams-table-wrap"
-                  :style="{ '--pe-program': laneColor(lane) }"
-              >
-                <table class="pe-teams-table pe-teams-table--times">
-                  <colgroup>
-                    <col style="width: 18%;">
-                    <col style="width: 82%;">
-                  </colgroup>
-                  <thead>
-                  <tr>
-                    <th colspan="2">
-                      <ProgramLogo
-                          v-if="laneProgramRef(lane)"
-                          :event="event"
-                          :program="laneProgramRef(lane)"
-                          orientation="h"
-                          class="pe-teams-table__brand"
-                      />
-                      <span v-else class="pe-teams-table__heading">{{ lane.name }}</span>
-                    </th>
-                  </tr>
-                  </thead>
-                  <tbody>
-                  <tr
-                      v-for="(item, index) in laneTimelineItems(lane)"
-                      :key="`${lane.program_id}-${index}`"
-                  >
-                    <td class="pe-teams-table__num">{{ item.timeDisplay }}</td>
-                    <td>
-                      <span class="pe-teams-table__cell">
-                        {{ item.label }}
-                      </span>
-                      <span v-if="item.description" class="pe-teams-table__note">{{ item.description }}</span>
-                    </td>
-                  </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
+              <header class="pe-lane__head">
+                <ProgramLogo
+                    v-if="laneProgramRef(lane)"
+                    :event="event"
+                    :program="laneProgramRef(lane)"
+                    size="md"
+                    class="pe-lane__logo"
+                />
+                <h3 class="pe-lane__title">{{ lane.name }}</h3>
+              </header>
+
+              <ol class="pe-lane-list">
+                <li
+                    v-for="(item, index) in laneTimelineItems(lane)"
+                    :key="`${lane.program_id}-${index}`"
+                    class="pe-lane-item"
+                >
+                  <time class="pe-lane-item__key">{{ item.timeDisplay }}</time>
+                  <span class="pe-lane-item__body">
+                    <span class="pe-lane-item__label">{{ item.label }}</span>
+                    <span v-if="item.description" class="pe-lane-item__meta">{{ item.description }}</span>
+                  </span>
+                </li>
+              </ol>
+            </article>
           </div>
 
           <p v-else class="pe-muted">
@@ -674,63 +668,40 @@ onMounted(async () => {
         <h2 class="glass-card__title">Angemeldete Teams</h2>
 
         <div
-            v-for="lane in teamLanes"
-            :key="lane.program_id"
-            class="pe-teams-block"
+            class="pe-lane-grid"
+            :style="{ '--pe-lane-count': teamLanes.length }"
         >
-          <div
-              class="pe-teams-table-wrap"
+          <article
+              v-for="lane in teamLanes"
+              :key="lane.program_id"
+              class="pe-lane glass-stack-card"
               :style="{ '--pe-program': laneColor(lane) }"
           >
-            <table class="pe-teams-table">
-              <colgroup>
-                <col style="width: 15%;">
-                <col style="width: 28.33%;">
-                <col style="width: 28.33%;">
-                <col style="width: 28.34%;">
-              </colgroup>
-              <thead>
-              <tr>
-                <th colspan="4">
-                  <ProgramLogo
-                      v-if="laneProgramRef(lane)"
-                      :event="event"
-                      :program="laneProgramRef(lane)"
-                      orientation="h"
-                      class="pe-teams-table__brand"
-                  />
-                  <span v-else class="pe-teams-table__heading">{{ lane.name }}</span>
-                </th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr
+            <header class="pe-lane__head">
+              <ProgramLogo
+                  v-if="laneProgramRef(lane)"
+                  :event="event"
+                  :program="laneProgramRef(lane)"
+                  size="md"
+                  class="pe-lane__logo"
+              />
+              <h3 class="pe-lane__title">{{ lane.name }}</h3>
+            </header>
+
+            <ol class="pe-lane-list">
+              <li
                   v-for="(team, index) in lane.teams"
                   :key="`${lane.program_id}-${team.ref ?? index}`"
+                  class="pe-lane-item"
               >
-                <td class="pe-teams-table__num">{{ team.ref || '–' }}</td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-people-fill" aria-hidden="true"/>
-                    {{ team.name }}
-                  </span>
-                </td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-building-fill" aria-hidden="true"/>
-                    {{ team.organization || '–' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="pe-teams-table__cell">
-                    <i class="bi bi-pin-map-fill" aria-hidden="true"/>
-                    {{ team.location || '–' }}
-                  </span>
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
+                <span class="pe-lane-item__key">{{ team.ref || '–' }}</span>
+                <span class="pe-lane-item__body">
+                  <span class="pe-lane-item__label">{{ team.name }}</span>
+                  <span v-if="team.organization || team.location" class="pe-lane-item__meta">{{ teamMeta(team) }}</span>
+                </span>
+              </li>
+            </ol>
+          </article>
         </div>
       </section>
 
@@ -1315,106 +1286,107 @@ onMounted(async () => {
   margin-bottom: 1rem;
 }
 
-.pe-teams-block + .pe-teams-block {
-  margin-top: 1.25rem;
-}
-
 .pe-times-stand {
   margin: -0.35rem 0 1rem;
 }
 
-.pe-teams-table-wrap {
-  --pe-program: var(--color-accent);
-  overflow-x: auto;
-  border-radius: var(--radius-lg, 1rem);
-  border: 1px solid color-mix(in srgb, var(--pe-program) 35%, var(--color-border-strong));
-  background: color-mix(in srgb, #ffffff 90%, transparent);
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--pe-program) 12%, transparent);
-}
-
-.pe-teams-table {
-  width: 100%;
-  min-width: 36rem;
-  table-layout: fixed;
-  border-collapse: collapse;
-}
-
-.pe-teams-table--times {
-  min-width: 0;
-}
-
-.pe-teams-table__note {
-  display: block;
-  margin-top: 0.15rem;
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--color-text-muted);
-}
-
-.pe-teams-table thead th {
-  padding: 0.75rem 1rem;
-  text-align: right;
-  border-bottom: 1px solid color-mix(in srgb, var(--pe-program) 22%, transparent);
-  background: color-mix(in srgb, var(--pe-program) 7%, #ffffff);
-}
-
-.pe-teams-table__heading {
-  display: block;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: var(--pe-program);
-}
-
-img.pe-teams-table__brand {
-  height: 3rem;
-  width: auto;
-  object-fit: contain;
-  margin-left: auto;
+.pe-lane-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: start;
 }
 
 @media (min-width: 768px) {
-  img.pe-teams-table__brand {
-    height: 4rem;
+  .pe-lane-grid {
+    grid-template-columns: repeat(var(--pe-lane-count, 1), minmax(0, 1fr));
+    gap: 1.25rem;
   }
 }
 
-.pe-teams-table tbody tr {
-  border-top: 1px solid color-mix(in srgb, var(--pe-program) 14%, transparent);
+.pe-lane {
+  --pe-program: var(--color-accent);
+  border-left: 3px solid var(--pe-program);
+  gap: 0.75rem;
 }
 
-.pe-teams-table tbody tr:first-child {
-  border-top: none;
+.pe-lane__head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
 }
 
-.pe-teams-table tbody tr:hover {
-  background: color-mix(in srgb, var(--pe-program) 8%, transparent);
-}
-
-.pe-teams-table td {
-  padding: 0.7rem 0.9rem;
-  font-size: 0.9rem;
-  color: var(--color-text);
-  vertical-align: middle;
-  word-break: break-word;
-}
-
-.pe-teams-table__num {
+.pe-lane__title {
+  margin: 0;
+  font-size: 0.95rem;
   font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.pe-lane-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pe-lane-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.55rem 0.15rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, transparent);
+}
+
+.pe-lane-item:first-child {
+  border-top: none;
+  padding-top: 0.15rem;
+}
+
+.pe-lane-item__key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.7rem;
+  min-height: 2.35rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--pe-program) 14%, transparent);
+  color: var(--pe-program);
+  font-size: 0.92rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
   text-align: center;
-  color: var(--pe-program) !important;
+  line-height: 1;
   white-space: nowrap;
 }
 
-.pe-teams-table__cell {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 0.45rem;
+.pe-lane-item__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 2.35rem;
+  min-width: 0;
+  gap: 0.12rem;
 }
 
-.pe-teams-table__cell i {
-  color: var(--color-text-subtle);
-  margin-top: 0.15rem;
-  flex-shrink: 0;
+.pe-lane-item__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.pe-lane-item__meta {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  line-height: 1.35;
 }
 
 .pe-team-list {
