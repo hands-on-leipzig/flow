@@ -18,8 +18,7 @@ class RoleSheetCellsTest extends TestCase
 
         $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
 
-        $this->assertSame(RoleSheetCells::VOLUNTEER, $action['text']);
-        $this->assertSame('Freiwilliges Team ohne Wertung', $action['text']);
+        $this->assertSame('Robot-Match, '.RoleSheetCells::VOLUNTEER, $action['text']);
     }
 
     public function test_hot_label_is_four_digits(): void
@@ -61,20 +60,47 @@ class RoleSheetCellsTest extends TestCase
 
         $action = RoleSheetCells::action($activity, 'Schiedsrichter:in', 'table', null, 2);
 
-        $this->assertSame('Beta (0007) – Alpha (0012)', $action['text']);
+        $this->assertSame('Robot-Match, Beta (0007) – Alpha (0012)', $action['text']);
     }
 
-    public function test_jury_without_with_team_code_is_empty(): void
+    public function test_jury_without_with_team_code_keeps_activity_name(): void
     {
         $activity = [
             'activity_type_code' => 'j_deliberation',
+            'activity_name' => 'Beratung',
             'team_name' => 'Alpha',
             'jury_team_number_hot' => 12,
         ];
 
         $action = RoleSheetCells::action($activity, 'Juror:in', 'lane', null, null);
 
-        $this->assertSame('', $action['text']);
+        $this->assertSame('Beratung', $action['text']);
+    }
+
+    public function test_jury_with_team_appends_hot_name_to_activity_name(): void
+    {
+        $activity = [
+            'activity_type_code' => 'j_with_team',
+            'activity_name' => 'Jurygespräch',
+            'team_name' => 'Alpha',
+            'jury_team_number_hot' => 12,
+        ];
+
+        $action = RoleSheetCells::action($activity, 'Juror:in', 'lane', null, null);
+
+        $this->assertSame('Jurygespräch, Alpha (0012)', $action['text']);
+    }
+
+    public function test_action_without_extra_is_activity_name(): void
+    {
+        $activity = [
+            'activity_type_code' => 'c_opening',
+            'activity_name' => 'Eröffnung',
+        ];
+
+        $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
+
+        $this->assertSame('Eröffnung', $action['text']);
     }
 
     public function test_moderator_match_uses_names_without_hot(): void
@@ -90,7 +116,7 @@ class RoleSheetCellsTest extends TestCase
 
         $action = RoleSheetCells::action($activity, 'Moderator:in', '', null, null);
 
-        $this->assertSame('Alpha – Beta', $action['text']);
+        $this->assertSame('Robot-Match, Alpha – Beta', $action['text']);
         $this->assertStringNotContainsString('0012', $action['text']);
         $this->assertStringNotContainsString('0007', $action['text']);
     }
@@ -117,7 +143,7 @@ class RoleSheetCellsTest extends TestCase
 
         $action = RoleSheetCells::action($activity, 'Schiedsrichter:in', 'table', null, 1);
 
-        $this->assertSame('Alpha (0012) – Freiwilliges Team ohne Wertung', $action['text']);
+        $this->assertSame('Robot-Match, Alpha (0012) – Freiwilliges Team ohne Wertung', $action['text']);
         $this->assertStringNotContainsString('0099', $action['text']);
     }
 
@@ -137,6 +163,7 @@ class RoleSheetCellsTest extends TestCase
     ): array {
         return [
             'activity_type_code' => 'r_match',
+            'activity_name' => 'Robot-Match',
             'table_1' => $table1,
             'table_2' => $table2,
             'table_1_name' => $table1Stored,

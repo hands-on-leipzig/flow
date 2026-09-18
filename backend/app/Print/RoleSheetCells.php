@@ -117,7 +117,8 @@ final class RoleSheetCells
         ?int $selfTeam,
         ?int $selfTable,
     ): array {
-        $text = self::actionText($activity, $roleName, $roleParam, $selfTeam, $selfTable);
+        $extra = self::actionExtra($activity, $roleName, $roleParam, $selfTeam, $selfTable);
+        $text = self::combineAction(self::activityName($activity), $extra);
 
         return [
             'text' => $text,
@@ -128,7 +129,34 @@ final class RoleSheetCells
     /**
      * @param  array<string, mixed>  $activity
      */
-    private static function actionText(
+    private static function activityName(array $activity): string
+    {
+        $name = trim((string) ($activity['activity_name'] ?? ''));
+        if ($name !== '') {
+            return $name;
+        }
+
+        return trim((string) ($activity['meta']['name'] ?? ''));
+    }
+
+    private static function combineAction(string $name, string $extra): string
+    {
+        $name = trim($name);
+        $extra = trim($extra);
+        if ($name === '') {
+            return $extra;
+        }
+        if ($extra === '') {
+            return $name;
+        }
+
+        return $name.', '.$extra;
+    }
+
+    /**
+     * @param  array<string, mixed>  $activity
+     */
+    private static function actionExtra(
         array $activity,
         string $roleName,
         string $roleParam,
