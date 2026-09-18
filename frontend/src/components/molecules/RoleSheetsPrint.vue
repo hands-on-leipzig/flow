@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, onActivated, onUnmounted, ref, watch} from 'vue'
 import axios from 'axios'
 import Spinner from '@/components/atoms/Spinner.vue'
 import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
@@ -7,6 +7,7 @@ import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {eventPrograms, programDisplayName, programId, type EventProgramRef} from '@/utils/eventPrograms'
 import {flowFilename} from '@/utils/flowFilename'
+import {subscribePlanPreviewReload} from '@/utils/planPreviewSync'
 import type {StaffingFilterKey} from '@/utils/volunteerStaffingFilters'
 
 defineOptions({name: 'RoleSheetsPrint'})
@@ -26,6 +27,7 @@ type CatalogRole = {
 }
 
 type CatalogPayload = {
+  plan_id?: number
   programs: CatalogProgram[]
   roles: CatalogRole[]
 }
@@ -120,7 +122,22 @@ function toggleRole(id: number, on: boolean) {
   selected.value = next
 }
 
-async function loadCatalog() {
+function applyCatalog(data: CatalogPayload, preserveSelection: boolean) {
+  const nextIds = (data.roles ?? []).map((role) => role.id)
+  const previousIds = new Set((catalog.value?.roles ?? []).map((role) => role.id))
+  catalog.value = data
+  if (!preserveSelection || selected.value.size === 0) {
+    setSelected(nextIds)
+    return
+  }
+  const next = new Set<number>()
+  for (const id of nextIds) {
+    if (selected.value.has(id) || !previousIds.has(id)) next.add(id)
+  }
+  setSelected(next)
+}
+
+async function loadCatalog(preserveSelection = false) {
   if (!eventId.value) {
     catalog.value = null
     selected.value = new Set()
@@ -128,8 +145,7 @@ async function loadCatalog() {
   }
   try {
     const {data} = await axios.get<CatalogPayload>(`/print/${eventId.value}/role-sheets/catalog`)
-    catalog.value = data
-    setSelected((data.roles ?? []).map((role) => role.id))
+    applyCatalog(data, preserveSelection)
   } catch {
     catalog.value = null
     selected.value = new Set()
@@ -159,8 +175,21 @@ async function downloadPdf() {
 }
 
 watch(eventId, () => {
-  void loadCatalog()
+  void loadCatalog(false)
 }, {immediate: true})
+
+// keep-alive: roles on the plan change when a new Ablauf is generated
+onActivated(() => {
+  void loadCatalog(true)
+})
+
+const stopPreviewReload = subscribePlanPreviewReload(
+  () => catalog.value?.plan_id,
+  () => {
+    void loadCatalog(true)
+  },
+)
+onUnmounted(() => stopPreviewReload())
 </script>
 
 <template>
