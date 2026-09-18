@@ -39,6 +39,7 @@ use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanQualityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\PrintRoleSheetController;
+use App\Http\Controllers\Api\PrintRoomSheetController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\PublicEventLinkController;
 use App\Http\Controllers\Api\PublicPlanController;
@@ -165,6 +166,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::get('/print/{eventId}/role-sheets/catalog', [PrintRoleSheetController::class, 'catalog']);
     Route::post('/print/{eventId}/role-sheets', [PrintRoleSheetController::class, 'download']);
+    Route::post('/print/{eventId}/room-sheets', [PrintRoomSheetController::class, 'download']);
 
     Route::get('/user', fn (Request $r) => $r->input('keycloak_user'));
     Route::get('/user/me', [UserAccessController::class, 'me']);

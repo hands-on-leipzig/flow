@@ -12,7 +12,7 @@ use Endroid\QrCode\QrCode;
 use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\PngWriter;
 
-final class RoleSheetTcpdfRenderer
+final class RoomSheetTcpdfRenderer
 {
     /**
      * @param  array{
@@ -21,6 +21,7 @@ final class RoleSheetTcpdfRenderer
      *     created_at?:string,
      *     public_url?:string,
      *     qr_base64?:?string,
+     *     show_program_logos?:bool,
      *     sections?:list<array<string,mixed>>
      * }  $document
      */
@@ -29,7 +30,7 @@ final class RoleSheetTcpdfRenderer
         $pdf = new RoleSheetPdf('P', 'mm', 'A4', true, 'UTF-8', false);
         $pdf->SetCreator('FLOW');
         $pdf->SetAuthor('FLOW');
-        $pdf->SetTitle('Rollenpläne');
+        $pdf->SetTitle('Raumpläne');
         $pdf->setPrintHeader(true);
         $pdf->setPrintFooter(true);
         $pdf->setHeaderMargin(0);
@@ -46,179 +47,162 @@ final class RoleSheetTcpdfRenderer
         $pdf->hotPath = self::hotLogoPath();
         $pdf->qrPng = self::qrPng($document);
 
+        $showLogos = (bool) ($document['show_program_logos'] ?? false);
         $sections = $document['sections'] ?? [];
         if ($sections === []) {
+            $pdf->colorHex = '888888';
+            $pdf->logoPath = null;
+            $pdf->noshowSubject = false;
+            $pdf->sectionSubject = '';
             $pdf->AddPage();
         }
 
         foreach ($sections as $section) {
             $pdf->colorHex = (string) ($section['color_hex'] ?? '888888');
             $pdf->sectionSubject = (string) ($section['subject'] ?? '');
-            $pdf->noshowSubject = (bool) ($section['noshow'] ?? false);
-            $pdf->logoPath = self::logoFile($section['logo_stem'] ?? null);
+            $pdf->noshowSubject = false;
+            $pdf->logoPath = null;
             $pdf->AddPage();
 
-            $this->table($pdf, 'Ablauf', $section['ablauf'] ?? []);
-            if (isset($section['zusaetzlich']) && is_array($section['zusaetzlich']) && $section['zusaetzlich'] !== []) {
-                $pdf->Ln(3);
-                $this->table($pdf, 'Zusätzlich', $section['zusaetzlich']);
+            $columns = $section['team_columns'] ?? null;
+            if (is_array($columns) && $columns !== []) {
+                $this->teamGrid($pdf, $columns);
+                if ($pdf->GetY() > $pdf->getPageHeight() - 48) {
+                    $pdf->AddPage();
+                } else {
+                    $pdf->Ln(3);
+                }
             }
+
+            $this->activityTable($pdf, $section['activities'] ?? [], $showLogos);
         }
 
         return $pdf->Output('', 'S');
     }
 
     /**
-     * @param  list<array{start?:string,end?:string,room?:string,action?:string,strike?:list<string>,italic?:list<string>}>  $rows
+     * @param  list<array{program_id?:int,display_name?:string,logo_stem?:?string,teams?:list<array{label?:string,noshow?:bool}>}>  $columns
      */
-    private function table(RoleSheetPdf $pdf, string $heading, array $rows): void
+    private function teamGrid(RoleSheetPdf $pdf, array $columns): void
+    {
+        $n = count($columns);
+        if ($n < 1) {
+            return;
+        }
+        $usable = $pdf->getPageWidth() - 24;
+        $colW = $usable / $n;
+        $this->teamHeaders($pdf, $columns, $colW);
+
+        $rowCount = 0;
+        foreach ($columns as $column) {
+            $rowCount = max($rowCount, count($column['teams'] ?? []));
+        }
+        for ($i = 0; $i < $rowCount; $i++) {
+            $labels = [];
+            $height = 6.0;
+            foreach ($columns as $column) {
+                $label = (string) ($column['teams'][$i]['label'] ?? '');
+                $labels[] = $label;
+                $height = max($height, $pdf->getStringHeight($colW, $label, false, true, '', 1));
+            }
+            if ($pdf->GetY() > $pdf->getPageHeight() - 28) {
+                $pdf->AddPage();
+                $this->teamHeaders($pdf, $columns, $colW);
+            }
+            $startY = $pdf->GetY();
+            if ($i % 2 === 1) {
+                $pdf->SetFillColor(245, 246, 248);
+                $pdf->Rect(12, $startY, $usable, $height, 'F');
+            }
+            $pdf->SetFont($pdf->regularFont, '', 9);
+            foreach ($columns as $c => $column) {
+                $x = 12 + ($c * $colW);
+                $label = $labels[$c];
+                $pdf->SetXY($x, $startY);
+                $pdf->MultiCell($colW, $height, $label, 0, 'L', false, 0);
+                if (! empty($column['teams'][$i]['noshow']) && $label !== '') {
+                    $mid = $startY + ($height / 2);
+                    $pdf->SetLineWidth(0.4);
+                    $pdf->Line($x, $mid, $x + min($pdf->GetStringWidth($label), $colW), $mid);
+                    $pdf->SetLineWidth(0.2);
+                }
+            }
+            $pdf->SetY($startY + $height);
+        }
+    }
+
+    /**
+     * @param  list<array{program_id?:int,display_name?:string}>  $columns
+     */
+    private function teamHeaders(RoleSheetPdf $pdf, array $columns, float $colW): void
+    {
+        $y = $pdf->GetY();
+        $h = 8.0;
+        $pdf->SetFont($pdf->boldFont, '', 9);
+        foreach ($columns as $c => $column) {
+            $x = 12 + ($c * $colW);
+            $textX = $x;
+            $programId = (int) ($column['program_id'] ?? 0);
+            $logo = self::programLogoFile($programId, isset($column['logo_stem']) ? (string) $column['logo_stem'] : null);
+            if ($logo !== null) {
+                $pdf->Image($logo, $x, $y + 0.5, 7, 7, '', '', '', true, 300, '', false, false, 0, true);
+                $textX = $x + 8.5;
+            }
+            $pdf->SetXY($textX, $y);
+            $pdf->MultiCell(max(4.0, $x + $colW - $textX), $h, (string) ($column['display_name'] ?? ''), 0, 'L', false, 0);
+        }
+        $pdf->SetY($y + $h);
+    }
+
+    /**
+     * @param  list<array{start?:string,end?:string,program_id?:?int,action?:string,strike?:list<string>}>  $rows
+     */
+    private function activityTable(RoleSheetPdf $pdf, array $rows, bool $showLogos): void
     {
         $usable = $pdf->getPageWidth() - 24;
-        $wStart = 18;
-        $wEnd = 18;
-        $wRoom = 52;
-        $wAction = $usable - $wStart - $wEnd - $wRoom;
-
-        $pdf->SetFont($pdf->boldFont, '', 9);
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->Cell($usable, 6, $heading, 0, 1, 'L');
-
-        $headerY = $pdf->GetY();
-        $pdf->SetFillColor(236, 238, 241);
-        $pdf->Rect(12, $headerY, $usable, 6, 'F');
-        $pdf->SetXY(12, $headerY);
-        $pdf->SetFont($pdf->boldFont, '', 9);
-        $pdf->Cell($wStart, 6, 'Start', 0, 0, 'L');
-        $pdf->Cell($wEnd, 6, 'Ende', 0, 0, 'L');
-        $pdf->Cell($wRoom, 6, 'Raum', 0, 0, 'L');
-        $pdf->Cell($wAction, 6, 'Aktion', 0, 1, 'L');
-        $pdf->SetLineWidth(0.2);
-        $pdf->Line(12, $pdf->GetY(), 12 + $usable, $pdf->GetY());
-
+        $wLogo = $showLogos ? 7.0 : 0.0;
+        $wStart = 18.0;
+        $wEnd = 18.0;
+        $wAction = $usable - $wLogo - $wStart - $wEnd;
         $pdf->SetFont($pdf->regularFont, '', 9);
+
         foreach ($rows as $index => $row) {
             $start = (string) ($row['start'] ?? '');
             $end = (string) ($row['end'] ?? '');
-            $room = (string) ($row['room'] ?? '');
             $action = (string) ($row['action'] ?? '');
             $strike = $row['strike'] ?? [];
-            $italic = $row['italic'] ?? [];
-
             $startY = $pdf->GetY();
             if ($startY > $pdf->getPageHeight() - 28) {
                 $pdf->AddPage();
                 $startY = $pdf->GetY();
             }
-
-            $hRoom = $pdf->getStringHeight($wRoom, $room, false, true, '', 1);
-            $hAction = $pdf->getStringHeight($wAction, $action, false, true, '', 1);
-            $h = max(6.0, $hRoom, $hAction);
-            $stripe = $index % 2 === 1;
-            if ($stripe) {
+            $h = max(6.0, $pdf->getStringHeight($wAction, $action, false, true, '', 1));
+            if ($index % 2 === 1) {
                 $pdf->SetFillColor(245, 246, 248);
                 $pdf->Rect(12, $startY, $usable, $h, 'F');
             }
-
-            $pdf->SetXY(12, $startY);
-            $pdf->MultiCell($wStart, $h, $start, 0, 'L', false, 0);
-            $pdf->SetXY(12 + $wStart, $startY);
-            $pdf->MultiCell($wEnd, $h, $end, 0, 'L', false, 0);
-            $pdf->SetXY(12 + $wStart + $wEnd, $startY);
-            $pdf->MultiCell($wRoom, $h, $room, 0, 'L', false, 0);
-            $this->writeAction($pdf, 12 + $wStart + $wEnd + $wRoom, $startY, $h, $wAction, $action, $italic);
-
-            if (self::shouldStrike($action, $strike)) {
-                self::strikeNames($pdf, 12 + $wStart + $wEnd + $wRoom, $startY, $h, $wAction, $action, $strike);
+            $x = 12.0;
+            if ($showLogos) {
+                $programId = isset($row['program_id']) ? (int) $row['program_id'] : 0;
+                $logo = self::programLogoFile($programId, null);
+                if ($logo !== null) {
+                    $pdf->Image($logo, $x + 0.5, $startY + max(0.0, ($h - 6) / 2), 6, 6, '', '', '', true, 300, '', false, false, 0, true);
+                }
+                $x += $wLogo;
             }
-
+            $pdf->SetXY($x, $startY);
+            $pdf->MultiCell($wStart, $h, $start, 0, 'L', false, 0);
+            $pdf->SetXY($x + $wStart, $startY);
+            $pdf->MultiCell($wEnd, $h, $end, 0, 'L', false, 0);
+            $actionX = $x + $wStart + $wEnd;
+            $pdf->SetXY($actionX, $startY);
+            $pdf->MultiCell($wAction, $h, $action, 0, 'L', false, 1);
+            if (self::shouldStrike($action, $strike)) {
+                self::strikeNames($pdf, $actionX, $startY, $h, $wAction, $action, $strike);
+            }
             $pdf->SetFont($pdf->regularFont, '', 9);
             $pdf->SetY($startY + $h);
         }
-    }
-
-    /**
-     * @param  list<string>  $italic
-     */
-    private function writeAction(
-        RoleSheetPdf $pdf,
-        float $x,
-        float $y,
-        float $h,
-        float $width,
-        string $action,
-        array $italic,
-    ): void {
-        $parts = self::italicParts($action, $italic);
-        $needsItalic = false;
-        foreach ($parts as $part) {
-            if ($part['italic'] && $part['text'] !== '') {
-                $needsItalic = true;
-                break;
-            }
-        }
-
-        $pdf->SetFont($pdf->regularFont, '', 9);
-        if (! $needsItalic) {
-            $pdf->SetXY($x, $y);
-            $pdf->MultiCell($width, $h, $action, 0, 'L', false, 1);
-
-            return;
-        }
-
-        $html = '';
-        foreach ($parts as $part) {
-            $text = htmlspecialchars($part['text'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-            $html .= $part['italic'] ? '<i>'.$text.'</i>' : $text;
-        }
-        $pdf->writeHTMLCell($width, $h, $x, $y, $html, 0, 0, false, true, 'L', true);
-    }
-
-    /**
-     * @param  list<string>  $italic
-     * @return list<array{text: string, italic: bool}>
-     */
-    private static function italicParts(string $action, array $italic): array
-    {
-        $names = [];
-        foreach ($italic as $name) {
-            if (is_string($name) && $name !== '' && str_contains($action, $name) && ! in_array($name, $names, true)) {
-                $names[] = $name;
-            }
-        }
-        usort($names, fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
-        if ($action === '' || $names === []) {
-            return [['text' => $action, 'italic' => false]];
-        }
-
-        $parts = [['text' => $action, 'italic' => false]];
-        foreach ($names as $name) {
-            $next = [];
-            foreach ($parts as $part) {
-                if ($part['italic'] || ! str_contains($part['text'], $name)) {
-                    $next[] = $part;
-
-                    continue;
-                }
-                $pos = mb_strpos($part['text'], $name);
-                if ($pos === false) {
-                    $next[] = $part;
-
-                    continue;
-                }
-                $before = mb_substr($part['text'], 0, $pos);
-                $after = mb_substr($part['text'], $pos + mb_strlen($name));
-                if ($before !== '') {
-                    $next[] = ['text' => $before, 'italic' => false];
-                }
-                $next[] = ['text' => $name, 'italic' => true];
-                if ($after !== '') {
-                    $next[] = ['text' => $after, 'italic' => false];
-                }
-            }
-            $parts = $next;
-        }
-
-        return $parts;
     }
 
     /**
@@ -278,14 +262,22 @@ final class RoleSheetTcpdfRenderer
         $pdf->SetLineWidth(0.2);
     }
 
-    private static function logoFile(mixed $stem): ?string
+    private static function programLogoFile(int $programId, ?string $stem): ?string
     {
-        if (! is_string($stem) || $stem === '') {
+        if (! function_exists('public_path')) {
             return null;
         }
-        $path = ProgramCatalog::logoPath($stem, 'v');
+        try {
+            $key = (is_string($stem) && $stem !== '') ? $stem : ($programId > 0 ? $programId : null);
+            if ($key === null) {
+                return null;
+            }
+            $path = ProgramCatalog::logoPath($key, 'v');
 
-        return is_file($path) ? $path : null;
+            return is_file($path) ? $path : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private static function hotLogoPath(): ?string
