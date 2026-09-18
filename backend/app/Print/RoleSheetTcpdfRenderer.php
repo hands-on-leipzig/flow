@@ -119,10 +119,7 @@ final class RoleSheetTcpdfRenderer
             $pdf->MultiCell($wAction, $h, $action, 0, 'L', false, 1);
 
             if (self::shouldStrike($action, $strike)) {
-                $mid = $startY + ($h / 2);
-                $pdf->SetLineWidth(0.4);
-                $pdf->Line(12 + $wStart + $wEnd + $wRoom, $mid, 12 + $usable, $mid);
-                $pdf->SetLineWidth(0.2);
+                self::strikeNames($pdf, 12 + $wStart + $wEnd + $wRoom, $startY, $h, $wAction, $action, $strike);
             }
 
             $pdf->SetY($startY + $h);
@@ -144,6 +141,46 @@ final class RoleSheetTcpdfRenderer
         }
 
         return false;
+    }
+
+    /**
+     * @param  list<string>  $strike
+     */
+    private static function strikeNames(
+        RoleSheetPdf $pdf,
+        float $x,
+        float $y,
+        float $h,
+        float $width,
+        string $action,
+        array $strike,
+    ): void {
+        $mid = $y + ($h / 2);
+        $pdf->SetLineWidth(0.4);
+        $names = [];
+        foreach ($strike as $name) {
+            if (is_string($name) && $name !== '' && str_contains($action, $name) && ! in_array($name, $names, true)) {
+                $names[] = $name;
+            }
+        }
+        $singleLine = method_exists($pdf, 'getNumLines') ? $pdf->getNumLines($action, $width) <= 1 : true;
+        if (! $singleLine || $names === []) {
+            $pdf->Line($x, $mid, $x + $width, $mid);
+            $pdf->SetLineWidth(0.2);
+
+            return;
+        }
+
+        foreach ($names as $name) {
+            $pos = mb_strpos($action, $name);
+            if ($pos === false) {
+                continue;
+            }
+            $prefix = mb_substr($action, 0, $pos);
+            $start = $x + $pdf->GetStringWidth($prefix);
+            $pdf->Line($start, $mid, $start + $pdf->GetStringWidth($name), $mid);
+        }
+        $pdf->SetLineWidth(0.2);
     }
 
     private static function logoFile(mixed $stem): ?string

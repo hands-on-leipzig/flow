@@ -39,7 +39,7 @@ class RoleSheetAssemblerTest extends TestCase
                 [
                     'activities' => [
                         $this->activity('09:00:00', '09:15:00', 'punctual', 'j_with_team', 'Raum A'),
-                        $this->activity('12:00:00', '13:00:00', 'window', 'c_lunch', 'Mensa', 9),
+                        $this->activity('12:00:00', '13:00:00', 'window', 'c_lunch', 'Mensa', 9, 'free'),
                     ],
                 ],
             ],
@@ -105,7 +105,7 @@ class RoleSheetAssemblerTest extends TestCase
             'groups' => [
                 [
                     'activities' => [
-                        $this->activity('12:00:00', '13:00:00', 'window', 'c_lunch', 'Mensa', 9),
+                        $this->activity('12:00:00', '13:00:00', 'window', 'c_lunch', 'Mensa', 9, 'free'),
                     ],
                 ],
             ],
@@ -169,6 +169,38 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertSame('Tisch 1', $document['sections'][0]['subject']);
     }
 
+    public function test_slot_blocks_stay_in_ablauf(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(5, 'Team', 3, [
+                    ['value' => 1, 'label' => 'Alpha', 'parameter' => 'team', 'noshow' => false],
+                ]),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'activities' => [
+                        $this->activity('09:00:00', '09:10:00', 'punctual', 'r_match', 'Halle'),
+                        $this->activity('11:00:00', '11:20:00', 'punctual', 'c_slot_block', 'Werkstatt', 4, 'slot'),
+                        $this->activity('12:00:00', '13:00:00', 'window', 'c_free_block', 'Hof', 9, 'free'),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [5]);
+
+        $this->assertCount(2, $document['sections'][0]['ablauf']);
+        $this->assertSame('09:00', $document['sections'][0]['ablauf'][0]['start']);
+        $this->assertSame('11:00', $document['sections'][0]['ablauf'][1]['start']);
+        $this->assertCount(1, $document['sections'][0]['zusaetzlich']);
+        $this->assertSame('12:00', $document['sections'][0]['zusaetzlich'][0]['start']);
+    }
+
     /**
      * @param  list<array<string, mixed>>  $options
      * @return array<string, mixed>
@@ -190,7 +222,7 @@ class RoleSheetAssemblerTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function activity(string $start, string $end, string $presence, string $code, string $room, ?int $extraBlockId = null): array
+    private function activity(string $start, string $end, string $presence, string $code, string $room, ?int $extraBlockId = null, ?string $extraBlockType = null): array
     {
         return [
             'start_time' => '2026-03-15 '.$start,
@@ -198,6 +230,7 @@ class RoleSheetAssemblerTest extends TestCase
             'presence' => $presence,
             'activity_type_code' => $code,
             'extra_block_id' => $extraBlockId,
+            'extra_block_type' => $extraBlockType,
             'room' => ['room_name' => $room],
             'team_name' => 'Alpha',
             'jury_team_number_hot' => 12,

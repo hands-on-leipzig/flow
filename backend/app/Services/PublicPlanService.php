@@ -763,6 +763,7 @@ class PublicPlanService
                     'activity_type_code' => $row->activity_type_code ?? null,
                     'presence' => $row->activity_presence ?? 'punctual',
                     'extra_block_id' => self::extraBlockId($row),
+                    'extra_block_type' => self::extraBlockType($row),
                     'meta' => [
                         'name' => $row->activity_atd_name ?? null,
                         'first_program_id' => $row->activity_first_program_id ?? null,
@@ -815,5 +816,12 @@ class PublicPlanService
         $id = (int) $id;
 
         return $id > 0 ? $id : null;
+    }
+
+    private static function extraBlockType(object $row): ?string
+    {
+        $type = trim((string) ($row->extra_block_type ?? ''));
+
+        return $type !== '' ? $type : null;
     }
 }

@@ -230,6 +230,7 @@ class PublicPlanServiceTest extends TestCase
                 'room_navigation' => '2. Etage rechts',
                 'room_is_accessible' => 0,
                 'extra_block_id' => 7,
+                'extra_block_type' => 'free',
             ],
         ]));
         $this->app->instance(ActivityFetcherService::class, $fetcher);
@@ -247,6 +248,7 @@ class PublicPlanServiceTest extends TestCase
         $this->assertSame('2. Etage rechts', $payload['groups'][0]['activities'][0]['room']['navigation']);
         $this->assertFalse($payload['groups'][0]['activities'][0]['room']['accessible']);
         $this->assertSame(7, $payload['groups'][0]['activities'][0]['extra_block_id']);
+        $this->assertSame('free', $payload['groups'][0]['activities'][0]['extra_block_type']);
     }
 
     public function test_get_roles_includes_team_even_when_role_fetcher_omits_it(): void

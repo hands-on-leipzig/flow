@@ -10,6 +10,8 @@ final class RoleSheetCells
 {
     public const VOLUNTEER = 'Freiwilliges Team ohne Wertung';
 
+    public const UNASSIGNED = 'Noch nicht angemeldet';
+
     /** @var list<string> */
     private const MATCH_CODES = ['r_match', 'f8_r_match'];
 
@@ -164,16 +166,18 @@ final class RoleSheetCells
         ?int $selfTable,
     ): string {
         if ($roleParam === 'lane' && self::isJudgingWithTeam($activity)) {
-            return self::hotLabel(
+            return self::teamLabel(
                 self::stringOrNull($activity['team_name'] ?? $activity['jury_team_name'] ?? null),
+                $activity['team'] ?? $activity['jury_team'] ?? null,
                 $activity['jury_team_number_hot'] ?? $activity['team_number_hot'] ?? null,
+                true,
             );
         }
 
         if ($roleParam === 'team' && self::isMatch($activity)) {
             $opp = self::opponentSide($activity, $selfTeam, $selfTable);
 
-            return self::plainTeamName($opp['name'], $opp['number']);
+            return self::teamLabel($opp['name'], $opp['number']);
         }
 
         if ($roleName === 'Schiedsrichter:in' && $roleParam === 'table') {
@@ -181,13 +185,15 @@ final class RoleSheetCells
             $opp = self::opponentSide($activity, $selfTeam, $selfTable);
 
             return self::pair(
-                self::sideHotOrVolunteer($own),
-                self::sideHotOrVolunteer($opp),
+                self::teamLabel($own['name'], $own['number'], $own['hot'], true),
+                self::teamLabel($opp['name'], $opp['number'], $opp['hot'], true),
             );
         }
 
         if ($roleName === 'Robot-Checker:in') {
-            return self::sideHotOrVolunteer(self::ownSide($activity, $selfTeam, $selfTable));
+            $own = self::ownSide($activity, $selfTeam, $selfTable);
+
+            return self::teamLabel($own['name'], $own['number'], $own['hot'], true);
         }
 
         if ($roleName === 'Betreuer:in Allianz-Gespräche') {
@@ -195,22 +201,22 @@ final class RoleSheetCells
             $opp = self::opponentSide($activity, $selfTeam, $selfTable);
 
             return self::pair(
-                self::sideHotOrVolunteer($own),
-                self::sideHotOrVolunteer($opp),
+                self::teamLabel($own['name'], $own['number'], $own['hot'], true),
+                self::teamLabel($opp['name'], $opp['number'], $opp['hot'], true),
             );
         }
 
         if ($roleName === 'Moderator:in' && self::isMatch($activity)) {
-            $left = self::plainTeamName(
-                self::stringOrNull($activity['table_1_team_name'] ?? null),
-                self::intOrNull($activity['table_1_team'] ?? null),
+            return self::pair(
+                self::teamLabel(
+                    self::stringOrNull($activity['table_1_team_name'] ?? null),
+                    $activity['table_1_team'] ?? null,
+                ),
+                self::teamLabel(
+                    self::stringOrNull($activity['table_2_team_name'] ?? null),
+                    $activity['table_2_team'] ?? null,
+                ),
             );
-            $right = self::plainTeamName(
-                self::stringOrNull($activity['table_2_team_name'] ?? null),
-                self::intOrNull($activity['table_2_team'] ?? null),
-            );
-
-            return self::pair($left, $right);
         }
 
         return '';
@@ -224,23 +230,57 @@ final class RoleSheetCells
     {
         $candidates = [];
         if (self::isTruthy($activity['jury_team_noshow'] ?? false)) {
-            $candidates[] = trim((string) ($activity['team_name'] ?? $activity['jury_team_name'] ?? ''));
+            $candidates[] = self::teamLabel(
+                self::stringOrNull($activity['team_name'] ?? $activity['jury_team_name'] ?? null),
+                $activity['team'] ?? $activity['jury_team'] ?? null,
+                $activity['jury_team_number_hot'] ?? $activity['team_number_hot'] ?? null,
+                true,
+            );
         }
         if (self::isTruthy($activity['table_1_team_noshow'] ?? false)) {
-            $candidates[] = trim((string) ($activity['table_1_team_name'] ?? ''));
+            $candidates[] = self::teamLabel(
+                self::stringOrNull($activity['table_1_team_name'] ?? null),
+                $activity['table_1_team'] ?? null,
+                $activity['table_1_team_number_hot'] ?? null,
+                true,
+            );
+            $candidates[] = self::teamLabel(
+                self::stringOrNull($activity['table_1_team_name'] ?? null),
+                $activity['table_1_team'] ?? null,
+            );
         }
         if (self::isTruthy($activity['table_2_team_noshow'] ?? false)) {
-            $candidates[] = trim((string) ($activity['table_2_team_name'] ?? ''));
+            $candidates[] = self::teamLabel(
+                self::stringOrNull($activity['table_2_team_name'] ?? null),
+                $activity['table_2_team'] ?? null,
+                $activity['table_2_team_number_hot'] ?? null,
+                true,
+            );
+            $candidates[] = self::teamLabel(
+                self::stringOrNull($activity['table_2_team_name'] ?? null),
+                $activity['table_2_team'] ?? null,
+            );
         }
 
         $strike = [];
         foreach ($candidates as $name) {
-            if ($name !== '' && str_contains($text, $name) && ! in_array($name, $strike, true)) {
+            if ($name !== '' && $name !== self::VOLUNTEER && str_contains($text, $name) && ! in_array($name, $strike, true)) {
                 $strike[] = $name;
             }
         }
 
-        return $strike;
+        usort($strike, fn (string $a, string $b): int => mb_strlen($b) <=> mb_strlen($a));
+        $kept = [];
+        foreach ($strike as $name) {
+            foreach ($kept as $longer) {
+                if (str_contains($longer, $name)) {
+                    continue 2;
+                }
+            }
+            $kept[] = $name;
+        }
+
+        return $kept;
     }
 
     /**
@@ -344,34 +384,23 @@ final class RoleSheetCells
         return null;
     }
 
-    /**
-     * @param  array{name: ?string, hot: mixed, number: ?int}  $side
-     */
-    private static function sideHotOrVolunteer(array $side): string
+    public static function teamLabel(?string $name, mixed $number, mixed $hot = null, bool $withHot = false): string
     {
-        if (self::isVolunteer($side['name'], $side['number'])) {
+        $slot = self::intOrNull($number);
+        if ($slot === 0) {
             return self::VOLUNTEER;
         }
 
-        return self::hotLabel($side['name'], $side['hot']);
-    }
+        $name = trim((string) $name);
+        if ($name === '') {
+            if ($slot === null || $slot < 1) {
+                return '';
+            }
 
-    private static function plainTeamName(?string $name, ?int $number): string
-    {
-        if (self::isVolunteer($name, $number)) {
-            return self::VOLUNTEER;
+            return sprintf('T%02d (%s)', $slot, self::UNASSIGNED);
         }
 
-        return (string) $name;
-    }
-
-    private static function isVolunteer(?string $name, ?int $number): bool
-    {
-        if ($number === 0) {
-            return true;
-        }
-
-        return trim((string) $name) === '';
+        return $withHot ? self::hotLabel($name, $hot) : $name;
     }
 
     /**

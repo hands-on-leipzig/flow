@@ -7,7 +7,7 @@ use PHPUnit\Framework\TestCase;
 
 class RoleSheetCellsTest extends TestCase
 {
-    public function test_volunteer_label_for_team_zero_and_missing_name(): void
+    public function test_volunteer_label_for_team_zero(): void
     {
         $activity = $this->matchActivity(
             table1Team: 1,
@@ -19,6 +19,22 @@ class RoleSheetCellsTest extends TestCase
         $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
 
         $this->assertSame('Robot-Match, '.RoleSheetCells::VOLUNTEER, $action['text']);
+    }
+
+    public function test_unassigned_slot_uses_two_digit_placeholder(): void
+    {
+        $activity = $this->matchActivity(
+            table1Team: 1,
+            table1Name: 'Alpha',
+            table2Team: 8,
+            table2Name: null,
+        );
+
+        $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
+
+        $this->assertSame('Robot-Match, T08 (Noch nicht angemeldet)', $action['text']);
+        $this->assertSame('T08 (Noch nicht angemeldet)', RoleSheetCells::teamLabel(null, 8));
+        $this->assertSame(RoleSheetCells::VOLUNTEER, RoleSheetCells::teamLabel(null, 0));
     }
 
     public function test_hot_label_is_four_digits(): void
@@ -145,6 +161,56 @@ class RoleSheetCellsTest extends TestCase
 
         $this->assertSame('Robot-Match, Alpha (0012) – Freiwilliges Team ohne Wertung', $action['text']);
         $this->assertStringNotContainsString('0099', $action['text']);
+    }
+
+    public function test_jury_unassigned_slot_uses_placeholder(): void
+    {
+        $activity = [
+            'activity_type_code' => 'j_with_team',
+            'activity_name' => 'Jurygespräch',
+            'team' => 3,
+            'team_name' => null,
+            'jury_team_number_hot' => null,
+        ];
+
+        $action = RoleSheetCells::action($activity, 'Juror:in', 'lane', null, null);
+
+        $this->assertSame('Jurygespräch, T03 (Noch nicht angemeldet)', $action['text']);
+    }
+
+    public function test_noshow_team_is_listed_for_strikethrough(): void
+    {
+        $activity = $this->matchActivity(
+            table1Team: 1,
+            table1Name: 'Alpha',
+            table1Hot: 12,
+            table2Team: 2,
+            table2Name: 'Beta',
+            table2Hot: 7,
+        );
+        $activity['table_2_team_noshow'] = true;
+
+        $action = RoleSheetCells::action($activity, 'Schiedsrichter:in', 'table', null, 1);
+
+        $this->assertSame('Robot-Match, Alpha (0012) – Beta (0007)', $action['text']);
+        $this->assertContains('Beta (0007)', $action['strike']);
+        $this->assertNotContains('Alpha (0012)', $action['strike']);
+    }
+
+    public function test_noshow_unassigned_slot_is_listed_for_strikethrough(): void
+    {
+        $activity = $this->matchActivity(
+            table1Team: 1,
+            table1Name: 'Alpha',
+            table2Team: 2,
+            table2Name: null,
+        );
+        $activity['table_2_team_noshow'] = true;
+
+        $action = RoleSheetCells::action($activity, 'Team', 'team', 1, null);
+
+        $this->assertSame('Robot-Match, T02 (Noch nicht angemeldet)', $action['text']);
+        $this->assertContains('T02 (Noch nicht angemeldet)', $action['strike']);
     }
 
     /**

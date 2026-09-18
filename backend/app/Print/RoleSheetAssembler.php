@@ -91,7 +91,7 @@ final class RoleSheetAssembler
                     continue;
                 }
                 $row = $this->row($activity, $roleName, $parameter, $selfTeam, $selfTable, $programId, $option);
-                if (self::isExtraBlock($activity)) {
+                if (self::isFreeBlock($activity)) {
                     $extra[] = $row;
                 } else {
                     $ablauf[] = $row;
@@ -168,14 +168,9 @@ final class RoleSheetAssembler
     /**
      * @param  array<string, mixed>  $activity
      */
-    private static function isExtraBlock(array $activity): bool
+    private static function isFreeBlock(array $activity): bool
     {
-        $id = $activity['extra_block_id'] ?? null;
-        if ($id === null || $id === '' || $id === false) {
-            return false;
-        }
-
-        return (int) $id > 0;
+        return ($activity['extra_block_type'] ?? null) === 'free';
     }
 
     private static function clock(mixed $value): string
