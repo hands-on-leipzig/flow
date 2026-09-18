@@ -47,7 +47,7 @@ class EventController extends Controller
         $event = Event::with(['seasonRel', 'levelRel', 'tableNames'])->findOrFail($id);
 
         // Decrypt password before refresh (so it's preserved)
-        $decryptedPassword = isset($event->wifi_password) ? Crypt::decryptString($event->wifi_password) : "";
+        $decryptedPassword = $event->decryptedWifiPassword();
 
         // Lazy initialization: calculate attention status if not yet calculated
         $attentionService = app(EventAttentionService::class);
@@ -343,14 +343,7 @@ class EventController extends Controller
                     ->update(['wifi_qrcode' => null]);
             } else {
                 // Passwort entschlüsseln (oder unverschlüsselt übernehmen)
-                $wifiPassword = '';
-                if (!empty($event->wifi_password)) {
-                    try {
-                        $wifiPassword = Crypt::decryptString($event->wifi_password);
-                    } catch (\Exception $e) {
-                        $wifiPassword = $event->wifi_password;
-                    }
-                }
+                $wifiPassword = Event::decryptWifiPassword($event->wifi_password);
 
                 if ($wifiPassword !== '') {
                     $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";

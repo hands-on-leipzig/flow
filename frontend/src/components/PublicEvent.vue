@@ -174,14 +174,6 @@ function laneTimelineItems(lane) {
   return mapTimelineItems(lane?.times)
 }
 
-const timelineMinHeight = computed(() => {
-  const maxItems = planLanes.value.reduce(
-    (max, lane) => Math.max(max, lane.times?.length ?? 0),
-    0,
-  )
-  return `${maxItems * 70}px`
-})
-
 const publicationLevel = computed(() => Number(scheduleInfo.value?.level ?? 1))
 
 const showPlaceholderBox = computed(() => publicationLevel.value < 3)
@@ -425,51 +417,55 @@ onMounted(async () => {
         </template>
 
         <template v-else>
-          <h2 class="glass-card__title">
-            <template v-if="planLastChangeDisplay">
-              Wichtige Zeiten - Stand {{ planLastChangeDisplay }}.
-            </template>
-            <template v-else>
-              Wichtige Zeiten
-            </template>
-          </h2>
+          <h2 class="glass-card__title">Wichtige Zeiten</h2>
+          <p v-if="planLastChangeDisplay" class="pe-muted pe-times-stand">
+            Stand {{ planLastChangeDisplay }}
+          </p>
 
-          <div
-              v-if="planLanes.length > 0"
-              class="pe-timeline-grid"
-              :style="{ '--pe-lane-count': planLanes.length }"
-          >
+          <div v-if="planLanes.length > 0">
             <div
                 v-for="lane in planLanes"
                 :key="lane.program_id"
-                class="pe-program"
-                :style="{ '--pe-program': laneColor(lane) }"
+                class="pe-teams-block"
             >
-              <h3 class="pe-program__title">
-                <ProgramLogo
-                    v-if="laneProgramRef(lane)"
-                    :event="event"
-                    :program="laneProgramRef(lane)"
-                    class="pe-program__logo"
-                />
-                <span>{{ lane.name }}</span>
-              </h3>
-              <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
-                <div
-                    v-for="(item, index) in laneTimelineItems(lane)"
-                    :key="`${lane.program_id}-${index}`"
-                    class="pe-timeline__item"
-                    :data-joint="item.joint ? 'true' : 'false'"
-                >
-                  <div class="pe-timeline__dot"/>
-                  <div class="pe-timeline__card">
-                    <div class="pe-timeline__row">
-                      <span class="pe-timeline__label">{{ item.label }}</span>
-                      <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
-                    </div>
-                    <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
-                  </div>
-                </div>
+              <div
+                  class="pe-teams-table-wrap"
+                  :style="{ '--pe-program': laneColor(lane) }"
+              >
+                <table class="pe-teams-table pe-teams-table--times">
+                  <colgroup>
+                    <col style="width: 18%;">
+                    <col style="width: 82%;">
+                  </colgroup>
+                  <thead>
+                  <tr>
+                    <th colspan="2">
+                      <ProgramLogo
+                          v-if="laneProgramRef(lane)"
+                          :event="event"
+                          :program="laneProgramRef(lane)"
+                          orientation="h"
+                          class="pe-teams-table__brand"
+                      />
+                      <span v-else class="pe-teams-table__heading">{{ lane.name }}</span>
+                    </th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <tr
+                      v-for="(item, index) in laneTimelineItems(lane)"
+                      :key="`${lane.program_id}-${index}`"
+                  >
+                    <td class="pe-teams-table__num">{{ item.timeDisplay }}</td>
+                    <td>
+                      <span class="pe-teams-table__cell">
+                        {{ item.label }}
+                      </span>
+                      <span v-if="item.description" class="pe-teams-table__note">{{ item.description }}</span>
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -1176,12 +1172,6 @@ onMounted(async () => {
   }
 }
 
-.pe-timeline-col {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
 .pe-program {
   --pe-program: var(--color-accent);
   border-radius: var(--radius-lg, 1rem);
@@ -1212,95 +1202,6 @@ onMounted(async () => {
   width: 1.5rem;
   height: 1.5rem;
   flex-shrink: 0;
-}
-
-.pe-timeline {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-left: 0.15rem;
-  flex: 1;
-}
-
-.pe-timeline::before {
-  content: '';
-  position: absolute;
-  left: 0.55rem;
-  top: 0.35rem;
-  bottom: 0.35rem;
-  width: 2px;
-  background: color-mix(in srgb, var(--pe-program) 45%, transparent);
-  border-radius: 999px;
-}
-
-.pe-timeline__item {
-  position: relative;
-  padding-left: 2rem;
-}
-
-.pe-timeline__dot {
-  position: absolute;
-  left: 0.25rem;
-  top: 0.85rem;
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 999px;
-  background: #fff;
-  border: 2px solid var(--pe-program);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pe-program) 18%, transparent);
-}
-
-.pe-timeline__item[data-joint='true'] .pe-timeline__dot {
-  border-color: #9ca3af;
-  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.22);
-}
-
-.pe-timeline__item[data-type='opening'] .pe-timeline__dot {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
-}
-
-.pe-timeline__item[data-type='end'] .pe-timeline__dot {
-  border-color: #dc2626;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
-}
-
-.pe-timeline__card {
-  border-radius: calc(var(--radius-lg, 1rem) - 4px);
-  background: color-mix(in srgb, #ffffff 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
-  padding: 0.65rem 0.8rem;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
-}
-
-.pe-timeline__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 4.5rem;
-  column-gap: 0.75rem;
-  align-items: baseline;
-}
-
-.pe-timeline__label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: color-mix(in srgb, var(--pe-program) 75%, var(--color-text));
-  min-width: 0;
-}
-
-.pe-timeline__time {
-  font-size: 1.05rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text);
-  text-align: right;
-  white-space: nowrap;
-}
-
-.pe-timeline__desc {
-  margin-top: 0.25rem;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
 }
 
 .pe-info-grid {
@@ -1418,6 +1319,10 @@ onMounted(async () => {
   margin-top: 1.25rem;
 }
 
+.pe-times-stand {
+  margin: -0.35rem 0 1rem;
+}
+
 .pe-teams-table-wrap {
   --pe-program: var(--color-accent);
   overflow-x: auto;
@@ -1432,6 +1337,18 @@ onMounted(async () => {
   min-width: 36rem;
   table-layout: fixed;
   border-collapse: collapse;
+}
+
+.pe-teams-table--times {
+  min-width: 0;
+}
+
+.pe-teams-table__note {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
 }
 
 .pe-teams-table thead th {

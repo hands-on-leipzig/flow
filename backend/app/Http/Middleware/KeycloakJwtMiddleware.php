@@ -9,6 +9,7 @@ use Firebase\JWT\Key;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\DrahtController;
@@ -19,6 +20,9 @@ class KeycloakJwtMiddleware
     protected string $expectedIssuer = 'https://sso.hands-on-technology.org/realms/master';
     protected string $expectedAudience = 'flow';
 
+    /** Fallback when the JWT has no Keycloak `sid`: treat last_login this old as a new session. */
+    private const LOGIN_SIDE_EFFECTS_TTL_MINUTES = 15;
+
     public function handle(Request $request, Closure $next)
     {
         $authHeader = $request->header('Authorization');
@@ -28,7 +32,7 @@ class KeycloakJwtMiddleware
         }
 
         $token = substr($authHeader, 7);
-        $publicKeyPath = base_path(env('KEYCLOAK_PUBLIC_KEY_PATH'));
+        $publicKeyPath = base_path((string) config('services.keycloak.public_key_path'));
 
         if (!file_exists($publicKeyPath)) {
             Log::error("Public key file not found at $publicKeyPath");
@@ -103,21 +107,6 @@ class KeycloakJwtMiddleware
                 if (!empty($updateData)) {
                     $user->update($updateData);
                 }
-
-                // Update last_login timestamp for existing users
-                if (!$user->wasRecentlyCreated) {
-
-                    try {
-                        $updateResult = $user->update(['last_login' => now()]);
-
-                    } catch (\Exception $e) {
-                        Log::error("Failed to update last_login", [
-                            'user_id' => $user->id,
-                            'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString()
-                        ]);
-                    }
-                }
             } catch (\Exception $e) {
                 Log::error("Failed to create or retrieve user", [
                     'subject' => $claims['sub'] ?? null,
@@ -127,13 +116,26 @@ class KeycloakJwtMiddleware
                 return response()->json(['error' => 'User authentication failed'], 500);
             }
 
-            // Auto-assign regional partners for flow-tester role in test environment
-            if (in_array($env, ['local', 'staging'], true) && \App\Support\FlowAccess::isTester($roles)) {
-                $this->assignTestRegionalPartners($user);
-            }
+            // last_login + Draht RP links belong to a login, not to every API call
+            if ($this->shouldRunLoginSideEffects($user, $claims)) {
+                if (!$user->wasRecentlyCreated) {
+                    try {
+                        $user->update(['last_login' => now()]);
+                    } catch (\Exception $e) {
+                        Log::error("Failed to update last_login", [
+                            'user_id' => $user->id,
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString()
+                        ]);
+                    }
+                }
 
-            // Sync Draht-sourced RP links on each login (manual grants are preserved)
-            $this->syncUserRegionalPartnersFromDraht($user);
+                if (in_array($env, ['local', 'staging'], true) && \App\Support\FlowAccess::isTester($roles)) {
+                    $this->assignTestRegionalPartners($user);
+                }
+
+                $this->syncUserRegionalPartnersFromDraht($user);
+            }
 
             Auth::login($user);
 
@@ -149,6 +151,29 @@ class KeycloakJwtMiddleware
         }
 
         return $next($request);
+    }
+
+    /**
+     * Draht RP sync and last_login belong to a Keycloak login, not to every API call.
+     * Prefer `sid` (one run per SSO session); otherwise a stale last_login.
+     */
+    private function shouldRunLoginSideEffects(User $user, array $claims): bool
+    {
+        $sessionId = $claims['sid'] ?? null;
+        if (is_string($sessionId) && $sessionId !== '') {
+            return Cache::add(
+                'keycloak-login-side-effects:'.$user->id.':'.$sessionId,
+                1,
+                now()->addHours(12)
+            );
+        }
+
+        if ($user->wasRecentlyCreated) {
+            return true;
+        }
+
+        return $user->last_login === null
+            || $user->last_login->lt(now()->subMinutes(self::LOGIN_SIDE_EFFECTS_TTL_MINUTES));
     }
 
     /**

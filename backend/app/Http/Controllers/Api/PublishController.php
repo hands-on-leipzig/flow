@@ -530,14 +530,7 @@ class PublishController extends Controller
         $event = \App\Models\Event::findOrFail($eventId);
 
         // WLAN-Passwort entschlüsseln
-        $wifiPassword = '';
-        if (!empty($event->wifi_password)) {
-            try {
-                $wifiPassword = Crypt::decryptString($event->wifi_password);
-            } catch (\Exception $e) {
-                $wifiPassword = $event->wifi_password;
-            }
-        }
+        $wifiPassword = $event->decryptedWifiPassword();
 
         // Get footer logos for QR PDF (logos will be rendered in content area)
         $pdfLayoutService = app(\App\Services\PdfLayoutService::class);
