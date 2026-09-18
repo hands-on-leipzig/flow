@@ -104,7 +104,7 @@ final class RoleSheetAssembler
         }
 
         $section = [
-            'subject' => $roleName.': '.(string) ($option['label'] ?? ''),
+            'subject' => self::subject($roleName, $role, $option),
             'noshow' => (bool) ($option['noshow'] ?? false),
             'color_hex' => (string) ($role['color_hex'] ?? '888888'),
             'logo_stem' => isset($role['logo_stem']) && $role['logo_stem'] !== ''
@@ -117,6 +117,20 @@ final class RoleSheetAssembler
         }
 
         return $section;
+    }
+
+    /**
+     * @param  array<string, mixed>  $role
+     * @param  array<string, mixed>  $option
+     */
+    private static function subject(string $roleName, array $role, array $option): string
+    {
+        $optionLabel = trim((string) ($option['label'] ?? ''));
+        if (trim((string) ($role['group_label'] ?? '')) !== '') {
+            return $optionLabel !== '' ? $optionLabel : $roleName;
+        }
+
+        return $optionLabel !== '' ? $roleName.': '.$optionLabel : $roleName;
     }
 
     /**

@@ -24,7 +24,7 @@ class RoleSheetAssemblerTest extends TestCase
                 $this->role(14, 'Publikum', 3, []),
                 $this->role(4, 'Juror:in', 3, [
                     ['value' => 1, 'label' => 'Jury-Gruppe 1', 'parameter' => 'lane', 'noshow' => false],
-                ]),
+                ], 'Jury-Gruppe'),
                 $this->role(5, 'Team', 3, [
                     ['value' => 1, 'label' => 'Alpha', 'parameter' => 'team', 'noshow' => false],
                     ['value' => 2, 'label' => 'Beta', 'parameter' => 'team', 'noshow' => true],
@@ -74,7 +74,7 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertSame('Challenge Event Test', $document['title_short']);
         $this->assertSame('Challenge Event Test', $document['title_long']);
         $this->assertCount(2, $document['sections']);
-        $this->assertSame('Juror:in: Jury-Gruppe 1', $document['sections'][0]['subject']);
+        $this->assertSame('Jury-Gruppe 1', $document['sections'][0]['subject']);
         $this->assertFalse($document['sections'][0]['noshow']);
         $this->assertCount(1, $document['sections'][0]['ablauf']);
         $this->assertSame('09:00', $document['sections'][0]['ablauf'][0]['start']);
@@ -95,7 +95,7 @@ class RoleSheetAssemblerTest extends TestCase
             'roles' => [
                 $this->role(4, 'Juror:in', 3, [
                     ['value' => 1, 'label' => 'Jury-Gruppe 1', 'parameter' => 'lane', 'noshow' => false],
-                ]),
+                ], 'Jury-Gruppe'),
             ],
         ]);
         $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
@@ -140,16 +140,43 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertSame('Moderator:in: Moderator:in', $document['sections'][0]['subject']);
     }
 
+    public function test_subject_omits_role_name_when_group_label_is_set(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(3, 'Schiedsrichter:in', 3, [
+                    ['value' => 1, 'label' => 'Tisch 1', 'parameter' => 'table', 'noshow' => false],
+                ], 'Game Tisch'),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'activities' => [
+                        $this->activity('09:00:00', '09:10:00', 'punctual', 'r_match', 'Halle'),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [3]);
+
+        $this->assertSame('Tisch 1', $document['sections'][0]['subject']);
+    }
+
     /**
      * @param  list<array<string, mixed>>  $options
      * @return array<string, mixed>
      */
-    private function role(int $id, string $name, ?int $firstProgram, array $options): array
+    private function role(int $id, string $name, ?int $firstProgram, array $options, ?string $groupLabel = null): array
     {
         return [
             'id' => $id,
             'name' => $name,
             'first_program' => $firstProgram,
+            'group_label' => $groupLabel,
             'differentiation_parameter' => $options[0]['parameter'] ?? null,
             'color_hex' => 'ed1c24',
             'logo_stem' => 'fll_challenge',
