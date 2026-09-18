@@ -46,6 +46,7 @@ const props = defineProps<{
   email: string
   slug: string
   event?: Record<string, unknown> | null
+  ssoToken?: string
 }>()
 
 const emit = defineEmits<{
@@ -101,7 +102,10 @@ const mealMismatch = computed(() => {
 const saveDisabled = computed(() => saving.value || mealMismatch.value)
 
 function otpHeaders(): Record<string, string> {
-  return formToken.value ? {'X-Public-Form-Token': formToken.value} : {}
+  const headers: Record<string, string> = {}
+  if (formToken.value) headers['X-Public-Form-Token'] = formToken.value
+  if (props.ssoToken) headers.Authorization = `Bearer ${props.ssoToken}`
+  return headers
 }
 
 async function proceedFromEmail() {
@@ -191,7 +195,9 @@ async function loadLookup() {
     lookupError.value = message || 'Diese E-Mail ist keinem Team als Coach zugeordnet.'
     if (axios.isAxiosError(error) && error.response?.status === 401) {
       otpError.value = 'Sitzung ungültig. Bitte Code erneut anfordern.'
-      return
+      if (!props.ssoToken) {
+        return
+      }
     }
     emit('update:step', 'data')
   } finally {
@@ -266,8 +272,13 @@ watch(
   (step) => {
     if (step === 'done') {
       window.scrollTo({top: 0, behavior: 'smooth'})
+      return
+    }
+    if (step === 'data' && props.ssoToken && !formPayload.value && teams.value.length === 0) {
+      void loadLookup()
     }
   },
+  {immediate: true},
 )
 </script>
 

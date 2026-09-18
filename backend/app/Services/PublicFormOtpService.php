@@ -6,6 +6,7 @@ use App\Mail\PublicOtpMail;
 use App\Models\Event;
 use App\Models\EventVolunteerRoster;
 use App\Models\VolunteerPerson;
+use App\Support\KeycloakAccessToken;
 use App\Support\TeamCoachLookup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -119,6 +120,16 @@ class PublicFormOtpService
 
     public function assertVerified(Request $request, string $purpose, Event $event, string $email): void
     {
+        $email = $this->normalizeEmail($email);
+        if ($email === null) {
+            abort(401, 'Sitzung ungültig.');
+        }
+
+        $ssoEmail = KeycloakAccessToken::email($request);
+        if ($ssoEmail !== null && hash_equals($ssoEmail, $email)) {
+            return;
+        }
+
         $token = $this->tokenFromRequest($request);
         $stored = Cache::get($this->sessionKey($purpose, (int) $event->id, $email));
         if (

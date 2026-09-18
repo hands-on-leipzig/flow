@@ -57,4 +57,22 @@ final class KeycloakAccessToken
 
         return $claims;
     }
+
+    /**
+     * Email claim from a valid Keycloak access token, or null.
+     */
+    public static function email(Request $request): ?string
+    {
+        $claims = self::optionalClaims($request);
+        if ($claims === null) {
+            return null;
+        }
+
+        $email = strtolower(trim((string) ($claims['email'] ?? '')));
+        if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return null;
+        }
+
+        return $email;
+    }
 }

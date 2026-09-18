@@ -8,6 +8,7 @@ use App\Mail\PublicOtpMail;
 use App\Models\Event;
 use App\Services\PublicFormOtpService;
 use Carbon\Carbon;
+use Firebase\JWT\JWT;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -18,6 +19,10 @@ use Tests\TestCase;
 
 class VolunteerPublicFormTest extends TestCase
 {
+    private string $privatePem = '';
+
+    private string $publicKeyRelativePath = 'storage/framework/testing/oauth-public.pem';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -534,6 +539,22 @@ class VolunteerPublicFormTest extends TestCase
             ->assertJsonPath('person.first_name', 'Max');
     }
 
+    public function test_keycloak_token_unlocks_lookup_without_otp(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        $this->installKeycloakKey();
+
+        $this->withHeaders($this->ssoBearer('max@example.com'))
+            ->getJson('/api/public-volunteer-form/test-event/lookup?email=max@example.com')
+            ->assertOk()
+            ->assertJsonPath('person.first_name', 'Max');
+
+        $this->withHeaders($this->ssoBearer('max@example.com'))
+            ->getJson('/api/public-volunteer-form/test-event/lookup?email=other@example.com')
+            ->assertStatus(401);
+    }
+
     /**
      * @param  array<string, mixed>  $params
      */
@@ -764,5 +785,42 @@ class VolunteerPublicFormTest extends TestCase
                 $table->timestamp('updated_at')->nullable();
             });
         }
+    }
+
+    /**
+     * @return array{Authorization: string}
+     */
+    private function ssoBearer(string $email): array
+    {
+        $payload = [
+            'iss' => 'https://sso.hands-on-technology.org/realms/master',
+            'aud' => 'hero',
+            'sub' => 'volunteer-sso',
+            'email' => $email,
+            'exp' => time() + 3600,
+            'iat' => time(),
+        ];
+
+        return ['Authorization' => 'Bearer '.JWT::encode($payload, $this->privatePem, 'RS256')];
+    }
+
+    private function installKeycloakKey(): void
+    {
+        $key = openssl_pkey_new([
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        ]);
+        $this->assertNotFalse($key);
+
+        $privatePem = '';
+        openssl_pkey_export($key, $privatePem);
+        $this->privatePem = $privatePem;
+        $details = openssl_pkey_get_details($key);
+        $path = base_path($this->publicKeyRelativePath);
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0777, true);
+        }
+        file_put_contents($path, $details['key']);
+        config(['services.keycloak.public_key_path' => $this->publicKeyRelativePath]);
     }
 }

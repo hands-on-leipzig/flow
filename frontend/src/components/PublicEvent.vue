@@ -8,6 +8,7 @@ import {imageUrl} from '@/utils/images'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
 import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleShort} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
+import {usePublicEventSso} from '@/composables/usePublicEventSso'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
@@ -27,6 +28,7 @@ const formStep = ref(null)
 const formEmail = ref('')
 const teamFormStep = ref(null)
 const teamFormEmail = ref('')
+const {ssoToken, ssoEmail, awaitSso} = usePublicEventSso()
 
 const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
 const headingPlace = computed(() => cleanEventName(event.value) || '—')
@@ -278,11 +280,12 @@ const showTeamDataEntrySection = computed(() =>
   !!scheduleInfo.value && !!teamDataEntry.value?.enabled
 )
 
-function openVolunteerForm() {
+async function openVolunteerForm() {
+  await awaitSso()
   teamFormStep.value = null
   teamFormEmail.value = ''
-  formStep.value = 'email'
-  formEmail.value = ''
+  formEmail.value = ssoEmail.value
+  formStep.value = ssoEmail.value ? 'data' : 'email'
 }
 
 function closeVolunteerForm() {
@@ -290,11 +293,12 @@ function closeVolunteerForm() {
   formEmail.value = ''
 }
 
-function openTeamForm() {
+async function openTeamForm() {
+  await awaitSso()
   formStep.value = null
   formEmail.value = ''
-  teamFormStep.value = 'email'
-  teamFormEmail.value = ''
+  teamFormEmail.value = ssoEmail.value
+  teamFormStep.value = ssoEmail.value ? 'data' : 'email'
 }
 
 function closeTeamForm() {
@@ -394,6 +398,7 @@ onMounted(async () => {
           :step="formStep"
           :email="formEmail"
           :slug="String(route.params.slug ?? '')"
+          :sso-token="ssoToken"
           @update:email="formEmail = $event"
           @update:step="formStep = $event"
           @cancel="closeVolunteerForm"
@@ -405,6 +410,7 @@ onMounted(async () => {
           :email="teamFormEmail"
           :slug="String(route.params.slug ?? '')"
           :event="event"
+          :sso-token="ssoToken"
           @update:email="teamFormEmail = $event"
           @update:step="teamFormStep = $event"
           @cancel="closeTeamForm"

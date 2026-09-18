@@ -32,6 +32,7 @@ const props = defineProps<{
   step: 'email' | 'otp' | 'data' | 'done'
   email: string
   slug: string
+  ssoToken?: string
 }>()
 
 const emit = defineEmits<{
@@ -64,7 +65,10 @@ const emailModel = computed({
 const photoStatus = computed(() => photoConsentStatusForVolunteer(detailDraft.value.photo_consent))
 
 function otpHeaders(): Record<string, string> {
-  return formToken.value ? {'X-Public-Form-Token': formToken.value} : {}
+  const headers: Record<string, string> = {}
+  if (formToken.value) headers['X-Public-Form-Token'] = formToken.value
+  if (props.ssoToken) headers.Authorization = `Bearer ${props.ssoToken}`
+  return headers
 }
 
 async function proceedFromEmail() {
