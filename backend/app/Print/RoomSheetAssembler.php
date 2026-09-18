@@ -96,7 +96,7 @@ final class RoomSheetAssembler
             }
             $section = [
                 'subject' => (string) $room->name,
-                'color_hex' => '888888',
+                'color_hex' => RoleSheetPdf::HOT_ORANGE,
                 'logo_stem' => null,
                 'noshow' => false,
                 'activities' => $activities,

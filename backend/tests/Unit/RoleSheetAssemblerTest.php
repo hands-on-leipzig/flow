@@ -75,6 +75,7 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertSame('Challenge Event Test', $document['title_long']);
         $this->assertCount(3, $document['sections']);
         $this->assertSame('Jury-Gruppe 1', $document['sections'][0]['subject']);
+        $this->assertSame('ed1c24', $document['sections'][0]['color_hex']);
         $this->assertFalse($document['sections'][0]['noshow']);
         $this->assertCount(1, $document['sections'][0]['ablauf']);
         $this->assertSame('09:00', $document['sections'][0]['ablauf'][0]['start']);
@@ -89,6 +90,33 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertSame('Team: Beta', $document['sections'][2]['subject']);
         $this->assertTrue($document['sections'][2]['noshow']);
         $this->assertArrayNotHasKey('zusaetzlich', $document['sections'][2]);
+    }
+
+    public function test_joint_role_uses_hot_orange_bar(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(2, 'Moderation', null, [
+                    ['value' => null, 'label' => '', 'parameter' => null, 'noshow' => false],
+                ]),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'activities' => [
+                        $this->activity('09:00:00', '09:15:00', 'punctual', 'g_opening', 'Bühne'),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [2]);
+
+        $this->assertSame('F78B1F', $document['sections'][0]['color_hex']);
+        $this->assertSame('Moderation', $document['sections'][0]['subject']);
     }
 
     public function test_skips_section_when_ablauf_empty(): void

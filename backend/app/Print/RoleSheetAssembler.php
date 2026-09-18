@@ -110,7 +110,7 @@ final class RoleSheetAssembler
         $section = [
             'subject' => self::subject($roleName, $role, $option),
             'noshow' => (bool) ($option['noshow'] ?? false),
-            'color_hex' => (string) ($role['color_hex'] ?? '888888'),
+            'color_hex' => self::barColor($role),
             'logo_stem' => isset($role['logo_stem']) && $role['logo_stem'] !== ''
                 ? (string) $role['logo_stem']
                 : null,
@@ -121,6 +121,21 @@ final class RoleSheetAssembler
         }
 
         return $section;
+    }
+
+    /**
+     * @param  array<string, mixed>  $role
+     */
+    private static function barColor(array $role): string
+    {
+        $program = $role['first_program'] ?? null;
+        if ($program !== null && $program !== '' && (int) $program > 0) {
+            $hex = ltrim((string) ($role['color_hex'] ?? ''), '#');
+
+            return $hex !== '' ? $hex : RoleSheetPdf::HOT_ORANGE;
+        }
+
+        return RoleSheetPdf::HOT_ORANGE;
     }
 
     /**

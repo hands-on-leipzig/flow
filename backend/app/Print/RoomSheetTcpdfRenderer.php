@@ -57,7 +57,7 @@ final class RoomSheetTcpdfRenderer
         $showLogos = (bool) ($document['show_program_logos'] ?? false);
         $sections = $document['sections'] ?? [];
         if ($sections === []) {
-            $pdf->colorHex = '888888';
+            $pdf->colorHex = RoleSheetPdf::HOT_ORANGE;
             $pdf->logoPath = null;
             $pdf->noshowSubject = false;
             $pdf->sectionSubject = '';
@@ -65,7 +65,7 @@ final class RoomSheetTcpdfRenderer
         }
 
         foreach ($sections as $section) {
-            $pdf->colorHex = (string) ($section['color_hex'] ?? '888888');
+            $pdf->colorHex = (string) ($section['color_hex'] ?? RoleSheetPdf::HOT_ORANGE);
             $pdf->sectionSubject = (string) ($section['subject'] ?? '');
             $pdf->noshowSubject = false;
             $pdf->logoPath = null;
@@ -173,6 +173,10 @@ final class RoomSheetTcpdfRenderer
         $wAction = $usable - $wLogo - $wStart - $wEnd;
         $pdf->SetFont($pdf->regularFont, '', 9);
 
+        if ($rows !== []) {
+            $this->activityHeader($pdf, $showLogos, $usable, $wLogo, $wStart, $wEnd, $wAction);
+        }
+
         foreach ($rows as $index => $row) {
             $start = (string) ($row['start'] ?? '');
             $end = (string) ($row['end'] ?? '');
@@ -182,6 +186,7 @@ final class RoomSheetTcpdfRenderer
             $startY = $pdf->GetY();
             if ($startY > $pdf->getPageHeight() - 28) {
                 $pdf->AddPage();
+                $this->activityHeader($pdf, $showLogos, $usable, $wLogo, $wStart, $wEnd, $wAction);
                 $startY = $pdf->GetY();
             }
             $h = self::actionRowHeight($pdf, $wAction, $action, $private);
@@ -216,6 +221,34 @@ final class RoomSheetTcpdfRenderer
             $pdf->SetFont($pdf->regularFont, '', 9);
             $pdf->SetY($startY + $h);
         }
+    }
+
+    private function activityHeader(
+        RoleSheetPdf $pdf,
+        bool $showLogos,
+        float $usable,
+        float $wLogo,
+        float $wStart,
+        float $wEnd,
+        float $wAction,
+    ): void {
+        $headerY = $pdf->GetY();
+        $pdf->SetFillColor(236, 238, 241);
+        $pdf->Rect(12, $headerY, $usable, 6, 'F');
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->SetFont($pdf->boldFont, '', 9);
+        $x = 12.0;
+        if ($showLogos) {
+            $x += $wLogo;
+        }
+        $pdf->SetXY($x, $headerY);
+        $pdf->Cell($wStart, 6, 'Start', 0, 0, 'L');
+        $pdf->Cell($wEnd, 6, 'Ende', 0, 0, 'L');
+        $pdf->Cell($wAction, 6, 'Aktion', 0, 0, 'L');
+        $pdf->SetLineWidth(0.2);
+        $pdf->Line(12, $headerY + 6, 12 + $usable, $headerY + 6);
+        $pdf->SetFont($pdf->regularFont, '', 9);
+        $pdf->SetY($headerY + 6);
     }
 
     private static function actionRowHeight(RoleSheetPdf $pdf, float $wAction, string $action, bool $private): float

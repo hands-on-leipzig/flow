@@ -8,11 +8,13 @@ use TCPDF;
 
 final class RoleSheetPdf extends TCPDF
 {
+    public const HOT_ORANGE = 'F78B1F';
+
     public string $eventTitle = '';
 
     public string $createdAt = '';
 
-    public string $colorHex = '888888';
+    public string $colorHex = self::HOT_ORANGE;
 
     public ?string $logoPath = null;
 
@@ -95,7 +97,7 @@ final class RoleSheetPdf extends TCPDF
             $hex = $hex[0].$hex[0].$hex[1].$hex[1].$hex[2].$hex[2];
         }
         if (! preg_match('/^[0-9A-Fa-f]{6}$/', $hex)) {
-            $hex = '888888';
+            $hex = self::HOT_ORANGE;
         }
 
         return [

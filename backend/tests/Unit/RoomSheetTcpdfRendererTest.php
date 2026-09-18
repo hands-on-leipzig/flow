@@ -16,7 +16,7 @@ class RoomSheetTcpdfRendererTest extends TestCase
             'sections' => [
                 [
                     'subject' => 'Halle',
-                    'color_hex' => '888888',
+                    'color_hex' => 'F78B1F',
                     'logo_stem' => null,
                     'noshow' => false,
                     'team_columns' => [

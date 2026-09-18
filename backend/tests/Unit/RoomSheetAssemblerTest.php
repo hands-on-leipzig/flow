@@ -98,6 +98,7 @@ class RoomSheetAssemblerTest extends TestCase
         $this->assertFalse($document['show_program_logos']);
         $this->assertCount(1, $document['sections']);
         $this->assertSame('Aula', $document['sections'][0]['subject']);
+        $this->assertSame('F78B1F', $document['sections'][0]['color_hex']);
         $this->assertSame([], $document['sections'][0]['activities']);
         $this->assertCount(1, $document['sections'][0]['team_columns']);
         $this->assertSame('Alpha (0001)', $document['sections'][0]['team_columns'][0]['teams'][0]['label']);

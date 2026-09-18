@@ -52,7 +52,7 @@ final class RoleSheetTcpdfRenderer
         }
 
         foreach ($sections as $section) {
-            $pdf->colorHex = (string) ($section['color_hex'] ?? '888888');
+            $pdf->colorHex = (string) ($section['color_hex'] ?? RoleSheetPdf::HOT_ORANGE);
             $pdf->sectionSubject = (string) ($section['subject'] ?? '');
             $pdf->noshowSubject = (bool) ($section['noshow'] ?? false);
             $pdf->logoPath = self::logoFile($section['logo_stem'] ?? null);
