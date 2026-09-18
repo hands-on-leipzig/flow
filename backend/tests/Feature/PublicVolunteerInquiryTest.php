@@ -2,6 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Api\EventVolunteerInquiryController;
+use App\Models\Event;
+use App\Models\VolunteerInquiry;
 use App\Services\StaffingSyncService;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
@@ -31,7 +34,7 @@ class PublicVolunteerInquiryTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_stores_inquiry_and_adds_person_to_roster(): void
+    public function test_stores_inquiry_without_adding_person(): void
     {
         $this->mockOpenPositions([
             1 => [[
@@ -52,6 +55,46 @@ class PublicVolunteerInquiryTest extends TestCase
         ]);
 
         $response->assertCreated();
+        $this->assertSame(0, DB::table('volunteer_person')->count());
+        $this->assertSame(0, DB::table('event_volunteer_roster')->count());
+        $this->assertDatabaseHas('volunteer_inquiry', [
+            'event' => 1,
+            'role' => 'Schiedsrichter',
+            'email' => 'ada@example.org',
+            'status' => 'pending',
+            'volunteer_person' => null,
+        ]);
+        $listed = app(EventVolunteerInquiryController::class)->index(Event::query()->findOrFail(1));
+        $this->assertCount(1, $listed->getData(true)['inquiries']);
+        $this->assertSame('Ada', $listed->getData(true)['inquiries'][0]['first_name']);
+    }
+
+    public function test_accept_creates_person_and_roster(): void
+    {
+        $this->mockOpenPositions([
+            1 => [[
+                'key' => 'cross',
+                'critical' => [['role_id' => 1, 'label' => 'Schiedsrichter', 'sequence' => 1]],
+                'recommended' => [],
+            ]],
+        ]);
+
+        $this->postJson('/api/public/volunteer-inquiries', [
+            'event_id' => 1,
+            'role' => 'Schiedsrichter',
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada@example.org',
+            'mobile' => '0171 1234567',
+        ])->assertCreated();
+
+        $event = Event::query()->findOrFail(1);
+        $inquiry = VolunteerInquiry::query()->firstOrFail();
+        $controller = app(EventVolunteerInquiryController::class);
+
+        $accepted = $controller->accept($event, $inquiry);
+        $this->assertSame(200, $accepted->getStatusCode());
+
         $this->assertDatabaseHas('volunteer_person', [
             'email' => 'ada@example.org',
             'regional_partner' => 1,
@@ -63,10 +106,45 @@ class PublicVolunteerInquiryTest extends TestCase
             'volunteer_person' => $personId,
         ]);
         $this->assertDatabaseHas('volunteer_inquiry', [
-            'event' => 1,
-            'role' => 'Schiedsrichter',
-            'email' => 'ada@example.org',
+            'id' => $inquiry->id,
+            'status' => 'accepted',
+            'volunteer_person' => $personId,
         ]);
+        $this->assertSame([], $controller->index($event)->getData(true)['inquiries']);
+    }
+
+    public function test_decline_leaves_person_pool_empty(): void
+    {
+        $this->mockOpenPositions([
+            1 => [[
+                'key' => 'cross',
+                'critical' => [['role_id' => 1, 'label' => 'Schiedsrichter', 'sequence' => 1]],
+                'recommended' => [],
+            ]],
+        ]);
+
+        $this->postJson('/api/public/volunteer-inquiries', [
+            'event_id' => 1,
+            'role' => 'Schiedsrichter',
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada@example.org',
+        ])->assertCreated();
+
+        $event = Event::query()->findOrFail(1);
+        $inquiry = VolunteerInquiry::query()->firstOrFail();
+        $controller = app(EventVolunteerInquiryController::class);
+
+        $declined = $controller->decline($event, $inquiry);
+        $this->assertSame(200, $declined->getStatusCode());
+        $this->assertSame(0, DB::table('volunteer_person')->count());
+        $this->assertSame(0, DB::table('event_volunteer_roster')->count());
+        $this->assertDatabaseHas('volunteer_inquiry', [
+            'id' => $inquiry->id,
+            'status' => 'declined',
+            'volunteer_person' => null,
+        ]);
+        $this->assertSame([], $controller->index($event)->getData(true)['inquiries']);
     }
 
     public function test_rejects_role_that_is_not_open(): void
@@ -261,6 +339,8 @@ class PublicVolunteerInquiryTest extends TestCase
                 $table->string('email', 255);
                 $table->string('mobile', 50)->nullable();
                 $table->text('message')->nullable();
+                $table->string('status', 20)->default('pending');
+                $table->timestamp('decided_at')->nullable();
                 $table->timestamp('created_at')->nullable();
             });
         }

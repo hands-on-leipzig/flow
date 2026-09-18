@@ -70,6 +70,11 @@ class Event extends Model
         return $this->hasMany(CheckIn::class, 'event');
     }
 
+    public function inquiries()
+    {
+        return $this->hasMany(VolunteerInquiry::class, 'event');
+    }
+
     protected $with = ['programs'];
 
     public function regionalPartner()

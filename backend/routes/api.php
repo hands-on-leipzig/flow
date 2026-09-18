@@ -55,6 +55,7 @@ use App\Http\Controllers\Api\TeamPublicFormController;
 use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
+use App\Http\Controllers\Api\EventVolunteerInquiryController;
 use App\Http\Controllers\Api\VolunteerPersonController;
 use App\Http\Controllers\Api\VolunteerPublicFormController;
 use App\Models\Event;
@@ -349,6 +350,9 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/volunteers/export', [VolunteerPersonController::class, 'exportXlsx']);
     Route::put('/volunteers/{volunteer}', [VolunteerPersonController::class, 'update']);
     Route::delete('/volunteers/{volunteer}', [VolunteerPersonController::class, 'destroy']);
+    Route::get('/events/{event}/volunteer-inquiries', [EventVolunteerInquiryController::class, 'index']);
+    Route::post('/events/{event}/volunteer-inquiries/{inquiry}/accept', [EventVolunteerInquiryController::class, 'accept']);
+    Route::post('/events/{event}/volunteer-inquiries/{inquiry}/decline', [EventVolunteerInquiryController::class, 'decline']);
     Route::get('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'index']);
     Route::post('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'store']);
     Route::put('/events/{event}/volunteer-fields/public-form', [EventVolunteerFieldController::class, 'replacePublicForm']);

@@ -49,21 +49,80 @@ class VolunteerInquiryService
         }
 
         $inquiry = DB::transaction(function () use ($event, $role, $email, $firstName, $lastName, $message, $mobileResult) {
+            $existing = VolunteerInquiry::query()
+                ->where('event', $event->id)
+                ->where('email', $email)
+                ->where('role', $role)
+                ->where('status', VolunteerInquiry::STATUS_PENDING)
+                ->first();
+
+            $payload = [
+                'event' => $event->id,
+                'volunteer_person' => null,
+                'role' => $role,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'email' => $email,
+                'mobile' => $mobileResult['normalized'],
+                'message' => $message,
+                'status' => VolunteerInquiry::STATUS_PENDING,
+                'decided_at' => null,
+            ];
+
+            if ($existing) {
+                $existing->fill($payload);
+                $existing->save();
+
+                return $existing;
+            }
+
+            $payload['created_at'] = now();
+
+            return VolunteerInquiry::create($payload);
+        });
+
+        return ['inquiry_id' => (int) $inquiry->id];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function pendingForEvent(Event $event): array
+    {
+        return VolunteerInquiry::query()
+            ->where('event', $event->id)
+            ->where('status', VolunteerInquiry::STATUS_PENDING)
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (VolunteerInquiry $inquiry) => $this->serialize($inquiry))
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function accept(Event $event, VolunteerInquiry $inquiry): array
+    {
+        $this->assertInquiryOnEvent($event, $inquiry);
+        $this->assertPending($inquiry);
+
+        $inquiry = DB::transaction(function () use ($event, $inquiry) {
             $person = VolunteerPerson::query()
                 ->where('regional_partner', $event->regional_partner)
-                ->where('email', $email)
+                ->where('email', $inquiry->email)
                 ->first();
 
             if (! $person) {
                 $person = VolunteerPerson::create([
                     'regional_partner' => $event->regional_partner,
-                    'first_name' => $firstName,
-                    'last_name' => $lastName,
-                    'email' => $email,
-                    'mobile' => $mobileResult['normalized'],
+                    'first_name' => $inquiry->first_name,
+                    'last_name' => $inquiry->last_name,
+                    'email' => $inquiry->email,
+                    'mobile' => $inquiry->mobile,
                 ]);
-            } elseif ($mobileResult['normalized'] && ! $person->mobile) {
-                $person->mobile = $mobileResult['normalized'];
+            } elseif ($inquiry->mobile && ! $person->mobile) {
+                $person->mobile = $inquiry->mobile;
                 $person->save();
             }
 
@@ -77,20 +136,65 @@ class VolunteerInquiryService
                 ]
             );
 
-            return VolunteerInquiry::create([
-                'event' => $event->id,
-                'volunteer_person' => $person->id,
-                'role' => $role,
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'email' => $email,
-                'mobile' => $mobileResult['normalized'],
-                'message' => $message,
-                'created_at' => now(),
-            ]);
+            $inquiry->volunteer_person = $person->id;
+            $inquiry->status = VolunteerInquiry::STATUS_ACCEPTED;
+            $inquiry->decided_at = now();
+            $inquiry->save();
+
+            return $inquiry->fresh();
         });
 
-        return ['inquiry_id' => (int) $inquiry->id];
+        return $this->serialize($inquiry);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function decline(Event $event, VolunteerInquiry $inquiry): array
+    {
+        $this->assertInquiryOnEvent($event, $inquiry);
+        $this->assertPending($inquiry);
+
+        $inquiry->status = VolunteerInquiry::STATUS_DECLINED;
+        $inquiry->decided_at = now();
+        $inquiry->save();
+
+        return $this->serialize($inquiry);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function serialize(VolunteerInquiry $inquiry): array
+    {
+        return [
+            'id' => (int) $inquiry->id,
+            'event' => (int) $inquiry->event,
+            'role' => $inquiry->role,
+            'first_name' => $inquiry->first_name,
+            'last_name' => $inquiry->last_name,
+            'email' => $inquiry->email,
+            'mobile' => $inquiry->mobile,
+            'message' => $inquiry->message,
+            'status' => $inquiry->status,
+            'created_at' => optional($inquiry->created_at)?->toIso8601String(),
+        ];
+    }
+
+    private function assertInquiryOnEvent(Event $event, VolunteerInquiry $inquiry): void
+    {
+        if ((int) $inquiry->event !== (int) $event->id) {
+            abort(404);
+        }
+    }
+
+    private function assertPending(VolunteerInquiry $inquiry): void
+    {
+        if (! $inquiry->isPending()) {
+            throw ValidationException::withMessages([
+                'inquiry' => 'Diese Anfrage ist bereits entschieden.',
+            ]);
+        }
     }
 
     private function assertEventAcceptsInquiries(Event $event): void
