@@ -175,7 +175,7 @@ function laneTimelineItems(lane) {
 }
 
 function teamMeta(team) {
-  return [team?.organization, team?.location].filter(Boolean).join(' · ')
+  return [team?.ref, team?.organization, team?.location].filter(Boolean).join(' · ')
 }
 
 function laneCapacity(lane) {
@@ -720,7 +720,7 @@ onMounted(async () => {
                   :key="`${lane.program_id}-${team.ref ?? index}`"
                   class="pe-lane-item"
               >
-                <span class="pe-lane-item__key">{{ team.ref || '–' }}</span>
+                <!--<span class="pe-lane-item__key">{{ team.name || '–' }}</span>-->
                 <span class="pe-lane-item__body">
                   <span class="pe-lane-item__label">{{ team.name }}</span>
                   <span v-if="team.organization || team.location" class="pe-lane-item__meta">{{ teamMeta(team) }}</span>

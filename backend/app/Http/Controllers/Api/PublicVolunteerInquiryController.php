@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\VolunteerInquiryService;
+use App\Support\DrahtContactId;
+use App\Support\KeycloakAccessToken;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -24,6 +26,10 @@ class PublicVolunteerInquiryController extends Controller
             'mobile' => 'nullable|string|max:50',
             'message' => 'nullable|string|max:2000',
         ]);
+
+        $validated['draht_id'] = DrahtContactId::fromClaims(
+            KeycloakAccessToken::optionalClaims($request) ?? []
+        );
 
         $result = $this->inquiries->submit($validated);
 

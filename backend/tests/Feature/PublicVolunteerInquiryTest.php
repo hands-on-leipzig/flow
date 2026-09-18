@@ -8,8 +8,10 @@ use App\Mail\VolunteerInquiryDeclinedMail;
 use App\Mail\VolunteerInquiryPlannerMail;
 use App\Models\Event;
 use App\Models\VolunteerInquiry;
+use App\Models\VolunteerPerson;
 use App\Services\StaffingSyncService;
 use Carbon\Carbon;
+use Firebase\JWT\JWT;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -18,6 +20,10 @@ use Tests\TestCase;
 
 class PublicVolunteerInquiryTest extends TestCase
 {
+    private string $privatePem;
+
+    private string $publicKeyRelativePath = 'storage/framework/testing/oauth-public.pem';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -30,6 +36,10 @@ class PublicVolunteerInquiryTest extends TestCase
         $this->createSchema();
         $this->truncateData();
         $this->seedBase();
+        $this->writeKeyPair();
+        config([
+            'services.keycloak.public_key_path' => $this->publicKeyRelativePath,
+        ]);
         Mail::fake();
     }
 
@@ -68,10 +78,13 @@ class PublicVolunteerInquiryTest extends TestCase
             'email' => 'ada@example.org',
             'status' => 'pending',
             'volunteer_person' => null,
+            'draht_id' => null,
         ]);
         $listed = app(EventVolunteerInquiryController::class)->index(Event::query()->findOrFail(1));
         $this->assertCount(1, $listed->getData(true)['inquiries']);
         $this->assertSame('Ada', $listed->getData(true)['inquiries'][0]['first_name']);
+        $this->assertFalse($listed->getData(true)['inquiries'][0]['has_account']);
+        $this->assertNull($listed->getData(true)['inquiries'][0]['draht_id']);
         Mail::assertSent(VolunteerInquiryPlannerMail::class, function (VolunteerInquiryPlannerMail $mail) {
             return $mail->hasTo('rp@example.org')
                 && $mail->eventName === 'Leipzig'
@@ -112,6 +125,7 @@ class PublicVolunteerInquiryTest extends TestCase
             'email' => 'ada@example.org',
             'regional_partner' => 1,
             'first_name' => 'Ada',
+            'draht_id' => null,
         ]);
         $personId = (int) DB::table('volunteer_person')->where('email', 'ada@example.org')->value('id');
         $this->assertDatabaseHas('event_volunteer_roster', [
@@ -188,6 +202,158 @@ class PublicVolunteerInquiryTest extends TestCase
 
         $response->assertStatus(422);
         $this->assertSame(0, DB::table('volunteer_inquiry')->count());
+    }
+
+    public function test_ignores_client_supplied_draht_id_without_token(): void
+    {
+        $this->mockOpenPositions([
+            1 => [[
+                'key' => 'cross',
+                'critical' => [['role_id' => 1, 'label' => 'Schiedsrichter', 'sequence' => 1]],
+                'recommended' => [],
+            ]],
+        ]);
+
+        $this->postJson('/api/public/volunteer-inquiries', [
+            'event_id' => 1,
+            'role' => 'Schiedsrichter',
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada@example.org',
+            'draht_id' => 777,
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('volunteer_inquiry', [
+            'email' => 'ada@example.org',
+            'draht_id' => null,
+        ]);
+    }
+
+    public function test_signed_in_inquiry_stores_draht_id_from_hero_token(): void
+    {
+        $this->mockOpenPositions([
+            1 => [[
+                'key' => 'cross',
+                'critical' => [['role_id' => 1, 'label' => 'Schiedsrichter', 'sequence' => 1]],
+                'recommended' => [],
+            ]],
+        ]);
+
+        $this->postJson('/api/public/volunteer-inquiries', [
+            'event_id' => 1,
+            'role' => 'Schiedsrichter',
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada@example.org',
+        ], $this->heroBearer(['dolibarr_contact_id' => 4242]))->assertCreated();
+
+        $this->assertDatabaseHas('volunteer_inquiry', [
+            'email' => 'ada@example.org',
+            'draht_id' => 4242,
+        ]);
+        $listed = app(EventVolunteerInquiryController::class)->index(Event::query()->findOrFail(1));
+        $this->assertTrue($listed->getData(true)['inquiries'][0]['has_account']);
+        $this->assertSame(4242, $listed->getData(true)['inquiries'][0]['draht_id']);
+    }
+
+    public function test_accept_links_existing_local_person_by_email_and_attaches_draht_id(): void
+    {
+        $this->mockOpenPositions([
+            1 => [[
+                'key' => 'cross',
+                'critical' => [['role_id' => 1, 'label' => 'Schiedsrichter', 'sequence' => 1]],
+                'recommended' => [],
+            ]],
+        ]);
+
+        VolunteerPerson::query()->create([
+            'regional_partner' => 1,
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada@example.org',
+            'mobile' => null,
+        ]);
+
+        $this->postJson('/api/public/volunteer-inquiries', [
+            'event_id' => 1,
+            'role' => 'Schiedsrichter',
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada@example.org',
+        ], $this->heroBearer(['dolibarr_id' => 88]))->assertCreated();
+
+        $event = Event::query()->findOrFail(1);
+        $inquiry = VolunteerInquiry::query()->firstOrFail();
+        app(EventVolunteerInquiryController::class)->accept($event, $inquiry);
+
+        $this->assertSame(1, VolunteerPerson::query()->count());
+        $this->assertDatabaseHas('volunteer_person', [
+            'email' => 'ada@example.org',
+            'draht_id' => 88,
+        ]);
+    }
+
+    public function test_accept_matches_existing_person_by_draht_id_even_when_email_differs(): void
+    {
+        $this->mockOpenPositions([
+            1 => [[
+                'key' => 'cross',
+                'critical' => [['role_id' => 1, 'label' => 'Schiedsrichter', 'sequence' => 1]],
+                'recommended' => [],
+            ]],
+        ]);
+
+        $existing = VolunteerPerson::query()->create([
+            'regional_partner' => 1,
+            'draht_id' => 55,
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'old@example.org',
+        ]);
+
+        $this->postJson('/api/public/volunteer-inquiries', [
+            'event_id' => 1,
+            'role' => 'Schiedsrichter',
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'new@example.org',
+        ], $this->heroBearer(['dolibarr_contact_id' => 55]))->assertCreated();
+
+        $event = Event::query()->findOrFail(1);
+        $inquiry = VolunteerInquiry::query()->firstOrFail();
+        app(EventVolunteerInquiryController::class)->accept($event, $inquiry);
+
+        $this->assertSame(1, VolunteerPerson::query()->count());
+        $this->assertDatabaseHas('volunteer_inquiry', [
+            'id' => $inquiry->id,
+            'volunteer_person' => $existing->id,
+            'status' => 'accepted',
+        ]);
+        $this->assertSame('old@example.org', VolunteerPerson::query()->find($existing->id)?->email);
+    }
+
+    public function test_invalid_bearer_is_ignored_and_stays_local(): void
+    {
+        $this->mockOpenPositions([
+            1 => [[
+                'key' => 'cross',
+                'critical' => [['role_id' => 1, 'label' => 'Schiedsrichter', 'sequence' => 1]],
+                'recommended' => [],
+            ]],
+        ]);
+
+        $this->postJson('/api/public/volunteer-inquiries', [
+            'event_id' => 1,
+            'role' => 'Schiedsrichter',
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada@example.org',
+        ], ['Authorization' => 'Bearer not-a-jwt'])->assertCreated();
+
+        $this->assertDatabaseHas('volunteer_inquiry', [
+            'email' => 'ada@example.org',
+            'draht_id' => null,
+        ]);
     }
 
     public function test_rejects_event_without_public_helper_search(): void
@@ -360,12 +526,17 @@ class PublicVolunteerInquiryTest extends TestCase
             Schema::create('volunteer_person', function (Blueprint $table) {
                 $table->increments('id');
                 $table->unsignedInteger('regional_partner');
+                $table->unsignedInteger('draht_id')->nullable();
                 $table->string('first_name', 100);
                 $table->string('last_name', 100);
                 $table->string('email', 255);
                 $table->string('mobile', 50)->nullable();
                 $table->string('organization', 255)->nullable();
                 $table->timestamps();
+            });
+        } elseif (! Schema::hasColumn('volunteer_person', 'draht_id')) {
+            Schema::table('volunteer_person', function (Blueprint $table) {
+                $table->unsignedInteger('draht_id')->nullable();
             });
         }
         if (! Schema::hasTable('event_volunteer_roster')) {
@@ -381,6 +552,7 @@ class PublicVolunteerInquiryTest extends TestCase
                 $table->increments('id');
                 $table->unsignedInteger('event');
                 $table->unsignedInteger('volunteer_person')->nullable();
+                $table->unsignedInteger('draht_id')->nullable();
                 $table->string('role', 255);
                 $table->string('first_name', 100);
                 $table->string('last_name', 100);
@@ -391,6 +563,48 @@ class PublicVolunteerInquiryTest extends TestCase
                 $table->timestamp('decided_at')->nullable();
                 $table->timestamp('created_at')->nullable();
             });
+        } elseif (! Schema::hasColumn('volunteer_inquiry', 'draht_id')) {
+            Schema::table('volunteer_inquiry', function (Blueprint $table) {
+                $table->unsignedInteger('draht_id')->nullable();
+            });
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $extraClaims
+     * @return array{Authorization: string}
+     */
+    private function heroBearer(array $extraClaims): array
+    {
+        $payload = array_merge([
+            'iss' => 'https://sso.hands-on-technology.org/realms/master',
+            'aud' => 'hero',
+            'sub' => 'volunteer-1',
+            'name' => 'Ada Lovelace',
+            'email' => 'ada@example.org',
+            'exp' => time() + 3600,
+            'iat' => time(),
+        ], $extraClaims);
+
+        return ['Authorization' => 'Bearer '.JWT::encode($payload, $this->privatePem, 'RS256')];
+    }
+
+    private function writeKeyPair(): void
+    {
+        $key = openssl_pkey_new([
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        ]);
+        $this->assertNotFalse($key);
+
+        $privatePem = '';
+        openssl_pkey_export($key, $privatePem);
+        $this->privatePem = $privatePem;
+        $details = openssl_pkey_get_details($key);
+        $path = base_path($this->publicKeyRelativePath);
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0777, true);
+        }
+        file_put_contents($path, $details['key']);
     }
 }

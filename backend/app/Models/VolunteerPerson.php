@@ -12,12 +12,22 @@ class VolunteerPerson extends Model
 
     protected $fillable = [
         'regional_partner',
+        'draht_id',
         'first_name',
         'last_name',
         'email',
         'mobile',
         'organization',
     ];
+
+    protected $casts = [
+        'draht_id' => 'integer',
+    ];
+
+    public function hasAccount(): bool
+    {
+        return (int) $this->draht_id > 0;
+    }
 
     public function regionalPartner(): BelongsTo
     {

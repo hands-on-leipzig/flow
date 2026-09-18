@@ -8,6 +8,8 @@ export type VolunteerPersonRef = {
   organization?: string | null
   updated_at?: string | null
   on_roster?: boolean
+  draht_id?: number | null
+  has_account?: boolean
 }
 
 export function volunteerDisplayName(person: Pick<VolunteerPersonRef, 'first_name' | 'last_name'>) {

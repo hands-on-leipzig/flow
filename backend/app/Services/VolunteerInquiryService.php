@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
 class VolunteerInquiryService
 {
     /**
-     * @param  array{event_id: int, role: string, first_name: string, last_name: string, email: string, mobile?: string|null, message?: string|null}  $input
+     * @param  array{event_id: int, role: string, first_name: string, last_name: string, email: string, mobile?: string|null, message?: string|null, draht_id?: int|null}  $input
      * @return array{inquiry_id: int}
      */
     public function submit(array $input): array
@@ -55,7 +55,9 @@ class VolunteerInquiryService
             ]);
         }
 
-        $inquiry = DB::transaction(function () use ($event, $role, $email, $firstName, $lastName, $message, $mobileResult) {
+        $drahtId = $this->positiveInt($input['draht_id'] ?? null);
+
+        $inquiry = DB::transaction(function () use ($event, $role, $email, $firstName, $lastName, $message, $mobileResult, $drahtId) {
             $existing = VolunteerInquiry::query()
                 ->where('event', $event->id)
                 ->where('email', $email)
@@ -66,6 +68,7 @@ class VolunteerInquiryService
             $payload = [
                 'event' => $event->id,
                 'volunteer_person' => null,
+                'draht_id' => $drahtId,
                 'role' => $role,
                 'first_name' => $firstName,
                 'last_name' => $lastName,
@@ -119,23 +122,7 @@ class VolunteerInquiryService
         $this->assertPending($inquiry);
 
         $inquiry = DB::transaction(function () use ($event, $inquiry) {
-            $person = VolunteerPerson::query()
-                ->where('regional_partner', $event->regional_partner)
-                ->where('email', $inquiry->email)
-                ->first();
-
-            if (! $person) {
-                $person = VolunteerPerson::create([
-                    'regional_partner' => $event->regional_partner,
-                    'first_name' => $inquiry->first_name,
-                    'last_name' => $inquiry->last_name,
-                    'email' => $inquiry->email,
-                    'mobile' => $inquiry->mobile,
-                ]);
-            } elseif ($inquiry->mobile && ! $person->mobile) {
-                $person->mobile = $inquiry->mobile;
-                $person->save();
-            }
+            $person = $this->resolveOrCreatePerson($event, $inquiry);
 
             EventVolunteerRoster::firstOrCreate(
                 [
@@ -202,9 +189,69 @@ class VolunteerInquiryService
             'email' => $inquiry->email,
             'mobile' => $inquiry->mobile,
             'message' => $inquiry->message,
+            'draht_id' => $inquiry->hasAccount() ? (int) $inquiry->draht_id : null,
+            'has_account' => $inquiry->hasAccount(),
             'status' => $inquiry->status,
             'created_at' => optional($inquiry->created_at)?->toIso8601String(),
         ];
+    }
+
+    private function resolveOrCreatePerson(Event $event, VolunteerInquiry $inquiry): VolunteerPerson
+    {
+        $rp = (int) $event->regional_partner;
+        $drahtId = $inquiry->hasAccount() ? (int) $inquiry->draht_id : null;
+
+        $person = null;
+        if ($drahtId) {
+            $person = VolunteerPerson::query()
+                ->where('regional_partner', $rp)
+                ->where('draht_id', $drahtId)
+                ->first();
+        }
+
+        if (! $person) {
+            $person = VolunteerPerson::query()
+                ->where('regional_partner', $rp)
+                ->where('email', $inquiry->email)
+                ->first();
+        }
+
+        if (! $person) {
+            return VolunteerPerson::create([
+                'regional_partner' => $rp,
+                'draht_id' => $drahtId,
+                'first_name' => $inquiry->first_name,
+                'last_name' => $inquiry->last_name,
+                'email' => $inquiry->email,
+                'mobile' => $inquiry->mobile,
+            ]);
+        }
+
+        $dirty = false;
+        if ($drahtId && ! $person->hasAccount()) {
+            $person->draht_id = $drahtId;
+            $dirty = true;
+        }
+        if ($inquiry->mobile && ! $person->mobile) {
+            $person->mobile = $inquiry->mobile;
+            $dirty = true;
+        }
+        if ($dirty) {
+            $person->save();
+        }
+
+        return $person;
+    }
+
+    private function positiveInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $id = (int) $value;
+
+        return $id > 0 ? $id : null;
     }
 
     private function assertInquiryOnEvent(Event $event, VolunteerInquiry $inquiry): void

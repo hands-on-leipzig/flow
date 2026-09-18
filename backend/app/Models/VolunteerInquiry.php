@@ -20,6 +20,7 @@ class VolunteerInquiry extends Model
     protected $fillable = [
         'event',
         'volunteer_person',
+        'draht_id',
         'role',
         'first_name',
         'last_name',
@@ -32,9 +33,15 @@ class VolunteerInquiry extends Model
     ];
 
     protected $casts = [
+        'draht_id' => 'integer',
         'created_at' => 'datetime',
         'decided_at' => 'datetime',
     ];
+
+    public function hasAccount(): bool
+    {
+        return (int) $this->draht_id > 0;
+    }
 
     public function event(): BelongsTo
     {

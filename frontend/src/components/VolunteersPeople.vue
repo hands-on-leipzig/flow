@@ -30,6 +30,8 @@ type Inquiry = {
   mobile: string | null
   message: string | null
   created_at: string | null
+  draht_id?: number | null
+  has_account?: boolean
 }
 
 type PersonDraft = {
@@ -166,7 +168,10 @@ function inquiryName(inquiry: Inquiry) {
 const acceptInquiryMessage = computed(() => {
   const inquiry = acceptInquiryTarget.value
   if (!inquiry) return ''
-  return `Bitte bestätige die Übernahme von ${inquiryName(inquiry)}. Die Person kommt in den Personenstamm und auf die Helfer:innenliste dieser Veranstaltung.`
+  const linked = inquiry.has_account
+    ? ' Die Person ist mit einem Hands-On-Konto verknüpft.'
+    : ' Die Person bleibt ein lokaler Kontakt ohne Konto.'
+  return `Bitte bestätige die Übernahme von ${inquiryName(inquiry)}. Die Person kommt in den Personenstamm und auf die Helfer:innenliste dieser Veranstaltung.${linked}`
 })
 
 const declineInquiryMessage = computed(() => {
@@ -484,7 +489,7 @@ watch(eventId, () => {
           <h1 class="vol-page__title">Personen</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Verwalten von Kontakten (saison-übergreifend)</p>
+        <p class="vol-page__sub">Verwalten von Kontakten (saison-übergreifend). Neu anlegen bleibt ohne Konto möglich.</p>
       </div>
       <div class="vol-page__actions">
         <button
@@ -518,7 +523,7 @@ watch(eventId, () => {
         <span class="vol-inquiries__count">{{ inquiries.length }}</span>
       </div>
       <p class="vol-inquiries__lead">
-        Diese Personen haben sich gemeldet. Erst nach Übernahme erscheinen sie in der Kontaktliste.
+        Diese Personen haben sich gemeldet. Ein Konto-Hinweis bedeutet Hands-On-Anmeldung. Erst nach Übernahme erscheinen sie in der Kontaktliste.
       </p>
       <ul class="vol-inquiries__list">
         <li
@@ -529,6 +534,7 @@ watch(eventId, () => {
           <div class="vol-inquiry__body">
             <div class="vol-inquiry__name-row">
               <span class="vol-inquiry__badge">Anfrage</span>
+              <span v-if="inquiry.has_account" class="vol-account-badge">Konto</span>
               <strong>{{ inquiryName(inquiry) }}</strong>
             </div>
             <p class="vol-inquiry__meta">
@@ -811,7 +817,12 @@ watch(eventId, () => {
                 </td>
               </template>
               <template v-else>
-                <td>{{ p.first_name }}</td>
+                <td>
+                  <span class="vol-person-name">
+                    {{ p.first_name }}
+                    <span v-if="p.has_account" class="vol-account-badge">Konto</span>
+                  </span>
+                </td>
                 <td>{{ p.last_name }}</td>
                 <td>{{ p.email }}</td>
                 <td>{{ p.mobile?.trim() || '—' }}</td>
@@ -996,6 +1007,24 @@ watch(eventId, () => {
   border-radius: var(--radius-full);
   background: var(--color-accent);
   color: #fff;
+}
+
+.vol-account-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.08rem 0.4rem;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent);
+}
+
+.vol-person-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
 }
 
 .vol-inquiry__meta {
