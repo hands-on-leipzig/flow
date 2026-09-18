@@ -18,6 +18,26 @@ class PublicPlanService
 
     private const TABLE_MATCH_CODES = ['r_match', 'f8_r_match'];
 
+    private const WITH_TEAM_CODES = ['e_with_team', 'j_with_team', 'f8_j_with_team', 'lc_with_team'];
+
+    private const TABLE_SIDE_CODES = ['r_check', 'f8_r_alliance'];
+
+    private const SLOT_BLOCK_CODES = ['e_slot_block', 'c_slot_block', 'f8_slot_block'];
+
+    /** Morning robot-game groups: volunteer/unassigned sides stay off other teams’ sheets. */
+    private const ROBOT_GAME_GROUP_CODES = [
+        'r_test_round',
+        'r_round_1',
+        'r_round_2',
+        'r_round_3',
+        'f8_test_round',
+        'f8_round_1',
+        'f8_round_2',
+        'f8_round_3',
+        'f8_round_4',
+        'f8_round_5',
+    ];
+
     public function __construct(
         private ActivityFetcherService $activities,
         private RoleFetcherService $roleFetcher,
@@ -622,42 +642,39 @@ class PublicPlanService
 
     private function activityMatchesTeam(object $row, int $team): bool
     {
+        $code = (string) ($row->activity_type_code ?? '');
+        $groupCode = (string) ($row->group_activity_type_code ?? '');
         $atd = (int) ($row->activity_type_detail_id ?? 0);
         $groupAtd = (int) ($row->activity_type_detail ?? $row->activity_type_group ?? 0);
 
-        // 1 Explore judging, 17 Challenge jury, 42 LC with team
-        if (in_array($atd, [1, 17, 42], true)) {
+        if (in_array($code, self::WITH_TEAM_CODES, true) || in_array($atd, [1, 17, 42], true)) {
             return (int) ($row->team ?? 0) === $team;
         }
 
-        // 15 Match
-        if ($atd === 15) {
+        if (in_array($code, self::TABLE_MATCH_CODES, true) || $atd === 15) {
             $t1 = $row->table_1_team !== null ? (int) $row->table_1_team : null;
             $t2 = $row->table_2_team !== null ? (int) $row->table_2_team : null;
             if ($t1 === $team || $t2 === $team) {
                 return true;
             }
-            // Shared match-group rows without both teams set (non robot-game rounds)
-            $robotGameGroups = [8, 9, 10, 11];
-            if (! in_array($groupAtd, $robotGameGroups, true) && ($t1 === null || $t2 === null)) {
+            $robotGameGroup = in_array($groupCode, self::ROBOT_GAME_GROUP_CODES, true)
+                || in_array($groupAtd, [8, 9, 10, 11], true);
+            if (! $robotGameGroup && ($t1 === null || $t2 === null)) {
                 return true;
             }
 
             return false;
         }
 
-        // 16 Robot-Check
-        if ($atd === 16) {
+        if (in_array($code, self::TABLE_SIDE_CODES, true) || $atd === 16) {
             return (int) ($row->table_1_team ?? 0) === $team
                 || (int) ($row->table_2_team ?? 0) === $team;
         }
 
-        // 64/65 Slot blocks
-        if (in_array($atd, [64, 65], true)) {
+        if (in_array($code, self::SLOT_BLOCK_CODES, true) || in_array($atd, [64, 65], true)) {
             return (int) ($row->slot_team ?? 0) === $team;
         }
 
-        // Other activities: keep when not team-specific
         return $row->team === null;
     }
 

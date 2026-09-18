@@ -251,6 +251,79 @@ class PublicPlanServiceTest extends TestCase
         $this->assertSame('free', $payload['groups'][0]['activities'][0]['extra_block_type']);
     }
 
+    public function test_get_schedule_keeps_only_this_future_teams_matches(): void
+    {
+        $fetcher = Mockery::mock(ActivityFetcherService::class);
+        $fetcher->shouldReceive('fetchActivities')->once()->andReturn(collect([
+            $this->futureScheduleRow(
+                activityId: 1,
+                groupId: 10,
+                code: 'f8_opening',
+                atdId: 73,
+                groupCode: 'f8_opening',
+                start: '08:00:00',
+                name: 'Eröffnung Future 8+',
+            ),
+            $this->futureScheduleRow(
+                activityId: 2,
+                groupId: 11,
+                code: 'f8_r_match',
+                atdId: 74,
+                groupCode: 'f8_round_1',
+                start: '09:00:00',
+                name: 'Game Match',
+                table1Team: 1,
+                table2Team: 2,
+            ),
+            $this->futureScheduleRow(
+                activityId: 3,
+                groupId: 11,
+                code: 'f8_r_match',
+                atdId: 74,
+                groupCode: 'f8_round_1',
+                start: '09:10:00',
+                name: 'Game Match',
+                table1Team: 3,
+                table2Team: 4,
+            ),
+            $this->futureScheduleRow(
+                activityId: 4,
+                groupId: 12,
+                code: 'f8_r_alliance',
+                atdId: 90,
+                groupCode: 'f8_round_1',
+                start: '08:50:00',
+                name: 'Allianz-Gespräch',
+                table1Team: 1,
+                table2Team: 2,
+            ),
+            $this->futureScheduleRow(
+                activityId: 5,
+                groupId: 12,
+                code: 'f8_r_alliance',
+                atdId: 90,
+                groupCode: 'f8_round_1',
+                start: '09:00:00',
+                name: 'Allianz-Gespräch',
+                table1Team: 3,
+                table2Team: 4,
+            ),
+        ]));
+        $this->app->instance(ActivityFetcherService::class, $fetcher);
+
+        $payload = app(PublicPlanService::class)->getSchedule(1, [
+            'role' => 21,
+            'team' => 1,
+            'expired' => 'yes',
+        ]);
+
+        $ids = collect($payload['groups'])->flatMap(
+            fn (array $group) => collect($group['activities'])->pluck('activity_id')
+        )->values()->all();
+
+        $this->assertSame([1, 2, 4], $ids);
+    }
+
     public function test_get_roles_includes_team_even_when_role_fetcher_omits_it(): void
     {
         $this->attachFuture8(teams: 2);
@@ -720,6 +793,59 @@ class PublicPlanServiceTest extends TestCase
             'jury_lane' => $lane,
             'jury_team' => $team,
             'explore_group' => null,
+        ];
+    }
+
+    private function futureScheduleRow(
+        int $activityId,
+        int $groupId,
+        string $code,
+        int $atdId,
+        string $groupCode,
+        string $start,
+        string $name,
+        ?int $table1Team = null,
+        ?int $table2Team = null,
+    ): object {
+        return (object) [
+            'activity_id' => $activityId,
+            'activity_group_id' => $groupId,
+            'start_time' => '2026-03-15 '.$start,
+            'end_time' => '2026-03-15 '.$start,
+            'activity_name' => $name,
+            'activity_atd_name' => $name,
+            'activity_type_detail_id' => $atdId,
+            'activity_type_code' => $code,
+            'activity_presence' => 'punctual',
+            'activity_first_program_id' => 8,
+            'activity_first_program_name' => 'Future 8+',
+            'activity_description' => null,
+            'group_atd_name' => $groupCode,
+            'group_first_program_id' => 8,
+            'group_first_program_name' => 'Future 8+',
+            'group_description' => null,
+            'group_activity_type_code' => $groupCode,
+            'group_presence' => 'punctual',
+            'lane' => null,
+            'team' => null,
+            'table_1' => $table1Team !== null ? 1 : null,
+            'table_1_name' => null,
+            'table_1_team' => $table1Team,
+            'table_2' => $table2Team !== null ? 2 : null,
+            'table_2_name' => null,
+            'table_2_team' => $table2Team,
+            'program_name' => 'Future 8+',
+            'jury_team_name' => null,
+            'table_1_team_name' => null,
+            'table_2_team_name' => null,
+            'room_type_id' => null,
+            'room_type_name' => null,
+            'room_id' => null,
+            'room_name' => 'Halle',
+            'room_navigation' => null,
+            'room_is_accessible' => 1,
+            'extra_block_id' => null,
+            'extra_block_type' => null,
         ];
     }
 

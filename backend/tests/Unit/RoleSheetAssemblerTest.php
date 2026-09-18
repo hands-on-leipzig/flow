@@ -170,6 +170,32 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertSame('Tisch 1', $document['sections'][0]['subject']);
     }
 
+    public function test_robot_check_subject_prefixes_table_name(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(11, 'Robot-Checker:in', 3, [
+                    ['value' => 1, 'label' => 'Tisch 1', 'parameter' => 'table', 'noshow' => false],
+                ], 'Robot-Check'),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'activities' => [
+                        $this->activity('09:00:00', '09:05:00', 'punctual', 'r_check', 'Halle', table1Team: 1, table2Team: 2),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [11]);
+
+        $this->assertSame('Robot-Check für Tisch 1', $document['sections'][0]['subject']);
+    }
+
     public function test_slot_blocks_stay_in_ablauf(): void
     {
         $publicPlan = Mockery::mock(PublicPlanService::class);

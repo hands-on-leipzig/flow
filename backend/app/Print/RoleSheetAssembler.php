@@ -130,6 +130,9 @@ final class RoleSheetAssembler
     private static function subject(string $roleName, array $role, array $option): string
     {
         $optionLabel = trim((string) ($option['label'] ?? ''));
+        if ($roleName === 'Robot-Checker:in' && $optionLabel !== '') {
+            return 'Robot-Check für '.$optionLabel;
+        }
         if (trim((string) ($role['group_label'] ?? '')) !== '') {
             return $optionLabel !== '' ? $optionLabel : $roleName;
         }
