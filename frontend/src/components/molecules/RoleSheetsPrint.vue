@@ -195,8 +195,8 @@ onUnmounted(() => stopPreviewReload())
 <template>
   <article class="liquid-surface-inner role-sheets">
     <header class="role-sheets__head">
-      <h2 class="role-sheets__title">Rollenpläne</h2>
-      <p class="role-sheets__sub">Bitte wähle Programme und Rollen.</p>
+      <h2 class="role-sheets__title">Teams und Rollen</h2>
+      <p class="role-sheets__sub">Alle Aktivitäten pro Team bzw. Helfer:innen-Rolle</p>
     </header>
 
     <div class="role-sheets__body">

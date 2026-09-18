@@ -39,8 +39,8 @@ async function downloadPdf() {
 <template>
   <article class="liquid-surface-inner role-sheets">
     <header class="role-sheets__head">
-      <h2 class="role-sheets__title">Raumpläne</h2>
-      <p class="role-sheets__sub">Eine Seite pro Raum.</p>
+      <h2 class="role-sheets__title">Räume</h2>
+      <p class="role-sheets__sub">Alle Aktivitäten pro Raum</p>
     </header>
     <div class="role-sheets__body"></div>
     <footer class="role-sheets__actions">
