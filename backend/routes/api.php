@@ -651,6 +651,9 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::prefix('admin/mail')->group(function () {
         Route::get('/', [MailController::class, 'status']);
+        Route::get('/notifications', [MailController::class, 'notifications']);
+        Route::get('/notifications/{key}/preview', [MailController::class, 'preview'])
+            ->where('key', '[A-Za-z0-9._-]+');
         Route::post('/test', [MailController::class, 'sendTest']);
     });
 });

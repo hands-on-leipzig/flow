@@ -2,9 +2,6 @@
 
 namespace App\Services;
 
-use App\Mail\FlowTestMail;
-use Illuminate\Support\Facades\Mail;
-
 class MailTestService
 {
     /**
@@ -29,10 +26,5 @@ class MailTestService
             'from' => $from,
             'configured' => $configured,
         ];
-    }
-
-    public function sendTest(string $to): void
-    {
-        Mail::to($to)->send(new FlowTestMail);
     }
 }

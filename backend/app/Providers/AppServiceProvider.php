@@ -2,12 +2,13 @@
 
 namespace App\Providers;
 
-use App\Helpers\PdfHelper;
+use App\Mail\MailBrand;
 use App\Mail\Transport\MicrosoftGraphTransport;
 use App\Models\Event;
 use Illuminate\Mail\MailManager;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -49,6 +50,15 @@ class AppServiceProvider extends ServiceProvider
         // Register Blade directive for formatting team names with noshow
         Blade::directive('formatTeamName', function ($expression) {
             return "<?php echo App\Helpers\PdfHelper::formatTeamNameWithNoshow($expression); ?>";
+        });
+
+        View::composer('mail.*', function ($view) {
+            $view->with([
+                'logoSrc' => MailBrand::flowLogoSrc(),
+                'hotLogoSrc' => MailBrand::hotLogoSrc(),
+                'fontStack' => MailBrand::FONT_STACK,
+                'fontFaceCss' => MailBrand::fontFaceCss(),
+            ]);
         });
     }
 }

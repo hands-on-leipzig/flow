@@ -6,7 +6,7 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 
-class FlowTestMail extends Mailable
+class AdminTestMail extends Mailable
 {
     public function envelope(): Envelope
     {
@@ -15,8 +15,6 @@ class FlowTestMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(
-            htmlString: '<p>Das ist eine Testmail aus FLOW.</p>',
-        );
+        return new Content(view: 'mail.admin-test');
     }
 }

@@ -118,9 +118,9 @@ return [
     |
     */
 
-    'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', 'Example'),
-    ],
+    'from' => \App\Support\MailFrom::parse(
+        env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+        env('MAIL_FROM_NAME', 'Example'),
+    ),
 
 ];

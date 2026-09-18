@@ -230,4 +230,4 @@ export function adminSectionPath(key: string = ADMIN_DEFAULT_SECTION): string {
   return `/plan/admin/${key}`
 }
 
-export const ADMIN_FILL_SECTIONS = new Set(['main-tables', 'parameters', 'roles', 'help'])
+export const ADMIN_FILL_SECTIONS = new Set(['main-tables', 'parameters', 'roles', 'help', 'email'])

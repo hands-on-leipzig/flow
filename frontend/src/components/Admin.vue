@@ -165,7 +165,7 @@ onMounted(() => {
       <SharePointAdmin/>
     </div>
 
-    <div v-else-if="activeTab === 'email'">
+    <div v-else-if="activeTab === 'email'" class="admin-shell__fill-child">
       <EmailAdmin/>
     </div>
 
