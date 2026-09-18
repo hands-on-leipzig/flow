@@ -14,6 +14,7 @@ final class RoleSheetAssembler
      * @param  list<int>  $roleIds
      * @return array{
      *     title_short: string,
+     *     title_long: string,
      *     sections: list<array{
      *         subject: string,
      *         noshow: bool,
@@ -46,8 +47,12 @@ final class RoleSheetAssembler
             }
         }
 
+        $titleShort = (string) ($payload['title_short'] ?? '');
+        $titleLong = (string) ($payload['title_long'] ?? $payload['event_name'] ?? $titleShort);
+
         return [
-            'title_short' => (string) ($payload['title_short'] ?? ''),
+            'title_short' => $titleShort,
+            'title_long' => $titleLong,
             'sections' => $sections,
         ];
     }

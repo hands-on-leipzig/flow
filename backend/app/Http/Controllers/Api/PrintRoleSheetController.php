@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Print\RoleSheetAssembler;
 use App\Print\RoleSheetCatalog;
 use App\Print\RoleSheetTcpdfRenderer;
+use App\Services\EventSlugService;
 use Illuminate\Http\Request;
 
 class PrintRoleSheetController extends Controller
@@ -16,6 +17,7 @@ class PrintRoleSheetController extends Controller
         private RoleSheetCatalog $catalog,
         private RoleSheetAssembler $assembler,
         private RoleSheetTcpdfRenderer $renderer,
+        private EventSlugService $slugs,
     ) {}
 
     public function catalog(int $eventId)
@@ -55,9 +57,13 @@ class PrintRoleSheetController extends Controller
         }
 
         $document = $this->assembler->assemble((int) $payload['plan_id'], $ids);
-        $bytes = $this->renderer->render($document);
-
         $event = Event::find($eventId);
+        $document['created_at'] = now('Europe/Berlin')->format('d.m.Y H:i');
+        $document['public_url'] = $this->publicUrl($event);
+        $document['qr_base64'] = is_string($event?->qrcode) && $event->qrcode !== ''
+            ? $event->qrcode
+            : null;
+        $bytes = $this->renderer->render($document);
         $filename = FlowFilename::make('Rollenplaene', 'pdf', $event?->date);
 
         return response($bytes, 200, [
@@ -66,5 +72,18 @@ class PrintRoleSheetController extends Controller
             'X-Filename' => $filename,
             'Access-Control-Expose-Headers' => 'X-Filename',
         ]);
+    }
+
+    private function publicUrl(?Event $event): string
+    {
+        if (! $event) {
+            return '';
+        }
+        $link = trim((string) ($event->link ?? ''));
+        if ($link !== '') {
+            return $link;
+        }
+
+        return (string) ($this->slugs->url($event) ?? '');
     }
 }

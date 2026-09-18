@@ -5,12 +5,25 @@ declare(strict_types=1);
 namespace App\Print;
 
 use App\Support\ProgramCatalog;
+use Endroid\QrCode\Color\Color;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Writer\PngWriter;
 use TCPDF;
 
 final class RoleSheetTcpdfRenderer
 {
     /**
-     * @param  array{title_short?:string,sections?:list<array<string,mixed>>}  $document
+     * @param  array{
+     *     title_short?:string,
+     *     title_long?:string,
+     *     created_at?:string,
+     *     public_url?:string,
+     *     qr_base64?:?string,
+     *     sections?:list<array<string,mixed>>
+     * }  $document
      */
     public function render(array $document): string
     {
@@ -22,22 +35,23 @@ final class RoleSheetTcpdfRenderer
         $pdf->setPrintFooter(true);
         $pdf->setHeaderMargin(0);
         $pdf->setFooterMargin(12);
-        $pdf->SetMargins(12, 16, 12);
+        $pdf->SetMargins(12, 24, 12);
         $pdf->SetAutoPageBreak(true, 22);
 
         NotoTcpdfFont::register($pdf);
         $pdf->regularFont = NotoTcpdfFont::regular();
         $pdf->boldFont = NotoTcpdfFont::bold();
-        $pdf->titleShort = (string) ($document['title_short'] ?? '');
+        $pdf->eventTitle = (string) ($document['title_long'] ?? $document['title_short'] ?? '');
+        $pdf->createdAt = (string) ($document['created_at'] ?? '');
+        $pdf->hotPath = self::hotLogoPath();
+        $pdf->qrPng = self::qrPng($document);
 
         $sections = $document['sections'] ?? [];
         if ($sections === []) {
-            $pdf->sectionStart = true;
             $pdf->AddPage();
         }
 
         foreach ($sections as $section) {
-            $pdf->sectionStart = true;
             $pdf->colorHex = (string) ($section['color_hex'] ?? '888888');
             $pdf->sectionSubject = (string) ($section['subject'] ?? '');
             $pdf->noshowSubject = (bool) ($section['noshow'] ?? false);
@@ -137,9 +151,58 @@ final class RoleSheetTcpdfRenderer
         if (! is_string($stem) || $stem === '') {
             return null;
         }
-        $path = ProgramCatalog::logoPath($stem, 'h');
+        $path = ProgramCatalog::logoPath($stem, 'v');
 
         return is_file($path) ? $path : null;
+    }
+
+    private static function hotLogoPath(): ?string
+    {
+        if (! function_exists('public_path')) {
+            return null;
+        }
+        $path = public_path('flow/hot.png');
+
+        return is_file($path) ? $path : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     */
+    private static function qrPng(array $document): ?string
+    {
+        $stored = $document['qr_base64'] ?? null;
+        if (is_string($stored) && $stored !== '') {
+            $raw = base64_decode($stored, true);
+            if (is_string($raw) && strlen($raw) > 50) {
+                return $raw;
+            }
+        }
+
+        $url = trim((string) ($document['public_url'] ?? ''));
+        if ($url === '') {
+            return null;
+        }
+        if (! str_contains($url, '?')) {
+            $url .= '?source=qr';
+        }
+
+        try {
+            $qr = new QrCode(
+                $url,
+                new Encoding('UTF-8'),
+                ErrorCorrectionLevel::High,
+                300,
+                10,
+                RoundBlockSizeMode::Margin,
+                new Color(0, 0, 0),
+                new Color(255, 255, 255),
+            );
+
+            return (new PngWriter)->write($qr)->getString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }
 
@@ -148,17 +211,21 @@ final class RoleSheetTcpdfRenderer
  */
 final class RoleSheetPdf extends TCPDF
 {
-    public string $titleShort = '';
+    public string $eventTitle = '';
+
+    public string $createdAt = '';
 
     public string $colorHex = '888888';
 
     public ?string $logoPath = null;
 
+    public ?string $hotPath = null;
+
+    public ?string $qrPng = null;
+
     public string $sectionSubject = '';
 
     public bool $noshowSubject = false;
-
-    public bool $sectionStart = true;
 
     public string $regularFont = 'helvetica';
 
@@ -170,26 +237,42 @@ final class RoleSheetPdf extends TCPDF
         $this->SetFillColor($rgb[0], $rgb[1], $rgb[2]);
         $this->Rect(0, 0, $this->getPageWidth(), 3, 'F');
 
-        if (! $this->sectionStart) {
-            return;
-        }
-        $this->sectionStart = false;
+        $icon = 16.0;
+        $top = 4.0;
+        $left = 12.0;
+        $pageW = $this->getPageWidth();
+        $right = $pageW - 12.0 - $icon;
+        $gap = 2.0;
+        $midX = $left + $icon + $gap;
+        $midW = $right - $gap - $midX;
 
-        $x = 12.0;
-        $y = 4.5;
-        if ($this->logoPath !== null && is_file($this->logoPath)) {
-            $this->Image($this->logoPath, $x, $y, 0, 10);
-            $x += 16;
+        if ($this->hotPath !== null && is_file($this->hotPath)) {
+            $this->Image($this->hotPath, $left, $top, $icon, $icon, '', '', '', true, 300, '', false, false, 0, true);
+        }
+        if (is_string($this->qrPng) && $this->qrPng !== '') {
+            $this->Image('@'.$this->qrPng, $right, $top, $icon, $icon, 'PNG', '', '', true, 300, '', false, false, 0, true);
         }
 
-        $this->SetFont($this->boldFont, '', 12);
         $this->SetTextColor(0, 0, 0);
-        $this->SetXY($x, $y + 1.5);
-        $this->Cell(0, 8, $this->sectionSubject, 0, 0, 'L');
+        $this->SetFont($this->regularFont, '', 9);
+        $this->SetXY($midX, $top);
+        $this->MultiCell($midW, 5, $this->eventTitle, 0, 'L', false, 1);
+
+        $row2Y = $top + 8.0;
+        $prog = 7.0;
+        $textX = $midX;
+        if ($this->logoPath !== null && is_file($this->logoPath)) {
+            $this->Image($this->logoPath, $midX, $row2Y, $prog, $prog, '', '', '', true, 300, '', false, false, 0, true);
+            $textX = $midX + $prog + 1.5;
+        }
+        $this->SetFont($this->boldFont, '', 12);
+        $this->SetXY($textX, $row2Y);
+        $subjectW = $midX + $midW - $textX;
+        $this->Cell($subjectW, $prog, $this->sectionSubject, 0, 0, 'L');
         if ($this->noshowSubject && $this->sectionSubject !== '') {
-            $width = $this->GetStringWidth($this->sectionSubject);
+            $width = min($this->GetStringWidth($this->sectionSubject), $subjectW);
             $this->SetLineWidth(0.4);
-            $this->Line($x, $y + 5.7, $x + $width, $y + 5.7);
+            $this->Line($textX, $row2Y + ($prog / 2), $textX + $width, $row2Y + ($prog / 2));
             $this->SetLineWidth(0.2);
         }
     }
@@ -199,7 +282,7 @@ final class RoleSheetPdf extends TCPDF
         $this->SetY(-12);
         $this->SetFont($this->regularFont, '', 8);
         $this->SetTextColor(0, 0, 0);
-        $this->Cell(0, 8, $this->titleShort, 0, 0, 'L');
+        $this->Cell(0, 8, $this->createdAt, 0, 0, 'L');
         $this->Cell(0, 8, (string) $this->getPage(), 0, 0, 'R');
     }
 

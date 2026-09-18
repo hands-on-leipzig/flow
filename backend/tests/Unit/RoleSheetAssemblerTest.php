@@ -72,6 +72,7 @@ class RoleSheetAssemblerTest extends TestCase
         $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [5, 4, 14]);
 
         $this->assertSame('Challenge Event Test', $document['title_short']);
+        $this->assertSame('Challenge Event Test', $document['title_long']);
         $this->assertCount(2, $document['sections']);
         $this->assertSame('Juror:in: Jury-Gruppe 1', $document['sections'][0]['subject']);
         $this->assertFalse($document['sections'][0]['noshow']);
