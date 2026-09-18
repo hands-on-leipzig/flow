@@ -2,9 +2,12 @@
 import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import Spinner from '@/components/atoms/Spinner.vue'
+import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
 import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
+import {eventPrograms, programDisplayName, programId, type EventProgramRef} from '@/utils/eventPrograms'
 import {flowFilename} from '@/utils/flowFilename'
+import type {StaffingFilterKey} from '@/utils/volunteerStaffingFilters'
 
 defineOptions({name: 'RoleSheetsPrint'})
 
@@ -12,6 +15,8 @@ type CatalogProgram = {
   id: number
   display_name: string
   sequence: number
+  name?: string | null
+  logo_stem?: string | null
 }
 
 type CatalogRole = {
@@ -25,6 +30,12 @@ type CatalogPayload = {
   roles: CatalogRole[]
 }
 
+type RoleSheetGroup = {
+  key: StaffingFilterKey
+  label: string
+  roles: CatalogRole[]
+}
+
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 const eventDate = computed(() => eventStore.selectedEvent?.date)
@@ -33,26 +44,57 @@ const catalog = ref<CatalogPayload | null>(null)
 const selected = ref<Set<number>>(new Set())
 const busy = ref(false)
 
-const allRoleIds = computed(() => (catalog.value?.roles ?? []).map((role) => role.id))
-
-const groups = computed(() => {
+const groups = computed<RoleSheetGroup[]>(() => {
   const roles = catalog.value?.roles ?? []
-  const programs = [...(catalog.value?.programs ?? [])].sort((a, b) => a.sequence - b.sequence || a.id - b.id)
-  const grouped = programs
-    .map((program) => ({
-      key: String(program.id),
-      label: program.display_name,
-      roles: roles.filter((role) => role.first_program === program.id),
-    }))
-    .filter((group) => group.roles.length > 0)
-  const general = roles.filter((role) => role.first_program == null)
-  if (general.length) {
-    grouped.push({key: 'general', label: 'Allgemein', roles: general})
+  const grouped: RoleSheetGroup[] = []
+  const seen = new Set<number>()
+
+  const joint = roles.filter((role) => role.first_program == null)
+  if (joint.length) {
+    grouped.push({key: 'cross', label: 'Übergreifend', roles: joint})
   }
+
+  for (const program of eventPrograms(eventStore.selectedEvent)) {
+    const id = programId(program)
+    if (id <= 0 || seen.has(id)) continue
+    seen.add(id)
+    const programRoles = roles.filter((role) => role.first_program === id)
+    if (!programRoles.length) continue
+    grouped.push({
+      key: `program:${id}`,
+      label: programDisplayName(program),
+      roles: programRoles,
+    })
+  }
+
+  const leftover = [...(catalog.value?.programs ?? [])].sort(
+    (a, b) => a.sequence - b.sequence || a.id - b.id,
+  )
+  for (const program of leftover) {
+    if (seen.has(program.id)) continue
+    const programRoles = roles.filter((role) => role.first_program === program.id)
+    if (!programRoles.length) continue
+    seen.add(program.id)
+    grouped.push({
+      key: `program:${program.id}`,
+      label: programDisplayName(catalogProgramRef(program)),
+      roles: programRoles,
+    })
+  }
+
   return grouped
 })
 
-const allChecked = computed(() => allRoleIds.value.length > 0 && allRoleIds.value.every((id) => selected.value.has(id)))
+function catalogProgramRef(program: CatalogProgram): EventProgramRef {
+  return {
+    first_program: program.id,
+    id: program.id,
+    name: program.name,
+    display_name: program.display_name,
+    sequence: program.sequence,
+    logo_stem: program.logo_stem,
+  }
+}
 
 function groupChecked(roleIds: number[]): boolean {
   return roleIds.length > 0 && roleIds.every((id) => selected.value.has(id))
@@ -60,10 +102,6 @@ function groupChecked(roleIds: number[]): boolean {
 
 function setSelected(ids: Iterable<number>) {
   selected.value = new Set(ids)
-}
-
-function toggleAll(on: boolean) {
-  setSelected(on ? allRoleIds.value : [])
 }
 
 function toggleGroup(roleIds: number[], on: boolean) {
@@ -143,17 +181,6 @@ watch(eventId, () => {
       </button>
     </header>
 
-    <label class="role-sheets__option role-sheets__option--root">
-      <input
-          type="checkbox"
-          class="accent-[var(--color-accent)]"
-          :checked="allChecked"
-          :disabled="allRoleIds.length === 0"
-          @change="toggleAll(($event.target as HTMLInputElement).checked)"
-      />
-      <span>Alle</span>
-    </label>
-
     <div v-for="group in groups" :key="group.key" class="role-sheets__group">
       <label class="role-sheets__option role-sheets__option--program">
         <input
@@ -162,7 +189,10 @@ watch(eventId, () => {
             :checked="groupChecked(group.roles.map((role) => role.id))"
             @change="toggleGroup(group.roles.map((role) => role.id), ($event.target as HTMLInputElement).checked)"
         />
-        <span>{{ group.label }}</span>
+        <span class="role-sheets__program-label">
+          <StaffingScopeLeading :filter-key="group.key" size="chip" :boxed="false"/>
+          <span>{{ group.label }}</span>
+        </span>
       </label>
       <label
           v-for="role in group.roles"
@@ -219,12 +249,15 @@ watch(eventId, () => {
   font-size: 0.9375rem;
 }
 
-.role-sheets__option--root {
-  font-weight: 650;
-}
-
 .role-sheets__option--program {
   font-weight: 600;
+}
+
+.role-sheets__program-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
 .role-sheets__option--role {
