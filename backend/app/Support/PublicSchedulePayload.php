@@ -40,7 +40,7 @@ final class PublicSchedulePayload
 
     /**
      * @param  array<string, mixed>  $drahtData
-     * @return list<array{program_id: int, name: string, sequence: int, color_hex: string|null, teams: list<array{ref: string|null, name: string, organization: string|null, location: string|null}>}>
+     * @return list<array{program_id: int, name: string, sequence: int, color_hex: string|null, capacity: int, teams: list<array{ref: string|null, name: string, organization: string|null, location: string|null}>}>
      */
     private static function buildTeamLanes(Event $event, array $drahtData, int $level): array
     {
@@ -94,6 +94,7 @@ final class PublicSchedulePayload
                 'color_hex' => $catalog->color_hex !== null
                     ? (string) $catalog->color_hex
                     : ProgramCatalog::colorHex((string) $catalog->name),
+                'capacity' => max(0, (int) ($drahtByProgram[$programId]['capacity'] ?? 0)),
                 'teams' => $teams,
             ];
         }

@@ -178,6 +178,18 @@ function teamMeta(team) {
   return [team?.organization, team?.location].filter(Boolean).join(' · ')
 }
 
+function laneCapacity(lane) {
+  const cap = Number(lane?.capacity)
+  return Number.isFinite(cap) && cap > 0 ? cap : 0
+}
+
+function laneFill(lane) {
+  const cap = laneCapacity(lane)
+  if (cap <= 0) return '0%'
+  const n = Array.isArray(lane?.teams) ? lane.teams.length : 0
+  return `${Math.min(100, (n / cap) * 100)}%`
+}
+
 const publicationLevel = computed(() => Number(scheduleInfo.value?.level ?? 1))
 
 const showPlaceholderBox = computed(() => publicationLevel.value < 3)
@@ -686,7 +698,21 @@ onMounted(async () => {
                   class="pe-lane__logo"
               />
               <h3 class="pe-lane__title">{{ lane.name }}</h3>
+              <span
+                  v-if="laneCapacity(lane)"
+                  class="pe-lane__cap"
+                  :aria-label="`${lane.teams.length} von ${laneCapacity(lane)} Plätzen`"
+              >
+                {{ lane.teams.length }} von {{ laneCapacity(lane) }}
+              </span>
             </header>
+            <div
+                v-if="laneCapacity(lane)"
+                class="pe-lane__bar"
+                aria-hidden="true"
+            >
+              <span class="pe-lane__bar-fill" :style="{ width: laneFill(lane) }"/>
+            </div>
 
             <ol class="pe-lane-list">
               <li
@@ -1319,11 +1345,38 @@ onMounted(async () => {
 
 .pe-lane__title {
   margin: 0;
+  flex: 1;
   font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.3;
   min-width: 0;
+}
+
+.pe-lane__cap {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.22rem 0.55rem;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--pe-program) 14%, transparent);
+  color: var(--pe-program);
+  white-space: nowrap;
+}
+
+.pe-lane__bar {
+  height: 0.28rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pe-program) 12%, transparent);
+  overflow: hidden;
+}
+
+.pe-lane__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pe-program);
 }
 
 .pe-lane-list {
