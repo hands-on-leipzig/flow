@@ -122,8 +122,9 @@ const firstMatchOptions = computed(() => [
           >
             <button
                 type="button"
-                class="glass-choice self-start whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                :class="checked ? 'glass-choice--active' : ''"
+                class="venues-view-btn self-start"
+                :class="{ 'is-active': checked }"
+                :aria-pressed="checked"
                 @click="roomsMode = 'shared'"
             >
               Zusammen in einem Raum
@@ -152,8 +153,9 @@ const firstMatchOptions = computed(() => [
                 >
                   <button
                       type="button"
-                      class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                      :class="checked ? 'glass-choice--active' : ''"
+                      class="venues-view-btn"
+                      :class="{ 'is-active': checked }"
+                      :aria-pressed="checked"
                       @click="switchMode = opt.value"
                   >
                     {{ opt.label }}
@@ -189,8 +191,9 @@ const firstMatchOptions = computed(() => [
                 >
                   <button
                       type="button"
-                      class="glass-choice inline-flex items-center gap-1.5 whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                      :class="checked ? 'glass-choice--active' : ''"
+                      class="venues-view-btn"
+                      :class="{ 'is-active': checked }"
+                      :aria-pressed="checked"
                       @click="firstMatch = opt.value"
                   >
                     <ProgramLogo
@@ -213,8 +216,9 @@ const firstMatchOptions = computed(() => [
           >
             <button
                 type="button"
-                class="glass-choice self-start whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                :class="checked ? 'glass-choice--active' : ''"
+                class="venues-view-btn self-start"
+                :class="{ 'is-active': checked }"
+                :aria-pressed="checked"
                 @click="roomsMode = 'separate'"
             >
               In getrennten Räumen

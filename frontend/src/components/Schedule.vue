@@ -181,7 +181,7 @@ watch(
         <div class="flex items-center gap-2">
           <button
               type="button"
-              class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]"
+              class="glass-btn-secondary"
               @click="focusPlanPopout"
           >
             <i class="bi bi-window" aria-hidden="true"/>
@@ -189,7 +189,7 @@ watch(
           </button>
           <button
               type="button"
-              class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]"
+              class="glass-btn-secondary"
               @click="dockPlanPopout"
           >
             <i class="bi bi-box-arrow-in-down-left" aria-hidden="true"/>
@@ -209,7 +209,7 @@ watch(
           </div>
           <button
               type="button"
-              class="ml-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] focus:outline-none flex-shrink-0"
+              class="glass-btn-icon"
               aria-label="Fehler schließen"
               @click="clearGeneratorError"
           >
@@ -235,7 +235,7 @@ watch(
                 </div>
                 <button
                     type="button"
-                    class="glass-btn-secondary inline-flex items-center gap-1.5"
+                    class="glass-btn-secondary"
                     @click="unlockPlan"
                 >
                   <i class="bi bi-unlock" aria-hidden="true"/>
@@ -288,7 +288,7 @@ watch(
                         <button
                             v-if="!planLocked"
                             type="button"
-                            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            class="glass-btn-secondary"
                             :disabled="!selectedPlanId"
                             title="Zeitplan gegen Änderungen sperren"
                             @click="lockPlan"
@@ -298,14 +298,14 @@ watch(
                         </button>
                         <span
                             v-else
-                            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 font-medium text-[#dc2626]"
+                            class="inline-flex items-center gap-1.5 font-semibold text-[var(--color-danger)]"
                         >
                           <i class="bi bi-lock-fill" aria-hidden="true"/>
                           gesperrt
                         </span>
                         <button
                             type="button"
-                            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            class="glass-btn-secondary"
                             :disabled="!selectedPlanId"
                             title="Zeitplan in eigenem Fenster öffnen"
                             @click="openPlanPopout"

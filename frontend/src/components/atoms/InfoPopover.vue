@@ -28,8 +28,9 @@ function handleToggle() {
     <button
         ref="buttonRef"
         type="button"
-        class="ml-1 text-[var(--color-text-subtle)] hover:text-blue-600 align-middle"
+        class="glass-btn-text"
         title="Mehr Informationen"
+        aria-label="Mehr Informationen"
         @click.stop="handleToggle"
     >
       ⓘ

@@ -137,7 +137,7 @@ function programTheme(qrun) {
     <div class="flex items-center justify-end gap-2">
       <button
         type="button"
-        class="glass-btn-secondary !px-3 !py-1.5 !text-sm text-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+        class="glass-btn-danger"
         :disabled="loading || previewRunCount < 1"
         title="Löscht alle QRuns ohne selection (Preview / ReRun)"
         @click="showDeletePreviewConfirm = true"
@@ -223,7 +223,7 @@ function programTheme(qrun) {
             <button
               type="button"
               @click.stop="confirmDeleteQRun(qrun.id)"
-              class="glass-btn-secondary !px-2.5 !py-1.5 !text-sm text-red-700"
+              class="glass-btn-icon glass-btn-icon--danger"
               title="QRun löschen (inkl. zugehöriger QPlans & Pläne)"
             >
               <i class="bi bi-trash3" aria-hidden="true"/>

@@ -310,8 +310,9 @@ const timeStepSeconds = computed(() => {
         <div class="flex gap-1.5">
           <button
               type="button"
-              class="glass-choice whitespace-nowrap"
-              :class="localValue ? 'glass-choice--active' : ''"
+              class="venues-view-btn"
+              :class="{ 'is-active': localValue }"
+              :aria-pressed="localValue"
               :disabled="disabled || onDisabled"
               @click="setBoolean(true)"
           >
@@ -319,8 +320,9 @@ const timeStepSeconds = computed(() => {
           </button>
           <button
               type="button"
-              class="glass-choice whitespace-nowrap"
-              :class="!localValue ? 'glass-choice--active' : ''"
+              class="venues-view-btn"
+              :class="{ 'is-active': !localValue }"
+              :aria-pressed="!localValue"
               :disabled="disabled || offDisabled"
               @click="setBoolean(false)"
           >

@@ -125,33 +125,6 @@
   text-decoration: underline;
 }
 
-.glass-choice {
-  padding: 0.45rem 0.8rem;
-  border-radius: var(--radius);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, var(--color-border));
-  background: color-mix(in srgb, var(--color-bg-elevated, #fff) 70%, transparent);
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.25;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.glass-choice:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--color-text-muted) 35%, var(--color-border));
-  background: var(--color-bg-hover);
-}
-
-.glass-choice--active {
-  border-color: color-mix(in srgb, var(--color-text) 55%, var(--color-border));
-  background: var(--color-bg-muted);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 12%, transparent);
-}
-
-.glass-choice:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .glass-chip {
   padding: 1rem 1.1rem;
   border-radius: var(--radius);
@@ -480,36 +453,6 @@
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 55%, transparent),
     0 14px 32px rgba(15, 23, 42, 0.09);
-}
-
-.icon-danger-btn {
-  width: 2.25rem;
-  height: 2.25rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  border-radius: var(--radius);
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
-}
-
-.icon-danger-btn .bi {
-  font-size: 1.15rem;
-  line-height: 1;
-  display: block;
-}
-
-.icon-danger-btn:hover:not(:disabled) {
-  color: #b91c1c;
-  background: color-mix(in srgb, #dc2626 10%, transparent);
-}
-
-.icon-danger-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 .glass-dropzone {

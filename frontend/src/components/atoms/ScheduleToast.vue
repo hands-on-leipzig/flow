@@ -34,13 +34,6 @@ const isClickable = computed(() => {
   return !props.isGenerating && displayCountdownText.value !== null && props.onImmediateSave !== undefined;
 });
 
-const buttonClass = computed(() => {
-  if (props.isGenerating) {
-    return "bg-gray-300 text-[var(--color-text-muted)] cursor-not-allowed";
-  }
-  return "bg-green-500 hover:bg-green-600 text-white cursor-pointer";
-});
-
 function handleClick() {
   if (isClickable.value && props.onImmediateSave) {
     props.onImmediateSave();
@@ -52,26 +45,23 @@ function handleClick() {
   <Teleport to="body">
     <div
         v-show="visible"
-        class="schedule-toast fixed top-4 right-4 z-[200] min-w-48"
+        class="schedule-toast"
     >
       <button
-          :class="[
-            'w-full rounded-lg shadow-lg px-4 py-3 font-medium transition-colors flex items-center justify-center gap-3',
-            buttonClass,
-          ]"
+          type="button"
+          :class="isGenerating ? 'glass-btn-secondary' : 'glass-btn-accent'"
           :disabled="!isClickable"
           @click="handleClick"
       >
         <div v-if="isGenerating" class="flex items-center gap-2">
-          <div class="w-3 h-3 bg-gray-600 rounded-full animate-pulse"/>
+          <span class="schedule-toast__pulse" aria-hidden="true"/>
           <span>{{ busyLabel }}</span>
         </div>
         <template v-else-if="displayCountdownText !== null">
-          <span class="text-2xl font-bold font-mono">{{ displayCountdownText }}</span>
+          <span class="schedule-toast__count">{{ displayCountdownText }}</span>
           <span>{{ actionLabel }}</span>
         </template>
         <template v-else>
-          <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"/>
           <span>{{ message }}</span>
         </template>
       </button>
@@ -80,4 +70,31 @@ function handleClick() {
 </template>
 
 <style scoped>
+.schedule-toast {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 200;
+  min-width: 12rem;
+}
+
+.schedule-toast__count {
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.schedule-toast__pulse {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: schedule-toast-pulse 1s ease-in-out infinite;
+}
+
+@keyframes schedule-toast-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
 </style>

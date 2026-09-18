@@ -168,7 +168,7 @@ onMounted(async () => {
 
       <button
         type="button"
-        class="glass-btn-accent !px-4 !py-2 !text-sm inline-flex items-center gap-2"
+        class="glass-btn-accent"
         :disabled="!canRun"
         @click="runQualityCheck"
       >

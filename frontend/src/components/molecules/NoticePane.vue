@@ -128,7 +128,7 @@ async function restoreAll() {
               <button
                   v-if="row.hideable"
                   type="button"
-                  class="notice-pane__hide"
+                  class="glass-btn-text"
                   @click="hideTarget = row"
               >
                 Nicht mehr anzeigen
@@ -140,7 +140,7 @@ async function restoreAll() {
       <li v-if="showRestore" class="notice-pane__restore-item">
         <button
             type="button"
-            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm cursor-pointer disabled:opacity-50"
+            class="glass-btn-text"
             :disabled="restoring"
             title="Ausgeblendete Hinweise wieder anzeigen"
             @click="restoreAll"
@@ -166,8 +166,9 @@ async function restoreAll() {
           <button
               v-if="noticeStore.simulatedToday"
               type="button"
-              class="notice-pane__today-clear"
+              class="glass-btn-icon"
               title="Echtes Datum wiederherstellen"
+              aria-label="Echtes Datum wiederherstellen"
               @click="clearSimulatedToday"
           >
             <i class="bi bi-x" aria-hidden="true"/>
@@ -292,21 +293,6 @@ async function restoreAll() {
   text-decoration: underline;
 }
 
-.notice-pane__hide {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  color: var(--color-accent);
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.notice-pane__hide:hover {
-  color: var(--color-text);
-}
-
 .notice-pane__today {
   display: inline-flex;
   align-items: center;
@@ -336,23 +322,5 @@ async function restoreAll() {
   color: inherit;
   font-size: 0.8125rem;
   padding: 0.1rem 0.25rem;
-}
-
-.notice-pane__today-clear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.notice-pane__today-clear:hover {
-  color: var(--color-text);
 }
 </style>
