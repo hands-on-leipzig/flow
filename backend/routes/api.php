@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\EventWorkspaceController;
 use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\LogoController;
+use App\Http\Controllers\Api\MailController;
 use App\Http\Controllers\Api\MainTablesController;
 use App\Http\Controllers\Api\MatchPlanCatalogController;
 use App\Http\Controllers\Api\MParameterController;
@@ -646,5 +647,10 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/', [SharepointController::class, 'getAdminConfig']);
         Route::put('/', [SharepointController::class, 'updateAdminConfig']);
         Route::post('/test', [SharepointController::class, 'testConnection']);
+    });
+
+    Route::prefix('admin/mail')->group(function () {
+        Route::get('/', [MailController::class, 'status']);
+        Route::post('/test', [MailController::class, 'sendTest']);
     });
 });

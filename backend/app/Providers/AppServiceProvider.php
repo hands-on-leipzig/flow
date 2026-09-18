@@ -2,11 +2,13 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Blade;
-use App\Models\Event;
 use App\Helpers\PdfHelper;
+use App\Mail\Transport\MicrosoftGraphTransport;
+use App\Models\Event;
+use Illuminate\Mail\MailManager;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +17,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->afterResolving('mail.manager', function (MailManager $manager) {
+            $manager->extend('microsoft-graph', function (array $config) {
+                return new MicrosoftGraphTransport(
+                    (string) ($config['tenant_id'] ?? ''),
+                    (string) ($config['client_id'] ?? ''),
+                    (string) ($config['client_secret'] ?? ''),
+                    (bool) ($config['save_to_sent_items'] ?? false),
+                );
+            });
+        });
     }
 
     /**
