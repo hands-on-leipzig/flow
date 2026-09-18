@@ -35,8 +35,10 @@ const showTiles = computed(() => isEntwicklungEnvironment(isLocal))
             <i class="bi bi-people" aria-hidden="true"/>
             <span>Zum Aushang bzw. zum Verteilen an Teams und Volunteers</span>
           </p>
-          <RoleSheetsPrint/>
-          <RoomSheetsPrint/>
+          <div class="druck-page__grid">
+            <RoleSheetsPrint/>
+            <RoomSheetsPrint/>
+          </div>
         </section>
         <section class="glass-card liquid-surface-inner druck-page__panel">
           <p class="druck-page__group-label">
@@ -97,16 +99,11 @@ const showTiles = computed(() => isEntwicklungEnvironment(isLocal))
   color: var(--color-accent);
 }
 
-.druck-page__panel :deep(.role-sheets) {
-  padding: 0;
-  margin: 0 0 1rem;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-.druck-page__panel :deep(.role-sheets:last-child) {
-  margin-bottom: 0;
+.druck-page__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  align-items: stretch;
 }
 
 .druck-page__body :deep(.pdf-plans),

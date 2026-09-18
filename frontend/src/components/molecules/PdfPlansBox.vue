@@ -31,9 +31,6 @@ const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
 
-// --- Readiness direkt aus Store ---
-const readiness = computed(() => eventStore.readiness)
-
 // --- Available Team Programs (Namensschilder) ---
 const availableTeamPrograms = ref<EventProgramRef[]>([])
 
@@ -53,27 +50,24 @@ async function fetchAvailableTeamPrograms() {
   }
 }
 
-// --- Beim Start sicherstellen, dass Event & Readiness geladen sind ---
+// --- Beim Start Event, Namensschilder-Programme und Poster laden ---
 onMounted(async () => {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
   if (eventStore.selectedEvent?.id) {
-    await eventStore.refreshReadiness(eventStore.selectedEvent.id)
     await fetchAvailableTeamPrograms()
     await loadPosterPreviews()
   }
 })
 
-// --- Wenn Event wechselt, Readiness nachladen ---
+// --- Wenn Event wechselt, Programme und Poster nachladen ---
 watch(() => event.value?.id, async (id) => {
   if (id) {
-    await eventStore.refreshReadiness(id)
     await fetchAvailableTeamPrograms()
     await loadPosterPreviews()
   }
 })
 
 // --- Computed Flags ---
-const hasRoomIssues = computed(() => !readiness.value?.room_mapping_ok)
 const hasWifiSsid = computed(() => !!event.value?.wifi_ssid?.trim())
 
 // --- PDF Download (Composable) ---
@@ -98,34 +92,6 @@ async function loadPosterPreview(type: 'plan' | 'plan_wifi') {
 
 async function loadPosterPreviews() {
   await Promise.all([loadPosterPreview('plan'), loadPosterPreview('plan_wifi')])
-}
-
-// --- CSV Download State ---
-const isDownloadingCsv = ref(false)
-
-// --- CSV Download Function ---
-async function downloadRoomUtilizationCsv() {
-  if (!eventId.value || isDownloadingCsv.value) return
-  
-  isDownloadingCsv.value = true
-  try {
-    const response = await axios.get(
-      `/export/csv/room-utilization/${eventId.value}`,
-      { responseType: 'blob' }
-    )
-
-    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = response.headers['x-filename'] || flowHint('Raumnutzung', 'csv')
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim CSV-Download (Raumnutzung):', error)
-    showGlassToast('Fehler beim Herunterladen der Raumnutzung. Bitte versuche es erneut.', 'error')
-  } finally {
-    isDownloadingCsv.value = false
-  }
 }
 
 // Download event overview PDF
@@ -154,63 +120,6 @@ async function downloadEventOverviewPdf() {
     console.error('Fehler beim PDF-Download (Übersichtsplan):', error)
   } finally {
     isDownloading.value['overview'] = false
-  }
-}
-
-// Download moderator match plan PDF
-async function downloadModeratorMatchPlanPdf() {
-  if (!eventId.value) return
-  
-  isDownloading.value['moderator-match-plan'] = true
-  try {
-    // Get the plan ID for this event
-    const planResponse = await axios.get(`/plans/event/${eventId.value}`)
-    const planId = planResponse.data.id
-    
-    const response = await axios.get(
-      `/export/moderator-match-plan/${planId}`,
-      { responseType: 'blob' }
-    )
-
-    const filename = response.headers['x-filename'] || flowHint('Moderation')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim PDF-Download (Robot-Game kompakt):', error)
-  } finally {
-    isDownloading.value['moderator-match-plan'] = false
-  }
-}
-
-// Download slot assignments PDF
-async function downloadSlotAssignmentsPdf() {
-  if (!eventId.value) return
-  
-  isDownloading.value['slot-assignments'] = true
-  try {
-    const planResponse = await axios.get(`/plans/event/${eventId.value}`)
-    const planId = planResponse.data.id
-
-    const response = await axios.get(
-      `/export/slot-assignments/${planId}`,
-      { responseType: 'blob' }
-    )
-
-    const filename = response.headers['x-filename'] || flowHint('Slot-Zuordnung')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim PDF-Download (Slot-Zuordnung):', error)
-  } finally {
-    isDownloading.value['slot-assignments'] = false
   }
 }
 
@@ -623,40 +532,6 @@ const eventTitleNormalized = computed(() => {
           </button>
         </footer>
       </article>
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Räume</h4>
-          <p class="pdf-plans__tile-sub">Eine Seite pro Raum mit allen Aktivitäten.</p>
-        </header>
-        <div class="pdf-plans__tile-body">
-          <p v-if="hasRoomIssues" class="pdf-plans__tile-warn">
-            Noch nicht alle Aktivitäten und Teams auf Räume verteilt.
-          </p>
-        </div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloadingCsv ? '!opacity-50' : ''"
-            :disabled="isDownloadingCsv"
-            @click="downloadRoomUtilizationCsv"
-          >
-            <Spinner v-if="isDownloadingCsv" size="sm"/>
-            <span>{{ isDownloadingCsv ? 'Erzeuge…' : 'CSV' }}</span>
-          </button>
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading.rooms ? '!opacity-50' : ''"
-            :disabled="isDownloading.rooms"
-            @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, flowHint('Räume'))"
-          >
-            <Spinner v-if="isDownloading.rooms" size="sm"/>
-            <span>{{ isDownloading.rooms ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
       </div>
 
       </section>
@@ -686,50 +561,6 @@ const eventTitleNormalized = computed(() => {
           >
             <Spinner v-if="isDownloading['team-list']" size="sm"/>
             <span>{{ isDownloading['team-list'] ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Moderation</h4>
-          <p class="pdf-plans__tile-sub">
-            Moderierte Aktivitäten und vollständiger Robot-Game-Matchplan.
-          </p>
-        </header>
-        <div class="pdf-plans__tile-body"></div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading['moderator-match-plan'] ? '!opacity-50' : ''"
-            :disabled="isDownloading['moderator-match-plan']"
-            @click="downloadModeratorMatchPlanPdf"
-          >
-            <Spinner v-if="isDownloading['moderator-match-plan']" size="sm"/>
-            <span>{{ isDownloading['moderator-match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Slot-Zuordnung</h4>
-          <p class="pdf-plans__tile-sub">
-            Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.
-          </p>
-        </header>
-        <div class="pdf-plans__tile-body"></div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading['slot-assignments'] ? '!opacity-50' : ''"
-            :disabled="isDownloading['slot-assignments']"
-            @click="downloadSlotAssignmentsPdf"
-          >
-            <Spinner v-if="isDownloading['slot-assignments']" size="sm"/>
-            <span>{{ isDownloading['slot-assignments'] ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
       </article>
@@ -1229,23 +1060,11 @@ const eventTitleNormalized = computed(() => {
   align-items: center;
 }
 
-.pdf-plans__tile-note,
-.pdf-plans__tile-warn {
+.pdf-plans__tile-note {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.35;
-}
-
-.pdf-plans__tile-note {
   color: var(--color-text-muted);
-}
-
-.pdf-plans__tile-warn {
-  color: color-mix(in srgb, #b45309 75%, var(--color-text));
-  background: color-mix(in srgb, #f59e0b 12%, transparent);
-  border: 1px solid color-mix(in srgb, #f59e0b 28%, transparent);
-  border-radius: 8px;
-  padding: 0.4rem 0.55rem;
 }
 
 .pdf-plans__preview {

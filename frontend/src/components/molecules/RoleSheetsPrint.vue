@@ -193,12 +193,43 @@ onUnmounted(() => stopPreviewReload())
 </script>
 
 <template>
-  <section class="glass-card liquid-surface-inner role-sheets">
+  <article class="liquid-surface-inner role-sheets">
     <header class="role-sheets__head">
-      <div>
-        <h2 class="role-sheets__title">Rollenpläne</h2>
-        <p class="role-sheets__sub">Bitte wähle Programme und Rollen.</p>
+      <h2 class="role-sheets__title">Rollenpläne</h2>
+      <p class="role-sheets__sub">Bitte wähle Programme und Rollen.</p>
+    </header>
+
+    <div class="role-sheets__body">
+      <div v-for="group in groups" :key="group.key" class="role-sheets__group">
+        <label class="role-sheets__option role-sheets__option--program">
+          <input
+              type="checkbox"
+              class="accent-[var(--color-accent)]"
+              :checked="groupChecked(group.roles.map((role) => role.id))"
+              @change="toggleGroup(group.roles.map((role) => role.id), ($event.target as HTMLInputElement).checked)"
+          />
+          <span class="role-sheets__program-label">
+            <StaffingScopeLeading :filter-key="group.key" size="chip" :boxed="false"/>
+            <span>{{ group.label }}</span>
+          </span>
+        </label>
+        <label
+            v-for="role in group.roles"
+            :key="role.id"
+            class="role-sheets__option role-sheets__option--role"
+        >
+          <input
+              type="checkbox"
+              class="accent-[var(--color-accent)]"
+              :checked="selected.has(role.id)"
+              @change="toggleRole(role.id, ($event.target as HTMLInputElement).checked)"
+          />
+          <span>{{ role.name }}</span>
+        </label>
       </div>
+    </div>
+
+    <footer class="role-sheets__actions">
       <button
           type="button"
           class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
@@ -208,65 +239,58 @@ onUnmounted(() => stopPreviewReload())
         <Spinner v-if="busy" size="sm"/>
         <span>{{ busy ? 'Erzeuge…' : 'PDF erzeugen' }}</span>
       </button>
-    </header>
-
-    <div v-for="group in groups" :key="group.key" class="role-sheets__group">
-      <label class="role-sheets__option role-sheets__option--program">
-        <input
-            type="checkbox"
-            class="accent-[var(--color-accent)]"
-            :checked="groupChecked(group.roles.map((role) => role.id))"
-            @change="toggleGroup(group.roles.map((role) => role.id), ($event.target as HTMLInputElement).checked)"
-        />
-        <span class="role-sheets__program-label">
-          <StaffingScopeLeading :filter-key="group.key" size="chip" :boxed="false"/>
-          <span>{{ group.label }}</span>
-        </span>
-      </label>
-      <label
-          v-for="role in group.roles"
-          :key="role.id"
-          class="role-sheets__option role-sheets__option--role"
-      >
-        <input
-            type="checkbox"
-            class="accent-[var(--color-accent)]"
-            :checked="selected.has(role.id)"
-            @change="toggleRole(role.id, ($event.target as HTMLInputElement).checked)"
-        />
-        <span>{{ role.name }}</span>
-      </label>
-    </div>
-  </section>
+    </footer>
+  </article>
 </template>
 
 <style scoped>
 .role-sheets {
-  padding: 1rem 1.25rem;
-  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  height: 100%;
+  min-width: 0;
+  padding: 1rem 1.05rem 1.05rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-border-strong) 38%, var(--liquid-border-soft));
+  background: color-mix(in srgb, #ffffff 90%, var(--liquid-tile-bg-inner));
+  box-shadow:
+    0 8px 20px rgba(15, 23, 42, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .role-sheets__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 0.75rem;
+  min-height: 3.6rem;
 }
 
 .role-sheets__title {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: 0.98rem;
   font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
 }
 
 .role-sheets__sub {
-  margin: 0.2rem 0 0;
-  font-size: 0.875rem;
-  color: var(--color-text-subtle);
+  margin: 0.28rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--color-text-muted);
 }
 
-.role-sheets__group {
+.role-sheets__body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.role-sheets__actions {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.role-sheets__group + .role-sheets__group {
   margin-top: 0.5rem;
 }
 
