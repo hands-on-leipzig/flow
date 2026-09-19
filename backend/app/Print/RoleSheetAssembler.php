@@ -8,6 +8,8 @@ use App\Services\PublicPlanService;
 
 final class RoleSheetAssembler
 {
+    public const NOT_ACCESSIBLE = 'Nicht barrierefrei';
+
     public function __construct(private PublicPlanService $publicPlan) {}
 
     /**
@@ -215,8 +217,12 @@ final class RoleSheetAssembler
         $room = is_array($activity['room'] ?? null) ? $activity['room'] : [];
         $name = trim((string) ($room['room_name'] ?? ''));
         $hint = trim((string) ($room['navigation'] ?? ''));
-        if ($name === '' || $hint === '') {
+        $accessible = ($room['accessible'] ?? true) !== false;
+        if ($name === '' || ($hint === '' && $accessible)) {
             return;
+        }
+        if (! $accessible) {
+            $hint = $hint === '' ? self::NOT_ACCESSIBLE : $hint."\n".self::NOT_ACCESSIBLE;
         }
         $hints[$name] = ['room' => $name, 'hint' => $hint];
     }

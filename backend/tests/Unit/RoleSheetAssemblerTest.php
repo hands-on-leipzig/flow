@@ -378,6 +378,91 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertArrayNotHasKey('hinweise', $document['sections'][0]);
     }
 
+    public function test_inaccessible_room_without_navigation_gets_warning(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(4, 'Juror:in', 3, [
+                    ['value' => 1, 'label' => 'Jury-Gruppe 1', 'parameter' => 'lane', 'noshow' => false],
+                ], 'Jury-Gruppe'),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'activities' => [
+                        $this->activity('09:00:00', '09:15:00', 'punctual', 'j_with_team', 'Raum A', accessible: false),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [4]);
+
+        $this->assertSame([
+            ['room' => 'Raum A', 'hint' => 'Nicht barrierefrei'],
+        ], $document['sections'][0]['hinweise']);
+    }
+
+    public function test_appends_accessibility_warning_after_navigation_hint(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(4, 'Juror:in', 3, [
+                    ['value' => 1, 'label' => 'Jury-Gruppe 1', 'parameter' => 'lane', 'noshow' => false],
+                ], 'Jury-Gruppe'),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'activities' => [
+                        $this->activity('09:00:00', '09:15:00', 'punctual', 'j_with_team', 'Raum A', navigation: '2. Etage', accessible: false),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [4]);
+
+        $this->assertSame([
+            ['room' => 'Raum A', 'hint' => "2. Etage\nNicht barrierefrei"],
+        ], $document['sections'][0]['hinweise']);
+    }
+
+    public function test_omitted_inaccessible_match_room_is_ignored(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(5, 'Team', 3, [
+                    ['value' => 1, 'label' => 'Alpha', 'parameter' => 'team', 'noshow' => false],
+                ]),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'group_meta' => ['name' => 'Robot-Game Halbfinale'],
+                    'activities' => [
+                        $this->activity('09:00:00', '09:10:00', 'punctual', 'c_opening', 'Bühne'),
+                        $this->activity('15:00:00', '15:10:00', 'punctual', 'r_match', 'Halle', accessible: false),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [5]);
+
+        $this->assertCount(1, $document['sections'][0]['ablauf']);
+        $this->assertArrayNotHasKey('hinweise', $document['sections'][0]);
+    }
+
     /**
      * @param  list<array<string, mixed>>  $options
      * @return array<string, mixed>
@@ -410,6 +495,7 @@ class RoleSheetAssemblerTest extends TestCase
         ?int $table1Team = null,
         ?int $table2Team = null,
         ?string $navigation = null,
+        bool $accessible = true,
     ): array {
         return [
             'start_time' => '2026-03-15 '.$start,
@@ -419,7 +505,7 @@ class RoleSheetAssemblerTest extends TestCase
             'activity_name' => $code === 'r_match' ? 'Robot-Game Match' : '',
             'extra_block_id' => $extraBlockId,
             'extra_block_type' => $extraBlockType,
-            'room' => ['room_name' => $room, 'navigation' => $navigation],
+            'room' => ['room_name' => $room, 'navigation' => $navigation, 'accessible' => $accessible],
             'team_name' => 'Alpha',
             'jury_team_number_hot' => 12,
             'table_1_team' => $table1Team,
