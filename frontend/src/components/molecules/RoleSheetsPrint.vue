@@ -248,7 +248,6 @@ onUnmounted(() => stopPreviewReload())
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
-  height: 100%;
   min-width: 0;
   padding: 1rem 1.05rem 1.05rem;
   border-radius: var(--radius-lg);
@@ -257,10 +256,6 @@ onUnmounted(() => stopPreviewReload())
   box-shadow:
     0 8px 20px rgba(15, 23, 42, 0.045),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-.role-sheets__head {
-  min-height: 3.6rem;
 }
 
 .role-sheets__title {
@@ -279,12 +274,10 @@ onUnmounted(() => stopPreviewReload())
 }
 
 .role-sheets__body {
-  flex: 1 1 auto;
   min-height: 0;
 }
 
 .role-sheets__actions {
-  margin-top: auto;
   display: flex;
   justify-content: flex-end;
   align-items: center;

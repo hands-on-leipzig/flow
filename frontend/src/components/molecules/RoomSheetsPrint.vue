@@ -42,7 +42,6 @@ async function downloadPdf() {
       <h2 class="role-sheets__title">Räume</h2>
       <p class="role-sheets__sub">Alle Aktivitäten pro Raum</p>
     </header>
-    <div class="role-sheets__body"></div>
     <footer class="role-sheets__actions">
       <button
           type="button"
@@ -62,7 +61,6 @@ async function downloadPdf() {
   display: flex;
   flex-direction: column;
   gap: 0.7rem;
-  height: 100%;
   min-width: 0;
   padding: 1rem 1.05rem 1.05rem;
   border-radius: var(--radius-lg);
@@ -71,10 +69,6 @@ async function downloadPdf() {
   box-shadow:
     0 8px 20px rgba(15, 23, 42, 0.045),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-.role-sheets__head {
-  min-height: 3.6rem;
 }
 
 .role-sheets__title {
@@ -92,13 +86,7 @@ async function downloadPdf() {
   color: var(--color-text-muted);
 }
 
-.role-sheets__body {
-  flex: 1 1 auto;
-  min-height: 3.25rem;
-}
-
 .role-sheets__actions {
-  margin-top: auto;
   display: flex;
   justify-content: flex-end;
   align-items: center;
