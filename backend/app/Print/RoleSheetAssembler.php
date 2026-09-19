@@ -22,7 +22,8 @@ final class RoleSheetAssembler
      *         logo_stem: ?string,
      *         ablauf: list<array{start:string,end:string,room:string,action:string,strike:list<string>,italic:list<string>}>,
      *         zusaetzlich?: list<array{start:string,end:string,room:string,action:string,strike:list<string>,italic:list<string>}>,
-     *         hinweise?: list<array{room:string,hint:string,inaccessible:bool}>
+     *         hinweise?: list<array{room:string,hint:string,inaccessible:bool}>,
+     *         vorbereitungsbereich?: string
      *     }>
      * }
      */
@@ -119,6 +120,13 @@ final class RoleSheetAssembler
                 : null,
             'ablauf' => $ablauf,
         ];
+        if ($parameter === 'team') {
+            $prep = self::teamPrepRoom($option);
+            if ($prep !== null) {
+                self::rememberRoom($hints, $prep['name'], $prep['navigation'] ?? null, $prep['accessible'] ?? true);
+                $section['vorbereitungsbereich'] = $prep['name'];
+            }
+        }
         if ($extra !== []) {
             $section['zusaetzlich'] = $extra;
         }
@@ -207,19 +215,54 @@ final class RoleSheetAssembler
     }
 
     /**
-     * @param  array<string, array{room:string,hint:string,inaccessible:bool}>  $hints
      * @param  array<string, mixed>  $activity
      */
     private static function rememberHint(array &$hints, array $activity): void
     {
         $room = is_array($activity['room'] ?? null) ? $activity['room'] : [];
-        $name = trim((string) ($room['room_name'] ?? ''));
-        $hint = trim((string) ($room['navigation'] ?? ''));
-        $accessible = ($room['accessible'] ?? true) !== false;
-        if ($name === '' || ($hint === '' && $accessible)) {
+        self::rememberRoom(
+            $hints,
+            (string) ($room['room_name'] ?? $room['name'] ?? ''),
+            $room['navigation'] ?? null,
+            $room['accessible'] ?? true,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $option
+     * @return array{name:string,navigation:?string,accessible?:bool}|null
+     */
+    private static function teamPrepRoom(array $option): ?array
+    {
+        $room = $option['room'] ?? null;
+        if (! is_array($room)) {
+            return null;
+        }
+        $name = trim((string) ($room['name'] ?? ''));
+        if ($name === '') {
+            return null;
+        }
+        $nav = trim((string) ($room['navigation'] ?? ''));
+
+        return [
+            'name' => $name,
+            'navigation' => $nav !== '' ? $nav : null,
+            'accessible' => ($room['accessible'] ?? true) !== false,
+        ];
+    }
+
+    /**
+     * @param  array<string, array{room:string,hint:string,inaccessible:bool}>  $hints
+     */
+    private static function rememberRoom(array &$hints, string $name, mixed $navigation, mixed $accessible): void
+    {
+        $name = trim($name);
+        $hint = trim((string) $navigation);
+        $isAccessible = $accessible !== false;
+        if ($name === '' || ($hint === '' && $isAccessible)) {
             return;
         }
-        $hints[$name] = ['room' => $name, 'hint' => $hint, 'inaccessible' => ! $accessible];
+        $hints[$name] = ['room' => $name, 'hint' => $hint, 'inaccessible' => ! $isAccessible];
     }
 
     private static function clock(mixed $value): string

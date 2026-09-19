@@ -19,6 +19,7 @@ class RoleSheetTcpdfRendererTest extends TestCase
                     'noshow' => false,
                     'color_hex' => 'ed1c24',
                     'logo_stem' => null,
+                    'vorbereitungsbereich' => 'Hof',
                     'ablauf' => [
                         [
                             'start' => '09:00',

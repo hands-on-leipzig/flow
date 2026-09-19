@@ -86,6 +86,9 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertArrayNotHasKey('hinweise', $document['sections'][0]);
         $this->assertArrayNotHasKey('hinweise', $document['sections'][1]);
         $this->assertArrayNotHasKey('hinweise', $document['sections'][2]);
+        $this->assertArrayNotHasKey('vorbereitungsbereich', $document['sections'][0]);
+        $this->assertArrayNotHasKey('vorbereitungsbereich', $document['sections'][1]);
+        $this->assertArrayNotHasKey('vorbereitungsbereich', $document['sections'][2]);
 
         $this->assertSame('Team: Alpha', $document['sections'][1]['subject']);
         $this->assertSame(['Beta'], $document['sections'][1]['ablauf'][0]['italic']);
@@ -376,6 +379,76 @@ class RoleSheetAssemblerTest extends TestCase
 
         $this->assertCount(1, $document['sections'][0]['ablauf']);
         $this->assertArrayNotHasKey('hinweise', $document['sections'][0]);
+    }
+
+    public function test_team_prep_room_is_listed_and_added_to_hints(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(5, 'Team', 3, [
+                    [
+                        'value' => 1,
+                        'label' => 'Alpha',
+                        'parameter' => 'team',
+                        'noshow' => false,
+                        'room' => ['name' => 'Hof', 'navigation' => 'Hinterhof links', 'accessible' => true],
+                    ],
+                ]),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'activities' => [
+                        $this->activity('09:00:00', '09:10:00', 'punctual', 'r_match', 'Halle', table1Team: 1, table2Team: 2),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [5]);
+
+        $this->assertSame('Hof', $document['sections'][0]['vorbereitungsbereich']);
+        $this->assertSame([
+            ['room' => 'Hof', 'hint' => 'Hinterhof links', 'inaccessible' => false],
+        ], $document['sections'][0]['hinweise']);
+    }
+
+    public function test_inaccessible_team_prep_room_without_navigation_is_in_hints(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(5, 'Team', 3, [
+                    [
+                        'value' => 1,
+                        'label' => 'Alpha',
+                        'parameter' => 'team',
+                        'noshow' => false,
+                        'room' => ['name' => 'Aula', 'navigation' => null, 'accessible' => false],
+                    ],
+                ]),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'activities' => [
+                        $this->activity('09:00:00', '09:10:00', 'punctual', 'r_match', 'Halle', table1Team: 1, table2Team: 2),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [5]);
+
+        $this->assertSame('Aula', $document['sections'][0]['vorbereitungsbereich']);
+        $this->assertSame([
+            ['room' => 'Aula', 'hint' => '', 'inaccessible' => true],
+        ], $document['sections'][0]['hinweise']);
     }
 
     public function test_inaccessible_room_without_navigation_gets_warning(): void

@@ -40,6 +40,16 @@ final class RoleSheetTcpdfRenderer
             $pdf->logoPath = self::logoFile($section['logo_stem'] ?? null);
             $pdf->AddPage();
 
+            $prep = trim((string) ($section['vorbereitungsbereich'] ?? ''));
+            if ($prep !== '') {
+                $usable = $pdf->getPageWidth() - (EventPrintPdf::MARGIN * 2);
+                $pdf->ensureSpace(8.0);
+                $pdf->SetFont($pdf->regularFont, '', 9);
+                $pdf->SetTextColor(0, 0, 0);
+                $pdf->Cell($usable, 6, 'Vorbereitungsbereich: '.$prep, 0, 1, 'L');
+                $pdf->Ln(2);
+            }
+
             $this->table($pdf, 'Ablauf', $section['ablauf'] ?? []);
             if (isset($section['zusaetzlich']) && is_array($section['zusaetzlich']) && $section['zusaetzlich'] !== []) {
                 $pdf->Ln(3);
