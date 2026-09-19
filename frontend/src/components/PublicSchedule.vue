@@ -7,13 +7,12 @@ import {
   parseBerlinWallTime,
   projectClockOntoBerlinDay,
 } from '@/utils/dateTimeFormat'
-import {imageUrl, programLogoAlt, programLogoSrc} from '@/utils/images'
+import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import EventMap from '@/components/molecules/EventMap.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
 
 const PRINT_FIT_AUDIENCE_ROLE_IDS = [6, 10, 14, 24] as const
 const PRINT_FIT_HOT_ORANGE = '#F78B1F'
-const PRINT_FIT_HOT_SRC = imageUrl('/flow/hot.png')
 
 const props = defineProps<{
   planId: number | string
@@ -23,6 +22,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   exit: []
+  printChrome: [chrome: PrintScheduleChrome]
 }>()
 
 type RoomHint = {
@@ -55,6 +55,19 @@ type EventLogo = {
   title?: string | null
   link?: string | null
   url: string
+}
+
+export type PrintScheduleChrome = {
+  eventName: string
+  subject: string
+  subjectLogoSrc: string | null
+  subjectLogoAlt: string
+  barColor: string
+  onlinePlanQr: string | null
+  wifiQr: string | null
+  eventLogos: EventLogo[]
+  rolesReady: boolean
+  calendarReady: boolean
 }
 
 type Role = {
@@ -152,7 +165,6 @@ type CalBlock = TimedGroup & {
 const PX_PER_MINUTE = 2
 const GUTTER = 52
 const notAccessibleIcon = '/flow/accessible_no.png'
-const printStageEl = ref<HTMLElement | null>(null)
 const printTimelineEl = ref<HTMLElement | null>(null)
 const printStageHeightPx = ref(0)
 let printStageObserver: ResizeObserver | null = null
@@ -186,10 +198,6 @@ const programs = ref<VisitorProgram[]>([])
 const eventLogos = ref<EventLogo[]>([])
 const printQrcode = ref<string | null>(null)
 const printWifiQrcode = ref<string | null>(null)
-const printFooterRowEl = ref<HTMLElement | null>(null)
-const printFooterScale = ref(1)
-const printFooterImagesReady = ref(true)
-let printFooterObserver: ResizeObserver | null = null
 const groups = ref<Group[]>([])
 const nowMs = ref(Date.now())
 const roleFilter = ref('')
@@ -225,7 +233,8 @@ const planReady = computed(() => !loadingRoles.value && !error.value)
 const printFitReady = computed(() => {
   if (loadingRoles.value || loadingSchedule.value) return false
   if (error.value) return true
-  return printStageHeightPx.value > 0 && printFooterImagesReady.value
+  if (!timedGroups.value.length) return true
+  return printStageHeightPx.value > 0
 })
 
 const routeSlug = computed(() => {
@@ -311,6 +320,23 @@ function qrDataUrl(raw: string | null): string | null {
 const printOnlinePlanQr = computed(() => qrDataUrl(printQrcode.value))
 const printWifiQr = computed(() => qrDataUrl(printWifiQrcode.value))
 
+const printChromePayload = computed((): PrintScheduleChrome => ({
+  eventName: eventName.value,
+  subject: printFitSubject.value || '',
+  subjectLogoSrc: printFitSubjectProgram.value
+      ? programLogoSrc(printFitSubjectProgram.value, 'v')
+      : null,
+  subjectLogoAlt: printFitSubjectProgram.value
+      ? programLogoAlt(printFitSubjectProgram.value)
+      : '',
+  barColor: printFitBarColor.value,
+  onlinePlanQr: printOnlinePlanQr.value,
+  wifiQr: printWifiQr.value,
+  eventLogos: eventLogos.value,
+  rolesReady: !loadingRoles.value,
+  calendarReady: printFitReady.value,
+}))
+
 function sameOriginSrc(url: string): string {
   if (!url || url.startsWith('/') || url.startsWith('data:')) return url
   try {
@@ -326,50 +352,6 @@ function sameOriginSrc(url: string): string {
     // keep original
   }
   return url
-}
-
-function notePrintFooterImages() {
-  if (!props.printFit) return
-  measurePrintFooter()
-  const imgs = printFooterRowEl.value
-      ? Array.from(printFooterRowEl.value.querySelectorAll('img'))
-      : []
-  if (eventLogos.value.length === 0 || imgs.length === 0) {
-    printFooterImagesReady.value = eventLogos.value.length === 0
-    return
-  }
-  printFooterImagesReady.value = imgs.every((img) => img.complete)
-}
-
-function measurePrintFooter() {
-  if (!props.printFit) return
-  const row = printFooterRowEl.value
-  const inner = row?.parentElement?.parentElement
-  if (!row || !inner) {
-    printFooterScale.value = 1
-    return
-  }
-  const avail = inner.clientWidth
-  const need = row.scrollWidth
-  const next = need > avail && avail > 0 ? avail / need : 1
-  if (Math.abs(next - printFooterScale.value) > 0.001) {
-    printFooterScale.value = next
-  }
-}
-
-function startPrintFooterObserver() {
-  stopPrintFooterObserver()
-  if (!props.printFit || typeof ResizeObserver === 'undefined') return
-  measurePrintFooter()
-  const inner = printFooterRowEl.value?.parentElement?.parentElement
-  if (!inner) return
-  printFooterObserver = new ResizeObserver(() => measurePrintFooter())
-  printFooterObserver.observe(inner)
-}
-
-function stopPrintFooterObserver() {
-  printFooterObserver?.disconnect()
-  printFooterObserver = null
 }
 
 const ALLGEMEIN_LOGO = {logo_white: 'FLL_column_heading.png'}
@@ -1242,7 +1224,7 @@ function readStoredPrefs(planId: number): StoredPrefs | null {
 }
 
 function writeStoredPrefs() {
-  if (typeof localStorage === 'undefined' || !numericPlanId.value) return
+  if (props.printFit || typeof localStorage === 'undefined' || !numericPlanId.value) return
   try {
     const payload: StoredPrefs = {
       role: selectedRole.value,
@@ -1298,6 +1280,7 @@ function restorePrefsFromStorage() {
 }
 
 async function pushQuery(next: Record<string, string | null>, persist = true) {
+  if (props.printFit) return
   const query: Record<string, string> = {}
   for (const [key, raw] of Object.entries(route.query)) {
     if (key === 'role' || key === 'team' || key === 'lane' || key === 'table' || key === 'expired') continue
@@ -1631,7 +1614,7 @@ async function resolveSelectionAfterRoles() {
 
 function measurePrintStage() {
   if (!props.printFit) return
-  const box = printTimelineEl.value ?? planScrollEl.value ?? printStageEl.value
+  const box = printTimelineEl.value ?? planScrollEl.value
   if (!box) return
   printStageHeightPx.value = box.clientHeight
 }
@@ -1645,7 +1628,7 @@ function startPrintStageObserver() {
   stopPrintStageObserver()
   if (!props.printFit || typeof ResizeObserver === 'undefined') return
   measurePrintStage()
-  const targets = [printStageEl.value, planScrollEl.value, printTimelineEl.value].filter(
+  const targets = [planScrollEl.value, printTimelineEl.value].filter(
       (el): el is HTMLElement => el != null,
   )
   if (!targets.length) return
@@ -1653,7 +1636,7 @@ function startPrintStageObserver() {
   for (const el of targets) printStageObserver.observe(el)
 }
 
-watch([printStageEl, planScrollEl, printTimelineEl], () => {
+watch([planScrollEl, printTimelineEl], () => {
   if (props.printFit) startPrintStageObserver()
 })
 
@@ -1661,21 +1644,13 @@ watch(pageTitle, (title) => {
   if (typeof document !== 'undefined') document.title = title
 }, {immediate: true})
 
-watch([printFooterRowEl, eventLogos], () => {
-  if (!props.printFit) return
-  startPrintFooterObserver()
-  if (eventLogos.value.length === 0) {
-    printFooterImagesReady.value = true
-    return
-  }
-  printFooterImagesReady.value = false
-  void nextTick(() => notePrintFooterImages())
-})
+watch(printChromePayload, (payload) => {
+  if (props.printFit) emit('printChrome', payload)
+}, {deep: true, immediate: true})
 
 onMounted(async () => {
   await loadRoles()
   if (props.printFit) {
-    document.documentElement.classList.add('flow-print-fit')
     if (!error.value) await resolvePrintFitSelection()
   } else {
     await resolveSelectionAfterRoles()
@@ -1692,12 +1667,10 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  document.documentElement.classList.remove('flow-print-fit')
   if (nowTimer) clearInterval(nowTimer)
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   window.removeEventListener('resize', measurePrintStage)
   stopPrintStageObserver()
-  stopPrintFooterObserver()
   if (typeof document !== 'undefined') {
     document.documentElement.style.overflow = ''
     document.body.style.overflow = ''
@@ -1763,53 +1736,7 @@ watch(
       }"
       :style="{'--accent': roleAccent}"
   >
-    <div :class="printFit ? 'public-schedule__print-page' : 'public-schedule__inner'">
-      <div
-          ref="printStageEl"
-          :class="printFit ? 'public-schedule__print-stage' : undefined"
-          :style="printFit ? undefined : {display: 'contents'}"
-          :data-print-ready="printFit && printFitReady ? 'true' : undefined"
-      >
-        <div :class="printFit ? 'public-schedule__inner' : undefined" :style="printFit ? undefined : {display: 'contents'}">
-      <header
-          v-if="printFit && !loadingRoles"
-          class="public-schedule__print-header"
-          :style="{'--print-bar': printFitBarColor}"
-      >
-        <div class="public-schedule__print-bar" aria-hidden="true"/>
-        <div class="public-schedule__print-header-row">
-          <div class="public-schedule__print-side public-schedule__print-side--hot">
-            <img :src="PRINT_FIT_HOT_SRC" alt="Hands on Technology" class="public-schedule__print-hot"/>
-          </div>
-          <div class="public-schedule__print-mid">
-            <p class="public-schedule__print-title">{{ eventName }}</p>
-            <p class="public-schedule__print-subject">
-              <img
-                  v-if="printFitSubjectProgram"
-                  :src="programLogoSrc(printFitSubjectProgram, 'v')"
-                  :alt="programLogoAlt(printFitSubjectProgram)"
-                  class="public-schedule__print-subject-logo"
-              />
-              <span>{{ printFitSubject }}</span>
-            </p>
-          </div>
-          <div class="public-schedule__print-side public-schedule__print-side--qr">
-            <div class="public-schedule__print-qr">
-              <div class="public-schedule__print-qr-slot">
-                <img v-if="printWifiQr" :src="printWifiQr" alt="" class="public-schedule__print-qr-img"/>
-              </div>
-              <span class="public-schedule__print-qr-caption">WLAN</span>
-            </div>
-            <div class="public-schedule__print-qr">
-              <div class="public-schedule__print-qr-slot">
-                <img v-if="printOnlinePlanQr" :src="printOnlinePlanQr" alt="" class="public-schedule__print-qr-img"/>
-              </div>
-              <span class="public-schedule__print-qr-caption">Online-Plan</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <div class="public-schedule__inner">
       <div v-if="loadingRoles" class="public-schedule__card public-schedule__card--center" role="status">
         <Spinner size="md"/>
         <span>Rollen werden geladen…</span>
@@ -2193,28 +2120,6 @@ watch(
             </div>
         </div>
       </div>
-      <footer v-if="printFit && !loadingRoles" class="public-schedule__print-footer">
-        <div class="public-schedule__print-footer-inner">
-          <div
-              class="public-schedule__print-footer-scale"
-              :style="{transform: `scale(${printFooterScale})`}"
-          >
-            <div ref="printFooterRowEl" class="public-schedule__print-footer-row">
-              <img
-                  v-for="logo in eventLogos"
-                  :key="logo.id"
-                  :src="logo.url"
-                  :alt="logo.title || 'Logo'"
-                  class="public-schedule__print-footer-logo"
-                  @load="notePrintFooterImages"
-                  @error="notePrintFooterImages"
-              />
-            </div>
-          </div>
-        </div>
-      </footer>
-        </div>
-      </div>
     </div>
 
     <!-- Role picker sheet -->
@@ -2570,13 +2475,12 @@ watch(
       env(safe-area-inset-left, 0px);
 }
 
-/* Plan view: fill the available viewport, no side frames */
+/* Poster mode: fill the wrapper body slot; chrome lives in PublicSchedulePrint. */
 .public-schedule--print-fit {
-  min-height: 100dvh;
-  height: auto;
-  max-height: none;
-  overflow: visible;
-  background: #e5e7eb;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
   padding: 0;
   font-family: var(--font-sans);
 }
@@ -2585,179 +2489,6 @@ watch(
 .public-schedule--print-fit .public-schedule__band-title,
 .public-schedule--print-fit .public-schedule__block-title {
   font-weight: 700;
-}
-
-.public-schedule__print-page {
-  min-height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  padding: 16px;
-}
-
-.public-schedule__print-stage {
-  width: 204mm;
-  height: 291mm;
-  flex-shrink: 0;
-  background: #fff;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 8px 24px rgb(15 23 42 / 0.12);
-}
-
-.public-schedule__print-header {
-  flex: 0 0 28mm;
-  height: 28mm;
-  position: relative;
-  box-sizing: border-box;
-}
-
-.public-schedule__print-bar {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3mm;
-  background: var(--print-bar, #F78B1F);
-}
-
-.public-schedule__print-header-row {
-  position: absolute;
-  top: 4mm;
-  left: 4mm;
-  right: 4mm;
-  bottom: 0;
-  display: flex;
-  align-items: flex-start;
-  gap: 2mm;
-}
-
-.public-schedule__print-side {
-  width: 34mm;
-  flex-shrink: 0;
-}
-
-.public-schedule__print-side--hot {
-  height: 19.8mm;
-  display: flex;
-  align-items: center;
-}
-
-.public-schedule__print-hot {
-  width: 34mm;
-  max-height: 19.8mm;
-  height: auto;
-  object-fit: contain;
-  object-position: left center;
-}
-
-.public-schedule__print-mid {
-  flex: 1;
-  min-width: 0;
-}
-
-.public-schedule__print-title {
-  margin: 0;
-  font-family: var(--font-sans);
-  font-size: 0.85rem;
-  font-weight: 700;
-  font-synthesis: none;
-  letter-spacing: 0.01em;
-  line-height: 1.25;
-  color: #000;
-}
-
-.public-schedule__print-subject {
-  margin: 2mm 0 0;
-  display: flex;
-  align-items: center;
-  gap: 1.5mm;
-  min-height: 7mm;
-  font-family: var(--font-sans);
-  font-size: 1.05rem;
-  font-weight: 700;
-  font-synthesis: none;
-  letter-spacing: 0.01em;
-  line-height: 1.2;
-  color: #000;
-}
-
-.public-schedule__print-subject-logo {
-  width: 7mm;
-  height: 7mm;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.public-schedule__print-side--qr {
-  display: flex;
-  gap: 2mm;
-}
-
-.public-schedule__print-qr {
-  width: 16mm;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.public-schedule__print-qr-slot {
-  width: 16mm;
-  height: 16mm;
-}
-
-.public-schedule__print-qr-img {
-  width: 16mm;
-  height: 16mm;
-  object-fit: contain;
-}
-
-.public-schedule__print-qr-caption {
-  height: 3.8mm;
-  font-family: var(--font-sans);
-  font-size: 0.7rem;
-  font-weight: 700;
-  font-synthesis: none;
-  letter-spacing: 0.01em;
-  line-height: 3.8mm;
-  text-align: center;
-  color: #000;
-}
-
-.public-schedule__print-footer {
-  flex: 0 0 28mm;
-  height: 28mm;
-  box-sizing: border-box;
-}
-
-.public-schedule__print-footer-inner {
-  height: 100%;
-  padding: 2mm 4mm;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-
-.public-schedule__print-footer-scale {
-  transform-origin: center center;
-}
-
-.public-schedule__print-footer-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4mm;
-  height: 24mm;
-}
-
-.public-schedule__print-footer-logo {
-  height: 24mm;
-  width: auto;
-  object-fit: contain;
 }
 
 .public-schedule--print-fit .public-schedule__inner {
@@ -2793,45 +2524,6 @@ watch(
 }
 
 @media print {
-  .public-schedule {
-    min-height: 0 !important;
-    width: 204mm !important;
-    height: 291mm !important;
-    max-height: 291mm !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    background: #fff !important;
-  }
-
-  .public-schedule--print-fit {
-    background: #fff;
-    min-height: 0 !important;
-    width: 204mm !important;
-    height: 291mm !important;
-    max-height: 291mm !important;
-    overflow: hidden !important;
-  }
-
-  .public-schedule__print-page {
-    min-height: 0 !important;
-    width: 204mm !important;
-    height: 291mm !important;
-    max-height: 291mm !important;
-    padding: 0 !important;
-    display: block;
-    overflow: hidden !important;
-  }
-
-  /* Keep the designed A4 stage (not 100% of Chromium's 800x600 viewport). */
-  .public-schedule__print-stage {
-    box-shadow: none !important;
-    width: 204mm !important;
-    height: 291mm !important;
-    max-width: 204mm !important;
-    max-height: 291mm !important;
-    overflow: hidden !important;
-  }
-
   /* Safari PDF: hatches/30-min stripes flatten badly; keep solids. */
   .public-schedule--print-fit .public-schedule__timeline {
     background: #fff !important;
@@ -3986,54 +3678,4 @@ watch(
 
 .public-schedule__chip--action:active { background: #ffedd5; }
 
-</style>
-
-<style>
-html.flow-print-fit {
-  color-scheme: light;
-  font-family: var(--font-sans);
-}
-
-@page {
-  size: A4 portrait;
-  margin: 3mm;
-}
-
-@media print {
-  html.flow-print-fit,
-  html.flow-print-fit body,
-  html.flow-print-fit #app {
-    margin: 0 !important;
-    padding: 0 !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    max-height: 297mm !important;
-    min-height: 0 !important;
-    overflow: hidden !important;
-    font-family: var(--font-sans) !important;
-  }
-
-  html.flow-print-fit #app > .min-h-dvh {
-    min-height: 0 !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    max-height: 297mm !important;
-    overflow: hidden !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  html.flow-print-fit .glass-toast {
-    display: none !important;
-  }
-
-  html.flow-print-fit,
-  html.flow-print-fit *,
-  html.flow-print-fit *::before,
-  html.flow-print-fit *::after {
-    print-color-adjust: exact !important;
-    -webkit-print-color-adjust: exact !important;
-    color-adjust: exact !important;
-  }
-}
 </style>

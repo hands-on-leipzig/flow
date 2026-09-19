@@ -50,6 +50,7 @@ import EditSlide from "@/components/EditSlide.vue";
 import PlanLayout from "@/components/PlanLayout.vue";
 import PublicEvent from "@/components/PublicEvent.vue";
 import PublicSchedule from "@/components/PublicSchedule.vue";
+import PublicSchedulePrint from "@/components/PublicSchedulePrint.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
 import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
 import PublicScores from "@/components/PublicScores.vue";
@@ -71,9 +72,9 @@ const routes = [
     {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
     {
         path: '/public-schedule/:planId/print',
-        component: PublicSchedule,
+        component: PublicSchedulePrint,
         meta: {public: true, plain: true},
-        props: (route) => ({planId: route.params.planId, printFit: true}),
+        props: (route) => ({planId: route.params.planId}),
     },
     {path: '/public-schedule/:planId', component: PublicSchedule, props: true, meta: {public: true}},
     // Slim second-screen plan view (auth required, no app chrome / event bootstrap)
