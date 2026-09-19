@@ -10,7 +10,7 @@ final class RoleSheetPdf extends TCPDF
 {
     public const HOT_ORANGE = 'F78B1F';
 
-    public const HEADER_BODY_MARGIN = 40.0;
+    public const HEADER_BODY_MARGIN = 28.0;
 
     private const QR_SIZE = 16.0;
 
@@ -139,7 +139,8 @@ final class RoleSheetPdf extends TCPDF
         if (is_array($info) && ($info[0] ?? 0) > 0) {
             $logoH = $sideW * ((float) $info[1] / (float) $info[0]);
         }
-        $y = $top + max(0.0, ($sideW - $logoH) / 2.0);
+        $columnH = self::QR_SIZE + self::CAPTION_H;
+        $y = $top + max(0.0, ($columnH - $logoH) / 2.0);
         $this->Image($this->hotPath, $x, $y, $logoW, $logoH, '', '', '', true, 300, '', false, false, 0, true);
     }
 
