@@ -4,21 +4,39 @@ declare(strict_types=1);
 
 namespace App\Print;
 
+use Endroid\QrCode\Color\Color;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Writer\PngWriter;
 use TCPDF;
 
-final class RoleSheetPdf extends TCPDF
+final class EventPrintPdf extends TCPDF
 {
     public const HOT_ORANGE = 'F78B1F';
 
+    public const MARGIN = 12.0;
+
+    public const HEADER_TOP = 4.0;
+
+    public const QR_SIZE = 16.0;
+
+    public const CAPTION_H = 3.8;
+
+    /** Color bar + QR column (codes + captions). Body must start below this. */
+    public const HEADER_CONTENT_HEIGHT = self::HEADER_TOP + self::QR_SIZE + self::CAPTION_H;
+
     public const HEADER_BODY_MARGIN = 28.0;
 
-    private const QR_SIZE = 16.0;
+    public const FOOTER_MARGIN = 12.0;
+
+    /** Matches SetAutoPageBreak; rows must not start below this from the page bottom. */
+    public const BODY_BOTTOM_MARGIN = 22.0;
 
     private const QR_GAP = 2.0;
 
     private const COL_GAP = 2.0;
-
-    private const CAPTION_H = 3.8;
 
     public string $eventTitle = '';
 
@@ -44,14 +62,71 @@ final class RoleSheetPdf extends TCPDF
 
     public string $italicFont = 'helvetica';
 
+    public static function make(string $title, string $orientation = 'P', string $format = 'A4'): self
+    {
+        $pdf = new self($orientation, 'mm', $format, true, 'UTF-8', false);
+        $pdf->SetCreator('FLOW');
+        $pdf->SetAuthor('FLOW');
+        $pdf->SetTitle($title);
+        $pdf->setPrintHeader(true);
+        $pdf->setPrintFooter(true);
+        $pdf->setHeaderMargin(0);
+        $pdf->setFooterMargin(self::FOOTER_MARGIN);
+        $pdf->SetMargins(self::MARGIN, self::HEADER_BODY_MARGIN, self::MARGIN);
+        $pdf->SetAutoPageBreak(true, self::BODY_BOTTOM_MARGIN);
+
+        NotoTcpdfFont::register($pdf);
+        $pdf->regularFont = NotoTcpdfFont::regular();
+        $pdf->boldFont = NotoTcpdfFont::bold();
+        $pdf->italicFont = NotoTcpdfFont::italic();
+
+        return $pdf;
+    }
+
+    /**
+     * @param  array{
+     *     title_short?:string,
+     *     title_long?:string,
+     *     created_at?:string,
+     *     public_url?:string,
+     *     qr_base64?:?string,
+     *     wifi_qr_base64?:?string
+     * }  $document
+     */
+    public function loadChrome(array $document): void
+    {
+        $this->eventTitle = (string) ($document['title_long'] ?? $document['title_short'] ?? '');
+        $this->createdAt = (string) ($document['created_at'] ?? '');
+        $this->hotPath = self::hotLogoPath();
+        $this->qrPng = self::qrPng($document);
+        $this->wifiQrPng = self::pngFromBase64($document['wifi_qr_base64'] ?? null);
+    }
+
+    public function bodyBottom(): float
+    {
+        return $this->getPageHeight() - self::BODY_BOTTOM_MARGIN;
+    }
+
+    public function overflows(float $needed): bool
+    {
+        return ($this->GetY() + $needed) > $this->bodyBottom();
+    }
+
+    public function ensureSpace(float $needed): void
+    {
+        if ($this->overflows($needed)) {
+            $this->AddPage();
+        }
+    }
+
     public function Header(): void
     {
         $rgb = self::rgb($this->colorHex);
         $this->SetFillColor($rgb[0], $rgb[1], $rgb[2]);
         $this->Rect(0, 0, $this->getPageWidth(), 3, 'F');
 
-        $top = 4.0;
-        $margin = 12.0;
+        $top = self::HEADER_TOP;
+        $margin = self::MARGIN;
         $pageW = $this->getPageWidth();
         $sideW = (self::QR_SIZE * 2.0) + self::QR_GAP;
         $leftX = $margin;
@@ -88,7 +163,7 @@ final class RoleSheetPdf extends TCPDF
 
     public function Footer(): void
     {
-        $this->SetY(-12);
+        $this->SetY(-self::FOOTER_MARGIN);
         $this->SetFont($this->regularFont, '', 8);
         $this->SetTextColor(0, 0, 0);
         $this->Cell(0, 8, $this->createdAt, 0, 0, 'L');
@@ -126,6 +201,56 @@ final class RoleSheetPdf extends TCPDF
         }
 
         return null;
+    }
+
+    public static function hotLogoPath(): ?string
+    {
+        if (! function_exists('app') || ! function_exists('public_path')) {
+            return null;
+        }
+        $app = app();
+        if (! is_object($app) || ! method_exists($app, 'publicPath')) {
+            return null;
+        }
+        $path = public_path('flow/hot.png');
+
+        return is_file($path) ? $path : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $document
+     */
+    public static function qrPng(array $document): ?string
+    {
+        $stored = self::pngFromBase64($document['qr_base64'] ?? null);
+        if ($stored !== null) {
+            return $stored;
+        }
+
+        $url = trim((string) ($document['public_url'] ?? ''));
+        if ($url === '') {
+            return null;
+        }
+        if (! str_contains($url, '?')) {
+            $url .= '?source=qr';
+        }
+
+        try {
+            $qr = new QrCode(
+                $url,
+                new Encoding('UTF-8'),
+                ErrorCorrectionLevel::High,
+                300,
+                10,
+                RoundBlockSizeMode::Margin,
+                new Color(0, 0, 0),
+                new Color(255, 255, 255),
+            );
+
+            return (new PngWriter)->write($qr)->getString();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function drawHotLogo(float $x, float $top, float $sideW): void

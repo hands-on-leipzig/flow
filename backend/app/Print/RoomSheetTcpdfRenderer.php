@@ -5,12 +5,6 @@ declare(strict_types=1);
 namespace App\Print;
 
 use App\Support\ProgramCatalog;
-use Endroid\QrCode\Color\Color;
-use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\QrCode;
-use Endroid\QrCode\RoundBlockSizeMode;
-use Endroid\QrCode\Writer\PngWriter;
 
 final class RoomSheetTcpdfRenderer
 {
@@ -35,31 +29,13 @@ final class RoomSheetTcpdfRenderer
      */
     public function render(array $document): string
     {
-        $pdf = new RoleSheetPdf('P', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator('FLOW');
-        $pdf->SetAuthor('FLOW');
-        $pdf->SetTitle('Raumpläne');
-        $pdf->setPrintHeader(true);
-        $pdf->setPrintFooter(true);
-        $pdf->setHeaderMargin(0);
-        $pdf->setFooterMargin(12);
-        $pdf->SetMargins(12, RoleSheetPdf::HEADER_BODY_MARGIN, 12);
-        $pdf->SetAutoPageBreak(true, 22);
-
-        NotoTcpdfFont::register($pdf);
-        $pdf->regularFont = NotoTcpdfFont::regular();
-        $pdf->boldFont = NotoTcpdfFont::bold();
-        $pdf->italicFont = NotoTcpdfFont::italic();
-        $pdf->eventTitle = (string) ($document['title_long'] ?? $document['title_short'] ?? '');
-        $pdf->createdAt = (string) ($document['created_at'] ?? '');
-        $pdf->hotPath = self::hotLogoPath();
-        $pdf->qrPng = self::qrPng($document);
-        $pdf->wifiQrPng = RoleSheetPdf::pngFromBase64($document['wifi_qr_base64'] ?? null);
+        $pdf = EventPrintPdf::make('Raumpläne');
+        $pdf->loadChrome($document);
 
         $showLogos = (bool) ($document['show_program_logos'] ?? false);
         $sections = $document['sections'] ?? [];
         if ($sections === []) {
-            $pdf->colorHex = RoleSheetPdf::HOT_ORANGE;
+            $pdf->colorHex = EventPrintPdf::HOT_ORANGE;
             $pdf->logoPath = null;
             $pdf->noshowSubject = false;
             $pdf->sectionSubject = '';
@@ -67,7 +43,7 @@ final class RoomSheetTcpdfRenderer
         }
 
         foreach ($sections as $section) {
-            $pdf->colorHex = (string) ($section['color_hex'] ?? RoleSheetPdf::HOT_ORANGE);
+            $pdf->colorHex = (string) ($section['color_hex'] ?? EventPrintPdf::HOT_ORANGE);
             $pdf->sectionSubject = (string) ($section['subject'] ?? '');
             $pdf->noshowSubject = false;
             $pdf->logoPath = null;
@@ -76,7 +52,7 @@ final class RoomSheetTcpdfRenderer
             $columns = $section['team_columns'] ?? null;
             if (is_array($columns) && $columns !== []) {
                 $this->teamGrid($pdf, $columns);
-                if ($pdf->GetY() > $pdf->getPageHeight() - 48) {
+                if ($pdf->overflows(24.0)) {
                     $pdf->AddPage();
                 } else {
                     $pdf->Ln(3);
@@ -92,20 +68,28 @@ final class RoomSheetTcpdfRenderer
     /**
      * @param  list<array{program_id?:int,display_name?:string,logo_stem?:?string,teams?:list<array{label?:string,noshow?:bool}>}>  $columns
      */
-    private function teamGrid(RoleSheetPdf $pdf, array $columns): void
+    private function teamGrid(EventPrintPdf $pdf, array $columns): void
     {
         $n = count($columns);
         if ($n < 1) {
             return;
         }
-        $usable = $pdf->getPageWidth() - 24;
+        $margin = EventPrintPdf::MARGIN;
+        $usable = $pdf->getPageWidth() - ($margin * 2);
         $colW = $usable / $n;
-        $this->teamHeaders($pdf, $columns, $colW);
-
         $rowCount = 0;
         foreach ($columns as $column) {
             $rowCount = max($rowCount, count($column['teams'] ?? []));
         }
+        $firstH = 6.0;
+        if ($rowCount > 0) {
+            foreach ($columns as $column) {
+                $label = (string) ($column['teams'][0]['label'] ?? '');
+                $firstH = max($firstH, $pdf->getStringHeight($colW, $label, false, true, '', 1));
+            }
+        }
+        $pdf->ensureSpace(8.0 + $firstH);
+        $this->teamHeaders($pdf, $columns, $colW);
         for ($i = 0; $i < $rowCount; $i++) {
             $labels = [];
             $height = 6.0;
@@ -114,18 +98,18 @@ final class RoomSheetTcpdfRenderer
                 $labels[] = $label;
                 $height = max($height, $pdf->getStringHeight($colW, $label, false, true, '', 1));
             }
-            if ($pdf->GetY() > $pdf->getPageHeight() - 28) {
+            if ($pdf->overflows($height)) {
                 $pdf->AddPage();
                 $this->teamHeaders($pdf, $columns, $colW);
             }
             $startY = $pdf->GetY();
             if ($i % 2 === 1) {
                 $pdf->SetFillColor(245, 246, 248);
-                $pdf->Rect(12, $startY, $usable, $height, 'F');
+                $pdf->Rect($margin, $startY, $usable, $height, 'F');
             }
             $pdf->SetFont($pdf->regularFont, '', 9);
             foreach ($columns as $c => $column) {
-                $x = 12 + ($c * $colW);
+                $x = $margin + ($c * $colW);
                 $label = $labels[$c];
                 $pdf->SetXY($x, $startY);
                 $pdf->MultiCell($colW, $height, $label, 0, 'L', false, 0);
@@ -143,13 +127,13 @@ final class RoomSheetTcpdfRenderer
     /**
      * @param  list<array{program_id?:int,display_name?:string}>  $columns
      */
-    private function teamHeaders(RoleSheetPdf $pdf, array $columns, float $colW): void
+    private function teamHeaders(EventPrintPdf $pdf, array $columns, float $colW): void
     {
         $y = $pdf->GetY();
         $h = 8.0;
         $pdf->SetFont($pdf->boldFont, '', 9);
         foreach ($columns as $c => $column) {
-            $x = 12 + ($c * $colW);
+            $x = EventPrintPdf::MARGIN + ($c * $colW);
             $textX = $x;
             $programId = (int) ($column['program_id'] ?? 0);
             $logo = self::programLogoFile($programId, isset($column['logo_stem']) ? (string) $column['logo_stem'] : null);
@@ -166,9 +150,10 @@ final class RoomSheetTcpdfRenderer
     /**
      * @param  list<array{start?:string,end?:string,program_id?:?int,action?:string,strike?:list<string>,private?:bool}>  $rows
      */
-    private function activityTable(RoleSheetPdf $pdf, array $rows, bool $showLogos): void
+    private function activityTable(EventPrintPdf $pdf, array $rows, bool $showLogos): void
     {
-        $usable = $pdf->getPageWidth() - 24;
+        $margin = EventPrintPdf::MARGIN;
+        $usable = $pdf->getPageWidth() - ($margin * 2);
         $wLogo = $showLogos ? 7.0 : 0.0;
         $wStart = 18.0;
         $wEnd = 18.0;
@@ -176,6 +161,14 @@ final class RoomSheetTcpdfRenderer
         $pdf->SetFont($pdf->regularFont, '', 9);
 
         if ($rows !== []) {
+            $first = $rows[0];
+            $firstH = self::actionRowHeight(
+                $pdf,
+                $wAction,
+                (string) ($first['action'] ?? ''),
+                ! empty($first['private']),
+            );
+            $pdf->ensureSpace(6.0 + $firstH);
             $this->activityHeader($pdf, $showLogos, $usable, $wLogo, $wStart, $wEnd, $wAction);
         }
 
@@ -185,18 +178,17 @@ final class RoomSheetTcpdfRenderer
             $action = (string) ($row['action'] ?? '');
             $strike = $row['strike'] ?? [];
             $private = ! empty($row['private']);
-            $startY = $pdf->GetY();
-            if ($startY > $pdf->getPageHeight() - 28) {
+            $h = self::actionRowHeight($pdf, $wAction, $action, $private);
+            if ($pdf->overflows($h)) {
                 $pdf->AddPage();
                 $this->activityHeader($pdf, $showLogos, $usable, $wLogo, $wStart, $wEnd, $wAction);
-                $startY = $pdf->GetY();
             }
-            $h = self::actionRowHeight($pdf, $wAction, $action, $private);
+            $startY = $pdf->GetY();
             if ($index % 2 === 1) {
                 $pdf->SetFillColor(245, 246, 248);
-                $pdf->Rect(12, $startY, $usable, $h, 'F');
+                $pdf->Rect($margin, $startY, $usable, $h, 'F');
             }
-            $x = 12.0;
+            $x = $margin;
             if ($showLogos) {
                 $programId = isset($row['program_id']) ? (int) $row['program_id'] : 0;
                 $logo = self::programLogoFile($programId, null);
@@ -226,7 +218,7 @@ final class RoomSheetTcpdfRenderer
     }
 
     private function activityHeader(
-        RoleSheetPdf $pdf,
+        EventPrintPdf $pdf,
         bool $showLogos,
         float $usable,
         float $wLogo,
@@ -235,11 +227,12 @@ final class RoomSheetTcpdfRenderer
         float $wAction,
     ): void {
         $headerY = $pdf->GetY();
+        $margin = EventPrintPdf::MARGIN;
         $pdf->SetFillColor(236, 238, 241);
-        $pdf->Rect(12, $headerY, $usable, 6, 'F');
+        $pdf->Rect($margin, $headerY, $usable, 6, 'F');
         $pdf->SetTextColor(0, 0, 0);
         $pdf->SetFont($pdf->boldFont, '', 9);
-        $x = 12.0;
+        $x = $margin;
         if ($showLogos) {
             $x += $wLogo;
         }
@@ -248,12 +241,12 @@ final class RoomSheetTcpdfRenderer
         $pdf->Cell($wEnd, 6, 'Ende', 0, 0, 'L');
         $pdf->Cell($wAction, 6, 'Aktion', 0, 0, 'L');
         $pdf->SetLineWidth(0.2);
-        $pdf->Line(12, $headerY + 6, 12 + $usable, $headerY + 6);
+        $pdf->Line($margin, $headerY + 6, $margin + $usable, $headerY + 6);
         $pdf->SetFont($pdf->regularFont, '', 9);
         $pdf->SetY($headerY + 6);
     }
 
-    private static function actionRowHeight(RoleSheetPdf $pdf, float $wAction, string $action, bool $private): float
+    private static function actionRowHeight(EventPrintPdf $pdf, float $wAction, string $action, bool $private): float
     {
         $base = max(6.0, $pdf->getStringHeight($wAction, $action !== '' ? $action : ' ', false, true, '', 1));
         if (! $private) {
@@ -270,7 +263,7 @@ final class RoomSheetTcpdfRenderer
         return $base + $pdf->getStringHeight($wAction, $mark, false, true, '', 1);
     }
 
-    private static function suffixFitsSameLine(RoleSheetPdf $pdf, float $wAction, string $action, string $suffix): bool
+    private static function suffixFitsSameLine(EventPrintPdf $pdf, float $wAction, string $action, string $suffix): bool
     {
         if (method_exists($pdf, 'getNumLines') && $pdf->getNumLines($action, $wAction) > 1) {
             return false;
@@ -280,7 +273,7 @@ final class RoomSheetTcpdfRenderer
     }
 
     private static function writePrivateMark(
-        RoleSheetPdf $pdf,
+        EventPrintPdf $pdf,
         float $x,
         float $y,
         float $width,
@@ -324,7 +317,7 @@ final class RoomSheetTcpdfRenderer
      * @param  list<string>  $strike
      */
     private static function strikeNames(
-        RoleSheetPdf $pdf,
+        EventPrintPdf $pdf,
         float $x,
         float $y,
         float $h,
@@ -373,56 +366,6 @@ final class RoomSheetTcpdfRenderer
             $path = ProgramCatalog::logoPath($key, 'v');
 
             return is_file($path) ? $path : null;
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    private static function hotLogoPath(): ?string
-    {
-        if (! function_exists('app') || ! function_exists('public_path')) {
-            return null;
-        }
-        $app = app();
-        if (! is_object($app) || ! method_exists($app, 'publicPath')) {
-            return null;
-        }
-        $path = public_path('flow/hot.png');
-
-        return is_file($path) ? $path : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $document
-     */
-    private static function qrPng(array $document): ?string
-    {
-        $stored = RoleSheetPdf::pngFromBase64($document['qr_base64'] ?? null);
-        if ($stored !== null) {
-            return $stored;
-        }
-
-        $url = trim((string) ($document['public_url'] ?? ''));
-        if ($url === '') {
-            return null;
-        }
-        if (! str_contains($url, '?')) {
-            $url .= '?source=qr';
-        }
-
-        try {
-            $qr = new QrCode(
-                $url,
-                new Encoding('UTF-8'),
-                ErrorCorrectionLevel::High,
-                300,
-                10,
-                RoundBlockSizeMode::Margin,
-                new Color(0, 0, 0),
-                new Color(255, 255, 255),
-            );
-
-            return (new PngWriter)->write($qr)->getString();
         } catch (\Throwable) {
             return null;
         }

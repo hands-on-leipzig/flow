@@ -5,12 +5,6 @@ declare(strict_types=1);
 namespace App\Print;
 
 use App\Support\ProgramCatalog;
-use Endroid\QrCode\Color\Color;
-use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\QrCode;
-use Endroid\QrCode\RoundBlockSizeMode;
-use Endroid\QrCode\Writer\PngWriter;
 
 final class RoleSheetTcpdfRenderer
 {
@@ -27,26 +21,8 @@ final class RoleSheetTcpdfRenderer
      */
     public function render(array $document): string
     {
-        $pdf = new RoleSheetPdf('P', 'mm', 'A4', true, 'UTF-8', false);
-        $pdf->SetCreator('FLOW');
-        $pdf->SetAuthor('FLOW');
-        $pdf->SetTitle('Rollenpläne');
-        $pdf->setPrintHeader(true);
-        $pdf->setPrintFooter(true);
-        $pdf->setHeaderMargin(0);
-        $pdf->setFooterMargin(12);
-        $pdf->SetMargins(12, RoleSheetPdf::HEADER_BODY_MARGIN, 12);
-        $pdf->SetAutoPageBreak(true, 22);
-
-        NotoTcpdfFont::register($pdf);
-        $pdf->regularFont = NotoTcpdfFont::regular();
-        $pdf->boldFont = NotoTcpdfFont::bold();
-        $pdf->italicFont = NotoTcpdfFont::italic();
-        $pdf->eventTitle = (string) ($document['title_long'] ?? $document['title_short'] ?? '');
-        $pdf->createdAt = (string) ($document['created_at'] ?? '');
-        $pdf->hotPath = self::hotLogoPath();
-        $pdf->qrPng = self::qrPng($document);
-        $pdf->wifiQrPng = RoleSheetPdf::pngFromBase64($document['wifi_qr_base64'] ?? null);
+        $pdf = EventPrintPdf::make('Rollenpläne');
+        $pdf->loadChrome($document);
 
         $sections = $document['sections'] ?? [];
         if ($sections === []) {
@@ -54,7 +30,7 @@ final class RoleSheetTcpdfRenderer
         }
 
         foreach ($sections as $section) {
-            $pdf->colorHex = (string) ($section['color_hex'] ?? RoleSheetPdf::HOT_ORANGE);
+            $pdf->colorHex = (string) ($section['color_hex'] ?? EventPrintPdf::HOT_ORANGE);
             $pdf->sectionSubject = (string) ($section['subject'] ?? '');
             $pdf->noshowSubject = (bool) ($section['noshow'] ?? false);
             $pdf->logoPath = self::logoFile($section['logo_stem'] ?? null);
@@ -73,29 +49,29 @@ final class RoleSheetTcpdfRenderer
     /**
      * @param  list<array{start?:string,end?:string,room?:string,action?:string,strike?:list<string>,italic?:list<string>}>  $rows
      */
-    private function table(RoleSheetPdf $pdf, string $heading, array $rows): void
+    private function table(EventPrintPdf $pdf, string $heading, array $rows): void
     {
-        $usable = $pdf->getPageWidth() - 24;
+        $usable = $pdf->getPageWidth() - (EventPrintPdf::MARGIN * 2);
         $wStart = 18;
         $wEnd = 18;
         $wRoom = 52;
         $wAction = $usable - $wStart - $wEnd - $wRoom;
 
+        $firstH = 6.0;
+        if ($rows !== []) {
+            $firstRoom = (string) ($rows[0]['room'] ?? '');
+            $firstAction = (string) ($rows[0]['action'] ?? '');
+            $firstH = max(
+                6.0,
+                $pdf->getStringHeight($wRoom, $firstRoom, false, true, '', 1),
+                $pdf->getStringHeight($wAction, $firstAction, false, true, '', 1),
+            );
+        }
+        $pdf->ensureSpace(12.0 + $firstH);
         $pdf->SetFont($pdf->boldFont, '', 9);
         $pdf->SetTextColor(0, 0, 0);
         $pdf->Cell($usable, 6, $heading, 0, 1, 'L');
-
-        $headerY = $pdf->GetY();
-        $pdf->SetFillColor(236, 238, 241);
-        $pdf->Rect(12, $headerY, $usable, 6, 'F');
-        $pdf->SetXY(12, $headerY);
-        $pdf->SetFont($pdf->boldFont, '', 9);
-        $pdf->Cell($wStart, 6, 'Start', 0, 0, 'L');
-        $pdf->Cell($wEnd, 6, 'Ende', 0, 0, 'L');
-        $pdf->Cell($wRoom, 6, 'Raum', 0, 0, 'L');
-        $pdf->Cell($wAction, 6, 'Aktion', 0, 1, 'L');
-        $pdf->SetLineWidth(0.2);
-        $pdf->Line(12, $pdf->GetY(), 12 + $usable, $pdf->GetY());
+        $this->columnHeaders($pdf, $usable, $wStart, $wEnd, $wRoom, $wAction);
 
         $pdf->SetFont($pdf->regularFont, '', 9);
         foreach ($rows as $index => $row) {
@@ -106,31 +82,32 @@ final class RoleSheetTcpdfRenderer
             $strike = $row['strike'] ?? [];
             $italic = $row['italic'] ?? [];
 
-            $startY = $pdf->GetY();
-            if ($startY > $pdf->getPageHeight() - 28) {
-                $pdf->AddPage();
-                $startY = $pdf->GetY();
-            }
-
             $hRoom = $pdf->getStringHeight($wRoom, $room, false, true, '', 1);
             $hAction = $pdf->getStringHeight($wAction, $action, false, true, '', 1);
             $h = max(6.0, $hRoom, $hAction);
+            if ($pdf->overflows($h)) {
+                $pdf->AddPage();
+                $this->columnHeaders($pdf, $usable, $wStart, $wEnd, $wRoom, $wAction);
+                $pdf->SetFont($pdf->regularFont, '', 9);
+            }
+
+            $startY = $pdf->GetY();
             $stripe = $index % 2 === 1;
             if ($stripe) {
                 $pdf->SetFillColor(245, 246, 248);
-                $pdf->Rect(12, $startY, $usable, $h, 'F');
+                $pdf->Rect(EventPrintPdf::MARGIN, $startY, $usable, $h, 'F');
             }
 
-            $pdf->SetXY(12, $startY);
+            $pdf->SetXY(EventPrintPdf::MARGIN, $startY);
             $pdf->MultiCell($wStart, $h, $start, 0, 'L', false, 0);
-            $pdf->SetXY(12 + $wStart, $startY);
+            $pdf->SetXY(EventPrintPdf::MARGIN + $wStart, $startY);
             $pdf->MultiCell($wEnd, $h, $end, 0, 'L', false, 0);
-            $pdf->SetXY(12 + $wStart + $wEnd, $startY);
+            $pdf->SetXY(EventPrintPdf::MARGIN + $wStart + $wEnd, $startY);
             $pdf->MultiCell($wRoom, $h, $room, 0, 'L', false, 0);
-            $this->writeAction($pdf, 12 + $wStart + $wEnd + $wRoom, $startY, $h, $wAction, $action, $italic);
+            $this->writeAction($pdf, EventPrintPdf::MARGIN + $wStart + $wEnd + $wRoom, $startY, $h, $wAction, $action, $italic);
 
             if (self::shouldStrike($action, $strike)) {
-                self::strikeNames($pdf, 12 + $wStart + $wEnd + $wRoom, $startY, $h, $wAction, $action, $strike);
+                self::strikeNames($pdf, EventPrintPdf::MARGIN + $wStart + $wEnd + $wRoom, $startY, $h, $wAction, $action, $strike);
             }
 
             $pdf->SetFont($pdf->regularFont, '', 9);
@@ -138,11 +115,33 @@ final class RoleSheetTcpdfRenderer
         }
     }
 
+    private function columnHeaders(
+        EventPrintPdf $pdf,
+        float $usable,
+        float $wStart,
+        float $wEnd,
+        float $wRoom,
+        float $wAction,
+    ): void {
+        $headerY = $pdf->GetY();
+        $pdf->SetFillColor(236, 238, 241);
+        $pdf->Rect(EventPrintPdf::MARGIN, $headerY, $usable, 6, 'F');
+        $pdf->SetXY(EventPrintPdf::MARGIN, $headerY);
+        $pdf->SetFont($pdf->boldFont, '', 9);
+        $pdf->SetTextColor(0, 0, 0);
+        $pdf->Cell($wStart, 6, 'Start', 0, 0, 'L');
+        $pdf->Cell($wEnd, 6, 'Ende', 0, 0, 'L');
+        $pdf->Cell($wRoom, 6, 'Raum', 0, 0, 'L');
+        $pdf->Cell($wAction, 6, 'Aktion', 0, 1, 'L');
+        $pdf->SetLineWidth(0.2);
+        $pdf->Line(EventPrintPdf::MARGIN, $pdf->GetY(), EventPrintPdf::MARGIN + $usable, $pdf->GetY());
+    }
+
     /**
      * @param  list<string>  $italic
      */
     private function writeAction(
-        RoleSheetPdf $pdf,
+        EventPrintPdf $pdf,
         float $x,
         float $y,
         float $h,
@@ -244,7 +243,7 @@ final class RoleSheetTcpdfRenderer
      * @param  list<string>  $strike
      */
     private static function strikeNames(
-        RoleSheetPdf $pdf,
+        EventPrintPdf $pdf,
         float $x,
         float $y,
         float $h,
@@ -288,55 +287,5 @@ final class RoleSheetTcpdfRenderer
         $path = ProgramCatalog::logoPath($stem, 'v');
 
         return is_file($path) ? $path : null;
-    }
-
-    private static function hotLogoPath(): ?string
-    {
-        if (! function_exists('app') || ! function_exists('public_path')) {
-            return null;
-        }
-        $app = app();
-        if (! is_object($app) || ! method_exists($app, 'publicPath')) {
-            return null;
-        }
-        $path = public_path('flow/hot.png');
-
-        return is_file($path) ? $path : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $document
-     */
-    private static function qrPng(array $document): ?string
-    {
-        $stored = RoleSheetPdf::pngFromBase64($document['qr_base64'] ?? null);
-        if ($stored !== null) {
-            return $stored;
-        }
-
-        $url = trim((string) ($document['public_url'] ?? ''));
-        if ($url === '') {
-            return null;
-        }
-        if (! str_contains($url, '?')) {
-            $url .= '?source=qr';
-        }
-
-        try {
-            $qr = new QrCode(
-                $url,
-                new Encoding('UTF-8'),
-                ErrorCorrectionLevel::High,
-                300,
-                10,
-                RoundBlockSizeMode::Margin,
-                new Color(0, 0, 0),
-                new Color(255, 255, 255),
-            );
-
-            return (new PngWriter)->write($qr)->getString();
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

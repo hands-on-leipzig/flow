@@ -132,10 +132,10 @@ final class RoleSheetAssembler
         if ($program !== null && $program !== '' && (int) $program > 0) {
             $hex = ltrim((string) ($role['color_hex'] ?? ''), '#');
 
-            return $hex !== '' ? $hex : RoleSheetPdf::HOT_ORANGE;
+            return $hex !== '' ? $hex : EventPrintPdf::HOT_ORANGE;
         }
 
-        return RoleSheetPdf::HOT_ORANGE;
+        return EventPrintPdf::HOT_ORANGE;
     }
 
     /**
