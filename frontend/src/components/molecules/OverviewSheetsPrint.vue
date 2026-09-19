@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
 import axios from 'axios'
 import Spinner from '@/components/atoms/Spinner.vue'
+import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
 import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {eventPrograms, programDisplayName, programId} from '@/utils/eventPrograms'
 import {flowFilename} from '@/utils/flowFilename'
+import type {StaffingFilterKey} from '@/utils/volunteerStaffingFilters'
 
 defineOptions({name: 'OverviewSheetsPrint'})
 
@@ -18,23 +20,40 @@ const AUDIENCE_ROLE_BY_PROGRAM: Record<number, number> = {
   8: 24,
 }
 
+type OverviewOption = {
+  id: number
+  label: string
+  filterKey: StaffingFilterKey
+}
+
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 const eventDate = computed(() => eventStore.selectedEvent?.date)
 const busy = ref(false)
 const roleId = ref(14)
+const paper = ref<'a4' | 'a3'>('a4')
+const programs = computed(() => eventPrograms(eventStore.selectedEvent))
+const showProgramSelection = computed(() => programs.value.length > 1)
 
 const options = computed(() => {
-  const rows: {id: number, label: string}[] = [{id: 14, label: 'Publikum'}]
+  const rows: OverviewOption[] = [{id: 14, label: 'Übergreifend', filterKey: 'cross'}]
   const seen = new Set<number>([14])
-  for (const program of eventPrograms(eventStore.selectedEvent)) {
+  for (const program of programs.value) {
     const id = AUDIENCE_ROLE_BY_PROGRAM[programId(program)]
     if (!id || seen.has(id)) continue
     seen.add(id)
-    rows.push({id, label: programDisplayName(program)})
+    rows.push({
+      id,
+      label: programDisplayName(program),
+      filterKey: `program:${programId(program)}`,
+    })
   }
   return rows
 })
+
+watch(showProgramSelection, (show) => {
+  if (!show) roleId.value = 14
+}, {immediate: true})
 
 async function errorFromBody(data: unknown): Promise<string> {
   if (data && typeof data === 'object' && !(data instanceof Blob) && 'error' in data) {
@@ -66,10 +85,11 @@ async function downloadPdf() {
   try {
     const started = await axios.post(`/print/${eventId.value}/overview-sheet`, {
       role_id: roleId.value,
+      paper: paper.value,
     })
     const jobId = started.data?.id as string | undefined
     const filename = (started.data?.filename as string | undefined)
-      || flowFilename('Uebersichtsplan', 'pdf', eventDate.value)
+      || flowFilename(paper.value === 'a3' ? 'Uebersichtsplan_A3' : 'Uebersichtsplan', 'pdf', eventDate.value)
     if (!jobId) {
       showGlassToast('PDF erzeugen fehlgeschlagen', 'error')
       return
@@ -114,14 +134,38 @@ async function downloadPdf() {
   <article class="liquid-surface-inner role-sheets">
     <header class="role-sheets__head">
       <h2 class="role-sheets__title">Übersichtsplan</h2>
-      <p class="role-sheets__sub">Öffentlicher Tagesplan auf einer A4-Seite</p>
+      <p class="role-sheets__sub">Öffentlicher Tagesplan auf einer Seite</p>
     </header>
-    <div v-if="options.length > 1" class="role-sheets__body">
-      <fieldset class="role-sheets__choices">
+    <div class="role-sheets__body">
+      <fieldset v-if="showProgramSelection" class="role-sheets__choices">
         <legend class="role-sheets__legend">Programm</legend>
-        <label v-for="option in options" :key="option.id" class="role-sheets__choice">
-          <input v-model.number="roleId" type="radio" name="overview-role" :value="option.id"/>
-          <span>{{ option.label }}</span>
+        <label
+            v-for="option in options"
+            :key="option.id"
+            class="role-sheets__option role-sheets__option--program"
+        >
+          <input
+              v-model.number="roleId"
+              type="radio"
+              class="accent-[var(--color-accent)]"
+              name="overview-role"
+              :value="option.id"
+          />
+          <span class="role-sheets__program-label">
+            <StaffingScopeLeading :filter-key="option.filterKey" size="chip" :boxed="false"/>
+            <span>{{ option.label }}</span>
+          </span>
+        </label>
+      </fieldset>
+      <fieldset class="role-sheets__choices">
+        <legend class="role-sheets__legend">Format</legend>
+        <label class="role-sheets__option">
+          <input v-model="paper" type="radio" class="accent-[var(--color-accent)]" name="overview-paper" value="a4"/>
+          <span>A4</span>
+        </label>
+        <label class="role-sheets__option">
+          <input v-model="paper" type="radio" class="accent-[var(--color-accent)]" name="overview-paper" value="a3"/>
+          <span>A3</span>
         </label>
       </fieldset>
     </div>
@@ -171,6 +215,9 @@ async function downloadPdf() {
 
 .role-sheets__body {
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
 }
 
 .role-sheets__choices {
@@ -179,7 +226,6 @@ async function downloadPdf() {
   border: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
 }
 
 .role-sheets__legend {
@@ -194,13 +240,24 @@ async function downloadPdf() {
   border: 0;
 }
 
-.role-sheets__choice {
+.role-sheets__option {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  font-size: 0.82rem;
-  line-height: 1.3;
+  gap: 0.5rem;
+  padding: 0.15rem 0;
+  font-size: 0.9375rem;
   cursor: pointer;
+}
+
+.role-sheets__option--program {
+  font-weight: 600;
+}
+
+.role-sheets__program-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
 }
 
 .role-sheets__actions {

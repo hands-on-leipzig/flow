@@ -1,14 +1,23 @@
 <script setup lang="ts">
 import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
+import {useRoute} from 'vue-router'
 import {imageUrl} from '@/utils/images'
 import PublicSchedule, {type PrintScheduleChrome} from '@/components/PublicSchedule.vue'
 
 const PRINT_FIT_HOT_SRC = imageUrl('/flow/hot.png')
 const PRINT_FIT_HOT_ORANGE = '#F78B1F'
+const PAGE_STYLE_ID = 'flow-print-page-size'
 
 const props = defineProps<{
   planId: number | string
 }>()
+
+const route = useRoute()
+const isA3 = computed(() => {
+  const raw = route.query.size
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value === 'a3'
+})
 
 const chrome = ref<PrintScheduleChrome>({
   eventName: '',
@@ -93,6 +102,24 @@ function onPrintChrome(next: PrintScheduleChrome) {
   chrome.value = next
 }
 
+function applyDocumentPrintSize(a3: boolean) {
+  document.documentElement.classList.add('flow-print-fit')
+  document.documentElement.classList.toggle('flow-print-a3', a3)
+  let el = document.getElementById(PAGE_STYLE_ID) as HTMLStyleElement | null
+  if (!el) {
+    el = document.createElement('style')
+    el.id = PAGE_STYLE_ID
+    document.head.appendChild(el)
+  }
+  const size = a3 ? 'A3' : 'A4'
+  el.textContent = `@page { size: ${size} portrait; margin: 3mm; }`
+}
+
+function clearDocumentPrintSize() {
+  document.documentElement.classList.remove('flow-print-fit', 'flow-print-a3')
+  document.getElementById(PAGE_STYLE_ID)?.remove()
+}
+
 watch(
     () => [printFooterRowEl.value, chrome.value.eventLogos],
     () => {
@@ -106,18 +133,20 @@ watch(
     },
 )
 
+watch(isA3, (a3) => applyDocumentPrintSize(a3), {immediate: true})
+
 onMounted(() => {
-  document.documentElement.classList.add('flow-print-fit')
+  applyDocumentPrintSize(isA3.value)
 })
 
 onUnmounted(() => {
-  document.documentElement.classList.remove('flow-print-fit')
+  clearDocumentPrintSize()
   stopPrintFooterObserver()
 })
 </script>
 
 <template>
-  <div class="print-overview">
+  <div class="print-overview" :class="{'print-overview--a3': isA3}">
     <div class="print-overview__page">
       <div
           class="print-overview__stage"
@@ -198,6 +227,10 @@ onUnmounted(() => {
 
 <style scoped>
 .print-overview {
+  --print-w: 204mm;
+  --print-h: 291mm;
+  --print-chrome: 28mm;
+  --print-scale: 1;
   min-height: 100dvh;
   height: auto;
   max-height: none;
@@ -205,6 +238,13 @@ onUnmounted(() => {
   background: #e5e7eb;
   padding: 0;
   font-family: var(--font-sans);
+}
+
+.print-overview--a3 {
+  --print-w: 291mm;
+  --print-h: 414mm;
+  --print-chrome: 39.6mm;
+  --print-scale: 1.414285714;
 }
 
 .print-overview__page {
@@ -217,8 +257,8 @@ onUnmounted(() => {
 }
 
 .print-overview__stage {
-  width: 204mm;
-  height: 291mm;
+  width: var(--print-w);
+  height: var(--print-h);
   flex-shrink: 0;
   background: #fff;
   overflow: hidden;
@@ -228,8 +268,8 @@ onUnmounted(() => {
 }
 
 .print-overview__header {
-  flex: 0 0 28mm;
-  height: 28mm;
+  flex: 0 0 var(--print-chrome);
+  height: var(--print-chrome);
   position: relative;
   box-sizing: border-box;
 }
@@ -239,35 +279,35 @@ onUnmounted(() => {
   top: 0;
   left: 0;
   right: 0;
-  height: 3mm;
+  height: calc(3mm * var(--print-scale));
   background: var(--print-bar, #F78B1F);
 }
 
 .print-overview__header-row {
   position: absolute;
-  top: 4mm;
-  left: 4mm;
-  right: 4mm;
+  top: calc(4mm * var(--print-scale));
+  left: calc(4mm * var(--print-scale));
+  right: calc(4mm * var(--print-scale));
   bottom: 0;
   display: flex;
   align-items: flex-start;
-  gap: 2mm;
+  gap: calc(2mm * var(--print-scale));
 }
 
 .print-overview__side {
-  width: 34mm;
+  width: calc(34mm * var(--print-scale));
   flex-shrink: 0;
 }
 
 .print-overview__side--hot {
-  height: 19.8mm;
+  height: calc(19.8mm * var(--print-scale));
   display: flex;
   align-items: center;
 }
 
 .print-overview__hot {
-  width: 34mm;
-  max-height: 19.8mm;
+  width: calc(34mm * var(--print-scale));
+  max-height: calc(19.8mm * var(--print-scale));
   height: auto;
   object-fit: contain;
   object-position: left center;
@@ -281,7 +321,7 @@ onUnmounted(() => {
 .print-overview__title {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: 0.85rem;
+  font-size: calc(0.85rem * var(--print-scale));
   font-weight: 700;
   font-synthesis: none;
   letter-spacing: 0.01em;
@@ -290,13 +330,13 @@ onUnmounted(() => {
 }
 
 .print-overview__subject {
-  margin: 2mm 0 0;
+  margin: calc(2mm * var(--print-scale)) 0 0;
   display: flex;
   align-items: center;
-  gap: 1.5mm;
-  min-height: 7mm;
+  gap: calc(1.5mm * var(--print-scale));
+  min-height: calc(7mm * var(--print-scale));
   font-family: var(--font-sans);
-  font-size: 1.05rem;
+  font-size: calc(1.05rem * var(--print-scale));
   font-weight: 700;
   font-synthesis: none;
   letter-spacing: 0.01em;
@@ -305,43 +345,43 @@ onUnmounted(() => {
 }
 
 .print-overview__subject-logo {
-  width: 7mm;
-  height: 7mm;
+  width: calc(7mm * var(--print-scale));
+  height: calc(7mm * var(--print-scale));
   object-fit: contain;
   flex-shrink: 0;
 }
 
 .print-overview__side--qr {
   display: flex;
-  gap: 2mm;
+  gap: calc(2mm * var(--print-scale));
 }
 
 .print-overview__qr {
-  width: 16mm;
+  width: calc(16mm * var(--print-scale));
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
 .print-overview__qr-slot {
-  width: 16mm;
-  height: 16mm;
+  width: calc(16mm * var(--print-scale));
+  height: calc(16mm * var(--print-scale));
 }
 
 .print-overview__qr-img {
-  width: 16mm;
-  height: 16mm;
+  width: calc(16mm * var(--print-scale));
+  height: calc(16mm * var(--print-scale));
   object-fit: contain;
 }
 
 .print-overview__qr-caption {
-  height: 3.8mm;
+  height: calc(3.8mm * var(--print-scale));
   font-family: var(--font-sans);
-  font-size: 0.7rem;
+  font-size: calc(0.7rem * var(--print-scale));
   font-weight: 700;
   font-synthesis: none;
   letter-spacing: 0.01em;
-  line-height: 3.8mm;
+  line-height: calc(3.8mm * var(--print-scale));
   text-align: center;
   color: #000;
 }
@@ -361,14 +401,14 @@ onUnmounted(() => {
 }
 
 .print-overview__footer {
-  flex: 0 0 28mm;
-  height: 28mm;
+  flex: 0 0 var(--print-chrome);
+  height: var(--print-chrome);
   box-sizing: border-box;
 }
 
 .print-overview__footer-inner {
   height: 100%;
-  padding: 2mm 4mm;
+  padding: calc(2mm * var(--print-scale)) calc(4mm * var(--print-scale));
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -384,12 +424,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4mm;
-  height: 24mm;
+  gap: calc(4mm * var(--print-scale));
+  height: calc(24mm * var(--print-scale));
 }
 
 .print-overview__footer-logo {
-  height: 24mm;
+  height: calc(24mm * var(--print-scale));
   width: auto;
   object-fit: contain;
 }
@@ -397,9 +437,9 @@ onUnmounted(() => {
 @media print {
   .print-overview {
     min-height: 0 !important;
-    width: 204mm !important;
-    height: 291mm !important;
-    max-height: 291mm !important;
+    width: var(--print-w) !important;
+    height: var(--print-h) !important;
+    max-height: var(--print-h) !important;
     padding: 0 !important;
     overflow: hidden !important;
     background: #fff !important;
@@ -407,21 +447,21 @@ onUnmounted(() => {
 
   .print-overview__page {
     min-height: 0 !important;
-    width: 204mm !important;
-    height: 291mm !important;
-    max-height: 291mm !important;
+    width: var(--print-w) !important;
+    height: var(--print-h) !important;
+    max-height: var(--print-h) !important;
     padding: 0 !important;
     display: block;
     overflow: hidden !important;
   }
 
-  /* Keep the designed A4 stage (not 100% of Chromium's 800x600 viewport). */
+  /* Keep the designed mm stage (not 100% of Chromium's 800x600 viewport). */
   .print-overview__stage {
     box-shadow: none !important;
-    width: 204mm !important;
-    height: 291mm !important;
-    max-width: 204mm !important;
-    max-height: 291mm !important;
+    width: var(--print-w) !important;
+    height: var(--print-h) !important;
+    max-width: var(--print-w) !important;
+    max-height: var(--print-h) !important;
     overflow: hidden !important;
   }
 }
@@ -431,11 +471,6 @@ onUnmounted(() => {
 html.flow-print-fit {
   color-scheme: light;
   font-family: var(--font-sans);
-}
-
-@page {
-  size: A4 portrait;
-  margin: 3mm;
 }
 
 @media print {
@@ -460,6 +495,20 @@ html.flow-print-fit {
     overflow: hidden !important;
     padding: 0 !important;
     margin: 0 !important;
+  }
+
+  html.flow-print-a3,
+  html.flow-print-a3 body,
+  html.flow-print-a3 #app {
+    width: 297mm !important;
+    height: 420mm !important;
+    max-height: 420mm !important;
+  }
+
+  html.flow-print-a3 #app > .min-h-dvh {
+    width: 297mm !important;
+    height: 420mm !important;
+    max-height: 420mm !important;
   }
 
   html.flow-print-fit .glass-toast {

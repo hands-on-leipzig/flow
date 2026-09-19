@@ -15,17 +15,21 @@ class GotenbergChromium
         return filled(config('services.gotenberg.url'));
     }
 
-    public function printPageUrl(int $planId, int $roleId): string
+    public function printPageUrl(int $planId, int $roleId, string $paper = 'a4'): string
     {
         $base = rtrim((string) (config('services.gotenberg.print_page_base_url') ?: config('app.frontend_url')), '/');
+        $url = $base.'/public-schedule/'.$planId.'/print?role='.$roleId;
+        if ($paper === 'a3') {
+            $url .= '&size=a3';
+        }
 
-        return $base.'/public-schedule/'.$planId.'/print?role='.$roleId;
+        return $url;
     }
 
     /**
      * @throws RuntimeException
      */
-    public function convertUrl(string $pageUrl): string
+    public function convertUrl(string $pageUrl, string $paper = 'a4'): string
     {
         $base = rtrim((string) config('services.gotenberg.url'), '/');
         if ($base === '') {
@@ -33,6 +37,7 @@ class GotenbergChromium
         }
 
         $timeout = max(10, (int) config('services.gotenberg.timeout', 90));
+        $a3 = $paper === 'a3';
 
         try {
             $response = Http::timeout($timeout)
@@ -42,8 +47,8 @@ class GotenbergChromium
                     'url' => $pageUrl,
                     'waitForExpression' => self::WAIT_FOR_PRINT_READY,
                     'preferCssPageSize' => 'true',
-                    'paperWidth' => '8.27',
-                    'paperHeight' => '11.7',
+                    'paperWidth' => $a3 ? '11.69' : '8.27',
+                    'paperHeight' => $a3 ? '16.54' : '11.7',
                     'marginTop' => '0.12',
                     'marginBottom' => '0.12',
                     'marginLeft' => '0.12',

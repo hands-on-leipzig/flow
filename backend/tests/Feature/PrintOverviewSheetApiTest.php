@@ -96,9 +96,59 @@ class PrintOverviewSheetApiTest extends TestCase
             return $request->url() === 'http://gotenberg.test/forms/chromium/convert/url'
                 && $request->isMultipart()
                 && str_contains($request->body(), 'http://host.docker.internal:5173/public-schedule/42/print?role=14')
+                && ! str_contains($request->body(), 'size=a3')
                 && str_contains($request->body(), GotenbergChromium::WAIT_FOR_PRINT_READY)
                 && str_contains($request->body(), 'preferCssPageSize')
                 && str_contains($request->body(), 'printBackground');
+        });
+    }
+
+    public function test_start_422_when_paper_is_invalid(): void
+    {
+        DB::table('plan')->insert(['id' => 42, 'event' => 7]);
+
+        $this->postJson('/api/print/7/overview-sheet', ['paper' => 'letter'])
+            ->assertStatus(422)
+            ->assertExactJson(['error' => 'Ungültiges Format.']);
+    }
+
+    public function test_show_streams_a3_pdf_after_start(): void
+    {
+        DB::table('plan')->insert(['id' => 42, 'event' => 7]);
+        DB::table('event')->insert(['id' => 7, 'date' => '2026-05-16']);
+        config([
+            'services.gotenberg.url' => 'http://gotenberg.test',
+            'services.gotenberg.print_page_base_url' => 'http://host.docker.internal:5173',
+            'app.frontend_url' => 'http://localhost:5173',
+        ]);
+
+        Http::fake([
+            'http://gotenberg.test/forms/chromium/convert/url' => Http::response(
+                '%PDF-1.4 fake',
+                200,
+                ['Content-Type' => 'application/pdf'],
+            ),
+        ]);
+
+        $start = $this->postJson('/api/print/7/overview-sheet', ['paper' => 'a3']);
+        $start->assertStatus(202)
+            ->assertJsonPath('filename', 'FLOW_Uebersichtsplan_A3_(16.05.26).pdf')
+            ->assertJsonStructure(['id', 'filename']);
+        $jobId = $start->json('id');
+
+        $response = $this->get("/api/print/7/overview-sheet/{$jobId}");
+        $response->assertOk();
+        $this->assertSame(
+            'FLOW_Uebersichtsplan_A3_(16.05.26).pdf',
+            $response->headers->get('X-Filename'),
+        );
+
+        Http::assertSent(function (Request $request) {
+            return $request->url() === 'http://gotenberg.test/forms/chromium/convert/url'
+                && $request->isMultipart()
+                && str_contains($request->body(), 'http://host.docker.internal:5173/public-schedule/42/print?role=14&size=a3')
+                && str_contains($request->body(), '11.69')
+                && str_contains($request->body(), '16.54');
         });
     }
 
@@ -113,6 +163,21 @@ class PrintOverviewSheetApiTest extends TestCase
 
         $this->assertSame(
             'https://dev.flow.hands-on-technology.org/public-schedule/1372/print?role=6',
+            $url,
+        );
+    }
+
+    public function test_print_page_url_appends_a3_size(): void
+    {
+        config([
+            'services.gotenberg.print_page_base_url' => null,
+            'app.frontend_url' => 'https://dev.flow.hands-on-technology.org',
+        ]);
+
+        $url = app(GotenbergChromium::class)->printPageUrl(1372, 6, 'a3');
+
+        $this->assertSame(
+            'https://dev.flow.hands-on-technology.org/public-schedule/1372/print?role=6&size=a3',
             $url,
         );
     }

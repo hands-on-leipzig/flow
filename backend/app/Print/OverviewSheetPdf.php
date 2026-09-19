@@ -44,7 +44,8 @@ class OverviewSheetPdf
             $gotenberg = app(GotenbergChromium::class);
             $planId = (int) ($payload['plan_id'] ?? 0);
             $roleId = (int) ($payload['role_id'] ?? 0);
-            $bytes = $gotenberg->convertUrl($gotenberg->printPageUrl($planId, $roleId));
+            $paper = (string) ($payload['paper'] ?? 'a4');
+            $bytes = $gotenberg->convertUrl($gotenberg->printPageUrl($planId, $roleId, $paper), $paper);
             $this->merge($id, [
                 'status' => 'done',
                 'pdf' => base64_encode($bytes),

@@ -32,19 +32,32 @@ class PrintOverviewSheetController extends Controller
             return response()->json(['error' => 'Kein Publikum-Plan für diese Auswahl.'], 422);
         }
 
+        $paper = strtolower(trim((string) $request->input('paper', 'a4')));
+        if ($paper === '') {
+            $paper = 'a4';
+        }
+        if (! in_array($paper, ['a4', 'a3'], true)) {
+            return response()->json(['error' => 'Ungültiges Format.'], 422);
+        }
+
         if (! $this->gotenberg->configured()) {
             return response()->json(['error' => 'PDF-Dienst nicht erreichbar.'], 503);
         }
 
         $id = (string) Str::uuid();
         $date = DB::table('event')->where('id', $eventId)->value('date');
-        $filename = FlowFilename::make('Uebersichtsplan', 'pdf', $date);
+        $filename = FlowFilename::make(
+            $paper === 'a3' ? 'Uebersichtsplan_A3' : 'Uebersichtsplan',
+            'pdf',
+            $date,
+        );
 
         $this->pdf->remember($id, [
             'status' => 'pending',
             'event_id' => $eventId,
             'plan_id' => (int) $planId,
             'role_id' => $roleId,
+            'paper' => $paper,
             'filename' => $filename,
         ]);
         $this->pdf->spawn($id);
