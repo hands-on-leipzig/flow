@@ -33,7 +33,7 @@ class RoleSheetCatalogTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_omits_publikum_ids_and_per_program_moderator(): void
+    public function test_omits_publikum_and_keeps_all_moderator_roles(): void
     {
         DB::table('plan')->insert(['id' => 1, 'event' => 1]);
 
@@ -41,7 +41,9 @@ class RoleSheetCatalogTest extends TestCase
         $publicPlan->shouldReceive('getRoles')->once()->with(1)->andReturn([
             'title_short' => 'Challenge Event Test',
             'programs' => [
+                ['id' => 2, 'display_name' => 'Explore', 'sequence' => 1],
                 ['id' => 3, 'display_name' => 'Challenge', 'sequence' => 2],
+                ['id' => 8, 'display_name' => 'Future', 'sequence' => 3],
             ],
             'roles' => [
                 $this->role(4, 'Juror:in', 3),
@@ -50,7 +52,9 @@ class RoleSheetCatalogTest extends TestCase
                 $this->role(10, 'Future-Publikum', 8),
                 $this->role(24, 'Publikum', null),
                 $this->role(2, 'Moderator:in', null),
-                $this->role(99, 'Moderator:in', 3),
+                $this->role(12, 'Moderator:in', 2),
+                $this->role(13, 'Moderator:in', 3),
+                $this->role(25, 'Moderator:in', 8),
                 $this->role(7, 'Publikum', 3),
             ],
         ]);
@@ -62,9 +66,11 @@ class RoleSheetCatalogTest extends TestCase
         $this->assertSame(1, $payload['plan_id']);
         $this->assertSame(1, $payload['event_id']);
         $this->assertSame('Challenge Event Test', $payload['title_short']);
-        $this->assertSame([4, 2], array_column($payload['roles'], 'id'));
-        $this->assertSame('Moderator:in', $payload['roles'][1]['name']);
+        $this->assertSame([4, 2, 12, 13, 25], array_column($payload['roles'], 'id'));
         $this->assertNull($payload['roles'][1]['first_program']);
+        $this->assertSame(2, $payload['roles'][2]['first_program']);
+        $this->assertSame(3, $payload['roles'][3]['first_program']);
+        $this->assertSame(8, $payload['roles'][4]['first_program']);
     }
 
     public function test_returns_null_when_no_plan(): void

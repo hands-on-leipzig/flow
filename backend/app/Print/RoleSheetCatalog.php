@@ -63,11 +63,6 @@ final class RoleSheetCatalog
             return true;
         }
 
-        $firstProgram = $role['first_program'] ?? null;
-        if ($name === 'Moderator:in' && $firstProgram !== null) {
-            return true;
-        }
-
         return false;
     }
 }
