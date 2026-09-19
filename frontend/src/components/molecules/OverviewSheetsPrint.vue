@@ -136,7 +136,7 @@ async function downloadPdf() {
       <h2 class="role-sheets__title">Übersichtsplan</h2>
       <p class="role-sheets__sub">Öffentlicher Tagesplan auf einer Seite</p>
     </header>
-    <div class="role-sheets__body">
+    <div class="role-sheets__body" :class="{'role-sheets__body--split': showProgramSelection}">
       <fieldset v-if="showProgramSelection" class="role-sheets__choices">
         <legend class="role-sheets__legend">Programm</legend>
         <label
@@ -161,11 +161,11 @@ async function downloadPdf() {
         <legend class="role-sheets__legend">Format</legend>
         <label class="role-sheets__option">
           <input v-model="paper" type="radio" class="accent-[var(--color-accent)]" name="overview-paper" value="a4"/>
-          <span>A4</span>
+          <span>DIN A4</span>
         </label>
         <label class="role-sheets__option">
           <input v-model="paper" type="radio" class="accent-[var(--color-accent)]" name="overview-paper" value="a3"/>
-          <span>A3</span>
+          <span>DIN A3</span>
         </label>
       </fieldset>
     </div>
@@ -215,9 +215,14 @@ async function downloadPdf() {
 
 .role-sheets__body {
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.7rem 0.85rem;
+  align-items: start;
+}
+
+.role-sheets__body--split {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .role-sheets__choices {
