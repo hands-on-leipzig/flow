@@ -10,6 +10,16 @@ final class RoleSheetPdf extends TCPDF
 {
     public const HOT_ORANGE = 'F78B1F';
 
+    public const HEADER_BODY_MARGIN = 40.0;
+
+    private const QR_SIZE = 16.0;
+
+    private const QR_GAP = 2.0;
+
+    private const COL_GAP = 2.0;
+
+    private const CAPTION_H = 3.8;
+
     public string $eventTitle = '';
 
     public string $createdAt = '';
@@ -21,6 +31,8 @@ final class RoleSheetPdf extends TCPDF
     public ?string $hotPath = null;
 
     public ?string $qrPng = null;
+
+    public ?string $wifiQrPng = null;
 
     public string $sectionSubject = '';
 
@@ -38,21 +50,17 @@ final class RoleSheetPdf extends TCPDF
         $this->SetFillColor($rgb[0], $rgb[1], $rgb[2]);
         $this->Rect(0, 0, $this->getPageWidth(), 3, 'F');
 
-        $icon = 16.0;
         $top = 4.0;
-        $left = 12.0;
+        $margin = 12.0;
         $pageW = $this->getPageWidth();
-        $right = $pageW - 12.0 - $icon;
-        $gap = 2.0;
-        $midX = $left + $icon + $gap;
-        $midW = $right - $gap - $midX;
+        $sideW = (self::QR_SIZE * 2.0) + self::QR_GAP;
+        $leftX = $margin;
+        $rightX = $pageW - $margin - $sideW;
+        $midX = $leftX + $sideW + self::COL_GAP;
+        $midW = $rightX - self::COL_GAP - $midX;
 
-        if ($this->hotPath !== null && is_file($this->hotPath)) {
-            $this->Image($this->hotPath, $left, $top, $icon, $icon, '', '', '', true, 300, '', false, false, 0, true);
-        }
-        if (is_string($this->qrPng) && $this->qrPng !== '') {
-            $this->Image('@'.$this->qrPng, $right, $top, $icon, $icon, 'PNG', '', '', true, 300, '', false, false, 0, true);
-        }
+        $this->drawHotLogo($leftX, $top, $sideW);
+        $this->drawQrColumn($rightX, $top);
 
         $this->SetTextColor(0, 0, 0);
         $this->SetFont($this->regularFont, '', 9);
@@ -105,5 +113,52 @@ final class RoleSheetPdf extends TCPDF
             (int) hexdec(substr($hex, 2, 2)),
             (int) hexdec(substr($hex, 4, 2)),
         ];
+    }
+
+    public static function pngFromBase64(mixed $stored): ?string
+    {
+        if (! is_string($stored) || $stored === '') {
+            return null;
+        }
+        $raw = base64_decode($stored, true);
+        if (is_string($raw) && strlen($raw) > 50) {
+            return $raw;
+        }
+
+        return null;
+    }
+
+    private function drawHotLogo(float $x, float $top, float $sideW): void
+    {
+        if ($this->hotPath === null || ! is_file($this->hotPath)) {
+            return;
+        }
+        $logoW = $sideW;
+        $logoH = $sideW;
+        $info = @getimagesize($this->hotPath);
+        if (is_array($info) && ($info[0] ?? 0) > 0) {
+            $logoH = $sideW * ((float) $info[1] / (float) $info[0]);
+        }
+        $y = $top + max(0.0, ($sideW - $logoH) / 2.0);
+        $this->Image($this->hotPath, $x, $y, $logoW, $logoH, '', '', '', true, 300, '', false, false, 0, true);
+    }
+
+    private function drawQrColumn(float $x, float $top): void
+    {
+        $wifiX = $x;
+        $publicX = $x + self::QR_SIZE + self::QR_GAP;
+        $this->drawQrSlot($wifiX, $top, $this->wifiQrPng, 'WLAN');
+        $this->drawQrSlot($publicX, $top, $this->qrPng, 'Online-Plan');
+    }
+
+    private function drawQrSlot(float $x, float $top, ?string $png, string $caption): void
+    {
+        if (is_string($png) && $png !== '') {
+            $this->Image('@'.$png, $x, $top, self::QR_SIZE, self::QR_SIZE, 'PNG', '', '', true, 300, '', false, false, 0, true);
+        }
+        $this->SetTextColor(0, 0, 0);
+        $this->SetFont($this->regularFont, '', 7);
+        $this->SetXY($x, $top + self::QR_SIZE);
+        $this->Cell(self::QR_SIZE, self::CAPTION_H, $caption, 0, 0, 'C');
     }
 }

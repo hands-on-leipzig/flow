@@ -21,6 +21,7 @@ final class RoleSheetTcpdfRenderer
      *     created_at?:string,
      *     public_url?:string,
      *     qr_base64?:?string,
+     *     wifi_qr_base64?:?string,
      *     sections?:list<array<string,mixed>>
      * }  $document
      */
@@ -34,7 +35,7 @@ final class RoleSheetTcpdfRenderer
         $pdf->setPrintFooter(true);
         $pdf->setHeaderMargin(0);
         $pdf->setFooterMargin(12);
-        $pdf->SetMargins(12, 24, 12);
+        $pdf->SetMargins(12, RoleSheetPdf::HEADER_BODY_MARGIN, 12);
         $pdf->SetAutoPageBreak(true, 22);
 
         NotoTcpdfFont::register($pdf);
@@ -45,6 +46,7 @@ final class RoleSheetTcpdfRenderer
         $pdf->createdAt = (string) ($document['created_at'] ?? '');
         $pdf->hotPath = self::hotLogoPath();
         $pdf->qrPng = self::qrPng($document);
+        $pdf->wifiQrPng = RoleSheetPdf::pngFromBase64($document['wifi_qr_base64'] ?? null);
 
         $sections = $document['sections'] ?? [];
         if ($sections === []) {
@@ -307,12 +309,9 @@ final class RoleSheetTcpdfRenderer
      */
     private static function qrPng(array $document): ?string
     {
-        $stored = $document['qr_base64'] ?? null;
-        if (is_string($stored) && $stored !== '') {
-            $raw = base64_decode($stored, true);
-            if (is_string($raw) && strlen($raw) > 50) {
-                return $raw;
-            }
+        $stored = RoleSheetPdf::pngFromBase64($document['qr_base64'] ?? null);
+        if ($stored !== null) {
+            return $stored;
         }
 
         $url = trim((string) ($document['public_url'] ?? ''));

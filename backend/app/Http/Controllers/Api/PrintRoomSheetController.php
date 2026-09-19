@@ -37,6 +37,7 @@ class PrintRoomSheetController extends Controller
         $document['qr_base64'] = is_string($event?->qrcode) && $event->qrcode !== ''
             ? $event->qrcode
             : null;
+        $document['wifi_qr_base64'] = self::wifiQrBase64($event);
         $bytes = $this->renderer->render($document);
         $filename = FlowFilename::make('Raumplaene', 'pdf', $event?->date);
 
@@ -59,5 +60,20 @@ class PrintRoomSheetController extends Controller
         }
 
         return (string) ($this->slugs->url($event) ?? '');
+    }
+
+    private static function wifiQrBase64(?Event $event): ?string
+    {
+        if (! $event) {
+            return null;
+        }
+        if (! is_string($event->wifi_ssid) || trim($event->wifi_ssid) === '') {
+            return null;
+        }
+        if (! is_string($event->wifi_qrcode) || $event->wifi_qrcode === '') {
+            return null;
+        }
+
+        return $event->wifi_qrcode;
     }
 }
