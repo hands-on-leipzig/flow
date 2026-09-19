@@ -13,7 +13,7 @@ class Logo extends Model
 
     public function getUrlAttribute()
     {
-        return asset('storage/' . $this->path);
+        return '/storage/'.ltrim((string) $this->path, '/');
     }
 
     public function regionalPartner()

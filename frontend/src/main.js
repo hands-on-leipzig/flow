@@ -69,6 +69,12 @@ const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
     {path: '/carousel/:eventId/:slideId', component: StandaloneSlide, props: true, meta: {public: true}},
     {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
+    {
+        path: '/public-schedule/:planId/print',
+        component: PublicSchedule,
+        meta: {public: true, plain: true},
+        props: (route) => ({planId: route.params.planId, printFit: true}),
+    },
     {path: '/public-schedule/:planId', component: PublicSchedule, props: true, meta: {public: true}},
     // Slim second-screen plan view (auth required, no app chrome / event bootstrap)
     {path: '/plan/popout/:planId', component: PlanPopout, props: true, meta: {popout: true}},

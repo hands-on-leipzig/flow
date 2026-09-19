@@ -7,13 +7,18 @@ import {
   parseBerlinWallTime,
   projectClockOntoBerlinDay,
 } from '@/utils/dateTimeFormat'
-import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import {imageUrl, programLogoAlt, programLogoSrc} from '@/utils/images'
 import EventMap from '@/components/molecules/EventMap.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
+
+const PRINT_FIT_AUDIENCE_ROLE_IDS = [6, 10, 14, 24] as const
+const PRINT_FIT_HOT_ORANGE = '#F78B1F'
+const PRINT_FIT_HOT_SRC = imageUrl('/flow/hot.png')
 
 const props = defineProps<{
   planId: number | string
   embedded?: boolean
+  printFit?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -147,6 +152,10 @@ type CalBlock = TimedGroup & {
 const PX_PER_MINUTE = 2
 const GUTTER = 52
 const notAccessibleIcon = '/flow/accessible_no.png'
+const printStageEl = ref<HTMLElement | null>(null)
+const printTimelineEl = ref<HTMLElement | null>(null)
+const printStageHeightPx = ref(0)
+let printStageObserver: ResizeObserver | null = null
 
 function groupPresence(group: Group): 'punctual' | 'window' | 'info' {
   const p = group.group_meta?.presence
@@ -175,6 +184,12 @@ const cockpitEnabled = ref(false)
 const roles = ref<Role[]>([])
 const programs = ref<VisitorProgram[]>([])
 const eventLogos = ref<EventLogo[]>([])
+const printQrcode = ref<string | null>(null)
+const printWifiQrcode = ref<string | null>(null)
+const printFooterRowEl = ref<HTMLElement | null>(null)
+const printFooterScale = ref(1)
+const printFooterImagesReady = ref(true)
+let printFooterObserver: ResizeObserver | null = null
 const groups = ref<Group[]>([])
 const nowMs = ref(Date.now())
 const roleFilter = ref('')
@@ -207,6 +222,11 @@ const activeSheet = ref<'detail' | 'role'>('detail')
 const numericPlanId = computed(() => Number(props.planId))
 const hasRoleSelection = computed(() => selectedRole.value != null)
 const planReady = computed(() => !loadingRoles.value && !error.value)
+const printFitReady = computed(() => {
+  if (loadingRoles.value || loadingSchedule.value) return false
+  if (error.value) return true
+  return printStageHeightPx.value > 0 && printFooterImagesReady.value
+})
 
 const routeSlug = computed(() => {
   const slug = route.params.slug
@@ -254,6 +274,103 @@ const roleAccent = computed(() => {
   const hex = chromeRole.value?.color_hex
   return hex ? `#${hex}` : '#ea580c'
 })
+
+const printFitJoint = computed(() => props.printFit && selectedRole.value === 14)
+
+const printFitSubjectProgram = computed(() => {
+  if (!props.printFit || printFitJoint.value) return null
+  const id = selectedRoleMeta.value?.first_program
+  if (id == null) return null
+  return programs.value.find((program) => program.id === id) ?? null
+})
+
+const printFitSubject = computed(() => {
+  if (!props.printFit) return ''
+  if (printFitJoint.value) return 'Publikum'
+  return printFitSubjectProgram.value?.display_name
+    || selectedRoleMeta.value?.first_program_display_name
+    || 'Publikum'
+})
+
+const printFitBarColor = computed(() => {
+  if (!props.printFit) return roleAccent.value
+  if (printFitJoint.value) return PRINT_FIT_HOT_ORANGE
+  const hex = printFitSubjectProgram.value?.color_hex || selectedRoleMeta.value?.color_hex
+  if (!hex) return PRINT_FIT_HOT_ORANGE
+  return hex.startsWith('#') ? hex : `#${hex}`
+})
+
+function qrDataUrl(raw: string | null): string | null {
+  if (!raw) return null
+  const value = raw.trim()
+  if (value === '') return null
+  if (value.startsWith('data:')) return value
+  return `data:image/png;base64,${value}`
+}
+
+const printOnlinePlanQr = computed(() => qrDataUrl(printQrcode.value))
+const printWifiQr = computed(() => qrDataUrl(printWifiQrcode.value))
+
+function sameOriginSrc(url: string): string {
+  if (!url || url.startsWith('/') || url.startsWith('data:')) return url
+  try {
+    const parsed = new URL(url)
+    if (
+      parsed.hostname === 'localhost'
+      || parsed.hostname === '127.0.0.1'
+      || parsed.hostname === 'host.docker.internal'
+    ) {
+      return parsed.pathname + parsed.search
+    }
+  } catch {
+    // keep original
+  }
+  return url
+}
+
+function notePrintFooterImages() {
+  if (!props.printFit) return
+  measurePrintFooter()
+  const imgs = printFooterRowEl.value
+      ? Array.from(printFooterRowEl.value.querySelectorAll('img'))
+      : []
+  if (eventLogos.value.length === 0 || imgs.length === 0) {
+    printFooterImagesReady.value = eventLogos.value.length === 0
+    return
+  }
+  printFooterImagesReady.value = imgs.every((img) => img.complete)
+}
+
+function measurePrintFooter() {
+  if (!props.printFit) return
+  const row = printFooterRowEl.value
+  const inner = row?.parentElement?.parentElement
+  if (!row || !inner) {
+    printFooterScale.value = 1
+    return
+  }
+  const avail = inner.clientWidth
+  const need = row.scrollWidth
+  const next = need > avail && avail > 0 ? avail / need : 1
+  if (Math.abs(next - printFooterScale.value) > 0.001) {
+    printFooterScale.value = next
+  }
+}
+
+function startPrintFooterObserver() {
+  stopPrintFooterObserver()
+  if (!props.printFit || typeof ResizeObserver === 'undefined') return
+  measurePrintFooter()
+  const inner = printFooterRowEl.value?.parentElement?.parentElement
+  if (!inner) return
+  printFooterObserver = new ResizeObserver(() => measurePrintFooter())
+  printFooterObserver.observe(inner)
+}
+
+function stopPrintFooterObserver() {
+  printFooterObserver?.disconnect()
+  printFooterObserver = null
+}
 
 const ALLGEMEIN_LOGO = {logo_white: 'FLL_column_heading.png'}
 
@@ -555,8 +672,8 @@ const timedGroups = computed((): TimedGroup[] => {
   const now = scheduleNowMs.value
   let sorted = parsedGroups.value.map((item) => ({
     ...item,
-    current: item.startMs <= now && now <= item.endMs,
-    past: item.endMs < now,
+    current: !props.printFit && item.startMs <= now && now <= item.endMs,
+    past: !props.printFit && item.endMs < now,
     parallel: false,
   }))
 
@@ -578,19 +695,31 @@ const dayRange = computed(() => {
   const last = timedGroups.value.reduce((max, g) => Math.max(max, g.endMs), first)
   let start = floorToHour(first)
   let end = ceilToHour(last)
-  const now = scheduleNowMs.value
-  // Raster soll „Jetzt“ enthalten, wenn es im Tag liegt
-  if (now >= first - 60 * 60 * 1000 && now <= last + 60 * 60 * 1000) {
-    if (now < start) start = floorToHour(now)
-    if (now > end) end = ceilToHour(now)
+  if (!props.printFit) {
+    const now = scheduleNowMs.value
+    // Raster soll „Jetzt“ enthalten, wenn es im Tag liegt
+    if (now >= first - 60 * 60 * 1000 && now <= last + 60 * 60 * 1000) {
+      if (now < start) start = floorToHour(now)
+      if (now > end) end = ceilToHour(now)
+    }
   }
   if (end <= start) end = start + 60 * 60 * 1000
   return {start, end}
 })
 
+const pxPerMinute = computed(() => {
+  if (!props.printFit) return PX_PER_MINUTE
+  const range = dayRange.value
+  const height = printStageHeightPx.value
+  if (!range || height <= 0) return PX_PER_MINUTE
+  const durationMinutes = (range.end - range.start) / 60000
+  if (durationMinutes <= 0) return PX_PER_MINUTE
+  return height / durationMinutes
+})
+
 const timelineHeight = computed(() => {
   if (!dayRange.value) return 0
-  return ((dayRange.value.end - dayRange.value.start) / 60000) * PX_PER_MINUTE
+  return ((dayRange.value.end - dayRange.value.start) / 60000) * pxPerMinute.value
 })
 
 const hourMarks = computed(() => {
@@ -715,8 +844,8 @@ const calendarBlocks = computed((): CalBlock[] => {
 
     return {
       ...item,
-      top: ((item.startMs - base) / 60000) * PX_PER_MINUTE,
-      height: Math.max(((item.endMs - item.startMs) / 60000) * PX_PER_MINUTE, 2),
+      top: ((item.startMs - base) / 60000) * pxPerMinute.value,
+      height: Math.max(((item.endMs - item.startMs) / 60000) * pxPerMinute.value, 2),
       overlapCol: layout?.col ?? 0,
       overlapCols: layout?.cols ?? 1,
       isBand,
@@ -731,7 +860,7 @@ const nowTop = computed(() => {
   if (!dayRange.value) return null
   const now = scheduleNowMs.value
   if (now < dayRange.value.start || now > dayRange.value.end) return null
-  return ((now - dayRange.value.start) / 60000) * PX_PER_MINUTE
+  return ((now - dayRange.value.start) / 60000) * pxPerMinute.value
 })
 
 const selectedItem = computed(() =>
@@ -769,7 +898,7 @@ function blockStyle(block: CalBlock) {
 
 function hourStyle(ms: number) {
   if (!dayRange.value) return {}
-  const top = ((ms - dayRange.value.start) / 60000) * PX_PER_MINUTE
+  const top = ((ms - dayRange.value.start) / 60000) * pxPerMinute.value
   return {top: `${top}px`}
 }
 
@@ -795,6 +924,7 @@ function resetSheetDrag() {
 }
 
 function selectBlock(block: CalBlock | TimedGroup) {
+  if (props.printFit) return
   const id = block.group.activity_group_id
   // Detail öffnet als Sheet — kein Page-Scroll
   selectedBlockId.value = selectedBlockId.value === id ? null : id
@@ -955,6 +1085,7 @@ const pickerLead = computed(() => {
 })
 
 function openRoleSheet() {
+  if (props.printFit) return
   closeFilterMenu()
   closeDetail()
   closeEntityInfo()
@@ -1201,11 +1332,19 @@ async function loadRoles() {
     eventSlug.value = typeof data.slug === 'string' && data.slug !== '' ? data.slug : null
     checkInEnabled.value = !!data.check_in_enabled
     cockpitEnabled.value = !!data.cockpit_enabled
+    printQrcode.value = typeof data.qrcode === 'string' && data.qrcode !== '' ? data.qrcode : null
+    printWifiQrcode.value = typeof data.wifi_qrcode === 'string' && data.wifi_qrcode !== ''
+      ? data.wifi_qrcode
+      : null
     eventLogos.value = []
     if (eventId.value) {
       try {
         const logos = await axios.get(`/events/${eventId.value}/logos`)
-        eventLogos.value = Array.isArray(logos.data) ? logos.data : []
+        const rows = Array.isArray(logos.data) ? logos.data : []
+        eventLogos.value = rows.map((logo: EventLogo) => ({
+          ...logo,
+          url: sameOriginSrc(String(logo.url || '')),
+        }))
       } catch {
         eventLogos.value = []
       }
@@ -1244,9 +1383,11 @@ async function loadSchedule() {
     else nowMs.value = Date.now()
     await nextTick()
 
-    const current = timedGroups.value.find((b) => b.current)
-    if (current) selectedBlockId.value = current.group.activity_group_id
-    await scrollToNow()
+    if (!props.printFit) {
+      const current = timedGroups.value.find((b) => b.current)
+      if (current) selectedBlockId.value = current.group.activity_group_id
+      await scrollToNow()
+    }
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Online-Zeitplan konnte nicht geladen werden.'
     groups.value = []
@@ -1408,7 +1549,45 @@ function confirmEntityInfoSwitch() {
   void applyRole(role, slice)
 }
 
+function printFitAudienceRoleId(): number | null {
+  const raw = route.query.role
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (value == null || value === '') return null
+  const id = Number(value)
+  if (!Number.isInteger(id) || !(PRINT_FIT_AUDIENCE_ROLE_IDS as readonly number[]).includes(id)) {
+    return null
+  }
+  return id
+}
+
+async function resolvePrintFitSelection() {
+  const id = printFitAudienceRoleId()
+  const exists = id != null && roles.value.some((role) => role.id === id)
+  if (!exists) {
+    error.value = 'Kein Publikum-Plan für diese Auswahl.'
+    selectedRole.value = null
+    selectedTeam.value = null
+    selectedLane.value = null
+    selectedTable.value = null
+    groups.value = []
+    return
+  }
+  error.value = null
+  selectedRole.value = id
+  selectedTeam.value = null
+  selectedLane.value = null
+  selectedTable.value = null
+  includeExpired.value = true
+  await loadSchedule()
+  await nextTick()
+  measurePrintStage()
+}
+
 async function resolveSelectionAfterRoles() {
+  if (props.printFit) {
+    await resolvePrintFitSelection()
+    return
+  }
   const hasQueryRole = route.query.role != null && route.query.role !== ''
   const zeitplanQuery = (() => {
     const raw = route.query.zeitplan
@@ -1450,23 +1629,75 @@ async function resolveSelectionAfterRoles() {
   }
 }
 
+function measurePrintStage() {
+  if (!props.printFit) return
+  const box = printTimelineEl.value ?? planScrollEl.value ?? printStageEl.value
+  if (!box) return
+  printStageHeightPx.value = box.clientHeight
+}
+
+function stopPrintStageObserver() {
+  printStageObserver?.disconnect()
+  printStageObserver = null
+}
+
+function startPrintStageObserver() {
+  stopPrintStageObserver()
+  if (!props.printFit || typeof ResizeObserver === 'undefined') return
+  measurePrintStage()
+  const targets = [printStageEl.value, planScrollEl.value, printTimelineEl.value].filter(
+      (el): el is HTMLElement => el != null,
+  )
+  if (!targets.length) return
+  printStageObserver = new ResizeObserver(() => measurePrintStage())
+  for (const el of targets) printStageObserver.observe(el)
+}
+
+watch([printStageEl, planScrollEl, printTimelineEl], () => {
+  if (props.printFit) startPrintStageObserver()
+})
+
 watch(pageTitle, (title) => {
   if (typeof document !== 'undefined') document.title = title
 }, {immediate: true})
 
+watch([printFooterRowEl, eventLogos], () => {
+  if (!props.printFit) return
+  startPrintFooterObserver()
+  if (eventLogos.value.length === 0) {
+    printFooterImagesReady.value = true
+    return
+  }
+  printFooterImagesReady.value = false
+  void nextTick(() => notePrintFooterImages())
+})
+
 onMounted(async () => {
   await loadRoles()
-  await resolveSelectionAfterRoles()
+  if (props.printFit) {
+    document.documentElement.classList.add('flow-print-fit')
+    if (!error.value) await resolvePrintFitSelection()
+  } else {
+    await resolveSelectionAfterRoles()
+  }
 
   nowTimer = setInterval(() => {
     nowMs.value = Date.now()
   }, 30000)
   document.addEventListener('pointerdown', onDocumentPointerDown)
+  if (props.printFit) {
+    window.addEventListener('resize', measurePrintStage)
+    startPrintStageObserver()
+  }
 })
 
 onUnmounted(() => {
+  document.documentElement.classList.remove('flow-print-fit')
   if (nowTimer) clearInterval(nowTimer)
   document.removeEventListener('pointerdown', onDocumentPointerDown)
+  window.removeEventListener('resize', measurePrintStage)
+  stopPrintStageObserver()
+  stopPrintFooterObserver()
   if (typeof document !== 'undefined') {
     document.documentElement.style.overflow = ''
     document.body.style.overflow = ''
@@ -1483,6 +1714,10 @@ watch(
     ],
     async (next, prev) => {
       if (prev && next.every((v, i) => v === prev[i])) return
+      if (props.printFit) {
+        await resolvePrintFitSelection()
+        return
+      }
       syncFromQuery()
       if (selectedRole.value != null) {
         writeStoredPrefs()
@@ -1497,6 +1732,10 @@ watch(
     () => props.planId,
     async () => {
       await loadRoles()
+      if (props.printFit) {
+        if (!error.value) await resolvePrintFitSelection()
+        return
+      }
       await resolveSelectionAfterRoles()
     }
 )
@@ -1505,7 +1744,7 @@ watch(
 watch(
     () => planReady.value,
     (locked) => {
-      if (typeof document === 'undefined') return
+      if (props.printFit || typeof document === 'undefined') return
       document.documentElement.style.overflow = locked ? 'hidden' : ''
       document.body.style.overflow = locked ? 'hidden' : ''
     },
@@ -1518,12 +1757,59 @@ watch(
       class="public-schedule"
       :class="{
         'public-schedule--embedded': embedded,
-        'public-schedule--plan-view': planReady,
+        'public-schedule--plan-view': planReady && !printFit,
+        'public-schedule--print-fit': printFit,
         'public-schedule--sheet-open': !!selectedItem || roleSheetOpen,
       }"
       :style="{'--accent': roleAccent}"
   >
-    <div class="public-schedule__inner">
+    <div :class="printFit ? 'public-schedule__print-page' : 'public-schedule__inner'">
+      <div
+          ref="printStageEl"
+          :class="printFit ? 'public-schedule__print-stage' : undefined"
+          :style="printFit ? undefined : {display: 'contents'}"
+          :data-print-ready="printFit && printFitReady ? 'true' : undefined"
+      >
+        <div :class="printFit ? 'public-schedule__inner' : undefined" :style="printFit ? undefined : {display: 'contents'}">
+      <header
+          v-if="printFit && !loadingRoles"
+          class="public-schedule__print-header"
+          :style="{'--print-bar': printFitBarColor}"
+      >
+        <div class="public-schedule__print-bar" aria-hidden="true"/>
+        <div class="public-schedule__print-header-row">
+          <div class="public-schedule__print-side public-schedule__print-side--hot">
+            <img :src="PRINT_FIT_HOT_SRC" alt="Hands on Technology" class="public-schedule__print-hot"/>
+          </div>
+          <div class="public-schedule__print-mid">
+            <p class="public-schedule__print-title">{{ eventName }}</p>
+            <p class="public-schedule__print-subject">
+              <img
+                  v-if="printFitSubjectProgram"
+                  :src="programLogoSrc(printFitSubjectProgram, 'v')"
+                  :alt="programLogoAlt(printFitSubjectProgram)"
+                  class="public-schedule__print-subject-logo"
+              />
+              <span>{{ printFitSubject }}</span>
+            </p>
+          </div>
+          <div class="public-schedule__print-side public-schedule__print-side--qr">
+            <div class="public-schedule__print-qr">
+              <div class="public-schedule__print-qr-slot">
+                <img v-if="printWifiQr" :src="printWifiQr" alt="" class="public-schedule__print-qr-img"/>
+              </div>
+              <span class="public-schedule__print-qr-caption">WLAN</span>
+            </div>
+            <div class="public-schedule__print-qr">
+              <div class="public-schedule__print-qr-slot">
+                <img v-if="printOnlinePlanQr" :src="printOnlinePlanQr" alt="" class="public-schedule__print-qr-img"/>
+              </div>
+              <span class="public-schedule__print-qr-caption">Online-Plan</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
       <div v-if="loadingRoles" class="public-schedule__card public-schedule__card--center" role="status">
         <Spinner size="md"/>
         <span>Rollen werden geladen…</span>
@@ -1535,7 +1821,7 @@ watch(
 
       <!-- Single plan page: role via sheet, filter for upcoming -->
       <div v-else class="public-schedule__plan">
-        <header class="public-schedule__chrome">
+        <header v-if="!printFit" class="public-schedule__chrome">
           <div class="public-schedule__toolbar">
             <div class="public-schedule__toolbar-main">
               <button
@@ -1693,6 +1979,7 @@ watch(
                   class="public-schedule__entity-map"
               >
                 <EventMap
+                    v-if="!printFit"
                     :address="entityInfoLocation"
                     :event-id="eventId"
                     :event-name="entityInfoTitle || 'Team'"
@@ -1728,7 +2015,7 @@ watch(
           </div>
 
           <div
-              v-else-if="!hasRoleSelection"
+              v-else-if="!printFit && !hasRoleSelection"
               class="public-schedule__card public-schedule__card--center public-schedule__card--overview"
           >
             <h2 class="public-schedule__page-title">
@@ -1797,7 +2084,7 @@ watch(
           >
             Keine Einträge für diese Auswahl.
             <button
-                v-if="!includeExpired"
+                v-if="!printFit && !includeExpired"
                 type="button"
                 class="public-schedule__text-action"
                 @click="toggleExpired"
@@ -1809,15 +2096,23 @@ watch(
             <div
                 v-else
                 class="public-schedule__calendar"
+                :style="printFit ? {pointerEvents: 'none'} : undefined"
                 aria-label="Tageskalender im Zeitmaßstab"
             >
               <div
+                  ref="printTimelineEl"
                   class="public-schedule__timeline"
-                  :style="{
-                    height: `${timelineHeight}px`,
-                    '--gutter': `${GUTTER}px`,
-                    '--ppm': `${PX_PER_MINUTE}px`,
-                  }"
+                  :style="printFit
+                    ? {
+                      height: '100%',
+                      '--gutter': `${GUTTER}px`,
+                      '--ppm': `${pxPerMinute}px`,
+                    }
+                    : {
+                      height: `${timelineHeight}px`,
+                      '--gutter': `${GUTTER}px`,
+                      '--ppm': `${pxPerMinute}px`,
+                    }"
               >
                 <div
                     v-for="hour in hourMarks"
@@ -1830,7 +2125,7 @@ watch(
                 </div>
 
                 <div
-                    v-if="nowTop != null"
+                    v-if="!printFit && nowTop != null"
                     class="public-schedule__now"
                     :style="{top: `${nowTop}px`}"
                     data-now-line="true"
@@ -1896,14 +2191,36 @@ watch(
                 </button>
               </div>
             </div>
-          </div>
         </div>
       </div>
+      <footer v-if="printFit && !loadingRoles" class="public-schedule__print-footer">
+        <div class="public-schedule__print-footer-inner">
+          <div
+              class="public-schedule__print-footer-scale"
+              :style="{transform: `scale(${printFooterScale})`}"
+          >
+            <div ref="printFooterRowEl" class="public-schedule__print-footer-row">
+              <img
+                  v-for="logo in eventLogos"
+                  :key="logo.id"
+                  :src="logo.url"
+                  :alt="logo.title || 'Logo'"
+                  class="public-schedule__print-footer-logo"
+                  @load="notePrintFooterImages"
+                  @error="notePrintFooterImages"
+              />
+            </div>
+          </div>
+        </div>
+      </footer>
+        </div>
+      </div>
+    </div>
 
     <!-- Role picker sheet -->
     <Teleport to="body">
       <div
-          v-if="roleSheetOpen"
+          v-if="!printFit && roleSheetOpen"
           class="public-schedule__sheet"
           role="dialog"
           aria-modal="true"
@@ -2072,7 +2389,7 @@ watch(
     <!-- Event detail sheet -->
     <Teleport to="body">
       <div
-          v-if="selectedItem"
+          v-if="!printFit && selectedItem"
           class="public-schedule__sheet"
           role="dialog"
           aria-modal="true"
@@ -2254,6 +2571,277 @@ watch(
 }
 
 /* Plan view: fill the available viewport, no side frames */
+.public-schedule--print-fit {
+  min-height: 100dvh;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  background: #e5e7eb;
+  padding: 0;
+  font-family: var(--font-sans);
+}
+
+.public-schedule--print-fit .public-schedule__hour-label,
+.public-schedule--print-fit .public-schedule__band-title,
+.public-schedule--print-fit .public-schedule__block-title {
+  font-weight: 700;
+}
+
+.public-schedule__print-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 16px;
+}
+
+.public-schedule__print-stage {
+  width: 204mm;
+  height: 291mm;
+  flex-shrink: 0;
+  background: #fff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 24px rgb(15 23 42 / 0.12);
+}
+
+.public-schedule__print-header {
+  flex: 0 0 28mm;
+  height: 28mm;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.public-schedule__print-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3mm;
+  background: var(--print-bar, #F78B1F);
+}
+
+.public-schedule__print-header-row {
+  position: absolute;
+  top: 4mm;
+  left: 4mm;
+  right: 4mm;
+  bottom: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 2mm;
+}
+
+.public-schedule__print-side {
+  width: 34mm;
+  flex-shrink: 0;
+}
+
+.public-schedule__print-side--hot {
+  height: 19.8mm;
+  display: flex;
+  align-items: center;
+}
+
+.public-schedule__print-hot {
+  width: 34mm;
+  max-height: 19.8mm;
+  height: auto;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.public-schedule__print-mid {
+  flex: 1;
+  min-width: 0;
+}
+
+.public-schedule__print-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-synthesis: none;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  color: #000;
+}
+
+.public-schedule__print-subject {
+  margin: 2mm 0 0;
+  display: flex;
+  align-items: center;
+  gap: 1.5mm;
+  min-height: 7mm;
+  font-family: var(--font-sans);
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-synthesis: none;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  color: #000;
+}
+
+.public-schedule__print-subject-logo {
+  width: 7mm;
+  height: 7mm;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.public-schedule__print-side--qr {
+  display: flex;
+  gap: 2mm;
+}
+
+.public-schedule__print-qr {
+  width: 16mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.public-schedule__print-qr-slot {
+  width: 16mm;
+  height: 16mm;
+}
+
+.public-schedule__print-qr-img {
+  width: 16mm;
+  height: 16mm;
+  object-fit: contain;
+}
+
+.public-schedule__print-qr-caption {
+  height: 3.8mm;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-synthesis: none;
+  letter-spacing: 0.01em;
+  line-height: 3.8mm;
+  text-align: center;
+  color: #000;
+}
+
+.public-schedule__print-footer {
+  flex: 0 0 28mm;
+  height: 28mm;
+  box-sizing: border-box;
+}
+
+.public-schedule__print-footer-inner {
+  height: 100%;
+  padding: 2mm 4mm;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.public-schedule__print-footer-scale {
+  transform-origin: center center;
+}
+
+.public-schedule__print-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4mm;
+  height: 24mm;
+}
+
+.public-schedule__print-footer-logo {
+  height: 24mm;
+  width: auto;
+  object-fit: contain;
+}
+
+.public-schedule--print-fit .public-schedule__inner {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.public-schedule--print-fit .public-schedule__plan,
+.public-schedule--print-fit .public-schedule__plan-scroll {
+  overflow: hidden;
+}
+
+.public-schedule--print-fit .public-schedule__plan-scroll {
+  box-sizing: border-box;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+
+.public-schedule--print-fit .public-schedule__calendar,
+.public-schedule--print-fit .public-schedule__timeline {
+  height: 100%;
+}
+
+.public-schedule--print-fit .public-schedule__card--center {
+  flex: 1;
+  min-height: 0;
+}
+
+.public-schedule--print-fit .public-schedule__calendar {
+  pointer-events: none;
+}
+
+@media print {
+  .public-schedule {
+    min-height: 0 !important;
+    width: 204mm !important;
+    height: 291mm !important;
+    max-height: 291mm !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    background: #fff !important;
+  }
+
+  .public-schedule--print-fit {
+    background: #fff;
+    min-height: 0 !important;
+    width: 204mm !important;
+    height: 291mm !important;
+    max-height: 291mm !important;
+    overflow: hidden !important;
+  }
+
+  .public-schedule__print-page {
+    min-height: 0 !important;
+    width: 204mm !important;
+    height: 291mm !important;
+    max-height: 291mm !important;
+    padding: 0 !important;
+    display: block;
+    overflow: hidden !important;
+  }
+
+  /* Keep the designed A4 stage (not 100% of Chromium's 800x600 viewport). */
+  .public-schedule__print-stage {
+    box-shadow: none !important;
+    width: 204mm !important;
+    height: 291mm !important;
+    max-width: 204mm !important;
+    max-height: 291mm !important;
+    overflow: hidden !important;
+  }
+
+  /* Safari PDF: hatches/30-min stripes flatten badly; keep solids. */
+  .public-schedule--print-fit .public-schedule__timeline {
+    background: #fff !important;
+  }
+
+  .public-schedule--print-fit .public-schedule__block--band {
+    background: #f1f5f9 !important;
+  }
+}
+
 .public-schedule--plan-view,
 .public-schedule--embedded.public-schedule--plan-view {
   height: 100%;
@@ -3398,4 +3986,54 @@ watch(
 
 .public-schedule__chip--action:active { background: #ffedd5; }
 
+</style>
+
+<style>
+html.flow-print-fit {
+  color-scheme: light;
+  font-family: var(--font-sans);
+}
+
+@page {
+  size: A4 portrait;
+  margin: 3mm;
+}
+
+@media print {
+  html.flow-print-fit,
+  html.flow-print-fit body,
+  html.flow-print-fit #app {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    font-family: var(--font-sans) !important;
+  }
+
+  html.flow-print-fit #app > .min-h-dvh {
+    min-height: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  html.flow-print-fit .glass-toast {
+    display: none !important;
+  }
+
+  html.flow-print-fit,
+  html.flow-print-fit *,
+  html.flow-print-fit *::before,
+  html.flow-print-fit *::after {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+}
 </style>

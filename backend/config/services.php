@@ -40,5 +40,10 @@ return [
         'key' => env('DRAHT_API_KEY'),
     ],
 
+    'gotenberg' => [
+        'url' => env('GOTENBERG_URL'),
+        'print_page_base_url' => env('PRINT_PAGE_BASE_URL'),
+        'timeout' => (int) env('GOTENBERG_TIMEOUT', 90),
+    ],
 
 ];

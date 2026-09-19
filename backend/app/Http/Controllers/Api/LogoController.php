@@ -111,7 +111,7 @@ class LogoController extends Controller
                     'title' => $logo->title,
                     'link' => $logo->link,
                     'path' => $logo->path,
-                    'url' => asset('storage/' . $logo->path),
+                    'url' => '/storage/'.ltrim((string) $logo->path, '/'),
                     'sort_order' => $logo->sort_order
                 ];
             });

@@ -94,35 +94,6 @@ async function loadPosterPreviews() {
   await Promise.all([loadPosterPreview('plan'), loadPosterPreview('plan_wifi')])
 }
 
-// Download event overview PDF
-async function downloadEventOverviewPdf() {
-  if (!eventId.value) return
-  
-  isDownloading.value['overview'] = true
-  try {
-    // Get the plan ID for this event
-    const planResponse = await axios.get(`/plans/event/${eventId.value}`)
-    const planId = planResponse.data.id
-    
-    const response = await axios.get(
-      `/export/event-overview/${planId}`,
-      { responseType: 'blob' }
-    )
-
-    const filename = response.headers['x-filename'] || flowHint('Übersichtsplan')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim PDF-Download (Übersichtsplan):', error)
-  } finally {
-    isDownloading.value['overview'] = false
-  }
-}
-
 // Download team list PDF
 async function downloadTeamListPdf() {
   if (!eventId.value) return
@@ -509,26 +480,6 @@ const eventTitleNormalized = computed(() => {
           >
             <Spinner v-if="isDownloading.plan_wifi" size="sm"/>
             <span>{{ isDownloading.plan_wifi ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Übersichtsplan</h4>
-          <p class="pdf-plans__tile-sub">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
-        </header>
-        <div class="pdf-plans__tile-body"></div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading.overview ? '!opacity-50' : ''"
-            :disabled="isDownloading.overview"
-            @click="downloadEventOverviewPdf()"
-          >
-            <Spinner v-if="isDownloading.overview" size="sm"/>
-            <span>{{ isDownloading.overview ? 'Erzeuge…' : 'PDF' }}</span>
           </button>
         </footer>
       </article>

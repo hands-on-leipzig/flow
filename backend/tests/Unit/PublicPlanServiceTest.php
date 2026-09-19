@@ -86,6 +86,40 @@ class PublicPlanServiceTest extends TestCase
         ], $payload['programs']);
         $this->assertSame(2, $payload['roles'][0]['first_program_sequence']);
         $this->assertSame('Challenge', $payload['roles'][0]['first_program_display_name']);
+        $this->assertNull($payload['qrcode']);
+        $this->assertNull($payload['wifi_qrcode']);
+    }
+
+    public function test_get_roles_includes_qr_fields_when_wifi_ssid_is_set(): void
+    {
+        $this->bindRoles([
+            $this->roleRow(14, publicPlan: 1, name: 'Publikum', differentiationParameter: null),
+        ]);
+        DB::table('event')->where('id', 1)->update([
+            'qrcode' => 'cXJpbWFnZQ==',
+            'wifi_ssid' => 'FLL',
+            'wifi_qrcode' => 'd2lmaWltYWdl',
+        ]);
+
+        $payload = app(PublicPlanService::class)->getRoles(1);
+
+        $this->assertSame('cXJpbWFnZQ==', $payload['qrcode']);
+        $this->assertSame('d2lmaWltYWdl', $payload['wifi_qrcode']);
+    }
+
+    public function test_get_roles_omits_wifi_qr_without_ssid(): void
+    {
+        $this->bindRoles([
+            $this->roleRow(14, publicPlan: 1, name: 'Publikum', differentiationParameter: null),
+        ]);
+        DB::table('event')->where('id', 1)->update([
+            'wifi_ssid' => '',
+            'wifi_qrcode' => 'd2lmaWltYWdl',
+        ]);
+
+        $payload = app(PublicPlanService::class)->getRoles(1);
+
+        $this->assertNull($payload['wifi_qrcode']);
     }
 
     public function test_team_option_labels_use_name_and_draht_id(): void
@@ -538,6 +572,9 @@ class PublicPlanServiceTest extends TestCase
             $table->string('slug')->nullable();
             $table->boolean('check_in_enabled')->default(false);
             $table->boolean('cockpit_enabled')->default(false);
+            $table->text('qrcode')->nullable();
+            $table->string('wifi_ssid')->nullable();
+            $table->text('wifi_qrcode')->nullable();
         });
 
         Schema::create('m_first_program', function (Blueprint $table) {

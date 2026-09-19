@@ -34,5 +34,20 @@ services:
     ports:
       - "3306:3306"
 
+  # Chromium URL→PDF. Prefer scripts/install-gotenberg.sh (starts the
+  # container, writes .env). This service is the same image if you already
+  # use compose; bind loopback so Chromium is not on the public internet.
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    command:
+      - gotenberg
+      - --api-timeout=120s
+      - --libreoffice-disable-routes
+    ports:
+      - "127.0.0.1:3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
 volumes:
   mysql-data:

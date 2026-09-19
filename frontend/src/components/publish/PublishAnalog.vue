@@ -7,6 +7,7 @@ import {computed} from 'vue'
 import PdfPlansBox from '@/components/molecules/PdfPlansBox.vue'
 import RoleSheetsPrint from '@/components/molecules/RoleSheetsPrint.vue'
 import RoomSheetsPrint from '@/components/molecules/RoomSheetsPrint.vue'
+import OverviewSheetsPrint from '@/components/molecules/OverviewSheetsPrint.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import {isEntwicklungEnvironment} from '@/constants/adminNav'
@@ -36,8 +37,11 @@ const showTiles = computed(() => isEntwicklungEnvironment(isLocal))
             <span>Zum Aushang bzw. zum Verteilen an Teams und Volunteers</span>
           </p>
           <div class="druck-page__grid">
+            <div class="druck-page__col">
+              <OverviewSheetsPrint/>
+              <RoomSheetsPrint/>
+            </div>
             <RoleSheetsPrint/>
-            <RoomSheetsPrint/>
           </div>
         </section>
         <section class="glass-card liquid-surface-inner druck-page__panel">
@@ -103,7 +107,14 @@ const showTiles = computed(() => isEntwicklungEnvironment(isLocal))
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
-  align-items: stretch;
+  align-items: start;
+}
+
+.druck-page__col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
 }
 
 .druck-page__body :deep(.pdf-plans),

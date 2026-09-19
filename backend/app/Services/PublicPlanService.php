@@ -60,6 +60,9 @@ class PublicPlanService
                 'event.slug as event_slug',
                 'event.check_in_enabled',
                 'event.cockpit_enabled',
+                'event.qrcode',
+                'event.wifi_ssid',
+                'event.wifi_qrcode',
             )
             ->first();
 
@@ -102,6 +105,8 @@ class PublicPlanService
             'cockpit_enabled' => (bool) $plan->cockpit_enabled,
             'programs' => $this->eventPrograms((int) $plan->event_id),
             'roles' => $roles,
+            'qrcode' => self::storedPng($plan->qrcode ?? null),
+            'wifi_qrcode' => self::wifiQrPng($plan),
             ...$titles,
         ];
     }
@@ -840,5 +845,23 @@ class PublicPlanService
         $type = trim((string) ($row->extra_block_type ?? ''));
 
         return $type !== '' ? $type : null;
+    }
+
+    private static function storedPng(mixed $value): ?string
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private static function wifiQrPng(object $plan): ?string
+    {
+        if (trim((string) ($plan->wifi_ssid ?? '')) === '') {
+            return null;
+        }
+
+        return self::storedPng($plan->wifi_qrcode ?? null);
     }
 }
