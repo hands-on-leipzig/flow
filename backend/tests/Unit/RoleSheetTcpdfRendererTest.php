@@ -134,4 +134,35 @@ class RoleSheetTcpdfRendererTest extends TestCase
         $this->assertTrue(str_starts_with($pdf, '%PDF'));
         $this->assertMatchesRegularExpression('/\/Count\s+[2-9]/', $pdf);
     }
+
+    public function test_render_includes_room_hints_table(): void
+    {
+        $pdf = (new RoleSheetTcpdfRenderer)->render([
+            'title_long' => 'Challenge Event Test',
+            'created_at' => '18.09.2026 06:52',
+            'sections' => [
+                [
+                    'subject' => 'Team: Alpha',
+                    'noshow' => false,
+                    'color_hex' => 'ed1c24',
+                    'logo_stem' => null,
+                    'ablauf' => [
+                        [
+                            'start' => '09:00',
+                            'end' => '09:15',
+                            'room' => 'Halle',
+                            'action' => 'Beta',
+                            'strike' => [],
+                        ],
+                    ],
+                    'hinweise' => [
+                        ['room' => 'Halle', 'hint' => 'Eingang über Hof'],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertTrue(str_starts_with($pdf, '%PDF'));
+        $this->assertGreaterThan(1000, strlen($pdf));
+    }
 }

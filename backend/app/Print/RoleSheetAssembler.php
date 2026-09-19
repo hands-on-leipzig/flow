@@ -21,7 +21,8 @@ final class RoleSheetAssembler
      *         color_hex: string,
      *         logo_stem: ?string,
      *         ablauf: list<array{start:string,end:string,room:string,action:string,strike:list<string>,italic:list<string>}>,
-     *         zusaetzlich?: list<array{start:string,end:string,room:string,action:string,strike:list<string>,italic:list<string>}>
+     *         zusaetzlich?: list<array{start:string,end:string,room:string,action:string,strike:list<string>,italic:list<string>}>,
+     *         hinweise?: list<array{room:string,hint:string}>
      *     }>
      * }
      */
@@ -85,6 +86,7 @@ final class RoleSheetAssembler
         $schedule = $this->publicPlan->getSchedule($planId, $query);
         $ablauf = [];
         $extra = [];
+        $hints = [];
         foreach ($schedule['groups'] ?? [] as $group) {
             foreach ($group['activities'] ?? [] as $activity) {
                 if (! is_array($activity)) {
@@ -95,6 +97,7 @@ final class RoleSheetAssembler
                 if ($row === null) {
                     continue;
                 }
+                self::rememberHint($hints, $activity);
                 if (self::isFreeBlock($activity)) {
                     $extra[] = $row;
                 } else {
@@ -118,6 +121,10 @@ final class RoleSheetAssembler
         ];
         if ($extra !== []) {
             $section['zusaetzlich'] = $extra;
+        }
+        if ($hints !== []) {
+            uksort($hints, strcasecmp(...));
+            $section['hinweise'] = array_values($hints);
         }
 
         return $section;
@@ -197,6 +204,21 @@ final class RoleSheetAssembler
     private static function isFreeBlock(array $activity): bool
     {
         return ($activity['extra_block_type'] ?? null) === 'free';
+    }
+
+    /**
+     * @param  array<string, array{room:string,hint:string}>  $hints
+     * @param  array<string, mixed>  $activity
+     */
+    private static function rememberHint(array &$hints, array $activity): void
+    {
+        $room = is_array($activity['room'] ?? null) ? $activity['room'] : [];
+        $name = trim((string) ($room['room_name'] ?? ''));
+        $hint = trim((string) ($room['navigation'] ?? ''));
+        if ($name === '' || $hint === '') {
+            return;
+        }
+        $hints[$name] = ['room' => $name, 'hint' => $hint];
     }
 
     private static function clock(mixed $value): string

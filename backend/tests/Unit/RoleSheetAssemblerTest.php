@@ -83,6 +83,9 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertSame('Raum A', $document['sections'][0]['ablauf'][0]['room']);
         $this->assertArrayHasKey('zusaetzlich', $document['sections'][0]);
         $this->assertCount(1, $document['sections'][0]['zusaetzlich']);
+        $this->assertArrayNotHasKey('hinweise', $document['sections'][0]);
+        $this->assertArrayNotHasKey('hinweise', $document['sections'][1]);
+        $this->assertArrayNotHasKey('hinweise', $document['sections'][2]);
 
         $this->assertSame('Team: Alpha', $document['sections'][1]['subject']);
         $this->assertSame(['Beta'], $document['sections'][1]['ablauf'][0]['italic']);
@@ -285,6 +288,96 @@ class RoleSheetAssemblerTest extends TestCase
         $this->assertSame('09:00', $document['sections'][0]['ablauf'][0]['start']);
     }
 
+    public function test_collects_unique_room_hints_from_printed_schedule(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(4, 'Juror:in', 3, [
+                    ['value' => 1, 'label' => 'Jury-Gruppe 1', 'parameter' => 'lane', 'noshow' => false],
+                ], 'Jury-Gruppe'),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'activities' => [
+                        $this->activity('09:00:00', '09:15:00', 'punctual', 'j_with_team', 'Raum A', navigation: '2. Etage'),
+                        $this->activity('09:20:00', '09:35:00', 'punctual', 'j_with_team', 'Raum A', navigation: '2. Etage'),
+                        $this->activity('10:00:00', '10:15:00', 'punctual', 'j_with_team', 'Bühne', navigation: 'Hauptgebäude'),
+                        $this->activity('10:20:00', '10:35:00', 'punctual', 'j_with_team', 'Hof'),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [4]);
+
+        $this->assertSame([
+            ['room' => 'Bühne', 'hint' => 'Hauptgebäude'],
+            ['room' => 'Raum A', 'hint' => '2. Etage'],
+        ], $document['sections'][0]['hinweise']);
+    }
+
+    public function test_room_hint_on_free_block_still_appears(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(5, 'Team', 3, [
+                    ['value' => 1, 'label' => 'Alpha', 'parameter' => 'team', 'noshow' => false],
+                ]),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'activities' => [
+                        $this->activity('09:00:00', '09:10:00', 'punctual', 'r_match', 'Halle', table1Team: 1, table2Team: 2),
+                        $this->activity('12:00:00', '13:00:00', 'window', 'c_free_block', 'Hof', 9, 'free', navigation: 'Hinterhof links'),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [5]);
+
+        $this->assertSame([
+            ['room' => 'Hof', 'hint' => 'Hinterhof links'],
+        ], $document['sections'][0]['hinweise']);
+    }
+
+    public function test_omitted_match_room_hint_is_ignored(): void
+    {
+        $publicPlan = Mockery::mock(PublicPlanService::class);
+        $publicPlan->shouldReceive('getRoles')->once()->andReturn([
+            'title_short' => 'Event',
+            'roles' => [
+                $this->role(5, 'Team', 3, [
+                    ['value' => 1, 'label' => 'Alpha', 'parameter' => 'team', 'noshow' => false],
+                ]),
+            ],
+        ]);
+        $publicPlan->shouldReceive('getSchedule')->once()->andReturn([
+            'groups' => [
+                [
+                    'group_meta' => ['name' => 'Robot-Game Halbfinale'],
+                    'activities' => [
+                        $this->activity('09:00:00', '09:10:00', 'punctual', 'c_opening', 'Bühne'),
+                        $this->activity('15:00:00', '15:10:00', 'punctual', 'r_match', 'Halle', navigation: 'Halle hinten'),
+                    ],
+                ],
+            ],
+        ]);
+
+        $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [5]);
+
+        $this->assertCount(1, $document['sections'][0]['ablauf']);
+        $this->assertArrayNotHasKey('hinweise', $document['sections'][0]);
+    }
+
     /**
      * @param  list<array<string, mixed>>  $options
      * @return array<string, mixed>
@@ -316,6 +409,7 @@ class RoleSheetAssemblerTest extends TestCase
         ?string $extraBlockType = null,
         ?int $table1Team = null,
         ?int $table2Team = null,
+        ?string $navigation = null,
     ): array {
         return [
             'start_time' => '2026-03-15 '.$start,
@@ -325,7 +419,7 @@ class RoleSheetAssemblerTest extends TestCase
             'activity_name' => $code === 'r_match' ? 'Robot-Game Match' : '',
             'extra_block_id' => $extraBlockId,
             'extra_block_type' => $extraBlockType,
-            'room' => ['room_name' => $room],
+            'room' => ['room_name' => $room, 'navigation' => $navigation],
             'team_name' => 'Alpha',
             'jury_team_number_hot' => 12,
             'table_1_team' => $table1Team,
