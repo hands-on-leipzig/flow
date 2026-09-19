@@ -12,9 +12,6 @@ final class RoomSheetTcpdfRenderer
 
     public const PRIVATE_SUFFIX = ' — Nicht öffentlich';
 
-    /** @var array{0:int,1:int,2:int} */
-    private const PRIVATE_RGB = [180, 40, 40];
-
     /**
      * @param  array{
      *     title_short?:string,
@@ -285,7 +282,7 @@ final class RoomSheetTcpdfRenderer
     ): void {
         $mark = $action === '' ? self::PRIVATE_MARK : self::PRIVATE_SUFFIX;
         $markH = $pdf->getStringHeight($width, $mark, false, true, '', 1);
-        $pdf->SetTextColor(...self::PRIVATE_RGB);
+        $pdf->SetTextColor(...EventPrintPdf::MARK_RGB);
         $pdf->SetFont($pdf->regularFont, '', 9);
         if ($action !== '' && self::suffixFitsSameLine($pdf, $width, $action, $mark)) {
             $pdf->SetXY($x + $pdf->GetStringWidth($action), $y);

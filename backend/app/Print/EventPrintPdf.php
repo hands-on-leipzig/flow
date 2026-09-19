@@ -37,6 +37,9 @@ final class EventPrintPdf extends TCPDF
     /** Left/right padding inside Start/Ende so the times sit close together. */
     public const TIME_CELL_PAD = 0.35;
 
+    /** @var array{0:int,1:int,2:int} */
+    public const MARK_RGB = [180, 40, 40];
+
     private const QR_GAP = 2.0;
 
     private const COL_GAP = 2.0;

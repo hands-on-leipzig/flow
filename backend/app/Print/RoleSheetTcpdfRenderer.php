@@ -8,6 +8,10 @@ use App\Support\ProgramCatalog;
 
 final class RoleSheetTcpdfRenderer
 {
+    public const ACCESS_MARK = 'Nicht barrierefrei';
+
+    public const ACCESS_SUFFIX = ' — Nicht barrierefrei';
+
     /**
      * @param  array{
      *     title_short?:string,
@@ -146,7 +150,7 @@ final class RoleSheetTcpdfRenderer
     }
 
     /**
-     * @param  list<array{room?:string,hint?:string}>  $rows
+     * @param  list<array{room?:string,hint?:string,inaccessible?:bool}>  $rows
      */
     private function hintsTable(EventPrintPdf $pdf, array $rows): void
     {
@@ -156,11 +160,7 @@ final class RoleSheetTcpdfRenderer
 
         $firstH = 6.0;
         if ($rows !== []) {
-            $firstH = max(
-                6.0,
-                $pdf->getStringHeight($wRoom, (string) ($rows[0]['room'] ?? ''), false, true, '', 1),
-                $pdf->getStringHeight($wHint, (string) ($rows[0]['hint'] ?? ''), false, true, '', 1),
-            );
+            $firstH = self::hintRowHeight($pdf, $wRoom, $wHint, $rows[0]);
         }
         $pdf->ensureSpace(6.0 + $firstH);
         $pdf->SetFont($pdf->boldFont, '', 9);
@@ -171,11 +171,8 @@ final class RoleSheetTcpdfRenderer
         foreach ($rows as $index => $row) {
             $room = (string) ($row['room'] ?? '');
             $hint = (string) ($row['hint'] ?? '');
-            $h = max(
-                6.0,
-                $pdf->getStringHeight($wRoom, $room, false, true, '', 1),
-                $pdf->getStringHeight($wHint, $hint, false, true, '', 1),
-            );
+            $inaccessible = ! empty($row['inaccessible']);
+            $h = self::hintRowHeight($pdf, $wRoom, $wHint, $row);
             if ($pdf->overflows($h)) {
                 $pdf->AddPage();
                 $pdf->SetFont($pdf->regularFont, '', 9);
@@ -186,12 +183,58 @@ final class RoleSheetTcpdfRenderer
                 $pdf->SetFillColor(245, 246, 248);
                 $pdf->Rect(EventPrintPdf::MARGIN, $startY, $usable, $h, 'F');
             }
+            $pdf->SetTextColor(0, 0, 0);
             $pdf->SetXY(EventPrintPdf::MARGIN, $startY);
             $pdf->MultiCell($wRoom, $h, $room, 0, 'L', false, 0);
-            $pdf->SetXY(EventPrintPdf::MARGIN + $wRoom, $startY);
+            $hintX = EventPrintPdf::MARGIN + $wRoom;
+            $pdf->SetXY($hintX, $startY);
             $pdf->MultiCell($wHint, $h, $hint, 0, 'L', false, 0);
+            if ($inaccessible) {
+                self::writeAccessMark($pdf, $hintX, $startY, $wHint, $hint);
+            }
+            $pdf->SetTextColor(0, 0, 0);
+            $pdf->SetFont($pdf->regularFont, '', 9);
             $pdf->SetY($startY + $h);
         }
+    }
+
+    /**
+     * @param  array{room?:string,hint?:string,inaccessible?:bool}  $row
+     */
+    private static function hintRowHeight(EventPrintPdf $pdf, float $wRoom, float $wHint, array $row): float
+    {
+        $room = (string) ($row['room'] ?? '');
+        $hint = (string) ($row['hint'] ?? '');
+        $display = $hint;
+        if (! empty($row['inaccessible'])) {
+            $display = $hint === '' ? self::ACCESS_MARK : $hint.self::ACCESS_SUFFIX;
+        }
+
+        return max(
+            6.0,
+            $pdf->getStringHeight($wRoom, $room !== '' ? $room : ' ', false, true, '', 1),
+            $pdf->getStringHeight($wHint, $display !== '' ? $display : ' ', false, true, '', 1),
+        );
+    }
+
+    private static function writeAccessMark(
+        EventPrintPdf $pdf,
+        float $x,
+        float $y,
+        float $width,
+        string $hint,
+    ): void {
+        $mark = $hint === '' ? self::ACCESS_MARK : self::ACCESS_SUFFIX;
+        $pdf->SetTextColor(...EventPrintPdf::MARK_RGB);
+        $pdf->SetFont($pdf->regularFont, '', 9);
+        if ($hint !== '') {
+            $pdf->SetXY($x + $pdf->GetStringWidth($hint), $y);
+            $pdf->MultiCell($width - $pdf->GetStringWidth($hint), 6, $mark, 0, 'L', false, 0);
+        } else {
+            $pdf->SetXY($x, $y);
+            $pdf->MultiCell($width, 6, $mark, 0, 'L', false, 0);
+        }
+        $pdf->SetTextColor(0, 0, 0);
     }
 
     /**

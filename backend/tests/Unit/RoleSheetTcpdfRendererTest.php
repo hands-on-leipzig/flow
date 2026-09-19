@@ -156,7 +156,7 @@ class RoleSheetTcpdfRendererTest extends TestCase
                         ],
                     ],
                     'hinweise' => [
-                        ['room' => 'Halle', 'hint' => 'Eingang über Hof'],
+                        ['room' => 'Halle', 'hint' => 'Eingang über Hof', 'inaccessible' => true],
                     ],
                 ],
             ],

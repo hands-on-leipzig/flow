@@ -8,8 +8,6 @@ use App\Services\PublicPlanService;
 
 final class RoleSheetAssembler
 {
-    public const NOT_ACCESSIBLE = 'Nicht barrierefrei';
-
     public function __construct(private PublicPlanService $publicPlan) {}
 
     /**
@@ -24,7 +22,7 @@ final class RoleSheetAssembler
      *         logo_stem: ?string,
      *         ablauf: list<array{start:string,end:string,room:string,action:string,strike:list<string>,italic:list<string>}>,
      *         zusaetzlich?: list<array{start:string,end:string,room:string,action:string,strike:list<string>,italic:list<string>}>,
-     *         hinweise?: list<array{room:string,hint:string}>
+     *         hinweise?: list<array{room:string,hint:string,inaccessible:bool}>
      *     }>
      * }
      */
@@ -209,7 +207,7 @@ final class RoleSheetAssembler
     }
 
     /**
-     * @param  array<string, array{room:string,hint:string}>  $hints
+     * @param  array<string, array{room:string,hint:string,inaccessible:bool}>  $hints
      * @param  array<string, mixed>  $activity
      */
     private static function rememberHint(array &$hints, array $activity): void
@@ -221,10 +219,7 @@ final class RoleSheetAssembler
         if ($name === '' || ($hint === '' && $accessible)) {
             return;
         }
-        if (! $accessible) {
-            $hint = $hint === '' ? self::NOT_ACCESSIBLE : $hint."\n".self::NOT_ACCESSIBLE;
-        }
-        $hints[$name] = ['room' => $name, 'hint' => $hint];
+        $hints[$name] = ['room' => $name, 'hint' => $hint, 'inaccessible' => ! $accessible];
     }
 
     private static function clock(mixed $value): string

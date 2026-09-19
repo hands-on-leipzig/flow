@@ -315,8 +315,8 @@ class RoleSheetAssemblerTest extends TestCase
         $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [4]);
 
         $this->assertSame([
-            ['room' => 'Bühne', 'hint' => 'Hauptgebäude'],
-            ['room' => 'Raum A', 'hint' => '2. Etage'],
+            ['room' => 'Bühne', 'hint' => 'Hauptgebäude', 'inaccessible' => false],
+            ['room' => 'Raum A', 'hint' => '2. Etage', 'inaccessible' => false],
         ], $document['sections'][0]['hinweise']);
     }
 
@@ -345,7 +345,7 @@ class RoleSheetAssemblerTest extends TestCase
         $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [5]);
 
         $this->assertSame([
-            ['room' => 'Hof', 'hint' => 'Hinterhof links'],
+            ['room' => 'Hof', 'hint' => 'Hinterhof links', 'inaccessible' => false],
         ], $document['sections'][0]['hinweise']);
     }
 
@@ -402,7 +402,7 @@ class RoleSheetAssemblerTest extends TestCase
         $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [4]);
 
         $this->assertSame([
-            ['room' => 'Raum A', 'hint' => 'Nicht barrierefrei'],
+            ['room' => 'Raum A', 'hint' => '', 'inaccessible' => true],
         ], $document['sections'][0]['hinweise']);
     }
 
@@ -430,7 +430,7 @@ class RoleSheetAssemblerTest extends TestCase
         $document = (new RoleSheetAssembler($publicPlan))->assemble(1, [4]);
 
         $this->assertSame([
-            ['room' => 'Raum A', 'hint' => "2. Etage\nNicht barrierefrei"],
+            ['room' => 'Raum A', 'hint' => '2. Etage', 'inaccessible' => true],
         ], $document['sections'][0]['hinweise']);
     }
 
