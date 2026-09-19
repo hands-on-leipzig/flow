@@ -34,6 +34,9 @@ final class EventPrintPdf extends TCPDF
     /** Matches SetAutoPageBreak; rows must not start below this from the page bottom. */
     public const BODY_BOTTOM_MARGIN = 22.0;
 
+    /** Left/right padding inside Start/Ende so the times sit close together. */
+    public const TIME_CELL_PAD = 0.35;
+
     private const QR_GAP = 2.0;
 
     private const COL_GAP = 2.0;
@@ -117,6 +120,35 @@ final class EventPrintPdf extends TCPDF
         if ($this->overflows($needed)) {
             $this->AddPage();
         }
+    }
+
+    public function timeColumnWidth(): float
+    {
+        $this->SetFont($this->regularFont, '', 9);
+        $time = $this->GetStringWidth('00:00');
+        $this->SetFont($this->boldFont, '', 9);
+        $label = max($this->GetStringWidth('Start'), $this->GetStringWidth('Ende'));
+
+        return max($time, $label) + (2 * self::TIME_CELL_PAD) + 0.3;
+    }
+
+    /**
+     * @return array{T:float,R:float,B:float,L:float}
+     */
+    public function applyTimeCellPadding(): array
+    {
+        $saved = $this->getCellPaddings();
+        $this->setCellPaddings(self::TIME_CELL_PAD, $saved['T'], self::TIME_CELL_PAD, $saved['B']);
+
+        return $saved;
+    }
+
+    /**
+     * @param  array{T:float,R:float,B:float,L:float}  $saved
+     */
+    public function restoreCellPaddings(array $saved): void
+    {
+        $this->setCellPaddings($saved['L'], $saved['T'], $saved['R'], $saved['B']);
     }
 
     public function Header(): void

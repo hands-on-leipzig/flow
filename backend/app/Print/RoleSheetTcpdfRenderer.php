@@ -52,9 +52,9 @@ final class RoleSheetTcpdfRenderer
     private function table(EventPrintPdf $pdf, string $heading, array $rows): void
     {
         $usable = $pdf->getPageWidth() - (EventPrintPdf::MARGIN * 2);
-        $wStart = 18;
-        $wEnd = 18;
-        $wRoom = 52;
+        $wStart = $pdf->timeColumnWidth();
+        $wEnd = $wStart;
+        $wRoom = 39.0;
         $wAction = $usable - $wStart - $wEnd - $wRoom;
 
         $firstH = 6.0;
@@ -99,9 +99,11 @@ final class RoleSheetTcpdfRenderer
             }
 
             $pdf->SetXY(EventPrintPdf::MARGIN, $startY);
+            $pads = $pdf->applyTimeCellPadding();
             $pdf->MultiCell($wStart, $h, $start, 0, 'L', false, 0);
             $pdf->SetXY(EventPrintPdf::MARGIN + $wStart, $startY);
             $pdf->MultiCell($wEnd, $h, $end, 0, 'L', false, 0);
+            $pdf->restoreCellPaddings($pads);
             $pdf->SetXY(EventPrintPdf::MARGIN + $wStart + $wEnd, $startY);
             $pdf->MultiCell($wRoom, $h, $room, 0, 'L', false, 0);
             $this->writeAction($pdf, EventPrintPdf::MARGIN + $wStart + $wEnd + $wRoom, $startY, $h, $wAction, $action, $italic);
@@ -129,8 +131,10 @@ final class RoleSheetTcpdfRenderer
         $pdf->SetXY(EventPrintPdf::MARGIN, $headerY);
         $pdf->SetFont($pdf->boldFont, '', 9);
         $pdf->SetTextColor(0, 0, 0);
+        $pads = $pdf->applyTimeCellPadding();
         $pdf->Cell($wStart, 6, 'Start', 0, 0, 'L');
         $pdf->Cell($wEnd, 6, 'Ende', 0, 0, 'L');
+        $pdf->restoreCellPaddings($pads);
         $pdf->Cell($wRoom, 6, 'Raum', 0, 0, 'L');
         $pdf->Cell($wAction, 6, 'Aktion', 0, 1, 'L');
         $pdf->SetLineWidth(0.2);

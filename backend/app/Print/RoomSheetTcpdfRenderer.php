@@ -155,8 +155,8 @@ final class RoomSheetTcpdfRenderer
         $margin = EventPrintPdf::MARGIN;
         $usable = $pdf->getPageWidth() - ($margin * 2);
         $wLogo = $showLogos ? 7.0 : 0.0;
-        $wStart = 18.0;
-        $wEnd = 18.0;
+        $wStart = $pdf->timeColumnWidth();
+        $wEnd = $wStart;
         $wAction = $usable - $wLogo - $wStart - $wEnd;
         $pdf->SetFont($pdf->regularFont, '', 9);
 
@@ -199,9 +199,11 @@ final class RoomSheetTcpdfRenderer
             }
             $pdf->SetTextColor(0, 0, 0);
             $pdf->SetXY($x, $startY);
+            $pads = $pdf->applyTimeCellPadding();
             $pdf->MultiCell($wStart, $h, $start, 0, 'L', false, 0);
             $pdf->SetXY($x + $wStart, $startY);
             $pdf->MultiCell($wEnd, $h, $end, 0, 'L', false, 0);
+            $pdf->restoreCellPaddings($pads);
             $actionX = $x + $wStart + $wEnd;
             $pdf->SetXY($actionX, $startY);
             $pdf->MultiCell($wAction, $h, $action, 0, 'L', false, 0);
@@ -237,8 +239,10 @@ final class RoomSheetTcpdfRenderer
             $x += $wLogo;
         }
         $pdf->SetXY($x, $headerY);
+        $pads = $pdf->applyTimeCellPadding();
         $pdf->Cell($wStart, 6, 'Start', 0, 0, 'L');
         $pdf->Cell($wEnd, 6, 'Ende', 0, 0, 'L');
+        $pdf->restoreCellPaddings($pads);
         $pdf->Cell($wAction, 6, 'Aktion', 0, 0, 'L');
         $pdf->SetLineWidth(0.2);
         $pdf->Line($margin, $headerY + 6, $margin + $usable, $headerY + 6);

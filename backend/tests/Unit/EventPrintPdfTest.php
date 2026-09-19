@@ -35,4 +35,14 @@ class EventPrintPdfTest extends TestCase
         $this->assertSame(2, $pdf->getNumPages());
         $this->assertEqualsWithDelta(EventPrintPdf::HEADER_BODY_MARGIN, $pdf->GetY(), 0.05);
     }
+
+    public function test_time_columns_fit_hhmm_without_legacy_padding(): void
+    {
+        $pdf = EventPrintPdf::make('Test');
+        $pdf->AddPage();
+        $width = $pdf->timeColumnWidth();
+
+        $this->assertLessThan(14.0, $width);
+        $this->assertGreaterThan(8.0, $width);
+    }
 }
