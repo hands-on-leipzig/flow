@@ -162,11 +162,10 @@ final class RoleSheetTcpdfRenderer
                 $pdf->getStringHeight($wHint, (string) ($rows[0]['hint'] ?? ''), false, true, '', 1),
             );
         }
-        $pdf->ensureSpace(12.0 + $firstH);
+        $pdf->ensureSpace(6.0 + $firstH);
         $pdf->SetFont($pdf->boldFont, '', 9);
         $pdf->SetTextColor(0, 0, 0);
         $pdf->Cell($usable, 6, 'Hinweise zu den Räumen', 0, 1, 'L');
-        $this->hintColumnHeaders($pdf, $usable, $wRoom, $wHint);
 
         $pdf->SetFont($pdf->regularFont, '', 9);
         foreach ($rows as $index => $row) {
@@ -179,7 +178,6 @@ final class RoleSheetTcpdfRenderer
             );
             if ($pdf->overflows($h)) {
                 $pdf->AddPage();
-                $this->hintColumnHeaders($pdf, $usable, $wRoom, $wHint);
                 $pdf->SetFont($pdf->regularFont, '', 9);
             }
 
@@ -194,20 +192,6 @@ final class RoleSheetTcpdfRenderer
             $pdf->MultiCell($wHint, $h, $hint, 0, 'L', false, 0);
             $pdf->SetY($startY + $h);
         }
-    }
-
-    private function hintColumnHeaders(EventPrintPdf $pdf, float $usable, float $wRoom, float $wHint): void
-    {
-        $headerY = $pdf->GetY();
-        $pdf->SetFillColor(236, 238, 241);
-        $pdf->Rect(EventPrintPdf::MARGIN, $headerY, $usable, 6, 'F');
-        $pdf->SetXY(EventPrintPdf::MARGIN, $headerY);
-        $pdf->SetFont($pdf->boldFont, '', 9);
-        $pdf->SetTextColor(0, 0, 0);
-        $pdf->Cell($wRoom, 6, 'Raum', 0, 0, 'L');
-        $pdf->Cell($wHint, 6, 'Hinweis', 0, 1, 'L');
-        $pdf->SetLineWidth(0.2);
-        $pdf->Line(EventPrintPdf::MARGIN, $pdf->GetY(), EventPrintPdf::MARGIN + $usable, $pdf->GetY());
     }
 
     /**
