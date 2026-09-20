@@ -134,7 +134,7 @@ async function downloadPdf() {
   <article class="liquid-surface-inner role-sheets">
     <header class="role-sheets__head">
       <h2 class="role-sheets__title">Übersichtsplan</h2>
-      <p class="role-sheets__sub">Öffentlicher Tagesplan auf einer Seite</p>
+      <p class="role-sheets__sub">Überblick über alle öffentlichen Aktivitäten auf einer Seite.</p>
     </header>
     <div class="role-sheets__body" :class="{'role-sheets__body--split': showProgramSelection}">
       <fieldset v-if="showProgramSelection" class="role-sheets__choices">

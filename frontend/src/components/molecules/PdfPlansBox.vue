@@ -4,11 +4,9 @@ import { useEventStore } from '@/stores/event'
 import { usePdfExport } from '@/composables/usePdfExport'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
-import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
-import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
-import {hasChallenge, eventPrograms, programDisplayName, catalogNameFromCode, type EventProgramRef} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, catalogNameFromCode, type EventProgramRef} from '@/utils/eventPrograms'
 import {flowFilename} from '@/utils/flowFilename'
 
 
@@ -92,35 +90,6 @@ async function loadPosterPreview(type: 'plan' | 'plan_wifi') {
 
 async function loadPosterPreviews() {
   await Promise.all([loadPosterPreview('plan'), loadPosterPreview('plan_wifi')])
-}
-
-// Download team list PDF
-async function downloadTeamListPdf() {
-  if (!eventId.value) return
-  
-  isDownloading.value['team-list'] = true
-  try {
-    // Get the plan ID for this event
-    const planResponse = await axios.get(`/plans/event/${eventId.value}`)
-    const planId = planResponse.data.id
-    
-    const response = await axios.get(
-      `/export/team-list/${planId}`,
-      { responseType: 'blob' }
-    )
-
-    const filename = response.headers['x-filename'] || flowHint('Teamliste')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim PDF-Download (Teamliste):', error)
-  } finally {
-    isDownloading.value['team-list'] = false
-  }
 }
 
 // --- Team Label Filters ---
@@ -301,115 +270,6 @@ async function downloadVolunteerLabelsPdf() {
   }
 }
 
-// --- Match Plan Modal State (from MatchPlanBox) ---
-const showMatchPlanModal = ref(false)
-const selectedRound = ref<number | null>(null)
-const openRound = ref<number | null>(null)
-const matches = ref<Array<{
-  match_no: number
-  team_1: { name: string; hot_number: number; noshow?: boolean } | null
-  team_2: { name: string; hot_number: number; noshow?: boolean } | null
-}>>([])
-const isLoadingMatches = ref(false)
-
-// Round options
-const roundOptions = [
-  { value: 1, label: 'Vorrunde 1' },
-  { value: 2, label: 'Vorrunde 2' },
-  { value: 3, label: 'Vorrunde 3' },
-]
-
-// Toggle accordion round
-function toggleRound(round: number) {
-  if (openRound.value === round) {
-    openRound.value = null
-    matches.value = []
-    selectedRound.value = null
-  } else {
-    openRound.value = round
-    selectedRound.value = round
-    fetchMatches()
-  }
-}
-
-// Fetch matches for selected round
-async function fetchMatches() {
-  if (!eventId.value || isLoadingMatches.value) return
-  
-  const planResponse = await axios.get(`/plans/event/${eventId.value}`)
-  const planId = planResponse.data.id
-  if (!planId || !selectedRound.value) return
-
-  isLoadingMatches.value = true
-  try {
-    const { data } = await axios.get(`/export/match-teams/${planId}/${selectedRound.value}`)
-    matches.value = data.matches || []
-  } catch (error) {
-    if (import.meta.env.DEV) {
-      console.error('Failed to fetch matches:', error)
-    }
-    matches.value = []
-  } finally {
-    isLoadingMatches.value = false
-  }
-}
-
-// Watch for round changes
-watch(selectedRound, () => {
-  if (showMatchPlanModal.value && selectedRound.value !== null) {
-    fetchMatches()
-  }
-})
-
-// Open match plan modal
-function openMatchPlanModal() {
-  showMatchPlanModal.value = true
-  openRound.value = null
-  selectedRound.value = null
-  matches.value = []
-}
-
-// Close match plan modal
-function closeMatchPlanModal() {
-  showMatchPlanModal.value = false
-  openRound.value = null
-  selectedRound.value = null
-  matches.value = []
-}
-
-// Format team display
-function formatTeam(team: { name: string; hot_number: number; noshow?: boolean } | null): string {
-  if (!team) return 'Freier Slot'
-  return `${team.name} [${team.hot_number}]`
-}
-
-// Check if team is no-show
-function isNoshow(team: { name: string; hot_number: number; noshow?: boolean } | null): boolean {
-  return team !== null && (team.noshow === true)
-}
-
-// Check if team is empty slot
-function isEmptySlot(team: { name: string; hot_number: number; noshow?: boolean } | null): boolean {
-  return team === null
-}
-
-// Download match plan PDF
-async function downloadMatchPlanPdf() {
-  if (!eventId.value) return
-  
-  const planResponse = await axios.get(`/plans/event/${eventId.value}`)
-  const planId = planResponse.data.id
-  if (!planId) return
-  
-  await downloadPdf('match-plan', `/export/match-plan/${planId}`, flowHint('Match-Plan'))
-}
-
-// Computed: normalized event title for modal header
-const eventTitleNormalized = computed(() => {
-  const title = getEventTitleLong(event.value)
-  return title.replace(/FIRST/, '<em>FIRST</em>')
-})
-
 </script>
 
 <template>
@@ -486,93 +346,6 @@ const eventTitleNormalized = computed(() => {
       </div>
 
       </section>
-
-      <section class="glass-card liquid-surface-inner pdf-plans__panel">
-      <p class="pdf-plans__group-label pdf-plans__group-label--next">
-        <i class="bi bi-shield-lock" aria-hidden="true"/>
-        <span>Nur für Veranstalter – nicht für Teams oder Besucher.</span>
-      </p>
-      <div class="pdf-plans__grid">
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Teamliste</h4>
-          <p class="pdf-plans__tile-sub">
-            Teams mit Räumen und Gutachter-/Jury-Gruppen — für Check-In und Briefings.
-          </p>
-        </header>
-        <div class="pdf-plans__tile-body"></div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading['team-list'] ? '!opacity-50' : ''"
-            :disabled="isDownloading['team-list']"
-            @click="downloadTeamListPdf"
-          >
-            <Spinner v-if="isDownloading['team-list']" size="sm"/>
-            <span>{{ isDownloading['team-list'] ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-
-      <article
-        v-if="hasChallenge(event)"
-        class="pdf-plans__tile liquid-surface-inner"
-      >
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Match-Plan SCORE</h4>
-          <p class="pdf-plans__tile-sub">
-            Vorrunden-Matches zum Übernehmen in
-            <a
-              href="https://evaluation.hands-on-technology.org/"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="text-[var(--color-accent)] underline hover:opacity-80"
-            >SCORE</a>.
-          </p>
-        </header>
-        <div class="pdf-plans__tile-body">
-          <p class="pdf-plans__tile-note">Reihenfolge in SCORE an FLOW anpassen.</p>
-        </div>
-        <footer class="pdf-plans__tile-actions">
-          <button type="button" class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm" @click="openMatchPlanModal">
-            Online
-          </button>
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading['match-plan'] ? '!opacity-50' : ''"
-            :disabled="isDownloading['match-plan']"
-            @click="downloadMatchPlanPdf"
-          >
-            <Spinner v-if="isDownloading['match-plan']" size="sm"/>
-            <span>{{ isDownloading['match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Gesamtplan</h4>
-          <p class="pdf-plans__tile-sub">Volle Details in einfacher Formatierung.</p>
-        </header>
-        <div class="pdf-plans__tile-body"></div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading.full ? '!opacity-50' : ''"
-            :disabled="isDownloading.full"
-            @click="downloadPdf('full', `/export/pdf_download/full/${eventId}`, flowHint('Gesamtplan'))"
-          >
-            <Spinner v-if="isDownloading.full" size="sm"/>
-            <span>{{ isDownloading.full ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-      </div>
-          </section>
     </div>
 
     <template v-if="showLabels">
@@ -777,88 +550,6 @@ const eventTitleNormalized = computed(() => {
         </section>
       </div>
     </template>
-
-    <!-- Match Plan Modal -->
-    <div
-      v-if="showMatchPlanModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click="closeMatchPlanModal"
-    >
-      <div 
-        class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden"
-        @click.stop
-      >
-        <!-- Modal Header -->
-        <div class="px-6 py-4 border-b border-[var(--color-border)] flex justify-between items-center">
-          <h3 class="text-lg font-semibold text-[var(--color-text)]" v-html="eventTitleNormalized"></h3>
-          <button
-            @click="closeMatchPlanModal"
-            class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-        
-        <!-- Modal Content -->
-        <div class="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-          <!-- Accordion for rounds -->
-          <div class="space-y-2">
-            <template v-for="option in roundOptions" :key="option.value">
-              <div class="bg-white border rounded-lg shadow">
-                <button
-                  class="w-full text-left px-4 py-2 bg-[var(--color-bg-muted)] font-semibold text-black uppercase flex justify-between items-center"
-                  @click="toggleRound(option.value)"
-                >
-                  {{ option.label }}
-                  <AccordionArrow :opened="openRound === option.value"/>
-                </button>
-                <transition name="fade">
-                  <div v-if="openRound === option.value" class="p-4">
-                    <div v-if="isLoadingMatches" class="flex items-center justify-center py-8">
-                      <Spinner size="md"/>
-                      <span class="ml-3 text-[var(--color-text-muted)]">Lade Matches…</span>
-                    </div>
-                    
-                    <div v-else-if="matches.length === 0" class="text-center py-8 text-[var(--color-text-subtle)]">
-                      Keine Matches gefunden
-                    </div>
-                    
-                    <!-- Match Grid -->
-                    <div v-else class="grid grid-cols-2 gap-3">
-                      <template v-for="match in matches" :key="match.match_no">
-                        <!-- Team 1 (Left Column) -->
-                        <div
-                          class="px-4 py-2 rounded text-white text-sm font-medium"
-                          :class="[
-                            isEmptySlot(match.team_1) ? 'bg-gray-300 text-[var(--color-text-muted)]' : 'bg-blue-600',
-                            isNoshow(match.team_1) ? 'line-through' : ''
-                          ]"
-                        >
-                          {{ formatTeam(match.team_1) }}
-                        </div>
-                        
-                        <!-- Team 2 (Right Column) -->
-                        <div
-                          class="px-4 py-2 rounded text-white text-sm font-medium"
-                          :class="[
-                            isEmptySlot(match.team_2) ? 'bg-gray-300 text-[var(--color-text-muted)]' : 'bg-blue-600',
-                            isNoshow(match.team_2) ? 'line-through' : ''
-                          ]"
-                        >
-                          {{ formatTeam(match.team_2) }}
-                        </div>
-                      </template>
-                    </div>
-                  </div>
-                </transition>
-              </div>
-            </template>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- Optional: globales Overlay -->
     <div

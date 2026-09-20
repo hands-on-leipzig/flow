@@ -1,13 +1,16 @@
 <script setup lang="ts">
 /**
  * Ausgabe → Drucksachen: PDF-Pläne und Aushänge zum Drucken.
- * Tiles only on Local/Dev; Test/Production see an in-review notice.
+ * Online-Plan / WLAN posters stay Local/Dev only.
  */
 import {computed} from 'vue'
 import PdfPlansBox from '@/components/molecules/PdfPlansBox.vue'
 import RoleSheetsPrint from '@/components/molecules/RoleSheetsPrint.vue'
 import RoomSheetsPrint from '@/components/molecules/RoomSheetsPrint.vue'
 import OverviewSheetsPrint from '@/components/molecules/OverviewSheetsPrint.vue'
+import GesamtplanPrint from '@/components/molecules/GesamtplanPrint.vue'
+import TeamlistePrint from '@/components/molecules/TeamlistePrint.vue'
+import MatchPlanScorePrint from '@/components/molecules/MatchPlanScorePrint.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import {isEntwicklungEnvironment} from '@/constants/adminNav'
@@ -15,21 +18,21 @@ import {isEntwicklungEnvironment} from '@/constants/adminNav'
 defineOptions({name: 'PublishAnalog'})
 
 const {isLocal} = useAdminEnvironment()
-const showTiles = computed(() => isEntwicklungEnvironment(isLocal))
+const showOnlinePlanPane = computed(() => isEntwicklungEnvironment(isLocal))
 </script>
 
 <template>
-  <div class="vol-page" :class="{'vol-page--fill druck-page': showTiles}">
+  <div class="vol-page vol-page--fill druck-page">
     <header class="vol-page__header">
       <div>
         <h1 class="vol-page__title">Drucksachen</h1>
-        <p class="vol-page__sub">Gerade noch im Umbau. Sorry.</p>
+        <p class="vol-page__sub">Dokument zu Drucken erzeugen, die den Online-Zeitplan unterstützen.</p>
       </div>
     </header>
 
     <NoticePane/>
 
-    <div v-if="showTiles" class="druck-page__body">
+    <div class="druck-page__body">
       <div class="druck-page__panes">
         <section class="glass-card liquid-surface-inner druck-page__panel">
           <p class="druck-page__group-label">
@@ -46,18 +49,18 @@ const showTiles = computed(() => isEntwicklungEnvironment(isLocal))
         </section>
         <section class="glass-card liquid-surface-inner druck-page__panel">
           <p class="druck-page__group-label">
-            <i class="bi bi-shield-lock" aria-hidden="true"/>
+            <i class="bi bi-send-slash" aria-hidden="true"/>
             <span>Nur für Veranstalter – nicht für Teams oder Besucher.</span>
           </p>
+          <div class="druck-page__grid">
+            <GesamtplanPrint/>
+            <TeamlistePrint/>
+            <MatchPlanScorePrint/>
+          </div>
         </section>
       </div>
-      <PdfPlansBox hide-heading section="plans" split-panes/>
+      <PdfPlansBox v-if="showOnlinePlanPane" hide-heading section="plans" split-panes/>
     </div>
-    <section v-else class="glass-card liquid-surface-inner druck-page__review" role="status">
-      <p class="druck-page__review-text">
-        Diese Funktionen werden gerade für die neue Saison angepasst und kommen bald zurück.
-      </p>
-    </section>
   </div>
 </template>
 
@@ -133,15 +136,5 @@ const showTiles = computed(() => isEntwicklungEnvironment(isLocal))
   min-width: 0;
   min-height: auto;
   overflow: visible;
-}
-
-.druck-page__review {
-  max-width: 36rem;
-}
-
-.druck-page__review-text {
-  margin: 0;
-  font-size: 0.9375rem;
-  color: var(--color-text-subtle);
 }
 </style>
