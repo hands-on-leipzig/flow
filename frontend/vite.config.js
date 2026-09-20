@@ -90,7 +90,11 @@ export default defineConfig(({mode}) => {
         ],
         resolve: {
             alias: {
-                '@': fileURLToPath(new URL('./src', import.meta.url))
+                '@': fileURLToPath(new URL('./src', import.meta.url)),
+                // Handshake only — the venues barrel also loads PublicEventFrame (vue-i18n / JOIN).
+                '@hands-on/glass/venues': fileURLToPath(
+                    new URL('../../glass/venues/publicEventSso.js', import.meta.url)
+                ),
             },
             dedupe: ['vue', 'vue-i18n', 'leaflet'],
         },
