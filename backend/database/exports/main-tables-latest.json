@@ -2752,6 +2752,16 @@
             "must_do": "Nichts.\nOhne eigene Logos erscheinen auf der \u00f6ffentlichen Seite und in den PDFs keine zus\u00e4tzlichen Logos.",
             "can_do": "Logos hochladen und f\u00fcr diese Veranstaltung ein- oder ausschalten.\nPro Logo einen Titel und optional einen Link vergeben.\nDie Reihenfolge \u00e4ndern.",
             "sort_order": 1
+        },
+        {
+            "id": 21,
+            "key": "publish-analog",
+            "name": "Drucksachen",
+            "route_path": "\/plan\/publish\/analog",
+            "description": "Hier werden PDFs erzeugt, die den Online-Zeitplan unterst\u00fctzen.\nEs gibt Pl\u00e4ne zum Aushang bzw. zum Verteilen und Unterlagen nur f\u00fcr Veranstalter.",
+            "must_do": "Nichts.\nOhne Ausdruck bleibt der Online-Zeitplan die zentrale Information f\u00fcr Teams, Helfer:innen und Publikum.",
+            "can_do": "PDFs zum Aushang bzw. zum Verteilen erzeugen: \u00dcbersichtsplan, R\u00e4ume, Teams und Rollen.\n\nPDFs nur f\u00fcr Veranstalter erzeugen: Gesamtplan, Teamliste, Match-Plan SCORE.",
+            "sort_order": 1
         }
     ],
     "m_help_topic": [

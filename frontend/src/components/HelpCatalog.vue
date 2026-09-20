@@ -50,10 +50,15 @@ function byCountThenTitle(a: Action, b: Action) {
   return title !== 0 ? title : a.id - b.id
 }
 
+function hasScreens(action: Action): boolean {
+  return (action.help_screen_ids?.length ?? 0) > 0
+}
+
 function actionMatches(action: Action, q: string): boolean {
   const needle = q.toLowerCase()
   if ((action.title || '').toLowerCase().includes(needle)) return true
   if ((action.body || '').toLowerCase().includes(needle)) return true
+  if (!hasScreens(action)) return false
   if ((action.topic?.name || '').toLowerCase().includes(needle)) return true
   for (const sid of action.help_screen_ids ?? []) {
     const screen = screens.value.find((s) => s.id === sid)
@@ -69,7 +74,7 @@ const topTen = computed(() => {
   const q = query.value.trim().toLowerCase()
   const candidates = q
     ? actions.value.filter((action) => actionMatches(action, q))
-    : actions.value.slice()
+    : actions.value.filter(hasScreens)
   return candidates.sort(byCountThenTitle).slice(0, 10)
 })
 
