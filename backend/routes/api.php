@@ -40,7 +40,6 @@ use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanQualityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
 use App\Http\Controllers\Api\PrintGesamtplanController;
-use App\Http\Controllers\Api\PrintGotenbergTestController;
 use App\Http\Controllers\Api\PrintMatchPlanScoreController;
 use App\Http\Controllers\Api\PrintOverviewSheetController;
 use App\Http\Controllers\Api\PrintRoleSheetController;
@@ -660,7 +659,6 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Admin helper functions routes
     Route::prefix('admin/helpers')->group(function () {
-        Route::post('/gotenberg-test', [PrintGotenbergTestController::class, 'download']);
         Route::post('/logos/cleanup-orphaned', [LogoController::class, 'cleanupOrphanedLogos']); // Admin: Clean up orphaned logos
         Route::prefix('season-plans')->group(function () {
             Route::get('/', [SeasonPlanBulkController::class, 'summary']);
