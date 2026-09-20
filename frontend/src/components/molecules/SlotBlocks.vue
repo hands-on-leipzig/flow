@@ -594,7 +594,7 @@ const scopeChangeMessage = computed(() => {
         <div class="slot-block__teams" @click.stop>
           <button
               type="button"
-              class="slot-block__teams-toggle glass-btn-secondary w-full !justify-start !text-sm !py-2"
+              class="slot-block__teams-toggle glass-btn-secondary w-full !justify-start"
               :disabled="!b.id || b.active === false"
               :title="!b.id ? 'Slot zuerst speichern' : undefined"
               @click="toggleTeams(b)"

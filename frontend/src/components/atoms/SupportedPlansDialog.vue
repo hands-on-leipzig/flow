@@ -156,7 +156,7 @@ onBeforeUnmount(() => {
     <button
         ref="triggerRef"
         type="button"
-        class="supported-plans__trigger"
+        class="glass-btn-icon"
         title="Unterstützte Pläne"
         aria-label="Unterstützte Pläne"
         :aria-expanded="open"
@@ -257,33 +257,6 @@ onBeforeUnmount(() => {
 .supported-plans {
   position: relative;
   flex-shrink: 0;
-}
-
-.supported-plans__trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  margin: 0;
-  padding: 0;
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, transparent);
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-
-.supported-plans__trigger:hover {
-  color: var(--color-text);
-  border-color: color-mix(in srgb, var(--program-accent, var(--color-accent)) 45%, var(--color-border));
-  background: color-mix(in srgb, var(--program-accent, var(--color-accent)) 8%, #fff);
-}
-
-.supported-plans__trigger:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--program-accent, var(--color-accent)) 45%, transparent);
-  outline-offset: 2px;
 }
 </style>
 

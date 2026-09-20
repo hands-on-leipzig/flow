@@ -132,8 +132,9 @@ const exploreProgram = computed(() => resolveProgramRef(eventStore.selectedEvent
           >
             <button
                 type="button"
-                class="glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-                :class="checked ? 'glass-choice--active' : ''"
+                class="venues-view-btn"
+                :class="{ 'is-active': checked }"
+                :aria-pressed="checked"
                 @click="connectionProxy = opt.value"
             >
               {{ opt.label }}

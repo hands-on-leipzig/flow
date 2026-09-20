@@ -296,19 +296,6 @@ function toggleCollapsed() {
   line-height: 1.4;
 }
 
-/* Choice pills pick up program accent when selected */
-.program-section :deep(.glass-choice--active) {
-  border-color: color-mix(in srgb, var(--program-accent) 55%, var(--color-border));
-  background: color-mix(in srgb, var(--program-accent) 10%, #fff);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--program-accent) 16%, transparent);
-  color: color-mix(in srgb, var(--program-accent) 72%, #111);
-}
-
-.program-section :deep(.glass-choice:focus-visible) {
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--program-accent) 35%, transparent);
-}
-
 @media (min-width: 768px) {
   .program-section {
     padding: 0.8rem 1.25rem 0.85rem;

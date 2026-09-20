@@ -8,6 +8,7 @@ import {imageUrl} from '@/utils/images'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
 import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleShort} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
+import {usePublicEventSso} from '@/composables/usePublicEventSso'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
@@ -27,6 +28,7 @@ const formStep = ref(null)
 const formEmail = ref('')
 const teamFormStep = ref(null)
 const teamFormEmail = ref('')
+const {ssoToken, ssoEmail, awaitSso} = usePublicEventSso()
 
 const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
 const headingPlace = computed(() => cleanEventName(event.value) || '—')
@@ -174,13 +176,21 @@ function laneTimelineItems(lane) {
   return mapTimelineItems(lane?.times)
 }
 
-const timelineMinHeight = computed(() => {
-  const maxItems = planLanes.value.reduce(
-    (max, lane) => Math.max(max, lane.times?.length ?? 0),
-    0,
-  )
-  return `${maxItems * 70}px`
-})
+function teamMeta(team) {
+  return [team?.ref, team?.organization, team?.location].filter(Boolean).join(' · ')
+}
+
+function laneCapacity(lane) {
+  const cap = Number(lane?.capacity)
+  return Number.isFinite(cap) && cap > 0 ? cap : 0
+}
+
+function laneFill(lane) {
+  const cap = laneCapacity(lane)
+  if (cap <= 0) return '0%'
+  const n = Array.isArray(lane?.teams) ? lane.teams.length : 0
+  return `${Math.min(100, (n / cap) * 100)}%`
+}
 
 const publicationLevel = computed(() => Number(scheduleInfo.value?.level ?? 1))
 
@@ -270,11 +280,12 @@ const showTeamDataEntrySection = computed(() =>
   !!scheduleInfo.value && !!teamDataEntry.value?.enabled
 )
 
-function openVolunteerForm() {
+async function openVolunteerForm() {
+  await awaitSso()
   teamFormStep.value = null
   teamFormEmail.value = ''
-  formStep.value = 'email'
-  formEmail.value = ''
+  formEmail.value = ssoEmail.value
+  formStep.value = ssoEmail.value ? 'data' : 'email'
 }
 
 function closeVolunteerForm() {
@@ -282,11 +293,12 @@ function closeVolunteerForm() {
   formEmail.value = ''
 }
 
-function openTeamForm() {
+async function openTeamForm() {
+  await awaitSso()
   formStep.value = null
   formEmail.value = ''
-  teamFormStep.value = 'email'
-  teamFormEmail.value = ''
+  teamFormEmail.value = ssoEmail.value
+  teamFormStep.value = ssoEmail.value ? 'data' : 'email'
 }
 
 function closeTeamForm() {
@@ -386,6 +398,7 @@ onMounted(async () => {
           :step="formStep"
           :email="formEmail"
           :slug="String(route.params.slug ?? '')"
+          :sso-token="ssoToken"
           @update:email="formEmail = $event"
           @update:step="formStep = $event"
           @cancel="closeVolunteerForm"
@@ -397,6 +410,7 @@ onMounted(async () => {
           :email="teamFormEmail"
           :slug="String(route.params.slug ?? '')"
           :event="event"
+          :sso-token="ssoToken"
           @update:email="teamFormEmail = $event"
           @update:step="teamFormStep = $event"
           @cancel="closeTeamForm"
@@ -425,53 +439,47 @@ onMounted(async () => {
         </template>
 
         <template v-else>
-          <h2 class="glass-card__title">
-            <template v-if="planLastChangeDisplay">
-              Wichtige Zeiten - Stand {{ planLastChangeDisplay }}.
-            </template>
-            <template v-else>
-              Wichtige Zeiten
-            </template>
-          </h2>
+          <h2 class="glass-card__title">Wichtige Zeiten</h2>
+          <p v-if="planLastChangeDisplay" class="pe-muted pe-times-stand">
+            Stand {{ planLastChangeDisplay }}
+          </p>
 
           <div
               v-if="planLanes.length > 0"
-              class="pe-timeline-grid"
+              class="pe-lane-grid"
               :style="{ '--pe-lane-count': planLanes.length }"
           >
-            <div
+            <article
                 v-for="lane in planLanes"
                 :key="lane.program_id"
-                class="pe-program"
+                class="pe-lane glass-stack-card"
                 :style="{ '--pe-program': laneColor(lane) }"
             >
-              <h3 class="pe-program__title">
+              <header class="pe-lane__head">
                 <ProgramLogo
                     v-if="laneProgramRef(lane)"
                     :event="event"
                     :program="laneProgramRef(lane)"
-                    class="pe-program__logo"
+                    size="md"
+                    class="pe-lane__logo"
                 />
-                <span>{{ lane.name }}</span>
-              </h3>
-              <div class="pe-timeline" :style="{ minHeight: timelineMinHeight }">
-                <div
+                <h3 class="pe-lane__title">{{ lane.name }}</h3>
+              </header>
+
+              <ol class="pe-lane-list">
+                <li
                     v-for="(item, index) in laneTimelineItems(lane)"
                     :key="`${lane.program_id}-${index}`"
-                    class="pe-timeline__item"
-                    :data-joint="item.joint ? 'true' : 'false'"
+                    class="pe-lane-item"
                 >
-                  <div class="pe-timeline__dot"/>
-                  <div class="pe-timeline__card">
-                    <div class="pe-timeline__row">
-                      <span class="pe-timeline__label">{{ item.label }}</span>
-                      <span class="pe-timeline__time">{{ item.timeDisplay }}</span>
-                    </div>
-                    <p v-if="item.description" class="pe-timeline__desc">{{ item.description }}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
+                  <time class="pe-lane-item__key">{{ item.timeDisplay }}</time>
+                  <span class="pe-lane-item__body">
+                    <span class="pe-lane-item__label">{{ item.label }}</span>
+                    <span v-if="item.description" class="pe-lane-item__meta">{{ item.description }}</span>
+                  </span>
+                </li>
+              </ol>
+            </article>
           </div>
 
           <p v-else class="pe-muted">
@@ -678,35 +686,54 @@ onMounted(async () => {
         <h2 class="glass-card__title">Angemeldete Teams</h2>
 
         <div
-            class="pe-timeline-grid pe-teams-grid"
+            class="pe-lane-grid"
             :style="{ '--pe-lane-count': teamLanes.length }"
         >
-          <div
+          <article
               v-for="lane in teamLanes"
               :key="lane.program_id"
-              class="pe-program"
+              class="pe-lane glass-stack-card"
               :style="{ '--pe-program': laneColor(lane) }"
           >
-            <h3 class="pe-program__title">
+            <header class="pe-lane__head">
               <ProgramLogo
                   v-if="laneProgramRef(lane)"
                   :event="event"
                   :program="laneProgramRef(lane)"
-                  class="pe-program__logo"
+                  size="md"
+                  class="pe-lane__logo"
               />
-              <span>{{ lane.name }}</span>
-            </h3>
-            <ul class="pe-team-list">
+              <h3 class="pe-lane__title">{{ lane.name }}</h3>
+              <span
+                  v-if="laneCapacity(lane)"
+                  class="pe-lane__cap"
+                  :aria-label="`${lane.teams.length} von ${laneCapacity(lane)} Plätzen`"
+              >
+                {{ lane.teams.length }} von {{ laneCapacity(lane) }}
+              </span>
+            </header>
+            <div
+                v-if="laneCapacity(lane)"
+                class="pe-lane__bar"
+                aria-hidden="true"
+            >
+              <span class="pe-lane__bar-fill" :style="{ width: laneFill(lane) }"/>
+            </div>
+
+            <ol class="pe-lane-list">
               <li
                   v-for="(team, index) in lane.teams"
                   :key="`${lane.program_id}-${team.ref ?? index}`"
-                  class="pe-team-list__item"
+                  class="pe-lane-item"
               >
-                <span class="pe-team-list__ref">{{ team.ref || '–' }}</span>
-                <span class="pe-team-list__name">{{ team.name }}</span>
+                <!--<span class="pe-lane-item__key">{{ team.name || '–' }}</span>-->
+                <span class="pe-lane-item__body">
+                  <span class="pe-lane-item__label">{{ team.name }}</span>
+                  <span v-if="team.organization || team.location" class="pe-lane-item__meta">{{ teamMeta(team) }}</span>
+                </span>
               </li>
-            </ul>
-          </div>
+            </ol>
+          </article>
         </div>
       </section>
 
@@ -1148,12 +1175,6 @@ onMounted(async () => {
   }
 }
 
-.pe-timeline-col {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
 .pe-program {
   --pe-program: var(--color-accent);
   border-radius: var(--radius-lg, 1rem);
@@ -1184,95 +1205,6 @@ onMounted(async () => {
   width: 1.5rem;
   height: 1.5rem;
   flex-shrink: 0;
-}
-
-.pe-timeline {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding-left: 0.15rem;
-  flex: 1;
-}
-
-.pe-timeline::before {
-  content: '';
-  position: absolute;
-  left: 0.55rem;
-  top: 0.35rem;
-  bottom: 0.35rem;
-  width: 2px;
-  background: color-mix(in srgb, var(--pe-program) 45%, transparent);
-  border-radius: 999px;
-}
-
-.pe-timeline__item {
-  position: relative;
-  padding-left: 2rem;
-}
-
-.pe-timeline__dot {
-  position: absolute;
-  left: 0.25rem;
-  top: 0.85rem;
-  width: 0.7rem;
-  height: 0.7rem;
-  border-radius: 999px;
-  background: #fff;
-  border: 2px solid var(--pe-program);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pe-program) 18%, transparent);
-}
-
-.pe-timeline__item[data-joint='true'] .pe-timeline__dot {
-  border-color: #9ca3af;
-  box-shadow: 0 0 0 3px rgba(156, 163, 175, 0.22);
-}
-
-.pe-timeline__item[data-type='opening'] .pe-timeline__dot {
-  border-color: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
-}
-
-.pe-timeline__item[data-type='end'] .pe-timeline__dot {
-  border-color: #dc2626;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
-}
-
-.pe-timeline__card {
-  border-radius: calc(var(--radius-lg, 1rem) - 4px);
-  background: color-mix(in srgb, #ffffff 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
-  padding: 0.65rem 0.8rem;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
-}
-
-.pe-timeline__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 4.5rem;
-  column-gap: 0.75rem;
-  align-items: baseline;
-}
-
-.pe-timeline__label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: color-mix(in srgb, var(--pe-program) 75%, var(--color-text));
-  min-width: 0;
-}
-
-.pe-timeline__time {
-  font-size: 1.05rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text);
-  text-align: right;
-  white-space: nowrap;
-}
-
-.pe-timeline__desc {
-  margin-top: 0.25rem;
-  font-size: 0.8rem;
-  color: var(--color-text-muted);
 }
 
 .pe-info-grid {
@@ -1384,6 +1316,136 @@ onMounted(async () => {
 
 .pe-volunteer-form-intro {
   margin-bottom: 1rem;
+}
+
+.pe-times-stand {
+  margin: -0.35rem 0 1rem;
+}
+
+.pe-lane-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (min-width: 768px) {
+  .pe-lane-grid {
+    grid-template-columns: repeat(var(--pe-lane-count, 1), minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+.pe-lane {
+  --pe-program: var(--color-accent);
+  border-left: 3px solid var(--pe-program);
+  gap: 0.75rem;
+}
+
+.pe-lane__head {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.pe-lane__title {
+  margin: 0;
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.pe-lane__cap {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0.22rem 0.55rem;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--pe-program) 14%, transparent);
+  color: var(--pe-program);
+  white-space: nowrap;
+}
+
+.pe-lane__bar {
+  height: 0.28rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pe-program) 12%, transparent);
+  overflow: hidden;
+}
+
+.pe-lane__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pe-program);
+}
+
+.pe-lane-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pe-lane-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.55rem 0.15rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, transparent);
+}
+
+.pe-lane-item:first-child {
+  border-top: none;
+  padding-top: 0.15rem;
+}
+
+.pe-lane-item__key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.7rem;
+  min-height: 2.35rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--pe-program) 14%, transparent);
+  color: var(--pe-program);
+  font-size: 0.92rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  text-align: center;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pe-lane-item__body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 2.35rem;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+.pe-lane-item__label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.pe-lane-item__meta {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+  line-height: 1.35;
 }
 
 .pe-team-list {

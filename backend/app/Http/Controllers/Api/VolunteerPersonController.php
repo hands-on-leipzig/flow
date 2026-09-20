@@ -198,6 +198,8 @@ class VolunteerPersonController extends Controller
         $payload = [
             'id' => $person->id,
             'regional_partner' => $person->regional_partner,
+            'draht_id' => $person->hasAccount() ? (int) $person->draht_id : null,
+            'has_account' => $person->hasAccount(),
             'first_name' => $person->first_name,
             'last_name' => $person->last_name,
             'email' => $person->email,

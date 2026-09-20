@@ -7,8 +7,6 @@ import {
   photoConsentStatusClass,
   photoConsentStatusForVolunteer,
 } from '@/utils/photoConsentStatus'
-import {isOtpStubAccepted} from '@/utils/otpStub'
-import PublicFormOtpNotice from '@/components/molecules/PublicFormOtpNotice.vue'
 
 type FormField = {
   key: string
@@ -34,6 +32,7 @@ const props = defineProps<{
   step: 'email' | 'otp' | 'data' | 'done'
   email: string
   slug: string
+  ssoToken?: string
 }>()
 
 const emit = defineEmits<{
@@ -44,6 +43,10 @@ const emit = defineEmits<{
 
 const otpCode = ref('')
 const otpError = ref('')
+const formToken = ref('')
+const requestLoading = ref(false)
+const requestError = ref('')
+const verifying = ref(false)
 const lookupLoading = ref(false)
 const lookupError = ref('')
 const lookupPayload = ref<LookupPayload | null>(null)
@@ -61,22 +64,56 @@ const emailModel = computed({
 
 const photoStatus = computed(() => photoConsentStatusForVolunteer(detailDraft.value.photo_consent))
 
-function proceedFromEmail() {
-  const trimmed = props.email.trim()
-  if (!trimmed) return
-  emit('update:email', trimmed)
-  otpError.value = ''
-  otpCode.value = ''
-  emit('update:step', 'otp')
+function otpHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {}
+  if (formToken.value) headers['X-Public-Form-Token'] = formToken.value
+  if (props.ssoToken) headers.Authorization = `Bearer ${props.ssoToken}`
+  return headers
 }
 
-function verifyOtp() {
-  if (isOtpStubAccepted(otpCode.value)) {
-    otpError.value = ''
-    emit('update:step', 'data')
-    return
+async function proceedFromEmail() {
+  const trimmed = props.email.trim()
+  if (!trimmed || requestLoading.value) return
+  emit('update:email', trimmed)
+  requestError.value = ''
+  otpError.value = ''
+  otpCode.value = ''
+  formToken.value = ''
+  requestLoading.value = true
+  try {
+    await axios.post(`/public-volunteer-form/${props.slug}/otp`, {email: trimmed})
+    emit('update:step', 'otp')
+  } catch (error: unknown) {
+    const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error as string | undefined)
+          || (error.response?.data?.message as string | undefined)
+        : undefined
+    requestError.value = message || 'Code konnte nicht angefordert werden.'
+  } finally {
+    requestLoading.value = false
   }
-  otpError.value = 'Ungültiger Code. Bitte erneut versuchen.'
+}
+
+async function verifyOtp() {
+  if (!props.slug || !props.email.trim() || verifying.value) return
+  verifying.value = true
+  otpError.value = ''
+  try {
+    const {data} = await axios.post(`/public-volunteer-form/${props.slug}/otp/verify`, {
+      email: props.email.trim(),
+      code: otpCode.value,
+    })
+    formToken.value = data.token ?? ''
+    emit('update:step', 'data')
+  } catch (error: unknown) {
+    const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error as string | undefined)
+          || (error.response?.data?.message as string | undefined)
+        : undefined
+    otpError.value = message || 'Ungültiger Code. Bitte erneut versuchen.'
+  } finally {
+    verifying.value = false
+  }
 }
 
 async function loadLookup() {
@@ -87,6 +124,7 @@ async function loadLookup() {
   try {
     const {data} = await axios.get(`/public-volunteer-form/${props.slug}/lookup`, {
       params: {email: props.email.trim()},
+      headers: otpHeaders(),
     })
     lookupPayload.value = data
     personDraft.value = {
@@ -133,7 +171,7 @@ async function submitForm() {
       person: personDraft.value,
       detail: detailPayload,
       custom: customPayload,
-    })
+    }, {headers: otpHeaders()})
     emit('update:step', 'done')
   } catch (error: unknown) {
     const message = axios.isAxiosError(error)
@@ -176,8 +214,9 @@ watch(
           autocomplete="email"
           placeholder="name@beispiel.de"
       >
+      <p v-if="requestError" class="vol-public-form__error">{{ requestError }}</p>
       <div class="vol-public-form__actions vol-public-form__actions--inline">
-        <button type="button" class="glass-btn-accent" @click="proceedFromEmail">
+        <button type="button" class="glass-btn-accent" :disabled="requestLoading" @click="proceedFromEmail">
           Weiter
         </button>
         <button type="button" class="glass-btn-secondary" @click="emit('cancel')">
@@ -190,7 +229,6 @@ watch(
       <p class="vol-public-form__info">
         Wenn diese E-Mail für diese Veranstaltung als Helfer:in bekannt ist, kommt gleich ein Code.
       </p>
-      <PublicFormOtpNotice />
       <label class="vol-public-form__label" for="vol-form-otp">Code</label>
       <input
           id="vol-form-otp"
@@ -204,7 +242,7 @@ watch(
       >
       <p v-if="otpError" class="vol-public-form__error">{{ otpError }}</p>
       <div class="vol-public-form__actions vol-public-form__actions--otp">
-        <button type="button" class="glass-btn-accent" @click="verifyOtp">
+        <button type="button" class="glass-btn-accent" :disabled="verifying" @click="verifyOtp">
           Bestätigen
         </button>
         <button type="button" class="glass-btn-secondary" @click="emit('cancel')">

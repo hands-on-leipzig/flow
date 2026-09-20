@@ -9,6 +9,7 @@ use App\Models\EventVolunteerFieldValue;
 use App\Models\EventVolunteerRoster;
 use App\Models\EventVolunteerRosterDetail;
 use App\Models\VolunteerPerson;
+use App\Services\PublicFormOtpService;
 use App\Services\SeasonService;
 use App\Support\GermanMobileNumber;
 use App\Support\VolunteerCollectOptions;
@@ -23,12 +24,56 @@ use Illuminate\Support\Facades\DB;
 
 class VolunteerPublicFormController extends Controller
 {
+    public function __construct(
+        private readonly PublicFormOtpService $otp,
+    ) {}
+
+    public function requestOtp(Request $request, string $slug): JsonResponse
+    {
+        $email = $this->otp->normalizeEmail((string) $request->input('email', ''));
+        if ($email === null) {
+            return response()->json(['error' => 'Ungültige E-Mail-Adresse.'], 422);
+        }
+
+        $this->otp->requestCode(
+            PublicFormOtpService::PURPOSE_VOLUNTEER,
+            $this->otp->eventForSlug($slug),
+            $email,
+        );
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function verifyOtp(Request $request, string $slug): JsonResponse
+    {
+        $email = $this->otp->normalizeEmail((string) $request->input('email', ''));
+        if ($email === null) {
+            return response()->json(['error' => 'Ungültige E-Mail-Adresse.'], 422);
+        }
+
+        $token = $this->otp->verifyCode(
+            PublicFormOtpService::PURPOSE_VOLUNTEER,
+            $this->otp->eventForSlug($slug),
+            $email,
+            (string) $request->input('code', ''),
+        );
+
+        if ($token === null) {
+            return response()->json(['error' => 'Ungültiger Code.'], 422);
+        }
+
+        return response()->json(['token' => $token]);
+    }
+
     public function lookup(Request $request, string $slug): JsonResponse
     {
         $email = $this->normalizeEmail((string) $request->query('email', ''));
         if ($email === null) {
             return response()->json(['error' => 'Ungültige E-Mail-Adresse.'], 422);
         }
+
+        $event = $this->eventBySlug($slug);
+        $this->otp->assertVerified($request, PublicFormOtpService::PURPOSE_VOLUNTEER, $event, $email);
 
         ['event' => $event, 'person' => $person, 'roster' => $roster] = $this->resolveRosterMember($slug, $email);
         $roster->load(['detail', 'fieldValues.field']);
@@ -56,16 +101,15 @@ class VolunteerPublicFormController extends Controller
         ]);
     }
 
-    /**
-     * Public save scoped by slug + email (same as lookup).
-     * Real OTP slice will replace this with an email-scoped session token.
-     */
     public function save(Request $request, string $slug): JsonResponse
     {
         $email = $this->normalizeEmail((string) $request->input('email', ''));
         if ($email === null) {
             return response()->json(['error' => 'Ungültige E-Mail-Adresse.'], 422);
         }
+
+        $event = $this->eventBySlug($slug);
+        $this->otp->assertVerified($request, PublicFormOtpService::PURPOSE_VOLUNTEER, $event, $email);
 
         ['event' => $event, 'person' => $person, 'roster' => $roster] = $this->resolveRosterMember($slug, $email);
         $roster->load(['detail', 'fieldValues.field']);

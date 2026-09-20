@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\ExtraBlockController;
 use App\Http\Controllers\Api\HelpController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\LogoController;
+use App\Http\Controllers\Api\MailController;
 use App\Http\Controllers\Api\MainTablesController;
 use App\Http\Controllers\Api\MatchPlanCatalogController;
 use App\Http\Controllers\Api\MParameterController;
@@ -58,6 +59,7 @@ use App\Http\Controllers\Api\TeamPublicFormController;
 use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
+use App\Http\Controllers\Api\EventVolunteerInquiryController;
 use App\Http\Controllers\Api\VolunteerPersonController;
 use App\Http\Controllers\Api\VolunteerPublicFormController;
 use App\Models\Event;
@@ -124,9 +126,17 @@ Route::prefix('check-in/{slug}')->group(function () {
         ->where('subjectType', 'team|volunteer');
 });
 
-// Volunteer public data entry (email lookup + save; public; OTP token deferred)
+// Volunteer / team public data entry (OTP session, then lookup + save)
+Route::post('/public-volunteer-form/{slug}/otp', [VolunteerPublicFormController::class, 'requestOtp'])
+    ->middleware('throttle:8,1');
+Route::post('/public-volunteer-form/{slug}/otp/verify', [VolunteerPublicFormController::class, 'verifyOtp'])
+    ->middleware('throttle:20,1');
 Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
 Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
+Route::post('/public-team-form/{slug}/otp', [TeamPublicFormController::class, 'requestOtp'])
+    ->middleware('throttle:8,1');
+Route::post('/public-team-form/{slug}/otp/verify', [TeamPublicFormController::class, 'verifyOtp'])
+    ->middleware('throttle:20,1');
 Route::get('/public-team-form/{slug}/lookup', [TeamPublicFormController::class, 'lookup']);
 Route::get('/public-team-form/{slug}/team/{team}', [TeamPublicFormController::class, 'team']);
 Route::post('/public-team-form/{slug}/save', [TeamPublicFormController::class, 'save']);
@@ -358,6 +368,9 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/volunteers/export', [VolunteerPersonController::class, 'exportXlsx']);
     Route::put('/volunteers/{volunteer}', [VolunteerPersonController::class, 'update']);
     Route::delete('/volunteers/{volunteer}', [VolunteerPersonController::class, 'destroy']);
+    Route::get('/events/{event}/volunteer-inquiries', [EventVolunteerInquiryController::class, 'index']);
+    Route::post('/events/{event}/volunteer-inquiries/{inquiry}/accept', [EventVolunteerInquiryController::class, 'accept']);
+    Route::post('/events/{event}/volunteer-inquiries/{inquiry}/decline', [EventVolunteerInquiryController::class, 'decline']);
     Route::get('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'index']);
     Route::post('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'store']);
     Route::put('/events/{event}/volunteer-fields/public-form', [EventVolunteerFieldController::class, 'replacePublicForm']);
@@ -651,5 +664,13 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/', [SharepointController::class, 'getAdminConfig']);
         Route::put('/', [SharepointController::class, 'updateAdminConfig']);
         Route::post('/test', [SharepointController::class, 'testConnection']);
+    });
+
+    Route::prefix('admin/mail')->group(function () {
+        Route::get('/', [MailController::class, 'status']);
+        Route::get('/notifications', [MailController::class, 'notifications']);
+        Route::get('/notifications/{key}/preview', [MailController::class, 'preview'])
+            ->where('key', '[A-Za-z0-9._-]+');
+        Route::post('/test', [MailController::class, 'sendTest']);
     });
 });

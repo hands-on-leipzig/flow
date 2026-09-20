@@ -2,11 +2,14 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Blade;
+use App\Mail\MailBrand;
+use App\Mail\Transport\MicrosoftGraphTransport;
 use App\Models\Event;
-use App\Helpers\PdfHelper;
+use Illuminate\Mail\MailManager;
+use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +18,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->afterResolving('mail.manager', function (MailManager $manager) {
+            $manager->extend('microsoft-graph', function (array $config) {
+                return new MicrosoftGraphTransport(
+                    (string) ($config['tenant_id'] ?? ''),
+                    (string) ($config['client_id'] ?? ''),
+                    (string) ($config['client_secret'] ?? ''),
+                    (bool) ($config['save_to_sent_items'] ?? false),
+                );
+            });
+        });
     }
 
     /**
@@ -38,6 +50,15 @@ class AppServiceProvider extends ServiceProvider
         // Register Blade directive for formatting team names with noshow
         Blade::directive('formatTeamName', function ($expression) {
             return "<?php echo App\Helpers\PdfHelper::formatTeamNameWithNoshow($expression); ?>";
+        });
+
+        View::composer('mail.*', function ($view) {
+            $view->with([
+                'logoSrc' => MailBrand::flowLogoSrc(),
+                'hotLogoSrc' => MailBrand::hotLogoSrc(),
+                'fontStack' => MailBrand::FONT_STACK,
+                'fontFaceCss' => MailBrand::fontFaceCss(),
+            ]);
         });
     }
 }

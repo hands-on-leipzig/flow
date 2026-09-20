@@ -40,7 +40,7 @@ final class PublicSchedulePayload
 
     /**
      * @param  array<string, mixed>  $drahtData
-     * @return list<array{program_id: int, name: string, sequence: int, color_hex: string|null, teams: list<array{ref: string|null, name: string}>}>
+     * @return list<array{program_id: int, name: string, sequence: int, color_hex: string|null, capacity: int, teams: list<array{ref: string|null, name: string, organization: string|null, location: string|null}>}>
      */
     private static function buildTeamLanes(Event $event, array $drahtData, int $level): array
     {
@@ -94,6 +94,7 @@ final class PublicSchedulePayload
                 'color_hex' => $catalog->color_hex !== null
                     ? (string) $catalog->color_hex
                     : ProgramCatalog::colorHex((string) $catalog->name),
+                'capacity' => max(0, (int) ($drahtByProgram[$programId]['capacity'] ?? 0)),
                 'teams' => $teams,
             ];
         }
@@ -107,7 +108,7 @@ final class PublicSchedulePayload
     }
 
     /**
-     * @return list<array{ref: string|null, name: string}>
+     * @return list<array{ref: string|null, name: string, organization: string|null, location: string|null}>
      */
     private static function normalizeTeams(array $rawTeams): array
     {
@@ -117,7 +118,7 @@ final class PublicSchedulePayload
                 continue;
             }
             $name = trim((string) ($team['name'] ?? ''));
-            $ref = $team['ref'] ?? $team['number'] ?? null;
+            $ref = $team['ref'] ?? $team['number'] ?? $team['team_number_hot'] ?? null;
             $ref = $ref === null || $ref === '' ? null : (string) $ref;
             if ($ref === null && $name === '') {
                 continue;
@@ -125,9 +126,22 @@ final class PublicSchedulePayload
             $teams[] = [
                 'ref' => $ref,
                 'name' => $name,
+                'organization' => self::nullableString($team['organization'] ?? null),
+                'location' => self::nullableString($team['location'] ?? null),
             ];
         }
 
         return $teams;
+    }
+
+    private static function nullableString(mixed $value): ?string
+    {
+        if ($value === null || $value === false) {
+            return null;
+        }
+
+        $trimmed = trim((string) $value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

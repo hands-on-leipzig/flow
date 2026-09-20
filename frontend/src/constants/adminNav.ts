@@ -80,6 +80,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {key: 'slugs', label: 'Öffentliche Links', icon: 'bi-link-45deg', group: 'ops'},
   {key: 'external-api', label: 'External API', icon: 'bi-key', group: 'ops'},
   {key: 'sharepoint', label: 'SharePoint', icon: 'bi-folder', group: 'ops'},
+  {key: 'email', label: 'E-Mail', icon: 'bi-envelope', group: 'ops'},
   {key: 'wartung', label: 'Wartung', icon: 'bi-tools', group: 'ops'},
   // Entwicklung (bottom) — listed everywhere; enabled on Local + Dev only
   {
@@ -158,7 +159,7 @@ export const ADMIN_OPS_NAV: AdminNavNode[] = [
     key: 'schnittstellen',
     label: 'Schnittstellen',
     icon: 'bi-plugin',
-    children: ['user-regional-partners', 'external-api', 'sharepoint'],
+    children: ['user-regional-partners', 'external-api', 'sharepoint', 'email'],
   },
   {kind: 'section', key: 'wartung'},
 ]
@@ -229,4 +230,4 @@ export function adminSectionPath(key: string = ADMIN_DEFAULT_SECTION): string {
   return `/plan/admin/${key}`
 }
 
-export const ADMIN_FILL_SECTIONS = new Set(['main-tables', 'parameters', 'roles', 'help'])
+export const ADMIN_FILL_SECTIONS = new Set(['main-tables', 'parameters', 'roles', 'help', 'email'])
