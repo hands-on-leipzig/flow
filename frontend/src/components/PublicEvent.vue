@@ -632,72 +632,77 @@ onMounted(async () => {
         <h2 class="glass-card__title">Suche nach Helfer:innen</h2>
 
         <div
-            class="pe-timeline-grid pe-teams-grid"
+            class="pe-lane-grid"
             :style="{ '--pe-lane-count': Math.max(helperSearchPrimaryScopes.length, 1) }"
         >
-          <div
+          <article
               v-for="scope in helperSearchPrimaryScopes"
               :key="scope.key"
-              class="pe-program"
+              class="pe-lane glass-stack-card"
               :style="{ '--pe-program': helperScopeColor(scope) }"
           >
-            <h3 class="pe-program__title">
+            <header class="pe-lane__head">
               <i
                   v-if="scope.key === 'cross'"
-                  class="bi bi-intersect pe-program__logo pe-helper-scope-icon"
+                  class="bi bi-intersect pe-lane__logo pe-helper-scope-icon"
                   aria-hidden="true"
               />
               <i
                   v-else-if="scope.key === 'local'"
-                  class="bi bi-star pe-program__logo pe-helper-scope-icon"
+                  class="bi bi-star pe-lane__logo pe-helper-scope-icon"
                   aria-hidden="true"
               />
-              <span>{{ scope.label }}</span>
-            </h3>
-            <ul v-if="scope.roles?.length" class="pe-team-list">
+              <h3 class="pe-lane__title">{{ scope.label }}</h3>
+            </header>
+            <ol v-if="scope.roles?.length" class="pe-lane-list">
               <li
                   v-for="(role, index) in scope.roles"
                   :key="`${scope.key}-${index}`"
-                  class="pe-team-list__item pe-team-list__item--name-only"
+                  class="pe-lane-item"
               >
-                <span class="pe-team-list__name">{{ role }}</span>
+                <span class="pe-lane-item__body">
+                  <span class="pe-lane-item__label">{{ role }}</span>
+                </span>
               </li>
-            </ul>
+            </ol>
             <p v-else class="pe-muted pe-helper-scope-empty">komplett</p>
-          </div>
+          </article>
         </div>
 
         <div
             v-if="helperSearchProgramScopes.length"
-            class="pe-timeline-grid pe-teams-grid pe-helper-programs"
+            class="pe-lane-grid pe-helper-programs"
             :style="{ '--pe-lane-count': helperSearchProgramScopes.length }"
         >
-          <div
+          <article
               v-for="scope in helperSearchProgramScopes"
               :key="scope.key"
-              class="pe-program"
+              class="pe-lane glass-stack-card"
               :style="{ '--pe-program': helperScopeColor(scope) }"
           >
-            <h3 class="pe-program__title">
+            <header class="pe-lane__head">
               <ProgramLogo
                   v-if="helperScopeProgramRef(scope)"
                   :event="event"
                   :program="helperScopeProgramRef(scope)"
-                  class="pe-program__logo"
+                  size="md"
+                  class="pe-lane__logo"
               />
-              <span>{{ scope.label }}</span>
-            </h3>
-            <ul v-if="scope.roles?.length" class="pe-team-list">
+              <h3 class="pe-lane__title">{{ scope.label }}</h3>
+            </header>
+            <ol v-if="scope.roles?.length" class="pe-lane-list">
               <li
                   v-for="(role, index) in scope.roles"
                   :key="`${scope.key}-${index}`"
-                  class="pe-team-list__item pe-team-list__item--name-only"
+                  class="pe-lane-item"
               >
-                <span class="pe-team-list__name">{{ role }}</span>
+                <span class="pe-lane-item__body">
+                  <span class="pe-lane-item__label">{{ role }}</span>
+                </span>
               </li>
-            </ul>
+            </ol>
             <p v-else class="pe-muted pe-helper-scope-empty">komplett</p>
-          </div>
+          </article>
         </div>
 
         <a
@@ -1191,51 +1196,6 @@ onMounted(async () => {
   }
 }
 
-.pe-timeline-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-}
-
-@media (min-width: 768px) {
-  .pe-timeline-grid {
-    grid-template-columns: repeat(var(--pe-lane-count, 1), minmax(0, 1fr));
-    gap: 1.25rem;
-  }
-}
-
-.pe-program {
-  --pe-program: var(--color-accent);
-  border-radius: var(--radius-lg, 1rem);
-  border: 1px solid color-mix(in srgb, var(--pe-program) 28%, var(--color-border-strong));
-  background: color-mix(in srgb, var(--pe-program) 6%, #ffffff);
-  padding: 1rem 1.05rem 1.15rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.pe-program__title {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--color-text);
-  margin-bottom: 1rem;
-  line-height: 1.3;
-}
-
-.pe-program__title em {
-  font-style: italic;
-  font-weight: 700;
-}
-
-.pe-program__logo {
-  width: 1.5rem;
-  height: 1.5rem;
-  flex-shrink: 0;
-}
-
 .pe-info-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -1315,10 +1275,6 @@ onMounted(async () => {
   color: var(--color-text-muted);
 }
 
-.pe-teams-grid {
-  margin-top: 0.25rem;
-}
-
 .pe-helper-programs {
   margin-top: 1rem;
 }
@@ -1327,6 +1283,8 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 2rem;
+  height: 2rem;
   font-size: 1.15rem;
   line-height: 1;
   color: var(--pe-program);
@@ -1383,6 +1341,10 @@ onMounted(async () => {
   align-items: center;
   gap: 0.55rem;
   min-width: 0;
+}
+
+.pe-lane__logo {
+  flex-shrink: 0;
 }
 
 .pe-lane__title {
@@ -1482,49 +1444,6 @@ onMounted(async () => {
   font-size: 0.78rem;
   color: var(--color-text-muted);
   line-height: 1.35;
-}
-
-.pe-team-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.pe-team-list__item {
-  display: grid;
-  grid-template-columns: 4.5rem minmax(0, 1fr);
-  column-gap: 0.75rem;
-  align-items: baseline;
-  padding: 0.35rem 0;
-  border-top: 1px solid color-mix(in srgb, var(--pe-program) 14%, transparent);
-}
-
-.pe-team-list__item--name-only {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.pe-team-list__item:first-child {
-  border-top: none;
-  padding-top: 0;
-}
-
-.pe-team-list__ref {
-  font-size: 0.85rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--pe-program);
-  text-align: right;
-  white-space: nowrap;
-}
-
-.pe-team-list__name {
-  font-size: 0.9rem;
-  font-weight: 550;
-  color: var(--color-text);
-  min-width: 0;
 }
 
 .pe-logos {
