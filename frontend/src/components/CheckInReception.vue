@@ -723,7 +723,7 @@ onMounted(async () => {
       <template v-else-if="unlocked && view === 'roster'">
         <div class="ci-panel">
           <button type="button" class="ci-link" @click="backHome">← Zurück</button>
-          <h1 class="ci-panel__h">{{ roster?.title || (rosterScope === 'helpers' ? 'Helfer:innen' : 'Teams') }}</h1>
+          <h1 class="ci-panel__h">{{ roster?.title || (rosterScope === 'helpers' ? 'Fehlende Helfer:innen' : 'Fehlende Teams') }}</h1>
           <p v-if="rosterLoading" class="ci-muted">Laden…</p>
           <p v-else-if="rosterError" class="glass-alert-error !mb-0">{{ rosterError }}</p>
           <template v-else-if="roster">
