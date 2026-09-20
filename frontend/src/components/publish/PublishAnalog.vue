@@ -8,6 +8,9 @@ import PdfPlansBox from '@/components/molecules/PdfPlansBox.vue'
 import RoleSheetsPrint from '@/components/molecules/RoleSheetsPrint.vue'
 import RoomSheetsPrint from '@/components/molecules/RoomSheetsPrint.vue'
 import OverviewSheetsPrint from '@/components/molecules/OverviewSheetsPrint.vue'
+import GesamtplanPrint from '@/components/molecules/GesamtplanPrint.vue'
+import TeamlistePrint from '@/components/molecules/TeamlistePrint.vue'
+import MatchPlanScorePrint from '@/components/molecules/MatchPlanScorePrint.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import {isEntwicklungEnvironment} from '@/constants/adminNav'
@@ -49,6 +52,11 @@ const showTiles = computed(() => isEntwicklungEnvironment(isLocal))
             <i class="bi bi-shield-lock" aria-hidden="true"/>
             <span>Nur für Veranstalter – nicht für Teams oder Besucher.</span>
           </p>
+          <div class="druck-page__grid">
+            <GesamtplanPrint/>
+            <TeamlistePrint/>
+            <MatchPlanScorePrint/>
+          </div>
         </section>
       </div>
       <PdfPlansBox hide-heading section="plans" split-panes/>
