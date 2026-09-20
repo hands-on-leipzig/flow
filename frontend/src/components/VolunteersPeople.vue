@@ -540,7 +540,7 @@ watch(eventId, () => {
             <p class="vol-inquiry__meta">
               {{ inquiry.role }}
               <span aria-hidden="true">·</span>
-              {{ inquiry.email }}
+              <a class="vol-mailto" :href="`mailto:${inquiry.email}`">{{ inquiry.email }}</a>
               <template v-if="inquiry.mobile">
                 <span aria-hidden="true">·</span>
                 {{ inquiry.mobile }}
@@ -824,7 +824,9 @@ watch(eventId, () => {
                   </span>
                 </td>
                 <td>{{ p.last_name }}</td>
-                <td>{{ p.email }}</td>
+                <td>
+                  <a class="vol-mailto" :href="`mailto:${p.email}`">{{ p.email }}</a>
+                </td>
                 <td>{{ p.mobile?.trim() || '—' }}</td>
                 <td>{{ p.organization?.trim() || '—' }}</td>
                 <td class="vol-table__updated">{{ formatUpdatedAt(p.updated_at) }}</td>
@@ -1031,6 +1033,16 @@ watch(eventId, () => {
   margin: 0.3rem 0 0;
   font-size: 0.8125rem;
   color: var(--color-text-muted);
+}
+
+.vol-mailto {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vol-mailto:hover {
+  text-decoration: underline;
 }
 
 .vol-inquiry__message {

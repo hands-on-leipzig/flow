@@ -1559,10 +1559,10 @@ class CheckInService
 
         if ($scope === 'teams') {
             $items = $this->teamRosterItems($event, $records);
-            $title = 'Teams';
+            $title = 'Fehlende Teams';
         } else {
             $items = $this->helperRosterItems($event, $records);
-            $title = 'Helfer:innen';
+            $title = 'Fehlende Helfer:innen';
         }
 
         $open = array_values(array_filter($items, fn (array $hit) => ($hit['status'] ?? null) === null));

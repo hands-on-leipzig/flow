@@ -191,7 +191,7 @@ class TeamPublicFormTest extends TestCase
         $this->assertDatabaseMissing('event_team_photo_count', ['team' => 1, 'bucket' => 'yes']);
     }
 
-    public function test_otp_mail_goes_to_coach_only(): void
+    public function test_otp_mail_is_not_sent_without_tester_on_non_prod(): void
     {
         $this->mockPeople();
         Mail::fake();
@@ -204,8 +204,81 @@ class TeamPublicFormTest extends TestCase
         $this->postJson('/api/public-team-form/test/otp', [
             'email' => 'coach@example.com',
         ])->assertOk();
+        Mail::assertNothingSent();
+    }
+
+    public function test_otp_mail_goes_to_tester_on_non_prod(): void
+    {
+        $this->mockPeople();
+        $this->installKeycloakKey();
+        Mail::fake();
+
+        $this->withHeaders($this->ssoBearer('tester@example.com'))
+            ->postJson('/api/public-team-form/test/otp', [
+                'email' => 'stranger@example.com',
+            ])
+            ->assertOk();
+        Mail::assertNothingSent();
+
+        $this->withHeaders($this->ssoBearer('tester@example.com'))
+            ->postJson('/api/public-team-form/test/otp', [
+                'email' => 'coach@example.com',
+            ])
+            ->assertOk();
         Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
-            return $mail->hasTo('coach@example.com') && $mail->eventName === 'Test';
+            return $mail->hasTo('tester@example.com')
+                && $mail->intendedEmail === 'coach@example.com'
+                && $mail->eventName === 'Test';
+        });
+        Mail::assertNotSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
+            return $mail->hasTo('coach@example.com');
+        });
+    }
+
+    public function test_otp_verify_uses_code_mailed_to_tester(): void
+    {
+        $this->mockPeople();
+        $this->installKeycloakKey();
+        Mail::fake();
+
+        $this->withHeaders($this->ssoBearer('tester@example.com'))
+            ->postJson('/api/public-team-form/test/otp', [
+                'email' => 'coach@example.com',
+            ])
+            ->assertOk();
+
+        $code = null;
+        Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) use (&$code) {
+            $code = $mail->code;
+
+            return $mail->hasTo('tester@example.com');
+        });
+
+        $token = $this->postJson('/api/public-team-form/test/otp/verify', [
+            'email' => 'coach@example.com',
+            'code' => $code,
+        ])->assertOk()->json('token');
+
+        $this->assertIsString($token);
+        $this->withHeader(PublicFormOtpService::TOKEN_HEADER, $token)
+            ->getJson('/api/public-team-form/test/lookup?email=coach@example.com')
+            ->assertOk()
+            ->assertJsonPath('teams.0.name', 'Team A');
+    }
+
+    public function test_otp_mail_goes_to_coach_on_production(): void
+    {
+        config(['app.env' => 'production']);
+        $this->mockPeople();
+        Mail::fake();
+
+        $this->postJson('/api/public-team-form/test/otp', [
+            'email' => 'coach@example.com',
+        ])->assertOk();
+        Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
+            return $mail->hasTo('coach@example.com')
+                && $mail->intendedEmail === null
+                && $mail->eventName === 'Test';
         });
     }
 

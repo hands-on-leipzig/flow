@@ -12,6 +12,7 @@ use App\Models\VolunteerPerson;
 use App\Services\PublicFormOtpService;
 use App\Services\SeasonService;
 use App\Support\GermanMobileNumber;
+use App\Support\KeycloakAccessToken;
 use App\Support\VolunteerCollectOptions;
 use App\Support\VolunteerMealOptions;
 use App\Support\VolunteerRosterColumns;
@@ -39,6 +40,7 @@ class VolunteerPublicFormController extends Controller
             PublicFormOtpService::PURPOSE_VOLUNTEER,
             $this->otp->eventForSlug($slug),
             $email,
+            KeycloakAccessToken::email($request),
         );
 
         return response()->json(['ok' => true]);

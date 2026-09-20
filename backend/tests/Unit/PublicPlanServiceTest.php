@@ -86,6 +86,7 @@ class PublicPlanServiceTest extends TestCase
         ], $payload['programs']);
         $this->assertSame(2, $payload['roles'][0]['first_program_sequence']);
         $this->assertSame('Challenge', $payload['roles'][0]['first_program_display_name']);
+        $this->assertSame(1, $payload['publication_level']);
         $this->assertNull($payload['qrcode']);
         $this->assertNull($payload['wifi_qrcode']);
     }
@@ -105,6 +106,21 @@ class PublicPlanServiceTest extends TestCase
 
         $this->assertSame('cXJpbWFnZQ==', $payload['qrcode']);
         $this->assertSame('d2lmaWltYWdl', $payload['wifi_qrcode']);
+    }
+
+    public function test_get_roles_uses_latest_publication_level(): void
+    {
+        $this->bindRoles([
+            $this->roleRow(14, publicPlan: 1, name: 'Publikum', differentiationParameter: null),
+        ]);
+        DB::table('publication')->insert([
+            ['id' => 1, 'event' => 1, 'level' => 3, 'last_change' => '2026-01-01 10:00:00'],
+            ['id' => 2, 'event' => 1, 'level' => 4, 'last_change' => '2026-01-02 10:00:00'],
+        ]);
+
+        $payload = app(PublicPlanService::class)->getRoles(1);
+
+        $this->assertSame(4, $payload['publication_level']);
     }
 
     public function test_get_roles_omits_wifi_qr_without_ssid(): void
@@ -663,6 +679,13 @@ class PublicPlanServiceTest extends TestCase
             $table->unsignedInteger('first_program')->nullable();
             $table->unsignedTinyInteger('table_number');
             $table->string('table_name')->nullable();
+        });
+
+        Schema::create('publication', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('event');
+            $table->unsignedTinyInteger('level')->default(1);
+            $table->timestamp('last_change')->nullable();
         });
 
         Schema::create('m_activity_type_detail', function (Blueprint $table) {

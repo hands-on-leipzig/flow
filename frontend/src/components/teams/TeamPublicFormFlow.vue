@@ -7,6 +7,7 @@ import {
   photoConsentStatusClass,
   photoConsentStatusForTeam,
 } from '@/utils/photoConsentStatus'
+import PublicFormOtpTestNotice from '@/components/molecules/PublicFormOtpTestNotice.vue'
 
 type FormColumn = {
   key: string
@@ -47,6 +48,7 @@ const props = defineProps<{
   slug: string
   event?: Record<string, unknown> | null
   ssoToken?: string
+  ssoEmail?: string
 }>()
 
 const emit = defineEmits<{
@@ -118,7 +120,7 @@ async function proceedFromEmail() {
   formToken.value = ''
   requestLoading.value = true
   try {
-    await axios.post(`/public-team-form/${props.slug}/otp`, {email: trimmed})
+    await axios.post(`/public-team-form/${props.slug}/otp`, {email: trimmed}, {headers: otpHeaders()})
     emit('update:step', 'otp')
   } catch (error: unknown) {
     const message = axios.isAxiosError(error)
@@ -289,6 +291,7 @@ watch(
     </header>
 
     <div v-if="step === 'email'" class="vol-public-form__step">
+      <PublicFormOtpTestNotice :sso-email="ssoEmail"/>
       <label class="vol-public-form__label" for="team-form-email">E-Mail</label>
       <input
           id="team-form-email"
@@ -310,6 +313,7 @@ watch(
     </div>
 
     <div v-else-if="step === 'otp'" class="vol-public-form__step">
+      <PublicFormOtpTestNotice :sso-email="ssoEmail"/>
       <p class="vol-public-form__info">
         Wenn diese E-Mail für diese Veranstaltung als Coach bekannt ist, kommt gleich ein Code.
       </p>
@@ -408,6 +412,17 @@ watch(
               Gemeldete Personen: {{ peopleCount ?? '—' }}
             </p>
           </header>
+
+          <p class="vol-public-form__info">
+            Die Daten zum Team (Name, Coach:innen, Teilnehmer:innen, ...) können direkt in
+            <a
+                class="team-public-form__join-link"
+                href="https://join.hands-on-technology.org"
+                target="_blank"
+                rel="noopener noreferrer"
+            >JOIN</a>
+            geändert werden. Hier geht es um zusätzliche Informationen für die Veranstaltung.
+          </p>
 
           <div
               v-if="hasPhotoColumn"
@@ -668,6 +683,16 @@ watch(
   font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.35;
+}
+
+.team-public-form__join-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.team-public-form__join-link:hover {
+  text-decoration: underline;
 }
 
 .team-public-form__pick {

@@ -193,6 +193,21 @@ const eventId = ref<number | null>(null)
 const eventSlug = ref<string | null>(null)
 const checkInEnabled = ref(false)
 const cockpitEnabled = ref(false)
+const publicationLevel = ref(1)
+
+function hasPlannerSession(): boolean {
+  try {
+    return !!localStorage.getItem('kc_token')
+  } catch {
+    return false
+  }
+}
+
+const unpublished = computed(() => {
+  if (props.printFit) return false
+  if (publicationLevel.value >= 4) return false
+  return !hasPlannerSession()
+})
 const roles = ref<Role[]>([])
 const programs = ref<VisitorProgram[]>([])
 const eventLogos = ref<EventLogo[]>([])
@@ -229,7 +244,7 @@ const activeSheet = ref<'detail' | 'role'>('detail')
 
 const numericPlanId = computed(() => Number(props.planId))
 const hasRoleSelection = computed(() => selectedRole.value != null)
-const planReady = computed(() => !loadingRoles.value && !error.value)
+const planReady = computed(() => !loadingRoles.value && !error.value && !unpublished.value)
 const printFitReady = computed(() => {
   if (loadingRoles.value || loadingSchedule.value) return false
   if (error.value) return true
@@ -1313,6 +1328,7 @@ async function loadRoles() {
     eventName.value = data.event_name || ''
     eventId.value = Number(data.event_id) || null
     eventSlug.value = typeof data.slug === 'string' && data.slug !== '' ? data.slug : null
+    publicationLevel.value = Number(data.publication_level ?? 1)
     checkInEnabled.value = !!data.check_in_enabled
     cockpitEnabled.value = !!data.cockpit_enabled
     printQrcode.value = typeof data.qrcode === 'string' && data.qrcode !== '' ? data.qrcode : null
@@ -1652,7 +1668,7 @@ onMounted(async () => {
   await loadRoles()
   if (props.printFit) {
     if (!error.value) await resolvePrintFitSelection()
-  } else {
+  } else if (!unpublished.value) {
     await resolveSelectionAfterRoles()
   }
 
@@ -1691,6 +1707,7 @@ watch(
         await resolvePrintFitSelection()
         return
       }
+      if (unpublished.value) return
       syncFromQuery()
       if (selectedRole.value != null) {
         writeStoredPrefs()
@@ -1709,7 +1726,7 @@ watch(
         if (!error.value) await resolvePrintFitSelection()
         return
       }
-      await resolveSelectionAfterRoles()
+      if (!unpublished.value) await resolveSelectionAfterRoles()
     }
 )
 
@@ -1744,6 +1761,10 @@ watch(
 
       <div v-else-if="error" class="public-schedule__card public-schedule__card--error" role="alert">
         {{ error }}
+      </div>
+
+      <div v-else-if="unpublished" class="public-schedule__card public-schedule__card--center">
+        Der Online-Zeitplan ist noch nicht veröffentlicht.
       </div>
 
       <!-- Single plan page: role via sheet, filter for upcoming -->

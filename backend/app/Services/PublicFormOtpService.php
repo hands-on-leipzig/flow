@@ -42,7 +42,7 @@ class PublicFormOtpService
         return $event;
     }
 
-    public function requestCode(string $purpose, Event $event, string $email): void
+    public function requestCode(string $purpose, Event $event, string $email, ?string $testerEmail = null): void
     {
         $email = $this->normalizeEmail($email);
         if ($email === null) {
@@ -65,10 +65,30 @@ class PublicFormOtpService
             now()->addMinutes(self::CODE_TTL_MINUTES),
         );
 
+        $deliverTo = $email;
+        $intendedEmail = null;
+        $skipSend = false;
+        if (! $this->deliversToRealRecipient()) {
+            $testerEmail = $this->normalizeEmail((string) $testerEmail);
+            if ($testerEmail === null) {
+                $skipSend = true;
+            } else {
+                $deliverTo = $testerEmail;
+                $intendedEmail = $email;
+            }
+        }
+
+        $this->echoLocalArtisanOtp($purpose, $email, $code, $skipSend ? null : $deliverTo);
+
+        if ($skipSend) {
+            return;
+        }
+
         try {
-            Mail::to($email)->send(new PublicOtpMail(
+            Mail::to($deliverTo)->send(new PublicOtpMail(
                 eventName: $this->eventName($event),
                 code: $code,
+                intendedEmail: $intendedEmail,
             ));
         } catch (\Throwable $e) {
             Cache::forget($this->codeKey($purpose, (int) $event->id, $email));
@@ -78,6 +98,28 @@ class PublicFormOtpService
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    public function deliversToRealRecipient(): bool
+    {
+        $env = strtolower((string) config('app.env'));
+
+        return $env === 'production' || $env === 'prod';
+    }
+
+    private function echoLocalArtisanOtp(string $purpose, string $formEmail, string $code, ?string $deliverTo): void
+    {
+        if (strtolower((string) config('app.env')) !== 'local' || PHP_SAPI !== 'cli-server') {
+            return;
+        }
+
+        error_log(sprintf(
+            'Public OTP [%s] form=%s mail=%s code=%s',
+            $purpose,
+            $formEmail,
+            $deliverTo ?? 'none',
+            $code,
+        ));
     }
 
     public function verifyCode(string $purpose, Event $event, string $email, string $code): ?string
