@@ -11,13 +11,18 @@ import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import EventMap from '@/components/molecules/EventMap.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
 
+const PRINT_FIT_AUDIENCE_ROLE_IDS = [6, 10, 14, 24] as const
+const PRINT_FIT_HOT_ORANGE = '#F78B1F'
+
 const props = defineProps<{
   planId: number | string
   embedded?: boolean
+  printFit?: boolean
 }>()
 
 const emit = defineEmits<{
   exit: []
+  printChrome: [chrome: PrintScheduleChrome]
 }>()
 
 type RoomHint = {
@@ -50,6 +55,19 @@ type EventLogo = {
   title?: string | null
   link?: string | null
   url: string
+}
+
+export type PrintScheduleChrome = {
+  eventName: string
+  subject: string
+  subjectLogoSrc: string | null
+  subjectLogoAlt: string
+  barColor: string
+  onlinePlanQr: string | null
+  wifiQr: string | null
+  eventLogos: EventLogo[]
+  rolesReady: boolean
+  calendarReady: boolean
 }
 
 type Role = {
@@ -147,6 +165,9 @@ type CalBlock = TimedGroup & {
 const PX_PER_MINUTE = 2
 const GUTTER = 52
 const notAccessibleIcon = '/flow/accessible_no.png'
+const printTimelineEl = ref<HTMLElement | null>(null)
+const printStageHeightPx = ref(0)
+let printStageObserver: ResizeObserver | null = null
 
 function groupPresence(group: Group): 'punctual' | 'window' | 'info' {
   const p = group.group_meta?.presence
@@ -175,6 +196,8 @@ const cockpitEnabled = ref(false)
 const roles = ref<Role[]>([])
 const programs = ref<VisitorProgram[]>([])
 const eventLogos = ref<EventLogo[]>([])
+const printQrcode = ref<string | null>(null)
+const printWifiQrcode = ref<string | null>(null)
 const groups = ref<Group[]>([])
 const nowMs = ref(Date.now())
 const roleFilter = ref('')
@@ -207,6 +230,12 @@ const activeSheet = ref<'detail' | 'role'>('detail')
 const numericPlanId = computed(() => Number(props.planId))
 const hasRoleSelection = computed(() => selectedRole.value != null)
 const planReady = computed(() => !loadingRoles.value && !error.value)
+const printFitReady = computed(() => {
+  if (loadingRoles.value || loadingSchedule.value) return false
+  if (error.value) return true
+  if (!timedGroups.value.length) return true
+  return printStageHeightPx.value > 0
+})
 
 const routeSlug = computed(() => {
   const slug = route.params.slug
@@ -254,6 +283,76 @@ const roleAccent = computed(() => {
   const hex = chromeRole.value?.color_hex
   return hex ? `#${hex}` : '#ea580c'
 })
+
+const printFitJoint = computed(() => props.printFit && selectedRole.value === 14)
+
+const printFitSubjectProgram = computed(() => {
+  if (!props.printFit || printFitJoint.value) return null
+  const id = selectedRoleMeta.value?.first_program
+  if (id == null) return null
+  return programs.value.find((program) => program.id === id) ?? null
+})
+
+const printFitSubject = computed(() => {
+  if (!props.printFit) return ''
+  if (printFitJoint.value) return 'Publikum'
+  return printFitSubjectProgram.value?.display_name
+    || selectedRoleMeta.value?.first_program_display_name
+    || 'Publikum'
+})
+
+const printFitBarColor = computed(() => {
+  if (!props.printFit) return roleAccent.value
+  if (printFitJoint.value) return PRINT_FIT_HOT_ORANGE
+  const hex = printFitSubjectProgram.value?.color_hex || selectedRoleMeta.value?.color_hex
+  if (!hex) return PRINT_FIT_HOT_ORANGE
+  return hex.startsWith('#') ? hex : `#${hex}`
+})
+
+function qrDataUrl(raw: string | null): string | null {
+  if (!raw) return null
+  const value = raw.trim()
+  if (value === '') return null
+  if (value.startsWith('data:')) return value
+  return `data:image/png;base64,${value}`
+}
+
+const printOnlinePlanQr = computed(() => qrDataUrl(printQrcode.value))
+const printWifiQr = computed(() => qrDataUrl(printWifiQrcode.value))
+
+const printChromePayload = computed((): PrintScheduleChrome => ({
+  eventName: eventName.value,
+  subject: printFitSubject.value || '',
+  subjectLogoSrc: printFitSubjectProgram.value
+      ? programLogoSrc(printFitSubjectProgram.value, 'v')
+      : null,
+  subjectLogoAlt: printFitSubjectProgram.value
+      ? programLogoAlt(printFitSubjectProgram.value)
+      : '',
+  barColor: printFitBarColor.value,
+  onlinePlanQr: printOnlinePlanQr.value,
+  wifiQr: printWifiQr.value,
+  eventLogos: eventLogos.value,
+  rolesReady: !loadingRoles.value,
+  calendarReady: printFitReady.value,
+}))
+
+function sameOriginSrc(url: string): string {
+  if (!url || url.startsWith('/') || url.startsWith('data:')) return url
+  try {
+    const parsed = new URL(url)
+    if (
+      parsed.hostname === 'localhost'
+      || parsed.hostname === '127.0.0.1'
+      || parsed.hostname === 'host.docker.internal'
+    ) {
+      return parsed.pathname + parsed.search
+    }
+  } catch {
+    // keep original
+  }
+  return url
+}
 
 const ALLGEMEIN_LOGO = {logo_white: 'FLL_column_heading.png'}
 
@@ -555,8 +654,8 @@ const timedGroups = computed((): TimedGroup[] => {
   const now = scheduleNowMs.value
   let sorted = parsedGroups.value.map((item) => ({
     ...item,
-    current: item.startMs <= now && now <= item.endMs,
-    past: item.endMs < now,
+    current: !props.printFit && item.startMs <= now && now <= item.endMs,
+    past: !props.printFit && item.endMs < now,
     parallel: false,
   }))
 
@@ -578,19 +677,31 @@ const dayRange = computed(() => {
   const last = timedGroups.value.reduce((max, g) => Math.max(max, g.endMs), first)
   let start = floorToHour(first)
   let end = ceilToHour(last)
-  const now = scheduleNowMs.value
-  // Raster soll „Jetzt“ enthalten, wenn es im Tag liegt
-  if (now >= first - 60 * 60 * 1000 && now <= last + 60 * 60 * 1000) {
-    if (now < start) start = floorToHour(now)
-    if (now > end) end = ceilToHour(now)
+  if (!props.printFit) {
+    const now = scheduleNowMs.value
+    // Raster soll „Jetzt“ enthalten, wenn es im Tag liegt
+    if (now >= first - 60 * 60 * 1000 && now <= last + 60 * 60 * 1000) {
+      if (now < start) start = floorToHour(now)
+      if (now > end) end = ceilToHour(now)
+    }
   }
   if (end <= start) end = start + 60 * 60 * 1000
   return {start, end}
 })
 
+const pxPerMinute = computed(() => {
+  if (!props.printFit) return PX_PER_MINUTE
+  const range = dayRange.value
+  const height = printStageHeightPx.value
+  if (!range || height <= 0) return PX_PER_MINUTE
+  const durationMinutes = (range.end - range.start) / 60000
+  if (durationMinutes <= 0) return PX_PER_MINUTE
+  return height / durationMinutes
+})
+
 const timelineHeight = computed(() => {
   if (!dayRange.value) return 0
-  return ((dayRange.value.end - dayRange.value.start) / 60000) * PX_PER_MINUTE
+  return ((dayRange.value.end - dayRange.value.start) / 60000) * pxPerMinute.value
 })
 
 const hourMarks = computed(() => {
@@ -715,8 +826,8 @@ const calendarBlocks = computed((): CalBlock[] => {
 
     return {
       ...item,
-      top: ((item.startMs - base) / 60000) * PX_PER_MINUTE,
-      height: Math.max(((item.endMs - item.startMs) / 60000) * PX_PER_MINUTE, 2),
+      top: ((item.startMs - base) / 60000) * pxPerMinute.value,
+      height: Math.max(((item.endMs - item.startMs) / 60000) * pxPerMinute.value, 2),
       overlapCol: layout?.col ?? 0,
       overlapCols: layout?.cols ?? 1,
       isBand,
@@ -731,7 +842,7 @@ const nowTop = computed(() => {
   if (!dayRange.value) return null
   const now = scheduleNowMs.value
   if (now < dayRange.value.start || now > dayRange.value.end) return null
-  return ((now - dayRange.value.start) / 60000) * PX_PER_MINUTE
+  return ((now - dayRange.value.start) / 60000) * pxPerMinute.value
 })
 
 const selectedItem = computed(() =>
@@ -769,7 +880,7 @@ function blockStyle(block: CalBlock) {
 
 function hourStyle(ms: number) {
   if (!dayRange.value) return {}
-  const top = ((ms - dayRange.value.start) / 60000) * PX_PER_MINUTE
+  const top = ((ms - dayRange.value.start) / 60000) * pxPerMinute.value
   return {top: `${top}px`}
 }
 
@@ -795,6 +906,7 @@ function resetSheetDrag() {
 }
 
 function selectBlock(block: CalBlock | TimedGroup) {
+  if (props.printFit) return
   const id = block.group.activity_group_id
   // Detail öffnet als Sheet — kein Page-Scroll
   selectedBlockId.value = selectedBlockId.value === id ? null : id
@@ -955,6 +1067,7 @@ const pickerLead = computed(() => {
 })
 
 function openRoleSheet() {
+  if (props.printFit) return
   closeFilterMenu()
   closeDetail()
   closeEntityInfo()
@@ -1111,7 +1224,7 @@ function readStoredPrefs(planId: number): StoredPrefs | null {
 }
 
 function writeStoredPrefs() {
-  if (typeof localStorage === 'undefined' || !numericPlanId.value) return
+  if (props.printFit || typeof localStorage === 'undefined' || !numericPlanId.value) return
   try {
     const payload: StoredPrefs = {
       role: selectedRole.value,
@@ -1167,6 +1280,7 @@ function restorePrefsFromStorage() {
 }
 
 async function pushQuery(next: Record<string, string | null>, persist = true) {
+  if (props.printFit) return
   const query: Record<string, string> = {}
   for (const [key, raw] of Object.entries(route.query)) {
     if (key === 'role' || key === 'team' || key === 'lane' || key === 'table' || key === 'expired') continue
@@ -1201,11 +1315,19 @@ async function loadRoles() {
     eventSlug.value = typeof data.slug === 'string' && data.slug !== '' ? data.slug : null
     checkInEnabled.value = !!data.check_in_enabled
     cockpitEnabled.value = !!data.cockpit_enabled
+    printQrcode.value = typeof data.qrcode === 'string' && data.qrcode !== '' ? data.qrcode : null
+    printWifiQrcode.value = typeof data.wifi_qrcode === 'string' && data.wifi_qrcode !== ''
+      ? data.wifi_qrcode
+      : null
     eventLogos.value = []
     if (eventId.value) {
       try {
         const logos = await axios.get(`/events/${eventId.value}/logos`)
-        eventLogos.value = Array.isArray(logos.data) ? logos.data : []
+        const rows = Array.isArray(logos.data) ? logos.data : []
+        eventLogos.value = rows.map((logo: EventLogo) => ({
+          ...logo,
+          url: sameOriginSrc(String(logo.url || '')),
+        }))
       } catch {
         eventLogos.value = []
       }
@@ -1244,9 +1366,11 @@ async function loadSchedule() {
     else nowMs.value = Date.now()
     await nextTick()
 
-    const current = timedGroups.value.find((b) => b.current)
-    if (current) selectedBlockId.value = current.group.activity_group_id
-    await scrollToNow()
+    if (!props.printFit) {
+      const current = timedGroups.value.find((b) => b.current)
+      if (current) selectedBlockId.value = current.group.activity_group_id
+      await scrollToNow()
+    }
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Online-Zeitplan konnte nicht geladen werden.'
     groups.value = []
@@ -1408,7 +1532,45 @@ function confirmEntityInfoSwitch() {
   void applyRole(role, slice)
 }
 
+function printFitAudienceRoleId(): number | null {
+  const raw = route.query.role
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (value == null || value === '') return null
+  const id = Number(value)
+  if (!Number.isInteger(id) || !(PRINT_FIT_AUDIENCE_ROLE_IDS as readonly number[]).includes(id)) {
+    return null
+  }
+  return id
+}
+
+async function resolvePrintFitSelection() {
+  const id = printFitAudienceRoleId()
+  const exists = id != null && roles.value.some((role) => role.id === id)
+  if (!exists) {
+    error.value = 'Kein Publikum-Plan für diese Auswahl.'
+    selectedRole.value = null
+    selectedTeam.value = null
+    selectedLane.value = null
+    selectedTable.value = null
+    groups.value = []
+    return
+  }
+  error.value = null
+  selectedRole.value = id
+  selectedTeam.value = null
+  selectedLane.value = null
+  selectedTable.value = null
+  includeExpired.value = true
+  await loadSchedule()
+  await nextTick()
+  measurePrintStage()
+}
+
 async function resolveSelectionAfterRoles() {
+  if (props.printFit) {
+    await resolvePrintFitSelection()
+    return
+  }
   const hasQueryRole = route.query.role != null && route.query.role !== ''
   const zeitplanQuery = (() => {
     const raw = route.query.zeitplan
@@ -1450,23 +1612,65 @@ async function resolveSelectionAfterRoles() {
   }
 }
 
+function measurePrintStage() {
+  if (!props.printFit) return
+  const box = printTimelineEl.value ?? planScrollEl.value
+  if (!box) return
+  printStageHeightPx.value = box.clientHeight
+}
+
+function stopPrintStageObserver() {
+  printStageObserver?.disconnect()
+  printStageObserver = null
+}
+
+function startPrintStageObserver() {
+  stopPrintStageObserver()
+  if (!props.printFit || typeof ResizeObserver === 'undefined') return
+  measurePrintStage()
+  const targets = [planScrollEl.value, printTimelineEl.value].filter(
+      (el): el is HTMLElement => el != null,
+  )
+  if (!targets.length) return
+  printStageObserver = new ResizeObserver(() => measurePrintStage())
+  for (const el of targets) printStageObserver.observe(el)
+}
+
+watch([planScrollEl, printTimelineEl], () => {
+  if (props.printFit) startPrintStageObserver()
+})
+
 watch(pageTitle, (title) => {
   if (typeof document !== 'undefined') document.title = title
 }, {immediate: true})
 
+watch(printChromePayload, (payload) => {
+  if (props.printFit) emit('printChrome', payload)
+}, {deep: true, immediate: true})
+
 onMounted(async () => {
   await loadRoles()
-  await resolveSelectionAfterRoles()
+  if (props.printFit) {
+    if (!error.value) await resolvePrintFitSelection()
+  } else {
+    await resolveSelectionAfterRoles()
+  }
 
   nowTimer = setInterval(() => {
     nowMs.value = Date.now()
   }, 30000)
   document.addEventListener('pointerdown', onDocumentPointerDown)
+  if (props.printFit) {
+    window.addEventListener('resize', measurePrintStage)
+    startPrintStageObserver()
+  }
 })
 
 onUnmounted(() => {
   if (nowTimer) clearInterval(nowTimer)
   document.removeEventListener('pointerdown', onDocumentPointerDown)
+  window.removeEventListener('resize', measurePrintStage)
+  stopPrintStageObserver()
   if (typeof document !== 'undefined') {
     document.documentElement.style.overflow = ''
     document.body.style.overflow = ''
@@ -1483,6 +1687,10 @@ watch(
     ],
     async (next, prev) => {
       if (prev && next.every((v, i) => v === prev[i])) return
+      if (props.printFit) {
+        await resolvePrintFitSelection()
+        return
+      }
       syncFromQuery()
       if (selectedRole.value != null) {
         writeStoredPrefs()
@@ -1497,6 +1705,10 @@ watch(
     () => props.planId,
     async () => {
       await loadRoles()
+      if (props.printFit) {
+        if (!error.value) await resolvePrintFitSelection()
+        return
+      }
       await resolveSelectionAfterRoles()
     }
 )
@@ -1505,7 +1717,7 @@ watch(
 watch(
     () => planReady.value,
     (locked) => {
-      if (typeof document === 'undefined') return
+      if (props.printFit || typeof document === 'undefined') return
       document.documentElement.style.overflow = locked ? 'hidden' : ''
       document.body.style.overflow = locked ? 'hidden' : ''
     },
@@ -1518,7 +1730,8 @@ watch(
       class="public-schedule"
       :class="{
         'public-schedule--embedded': embedded,
-        'public-schedule--plan-view': planReady,
+        'public-schedule--plan-view': planReady && !printFit,
+        'public-schedule--print-fit': printFit,
         'public-schedule--sheet-open': !!selectedItem || roleSheetOpen,
       }"
       :style="{'--accent': roleAccent}"
@@ -1535,7 +1748,7 @@ watch(
 
       <!-- Single plan page: role via sheet, filter for upcoming -->
       <div v-else class="public-schedule__plan">
-        <header class="public-schedule__chrome">
+        <header v-if="!printFit" class="public-schedule__chrome">
           <div class="public-schedule__toolbar">
             <div class="public-schedule__toolbar-main">
               <button
@@ -1693,6 +1906,7 @@ watch(
                   class="public-schedule__entity-map"
               >
                 <EventMap
+                    v-if="!printFit"
                     :address="entityInfoLocation"
                     :event-id="eventId"
                     :event-name="entityInfoTitle || 'Team'"
@@ -1728,7 +1942,7 @@ watch(
           </div>
 
           <div
-              v-else-if="!hasRoleSelection"
+              v-else-if="!printFit && !hasRoleSelection"
               class="public-schedule__card public-schedule__card--center public-schedule__card--overview"
           >
             <h2 class="public-schedule__page-title">
@@ -1797,7 +2011,7 @@ watch(
           >
             Keine Einträge für diese Auswahl.
             <button
-                v-if="!includeExpired"
+                v-if="!printFit && !includeExpired"
                 type="button"
                 class="public-schedule__text-action"
                 @click="toggleExpired"
@@ -1809,15 +2023,23 @@ watch(
             <div
                 v-else
                 class="public-schedule__calendar"
+                :style="printFit ? {pointerEvents: 'none'} : undefined"
                 aria-label="Tageskalender im Zeitmaßstab"
             >
               <div
+                  ref="printTimelineEl"
                   class="public-schedule__timeline"
-                  :style="{
-                    height: `${timelineHeight}px`,
-                    '--gutter': `${GUTTER}px`,
-                    '--ppm': `${PX_PER_MINUTE}px`,
-                  }"
+                  :style="printFit
+                    ? {
+                      height: '100%',
+                      '--gutter': `${GUTTER}px`,
+                      '--ppm': `${pxPerMinute}px`,
+                    }
+                    : {
+                      height: `${timelineHeight}px`,
+                      '--gutter': `${GUTTER}px`,
+                      '--ppm': `${pxPerMinute}px`,
+                    }"
               >
                 <div
                     v-for="hour in hourMarks"
@@ -1830,7 +2052,7 @@ watch(
                 </div>
 
                 <div
-                    v-if="nowTop != null"
+                    v-if="!printFit && nowTop != null"
                     class="public-schedule__now"
                     :style="{top: `${nowTop}px`}"
                     data-now-line="true"
@@ -1896,14 +2118,14 @@ watch(
                 </button>
               </div>
             </div>
-          </div>
         </div>
       </div>
+    </div>
 
     <!-- Role picker sheet -->
     <Teleport to="body">
       <div
-          v-if="roleSheetOpen"
+          v-if="!printFit && roleSheetOpen"
           class="public-schedule__sheet"
           role="dialog"
           aria-modal="true"
@@ -2072,7 +2294,7 @@ watch(
     <!-- Event detail sheet -->
     <Teleport to="body">
       <div
-          v-if="selectedItem"
+          v-if="!printFit && selectedItem"
           class="public-schedule__sheet"
           role="dialog"
           aria-modal="true"
@@ -2253,7 +2475,65 @@ watch(
       env(safe-area-inset-left, 0px);
 }
 
-/* Plan view: fill the available viewport, no side frames */
+/* Poster mode: fill the wrapper body slot; chrome lives in PublicSchedulePrint. */
+.public-schedule--print-fit {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+  padding: 0;
+  font-family: var(--font-sans);
+}
+
+.public-schedule--print-fit .public-schedule__hour-label,
+.public-schedule--print-fit .public-schedule__band-title,
+.public-schedule--print-fit .public-schedule__block-title {
+  font-weight: 700;
+}
+
+.public-schedule--print-fit .public-schedule__inner {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.public-schedule--print-fit .public-schedule__plan,
+.public-schedule--print-fit .public-schedule__plan-scroll {
+  overflow: hidden;
+}
+
+.public-schedule--print-fit .public-schedule__plan-scroll {
+  box-sizing: border-box;
+  padding-top: 0.7rem;
+  padding-bottom: 0.7rem;
+}
+
+.public-schedule--print-fit .public-schedule__calendar,
+.public-schedule--print-fit .public-schedule__timeline {
+  height: 100%;
+}
+
+.public-schedule--print-fit .public-schedule__card--center {
+  flex: 1;
+  min-height: 0;
+}
+
+.public-schedule--print-fit .public-schedule__calendar {
+  pointer-events: none;
+}
+
+@media print {
+  /* Safari PDF: hatches/30-min stripes flatten badly; keep solids. */
+  .public-schedule--print-fit .public-schedule__timeline {
+    background: #fff !important;
+  }
+
+  .public-schedule--print-fit .public-schedule__block--band {
+    background: #f1f5f9 !important;
+  }
+}
+
 .public-schedule--plan-view,
 .public-schedule--embedded.public-schedule--plan-view {
   height: 100%;

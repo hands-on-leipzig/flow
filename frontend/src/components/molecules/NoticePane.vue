@@ -5,7 +5,7 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {useEventStore} from '@/stores/event'
 import {useNoticeStore, type NoticeMessage} from '@/stores/notice'
-import {HELP_SCREEN_KEY_BY_PATH, TEAMS_PROGRAM_HELP_KEY} from '@/utils/helpRoutes'
+import {HELP_SCREEN_KEY_BY_PATH, noticeMirrorScreenKeysForPath, TEAMS_PROGRAM_HELP_KEY} from '@/utils/helpRoutes'
 import {programCompact} from '@/utils/eventPrograms'
 
 defineOptions({name: 'NoticePane'})
@@ -31,10 +31,21 @@ const screenKey = computed(() => {
   return HELP_SCREEN_KEY_BY_PATH[path] ?? null
 })
 
+const mirrorScreenKeys = computed(() => {
+  const path = (route.path || '').replace(/\/$/, '') || '/'
+  return noticeMirrorScreenKeysForPath(path)
+})
+
+const allowJump = computed(() => isOverview.value || mirrorScreenKeys.value.length > 0)
+
 const visibleMessages = computed(() => {
   if (!eventStore.selectedEvent?.id) return []
   const all = noticeStore.messages
   if (isOverview.value) return all
+  const mirrored = mirrorScreenKeys.value
+  if (mirrored.length) {
+    return all.filter((row) => mirrored.includes(row.screen_key ?? ''))
+  }
   const key = screenKey.value
   if (!key) return []
   if (key === TEAMS_PROGRAM_HELP_KEY) {
@@ -119,8 +130,8 @@ async function restoreAll() {
             />
             <div class="notice-pane__content">
               <component
-                  :is="isOverview && row.jump_path ? RouterLink : 'p'"
-                  v-bind="isOverview && row.jump_path ? {to: row.jump_path} : {}"
+                  :is="allowJump && row.jump_path ? RouterLink : 'p'"
+                  v-bind="allowJump && row.jump_path ? {to: row.jump_path} : {}"
                   class="notice-pane__body"
               >
                 {{ row.body }}

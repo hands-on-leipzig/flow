@@ -8,7 +8,7 @@ import { getEventTitleLong } from '@/utils/eventTitle'
 import axios from 'axios'
 import AccordionArrow from "@/components/icons/IconAccordionArrow.vue"
 import {showGlassToast} from '@/composables/useGlassToast'
-import {hasChallenge, eventPrograms, programId, programDisplayName, catalogNameFromCode, type EventProgramRef} from '@/utils/eventPrograms'
+import {hasChallenge, eventPrograms, programDisplayName, catalogNameFromCode, type EventProgramRef} from '@/utils/eventPrograms'
 import {flowFilename} from '@/utils/flowFilename'
 
 
@@ -31,61 +31,8 @@ const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
 
-// --- Readiness direkt aus Store ---
-const readiness = computed(() => eventStore.readiness)
-
-// --- Available Roles ---
-interface Role {
-  id: number
-  name: string
-  first_program: number
-  differentiation_parameter: string
-}
-
-const availableRoles = ref<Role[]>([])
-const selectedRoleIds = ref<Set<number>>(new Set())
-
-const roleProgramGroups = computed(() =>
-  eventPrograms(event.value)
-    .map((program) => ({
-      program,
-      roles: availableRoles.value.filter((role) => role.first_program === programId(program)),
-    }))
-    .filter((group) => group.roles.length > 0)
-)
-
-// Fetch available roles from backend
-async function fetchAvailableRoles() {
-  if (!eventId.value) return
-  try {
-    const { data } = await axios.get(`/export/available-roles/${eventId.value}`)
-    availableRoles.value = data.roles || []
-    // Select all by default
-    selectedRoleIds.value = new Set(availableRoles.value.map(r => r.id))
-  } catch (error) {
-    console.error('Failed to fetch available roles:', error)
-    availableRoles.value = []
-  }
-}
-
-// Toggle role selection
-function toggleRole(roleId: number) {
-  if (selectedRoleIds.value.has(roleId)) {
-    selectedRoleIds.value.delete(roleId)
-  } else {
-    selectedRoleIds.value.add(roleId)
-  }
-  selectedRoleIds.value = new Set(selectedRoleIds.value) // Trigger reactivity
-}
-
-// Computed: at least one role selected
-const hasSelectedRoles = computed(() => selectedRoleIds.value.size > 0)
-
-// --- Available Team Programs ---
+// --- Available Team Programs (Namensschilder) ---
 const availableTeamPrograms = ref<EventProgramRef[]>([])
-const selectedProgramIds = ref<Set<number>>(new Set())
-
-const hasChallengeTeams = computed(() => availableTeamPrograms.value.some(p => programId(p) === 3))
 
 async function fetchAvailableTeamPrograms() {
   if (!eventId.value) return
@@ -97,52 +44,30 @@ async function fetchAvailableTeamPrograms() {
         first_program: program.id,
       })),
     })
-    selectedProgramIds.value = new Set(availableTeamPrograms.value.map((program) => programId(program)))
   } catch (error) {
     console.error('Failed to fetch available team programs:', error)
     availableTeamPrograms.value = []
   }
 }
 
-// Toggle program selection for teams
-function toggleTeamProgram(programId: number) {
-  if (selectedProgramIds.value.has(programId)) {
-    selectedProgramIds.value.delete(programId)
-  } else {
-    selectedProgramIds.value.add(programId)
-  }
-  selectedProgramIds.value = new Set(selectedProgramIds.value) // Trigger reactivity
-}
-
-// Computed: at least one program selected for teams
-const hasSelectedPrograms = computed(() => selectedProgramIds.value.size > 0)
-
-// --- Beim Start sicherstellen, dass Event & Readiness geladen sind ---
+// --- Beim Start Event, Namensschilder-Programme und Poster laden ---
 onMounted(async () => {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
   if (eventStore.selectedEvent?.id) {
-    await eventStore.refreshReadiness(eventStore.selectedEvent.id)
-    await fetchAvailableRoles()
     await fetchAvailableTeamPrograms()
     await loadPosterPreviews()
   }
 })
 
-// --- Wenn Event wechselt, Readiness nachladen ---
+// --- Wenn Event wechselt, Programme und Poster nachladen ---
 watch(() => event.value?.id, async (id) => {
   if (id) {
-    await eventStore.refreshReadiness(id)
-    await fetchAvailableRoles()
     await fetchAvailableTeamPrograms()
     await loadPosterPreviews()
   }
 })
 
 // --- Computed Flags ---
-const hasTeamIssues = computed(
-  () => !readiness.value?.explore_teams_ok || !readiness.value?.challenge_teams_ok
-)
-const hasRoomIssues = computed(() => !readiness.value?.room_mapping_ok)
 const hasWifiSsid = computed(() => !!event.value?.wifi_ssid?.trim())
 
 // --- PDF Download (Composable) ---
@@ -167,177 +92,6 @@ async function loadPosterPreview(type: 'plan' | 'plan_wifi') {
 
 async function loadPosterPreviews() {
   await Promise.all([loadPosterPreview('plan'), loadPosterPreview('plan_wifi')])
-}
-
-// --- CSV Download State ---
-const isDownloadingCsv = ref(false)
-
-// --- CSV Download Function ---
-async function downloadRoomUtilizationCsv() {
-  if (!eventId.value || isDownloadingCsv.value) return
-  
-  isDownloadingCsv.value = true
-  try {
-    const response = await axios.get(
-      `/export/csv/room-utilization/${eventId.value}`,
-      { responseType: 'blob' }
-    )
-
-    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = response.headers['x-filename'] || flowHint('Raumnutzung', 'csv')
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim CSV-Download (Raumnutzung):', error)
-    showGlassToast('Fehler beim Herunterladen der Raumnutzung. Bitte versuche es erneut.', 'error')
-  } finally {
-    isDownloadingCsv.value = false
-  }
-}
-
-// --- Worker Shifts Modal ---
-const showModal = ref(false)
-const workerShifts = ref<any>(null)
-const isLoadingShifts = ref(false)
-
-// Download roles PDF with selected roles
-async function downloadRolesPdf() {
-  if (!eventId.value || !hasSelectedRoles.value) return
-  
-  isDownloading.value['roles'] = true
-  try {
-    const response = await axios.post(
-      `/export/pdf_download/roles/${eventId.value}`,
-      { role_ids: Array.from(selectedRoleIds.value) },
-      { responseType: 'blob' }
-    )
-
-    const filename = response.headers['x-filename'] || flowHint('Rollen')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim PDF-Download (Rollen):', error)
-  } finally {
-    isDownloading.value['roles'] = false
-  }
-}
-
-// Download teams PDF with selected programs
-async function downloadTeamsPdf() {
-  if (!eventId.value || !hasSelectedPrograms.value) return
-  
-  isDownloading.value['teams'] = true
-  try {
-    const response = await axios.post(
-      `/export/pdf_download/teams/${eventId.value}`,
-      { program_ids: Array.from(selectedProgramIds.value) },
-      { responseType: 'blob' }
-    )
-
-    const filename = response.headers['x-filename'] || flowHint('Teams')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim PDF-Download (Teams):', error)
-  } finally {
-    isDownloading.value['teams'] = false
-  }
-}
-
-// Download event overview PDF
-async function downloadEventOverviewPdf() {
-  if (!eventId.value) return
-  
-  isDownloading.value['overview'] = true
-  try {
-    // Get the plan ID for this event
-    const planResponse = await axios.get(`/plans/event/${eventId.value}`)
-    const planId = planResponse.data.id
-    
-    const response = await axios.get(
-      `/export/event-overview/${planId}`,
-      { responseType: 'blob' }
-    )
-
-    const filename = response.headers['x-filename'] || flowHint('Übersichtsplan')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim PDF-Download (Übersichtsplan):', error)
-  } finally {
-    isDownloading.value['overview'] = false
-  }
-}
-
-// Download moderator match plan PDF
-async function downloadModeratorMatchPlanPdf() {
-  if (!eventId.value) return
-  
-  isDownloading.value['moderator-match-plan'] = true
-  try {
-    // Get the plan ID for this event
-    const planResponse = await axios.get(`/plans/event/${eventId.value}`)
-    const planId = planResponse.data.id
-    
-    const response = await axios.get(
-      `/export/moderator-match-plan/${planId}`,
-      { responseType: 'blob' }
-    )
-
-    const filename = response.headers['x-filename'] || flowHint('Moderation')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim PDF-Download (Robot-Game kompakt):', error)
-  } finally {
-    isDownloading.value['moderator-match-plan'] = false
-  }
-}
-
-// Download slot assignments PDF
-async function downloadSlotAssignmentsPdf() {
-  if (!eventId.value) return
-  
-  isDownloading.value['slot-assignments'] = true
-  try {
-    const planResponse = await axios.get(`/plans/event/${eventId.value}`)
-    const planId = planResponse.data.id
-
-    const response = await axios.get(
-      `/export/slot-assignments/${planId}`,
-      { responseType: 'blob' }
-    )
-
-    const filename = response.headers['x-filename'] || flowHint('Slot-Zuordnung')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error) {
-    console.error('Fehler beim PDF-Download (Slot-Zuordnung):', error)
-  } finally {
-    isDownloading.value['slot-assignments'] = false
-  }
 }
 
 // Download team list PDF
@@ -547,39 +301,6 @@ async function downloadVolunteerLabelsPdf() {
   }
 }
 
-// Fetch worker shifts and show modal
-async function showWorkerShiftsModal() {
-  if (!eventId.value) return
-  
-  isLoadingShifts.value = true
-  showModal.value = true
-  
-  try {
-    const { data } = await axios.get(`/export/worker-shifts/${eventId.value}`)
-    workerShifts.value = data
-  } catch (error) {
-    console.error('Failed to fetch worker shifts:', error)
-    workerShifts.value = { error: 'Fehler beim Laden der Schichten' }
-  } finally {
-    isLoadingShifts.value = false
-  }
-}
-
-// Close modal
-function closeModal() {
-  showModal.value = false
-  workerShifts.value = null
-}
-
-// Format date as dd.mm.yyyy
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  const day = date.getDate().toString().padStart(2, '0')
-  const month = (date.getMonth() + 1).toString().padStart(2, '0')
-  const year = date.getFullYear()
-  return `${day}.${month}.${year}`
-}
-
 // --- Match Plan Modal State (from MatchPlanBox) ---
 const showMatchPlanModal = ref(false)
 const selectedRound = ref<number | null>(null)
@@ -762,155 +483,6 @@ const eventTitleNormalized = computed(() => {
           </button>
         </footer>
       </article>
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Übersichtsplan</h4>
-          <p class="pdf-plans__tile-sub">Alle öffentlichen Aktivitäten des Tages auf einer Seite.</p>
-        </header>
-        <div class="pdf-plans__tile-body"></div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading.overview ? '!opacity-50' : ''"
-            :disabled="isDownloading.overview"
-            @click="downloadEventOverviewPdf()"
-          >
-            <Spinner v-if="isDownloading.overview" size="sm"/>
-            <span>{{ isDownloading.overview ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Räume</h4>
-          <p class="pdf-plans__tile-sub">Eine Seite pro Raum mit allen Aktivitäten.</p>
-        </header>
-        <div class="pdf-plans__tile-body">
-          <p v-if="hasRoomIssues" class="pdf-plans__tile-warn">
-            Noch nicht alle Aktivitäten und Teams auf Räume verteilt.
-          </p>
-        </div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloadingCsv ? '!opacity-50' : ''"
-            :disabled="isDownloadingCsv"
-            @click="downloadRoomUtilizationCsv"
-          >
-            <Spinner v-if="isDownloadingCsv" size="sm"/>
-            <span>{{ isDownloadingCsv ? 'Erzeuge…' : 'CSV' }}</span>
-          </button>
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading.rooms ? '!opacity-50' : ''"
-            :disabled="isDownloading.rooms"
-            @click="downloadPdf('rooms', `/export/pdf_download/rooms/${eventId}`, flowHint('Räume'))"
-          >
-            <Spinner v-if="isDownloading.rooms" size="sm"/>
-            <span>{{ isDownloading.rooms ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Rollen</h4>
-          <p class="pdf-plans__tile-sub">Eine Seite pro Rolle mit allen Aktivitäten.</p>
-        </header>
-        <div class="pdf-plans__tile-body">
-          <p v-if="hasTeamIssues" class="pdf-plans__tile-warn">Teamanzahl weicht vom Plan ab.</p>
-          <p v-if="availableRoles.length === 0" class="pdf-plans__tile-note">Keine Rollen mit Aktivitäten im Plan.</p>
-          <div v-else class="pdf-plans__tile-scroll">
-            <div
-              v-for="group in roleProgramGroups"
-              :key="programId(group.program)"
-              class="pdf-plans__option-group"
-            >
-              <h5 class="pdf-plans__option-heading">
-                <ProgramLogo :program="group.program" size="sm"/>
-                <span>{{ programDisplayName(group.program) }}</span>
-              </h5>
-              <label
-                v-for="role in group.roles"
-                :key="role.id"
-                class="pdf-plans__option"
-              >
-                <input
-                  type="checkbox"
-                  :checked="selectedRoleIds.has(role.id)"
-                  class="accent-[var(--color-accent)]"
-                  @change="toggleRole(role.id)"
-                />
-                <span>{{ role.name }}</span>
-              </label>
-            </div>
-          </div>
-        </div>
-        <footer class="pdf-plans__tile-actions">
-          <button type="button" class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm" @click="showWorkerShiftsModal">
-            HERO Schichten
-          </button>
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="!(hasSelectedRoles && !isDownloading.roles) ? '!opacity-50' : ''"
-            :disabled="!hasSelectedRoles || isDownloading.roles"
-            @click="downloadRolesPdf"
-          >
-            <Spinner v-if="isDownloading.roles" size="sm"/>
-            <span>{{ isDownloading.roles ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Teams</h4>
-          <p class="pdf-plans__tile-sub">Eine Seite pro Team mit allen Aktivitäten.</p>
-        </header>
-        <div class="pdf-plans__tile-body">
-          <p v-if="hasTeamIssues" class="pdf-plans__tile-warn">Teamanzahl weicht vom Plan ab.</p>
-          <p v-if="availableTeamPrograms.length === 0" class="pdf-plans__tile-note">Keine Teams im Plan.</p>
-          <div v-else class="pdf-plans__tile-scroll">
-            <div
-              v-for="program in availableTeamPrograms"
-              :key="program.id"
-              class="pdf-plans__option-group"
-            >
-              <h5 class="pdf-plans__option-heading">
-                <ProgramLogo :program="program" size="sm"/>
-                <span>{{ programDisplayName(program) }}</span>
-              </h5>
-              <label class="pdf-plans__option">
-                <input
-                  type="checkbox"
-                  :checked="selectedProgramIds.has(program.id)"
-                  class="accent-[var(--color-accent)]"
-                  @change="toggleTeamProgram(program.id)"
-                />
-                <span>Alle Teams</span>
-              </label>
-            </div>
-          </div>
-        </div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="!(hasSelectedPrograms && !isDownloading.teams) ? '!opacity-50' : ''"
-            :disabled="!hasSelectedPrograms || isDownloading.teams"
-            @click="downloadTeamsPdf"
-          >
-            <Spinner v-if="isDownloading.teams" size="sm"/>
-            <span>{{ isDownloading.teams ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
       </div>
 
       </section>
@@ -944,52 +516,8 @@ const eventTitleNormalized = computed(() => {
         </footer>
       </article>
 
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Moderation</h4>
-          <p class="pdf-plans__tile-sub">
-            Moderierte Aktivitäten und vollständiger Robot-Game-Matchplan.
-          </p>
-        </header>
-        <div class="pdf-plans__tile-body"></div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading['moderator-match-plan'] ? '!opacity-50' : ''"
-            :disabled="isDownloading['moderator-match-plan']"
-            @click="downloadModeratorMatchPlanPdf"
-          >
-            <Spinner v-if="isDownloading['moderator-match-plan']" size="sm"/>
-            <span>{{ isDownloading['moderator-match-plan'] ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-
-      <article class="pdf-plans__tile liquid-surface-inner">
-        <header class="pdf-plans__tile-head">
-          <h4 class="pdf-plans__tile-title">Slot-Zuordnung</h4>
-          <p class="pdf-plans__tile-sub">
-            Pro Slot-Block alle Team-Zuordnungen in chronologischer Reihenfolge.
-          </p>
-        </header>
-        <div class="pdf-plans__tile-body"></div>
-        <footer class="pdf-plans__tile-actions">
-          <button
-            type="button"
-            class="glass-btn-secondary !px-3.5 !py-1.5 !text-sm inline-flex items-center gap-2"
-            :class="isDownloading['slot-assignments'] ? '!opacity-50' : ''"
-            :disabled="isDownloading['slot-assignments']"
-            @click="downloadSlotAssignmentsPdf"
-          >
-            <Spinner v-if="isDownloading['slot-assignments']" size="sm"/>
-            <span>{{ isDownloading['slot-assignments'] ? 'Erzeuge…' : 'PDF' }}</span>
-          </button>
-        </footer>
-      </article>
-
       <article
-        v-if="hasChallengeTeams || hasChallenge(event)"
+        v-if="hasChallenge(event)"
         class="pdf-plans__tile liquid-surface-inner"
       >
         <header class="pdf-plans__tile-head">
@@ -1332,75 +860,6 @@ const eventTitleNormalized = computed(() => {
       </div>
     </div>
 
-    <!-- Worker Shifts Modal -->
-    <div
-      v-if="showModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click="closeModal"
-    >
-      <div 
-        class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden"
-        @click.stop
-      >
-        <!-- Modal Header -->
-        <div class="px-6 py-4 border-b border-[var(--color-border)] flex justify-between items-center">
-          <h3 class="text-lg font-semibold text-[var(--color-text)]">HERO Schichten</h3>
-          <button
-            @click="closeModal"
-            class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors"
-          >
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-        
-        <!-- Modal Content -->
-        <div class="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-          <div v-if="isLoadingShifts" class="flex items-center justify-center py-8">
-            <Spinner size="md"/>
-            <span class="ml-3 text-[var(--color-text-muted)]">Lade Schichten…</span>
-          </div>
-          
-          <div v-else-if="workerShifts?.error" class="text-center py-8 text-red-600">
-            {{ workerShifts.error }}
-          </div>
-          
-          <div v-else-if="workerShifts?.shifts" class="space-y-4">
-            <p class="text-sm text-[var(--color-text-muted)] italic">Zu jeder Zeile sollte in HERO eine Schicht angelegt werden.</p>
-            <div class="overflow-x-auto">
-              <table class="min-w-full border-collapse border border-[var(--color-border)]">
-                <thead>
-                  <tr class="bg-[var(--color-bg-muted)]">
-                    <th class="border border-[var(--color-border)] px-4 py-2 text-left font-semibold text-[var(--color-text-muted)]">Datum</th>
-                    <th class="border border-[var(--color-border)] px-4 py-2 text-left font-semibold text-[var(--color-text-muted)]">Treffpunkt</th>
-                    <th class="border border-[var(--color-border)] px-4 py-2 text-left font-semibold text-[var(--color-text-muted)]">Beginn</th>
-                    <th class="border border-[var(--color-border)] px-4 py-2 text-left font-semibold text-[var(--color-text-muted)]">Ende</th>
-                    <th class="border border-[var(--color-border)] px-4 py-2 text-left font-semibold text-[var(--color-text-muted)]">Label</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <template v-for="role in workerShifts.shifts" :key="role.role_name">
-                    <tr v-for="(shift, index) in role.shifts" :key="`${role.role_name}-${shift.day}`" class="hover:bg-[var(--color-bg-hover)]">
-                      <td class="border border-[var(--color-border)] px-4 py-2 text-[var(--color-text-muted)]">{{ formatDate(shift.day) }}</td>
-                      <td class="border border-[var(--color-border)] px-4 py-2 text-[var(--color-text-muted)]">{{ shift.start }}</td>
-                      <td class="border border-[var(--color-border)] px-4 py-2 text-[var(--color-text-muted)]">{{ shift.start }}</td>
-                      <td class="border border-[var(--color-border)] px-4 py-2 text-[var(--color-text-muted)]">{{ shift.end }}</td>
-                      <td class="border border-[var(--color-border)] px-4 py-2 font-medium text-[var(--color-text)]">{{ role.role_name }}</td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </div>
-          </div>
-          
-          <div v-else class="text-center py-8 text-[var(--color-text-subtle)]">
-            Keine Schichten verfügbar
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Optional: globales Overlay -->
     <div
       v-if="anyDownloading"
@@ -1543,15 +1002,6 @@ const eventTitleNormalized = computed(() => {
   gap: 0.45rem;
 }
 
-.pdf-plans__tile-scroll {
-  max-height: 5.75rem;
-  overflow-y: auto;
-  padding-right: 0.15rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
 .pdf-plans__tile-actions {
   margin-top: auto;
   display: flex;
@@ -1561,54 +1011,11 @@ const eventTitleNormalized = computed(() => {
   align-items: center;
 }
 
-.pdf-plans__tile-note,
-.pdf-plans__tile-warn {
+.pdf-plans__tile-note {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.35;
-}
-
-.pdf-plans__tile-note {
   color: var(--color-text-muted);
-}
-
-.pdf-plans__tile-warn {
-  color: color-mix(in srgb, #b45309 75%, var(--color-text));
-  background: color-mix(in srgb, #f59e0b 12%, transparent);
-  border: 1px solid color-mix(in srgb, #f59e0b 28%, transparent);
-  border-radius: 8px;
-  padding: 0.4rem 0.55rem;
-}
-
-.pdf-plans__option-group + .pdf-plans__option-group {
-  margin-top: 0.2rem;
-  padding-top: 0.35rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 22%, transparent);
-}
-
-.pdf-plans__option-heading {
-  margin: 0 0 0.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.72rem;
-  font-weight: 650;
-  color: var(--color-text-muted);
-}
-
-.pdf-plans__option {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.15rem 0.2rem;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  color: var(--color-text);
-  cursor: pointer;
-}
-
-.pdf-plans__option:hover {
-  background: var(--color-bg-hover);
 }
 
 .pdf-plans__preview {

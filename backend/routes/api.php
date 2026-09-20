@@ -1,26 +1,26 @@
 <?php
 
-use App\Http\Controllers\Api\AfternoonController;
 use App\Http\Controllers\Api\AdminHelpController;
-use App\Http\Controllers\Api\EnrollmentsController;
+use App\Http\Controllers\Api\AfternoonController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\CheckInController;
 use App\Http\Controllers\Api\CockpitController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
+use App\Http\Controllers\Api\EnrollmentsController;
 use App\Http\Controllers\Api\EventController;
-use App\Http\Controllers\Api\HelpController;
 use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Http\Controllers\Api\EventStaffingController;
 use App\Http\Controllers\Api\EventTeamDataController;
 use App\Http\Controllers\Api\EventTeamFieldController;
+use App\Http\Controllers\Api\EventVolunteerCollectController;
 use App\Http\Controllers\Api\EventVolunteerFieldController;
 use App\Http\Controllers\Api\EventVolunteerMealOptionController;
-use App\Http\Controllers\Api\EventVolunteerCollectController;
 use App\Http\Controllers\Api\EventVolunteerRosterController;
 use App\Http\Controllers\Api\EventWorkspaceController;
 use App\Http\Controllers\Api\ExtraBlockController;
+use App\Http\Controllers\Api\HelpController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\LogoController;
 use App\Http\Controllers\Api\MailController;
@@ -39,6 +39,9 @@ use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanQualityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
+use App\Http\Controllers\Api\PrintOverviewSheetController;
+use App\Http\Controllers\Api\PrintRoleSheetController;
+use App\Http\Controllers\Api\PrintRoomSheetController;
 use App\Http\Controllers\Api\ProgramController;
 use App\Http\Controllers\Api\PublicEventLinkController;
 use App\Http\Controllers\Api\PublicPlanController;
@@ -171,6 +174,12 @@ Route::middleware(['keycloak'])->group(function () {
             'is_prod' => app()->environment('production'),
         ]);
     });
+
+    Route::get('/print/{eventId}/role-sheets/catalog', [PrintRoleSheetController::class, 'catalog']);
+    Route::post('/print/{eventId}/role-sheets', [PrintRoleSheetController::class, 'download']);
+    Route::post('/print/{eventId}/room-sheets', [PrintRoomSheetController::class, 'download']);
+    Route::post('/print/{eventId}/overview-sheet', [PrintOverviewSheetController::class, 'start']);
+    Route::get('/print/{eventId}/overview-sheet/{jobId}', [PrintOverviewSheetController::class, 'show']);
 
     Route::get('/user', fn (Request $r) => $r->input('keycloak_user'));
     Route::get('/user/me', [UserAccessController::class, 'me']);

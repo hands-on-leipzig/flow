@@ -100,7 +100,11 @@ export default defineConfig(({mode}) => {
         },
 
         // Proxy → Laravel (VITE_FILES_BASE_URL or http://localhost:8000). Backend must be running.
+        // host: true so Gotenberg in Colima/Docker can load printFit via host.docker.internal
+        // (default is [::1] only, which the VM cannot reach).
         server: {
+            host: true,
+            allowedHosts: ['host.docker.internal'],
             port: 5173,
             headers: {
                 // JOIN / HERO embed the public event page in their main panel.
@@ -144,7 +148,13 @@ export default defineConfig(({mode}) => {
                     target: serverURL,
                     changeOrigin: true,
                     timeout: 120_000,
-                }
+                },
+                // User-uploaded logos (Übersichtsplan footer, public event)
+                '^/storage/.*': {
+                    target: serverURL,
+                    changeOrigin: true,
+                    timeout: 120_000,
+                },
                 // Event slugs are now handled by Vue Router, not proxied to backend
                 // The backend slug-handler.php is no longer needed for frontend routing
             }
