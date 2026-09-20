@@ -101,6 +101,7 @@ class PublicPlanService
             'event_id' => (int) $plan->event_id,
             'event_name' => $titles['title_long'],
             'slug' => $plan->event_slug ?: null,
+            'publication_level' => $this->publicationLevelForEvent((int) $plan->event_id),
             'check_in_enabled' => (bool) $plan->check_in_enabled,
             'cockpit_enabled' => (bool) $plan->cockpit_enabled,
             'programs' => $this->eventPrograms((int) $plan->event_id),
@@ -109,6 +110,17 @@ class PublicPlanService
             'wifi_qrcode' => self::wifiQrPng($plan),
             ...$titles,
         ];
+    }
+
+    private function publicationLevelForEvent(int $eventId): int
+    {
+        $level = DB::table('publication')
+            ->where('event', $eventId)
+            ->orderBy('last_change', 'desc')
+            ->orderBy('id', 'desc')
+            ->value('level');
+
+        return $level !== null ? (int) $level : 1;
     }
 
     /**
