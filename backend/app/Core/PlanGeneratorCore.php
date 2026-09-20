@@ -5,6 +5,7 @@ namespace App\Core;
 use App\Enums\ExploreMode;
 use App\Enums\FirstProgram;
 use App\Services\AfternoonBlockOrderService;
+use App\Support\CeremonyPrefix;
 use App\Support\IntegratedExploreState;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
@@ -207,7 +208,7 @@ class PlanGeneratorCore
         $this->openingsForPrograms(false);
         $this->runMain();
         $this->afternoon();
-        $this->awardsForPrograms();
+        $this->awardsForPrograms(false);
     }
 
     /**
@@ -248,7 +249,7 @@ class PlanGeneratorCore
 
         $this->afternoon();
         // Explore already awarded; Challenge-shaped programs share joint awards when both on.
-        $this->awardsForPrograms();
+        $this->awardsForPrograms(false);
     }
 
     /**
@@ -304,7 +305,7 @@ class PlanGeneratorCore
         $this->openingsForPrograms(false);
         $this->runMain();
         $this->afternoon();
-        $this->awardsForPrograms();
+        $this->awardsForPrograms(false);
 
         if ($eMode === ExploreMode::DECOUPLED_MORNING->value || $eMode === ExploreMode::DECOUPLED_BOTH->value) {
             $this->explore->openingsAndBriefings(1);
@@ -322,11 +323,11 @@ class PlanGeneratorCore
     /**
      * Ceremony lead writes opening (+ its briefings). When Future is secondary, add Future briefings
      * and sync its clocks to the lead (coordinator also syncs before morning).
-     * Policy C always uses a joint opening even without Explore (`c+f8_opening`).
+     * Prefix from slot membership — Policy C is not a fake Explore-in-slot.
      */
-    private function openingsForPrograms(bool $jointOpening): void
+    private function openingsForPrograms(bool $exploreInSlot): void
     {
-        $this->lead->openingsAndBriefings($jointOpening || $this->isPolicyC(), $this->jointCeremonyPrefix());
+        $this->lead->openingsAndBriefings($this->ceremonyPrefix($exploreInSlot));
 
         if ($this->coordinator !== null && $this->future !== null && $this->challenge !== null) {
             // Lead is Challenge: Future briefings only (opening already joint/Challenge).
@@ -347,16 +348,14 @@ class PlanGeneratorCore
         return $this->coordinator !== null && ! $this->isPolicyC();
     }
 
-    /** Joint C+F8 ceremonies use `c+f8_*` when Explore is off; Explore-integrated joint stays `g_*`. */
-    private function jointCeremonyPrefix(): string
+    /** Slot membership → ATD prefix (`c` / `f8` / `c+f8` / `g`). */
+    private function ceremonyPrefix(bool $exploreInSlot): string
     {
-        if ($this->challenge !== null
-            && $this->future !== null
-            && (int) $this->pp('e_mode', 0) === ExploreMode::NONE->value) {
-            return 'c+f8';
-        }
-
-        return 'g';
+        return CeremonyPrefix::for(
+            $this->challenge !== null,
+            $this->future !== null,
+            $exploreInSlot,
+        );
     }
 
     private function runMain(bool $explore = false, ?callable $afterRG1Callback = null): void
@@ -401,21 +400,17 @@ class PlanGeneratorCore
     }
 
     /**
-     * Ceremony awards. When Challenge and Future are both on, always joint from the later end
-     * (`c+f8_awards` without Explore, `g_awards` when Explore is on).
+     * Ceremony awards. Prefix from who is on this slot, not whether Explore is on the event.
      *
-     * @param  bool  $jointWithExplore  Explore-integrated recipes that already used g_awards with Explore.
+     * @param  bool  $exploreInSlot  Integrated afternoon / hybrid close (writes `g_awards` when Explore shares the stage).
      */
-    private function awardsForPrograms(bool $jointWithExplore = false): void
+    private function awardsForPrograms(bool $exploreInSlot = false): void
     {
         if ($this->challenge !== null && $this->future !== null) {
             $this->syncSharedCeremonyClock();
-            $this->lead->awards(true, $this->jointCeremonyPrefix());
-
-            return;
         }
 
-        $this->lead->awards($jointWithExplore, $this->jointCeremonyPrefix());
+        $this->lead->awards($this->ceremonyPrefix($exploreInSlot));
     }
 
     /**
