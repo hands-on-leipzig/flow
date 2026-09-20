@@ -12,6 +12,7 @@ import GesamtplanPrint from '@/components/molecules/GesamtplanPrint.vue'
 import TeamlistePrint from '@/components/molecules/TeamlistePrint.vue'
 import MatchPlanScorePrint from '@/components/molecules/MatchPlanScorePrint.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import {isEntwicklungEnvironment} from '@/constants/adminNav'
 
@@ -25,7 +26,10 @@ const showOnlinePlanPane = computed(() => isEntwicklungEnvironment(isLocal))
   <div class="vol-page vol-page--fill druck-page">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Drucksachen</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Drucksachen</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Dokument zu Drucken erzeugen, die den Online-Zeitplan unterstützen.</p>
       </div>
     </header>

@@ -6,6 +6,7 @@ export const TEAMS_PROGRAM_ROUTE_PATH = '/plan/teams/:program'
 export const HELP_SCREEN_KEY_BY_PATH: Record<string, string> = {
   '/plan/publish': 'publish-distribution',
   '/plan/publish/logos': 'publish-logos',
+  '/plan/publish/analog': 'publish-analog',
   '/plan/teams/data': 'teams-data',
   '/plan/rooms': 'rooms',
   '/plan/volunteers': 'volunteers-people',
