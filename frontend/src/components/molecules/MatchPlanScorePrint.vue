@@ -155,78 +155,83 @@ async function downloadPdf() {
     </footer>
   </article>
 
-  <div
-    v-if="showMatchPlanModal"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-    @click="closeMatchPlanModal"
-  >
+  <Teleport to="body">
     <div
-      class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden"
-      @click.stop
+      v-if="showMatchPlanModal"
+      class="match-plan-modal"
+      @click="closeMatchPlanModal"
     >
-      <div class="px-6 py-4 border-b border-[var(--color-border)] flex justify-between items-center">
-        <h3 class="text-lg font-semibold text-[var(--color-text)]" v-html="eventTitleNormalized"></h3>
-        <button
-          type="button"
-          class="text-[var(--color-text-subtle)] hover:text-[var(--color-text-muted)] transition-colors"
-          @click="closeMatchPlanModal"
-        >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-        </button>
-      </div>
-      <div class="px-6 py-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-        <div class="space-y-2">
-          <template v-for="option in roundOptions" :key="option.value">
-            <div class="bg-white border rounded-lg shadow">
-              <button
-                type="button"
-                class="w-full text-left px-4 py-2 bg-[var(--color-bg-muted)] font-semibold text-black uppercase flex justify-between items-center"
-                @click="toggleRound(option.value)"
-              >
-                {{ option.label }}
-                <AccordionArrow :opened="openRound === option.value"/>
-              </button>
-              <transition name="fade">
-                <div v-if="openRound === option.value" class="p-4">
-                  <div v-if="isLoadingMatches" class="flex items-center justify-center py-8">
-                    <Spinner size="md"/>
-                    <span class="ml-3 text-[var(--color-text-muted)]">Lade Matches…</span>
+      <div
+        class="match-plan-modal__dialog"
+        role="dialog"
+        aria-modal="true"
+        @click.stop
+      >
+        <header class="match-plan-modal__head">
+          <h3 class="match-plan-modal__title" v-html="eventTitleNormalized"></h3>
+          <button
+            type="button"
+            class="match-plan-modal__close"
+            aria-label="Schließen"
+            @click="closeMatchPlanModal"
+          >
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </header>
+        <div class="match-plan-modal__body">
+          <div class="space-y-2">
+            <template v-for="option in roundOptions" :key="option.value">
+              <div class="bg-white border rounded-lg shadow">
+                <button
+                  type="button"
+                  class="w-full text-left px-4 py-2 bg-[var(--color-bg-muted)] font-semibold text-black uppercase flex justify-between items-center"
+                  @click="toggleRound(option.value)"
+                >
+                  {{ option.label }}
+                  <AccordionArrow :opened="openRound === option.value"/>
+                </button>
+                <transition name="fade">
+                  <div v-if="openRound === option.value" class="p-4">
+                    <div v-if="isLoadingMatches" class="flex items-center justify-center py-8">
+                      <Spinner size="md"/>
+                      <span class="ml-3 text-[var(--color-text-muted)]">Lade Matches…</span>
+                    </div>
+                    <div v-else-if="matches.length === 0" class="text-center py-8 text-[var(--color-text-subtle)]">
+                      Keine Matches gefunden
+                    </div>
+                    <div v-else class="match-plan-modal__matches">
+                      <template v-for="match in matches" :key="match.match_no">
+                        <div
+                          class="px-4 py-2 rounded text-white text-sm font-medium"
+                          :class="[
+                            isEmptySlot(match.team_1) ? 'bg-gray-300 text-[var(--color-text-muted)]' : 'bg-blue-600',
+                            isNoshow(match.team_1) ? 'line-through' : ''
+                          ]"
+                        >
+                          {{ formatTeam(match.team_1) }}
+                        </div>
+                        <div
+                          class="px-4 py-2 rounded text-white text-sm font-medium"
+                          :class="[
+                            isEmptySlot(match.team_2) ? 'bg-gray-300 text-[var(--color-text-muted)]' : 'bg-blue-600',
+                            isNoshow(match.team_2) ? 'line-through' : ''
+                          ]"
+                        >
+                          {{ formatTeam(match.team_2) }}
+                        </div>
+                      </template>
+                    </div>
                   </div>
-                  <div v-else-if="matches.length === 0" class="text-center py-8 text-[var(--color-text-subtle)]">
-                    Keine Matches gefunden
-                  </div>
-                  <div v-else class="grid grid-cols-2 gap-3">
-                    <template v-for="match in matches" :key="match.match_no">
-                      <div
-                        class="px-4 py-2 rounded text-white text-sm font-medium"
-                        :class="[
-                          isEmptySlot(match.team_1) ? 'bg-gray-300 text-[var(--color-text-muted)]' : 'bg-blue-600',
-                          isNoshow(match.team_1) ? 'line-through' : ''
-                        ]"
-                      >
-                        {{ formatTeam(match.team_1) }}
-                      </div>
-                      <div
-                        class="px-4 py-2 rounded text-white text-sm font-medium"
-                        :class="[
-                          isEmptySlot(match.team_2) ? 'bg-gray-300 text-[var(--color-text-muted)]' : 'bg-blue-600',
-                          isNoshow(match.team_2) ? 'line-through' : ''
-                        ]"
-                      >
-                        {{ formatTeam(match.team_2) }}
-                      </div>
-                    </template>
-                  </div>
-                </div>
-              </transition>
-            </div>
-          </template>
+                </transition>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <style scoped>
@@ -271,6 +276,73 @@ async function downloadPdf() {
   justify-content: flex-end;
   align-items: center;
   gap: 0.45rem;
+}
+
+.match-plan-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(0 0 0 / 0.5);
+}
+
+.match-plan-modal__dialog {
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100vh - 2rem);
+  overflow: hidden;
+  background: #fff;
+  border-radius: 0.5rem;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.22);
+}
+
+.match-plan-modal__head {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.match-plan-modal__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.match-plan-modal__close {
+  flex-shrink: 0;
+  color: var(--color-text-subtle);
+}
+
+.match-plan-modal__close:hover {
+  color: var(--color-text-muted);
+}
+
+.match-plan-modal__body {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 1rem 1.5rem;
+}
+
+.match-plan-modal__matches {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, max-content);
+  gap: 0.75rem;
+}
+
+.match-plan-modal__matches > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .fade-enter-active, .fade-leave-active {

@@ -49,7 +49,7 @@ const showTiles = computed(() => isEntwicklungEnvironment(isLocal))
         </section>
         <section class="glass-card liquid-surface-inner druck-page__panel">
           <p class="druck-page__group-label">
-            <i class="bi bi-shield-lock" aria-hidden="true"/>
+            <i class="bi bi-send-slash" aria-hidden="true"/>
             <span>Nur für Veranstalter – nicht für Teams oder Besucher.</span>
           </p>
           <div class="druck-page__grid">
