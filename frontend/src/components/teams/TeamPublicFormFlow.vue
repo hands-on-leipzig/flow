@@ -413,6 +413,17 @@ watch(
             </p>
           </header>
 
+          <p class="vol-public-form__info">
+            Die Daten zum Team (Name, Coach:innen, Teilnehmer:innen, ...) können direkt in
+            <a
+                class="team-public-form__join-link"
+                href="https://join.hands-on-technology.org"
+                target="_blank"
+                rel="noopener noreferrer"
+            >JOIN</a>
+            geändert werden. Hier geht es um zusätzliche Informationen für die Veranstaltung.
+          </p>
+
           <div
               v-if="hasPhotoColumn"
               class="photo-consent-banner"
@@ -672,6 +683,16 @@ watch(
   font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.35;
+}
+
+.team-public-form__join-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.team-public-form__join-link:hover {
+  text-decoration: underline;
 }
 
 .team-public-form__pick {
