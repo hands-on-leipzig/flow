@@ -317,7 +317,7 @@ class VolunteerRosterApiTest extends TestCase
                 $table->unsignedInteger('regional_partner');
                 $table->string('first_name');
                 $table->string('last_name');
-                $table->string('email');
+                $table->string('email')->nullable();
                 $table->string('mobile')->nullable();
                 $table->string('organization')->nullable();
                 $table->timestamp('updated_at')->nullable();

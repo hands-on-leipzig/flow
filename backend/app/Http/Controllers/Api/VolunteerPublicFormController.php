@@ -77,29 +77,43 @@ class VolunteerPublicFormController extends Controller
         $event = $this->eventBySlug($slug);
         $this->otp->assertVerified($request, PublicFormOtpService::PURPOSE_VOLUNTEER, $event, $email);
 
-        ['event' => $event, 'person' => $person, 'roster' => $roster] = $this->resolveRosterMember($slug, $email);
-        $roster->load(['detail', 'fieldValues.field']);
+        $people = $this->rosterPeopleForEmail($event, $email);
+        if ($people->isEmpty()) {
+            abort(404, 'Nicht auf der Helfer:innenliste.');
+        }
 
-        $writableCustomFields = $this->writableCustomFieldsForEvent($event->id);
-        $mealOptions = VolunteerMealOptions::bootstrapForEvent($event->id);
-        $columns = collect(VolunteerRosterColumns::tablePayloadForEvent($event->id))
-            ->reject(fn (array $column) => in_array($column['key'], ['name', 'role'], true))
-            ->filter(function (array $column) {
-                if (($column['kind'] ?? '') === 'custom') {
-                    return (bool) ($column['public_form'] ?? false);
-                }
+        $payload = [
+            'people' => $people->map(fn (VolunteerPerson $person) => $this->serializePersonSummary($person))->values()->all(),
+        ];
 
-                return true;
-            })
-            ->values()
-            ->all();
+        if ($people->count() === 1) {
+            $person = $people->first();
+            $roster = $this->rosterForPerson($event, $person);
+            $payload['form'] = $this->formPayload($event, $person, $roster);
+        }
+
+        return response()->json($payload);
+    }
+
+    public function person(Request $request, string $slug, VolunteerPerson $volunteer): JsonResponse
+    {
+        $email = $this->normalizeEmail((string) $request->query('email', ''));
+        if ($email === null) {
+            return response()->json(['error' => 'Ungültige E-Mail-Adresse.'], 422);
+        }
+
+        $event = $this->eventBySlug($slug);
+        $this->otp->assertVerified($request, PublicFormOtpService::PURPOSE_VOLUNTEER, $event, $email);
+        $people = $this->rosterPeopleForEmail($event, $email);
+        $person = $people->first(fn (VolunteerPerson $item) => (int) $item->id === (int) $volunteer->id);
+        if (! $person) {
+            abort(404, 'Nicht auf der Helfer:innenliste.');
+        }
+
+        $roster = $this->rosterForPerson($event, $person);
 
         return response()->json([
-            'person' => $this->serializePerson($person),
-            'detail' => VolunteerRosterDetailFields::serialize($roster->detail),
-            'custom' => VolunteerRosterCustomFields::apiValuesForRow($roster, $writableCustomFields),
-            'meal_options' => $mealOptions,
-            'fields' => $columns,
+            'form' => $this->formPayload($event, $person, $roster),
         ]);
     }
 
@@ -112,14 +126,28 @@ class VolunteerPublicFormController extends Controller
 
         $event = $this->eventBySlug($slug);
         $this->otp->assertVerified($request, PublicFormOtpService::PURPOSE_VOLUNTEER, $event, $email);
-
-        ['event' => $event, 'person' => $person, 'roster' => $roster] = $this->resolveRosterMember($slug, $email);
-        $roster->load(['detail', 'fieldValues.field']);
+        $people = $this->rosterPeopleForEmail($event, $email);
+        if ($people->isEmpty()) {
+            abort(404, 'Nicht auf der Helfer:innenliste.');
+        }
 
         $personInput = $request->input('person', []);
         if (! is_array($personInput)) {
             return response()->json(['error' => 'Ungültige Personendaten.'], 422);
         }
+
+        $personId = (int) ($personInput['id'] ?? 0);
+        if ($personId <= 0) {
+            return response()->json(['error' => 'Person ist erforderlich.'], 422);
+        }
+
+        $person = $people->first(fn (VolunteerPerson $item) => (int) $item->id === $personId);
+        if (! $person) {
+            abort(404, 'Nicht auf der Helfer:innenliste.');
+        }
+
+        $roster = $this->rosterForPerson($event, $person);
+        $roster->load(['detail', 'fieldValues.field']);
 
         $firstName = trim((string) ($personInput['first_name'] ?? ''));
         $lastName = trim((string) ($personInput['last_name'] ?? ''));
@@ -280,24 +308,30 @@ class VolunteerPublicFormController extends Controller
     }
 
     /**
-     * @return array{event: Event, person: VolunteerPerson, roster: EventVolunteerRoster}
+     * @return Collection<int, VolunteerPerson>
      */
-    private function resolveRosterMember(string $slug, string $email): array
+    private function rosterPeopleForEmail(Event $event, string $email): Collection
     {
-        $event = $this->eventBySlug($slug);
         if (! (bool) $event->public_volunteer_data_entry) {
             abort(404, 'Dateneingabe ist nicht verfügbar.');
         }
 
-        $person = VolunteerPerson::query()
+        $personIds = EventVolunteerRoster::query()
+            ->where('event', $event->id)
+            ->pluck('volunteer_person');
+
+        return VolunteerPerson::query()
             ->where('regional_partner', $event->regional_partner)
             ->whereRaw('LOWER(email) = ?', [$email])
-            ->first();
+            ->whereIn('id', $personIds)
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->orderBy('id')
+            ->get();
+    }
 
-        if (! $person) {
-            abort(404, 'Nicht auf der Helfer:innenliste.');
-        }
-
+    private function rosterForPerson(Event $event, VolunteerPerson $person): EventVolunteerRoster
+    {
         $roster = EventVolunteerRoster::query()
             ->where('event', $event->id)
             ->where('volunteer_person', $person->id)
@@ -307,10 +341,53 @@ class VolunteerPublicFormController extends Controller
             abort(404, 'Nicht auf der Helfer:innenliste.');
         }
 
+        return $roster;
+    }
+
+    /**
+     * @return array{
+     *     person: array{id: int, first_name: string, last_name: string, mobile: string|null, organization: string|null},
+     *     detail: array<string, mixed>,
+     *     custom: array<string, mixed>,
+     *     meal_options: mixed,
+     *     fields: list<array<string, mixed>>
+     * }
+     */
+    private function formPayload(Event $event, VolunteerPerson $person, EventVolunteerRoster $roster): array
+    {
+        $roster->load(['detail', 'fieldValues.field']);
+        $writableCustomFields = $this->writableCustomFieldsForEvent($event->id);
+        $mealOptions = VolunteerMealOptions::bootstrapForEvent($event->id);
+        $columns = collect(VolunteerRosterColumns::tablePayloadForEvent($event->id))
+            ->reject(fn (array $column) => in_array($column['key'], ['name', 'role'], true))
+            ->filter(function (array $column) {
+                if (($column['kind'] ?? '') === 'custom') {
+                    return (bool) ($column['public_form'] ?? false);
+                }
+
+                return true;
+            })
+            ->values()
+            ->all();
+
         return [
-            'event' => $event,
-            'person' => $person,
-            'roster' => $roster,
+            'person' => $this->serializePerson($person),
+            'detail' => VolunteerRosterDetailFields::serialize($roster->detail),
+            'custom' => VolunteerRosterCustomFields::apiValuesForRow($roster, $writableCustomFields),
+            'meal_options' => $mealOptions,
+            'fields' => $columns,
+        ];
+    }
+
+    /**
+     * @return array{id: int, first_name: string, last_name: string}
+     */
+    private function serializePersonSummary(VolunteerPerson $person): array
+    {
+        return [
+            'id' => (int) $person->id,
+            'first_name' => $person->first_name,
+            'last_name' => $person->last_name,
         ];
     }
 
@@ -341,11 +418,12 @@ class VolunteerPublicFormController extends Controller
     }
 
     /**
-     * @return array{first_name: string, last_name: string, mobile: string|null, organization: string|null}
+     * @return array{id: int, first_name: string, last_name: string, mobile: string|null, organization: string|null}
      */
     private function serializePerson(VolunteerPerson $person): array
     {
         return [
+            'id' => (int) $person->id,
             'first_name' => $person->first_name,
             'last_name' => $person->last_name,
             'mobile' => $person->mobile,

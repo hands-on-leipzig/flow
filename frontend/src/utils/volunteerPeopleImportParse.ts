@@ -1,7 +1,7 @@
 export type VolunteerImportRow = {
   first_name: string
   last_name: string
-  email: string
+  email: string | null
   mobile: string | null
   organization: string | null
 }
@@ -49,6 +49,13 @@ function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
+function parseEmailCell(value: string | undefined): string | null | false {
+  const trimmed = (value ?? '').trim()
+  if (!trimmed) return null
+  if (!isEmail(trimmed)) return false
+  return trimmed
+}
+
 function normalizeImportMobile(value: string | undefined): string | null {
   const trimmed = (value ?? '').trim()
   if (!trimmed) return null
@@ -65,40 +72,37 @@ function normalizeImportOrganization(value: string | undefined): string | null {
 
 function parseParts(parts: string[]): VolunteerImportRow | null {
   const cleaned = parts.map((part) => part.trim())
-  if (cleaned.filter(Boolean).length < 3) return null
+  const first_name = cleaned[0] ?? ''
+  const last_name = cleaned[1] ?? ''
+  if (!first_name || !last_name) return null
+
+  const email = parseEmailCell(cleaned[2])
+  if (email === false) return null
+
+  if (cleaned.length <= 2) {
+    return {first_name, last_name, email: null, mobile: null, organization: null}
+  }
 
   if (cleaned.length === 3) {
-    const [first_name, last_name, email] = cleaned
-    if (!first_name || !last_name || !isEmail(email)) return null
     return {first_name, last_name, email, mobile: null, organization: null}
   }
 
   if (cleaned.length === 4) {
-    const [first_name, last_name, email, mobile] = cleaned
-    if (!first_name || !last_name || !isEmail(email)) return null
     return {
       first_name,
       last_name,
       email,
-      mobile: normalizeImportMobile(mobile),
+      mobile: normalizeImportMobile(cleaned[3]),
       organization: null,
     }
   }
-
-  const first_name = cleaned[0] ?? ''
-  const last_name = cleaned[1] ?? ''
-  const email = cleaned[2] ?? ''
-  const mobile = cleaned[3] ?? null
-  const organization = cleaned.slice(4).join(' ').trim() || null
-
-  if (!first_name || !last_name || !isEmail(email)) return null
 
   return {
     first_name,
     last_name,
     email,
-    mobile: normalizeImportMobile(mobile ?? undefined),
-    organization: normalizeImportOrganization(organization ?? undefined),
+    mobile: normalizeImportMobile(cleaned[3]),
+    organization: normalizeImportOrganization(cleaned.slice(4).join(' ')),
   }
 }
 

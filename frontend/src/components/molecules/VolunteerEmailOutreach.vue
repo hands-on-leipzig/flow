@@ -4,16 +4,19 @@ import axios from 'axios'
 import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {flowFilename} from '@/utils/flowFilename'
+import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 
 export type VolunteerOutreachPerson = {
   id: number
   first_name: string
   last_name: string
-  email: string
+  email: string | null
   mobile?: string | null
   organization?: string | null
   updated_at?: string | null
 }
+
+type OutreachAction = 'copy' | 'mailto' | 'excel'
 
 const props = defineProps<{
   scope: 'pool' | 'roster'
@@ -26,8 +29,15 @@ const eventId = computed(() => eventStore.selectedEvent?.id)
 const eventDate = computed(() => eventStore.selectedEvent?.date)
 const open = ref(false)
 const busy = ref(false)
+const pendingAction = ref<OutreachAction | null>(null)
+const missingEmailCount = ref(0)
+const loadedPeople = ref<VolunteerOutreachPerson[]>([])
 
 const usesCustomPeople = computed(() => props.people !== undefined)
+
+const missingEmailMessage = computed(
+  () => `${missingEmailCount.value} Personen haben keine E-Mail und werden übersprungen.`,
+)
 
 function excelFilename() {
   const name = props.scope === 'roster' ? 'Helfer:innenliste_email' : 'Personen_email'
@@ -36,6 +46,7 @@ function excelFilename() {
 
 function close() {
   open.value = false
+  pendingAction.value = null
 }
 
 function uniqueEmails(people: VolunteerOutreachPerson[]): string[] {
@@ -52,6 +63,10 @@ function uniqueEmails(people: VolunteerOutreachPerson[]): string[] {
   return emails
 }
 
+function missingEmailCountFor(people: VolunteerOutreachPerson[]): number {
+  return people.filter((person) => !person.email?.trim()).length
+}
+
 async function loadPeople(): Promise<VolunteerOutreachPerson[]> {
   if (usesCustomPeople.value) return props.people ?? []
   if (!eventId.value) return []
@@ -63,15 +78,58 @@ async function loadPeople(): Promise<VolunteerOutreachPerson[]> {
   return (data.roster ?? []).map((row: {person: VolunteerOutreachPerson}) => row.person)
 }
 
-async function fetchEmails(): Promise<string[]> {
-  return uniqueEmails(await loadPeople())
-}
-
-async function copyEmails() {
+async function startAction(action: OutreachAction) {
   if (!eventId.value || busy.value) return
   busy.value = true
   try {
-    const emails = await fetchEmails()
+    const people = await loadPeople()
+    loadedPeople.value = people
+    const missing = missingEmailCountFor(people)
+    if (missing > 0) {
+      missingEmailCount.value = missing
+      pendingAction.value = action
+      return
+    }
+    await runAction(action, people)
+  } catch {
+    showGlassToast('Laden fehlgeschlagen', 'error')
+  } finally {
+    busy.value = false
+  }
+}
+
+async function confirmMissing() {
+  const action = pendingAction.value
+  const people = loadedPeople.value
+  pendingAction.value = null
+  if (!action) return
+  busy.value = true
+  try {
+    await runAction(action, people)
+  } finally {
+    busy.value = false
+  }
+}
+
+function cancelMissing() {
+  pendingAction.value = null
+}
+
+async function runAction(action: OutreachAction, people: VolunteerOutreachPerson[]) {
+  if (action === 'copy') {
+    await copyEmails(people)
+    return
+  }
+  if (action === 'mailto') {
+    openMailto(people)
+    return
+  }
+  await downloadExcel(people)
+}
+
+async function copyEmails(people: VolunteerOutreachPerson[]) {
+  try {
+    const emails = uniqueEmails(people)
     if (!emails.length) {
       showGlassToast('Keine E-Mails', 'info')
       return
@@ -81,37 +139,27 @@ async function copyEmails() {
     close()
   } catch {
     showGlassToast('Zwischenablage nicht verfügbar', 'error')
-  } finally {
-    busy.value = false
   }
 }
 
-async function openMailto() {
-  if (!eventId.value || busy.value) return
-  busy.value = true
-  try {
-    const emails = await fetchEmails()
-    if (!emails.length) {
-      showGlassToast('Keine E-Mails', 'info')
-      return
-    }
-    window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}`
-    close()
-  } finally {
-    busy.value = false
+function openMailto(people: VolunteerOutreachPerson[]) {
+  const emails = uniqueEmails(people)
+  if (!emails.length) {
+    showGlassToast('Keine E-Mails', 'info')
+    return
   }
+  window.location.href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}`
+  close()
 }
 
-async function downloadExcel() {
-  if (!eventId.value || busy.value) return
-  busy.value = true
-  try {
-    const people = await loadPeople()
-    if (!people.length) {
-      showGlassToast('Keine Personen', 'info')
-      return
-    }
+async function downloadExcel(people: VolunteerOutreachPerson[]) {
+  if (!eventId.value) return
+  if (!people.length) {
+    showGlassToast('Keine Personen', 'info')
+    return
+  }
 
+  try {
     const params: Record<string, string> = {scope: props.scope, variant: 'email'}
     if (usesCustomPeople.value) {
       params.person_ids = people.map((person) => person.id).filter((id) => id > 0).join(',')
@@ -130,8 +178,6 @@ async function downloadExcel() {
     close()
   } catch {
     showGlassToast('Export fehlgeschlagen', 'error')
-  } finally {
-    busy.value = false
   }
 }
 </script>
@@ -166,7 +212,7 @@ async function downloadExcel() {
               type="button"
               class="vol-email-dialog__btn"
               :disabled="busy"
-              @click="copyEmails"
+              @click="startAction('copy')"
           >
             <i class="bi bi-clipboard" aria-hidden="true"/>
             Ins Clipboard kopieren
@@ -175,7 +221,7 @@ async function downloadExcel() {
               type="button"
               class="vol-email-dialog__btn"
               :disabled="busy"
-              @click="openMailto"
+              @click="startAction('mailto')"
           >
             <i class="bi bi-envelope-open" aria-hidden="true"/>
             Direkt im Mailprogramm öffnen
@@ -184,7 +230,7 @@ async function downloadExcel() {
               type="button"
               class="vol-email-dialog__btn"
               :disabled="busy"
-              @click="downloadExcel"
+              @click="startAction('excel')"
           >
             <i class="bi bi-file-earmark-excel" aria-hidden="true"/>
             Excel download
@@ -193,6 +239,18 @@ async function downloadExcel() {
       </div>
     </div>
   </Teleport>
+
+  <ConfirmationModal
+      :show="!!pendingAction"
+      type="info"
+      title="Personen ohne E-Mail"
+      :message="missingEmailMessage"
+      confirm-text="Weiter"
+      cancel-text="Abbrechen"
+      :disable-confirm-button="busy"
+      @confirm="confirmMissing"
+      @cancel="cancelMissing"
+  />
 </template>
 
 <style scoped>

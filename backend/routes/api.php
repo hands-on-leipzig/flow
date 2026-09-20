@@ -135,6 +135,7 @@ Route::post('/public-volunteer-form/{slug}/otp', [VolunteerPublicFormController:
 Route::post('/public-volunteer-form/{slug}/otp/verify', [VolunteerPublicFormController::class, 'verifyOtp'])
     ->middleware('throttle:20,1');
 Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
+Route::get('/public-volunteer-form/{slug}/person/{volunteer}', [VolunteerPublicFormController::class, 'person']);
 Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
 Route::post('/public-team-form/{slug}/otp', [TeamPublicFormController::class, 'requestOtp'])
     ->middleware('throttle:8,1');

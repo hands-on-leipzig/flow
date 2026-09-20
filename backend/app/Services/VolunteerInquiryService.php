@@ -201,46 +201,29 @@ class VolunteerInquiryService
         $rp = (int) $event->regional_partner;
         $drahtId = $inquiry->hasAccount() ? (int) $inquiry->draht_id : null;
 
-        $person = null;
         if ($drahtId) {
             $person = VolunteerPerson::query()
                 ->where('regional_partner', $rp)
                 ->where('draht_id', $drahtId)
                 ->first();
+            if ($person) {
+                if ($inquiry->mobile && ! $person->mobile) {
+                    $person->mobile = $inquiry->mobile;
+                    $person->save();
+                }
+
+                return $person;
+            }
         }
 
-        if (! $person) {
-            $person = VolunteerPerson::query()
-                ->where('regional_partner', $rp)
-                ->where('email', $inquiry->email)
-                ->first();
-        }
-
-        if (! $person) {
-            return VolunteerPerson::create([
-                'regional_partner' => $rp,
-                'draht_id' => $drahtId,
-                'first_name' => $inquiry->first_name,
-                'last_name' => $inquiry->last_name,
-                'email' => $inquiry->email,
-                'mobile' => $inquiry->mobile,
-            ]);
-        }
-
-        $dirty = false;
-        if ($drahtId && ! $person->hasAccount()) {
-            $person->draht_id = $drahtId;
-            $dirty = true;
-        }
-        if ($inquiry->mobile && ! $person->mobile) {
-            $person->mobile = $inquiry->mobile;
-            $dirty = true;
-        }
-        if ($dirty) {
-            $person->save();
-        }
-
-        return $person;
+        return VolunteerPerson::create([
+            'regional_partner' => $rp,
+            'draht_id' => $drahtId,
+            'first_name' => $inquiry->first_name,
+            'last_name' => $inquiry->last_name,
+            'email' => $inquiry->email,
+            'mobile' => $inquiry->mobile,
+        ]);
     }
 
     private function positiveInt(mixed $value): ?int

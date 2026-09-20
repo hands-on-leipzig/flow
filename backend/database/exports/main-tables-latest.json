@@ -1838,7 +1838,7 @@
             "help_topic": 3,
             "title": "Wie filtere ich die Personen-Tabelle?",
             "sort_order": 26,
-            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\n\u201eNicht auf Helfer:innenliste\u201c reduziert die Liste auf alle Personen, die noch nicht auf der Helfer:innenliste sind.\n\nDie Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
+            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\n\u201eNicht auf Helfer:innenliste\u201c reduziert die Liste auf alle Personen, die noch nicht auf der Helfer:innenliste sind.\n\n\u201eMehrfach verwendete E-Mail\u201c reduziert die Liste auf Personen, deren E-Mail mehr als einmal vorkommt.\n\nDie Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
         },
         {
             "id": 28,
@@ -1852,7 +1852,7 @@
             "help_topic": 3,
             "title": "Wie \u00fcbernehme ich Personendaten aus meinen Excel-Dateien?",
             "sort_order": 28,
-            "body": "\u00dcber den Button \u201eUpload\u201c am oberen Rand der Seite.\n\nVorher in Excel die Daten passend aufbereiten. F\u00fcr den Upload erwartet FLOW:\n\nVorname, Nachname, E-Mail, Mobil, Organisation.\nSpalten durch Tab, Komma oder Semikolon.\nMobil und Organisation optional; E-Mail Pflicht.\n\nDie E-Mail ist der Schl\u00fcssel \u2014 doppelte Adressen werden \u00fcbersprungen."
+            "body": "\u00dcber den Button \u201eUpload\u201c am oberen Rand der Seite.\n\nVorher in Excel die Daten passend aufbereiten. F\u00fcr den Upload erwartet FLOW:\n\nVorname, Nachname, E-Mail, Mobil, Organisation.\nSpalten durch Tab, Komma oder Semikolon.\nMobil, Organisation und E-Mail optional.\n\nJede Zeile wird als neue Person angelegt. Gleiche E-Mail-Adressen werden nicht \u00fcbersprungen."
         },
         {
             "id": 30,
