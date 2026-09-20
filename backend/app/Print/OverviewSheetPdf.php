@@ -69,13 +69,26 @@ class OverviewSheetPdf
             return;
         }
 
-        $cmd = sprintf(
-            '%s %s print:overview-sheet %s > /dev/null 2>&1 &',
-            escapeshellarg(PHP_BINARY),
-            escapeshellarg(base_path('artisan')),
-            escapeshellarg($id),
-        );
-        exec($cmd);
+        // php artisan serve has one thread: Chromium must not wait on this
+        // same process, so start a second PHP. php-fpm (FLOW cloud) kills that
+        // child when the request ends — keep working after the 202 instead.
+        if (PHP_SAPI === 'cli-server') {
+            $cmd = sprintf(
+                'nohup %s %s print:overview-sheet %s > /dev/null 2>&1 &',
+                escapeshellarg(PHP_BINARY),
+                escapeshellarg(base_path('artisan')),
+                escapeshellarg($id),
+            );
+            exec($cmd);
+
+            return;
+        }
+
+        dispatch(function () use ($id): void {
+            ignore_user_abort(true);
+            set_time_limit(120);
+            app(self::class)->run($id);
+        })->afterResponse();
     }
 
     /**
