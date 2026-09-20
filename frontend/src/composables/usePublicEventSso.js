@@ -3,7 +3,7 @@ import {
   emailFromAccessToken,
   publicEventSsoRequestMessage,
   tokenFromPublicEventSsoMessage,
-} from '@hands-on/glass/venues'
+} from '@hands-on/glass/venues/sso'
 
 function localPlannerToken() {
   try {
