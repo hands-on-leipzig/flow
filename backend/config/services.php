@@ -42,6 +42,8 @@ return [
 
     'gotenberg' => [
         'url' => env('GOTENBERG_URL'),
+        'username' => env('GOTENBERG_USERNAME'),
+        'password' => env('GOTENBERG_PASSWORD'),
         'print_page_base_url' => env('PRINT_PAGE_BASE_URL'),
         'timeout' => (int) env('GOTENBERG_TIMEOUT', 90),
     ],

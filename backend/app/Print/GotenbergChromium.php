@@ -38,27 +38,32 @@ class GotenbergChromium
 
         $timeout = max(10, (int) config('services.gotenberg.timeout', 90));
         $a3 = $paper === 'a3';
+        $username = (string) config('services.gotenberg.username');
+        $password = (string) config('services.gotenberg.password');
 
         try {
-            $response = Http::timeout($timeout)
+            $request = Http::timeout($timeout)
                 ->connectTimeout(5)
-                ->asMultipart()
-                ->post($base.'/forms/chromium/convert/url', [
-                    'url' => $pageUrl,
-                    'waitForExpression' => self::WAIT_FOR_PRINT_READY,
-                    'preferCssPageSize' => 'true',
-                    'paperWidth' => $a3 ? '11.69' : '8.27',
-                    'paperHeight' => $a3 ? '16.54' : '11.7',
-                    'marginTop' => '0.12',
-                    'marginBottom' => '0.12',
-                    'marginLeft' => '0.12',
-                    'marginRight' => '0.12',
-                    'scale' => '1',
-                    'printBackground' => 'true',
-                    'emulatedMediaType' => 'print',
-                    'skipNetworkIdleEvent' => 'true',
-                    'failOnHttpStatusCodes' => '[499,599]',
-                ]);
+                ->asMultipart();
+            if ($username !== '' && $password !== '') {
+                $request = $request->withBasicAuth($username, $password);
+            }
+            $response = $request->post($base.'/forms/chromium/convert/url', [
+                'url' => $pageUrl,
+                'waitForExpression' => self::WAIT_FOR_PRINT_READY,
+                'preferCssPageSize' => 'true',
+                'paperWidth' => $a3 ? '11.69' : '8.27',
+                'paperHeight' => $a3 ? '16.54' : '11.7',
+                'marginTop' => '0.12',
+                'marginBottom' => '0.12',
+                'marginLeft' => '0.12',
+                'marginRight' => '0.12',
+                'scale' => '1',
+                'printBackground' => 'true',
+                'emulatedMediaType' => 'print',
+                'skipNetworkIdleEvent' => 'true',
+                'failOnHttpStatusCodes' => '[499,599]',
+            ]);
         } catch (ConnectionException $e) {
             throw new RuntimeException('PDF-Dienst nicht erreichbar.', 0, $e);
         }

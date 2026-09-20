@@ -152,6 +152,52 @@ class PrintOverviewSheetApiTest extends TestCase
         });
     }
 
+    public function test_convert_url_sends_basic_auth_when_configured(): void
+    {
+        config([
+            'services.gotenberg.url' => 'http://gotenberg.test',
+            'services.gotenberg.username' => 'flow',
+            'services.gotenberg.password' => 's3cret',
+        ]);
+        Http::fake([
+            'http://gotenberg.test/forms/chromium/convert/url' => Http::response(
+                '%PDF-1.4 fake',
+                200,
+                ['Content-Type' => 'application/pdf'],
+            ),
+        ]);
+
+        app(GotenbergChromium::class)->convertUrl('https://dev.flow.example/public-schedule/1/print?role=14');
+
+        Http::assertSent(function (Request $request) {
+            return $request->url() === 'http://gotenberg.test/forms/chromium/convert/url'
+                && $request->hasHeader('Authorization', 'Basic '.base64_encode('flow:s3cret'));
+        });
+    }
+
+    public function test_convert_url_omits_basic_auth_when_not_configured(): void
+    {
+        config([
+            'services.gotenberg.url' => 'http://gotenberg.test',
+            'services.gotenberg.username' => null,
+            'services.gotenberg.password' => null,
+        ]);
+        Http::fake([
+            'http://gotenberg.test/forms/chromium/convert/url' => Http::response(
+                '%PDF-1.4 fake',
+                200,
+                ['Content-Type' => 'application/pdf'],
+            ),
+        ]);
+
+        app(GotenbergChromium::class)->convertUrl('https://dev.flow.example/public-schedule/1/print?role=14');
+
+        Http::assertSent(function (Request $request) {
+            return $request->url() === 'http://gotenberg.test/forms/chromium/convert/url'
+                && ! $request->hasHeader('Authorization');
+        });
+    }
+
     public function test_print_page_url_defaults_to_frontend_url(): void
     {
         config([
