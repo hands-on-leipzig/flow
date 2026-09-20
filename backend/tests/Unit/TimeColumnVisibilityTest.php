@@ -61,17 +61,58 @@ class TimeColumnVisibilityTest extends TestCase
         $this->assertTrue($fields['c+f8_duration_opening']['editable']);
         $this->assertTrue($fields['c+f8_duration_awards']['editable']);
         $this->assertFalse($fields['g_duration_awards']['editable']);
+        $this->assertFalse($fields['c_start_opening']['editable']);
+        $this->assertFalse($fields['f8_start_opening']['editable']);
         $this->assertFalse($fields['c_duration_awards']['editable']);
         $this->assertFalse($fields['f8_duration_awards']['editable']);
     }
 
-    public function test_challenge_and_future_with_explore_keep_g_awards(): void
+    public function test_challenge_and_future_integrated_afternoon_uses_cf8_opening_and_g_awards(): void
     {
         $fields = TimeColumnVisibility::fieldsForModes(ExploreMode::INTEGRATED_AFTERNOON->value, 1, 1);
 
+        $this->assertTrue($fields['c+f8_start_opening']['editable']);
+        $this->assertTrue($fields['c+f8_duration_opening']['editable']);
         $this->assertTrue($fields['g_duration_awards']['editable']);
         $this->assertFalse($fields['c+f8_duration_awards']['editable']);
+        $this->assertFalse($fields['c_start_opening']['editable']);
+        $this->assertFalse($fields['f8_start_opening']['editable']);
         $this->assertFalse($fields['c_duration_awards']['editable']);
         $this->assertFalse($fields['f8_duration_awards']['editable']);
+    }
+
+    public function test_challenge_and_future_integrated_morning_uses_g_opening_and_cf8_awards(): void
+    {
+        $fields = TimeColumnVisibility::fieldsForModes(ExploreMode::INTEGRATED_MORNING->value, 1, 1);
+
+        $this->assertTrue($fields['g_start_opening']['editable']);
+        $this->assertTrue($fields['g_duration_opening']['editable']);
+        $this->assertTrue($fields['c+f8_duration_awards']['editable']);
+        $this->assertFalse($fields['g_duration_awards']['editable']);
+        $this->assertFalse($fields['c_start_opening']['editable']);
+        $this->assertFalse($fields['f8_start_opening']['editable']);
+    }
+
+    public function test_challenge_and_future_hybrid_uses_g_opening_and_g_awards(): void
+    {
+        $fields = TimeColumnVisibility::fieldsForModes(ExploreMode::HYBRID_BOTH->value, 1, 1);
+
+        $this->assertTrue($fields['g_start_opening']['editable']);
+        $this->assertTrue($fields['g_duration_opening']['editable']);
+        $this->assertTrue($fields['g_duration_awards']['editable']);
+        $this->assertFalse($fields['c+f8_duration_awards']['editable']);
+        $this->assertFalse($fields['c+f8_start_opening']['editable']);
+    }
+
+    public function test_challenge_and_future_decoupled_uses_cf8_joint_times(): void
+    {
+        $fields = TimeColumnVisibility::fieldsForModes(ExploreMode::DECOUPLED_BOTH->value, 1, 1);
+
+        $this->assertTrue($fields['c+f8_start_opening']['editable']);
+        $this->assertTrue($fields['c+f8_duration_awards']['editable']);
+        $this->assertTrue($fields['e1_start_opening']['editable']);
+        $this->assertTrue($fields['e2_start_opening']['editable']);
+        $this->assertFalse($fields['c_start_opening']['editable']);
+        $this->assertFalse($fields['f8_start_opening']['editable']);
     }
 }

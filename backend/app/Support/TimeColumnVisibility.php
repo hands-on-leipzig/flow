@@ -48,7 +48,7 @@ final class TimeColumnVisibility
                             self::enableLeadTimes($entry, $e, 'f8');
                         }
                         if ($c === 1 && $f8 === 1) {
-                            self::forceJointAwards($entry, $e);
+                            self::forceDualLeadCeremony($entry, $e);
                         }
                         self::enableExploreTimes($entry, $e);
                     }
@@ -156,24 +156,52 @@ final class TimeColumnVisibility
     }
 
     /**
+     * Dual C+F8: solo c_* / f8_* ceremony fields are not editable.
+     *
      * @param  array<string, array{editable: bool}>  $entry
      */
-    private static function forceJointAwards(array &$entry, int $e): void
+    private static function forceDualLeadCeremony(array &$entry, int $e): void
     {
-        $entry['c_duration_awards']['editable'] = false;
-        $entry['f8_duration_awards']['editable'] = false;
+        foreach (['c', 'f8'] as $prefix) {
+            $entry["{$prefix}_start_opening"]['editable'] = false;
+            $entry["{$prefix}_duration_opening"]['editable'] = false;
+            $entry["{$prefix}_duration_awards"]['editable'] = false;
+        }
+        $entry['g_start_opening']['editable'] = false;
+        $entry['g_duration_opening']['editable'] = false;
         $entry['g_duration_awards']['editable'] = false;
+        $entry['c+f8_start_opening']['editable'] = false;
+        $entry['c+f8_duration_opening']['editable'] = false;
         $entry['c+f8_duration_awards']['editable'] = false;
 
-        if ($e === ExploreMode::NONE->value) {
-            $entry['c+f8_start_opening']['editable'] = true;
-            $entry['c+f8_duration_opening']['editable'] = true;
-            $entry['c+f8_duration_awards']['editable'] = true;
+        switch ($e) {
+            case ExploreMode::NONE->value:
+            case ExploreMode::DECOUPLED_MORNING->value:
+            case ExploreMode::DECOUPLED_AFTERNOON->value:
+            case ExploreMode::DECOUPLED_BOTH->value:
+                $entry['c+f8_start_opening']['editable'] = true;
+                $entry['c+f8_duration_opening']['editable'] = true;
+                $entry['c+f8_duration_awards']['editable'] = true;
+                break;
 
-            return;
+            case ExploreMode::INTEGRATED_MORNING->value:
+                $entry['g_start_opening']['editable'] = true;
+                $entry['g_duration_opening']['editable'] = true;
+                $entry['c+f8_duration_awards']['editable'] = true;
+                break;
+
+            case ExploreMode::INTEGRATED_AFTERNOON->value:
+                $entry['c+f8_start_opening']['editable'] = true;
+                $entry['c+f8_duration_opening']['editable'] = true;
+                $entry['g_duration_awards']['editable'] = true;
+                break;
+
+            case ExploreMode::HYBRID_BOTH->value:
+                $entry['g_start_opening']['editable'] = true;
+                $entry['g_duration_opening']['editable'] = true;
+                $entry['g_duration_awards']['editable'] = true;
+                break;
         }
-
-        $entry['g_duration_awards']['editable'] = true;
     }
 
     /**

@@ -133,49 +133,33 @@ class ChallengeGenerator implements ChallengeShapedLead
         });
     }
 
-    public function openingsAndBriefings(bool $explore = false, string $jointPrefix = 'g'): void
+    public function openingsAndBriefings(string $prefix): void
     {
         try {
-            
-            if ($explore) {
-                $startParam = "{$jointPrefix}_start_opening";
-                $durationParam = "{$jointPrefix}_duration_opening";
-                $code = "{$jointPrefix}_opening";
+            $startParam = "{$prefix}_start_opening";
+            $durationParam = "{$prefix}_duration_opening";
+            $code = "{$prefix}_opening";
 
-                $this->cTime->setTime($this->pp($startParam));
-                $this->jTime->set($this->cTime->current());
-                $this->rTime->set($this->cTime->current());
+            $this->cTime->setTime($this->pp($startParam));
+            $this->jTime->set($this->cTime->current());
+            $this->rTime->set($this->cTime->current());
 
-                $this->writer->withGroup($code, function () use ($code, $durationParam) {
-                    $this->writer->insertActivity($code, $this->cTime, $this->pp($durationParam));
-                });
+            $this->writer->withGroup($code, function () use ($code, $durationParam) {
+                $this->writer->insertActivity($code, $this->cTime, $this->pp($durationParam));
+            });
 
-                $this->jTime->addMinutes($this->pp($durationParam));
-                $this->rTime->addMinutes($this->pp($durationParam));
-
-            } else {
-
-                $this->cTime->setTime($this->pp('c_start_opening'));
-                $this->jTime->set($this->cTime->current());
-                $this->rTime->set($this->cTime->current());
-
-                $this->writer->withGroup('c_opening', function () {
-                    $this->writer->insertActivity('c_opening', $this->cTime, $this->pp('c_duration_opening'));
-                });
-
-                $this->jTime->addMinutes($this->pp('c_duration_opening'));
-                $this->rTime->addMinutes($this->pp('c_duration_opening'));
-            }
+            $this->jTime->addMinutes($this->pp($durationParam));
+            $this->rTime->addMinutes($this->pp($durationParam));
 
             $this->briefings($this->cTime->current());
 
         } catch (\Throwable $e) {
             Log::error('ChallengeGenerator: Error in openings and briefings', [
-                'explore' => $explore,
+                'prefix' => $prefix,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Fehler beim Generieren der Challenge-Eröffnung und Briefings (Explore: " . ($explore ? 'aktiv' : 'inaktiv') . "): {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Challenge-Eröffnung und Briefings ({$prefix}): {$e->getMessage()}", 0, $e);
         }
     }
 
@@ -747,11 +731,9 @@ class ChallengeGenerator implements ChallengeShapedLead
     }
 
 
-    public function awards(bool $explore = false, string $jointPrefix = 'g'): void
+    public function awards(string $prefix): void
     {
         try {
-            if ($explore) {
-
             if ($this->exploreMode() == ExploreMode::HYBRID_BOTH->value) {
                 // Calculate backwards from c_time to determine when Explore group 2 should start
                 // Formula: c_time - e_ready_awards - e_ready_deliberations - e2_duration_deliberations
@@ -796,28 +778,20 @@ class ChallengeGenerator implements ChallengeShapedLead
                 }
             }
 
-            $awardsCode = "{$jointPrefix}_awards";
-            $awardsDuration = "{$jointPrefix}_duration_awards";
+            $awardsCode = "{$prefix}_awards";
+            $awardsDuration = "{$prefix}_duration_awards";
             $this->writer->withGroup($awardsCode, function () use ($awardsCode, $awardsDuration) {
                 $this->writer->insertActivity($awardsCode, $this->cTime, $this->pp($awardsDuration));
             });
             $this->cTime->addMinutes($this->pp($awardsDuration));
 
-        } else {
-
-            $this->writer->withGroup('c_awards', function () {
-                $this->writer->insertActivity('c_awards', $this->cTime, $this->pp('c_duration_awards'));
-            });
-            $this->cTime->addMinutes($this->pp('c_duration_awards'));
-        }
-
         } catch (\Throwable $e) {
             Log::error('ChallengeGenerator: Error in awards', [
-                'explore' => $explore,
+                'prefix' => $prefix,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            throw new \RuntimeException("Fehler beim Generieren der Challenge-Preisverleihung (Explore: " . ($explore ? 'aktiv' : 'inaktiv') . "): {$e->getMessage()}", 0, $e);
+            throw new \RuntimeException("Fehler beim Generieren der Challenge-Preisverleihung ({$prefix}): {$e->getMessage()}", 0, $e);
         }
     }
 

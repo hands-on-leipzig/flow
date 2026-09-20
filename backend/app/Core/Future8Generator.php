@@ -121,41 +121,28 @@ class Future8Generator implements ChallengeShapedLead
         });
     }
 
-    public function openingsAndBriefings(bool $explore = false, string $jointPrefix = 'g'): void
+    public function openingsAndBriefings(string $prefix): void
     {
         try {
-            if ($explore) {
-                $startParam = "{$jointPrefix}_start_opening";
-                $durationParam = "{$jointPrefix}_duration_opening";
-                $code = "{$jointPrefix}_opening";
+            $startParam = "{$prefix}_start_opening";
+            $durationParam = "{$prefix}_duration_opening";
+            $code = "{$prefix}_opening";
 
-                $this->cTime->setTime($this->pp($startParam));
-                $this->jTime->set($this->cTime->current());
-                $this->rTime->set($this->cTime->current());
+            $this->cTime->setTime($this->pp($startParam));
+            $this->jTime->set($this->cTime->current());
+            $this->rTime->set($this->cTime->current());
 
-                $this->writer->withGroup($code, function () use ($code, $durationParam) {
-                    $this->writer->insertActivity($code, $this->cTime, $this->pp($durationParam));
-                });
+            $this->writer->withGroup($code, function () use ($code, $durationParam) {
+                $this->writer->insertActivity($code, $this->cTime, $this->pp($durationParam));
+            });
 
-                $this->jTime->addMinutes($this->pp($durationParam));
-                $this->rTime->addMinutes($this->pp($durationParam));
-            } else {
-                $this->cTime->setTime($this->pp('f8_start_opening'));
-                $this->jTime->set($this->cTime->current());
-                $this->rTime->set($this->cTime->current());
-
-                $this->writer->withGroup('f8_opening', function () {
-                    $this->writer->insertActivity('f8_opening', $this->cTime, $this->pp('f8_duration_opening'));
-                });
-
-                $this->jTime->addMinutes($this->pp('f8_duration_opening'));
-                $this->rTime->addMinutes($this->pp('f8_duration_opening'));
-            }
+            $this->jTime->addMinutes($this->pp($durationParam));
+            $this->rTime->addMinutes($this->pp($durationParam));
 
             $this->briefings($this->cTime->current());
         } catch (\Throwable $e) {
             Log::error('Future8Generator: Error in openings and briefings', [
-                'explore' => $explore,
+                'prefix' => $prefix,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
@@ -567,56 +554,49 @@ class Future8Generator implements ChallengeShapedLead
         }
     }
 
-    public function awards(bool $explore = false, string $jointPrefix = 'g'): void
+    public function awards(string $prefix): void
     {
         try {
-            if ($explore) {
-                if ($this->exploreMode() == ExploreMode::HYBRID_BOTH->value) {
-                    $exploreStartTime = clone $this->cTime;
+            if ($this->exploreMode() == ExploreMode::HYBRID_BOTH->value) {
+                $exploreStartTime = clone $this->cTime;
 
-                    $exploreStartTime->subMinutes($this->pp('e_ready_awards'));
-                    $exploreStartTime->subMinutes($this->pp('e2_duration_deliberations'));
-                    $exploreStartTime->subMinutes($this->pp('e_ready_deliberations'));
+                $exploreStartTime->subMinutes($this->pp('e_ready_awards'));
+                $exploreStartTime->subMinutes($this->pp('e2_duration_deliberations'));
+                $exploreStartTime->subMinutes($this->pp('e_ready_deliberations'));
 
-                    $e2Rounds = $this->pp('e2_rounds');
-                    $durationPerRound = $this->pp('e_duration_with_team') + $this->pp('e_duration_scoring');
-                    $exploreStartTime->subMinutes($e2Rounds * $durationPerRound);
-                    if ($e2Rounds > 1) {
-                        $exploreStartTime->subMinutes(($e2Rounds - 1) * $this->pp('e_duration_break'));
-                    }
-
-                    $exploreStartTime->subMinutes($this->pp('e_ready_action'));
-                    $exploreStartTime->subMinutes($this->pp('e2_duration_opening'));
-
-                    $this->integratedExplore->startTime = $exploreStartTime->current();
-                } elseif ($this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
-                    $exploreEnd = $this->integratedExplore->exploreEndTime;
-                    if ($exploreEnd !== null) {
-                        $baseDate = $this->cTime->current()->format('Y-m-d');
-                        $cTime = new \DateTime($baseDate.' '.$this->cTime->format('H:i'));
-                        $exploreTime = new \DateTime($baseDate.' '.$exploreEnd);
-
-                        if ($exploreTime > $cTime) {
-                            $this->cTime->setTime($exploreEnd);
-                        }
-                    }
+                $e2Rounds = $this->pp('e2_rounds');
+                $durationPerRound = $this->pp('e_duration_with_team') + $this->pp('e_duration_scoring');
+                $exploreStartTime->subMinutes($e2Rounds * $durationPerRound);
+                if ($e2Rounds > 1) {
+                    $exploreStartTime->subMinutes(($e2Rounds - 1) * $this->pp('e_duration_break'));
                 }
 
-                $awardsCode = "{$jointPrefix}_awards";
-                $awardsDuration = "{$jointPrefix}_duration_awards";
-                $this->writer->withGroup($awardsCode, function () use ($awardsCode, $awardsDuration) {
-                    $this->writer->insertActivity($awardsCode, $this->cTime, $this->pp($awardsDuration));
-                });
-                $this->cTime->addMinutes($this->pp($awardsDuration));
-            } else {
-                $this->writer->withGroup('f8_awards', function () {
-                    $this->writer->insertActivity('f8_awards', $this->cTime, $this->pp('f8_duration_awards'));
-                });
-                $this->cTime->addMinutes($this->pp('f8_duration_awards'));
+                $exploreStartTime->subMinutes($this->pp('e_ready_action'));
+                $exploreStartTime->subMinutes($this->pp('e2_duration_opening'));
+
+                $this->integratedExplore->startTime = $exploreStartTime->current();
+            } elseif ($this->exploreMode() == ExploreMode::INTEGRATED_AFTERNOON->value) {
+                $exploreEnd = $this->integratedExplore->exploreEndTime;
+                if ($exploreEnd !== null) {
+                    $baseDate = $this->cTime->current()->format('Y-m-d');
+                    $cTime = new \DateTime($baseDate.' '.$this->cTime->format('H:i'));
+                    $exploreTime = new \DateTime($baseDate.' '.$exploreEnd);
+
+                    if ($exploreTime > $cTime) {
+                        $this->cTime->setTime($exploreEnd);
+                    }
+                }
             }
+
+            $awardsCode = "{$prefix}_awards";
+            $awardsDuration = "{$prefix}_duration_awards";
+            $this->writer->withGroup($awardsCode, function () use ($awardsCode, $awardsDuration) {
+                $this->writer->insertActivity($awardsCode, $this->cTime, $this->pp($awardsDuration));
+            });
+            $this->cTime->addMinutes($this->pp($awardsDuration));
         } catch (\Throwable $e) {
             Log::error('Future8Generator: Error in awards', [
-                'explore' => $explore,
+                'prefix' => $prefix,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
