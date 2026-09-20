@@ -3,7 +3,7 @@ export type VolunteerPersonRef = {
   id: number
   first_name: string
   last_name: string
-  email: string
+  email: string | null
   mobile?: string | null
   organization?: string | null
   updated_at?: string | null

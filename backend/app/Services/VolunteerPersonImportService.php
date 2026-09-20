@@ -35,18 +35,9 @@ class VolunteerPersonImportService
             ];
         }
 
-        $existingEmails = VolunteerPerson::query()
-            ->where('regional_partner', $event->regional_partner)
-            ->pluck('email')
-            ->map(fn (string $email) => strtolower(trim($email)))
-            ->flip()
-            ->all();
-
-        $seenInBatch = [];
         $results = [];
         $errors = [];
         $created = 0;
-        $skipped = 0;
         $toInsert = [];
 
         foreach ($rows as $index => $rawRow) {
@@ -57,36 +48,22 @@ class VolunteerPersonImportService
             if ($validation['error'] !== null) {
                 $errors[] = [
                     'row' => $rowNumber,
-                    'email' => $normalized['email'] !== '' ? $normalized['email'] : null,
+                    'email' => $normalized['email'],
                     'message' => $validation['error'],
                 ];
                 $results[] = [
                     'row' => $rowNumber,
-                    'email' => $normalized['email'] !== '' ? $normalized['email'] : null,
+                    'email' => $normalized['email'],
                     'action' => 'error',
                     'message' => $validation['error'],
                 ];
                 continue;
             }
 
-            $email = strtolower(trim((string) $normalized['email']));
-
-            if (isset($existingEmails[$email]) || isset($seenInBatch[$email])) {
-                $skipped++;
-                $results[] = [
-                    'row' => $rowNumber,
-                    'email' => $email,
-                    'action' => 'skip',
-                    'message' => 'E-Mail bereits vorhanden',
-                ];
-                continue;
-            }
-
-            $seenInBatch[$email] = true;
             $created++;
             $results[] = [
                 'row' => $rowNumber,
-                'email' => $email,
+                'email' => $normalized['email'],
                 'action' => 'create',
             ];
 
@@ -94,7 +71,7 @@ class VolunteerPersonImportService
                 'regional_partner' => $event->regional_partner,
                 'first_name' => $normalized['first_name'],
                 'last_name' => $normalized['last_name'],
-                'email' => $email,
+                'email' => $normalized['email'],
                 'mobile' => $validation['mobile'],
                 'organization' => $normalized['organization'],
                 'created_at' => now(),
@@ -108,7 +85,7 @@ class VolunteerPersonImportService
 
         return [
             'created' => $created,
-            'skipped' => $skipped,
+            'skipped' => 0,
             'errors' => $errors,
             'results' => $results,
         ];
@@ -116,14 +93,16 @@ class VolunteerPersonImportService
 
     /**
      * @param  array<string, mixed>  $row
-     * @return array{first_name: string, last_name: string, email: string, mobile: ?string, organization: ?string}
+     * @return array{first_name: string, last_name: string, email: ?string, mobile: ?string, organization: ?string}
      */
     private function normalizeRow(array $row): array
     {
+        $email = $this->nullableTrim($row['email'] ?? null);
+
         return [
             'first_name' => trim((string) ($row['first_name'] ?? '')),
             'last_name' => trim((string) ($row['last_name'] ?? '')),
-            'email' => trim((string) ($row['email'] ?? '')),
+            'email' => $email !== null ? strtolower($email) : null,
             'mobile' => $this->nullableTrim($row['mobile'] ?? null),
             'organization' => $this->nullableTrim($row['organization'] ?? null),
         ];
@@ -141,6 +120,7 @@ class VolunteerPersonImportService
     }
 
     /**
+     * @param  array{first_name: string, last_name: string, email: ?string, mobile: ?string, organization: ?string}  $row
      * @return array{error: ?string, mobile: ?string}
      */
     private function validateRow(array $row): array
@@ -149,7 +129,7 @@ class VolunteerPersonImportService
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => [
-                'required',
+                'nullable',
                 'email',
                 'max:255',
             ],

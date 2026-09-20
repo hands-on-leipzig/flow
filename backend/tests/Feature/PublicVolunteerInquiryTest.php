@@ -256,7 +256,7 @@ class PublicVolunteerInquiryTest extends TestCase
         $this->assertSame(4242, $listed->getData(true)['inquiries'][0]['draht_id']);
     }
 
-    public function test_accept_links_existing_local_person_by_email_and_attaches_draht_id(): void
+    public function test_accept_creates_second_person_when_email_already_exists_without_draht_id(): void
     {
         $this->mockOpenPositions([
             1 => [[
@@ -266,7 +266,7 @@ class PublicVolunteerInquiryTest extends TestCase
             ]],
         ]);
 
-        VolunteerPerson::query()->create([
+        $existing = VolunteerPerson::query()->create([
             'regional_partner' => 1,
             'first_name' => 'Ada',
             'last_name' => 'Lovelace',
@@ -286,11 +286,13 @@ class PublicVolunteerInquiryTest extends TestCase
         $inquiry = VolunteerInquiry::query()->firstOrFail();
         app(EventVolunteerInquiryController::class)->accept($event, $inquiry);
 
-        $this->assertSame(1, VolunteerPerson::query()->count());
+        $this->assertSame(2, VolunteerPerson::query()->count());
+        $this->assertNull(VolunteerPerson::query()->find($existing->id)?->draht_id);
         $this->assertDatabaseHas('volunteer_person', [
             'email' => 'ada@example.org',
             'draht_id' => 88,
         ]);
+        $this->assertNotSame($existing->id, (int) $inquiry->fresh()->volunteer_person);
     }
 
     public function test_accept_matches_existing_person_by_draht_id_even_when_email_differs(): void

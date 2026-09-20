@@ -60,6 +60,7 @@ const tableColumns = ref<VolunteerTableColumn[]>([...PERSON_TABLE_COLUMNS])
 const assignedIds = ref<Set<number>>(new Set())
 const search = ref('')
 const notOnRosterOnly = ref(false)
+const sharedEmailOnly = ref(false)
 type SortKey = 'first_name' | 'last_name'
 const sortKey = ref<SortKey>('last_name')
 const sortDir = ref<'asc' | 'desc'>('asc')
@@ -122,10 +123,35 @@ function personMatchesNameFilter(person: Person) {
   return volunteerSearchHaystack(person).includes(query)
 }
 
+function personEmailKey(person: Person): string | null {
+  const email = person.email?.trim().toLowerCase()
+  return email ? email : null
+}
+
+const sharedEmailKeys = computed(() => {
+  const counts = new Map<string, number>()
+  for (const person of people.value) {
+    const key = personEmailKey(person)
+    if (!key) continue
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  const keys = new Set<string>()
+  for (const [key, count] of counts) {
+    if (count > 1) keys.add(key)
+  }
+  return keys
+})
+
 const filtered = computed(() => {
   let list = people.value
   if (notOnRosterOnly.value) {
     list = list.filter((p) => !p.on_roster)
+  }
+  if (sharedEmailOnly.value) {
+    list = list.filter((p) => {
+      const key = personEmailKey(p)
+      return key !== null && sharedEmailKeys.value.has(key)
+    })
   }
   list = list.filter(personMatchesNameFilter)
   const key = sortKey.value
@@ -277,7 +303,7 @@ function startEdit(p: Person) {
   editDraft.value = {
     first_name: p.first_name,
     last_name: p.last_name,
-    email: p.email,
+    email: p.email ?? '',
     mobile: p.mobile ?? '',
     organization: p.organization ?? '',
   }
@@ -285,8 +311,8 @@ function startEdit(p: Person) {
 }
 
 function buildPayload(draft: PersonDraft) {
-  if (!draft.first_name.trim() || !draft.last_name.trim() || !draft.email.trim()) {
-    showGlassToast('Vorname, Nachname und E-Mail sind erforderlich.', 'info')
+  if (!draft.first_name.trim() || !draft.last_name.trim()) {
+    showGlassToast('Vorname und Nachname sind erforderlich.', 'info')
     return null
   }
   const mobileResult = resolveMobile(draft.mobile)
@@ -297,7 +323,7 @@ function buildPayload(draft: PersonDraft) {
     payload: {
       first_name: draft.first_name.trim(),
       last_name: draft.last_name.trim(),
-      email: draft.email.trim(),
+      email: draft.email.trim() || null,
       mobile: mobileResult.normalized,
       organization: draft.organization.trim() || null,
     },
@@ -460,7 +486,7 @@ function onPeopleImported() {
   showGlassToast('Import abgeschlossen', 'success')
 }
 
-watch([search, notOnRosterOnly], () => {
+watch([search, notOnRosterOnly, sharedEmailOnly], () => {
   if (editingId.value !== null) cancelEdit()
 })
 
@@ -608,7 +634,7 @@ watch(eventId, () => {
                     v-model="createDraft.email"
                     class="glass-input glass-input--sm"
                     type="email"
-                    placeholder="E-Mail *"
+                    placeholder="E-Mail"
                 />
               </td>
               <td>
@@ -680,6 +706,17 @@ watch(eventId, () => {
             aria-label="Nach Name filtern"
             autocomplete="off"
         >
+        <button
+            type="button"
+            class="vol-staffing-filter"
+            :class="{'vol-staffing-filter--active': sharedEmailOnly}"
+            :aria-pressed="sharedEmailOnly"
+            title="Nur Personen anzeigen, deren E-Mail mehrfach vorkommt"
+            @click="sharedEmailOnly = !sharedEmailOnly"
+        >
+          <i class="bi bi-envelope-exclamation vol-staffing-filter__icon" aria-hidden="true"/>
+          <span class="vol-staffing-filter__label">Mehrfach verwendete E-Mail</span>
+        </button>
         <span class="vol-toolbar__count">{{ filtered.length }} / {{ people.length }}</span>
       </div>
 
@@ -768,7 +805,7 @@ watch(eventId, () => {
                       v-model="editDraft.email"
                       class="glass-input glass-input--sm"
                       type="email"
-                      placeholder="E-Mail *"
+                      placeholder="E-Mail"
                   />
                 </td>
                 <td>
@@ -825,7 +862,8 @@ watch(eventId, () => {
                 </td>
                 <td>{{ p.last_name }}</td>
                 <td>
-                  <a class="vol-mailto" :href="`mailto:${p.email}`">{{ p.email }}</a>
+                  <a v-if="p.email" class="vol-mailto" :href="`mailto:${p.email}`">{{ p.email }}</a>
+                  <span v-else>—</span>
                 </td>
                 <td>{{ p.mobile?.trim() || '—' }}</td>
                 <td>{{ p.organization?.trim() || '—' }}</td>

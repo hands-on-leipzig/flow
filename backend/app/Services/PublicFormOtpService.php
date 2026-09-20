@@ -210,18 +210,15 @@ class PublicFormOtpService
                 return false;
             }
 
-            $person = VolunteerPerson::query()
+            return VolunteerPerson::query()
                 ->where('regional_partner', $event->regional_partner)
                 ->whereRaw('LOWER(email) = ?', [$email])
-                ->first();
-
-            if (! $person) {
-                return false;
-            }
-
-            return EventVolunteerRoster::query()
-                ->where('event', $event->id)
-                ->where('volunteer_person', $person->id)
+                ->whereExists(function ($query) use ($event) {
+                    $query->selectRaw('1')
+                        ->from('event_volunteer_roster')
+                        ->whereColumn('event_volunteer_roster.volunteer_person', 'volunteer_person.id')
+                        ->where('event_volunteer_roster.event', $event->id);
+                })
                 ->exists();
         }
 
