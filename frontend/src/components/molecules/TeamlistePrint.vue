@@ -40,7 +40,7 @@ async function downloadPdf() {
   <article class="liquid-surface-inner role-sheets">
     <header class="role-sheets__head">
       <h2 class="role-sheets__title">Teamliste</h2>
-      <p class="role-sheets__sub">Teams mit Räumen und Gutachter-/Jury-Gruppen — für Check-In und Briefings.</p>
+      <p class="role-sheets__sub">Teams mit Räumen und Gutachter:innen-/Jury-Gruppen</p>
     </header>
     <footer class="role-sheets__actions">
       <button

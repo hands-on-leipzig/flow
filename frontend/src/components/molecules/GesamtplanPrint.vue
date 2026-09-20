@@ -40,7 +40,7 @@ async function downloadPdf() {
   <article class="liquid-surface-inner role-sheets">
     <header class="role-sheets__head">
       <h2 class="role-sheets__title">Gesamtplan</h2>
-      <p class="role-sheets__sub">Volle Details in einfacher Formatierung.</p>
+      <p class="role-sheets__sub">Alle (!) Aktivitäten in einer Liste</p>
     </header>
     <footer class="role-sheets__actions">
       <button

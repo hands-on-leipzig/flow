@@ -129,7 +129,7 @@ async function downloadPdf() {
     <header class="role-sheets__head">
       <h2 class="role-sheets__title">Match-Plan SCORE</h2>
       <p class="role-sheets__sub">
-        Vorrunden-Matches zum Übernehmen in
+        Vorrunden-Matches zum Übernehmen nach
         <a
           href="https://evaluation.hands-on-technology.org/"
           target="_blank"
