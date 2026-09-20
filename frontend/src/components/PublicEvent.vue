@@ -6,7 +6,7 @@ import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {imageUrl} from '@/utils/images'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
-import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleShort} from '@/utils/eventTitle'
+import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleLong, getEventTitleShort} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import {usePublicEventSso} from '@/composables/usePublicEventSso'
 import EventMap from '@/components/molecules/EventMap.vue'
@@ -267,6 +267,31 @@ const hasTeamsSection = computed(() => teamLanes.value.length > 0)
 const helperSearch = computed(() => scheduleInfo.value?.helper_search ?? null)
 
 const showHelperSearchSection = computed(() => !!scheduleInfo.value && !!helperSearch.value)
+
+function contactEmail(contact) {
+  if (!contact || typeof contact !== 'object') return ''
+  const raw = contact.contact_email ?? contact.email ?? contact.mail ?? ''
+  return typeof raw === 'string' ? raw.trim() : ''
+}
+
+const helperInquiryEmail = computed(() => {
+  const contacts = scheduleInfo.value?.contact
+  if (Array.isArray(contacts)) {
+    for (const contact of contacts) {
+      const email = contactEmail(contact)
+      if (email) return email
+    }
+    return ''
+  }
+  return contactEmail(contacts)
+})
+
+const helperInquiryMailto = computed(() => {
+  const email = helperInquiryEmail.value
+  if (!email) return ''
+  const name = getEventTitleLong(event.value) || event.value?.name || 'Veranstaltung'
+  return `mailto:${email}?subject=${encodeURIComponent(`Anfrage Helfer:in für ${name}`)}`
+})
 
 const volunteerDataEntry = computed(() => scheduleInfo.value?.volunteer_data_entry ?? null)
 
@@ -675,7 +700,11 @@ onMounted(async () => {
           </div>
         </div>
 
-        <p class="pe-helper-cta">Bei Interesse bitte einfach melden.</p>
+        <a
+            v-if="helperInquiryMailto"
+            class="pe-helper-cta"
+            :href="helperInquiryMailto"
+        >Bei Interesse bitte per E-Mail melden.</a>
       </section>
 
       <!-- Teams -->
@@ -1309,9 +1338,16 @@ onMounted(async () => {
 }
 
 .pe-helper-cta {
+  display: inline-block;
   margin: 0.85rem 0 0;
   font-size: 0.9rem;
-  color: var(--color-text-muted);
+  font-weight: 550;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.pe-helper-cta:hover {
+  text-decoration: underline;
 }
 
 .pe-volunteer-form-intro {
