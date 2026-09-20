@@ -9,6 +9,7 @@ use App\Models\EventTeamFieldValue;
 use App\Models\Team;
 use App\Services\PublicFormOtpService;
 use App\Services\SeasonService;
+use App\Support\KeycloakAccessToken;
 use App\Support\TeamCoachLookup;
 use App\Support\TeamDataColumns;
 use App\Support\TeamDataCustomFields;
@@ -40,6 +41,7 @@ class TeamPublicFormController extends Controller
             PublicFormOtpService::PURPOSE_TEAM,
             $this->otp->eventForSlug($slug),
             $email,
+            KeycloakAccessToken::email($request),
         );
 
         return response()->json(['ok' => true]);

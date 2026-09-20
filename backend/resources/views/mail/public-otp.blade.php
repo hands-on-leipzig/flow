@@ -22,4 +22,9 @@
         </tr>
     </table>
     <p style="margin:0;font-family:{{ $fontStack }};color:#475569;font-size:14px;">Der Code läuft in 15 Minuten ab.</p>
+    @if ($intendedEmail)
+        <p style="margin:18px 0 0;font-family:{{ $fontStack }};color:#92400e;font-size:14px;">
+            Testumgebung: Dieser Code gilt für {{ $intendedEmail }} und wurde an die testende Person umgeleitet.
+        </p>
+    @endif
 @endsection

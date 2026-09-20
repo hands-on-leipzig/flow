@@ -7,6 +7,7 @@ import {
   photoConsentStatusClass,
   photoConsentStatusForTeam,
 } from '@/utils/photoConsentStatus'
+import PublicFormOtpTestNotice from '@/components/molecules/PublicFormOtpTestNotice.vue'
 
 type FormColumn = {
   key: string
@@ -47,6 +48,7 @@ const props = defineProps<{
   slug: string
   event?: Record<string, unknown> | null
   ssoToken?: string
+  ssoEmail?: string
 }>()
 
 const emit = defineEmits<{
@@ -118,7 +120,7 @@ async function proceedFromEmail() {
   formToken.value = ''
   requestLoading.value = true
   try {
-    await axios.post(`/public-team-form/${props.slug}/otp`, {email: trimmed})
+    await axios.post(`/public-team-form/${props.slug}/otp`, {email: trimmed}, {headers: otpHeaders()})
     emit('update:step', 'otp')
   } catch (error: unknown) {
     const message = axios.isAxiosError(error)
@@ -289,6 +291,7 @@ watch(
     </header>
 
     <div v-if="step === 'email'" class="vol-public-form__step">
+      <PublicFormOtpTestNotice :sso-email="ssoEmail"/>
       <label class="vol-public-form__label" for="team-form-email">E-Mail</label>
       <input
           id="team-form-email"
@@ -310,6 +313,7 @@ watch(
     </div>
 
     <div v-else-if="step === 'otp'" class="vol-public-form__step">
+      <PublicFormOtpTestNotice :sso-email="ssoEmail"/>
       <p class="vol-public-form__info">
         Wenn diese E-Mail für diese Veranstaltung als Coach bekannt ist, kommt gleich ein Code.
       </p>

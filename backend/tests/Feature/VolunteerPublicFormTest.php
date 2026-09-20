@@ -486,7 +486,7 @@ class VolunteerPublicFormTest extends TestCase
         );
     }
 
-    public function test_otp_mail_goes_to_roster_member_only(): void
+    public function test_otp_mail_is_not_sent_without_tester_on_non_prod(): void
     {
         $this->seedEvent(['public_volunteer_data_entry' => true]);
         $this->seedRosterMember();
@@ -500,10 +500,36 @@ class VolunteerPublicFormTest extends TestCase
         $this->postJson('/api/public-volunteer-form/test-event/otp', [
             'email' => 'max@example.com',
         ])->assertOk();
+        Mail::assertNothingSent();
+    }
+
+    public function test_otp_mail_goes_to_tester_on_non_prod(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        $this->installKeycloakKey();
+        Mail::fake();
+
+        $this->withHeaders($this->ssoBearer('tester@example.com'))
+            ->postJson('/api/public-volunteer-form/test-event/otp', [
+                'email' => 'nobody@example.com',
+            ])
+            ->assertOk();
+        Mail::assertNothingSent();
+
+        $this->withHeaders($this->ssoBearer('tester@example.com'))
+            ->postJson('/api/public-volunteer-form/test-event/otp', [
+                'email' => 'max@example.com',
+            ])
+            ->assertOk();
         Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
-            return $mail->hasTo('max@example.com')
+            return $mail->hasTo('tester@example.com')
+                && $mail->intendedEmail === 'max@example.com'
                 && $mail->eventName === 'Test Event'
                 && preg_match('/^\d{6}$/', $mail->code) === 1;
+        });
+        Mail::assertNotSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
+            return $mail->hasTo('max@example.com');
         });
     }
 
@@ -511,20 +537,23 @@ class VolunteerPublicFormTest extends TestCase
     {
         $this->seedEvent(['public_volunteer_data_entry' => true]);
         $this->seedRosterMember();
+        $this->installKeycloakKey();
         Mail::fake();
 
         $this->getJson('/api/public-volunteer-form/test-event/lookup?email=max@example.com')
             ->assertStatus(401);
 
-        $this->postJson('/api/public-volunteer-form/test-event/otp', [
-            'email' => 'max@example.com',
-        ])->assertOk();
+        $this->withHeaders($this->ssoBearer('tester@example.com'))
+            ->postJson('/api/public-volunteer-form/test-event/otp', [
+                'email' => 'max@example.com',
+            ])
+            ->assertOk();
 
         $code = null;
         Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) use (&$code) {
             $code = $mail->code;
 
-            return true;
+            return $mail->hasTo('tester@example.com');
         });
 
         $token = $this->postJson('/api/public-volunteer-form/test-event/otp/verify', [
@@ -537,6 +566,23 @@ class VolunteerPublicFormTest extends TestCase
             ->getJson('/api/public-volunteer-form/test-event/lookup?email=max@example.com')
             ->assertOk()
             ->assertJsonPath('person.first_name', 'Max');
+    }
+
+    public function test_otp_mail_goes_to_roster_member_on_production(): void
+    {
+        config(['app.env' => 'production']);
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        Mail::fake();
+
+        $this->postJson('/api/public-volunteer-form/test-event/otp', [
+            'email' => 'max@example.com',
+        ])->assertOk();
+        Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
+            return $mail->hasTo('max@example.com')
+                && $mail->intendedEmail === null
+                && $mail->eventName === 'Test Event';
+        });
     }
 
     public function test_keycloak_token_unlocks_lookup_without_otp(): void

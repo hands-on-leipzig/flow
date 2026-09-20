@@ -11,6 +11,7 @@ class PublicOtpMail extends Mailable
     public function __construct(
         public readonly string $eventName,
         public readonly string $code,
+        public readonly ?string $intendedEmail = null,
     ) {}
 
     public function envelope(): Envelope

@@ -14,6 +14,7 @@ import PublicSchedule from '@/components/PublicSchedule.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
 import VolunteerPublicFormFlow from '@/components/volunteers/VolunteerPublicFormFlow.vue'
 import TeamPublicFormFlow from '@/components/teams/TeamPublicFormFlow.vue'
+import {isNonProductionPublicHost} from '@/utils/publicFormOtpEnv'
 
 const route = useRoute()
 const router = useRouter()
@@ -309,6 +310,11 @@ async function openVolunteerForm() {
   await awaitSso()
   teamFormStep.value = null
   teamFormEmail.value = ''
+  if (isNonProductionPublicHost()) {
+    formEmail.value = ''
+    formStep.value = 'email'
+    return
+  }
   formEmail.value = ssoEmail.value
   formStep.value = ssoEmail.value ? 'data' : 'email'
 }
@@ -322,6 +328,11 @@ async function openTeamForm() {
   await awaitSso()
   formStep.value = null
   formEmail.value = ''
+  if (isNonProductionPublicHost()) {
+    teamFormEmail.value = ''
+    teamFormStep.value = 'email'
+    return
+  }
   teamFormEmail.value = ssoEmail.value
   teamFormStep.value = ssoEmail.value ? 'data' : 'email'
 }
@@ -424,6 +435,7 @@ onMounted(async () => {
           :email="formEmail"
           :slug="String(route.params.slug ?? '')"
           :sso-token="ssoToken"
+          :sso-email="ssoEmail"
           @update:email="formEmail = $event"
           @update:step="formStep = $event"
           @cancel="closeVolunteerForm"
@@ -436,6 +448,7 @@ onMounted(async () => {
           :slug="String(route.params.slug ?? '')"
           :event="event"
           :sso-token="ssoToken"
+          :sso-email="ssoEmail"
           @update:email="teamFormEmail = $event"
           @update:step="teamFormStep = $event"
           @cancel="closeTeamForm"
