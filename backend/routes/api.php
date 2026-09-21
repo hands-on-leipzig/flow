@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AdminCockpitController;
 use App\Http\Controllers\Api\AdminHelpController;
 use App\Http\Controllers\Api\AfternoonController;
 use App\Http\Controllers\Api\CalendarFeedController;
@@ -465,6 +466,9 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/events', [PlanQualityController::class, 'listEvents']);
         Route::post('/evaluate/{planId}', [PlanQualityController::class, 'evaluatePlan']);
     });
+
+    Route::get('/admin/cockpit.xlsx', [AdminCockpitController::class, 'spreadsheet']);
+    Route::get('/admin/cockpit', [AdminCockpitController::class, 'index']);
 
     Route::get('/admin/enrollments', [EnrollmentsController::class, 'index']);
 

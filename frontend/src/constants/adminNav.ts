@@ -72,6 +72,7 @@ export function isEntwicklungEnvironment(isLocal: boolean): boolean {
 export const ADMIN_SECTIONS: AdminSection[] = [
   // Ops
   {key: 'system-news', label: 'System News', icon: 'bi-newspaper', group: 'ops'},
+  {key: 'cockpit', label: 'Cockpit', icon: 'bi-speedometer2', group: 'ops'},
   {key: 'statistics', label: 'Statistiken', icon: 'bi-bar-chart', group: 'ops'},
   {key: 'plan-qualitaet', label: 'Plan Qualität', icon: 'bi-clipboard-check', group: 'ops'},
   {key: 'enrollments', label: 'Anmeldungen', icon: 'bi-person-plus', group: 'ops'},
@@ -145,6 +146,7 @@ export const ADMIN_ENTWICKLUNG_SECTIONS = ADMIN_SECTIONS.filter((s) => s.group =
  */
 export const ADMIN_OPS_NAV: AdminNavNode[] = [
   {kind: 'section', key: 'system-news'},
+  {kind: 'section', key: 'cockpit'},
   {
     kind: 'folder',
     key: 'zahlen',

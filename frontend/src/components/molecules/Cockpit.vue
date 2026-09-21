@@ -1,0 +1,539 @@
+<script setup lang="ts">
+import {computed, onMounted, ref, watch} from 'vue'
+import {useRouter} from 'vue-router'
+import axios from 'axios'
+import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import StatisticsExpertParametersModal from '@/components/molecules/statistics/StatisticsExpertParametersModal.vue'
+import StatisticsExtraBlocksModal from '@/components/molecules/statistics/StatisticsExtraBlocksModal.vue'
+import {showGlassToast} from '@/composables/useGlassToast'
+import {useEventStore} from '@/stores/event'
+import {useProgramsStore} from '@/stores/programs'
+import {formatDateOnly, formatDateTime} from '@/utils/dateTimeFormat'
+import {programDisplayName, programId, type EventProgramRef} from '@/utils/eventPrograms'
+import {flowFilename} from '@/utils/flowFilename'
+import '@/assets/volunteers.css'
+
+defineOptions({name: 'Cockpit'})
+
+type Season = {id: number; name: string; year: number}
+
+type CockpitDots = {
+  plan: boolean
+  team: null
+  rooms: boolean
+  staffing: boolean
+}
+
+type CockpitEvent = {
+  event_id: number
+  regional_partner_id: number | null
+  regional_partner_name: string | null
+  event_date: string | null
+  event_name: string
+  plan_id: number | null
+  programs: number[]
+  teams: Record<string, number | null>
+  dots: CockpitDots
+  generator_last_end: string | null
+  param_changes: {input: number; expert: number} | null
+  extra_blocks_free: number | null
+  helferliste_count: number
+  publication_level: number | null
+}
+
+type SortKey = 'rp' | 'date' | 'generator' | 'publish'
+type ModalMode = 'params' | 'blocks' | null
+
+const CHIP_NAMES = ['EXPLORE', 'CHALLENGE', 'FUTURE_8'] as const
+
+const seasons = ref<Season[]>([])
+const selectedSeasonId = ref<number | null>(null)
+const events = ref<CockpitEvent[]>([])
+const loading = ref(true)
+const upcomingOnly = ref(true)
+const activeProgramFilters = ref<Set<number>>(new Set())
+const sortKey = ref<SortKey>('date')
+const sortDir = ref<'asc' | 'desc'>('asc')
+const modalMode = ref<ModalMode>(null)
+const modalPlanId = ref<number | null>(null)
+const exportBusy = ref(false)
+
+const router = useRouter()
+const eventStore = useEventStore()
+const programsStore = useProgramsStore()
+
+const programChips = computed<EventProgramRef[]>(() => {
+  const wanted = new Set(CHIP_NAMES)
+  return programsStore.catalog
+    .filter((row) => wanted.has(String(row.name || '').toUpperCase() as (typeof CHIP_NAMES)[number]))
+    .slice()
+    .sort((a, b) => (a.sequence ?? 99) - (b.sequence ?? 99) || programId(a) - programId(b))
+})
+
+function todayBerlin(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+}
+
+function compareNullable(a: string | number | null | undefined, b: string | number | null | undefined): number {
+  if (a == null && b == null) return 0
+  if (a == null) return 1
+  if (b == null) return -1
+  if (a < b) return -1
+  if (a > b) return 1
+  return 0
+}
+
+const filteredRows = computed(() => {
+  const today = todayBerlin()
+  let rows = events.value.slice()
+  if (upcomingOnly.value) {
+    rows = rows.filter((row) => !row.event_date || row.event_date >= today)
+  }
+  if (activeProgramFilters.value.size > 0) {
+    rows = rows.filter((row) => row.programs.some((id) => activeProgramFilters.value.has(id)))
+  }
+  const dir = sortDir.value === 'desc' ? -1 : 1
+  rows.sort((a, b) => {
+    let cmp = 0
+    if (sortKey.value === 'rp') cmp = compareNullable(a.regional_partner_id, b.regional_partner_id)
+    else if (sortKey.value === 'generator') cmp = compareNullable(a.generator_last_end, b.generator_last_end)
+    else if (sortKey.value === 'publish') cmp = compareNullable(a.publication_level, b.publication_level)
+    else cmp = compareNullable(a.event_date, b.event_date)
+    if (cmp !== 0) return cmp * dir
+    return compareNullable(a.regional_partner_id, b.regional_partner_id)
+  })
+  return rows
+})
+
+function toggleProgramFilter(id: number) {
+  const next = new Set(activeProgramFilters.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  activeProgramFilters.value = next
+}
+
+function toggleSort(key: SortKey) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+    return
+  }
+  sortKey.value = key
+  sortDir.value = 'asc'
+}
+
+function sortIcon(key: SortKey) {
+  if (sortKey.value !== key) return 'bi-arrow-down-up'
+  return sortDir.value === 'asc' ? 'bi-sort-up' : 'bi-sort-down'
+}
+
+function teamCell(row: CockpitEvent, programIdValue: number): string {
+  const value = row.teams[String(programIdValue)]
+  if (value === null || value === undefined) return ''
+  return String(value)
+}
+
+function publishTitle(level: number | null): string {
+  if (level == null) return ''
+  if (level <= 2) return 'Keine'
+  if (level === 3) return 'Nur wichtige Zeiten'
+  return 'Volle Details'
+}
+
+function paramLabel(row: CockpitEvent): string {
+  if (!row.param_changes) return ''
+  return `${row.param_changes.input} + ${row.param_changes.expert}`
+}
+
+function hasParamDrill(row: CockpitEvent): boolean {
+  if (!row.plan_id || !row.param_changes) return false
+  return row.param_changes.input > 0 || row.param_changes.expert > 0
+}
+
+function hasBlockDrill(row: CockpitEvent): boolean {
+  return !!row.plan_id && (row.extra_blocks_free ?? 0) > 0
+}
+
+function openParams(planId: number) {
+  modalPlanId.value = planId
+  modalMode.value = 'params'
+}
+
+function openBlocks(planId: number) {
+  modalPlanId.value = planId
+  modalMode.value = 'blocks'
+}
+
+function closeModal() {
+  modalMode.value = null
+  modalPlanId.value = null
+}
+
+async function selectEvent(row: CockpitEvent) {
+  if (!row.event_id || !row.regional_partner_id) return
+  await axios.post('/user/select-event', {
+    event: row.event_id,
+    regional_partner: row.regional_partner_id,
+  })
+  await eventStore.fetchSelectedEvent()
+  await router.push('/overview')
+}
+
+async function downloadExcel() {
+  if (!selectedSeasonId.value || exportBusy.value) return
+  exportBusy.value = true
+  try {
+    const programs = Array.from(activeProgramFilters.value).join(',')
+    const response = await axios.get('/admin/cockpit.xlsx', {
+      params: {
+        season: selectedSeasonId.value,
+        upcoming: upcomingOnly.value ? '1' : '0',
+        programs,
+        sort: sortKey.value,
+        dir: sortDir.value,
+      },
+      responseType: 'blob',
+    })
+    const url = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = response.headers['x-filename'] || flowFilename('Cockpit', 'xlsx')
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error(err)
+    showGlassToast('Cockpit konnte nicht geladen werden.', 'error')
+  } finally {
+    exportBusy.value = false
+  }
+}
+
+async function loadSeasons() {
+  loading.value = true
+  try {
+    const [seasonsResponse, currentResponse] = await Promise.all([
+      axios.get('/seasons'),
+      axios.get('/current-season'),
+    ])
+    seasons.value = Array.isArray(seasonsResponse.data) ? seasonsResponse.data : []
+    selectedSeasonId.value = currentResponse.data?.id ?? seasons.value[0]?.id ?? null
+  } catch (err) {
+    console.error(err)
+    seasons.value = []
+    selectedSeasonId.value = null
+    events.value = []
+    showGlassToast('Cockpit konnte nicht geladen werden.', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadEvents() {
+  if (!selectedSeasonId.value) {
+    events.value = []
+    return
+  }
+  loading.value = true
+  try {
+    const {data} = await axios.get('/admin/cockpit', {params: {season: selectedSeasonId.value}})
+    events.value = Array.isArray(data?.events) ? data.events : []
+  } catch (err) {
+    console.error(err)
+    events.value = []
+    showGlassToast('Cockpit konnte nicht geladen werden.', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(selectedSeasonId, (id) => {
+  if (id == null) {
+    events.value = []
+    return
+  }
+  void loadEvents()
+})
+
+onMounted(async () => {
+  await programsStore.ensureLoaded()
+  await loadSeasons()
+})
+</script>
+
+<template>
+  <div class="space-y-4">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <h2 class="text-xl font-bold">Cockpit</h2>
+      <button
+          type="button"
+          class="glass-btn-secondary"
+          :disabled="exportBusy"
+          @click="downloadExcel"
+      >
+        <i class="bi bi-file-earmark-excel" aria-hidden="true"/>
+        Excel
+      </button>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <label
+          v-for="season in seasons"
+          :key="season.id"
+          class="cursor-pointer"
+      >
+        <input
+            v-model="selectedSeasonId"
+            type="radio"
+            :value="season.id"
+            class="mr-1"
+        >
+        {{ season.year }} – {{ season.name }}
+      </label>
+    </div>
+
+    <VolunteerStaffingFilterBar>
+      <template #middle>
+        <button
+            v-for="program in programChips"
+            :key="programId(program)"
+            type="button"
+            class="vol-staffing-filter"
+            :class="{'vol-staffing-filter--active': activeProgramFilters.has(programId(program))}"
+            :aria-pressed="activeProgramFilters.has(programId(program))"
+            @click="toggleProgramFilter(programId(program))"
+        >
+          <ProgramLogo
+              :program="program"
+              size="chip"
+              decorative
+              class="vol-staffing-filter__logo"
+          />
+          <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
+        </button>
+      </template>
+      <template #trailing>
+        <span class="vol-staffing-filters__sep" aria-hidden="true"/>
+        <button
+            type="button"
+            class="vol-staffing-filter"
+            :class="{'vol-staffing-filter--active': upcomingOnly}"
+            :aria-pressed="upcomingOnly"
+            @click="upcomingOnly = !upcomingOnly"
+        >
+          <span class="vol-staffing-filter__label">Nur Zukunft</span>
+        </button>
+      </template>
+    </VolunteerStaffingFilterBar>
+
+    <div v-if="loading" class="text-[var(--color-text-subtle)] text-sm">
+      Lade Events…
+    </div>
+
+    <div v-else class="glass-card liquid-surface-inner overflow-hidden">
+      <div class="max-h-[70vh] overflow-auto">
+        <table class="min-w-full text-sm">
+          <thead class="bg-[var(--color-bg-muted)] text-left sticky top-0 z-10">
+            <tr>
+              <th class="px-3 py-2" scope="col">
+                <button
+                    type="button"
+                    class="vol-sort"
+                    :class="{'vol-sort--active': sortKey === 'rp'}"
+                    @click="toggleSort('rp')"
+                >
+                  RP
+                  <i class="bi" :class="sortIcon('rp')" aria-hidden="true"/>
+                </button>
+              </th>
+              <th class="px-3 py-2" scope="col">
+                <button
+                    type="button"
+                    class="vol-sort"
+                    :class="{'vol-sort--active': sortKey === 'date'}"
+                    @click="toggleSort('date')"
+                >
+                  Datum
+                  <i class="bi" :class="sortIcon('date')" aria-hidden="true"/>
+                </button>
+              </th>
+              <th class="px-3 py-2" scope="col">Event</th>
+              <th class="px-3 py-2 text-center" scope="col">E</th>
+              <th class="px-3 py-2 text-center" scope="col">C</th>
+              <th class="px-3 py-2 text-center" scope="col">F8</th>
+              <th class="px-3 py-2 text-center" scope="col">Ablauf</th>
+              <th
+                  class="px-3 py-2 text-center cockpit-dot-col--disabled"
+                  scope="col"
+                  title="Ohne DRAHT nicht verfügbar."
+              >
+                Teams
+              </th>
+              <th class="px-3 py-2 text-center" scope="col">Räume</th>
+              <th class="px-3 py-2 text-center" scope="col">Zuordnung</th>
+              <th class="px-3 py-2" scope="col">
+                <button
+                    type="button"
+                    class="vol-sort"
+                    :class="{'vol-sort--active': sortKey === 'generator'}"
+                    @click="toggleSort('generator')"
+                >
+                  Letzter Generatorlauf
+                  <i class="bi" :class="sortIcon('generator')" aria-hidden="true"/>
+                </button>
+              </th>
+              <th class="px-3 py-2" scope="col">Veränderte Parameter</th>
+              <th class="px-3 py-2" scope="col">Extra-Blöcke</th>
+              <th class="px-3 py-2" scope="col">Helferliste</th>
+              <th class="px-3 py-2" scope="col">
+                <button
+                    type="button"
+                    class="vol-sort"
+                    :class="{'vol-sort--active': sortKey === 'publish'}"
+                    @click="toggleSort('publish')"
+                >
+                  Veröffentlichung
+                  <i class="bi" :class="sortIcon('publish')" aria-hidden="true"/>
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+                v-for="row in filteredRows"
+                :key="row.event_id"
+                class="border-t border-[var(--color-border)]"
+            >
+              <td class="px-3 py-2" :title="row.regional_partner_name || undefined">
+                {{ row.regional_partner_id ?? '' }}
+              </td>
+              <td class="px-3 py-2">{{ formatDateOnly(row.event_date) }}</td>
+              <td class="px-3 py-2">
+                <button
+                    type="button"
+                    class="text-left text-[var(--color-accent)] hover:underline"
+                    @click="selectEvent(row)"
+                >
+                  {{ row.event_name }}
+                </button>
+              </td>
+              <td class="px-3 py-2 text-center">{{ teamCell(row, 2) }}</td>
+              <td class="px-3 py-2 text-center">{{ teamCell(row, 3) }}</td>
+              <td class="px-3 py-2 text-center">{{ teamCell(row, 8) }}</td>
+              <td class="px-3 py-2 text-center">
+                <span
+                    class="cockpit-dot"
+                    :class="row.dots.plan ? 'cockpit-dot--on' : 'cockpit-dot--off'"
+                />
+              </td>
+              <td class="px-3 py-2 text-center">
+                <span class="cockpit-dot cockpit-dot--disabled"/>
+              </td>
+              <td class="px-3 py-2 text-center">
+                <span
+                    class="cockpit-dot"
+                    :class="row.dots.rooms ? 'cockpit-dot--on' : 'cockpit-dot--off'"
+                />
+              </td>
+              <td class="px-3 py-2 text-center">
+                <span
+                    class="cockpit-dot"
+                    :class="row.dots.staffing ? 'cockpit-dot--on' : 'cockpit-dot--off'"
+                />
+              </td>
+              <td class="px-3 py-2">
+                {{ row.generator_last_end ? formatDateTime(row.generator_last_end) : '' }}
+              </td>
+              <td class="px-3 py-2">
+                <span v-if="row.param_changes">{{ paramLabel(row) }}</span>
+                <button
+                    v-if="hasParamDrill(row) && row.plan_id"
+                    type="button"
+                    class="ml-1 text-[var(--color-accent)]"
+                    title="Veränderte Parameter anzeigen"
+                    @click="openParams(row.plan_id)"
+                >
+                  <i class="bi bi-search" aria-hidden="true"/>
+                </button>
+              </td>
+              <td class="px-3 py-2">
+                <span v-if="row.extra_blocks_free !== null">{{ row.extra_blocks_free }}</span>
+                <button
+                    v-if="hasBlockDrill(row) && row.plan_id"
+                    type="button"
+                    class="ml-1 text-[var(--color-accent)]"
+                    title="Extra-Blöcke anzeigen"
+                    @click="openBlocks(row.plan_id)"
+                >
+                  <i class="bi bi-search" aria-hidden="true"/>
+                </button>
+              </td>
+              <td class="px-3 py-2">{{ row.helferliste_count }}</td>
+              <td class="px-3 py-2" :title="publishTitle(row.publication_level)">
+                <span v-if="row.publication_level != null" class="inline-flex">
+                  <span
+                      v-for="n in 4"
+                      :key="n"
+                      class="w-3 h-3 rounded-full mx-0.5"
+                      :class="n <= row.publication_level ? 'bg-blue-600' : 'bg-gray-300'"
+                  />
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <teleport to="body">
+    <div
+        v-if="modalMode && modalPlanId"
+        class="glass-scrim fixed inset-0 flex items-center justify-center z-50"
+    >
+      <StatisticsExpertParametersModal
+          v-if="modalMode === 'params'"
+          :plan-id="modalPlanId"
+          @close="closeModal"
+      />
+      <StatisticsExtraBlocksModal
+          v-if="modalMode === 'blocks'"
+          :plan-id="modalPlanId"
+          @close="closeModal"
+      />
+    </div>
+  </teleport>
+</template>
+
+<style scoped>
+.cockpit-dot {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
+.cockpit-dot--on {
+  background: #dc2626;
+}
+
+.cockpit-dot--off {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.cockpit-dot--disabled {
+  background: #d1d5db;
+  opacity: 0.45;
+}
+
+.cockpit-dot-col--disabled {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+</style>
