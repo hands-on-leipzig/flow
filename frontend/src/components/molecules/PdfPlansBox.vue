@@ -2,20 +2,16 @@
 import { computed, ref, watch, onMounted } from 'vue'
 import { useEventStore } from '@/stores/event'
 import { usePdfExport } from '@/composables/usePdfExport'
-import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
 import axios from 'axios'
-import {showGlassToast} from '@/composables/useGlassToast'
-import {eventPrograms, programDisplayName, catalogNameFromCode, type EventProgramRef} from '@/utils/eventPrograms'
 import {flowFilename} from '@/utils/flowFilename'
-
 
 const props = withDefaults(
   defineProps<{
     /** Hide inner title when the page already provides one. */
     hideHeading?: boolean
-    /** Which panels to show (Ausgabe splits plans vs name tags). */
-    section?: 'plans' | 'labels' | 'all'
+    /** Which panels to show. Labels live on Namensschilder now. */
+    section?: 'plans' | 'all'
     /** Fixed 50/50 dual panes for the two plans groups (Drucksachen). */
     splitPanes?: boolean
   }>(),
@@ -23,57 +19,30 @@ const props = withDefaults(
 )
 
 const showPlans = computed(() => props.section === 'plans' || props.section === 'all')
-const showLabels = computed(() => props.section === 'labels' || props.section === 'all')
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
 const eventId = computed(() => event.value?.id)
 
-// --- Available Team Programs (Namensschilder) ---
-const availableTeamPrograms = ref<EventProgramRef[]>([])
-
-async function fetchAvailableTeamPrograms() {
-  if (!eventId.value) return
-  try {
-    const { data } = await axios.get(`/export/available-team-programs/${eventId.value}`)
-    availableTeamPrograms.value = eventPrograms({
-      programs: (data.programs || []).map((program: { id: number; name: string; sequence?: number }) => ({
-        ...program,
-        first_program: program.id,
-      })),
-    })
-  } catch (error) {
-    console.error('Failed to fetch available team programs:', error)
-    availableTeamPrograms.value = []
-  }
-}
-
-// --- Beim Start Event, Namensschilder-Programme und Poster laden ---
 onMounted(async () => {
   if (!eventStore.selectedEvent) await eventStore.fetchSelectedEvent()
   if (eventStore.selectedEvent?.id) {
-    await fetchAvailableTeamPrograms()
     await loadPosterPreviews()
   }
 })
 
-// --- Wenn Event wechselt, Programme und Poster nachladen ---
 watch(() => event.value?.id, async (id) => {
   if (id) {
-    await fetchAvailableTeamPrograms()
     await loadPosterPreviews()
   }
 })
 
-// --- Computed Flags ---
 const hasWifiSsid = computed(() => !!event.value?.wifi_ssid?.trim())
 
-// --- PDF Download (Composable) ---
-const { isDownloading, anyDownloading, downloadPdf } = usePdfExport()
+const { isDownloading, downloadPdf } = usePdfExport()
 
 const flowHint = (name: string, ext = 'pdf') => flowFilename(name, ext, event.value?.date)
 
-// --- Aushang-Poster (Online-Plan / WLAN) ---
 const previewPlan = ref<string | null>(null)
 const previewPlanWifi = ref<string | null>(null)
 
@@ -91,185 +60,6 @@ async function loadPosterPreview(type: 'plan' | 'plan_wifi') {
 async function loadPosterPreviews() {
   await Promise.all([loadPosterPreview('plan'), loadPosterPreview('plan_wifi')])
 }
-
-// --- Team Label Filters ---
-// Track person types per program: { programId: { players: boolean, coaches: boolean } }
-const teamLabelFilters = ref<Record<number, { players: boolean; coaches: boolean }>>({})
-
-// Skip labels offset (0-9)
-const teamLabelSkipOffset = ref(0)
-const volunteerLabelSkipOffset = ref(0)
-
-// Initialize filters for available programs
-watch(availableTeamPrograms, (programs) => {
-  programs.forEach(program => {
-    if (!teamLabelFilters.value[program.id]) {
-      teamLabelFilters.value[program.id] = {
-        players: true,
-        coaches: true
-      }
-    }
-  })
-}, { immediate: true })
-
-// Toggle person type for a specific program
-function toggleTeamLabelPersonType(programId: number, type: 'players' | 'coaches') {
-  if (!teamLabelFilters.value[programId]) {
-    teamLabelFilters.value[programId] = { players: true, coaches: true }
-  }
-  teamLabelFilters.value[programId][type] = !teamLabelFilters.value[programId][type]
-  teamLabelFilters.value = { ...teamLabelFilters.value } // Trigger reactivity
-}
-
-// Computed: at least one program with at least one person type selected
-const canDownloadTeamLabels = computed(() => {
-  return Object.keys(teamLabelFilters.value).some(programId => {
-    const filters = teamLabelFilters.value[Number(programId)]
-    return filters && (filters.players || filters.coaches)
-  })
-})
-
-// Download name tags PDF with filters
-async function downloadNameTagsPdf() {
-  if (!eventId.value || !canDownloadTeamLabels.value) return
-  
-  // Build filter object: for each selected program, include person types
-  const programFilters: Record<number, { players: boolean; coaches: boolean }> = {}
-  Object.keys(teamLabelFilters.value).forEach(programIdStr => {
-    const programId = Number(programIdStr)
-    const filters = teamLabelFilters.value[programId]
-    if (filters && (filters.players || filters.coaches)) {
-      programFilters[programId] = filters
-    }
-  })
-  
-  const filters = {
-    program_filters: programFilters,
-    skip_offset: teamLabelSkipOffset.value
-  }
-  
-  isDownloading.value['name-tags'] = true
-  try {
-    const response = await axios.post(
-      `/export/name-tags/${eventId.value}`,
-      filters,
-      { responseType: 'blob' }
-    )
-    
-    const filename = response.headers['x-filename'] || flowHint('Aufkleber_Teams')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error: any) {
-    console.error('Fehler beim PDF-Download (Team Labels):', error)
-    const errorMessage = error.response?.data?.message || error.message || 'Unbekannter Fehler'
-    showGlassToast('Fehler beim Erstellen des PDFs: ' + errorMessage, 'error')
-  } finally {
-    isDownloading.value['name-tags'] = false
-  }
-}
-
-// --- Volunteer Labels State ---
-interface Volunteer {
-  name: string
-  role: string
-  program: string // 'E', 'C', or empty
-}
-
-const volunteerInputText = ref('')
-const volunteerPreview = ref<Volunteer[]>([])
-const submittedVolunteers = ref<Volunteer[]>([])
-
-// Parse CSV/tab-separated text into volunteer array
-function parseVolunteerInput(text: string): Volunteer[] {
-  if (!text.trim()) return []
-  
-  const lines = text.trim().split(/\r?\n/)
-  const volunteers: Volunteer[] = []
-  
-  for (const line of lines) {
-    if (!line.trim()) continue
-    
-    // Support both tab and comma separation
-    const parts = line.split(/\t|,/)
-      .map(p => p.trim())
-      .filter(p => p.length > 0)
-    
-    if (parts.length >= 2) {
-      const name = parts[0] || ''
-      const role = parts[1] || ''
-      const program = (parts[2] || '').toUpperCase().trim()
-      
-      // Only add if name and role are provided
-      if (name && role) {
-        volunteers.push({
-          name,
-          role,
-          program: (program === 'E' || program === 'C') ? program : ''
-        })
-      }
-    }
-  }
-  
-  return volunteers
-}
-
-// Update preview when input changes
-function updateVolunteerPreview() {
-  volunteerPreview.value = parseVolunteerInput(volunteerInputText.value)
-}
-
-// Clear all volunteer data
-function clearAllVolunteers() {
-  volunteerInputText.value = ''
-  volunteerPreview.value = []
-  submittedVolunteers.value = []
-}
-
-// Submit preview data (Übernehmen) - add preview to submitted list
-function submitVolunteers() {
-  submittedVolunteers.value = [...submittedVolunteers.value, ...volunteerPreview.value]
-  volunteerPreview.value = []
-  volunteerInputText.value = ''
-}
-
-// Check if we have submitted volunteers
-const hasSubmittedVolunteers = computed(() => submittedVolunteers.value.length > 0)
-
-// Download volunteer labels PDF
-async function downloadVolunteerLabelsPdf() {
-  if (!eventId.value || !hasSubmittedVolunteers.value) return
-  
-  isDownloading.value['volunteer-labels'] = true
-  try {
-    const response = await axios.post(
-      `/export/volunteer-labels/${eventId.value}`,
-      { 
-        volunteers: submittedVolunteers.value,
-        skip_offset: volunteerLabelSkipOffset.value
-      },
-      { responseType: 'blob' }
-    )
-    
-    const filename = response.headers['x-filename'] || flowHint('Aufkleber_Volunteers')
-    const blob = new Blob([response.data], { type: 'application/pdf' })
-    const link = document.createElement('a')
-    link.href = window.URL.createObjectURL(blob)
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(link.href)
-  } catch (error: any) {
-    console.error('Fehler beim PDF-Download (Volunteer Labels):', error)
-    const errorMessage = error.response?.data?.message || error.message || 'Unbekannter Fehler'
-    showGlassToast('Fehler beim Erstellen des PDFs: ' + errorMessage, 'error')
-  } finally {
-    isDownloading.value['volunteer-labels'] = false
-  }
-}
-
 </script>
 
 <template>
@@ -347,220 +137,6 @@ async function downloadVolunteerLabelsPdf() {
 
       </section>
     </div>
-
-    <template v-if="showLabels">
-      <section class="glass-card liquid-surface-inner pdf-plans__panel">
-        <h3 v-if="!hideHeading" class="glass-card__heading">Namensschilder</h3>
-        <p v-if="!hideHeading" class="glass-settings-hint !not-italic mb-3">
-          Namensaufkleber zum Drucken auf A4-Papier
-        </p>
-        <p class="text-sm text-[var(--color-text-muted)] mb-3">
-          Die PDF-Dateien sind passend zum
-          <a
-            href="https://www.avery-zweckform.com/vorlage-l4785"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-[var(--color-accent)] underline hover:opacity-80"
-          >Format Avery L4785</a>
-          formatiert.
-          Jeder Aufkleber enthält den Namen der Person, den Team-Namen bzw. die Rolle sowie die Logos (Programm, Saison, Veranstalter).
-          Als Veranstalter-Logo wird das erste aktive aus dem
-          <a
-            href="/plan/publish/logos"
-            class="text-[var(--color-accent)] underline hover:opacity-80"
-          >View Logos</a>
-          verwendet.
-        </p>
-        <p class="text-sm text-[var(--color-text-muted)] mb-0">
-          Mit „Überspringen“ können die ersten Aufkleber auf dem ersten Blatt übersprungen werden, um teilweise bereits verwendete Blätter weiter zu nutzen und Material zu sparen.
-        </p>
-      </section>
-
-      <div class="pdf-plans__labels-cols">
-        <section class="glass-card liquid-surface-inner pdf-plans__panel">
-          <h4 class="pdf-plans__row-title mb-2">Für Teams</h4>
-          <p class="text-sm text-[var(--color-text-muted)] mb-4">
-            Ein Aufkleber für jedes Teammitglied und alle Coach:innen. Die Liste wird automatisch aus den Anmeldedaten der Teams generiert.
-            „No-Show“-Teams und Teams, die nicht im aktuellen Plan enthalten sind, werden <em>nicht</em> in das PDF übernommen.
-          </p>
-
-          <div
-            v-if="availableTeamPrograms.length > 0"
-            class="mb-4 grid gap-3 grid-cols-1"
-          >
-            <div
-              v-for="program in availableTeamPrograms"
-              :key="program.id"
-              class="bg-[var(--color-bg-muted)] rounded p-3"
-            >
-              <h5 class="text-sm font-semibold text-[var(--color-text-muted)] mb-2 flex items-center gap-2">
-                <ProgramLogo :program="program" size="base"/>
-                <span>FIRST LEGO League {{ programDisplayName(program) }}</span>
-              </h5>
-              <div class="space-y-0.5">
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
-                  <input
-                    type="checkbox"
-                    :checked="teamLabelFilters[program.id]?.players ?? true"
-                    @change="toggleTeamLabelPersonType(program.id, 'players')"
-                    class="accent-blue-600"
-                  />
-                  <span class="text-sm">Teammitglieder</span>
-                </label>
-                <label class="flex items-center gap-2 cursor-pointer hover:bg-[var(--color-bg-hover)] p-1 rounded">
-                  <input
-                    type="checkbox"
-                    :checked="teamLabelFilters[program.id]?.coaches ?? true"
-                    @change="toggleTeamLabelPersonType(program.id, 'coaches')"
-                    class="accent-blue-600"
-                  />
-                  <span class="text-sm">Coach:innen</span>
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex items-center justify-end gap-2">
-            <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
-              <span class="text-xs">Überspringen:</span>
-              <input
-                type="number"
-                v-model.number="teamLabelSkipOffset"
-                min="0"
-                max="9"
-                class="w-12 border border-[var(--color-border)] rounded px-1 py-0.5 text-sm text-center"
-              />
-            </label>
-            <button
-              class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2"
-              :class="!(canDownloadTeamLabels && !isDownloading['name-tags']) ? '!opacity-50' : ''"
-              :disabled="!canDownloadTeamLabels || isDownloading['name-tags']"
-              @click="downloadNameTagsPdf"
-            >
-              <Spinner v-if="isDownloading['name-tags']" size="sm"/>
-              <span>{{ isDownloading['name-tags'] ? 'Erzeuge…' : 'PDF' }}</span>
-            </button>
-          </div>
-        </section>
-
-        <section class="glass-card liquid-surface-inner pdf-plans__panel">
-          <h4 class="pdf-plans__row-title mb-2">Für Volunteers</h4>
-          <p class="text-sm text-[var(--color-text-muted)] mb-3">
-            Hier kann eine einfache Liste von Rollen und Namen hochgeladen werden, aus der dann ein PDF erzeugt wird.
-          </p>
-          <p class="text-xs text-[var(--color-text-subtle)] mb-4">
-            Format: Name, Rolle, Programm (E für Explore, C für Challenge, leer für kein Logo).
-            Spalten können durch Tab oder Komma getrennt sein.
-          </p>
-
-          <div class="mb-4">
-            <textarea
-              v-model="volunteerInputText"
-              @input="updateVolunteerPreview"
-              placeholder="Max Mustermann&#9;Gutachter&#9;E&#10;Anna Schmidt&#9;Schiedsrichter:in&#9;C&#10;..."
-              class="w-full border border-[var(--color-border)] rounded px-3 py-2 text-sm font-mono"
-              rows="6"
-            ></textarea>
-          </div>
-
-          <div v-if="volunteerPreview.length > 0 || submittedVolunteers.length > 0" class="mb-4">
-            <div class="text-sm font-semibold text-[var(--color-text-muted)] mb-2">
-              Vorschau ({{ (volunteerPreview.length + submittedVolunteers.length) }} Einträge):
-            </div>
-            <div class="border border-[var(--color-border)] rounded overflow-hidden">
-              <div class="overflow-x-auto max-h-64 overflow-y-auto">
-                <table class="min-w-full text-sm">
-                  <thead class="bg-[var(--color-bg-muted)] sticky top-0">
-                    <tr>
-                      <th class="px-3 py-2 text-left font-semibold text-[var(--color-text-muted)] border-b">Name</th>
-                      <th class="px-3 py-2 text-left font-semibold text-[var(--color-text-muted)] border-b">Rolle</th>
-                      <th class="px-3 py-2 text-left font-semibold text-[var(--color-text-muted)] border-b">Programm</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-200">
-                    <tr v-for="(vol, idx) in submittedVolunteers" :key="'submitted-' + idx" class="bg-green-50">
-                      <td class="px-3 py-2">{{ vol.name }}</td>
-                      <td class="px-3 py-2">{{ vol.role }}</td>
-                      <td class="px-3 py-2">
-                        <ProgramLogo
-                            :program="catalogNameFromCode(vol.program)"
-                            size="sm"
-                            decorative
-                            class="inline-block"
-                        />
-                      </td>
-                    </tr>
-                    <tr v-for="(vol, idx) in volunteerPreview" :key="'preview-' + idx">
-                      <td class="px-3 py-2">{{ vol.name }}</td>
-                      <td class="px-3 py-2">{{ vol.role }}</td>
-                      <td class="px-3 py-2">
-                        <ProgramLogo
-                            :program="catalogNameFromCode(vol.program)"
-                            size="sm"
-                            decorative
-                            class="inline-block"
-                        />
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div class="flex gap-2 flex-wrap justify-between items-center">
-            <div class="flex gap-2">
-              <button
-                @click="clearAllVolunteers"
-                class="glass-btn-secondary !px-4 !py-2 !text-sm"
-                :disabled="volunteerPreview.length === 0 && submittedVolunteers.length === 0"
-              >
-                Alles Löschen
-              </button>
-              <button
-                @click="submitVolunteers"
-                class="px-4 py-2 rounded text-sm bg-green-200 hover:bg-green-300"
-                :disabled="volunteerPreview.length === 0"
-              >
-                Übernehmen
-              </button>
-            </div>
-            <div class="flex items-center gap-2">
-              <label class="flex items-center gap-1 text-sm text-[var(--color-text-muted)]">
-                <span class="text-xs">Überspringen:</span>
-                <input
-                  type="number"
-                  v-model.number="volunteerLabelSkipOffset"
-                  min="0"
-                  max="9"
-                  class="w-12 border border-[var(--color-border)] rounded px-1 py-0.5 text-sm text-center"
-                />
-              </label>
-              <button
-                @click="downloadVolunteerLabelsPdf"
-                class="glass-btn-secondary !px-4 !py-2 !text-sm inline-flex items-center gap-2 flex-shrink-0"
-                :class="!(hasSubmittedVolunteers && !isDownloading['volunteer-labels']) ? '!opacity-50' : ''"
-                :disabled="!hasSubmittedVolunteers || isDownloading['volunteer-labels']"
-              >
-                <Spinner v-if="isDownloading['volunteer-labels']" size="sm"/>
-                <span>{{ isDownloading['volunteer-labels'] ? 'Erzeuge…' : 'PDF' }}</span>
-              </button>
-            </div>
-          </div>
-        </section>
-      </div>
-    </template>
-
-    <!-- Optional: globales Overlay -->
-    <div
-      v-if="anyDownloading"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/20"
-    >
-      <div class="glass-row-item inline-flex px-4 py-3 gap-2">
-        <Spinner size="sm"/>
-        <span>PDF wird erzeugt…</span>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -574,20 +150,6 @@ async function downloadVolunteerLabelsPdf() {
 .pdf-plans__panel {
   min-width: 0;
 }
-
-.pdf-plans__labels-cols {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  align-items: start;
-}
-
-@media (max-width: 900px) {
-  .pdf-plans__labels-cols {
-    grid-template-columns: 1fr;
-  }
-}
-
 
 .pdf-plans__plans {
   display: flex;
@@ -612,10 +174,6 @@ async function downloadVolunteerLabelsPdf() {
   overflow-y: auto;
 }
 
-.pdf-plans__plans--split .pdf-plans__group-label--next {
-  margin-top: 0;
-}
-
 .pdf-plans__group-label {
   margin: 0 0 0.75rem;
   display: flex;
@@ -631,12 +189,6 @@ async function downloadVolunteerLabelsPdf() {
   margin-top: 0.12rem;
   font-size: 1rem;
   color: var(--color-accent);
-}
-
-.pdf-plans__group-label--next {
-  margin-top: 1.35rem;
-  padding-top: 1.1rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, transparent);
 }
 
 .pdf-plans__grid {
@@ -717,47 +269,6 @@ async function downloadVolunteerLabelsPdf() {
   border-radius: 6px;
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 35%, transparent);
   background: #fff;
-}
-
-/* Aufkleber keeps stacked list layout */
-.pdf-plans__list {
-  display: flex;
-  flex-direction: column;
-}
-
-.pdf-plans__row {
-  padding: 0.85rem 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-border-strong) 28%, transparent);
-}
-
-.pdf-plans__row:last-child {
-  border-bottom: none;
-  padding-bottom: 0.15rem;
-}
-
-.pdf-plans__row-title {
-  margin: 0;
-  font-size: 0.98rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  color: var(--color-text);
-  line-height: 1.3;
-}
-
-.pdf-plans__row-sub {
-  margin: 0.2rem 0 0;
-  font-size: 0.82rem;
-  color: var(--color-text-muted);
-  line-height: 1.4;
-}
-
-.fade-enter-active, .fade-leave-active {
-  transition: all 0.2s ease;
-}
-
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-  transform: translateY(-0.5rem);
 }
 
 @media (max-width: 640px) {

@@ -12,7 +12,6 @@ import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import ToggleSwitch from '@/components/atoms/ToggleSwitch.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
-import {programLogoSrc, seasonLogoSrc} from '@/utils/images'
 import {buildAushangRows} from '@/utils/logoPreviewLayout'
 
 defineOptions({name: 'Logos'})
@@ -326,18 +325,6 @@ const assignedLogosList = computed(() => {
   )
 })
 
-/** First assigned logo — Namensaufkleber organizer slot. */
-const firstAssignedLogo = computed(() => assignedLogosList.value[0] ?? null)
-
-const seasonName = computed(() =>
-    selectedEvent.value?.season_rel?.name
-    || selectedEvent.value?.seasonRel?.name
-    || null
-)
-
-const nameTagSeasonLogoSrc = computed(() => seasonLogoSrc(seasonName.value, 'h'))
-const nameTagProgramLogoSrc = computed(() => programLogoSrc('CHALLENGE', 'h'))
-
 /** Fit Blade pixel sizes into the A4 landscape preview (~45% of PDF scale). */
 const AUSHANG_PREVIEW_SCALE = 0.45
 
@@ -422,11 +409,8 @@ onMounted(async () => {
             :style="{ flex: `0 0 ${leftWidth}%` }"
         >
           <div class="logos-workspace__scroll glass-card liquid-surface-inner">
-          <p class="glass-settings-hint !mb-1">
-            Logos werden in dieser Reihenfolge angezeigt.
-          </p>
           <p class="glass-settings-hint !mb-4">
-            Das erste Logo wird für die Namensaufkleber verwendet.
+            Logos werden in dieser Reihenfolge angezeigt.
           </p>
 
           <div class="space-y-2">
@@ -621,38 +605,6 @@ onMounted(async () => {
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- Namensaufkleber — first organizer logo only -->
-            <section class="logo-preview-panel liquid-surface-inner">
-              <h3 class="logo-preview-panel__title">Namensaufkleber</h3>
-              <p class="logo-preview-panel__hint">
-                Nur das erste Logo (Programm + Saison + Veranstalter).
-              </p>
-              <div class="logo-nametag" aria-label="Namensaufkleber-Vorschau">
-                <div class="logo-nametag__text">
-                  <div class="logo-nametag__person">Max Mustermann</div>
-                  <div class="logo-nametag__team">Team Beispiel</div>
-                </div>
-                <div class="logo-nametag__logos">
-                  <img
-                      :src="nameTagProgramLogoSrc"
-                      alt="Programm"
-                      class="logo-nametag__logo"
-                  />
-                  <img
-                      :src="nameTagSeasonLogoSrc"
-                      alt="Saison"
-                      class="logo-nametag__logo"
-                  />
-                  <img
-                      v-if="firstAssignedLogo"
-                      :src="firstAssignedLogo.url"
-                      :alt="firstAssignedLogo.title || 'Veranstalter'"
-                      class="logo-nametag__logo"
-                  />
                 </div>
               </div>
             </section>
@@ -966,50 +918,6 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.logo-nametag {
-  width: 15rem;
-  height: 9.375rem;
-  margin: 0 auto;
-  padding: 0.7rem 0.75rem 0.55rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
-  border-radius: var(--radius);
-  background: #fff;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
-}
-
-.logo-nametag__person {
-  font-size: 1.05rem;
-  font-weight: 700;
-  line-height: 1.2;
-  color: #111;
-}
-
-.logo-nametag__team {
-  margin-top: 0.2rem;
-  font-size: 0.8rem;
-  line-height: 1.25;
-  color: #333;
-}
-
-.logo-nametag__logos {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 0.35rem;
-  min-height: 2.1rem;
-}
-
-.logo-nametag__logo {
-  max-width: 3.1rem;
-  max-height: 2.1rem;
-  width: auto;
-  height: auto;
-  object-fit: contain;
 }
 
 .logo-footer-strip {
