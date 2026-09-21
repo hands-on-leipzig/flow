@@ -21,6 +21,10 @@ use Illuminate\Validation\ValidationException;
 
 class VolunteerInquiryService
 {
+    public function __construct(
+        private EventTitleService $eventTitles,
+    ) {}
+
     /**
      * @param  array{event_id: int, role: string, first_name: string, last_name: string, email: string, mobile?: string|null, message?: string|null, draht_id?: int|null}  $input
      * @return array{inquiry_id: int}
@@ -375,7 +379,7 @@ class VolunteerInquiryService
 
     private function eventName(Event $event): string
     {
-        $name = trim((string) $event->name);
+        $name = trim($this->eventTitles->getEventTitleLong($event));
 
         return $name !== '' ? $name : 'Veranstaltung';
     }

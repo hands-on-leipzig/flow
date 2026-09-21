@@ -5,8 +5,6 @@
 export type EventTitleFields = {
   title_long?: string | null
   title_short?: string | null
-  title_type?: string | null
-  title_type_short?: string | null
   title_place?: string | null
 }
 
@@ -20,14 +18,6 @@ export function getEventTitleLong(event: EventTitleFields | null | undefined): s
 
 export function getEventTitleShort(event: EventTitleFields | null | undefined): string {
   return field(event, 'title_short')
-}
-
-export function getCompetitionType(event: EventTitleFields | null | undefined): string {
-  return field(event, 'title_type')
-}
-
-export function getAbbreviatedCompetitionType(event: EventTitleFields | null | undefined): string {
-  return field(event, 'title_type_short')
 }
 
 export function cleanEventName(event: EventTitleFields | null | undefined): string {

@@ -90,7 +90,7 @@ final class VolunteerPersonSpreadsheetSource implements SpreadsheetSource
             [
                 new SpreadsheetSheet($stem, $columns, $rows),
             ],
-            app(\App\Services\EventTitleService::class)->getEventTitleShort($this->event),
+            app(\App\Services\EventTitleService::class)->getEventTitleLong($this->event),
         );
     }
 }

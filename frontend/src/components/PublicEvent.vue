@@ -7,7 +7,7 @@ import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
 import {imageUrl} from '@/utils/images'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
-import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleLong, getEventTitleShort} from '@/utils/eventTitle'
+import {getEventTitleLong} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import {usePublicEventSso} from '@/composables/usePublicEventSso'
 import EventMap from '@/components/molecules/EventMap.vue'
@@ -32,8 +32,7 @@ const teamFormStep = ref(null)
 const teamFormEmail = ref('')
 const {ssoToken, ssoEmail, awaitSso} = usePublicEventSso()
 
-const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
-const headingPlace = computed(() => cleanEventName(event.value) || '—')
+const headingTitle = computed(() => getEventTitleLong(event.value) || event.value?.name || 'Veranstaltung')
 const headingDate = computed(() => {
   if (!event.value?.date) return ''
   const start = dayjs(event.value.date)
@@ -46,7 +45,7 @@ const headingDate = computed(() => {
 })
 
 const heroTitle = computed(() => {
-  const parts = [headingType.value, headingPlace.value]
+  const parts = [headingTitle.value]
   if (headingDate.value) parts.push(headingDate.value)
   return parts.join(' · ')
 })
@@ -582,7 +581,7 @@ onMounted(async () => {
               <EventMap
                   :address="scheduleInfo.address"
                   :event-id="event.id"
-                  :event-name="getEventTitleShort(event)"
+                  :event-name="getEventTitleLong(event)"
                   :show-q-r-code="true"
               />
             </div>

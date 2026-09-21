@@ -37,7 +37,7 @@ class EventController extends Controller
         $events = Event::where('season', SeasonService::currentSeasonId());
         $response = [];
         foreach ($events->get() as $event) {
-            $response[$event->slug] = sprintf('%s (%s)', $this->eventTitles->getEventTitleShort($event), $event->date);
+            $response[$event->slug] = sprintf('%s (%s)', $this->eventTitles->getEventTitleLong($event), $event->date);
         }
         return response()->json($response);
     }

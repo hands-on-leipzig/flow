@@ -649,7 +649,7 @@ class VolunteerPublicFormTest extends TestCase
         Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
             return $mail->hasTo('tester@example.com')
                 && $mail->intendedEmail === 'max@example.com'
-                && $mail->eventName === 'Test Event'
+                && $mail->eventName === 'Event Test Event'
                 && preg_match('/^\d{6}$/', $mail->code) === 1;
         });
         Mail::assertNotSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
@@ -705,7 +705,7 @@ class VolunteerPublicFormTest extends TestCase
         Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
             return $mail->hasTo('max@example.com')
                 && $mail->intendedEmail === null
-                && $mail->eventName === 'Test Event';
+                && $mail->eventName === 'Event Test Event';
         });
     }
 

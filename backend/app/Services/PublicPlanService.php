@@ -152,8 +152,6 @@ class PublicPlanService
      * @return array{
      *     title_long: string,
      *     title_short: string,
-     *     title_type: string,
-     *     title_type_short: string,
      *     title_place: string
      * }
      */

@@ -8,7 +8,7 @@ import SharePointDocumentsBox from '@/components/molecules/SharePointDocumentsBo
 import EventMap from '@/components/molecules/EventMap.vue'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
-import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleShort} from '@/utils/eventTitle'
+import {getEventTitleShort} from '@/utils/eventTitle'
 import {eventPrograms, programDisplayName, teamPathFor, programCompact} from '@/utils/eventPrograms'
 import {staffingSummaryFromReadiness, type StaffingScopeSummary} from '@/utils/volunteerStaffingSummary'
 import VolunteerStaffingSummary from '@/components/volunteers/VolunteerStaffingSummary.vue'
@@ -47,8 +47,7 @@ const seasonName = computed(() =>
     || (event.value as any)?.seasonRel?.name
     || null
 )
-const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
-const headingPlace = computed(() => cleanEventName(event.value) || '—')
+const headingTitle = computed(() => getEventTitleShort(event.value) || 'Veranstaltung')
 const headingDate = computed(() => {
   if (!event.value?.date) return ''
   const start = dayjs(event.value.date)
@@ -154,9 +153,7 @@ watch(
             class="h-9 w-auto shrink-0 object-contain"
         />
         <h1 class="min-w-0 text-lg sm:text-xl lg:text-2xl font-bold text-[var(--color-text)] truncate">
-          <span>{{ headingType }}</span>
-          <span class="text-[var(--color-text-muted)] font-semibold mx-1.5">·</span>
-          <span>{{ headingPlace }}</span>
+          <span>{{ headingTitle }}</span>
           <template v-if="headingDate">
             <span class="text-[var(--color-text-muted)] font-semibold mx-1.5">·</span>
             <span class="tabular-nums font-semibold">{{ headingDate }}</span>

@@ -6,14 +6,13 @@ use App\Support\ProgramCatalog;
 
 class EventTitleService
 {
-    private const FINALE_TYPE = 'Challenge und Future Edition 8+ Finale Event';
+    private const FINALE_TYPE = 'Future Edition 8+ und Challenge Finale';
 
     /**
      * @return array{
      *     title_long: string,
      *     title_short: string,
      *     title_type: string,
-     *     title_type_short: string,
      *     title_place: string
      * }
      */
@@ -21,12 +20,14 @@ class EventTitleService
     {
         $place = $this->cleanEventName($event);
         $type = $this->typeFor($event);
+        $short = trim($type.' '.$place);
 
         return [
-            'title_long' => trim('FIRST LEGO League '.$type.' '.$place),
-            'title_short' => trim($type.' '.$place),
+            // title_long is reserved for later (branded / HTML). Equal to title_short for now.
+            'title_long' => $short,
+            'title_short' => $short,
+            // Leftover for parked PlanExport PdfLayoutService only. Do not put on the API.
             'title_type' => $type,
-            'title_type_short' => $type,
             'title_place' => $place,
         ];
     }
@@ -37,7 +38,13 @@ class EventTitleService
      */
     public function withTitles(array $payload, object $event): array
     {
-        return array_merge($payload, $this->titles($event));
+        $titles = $this->titles($event);
+
+        return array_merge($payload, [
+            'title_long' => $titles['title_long'],
+            'title_short' => $titles['title_short'],
+            'title_place' => $titles['title_place'],
+        ]);
     }
 
     public function getEventTitleLong(object $event): string
