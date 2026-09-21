@@ -30,6 +30,7 @@ const SCHEDULE_NOTICE_SCREEN_KEYS = Object.values(HELP_SCREEN_KEY_BY_PATH)
 /** Extra notice screens mirrored onto another page (not that page’s own help). */
 export const NOTICE_MIRROR_SCREEN_KEYS_BY_PATH: Record<string, string[]> = {
   '/plan/publish/analog': [TEAMS_PROGRAM_HELP_KEY, 'rooms', ...SCHEDULE_NOTICE_SCREEN_KEYS],
+  '/plan/publish/namensschilder': [TEAMS_PROGRAM_HELP_KEY, 'volunteers-staffing', ...SCHEDULE_NOTICE_SCREEN_KEYS],
 }
 
 export function noticeMirrorScreenKeysForPath(path: string): string[] {

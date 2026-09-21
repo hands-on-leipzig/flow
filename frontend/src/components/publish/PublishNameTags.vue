@@ -73,7 +73,7 @@ watch(eventId, () => {
           rel="noopener noreferrer"
           class="text-[var(--color-accent)] underline hover:opacity-80"
       >Format Avery L4785</a>
-      formatiert.
+      formatiert.<br>
       Mit „Überspringen“ können die ersten Aufkleber auf dem ersten Blatt übersprungen werden, um teilweise bereits verwendete Blätter weiter zu nutzen.
     </p>
 
