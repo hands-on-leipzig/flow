@@ -417,7 +417,7 @@ watch(
             Die Daten zum Team (Name, Coach:innen, Teilnehmer:innen, ...) können direkt in
             <a
                 class="team-public-form__join-link"
-                href="https://join.hands-on-technology.org"
+                href="https://handson.tools/join"
                 target="_blank"
                 rel="noopener noreferrer"
             >JOIN</a>

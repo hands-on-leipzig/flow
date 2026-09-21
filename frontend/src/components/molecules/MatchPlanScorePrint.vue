@@ -127,7 +127,7 @@ async function downloadPdf() {
       <p class="role-sheets__sub">
         Vorrunden-Matches zum Übernehmen nach
         <a
-          href="https://evaluation.hands-on-technology.org/"
+          href="https://handson.tools/score"
           target="_blank"
           rel="noopener noreferrer"
           class="text-[var(--color-accent)] underline hover:opacity-80"
