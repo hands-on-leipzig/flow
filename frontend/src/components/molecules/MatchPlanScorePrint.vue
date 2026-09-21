@@ -6,8 +6,7 @@ import AccordionArrow from '@/components/icons/IconAccordionArrow.vue'
 import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {flowFilename} from '@/utils/flowFilename'
-import {hasChallenge} from '@/utils/eventPrograms'
-import {getEventTitleLong} from '@/utils/eventTitle'
+import {hasChallenge, programDisplayName} from '@/utils/eventPrograms'
 
 defineOptions({name: 'MatchPlanScorePrint'})
 
@@ -33,10 +32,7 @@ const roundOptions = [
   {value: 3, label: 'Vorrunde 3'},
 ]
 
-const eventTitleNormalized = computed(() => {
-  const title = getEventTitleLong(event.value)
-  return title.replace(/FIRST/, '<em>FIRST</em>')
-})
+const challengeLabel = computed(() => programDisplayName('CHALLENGE'))
 
 function toggleRound(round: number) {
   if (openRound.value === round) {
@@ -168,7 +164,7 @@ async function downloadPdf() {
         @click.stop
       >
         <header class="match-plan-modal__head">
-          <h3 class="match-plan-modal__title" v-html="eventTitleNormalized"></h3>
+          <h3 class="match-plan-modal__title">{{ challengeLabel }}</h3>
           <button
             type="button"
             class="match-plan-modal__close"
@@ -292,7 +288,7 @@ async function downloadPdf() {
 .match-plan-modal__dialog {
   display: flex;
   flex-direction: column;
-  width: max-content;
+  width: 50vw;
   max-width: calc(100vw - 2rem);
   max-height: calc(100vh - 2rem);
   overflow: hidden;
@@ -336,7 +332,7 @@ async function downloadPdf() {
 
 .match-plan-modal__matches {
   display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(0, max-content);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.75rem;
 }
 
