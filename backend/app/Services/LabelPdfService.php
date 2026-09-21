@@ -240,7 +240,7 @@ class LabelPdfService
         // Person name (large, bold, top)
         // SetXY uses absolute coordinates when margins are 0
         $pdf->SetXY($contentX, $contentY);
-        $pdf->SetFont($this->boldFont, 'B', 18);
+        $pdf->SetFont($this->boldFont, '', 18);
         $pdf->SetTextColor(0, 0, 0);
         // Use MultiCell with simpler parameters
         $pdf->MultiCell($contentWidth, 8, $nameTag['person_name'], 0, 'L', false, 1);
