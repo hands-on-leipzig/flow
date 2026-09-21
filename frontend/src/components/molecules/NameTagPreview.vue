@@ -17,7 +17,7 @@ const seasonName = computed(() => {
 })
 const programRef = computed(() => eventPrograms(eventStore.selectedEvent)[0] ?? null)
 const seasonSrc = computed(() => seasonLogoSrc(seasonName.value, 'v'))
-const programSrc = computed(() => programLogoSrc(programRef.value, 'h'))
+const programSrc = computed(() => programLogoSrc(programRef.value, 'hs'))
 </script>
 
 <template>
@@ -47,32 +47,54 @@ const programSrc = computed(() => programLogoSrc(programRef.value, 'h'))
   </div>
 </template>
 
+<style>
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../../../../backend/resources/fonts/noto/NotoSans-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../../../../backend/resources/fonts/noto/NotoSans-Bold.ttf') format('truetype');
+}
+</style>
+
 <style scoped>
+/* Avery L4785 cell: 80mm × 50mm, 5mm padding, Noto 18/12 pt, logos ≤ 20×15 mm. */
 .logo-nametag {
-  width: 15rem;
-  height: 9.375rem;
+  box-sizing: border-box;
+  width: 80mm;
+  height: 50mm;
   margin: 0 auto;
-  padding: 0.7rem 0.75rem 0.55rem;
+  padding: 5mm;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
-  border-radius: var(--radius);
+  border-radius: 0;
   background: #fff;
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  font-family: 'Noto Sans', Helvetica, Arial, sans-serif;
 }
 
 .logo-nametag__person {
-  font-size: 1.05rem;
+  font-size: 18pt;
   font-weight: 700;
-  line-height: 1.2;
-  color: #111;
+  line-height: 8mm;
+  color: #000;
 }
 
 .logo-nametag__team {
-  margin-top: 0.2rem;
-  font-size: 0.8rem;
-  line-height: 1.25;
+  margin-top: 0;
+  font-size: 12pt;
+  font-weight: 400;
+  line-height: 6mm;
   color: #333;
 }
 
@@ -80,15 +102,16 @@ const programSrc = computed(() => programLogoSrc(programRef.value, 'h'))
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 0.35rem;
-  min-height: 2.1rem;
+  gap: 0;
+  min-height: 15mm;
 }
 
 .logo-nametag__logo {
-  max-width: 3.1rem;
-  max-height: 2.1rem;
+  max-width: 20mm;
+  max-height: 15mm;
   width: auto;
   height: auto;
   object-fit: contain;
+  object-position: bottom;
 }
 </style>

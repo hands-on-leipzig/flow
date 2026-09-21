@@ -119,8 +119,8 @@ watch(eventId, () => {
 }
 
 .namensschilder-logo {
-  flex: 0 1 18rem;
-  min-width: 16rem;
+  flex: 0 1 22rem;
+  min-width: 22rem;
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
