@@ -2230,6 +2230,13 @@
             "title": "Welche Aufkleber brauche ich, um Namensschilder zu drucken?",
             "sort_order": 79,
             "body": "Die PDF-Dateien sind passend zum Format Avery L4785 formatiert."
+        },
+        {
+            "id": 83,
+            "help_topic": 2,
+            "title": "Wie sind die Aufkleber im PDF sortiert?",
+            "sort_order": 80,
+            "body": "Coaches und Teammitglieder (linkes PDF)\n\n1 Programm \n2 Teamname A\u2013Z\n3 Innerhalb des Teams zuerst Coaches nach Nachname, dann Teammitglieder nach Nachname\n\nHelfer:innen (rechtes PDF)\n\n1 Programm: \u00dcbergreifend, dann die Programme, zuletzt Zus\u00e4tzlich\n2 Rolle (Juror:innen, Schiedsrichter:innen, ...)\n3 Nachname A\u2013Z\n\nDas erlaubt, nach dem Druck die Bl\u00e4tter zu zerschneiden, falls die Aufkleber nicht zentral beim Check-In, sondern bei den Briefings verteilt werden."
         }
     ],
     "m_help_action_screen": [
@@ -2751,6 +2758,11 @@
         {
             "id": 106,
             "help_action": 82,
+            "help_screen": 22
+        },
+        {
+            "id": 108,
+            "help_action": 83,
             "help_screen": 22
         }
     ],
@@ -14906,7 +14918,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-21T12:57:48.419535Z",
+        "exported_at": "2026-09-21T13:05:14.013605Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
