@@ -52,6 +52,7 @@ const selectedSeasonId = ref<number | null>(null)
 const events = ref<CockpitEvent[]>([])
 const loading = ref(true)
 const upcomingOnly = ref(true)
+const withoutPlanOnly = ref(false)
 const activeProgramFilters = ref<Set<number>>(new Set())
 const programFiltersSeeded = ref(false)
 const sortKey = ref<SortKey>('date')
@@ -98,6 +99,9 @@ const filteredRows = computed(() => {
   let rows = events.value.slice()
   if (upcomingOnly.value) {
     rows = rows.filter((row) => !row.event_date || row.event_date >= today)
+  }
+  if (withoutPlanOnly.value) {
+    rows = rows.filter((row) => !generatorRan(row))
   }
   rows = rows.filter((row) => row.programs.some((id) => activeProgramFilters.value.has(id)))
   const dir = sortDir.value === 'desc' ? -1 : 1
@@ -210,6 +214,7 @@ async function downloadExcel() {
       params: {
         season: selectedSeasonId.value,
         upcoming: upcomingOnly.value ? '1' : '0',
+        without_plan: withoutPlanOnly.value ? '1' : '0',
         programs,
         sort: sortKey.value,
         dir: sortDir.value,
@@ -350,6 +355,15 @@ onMounted(async () => {
         >
           <span class="vol-staffing-filter__label">Nur Zukunft</span>
         </button>
+        <button
+            type="button"
+            class="vol-staffing-filter"
+            :class="{'vol-staffing-filter--active': withoutPlanOnly}"
+            :aria-pressed="withoutPlanOnly"
+            @click="withoutPlanOnly = !withoutPlanOnly"
+        >
+          <span class="vol-staffing-filter__label">Noch ohne Plan</span>
+        </button>
       </template>
     </VolunteerStaffingFilterBar>
 
@@ -401,13 +415,6 @@ onMounted(async () => {
                 <span class="sr-only">{{ programDisplayName(program) }}</span>
               </th>
               <th class="px-3 py-2 text-center" scope="col">Ablauf</th>
-              <th
-                  class="px-3 py-2 text-center cockpit-dot-col--disabled"
-                  scope="col"
-                  title="Ohne DRAHT nicht verfügbar."
-              >
-                Teams
-              </th>
               <th class="px-3 py-2 text-center" scope="col">Räume</th>
               <th class="px-3 py-2 text-center" scope="col">Zuordnung</th>
               <th class="px-3 py-2" scope="col">
@@ -465,9 +472,6 @@ onMounted(async () => {
               </td>
               <td class="px-3 py-2 text-center">
                 <span class="cockpit-dot" :class="liveDotClass(row, row.dots.plan)"/>
-              </td>
-              <td class="px-3 py-2 text-center">
-                <span class="cockpit-dot cockpit-dot--disabled"/>
               </td>
               <td class="px-3 py-2 text-center">
                 <span class="cockpit-dot" :class="liveDotClass(row, row.dots.rooms)"/>
@@ -560,10 +564,5 @@ onMounted(async () => {
 .cockpit-dot--disabled {
   background: #d1d5db;
   opacity: 0.45;
-}
-
-.cockpit-dot-col--disabled {
-  color: var(--color-text-muted);
-  opacity: 0.7;
 }
 </style>

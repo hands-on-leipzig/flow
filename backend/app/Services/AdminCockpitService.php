@@ -189,6 +189,26 @@ class AdminCockpitService
      * @param  list<array<string, mixed>>  $events
      * @return list<array<string, mixed>>
      */
+    public function filterWithoutPlan(array $events, bool $withoutPlan): array
+    {
+        if (! $withoutPlan) {
+            return $events;
+        }
+
+        return array_values(array_filter(
+            $events,
+            static function (array $row): bool {
+                $end = $row['generator_last_end'] ?? null;
+
+                return $end === null || $end === '';
+            },
+        ));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $events
+     * @return list<array<string, mixed>>
+     */
     public function sortEvents(array $events, string $sort, string $dir): array
     {
         $dir = strtolower($dir) === 'desc' ? -1 : 1;

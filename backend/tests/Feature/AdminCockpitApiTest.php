@@ -113,10 +113,28 @@ class AdminCockpitApiTest extends TestCase
 
         try {
             $sheet = IOFactory::load($tmp)->getSheet(0);
-            $this->assertSame('Teams', $sheet->getCell('H1')->getValue());
+            $this->assertSame('Räume', $sheet->getCell('H1')->getValue());
             $this->assertSame('—', $sheet->getCell('G2')->getValue());
-            $this->assertSame('—', $sheet->getCell('H2')->getValue());
             $this->assertNotSame('', (string) $sheet->getCell('C2')->getValue());
+            $this->assertSame('', (string) $sheet->getCell('C3')->getValue());
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
+    public function test_xlsx_without_plan_keeps_never_generated_and_ands_with_programs(): void
+    {
+        $response = $this->get('/api/admin/cockpit.xlsx?season=1&upcoming=0&programs=2,3,8&without_plan=1');
+        $response->assertOk();
+
+        $tmp = tempnam(sys_get_temp_dir(), 'cockpit-xlsx-');
+        $this->assertNotFalse($tmp);
+        file_put_contents($tmp, $response->getContent());
+
+        try {
+            $sheet = IOFactory::load($tmp)->getSheet(0);
+            $this->assertStringContainsString('Hamburg', (string) $sheet->getCell('C2')->getValue());
+            $this->assertStringNotContainsString('München', (string) $sheet->getCell('C2')->getValue());
             $this->assertSame('', (string) $sheet->getCell('C3')->getValue());
         } finally {
             @unlink($tmp);

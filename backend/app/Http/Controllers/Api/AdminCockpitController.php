@@ -33,6 +33,10 @@ class AdminCockpitController extends Controller
             $request->query('upcoming') === '1',
         );
         $events = $this->cockpit->filterPrograms($events, $programIds);
+        $events = $this->cockpit->filterWithoutPlan(
+            $events,
+            $request->query('without_plan') === '1',
+        );
         $events = $this->cockpit->sortEvents(
             $events,
             (string) $request->query('sort', 'date'),
