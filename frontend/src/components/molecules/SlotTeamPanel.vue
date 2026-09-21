@@ -403,7 +403,7 @@ function formatTooltipDate(slotDate: string | null): string {
     <div v-if="!embedded" class="slot-teams__toolbar">
       <button
           type="button"
-          class="slot-teams__toggle glass-btn-secondary !text-xs !py-1.5 !px-2.5"
+          class="slot-teams__toggle glass-btn-secondary"
           :disabled="!blockId"
           @click="expanded = !expanded"
       >
@@ -414,7 +414,7 @@ function formatTooltipDate(slotDate: string | null): string {
       <div class="slot-teams__actions">
         <button
             type="button"
-            class="glass-btn-secondary !text-xs !py-1.5 !px-2.5"
+            class="glass-btn-secondary"
             :disabled="!blockId || !teams.length"
             @click="chronoSorted = !chronoSorted"
         >
@@ -423,7 +423,7 @@ function formatTooltipDate(slotDate: string | null): string {
         </button>
         <button
             type="button"
-            class="glass-btn-accent !text-xs !py-1.5 !px-2.5 disabled:opacity-60"
+            class="glass-btn-accent"
             :disabled="!blockId || !hasUnsavedChanges || saving || !blockActive"
             @click="saveAssignments"
         >
@@ -437,7 +437,7 @@ function formatTooltipDate(slotDate: string | null): string {
         <div class="slot-teams__actions">
           <button
               type="button"
-              class="glass-btn-secondary !text-xs !py-1.5 !px-2.5"
+              class="glass-btn-secondary"
               :disabled="!blockId || !teams.length"
               @click="chronoSorted = !chronoSorted"
           >
@@ -446,7 +446,7 @@ function formatTooltipDate(slotDate: string | null): string {
           </button>
           <button
               type="button"
-              class="glass-btn-accent !text-xs !py-1.5 !px-2.5 disabled:opacity-60"
+              class="glass-btn-accent"
               :disabled="!blockId || !hasUnsavedChanges || saving || !blockActive"
               @click="saveAssignments"
           >
@@ -555,7 +555,7 @@ function formatTooltipDate(slotDate: string | null): string {
                 <button
                     v-if="!showTimeInput(row)"
                     type="button"
-                    class="slot-team__set glass-btn-secondary !text-xs !py-1 !px-2"
+                    class="glass-btn-icon"
                     :disabled="!blockActive"
                     @click="beginEditStart(row)"
                 >

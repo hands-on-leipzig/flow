@@ -7,8 +7,7 @@ import {
   photoConsentStatusClass,
   photoConsentStatusForTeam,
 } from '@/utils/photoConsentStatus'
-import {isOtpStubAccepted} from '@/utils/otpStub'
-import PublicFormOtpNotice from '@/components/molecules/PublicFormOtpNotice.vue'
+import PublicFormOtpTestNotice from '@/components/molecules/PublicFormOtpTestNotice.vue'
 
 type FormColumn = {
   key: string
@@ -48,6 +47,8 @@ const props = defineProps<{
   email: string
   slug: string
   event?: Record<string, unknown> | null
+  ssoToken?: string
+  ssoEmail?: string
 }>()
 
 const emit = defineEmits<{
@@ -58,6 +59,10 @@ const emit = defineEmits<{
 
 const otpCode = ref('')
 const otpError = ref('')
+const formToken = ref('')
+const requestLoading = ref(false)
+const requestError = ref('')
+const verifying = ref(false)
 const lookupLoading = ref(false)
 const lookupError = ref('')
 const teams = ref<TeamSummary[]>([])
@@ -98,22 +103,56 @@ const mealMismatch = computed(() => {
 
 const saveDisabled = computed(() => saving.value || mealMismatch.value)
 
-function proceedFromEmail() {
+function otpHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {}
+  if (formToken.value) headers['X-Public-Form-Token'] = formToken.value
+  if (props.ssoToken) headers.Authorization = `Bearer ${props.ssoToken}`
+  return headers
+}
+
+async function proceedFromEmail() {
   const trimmed = props.email.trim()
-  if (!trimmed) return
+  if (!trimmed || requestLoading.value) return
   emit('update:email', trimmed)
+  requestError.value = ''
   otpError.value = ''
   otpCode.value = ''
-  emit('update:step', 'otp')
+  formToken.value = ''
+  requestLoading.value = true
+  try {
+    await axios.post(`/public-team-form/${props.slug}/otp`, {email: trimmed}, {headers: otpHeaders()})
+    emit('update:step', 'otp')
+  } catch (error: unknown) {
+    const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error as string | undefined)
+          || (error.response?.data?.message as string | undefined)
+        : undefined
+    requestError.value = message || 'Code konnte nicht angefordert werden.'
+  } finally {
+    requestLoading.value = false
+  }
 }
 
 async function verifyOtp() {
-  if (!isOtpStubAccepted(otpCode.value)) {
-    otpError.value = 'Ungültiger Code. Bitte erneut versuchen.'
-    return
-  }
+  if (!props.slug || !props.email.trim() || verifying.value) return
+  verifying.value = true
   otpError.value = ''
-  await loadLookup()
+  try {
+    const {data} = await axios.post(`/public-team-form/${props.slug}/otp/verify`, {
+      email: props.email.trim(),
+      code: otpCode.value,
+    })
+    formToken.value = data.token ?? ''
+    await loadLookup()
+  } catch (error: unknown) {
+    const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error as string | undefined)
+          || (error.response?.data?.message as string | undefined)
+        : undefined
+    otpError.value = message || 'Ungültiger Code. Bitte erneut versuchen.'
+  } finally {
+    verifying.value = false
+  }
 }
 
 function applyForm(data: FormPayload) {
@@ -137,6 +176,7 @@ async function loadLookup() {
   try {
     const {data} = await axios.get(`/public-team-form/${props.slug}/lookup`, {
       params: {email: props.email.trim()},
+      headers: otpHeaders(),
     })
     teams.value = data.teams ?? []
     if (data.form) {
@@ -155,6 +195,12 @@ async function loadLookup() {
           || (error.response?.data?.message as string | undefined)
         : undefined
     lookupError.value = message || 'Diese E-Mail ist keinem Team als Coach zugeordnet.'
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      otpError.value = 'Sitzung ungültig. Bitte Code erneut anfordern.'
+      if (!props.ssoToken) {
+        return
+      }
+    }
     emit('update:step', 'data')
   } finally {
     lookupLoading.value = false
@@ -168,6 +214,7 @@ async function selectTeam(teamId: number) {
   try {
     const {data} = await axios.get(`/public-team-form/${props.slug}/team/${teamId}`, {
       params: {email: props.email.trim()},
+      headers: otpHeaders(),
     })
     applyForm(data.form)
     emit('update:step', 'data')
@@ -210,7 +257,7 @@ async function submitForm() {
     body.meals = {...mealsDraft.value}
   }
   try {
-    await axios.post(`/public-team-form/${props.slug}/save`, body)
+    await axios.post(`/public-team-form/${props.slug}/save`, body, {headers: otpHeaders()})
     emit('update:step', 'done')
   } catch (error: unknown) {
     const message = axios.isAxiosError(error)
@@ -227,8 +274,13 @@ watch(
   (step) => {
     if (step === 'done') {
       window.scrollTo({top: 0, behavior: 'smooth'})
+      return
+    }
+    if (step === 'data' && props.ssoToken && !formPayload.value && teams.value.length === 0) {
+      void loadLookup()
     }
   },
+  {immediate: true},
 )
 </script>
 
@@ -239,6 +291,7 @@ watch(
     </header>
 
     <div v-if="step === 'email'" class="vol-public-form__step">
+      <PublicFormOtpTestNotice :sso-email="ssoEmail"/>
       <label class="vol-public-form__label" for="team-form-email">E-Mail</label>
       <input
           id="team-form-email"
@@ -248,8 +301,9 @@ watch(
           autocomplete="email"
           placeholder="name@beispiel.de"
       >
+      <p v-if="requestError" class="vol-public-form__error">{{ requestError }}</p>
       <div class="vol-public-form__actions vol-public-form__actions--inline">
-        <button type="button" class="glass-btn-accent" @click="proceedFromEmail">
+        <button type="button" class="glass-btn-accent" :disabled="requestLoading" @click="proceedFromEmail">
           Weiter
         </button>
         <button type="button" class="glass-btn-secondary" @click="emit('cancel')">
@@ -259,10 +313,10 @@ watch(
     </div>
 
     <div v-else-if="step === 'otp'" class="vol-public-form__step">
+      <PublicFormOtpTestNotice :sso-email="ssoEmail"/>
       <p class="vol-public-form__info">
         Wenn diese E-Mail für diese Veranstaltung als Coach bekannt ist, kommt gleich ein Code.
       </p>
-      <PublicFormOtpNotice />
       <label class="vol-public-form__label" for="team-form-otp">Code</label>
       <input
           id="team-form-otp"
@@ -277,7 +331,7 @@ watch(
       <p v-if="otpError" class="vol-public-form__error">{{ otpError }}</p>
       <p v-if="lookupLoading" class="pe-muted">Laden…</p>
       <div class="vol-public-form__actions vol-public-form__actions--otp">
-        <button type="button" class="glass-btn-accent" :disabled="lookupLoading" @click="verifyOtp">
+        <button type="button" class="glass-btn-accent" :disabled="lookupLoading || verifying" @click="verifyOtp">
           Bestätigen
         </button>
         <button type="button" class="glass-btn-secondary" @click="emit('cancel')">
@@ -358,6 +412,17 @@ watch(
               Gemeldete Personen: {{ peopleCount ?? '—' }}
             </p>
           </header>
+
+          <p class="vol-public-form__info">
+            Die Daten zum Team (Name, Coach:innen, Teilnehmer:innen, ...) können direkt in
+            <a
+                class="team-public-form__join-link"
+                href="https://handson.tools/join"
+                target="_blank"
+                rel="noopener noreferrer"
+            >JOIN</a>
+            geändert werden. Hier geht es um zusätzliche Informationen für die Veranstaltung.
+          </p>
 
           <div
               v-if="hasPhotoColumn"
@@ -618,6 +683,16 @@ watch(
   font-size: 0.9rem;
   font-weight: 600;
   line-height: 1.35;
+}
+
+.team-public-form__join-link {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.team-public-form__join-link:hover {
+  text-decoration: underline;
 }
 
 .team-public-form__pick {

@@ -21,6 +21,19 @@ import NoticePane from '@/components/molecules/NoticePane.vue'
 
 type Person = VolunteerPersonRef
 
+type Inquiry = {
+  id: number
+  role: string
+  first_name: string
+  last_name: string
+  email: string
+  mobile: string | null
+  message: string | null
+  created_at: string | null
+  draht_id?: number | null
+  has_account?: boolean
+}
+
 type PersonDraft = {
   first_name: string
   last_name: string
@@ -42,10 +55,12 @@ const route = useRoute()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
 const people = ref<Person[]>([])
+const inquiries = ref<Inquiry[]>([])
 const tableColumns = ref<VolunteerTableColumn[]>([...PERSON_TABLE_COLUMNS])
 const assignedIds = ref<Set<number>>(new Set())
 const search = ref('')
 const notOnRosterOnly = ref(false)
+const sharedEmailOnly = ref(false)
 type SortKey = 'first_name' | 'last_name'
 const sortKey = ref<SortKey>('last_name')
 const sortDir = ref<'asc' | 'desc'>('asc')
@@ -53,6 +68,9 @@ const loading = ref(false)
 const togglingId = ref<number | null>(null)
 const removeFromRosterTarget = ref<Person | null>(null)
 const deletePersonTarget = ref<Person | null>(null)
+const acceptInquiryTarget = ref<Inquiry | null>(null)
+const declineInquiryTarget = ref<Inquiry | null>(null)
+const decidingInquiryId = ref<number | null>(null)
 const importOpen = ref(false)
 const exportBusy = ref(false)
 
@@ -105,10 +123,35 @@ function personMatchesNameFilter(person: Person) {
   return volunteerSearchHaystack(person).includes(query)
 }
 
+function personEmailKey(person: Person): string | null {
+  const email = person.email?.trim().toLowerCase()
+  return email ? email : null
+}
+
+const sharedEmailKeys = computed(() => {
+  const counts = new Map<string, number>()
+  for (const person of people.value) {
+    const key = personEmailKey(person)
+    if (!key) continue
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  const keys = new Set<string>()
+  for (const [key, count] of counts) {
+    if (count > 1) keys.add(key)
+  }
+  return keys
+})
+
 const filtered = computed(() => {
   let list = people.value
   if (notOnRosterOnly.value) {
     list = list.filter((p) => !p.on_roster)
+  }
+  if (sharedEmailOnly.value) {
+    list = list.filter((p) => {
+      const key = personEmailKey(p)
+      return key !== null && sharedEmailKeys.value.has(key)
+    })
   }
   list = list.filter(personMatchesNameFilter)
   const key = sortKey.value
@@ -144,13 +187,33 @@ const deletePersonMessage = computed(() => {
   return `${volunteerDisplayName(p)} wird dauerhaft gelöscht.`
 })
 
+function inquiryName(inquiry: Inquiry) {
+  return `${inquiry.first_name} ${inquiry.last_name}`.trim()
+}
+
+const acceptInquiryMessage = computed(() => {
+  const inquiry = acceptInquiryTarget.value
+  if (!inquiry) return ''
+  const linked = inquiry.has_account
+    ? ' Die Person ist mit einem Hands-On-Konto verknüpft.'
+    : ' Die Person bleibt ein lokaler Kontakt ohne Konto.'
+  return `Bitte bestätige die Übernahme von ${inquiryName(inquiry)}. Die Person kommt in den Personenstamm und auf die Helfer:innenliste dieser Veranstaltung.${linked}`
+})
+
+const declineInquiryMessage = computed(() => {
+  const inquiry = declineInquiryTarget.value
+  if (!inquiry) return ''
+  return `Bitte bestätige, dass du die Anfrage von ${inquiryName(inquiry)} ablehnst. Die Person erscheint nicht in der Kontaktliste.`
+})
+
 async function load() {
   if (!eventId.value) return
   loading.value = true
   try {
-    const [peopleRes, rosterRes] = await Promise.all([
+    const [peopleRes, rosterRes, inquiryRes] = await Promise.all([
       axios.get(`/events/${eventId.value}/volunteers`),
       axios.get(`/events/${eventId.value}/volunteer-roster`),
+      axios.get(`/events/${eventId.value}/volunteer-inquiries`),
     ])
     people.value = peopleRes.data.people ?? []
     tableColumns.value = peopleRes.data.columns ?? [...PERSON_TABLE_COLUMNS]
@@ -159,6 +222,7 @@ async function load() {
         .filter((row: {has_assignment?: boolean}) => row.has_assignment)
         .map((row: {person: {id: number}}) => row.person.id),
     )
+    inquiries.value = inquiryRes.data.inquiries ?? []
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
@@ -239,7 +303,7 @@ function startEdit(p: Person) {
   editDraft.value = {
     first_name: p.first_name,
     last_name: p.last_name,
-    email: p.email,
+    email: p.email ?? '',
     mobile: p.mobile ?? '',
     organization: p.organization ?? '',
   }
@@ -247,8 +311,8 @@ function startEdit(p: Person) {
 }
 
 function buildPayload(draft: PersonDraft) {
-  if (!draft.first_name.trim() || !draft.last_name.trim() || !draft.email.trim()) {
-    showGlassToast('Vorname, Nachname und E-Mail sind erforderlich.', 'info')
+  if (!draft.first_name.trim() || !draft.last_name.trim()) {
+    showGlassToast('Vorname und Nachname sind erforderlich.', 'info')
     return null
   }
   const mobileResult = resolveMobile(draft.mobile)
@@ -259,7 +323,7 @@ function buildPayload(draft: PersonDraft) {
     payload: {
       first_name: draft.first_name.trim(),
       last_name: draft.last_name.trim(),
-      email: draft.email.trim(),
+      email: draft.email.trim() || null,
       mobile: mobileResult.normalized,
       organization: draft.organization.trim() || null,
     },
@@ -384,13 +448,45 @@ async function confirmRemoveFromRoster() {
   }
 }
 
+async function confirmAcceptInquiry() {
+  const inquiry = acceptInquiryTarget.value
+  if (!eventId.value || !inquiry || decidingInquiryId.value) return
+  decidingInquiryId.value = inquiry.id
+  try {
+    await axios.post(`/events/${eventId.value}/volunteer-inquiries/${inquiry.id}/accept`)
+    acceptInquiryTarget.value = null
+    await load()
+    showGlassToast('Person übernommen', 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Übernahme fehlgeschlagen'), 'error')
+  } finally {
+    decidingInquiryId.value = null
+  }
+}
+
+async function confirmDeclineInquiry() {
+  const inquiry = declineInquiryTarget.value
+  if (!eventId.value || !inquiry || decidingInquiryId.value) return
+  decidingInquiryId.value = inquiry.id
+  try {
+    await axios.post(`/events/${eventId.value}/volunteer-inquiries/${inquiry.id}/decline`)
+    declineInquiryTarget.value = null
+    await load()
+    showGlassToast('Anfrage abgelehnt', 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Ablehnen fehlgeschlagen'), 'error')
+  } finally {
+    decidingInquiryId.value = null
+  }
+}
+
 function onPeopleImported() {
   importOpen.value = false
   void load()
   showGlassToast('Import abgeschlossen', 'success')
 }
 
-watch([search, notOnRosterOnly], () => {
+watch([search, notOnRosterOnly, sharedEmailOnly], () => {
   if (editingId.value !== null) cancelEdit()
 })
 
@@ -419,7 +515,7 @@ watch(eventId, () => {
           <h1 class="vol-page__title">Personen</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Verwalten von Kontakten (saison-übergreifend)</p>
+        <p class="vol-page__sub">Verwalten von Kontakten (saison-übergreifend). Neu anlegen bleibt ohne Konto möglich.</p>
       </div>
       <div class="vol-page__actions">
         <button
@@ -446,6 +542,63 @@ watch(eventId, () => {
     </header>
 
     <NoticePane/>
+
+    <section v-if="inquiries.length" class="glass-card liquid-surface-inner vol-tile vol-inquiries">
+      <div class="vol-inquiries__head">
+        <h2 class="vol-inquiries__title">Anfragen</h2>
+        <span class="vol-inquiries__count">{{ inquiries.length }}</span>
+      </div>
+      <p class="vol-inquiries__lead">
+        Diese Personen haben sich gemeldet. Ein Konto-Hinweis bedeutet Hands-On-Anmeldung. Erst nach Übernahme erscheinen sie in der Kontaktliste.
+      </p>
+      <ul class="vol-inquiries__list">
+        <li
+            v-for="inquiry in inquiries"
+            :key="inquiry.id"
+            class="vol-inquiry"
+        >
+          <div class="vol-inquiry__body">
+            <div class="vol-inquiry__name-row">
+              <span class="vol-inquiry__badge">Anfrage</span>
+              <span v-if="inquiry.has_account" class="vol-account-badge">Konto</span>
+              <strong>{{ inquiryName(inquiry) }}</strong>
+            </div>
+            <p class="vol-inquiry__meta">
+              {{ inquiry.role }}
+              <span aria-hidden="true">·</span>
+              <a class="vol-mailto" :href="`mailto:${inquiry.email}`">{{ inquiry.email }}</a>
+              <template v-if="inquiry.mobile">
+                <span aria-hidden="true">·</span>
+                {{ inquiry.mobile }}
+              </template>
+              <template v-if="inquiry.created_at">
+                <span aria-hidden="true">·</span>
+                {{ formatUpdatedAt(inquiry.created_at) }}
+              </template>
+            </p>
+            <p v-if="inquiry.message" class="vol-inquiry__message">{{ inquiry.message }}</p>
+          </div>
+          <div class="vol-inquiry__actions">
+            <button
+                type="button"
+                class="glass-btn-accent"
+                :disabled="decidingInquiryId === inquiry.id"
+                @click="acceptInquiryTarget = inquiry"
+            >
+              Übernehmen
+            </button>
+            <button
+                type="button"
+                class="glass-btn-secondary"
+                :disabled="decidingInquiryId === inquiry.id"
+                @click="declineInquiryTarget = inquiry"
+            >
+              Ablehnen
+            </button>
+          </div>
+        </li>
+      </ul>
+    </section>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-composer">
       <div class="vol-table-frame">
@@ -481,7 +634,7 @@ watch(eventId, () => {
                     v-model="createDraft.email"
                     class="glass-input glass-input--sm"
                     type="email"
-                    placeholder="E-Mail *"
+                    placeholder="E-Mail"
                 />
               </td>
               <td>
@@ -553,6 +706,17 @@ watch(eventId, () => {
             aria-label="Nach Name filtern"
             autocomplete="off"
         >
+        <button
+            type="button"
+            class="vol-staffing-filter"
+            :class="{'vol-staffing-filter--active': sharedEmailOnly}"
+            :aria-pressed="sharedEmailOnly"
+            title="Nur Personen anzeigen, deren E-Mail mehrfach vorkommt"
+            @click="sharedEmailOnly = !sharedEmailOnly"
+        >
+          <i class="bi bi-envelope-exclamation vol-staffing-filter__icon" aria-hidden="true"/>
+          <span class="vol-staffing-filter__label">Mehrfach verwendete E-Mail</span>
+        </button>
         <span class="vol-toolbar__count">{{ filtered.length }} / {{ people.length }}</span>
       </div>
 
@@ -641,7 +805,7 @@ watch(eventId, () => {
                       v-model="editDraft.email"
                       class="glass-input glass-input--sm"
                       type="email"
-                      placeholder="E-Mail *"
+                      placeholder="E-Mail"
                   />
                 </td>
                 <td>
@@ -690,9 +854,17 @@ watch(eventId, () => {
                 </td>
               </template>
               <template v-else>
-                <td>{{ p.first_name }}</td>
+                <td>
+                  <span class="vol-person-name">
+                    {{ p.first_name }}
+                    <span v-if="p.has_account" class="vol-account-badge">Konto</span>
+                  </span>
+                </td>
                 <td>{{ p.last_name }}</td>
-                <td>{{ p.email }}</td>
+                <td>
+                  <a v-if="p.email" class="vol-mailto" :href="`mailto:${p.email}`">{{ p.email }}</a>
+                  <span v-else>—</span>
+                </td>
                 <td>{{ p.mobile?.trim() || '—' }}</td>
                 <td>{{ p.organization?.trim() || '—' }}</td>
                 <td class="vol-table__updated">{{ formatUpdatedAt(p.updated_at) }}</td>
@@ -740,6 +912,30 @@ watch(eventId, () => {
         @confirm="confirmDeletePerson"
         @cancel="deletePersonTarget = null"
     />
+
+    <ConfirmationModal
+        :show="!!acceptInquiryTarget"
+        type="info"
+        title="Person übernehmen?"
+        :message="acceptInquiryMessage"
+        confirm-text="Übernehmen"
+        cancel-text="Abbrechen"
+        :disable-confirm-button="!!decidingInquiryId"
+        @confirm="confirmAcceptInquiry"
+        @cancel="acceptInquiryTarget = null"
+    />
+
+    <ConfirmationModal
+        :show="!!declineInquiryTarget"
+        type="warning"
+        title="Anfrage ablehnen?"
+        :message="declineInquiryMessage"
+        confirm-text="Ablehnen"
+        cancel-text="Abbrechen"
+        :disable-confirm-button="!!decidingInquiryId"
+        @confirm="confirmDeclineInquiry"
+        @cancel="declineInquiryTarget = null"
+    />
   </div>
 </template>
 
@@ -779,5 +975,123 @@ watch(eventId, () => {
 .vol-table .glass-input {
   width: 100%;
   min-width: 0;
+}
+
+.vol-inquiries__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.vol-inquiries__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.vol-inquiries__count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.12rem 0.5rem;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  color: var(--color-accent);
+}
+
+.vol-inquiries__lead {
+  margin: 0 0 0.85rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.vol-inquiries__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.vol-inquiry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 28%, var(--color-border, var(--liquid-border)));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--color-accent) 7%, transparent);
+}
+
+.vol-inquiry__body {
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.vol-inquiry__name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+}
+
+.vol-inquiry__badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.vol-account-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.08rem 0.4rem;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent);
+}
+
+.vol-person-name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+}
+
+.vol-inquiry__meta {
+  margin: 0.3rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+}
+
+.vol-mailto {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.vol-mailto:hover {
+  text-decoration: underline;
+}
+
+.vol-inquiry__message {
+  margin: 0.45rem 0 0;
+  font-size: 0.875rem;
+}
+
+.vol-inquiry__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex-shrink: 0;
 }
 </style>

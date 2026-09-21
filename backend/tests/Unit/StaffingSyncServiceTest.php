@@ -690,7 +690,7 @@ class StaffingSyncServiceTest extends TestCase
             $table->unsignedInteger('regional_partner')->default(1);
             $table->string('first_name');
             $table->string('last_name');
-            $table->string('email');
+            $table->string('email')->nullable();
             $table->timestamps();
         });
 

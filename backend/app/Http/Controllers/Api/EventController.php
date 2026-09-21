@@ -37,7 +37,7 @@ class EventController extends Controller
         $events = Event::where('season', SeasonService::currentSeasonId());
         $response = [];
         foreach ($events->get() as $event) {
-            $response[$event->slug] = sprintf('%s (%s)', $this->eventTitles->getEventTitleShort($event), $event->date);
+            $response[$event->slug] = sprintf('%s (%s)', $this->eventTitles->getEventTitleLong($event), $event->date);
         }
         return response()->json($response);
     }
@@ -47,7 +47,7 @@ class EventController extends Controller
         $event = Event::with(['seasonRel', 'levelRel', 'tableNames'])->findOrFail($id);
 
         // Decrypt password before refresh (so it's preserved)
-        $decryptedPassword = isset($event->wifi_password) ? Crypt::decryptString($event->wifi_password) : "";
+        $decryptedPassword = $event->decryptedWifiPassword();
 
         // Lazy initialization: calculate attention status if not yet calculated
         $attentionService = app(EventAttentionService::class);
@@ -253,6 +253,7 @@ class EventController extends Controller
                 'id' => $program->id,
                 'name' => $program->name,
                 'display_name' => $program->display_name,
+                'official_name' => $program->official_name,
                 'letter' => $program->letter,
                 'sequence' => $program->sequence,
                 'color_hex' => $program->color_hex,
@@ -343,14 +344,7 @@ class EventController extends Controller
                     ->update(['wifi_qrcode' => null]);
             } else {
                 // Passwort entschlüsseln (oder unverschlüsselt übernehmen)
-                $wifiPassword = '';
-                if (!empty($event->wifi_password)) {
-                    try {
-                        $wifiPassword = Crypt::decryptString($event->wifi_password);
-                    } catch (\Exception $e) {
-                        $wifiPassword = $event->wifi_password;
-                    }
-                }
+                $wifiPassword = Event::decryptWifiPassword($event->wifi_password);
 
                 if ($wifiPassword !== '') {
                     $wifiQrContent = "WIFI:T:WPA;S:{$event->wifi_ssid};P:{$wifiPassword};;";

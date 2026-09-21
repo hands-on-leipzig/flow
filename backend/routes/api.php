@@ -1,28 +1,29 @@
 <?php
 
-use App\Http\Controllers\Api\AfternoonController;
 use App\Http\Controllers\Api\AdminHelpController;
-use App\Http\Controllers\Api\EnrollmentsController;
+use App\Http\Controllers\Api\AfternoonController;
 use App\Http\Controllers\Api\CalendarFeedController;
 use App\Http\Controllers\Api\CarouselController;
 use App\Http\Controllers\Api\CheckInController;
 use App\Http\Controllers\Api\CockpitController;
 use App\Http\Controllers\Api\ContaoController;
 use App\Http\Controllers\Api\DrahtController;
+use App\Http\Controllers\Api\EnrollmentsController;
 use App\Http\Controllers\Api\EventController;
-use App\Http\Controllers\Api\HelpController;
 use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Http\Controllers\Api\EventStaffingController;
 use App\Http\Controllers\Api\EventTeamDataController;
 use App\Http\Controllers\Api\EventTeamFieldController;
+use App\Http\Controllers\Api\EventVolunteerCollectController;
 use App\Http\Controllers\Api\EventVolunteerFieldController;
 use App\Http\Controllers\Api\EventVolunteerMealOptionController;
-use App\Http\Controllers\Api\EventVolunteerCollectController;
 use App\Http\Controllers\Api\EventVolunteerRosterController;
 use App\Http\Controllers\Api\EventWorkspaceController;
 use App\Http\Controllers\Api\ExtraBlockController;
+use App\Http\Controllers\Api\HelpController;
 use App\Http\Controllers\Api\LabelController;
 use App\Http\Controllers\Api\LogoController;
+use App\Http\Controllers\Api\MailController;
 use App\Http\Controllers\Api\MainTablesController;
 use App\Http\Controllers\Api\MatchPlanCatalogController;
 use App\Http\Controllers\Api\MParameterController;
@@ -38,8 +39,17 @@ use App\Http\Controllers\Api\PlanParameterController;
 use App\Http\Controllers\Api\PlanPreviewController;
 use App\Http\Controllers\Api\PlanQualityController;
 use App\Http\Controllers\Api\PlanRoomTypeController;
+use App\Http\Controllers\Api\PrintGesamtplanController;
+use App\Http\Controllers\Api\PrintGotenbergTestController;
+use App\Http\Controllers\Api\PrintMatchPlanScoreController;
+use App\Http\Controllers\Api\PrintOverviewSheetController;
+use App\Http\Controllers\Api\PrintRoleSheetController;
+use App\Http\Controllers\Api\PrintRoomSheetController;
+use App\Http\Controllers\Api\PrintTeamlisteController;
 use App\Http\Controllers\Api\ProgramController;
+use App\Http\Controllers\Api\PublicEventLinkController;
 use App\Http\Controllers\Api\PublicPlanController;
+use App\Http\Controllers\Api\PublicVolunteerInquiryController;
 use App\Http\Controllers\Api\PublicVolunteerOpeningsController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
@@ -53,6 +63,7 @@ use App\Http\Controllers\Api\TeamPublicFormController;
 use App\Http\Controllers\Api\UserAccessController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
+use App\Http\Controllers\Api\EventVolunteerInquiryController;
 use App\Http\Controllers\Api\VolunteerPersonController;
 use App\Http\Controllers\Api\VolunteerPublicFormController;
 use App\Models\Event;
@@ -85,6 +96,13 @@ Route::get('/events', [EventController::class, 'index']); // Get list of current
 Route::get('/programs', [ProgramController::class, 'index']); // Catalog from m_first_program
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
 Route::get('/public/volunteer-openings', [PublicVolunteerOpeningsController::class, 'index']); // Hero: events currently seeking helpers
+Route::post('/public/volunteer-inquiries', [PublicVolunteerInquiryController::class, 'store'])
+    ->middleware('throttle:8,1'); // Hero: ask a regional partner about an open role
+Route::get('/public/sharepoint/status', [SharepointController::class, 'status']);
+Route::get('/public/sharepoint/documents', [SharepointController::class, 'listDocuments']);
+Route::get('/public/sharepoint/documents-file-link', [SharepointController::class, 'getFileLink']);
+Route::get('/public/sharepoint/documents-file-stream', [SharepointController::class, 'streamFile']);
+Route::get('/public/event-links', [PublicEventLinkController::class, 'index']); // JOIN: public links of a season, addressed with DRAHT ids
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
@@ -112,9 +130,18 @@ Route::prefix('check-in/{slug}')->group(function () {
         ->where('subjectType', 'team|volunteer');
 });
 
-// Volunteer public data entry (email lookup + save; public; OTP token deferred)
+// Volunteer / team public data entry (OTP session, then lookup + save)
+Route::post('/public-volunteer-form/{slug}/otp', [VolunteerPublicFormController::class, 'requestOtp'])
+    ->middleware('throttle:8,1');
+Route::post('/public-volunteer-form/{slug}/otp/verify', [VolunteerPublicFormController::class, 'verifyOtp'])
+    ->middleware('throttle:20,1');
 Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
+Route::get('/public-volunteer-form/{slug}/person/{volunteer}', [VolunteerPublicFormController::class, 'person']);
 Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
+Route::post('/public-team-form/{slug}/otp', [TeamPublicFormController::class, 'requestOtp'])
+    ->middleware('throttle:8,1');
+Route::post('/public-team-form/{slug}/otp/verify', [TeamPublicFormController::class, 'verifyOtp'])
+    ->middleware('throttle:20,1');
 Route::get('/public-team-form/{slug}/lookup', [TeamPublicFormController::class, 'lookup']);
 Route::get('/public-team-form/{slug}/team/{team}', [TeamPublicFormController::class, 'team']);
 Route::post('/public-team-form/{slug}/save', [TeamPublicFormController::class, 'save']);
@@ -152,6 +179,15 @@ Route::middleware(['keycloak'])->group(function () {
             'is_prod' => app()->environment('production'),
         ]);
     });
+
+    Route::get('/print/{eventId}/role-sheets/catalog', [PrintRoleSheetController::class, 'catalog']);
+    Route::post('/print/{eventId}/role-sheets', [PrintRoleSheetController::class, 'download']);
+    Route::post('/print/{eventId}/room-sheets', [PrintRoomSheetController::class, 'download']);
+    Route::post('/print/{eventId}/gesamtplan', [PrintGesamtplanController::class, 'download']);
+    Route::post('/print/{eventId}/teamliste', [PrintTeamlisteController::class, 'download']);
+    Route::post('/print/{eventId}/match-plan-score', [PrintMatchPlanScoreController::class, 'download']);
+    Route::post('/print/{eventId}/overview-sheet', [PrintOverviewSheetController::class, 'start']);
+    Route::get('/print/{eventId}/overview-sheet/{jobId}', [PrintOverviewSheetController::class, 'show']);
 
     Route::get('/user', fn (Request $r) => $r->input('keycloak_user'));
     Route::get('/user/me', [UserAccessController::class, 'me']);
@@ -340,6 +376,9 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/events/{event}/volunteers/export', [VolunteerPersonController::class, 'exportXlsx']);
     Route::put('/volunteers/{volunteer}', [VolunteerPersonController::class, 'update']);
     Route::delete('/volunteers/{volunteer}', [VolunteerPersonController::class, 'destroy']);
+    Route::get('/events/{event}/volunteer-inquiries', [EventVolunteerInquiryController::class, 'index']);
+    Route::post('/events/{event}/volunteer-inquiries/{inquiry}/accept', [EventVolunteerInquiryController::class, 'accept']);
+    Route::post('/events/{event}/volunteer-inquiries/{inquiry}/decline', [EventVolunteerInquiryController::class, 'decline']);
     Route::get('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'index']);
     Route::post('/events/{event}/volunteer-fields', [EventVolunteerFieldController::class, 'store']);
     Route::put('/events/{event}/volunteer-fields/public-form', [EventVolunteerFieldController::class, 'replacePublicForm']);
@@ -621,6 +660,7 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Admin helper functions routes
     Route::prefix('admin/helpers')->group(function () {
+        Route::post('/gotenberg-test', [PrintGotenbergTestController::class, 'download']);
         Route::post('/logos/cleanup-orphaned', [LogoController::class, 'cleanupOrphanedLogos']); // Admin: Clean up orphaned logos
         Route::prefix('season-plans')->group(function () {
             Route::get('/', [SeasonPlanBulkController::class, 'summary']);
@@ -633,5 +673,13 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/', [SharepointController::class, 'getAdminConfig']);
         Route::put('/', [SharepointController::class, 'updateAdminConfig']);
         Route::post('/test', [SharepointController::class, 'testConnection']);
+    });
+
+    Route::prefix('admin/mail')->group(function () {
+        Route::get('/', [MailController::class, 'status']);
+        Route::get('/notifications', [MailController::class, 'notifications']);
+        Route::get('/notifications/{key}/preview', [MailController::class, 'preview'])
+            ->where('key', '[A-Za-z0-9._-]+');
+        Route::post('/test', [MailController::class, 'sendTest']);
     });
 });

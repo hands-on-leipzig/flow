@@ -21,6 +21,7 @@ const updatingMatchSchedule = ref(false)
 const deletingPreviewQRuns = ref(false)
 const emptyingSeasonPlans = ref(false)
 const regeneratingSeasonPlans = ref(false)
+const testingGotenberg = ref(false)
 const contaoEventId = ref(null)
 const contaoRound = ref('af')
 
@@ -354,6 +355,44 @@ async function confirmRegenerateSeasonPlans() {
   })
 }
 
+async function errorFromPdfResponse(error) {
+  const data = error?.response?.data
+  if (data && typeof data === 'object' && !(data instanceof Blob) && data.error) {
+    return String(data.error)
+  }
+  if (data instanceof Blob) {
+    try {
+      const json = JSON.parse(await data.text())
+      if (json.error) return String(json.error)
+    } catch {
+      // not JSON
+    }
+  }
+  return 'PDF-Dienst nicht erreichbar.'
+}
+
+async function runGotenbergTest() {
+  if (testingGotenberg.value) return
+  testingGotenberg.value = true
+  try {
+    const response = await axios.post(
+      '/admin/helpers/gotenberg-test',
+      {},
+      {responseType: 'blob', timeout: 60_000},
+    )
+    const url = window.URL.createObjectURL(response.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = response.headers['x-filename'] || 'FLOW_Gotenberg_Test.pdf'
+    link.click()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    showGlassToast(await errorFromPdfResponse(error), 'error')
+  } finally {
+    testingGotenberg.value = false
+  }
+}
+
 async function runRegenerateSeasonPlans() {
   regeneratingSeasonPlans.value = true
   try {
@@ -386,6 +425,23 @@ async function runRegenerateSeasonPlans() {
     </div>
 
     <div class="wartung-grid">
+      <div class="wartung-tile glass-card liquid-surface-inner">
+        <h3 class="glass-card__title !mb-0">PDF-Dienst prüfen</h3>
+        <p class="wartung-tile__body text-sm text-[var(--color-text-muted)]">
+          Schickt eine Hallo-Welt-Seite an Gotenberg. Wenn ein PDF kommt, erreicht FLOW den Dienst
+          (Adresse und Anmeldung). Der Übersichtsplan ist ein zweiter Schritt.
+        </p>
+        <button
+            type="button"
+            class="wartung-tile__btn glass-btn-accent"
+            :disabled="testingGotenberg"
+            @click="runGotenbergTest"
+        >
+          <i class="bi bi-printer" aria-hidden="true"/>
+          {{ testingGotenberg ? 'Erzeuge…' : 'Test-PDF erzeugen' }}
+        </button>
+      </div>
+
       <div class="wartung-tile glass-card liquid-surface-inner">
         <h3 class="glass-card__title !mb-0">Regional Partner synchronisieren</h3>
         <p class="wartung-tile__body text-sm text-[var(--color-text-muted)]">

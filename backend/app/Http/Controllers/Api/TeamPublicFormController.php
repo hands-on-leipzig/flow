@@ -7,7 +7,9 @@ use App\Models\Event;
 use App\Models\EventTeamField;
 use App\Models\EventTeamFieldValue;
 use App\Models\Team;
+use App\Services\PublicFormOtpService;
 use App\Services\SeasonService;
+use App\Support\KeycloakAccessToken;
 use App\Support\TeamCoachLookup;
 use App\Support\TeamDataColumns;
 use App\Support\TeamDataCustomFields;
@@ -24,6 +26,48 @@ use Illuminate\Support\Facades\DB;
 
 class TeamPublicFormController extends Controller
 {
+    public function __construct(
+        private readonly PublicFormOtpService $otp,
+    ) {}
+
+    public function requestOtp(Request $request, string $slug): JsonResponse
+    {
+        $email = $this->otp->normalizeEmail((string) $request->input('email', ''));
+        if ($email === null) {
+            return response()->json(['error' => 'Ungültige E-Mail-Adresse.'], 422);
+        }
+
+        $this->otp->requestCode(
+            PublicFormOtpService::PURPOSE_TEAM,
+            $this->otp->eventForSlug($slug),
+            $email,
+            KeycloakAccessToken::email($request),
+        );
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function verifyOtp(Request $request, string $slug): JsonResponse
+    {
+        $email = $this->otp->normalizeEmail((string) $request->input('email', ''));
+        if ($email === null) {
+            return response()->json(['error' => 'Ungültige E-Mail-Adresse.'], 422);
+        }
+
+        $token = $this->otp->verifyCode(
+            PublicFormOtpService::PURPOSE_TEAM,
+            $this->otp->eventForSlug($slug),
+            $email,
+            (string) $request->input('code', ''),
+        );
+
+        if ($token === null) {
+            return response()->json(['error' => 'Ungültiger Code.'], 422);
+        }
+
+        return response()->json(['token' => $token]);
+    }
+
     public function lookup(Request $request, string $slug): JsonResponse
     {
         $email = $this->normalizeEmail((string) $request->query('email', ''));
@@ -32,6 +76,7 @@ class TeamPublicFormController extends Controller
         }
 
         $event = $this->eventBySlug($slug);
+        $this->otp->assertVerified($request, PublicFormOtpService::PURPOSE_TEAM, $event, $email);
         $teams = $this->resolveCoachTeams($event, $email);
 
         $teamRows = $this->serializeTeamList($event, $teams);
@@ -52,6 +97,7 @@ class TeamPublicFormController extends Controller
         }
 
         $event = $this->eventBySlug($slug);
+        $this->otp->assertVerified($request, PublicFormOtpService::PURPOSE_TEAM, $event, $email);
         $teams = $this->resolveCoachTeams($event, $email);
         if (! $teams->contains(fn (Team $item) => (int) $item->id === (int) $team->id)) {
             abort(404, 'Team nicht gefunden.');
@@ -73,6 +119,7 @@ class TeamPublicFormController extends Controller
         }
 
         $event = $this->eventBySlug($slug);
+        $this->otp->assertVerified($request, PublicFormOtpService::PURPOSE_TEAM, $event, $email);
         $teamId = (int) $request->input('team', 0);
         if ($teamId <= 0) {
             return response()->json(['error' => 'Team ist erforderlich.'], 422);

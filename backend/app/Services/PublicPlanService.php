@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Support\EventDayClock;
 use App\Support\PlanParameter;
+use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
 use App\Support\RoleDifferentiation;
 use App\Support\RoleScheduleSlice;
@@ -15,7 +16,28 @@ use Illuminate\Support\Facades\DB;
 class PublicPlanService
 {
     private const LANE_MEETING_CODES = ['j_with_team', 'e_with_team', 'f8_j_with_team'];
+
     private const TABLE_MATCH_CODES = ['r_match', 'f8_r_match'];
+
+    private const WITH_TEAM_CODES = ['e_with_team', 'j_with_team', 'f8_j_with_team', 'lc_with_team'];
+
+    private const TABLE_SIDE_CODES = ['r_check', 'f8_r_alliance'];
+
+    private const SLOT_BLOCK_CODES = ['e_slot_block', 'c_slot_block', 'f8_slot_block'];
+
+    /** Morning robot-game groups: volunteer/unassigned sides stay off other teams’ sheets. */
+    private const ROBOT_GAME_GROUP_CODES = [
+        'r_test_round',
+        'r_round_1',
+        'r_round_2',
+        'r_round_3',
+        'f8_test_round',
+        'f8_round_1',
+        'f8_round_2',
+        'f8_round_3',
+        'f8_round_4',
+        'f8_round_5',
+    ];
 
     public function __construct(
         private ActivityFetcherService $activities,
@@ -39,6 +61,9 @@ class PublicPlanService
                 'event.slug as event_slug',
                 'event.check_in_enabled',
                 'event.cockpit_enabled',
+                'event.qrcode',
+                'event.wifi_ssid',
+                'event.wifi_qrcode',
             )
             ->first();
 
@@ -77,12 +102,26 @@ class PublicPlanService
             'event_id' => (int) $plan->event_id,
             'event_name' => $titles['title_long'],
             'slug' => $plan->event_slug ?: null,
+            'publication_level' => $this->publicationLevelForEvent((int) $plan->event_id),
             'check_in_enabled' => (bool) $plan->check_in_enabled,
             'cockpit_enabled' => (bool) $plan->cockpit_enabled,
             'programs' => $this->eventPrograms((int) $plan->event_id),
             'roles' => $roles,
+            'qrcode' => self::storedPng($plan->qrcode ?? null),
+            'wifi_qrcode' => self::wifiQrPng($plan),
             ...$titles,
         ];
+    }
+
+    private function publicationLevelForEvent(int $eventId): int
+    {
+        $level = DB::table('publication')
+            ->where('event', $eventId)
+            ->orderBy('last_change', 'desc')
+            ->orderBy('id', 'desc')
+            ->value('level');
+
+        return $level !== null ? (int) $level : 1;
     }
 
     /**
@@ -113,8 +152,6 @@ class PublicPlanService
      * @return array{
      *     title_long: string,
      *     title_short: string,
-     *     title_type: string,
-     *     title_type_short: string,
      *     title_place: string
      * }
      */
@@ -140,6 +177,12 @@ class PublicPlanService
     {
         $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
         $displayName = trim((string) ($role->first_program_display_name ?? ''));
+        $officialName = $firstProgram === null
+            ? null
+            : ProgramCatalog::officialNameHtml(
+                $firstProgram,
+                $displayName !== '' ? $displayName : (string) ($role->first_program_name ?? '')
+            );
 
         return [
             'id' => (int) $role->id,
@@ -153,6 +196,7 @@ class PublicPlanService
             'first_program_display_name' => $firstProgram === null
                 ? null
                 : ($displayName !== '' ? $displayName : ($role->first_program_name ?: null)),
+            'first_program_official_name' => $firstProgram === null ? null : ($officialName !== '' ? $officialName : null),
             'color_hex' => $role->color_hex ?: '888888',
             'logo_stem' => $role->logo_stem,
             'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
@@ -482,7 +526,7 @@ class PublicPlanService
     }
 
     /**
-     * @return list<array{id:int,display_name:string,sequence:int,logo_stem:?string,logo_white:?string,color_hex:string}>
+     * @return list<array{id:int,display_name:string,official_name:string,sequence:int,logo_stem:?string,logo_white:?string,color_hex:string}>
      */
     private function eventPrograms(int $eventId): array
     {
@@ -504,9 +548,11 @@ class PublicPlanService
         $programs = [];
         foreach ($rows as $row) {
             $display = trim((string) ($row->display_name ?? ''));
+            $display = $display !== '' ? $display : (string) $row->name;
             $programs[] = [
                 'id' => (int) $row->id,
-                'display_name' => $display !== '' ? $display : (string) $row->name,
+                'display_name' => $display,
+                'official_name' => ProgramCatalog::officialNameHtml((int) $row->id, $display),
                 'sequence' => (int) $row->sequence,
                 'logo_stem' => $row->logo_stem,
                 'logo_white' => $row->logo_white,
@@ -621,42 +667,39 @@ class PublicPlanService
 
     private function activityMatchesTeam(object $row, int $team): bool
     {
+        $code = (string) ($row->activity_type_code ?? '');
+        $groupCode = (string) ($row->group_activity_type_code ?? '');
         $atd = (int) ($row->activity_type_detail_id ?? 0);
         $groupAtd = (int) ($row->activity_type_detail ?? $row->activity_type_group ?? 0);
 
-        // 1 Explore judging, 17 Challenge jury, 42 LC with team
-        if (in_array($atd, [1, 17, 42], true)) {
+        if (in_array($code, self::WITH_TEAM_CODES, true) || in_array($atd, [1, 17, 42], true)) {
             return (int) ($row->team ?? 0) === $team;
         }
 
-        // 15 Match
-        if ($atd === 15) {
+        if (in_array($code, self::TABLE_MATCH_CODES, true) || $atd === 15) {
             $t1 = $row->table_1_team !== null ? (int) $row->table_1_team : null;
             $t2 = $row->table_2_team !== null ? (int) $row->table_2_team : null;
             if ($t1 === $team || $t2 === $team) {
                 return true;
             }
-            // Shared match-group rows without both teams set (non robot-game rounds)
-            $robotGameGroups = [8, 9, 10, 11];
-            if (! in_array($groupAtd, $robotGameGroups, true) && ($t1 === null || $t2 === null)) {
+            $robotGameGroup = in_array($groupCode, self::ROBOT_GAME_GROUP_CODES, true)
+                || in_array($groupAtd, [8, 9, 10, 11], true);
+            if (! $robotGameGroup && ($t1 === null || $t2 === null)) {
                 return true;
             }
 
             return false;
         }
 
-        // 16 Robot-Check
-        if ($atd === 16) {
+        if (in_array($code, self::TABLE_SIDE_CODES, true) || $atd === 16) {
             return (int) ($row->table_1_team ?? 0) === $team
                 || (int) ($row->table_2_team ?? 0) === $team;
         }
 
-        // 64/65 Slot blocks
-        if (in_array($atd, [64, 65], true)) {
+        if (in_array($code, self::SLOT_BLOCK_CODES, true) || in_array($atd, [64, 65], true)) {
             return (int) ($row->slot_team ?? 0) === $team;
         }
 
-        // Other activities: keep when not team-specific
         return $row->team === null;
     }
 
@@ -761,6 +804,8 @@ class PublicPlanService
                     'activity_type_detail_id' => $row->activity_type_detail_id ?? null,
                     'activity_type_code' => $row->activity_type_code ?? null,
                     'presence' => $row->activity_presence ?? 'punctual',
+                    'extra_block_id' => self::extraBlockId($row),
+                    'extra_block_type' => self::extraBlockType($row),
                     'meta' => [
                         'name' => $row->activity_atd_name ?? null,
                         'first_program_id' => $row->activity_first_program_id ?? null,
@@ -777,8 +822,14 @@ class PublicPlanService
                     'table_2_name' => $row->table_2_name ?? null,
                     'table_2_team' => $row->table_2_team,
                     'team_name' => $row->jury_team_name ?? null,
+                    'jury_team_number_hot' => $row->jury_team_number_hot ?? null,
+                    'jury_team_noshow' => (bool) ($row->jury_team_noshow ?? false),
                     'table_1_team_name' => $row->table_1_team_name ?? null,
+                    'table_1_team_number_hot' => $row->table_1_team_number_hot ?? null,
+                    'table_1_team_noshow' => (bool) ($row->table_1_team_noshow ?? false),
                     'table_2_team_name' => $row->table_2_team_name ?? null,
+                    'table_2_team_number_hot' => $row->table_2_team_number_hot ?? null,
+                    'table_2_team_noshow' => (bool) ($row->table_2_team_noshow ?? false),
                     'room' => [
                         'room_type_id' => $row->room_type_id ?? null,
                         'room_type_name' => $row->room_type_name ?? null,
@@ -796,5 +847,41 @@ class PublicPlanService
         }
 
         return array_values($groups);
+    }
+
+    private static function extraBlockId(object $row): ?int
+    {
+        $id = $row->extra_block_id ?? $row->is_extra_block ?? null;
+        if ($id === null || $id === '' || $id === false) {
+            return null;
+        }
+        $id = (int) $id;
+
+        return $id > 0 ? $id : null;
+    }
+
+    private static function extraBlockType(object $row): ?string
+    {
+        $type = trim((string) ($row->extra_block_type ?? ''));
+
+        return $type !== '' ? $type : null;
+    }
+
+    private static function storedPng(mixed $value): ?string
+    {
+        if (! is_string($value) || $value === '') {
+            return null;
+        }
+
+        return $value;
+    }
+
+    private static function wifiQrPng(object $plan): ?string
+    {
+        if (trim((string) ($plan->wifi_ssid ?? '')) === '') {
+            return null;
+        }
+
+        return self::storedPng($plan->wifi_qrcode ?? null);
     }
 }

@@ -2,6 +2,7 @@
 import {onMounted, onUnmounted, ref} from 'vue'
 import type {AxiosInstance} from 'axios'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
+import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 
 defineOptions({name: 'CockpitStagePresentationPanel'})
@@ -158,7 +159,9 @@ onUnmounted(() => {
             :src="programLogoSrc({logo_stem: section.logo_stem})"
             :alt="programLogoAlt({logo_stem: section.logo_stem})"
         >
-        <h2 class="cp-stage__title">{{ section.program_label }}</h2>
+        <h2 class="cp-stage__title">
+          <ProgramOfficialName :html="section.program_label"/>
+        </h2>
       </header>
 
       <ol class="cp-stage__slots">

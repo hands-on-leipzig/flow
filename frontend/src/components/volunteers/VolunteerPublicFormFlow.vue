@@ -7,8 +7,7 @@ import {
   photoConsentStatusClass,
   photoConsentStatusForVolunteer,
 } from '@/utils/photoConsentStatus'
-import {isOtpStubAccepted} from '@/utils/otpStub'
-import PublicFormOtpNotice from '@/components/molecules/PublicFormOtpNotice.vue'
+import PublicFormOtpTestNotice from '@/components/molecules/PublicFormOtpTestNotice.vue'
 
 type FormField = {
   key: string
@@ -22,8 +21,14 @@ type FormField = {
 
 type MealOption = {value: string; label: string}
 
-type LookupPayload = {
-  person: {first_name: string; last_name: string; mobile: string | null}
+type PersonSummary = {
+  id: number
+  first_name: string
+  last_name: string
+}
+
+type FormPayload = {
+  person: {id: number; first_name: string; last_name: string; mobile: string | null; organization: string | null}
   detail: RosterDetail
   custom: Record<string, string | number | boolean | null>
   meal_options: MealOption[]
@@ -31,26 +36,34 @@ type LookupPayload = {
 }
 
 const props = defineProps<{
-  step: 'email' | 'otp' | 'data' | 'done'
+  step: 'email' | 'otp' | 'pick-person' | 'data' | 'done'
   email: string
   slug: string
+  ssoToken?: string
+  ssoEmail?: string
 }>()
 
 const emit = defineEmits<{
   'update:email': [value: string]
-  'update:step': [value: 'email' | 'otp' | 'data' | 'done']
+  'update:step': [value: 'email' | 'otp' | 'pick-person' | 'data' | 'done']
   cancel: []
 }>()
 
 const otpCode = ref('')
 const otpError = ref('')
+const formToken = ref('')
+const requestLoading = ref(false)
+const requestError = ref('')
+const verifying = ref(false)
 const lookupLoading = ref(false)
 const lookupError = ref('')
-const lookupPayload = ref<LookupPayload | null>(null)
+const people = ref<PersonSummary[]>([])
+const lookupPayload = ref<FormPayload | null>(null)
+const selectedPersonId = ref<number | null>(null)
 const saving = ref(false)
 const saveError = ref('')
 
-const personDraft = ref({first_name: '', last_name: '', mobile: '', organization: ''})
+const personDraft = ref({id: 0, first_name: '', last_name: '', mobile: '', organization: ''})
 const detailDraft = ref<RosterDetail>(defaultRosterDetail())
 const customDraft = ref<Record<string, string | number | boolean | null>>({})
 
@@ -61,44 +74,127 @@ const emailModel = computed({
 
 const photoStatus = computed(() => photoConsentStatusForVolunteer(detailDraft.value.photo_consent))
 
-function proceedFromEmail() {
-  const trimmed = props.email.trim()
-  if (!trimmed) return
-  emit('update:email', trimmed)
-  otpError.value = ''
-  otpCode.value = ''
-  emit('update:step', 'otp')
+function otpHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {}
+  if (formToken.value) headers['X-Public-Form-Token'] = formToken.value
+  if (props.ssoToken) headers.Authorization = `Bearer ${props.ssoToken}`
+  return headers
 }
 
-function verifyOtp() {
-  if (isOtpStubAccepted(otpCode.value)) {
-    otpError.value = ''
-    emit('update:step', 'data')
-    return
+async function proceedFromEmail() {
+  const trimmed = props.email.trim()
+  if (!trimmed || requestLoading.value) return
+  emit('update:email', trimmed)
+  requestError.value = ''
+  otpError.value = ''
+  otpCode.value = ''
+  formToken.value = ''
+  requestLoading.value = true
+  try {
+    await axios.post(`/public-volunteer-form/${props.slug}/otp`, {email: trimmed}, {headers: otpHeaders()})
+    emit('update:step', 'otp')
+  } catch (error: unknown) {
+    const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error as string | undefined)
+          || (error.response?.data?.message as string | undefined)
+        : undefined
+    requestError.value = message || 'Code konnte nicht angefordert werden.'
+  } finally {
+    requestLoading.value = false
   }
-  otpError.value = 'Ungültiger Code. Bitte erneut versuchen.'
+}
+
+async function verifyOtp() {
+  if (!props.slug || !props.email.trim() || verifying.value) return
+  verifying.value = true
+  otpError.value = ''
+  try {
+    const {data} = await axios.post(`/public-volunteer-form/${props.slug}/otp/verify`, {
+      email: props.email.trim(),
+      code: otpCode.value,
+    })
+    formToken.value = data.token ?? ''
+    await loadLookup()
+  } catch (error: unknown) {
+    const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error as string | undefined)
+          || (error.response?.data?.message as string | undefined)
+        : undefined
+    otpError.value = message || 'Ungültiger Code. Bitte erneut versuchen.'
+  } finally {
+    verifying.value = false
+  }
 }
 
 async function loadLookup() {
   if (!props.slug || !props.email.trim()) return
   lookupLoading.value = true
   lookupError.value = ''
+  people.value = []
   lookupPayload.value = null
+  selectedPersonId.value = null
   try {
     const {data} = await axios.get(`/public-volunteer-form/${props.slug}/lookup`, {
       params: {email: props.email.trim()},
+      headers: otpHeaders(),
     })
-    lookupPayload.value = data
-    personDraft.value = {
-      first_name: data.person.first_name ?? '',
-      last_name: data.person.last_name ?? '',
-      mobile: data.person.mobile ?? '',
-      organization: data.person.organization ?? '',
+    people.value = data.people ?? []
+    if (data.form) {
+      applyForm(data.form)
+      emit('update:step', 'data')
+      return
     }
-    detailDraft.value = {...defaultRosterDetail(), ...data.detail}
-    customDraft.value = {...data.custom}
-  } catch {
+    if (people.value.length > 1) {
+      emit('update:step', 'pick-person')
+      return
+    }
     lookupError.value = 'Diese E-Mail ist nicht auf der Helfer:innenliste dieser Veranstaltung.'
+    emit('update:step', 'data')
+  } catch (error: unknown) {
+    const message = axios.isAxiosError(error)
+        ? (error.response?.data?.error as string | undefined)
+          || (error.response?.data?.message as string | undefined)
+        : undefined
+    lookupError.value = message || 'Diese E-Mail ist nicht auf der Helfer:innenliste dieser Veranstaltung.'
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      otpError.value = 'Sitzung ungültig. Bitte Code erneut anfordern.'
+      if (!props.ssoToken) {
+        return
+      }
+    }
+    emit('update:step', 'data')
+  } finally {
+    lookupLoading.value = false
+  }
+}
+
+function applyForm(data: FormPayload) {
+  lookupPayload.value = data
+  selectedPersonId.value = data.person.id
+  personDraft.value = {
+    id: data.person.id,
+    first_name: data.person.first_name ?? '',
+    last_name: data.person.last_name ?? '',
+    mobile: data.person.mobile ?? '',
+    organization: data.person.organization ?? '',
+  }
+  detailDraft.value = {...defaultRosterDetail(), ...data.detail}
+  customDraft.value = {...data.custom}
+}
+
+async function selectPerson(personId: number) {
+  if (!props.slug || !props.email.trim()) return
+  lookupLoading.value = true
+  lookupError.value = ''
+  try {
+    const {data} = await axios.get(`/public-volunteer-form/${props.slug}/person/${personId}`, {
+      params: {email: props.email.trim()},
+      headers: otpHeaders(),
+    })
+    applyForm(data.form)
+    emit('update:step', 'data')
+  } catch {
+    lookupError.value = 'Person konnte nicht geladen werden.'
   } finally {
     lookupLoading.value = false
   }
@@ -117,7 +213,7 @@ function setCustomBoolean(fieldKey: string, value: boolean | null) {
 }
 
 async function submitForm() {
-  if (!props.slug || !props.email.trim() || saving.value) return
+  if (!props.slug || !props.email.trim() || !selectedPersonId.value || saving.value) return
   saving.value = true
   saveError.value = ''
   const {photo_consent: _photoConsent, ...detailPayload} = detailDraft.value
@@ -130,10 +226,16 @@ async function submitForm() {
   try {
     await axios.post(`/public-volunteer-form/${props.slug}/save`, {
       email: props.email.trim(),
-      person: personDraft.value,
+      person: {
+        id: selectedPersonId.value,
+        first_name: personDraft.value.first_name,
+        last_name: personDraft.value.last_name,
+        mobile: personDraft.value.mobile,
+        organization: personDraft.value.organization,
+      },
       detail: detailPayload,
       custom: customPayload,
-    })
+    }, {headers: otpHeaders()})
     emit('update:step', 'done')
   } catch (error: unknown) {
     const message = axios.isAxiosError(error)
@@ -148,12 +250,12 @@ async function submitForm() {
 watch(
   () => props.step,
   (step) => {
-    if (step === 'data') {
-      void loadLookup()
-      return
-    }
     if (step === 'done') {
       window.scrollTo({top: 0, behavior: 'smooth'})
+      return
+    }
+    if (step === 'data' && props.ssoToken && !lookupPayload.value && people.value.length === 0) {
+      void loadLookup()
     }
   },
   {immediate: true},
@@ -167,6 +269,7 @@ watch(
     </header>
 
     <div v-if="step === 'email'" class="vol-public-form__step">
+      <PublicFormOtpTestNotice :sso-email="ssoEmail"/>
       <label class="vol-public-form__label" for="vol-form-email">E-Mail</label>
       <input
           id="vol-form-email"
@@ -176,8 +279,9 @@ watch(
           autocomplete="email"
           placeholder="name@beispiel.de"
       >
+      <p v-if="requestError" class="vol-public-form__error">{{ requestError }}</p>
       <div class="vol-public-form__actions vol-public-form__actions--inline">
-        <button type="button" class="glass-btn-accent" @click="proceedFromEmail">
+        <button type="button" class="glass-btn-accent" :disabled="requestLoading" @click="proceedFromEmail">
           Weiter
         </button>
         <button type="button" class="glass-btn-secondary" @click="emit('cancel')">
@@ -187,10 +291,10 @@ watch(
     </div>
 
     <div v-else-if="step === 'otp'" class="vol-public-form__step">
+      <PublicFormOtpTestNotice :sso-email="ssoEmail"/>
       <p class="vol-public-form__info">
         Wenn diese E-Mail für diese Veranstaltung als Helfer:in bekannt ist, kommt gleich ein Code.
       </p>
-      <PublicFormOtpNotice />
       <label class="vol-public-form__label" for="vol-form-otp">Code</label>
       <input
           id="vol-form-otp"
@@ -203,10 +307,33 @@ watch(
           placeholder="000000"
       >
       <p v-if="otpError" class="vol-public-form__error">{{ otpError }}</p>
+      <p v-if="lookupLoading" class="pe-muted">Laden…</p>
       <div class="vol-public-form__actions vol-public-form__actions--otp">
-        <button type="button" class="glass-btn-accent" @click="verifyOtp">
+        <button type="button" class="glass-btn-accent" :disabled="lookupLoading || verifying" @click="verifyOtp">
           Bestätigen
         </button>
+        <button type="button" class="glass-btn-secondary" @click="emit('cancel')">
+          Abbrechen
+        </button>
+      </div>
+    </div>
+
+    <div v-else-if="step === 'pick-person'" class="vol-public-form__step">
+      <p class="vol-public-form__info">Mehrere Personen gefunden. Eine Person auswählen.</p>
+      <p v-if="lookupLoading" class="pe-muted">Laden…</p>
+      <ul class="vol-public-form__picker">
+        <li v-for="person in people" :key="person.id">
+          <button
+              type="button"
+              class="glass-btn-secondary vol-public-form__pick"
+              :disabled="lookupLoading"
+              @click="selectPerson(person.id)"
+          >
+            <span class="vol-public-form__pick-name">{{ person.first_name }} {{ person.last_name }}</span>
+          </button>
+        </li>
+      </ul>
+      <div class="vol-public-form__actions vol-public-form__actions--inline">
         <button type="button" class="glass-btn-secondary" @click="emit('cancel')">
           Abbrechen
         </button>
@@ -465,6 +592,28 @@ watch(
   margin-top: 0;
   padding-top: 0;
   border-top: none;
+}
+
+.vol-public-form__picker {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.vol-public-form__pick {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.vol-public-form__pick-name {
+  font-weight: 600;
 }
 
 @media (max-width: 640px) {

@@ -255,14 +255,14 @@ function onCopy(text: string, label: string) {
                   {{ coach.firstname || 'Unbekannt' }} {{ coach.name || 'Unbekannt' }}
                 </span>
                 <div v-if="coach.email || coach.phone" class="text-xs text-[var(--color-text-subtle)] ml-2 flex flex-wrap gap-2">
-                  <button
+                  <a
                       v-if="coach.email"
-                      type="button"
                       class="hover:underline"
-                      @click="onCopy(coach.email, 'E-Mail')"
+                      :href="`mailto:${coach.email}`"
+                      @click.stop
                   >
                     {{ coach.email }}
-                  </button>
+                  </a>
                   <button
                       v-if="coach.phone"
                       type="button"

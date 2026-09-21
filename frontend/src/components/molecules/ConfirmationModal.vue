@@ -31,16 +31,17 @@
 
           <div class="flex space-x-3 justify-center">
             <button
-                @click="handleCancel"
+                type="button"
                 class="glass-btn-secondary"
+                @click="handleCancel"
             >
               {{ cancelText }}
             </button>
             <button
-                @click="handleConfirm"
-                class="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2"
-                :class="[confirmButtonClass, disableConfirmButton ? 'opacity-50 cursor-not-allowed' : '']"
+                type="button"
+                :class="confirmButtonClass"
                 :disabled="disableConfirmButton"
+                @click="handleConfirm"
             >
               {{ confirmText }}
             </button>
@@ -112,12 +113,12 @@ const iconBgClass = computed(() => {
 const confirmButtonClass = computed(() => {
   switch (props.type) {
     case 'danger':
-      return 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
+      return 'glass-btn-danger'
     case 'warning':
-      return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500'
+      return 'glass-btn-warn'
     case 'info':
     default:
-      return 'glass-btn-accent !px-4 !py-2 !text-sm'
+      return 'glass-btn-accent'
   }
 })
 

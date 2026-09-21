@@ -4,15 +4,26 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\VolunteerPublicFormController;
+use App\Mail\PublicOtpMail;
+use App\Models\Event;
+use App\Models\VolunteerPerson;
+use App\Services\PublicFormOtpService;
 use Carbon\Carbon;
+use Firebase\JWT\JWT;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class VolunteerPublicFormTest extends TestCase
 {
+    private string $privatePem = '';
+
+    private string $publicKeyRelativePath = 'storage/framework/testing/oauth-public.pem';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -22,6 +33,7 @@ class VolunteerPublicFormTest extends TestCase
         }
 
         Carbon::setTestNow('2026-09-01');
+        Cache::flush();
         $this->createSchema();
         $this->truncateData();
         $this->seedSeason();
@@ -125,7 +137,7 @@ class VolunteerPublicFormTest extends TestCase
 
         try {
             $controller->lookup(
-                Request::create('/api/public-volunteer-form/test-event/lookup', 'GET', ['email' => 'nobody@example.com']),
+                $this->formRequest('/api/public-volunteer-form/test-event/lookup', 'GET', ['email' => 'nobody@example.com']),
                 'test-event'
             );
             $this->fail('Expected not found exception.');
@@ -164,19 +176,21 @@ class VolunteerPublicFormTest extends TestCase
 
         $controller = app(VolunteerPublicFormController::class);
         $response = $controller->lookup(
-            Request::create('/api/public-volunteer-form/test-event/lookup', 'GET', ['email' => 'max@example.com']),
+            $this->formRequest('/api/public-volunteer-form/test-event/lookup', 'GET', ['email' => 'max@example.com']),
             'test-event'
         );
 
         $this->assertSame(200, $response->getStatusCode());
         $payload = $response->getData(true);
-        $this->assertSame('Max', $payload['person']['first_name']);
-        $this->assertSame('standard', $payload['detail']['meal']);
-        $this->assertNull($payload['detail']['photo_consent']);
-        $this->assertArrayNotHasKey('notes', $payload['detail']);
-        $this->assertArrayHasKey('organization', $payload['person']);
-        $this->assertNotEmpty($payload['meal_options']);
-        $this->assertNotEmpty($payload['fields']);
+        $this->assertSame('Max', $payload['form']['person']['first_name']);
+        $this->assertSame('standard', $payload['form']['detail']['meal']);
+        $this->assertNull($payload['form']['detail']['photo_consent']);
+        $this->assertArrayNotHasKey('notes', $payload['form']['detail']);
+        $this->assertArrayHasKey('organization', $payload['form']['person']);
+        $this->assertNotEmpty($payload['form']['meal_options']);
+        $this->assertNotEmpty($payload['form']['fields']);
+        $this->assertCount(1, $payload['people']);
+        $this->assertSame(10, $payload['people'][0]['id']);
     }
 
     public function test_lookup_custom_only_includes_public_form_fields(): void
@@ -222,17 +236,122 @@ class VolunteerPublicFormTest extends TestCase
 
         $controller = app(VolunteerPublicFormController::class);
         $response = $controller->lookup(
-            Request::create('/api/public-volunteer-form/test-event/lookup', 'GET', ['email' => 'max@example.com']),
+            $this->formRequest('/api/public-volunteer-form/test-event/lookup', 'GET', ['email' => 'max@example.com']),
             'test-event'
         );
 
         $this->assertSame(200, $response->getStatusCode());
         $payload = $response->getData(true);
-        $this->assertSame('visible', $payload['custom']['on_form']);
-        $this->assertArrayNotHasKey('internal_only', $payload['custom']);
-        $fieldKeys = collect($payload['fields'])->pluck('field_key')->filter()->all();
+        $this->assertSame('visible', $payload['form']['custom']['on_form']);
+        $this->assertArrayNotHasKey('internal_only', $payload['form']['custom']);
+        $fieldKeys = collect($payload['form']['fields'])->pluck('field_key')->filter()->all();
         $this->assertContains('on_form', $fieldKeys);
         $this->assertNotContains('internal_only', $fieldKeys);
+    }
+
+    public function test_lookup_returns_people_without_form_when_email_matches_two_roster_members(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        $this->seedAdditionalRosterMember(11, 101, 'Eva', 'Beispiel');
+
+        $controller = app(VolunteerPublicFormController::class);
+        $response = $controller->lookup(
+            $this->formRequest('/api/public-volunteer-form/test-event/lookup', 'GET', ['email' => 'max@example.com']),
+            'test-event'
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $payload = $response->getData(true);
+        $this->assertArrayNotHasKey('form', $payload);
+        $this->assertCount(2, $payload['people']);
+        $this->assertSame(11, $payload['people'][0]['id']);
+        $this->assertSame('Eva', $payload['people'][0]['first_name']);
+        $this->assertSame(10, $payload['people'][1]['id']);
+        $this->assertSame('Max', $payload['people'][1]['first_name']);
+    }
+
+    public function test_person_returns_form_for_chosen_roster_member(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        $this->seedAdditionalRosterMember(11, 101, 'Eva', 'Beispiel');
+
+        $controller = app(VolunteerPublicFormController::class);
+        $response = $controller->person(
+            $this->formRequest('/api/public-volunteer-form/test-event/person/11', 'GET', ['email' => 'max@example.com']),
+            'test-event',
+            VolunteerPerson::query()->findOrFail(11)
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $payload = $response->getData(true);
+        $this->assertSame(11, $payload['form']['person']['id']);
+        $this->assertSame('Eva', $payload['form']['person']['first_name']);
+    }
+
+    public function test_save_writes_the_chosen_person_when_email_is_shared(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        $this->seedAdditionalRosterMember(11, 101, 'Eva', 'Beispiel');
+        $controller = app(VolunteerPublicFormController::class);
+
+        $response = $controller->save(
+            $this->formRequest('/api/public-volunteer-form/test-event/save', 'POST', [
+                'email' => 'max@example.com',
+                'person' => [
+                    'id' => 11,
+                    'first_name' => 'Eva-Maria',
+                    'last_name' => 'Beispiel',
+                    'mobile' => '+491701234567',
+                ],
+                'detail' => [
+                    't_shirt_cut' => 'frauen',
+                    't_shirt_size' => 'S',
+                    'meal' => 'vegetarisch',
+                ],
+                'custom' => [],
+            ]),
+            'test-event'
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('Eva-Maria', $response->getData(true)['person']['first_name']);
+        $this->assertSame('Eva-Maria', DB::table('volunteer_person')->where('id', 11)->value('first_name'));
+        $this->assertSame('Max', DB::table('volunteer_person')->where('id', 10)->value('first_name'));
+        $this->assertSame(
+            'vegetarisch',
+            DB::table('event_volunteer_roster_detail')->where('event_volunteer_roster', 101)->value('meal')
+        );
+        $this->assertSame(
+            'standard',
+            DB::table('event_volunteer_roster_detail')->where('event_volunteer_roster', 100)->value('meal')
+        );
+    }
+
+    public function test_save_returns_422_when_person_id_is_missing(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        $controller = app(VolunteerPublicFormController::class);
+
+        $response = $controller->save(
+            $this->formRequest('/api/public-volunteer-form/test-event/save', 'POST', [
+                'email' => 'max@example.com',
+                'person' => [
+                    'first_name' => 'Max',
+                    'last_name' => 'Muster',
+                    'mobile' => '+491701234567',
+                ],
+                'detail' => [],
+                'custom' => [],
+            ]),
+            'test-event'
+        );
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('Person ist erforderlich.', $response->getData(true)['error']);
     }
 
     public function test_save_persists_person_detail_and_custom(): void
@@ -252,9 +371,10 @@ class VolunteerPublicFormTest extends TestCase
 
         $controller = app(VolunteerPublicFormController::class);
         $response = $controller->save(
-            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+            $this->formRequest('/api/public-volunteer-form/test-event/save', 'POST', [
                 'email' => 'max@example.com',
                 'person' => [
+                    'id' => 10,
                     'first_name' => 'Maximilian',
                     'last_name' => 'Muster',
                     'mobile' => '+491234567890',
@@ -293,9 +413,14 @@ class VolunteerPublicFormTest extends TestCase
 
         try {
             $controller->save(
-                Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+                $this->formRequest('/api/public-volunteer-form/test-event/save', 'POST', [
                     'email' => 'nobody@example.com',
-                    'person' => ['first_name' => 'A', 'last_name' => 'B', 'mobile' => null],
+                    'person' => [
+                        'id' => 10,
+                        'first_name' => 'A',
+                        'last_name' => 'B',
+                        'mobile' => null,
+                    ],
                     'detail' => [],
                     'custom' => [],
                 ]),
@@ -315,9 +440,14 @@ class VolunteerPublicFormTest extends TestCase
 
         try {
             $controller->save(
-                Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+                $this->formRequest('/api/public-volunteer-form/test-event/save', 'POST', [
                     'email' => 'max@example.com',
-                    'person' => ['first_name' => 'Max', 'last_name' => 'Muster', 'mobile' => null],
+                    'person' => [
+                        'id' => 10,
+                        'first_name' => 'Max',
+                        'last_name' => 'Muster',
+                        'mobile' => null,
+                    ],
                     'detail' => [],
                     'custom' => [],
                 ]),
@@ -336,9 +466,10 @@ class VolunteerPublicFormTest extends TestCase
         $controller = app(VolunteerPublicFormController::class);
 
         $response = $controller->save(
-            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+            $this->formRequest('/api/public-volunteer-form/test-event/save', 'POST', [
                 'email' => 'max@example.com',
                 'person' => [
+                    'id' => 10,
                     'first_name' => 'Max',
                     'last_name' => 'Muster',
                     'mobile' => '+491701234567',
@@ -368,9 +499,10 @@ class VolunteerPublicFormTest extends TestCase
         $controller = app(VolunteerPublicFormController::class);
 
         $response = $controller->save(
-            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+            $this->formRequest('/api/public-volunteer-form/test-event/save', 'POST', [
                 'email' => 'max@example.com',
                 'person' => [
+                    'id' => 10,
                     'first_name' => 'Max',
                     'last_name' => 'Muster',
                     'mobile' => '+491701234567',
@@ -395,9 +527,10 @@ class VolunteerPublicFormTest extends TestCase
         $controller = app(VolunteerPublicFormController::class);
 
         $response = $controller->save(
-            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+            $this->formRequest('/api/public-volunteer-form/test-event/save', 'POST', [
                 'email' => 'max@example.com',
                 'person' => [
+                    'id' => 10,
                     'first_name' => 'Max',
                     'last_name' => 'Muster',
                     'mobile' => '+491701234567',
@@ -432,9 +565,10 @@ class VolunteerPublicFormTest extends TestCase
         $controller = app(VolunteerPublicFormController::class);
 
         $shirtRejected = $controller->save(
-            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+            $this->formRequest('/api/public-volunteer-form/test-event/save', 'POST', [
                 'email' => 'max@example.com',
                 'person' => [
+                    'id' => 10,
                     'first_name' => 'Max',
                     'last_name' => 'Muster',
                     'mobile' => '+491701234567',
@@ -454,9 +588,10 @@ class VolunteerPublicFormTest extends TestCase
         );
 
         $mealRejected = $controller->save(
-            Request::create('/api/public-volunteer-form/test-event/save', 'POST', [
+            $this->formRequest('/api/public-volunteer-form/test-event/save', 'POST', [
                 'email' => 'max@example.com',
                 'person' => [
+                    'id' => 10,
                     'first_name' => 'Max',
                     'last_name' => 'Muster',
                     'mobile' => '+491701234567',
@@ -473,6 +608,168 @@ class VolunteerPublicFormTest extends TestCase
             'Essenswahl ist für diese Veranstaltung deaktiviert.',
             $mealRejected->getData(true)['error']
         );
+    }
+
+    public function test_otp_mail_is_not_sent_without_tester_on_non_prod(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        Mail::fake();
+
+        $this->postJson('/api/public-volunteer-form/test-event/otp', [
+            'email' => 'nobody@example.com',
+        ])->assertOk()->assertJsonPath('ok', true);
+        Mail::assertNothingSent();
+
+        $this->postJson('/api/public-volunteer-form/test-event/otp', [
+            'email' => 'max@example.com',
+        ])->assertOk();
+        Mail::assertNothingSent();
+    }
+
+    public function test_otp_mail_goes_to_tester_on_non_prod(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        $this->installKeycloakKey();
+        Mail::fake();
+
+        $this->withHeaders($this->ssoBearer('tester@example.com'))
+            ->postJson('/api/public-volunteer-form/test-event/otp', [
+                'email' => 'nobody@example.com',
+            ])
+            ->assertOk();
+        Mail::assertNothingSent();
+
+        $this->withHeaders($this->ssoBearer('tester@example.com'))
+            ->postJson('/api/public-volunteer-form/test-event/otp', [
+                'email' => 'max@example.com',
+            ])
+            ->assertOk();
+        Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
+            return $mail->hasTo('tester@example.com')
+                && $mail->intendedEmail === 'max@example.com'
+                && $mail->eventName === 'Event Test Event'
+                && preg_match('/^\d{6}$/', $mail->code) === 1;
+        });
+        Mail::assertNotSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
+            return $mail->hasTo('max@example.com');
+        });
+    }
+
+    public function test_otp_verify_unlocks_lookup(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        $this->installKeycloakKey();
+        Mail::fake();
+
+        $this->getJson('/api/public-volunteer-form/test-event/lookup?email=max@example.com')
+            ->assertStatus(401);
+
+        $this->withHeaders($this->ssoBearer('tester@example.com'))
+            ->postJson('/api/public-volunteer-form/test-event/otp', [
+                'email' => 'max@example.com',
+            ])
+            ->assertOk();
+
+        $code = null;
+        Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) use (&$code) {
+            $code = $mail->code;
+
+            return $mail->hasTo('tester@example.com');
+        });
+
+        $token = $this->postJson('/api/public-volunteer-form/test-event/otp/verify', [
+            'email' => 'max@example.com',
+            'code' => $code,
+        ])->assertOk()->json('token');
+
+        $this->assertIsString($token);
+        $this->withHeader(PublicFormOtpService::TOKEN_HEADER, $token)
+            ->getJson('/api/public-volunteer-form/test-event/lookup?email=max@example.com')
+            ->assertOk()
+            ->assertJsonPath('form.person.first_name', 'Max');
+    }
+
+    public function test_otp_mail_goes_to_roster_member_on_production(): void
+    {
+        config(['app.env' => 'production']);
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        Mail::fake();
+
+        $this->postJson('/api/public-volunteer-form/test-event/otp', [
+            'email' => 'max@example.com',
+        ])->assertOk();
+        Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
+            return $mail->hasTo('max@example.com')
+                && $mail->intendedEmail === null
+                && $mail->eventName === 'Event Test Event';
+        });
+    }
+
+    public function test_otp_is_sent_when_one_of_several_people_with_the_same_email_is_on_the_roster(): void
+    {
+        config(['app.env' => 'production']);
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        DB::table('volunteer_person')->insert([
+            'id' => 11,
+            'regional_partner' => 1,
+            'first_name' => 'Eva',
+            'last_name' => 'Beispiel',
+            'email' => 'max@example.com',
+            'mobile' => null,
+            'organization' => null,
+            'updated_at' => now(),
+        ]);
+        Mail::fake();
+
+        $this->postJson('/api/public-volunteer-form/test-event/otp', [
+            'email' => 'max@example.com',
+        ])->assertOk();
+        Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
+            return $mail->hasTo('max@example.com');
+        });
+    }
+
+    public function test_keycloak_token_unlocks_lookup_without_otp(): void
+    {
+        $this->seedEvent(['public_volunteer_data_entry' => true]);
+        $this->seedRosterMember();
+        $this->installKeycloakKey();
+
+        $this->withHeaders($this->ssoBearer('max@example.com'))
+            ->getJson('/api/public-volunteer-form/test-event/lookup?email=max@example.com')
+            ->assertOk()
+            ->assertJsonPath('form.person.first_name', 'Max');
+
+        $this->withHeaders($this->ssoBearer('max@example.com'))
+            ->getJson('/api/public-volunteer-form/test-event/lookup?email=other@example.com')
+            ->assertStatus(401);
+    }
+
+    /**
+     * @param  array<string, mixed>  $params
+     */
+    private function formRequest(string $uri, string $method, array $params = []): Request
+    {
+        $request = Request::create($uri, $method, $params);
+        $email = strtolower(trim((string) ($params['email'] ?? '')));
+        $event = Event::query()->find(1);
+        if ($email !== '' && $event) {
+            $request->headers->set(
+                PublicFormOtpService::TOKEN_HEADER,
+                app(PublicFormOtpService::class)->issueVerifiedSession(
+                    PublicFormOtpService::PURPOSE_VOLUNTEER,
+                    (int) $event->id,
+                    $email,
+                ),
+            );
+        }
+
+        return $request;
     }
 
     /**
@@ -508,6 +805,34 @@ class VolunteerPublicFormTest extends TestCase
             'photo_consent' => null,
             'updated_at' => now(),
         ], $detailOverrides));
+    }
+
+    private function seedAdditionalRosterMember(int $personId, int $rosterId, string $firstName, string $lastName): void
+    {
+        DB::table('volunteer_person')->insert([
+            'id' => $personId,
+            'regional_partner' => 1,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => 'max@example.com',
+            'mobile' => null,
+            'organization' => null,
+            'updated_at' => now(),
+        ]);
+        DB::table('event_volunteer_roster')->insert([
+            'id' => $rosterId,
+            'event' => 1,
+            'volunteer_person' => $personId,
+            'created_at' => now(),
+        ]);
+        DB::table('event_volunteer_roster_detail')->insert([
+            'event_volunteer_roster' => $rosterId,
+            't_shirt_cut' => 'frauen',
+            't_shirt_size' => 'S',
+            'meal' => 'standard',
+            'photo_consent' => null,
+            'updated_at' => now(),
+        ]);
     }
 
     private function truncateData(): void
@@ -621,7 +946,7 @@ class VolunteerPublicFormTest extends TestCase
                 $table->unsignedInteger('regional_partner');
                 $table->string('first_name');
                 $table->string('last_name');
-                $table->string('email');
+                $table->string('email')->nullable();
                 $table->string('mobile')->nullable();
                 $table->string('organization')->nullable();
                 $table->timestamp('updated_at')->nullable();
@@ -683,5 +1008,42 @@ class VolunteerPublicFormTest extends TestCase
                 $table->timestamp('updated_at')->nullable();
             });
         }
+    }
+
+    /**
+     * @return array{Authorization: string}
+     */
+    private function ssoBearer(string $email): array
+    {
+        $payload = [
+            'iss' => 'https://sso.hands-on-technology.org/realms/master',
+            'aud' => 'hero',
+            'sub' => 'volunteer-sso',
+            'email' => $email,
+            'exp' => time() + 3600,
+            'iat' => time(),
+        ];
+
+        return ['Authorization' => 'Bearer '.JWT::encode($payload, $this->privatePem, 'RS256')];
+    }
+
+    private function installKeycloakKey(): void
+    {
+        $key = openssl_pkey_new([
+            'private_key_bits' => 2048,
+            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+        ]);
+        $this->assertNotFalse($key);
+
+        $privatePem = '';
+        openssl_pkey_export($key, $privatePem);
+        $this->privatePem = $privatePem;
+        $details = openssl_pkey_get_details($key);
+        $path = base_path($this->publicKeyRelativePath);
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0777, true);
+        }
+        file_put_contents($path, $details['key']);
+        config(['services.keycloak.public_key_path' => $this->publicKeyRelativePath]);
     }
 }

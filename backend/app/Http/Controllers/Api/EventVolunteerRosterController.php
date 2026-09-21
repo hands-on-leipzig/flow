@@ -61,6 +61,8 @@ class EventVolunteerRosterController extends Controller
                 'custom' => VolunteerRosterCustomFields::apiValuesForRow($row, $customFields),
                 'person' => [
                     'id' => $person->id,
+                    'draht_id' => $person->hasAccount() ? (int) $person->draht_id : null,
+                    'has_account' => $person->hasAccount(),
                     'first_name' => $person->first_name,
                     'last_name' => $person->last_name,
                     'email' => $person->email,

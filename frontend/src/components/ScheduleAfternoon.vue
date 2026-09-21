@@ -78,8 +78,8 @@ const futureBlocks = computed({
   },
 })
 
-const challengeLabel = computed(() => programDisplayName('CHALLENGE') || 'Challenge')
-const futureLabel = computed(() => programDisplayName('FUTURE_8') || 'Future 8+')
+const challengeLabel = computed(() => programDisplayName('CHALLENGE'))
+const futureLabel = computed(() => programDisplayName('FUTURE_8'))
 
 function blockIds(order: AfternoonBlock[]): number[] {
   return order.map((block) => Number(block.id))

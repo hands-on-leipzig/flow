@@ -70,6 +70,22 @@ class CockpitOverviewTest extends TestCase
         $this->assertNull($scope['helper_buckets'][0]['people'][0]['status']);
     }
 
+    public function test_search_returns_both_staffed_helpers_with_the_same_email(): void
+    {
+        $challengeId = FirstProgram::CHALLENGE->value;
+        $anna = $this->seedHelper('Anna', 'Alpha', $challengeId, 'Juror:in', 'shared@example.com');
+        $berta = $this->seedHelper('Berta', 'Beta', $challengeId, 'Schiedsrichter', 'shared@example.com');
+
+        $hits = app(CheckInService::class)->search($this->event(), 'shared@example.com');
+        $helperHits = array_values(array_filter(
+            $hits,
+            fn (array $hit) => ($hit['subject_type'] ?? '') === CheckIn::SUBJECT_VOLUNTEER,
+        ));
+
+        $this->assertCount(2, $helperHits);
+        $this->assertEqualsCanonicalizing([$anna, $berta], array_column($helperHits, 'subject_id'));
+    }
+
     public function test_overview_endpoint_requires_cockpit_token(): void
     {
         $this->getJson('/api/cockpit/day-event/overview')->assertUnauthorized();
@@ -102,11 +118,12 @@ class CockpitOverviewTest extends TestCase
         ]);
     }
 
-    private function seedHelper(string $first, string $last, int $programId, string $roleLabel): int
+    private function seedHelper(string $first, string $last, int $programId, string $roleLabel, ?string $email = null): int
     {
         $personId = (int) DB::table('volunteer_person')->insertGetId([
             'first_name' => $first,
             'last_name' => $last,
+            'email' => $email,
             'regional_partner' => 1,
         ]);
 
@@ -173,7 +190,9 @@ class CockpitOverviewTest extends TestCase
             'event_staffing_role',
             'volunteer_person',
             'm_role',
+            'team_plan',
             'team',
+            'plan',
             'event_program',
             'event',
             'm_first_program',
@@ -194,7 +213,9 @@ class CockpitOverviewTest extends TestCase
         Schema::dropIfExists('event_staffing_role');
         Schema::dropIfExists('volunteer_person');
         Schema::dropIfExists('m_role');
+        Schema::dropIfExists('team_plan');
         Schema::dropIfExists('team');
+        Schema::dropIfExists('plan');
         Schema::dropIfExists('event_program');
         Schema::dropIfExists('event');
         Schema::dropIfExists('m_first_program');
@@ -246,7 +267,20 @@ class CockpitOverviewTest extends TestCase
             $table->unsignedInteger('event');
             $table->unsignedInteger('first_program')->nullable();
             $table->string('organization')->nullable();
+            $table->string('location')->nullable();
             $table->integer('team_number_hot')->nullable();
+        });
+
+        Schema::create('plan', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('event');
+        });
+
+        Schema::create('team_plan', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('team');
+            $table->unsignedInteger('plan');
+            $table->integer('team_number_plan')->nullable();
         });
 
         Schema::create('m_role', function (Blueprint $table) {

@@ -12,6 +12,7 @@ import Visibility from '@/components/molecules/Visibility.vue'
 import SystemNews from '@/components/molecules/SystemNews.vue'
 import ExternalApiManagement from '@/components/molecules/ExternalApiManagement.vue'
 import SharePointAdmin from '@/components/molecules/SharePointAdmin.vue'
+import EmailAdmin from '@/components/molecules/EmailAdmin.vue'
 import CalendarFeedsAdmin from '@/components/molecules/CalendarFeedsAdmin.vue'
 import SlugRegistryAdmin from '@/components/molecules/SlugRegistryAdmin.vue'
 import AdminWartung from '@/components/molecules/AdminWartung.vue'
@@ -162,6 +163,10 @@ onMounted(() => {
 
     <div v-else-if="activeTab === 'sharepoint'">
       <SharePointAdmin/>
+    </div>
+
+    <div v-else-if="activeTab === 'email'" class="admin-shell__fill-child">
+      <EmailAdmin/>
     </div>
 
     <div v-else-if="activeTab === 'plan-qualitaet'">

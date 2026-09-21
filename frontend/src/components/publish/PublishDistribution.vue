@@ -150,19 +150,35 @@ function openFormFieldsDialog(kind: 'team' | 'volunteer') {
 const levels = [
   {id: 0, name: 'Keine'},
   {id: 1, name: 'Nur wichtige Zeiten'},
-  {id: 2, name: 'Volle Details'},
+  {id: 2, name: 'Volle Details (= Online Zeitplan)'},
 ]
 
 const publicUrl = computed(() => event.value?.link || '')
+const previewSchedule = ref(false)
+const planId = ref<number | null>(null)
+
+const schedulePreviewUrl = computed(() => {
+  if (!planId.value) return ''
+  return `${window.location.origin}/public-schedule/${planId.value}?_pv=${iframeKey.value}`
+})
 
 const previewSrc = computed(() => {
+  if (previewSchedule.value && schedulePreviewUrl.value) {
+    return schedulePreviewUrl.value
+  }
   const url = publicUrl.value
   if (!url) return ''
   const sep = url.includes('?') ? '&' : '?'
   return `${url}${sep}_pv=${iframeKey.value}`
 })
 
+const hasPreview = computed(() => !!previewSrc.value)
+
 const activeLevel = computed(() => levels[detailLevel.value] ?? levels[0])
+
+const previewChromeLabel = computed(() =>
+  previewSchedule.value ? 'Online-Zeitplan' : activeLevel.value.name,
+)
 
 function frontendToBackendLevel(level: number) {
   if (level === 0) return 1
@@ -193,7 +209,13 @@ async function fetchPublicationLevel() {
 }
 
 async function setDetailLevel(level: number) {
-  if (!event.value?.id || level === detailLevel.value) return
+  if (!event.value?.id) return
+  const leavingSchedule = previewSchedule.value
+  if (leavingSchedule) previewSchedule.value = false
+  if (level === detailLevel.value) {
+    if (leavingSchedule) reloadPreview()
+    return
+  }
   const prev = detailLevel.value
   detailLevel.value = level
   try {
@@ -209,7 +231,33 @@ async function setDetailLevel(level: number) {
 }
 
 function openPublic() {
+  if (previewSchedule.value && planId.value) {
+    window.open(`/public-schedule/${planId.value}`, '_blank', 'noopener')
+    return
+  }
   if (publicUrl.value) window.open(publicUrl.value, '_blank', 'noopener')
+}
+
+async function toggleSchedulePreview() {
+  if (previewSchedule.value) {
+    previewSchedule.value = false
+    reloadPreview()
+    return
+  }
+  if (!eventId.value) return
+  try {
+    const {data} = await axios.get(`/plans/public/${eventId.value}`)
+    const id = Number(data?.id)
+    if (!id || data?.existing === false) {
+      showGlassToast('Kein Zeitplan vorhanden.', 'error')
+      return
+    }
+    planId.value = id
+    previewSchedule.value = true
+    reloadPreview()
+  } catch {
+    showGlassToast('Kein Zeitplan vorhanden.', 'error')
+  }
 }
 
 function onIframeLoad() {
@@ -323,6 +371,8 @@ async function onCockpitToggle(next: boolean) {
 watch(
     () => event.value?.id,
     async (id) => {
+      previewSchedule.value = false
+      planId.value = null
       if (!id) return
       await Promise.all([fetchPublicationLevel(), loadDayAppSettings()])
       reloadPreview()
@@ -394,6 +444,17 @@ onMounted(async () => {
                   </div>
                 </div>
               </div>
+              <p class="pub__schedule-preview-line">
+                <button
+                    type="button"
+                    class="pub__helper-link pub__schedule-preview"
+                    :class="{'is-active': previewSchedule}"
+                    @click="toggleSchedulePreview"
+                >
+                  Vorschau Online-Zeitplan
+                </button>
+                ohne Umschalten
+              </p>
             </section>
 
             <section class="pub__tile glass-card liquid-surface-inner">
@@ -459,7 +520,7 @@ onMounted(async () => {
           <h2 class="glass-card__heading">Apps speziell für den Tag der Veranstaltung</h2>
 
           <p class="glass-settings-hint !mb-0 pub__day-apps-hint">
-            Diese Apps sind nur von der öffentlichen Seite verlinkt, wenn „Volle Details“ gesetzt ist.
+            Diese Apps sind nur von der öffentlichen Seite verlinkt, wenn „Volle Details (= Online Zeitplan)“ gesetzt ist.
           </p>
 
           <div class="pub__app-block">
@@ -515,14 +576,14 @@ onMounted(async () => {
         <section class="pub__right">
           <div
               class="pub__preview glass-card liquid-surface-inner"
-              aria-label="Live-Vorschau der öffentlichen Seite"
+              :aria-label="previewSchedule ? 'Live-Vorschau des Online-Zeitplans' : 'Live-Vorschau der öffentlichen Seite'"
           >
             <div class="pub__preview-bar">
               <span class="pub__preview-dot" aria-hidden="true"/>
               <span class="pub__preview-dot" aria-hidden="true"/>
               <span class="pub__preview-dot" aria-hidden="true"/>
               <span class="pub__preview-path">
-                Live-Vorschau · {{ activeLevel.name }}
+                Live-Vorschau · {{ previewChromeLabel }}
                 <span v-if="isFixedPreviewViewport" class="pub__preview-viewport"> · {{ previewViewportHint }}</span>
               </span>
               <div class="pub__preview-actions">
@@ -539,7 +600,7 @@ onMounted(async () => {
                   </select>
                 </label>
                 <button
-                    v-if="publicUrl"
+                    v-if="hasPreview"
                     type="button"
                     class="pub__preview-icon-btn"
                     title="Vorschau neu laden"
@@ -548,7 +609,7 @@ onMounted(async () => {
                   <i class="bi bi-arrow-clockwise" aria-hidden="true"/>
                 </button>
                 <button
-                    v-if="publicUrl"
+                    v-if="hasPreview"
                     type="button"
                     class="glass-btn-secondary pub__preview-tab-btn"
                     @click="openPublic"
@@ -567,15 +628,15 @@ onMounted(async () => {
                   :class="{'pub__device-shell--full': !isFixedPreviewViewport}"
                   :style="deviceShellStyle"
               >
-                <div v-if="iframeLoading && publicUrl" class="pub__frame-loading">
+                <div v-if="iframeLoading && hasPreview" class="pub__frame-loading">
                   Lade Vorschau…
                 </div>
                 <iframe
-                    v-if="publicUrl"
+                    v-if="hasPreview"
                     :key="iframeKey"
                     class="pub__frame"
                     :src="previewSrc"
-                    title="Vorschau der öffentlichen Veranstaltungsseite"
+                    :title="previewSchedule ? 'Vorschau des Online-Zeitplans' : 'Vorschau der öffentlichen Veranstaltungsseite'"
                     @load="onIframeLoad"
                 />
                 <div v-else class="pub__frame-empty">
@@ -732,6 +793,25 @@ onMounted(async () => {
 }
 
 .pub__helper-link:hover {
+  text-decoration: underline;
+}
+
+.pub__schedule-preview-line {
+  margin: 0.15rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.pub__schedule-preview {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pub__schedule-preview.is-active {
+  font-weight: 700;
   text-decoration: underline;
 }
 

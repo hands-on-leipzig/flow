@@ -5,7 +5,7 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {useEventStore} from '@/stores/event'
 import {useNoticeStore, type NoticeMessage} from '@/stores/notice'
-import {HELP_SCREEN_KEY_BY_PATH, TEAMS_PROGRAM_HELP_KEY} from '@/utils/helpRoutes'
+import {HELP_SCREEN_KEY_BY_PATH, noticeMirrorScreenKeysForPath, TEAMS_PROGRAM_HELP_KEY} from '@/utils/helpRoutes'
 import {programCompact} from '@/utils/eventPrograms'
 
 defineOptions({name: 'NoticePane'})
@@ -31,10 +31,21 @@ const screenKey = computed(() => {
   return HELP_SCREEN_KEY_BY_PATH[path] ?? null
 })
 
+const mirrorScreenKeys = computed(() => {
+  const path = (route.path || '').replace(/\/$/, '') || '/'
+  return noticeMirrorScreenKeysForPath(path)
+})
+
+const allowJump = computed(() => isOverview.value || mirrorScreenKeys.value.length > 0)
+
 const visibleMessages = computed(() => {
   if (!eventStore.selectedEvent?.id) return []
   const all = noticeStore.messages
   if (isOverview.value) return all
+  const mirrored = mirrorScreenKeys.value
+  if (mirrored.length) {
+    return all.filter((row) => mirrored.includes(row.screen_key ?? ''))
+  }
   const key = screenKey.value
   if (!key) return []
   if (key === TEAMS_PROGRAM_HELP_KEY) {
@@ -119,8 +130,8 @@ async function restoreAll() {
             />
             <div class="notice-pane__content">
               <component
-                  :is="isOverview && row.jump_path ? RouterLink : 'p'"
-                  v-bind="isOverview && row.jump_path ? {to: row.jump_path} : {}"
+                  :is="allowJump && row.jump_path ? RouterLink : 'p'"
+                  v-bind="allowJump && row.jump_path ? {to: row.jump_path} : {}"
                   class="notice-pane__body"
               >
                 {{ row.body }}
@@ -128,7 +139,7 @@ async function restoreAll() {
               <button
                   v-if="row.hideable"
                   type="button"
-                  class="notice-pane__hide"
+                  class="glass-btn-text"
                   @click="hideTarget = row"
               >
                 Nicht mehr anzeigen
@@ -140,7 +151,7 @@ async function restoreAll() {
       <li v-if="showRestore" class="notice-pane__restore-item">
         <button
             type="button"
-            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm cursor-pointer disabled:opacity-50"
+            class="glass-btn-text"
             :disabled="restoring"
             title="Ausgeblendete Hinweise wieder anzeigen"
             @click="restoreAll"
@@ -166,8 +177,9 @@ async function restoreAll() {
           <button
               v-if="noticeStore.simulatedToday"
               type="button"
-              class="notice-pane__today-clear"
+              class="glass-btn-icon"
               title="Echtes Datum wiederherstellen"
+              aria-label="Echtes Datum wiederherstellen"
               @click="clearSimulatedToday"
           >
             <i class="bi bi-x" aria-hidden="true"/>
@@ -292,21 +304,6 @@ async function restoreAll() {
   text-decoration: underline;
 }
 
-.notice-pane__hide {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  color: var(--color-accent);
-  background: none;
-  border: 0;
-  padding: 0;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.notice-pane__hide:hover {
-  color: var(--color-text);
-}
-
 .notice-pane__today {
   display: inline-flex;
   align-items: center;
@@ -336,23 +333,5 @@ async function restoreAll() {
   color: inherit;
   font-size: 0.8125rem;
   padding: 0.1rem 0.25rem;
-}
-
-.notice-pane__today-clear {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.notice-pane__today-clear:hover {
-  color: var(--color-text);
 }
 </style>

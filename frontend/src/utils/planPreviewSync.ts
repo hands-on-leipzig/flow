@@ -2,6 +2,8 @@
 
 export const PLAN_PREVIEW_CHANNEL = 'flow-plan-preview'
 
+const SAME_WINDOW_RELOAD = 'flow-plan-preview-reload'
+
 export type PlanPreviewReloadMessage = {
   type: 'reload'
   planId: number
@@ -40,6 +42,9 @@ export function notifyPlanPreviewReload(planId: number) {
     localStorage.setItem(`${PLAN_PREVIEW_CHANNEL}:reload:${planId}`, String(message.at))
   } catch {
     /* private mode / quota */
+  }
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(SAME_WINDOW_RELOAD, {detail: message}))
   }
 }
 
@@ -85,8 +90,15 @@ export function subscribePlanPreviewMessages(
   }
   window.addEventListener('storage', onStorage)
 
+  const onSameWindow = (event: Event) => {
+    const detail = (event as CustomEvent<PlanPreviewMessage>).detail
+    if (detail?.type) onMessage(detail)
+  }
+  window.addEventListener(SAME_WINDOW_RELOAD, onSameWindow)
+
   return () => {
     window.removeEventListener('storage', onStorage)
+    window.removeEventListener(SAME_WINDOW_RELOAD, onSameWindow)
     try {
       channel?.close()
     } catch {

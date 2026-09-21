@@ -6,6 +6,7 @@ export const TEAMS_PROGRAM_ROUTE_PATH = '/plan/teams/:program'
 export const HELP_SCREEN_KEY_BY_PATH: Record<string, string> = {
   '/plan/publish': 'publish-distribution',
   '/plan/publish/logos': 'publish-logos',
+  '/plan/publish/analog': 'publish-analog',
   '/plan/teams/data': 'teams-data',
   '/plan/rooms': 'rooms',
   '/plan/volunteers': 'volunteers-people',
@@ -21,6 +22,18 @@ export const HELP_SCREEN_KEY_BY_PATH: Record<string, string> = {
   '/plan/schedule/protected': 'schedule-protected',
   '/plan/schedule/free': 'schedule-free',
   '/plan/schedule/slots': 'schedule-slots',
+}
+
+const SCHEDULE_NOTICE_SCREEN_KEYS = Object.values(HELP_SCREEN_KEY_BY_PATH)
+  .filter((key) => key.startsWith('schedule-'))
+
+/** Extra notice screens mirrored onto another page (not that page’s own help). */
+export const NOTICE_MIRROR_SCREEN_KEYS_BY_PATH: Record<string, string[]> = {
+  '/plan/publish/analog': [TEAMS_PROGRAM_HELP_KEY, 'rooms', ...SCHEDULE_NOTICE_SCREEN_KEYS],
+}
+
+export function noticeMirrorScreenKeysForPath(path: string): string[] {
+  return NOTICE_MIRROR_SCREEN_KEYS_BY_PATH[path] ?? []
 }
 
 export type HelpScreenRef = {

@@ -11,6 +11,7 @@ import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getProgramTheme } from '@/utils/programTheme'
+import { programDisplayName } from '@/utils/eventPrograms'
 import { defaultTableFieldLabel, tableFieldPlural } from '@/utils/tableFieldLabels'
 import { formatPlanTeamNo, isMissingPlanTeamName } from '@/utils/planTeamLabel'
 
@@ -359,7 +360,7 @@ function formatTeam(teamNum: number | null): string {
 }
 
 function matchPlanProgramLabel(programId: number): string {
-  return `FIRST LEGO League ${themeForProgram(programId).shortName}`
+  return programDisplayName(programId)
 }
 
 function selectMatchPlanProgram(programId: number) {
@@ -429,61 +430,64 @@ onBeforeUnmount(hideTeamTip)
   <div class="flex flex-col gap-3 h-full min-h-0">
     <div class="glass-panel-header !mb-0 shrink-0">
       <div class="flex flex-wrap items-center gap-2 min-w-0 flex-1">
-        <div class="glass-segment">
+        <div class="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
           <button
             type="button"
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': view === 'overview'}"
+            class="venues-view-btn"
+            :class="{ 'is-active': view === 'overview' }"
+            :aria-pressed="view === 'overview'"
             @click="setView('overview')"
           >Überblick</button>
           <button
             type="button"
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': view === 'roles'}"
+            class="venues-view-btn"
+            :class="{ 'is-active': view === 'roles' }"
+            :aria-pressed="view === 'roles'"
             @click="setView('roles')"
           >Rollen</button>
           <button
             type="button"
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': view === 'teams'}"
+            class="venues-view-btn"
+            :class="{ 'is-active': view === 'teams' }"
+            :aria-pressed="view === 'teams'"
             @click="setView('teams')"
           >Teams</button>
           <button
             v-if="hasMatchPlan"
             type="button"
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': view === 'robot-game'}"
+            class="venues-view-btn"
+            :class="{ 'is-active': view === 'robot-game' }"
+            :aria-pressed="view === 'robot-game'"
             @click="openMatchPlan()"
           >Match-Plan</button>
         </div>
 
-        <div v-if="showAdminInline" class="glass-segment">
+        <div v-if="showAdminInline" class="flex flex-wrap items-center gap-1.5">
           <span
-            class="glass-segment__btn pointer-events-none opacity-80"
+            class="text-[var(--color-text-muted)]"
             title="Admin"
             aria-hidden="true"
           >
             <i class="bi bi-shield-lock" aria-hidden="true"/>
           </span>
-        </div>
-
-        <div v-if="showAdminInline" class="glass-segment">
           <button
             type="button"
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': view === 'activities'}"
+            class="venues-view-btn"
+            :class="{ 'is-active': view === 'activities' }"
+            :aria-pressed="view === 'activities'"
             @click="setView('activities')"
           >Aktivitäten</button>
           <button
             v-if="hasMatchPlan"
             type="button"
-            class="glass-segment__btn"
-            :class="{'glass-segment__btn--active': view === 'quality'}"
+            class="venues-view-btn"
+            :class="{ 'is-active': view === 'quality' }"
+            :aria-pressed="view === 'quality'"
             @click="openQuality()"
           >Plan-Qualität</button>
           <button
             type="button"
-            class="glass-segment__btn"
+            class="glass-btn-accent"
             :disabled="!canRegeneratePlan"
             title="Ablauf sofort neu generieren (ohne ausstehende Parameter-Änderungen)"
             @click="onRegeneratePlan"
@@ -509,7 +513,7 @@ onBeforeUnmount(hideTeamTip)
       Zusätzliche Blöcke werden hier nicht angezeigt, weil sie für alle Teams gleich sind.
     </p>
 
-    <!-- Program filters (glass-choice), above content -->
+    <!-- Program filters, above content -->
     <div
       v-if="view === 'roles' && !loading && rolesHtml && rolesPrograms.length > 1"
       class="glass-settings-row shrink-0"
@@ -518,8 +522,8 @@ onBeforeUnmount(hideTeamTip)
         v-for="p in rolesPrograms"
         :key="p.id"
         type="button"
-        class="glass-choice preview-program-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-        :class="{ 'glass-choice--active': rolesProgramOn[p.id] !== false }"
+        class="venues-view-btn preview-program-choice"
+        :class="{ 'is-active': rolesProgramOn[p.id] !== false }"
         :aria-pressed="rolesProgramOn[p.id] !== false"
         @click="toggleRolesProgram(p.id)"
       >
@@ -536,8 +540,8 @@ onBeforeUnmount(hideTeamTip)
         v-for="p in teamsPrograms"
         :key="p.id"
         type="button"
-        class="glass-choice preview-program-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-        :class="{ 'glass-choice--active': teamsProgramOn[p.id] !== false }"
+        class="venues-view-btn preview-program-choice"
+        :class="{ 'is-active': teamsProgramOn[p.id] !== false }"
         :aria-pressed="teamsProgramOn[p.id] !== false"
         @click="toggleTeamsProgram(p.id)"
       >
@@ -554,8 +558,8 @@ onBeforeUnmount(hideTeamTip)
         v-for="programId in matchPlanPrograms"
         :key="`program-filter-${programId}`"
         type="button"
-        class="glass-choice preview-program-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1"
-        :class="{ 'glass-choice--active': selectedFirstProgram === programId }"
+        class="venues-view-btn preview-program-choice"
+        :class="{ 'is-active': selectedFirstProgram === programId }"
         :aria-pressed="selectedFirstProgram === programId"
         @click="selectMatchPlanProgram(programId)"
       >
@@ -570,7 +574,7 @@ onBeforeUnmount(hideTeamTip)
       </button>
     </div>
 
-    <div v-if="error" class="glass-chip liquid-surface-inner !px-3 !py-2 text-sm text-red-700 shrink-0">
+    <div v-if="error" class="glass-alert-error shrink-0">
       {{ error }}
     </div>
 

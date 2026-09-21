@@ -12,9 +12,15 @@ return [
         'https://dev.flow.hands-on-technology.org',
         'https://hero.hands-on-technology.org',
         'https://test.hero.hands-on-technology.org',
+        'https://join.hands-on-technology.org',
+        'https://test.node.hands-on-technology.org',
         'https://handson.tools',
     ],
-    'allowed_origins_patterns' => [],
+    // Public HERO/JOIN callers (Vite --host, 127.0.0.1, LAN, preview URLs).
+    // FLOW's own SPA is same-origin (or Vite-proxied); auth is Bearer, not cookies.
+    'allowed_origins_patterns' => [
+        '#^https?://#',
+    ],
     'allowed_headers' => ['*'],
     'exposed_headers' => [],
     'max_age' => 0,

@@ -12,6 +12,7 @@ use App\Models\EventVolunteerFieldValue;
 use App\Models\EventVolunteerRoster;
 use App\Models\Plan;
 use App\Support\PhotoConsentStatus;
+use App\Support\ProgramCatalog;
 use App\Support\StaffingAssignmentLabel;
 use App\Support\TeamDataCustomFields;
 use App\Support\TeamMealCounts;
@@ -1407,6 +1408,7 @@ class CheckInService
                 $key = $ensureScope('cross', null, -1, 'Übergreifend', null);
             } else {
                 $label = (string) ($row->program_display_name ?: $row->program_name ?: 'Programm');
+                $label = ProgramCatalog::officialNameHtml($programId, $label);
                 $key = $ensureScope(
                     'program',
                     $programId,
@@ -1447,6 +1449,7 @@ class CheckInService
             } else {
                 $programId = $helper->first_program !== null ? (int) $helper->first_program : null;
                 $label = (string) ($helper->program_display_name ?: $helper->program_name ?: 'Programm');
+                $label = ProgramCatalog::officialNameHtml($programId, $label);
                 $key = $ensureScope(
                     'program',
                     $programId,
@@ -1559,10 +1562,10 @@ class CheckInService
 
         if ($scope === 'teams') {
             $items = $this->teamRosterItems($event, $records);
-            $title = 'Teams';
+            $title = 'Fehlende Teams';
         } else {
             $items = $this->helperRosterItems($event, $records);
-            $title = 'Helfer:innen';
+            $title = 'Fehlende Helfer:innen';
         }
 
         $open = array_values(array_filter($items, fn (array $hit) => ($hit['status'] ?? null) === null));
@@ -1939,9 +1942,12 @@ class CheckInService
             $group = $teamGroups[$programKey];
             $subtitle = ((int) $programKey) === 0
                 ? 'Übergreifend'
-                : (string) ($group->first()->program_display_name
-                    ?: $group->first()->program_name
-                    ?: 'Programm');
+                : ProgramCatalog::officialNamePlain(
+                    (int) $programKey,
+                    (string) ($group->first()->program_display_name
+                        ?: $group->first()->program_name
+                        ?: 'Programm')
+                );
             $lines[] = $subtitle;
             foreach ($group->sortBy(fn ($t) => mb_strtolower(trim((string) ($t->name ?? ''))), SORT_NATURAL)->values() as $team) {
                 $name = trim((string) ($team->name ?? ''));
@@ -1966,9 +1972,12 @@ class CheckInService
                 $sequence = -1;
             } else {
                 $scope = 'program:'.(int) $helper->first_program;
-                $scopeLabel = (string) ($helper->program_display_name
-                    ?: $helper->program_name
-                    ?: 'Programm');
+                $scopeLabel = ProgramCatalog::officialNamePlain(
+                    (int) $helper->first_program,
+                    (string) ($helper->program_display_name
+                        ?: $helper->program_name
+                        ?: 'Programm')
+                );
                 $sequence = $helper->program_sequence !== null
                     ? (int) $helper->program_sequence
                     : PHP_INT_MAX - 1;

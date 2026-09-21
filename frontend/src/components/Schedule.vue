@@ -15,7 +15,7 @@ import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import { formatDateTime } from '@/utils/dateTimeFormat'
 import { seasonLogoAlt, seasonLogoSrc } from '@/utils/images'
-import { cleanEventName, getAbbreviatedCompetitionType } from '@/utils/eventTitle'
+import { getEventTitleShort } from '@/utils/eventTitle'
 
 defineOptions({ name: 'Schedule' })
 
@@ -88,8 +88,7 @@ const seasonName = computed(() =>
   || (selectedEvent.value as any)?.seasonRel?.name
   || null
 )
-const headingType = computed(() => getAbbreviatedCompetitionType(selectedEvent.value) || 'Veranstaltung')
-const headingPlace = computed(() => cleanEventName(selectedEvent.value) || '—')
+const headingTitle = computed(() => getEventTitleShort(selectedEvent.value) || 'Veranstaltung')
 const headingDate = computed(() => {
   if (!selectedEvent.value?.date) return ''
   const start = dayjs(selectedEvent.value.date)
@@ -181,7 +180,7 @@ watch(
         <div class="flex items-center gap-2">
           <button
               type="button"
-              class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]"
+              class="glass-btn-secondary"
               @click="focusPlanPopout"
           >
             <i class="bi bi-window" aria-hidden="true"/>
@@ -189,7 +188,7 @@ watch(
           </button>
           <button
               type="button"
-              class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-[var(--color-border)] hover:bg-[var(--color-bg-hover)]"
+              class="glass-btn-secondary"
               @click="dockPlanPopout"
           >
             <i class="bi bi-box-arrow-in-down-left" aria-hidden="true"/>
@@ -209,7 +208,7 @@ watch(
           </div>
           <button
               type="button"
-              class="ml-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] focus:outline-none flex-shrink-0"
+              class="glass-btn-icon"
               aria-label="Fehler schließen"
               @click="clearGeneratorError"
           >
@@ -235,7 +234,7 @@ watch(
                 </div>
                 <button
                     type="button"
-                    class="glass-btn-secondary inline-flex items-center gap-1.5"
+                    class="glass-btn-secondary"
                     @click="unlockPlan"
                 >
                   <i class="bi bi-unlock" aria-hidden="true"/>
@@ -275,9 +274,7 @@ watch(
                             class="h-8 w-auto shrink-0 object-contain"
                         />
                         <h2 class="min-w-0 text-base sm:text-lg font-bold text-[var(--color-text)] truncate">
-                          <span>{{ headingType }}</span>
-                          <span class="text-[var(--color-text-muted)] font-semibold mx-1.5">·</span>
-                          <span>{{ headingPlace }}</span>
+                          <span>{{ headingTitle }}</span>
                           <template v-if="headingDate">
                             <span class="text-[var(--color-text-muted)] font-semibold mx-1.5">·</span>
                             <span class="tabular-nums font-semibold">{{ headingDate }}</span>
@@ -288,7 +285,7 @@ watch(
                         <button
                             v-if="!planLocked"
                             type="button"
-                            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            class="glass-btn-secondary"
                             :disabled="!selectedPlanId"
                             title="Zeitplan gegen Änderungen sperren"
                             @click="lockPlan"
@@ -298,14 +295,14 @@ watch(
                         </button>
                         <span
                             v-else
-                            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 font-medium text-[#dc2626]"
+                            class="inline-flex items-center gap-1.5 font-semibold text-[var(--color-danger)]"
                         >
                           <i class="bi bi-lock-fill" aria-hidden="true"/>
                           gesperrt
                         </span>
                         <button
                             type="button"
-                            class="glass-chip liquid-surface-inner !px-2.5 !py-1.5 !text-xs md:!text-sm inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                            class="glass-btn-secondary"
                             :disabled="!selectedPlanId"
                             title="Zeitplan in eigenem Fenster öffnen"
                             @click="openPlanPopout"
@@ -402,13 +399,9 @@ watch(
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 1.15rem 1.2rem 1.4rem;
-  background: var(--glass-tab-surface, #ffffff);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 65%, transparent);
-  border-radius: var(--radius-lg, 16px);
-  box-shadow:
-    0 10px 28px rgba(15, 23, 42, 0.07),
-    0 2px 6px rgba(15, 23, 42, 0.04);
+  /* Layout group only — program cards float on the page canvas (no nested frame).
+     Keep a little inset so card shadows are not clipped by overflow. */
+  padding: 0.25rem 0.65rem 0.9rem 0.2rem;
 }
 
 .schedule-workspace__right {

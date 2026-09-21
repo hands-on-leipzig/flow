@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 use App\Support\ProgramCatalog;
+use Illuminate\Support\Facades\Crypt;
 
 class Event extends Model
 {
@@ -70,6 +71,11 @@ class Event extends Model
         return $this->hasMany(CheckIn::class, 'event');
     }
 
+    public function inquiries()
+    {
+        return $this->hasMany(VolunteerInquiry::class, 'event');
+    }
+
     protected $with = ['programs'];
 
     public function regionalPartner()
@@ -128,6 +134,28 @@ class Event extends Model
     public function staffingRoles()
     {
         return $this->hasMany(EventStaffingRole::class, 'event');
+    }
+
+    /**
+     * Stored wifi passwords are encrypted. Fall back to the raw value when
+     * decrypt fails (plaintext leftovers or a rotated APP_KEY).
+     */
+    public static function decryptWifiPassword(?string $stored): string
+    {
+        if ($stored === null || $stored === '') {
+            return '';
+        }
+
+        try {
+            return Crypt::decryptString($stored);
+        } catch (\Exception $e) {
+            return $stored;
+        }
+    }
+
+    public function decryptedWifiPassword(): string
+    {
+        return self::decryptWifiPassword($this->wifi_password);
     }
 
 }

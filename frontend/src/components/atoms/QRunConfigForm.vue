@@ -66,9 +66,9 @@ function selectProgram(id) {
             v-for="option in PROGRAM_OPTIONS"
             :key="option.id"
             type="button"
-            class="qrun-program-choice liquid-surface-inner"
-            :class="{ 'qrun-program-choice--active': firstProgram === option.id }"
-            :style="{ '--program-accent': themeFor(option.key).accent }"
+            class="venues-view-btn"
+            :class="{ 'is-active': firstProgram === option.id }"
+            :aria-pressed="firstProgram === option.id"
             :title="themeFor(option.key).shortName"
             @click="selectProgram(option.id)"
           >
@@ -234,7 +234,7 @@ function selectProgram(id) {
       <div class="qrun-config__actions">
         <button
           type="button"
-          class="glass-btn-accent !px-5 !py-2.5 !text-sm inline-flex items-center gap-2 disabled:opacity-40"
+          class="glass-btn-accent"
           :disabled="!isValid"
           @click="emit('start')"
         >
@@ -244,7 +244,7 @@ function selectProgram(id) {
 
         <button
           type="button"
-          class="glass-btn-secondary !px-4 !py-2.5 !text-sm inline-flex items-center gap-2"
+          class="glass-btn-secondary"
           title="Liste neu laden"
           @click="emit('refresh')"
         >
@@ -294,10 +294,6 @@ function selectProgram(id) {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.35rem 0.65rem;
-  border-radius: var(--radius);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, var(--liquid-border-soft));
-  background: color-mix(in srgb, #ffffff 82%, var(--liquid-tile-bg-inner));
   font-size: 0.875rem;
   color: var(--color-text);
   cursor: pointer;
@@ -309,46 +305,14 @@ function selectProgram(id) {
   gap: 0.75rem;
 }
 
-.qrun-program-choice {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.35rem 0.65rem 0.35rem 0.4rem;
-  border-radius: var(--radius);
-  border: 1px solid color-mix(in srgb, var(--color-border-strong) 40%, var(--liquid-border-soft));
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-}
-
-.qrun-program-choice:hover {
-  border-color: color-mix(in srgb, var(--program-accent) 40%, var(--color-border));
-}
-
-.qrun-program-choice--active {
-  border-color: color-mix(in srgb, var(--program-accent) 55%, var(--color-border));
-  background: color-mix(in srgb, var(--program-accent) 12%, #fff);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--program-accent) 16%, transparent);
-}
-
-.qrun-program-choice:not(.qrun-program-choice--active) {
-  opacity: 0.72;
-}
-
 .qrun-program-choice__logo {
-  width: 2rem;
-  height: 2rem;
+  width: 1.25rem;
+  height: 1.25rem;
   flex-shrink: 0;
   object-fit: contain;
 }
 
 .qrun-program-choice__label {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-text);
   letter-spacing: -0.02em;
-}
-
-.qrun-program-choice--active .qrun-program-choice__label {
-  color: color-mix(in srgb, var(--program-accent) 72%, #111);
 }
 </style>

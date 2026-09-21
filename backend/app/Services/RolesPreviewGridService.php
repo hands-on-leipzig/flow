@@ -233,12 +233,7 @@ class RolesPreviewGridService
 
     private function programLabel(int $programId): string
     {
-        return match ($programId) {
-            FirstProgram::EXPLORE->value => 'FIRST LEGO League Explore',
-            FirstProgram::CHALLENGE->value => 'FIRST LEGO League Challenge',
-            FirstProgram::FUTURE_8->value => 'FIRST LEGO League Future 8+',
-            default => 'Programm',
-        };
+        return ProgramCatalog::displayName($programId);
     }
 
     private function programLogo(int $programId): string

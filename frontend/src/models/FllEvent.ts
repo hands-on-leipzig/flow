@@ -7,8 +7,6 @@ export default class FllEvent {
     slug: string | null
     title_long?: string | null
     title_short?: string | null
-    title_type?: string | null
-    title_type_short?: string | null
     title_place?: string | null
     programs: EventProgramRef[]
     regional_partner: number

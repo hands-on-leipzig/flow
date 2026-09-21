@@ -187,7 +187,7 @@ function screenHref(screen: ActionScreen): string {
   <template v-if="available">
     <button
         type="button"
-        class="screen-help-btn"
+        class="glass-btn-icon"
         aria-label="Hilfe zu dieser Seite"
         title="Hilfe zu dieser Seite"
         @click="toggle"
@@ -203,8 +203,8 @@ function screenHref(screen: ActionScreen): string {
       >
         <div class="screen-help-panel__head">
           <h2 id="screen-help-title" class="text-lg font-semibold !mb-0">{{ article.name }}</h2>
-          <button type="button" class="glass-btn-secondary !px-2 !py-1" aria-label="Schließen" @click="open = false">
-            ×
+          <button type="button" class="glass-btn-icon" aria-label="Schließen" @click="open = false">
+            <i class="bi bi-x-lg" aria-hidden="true"/>
           </button>
         </div>
         <div class="screen-help-panel__body">
@@ -215,7 +215,7 @@ function screenHref(screen: ActionScreen): string {
                 <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
                   <i class="bi bi-shield-lock"/>
                 </span>
-                <button type="button" class="glass-btn-secondary !px-3 !py-1" @click="startEdit('description')">
+                <button type="button" class="glass-btn-secondary" @click="startEdit('description')">
                   Ändern
                 </button>
               </div>
@@ -224,7 +224,7 @@ function screenHref(screen: ActionScreen): string {
               <textarea v-model="description" rows="16" class="screen-help-panel__input mt-1"/>
               <button
                   type="button"
-                  class="glass-btn-accent !px-4 !py-2 mt-2"
+                  class="glass-btn-accent mt-2"
                   :disabled="saving"
                   @click="saveField('description')"
               >
@@ -240,7 +240,7 @@ function screenHref(screen: ActionScreen): string {
                 <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
                   <i class="bi bi-shield-lock"/>
                 </span>
-                <button type="button" class="glass-btn-secondary !px-3 !py-1" @click="startEdit('must_do')">
+                <button type="button" class="glass-btn-secondary" @click="startEdit('must_do')">
                   Ändern
                 </button>
               </div>
@@ -249,7 +249,7 @@ function screenHref(screen: ActionScreen): string {
               <textarea v-model="mustDo" rows="16" class="screen-help-panel__input mt-1"/>
               <button
                   type="button"
-                  class="glass-btn-accent !px-4 !py-2 mt-2"
+                  class="glass-btn-accent mt-2"
                   :disabled="saving"
                   @click="saveField('must_do')"
               >
@@ -265,7 +265,7 @@ function screenHref(screen: ActionScreen): string {
                 <span class="screen-help-panel__admin-mark" title="Admin" aria-hidden="true">
                   <i class="bi bi-shield-lock"/>
                 </span>
-                <button type="button" class="glass-btn-secondary !px-3 !py-1" @click="startEdit('can_do')">
+                <button type="button" class="glass-btn-secondary" @click="startEdit('can_do')">
                   Ändern
                 </button>
               </div>
@@ -274,7 +274,7 @@ function screenHref(screen: ActionScreen): string {
               <textarea v-model="canDo" rows="16" class="screen-help-panel__input mt-1"/>
               <button
                   type="button"
-                  class="glass-btn-accent !px-4 !py-2 mt-2"
+                  class="glass-btn-accent mt-2"
                   :disabled="saving"
                   @click="saveField('can_do')"
               >
@@ -323,19 +323,6 @@ function screenHref(screen: ActionScreen): string {
 </template>
 
 <style scoped>
-.screen-help-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--color-accent);
-  font-size: 1.35rem;
-  line-height: 1;
-  cursor: pointer;
-}
 .screen-help-panel {
   position: fixed;
   top: 0;

@@ -29,7 +29,6 @@ const openingFileName = ref('')
 const error = ref<string | null>(null)
 const items = ref<SharePointItem[]>([])
 const breadcrumbs = ref<Breadcrumb[]>([])
-const currentItemId = ref<string | null>(null)
 const currentDriveId = ref<string | null>(null)
 const folderWebUrl = ref<string | null>(null)
 
@@ -108,7 +107,6 @@ async function loadFolder(itemId: string | null = null) {
     }
     items.value = data.items ?? []
     breadcrumbs.value = data.breadcrumbs ?? []
-    currentItemId.value = data.current_item_id ?? null
     currentDriveId.value = data.drive_id ?? null
     if (data.folder_web_url) {
       folderWebUrl.value = data.folder_web_url

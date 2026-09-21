@@ -44,6 +44,10 @@ $containerClass = $isPdf ? '' : 'event-overview-container';
 $tableClass = $isPdf ? '' : 'overview-table';
 $daySectionClass = $isPdf ? '' : 'day-section';
 $dayHeaderClass = $isPdf ? '' : 'day-header';
+
+$exploreLabel = \App\Support\ProgramCatalog::displayName(\App\Support\ProgramCatalog::EXPLORE);
+$challengeLabel = \App\Support\ProgramCatalog::displayName(\App\Support\ProgramCatalog::CHALLENGE);
+$future8Label = \App\Support\ProgramCatalog::displayName('FUTURE_8');
 @endphp
 
 <div class="{{ $containerClass }}">
@@ -99,8 +103,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if($hasExplore)
                                         <th colspan="{{ $exploreColumns }}" class="column-header merged-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
-                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Explore</span>
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="{{ $exploreLabel }}">
+                                                <span style="vertical-align: middle;">{{ $exploreLabel }}</span>
                                             </div>
                                         </th>
                                     @else
@@ -110,8 +114,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if(!$hasAllgemein2)
                                         <th class="column-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Explore">
-                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Explore</span>
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::EXPLORE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="{{ $exploreLabel }}">
+                                                <span style="vertical-align: middle;">{{ $exploreLabel }}</span>
                                             </div>
                                         </th>
                                     @endif
@@ -119,8 +123,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if($challengeColumns > 1)
                                         <th colspan="{{ $challengeColumns }}" class="column-header merged-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
-                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Challenge</span>
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="{{ $challengeLabel }}">
+                                                <span style="vertical-align: middle;">{{ $challengeLabel }}</span>
                                             </div>
                                         </th>
                                     @else
@@ -130,8 +134,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if(!$hasAllgemein3 && !$hasRobotGame && !$hasLiveChallenge)
                                         <th class="column-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Challenge">
-                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Challenge</span>
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath(\App\Support\ProgramCatalog::CHALLENGE, 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="{{ $challengeLabel }}">
+                                                <span style="vertical-align: middle;">{{ $challengeLabel }}</span>
                                             </div>
                                         </th>
                                     @endif
@@ -147,8 +151,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if($future8Columns > 1)
                                         <th colspan="{{ $future8Columns }}" class="column-header merged-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath('FUTURE_8', 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Future 8+">
-                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Future 8+</span>
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath('FUTURE_8', 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="{{ $future8Label }}">
+                                                <span style="vertical-align: middle;">{{ $future8Label }}</span>
                                             </div>
                                         </th>
                                     @else
@@ -158,8 +162,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
                                     @if(!$hasAllgemein4 && !$hasGame)
                                         <th class="column-header" style="vertical-align: middle;">
                                             <div style="display: flex; align-items: center; justify-content: center;">
-                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath('FUTURE_8', 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="FIRST LEGO League Future 8+">
-                                                <span style="vertical-align: middle;"><em>FIRST</em> LEGO League Future 8+</span>
+                                                <img src="{{ asset('flow/' . basename(\App\Support\ProgramCatalog::logoPath('FUTURE_8', 'v'))) }}" style="height: 40px; width: auto; margin-right: 5px; vertical-align: middle;" alt="{{ $future8Label }}">
+                                                <span style="vertical-align: middle;">{{ $future8Label }}</span>
                                             </div>
                                         </th>
                                     @endif

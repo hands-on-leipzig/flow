@@ -124,7 +124,7 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertNotNull($row);
         $this->assertSame(0, (int) $row->sequence);
         $this->assertSame('event-1@flow.hands-on-technology.org', $row->uid);
-        $this->assertStringContainsString('SUMMARY:FIRST LEGO League Wettbewerb Aachen', $row->vevent);
+        $this->assertStringContainsString('SUMMARY:Event Aachen', $row->vevent);
         $this->assertStringContainsString('URL:https://flow.hands-on-technology.org/aachen', $row->vevent);
         $this->assertStringContainsString('LOCATION:', $row->vevent);
         $this->assertStringContainsString('DESCRIPTION:', $row->vevent);
@@ -183,7 +183,7 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertSame(CalendarFeedService::RESULT_BUILT, $result);
         $this->assertNotNull($row);
         $this->assertStringContainsString('LOCATION:', $row->vevent);
-        $this->assertStringContainsString('SUMMARY:FIRST LEGO League', $row->vevent);
+        $this->assertStringContainsString('SUMMARY:Event Aachen', $row->vevent);
     }
 
     public function test_increments_sequence_on_rebuild(): void

@@ -8,7 +8,7 @@ defineProps<{
 <template>
   <button
       type="button"
-      class="icon-danger-btn"
+      class="glass-btn-icon glass-btn-icon--danger"
       :aria-label="label"
       :title="label"
       :disabled="disabled"

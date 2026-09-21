@@ -361,7 +361,7 @@ async function startRerun() {
           <button
             type="button"
             @click.stop="startRerun"
-            class="glass-btn-accent !px-3 !py-1.5 !text-sm inline-flex items-center gap-1.5"
+            class="glass-btn-accent"
             title="Neuen QRun mit diesen Plänen starten"
           >
             <i class="bi bi-arrow-repeat" aria-hidden="true"/>

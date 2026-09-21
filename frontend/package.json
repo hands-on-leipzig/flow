@@ -23,6 +23,7 @@
     "fabric": "7.2.0",
     "jspdf": "4.2.1",
     "keycloak-js": "26.2.3",
+    "leaflet": "1.9.4",
     "pdfjs-dist": "5.5.207",
     "pinia": "3.0.4",
     "qrcode": "1.5.4",

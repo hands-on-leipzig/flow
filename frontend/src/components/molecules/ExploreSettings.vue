@@ -321,10 +321,11 @@ watch(
             <button
                 :aria-disabled="disabled"
                 :class="[
-                  'glass-choice whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-1',
-                  checked ? 'glass-choice--active' : '',
+                  'venues-view-btn',
+                  checked ? 'is-active' : '',
                   disabled ? 'opacity-40 cursor-not-allowed' : '',
                 ]"
+                :aria-pressed="checked"
                 type="button"
                 @click="!disabled && updateByName(group.param, n)"
             >

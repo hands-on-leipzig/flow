@@ -2,6 +2,7 @@
 import {computed, onMounted, onUnmounted, ref} from 'vue'
 import type {AxiosInstance} from 'axios'
 import PersonListHit from '@/components/molecules/PersonListHit.vue'
+import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
 import {programLogoSrc} from '@/utils/images'
 
 defineOptions({name: 'CockpitOverviewPanel'})
@@ -145,8 +146,9 @@ onUnmounted(() => {
           v-for="item in FILTERS"
           :key="item.id"
           type="button"
-          class="glass-choice cp-overview__filter"
-          :class="{'glass-choice--active': filter === item.id}"
+          class="venues-view-btn cp-overview__filter"
+          :class="{'is-active': filter === item.id}"
+          :aria-pressed="filter === item.id"
           @click="filter = item.id"
       >
         {{ item.label }}
@@ -177,7 +179,10 @@ onUnmounted(() => {
             :class="scopeIcon(scope.kind)"
             aria-hidden="true"
         />
-        <h2 class="cp-overview__scope-title">{{ scope.label }}</h2>
+        <h2 class="cp-overview__scope-title">
+          <ProgramOfficialName v-if="scope.kind === 'program'" :html="scope.label"/>
+          <template v-else>{{ scope.label }}</template>
+        </h2>
       </header>
 
       <div v-if="scope.teams.length" class="cp-overview__block">

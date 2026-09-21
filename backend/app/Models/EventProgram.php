@@ -22,6 +22,7 @@ class EventProgram extends Model
     protected $appends = [
         'name',
         'display_name',
+        'official_name',
         'letter',
         'sequence',
         'color_hex',
@@ -51,6 +52,11 @@ class EventProgram extends Model
     public function getDisplayNameAttribute(): ?string
     {
         return $this->firstProgram?->display_name;
+    }
+
+    public function getOfficialNameAttribute(): ?string
+    {
+        return $this->firstProgram?->official_name;
     }
 
     public function getLetterAttribute(): ?string

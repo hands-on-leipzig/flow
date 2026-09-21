@@ -18,7 +18,6 @@ use App\Support\VolunteerPersonColumns;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -67,13 +66,7 @@ class VolunteerPersonController extends Controller
         $validated = $request->validate([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'email' => [
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('volunteer_person', 'email')
-                    ->where(fn ($q) => $q->where('regional_partner', $event->regional_partner)),
-            ],
+            'email' => ['nullable', 'email', 'max:255'],
             'mobile' => 'nullable|string|max:50',
             'organization' => 'nullable|string|max:255',
         ]);
@@ -84,7 +77,7 @@ class VolunteerPersonController extends Controller
             'regional_partner' => $event->regional_partner,
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
-            'email' => strtolower(trim($validated['email'])),
+            'email' => $this->normalizeEmail($validated['email'] ?? null),
             'mobile' => $mobile,
             'organization' => $this->nullableTrim($validated['organization'] ?? null),
         ]);
@@ -99,15 +92,7 @@ class VolunteerPersonController extends Controller
         $validated = $request->validate([
             'first_name' => 'sometimes|required|string|max:100',
             'last_name' => 'sometimes|required|string|max:100',
-            'email' => [
-                'sometimes',
-                'required',
-                'email',
-                'max:255',
-                Rule::unique('volunteer_person', 'email')
-                    ->where(fn ($q) => $q->where('regional_partner', $volunteer->regional_partner))
-                    ->ignore($volunteer->id),
-            ],
+            'email' => ['sometimes', 'nullable', 'email', 'max:255'],
             'mobile' => 'nullable|string|max:50',
             'organization' => 'nullable|string|max:255',
         ]);
@@ -120,8 +105,8 @@ class VolunteerPersonController extends Controller
             $validated['organization'] = $this->nullableTrim($validated['organization']);
         }
 
-        if (isset($validated['email'])) {
-            $validated['email'] = strtolower(trim($validated['email']));
+        if (array_key_exists('email', $validated)) {
+            $validated['email'] = $this->normalizeEmail($validated['email']);
         }
 
         $volunteer->fill($validated);
@@ -158,7 +143,7 @@ class VolunteerPersonController extends Controller
             'rows' => 'required|array|max:'.VolunteerPersonImportService::MAX_ROWS,
             'rows.*.first_name' => 'required|string|max:100',
             'rows.*.last_name' => 'required|string|max:100',
-            'rows.*.email' => 'required|string|max:255',
+            'rows.*.email' => 'nullable|string|max:255',
             'rows.*.mobile' => 'nullable|string|max:50',
             'rows.*.organization' => 'nullable|string|max:255',
         ]);
@@ -198,6 +183,8 @@ class VolunteerPersonController extends Controller
         $payload = [
             'id' => $person->id,
             'regional_partner' => $person->regional_partner,
+            'draht_id' => $person->hasAccount() ? (int) $person->draht_id : null,
+            'has_account' => $person->hasAccount(),
             'first_name' => $person->first_name,
             'last_name' => $person->last_name,
             'email' => $person->email,
@@ -228,6 +215,16 @@ class VolunteerPersonController extends Controller
         }
 
         return $result['normalized'];
+    }
+
+    private function normalizeEmail(mixed $value): ?string
+    {
+        $trimmed = $this->nullableTrim($value);
+        if ($trimmed === null) {
+            return null;
+        }
+
+        return strtolower($trimmed);
     }
 
     private function nullableTrim(mixed $value): ?string

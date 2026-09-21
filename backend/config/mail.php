@@ -70,6 +70,14 @@ return [
             'path' => env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -bs -i'),
         ],
 
+        'microsoft-graph' => [
+            'transport' => 'microsoft-graph',
+            'tenant_id' => env('MICROSOFT_GRAPH_TENANT_ID'),
+            'client_id' => env('MICROSOFT_GRAPH_CLIENT_ID'),
+            'client_secret' => env('MICROSOFT_GRAPH_CLIENT_SECRET'),
+            'save_to_sent_items' => env('MAIL_SAVE_TO_SENT_ITEMS', false),
+        ],
+
         'log' => [
             'transport' => 'log',
             'channel' => env('MAIL_LOG_CHANNEL'),
@@ -110,9 +118,9 @@ return [
     |
     */
 
-    'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', 'Example'),
-    ],
+    'from' => \App\Support\MailFrom::parse(
+        env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+        env('MAIL_FROM_NAME', 'Example'),
+    ),
 
 ];
