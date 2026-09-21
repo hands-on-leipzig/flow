@@ -22,7 +22,7 @@ final class AdminCockpitSpreadsheetSource implements SpreadsheetSource
     public function document(): SpreadsheetDocument
     {
         $columns = [
-            new SpreadsheetColumn('rp', 'RP', SpreadsheetColumnType::Number),
+            new SpreadsheetColumn('rp', 'RP'),
             new SpreadsheetColumn('date', 'Datum', SpreadsheetColumnType::Date),
             new SpreadsheetColumn('event', 'Event'),
             new SpreadsheetColumn('e', 'E'),
@@ -45,20 +45,21 @@ final class AdminCockpitSpreadsheetSource implements SpreadsheetSource
             $paramCell = is_array($params)
                 ? ((int) ($params['input'] ?? 0)).' + '.((int) ($params['expert'] ?? 0))
                 : '';
+            $ran = ($event['generator_last_end'] ?? null) !== null && $event['generator_last_end'] !== '';
             $rows[] = [
-                $event['regional_partner_id'] ?? '',
+                $event['regional_partner_name'] ?? '',
                 $event['event_date'] ?? '',
                 $event['event_name'] ?? '',
                 $this->teamCell($event, 2),
                 $this->teamCell($event, 3),
                 $this->teamCell($event, 8),
-                $this->liveDot($event['dots']['plan'] ?? null),
+                $this->liveDot($event['dots']['plan'] ?? null, $ran),
                 '—',
-                $this->liveDot($event['dots']['rooms'] ?? null),
-                $this->liveDot($event['dots']['staffing'] ?? null),
+                $this->liveDot($event['dots']['rooms'] ?? null, $ran),
+                $this->liveDot($event['dots']['staffing'] ?? null, $ran),
                 $event['generator_last_end'] ?? '',
                 $paramCell,
-                $event['extra_blocks_free'] === null ? '' : (int) $event['extra_blocks_free'],
+                $this->extraBlocksCell($event),
                 (int) ($event['helferliste_count'] ?? 0),
                 $event['publication_level'] === null ? '' : (int) $event['publication_level'],
             ];
@@ -85,9 +86,22 @@ final class AdminCockpitSpreadsheetSource implements SpreadsheetSource
         return (string) ((int) $value);
     }
 
-    private function liveDot(mixed $value): string
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function extraBlocksCell(array $event): string
     {
-        if ($value === null) {
+        $blocks = $event['extra_blocks'] ?? null;
+        if (! is_array($blocks)) {
+            return '';
+        }
+
+        return ((int) ($blocks['free'] ?? 0)).' + '.((int) ($blocks['slot'] ?? 0));
+    }
+
+    private function liveDot(mixed $value, bool $generatorRan): string
+    {
+        if (! $generatorRan || $value === null) {
             return '—';
         }
 

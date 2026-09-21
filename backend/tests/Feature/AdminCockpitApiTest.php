@@ -65,7 +65,7 @@ class AdminCockpitApiTest extends TestCase
         $this->assertNull($row['plan_id']);
         $this->assertNull($row['generator_last_end']);
         $this->assertNull($row['param_changes']);
-        $this->assertNull($row['extra_blocks_free']);
+        $this->assertNull($row['extra_blocks']);
         $this->assertNull($row['publication_level']);
         $this->assertTrue($row['dots']['plan']);
         $this->assertTrue($row['dots']['rooms']);
@@ -81,7 +81,7 @@ class AdminCockpitApiTest extends TestCase
         $this->assertSame(10, $row['plan_id']);
         $this->assertSame(3, $row['helferliste_count']);
         $this->assertSame(['input' => 1, 'expert' => 1], $row['param_changes']);
-        $this->assertSame(2, $row['extra_blocks_free']);
+        $this->assertSame(['free' => 2, 'slot' => 1], $row['extra_blocks']);
         $this->assertSame(4, $row['publication_level']);
         $this->assertNotNull($row['generator_last_end']);
         $this->assertNull($row['dots']['team']);
@@ -114,9 +114,28 @@ class AdminCockpitApiTest extends TestCase
         try {
             $sheet = IOFactory::load($tmp)->getSheet(0);
             $this->assertSame('Teams', $sheet->getCell('H1')->getValue());
+            $this->assertSame('—', $sheet->getCell('G2')->getValue());
             $this->assertSame('—', $sheet->getCell('H2')->getValue());
             $this->assertNotSame('', (string) $sheet->getCell('C2')->getValue());
             $this->assertSame('', (string) $sheet->getCell('C3')->getValue());
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
+    public function test_xlsx_empty_programs_returns_no_event_rows(): void
+    {
+        $response = $this->get('/api/admin/cockpit.xlsx?season=1&upcoming=0');
+        $response->assertOk();
+
+        $tmp = tempnam(sys_get_temp_dir(), 'cockpit-xlsx-');
+        $this->assertNotFalse($tmp);
+        file_put_contents($tmp, $response->getContent());
+
+        try {
+            $sheet = IOFactory::load($tmp)->getSheet(0);
+            $this->assertSame('RP', $sheet->getCell('A1')->getValue());
+            $this->assertSame('', (string) $sheet->getCell('A2')->getValue());
         } finally {
             @unlink($tmp);
         }

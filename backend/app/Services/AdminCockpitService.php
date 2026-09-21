@@ -68,7 +68,7 @@ class AdminCockpitService
         $helferliste = $this->helferlisteCounts($eventIds);
         $generatorEnds = $this->generatorLastEnds($planIds);
         $paramChanges = $this->paramChanges($planIds);
-        $extraBlocks = $this->freeExtraBlockCounts($planIds);
+        $extraBlocks = $this->extraBlockCounts($planIds);
         $publications = $this->publicationLevels($eventIds);
         $plannedTeams = $this->plannedTeamCounts($planIds);
         $roomsTeamsRed = $this->roomsTeamsRedByEvent($eventIds);
@@ -120,7 +120,9 @@ class AdminCockpitService
                 ],
                 'generator_last_end' => $hasPlan ? ($generatorEnds[$planId] ?? null) : null,
                 'param_changes' => $hasPlan ? ($paramChanges[$planId] ?? ['input' => 0, 'expert' => 0]) : null,
-                'extra_blocks_free' => $hasPlan ? (int) ($extraBlocks[$planId] ?? 0) : null,
+                'extra_blocks' => $hasPlan
+                    ? ($extraBlocks[$planId] ?? ['free' => 0, 'slot' => 0])
+                    : null,
                 'helferliste_count' => (int) ($helferliste[$eventId] ?? 0),
                 'publication_level' => $hasPlan ? ($publications[$eventId] ?? null) : null,
             ];
@@ -170,7 +172,7 @@ class AdminCockpitService
             static fn (int $id) => $id > 0,
         )));
         if ($wanted === []) {
-            return $events;
+            return [];
         }
 
         return array_values(array_filter(
@@ -197,7 +199,7 @@ class AdminCockpitService
 
         usort($events, function (array $a, array $b) use ($sort, $dir): int {
             $cmp = match ($sort) {
-                'rp' => $this->compareNullableInt($a['regional_partner_id'] ?? null, $b['regional_partner_id'] ?? null),
+                'rp' => $this->compareNullableString($a['regional_partner_name'] ?? null, $b['regional_partner_name'] ?? null),
                 'generator' => $this->compareNullableString($a['generator_last_end'] ?? null, $b['generator_last_end'] ?? null),
                 'publish' => $this->compareNullableInt($a['publication_level'] ?? null, $b['publication_level'] ?? null),
                 default => $this->compareNullableString($a['event_date'] ?? null, $b['event_date'] ?? null),
@@ -380,9 +382,9 @@ class AdminCockpitService
 
     /**
      * @param  list<int>  $planIds
-     * @return array<int, int>
+     * @return array<int, array{free: int, slot: int}>
      */
-    private function freeExtraBlockCounts(array $planIds): array
+    private function extraBlockCounts(array $planIds): array
     {
         if ($planIds === []) {
             return [];
@@ -391,14 +393,21 @@ class AdminCockpitService
         $rows = DB::table('extra_block')
             ->whereIn('plan', $planIds)
             ->where('active', 1)
-            ->where('type', 'free')
-            ->select('plan', DB::raw('COUNT(*) as count'))
-            ->groupBy('plan')
+            ->whereIn('type', ['free', 'slot'])
+            ->select('plan', 'type', DB::raw('COUNT(*) as count'))
+            ->groupBy('plan', 'type')
             ->get();
 
         $out = [];
         foreach ($rows as $row) {
-            $out[(int) $row->plan] = (int) $row->count;
+            $planId = (int) $row->plan;
+            if (! isset($out[$planId])) {
+                $out[$planId] = ['free' => 0, 'slot' => 0];
+            }
+            $type = (string) $row->type;
+            if ($type === 'free' || $type === 'slot') {
+                $out[$planId][$type] = (int) $row->count;
+            }
         }
 
         return $out;

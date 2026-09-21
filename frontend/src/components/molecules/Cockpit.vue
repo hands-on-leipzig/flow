@@ -37,7 +37,7 @@ type CockpitEvent = {
   dots: CockpitDots
   generator_last_end: string | null
   param_changes: {input: number; expert: number} | null
-  extra_blocks_free: number | null
+  extra_blocks: {free: number; slot: number} | null
   helferliste_count: number
   publication_level: number | null
 }
@@ -53,6 +53,7 @@ const events = ref<CockpitEvent[]>([])
 const loading = ref(true)
 const upcomingOnly = ref(true)
 const activeProgramFilters = ref<Set<number>>(new Set())
+const programFiltersSeeded = ref(false)
 const sortKey = ref<SortKey>('date')
 const sortDir = ref<'asc' | 'desc'>('asc')
 const modalMode = ref<ModalMode>(null)
@@ -90,23 +91,24 @@ function compareNullable(a: string | number | null | undefined, b: string | numb
 }
 
 const filteredRows = computed(() => {
+  if (activeProgramFilters.value.size === 0) {
+    return []
+  }
   const today = todayBerlin()
   let rows = events.value.slice()
   if (upcomingOnly.value) {
     rows = rows.filter((row) => !row.event_date || row.event_date >= today)
   }
-  if (activeProgramFilters.value.size > 0) {
-    rows = rows.filter((row) => row.programs.some((id) => activeProgramFilters.value.has(id)))
-  }
+  rows = rows.filter((row) => row.programs.some((id) => activeProgramFilters.value.has(id)))
   const dir = sortDir.value === 'desc' ? -1 : 1
   rows.sort((a, b) => {
     let cmp = 0
-    if (sortKey.value === 'rp') cmp = compareNullable(a.regional_partner_id, b.regional_partner_id)
+    if (sortKey.value === 'rp') cmp = compareNullable(a.regional_partner_name, b.regional_partner_name)
     else if (sortKey.value === 'generator') cmp = compareNullable(a.generator_last_end, b.generator_last_end)
     else if (sortKey.value === 'publish') cmp = compareNullable(a.publication_level, b.publication_level)
     else cmp = compareNullable(a.event_date, b.event_date)
     if (cmp !== 0) return cmp * dir
-    return compareNullable(a.regional_partner_id, b.regional_partner_id)
+    return compareNullable(a.regional_partner_name, b.regional_partner_name)
   })
   return rows
 })
@@ -132,6 +134,15 @@ function sortIcon(key: SortKey) {
   return sortDir.value === 'asc' ? 'bi-sort-up' : 'bi-sort-down'
 }
 
+function generatorRan(row: CockpitEvent): boolean {
+  return !!row.generator_last_end
+}
+
+function liveDotClass(row: CockpitEvent, on: boolean): string {
+  if (!generatorRan(row)) return 'cockpit-dot--disabled'
+  return on ? 'cockpit-dot--on' : 'cockpit-dot--off'
+}
+
 function teamCell(row: CockpitEvent, programIdValue: number): string {
   const value = row.teams[String(programIdValue)]
   if (value === null || value === undefined) return ''
@@ -155,8 +166,14 @@ function hasParamDrill(row: CockpitEvent): boolean {
   return row.param_changes.input > 0 || row.param_changes.expert > 0
 }
 
+function extraBlocksLabel(row: CockpitEvent): string {
+  if (!row.extra_blocks) return ''
+  return `${row.extra_blocks.free} + ${row.extra_blocks.slot}`
+}
+
 function hasBlockDrill(row: CockpitEvent): boolean {
-  return !!row.plan_id && (row.extra_blocks_free ?? 0) > 0
+  if (!row.plan_id || !row.extra_blocks) return false
+  return row.extra_blocks.free > 0 || row.extra_blocks.slot > 0
 }
 
 function openParams(planId: number) {
@@ -250,6 +267,12 @@ async function loadEvents() {
     loading.value = false
   }
 }
+
+watch(programChips, (chips) => {
+  if (programFiltersSeeded.value || chips.length === 0) return
+  activeProgramFilters.value = new Set(chips.map((program) => programId(program)))
+  programFiltersSeeded.value = true
+}, {immediate: true})
 
 watch(selectedSeasonId, (id) => {
   if (id == null) {
@@ -362,9 +385,21 @@ onMounted(async () => {
                 </button>
               </th>
               <th class="px-3 py-2" scope="col">Event</th>
-              <th class="px-3 py-2 text-center" scope="col">E</th>
-              <th class="px-3 py-2 text-center" scope="col">C</th>
-              <th class="px-3 py-2 text-center" scope="col">F8</th>
+              <th
+                  v-for="program in programChips"
+                  :key="`col-${programId(program)}`"
+                  class="px-3 py-2 text-center"
+                  scope="col"
+              >
+                <ProgramLogo
+                    :program="program"
+                    size="chip"
+                    decorative
+                    :title="programDisplayName(program)"
+                    class="mx-auto"
+                />
+                <span class="sr-only">{{ programDisplayName(program) }}</span>
+              </th>
               <th class="px-3 py-2 text-center" scope="col">Ablauf</th>
               <th
                   class="px-3 py-2 text-center cockpit-dot-col--disabled"
@@ -408,8 +443,8 @@ onMounted(async () => {
                 :key="row.event_id"
                 class="border-t border-[var(--color-border)]"
             >
-              <td class="px-3 py-2" :title="row.regional_partner_name || undefined">
-                {{ row.regional_partner_id ?? '' }}
+              <td class="px-3 py-2">
+                {{ row.regional_partner_name ?? '' }}
               </td>
               <td class="px-3 py-2">{{ formatDateOnly(row.event_date) }}</td>
               <td class="px-3 py-2">
@@ -421,29 +456,24 @@ onMounted(async () => {
                   {{ row.event_name }}
                 </button>
               </td>
-              <td class="px-3 py-2 text-center">{{ teamCell(row, 2) }}</td>
-              <td class="px-3 py-2 text-center">{{ teamCell(row, 3) }}</td>
-              <td class="px-3 py-2 text-center">{{ teamCell(row, 8) }}</td>
+              <td
+                  v-for="program in programChips"
+                  :key="`${row.event_id}-${programId(program)}`"
+                  class="px-3 py-2 text-center"
+              >
+                {{ teamCell(row, programId(program)) }}
+              </td>
               <td class="px-3 py-2 text-center">
-                <span
-                    class="cockpit-dot"
-                    :class="row.dots.plan ? 'cockpit-dot--on' : 'cockpit-dot--off'"
-                />
+                <span class="cockpit-dot" :class="liveDotClass(row, row.dots.plan)"/>
               </td>
               <td class="px-3 py-2 text-center">
                 <span class="cockpit-dot cockpit-dot--disabled"/>
               </td>
               <td class="px-3 py-2 text-center">
-                <span
-                    class="cockpit-dot"
-                    :class="row.dots.rooms ? 'cockpit-dot--on' : 'cockpit-dot--off'"
-                />
+                <span class="cockpit-dot" :class="liveDotClass(row, row.dots.rooms)"/>
               </td>
               <td class="px-3 py-2 text-center">
-                <span
-                    class="cockpit-dot"
-                    :class="row.dots.staffing ? 'cockpit-dot--on' : 'cockpit-dot--off'"
-                />
+                <span class="cockpit-dot" :class="liveDotClass(row, row.dots.staffing)"/>
               </td>
               <td class="px-3 py-2">
                 {{ row.generator_last_end ? formatDateTime(row.generator_last_end) : '' }}
@@ -461,7 +491,7 @@ onMounted(async () => {
                 </button>
               </td>
               <td class="px-3 py-2">
-                <span v-if="row.extra_blocks_free !== null">{{ row.extra_blocks_free }}</span>
+                <span v-if="row.extra_blocks">{{ extraBlocksLabel(row) }}</span>
                 <button
                     v-if="hasBlockDrill(row) && row.plan_id"
                     type="button"
@@ -523,7 +553,7 @@ onMounted(async () => {
 }
 
 .cockpit-dot--off {
-  background: transparent;
+  background: #fff;
   box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
