@@ -64,9 +64,11 @@ class AdminCockpitApiTest extends TestCase
 
         $this->assertNull($row['plan_id']);
         $this->assertNull($row['generator_last_end']);
+        $this->assertNull($row['generator_count']);
         $this->assertNull($row['param_changes']);
         $this->assertNull($row['extra_blocks']);
         $this->assertNull($row['publication_level']);
+        $this->assertSame(0, $row['access_count']);
         $this->assertTrue($row['dots']['plan']);
         $this->assertTrue($row['dots']['rooms']);
         $this->assertFalse($row['dots']['staffing']);
@@ -84,6 +86,8 @@ class AdminCockpitApiTest extends TestCase
         $this->assertSame(['free' => 2, 'slot' => 1], $row['extra_blocks']);
         $this->assertSame(4, $row['publication_level']);
         $this->assertNotNull($row['generator_last_end']);
+        $this->assertSame(2, $row['generator_count']);
+        $this->assertSame(3, $row['access_count']);
         $this->assertNull($row['dots']['team']);
         $this->assertTrue($row['dots']['plan']);
         $this->assertFalse($row['dots']['rooms']);
@@ -273,6 +277,11 @@ class AdminCockpitApiTest extends TestCase
             ['plan' => 10, 'start' => '2026-09-01 10:00:00', 'end' => '2026-09-01 10:05:00'],
             ['plan' => 10, 'start' => '2026-09-02 10:00:00', 'end' => '2026-09-02 10:08:00'],
         ]);
+        DB::table('s_one_link_access')->insert([
+            ['event' => 1, 'access_date' => '2026-08-01'],
+            ['event' => 1, 'access_date' => '2026-08-02'],
+            ['event' => 1, 'access_date' => '2026-08-03'],
+        ]);
         DB::table('extra_block')->insert([
             ['plan' => 10, 'name' => 'Free 1', 'active' => 1, 'type' => 'free', 'start' => '2026-11-14 09:00:00', 'room' => null],
             ['plan' => 10, 'name' => 'Free 2', 'active' => 1, 'type' => 'free', 'start' => '2026-11-14 10:00:00', 'room' => null],
@@ -357,6 +366,11 @@ class AdminCockpitApiTest extends TestCase
             $table->unsignedInteger('plan');
             $table->dateTime('start')->nullable();
             $table->dateTime('end')->nullable();
+        });
+        $this->table('s_one_link_access', function (Blueprint $table) {
+            $table->increments('id');
+            $table->unsignedInteger('event');
+            $table->date('access_date');
         });
         $this->table('extra_block', function (Blueprint $table) {
             $table->increments('id');

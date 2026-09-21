@@ -38,10 +38,12 @@ type CockpitEvent = {
   teams: Record<string, number | null>
   dots: CockpitDots
   generator_last_end: string | null
+  generator_count: number | null
   param_changes: {input: number; expert: number} | null
   extra_blocks: {free: number; slot: number} | null
   helferliste_count: number
   publication_level: number | null
+  access_count: number
 }
 
 type SortKey = 'rp' | 'date' | 'generator' | 'publish'
@@ -531,16 +533,18 @@ onMounted(async () => {
                 <span class="cockpit-dot" :class="liveDotClass(row, row.dots.staffing)"/>
               </td>
               <td class="px-3 py-2">
-                <span v-if="row.generator_last_end">{{ formatDateTime(row.generator_last_end) }}</span>
-                <button
-                    v-if="row.plan_id && generatorRan(row)"
-                    type="button"
-                    class="ml-1 text-[var(--color-accent)]"
-                    title="Generierungen anzeigen"
-                    @click="openTimeline(row.plan_id)"
-                >
-                  <i class="bi bi-graph-up" aria-hidden="true"/>
-                </button>
+                <div v-if="row.generator_last_end">{{ formatDateTime(row.generator_last_end) }}</div>
+                <div v-if="row.plan_id && generatorRan(row)" class="flex items-center gap-1">
+                  <span>{{ row.generator_count }}</span>
+                  <button
+                      type="button"
+                      class="text-[var(--color-accent)]"
+                      title="Generierungen anzeigen"
+                      @click="openTimeline(row.plan_id)"
+                  >
+                    <i class="bi bi-graph-up" aria-hidden="true"/>
+                  </button>
+                </div>
               </td>
               <td class="px-3 py-2">
                 <span v-if="row.param_changes">{{ paramLabel(row) }}</span>
@@ -568,23 +572,25 @@ onMounted(async () => {
               </td>
               <td class="px-3 py-2">{{ row.helferliste_count }}</td>
               <td class="px-3 py-2" :title="publishTitle(row.publication_level)">
-                <span v-if="row.publication_level != null" class="inline-flex">
+                <div v-if="row.publication_level != null" class="inline-flex">
                   <span
                       v-for="n in 4"
                       :key="n"
                       class="w-3 h-3 rounded-full mx-0.5"
                       :class="n <= row.publication_level ? 'bg-blue-600' : 'bg-gray-300'"
                   />
-                </span>
-                <button
-                    v-if="row.publication_level != null"
-                    type="button"
-                    class="ml-1 text-[var(--color-accent)]"
-                    title="Zugriffe anzeigen"
-                    @click="openAccess(row.event_id)"
-                >
-                  <i class="bi bi-graph-up" aria-hidden="true"/>
-                </button>
+                </div>
+                <div v-if="row.publication_level != null" class="flex items-center gap-1">
+                  <span>{{ row.access_count }}</span>
+                  <button
+                      type="button"
+                      class="text-[var(--color-accent)]"
+                      title="Zugriffe anzeigen"
+                      @click="openAccess(row.event_id)"
+                  >
+                    <i class="bi bi-graph-up" aria-hidden="true"/>
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>

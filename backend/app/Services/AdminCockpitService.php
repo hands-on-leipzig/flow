@@ -66,7 +66,8 @@ class AdminCockpitService
         $programsByEvent = $this->programsByEvent($eventIds);
         $teamCounts = $this->teamCounts($eventIds);
         $helferliste = $this->helferlisteCounts($eventIds);
-        $generatorEnds = $this->generatorLastEnds($planIds);
+        $generatorStats = $this->generatorStats($planIds);
+        $accessCounts = $this->accessCounts($eventIds);
         $paramChanges = $this->paramChanges($planIds);
         $extraBlocks = $this->extraBlockCounts($planIds);
         $publications = $this->publicationLevels($eventIds);
@@ -92,6 +93,7 @@ class AdminCockpitService
 
             $hasPlan = $planId !== null;
             $eventDate = $this->isoDate($row->event_date);
+            $gen = $hasPlan ? ($generatorStats[$planId] ?? null) : null;
 
             $events[] = [
                 'event_id' => $eventId,
@@ -118,13 +120,15 @@ class AdminCockpitService
                     ),
                     'staffing' => $this->staffingDot($eventId, $attachedIds),
                 ],
-                'generator_last_end' => $hasPlan ? ($generatorEnds[$planId] ?? null) : null,
+                'generator_last_end' => $gen['last_end'] ?? null,
+                'generator_count' => $hasPlan ? (int) ($gen['count'] ?? 0) : null,
                 'param_changes' => $hasPlan ? ($paramChanges[$planId] ?? ['input' => 0, 'expert' => 0]) : null,
                 'extra_blocks' => $hasPlan
                     ? ($extraBlocks[$planId] ?? ['free' => 0, 'slot' => 0])
                     : null,
                 'helferliste_count' => (int) ($helferliste[$eventId] ?? 0),
                 'publication_level' => $hasPlan ? ($publications[$eventId] ?? null) : null,
+                'access_count' => (int) ($accessCounts[$eventId] ?? 0),
             ];
         }
 
@@ -348,9 +352,9 @@ class AdminCockpitService
 
     /**
      * @param  list<int>  $planIds
-     * @return array<int, string>
+     * @return array<int, array{last_end: string, count: int}>
      */
-    private function generatorLastEnds(array $planIds): array
+    private function generatorStats(array $planIds): array
     {
         if ($planIds === []) {
             return [];
@@ -360,7 +364,7 @@ class AdminCockpitService
             ->whereIn('plan', $planIds)
             ->whereNotNull('start')
             ->whereNotNull('end')
-            ->select('plan', DB::raw('MAX(end) as last_end'))
+            ->select('plan', DB::raw('MAX(end) as last_end'), DB::raw('COUNT(*) as count'))
             ->groupBy('plan')
             ->get();
 
@@ -369,7 +373,34 @@ class AdminCockpitService
             if ($row->last_end === null || $row->last_end === '') {
                 continue;
             }
-            $out[(int) $row->plan] = Carbon::parse($row->last_end, config('app.timezone'))->toIso8601String();
+            $out[(int) $row->plan] = [
+                'last_end' => Carbon::parse($row->last_end, config('app.timezone'))->toIso8601String(),
+                'count' => (int) $row->count,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<int>  $eventIds
+     * @return array<int, int>
+     */
+    private function accessCounts(array $eventIds): array
+    {
+        if ($eventIds === []) {
+            return [];
+        }
+
+        $rows = DB::table('s_one_link_access')
+            ->whereIn('event', $eventIds)
+            ->select('event', DB::raw('COUNT(*) as count'))
+            ->groupBy('event')
+            ->get();
+
+        $out = [];
+        foreach ($rows as $row) {
+            $out[(int) $row->event] = (int) $row->count;
         }
 
         return $out;
