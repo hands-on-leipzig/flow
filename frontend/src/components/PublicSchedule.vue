@@ -1972,7 +1972,7 @@ watch(
               class="public-schedule__card public-schedule__card--center public-schedule__card--overview"
           >
             <h2 class="public-schedule__page-title">
-              Willkommen zu {{ eventName || 'dieser Veranstaltung' }}
+              Willkommen zum {{ eventName || 'dieser Veranstaltung' }}
             </h2>
             <div
                 v-if="programs.length"
