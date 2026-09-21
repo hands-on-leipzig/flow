@@ -45,6 +45,7 @@ export const useProgramsStore = defineStore('programs', {
           first_program: program.id,
           name: program.name,
           display_name: program.display_name ?? null,
+          official_name: program.official_name ?? null,
           letter: program.letter ?? null,
           sequence: program.sequence ?? null,
           color_hex: program.color_hex ?? null,

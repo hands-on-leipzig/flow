@@ -4,6 +4,7 @@ import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
 import {imageUrl} from '@/utils/images'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
 import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleLong, getEventTitleShort} from '@/utils/eventTitle'
@@ -501,7 +502,9 @@ onMounted(async () => {
                     size="md"
                     class="pe-lane__logo"
                 />
-                <h3 class="pe-lane__title">{{ lane.name }}</h3>
+                <h3 class="pe-lane__title">
+                  <ProgramOfficialName :html="lane.official_name || lane.name"/>
+                </h3>
               </header>
 
               <ol class="pe-lane-list">
@@ -665,7 +668,9 @@ onMounted(async () => {
                   class="bi bi-star pe-lane__logo pe-helper-scope-icon"
                   aria-hidden="true"
               />
-              <h3 class="pe-lane__title">{{ scope.label }}</h3>
+              <h3 class="pe-lane__title">
+                <ProgramOfficialName :html="scope.label"/>
+              </h3>
             </header>
             <ol v-if="scope.roles?.length" class="pe-lane-list">
               <li
@@ -701,7 +706,9 @@ onMounted(async () => {
                   size="md"
                   class="pe-lane__logo"
               />
-              <h3 class="pe-lane__title">{{ scope.label }}</h3>
+              <h3 class="pe-lane__title">
+                <ProgramOfficialName :html="scope.label"/>
+              </h3>
             </header>
             <ol v-if="scope.roles?.length" class="pe-lane-list">
               <li
@@ -750,7 +757,9 @@ onMounted(async () => {
                   size="md"
                   class="pe-lane__logo"
               />
-              <h3 class="pe-lane__title">{{ lane.name }}</h3>
+              <h3 class="pe-lane__title">
+                <ProgramOfficialName :html="lane.official_name || lane.name"/>
+              </h3>
               <span
                   v-if="laneCapacity(lane)"
                   class="pe-lane__cap"

@@ -10,6 +10,7 @@ import {
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import EventMap from '@/components/molecules/EventMap.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
+import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
 
 const PRINT_FIT_AUDIENCE_ROLE_IDS = [6, 10, 14, 24] as const
 const PRINT_FIT_HOT_ORANGE = '#F78B1F'
@@ -44,6 +45,7 @@ type RoleOption = {
 type VisitorProgram = {
   id: number
   display_name: string
+  official_name?: string | null
   sequence: number
   logo_stem?: string | null
   logo_white?: string | null
@@ -77,6 +79,7 @@ type Role = {
   first_program_name?: string | null
   first_program_sequence?: number | null
   first_program_display_name?: string | null
+  first_program_official_name?: string | null
   color_hex: string
   logo_stem?: string | null
   logo_white: string
@@ -311,7 +314,9 @@ const printFitSubjectProgram = computed(() => {
 const printFitSubject = computed(() => {
   if (!props.printFit) return ''
   if (printFitJoint.value) return 'Publikum'
-  return printFitSubjectProgram.value?.display_name
+  return printFitSubjectProgram.value?.official_name
+    || printFitSubjectProgram.value?.display_name
+    || selectedRoleMeta.value?.first_program_official_name
     || selectedRoleMeta.value?.first_program_display_name
     || 'Publikum'
 })
@@ -2236,7 +2241,9 @@ watch(
                       :alt="programLogoAlt(program)"
                       class="public-schedule__role-logo"
                   />
-                  <span class="public-schedule__role-name">{{ program.display_name }}</span>
+                  <span class="public-schedule__role-name">
+                    <ProgramOfficialName :html="program.official_name || program.display_name"/>
+                  </span>
                   <i class="bi bi-chevron-right public-schedule__role-chevron" aria-hidden="true"/>
                 </button>
               </template>

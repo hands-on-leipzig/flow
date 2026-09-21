@@ -12,6 +12,7 @@ class FirstProgram extends Model
         'id',
         'name',
         'display_name',
+        'official_name',
         'letter',
         'ics_postfix',
         'sequence',

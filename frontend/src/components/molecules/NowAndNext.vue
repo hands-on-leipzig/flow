@@ -6,7 +6,8 @@ import { useEventStore } from '@/stores/event'
 import { formatTimeOnly } from '@/utils/dateTimeFormat'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { defaultTableFieldLabel } from '@/utils/tableFieldLabels'
-import { planTeamName } from '@/utils/planTeamLabel'  
+import { planTeamName } from '@/utils/planTeamLabel'
+import { programDisplayName } from '@/utils/eventPrograms'
 
 // Event store
 const eventStore = useEventStore()
@@ -57,11 +58,11 @@ onMounted(async () => {
 })
 
 // Rollendefinitionen
-const roles = [
+const roles = computed(() => [
   { id: 14, label: 'Besucher Allgemein' },
-  { id: 6,  label: 'Besucher Challenge' },
-  { id: 10, label: 'Besucher Explore' }
-]
+  { id: 6,  label: `Besucher ${programDisplayName('CHALLENGE')}` },
+  { id: 10, label: `Besucher ${programDisplayName('EXPLORE')}` },
+])
 
 // Output
 const loading = ref(false)

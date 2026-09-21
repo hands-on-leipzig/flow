@@ -4,7 +4,7 @@ import axios from 'axios'
 
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
-import { eventPrograms, findProgram, programId } from '@/utils/eventPrograms'
+import { eventPrograms, findProgram, programId, programDisplayName } from '@/utils/eventPrograms'
 
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
@@ -849,15 +849,15 @@ function exportToCSV() {
     'Event Name',
     'Datum',
     'Event Link',
-    'Event Explore',
-    'Event Challenge',
+    `Event ${programDisplayName('EXPLORE')}`,
+    `Event ${programDisplayName('CHALLENGE')}`,
     'Event Needs Attention',
-    'Explore Anmeldungen',
-    'Challenge Anmeldungen',
-    'Future 8+ Anmeldungen',
+    `${programDisplayName('EXPLORE')} Anmeldungen`,
+    `${programDisplayName('CHALLENGE')} Anmeldungen`,
+    `${programDisplayName('FUTURE_8')} Anmeldungen`,
     'DRAHT Issue',
     'Plan ID',
-    'Explore Mode',
+    `${programDisplayName('EXPLORE')} Mode`,
     'Plan Last Change',
     'Plan Warning',
     'Generator Stats',
@@ -1194,7 +1194,7 @@ function exportToCSV() {
                     :class="isProgramFilterActive('EXPLORE')
                       ? 'ring-2 ring-blue-500 bg-blue-50'
                       : 'opacity-60 hover:opacity-100'"
-                    :title="isProgramFilterActive('EXPLORE') ? 'Explore-Filter entfernen' : 'Nur Events mit Explore'"
+                    :title="isProgramFilterActive('EXPLORE') ? `${programDisplayName('EXPLORE')}-Filter entfernen` : `Nur Events mit ${programDisplayName('EXPLORE')}`"
                     :aria-pressed="isProgramFilterActive('EXPLORE')"
                     @click="toggleProgramFilter('EXPLORE')"
                   >
@@ -1212,7 +1212,7 @@ function exportToCSV() {
                     :class="isProgramFilterActive('CHALLENGE')
                       ? 'ring-2 ring-blue-500 bg-blue-50'
                       : 'opacity-60 hover:opacity-100'"
-                    :title="isProgramFilterActive('CHALLENGE') ? 'Challenge-Filter entfernen' : 'Nur Events mit Challenge'"
+                    :title="isProgramFilterActive('CHALLENGE') ? `${programDisplayName('CHALLENGE')}-Filter entfernen` : `Nur Events mit ${programDisplayName('CHALLENGE')}`"
                     :aria-pressed="isProgramFilterActive('CHALLENGE')"
                     @click="toggleProgramFilter('CHALLENGE')"
                   >
@@ -1230,7 +1230,7 @@ function exportToCSV() {
                     :class="isProgramFilterActive('FUTURE_8')
                       ? 'ring-2 ring-blue-500 bg-blue-50'
                       : 'opacity-60 hover:opacity-100'"
-                    :title="isProgramFilterActive('FUTURE_8') ? 'Future-8+-Filter entfernen' : 'Nur Events mit Future 8+'"
+                    :title="isProgramFilterActive('FUTURE_8') ? `${programDisplayName('FUTURE_8')}-Filter entfernen` : `Nur Events mit ${programDisplayName('FUTURE_8')}`"
                     :aria-pressed="isProgramFilterActive('FUTURE_8')"
                     @click="toggleProgramFilter('FUTURE_8')"
                   >

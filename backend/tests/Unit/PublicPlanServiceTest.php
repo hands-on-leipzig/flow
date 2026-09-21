@@ -78,6 +78,7 @@ class PublicPlanServiceTest extends TestCase
             [
                 'id' => 3,
                 'display_name' => 'Challenge',
+                'official_name' => 'Challenge',
                 'sequence' => 2,
                 'logo_stem' => 'fll_challenge',
                 'logo_white' => 'challenge.png',

@@ -8,6 +8,7 @@ use App\Enums\FirstProgram;
 use App\Models\Event;
 use App\Services\EventTitleService;
 use App\Services\TeamJuryAssignmentService;
+use App\Support\ProgramCatalog;
 use Illuminate\Support\Facades\DB;
 
 final class TeamlisteAssembler
@@ -110,6 +111,7 @@ final class TeamlisteAssembler
                 'subject' => 'Teamliste',
                 'color_hex' => EventPrintPdf::HOT_ORANGE,
                 'display_name' => $program['display_name'],
+                'official_name' => $program['official_name'] ?? $program['display_name'],
                 'logo_stem' => $program['logo_stem'],
                 'group_header' => $groupHeader,
                 'rows' => $printed,
@@ -144,10 +146,12 @@ final class TeamlisteAssembler
         $programs = [];
         foreach ($rows as $row) {
             $display = trim((string) ($row->display_name ?? ''));
+            $display = $display !== '' ? $display : (string) $row->name;
             $programs[] = [
                 'id' => (int) $row->id,
                 'name' => (string) $row->name,
-                'display_name' => $display !== '' ? $display : (string) $row->name,
+                'display_name' => $display,
+                'official_name' => ProgramCatalog::officialNameHtml((int) $row->id, $display),
                 'sequence' => (int) $row->sequence,
                 'logo_stem' => $row->logo_stem !== null && $row->logo_stem !== '' ? (string) $row->logo_stem : null,
             ];

@@ -97,7 +97,7 @@ watch(
     {immediate: true}
 )
 
-const exploreLabel = computed(() => programDisplayName('EXPLORE') || 'Explore')
+const exploreLabel = computed(() => programDisplayName('EXPLORE'))
 const exploreProgram = computed(() => resolveProgramRef(eventStore.selectedEvent, EXPLORE_ID))
 </script>
 

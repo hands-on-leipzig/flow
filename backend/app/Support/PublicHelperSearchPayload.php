@@ -113,7 +113,10 @@ final class PublicHelperSearchPayload
         foreach ($rows as $row) {
             $id = (int) $row->id;
             $catalog[$id] = [
-                'label' => (string) ($row->display_name ?: $row->name),
+                'label' => ProgramCatalog::officialNameHtml(
+                    $id,
+                    (string) ($row->display_name ?: $row->name)
+                ),
                 'color_hex' => $row->color_hex !== null
                     ? (string) $row->color_hex
                     : ProgramCatalog::colorHex((string) $row->name),

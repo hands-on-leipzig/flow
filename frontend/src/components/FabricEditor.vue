@@ -14,6 +14,7 @@ import {
 import {Slide} from "@/models/slide";
 import axios from "axios";
 import {imageUrl} from '@/utils/images'
+import {programDisplayName} from '@/utils/eventPrograms'
 import {useEventStore} from "@/stores/event";
 
 // Ideen und TODOS
@@ -43,33 +44,30 @@ const emit = defineEmits<{
 const canvasEl = shallowRef(null);
 let canvas: Canvas;
 
-const standardImages = [
-  {title: 'Hands on Technology', url: imageUrl('flow/hot.png')},
-  {title: 'Hands on Technology', url: imageUrl('flow/hot_outline.png')},
-  {title: 'Bioglow', url: imageUrl('flow/season_bioglow+fll_h.png')},
-  {title: 'Bioglow', url: imageUrl('flow/season_bioglow_v.png')},
-  {title: 'Bioglow', url: imageUrl('flow/season_bioglow_wordmark.png')},
-  {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_h.png')},
-  {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_v.png')},
-  {title: 'FIRST', url: imageUrl('flow/first_h.png')},
-  {title: 'FIRST', url: imageUrl('flow/first_v.png')},
-  {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_h.png')},
-  {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_hs.png')},
-  {title: 'FIRST LEGO League Challenge', url: imageUrl('flow/fll_challenge_v.png')},
-  {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_h.png')},
-  {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_hs.png')},
-  {title: 'FIRST LEGO League Explore', url: imageUrl('flow/fll_explore_v.png')},
-  {title: 'FIRST LEGO League Future 8+', url: imageUrl('flow/fll_future8_h.png')},
-  {title: 'FIRST LEGO League Future 8+', url: imageUrl('flow/fll_future8_hs.png')},
-  {title: 'FIRST LEGO League Future 8+', url: imageUrl('flow/fll_future8_v.png')},
-];
-const availableImages = ref(standardImages);
-const availableQrCodes = ref([]);
-
-// Format program name with italic FIRST
-const formatProgramTitle = (title?: string) => {
-  return title?.replace(/FIRST/g, '<span class="italic">FIRST</span>')
+function standardImages() {
+  return [
+    {title: 'Hands on Technology', url: imageUrl('flow/hot.png')},
+    {title: 'Hands on Technology', url: imageUrl('flow/hot_outline.png')},
+    {title: 'Bioglow', url: imageUrl('flow/season_bioglow+fll_h.png')},
+    {title: 'Bioglow', url: imageUrl('flow/season_bioglow_v.png')},
+    {title: 'Bioglow', url: imageUrl('flow/season_bioglow_wordmark.png')},
+    {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_h.png')},
+    {title: 'FIRST LEGO League', url: imageUrl('flow/first+fll_v.png')},
+    {title: 'FIRST', url: imageUrl('flow/first_h.png')},
+    {title: 'FIRST', url: imageUrl('flow/first_v.png')},
+    {title: programDisplayName('CHALLENGE'), url: imageUrl('flow/fll_challenge_h.png')},
+    {title: programDisplayName('CHALLENGE'), url: imageUrl('flow/fll_challenge_hs.png')},
+    {title: programDisplayName('CHALLENGE'), url: imageUrl('flow/fll_challenge_v.png')},
+    {title: programDisplayName('EXPLORE'), url: imageUrl('flow/fll_explore_h.png')},
+    {title: programDisplayName('EXPLORE'), url: imageUrl('flow/fll_explore_hs.png')},
+    {title: programDisplayName('EXPLORE'), url: imageUrl('flow/fll_explore_v.png')},
+    {title: programDisplayName('FUTURE_8'), url: imageUrl('flow/fll_future8_h.png')},
+    {title: programDisplayName('FUTURE_8'), url: imageUrl('flow/fll_future8_hs.png')},
+    {title: programDisplayName('FUTURE_8'), url: imageUrl('flow/fll_future8_v.png')},
+  ]
 }
+const availableImages = ref(standardImages());
+const availableQrCodes = ref([]);
 
 const defaultObjectProperties = {
   transparentCorners: true,
@@ -198,7 +196,7 @@ function removeSelection() {
 
 async function loadImages() {
   const {data} = await axios.get('/logos');
-  availableImages.value = [...data, ...standardImages];
+  availableImages.value = [...data, ...standardImages()];
 }
 
 async function loadQRCodeImages() {
@@ -589,7 +587,7 @@ async function paste() {
                  @click="insertImageFromUrl(img.url)"/>
             <div class="text-xs text-center mt-1 w-28"
                  style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"
-                 v-html="formatProgramTitle(img.title)"></div>
+            >{{ img.title }}</div>
           </div>
         </div>
         <div class="mt-6 px-4 py-2 grid grid-cols-2">

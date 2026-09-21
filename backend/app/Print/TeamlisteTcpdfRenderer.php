@@ -61,9 +61,10 @@ final class TeamlisteTcpdfRenderer
             $x += 8.0;
         }
         $pdf->SetXY($x, $y);
-        $pdf->SetFont($pdf->boldFont, '', 11);
+        $pdf->SetFont($pdf->regularFont, '', 11);
         $pdf->SetTextColor(0, 0, 0);
-        $pdf->Cell($usable - ($x - EventPrintPdf::MARGIN), 6, (string) ($section['display_name'] ?? ''), 0, 1, 'L');
+        $html = (string) ($section['official_name'] ?? $section['display_name'] ?? '');
+        $pdf->writeHTMLCell($usable - ($x - EventPrintPdf::MARGIN), 6, $x, $y, $html, 0, 1, false, true, 'L', true);
         $pdf->Ln(2);
     }
 

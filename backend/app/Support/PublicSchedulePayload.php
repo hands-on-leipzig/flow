@@ -90,6 +90,10 @@ final class PublicSchedulePayload
             $lanes[] = [
                 'program_id' => $programId,
                 'name' => (string) ($catalog->display_name ?: $catalog->name),
+                'official_name' => ProgramCatalog::officialNameHtml(
+                    $programId,
+                    (string) ($catalog->display_name ?: $catalog->name)
+                ),
                 'sequence' => (int) $catalog->sequence,
                 'color_hex' => $catalog->color_hex !== null
                     ? (string) $catalog->color_hex

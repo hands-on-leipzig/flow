@@ -8,6 +8,7 @@ use App\Enums\FirstProgram;
 use App\Services\ActivityFetcherService;
 use App\Services\EventTitleService;
 use App\Services\RoleFetcherService;
+use App\Support\ProgramCatalog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -139,10 +140,12 @@ final class RoomSheetAssembler
         $programs = [];
         foreach ($rows as $row) {
             $display = trim((string) ($row->display_name ?? ''));
+            $display = $display !== '' ? $display : (string) $row->name;
             $programs[] = [
                 'id' => (int) $row->id,
                 'name' => (string) $row->name,
-                'display_name' => $display !== '' ? $display : (string) $row->name,
+                'display_name' => $display,
+                'official_name' => ProgramCatalog::officialNameHtml((int) $row->id, $display),
                 'sequence' => (int) $row->sequence,
                 'logo_stem' => $row->logo_stem !== null && $row->logo_stem !== '' ? (string) $row->logo_stem : null,
             ];
@@ -327,6 +330,7 @@ final class RoomSheetAssembler
             $columns[] = [
                 'program_id' => $id,
                 'display_name' => $program['display_name'],
+                'official_name' => $program['official_name'] ?? $program['display_name'],
                 'logo_stem' => $program['logo_stem'],
                 'teams' => $teams,
             ];

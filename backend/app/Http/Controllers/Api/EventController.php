@@ -253,6 +253,7 @@ class EventController extends Controller
                 'id' => $program->id,
                 'name' => $program->name,
                 'display_name' => $program->display_name,
+                'official_name' => $program->official_name,
                 'letter' => $program->letter,
                 'sequence' => $program->sequence,
                 'color_hex' => $program->color_hex,

@@ -3,10 +3,51 @@
 namespace Tests\Unit;
 
 use App\Support\IcsDescription;
-use PHPUnit\Framework\TestCase;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Tests\TestCase;
 
 class IcsDescriptionTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Schema::dropIfExists('m_first_program');
+        Schema::create('m_first_program', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name', 50);
+            $table->string('display_name')->nullable();
+            $table->string('official_name')->nullable();
+            $table->unsignedSmallInteger('sequence')->default(0);
+        });
+
+        DB::table('m_first_program')->insert([
+            [
+                'id' => 2,
+                'name' => 'EXPLORE',
+                'display_name' => 'Explore',
+                'official_name' => '<i>FIRST</i> LEGO League Explore',
+                'sequence' => 1,
+            ],
+            [
+                'id' => 3,
+                'name' => 'CHALLENGE',
+                'display_name' => 'Challenge',
+                'official_name' => '<i>FIRST</i> LEGO League Challenge',
+                'sequence' => 2,
+            ],
+            [
+                'id' => 8,
+                'name' => 'FUTURE_8',
+                'display_name' => 'Future 8+',
+                'official_name' => '<i>FIRST</i> LEGO League Future 8+',
+                'sequence' => 5,
+            ],
+        ]);
+    }
+
     public function test_contact_only(): void
     {
         $text = IcsDescription::fromPublicPayload([
@@ -65,7 +106,7 @@ class IcsDescriptionTest extends TestCase
         );
 
         $this->assertSame(
-            "Programme: Explore, Challenge\nKontakt: Ada\n\nZeitplan: https://flow.hands-on-technology.org/aachen",
+            "Programme: FIRST LEGO League Explore, FIRST LEGO League Challenge\nKontakt: Ada\n\nZeitplan: https://flow.hands-on-technology.org/aachen",
             $text
         );
         $this->assertStringNotContainsString('Eröffnung', $text);
@@ -79,6 +120,7 @@ class IcsDescriptionTest extends TestCase
                 'lanes' => [
                     [
                         'name' => 'Explore',
+                        'official_name' => '<i>FIRST</i> LEGO League Explore',
                         'teams' => [
                             ['ref' => '1234', 'name' => 'Robo', 'organization' => 'Schule A', 'location' => 'Köln'],
                         ],
@@ -87,7 +129,7 @@ class IcsDescriptionTest extends TestCase
             ],
         ]);
 
-        $this->assertStringContainsString("Explore\n1234 · Robo · Schule A · Köln", $text);
+        $this->assertStringContainsString("FIRST LEGO League Explore\n1234 · Robo · Schule A · Köln", $text);
     }
 
     public function test_teams_follow_payload_keys_including_unknown_programs(): void
@@ -113,8 +155,8 @@ class IcsDescriptionTest extends TestCase
             ],
         ]);
 
-        $this->assertStringContainsString("Explore\n1234 · Robo · Schule A · Köln", $text);
-        $this->assertStringContainsString("Future 8\n9 · Glow", $text);
+        $this->assertStringContainsString("FIRST LEGO League Explore\n1234 · Robo · Schule A · Köln", $text);
+        $this->assertStringContainsString("FIRST LEGO League Future 8+\n9 · Glow", $text);
         $this->assertStringStartsWith('Angemeldete Teams', $text);
     }
 

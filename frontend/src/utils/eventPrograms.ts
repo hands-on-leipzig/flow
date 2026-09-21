@@ -3,6 +3,7 @@ export type EventProgramRef = {
   id?: number
   name?: string | null
   display_name?: string | null
+  official_name?: string | null
   letter?: string | null
   draht_id?: number | null
   contao_id?: number | null
@@ -132,6 +133,49 @@ export function programDisplayName(program: ProgramIdentityRef): string {
   if (row?.display_name) return row.display_name
   if (program && typeof program === 'object') return String(program.name || '')
   return String(program ?? '')
+}
+
+export function programOfficialHtml(program: ProgramIdentityRef): string {
+  if (program && typeof program === 'object' && program.official_name) {
+    return program.official_name
+  }
+  const row = findCatalogRow(program)
+  if (row?.official_name) return row.official_name
+  return programDisplayName(program)
+}
+
+export function programOfficialPlain(program: ProgramIdentityRef): string {
+  return programOfficialHtml(program)
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const OFFICIAL_HTML_TAGS = new Set(['I', 'EM', 'B', 'STRONG'])
+
+/** Allowlist i/em/b/strong only; strips attributes and other tags. */
+export function sanitizeOfficialHtml(html: string): string {
+  const raw = String(html ?? '')
+  if (!raw) return ''
+  if (typeof DOMParser === 'undefined') {
+    return raw.replace(/<(?!\/?(?:i|em|b|strong)\b)[^>]*>/gi, '')
+  }
+  const doc = new DOMParser().parseFromString(`<div>${raw}</div>`, 'text/html')
+  const root = doc.body.firstElementChild
+  if (!root) return ''
+
+  const walk = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? ''
+    if (node.nodeType !== Node.ELEMENT_NODE) return ''
+    const el = node as Element
+    const inner = Array.from(el.childNodes).map(walk).join('')
+    if (!OFFICIAL_HTML_TAGS.has(el.tagName)) return inner
+    const tag = el.tagName.toLowerCase()
+    return `<${tag}>${inner}</${tag}>`
+  }
+
+  return Array.from(root.childNodes).map(walk).join('')
 }
 
 /** Map volunteer/label codes (E/C/D) to catalog names for programLogoSrc. */

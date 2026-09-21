@@ -3,6 +3,7 @@ import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {imageUrl} from '@/utils/images'
 import PublicSchedule, {type PrintScheduleChrome} from '@/components/PublicSchedule.vue'
+import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
 
 const PRINT_FIT_HOT_SRC = imageUrl('/flow/hot.png')
 const PRINT_FIT_HOT_ORANGE = '#F78B1F'
@@ -171,7 +172,7 @@ onUnmounted(() => {
                     :alt="chrome.subjectLogoAlt"
                     class="print-overview__subject-logo"
                 />
-                <span>{{ chrome.subject }}</span>
+                <ProgramOfficialName :html="chrome.subject"/>
               </p>
             </div>
             <div class="print-overview__side print-overview__side--qr">

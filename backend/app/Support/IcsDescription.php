@@ -9,16 +9,19 @@ namespace App\Support;
 final class IcsDescription
 {
     /** @var array<string, string> */
-    private const PLAN_HEADINGS = [
-        'explore' => 'Explore',
-        'explore_morning' => 'Explore Vormittag',
-        'explore_afternoon' => 'Explore Nachmittag',
-        'challenge' => 'Challenge',
+    private const LEGACY_PROGRAM_KEYS = [
+        'explore' => 'EXPLORE',
+        'explore_morning' => 'EXPLORE',
+        'explore_afternoon' => 'EXPLORE',
+        'challenge' => 'CHALLENGE',
+        'future_8' => 'FUTURE_8',
+        'future_5' => 'FUTURE_5',
+        'discover' => 'DISCOVER',
     ];
 
     /**
      * @param  array<string, mixed>  $payload  scheduleInformation JSON
-     * @param  list<string>  $programNames  m_first_program.display_name at the event, catalog order
+     * @param  list<string>  $programNames  program labels at the event, catalog order
      */
     public static function fromPublicPayload(array $payload, ?string $planUrl = null, array $programNames = []): string
     {
@@ -58,7 +61,7 @@ final class IcsDescription
     {
         $clean = [];
         foreach ($names as $name) {
-            $label = self::oneLine($name);
+            $label = self::officialPlain($name);
             if ($label !== '') {
                 $clean[] = $label;
             }
@@ -110,7 +113,7 @@ final class IcsDescription
                 continue;
             }
             $legacy[] = [
-                'name' => self::PLAN_HEADINGS[(string) $key] ?? self::headingFromKey((string) $key),
+                'name' => self::legacyHeading((string) $key),
                 'teams' => $list,
             ];
         }
@@ -132,7 +135,7 @@ final class IcsDescription
             if (! is_array($list) || $list === []) {
                 continue;
             }
-            $heading = self::oneLine($section['name'] ?? null);
+            $heading = self::officialPlain($section['official_name'] ?? $section['name'] ?? null);
             if ($heading === '') {
                 $heading = 'Programm';
             }
@@ -166,6 +169,36 @@ final class IcsDescription
         $parts = array_values(array_filter([$number, $name, $org, $place], fn ($p) => $p !== ''));
 
         return implode(' · ', $parts);
+    }
+
+    private static function legacyHeading(string $key): string
+    {
+        $catalog = self::LEGACY_PROGRAM_KEYS[$key] ?? null;
+        if ($catalog !== null) {
+            $plain = ProgramCatalog::officialNamePlain($catalog);
+            if ($key === 'explore_morning') {
+                return $plain.' Vormittag';
+            }
+            if ($key === 'explore_afternoon') {
+                return $plain.' Nachmittag';
+            }
+
+            return $plain;
+        }
+
+        return self::headingFromKey($key);
+    }
+
+    private static function officialPlain(mixed $value): string
+    {
+        $label = self::oneLine($value);
+        if ($label === '') {
+            return '';
+        }
+
+        $stripped = ProgramCatalog::plainFromOfficialHtml($label);
+
+        return ProgramCatalog::officialNamePlain($stripped, $stripped);
     }
 
     private static function headingFromKey(string $key): string
