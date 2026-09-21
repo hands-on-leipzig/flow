@@ -279,7 +279,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Die Explore Ausstellung wird er\u00f6ffnet",
-            "link": "",
+            "link": null,
             "link_text": null,
             "activity_type": 10,
             "role": 12
@@ -297,7 +297,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Der Challenge Wettbewerb wird er\u00f6ffnet",
-            "link": "",
+            "link": null,
             "link_text": null,
             "activity_type": 5,
             "role": 13
@@ -308,14 +308,14 @@
             "code": "g_opening",
             "presence": "window",
             "public_time": 1,
-            "name_preview": "Er\u00f6ffnung",
+            "name_preview": "Er\u00f6ffnung E+C+F8",
             "sequence": 10,
             "first_program": null,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Explore Ausstellung und der Challenge Wettbewerbe werden er\u00f6ffnet",
-            "link": "",
+            "description": "Die Explore Ausstellung und die Challenge \/ Future 8+ Wettbewerbe werden er\u00f6ffnet",
+            "link": null,
             "link_text": null,
             "activity_type": 12,
             "role": 2
@@ -585,7 +585,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Medaillen, Urkunden und Pokale f\u00fcr die Challenge Teams",
-            "link": "",
+            "link": null,
             "link_text": null,
             "activity_type": 6,
             "role": 13
@@ -614,14 +614,14 @@
             "code": "g_awards",
             "presence": "info",
             "public_time": 0,
-            "name_preview": "Preise",
+            "name_preview": "Preise E+C+F8",
             "sequence": 20,
             "first_program": null,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Medaillen und Urkunden f\u00fcr die Explore Teams und Medaillen, Urkunden und Pokale f\u00fcr die Challenge Teams",
-            "link": "",
+            "description": "Medaillen und Urkunden f\u00fcr die Explore Teams und Medaillen, Urkunden und Pokale f\u00fcr die Challenge unf Future 8+ Teams",
+            "link": null,
             "link_text": null,
             "activity_type": 13,
             "role": 2
@@ -1197,7 +1197,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Der Future 8+ Wettbewerb wird er\u00f6ffnet",
-            "link": "",
+            "link": null,
             "link_text": null,
             "activity_type": 22,
             "role": 25
@@ -1305,7 +1305,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Medaillen, Urkunden und Pokale f\u00fcr die Future 8+ Teams",
-            "link": "",
+            "link": null,
             "link_text": null,
             "activity_type": 23,
             "role": 25
@@ -1431,7 +1431,7 @@
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Die Explore Ausstellung wird er\u00f6ffnet",
-            "link": "",
+            "link": null,
             "link_text": null,
             "activity_type": 10,
             "role": 12
@@ -1456,36 +1456,36 @@
         },
         {
             "id": 88,
-            "name": "Gemeinsame Preisverleihung",
+            "name": "Gemeinsame Preisverleihung (C+F8)",
             "code": "c+f8_awards",
             "presence": "info",
             "public_time": 0,
-            "name_preview": "Preise",
+            "name_preview": "Preise C+F8",
             "sequence": 20,
             "first_program": null,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Medaillen, Urkunden und Pokale f\u00fcr die Challenge und Future 8+ Teams",
-            "link": "",
+            "link": null,
             "link_text": null,
             "activity_type": 13,
             "role": 2
         },
         {
             "id": 89,
-            "name": "Gemeinsame Er\u00f6ffnung",
+            "name": "Gemeinsame Er\u00f6ffnung (C+F8)",
             "code": "c+f8_opening",
             "presence": "window",
             "public_time": 1,
-            "name_preview": "Er\u00f6ffnung",
+            "name_preview": "Er\u00f6ffnung C+F8",
             "sequence": 10,
             "first_program": null,
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
             "description": "Die Challenge und Future 8+ Wettbewerbe werden er\u00f6ffnet",
-            "link": "",
+            "link": null,
             "link_text": null,
             "activity_type": 12,
             "role": 2
@@ -1507,6 +1507,42 @@
             "link_text": null,
             "activity_type": 19,
             "role": 35
+        },
+        {
+            "id": 92,
+            "name": "Gemeinsame Preisverleihung (E+C)",
+            "code": "e+c_awards",
+            "presence": "info",
+            "public_time": 0,
+            "name_preview": "Preise E+C",
+            "sequence": 21,
+            "first_program": null,
+            "afternoon_chain": null,
+            "afternoon_default": null,
+            "afternoon_parameter": null,
+            "description": "Medaillen und Urkunden f\u00fcr die Explore Teams und Medaillen, Urkunden und Pokale f\u00fcr die Challenge Teams",
+            "link": null,
+            "link_text": null,
+            "activity_type": 13,
+            "role": 2
+        },
+        {
+            "id": 93,
+            "name": "Gemeinsame Er\u00f6ffnung (E+C)",
+            "code": "e+c_opening",
+            "presence": "window",
+            "public_time": 1,
+            "name_preview": "Er\u00f6ffnung E+C",
+            "sequence": 10,
+            "first_program": null,
+            "afternoon_chain": null,
+            "afternoon_default": null,
+            "afternoon_parameter": null,
+            "description": "Die Explore Ausstellung und der Challenge Wettbewerb werden er\u00f6ffnet",
+            "link": null,
+            "link_text": null,
+            "activity_type": 12,
+            "role": 2
         }
     ],
     "m_ceremonies": [
@@ -1600,6 +1636,7 @@
             "id": 1,
             "name": "DISCOVER",
             "display_name": "Discover",
+            "official_name": "<i>FIRST<\/i> LEGO League Discover",
             "letter": "D",
             "ics_postfix": "discover",
             "sequence": 3,
@@ -1612,6 +1649,7 @@
             "id": 2,
             "name": "EXPLORE",
             "display_name": "Explore",
+            "official_name": "<i>FIRST<\/i> LEGO League Explore",
             "letter": "E",
             "ics_postfix": "explore",
             "sequence": 1,
@@ -1624,6 +1662,7 @@
             "id": 3,
             "name": "CHALLENGE",
             "display_name": "Challenge",
+            "official_name": "<i>FIRST<\/i> LEGO League Challenge",
             "letter": "C",
             "ics_postfix": "challenge",
             "sequence": 2,
@@ -1636,6 +1675,7 @@
             "id": 7,
             "name": "FUTURE_5",
             "display_name": "Future 5+",
+            "official_name": "<i>FIRST<\/i> LEGO League Future Edition 5+",
             "letter": "F5",
             "ics_postfix": "future_5",
             "sequence": 4,
@@ -1648,6 +1688,7 @@
             "id": 8,
             "name": "FUTURE_8",
             "display_name": "Future 8+",
+            "official_name": "<i>FIRST<\/i> LEGO League Future Edition 8+",
             "letter": "F8",
             "ics_postfix": "future_8",
             "sequence": 5,
@@ -1838,7 +1879,7 @@
             "help_topic": 3,
             "title": "Wie filtere ich die Personen-Tabelle?",
             "sort_order": 26,
-            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\n\u201eNicht auf Helfer:innenliste\u201c reduziert die Liste auf alle Personen, die noch nicht auf der Helfer:innenliste sind.\n\n\u201eMehrfach verwendete E-Mail\u201c reduziert die Liste auf Personen, deren E-Mail mehr als einmal vorkommt.\n\nDie Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
+            "body": "Die Freitextsuche geht \u00fcber alle Spalten.\n\n\u201eNicht auf Helfer:innenliste\u201c reduziert die Liste auf alle Personen, die noch nicht auf der Helfer:innenliste sind.\n\nDie Filter funktionieren gemeinsam. Es werden nur Zeilen gezeigt, die zu allen gew\u00e4hlten Filtern passen.\n\nDownload und E-Mail ber\u00fccksichtigen nur die angezeigten Zeilen."
         },
         {
             "id": 28,
@@ -1852,7 +1893,7 @@
             "help_topic": 3,
             "title": "Wie \u00fcbernehme ich Personendaten aus meinen Excel-Dateien?",
             "sort_order": 28,
-            "body": "\u00dcber den Button \u201eUpload\u201c am oberen Rand der Seite.\n\nVorher in Excel die Daten passend aufbereiten. F\u00fcr den Upload erwartet FLOW:\n\nVorname, Nachname, E-Mail, Mobil, Organisation.\nSpalten durch Tab, Komma oder Semikolon.\nMobil, Organisation und E-Mail optional.\n\nJede Zeile wird als neue Person angelegt. Gleiche E-Mail-Adressen werden nicht \u00fcbersprungen."
+            "body": "\u00dcber den Button \u201eUpload\u201c am oberen Rand der Seite.\n\nVorher in Excel die Daten passend aufbereiten. F\u00fcr den Upload erwartet FLOW:\n\nVorname, Nachname, E-Mail, Mobil, Organisation.\nSpalten durch Tab, Komma oder Semikolon.\nMobil und Organisation optional; E-Mail Pflicht."
         },
         {
             "id": 30,
@@ -1943,7 +1984,7 @@
             "help_topic": 4,
             "title": "Wie erh\u00f6he ich die Kapazit\u00e4t f\u00fcr meine Veranstaltung?",
             "sort_order": 42,
-            "body": "Zum Testen von Varianten mit mehr Teams als bisher offiziell geplant kann \u00fcber das Regel-Icon die Kapazit\u00e4t vor\u00fcbergehend ge\u00e4ndert werden. Diese \u00c4nderung wird aber beim n\u00e4chsten Aufruf der Ablauf-Seiten wieder r\u00fcckg\u00e4ngig gemacht.\n\nF\u00fcr eine dauerhafte \u00c4nderung der Kapazit\u00e4t bitte die Gesch\u00e4ftsstelle kontaktieren (info@hands-on-technology.de)."
+            "body": "Zum Testen von Varianten mit mehr Teams als bisher offiziell geplant kann \u00fcber das Regel-Icon die Kapazit\u00e4t vor\u00fcbergehend ge\u00e4ndert werden. Diese \u00c4nderung wird aber beim n\u00e4chsten Aufruf der Ablauf-Seiten wieder r\u00fcckg\u00e4ngig gemacht.\n\nF\u00fcr eine dauerhafte \u00c4nderung der Kapazit\u00e4t bitte die Gesch\u00e4ftsstelle kontaktieren (info@hands-on-technology.org)."
         },
         {
             "id": 46,
@@ -2133,6 +2174,48 @@
             "title": "Was ist die Antwort auf die ultimative Frage nach dem Leben, dem Universum und dem ganzen Rest?",
             "sort_order": 71,
             "body": "42"
+        },
+        {
+            "id": 75,
+            "help_topic": 4,
+            "title": "Welche Anzahl von Jury-Gruppen wird unterst\u00fctzt?",
+            "sort_order": 72,
+            "body": "Die Anzahl Jury-Gruppen ergibt sich aus der Anzahl Teams. \nEine Jury-Gruppen bewertet maximal 6 Teams. Mehr geht nicht und zwar aus zwei Gr\u00fcnden. Zum einen w\u00fcrde der Tag zu lang und zum anderen l\u00e4sst die Konzentration der Juror:innen irgendwann nach.\nDaraus ergibt sich, dass ab 7 Teams zwei Jury-Gruppen n\u00f6tig sind, aber 13 Teams zwei usw.\nDie minimal Anzahl pro Jury-Gruppe ist 3 Teams. Das ist aber nur f\u00fcr den Fall gedacht, dass kurzfristig Teams absagen. Aus Juror:innen-Sicht ist es nicht toll, einen ganzen Tag zu investieren um dann tats\u00e4chlich nur mit 3 Teams zu sprechen."
+        },
+        {
+            "id": 76,
+            "help_topic": 4,
+            "title": "Was ist das Allianz-Gespr\u00e4ch?",
+            "sort_order": 73,
+            "body": "Bei Future 8+ gibt es einige Aufgaben, die die beiden Teams am Tisch gemeinsam l\u00f6sen k\u00f6nnen, um mehr Punkte zu bekommen. Daher ist es sinnvoll, wenn sich die Teams vor dem Match austauschen, wie sie vorgehen wollen.\nStandardm\u00e4ssig ist das Allianz-Gespr\u00e4ch eine zus\u00e4tzliche Aktivit\u00e4t im Ablauf, jeweils for einem Match. In den Experten-Parameter kann das aber abgeschaltet werden. In dem Fall, wir das die Zeit pro Match verl\u00e4ngert, sodass der Austausch vor dem Match trotzdem stattfinden kann."
+        },
+        {
+            "id": 77,
+            "help_topic": 2,
+            "title": "Was sollte ich drucken?",
+            "sort_order": 74,
+            "body": "Grunds\u00e4tzlich ist Drucken nur sinnvoll, wenn der Plan final ist. Jede \u00c4nderung an Zeiten, Team- oder Raum- Zuordnungen danach f\u00fchrt dazu, dass man neu drucken muss!\n\nIdealerweise nutzen Teams, Helfer:innen und Besucher:innen den online Zeitplan, der auf der \u00f6ffentlichen Seite verlinkt ist.\nUm alle dahin zur \u00f6ffentlichen Seite zu lenken, steht der QR-Code oben rechts auf alle PDFs. Wenn also der \u00dcbersichtsplan an zentralen Stellen des Veranstaltungsort ausgeh\u00e4ngt wird, sollten alle nicht nur einen \u00dcberblick haben, sondern auch den Weg zu den Details.\nZus\u00e4tzlich empfiehlt es sich aber, jedem Team und jeder Gutachter:innen- bzw Juror-Gruppe den jeweiligen Plan ausgedruckt zu geben. Gerade bei j\u00fcngeren Kindern, die vielleicht keine Smartphone haben oder es nicht benutzen sollen, ist das wichtig.\nDer Plan pro Raum ist sinnvoll, weil dann man dann schon an der T\u00fcr erkennen kann, ob man zur richtigen Zeit am richtigen Ort sein kann."
+        },
+        {
+            "id": 78,
+            "help_topic": 2,
+            "title": "Wann sollte ich drucken?",
+            "sort_order": 75,
+            "body": "Grunds\u00e4tzlich ist Drucken nur sinnvoll, wenn der Plan final ist. Jede \u00c4nderung an Zeiten, Team- oder Raum- Zuordnungen danach f\u00fchrt dazu, dass man neu drucken muss!\n\nEin oder zwei Tage vor der Veranstaltung ist der richtige Zeitpunkt. Wenn danach noch Teams absagen, sollte man die als \"no-show\" kennzeichnen, aber den Plan nicht mehr \u00e4ndern. Nicht nur, weil man sonst neu Drucken muss, sondern auch, weil andere Teams, Helfer:innen und Besucher:innen sich schon die geplanten Zeiten gemerkt haben."
+        },
+        {
+            "id": 79,
+            "help_topic": 1,
+            "title": "Wie kann ich den Namen eines Teams \u00e4ndern?",
+            "sort_order": 76,
+            "body": "Das geht nicht in FLOW.\n\nCoach:innen k\u00f6nnen das selber in JOIN (https:\/\/handson.tools\/join) machen. Die \u00c4nderungen kommen automatisch nach FLOW."
+        },
+        {
+            "id": 80,
+            "help_topic": 5,
+            "title": "Wie w\u00e4hle ich aus, welche Felder in der Check-In-App eingeblendet werden?",
+            "sort_order": 77,
+            "body": "F\u00fcr Teams und Helfer getrennt k\u00f6nnen die Felder ausgew\u00e4hlt werden.\n\nWelche Felder es gibt, wird unter Teams \u2192 Teamdaten bzw. Helfer:innen \u2192 Helferliste festgelegt."
         }
     ],
     "m_help_action_screen": [
@@ -2217,6 +2300,11 @@
             "help_screen": 20
         },
         {
+            "id": 97,
+            "help_action": 11,
+            "help_screen": 21
+        },
+        {
             "id": 16,
             "help_action": 12,
             "help_screen": 2
@@ -2295,6 +2383,11 @@
             "id": 31,
             "help_action": 20,
             "help_screen": 3
+        },
+        {
+            "id": 94,
+            "help_action": 20,
+            "help_screen": 21
         },
         {
             "id": 32,
@@ -2570,6 +2663,61 @@
             "id": 89,
             "help_action": 70,
             "help_screen": 6
+        },
+        {
+            "id": 90,
+            "help_action": 75,
+            "help_screen": 12
+        },
+        {
+            "id": 91,
+            "help_action": 76,
+            "help_screen": 12
+        },
+        {
+            "id": 92,
+            "help_action": 76,
+            "help_screen": 13
+        },
+        {
+            "id": 93,
+            "help_action": 76,
+            "help_screen": 16
+        },
+        {
+            "id": 96,
+            "help_action": 77,
+            "help_screen": 21
+        },
+        {
+            "id": 95,
+            "help_action": 78,
+            "help_screen": 21
+        },
+        {
+            "id": 98,
+            "help_action": 79,
+            "help_screen": 2
+        },
+        {
+            "id": 99,
+            "help_action": 79,
+            "help_screen": 3
+        },
+        {
+            "id": 103,
+            "help_action": 80,
+            "help_screen": 2
+        },
+        {
+            "id": 102,
+            "help_action": 80,
+            "help_screen": 6
+        },
+        {
+            "id": 101,
+            "help_action": 80,
+            "help_screen": 10
         }
     ],
     "m_help_screen": [
@@ -2630,7 +2778,7 @@
             "route_path": "\/plan\/volunteers",
             "description": "Zu allen Helfer:innen, die man kennt, k\u00f6nnen die wichtigsten Kontaktdaten verwaltet werden.",
             "must_do": "Nichts. Der gesamte Bereich \u201eHelfer:innen\u201c ist optional.",
-            "can_do": "Zu jeder Person, die man vielleicht als Helfer:in einsetzen m\u00f6chte, die Kontaktdaten speichern.\n\nDie E-Mail-Adresse ist die eindeutige Identifikation pro Person. Alle anderen Daten k\u00f6nnen ge\u00e4ndert werden.\n\nDaten zu Personen k\u00f6nnen hochgeladen werden.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei heruntergeladen werden. Und es gibt eine Funktion, um E-Mails an die Kontakte zu schreiben.",
+            "can_do": "Zu jeder Person, die man vielleicht als Helfer:in einsetzen m\u00f6chte, die Kontaktdaten speichern.\n\nDaten zu Personen k\u00f6nnen hochgeladen werden.\n\nDie angezeigten Daten k\u00f6nnen als Excel-Datei heruntergeladen werden. Und es gibt eine Funktion, um E-Mails an die Kontakte zu schreiben.",
             "sort_order": 5
         },
         {
@@ -2760,7 +2908,7 @@
             "route_path": "\/plan\/publish\/analog",
             "description": "Hier werden PDFs erzeugt, die den Online-Zeitplan unterst\u00fctzen.\nEs gibt Pl\u00e4ne zum Aushang bzw. zum Verteilen und Unterlagen nur f\u00fcr Veranstalter.",
             "must_do": "Nichts.\nOhne Ausdruck bleibt der Online-Zeitplan die zentrale Information f\u00fcr Teams, Helfer:innen und Publikum.",
-            "can_do": "PDFs zum Aushang bzw. zum Verteilen erzeugen: \u00dcbersichtsplan, R\u00e4ume, Teams und Rollen.\n\nPDFs nur f\u00fcr Veranstalter erzeugen: Gesamtplan, Teamliste, Match-Plan SCORE.",
+            "can_do": "PDFs erzeugen und zum Drucken herunterladen.",
             "sort_order": 1
         }
     ],
@@ -10696,6 +10844,27 @@
             "min": 1,
             "best": 1,
             "ui_description": "Sehr hilfreich f\u00fcr die Teams und Coach:innen, weil das Thema f\u00fcr alle noch ganz neu ist"
+        },
+        {
+            "id": 16,
+            "m_role": 12,
+            "min": 1,
+            "best": 1,
+            "ui_description": "Eine Moderator:in muss sein. F\u00fcr gr\u00f6sse Veranstaltungen sind zwei besser, damit sie sich abwechseln k\u00f6nnen."
+        },
+        {
+            "id": 17,
+            "m_role": 13,
+            "min": 1,
+            "best": 1,
+            "ui_description": "Eine Moderator:in muss sein. F\u00fcr gr\u00f6sse Veranstaltungen sind zwei besser, damit sie sich abwechseln k\u00f6nnen."
+        },
+        {
+            "id": 18,
+            "m_role": 25,
+            "min": 1,
+            "best": 1,
+            "ui_description": "Eine Moderator:in muss sein. F\u00fcr gr\u00f6sse Veranstaltungen sind zwei besser, damit sie sich abwechseln k\u00f6nnen."
         }
     ],
     "m_supported_plan": [
@@ -11987,6 +12156,16 @@
             "role": 14
         },
         {
+            "id": 1220,
+            "activity_type_detail": 5,
+            "role": 31
+        },
+        {
+            "id": 1223,
+            "activity_type_detail": 5,
+            "role": 32
+        },
+        {
             "id": 52,
             "activity_type_detail": 6,
             "role": 2
@@ -12030,6 +12209,31 @@
             "id": 857,
             "activity_type_detail": 6,
             "role": 16
+        },
+        {
+            "id": 1232,
+            "activity_type_detail": 6,
+            "role": 27
+        },
+        {
+            "id": 1235,
+            "activity_type_detail": 6,
+            "role": 28
+        },
+        {
+            "id": 1229,
+            "activity_type_detail": 6,
+            "role": 31
+        },
+        {
+            "id": 1230,
+            "activity_type_detail": 6,
+            "role": 33
+        },
+        {
+            "id": 1237,
+            "activity_type_detail": 6,
+            "role": 34
         },
         {
             "id": 62,
@@ -12160,6 +12364,11 @@
             "id": 1060,
             "activity_type_detail": 7,
             "role": 34
+        },
+        {
+            "id": 1287,
+            "activity_type_detail": 7,
+            "role": 35
         },
         {
             "id": 72,
@@ -12592,6 +12801,31 @@
             "role": 16
         },
         {
+            "id": 1242,
+            "activity_type_detail": 32,
+            "role": 27
+        },
+        {
+            "id": 1243,
+            "activity_type_detail": 32,
+            "role": 28
+        },
+        {
+            "id": 1245,
+            "activity_type_detail": 32,
+            "role": 31
+        },
+        {
+            "id": 1246,
+            "activity_type_detail": 32,
+            "role": 33
+        },
+        {
+            "id": 1244,
+            "activity_type_detail": 32,
+            "role": 34
+        },
+        {
             "id": 425,
             "activity_type_detail": 33,
             "role": 2
@@ -12747,6 +12981,11 @@
             "role": 31
         },
         {
+            "id": 1261,
+            "activity_type_detail": 34,
+            "role": 32
+        },
+        {
             "id": 1071,
             "activity_type_detail": 34,
             "role": 33
@@ -12755,6 +12994,11 @@
             "id": 1074,
             "activity_type_detail": 34,
             "role": 34
+        },
+        {
+            "id": 1277,
+            "activity_type_detail": 34,
+            "role": 35
         },
         {
             "id": 341,
@@ -13112,6 +13356,11 @@
             "role": 3
         },
         {
+            "id": 1234,
+            "activity_type_detail": 54,
+            "role": 4
+        },
+        {
             "id": 761,
             "activity_type_detail": 54,
             "role": 5
@@ -13140,6 +13389,31 @@
             "id": 764,
             "activity_type_detail": 54,
             "role": 16
+        },
+        {
+            "id": 1233,
+            "activity_type_detail": 54,
+            "role": 27
+        },
+        {
+            "id": 1236,
+            "activity_type_detail": 54,
+            "role": 28
+        },
+        {
+            "id": 1228,
+            "activity_type_detail": 54,
+            "role": 31
+        },
+        {
+            "id": 1231,
+            "activity_type_detail": 54,
+            "role": 33
+        },
+        {
+            "id": 1238,
+            "activity_type_detail": 54,
+            "role": 34
         },
         {
             "id": 787,
@@ -13175,6 +13449,16 @@
             "id": 821,
             "activity_type_detail": 56,
             "role": 14
+        },
+        {
+            "id": 1250,
+            "activity_type_detail": 56,
+            "role": 31
+        },
+        {
+            "id": 1254,
+            "activity_type_detail": 56,
+            "role": 32
         },
         {
             "id": 851,
@@ -13752,6 +14036,11 @@
             "role": 29
         },
         {
+            "id": 1239,
+            "activity_type_detail": 73,
+            "role": 30
+        },
+        {
             "id": 1181,
             "activity_type_detail": 73,
             "role": 31
@@ -13760,6 +14049,11 @@
             "id": 1199,
             "activity_type_detail": 73,
             "role": 33
+        },
+        {
+            "id": 1240,
+            "activity_type_detail": 73,
+            "role": 35
         },
         {
             "id": 942,
@@ -13952,6 +14246,11 @@
             "role": 33
         },
         {
+            "id": 1241,
+            "activity_type_detail": 79,
+            "role": 35
+        },
+        {
             "id": 996,
             "activity_type_detail": 80,
             "role": 21
@@ -14062,9 +14361,79 @@
             "role": 2
         },
         {
+            "id": 1225,
+            "activity_type_detail": 86,
+            "role": 8
+        },
+        {
+            "id": 1227,
+            "activity_type_detail": 86,
+            "role": 9
+        },
+        {
+            "id": 1224,
+            "activity_type_detail": 86,
+            "role": 10
+        },
+        {
+            "id": 1222,
+            "activity_type_detail": 86,
+            "role": 12
+        },
+        {
             "id": 1155,
             "activity_type_detail": 86,
             "role": 14
+        },
+        {
+            "id": 1221,
+            "activity_type_detail": 86,
+            "role": 31
+        },
+        {
+            "id": 1226,
+            "activity_type_detail": 86,
+            "role": 32
+        },
+        {
+            "id": 1248,
+            "activity_type_detail": 87,
+            "role": 2
+        },
+        {
+            "id": 1252,
+            "activity_type_detail": 87,
+            "role": 8
+        },
+        {
+            "id": 1255,
+            "activity_type_detail": 87,
+            "role": 9
+        },
+        {
+            "id": 1251,
+            "activity_type_detail": 87,
+            "role": 10
+        },
+        {
+            "id": 1256,
+            "activity_type_detail": 87,
+            "role": 12
+        },
+        {
+            "id": 1247,
+            "activity_type_detail": 87,
+            "role": 14
+        },
+        {
+            "id": 1249,
+            "activity_type_detail": 87,
+            "role": 31
+        },
+        {
+            "id": 1253,
+            "activity_type_detail": 87,
+            "role": 32
         },
         {
             "id": 1088,
@@ -14172,6 +14541,121 @@
             "role": 34
         },
         {
+            "id": 1278,
+            "activity_type_detail": 88,
+            "role": 35
+        },
+        {
+            "id": 1213,
+            "activity_type_detail": 89,
+            "role": 2
+        },
+        {
+            "id": 1290,
+            "activity_type_detail": 89,
+            "role": 3
+        },
+        {
+            "id": 1294,
+            "activity_type_detail": 89,
+            "role": 4
+        },
+        {
+            "id": 1298,
+            "activity_type_detail": 89,
+            "role": 5
+        },
+        {
+            "id": 1288,
+            "activity_type_detail": 89,
+            "role": 6
+        },
+        {
+            "id": 1300,
+            "activity_type_detail": 89,
+            "role": 11
+        },
+        {
+            "id": 1302,
+            "activity_type_detail": 89,
+            "role": 13
+        },
+        {
+            "id": 1212,
+            "activity_type_detail": 89,
+            "role": 14
+        },
+        {
+            "id": 1306,
+            "activity_type_detail": 89,
+            "role": 16
+        },
+        {
+            "id": 1280,
+            "activity_type_detail": 89,
+            "role": 21
+        },
+        {
+            "id": 1282,
+            "activity_type_detail": 89,
+            "role": 22
+        },
+        {
+            "id": 1284,
+            "activity_type_detail": 89,
+            "role": 23
+        },
+        {
+            "id": 1279,
+            "activity_type_detail": 89,
+            "role": 24
+        },
+        {
+            "id": 1285,
+            "activity_type_detail": 89,
+            "role": 25
+        },
+        {
+            "id": 1292,
+            "activity_type_detail": 89,
+            "role": 27
+        },
+        {
+            "id": 1296,
+            "activity_type_detail": 89,
+            "role": 28
+        },
+        {
+            "id": 1281,
+            "activity_type_detail": 89,
+            "role": 29
+        },
+        {
+            "id": 1283,
+            "activity_type_detail": 89,
+            "role": 30
+        },
+        {
+            "id": 1214,
+            "activity_type_detail": 89,
+            "role": 31
+        },
+        {
+            "id": 1215,
+            "activity_type_detail": 89,
+            "role": 33
+        },
+        {
+            "id": 1304,
+            "activity_type_detail": 89,
+            "role": 34
+        },
+        {
+            "id": 1286,
+            "activity_type_detail": 89,
+            "role": 35
+        },
+        {
             "id": 1209,
             "activity_type_detail": 90,
             "role": 21
@@ -14185,10 +14669,200 @@
             "id": 1210,
             "activity_type_detail": 90,
             "role": 35
+        },
+        {
+            "id": 1258,
+            "activity_type_detail": 92,
+            "role": 2
+        },
+        {
+            "id": 1268,
+            "activity_type_detail": 92,
+            "role": 3
+        },
+        {
+            "id": 1270,
+            "activity_type_detail": 92,
+            "role": 4
+        },
+        {
+            "id": 1272,
+            "activity_type_detail": 92,
+            "role": 5
+        },
+        {
+            "id": 1267,
+            "activity_type_detail": 92,
+            "role": 6
+        },
+        {
+            "id": 1263,
+            "activity_type_detail": 92,
+            "role": 8
+        },
+        {
+            "id": 1265,
+            "activity_type_detail": 92,
+            "role": 9
+        },
+        {
+            "id": 1262,
+            "activity_type_detail": 92,
+            "role": 10
+        },
+        {
+            "id": 1273,
+            "activity_type_detail": 92,
+            "role": 11
+        },
+        {
+            "id": 1266,
+            "activity_type_detail": 92,
+            "role": 12
+        },
+        {
+            "id": 1274,
+            "activity_type_detail": 92,
+            "role": 13
+        },
+        {
+            "id": 1257,
+            "activity_type_detail": 92,
+            "role": 14
+        },
+        {
+            "id": 1276,
+            "activity_type_detail": 92,
+            "role": 16
+        },
+        {
+            "id": 1269,
+            "activity_type_detail": 92,
+            "role": 27
+        },
+        {
+            "id": 1271,
+            "activity_type_detail": 92,
+            "role": 28
+        },
+        {
+            "id": 1259,
+            "activity_type_detail": 92,
+            "role": 31
+        },
+        {
+            "id": 1264,
+            "activity_type_detail": 92,
+            "role": 32
+        },
+        {
+            "id": 1260,
+            "activity_type_detail": 92,
+            "role": 33
+        },
+        {
+            "id": 1275,
+            "activity_type_detail": 92,
+            "role": 34
+        },
+        {
+            "id": 1217,
+            "activity_type_detail": 93,
+            "role": 2
+        },
+        {
+            "id": 1291,
+            "activity_type_detail": 93,
+            "role": 3
+        },
+        {
+            "id": 1295,
+            "activity_type_detail": 93,
+            "role": 4
+        },
+        {
+            "id": 1299,
+            "activity_type_detail": 93,
+            "role": 5
+        },
+        {
+            "id": 1289,
+            "activity_type_detail": 93,
+            "role": 6
+        },
+        {
+            "id": 1309,
+            "activity_type_detail": 93,
+            "role": 8
+        },
+        {
+            "id": 1311,
+            "activity_type_detail": 93,
+            "role": 9
+        },
+        {
+            "id": 1308,
+            "activity_type_detail": 93,
+            "role": 10
+        },
+        {
+            "id": 1301,
+            "activity_type_detail": 93,
+            "role": 11
+        },
+        {
+            "id": 1312,
+            "activity_type_detail": 93,
+            "role": 12
+        },
+        {
+            "id": 1303,
+            "activity_type_detail": 93,
+            "role": 13
+        },
+        {
+            "id": 1216,
+            "activity_type_detail": 93,
+            "role": 14
+        },
+        {
+            "id": 1307,
+            "activity_type_detail": 93,
+            "role": 16
+        },
+        {
+            "id": 1293,
+            "activity_type_detail": 93,
+            "role": 27
+        },
+        {
+            "id": 1297,
+            "activity_type_detail": 93,
+            "role": 28
+        },
+        {
+            "id": 1218,
+            "activity_type_detail": 93,
+            "role": 31
+        },
+        {
+            "id": 1310,
+            "activity_type_detail": 93,
+            "role": 32
+        },
+        {
+            "id": 1219,
+            "activity_type_detail": 93,
+            "role": 33
+        },
+        {
+            "id": 1305,
+            "activity_type_detail": 93,
+            "role": 34
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-16T04:43:24.453863Z",
+        "exported_at": "2026-09-21T07:35:37.011207Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
