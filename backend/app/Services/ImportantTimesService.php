@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\FirstProgram;
+use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
 use Illuminate\Support\Facades\DB;
 
@@ -78,6 +79,7 @@ final class ImportantTimesService
             $lanes[] = [
                 'program_id' => $programId,
                 'name' => $shell['name'],
+                'official_name' => ProgramCatalog::officialNameHtml($programId, $shell['name']),
                 'sequence' => $shell['sequence'],
                 'color_hex' => $shell['color_hex'],
                 'times' => $times,
