@@ -191,6 +191,75 @@ class NameTagsApiTest extends TestCase
         $this->assertSame('challenge', $this->capturedTags[0]['program']);
     }
 
+    public function test_team_stickers_sort_by_team_then_coaches_then_players_lastname(): void
+    {
+        $this->seedTeam(10, FirstProgram::CHALLENGE->value, 1001, 'Zebra', 1);
+        $this->seedTeam(11, FirstProgram::CHALLENGE->value, 1002, 'Alpha', 2);
+        $this->mockDraht(665, [
+            1001 => [
+                'coaches' => [['firstname' => 'Ann', 'name' => 'ZebraCoach']],
+                'players' => [['firstname' => 'Bob', 'name' => 'ZebraPlay']],
+            ],
+            1002 => [
+                'coaches' => [['firstname' => 'Zoe', 'name' => 'AlphaCoach']],
+                'players' => [
+                    ['firstname' => 'Abe', 'name' => 'Zulu'],
+                    ['firstname' => 'Cal', 'name' => 'Able'],
+                ],
+            ],
+        ]);
+
+        $this->postJson('/api/export/name-tags/1', [
+            'filters' => ['program:3' => ['coaches' => true, 'players' => true]],
+        ])->assertOk();
+
+        $this->assertSame([
+            'Zoe AlphaCoach',
+            'Cal Able',
+            'Abe Zulu',
+            'Ann ZebraCoach',
+            'Bob ZebraPlay',
+        ], array_column($this->capturedTags, 'person_name'));
+        $this->assertSame([
+            'Alpha',
+            'Alpha',
+            'Alpha',
+            'Zebra',
+            'Zebra',
+        ], array_column($this->capturedTags, 'team_name'));
+    }
+
+    public function test_helper_stickers_sort_by_role_sequence_then_lastname(): void
+    {
+        $this->seedHelperPerson(20, 'Ann', 'Abel');
+        $this->seedHelperPerson(21, 'Bea', 'Zeta');
+        $this->seedHelperPerson(22, 'Cam', 'Beta');
+        $this->seedCatalogRole(6, 'Juror:in', FirstProgram::CHALLENGE->value, 4);
+        $this->seedCatalogRole(5, 'Publikum', FirstProgram::CHALLENGE->value, 1);
+        $this->seedStaffingRole(1, 6, 'Juror:in', 90);
+        $this->seedStaffingRole(2, 5, 'Publikum', 1);
+        DB::table('event_staffing_assignment')->insert([
+            ['event_staffing_role' => 1, 'event_staffing_group' => null, 'volunteer_person' => 20, 'created_at' => now()],
+            ['event_staffing_role' => 2, 'event_staffing_group' => null, 'volunteer_person' => 21, 'created_at' => now()],
+            ['event_staffing_role' => 2, 'event_staffing_group' => null, 'volunteer_person' => 22, 'created_at' => now()],
+        ]);
+
+        $this->postJson('/api/export/name-tags/1', [
+            'filters' => ['program:3' => ['helpers' => true]],
+        ])->assertOk();
+
+        $this->assertSame([
+            'Cam Beta',
+            'Bea Zeta',
+            'Ann Abel',
+        ], array_column($this->capturedTags, 'person_name'));
+        $this->assertSame([
+            'Publikum',
+            'Publikum',
+            'Juror:in',
+        ], array_column($this->capturedTags, 'team_name'));
+    }
+
     public function test_cross_helper_uses_default_program_key(): void
     {
         $this->seedHelperPerson(11, 'Kim', 'Cross');
@@ -317,21 +386,26 @@ class NameTagsApiTest extends TestCase
         ]);
     }
 
-    private function seedChallengeTeam(int $planNumber, int $noshow): void
+    private function seedTeam(int $id, int $program, int $hot, string $name, int $planNumber, int $noshow = 0): void
     {
         DB::table('team')->insert([
-            'id' => 10,
+            'id' => $id,
             'event' => 1,
-            'first_program' => FirstProgram::CHALLENGE->value,
-            'team_number_hot' => 1001,
-            'name' => 'Alpha',
+            'first_program' => $program,
+            'team_number_hot' => $hot,
+            'name' => $name,
         ]);
         DB::table('team_plan')->insert([
             'plan' => 1,
-            'team' => 10,
+            'team' => $id,
             'team_number_plan' => $planNumber,
             'noshow' => $noshow,
         ]);
+    }
+
+    private function seedChallengeTeam(int $planNumber, int $noshow): void
+    {
+        $this->seedTeam(10, FirstProgram::CHALLENGE->value, 1001, 'Alpha', $planNumber, $noshow);
     }
 
     private function seedFutureTeam(int $planNumber, int $noshow): void
@@ -371,12 +445,13 @@ class NameTagsApiTest extends TestCase
         ]);
     }
 
-    private function seedCatalogRole(int $id, string $name, ?int $firstProgram): void
+    private function seedCatalogRole(int $id, string $name, ?int $firstProgram, int $sequence = 0): void
     {
         DB::table('m_role')->insert([
             'id' => $id,
             'name' => $name,
             'first_program' => $firstProgram,
+            'sequence' => $sequence,
         ]);
     }
 
@@ -449,6 +524,7 @@ class NameTagsApiTest extends TestCase
             $table->unsignedInteger('id')->primary();
             $table->string('name')->nullable();
             $table->unsignedInteger('first_program')->nullable();
+            $table->unsignedInteger('sequence')->default(0);
         });
         Schema::create('event_staffing_role', function (Blueprint $table) {
             $table->unsignedInteger('id')->primary();

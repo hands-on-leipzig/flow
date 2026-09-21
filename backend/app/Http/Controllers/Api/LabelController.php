@@ -163,6 +163,7 @@ class LabelController extends Controller
                 }
 
                 $teams = $teamsByProgram[$programId] ?? [];
+                usort($teams, fn ($a, $b) => strcasecmp((string) $a->name, (string) $b->name));
                 foreach ($teams as $team) {
                     $people = $peopleByTeam[(int) $team->id] ?? null;
                     if (! is_array($people)) {
@@ -317,11 +318,31 @@ class LabelController extends Controller
                     'person_name' => $display,
                     'team_name' => (string) $assignment['caption'],
                     'program' => $programKey,
+                    'last_name' => (string) ($person->last_name ?? ''),
+                    'first_name' => (string) ($person->first_name ?? ''),
+                    'role_sequence' => $assignment['catalog_sequence'] ?? $assignment['sequence'],
                 ];
             }
         }
 
-        return $tags;
+        usort($tags, function (array $a, array $b) {
+            $seq = ((int) $a['role_sequence']) <=> ((int) $b['role_sequence']);
+            if ($seq !== 0) {
+                return $seq;
+            }
+            $last = strcasecmp((string) $a['last_name'], (string) $b['last_name']);
+            if ($last !== 0) {
+                return $last;
+            }
+
+            return strcasecmp((string) $a['first_name'], (string) $b['first_name']);
+        });
+
+        return array_map(static fn (array $tag) => [
+            'person_name' => $tag['person_name'],
+            'team_name' => $tag['team_name'],
+            'program' => $tag['program'],
+        ], $tags);
     }
 
     /**
