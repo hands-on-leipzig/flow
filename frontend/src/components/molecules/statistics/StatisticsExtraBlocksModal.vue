@@ -131,11 +131,3 @@ watch(() => props.planId, () => {
   }
 }, { immediate: true })
 </script>
-
-<style scoped>
-.stats-plan-modal.glass-modal {
-  width: 90vw;
-  max-width: 90vw;
-  margin: 0;
-}
-</style>

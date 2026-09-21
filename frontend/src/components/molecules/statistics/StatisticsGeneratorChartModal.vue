@@ -1,5 +1,5 @@
 <template>
-  <div class="glass-modal p-6 w-[90vw] max-w-6xl max-h-[90vh] overflow-auto">
+  <div class="glass-modal stats-plan-modal p-6 max-h-[90vh] overflow-auto">
     <h3 class="text-lg font-bold mb-4">
       Generierungen für Plan {{ planId }}
     </h3>
