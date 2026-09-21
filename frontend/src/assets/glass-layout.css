@@ -301,6 +301,12 @@
   color: var(--color-text);
 }
 
+.glass-modal.stats-plan-modal {
+  width: 50vw;
+  max-width: 50vw;
+  margin: 0;
+}
+
 .glass-modal-lg {
   max-width: 42rem;
   max-height: 90vh;

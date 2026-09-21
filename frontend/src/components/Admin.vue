@@ -18,6 +18,7 @@ import SlugRegistryAdmin from '@/components/molecules/SlugRegistryAdmin.vue'
 import AdminWartung from '@/components/molecules/AdminWartung.vue'
 import PlanQualitaet from '@/components/molecules/PlanQualitaet.vue'
 import Enrollments from '@/components/molecules/Enrollments.vue'
+import Cockpit from '@/components/molecules/Cockpit.vue'
 import HelpAdmin from '@/components/molecules/HelpAdmin.vue'
 import {
   ADMIN_DEFAULT_SECTION,
@@ -123,6 +124,10 @@ onMounted(() => {
 
     <div v-else-if="activeTab === 'system-news'">
       <SystemNews/>
+    </div>
+
+    <div v-else-if="activeTab === 'cockpit'">
+      <Cockpit/>
     </div>
 
     <div v-else-if="activeTab === 'nowandnext' && sectionAllowed">

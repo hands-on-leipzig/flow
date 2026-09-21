@@ -1,5 +1,5 @@
 <template>
-  <div class="glass-modal p-6 w-[90vw] max-w-4xl max-h-[90vh] overflow-auto">
+  <div class="glass-modal stats-plan-modal p-6 max-h-[90vh] overflow-y-auto overflow-x-hidden">
     <h3 class="text-lg font-bold mb-4">
       Veränderte Parameter für Plan {{ planId }}
     </h3>
@@ -16,86 +16,80 @@
       <!-- Input Parameters Table -->
       <div v-if="inputParameters.length > 0">
         <h4 class="text-md font-semibold mb-2">Input-Parameter</h4>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm border-collapse">
-            <thead class="bg-[var(--color-bg-muted)] text-left">
-              <tr>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Name</th>
-                <th class="px-3 py-2 border border-[var(--color-border)]">UI Label</th>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Set Value</th>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Default Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="param in inputParameters"
-                :key="param.name"
-                class="hover:bg-[var(--color-bg-hover)]"
-              >
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.name }}</td>
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.ui_label ?? '–' }}</td>
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.set_value ?? '–' }}</td>
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.default_value ?? '–' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <table class="w-full text-sm border-collapse table-fixed">
+          <thead class="bg-[var(--color-bg-muted)] text-left">
+            <tr>
+              <th class="px-3 py-2 border border-[var(--color-border)]">Name</th>
+              <th class="px-3 py-2 border border-[var(--color-border)]">UI Label</th>
+              <th class="px-3 py-2 border border-[var(--color-border)]">Set Value</th>
+              <th class="px-3 py-2 border border-[var(--color-border)]">Default Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="param in inputParameters"
+              :key="param.name"
+              class="hover:bg-[var(--color-bg-hover)]"
+            >
+              <td class="px-3 py-2 border border-[var(--color-border)] break-all">{{ param.name }}</td>
+              <td class="px-3 py-2 border border-[var(--color-border)] break-words">{{ param.ui_label ?? '–' }}</td>
+              <td class="px-3 py-2 border border-[var(--color-border)] break-words">{{ param.set_value ?? '–' }}</td>
+              <td class="px-3 py-2 border border-[var(--color-border)] break-words">{{ param.default_value ?? '–' }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
       
       <!-- Expert Parameters Table -->
       <div v-if="expertParameters.length > 0">
         <h4 class="text-md font-semibold mb-2">Expert-Parameter</h4>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm border-collapse">
-            <thead class="bg-[var(--color-bg-muted)] text-left">
-              <tr>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Name</th>
-                <th class="px-3 py-2 border border-[var(--color-border)]">UI Label</th>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Set Value</th>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Default Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="param in expertParameters"
-                :key="param.name"
-                class="hover:bg-[var(--color-bg-hover)]"
-              >
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.name }}</td>
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.ui_label ?? '–' }}</td>
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.set_value ?? '–' }}</td>
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ param.default_value ?? '–' }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <table class="w-full text-sm border-collapse table-fixed">
+          <thead class="bg-[var(--color-bg-muted)] text-left">
+            <tr>
+              <th class="px-3 py-2 border border-[var(--color-border)]">Name</th>
+              <th class="px-3 py-2 border border-[var(--color-border)]">UI Label</th>
+              <th class="px-3 py-2 border border-[var(--color-border)]">Set Value</th>
+              <th class="px-3 py-2 border border-[var(--color-border)]">Default Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="param in expertParameters"
+              :key="param.name"
+              class="hover:bg-[var(--color-bg-hover)]"
+            >
+              <td class="px-3 py-2 border border-[var(--color-border)] break-all">{{ param.name }}</td>
+              <td class="px-3 py-2 border border-[var(--color-border)] break-words">{{ param.ui_label ?? '–' }}</td>
+              <td class="px-3 py-2 border border-[var(--color-border)] break-words">{{ param.set_value ?? '–' }}</td>
+              <td class="px-3 py-2 border border-[var(--color-border)] break-words">{{ param.default_value ?? '–' }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
       
       <!-- Table / field names (per program) -->
       <div v-if="tableNames.length > 0">
         <h4 class="text-md font-semibold mb-2">Tisch-/Feldnamen (überschrieben)</h4>
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-sm border-collapse">
-            <thead class="bg-[var(--color-bg-muted)] text-left">
-              <tr>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Programm</th>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Nummer</th>
-                <th class="px-3 py-2 border border-[var(--color-border)]">Bezeichnung</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="table in tableNames"
-                :key="`${table.first_program}-${table.table_number}`"
-                class="hover:bg-[var(--color-bg-hover)]"
-              >
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ table.program_display_name || table.program_name || table.first_program }}</td>
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ table.table_number }}</td>
-                <td class="px-3 py-2 border border-[var(--color-border)]">{{ table.table_name }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <table class="w-full text-sm border-collapse table-fixed">
+          <thead class="bg-[var(--color-bg-muted)] text-left">
+            <tr>
+              <th class="px-3 py-2 border border-[var(--color-border)]">Programm</th>
+              <th class="px-3 py-2 border border-[var(--color-border)] w-[6rem]">Nummer</th>
+              <th class="px-3 py-2 border border-[var(--color-border)]">Bezeichnung</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="table in tableNames"
+              :key="`${table.first_program}-${table.table_number}`"
+              class="hover:bg-[var(--color-bg-hover)]"
+            >
+              <td class="px-3 py-2 border border-[var(--color-border)] break-words">{{ table.program_display_name || table.program_name || table.first_program }}</td>
+              <td class="px-3 py-2 border border-[var(--color-border)]">{{ table.table_number }}</td>
+              <td class="px-3 py-2 border border-[var(--color-border)] break-words">{{ table.table_name }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
     
