@@ -2,11 +2,16 @@
 
 namespace App\Services;
 
+use App\Print\NotoTcpdfFont;
 use TCPDF;
 use Illuminate\Support\Facades\Log;
 
 class LabelPdfService
 {
+    private string $regularFont = 'helvetica';
+
+    private string $boldFont = 'helvetica';
+
     /**
      * Generate name tags PDF using TCPDF for precise positioning
      * 
@@ -16,7 +21,7 @@ class LabelPdfService
      * - Label: 80mm × 50mm
      * - Column gap: 15mm (between label edges)
      * - Row gap: 5mm (between label edges)
-     * - Label padding: top 5mm, left 2mm, right 2mm (content area: 76mm wide)
+     * - Label padding: top 5mm, left 5mm, right 5mm, bottom 5mm (content area: 70mm wide)
      * 
      * TCPDF uses absolute coordinates from top-left (0,0) in mm units.
      * All coordinates are calculated exactly per specification.
@@ -80,9 +85,11 @@ class LabelPdfService
             // Create PDF with EXACT A4 dimensions: 210mm × 297mm
             // TCPDF uses mm units natively - coordinates are exact millimeters
             $pdf = new TCPDF('P', 'mm', array(210, 297), true, 'UTF-8', false);
-            
-            // Set font immediately - dejavusans is built into TCPDF
-            $pdf->SetFont('dejavusans', '', 10);
+
+            NotoTcpdfFont::register($pdf);
+            $this->regularFont = NotoTcpdfFont::regular();
+            $this->boldFont = NotoTcpdfFont::bold();
+            $pdf->SetFont($this->regularFont, '', 10);
             
             // Set margins to 0 - we use absolute coordinates from page top-left (0,0)
             // This ensures Rect(), Image(), and SetXY() use exact mm coordinates
@@ -108,17 +115,14 @@ class LabelPdfService
             
             // Add first page (font must be set before this)
             $pdf->AddPage();
-            
-            // Ensure font is set again after AddPage (some TCPDF versions reset it)
-            $pdf->SetFont('dejavusans', '', 10);
+            $pdf->SetFont($this->regularFont, '', 10);
             
             $labelIndex = 0; // Track which label we're processing
             
             for ($page = 0; $page < $totalPages; $page++) {
                 if ($page > 0) {
                     $pdf->AddPage();
-                    // Ensure font is set after each AddPage
-                    $pdf->SetFont('dejavusans', '', 10);
+                    $pdf->SetFont($this->regularFont, '', 10);
                 }
                 
                 // Determine how many labels fit on this page
@@ -132,20 +136,6 @@ class LabelPdfService
                 
                 // Get labels for this page
                 $pageLabels = array_slice($nameTags, $labelIndex, $pageCapacity);
-                
-                // Render header and footer only if skipOffset is 0 or not on first page
-                // If skipOffset > 0, first page already has labels printed, so no header/footer
-                $showHeaderFooter = ($skipOffset === 0 || $page > 0);
-                
-                if ($showHeaderFooter) {
-                    // Render header text in top margin (0 to 13.5mm)
-                    if ($headerLeft !== null || $headerRight !== null) {
-                        $this->renderHeaderText($pdf, $headerLeft, $headerRight);
-                    }
-                    
-                    // Render footer text in bottom margin (283.5mm to 297mm)
-                    $this->renderFooterText($pdf, $page + 1, $totalPages);
-                }
                 
                 foreach ($pageLabels as $index => $nameTag) {
                     // Calculate position on the page
@@ -250,7 +240,7 @@ class LabelPdfService
         // Person name (large, bold, top)
         // SetXY uses absolute coordinates when margins are 0
         $pdf->SetXY($contentX, $contentY);
-        $pdf->SetFont('dejavusans', 'B', 18);
+        $pdf->SetFont($this->boldFont, '', 18);
         $pdf->SetTextColor(0, 0, 0);
         // Use MultiCell with simpler parameters
         $pdf->MultiCell($contentWidth, 8, $nameTag['person_name'], 0, 'L', false, 1);
@@ -260,7 +250,7 @@ class LabelPdfService
         
         // Team name (smaller, below person name)
         $pdf->SetXY($contentX, $currentY);
-        $pdf->SetFont('dejavusans', '', 12);
+        $pdf->SetFont($this->regularFont, '', 12);
         $pdf->SetTextColor(51, 51, 51);
         // Use MultiCell with simpler parameters
         $pdf->MultiCell($contentWidth, 6, $nameTag['team_name'], 0, 'L', false, 1);
@@ -292,11 +282,15 @@ class LabelPdfService
                 
                 // Check if it's a data URI or file path
                 if (strpos($logo, 'data:image') === 0) {
-                    // Data URI - extract base64 data and write to temp file
                     $imageData = $this->extractImageFromDataUri($logo);
                     if ($imageData) {
-                        // Create temporary file for TCPDF
-                        $tempFile = tempnam(sys_get_temp_dir(), 'tcpdf_img_');
+                        $ext = 'png';
+                        if (preg_match('#^data:image/(jpeg|jpg|gif|png)#i', $logo, $match)) {
+                            $ext = strtolower($match[1]) === 'jpeg' ? 'jpg' : strtolower($match[1]);
+                        }
+                        $base = tempnam(sys_get_temp_dir(), 'tcpdf_img_');
+                        @unlink($base);
+                        $tempFile = $base.'.'.$ext;
                         file_put_contents($tempFile, $imageData);
                         $imagePath = $tempFile;
                         $tempFiles[] = $tempFile;
@@ -346,7 +340,13 @@ class LabelPdfService
                     $logoData[] = [
                         'path' => $imagePath,
                         'width' => $calculatedWidth,
-                        'height' => $calculatedHeight
+                        'height' => $calculatedHeight,
+                        'type' => match ($imageInfo[2] ?? null) {
+                            IMAGETYPE_JPEG => 'JPEG',
+                            IMAGETYPE_PNG => 'PNG',
+                            IMAGETYPE_GIF => 'GIF',
+                            default => '',
+                        },
                     ];
                     $totalWidth += $calculatedWidth;
                 }
@@ -380,7 +380,22 @@ class LabelPdfService
             
             foreach ($logoData as $index => $logo) {
                 // Render logo (bottom edges align at 5mm from bottom)
-                $pdf->Image($logo['path'], $currentX, $logoY + ($maxLogoHeight - $logo['height']), $logo['width'], $logo['height'], '', '', '', false, 300, '', false, false, 0);
+                $pdf->Image(
+                    $logo['path'],
+                    $currentX,
+                    $logoY + ($maxLogoHeight - $logo['height']),
+                    $logo['width'],
+                    $logo['height'],
+                    $logo['type'] ?? '',
+                    '',
+                    '',
+                    false,
+                    300,
+                    '',
+                    false,
+                    false,
+                    0
+                );
                 
                 // Move to next position (logo width + gap)
                 $currentX += $logo['width'] + $gapBetweenLogos;
@@ -424,7 +439,7 @@ class LabelPdfService
      */
     private function renderHeaderText(TCPDF $pdf, ?string $leftText, ?string $rightText): void
     {
-        $pdf->SetFont('dejavusans', '', 8);
+        $pdf->SetFont($this->regularFont, '', 8);
         $pdf->SetTextColor(0, 0, 0); // Black color
         
         // Position at 6mm from top (middle of 13.5mm margin)
@@ -448,7 +463,7 @@ class LabelPdfService
         }
         
         // Reset font size for labels
-        $pdf->SetFont('dejavusans', '', 10);
+        $pdf->SetFont($this->regularFont, '', 10);
     }
     
     /**
@@ -457,7 +472,7 @@ class LabelPdfService
      */
     private function renderFooterText(TCPDF $pdf, int $pageNum, int $totalPages): void
     {
-        $pdf->SetFont('dejavusans', '', 7);
+        $pdf->SetFont($this->regularFont, '', 7);
         $pdf->SetTextColor(0, 0, 0); // Black color
         
         // Position at 291mm from top (middle of bottom 13.5mm margin)
@@ -480,6 +495,6 @@ class LabelPdfService
         $pdf->Cell($contentWidth, 0, $timestampText, 0, 0, 'R');
         
         // Reset font size for labels
-        $pdf->SetFont('dejavusans', '', 10);
+        $pdf->SetFont($this->regularFont, '', 10);
     }
 }

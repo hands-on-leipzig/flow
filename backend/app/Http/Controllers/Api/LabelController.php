@@ -2,472 +2,490 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
+use App\Enums\FirstProgram;
 use App\Helpers\FlowFilename;
+use App\Http\Controllers\Controller;
 use App\Models\Event;
-use App\Models\Team;
 use App\Models\MSeason;
-use App\Services\PdfLayoutService;
+use App\Print\DrahtTeamPeople;
 use App\Services\LabelPdfService;
-use App\Services\EventTitleService;
+use App\Services\PdfLayoutService;
 use App\Support\ProgramCatalog;
-use App\Http\Controllers\Api\DrahtController;
+use App\Support\StaffingAssignmentLabel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
 
 class LabelController extends Controller
 {
-    private PdfLayoutService $pdfLayoutService;
-    private LabelPdfService $labelPdfService;
-    private EventTitleService $eventTitleService;
-    private DrahtController $drahtController;
-
     public function __construct(
-        PdfLayoutService $pdfLayoutService,
-        LabelPdfService $labelPdfService,
-        EventTitleService $eventTitleService,
-        DrahtController $drahtController
-    ) {
-        $this->pdfLayoutService = $pdfLayoutService;
-        $this->labelPdfService = $labelPdfService;
-        $this->eventTitleService = $eventTitleService;
-        $this->drahtController = $drahtController;
-    }
+        private PdfLayoutService $pdfLayoutService,
+        private LabelPdfService $labelPdfService,
+    ) {}
 
-    /**
-     * Generate name tag PDF for team members (Avery L4785 format)
-     * 
-     * @param int $eventId
-     * @param Request $request
-     * @return \Illuminate\Http\Response
-     */
     public function nameTagsPdf(int $eventId, Request $request)
     {
         try {
-            // Increase memory limit for PDF generation with many images
             ini_set('memory_limit', '512M');
-            
-            // Increase timeout for local installations with slow internet
-            // Check if running in local environment
             $isLocal = app()->environment('local') || config('app.env') === 'local';
             if ($isLocal) {
-                ini_set('max_execution_time', 600); // 10 minutes for local
+                ini_set('max_execution_time', 600);
                 set_time_limit(600);
             } else {
-                ini_set('max_execution_time', 300); // 5 minutes for production
+                ini_set('max_execution_time', 300);
                 set_time_limit(300);
             }
-            
-            // Get event with season relationship
+
             $event = Event::with('seasonRel')->findOrFail($eventId);
 
-            // Get filter parameters: program_filters structure { programId: { players: bool, coaches: bool } }
-            $programFilters = $request->input('program_filters', []);
-            
-            // If no filters provided, default to including all
-            if (empty($programFilters) || !is_array($programFilters)) {
-                $programFilters = [];
+            $filters = $request->input('filters', []);
+            if (! is_array($filters)) {
+                $filters = [];
             }
-            
-            // Get skip offset (0-9) to skip labels at the start
-            $skipOffset = (int)$request->input('skip_offset', 0);
-            $skipOffset = max(0, min(9, $skipOffset)); // Clamp between 0 and 9
-            
-            // Extract program IDs from filters
-            $programIds = array_keys($programFilters);
-            $programIds = array_map('intval', $programIds);
 
-            // Get plan for this event
-            $plan = DB::table('plan')
-                ->where('event', $eventId)
-                ->select('id')
-                ->first();
+            $skipOffset = (int) $request->input('skip_offset', 0);
+            $skipOffset = max(0, min(9, $skipOffset));
 
-            // Get c_teams parameter value if plan exists
-            $cTeams = null;
-            if ($plan) {
-                $cTeamsParamId = DB::table('m_parameter')
-                    ->where('name', 'c_teams')
-                    ->value('id');
-                
-                if ($cTeamsParamId) {
-                    $cTeams = DB::table('plan_param_value')
-                        ->where('plan', $plan->id)
-                        ->where('parameter', $cTeamsParamId)
-                        ->value('set_value');
-                    $cTeams = $cTeams ? (int)$cTeams : null;
+            $logoId = $request->input('logo_id');
+            $organizerLogos = [];
+            if ($logoId !== null && $logoId !== '') {
+                $logoId = (int) $logoId;
+                if (! $this->eventOwnsLogo($eventId, $logoId)) {
+                    return response()->json([
+                        'error' => 'Logo gehört nicht zu diesem Event.',
+                    ], 422);
+                }
+                $organizer = $this->organizerLogoUri($eventId, $logoId);
+                if ($organizer) {
+                    $organizerLogos = [$organizer];
                 }
             }
 
-            // Get teams for this event, filtered by program and excluding noshow/overflow teams
-            $teamsQuery = DB::table('team')
-                ->join('m_first_program', 'team.first_program', '=', 'm_first_program.id')
-                ->where('team.event', $eventId)
-                ->select('team.*');
-            
-            // Filter by program IDs if provided
-            if (!empty($programIds)) {
-                $teamsQuery->whereIn('team.first_program', $programIds);
-            }
-            
-            // Join with team_plan to filter out excluded teams
-            if ($plan) {
-                $teamsQuery->leftJoin('team_plan', function($join) use ($plan) {
-                    $join->on('team.id', '=', 'team_plan.team')
-                         ->where('team_plan.plan', '=', $plan->id);
-                });
-                
-                // Exclude teams with noshow = 1
-                // Include teams that don't have a team_plan entry (not yet in plan) or noshow != 1
-                $teamsQuery->where(function($query) {
-                    $query->whereNull('team_plan.noshow')  // No team_plan entry
-                          ->orWhere('team_plan.noshow', '!=', 1);  // noshow != 1 (includes 0 and other values)
-                });
-                
-                // Exclude teams where team_number_plan > c_teams (if c_teams is set)
-                // Include teams that don't have a team_plan entry (not yet in plan)
-                if ($cTeams !== null) {
-                    $teamsQuery->where(function($query) use ($cTeams) {
-                        $query->whereNull('team_plan.team_number_plan')  // No team_plan entry
-                              ->orWhere('team_plan.team_number_plan', '<=', $cTeams);  // Within planned range
-                    });
-                }
-            }
-            
-            $teams = $teamsQuery->orderBy('m_first_program.sequence')
-                ->orderBy('team.name')
-                ->get();
-            
-            // Convert to Team models for compatibility with existing code
-            $teamModels = collect($teams)->map(function($team) {
-                return Team::find($team->id);
-            })->filter();
-
-            if ($teamModels->isEmpty()) {
-                return response()->json(['error' => 'No teams found for this event'], 404);
-            }
-
-            // Get season logo (load once, reuse for all tags)
             $seasonLogo = $this->getSeasonLogo($event->seasonRel);
-
-            // Get organizer logos (load once, reuse for all tags)
-            // Only use the first logo by sort_order
-            $organizerLogos = $this->getFirstOrganizerLogo($eventId);
-
-            // Collect all name tags
-            $nameTags = [];
-            
-            // Cache program logos to avoid loading the same logo multiple times
             $programLogoCache = [];
-            
-            // Cache DRAHT people data per program to avoid multiple API calls
-            // Key: drahtEventId, Value: all people data for that event
-            $drahtPeopleCache = [];
+            $programLogoCache['default'] = $this->getProgramLogo(null);
 
-            foreach ($teamModels as $team) {
-                // Determine program and DRAHT event ID
-                $program = $this->getProgramFromTeam($team);
-                $drahtEventId = $this->getDrahtEventId($event, $program);
+            $nameTags = $this->collectNameTags($event, $filters, $programLogoCache);
 
-                if (!$drahtEventId) {
-                    Log::warning("No DRAHT event ID found for team", [
-                        'team_id' => $team->id,
-                        'program' => $program
-                    ]);
-                    continue;
-                }
-
-                // Fetch all people data for this DRAHT event once (cache per event)
-                if (!isset($drahtPeopleCache[$drahtEventId])) {
-                    try {
-                        $response = $this->drahtController->getPeople($drahtEventId);
-                        $statusCode = $response->getStatusCode();
-                        if ($statusCode === 200) {
-                            $allPeopleData = $response->getData(true);
-                            $drahtPeopleCache[$drahtEventId] = is_array($allPeopleData) ? $allPeopleData : [];
-                        } else {
-                            Log::warning("Failed to fetch people data from DRAHT", [
-                                'draht_event_id' => $drahtEventId,
-                                'status' => $statusCode
-                            ]);
-                            $drahtPeopleCache[$drahtEventId] = [];
-                        }
-                    } catch (\Exception $e) {
-                        Log::error('Error fetching people data from DRAHT', [
-                            'draht_event_id' => $drahtEventId,
-                            'error' => $e->getMessage()
-                        ]);
-                        $drahtPeopleCache[$drahtEventId] = [];
-                    }
-                }
-
-                // Get team members from cached DRAHT data
-                $allPeopleData = $drahtPeopleCache[$drahtEventId];
-                $peopleData = null;
-                
-                if ($team->team_number_hot && isset($allPeopleData[$team->team_number_hot])) {
-                    $peopleData = $allPeopleData[$team->team_number_hot];
-                } elseif ($team->team_number_hot && isset($allPeopleData[(string)$team->team_number_hot])) {
-                    $peopleData = $allPeopleData[(string)$team->team_number_hot];
-                }
-
-                if (!$peopleData) {
-                    Log::warning("No people data found for team", [
-                        'team_id' => $team->id,
-                        'team_number_hot' => $team->team_number_hot
-                    ]);
-                    continue;
-                }
-
-                // Get program logo (use cache to avoid loading same logo multiple times)
-                if (!isset($programLogoCache[$program])) {
-                    $programLogoCache[$program] = $this->getProgramLogo($program);
-                }
-                $programLogo = $programLogoCache[$program];
-
-                // Get filter settings for this team's program
-                $teamProgramId = $team->first_program;
-                $includePlayers = true; // Default
-                $includeCoaches = true; // Default
-                
-                if (isset($programFilters[$teamProgramId])) {
-                    $filters = $programFilters[$teamProgramId];
-                    $includePlayers = filter_var($filters['players'] ?? true, FILTER_VALIDATE_BOOLEAN);
-                    $includeCoaches = filter_var($filters['coaches'] ?? true, FILTER_VALIDATE_BOOLEAN);
-                }
-
-                // Create name tags for coaches first (if enabled for this program)
-                if ($includeCoaches && !empty($peopleData['coaches']) && is_array($peopleData['coaches'])) {
-                    // Sort coaches alphabetically by last name, then first name
-                    $coaches = $peopleData['coaches'];
-                    usort($coaches, function($a, $b) {
-                        // Handle string format (full name)
-                        if (is_string($a) && is_string($b)) {
-                            return strcasecmp($a, $b);
-                        }
-                        if (is_string($a)) {
-                            $a = ['name' => $a, 'firstname' => ''];
-                        }
-                        if (is_string($b)) {
-                            $b = ['name' => $b, 'firstname' => ''];
-                        }
-                        
-                        // Sort by last name first, then first name
-                        $lastNameA = $a['name'] ?? '';
-                        $lastNameB = $b['name'] ?? '';
-                        $lastNameCompare = strcasecmp($lastNameA, $lastNameB);
-                        
-                        if ($lastNameCompare !== 0) {
-                            return $lastNameCompare;
-                        }
-                        
-                        // If last names are equal, sort by first name
-                        $firstNameA = $a['firstname'] ?? '';
-                        $firstNameB = $b['firstname'] ?? '';
-                        return strcasecmp($firstNameA, $firstNameB);
-                    });
-                    
-                    foreach ($coaches as $coach) {
-                        // Handle both object and string coach formats
-                        if (is_string($coach)) {
-                            $coach = ['name' => $coach];
-                        }
-                        $nameTags[] = $this->createNameTagData(
-                            $coach,
-                            $team->name,
-                            $program,
-                            $programLogo,
-                            $seasonLogo,
-                            $organizerLogos
-                        );
-                    }
-                }
-
-                // Create name tags for players (if enabled for this program)
-                if ($includePlayers && !empty($peopleData['players']) && is_array($peopleData['players'])) {
-                    // Sort players alphabetically by last name, then first name
-                    $players = $peopleData['players'];
-                    usort($players, function($a, $b) {
-                        // Handle string format (full name)
-                        if (is_string($a) && is_string($b)) {
-                            return strcasecmp($a, $b);
-                        }
-                        if (is_string($a)) {
-                            $a = ['name' => $a, 'firstname' => ''];
-                        }
-                        if (is_string($b)) {
-                            $b = ['name' => $b, 'firstname' => ''];
-                        }
-                        
-                        // Sort by last name first, then first name
-                        $lastNameA = $a['name'] ?? '';
-                        $lastNameB = $b['name'] ?? '';
-                        $lastNameCompare = strcasecmp($lastNameA, $lastNameB);
-                        
-                        if ($lastNameCompare !== 0) {
-                            return $lastNameCompare;
-                        }
-                        
-                        // If last names are equal, sort by first name
-                        $firstNameA = $a['firstname'] ?? '';
-                        $firstNameB = $b['firstname'] ?? '';
-                        return strcasecmp($firstNameA, $firstNameB);
-                    });
-                    
-                    foreach ($players as $player) {
-                        $nameTags[] = $this->createNameTagData(
-                            $player,
-                            $team->name,
-                            $program,
-                            $programLogo,
-                            $seasonLogo,
-                            $organizerLogos
-                        );
-                    }
-                }
-            }
-
-            if (empty($nameTags)) {
+            if ($nameTags === []) {
                 return response()->json([
-                    'error' => 'No team members found to generate name tags',
-                    'message' => 'Keine Teammitglieder gefunden, die den ausgewählten Filtern entsprechen. Bitte Filter anpassen.'
+                    'error' => 'Keine Personen gefunden, die den ausgewählten Filtern entsprechen.',
                 ], 404);
             }
 
-            // Generate header text for team labels
-            $headerLeft = 'Team-Liste';
-            $headerRight = 'Sortierung: Teamname, Coach:innen > Teammitglieder, alphabetisch nach Namen';
-            
-            // Generate PDF using TCPDF for precise positioning
-            try {
-                $pdfData = $this->labelPdfService->generateNameTags(
-                    $nameTags,
-                    $seasonLogo,
-                    $organizerLogos,
-                    $programLogoCache,
-                    false, // showBorders
-                    $headerLeft, // headerLeft
-                    $headerRight, // headerRight
-                    $skipOffset // skipOffset
-                );
-                
-                if (empty($pdfData) || strlen($pdfData) < 100) {
-                    Log::error('Generated PDF is empty or too small', [
-                        'size' => strlen($pdfData ?? ''),
-                        'event_id' => $eventId
-                    ]);
-                    throw new \Exception('PDF generation failed: output is empty or invalid');
-                }
-                
-                $filename = FlowFilename::make('Aufkleber_Teams', 'pdf', $event->date);
+            $pdfData = $this->labelPdfService->generateNameTags(
+                $nameTags,
+                $seasonLogo,
+                $organizerLogos,
+                $programLogoCache,
+                false,
+                null,
+                null,
+                $skipOffset,
+            );
 
-                // Return PDF with headers
-                return response($pdfData, 200)
-                    ->header('Content-Type', 'application/pdf')
-                    ->header('X-Filename', $filename)
-                    ->header('Access-Control-Expose-Headers', 'X-Filename');
-            } catch (\Exception $pdfException) {
-                Log::error('Error generating PDF with TCPDF', [
-                    'event_id' => $eventId,
-                    'error' => $pdfException->getMessage(),
-                    'trace' => $pdfException->getTraceAsString()
-                ]);
-                throw $pdfException; // Re-throw to be caught by outer catch
+            if ($pdfData === '' || strlen($pdfData) < 100) {
+                throw new \Exception('PDF generation failed: output is empty or invalid');
             }
-        } catch (\Exception $e) {
+
+            $filename = FlowFilename::make($this->filenameStem($filters), 'pdf', $event->date);
+
+            return response($pdfData, 200)
+                ->header('Content-Type', 'application/pdf')
+                ->header('X-Filename', $filename)
+                ->header('Access-Control-Expose-Headers', 'X-Filename');
+        } catch (\Throwable $e) {
             Log::error('Error generating name tags PDF', [
                 'event_id' => $eventId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'error' => 'Failed to generate name tags PDF',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Get program type from team
+     * @param  array<string, mixed>  $filters
+     * @param  array<string, mixed>  $programLogoCache
+     * @return list<array{person_name: string, team_name: string, program: string}>
      */
-    private function getProgramFromTeam(Team $team): ?string
+    private function collectNameTags(Event $event, array $filters, array &$programLogoCache): array
     {
-        // Get program name from m_first_program table
-        $program = DB::table('m_first_program')
-            ->where('id', $team->first_program)
-            ->value('name');
+        $nameTags = [];
+        $programNames = DB::table('m_first_program')->pluck('name', 'id');
+        $programSequence = DB::table('m_first_program')->pluck('sequence', 'id');
 
-        if (!$program) {
-            return null;
+        if ($this->leafOn($filters, 'cross', 'helpers')) {
+            foreach ($this->helperTags($event->id, $filters, 'cross', $programNames, $programLogoCache) as $tag) {
+                $nameTags[] = $tag;
+            }
         }
 
-        return strtolower((string) $program);
+        $programIds = $event->programs
+            ->pluck('first_program')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->sort(function (int $a, int $b) use ($programSequence) {
+                $seq = ((int) ($programSequence[$a] ?? 999)) <=> ((int) ($programSequence[$b] ?? 999));
+
+                return $seq !== 0 ? $seq : ($a <=> $b);
+            })
+            ->values();
+
+        $peopleByTeam = null;
+        $teamsByProgram = null;
+
+        foreach ($programIds as $programId) {
+            $scope = 'program:'.$programId;
+            $wantCoaches = $this->leafOn($filters, $scope, 'coaches');
+            $wantPlayers = $this->leafOn($filters, $scope, 'players');
+            $wantHelpers = $this->leafOn($filters, $scope, 'helpers');
+            if (! $wantCoaches && ! $wantPlayers && ! $wantHelpers) {
+                continue;
+            }
+
+            $programKey = $this->programCacheKey($programNames[$programId] ?? null);
+            if (! isset($programLogoCache[$programKey])) {
+                $programLogoCache[$programKey] = $this->getProgramLogo($programKey);
+            }
+
+            if ($wantCoaches || $wantPlayers) {
+                if ($peopleByTeam === null) {
+                    $peopleByTeam = DrahtTeamPeople::byTeamId($event);
+                }
+                if ($teamsByProgram === null) {
+                    $teamsByProgram = $this->plannedTeamsByProgram((int) $event->id);
+                }
+
+                $teams = $teamsByProgram[$programId] ?? [];
+                usort($teams, fn ($a, $b) => strcasecmp((string) $a->name, (string) $b->name));
+                foreach ($teams as $team) {
+                    $people = $peopleByTeam[(int) $team->id] ?? null;
+                    if (! is_array($people)) {
+                        continue;
+                    }
+                    if ($wantCoaches) {
+                        foreach ($this->sortedPeople($people['coaches'] ?? []) as $person) {
+                            $nameTags[] = $this->tagFromPerson($person, (string) $team->name, $programKey);
+                        }
+                    }
+                    if ($wantPlayers) {
+                        foreach ($this->sortedPeople($people['players'] ?? []) as $person) {
+                            $nameTags[] = $this->tagFromPerson($person, (string) $team->name, $programKey);
+                        }
+                    }
+                }
+            }
+
+            if ($wantHelpers) {
+                foreach ($this->helperTags($event->id, $filters, $scope, $programNames, $programLogoCache) as $tag) {
+                    $nameTags[] = $tag;
+                }
+            }
+        }
+
+        if ($this->leafOn($filters, 'local', 'helpers')) {
+            foreach ($this->helperTags($event->id, $filters, 'local', $programNames, $programLogoCache) as $tag) {
+                $nameTags[] = $tag;
+            }
+        }
+
+        return $nameTags;
     }
 
     /**
-     * Get DRAHT event ID based on program
+     * @return array<int, list<object>>
      */
-    private function getDrahtEventId(Event $event, ?string $program): ?int
+    private function plannedTeamsByProgram(int $eventId): array
     {
-        if (! $program) {
-            return null;
+        $planId = (int) (DB::table('plan')->where('event', $eventId)->value('id') ?? 0);
+        if ($planId < 1) {
+            return [];
         }
 
-        $event->loadMissing('programs');
-        $row = $event->programs->first(
-            fn ($p) => strcasecmp((string) $p->name, $program) === 0
-        );
+        $caps = $this->teamCaps($planId);
 
-        return $row?->draht_id ? (int) $row->draht_id : null;
+        $rows = DB::table('team')
+            ->join('team_plan', function ($join) use ($planId) {
+                $join->on('team.id', '=', 'team_plan.team')
+                    ->where('team_plan.plan', '=', $planId);
+            })
+            ->where('team.event', $eventId)
+            ->where(function ($query) {
+                $query->whereNull('team_plan.noshow')
+                    ->orWhere('team_plan.noshow', '!=', 1);
+            })
+            ->orderBy('team.name')
+            ->select([
+                'team.id',
+                'team.name',
+                'team.first_program',
+                'team.team_number_hot',
+                'team_plan.team_number_plan',
+            ])
+            ->get();
+
+        $byProgram = [];
+        foreach ($rows as $row) {
+            $fp = (int) $row->first_program;
+            if (isset($caps[$fp]) && (int) $row->team_number_plan > $caps[$fp]) {
+                continue;
+            }
+            $byProgram[$fp][] = $row;
+        }
+
+        return $byProgram;
     }
 
     /**
-     * Get team people data from DRAHT API
+     * @return array<int, int>
      */
-    private function getTeamPeopleFromDraht(int $drahtEventId, ?int $teamNumberHot): ?array
+    private function teamCaps(int $planId): array
     {
-        try {
-            $response = $this->drahtController->getPeople($drahtEventId);
-            
-            // getPeople returns JsonResponse, get the data
-            $statusCode = $response->getStatusCode();
-            if ($statusCode !== 200) {
-                return null;
+        $names = [
+            FirstProgram::CHALLENGE->value => 'c_teams',
+            FirstProgram::EXPLORE->value => 'e_teams',
+            FirstProgram::FUTURE_8->value => 'f8_teams',
+        ];
+        $caps = [];
+        foreach ($names as $programId => $paramName) {
+            $paramId = DB::table('m_parameter')->where('name', $paramName)->value('id');
+            if (! $paramId) {
+                continue;
             }
-
-            $allPeopleData = $response->getData(true);
-            
-            if (!is_array($allPeopleData)) {
-                return null;
+            $value = DB::table('plan_param_value')
+                ->where('plan', $planId)
+                ->where('parameter', $paramId)
+                ->value('set_value');
+            if ($value === null || $value === '') {
+                continue;
             }
-            
-            // Find team data by team_number_hot
-            if ($teamNumberHot && isset($allPeopleData[$teamNumberHot])) {
-                return $allPeopleData[$teamNumberHot];
-            }
-
-            // Also try string key
-            if ($teamNumberHot && isset($allPeopleData[(string)$teamNumberHot])) {
-                return $allPeopleData[(string)$teamNumberHot];
-            }
-
-            return null;
-        } catch (\Exception $e) {
-            Log::error('Error fetching people data from DRAHT', [
-                'draht_event_id' => $drahtEventId,
-                'team_number_hot' => $teamNumberHot,
-                'error' => $e->getMessage()
-            ]);
-            return null;
+            $caps[$programId] = (int) $value;
         }
+
+        return $caps;
     }
 
     /**
-     * Get program logo as data URI from the catalog stem (hs, with first+fll fallback).
+     * @param  array<string, mixed>  $filters
+     * @param  \Illuminate\Support\Collection<int|string, mixed>  $programNames
+     * @param  array<string, mixed>  $programLogoCache
+     * @return list<array{person_name: string, team_name: string, program: string}>
      */
+    private function helperTags(
+        int $eventId,
+        array $filters,
+        string $wantedScope,
+        $programNames,
+        array &$programLogoCache,
+    ): array {
+        $assignmentsByPerson = StaffingAssignmentLabel::assignmentsByPerson($eventId);
+        $personIds = array_keys($assignmentsByPerson);
+        $people = [];
+        if ($personIds !== []) {
+            $people = DB::table('volunteer_person')
+                ->whereIn('id', $personIds)
+                ->get(['id', 'first_name', 'last_name'])
+                ->keyBy('id');
+        }
+
+        $tags = [];
+        foreach ($assignmentsByPerson as $personId => $assignments) {
+            $person = $people[$personId] ?? null;
+            $display = trim((string) ($person->first_name ?? '').' '.(string) ($person->last_name ?? ''));
+            if ($display === '') {
+                continue;
+            }
+            foreach ($assignments as $assignment) {
+                $scope = $this->assignmentScope($assignment);
+                if ($scope !== $wantedScope || ! $this->leafOn($filters, $scope, 'helpers')) {
+                    continue;
+                }
+                $programKey = 'default';
+                $fp = $assignment['first_program'] ?? null;
+                if ($fp) {
+                    $programKey = $this->programCacheKey($programNames[$fp] ?? null);
+                }
+                if (! isset($programLogoCache[$programKey])) {
+                    $programLogoCache[$programKey] = $this->getProgramLogo($programKey === 'default' ? null : $programKey);
+                }
+                $tags[] = [
+                    'person_name' => $display,
+                    'team_name' => (string) $assignment['caption'],
+                    'program' => $programKey,
+                    'last_name' => (string) ($person->last_name ?? ''),
+                    'first_name' => (string) ($person->first_name ?? ''),
+                    'role_sequence' => $assignment['catalog_sequence'] ?? $assignment['sequence'],
+                ];
+            }
+        }
+
+        usort($tags, function (array $a, array $b) {
+            $seq = ((int) $a['role_sequence']) <=> ((int) $b['role_sequence']);
+            if ($seq !== 0) {
+                return $seq;
+            }
+            $last = strcasecmp((string) $a['last_name'], (string) $b['last_name']);
+            if ($last !== 0) {
+                return $last;
+            }
+
+            return strcasecmp((string) $a['first_name'], (string) $b['first_name']);
+        });
+
+        return array_map(static fn (array $tag) => [
+            'person_name' => $tag['person_name'],
+            'team_name' => $tag['team_name'],
+            'program' => $tag['program'],
+        ], $tags);
+    }
+
+    /**
+     * @param  array{first_program: ?int, is_local: bool}  $assignment
+     */
+    private function assignmentScope(array $assignment): string
+    {
+        if (! empty($assignment['is_local'])) {
+            return 'local';
+        }
+        $fp = $assignment['first_program'] ?? null;
+        if ($fp === null) {
+            return 'cross';
+        }
+
+        return 'program:'.(int) $fp;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function leafOn(array $filters, string $scope, string $leaf): bool
+    {
+        $scopeFilters = $filters[$scope] ?? null;
+        if (! is_array($scopeFilters)) {
+            return false;
+        }
+
+        return filter_var($scopeFilters[$leaf] ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function filenameStem(array $filters): string
+    {
+        $hasTeam = false;
+        $hasHelper = false;
+        foreach ($filters as $scopeFilters) {
+            if (! is_array($scopeFilters)) {
+                continue;
+            }
+            if (filter_var($scopeFilters['coaches'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                || filter_var($scopeFilters['players'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $hasTeam = true;
+            }
+            if (filter_var($scopeFilters['helpers'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $hasHelper = true;
+            }
+        }
+
+        if ($hasHelper && ! $hasTeam) {
+            return 'Helferinnen';
+        }
+        if ($hasTeam && ! $hasHelper) {
+            return 'Coaches und Teammitglieder';
+        }
+
+        return 'Namensschilder';
+    }
+
+    /**
+     * @param  mixed  $people
+     * @return list<array<string, mixed>>
+     */
+    private function sortedPeople(mixed $people): array
+    {
+        if (! is_array($people) || $people === []) {
+            return [];
+        }
+        $normalized = [];
+        foreach ($people as $person) {
+            if (is_string($person)) {
+                $normalized[] = ['name' => $person, 'firstname' => ''];
+            } elseif (is_array($person)) {
+                $normalized[] = $person;
+            }
+        }
+        usort($normalized, function (array $a, array $b) {
+            $last = strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? ''));
+            if ($last !== 0) {
+                return $last;
+            }
+
+            return strcasecmp((string) ($a['firstname'] ?? ''), (string) ($b['firstname'] ?? ''));
+        });
+
+        return $normalized;
+    }
+
+    /**
+     * @param  array<string, mixed>  $person
+     * @return array{person_name: string, team_name: string, program: string}
+     */
+    private function tagFromPerson(array $person, string $teamName, string $programKey): array
+    {
+        $personName = trim((string) ($person['firstname'] ?? '').' '.(string) ($person['name'] ?? ''));
+        if ($personName === '') {
+            $personName = (string) ($person['name'] ?? 'Unbekannt');
+        }
+
+        return [
+            'person_name' => $personName,
+            'team_name' => $teamName,
+            'program' => $programKey,
+        ];
+    }
+
+    private function programCacheKey(mixed $name): string
+    {
+        $key = strtolower(trim((string) $name));
+
+        return $key !== '' ? $key : 'default';
+    }
+
+    private function eventOwnsLogo(int $eventId, int $logoId): bool
+    {
+        if ($logoId < 1) {
+            return false;
+        }
+
+        return DB::table('event_logo')
+            ->where('event', $eventId)
+            ->where('logo', $logoId)
+            ->exists();
+    }
+
+    private function organizerLogoUri(int $eventId, int $logoId): ?string
+    {
+        $logo = DB::table('logo')
+            ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
+            ->where('event_logo.event', $eventId)
+            ->where('logo.id', $logoId)
+            ->select('logo.path')
+            ->first();
+
+        if (! $logo) {
+            return null;
+        }
+
+        return $this->pdfLayoutService->toDataUri(storage_path('app/public/'.$logo->path));
+    }
+
     private function getProgramLogo(?string $program): ?string
     {
         $logoPath = ProgramCatalog::logoPath($program, 'hs');
@@ -478,213 +496,18 @@ class LabelController extends Controller
         return $this->pdfLayoutService->toDataUri($logoPath);
     }
 
-    /**
-     * Get season logo as data URI
-     */
     private function getSeasonLogo(?MSeason $season): ?string
     {
-        if (!$season || !$season->name) {
+        if (! $season || ! $season->name) {
             return null;
         }
 
-        // Map season name to logo filename
-        // Convert season name to lowercase and replace spaces with underscores
-        $seasonName = strtolower($season->name);
-        $seasonName = str_replace(' ', '_', $seasonName);
-        
-        // Try common season logo filenames
-        $possibleFilenames = [
-            "season_{$seasonName}_v.png",
-            "season_{$seasonName}_wordmark.png",
-            "season_{$seasonName}.png",
-        ];
-
-        foreach ($possibleFilenames as $filename) {
-            $logoPath = public_path("flow/{$filename}");
-            if (file_exists($logoPath)) {
-                return $this->pdfLayoutService->toDataUri($logoPath);
-            }
+        $seasonName = strtolower(str_replace(' ', '_', (string) $season->name));
+        $logoPath = public_path('flow/season_'.$seasonName.'_v.png');
+        if (! is_file($logoPath)) {
+            return null;
         }
 
-        // Fallback: try to find any season logo file
-        $flowDir = public_path('flow');
-        if (is_dir($flowDir)) {
-            $files = glob($flowDir . '/season_*.png');
-            if (!empty($files)) {
-                // Use the first season logo found as fallback
-                return $this->pdfLayoutService->toDataUri($files[0]);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Get the first organizer logo by sort_order
-     */
-    private function getFirstOrganizerLogo(int $eventId): array
-    {
-        $logo = DB::table('logo')
-            ->join('event_logo', 'event_logo.logo', '=', 'logo.id')
-            ->where('event_logo.event', $eventId)
-            ->orderBy('event_logo.sort_order')
-            ->select('logo.path')
-            ->first();
-
-        if (!$logo) {
-            return [];
-        }
-
-        $path = storage_path('app/public/' . $logo->path);
-        $uri = $this->pdfLayoutService->toDataUri($path);
-        
-        return $uri ? [$uri] : [];
-    }
-
-    /**
-     * Create name tag data structure
-     * Note: Logos are not stored here to save memory - they're passed separately to template
-     */
-    private function createNameTagData(
-        array $person,
-        string $teamName,
-        ?string $program,
-        ?string $programLogo,
-        ?string $seasonLogo,
-        array $organizerLogos
-    ): array {
-        // Format person name (firstname + name)
-        $personName = trim(($person['firstname'] ?? '') . ' ' . ($person['name'] ?? ''));
-        if (empty($personName)) {
-            // Fallback to just name if no firstname
-            $personName = $person['name'] ?? 'Unbekannt';
-        }
-
-        // Only store minimal data - logos are passed separately to template to avoid duplication
-        return [
-            'person_name' => $personName,
-            'team_name' => $teamName,
-            'program' => $program,
-        ];
-    }
-
-    /**
-     * Generate name tag PDF for volunteers (Avery L4785 format)
-     * 
-     * @param int $eventId
-     * @param Request $request
-     * @return \Illuminate\Http\Response
-     */
-    public function volunteerLabelsPdf(int $eventId, Request $request)
-    {
-        try {
-            // Increase memory limit for PDF generation with many images
-            ini_set('memory_limit', '512M');
-            
-            // Validate request
-            $validated = $request->validate([
-                'volunteers' => 'required|array|min:1',
-                'volunteers.*.name' => 'required|string',
-                'volunteers.*.role' => 'required|string',
-                'volunteers.*.program' => 'nullable|string|in:E,C,',
-                'skip_offset' => 'nullable|integer|min:0|max:9',
-            ]);
-            
-            // Get skip offset (0-9) to skip labels at the start
-            $skipOffset = (int)($validated['skip_offset'] ?? 0);
-            $skipOffset = max(0, min(9, $skipOffset)); // Clamp between 0 and 9
-            
-            $volunteers = $validated['volunteers'];
-            
-            // Get event with season relationship
-            $event = Event::with('seasonRel')->findOrFail($eventId);
-            
-            // Get season logo (load once, reuse for all tags)
-            $seasonLogo = $this->getSeasonLogo($event->seasonRel);
-            
-            // Get organizer logos (load once, reuse for all tags)
-            // Only use the first logo by sort_order
-            $organizerLogos = $this->getFirstOrganizerLogo($eventId);
-            
-            // Cache program logos (including default FLL logo for volunteers without program)
-            $programLogoCache = [];
-            $programLogoCache['explore'] = $this->getProgramLogo('explore');
-            $programLogoCache['challenge'] = $this->getProgramLogo('challenge');
-            $programLogoCache['default'] = $this->getProgramLogo(null); // Default FLL logo
-            
-            // Convert volunteers to name tag format
-            $nameTags = [];
-            foreach ($volunteers as $volunteer) {
-                // Map program: E -> explore, C -> challenge, other/empty -> default
-                $program = 'default';
-                if ($volunteer['program'] === 'E') {
-                    $program = 'explore';
-                } elseif ($volunteer['program'] === 'C') {
-                    $program = 'challenge';
-                }
-                
-                $nameTags[] = [
-                    'person_name' => $volunteer['name'],
-                    'team_name' => $volunteer['role'], // Use role instead of team name
-                    'program' => $program,
-                ];
-            }
-            
-            if (empty($nameTags)) {
-                return response()->json(['error' => 'No volunteers provided'], 400);
-            }
-            
-            // Generate header text for volunteer labels
-            $headerLeft = 'Volunteers';
-            $headerRight = 'Sortierung wie vom Veranstalter eingeben';
-            
-            // Generate PDF using TCPDF for precise positioning
-            try {
-                $pdfData = $this->labelPdfService->generateNameTags(
-                    $nameTags,
-                    $seasonLogo,
-                    $organizerLogos,
-                    $programLogoCache,
-                    false, // showBorders
-                    $headerLeft, // headerLeft
-                    $headerRight, // headerRight
-                    $skipOffset // skipOffset
-                );
-                
-                if (empty($pdfData) || strlen($pdfData) < 100) {
-                    Log::error('Generated PDF is empty or too small', [
-                        'size' => strlen($pdfData ?? ''),
-                        'event_id' => $eventId
-                    ]);
-                    throw new \Exception('PDF generation failed: output is empty or invalid');
-                }
-                
-                $filename = FlowFilename::make('Aufkleber_Volunteers', 'pdf', $event->date);
-
-                // Return PDF with headers
-                return response($pdfData, 200)
-                    ->header('Content-Type', 'application/pdf')
-                    ->header('X-Filename', $filename)
-                    ->header('Access-Control-Expose-Headers', 'X-Filename');
-            } catch (\Exception $pdfException) {
-                Log::error('Error generating PDF with TCPDF', [
-                    'event_id' => $eventId,
-                    'error' => $pdfException->getMessage(),
-                    'trace' => $pdfException->getTraceAsString()
-                ]);
-                throw $pdfException; // Re-throw to be caught by outer catch
-            }
-        } catch (\Exception $e) {
-            Log::error('Error generating volunteer labels PDF', [
-                'event_id' => $eventId,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'error' => 'Failed to generate volunteer labels PDF',
-                'message' => $e->getMessage()
-            ], 500);
-        }
+        return $this->pdfLayoutService->toDataUri($logoPath);
     }
 }

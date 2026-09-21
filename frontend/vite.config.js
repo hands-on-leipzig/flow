@@ -116,6 +116,7 @@ export default defineConfig(({mode}) => {
                 allow: [
                     fileURLToPath(new URL('.', import.meta.url)),
                     fileURLToPath(new URL('../../glass', import.meta.url)),
+                    fileURLToPath(new URL('../backend/resources/fonts', import.meta.url)),
                 ],
             },
             proxy: {

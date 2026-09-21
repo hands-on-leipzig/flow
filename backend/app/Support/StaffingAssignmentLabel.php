@@ -43,6 +43,7 @@ final class StaffingAssignmentLabel
      *     first_program: ?int,
      *     is_local: bool,
      *     sequence: int,
+     *     catalog_sequence: ?int,
      *     group_index: ?int,
      *     group_label: ?string
      * }>>
@@ -68,6 +69,7 @@ final class StaffingAssignmentLabel
                 'r.m_role',
                 'mr.name as catalog_name',
                 'mr.first_program',
+                'mr.sequence as catalog_sequence',
                 'g.group_index',
             ]);
 
@@ -93,6 +95,7 @@ final class StaffingAssignmentLabel
                 'first_program' => $firstProgram,
                 'is_local' => $isLocal,
                 'sequence' => (int) $row->sequence,
+                'catalog_sequence' => $row->catalog_sequence !== null ? (int) $row->catalog_sequence : null,
                 'group_index' => $groupIndex,
                 'group_label' => $groupLabel,
             ];
