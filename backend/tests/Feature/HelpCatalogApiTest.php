@@ -42,6 +42,7 @@ class HelpCatalogApiTest extends TestCase
                 'publish-distribution',
                 'publish-logos',
                 'publish-analog',
+                'publish-namensschilder',
                 'teams-data',
                 'teams-program',
                 'rooms',
@@ -65,10 +66,11 @@ class HelpCatalogApiTest extends TestCase
         $this->assertNull($screens[0]['description']);
         $this->assertSame('/plan/publish/logos', $screens[1]['route_path']);
         $this->assertSame('/plan/publish/analog', $screens[2]['route_path']);
-        $this->assertSame('/plan/teams/:program', $screens[4]['route_path']);
-        $this->assertSame('/plan/rooms', $screens[5]['route_path']);
-        $this->assertSame('/plan/volunteers', $screens[6]['route_path']);
-        $this->assertSame('/plan/volunteers/staffing', $screens[8]['route_path']);
+        $this->assertSame('/plan/publish/namensschilder', $screens[3]['route_path']);
+        $this->assertSame('/plan/teams/:program', $screens[5]['route_path']);
+        $this->assertSame('/plan/rooms', $screens[6]['route_path']);
+        $this->assertSame('/plan/volunteers', $screens[7]['route_path']);
+        $this->assertSame('/plan/volunteers/staffing', $screens[9]['route_path']);
         $this->assertSame([], $response->json('actions'));
     }
 
@@ -107,6 +109,13 @@ class HelpCatalogApiTest extends TestCase
             ->assertJsonPath('key', 'publish-analog')
             ->assertJsonPath('name', 'Drucksachen')
             ->assertJsonPath('route_path', '/plan/publish/analog')
+            ->assertJsonPath('actions', []);
+
+        $this->getJson('/api/help/screens/publish-namensschilder')
+            ->assertOk()
+            ->assertJsonPath('key', 'publish-namensschilder')
+            ->assertJsonPath('name', 'Namensschilder')
+            ->assertJsonPath('route_path', '/plan/publish/namensschilder')
             ->assertJsonPath('actions', []);
 
         $this->getJson('/api/help/screens/teams-explore')
@@ -309,6 +318,7 @@ class HelpCatalogApiTest extends TestCase
             ['id' => 1, 'key' => 'publish-distribution', 'name' => 'Öffentliche Seite', 'route_path' => '/plan/publish', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 1],
             ['id' => 20, 'key' => 'publish-logos', 'name' => 'Logos', 'route_path' => '/plan/publish/logos', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 1],
             ['id' => 21, 'key' => 'publish-analog', 'name' => 'Drucksachen', 'route_path' => '/plan/publish/analog', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 1],
+            ['id' => 22, 'key' => 'publish-namensschilder', 'name' => 'Namensschilder', 'route_path' => '/plan/publish/namensschilder', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 1],
             ['id' => 2, 'key' => 'teams-data', 'name' => 'Teamdaten', 'route_path' => '/plan/teams/data', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 2],
             ['id' => 3, 'key' => 'teams-program', 'name' => 'Details pro Team', 'route_path' => '/plan/teams/:program', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 3],
             ['id' => 6, 'key' => 'volunteers-roster', 'name' => 'Helfer:innenliste', 'route_path' => '/plan/volunteers/roster', 'description' => null, 'must_do' => null, 'can_do' => null, 'sort_order' => 6],

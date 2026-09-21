@@ -7,6 +7,7 @@ import axios from 'axios'
 import NameTagsPrint from '@/components/molecules/NameTagsPrint.vue'
 import NameTagPreview from '@/components/molecules/NameTagPreview.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
+import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import {useEventStore} from '@/stores/event'
 
 defineOptions({name: 'PublishNameTags'})
@@ -58,7 +59,10 @@ watch(eventId, () => {
   <div class="vol-page namensschilder-page">
     <header class="vol-page__header">
       <div>
-        <h1 class="vol-page__title">Namensschilder</h1>
+        <div class="vol-page__title-row">
+          <h1 class="vol-page__title">Namensschilder</h1>
+          <ScreenHelpButton/>
+        </div>
         <p class="vol-page__sub">Erstellen von PDFs zum Druck von Aufklebern</p>
       </div>
     </header>

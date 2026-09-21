@@ -7,6 +7,7 @@ export const HELP_SCREEN_KEY_BY_PATH: Record<string, string> = {
   '/plan/publish': 'publish-distribution',
   '/plan/publish/logos': 'publish-logos',
   '/plan/publish/analog': 'publish-analog',
+  '/plan/publish/namensschilder': 'publish-namensschilder',
   '/plan/teams/data': 'teams-data',
   '/plan/rooms': 'rooms',
   '/plan/volunteers': 'volunteers-people',
