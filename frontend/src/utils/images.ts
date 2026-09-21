@@ -1,4 +1,4 @@
-import {programCompact, programDisplayName, programId, type EventProgramRef} from '@/utils/eventPrograms'
+import {programCompact, programId, programOfficialPlain, type EventProgramRef} from '@/utils/eventPrograms'
 
 const FALLBACK_STEM = 'first+fll'
 
@@ -78,10 +78,11 @@ export function programLogoSrc(program: ProgramLogoRef, orientation: ProgramLogo
 
 export function programLogoAlt(program: ProgramLogoRef) {
   const name = catalogNameFor(program)
-  if (!name) return 'FIRST LEGO League Logo'
-  const display = programDisplayName(program && typeof program === 'object' ? program : name)
-  if (!display) return 'FIRST LEGO League Logo'
-  return `FIRST LEGO League ${display} Logo`
+  if (!name) return 'Logo'
+  const ref = program && typeof program === 'object' ? program : name
+  const plain = programOfficialPlain(ref)
+  if (!plain) return 'Logo'
+  return `${plain} Logo`
 }
 
 /** Season challenge logo, e.g. BIOGLOW → /flow/season_bioglow_v.png */

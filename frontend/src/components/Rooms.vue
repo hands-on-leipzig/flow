@@ -67,20 +67,11 @@ const getProgramColor = (item) => {
   return '#9CA3AF'
 }
 
-// --- Format program name with italic FIRST ---
-// Handles both normalized names (FIRST LEGO League) and DB names (FLL Explore/Challenge/Future 8+)
 const formatProgramName = (name) => {
   if (!name) return ''
-
-  // First, expand FLL to FIRST LEGO League if present
-  let normalized = name
-      .replace(/^FLL Explore$/i, 'FIRST LEGO League Explore')
-      .replace(/^FLL Challenge$/i, 'FIRST LEGO League Challenge')
-      .replace(/^FLL Future 8\+$/i, 'FIRST LEGO League Future 8+')
-      .replace(/FLL /g, 'FIRST LEGO League ')
-
-  // Then apply italic styling to FIRST
-  return normalized.replace(/FIRST/g, '<span class="italic">FIRST</span>')
+  return String(name)
+      .replace(/^FIRST LEGO League /i, '')
+      .replace(/^FLL /i, '')
 }
 
 // Get people count for a team (players + coaches)
@@ -190,21 +181,21 @@ onMounted(async () => {
           teamGroups.push(
               {
                 id: 'explore-morning',
-                name: 'Explore Vormittag',
+                name: `${label} Vormittag`,
                 first_program: id,
                 program_name: program.name,
                 items: loaded.teams
                     .filter(t => (t.team_number_plan || 0) <= e1Teams)
-                    .map(t => mapTeam(t, program, 'explore-morning', 'Explore Vormittag')),
+                    .map(t => mapTeam(t, program, 'explore-morning', `${label} Vormittag`)),
               },
               {
                 id: 'explore-afternoon',
-                name: 'Explore Nachmittag',
+                name: `${label} Nachmittag`,
                 first_program: id,
                 program_name: program.name,
                 items: loaded.teams
                     .filter(t => (t.team_number_plan || 0) > e1Teams)
-                    .map(t => mapTeam(t, program, 'explore-afternoon', 'Explore Nachmittag')),
+                    .map(t => mapTeam(t, program, 'explore-afternoon', `${label} Nachmittag`)),
               },
           )
         } else {
@@ -1205,7 +1196,7 @@ const hasWarning = (tab) => {
                     :program="itemProgramRef(group)"
                     size="base"
                 />
-                <span v-html="formatProgramName(group.name)"></span>
+                <span>{{ formatProgramName(group.name) }}</span>
               </div>
 
               <!-- Bulk mode checkbox for teams -->

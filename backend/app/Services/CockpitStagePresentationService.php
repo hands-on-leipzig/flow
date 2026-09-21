@@ -247,7 +247,7 @@ class CockpitStagePresentationService
 
         return [
             'program' => (string) $program->name,
-            'program_label' => ProgramCatalog::displayName((string) $program->name, (string) $program->name),
+            'program_label' => ProgramCatalog::officialNameHtml((string) $program->name, (string) $program->name),
             'logo_stem' => $program->logo_stem ?: null,
             'presentations' => $slots,
             'locked' => (bool) ($stage->locked ?? false),

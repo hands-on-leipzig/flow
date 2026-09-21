@@ -33,11 +33,7 @@ const props = withDefaults(
 const theme = computed(() => getProgramTheme(props.program))
 const heading = computed(() => props.title || props.shortName || theme.value.shortName)
 const showLogoImg = computed(() => props.showLogo && !!theme.value.catalogName)
-const subtitleText = computed(() => {
-  if (props.subtitle) return props.subtitle
-  if (props.title) return null
-  return 'FIRST LEGO League'
-})
+const subtitleText = computed(() => props.subtitle || null)
 
 const collapsed = ref(props.collapsible && props.defaultCollapsed)
 
@@ -91,12 +87,7 @@ function toggleCollapsed() {
                   class="program-section__title-suffix"
               >{{ headingSuffix }}</span>
             </h3>
-            <p v-if="subtitleText" class="program-section__subtitle">
-              <template v-if="!subtitle && !title">
-                <span class="italic">FIRST</span> LEGO League
-              </template>
-              <template v-else>{{ subtitleText }}</template>
-            </p>
+            <p v-if="subtitleText" class="program-section__subtitle">{{ subtitleText }}</p>
           </div>
         </div>
         <i
@@ -120,12 +111,7 @@ function toggleCollapsed() {
                   class="program-section__title-suffix"
               >{{ headingSuffix }}</span>
             </h3>
-            <p v-if="subtitleText" class="program-section__subtitle">
-              <template v-if="!subtitle && !title">
-                <span class="italic">FIRST</span> LEGO League
-              </template>
-              <template v-else>{{ subtitleText }}</template>
-            </p>
+            <p v-if="subtitleText" class="program-section__subtitle">{{ subtitleText }}</p>
           </div>
         </div>
         <div v-if="$slots.actions" class="program-section__actions">

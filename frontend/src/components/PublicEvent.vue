@@ -4,9 +4,10 @@ import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
 import {imageUrl} from '@/utils/images'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
-import {cleanEventName, getAbbreviatedCompetitionType, getEventTitleLong, getEventTitleShort} from '@/utils/eventTitle'
+import {getEventTitleLong} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import {usePublicEventSso} from '@/composables/usePublicEventSso'
 import EventMap from '@/components/molecules/EventMap.vue'
@@ -31,8 +32,7 @@ const teamFormStep = ref(null)
 const teamFormEmail = ref('')
 const {ssoToken, ssoEmail, awaitSso} = usePublicEventSso()
 
-const headingType = computed(() => getAbbreviatedCompetitionType(event.value) || 'Veranstaltung')
-const headingPlace = computed(() => cleanEventName(event.value) || '—')
+const headingTitle = computed(() => getEventTitleLong(event.value) || event.value?.name || 'Veranstaltung')
 const headingDate = computed(() => {
   if (!event.value?.date) return ''
   const start = dayjs(event.value.date)
@@ -45,7 +45,7 @@ const headingDate = computed(() => {
 })
 
 const heroTitle = computed(() => {
-  const parts = [headingType.value, headingPlace.value]
+  const parts = [headingTitle.value]
   if (headingDate.value) parts.push(headingDate.value)
   return parts.join(' · ')
 })
@@ -472,7 +472,7 @@ onMounted(async () => {
         <template v-if="showPlaceholderBox">
           <h2 class="glass-card__title">Zeitplan</h2>
           <p class="pe-muted">
-            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald einer veröffentlicht wird, erscheint er hier. Für weitere Informationen das Team direkt kontaktieren.
+            Der Zeitplan wurde noch nicht veröffentlicht. Sobald er veröffentlicht wird, erscheint er hier. Für weitere Informationen bitte direkt den Veranstalter kontaktieren.
           </p>
         </template>
 
@@ -501,7 +501,9 @@ onMounted(async () => {
                     size="md"
                     class="pe-lane__logo"
                 />
-                <h3 class="pe-lane__title">{{ lane.name }}</h3>
+                <h3 class="pe-lane__title">
+                  <ProgramOfficialName :html="lane.official_name || lane.name"/>
+                </h3>
               </header>
 
               <ol class="pe-lane-list">
@@ -521,7 +523,7 @@ onMounted(async () => {
           </div>
 
           <p v-else class="pe-muted">
-            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald einer veröffentlicht wird, erscheint er hier. Für weitere Informationen das Team direkt kontaktieren.
+            Der Zeitplan wurde noch nicht veröffentlicht. Sobald er veröffentlicht wird, erscheint er hier. Für weitere Informationen bitte direkt den Veranstalter kontaktieren.
           </p>
         </template>
 
@@ -579,7 +581,7 @@ onMounted(async () => {
               <EventMap
                   :address="scheduleInfo.address"
                   :event-id="event.id"
-                  :event-name="getEventTitleShort(event)"
+                  :event-name="getEventTitleLong(event)"
                   :show-q-r-code="true"
               />
             </div>
@@ -665,7 +667,9 @@ onMounted(async () => {
                   class="bi bi-star pe-lane__logo pe-helper-scope-icon"
                   aria-hidden="true"
               />
-              <h3 class="pe-lane__title">{{ scope.label }}</h3>
+              <h3 class="pe-lane__title">
+                <ProgramOfficialName :html="scope.label"/>
+              </h3>
             </header>
             <ol v-if="scope.roles?.length" class="pe-lane-list">
               <li
@@ -701,7 +705,9 @@ onMounted(async () => {
                   size="md"
                   class="pe-lane__logo"
               />
-              <h3 class="pe-lane__title">{{ scope.label }}</h3>
+              <h3 class="pe-lane__title">
+                <ProgramOfficialName :html="scope.label"/>
+              </h3>
             </header>
             <ol v-if="scope.roles?.length" class="pe-lane-list">
               <li
@@ -750,7 +756,9 @@ onMounted(async () => {
                   size="md"
                   class="pe-lane__logo"
               />
-              <h3 class="pe-lane__title">{{ lane.name }}</h3>
+              <h3 class="pe-lane__title">
+                <ProgramOfficialName :html="lane.official_name || lane.name"/>
+              </h3>
               <span
                   v-if="laneCapacity(lane)"
                   class="pe-lane__cap"

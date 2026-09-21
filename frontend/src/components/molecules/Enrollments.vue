@@ -3,6 +3,7 @@ import {onMounted, ref} from 'vue'
 import axios from 'axios'
 import {formatDateOnly} from '@/utils/dateTimeFormat'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
+import {programDisplayName} from '@/utils/eventPrograms'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {useGoToEventSchedule} from '@/composables/useGoToEventSchedule'
 
@@ -34,6 +35,10 @@ function enrolledLabel(row) {
 function overCapacity(row) {
   return !!row?.draht_id && row.capacity > 0 && row.enrolled > row.capacity
 }
+
+const exploreLabel = () => programDisplayName('EXPLORE')
+const challengeLabel = () => programDisplayName('CHALLENGE')
+const futureLabel = () => programDisplayName('FUTURE_8')
 
 async function load() {
   loading.value = true
@@ -95,7 +100,7 @@ onMounted(() => {
                 <img
                   :src="programLogoSrc('EXPLORE')"
                   :alt="programLogoAlt('EXPLORE')"
-                  title="Explore"
+                  :title="exploreLabel()"
                   class="inline-block h-6 w-6 object-contain"
                 />
               </th>
@@ -103,7 +108,7 @@ onMounted(() => {
                 <img
                   :src="programLogoSrc('CHALLENGE')"
                   :alt="programLogoAlt('CHALLENGE')"
-                  title="Challenge"
+                  :title="challengeLabel()"
                   class="inline-block h-6 w-6 object-contain"
                 />
               </th>
@@ -111,7 +116,7 @@ onMounted(() => {
                 <img
                   :src="programLogoSrc('FUTURE_8')"
                   :alt="programLogoAlt('FUTURE_8')"
-                  title="Future 8+"
+                  :title="futureLabel()"
                   class="inline-block h-6 w-6 object-contain"
                 />
               </th>
@@ -147,12 +152,12 @@ onMounted(() => {
 
       <div class="enrollments-stack">
         <div class="glass-card liquid-surface-inner overflow-auto">
-          <h3 class="glass-card__title">Challenge + Future 8+</h3>
+          <h3 class="glass-card__title">{{ challengeLabel() }} + {{ futureLabel() }}</h3>
           <p class="text-xs text-[var(--color-text-muted)] mb-3">
             Events mit beiden Programmen. Angemeldet / DRAHT-Kapazität.
           </p>
           <p v-if="dual.length === 0" class="text-sm text-[var(--color-text-subtle)]">
-            Keine Events mit Challenge und Future 8+.
+            Keine Events mit {{ challengeLabel() }} und {{ futureLabel() }}.
           </p>
           <table v-else class="table-auto w-full text-sm border-collapse glass-list">
             <thead>
@@ -163,7 +168,7 @@ onMounted(() => {
                   <img
                     :src="programLogoSrc('CHALLENGE')"
                     :alt="programLogoAlt('CHALLENGE')"
-                    title="Challenge"
+                    :title="challengeLabel()"
                     class="inline-block h-6 w-6 object-contain"
                   />
                 </th>
@@ -171,7 +176,7 @@ onMounted(() => {
                   <img
                     :src="programLogoSrc('FUTURE_8')"
                     :alt="programLogoAlt('FUTURE_8')"
-                    title="Future 8+"
+                    :title="futureLabel()"
                     class="inline-block h-6 w-6 object-contain"
                   />
                 </th>
@@ -213,12 +218,12 @@ onMounted(() => {
         </div>
 
         <div class="glass-card liquid-surface-inner overflow-auto">
-          <h3 class="glass-card__title">Future 8+ allein</h3>
+          <h3 class="glass-card__title">{{ futureLabel() }} allein</h3>
           <p class="text-xs text-[var(--color-text-muted)] mb-3">
-            Events mit Future 8+, ohne Challenge. Angemeldet / DRAHT-Kapazität.
+            Events mit {{ futureLabel() }}, ohne {{ challengeLabel() }}. Angemeldet / DRAHT-Kapazität.
           </p>
           <p v-if="futureStandalone.length === 0" class="text-sm text-[var(--color-text-subtle)]">
-            Keine eigenständigen Future 8+-Events.
+            Keine eigenständigen {{ futureLabel() }}-Events.
           </p>
           <table v-else class="table-auto w-full text-sm border-collapse glass-list">
             <thead>
@@ -229,7 +234,7 @@ onMounted(() => {
                   <img
                     :src="programLogoSrc('FUTURE_8')"
                     :alt="programLogoAlt('FUTURE_8')"
-                    title="Future 8+"
+                    :title="futureLabel()"
                     class="inline-block h-6 w-6 object-contain"
                   />
                 </th>

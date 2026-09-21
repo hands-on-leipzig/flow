@@ -35,6 +35,8 @@ class ImportantTimesServiceTest extends TestCase
 
         $this->assertCount(1, $payload['lanes']);
         $this->assertCount(1, $payload['lanes'][0]['times']);
+        $this->assertSame('Challenge', $payload['lanes'][0]['name']);
+        $this->assertSame('<i>FIRST</i> LEGO League Challenge', $payload['lanes'][0]['official_name']);
         $this->assertSame('Challenge opening', $payload['lanes'][0]['times'][0]['label']);
     }
 
@@ -141,6 +143,7 @@ class ImportantTimesServiceTest extends TestCase
             $table->id();
             $table->string('name');
             $table->string('display_name')->nullable();
+            $table->string('official_name')->nullable();
             $table->integer('sequence');
             $table->string('color_hex')->nullable();
         });
@@ -178,8 +181,8 @@ class ImportantTimesServiceTest extends TestCase
         });
 
         DB::table('m_first_program')->insert([
-            ['id' => FirstProgram::EXPLORE->value, 'name' => 'EXPLORE', 'display_name' => 'Explore', 'sequence' => 1, 'color_hex' => '00A651'],
-            ['id' => FirstProgram::CHALLENGE->value, 'name' => 'CHALLENGE', 'display_name' => 'Challenge', 'sequence' => 2, 'color_hex' => 'ED1C24'],
+            ['id' => FirstProgram::EXPLORE->value, 'name' => 'EXPLORE', 'display_name' => 'Explore', 'official_name' => '<i>FIRST</i> LEGO League Explore', 'sequence' => 1, 'color_hex' => '00A651'],
+            ['id' => FirstProgram::CHALLENGE->value, 'name' => 'CHALLENGE', 'display_name' => 'Challenge', 'official_name' => '<i>FIRST</i> LEGO League Challenge', 'sequence' => 2, 'color_hex' => 'ED1C24'],
         ]);
 
         DB::table('m_activity_type_detail')->insert([

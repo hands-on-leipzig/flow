@@ -9,7 +9,7 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
 import {seasonLogoAlt, seasonLogoSrc} from '@/utils/images'
-import {getAbbreviatedCompetitionType, cleanEventName} from '@/utils/eventTitle'
+import {getEventTitleShort} from '@/utils/eventTitle'
 import {eventPrograms} from '@/utils/eventPrograms'
 
 const props = defineProps<{
@@ -29,7 +29,6 @@ type SelectableEvent = {
   id: number
   name: string
   title_short?: string
-  title_type_short?: string
   title_place?: string
   date: string
   programs?: Array<{ first_program?: number; name?: string | null }>
@@ -73,9 +72,8 @@ const visibleEvents = computed(() => {
     const name = (ev.title_short || ev.name || '').toLowerCase()
     const rp = (ev.regional_partner_name || '').toLowerCase()
     const date = dayjs(ev.date).format('DD.MM.YY').toLowerCase()
-    const type = getAbbreviatedCompetitionType(ev).toLowerCase()
     const place = (ev.title_place || '').toLowerCase()
-    return name.includes(q) || rp.includes(q) || date.includes(q) || type.includes(q) || place.includes(q)
+    return name.includes(q) || rp.includes(q) || date.includes(q) || place.includes(q)
   })
 })
 
@@ -159,12 +157,8 @@ async function selectEvent(ev: SelectableEvent) {
   }
 }
 
-function eventTypeLabel(ev: SelectableEvent) {
-  return getAbbreviatedCompetitionType(ev) || '—'
-}
-
-function eventPlace(ev: SelectableEvent) {
-  return cleanEventName(ev) || '—'
+function eventTitle(ev: SelectableEvent) {
+  return getEventTitleShort(ev) || ev.name || '—'
 }
 
 function isSelected(ev: SelectableEvent) {
@@ -329,9 +323,7 @@ onBeforeUnmount(() => {
             >
               <div class="event-modal__item-main min-w-0">
                 <div class="event-modal__item-title">
-                  <span class="event-modal__type">{{ eventTypeLabel(ev) }}</span>
-                  <span class="event-modal__dot" aria-hidden="true">·</span>
-                  <span class="truncate">{{ eventPlace(ev) }}</span>
+                  <span class="truncate">{{ eventTitle(ev) }}</span>
                 </div>
                 <div class="event-modal__item-meta">
                   <span class="inline-flex items-center gap-1">
@@ -636,16 +628,6 @@ onBeforeUnmount(() => {
   font-weight: 750;
   letter-spacing: -0.02em;
   color: var(--color-text);
-}
-
-.event-modal__type {
-  color: var(--color-accent);
-  flex-shrink: 0;
-}
-
-.event-modal__dot {
-  color: var(--color-text-subtle);
-  flex-shrink: 0;
 }
 
 .event-modal__item-meta {

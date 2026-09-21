@@ -392,7 +392,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
                                         v-for="program in catalogPrograms"
                                         :key="program.id"
                                         :value="program.id"
-                                    >FIRST LEGO League {{ programDisplayName(program) }}</option>
+                                    >{{ programDisplayName(program) }}</option>
                                 </select>
                                 </div>
 

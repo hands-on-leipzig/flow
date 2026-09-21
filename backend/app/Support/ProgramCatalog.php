@@ -241,6 +241,30 @@ class ProgramCatalog
         return (string) ($program?->name ?? $name ?? '');
     }
 
+    public static function officialNameHtml(int|string|null $name, string $fallback = ''): string
+    {
+        $program = self::resolve($name);
+        $official = $program?->official_name;
+        if (is_string($official) && $official !== '') {
+            return $official;
+        }
+
+        return self::displayName($name, $fallback);
+    }
+
+    public static function officialNamePlain(int|string|null $name, string $fallback = ''): string
+    {
+        return self::plainFromOfficialHtml(self::officialNameHtml($name, $fallback));
+    }
+
+    public static function plainFromOfficialHtml(string $html): string
+    {
+        $plain = html_entity_decode(strip_tags($html), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $plain = preg_replace('/\s+/u', ' ', $plain) ?? $plain;
+
+        return trim($plain);
+    }
+
     /** Catalog color without #, e.g. ED1C24. */
     public static function colorHex(?string $name, string $fallback = '888888'): string
     {

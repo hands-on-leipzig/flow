@@ -87,7 +87,7 @@ class PublicVolunteerInquiryTest extends TestCase
         $this->assertNull($listed->getData(true)['inquiries'][0]['draht_id']);
         Mail::assertSent(VolunteerInquiryPlannerMail::class, function (VolunteerInquiryPlannerMail $mail) {
             return $mail->hasTo('rp@example.org')
-                && $mail->eventName === 'Leipzig'
+                && $mail->eventName === 'Challenge Event Leipzig'
                 && $mail->personName === 'Ada Lovelace'
                 && $mail->role === 'Schiedsrichter';
         });
@@ -140,7 +140,7 @@ class PublicVolunteerInquiryTest extends TestCase
         $this->assertSame([], $controller->index($event)->getData(true)['inquiries']);
         Mail::assertSent(VolunteerInquiryAcceptedMail::class, function (VolunteerInquiryAcceptedMail $mail) {
             return $mail->hasTo('ada@example.org')
-                && $mail->eventName === 'Leipzig'
+                && $mail->eventName === 'Challenge Event Leipzig'
                 && $mail->personName === 'Ada Lovelace';
         });
     }
@@ -178,7 +178,7 @@ class PublicVolunteerInquiryTest extends TestCase
         ]);
         $this->assertSame([], $controller->index($event)->getData(true)['inquiries']);
         Mail::assertSent(VolunteerInquiryDeclinedMail::class, function (VolunteerInquiryDeclinedMail $mail) {
-            return $mail->hasTo('ada@example.org') && $mail->eventName === 'Leipzig';
+            return $mail->hasTo('ada@example.org') && $mail->eventName === 'Challenge Event Leipzig';
         });
     }
 

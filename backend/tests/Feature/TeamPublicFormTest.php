@@ -228,7 +228,7 @@ class TeamPublicFormTest extends TestCase
         Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
             return $mail->hasTo('tester@example.com')
                 && $mail->intendedEmail === 'coach@example.com'
-                && $mail->eventName === 'Test';
+                && $mail->eventName === 'Explore Event Test';
         });
         Mail::assertNotSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
             return $mail->hasTo('coach@example.com');
@@ -278,7 +278,7 @@ class TeamPublicFormTest extends TestCase
         Mail::assertSent(PublicOtpMail::class, function (PublicOtpMail $mail) {
             return $mail->hasTo('coach@example.com')
                 && $mail->intendedEmail === null
-                && $mail->eventName === 'Test';
+                && $mail->eventName === 'Explore Event Test';
         });
     }
 

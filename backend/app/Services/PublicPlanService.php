@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Support\EventDayClock;
 use App\Support\PlanParameter;
+use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
 use App\Support\RoleDifferentiation;
 use App\Support\RoleScheduleSlice;
@@ -151,8 +152,6 @@ class PublicPlanService
      * @return array{
      *     title_long: string,
      *     title_short: string,
-     *     title_type: string,
-     *     title_type_short: string,
      *     title_place: string
      * }
      */
@@ -178,6 +177,12 @@ class PublicPlanService
     {
         $firstProgram = $role->first_program !== null ? (int) $role->first_program : null;
         $displayName = trim((string) ($role->first_program_display_name ?? ''));
+        $officialName = $firstProgram === null
+            ? null
+            : ProgramCatalog::officialNameHtml(
+                $firstProgram,
+                $displayName !== '' ? $displayName : (string) ($role->first_program_name ?? '')
+            );
 
         return [
             'id' => (int) $role->id,
@@ -191,6 +196,7 @@ class PublicPlanService
             'first_program_display_name' => $firstProgram === null
                 ? null
                 : ($displayName !== '' ? $displayName : ($role->first_program_name ?: null)),
+            'first_program_official_name' => $firstProgram === null ? null : ($officialName !== '' ? $officialName : null),
             'color_hex' => $role->color_hex ?: '888888',
             'logo_stem' => $role->logo_stem,
             'logo_white' => $role->logo_white ?: 'FLL_column_heading.png',
@@ -520,7 +526,7 @@ class PublicPlanService
     }
 
     /**
-     * @return list<array{id:int,display_name:string,sequence:int,logo_stem:?string,logo_white:?string,color_hex:string}>
+     * @return list<array{id:int,display_name:string,official_name:string,sequence:int,logo_stem:?string,logo_white:?string,color_hex:string}>
      */
     private function eventPrograms(int $eventId): array
     {
@@ -542,9 +548,11 @@ class PublicPlanService
         $programs = [];
         foreach ($rows as $row) {
             $display = trim((string) ($row->display_name ?? ''));
+            $display = $display !== '' ? $display : (string) $row->name;
             $programs[] = [
                 'id' => (int) $row->id,
-                'display_name' => $display !== '' ? $display : (string) $row->name,
+                'display_name' => $display,
+                'official_name' => ProgramCatalog::officialNameHtml((int) $row->id, $display),
                 'sequence' => (int) $row->sequence,
                 'logo_stem' => $row->logo_stem,
                 'logo_white' => $row->logo_white,

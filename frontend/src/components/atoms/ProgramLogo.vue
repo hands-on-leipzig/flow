@@ -56,7 +56,7 @@ const src = computed(() => {
 const alt = computed(() => {
   if (props.decorative) return ''
   const ref = resolved.value ?? props.program
-  if (ref == null || ref === '') return 'FIRST LEGO League Logo'
+  if (ref == null || ref === '') return 'Logo'
   return programLogoAlt(ref)
 })
 </script>

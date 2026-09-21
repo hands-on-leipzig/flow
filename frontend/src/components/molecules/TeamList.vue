@@ -6,8 +6,7 @@ import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import SavingToast from '@/components/atoms/SavingToast.vue'
 import TeamsSyncTables from '@/components/teams/TeamsSyncTables.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
-import {drahtIdFor, programMatchesSlug} from '@/utils/eventPrograms'
-import {getProgramTheme} from '@/utils/programTheme'
+import {drahtIdFor, programDisplayName, programMatchesSlug} from '@/utils/eventPrograms'
 import {visibleDrahtTeams} from '@/utils/teamSync'
 import {
   applyJuryLanesForPlanSlots,
@@ -24,8 +23,7 @@ const isExplore = computed(() => programMatchesSlug(props.program, 'explore'))
 const isChallenge = computed(() => programMatchesSlug(props.program, 'challenge'))
 const isFuture8 = computed(() => programMatchesSlug(props.program, 'future_8'))
 
-const programTheme = computed(() => getProgramTheme(props.program))
-const programLabel = computed(() => programTheme.value.shortName)
+const programLabel = computed(() => programDisplayName(props.program))
 
 const eventStore = useEventStore()
 const event = computed(() => eventStore.selectedEvent)
@@ -274,7 +272,7 @@ onMounted(async () => {
         <ProgramLogo :program="program" size="xl"/>
         <div class="team-list__meta-text">
           <h2 class="team-list__title text-lg font-semibold">
-            <span class="italic">FIRST</span> LEGO League {{ programLabel }}
+            {{ programLabel }}
           </h2>
           <p class="team-list__stats text-sm text-[var(--color-text-subtle)]">
             <span :class="planCapacity !== enrolledCount ? 'bg-amber-50 px-1.5 py-0.5 rounded-md text-amber-950 font-medium' : ''">

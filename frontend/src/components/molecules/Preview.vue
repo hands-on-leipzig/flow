@@ -11,6 +11,7 @@ import { useAdminInlineVisibility } from '@/composables/useAdminInlineVisibility
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getProgramTheme } from '@/utils/programTheme'
+import { programDisplayName } from '@/utils/eventPrograms'
 import { defaultTableFieldLabel, tableFieldPlural } from '@/utils/tableFieldLabels'
 import { formatPlanTeamNo, isMissingPlanTeamName } from '@/utils/planTeamLabel'
 
@@ -359,7 +360,7 @@ function formatTeam(teamNum: number | null): string {
 }
 
 function matchPlanProgramLabel(programId: number): string {
-  return `FIRST LEGO League ${themeForProgram(programId).shortName}`
+  return programDisplayName(programId)
 }
 
 function selectMatchPlanProgram(programId: number) {

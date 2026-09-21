@@ -128,7 +128,7 @@ final class RoomSheetTcpdfRenderer
     {
         $y = $pdf->GetY();
         $h = 8.0;
-        $pdf->SetFont($pdf->boldFont, '', 9);
+        $pdf->SetFont($pdf->regularFont, '', 9);
         foreach ($columns as $c => $column) {
             $x = EventPrintPdf::MARGIN + ($c * $colW);
             $textX = $x;
@@ -139,7 +139,8 @@ final class RoomSheetTcpdfRenderer
                 $textX = $x + 8.5;
             }
             $pdf->SetXY($textX, $y);
-            $pdf->MultiCell(max(4.0, $x + $colW - $textX), $h, (string) ($column['display_name'] ?? ''), 0, 'L', false, 0);
+            $html = (string) ($column['official_name'] ?? $column['display_name'] ?? '');
+            $pdf->writeHTMLCell(max(4.0, $x + $colW - $textX), $h, $textX, $y, $html, 0, 0, false, true, 'L', true);
         }
         $pdf->SetY($y + $h);
     }

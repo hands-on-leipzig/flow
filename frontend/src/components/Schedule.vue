@@ -15,7 +15,7 @@ import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import { formatDateTime } from '@/utils/dateTimeFormat'
 import { seasonLogoAlt, seasonLogoSrc } from '@/utils/images'
-import { cleanEventName, getAbbreviatedCompetitionType } from '@/utils/eventTitle'
+import { getEventTitleShort } from '@/utils/eventTitle'
 
 defineOptions({ name: 'Schedule' })
 
@@ -88,8 +88,7 @@ const seasonName = computed(() =>
   || (selectedEvent.value as any)?.seasonRel?.name
   || null
 )
-const headingType = computed(() => getAbbreviatedCompetitionType(selectedEvent.value) || 'Veranstaltung')
-const headingPlace = computed(() => cleanEventName(selectedEvent.value) || '—')
+const headingTitle = computed(() => getEventTitleShort(selectedEvent.value) || 'Veranstaltung')
 const headingDate = computed(() => {
   if (!selectedEvent.value?.date) return ''
   const start = dayjs(selectedEvent.value.date)
@@ -275,9 +274,7 @@ watch(
                             class="h-8 w-auto shrink-0 object-contain"
                         />
                         <h2 class="min-w-0 text-base sm:text-lg font-bold text-[var(--color-text)] truncate">
-                          <span>{{ headingType }}</span>
-                          <span class="text-[var(--color-text-muted)] font-semibold mx-1.5">·</span>
-                          <span>{{ headingPlace }}</span>
+                          <span>{{ headingTitle }}</span>
                           <template v-if="headingDate">
                             <span class="text-[var(--color-text-muted)] font-semibold mx-1.5">·</span>
                             <span class="tabular-nums font-semibold">{{ headingDate }}</span>

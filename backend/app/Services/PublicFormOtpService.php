@@ -28,6 +28,10 @@ class PublicFormOtpService
 
     public const TOKEN_HEADER = 'X-Public-Form-Token';
 
+    public function __construct(
+        private EventTitleService $eventTitles,
+    ) {}
+
     public function eventForSlug(string $slug): Event
     {
         $event = Event::query()
@@ -235,7 +239,7 @@ class PublicFormOtpService
 
     private function eventName(Event $event): string
     {
-        $name = trim((string) $event->name);
+        $name = trim($this->eventTitles->getEventTitleLong($event));
 
         return $name !== '' ? $name : 'Veranstaltung';
     }

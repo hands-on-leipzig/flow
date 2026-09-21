@@ -76,8 +76,8 @@ const firstMatch = computed<'challenge' | 'future8'>({
 
 const eventStore = useEventStore()
 
-const challengeLabel = computed(() => programDisplayName('CHALLENGE') || 'Challenge')
-const futureLabel = computed(() => programDisplayName('FUTURE_8') || 'Future 8+')
+const challengeLabel = computed(() => programDisplayName('CHALLENGE'))
+const futureLabel = computed(() => programDisplayName('FUTURE_8'))
 const challengeProgram = computed(() => resolveProgramRef(eventStore.selectedEvent, 'CHALLENGE'))
 const futureProgram = computed(() => resolveProgramRef(eventStore.selectedEvent, 'FUTURE_8'))
 

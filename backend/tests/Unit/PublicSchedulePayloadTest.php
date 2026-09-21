@@ -72,6 +72,7 @@ class PublicSchedulePayloadTest extends TestCase
             [
                 'program_id' => 1,
                 'name' => 'Explore',
+                'official_name' => 'Explore',
                 'sequence' => 1,
                 'color_hex' => '00A651',
                 'capacity' => 8,
@@ -82,6 +83,7 @@ class PublicSchedulePayloadTest extends TestCase
             [
                 'program_id' => 2,
                 'name' => 'Challenge',
+                'official_name' => 'Challenge',
                 'sequence' => 2,
                 'color_hex' => 'ED1C24',
                 'capacity' => 0,

@@ -37,7 +37,7 @@ class EventController extends Controller
         $events = Event::where('season', SeasonService::currentSeasonId());
         $response = [];
         foreach ($events->get() as $event) {
-            $response[$event->slug] = sprintf('%s (%s)', $this->eventTitles->getEventTitleShort($event), $event->date);
+            $response[$event->slug] = sprintf('%s (%s)', $this->eventTitles->getEventTitleLong($event), $event->date);
         }
         return response()->json($response);
     }
@@ -253,6 +253,7 @@ class EventController extends Controller
                 'id' => $program->id,
                 'name' => $program->name,
                 'display_name' => $program->display_name,
+                'official_name' => $program->official_name,
                 'letter' => $program->letter,
                 'sequence' => $program->sequence,
                 'color_hex' => $program->color_hex,

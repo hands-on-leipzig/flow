@@ -35,6 +35,7 @@ class RoomSheetAssemblerTest extends TestCase
             $table->unsignedInteger('id')->primary();
             $table->string('name');
             $table->string('display_name')->nullable();
+            $table->string('official_name')->nullable();
             $table->unsignedInteger('sequence')->nullable();
             $table->string('logo_stem')->nullable();
         });
@@ -101,7 +102,27 @@ class RoomSheetAssemblerTest extends TestCase
         $this->assertSame('F78B1F', $document['sections'][0]['color_hex']);
         $this->assertSame([], $document['sections'][0]['activities']);
         $this->assertCount(1, $document['sections'][0]['team_columns']);
+        $this->assertSame('Challenge', $document['sections'][0]['team_columns'][0]['display_name']);
+        $this->assertSame('Challenge', $document['sections'][0]['team_columns'][0]['official_name']);
         $this->assertSame('Alpha (0001)', $document['sections'][0]['team_columns'][0]['teams'][0]['label']);
+    }
+
+    public function test_team_columns_pass_catalog_official_name_html(): void
+    {
+        $this->seedEvent();
+        $this->attachProgram(3, 'CHALLENGE', 'Challenge', 2, '<i>FIRST</i> LEGO League Challenge');
+        $this->insertRoom(10, 'Aula', 1);
+        $this->insertTeam(1, 3, 'Alpha', 1, 10, 1);
+
+        $fetcher = Mockery::mock(ActivityFetcherService::class);
+        $fetcher->shouldReceive('fetchActivities')->once()->andReturn(collect());
+
+        $document = (new RoomSheetAssembler($fetcher, new EventTitleService))->assemble(1);
+
+        $this->assertSame(
+            '<i>FIRST</i> LEGO League Challenge',
+            $document['sections'][0]['team_columns'][0]['official_name']
+        );
     }
 
     public function test_activity_only_room_omits_team_columns(): void
@@ -262,12 +283,13 @@ class RoomSheetAssemblerTest extends TestCase
         DB::table('plan')->insert(['id' => 1, 'event' => 1]);
     }
 
-    private function attachProgram(int $id, string $name, string $display, int $sequence): void
+    private function attachProgram(int $id, string $name, string $display, int $sequence, ?string $official = null): void
     {
         DB::table('m_first_program')->insert([
             'id' => $id,
             'name' => $name,
             'display_name' => $display,
+            'official_name' => $official,
             'sequence' => $sequence,
             'logo_stem' => 'fll_'.strtolower($display),
         ]);
