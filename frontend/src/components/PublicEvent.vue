@@ -473,7 +473,7 @@ onMounted(async () => {
         <template v-if="showPlaceholderBox">
           <h2 class="glass-card__title">Zeitplan</h2>
           <p class="pe-muted">
-            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald einer veröffentlicht wird, erscheint er hier. Für weitere Informationen das Team direkt kontaktieren.
+            Der Zeitplan wurde noch nicht veröffentlicht. Sobald er veröffentlicht wird, erscheint er hier. Für weitere Informationen bitte direkt den Veranstalter kontaktieren.
           </p>
         </template>
 
@@ -524,7 +524,7 @@ onMounted(async () => {
           </div>
 
           <p v-else class="pe-muted">
-            Das Veranstaltungsteam hat noch keinen Zeitplan veröffentlicht. Sobald einer veröffentlicht wird, erscheint er hier. Für weitere Informationen das Team direkt kontaktieren.
+            Der Zeitplan wurde noch nicht veröffentlicht. Sobald er veröffentlicht wird, erscheint er hier. Für weitere Informationen bitte direkt den Veranstalter kontaktieren.
           </p>
         </template>
 
