@@ -141,6 +141,37 @@ class AdminCockpitApiTest extends TestCase
         }
     }
 
+    public function test_xlsx_helferliste_empty_and_filled_and_with_programs(): void
+    {
+        $empty = $this->get('/api/admin/cockpit.xlsx?season=1&upcoming=0&programs=2,3,8&helferliste=empty');
+        $empty->assertOk();
+        $emptyTmp = tempnam(sys_get_temp_dir(), 'cockpit-xlsx-');
+        $this->assertNotFalse($emptyTmp);
+        file_put_contents($emptyTmp, $empty->getContent());
+
+        try {
+            $sheet = IOFactory::load($emptyTmp)->getSheet(0);
+            $this->assertStringContainsString('Hamburg', (string) $sheet->getCell('C2')->getValue());
+            $this->assertSame('', (string) $sheet->getCell('C3')->getValue());
+        } finally {
+            @unlink($emptyTmp);
+        }
+
+        $filled = $this->get('/api/admin/cockpit.xlsx?season=1&upcoming=0&programs=2,3,8&helferliste=filled');
+        $filled->assertOk();
+        $filledTmp = tempnam(sys_get_temp_dir(), 'cockpit-xlsx-');
+        $this->assertNotFalse($filledTmp);
+        file_put_contents($filledTmp, $filled->getContent());
+
+        try {
+            $sheet = IOFactory::load($filledTmp)->getSheet(0);
+            $this->assertStringContainsString('München', (string) $sheet->getCell('C2')->getValue());
+            $this->assertSame('', (string) $sheet->getCell('C3')->getValue());
+        } finally {
+            @unlink($filledTmp);
+        }
+    }
+
     public function test_xlsx_empty_programs_returns_no_event_rows(): void
     {
         $response = $this->get('/api/admin/cockpit.xlsx?season=1&upcoming=0');

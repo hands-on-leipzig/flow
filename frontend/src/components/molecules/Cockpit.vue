@@ -6,6 +6,8 @@ import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffing
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import StatisticsExpertParametersModal from '@/components/molecules/statistics/StatisticsExpertParametersModal.vue'
 import StatisticsExtraBlocksModal from '@/components/molecules/statistics/StatisticsExtraBlocksModal.vue'
+import StatisticsGeneratorChartModal from '@/components/molecules/statistics/StatisticsGeneratorChartModal.vue'
+import StatisticsAccessChartModal from '@/components/molecules/statistics/StatisticsAccessChartModal.vue'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {useEventStore} from '@/stores/event'
 import {useProgramsStore} from '@/stores/programs'
@@ -43,9 +45,15 @@ type CockpitEvent = {
 }
 
 type SortKey = 'rp' | 'date' | 'generator' | 'publish'
-type ModalMode = 'params' | 'blocks' | null
+type ModalMode = 'params' | 'blocks' | 'timeline' | 'access' | null
+type HelferFilter = 'empty' | 'filled' | 'both'
 
 const CHIP_NAMES = ['EXPLORE', 'CHALLENGE', 'FUTURE_8'] as const
+const HELFER_FILTERS: {id: HelferFilter; label: string}[] = [
+  {id: 'empty', label: 'Liste leer'},
+  {id: 'filled', label: 'Liste nicht leer'},
+  {id: 'both', label: 'Beides'},
+]
 
 const seasons = ref<Season[]>([])
 const selectedSeasonId = ref<number | null>(null)
@@ -53,12 +61,14 @@ const events = ref<CockpitEvent[]>([])
 const loading = ref(true)
 const upcomingOnly = ref(true)
 const withoutPlanOnly = ref(false)
+const helferFilter = ref<HelferFilter>('both')
 const activeProgramFilters = ref<Set<number>>(new Set())
 const programFiltersSeeded = ref(false)
 const sortKey = ref<SortKey>('date')
 const sortDir = ref<'asc' | 'desc'>('asc')
 const modalMode = ref<ModalMode>(null)
 const modalPlanId = ref<number | null>(null)
+const modalEventId = ref<number | null>(null)
 const exportBusy = ref(false)
 
 const router = useRouter()
@@ -102,6 +112,11 @@ const filteredRows = computed(() => {
   }
   if (withoutPlanOnly.value) {
     rows = rows.filter((row) => !generatorRan(row))
+  }
+  if (helferFilter.value === 'empty') {
+    rows = rows.filter((row) => row.helferliste_count === 0)
+  } else if (helferFilter.value === 'filled') {
+    rows = rows.filter((row) => row.helferliste_count > 0)
   }
   rows = rows.filter((row) => row.programs.some((id) => activeProgramFilters.value.has(id)))
   const dir = sortDir.value === 'desc' ? -1 : 1
@@ -181,18 +196,33 @@ function hasBlockDrill(row: CockpitEvent): boolean {
 }
 
 function openParams(planId: number) {
+  modalEventId.value = null
   modalPlanId.value = planId
   modalMode.value = 'params'
 }
 
 function openBlocks(planId: number) {
+  modalEventId.value = null
   modalPlanId.value = planId
   modalMode.value = 'blocks'
+}
+
+function openTimeline(planId: number) {
+  modalEventId.value = null
+  modalPlanId.value = planId
+  modalMode.value = 'timeline'
+}
+
+function openAccess(eventId: number) {
+  modalPlanId.value = null
+  modalEventId.value = eventId
+  modalMode.value = 'access'
 }
 
 function closeModal() {
   modalMode.value = null
   modalPlanId.value = null
+  modalEventId.value = null
 }
 
 async function selectEvent(row: CockpitEvent) {
@@ -215,6 +245,7 @@ async function downloadExcel() {
         season: selectedSeasonId.value,
         upcoming: upcomingOnly.value ? '1' : '0',
         without_plan: withoutPlanOnly.value ? '1' : '0',
+        helferliste: helferFilter.value,
         programs,
         sort: sortKey.value,
         dir: sortDir.value,
@@ -364,6 +395,26 @@ onMounted(async () => {
         >
           <span class="vol-staffing-filter__label">Noch ohne Plan</span>
         </button>
+        <span class="vol-staffing-filters__sep" aria-hidden="true"/>
+        <div
+            class="inline-flex flex-wrap gap-2 items-center"
+            role="radiogroup"
+            aria-label="Helfer:innen"
+        >
+          <i class="bi bi-person-heart vol-staffing-filter__icon" aria-hidden="true"/>
+          <button
+              v-for="option in HELFER_FILTERS"
+              :key="option.id"
+              type="button"
+              role="radio"
+              class="vol-staffing-filter"
+              :class="{'vol-staffing-filter--active': helferFilter === option.id}"
+              :aria-checked="helferFilter === option.id"
+              @click="helferFilter = option.id"
+          >
+            <span class="vol-staffing-filter__label">{{ option.label }}</span>
+          </button>
+        </div>
       </template>
     </VolunteerStaffingFilterBar>
 
@@ -480,7 +531,16 @@ onMounted(async () => {
                 <span class="cockpit-dot" :class="liveDotClass(row, row.dots.staffing)"/>
               </td>
               <td class="px-3 py-2">
-                {{ row.generator_last_end ? formatDateTime(row.generator_last_end) : '' }}
+                <span v-if="row.generator_last_end">{{ formatDateTime(row.generator_last_end) }}</span>
+                <button
+                    v-if="row.plan_id && generatorRan(row)"
+                    type="button"
+                    class="ml-1 text-[var(--color-accent)]"
+                    title="Generierungen anzeigen"
+                    @click="openTimeline(row.plan_id)"
+                >
+                  <i class="bi bi-graph-up" aria-hidden="true"/>
+                </button>
               </td>
               <td class="px-3 py-2">
                 <span v-if="row.param_changes">{{ paramLabel(row) }}</span>
@@ -516,6 +576,15 @@ onMounted(async () => {
                       :class="n <= row.publication_level ? 'bg-blue-600' : 'bg-gray-300'"
                   />
                 </span>
+                <button
+                    v-if="row.publication_level != null"
+                    type="button"
+                    class="ml-1 text-[var(--color-accent)]"
+                    title="Zugriffe anzeigen"
+                    @click="openAccess(row.event_id)"
+                >
+                  <i class="bi bi-graph-up" aria-hidden="true"/>
+                </button>
               </td>
             </tr>
           </tbody>
@@ -526,17 +595,27 @@ onMounted(async () => {
 
   <teleport to="body">
     <div
-        v-if="modalMode && modalPlanId"
+        v-if="modalMode && (modalPlanId || modalEventId)"
         class="glass-scrim fixed inset-0 flex items-center justify-center z-50"
     >
       <StatisticsExpertParametersModal
-          v-if="modalMode === 'params'"
+          v-if="modalMode === 'params' && modalPlanId"
           :plan-id="modalPlanId"
           @close="closeModal"
       />
       <StatisticsExtraBlocksModal
-          v-if="modalMode === 'blocks'"
+          v-if="modalMode === 'blocks' && modalPlanId"
           :plan-id="modalPlanId"
+          @close="closeModal"
+      />
+      <StatisticsGeneratorChartModal
+          v-if="modalMode === 'timeline' && modalPlanId"
+          :plan-id="modalPlanId"
+          @close="closeModal"
+      />
+      <StatisticsAccessChartModal
+          v-if="modalMode === 'access' && modalEventId"
+          :event-id="modalEventId"
           @close="closeModal"
       />
     </div>

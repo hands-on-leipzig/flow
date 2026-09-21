@@ -209,6 +209,32 @@ class AdminCockpitService
      * @param  list<array<string, mixed>>  $events
      * @return list<array<string, mixed>>
      */
+    public function filterHelferliste(array $events, string $mode): array
+    {
+        $mode = match ($mode) {
+            'empty', 'filled' => $mode,
+            default => 'both',
+        };
+        if ($mode === 'both') {
+            return $events;
+        }
+
+        $wantEmpty = $mode === 'empty';
+
+        return array_values(array_filter(
+            $events,
+            static function (array $row) use ($wantEmpty): bool {
+                $empty = (int) ($row['helferliste_count'] ?? 0) === 0;
+
+                return $wantEmpty ? $empty : ! $empty;
+            },
+        ));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $events
+     * @return list<array<string, mixed>>
+     */
     public function sortEvents(array $events, string $sort, string $dir): array
     {
         $dir = strtolower($dir) === 'desc' ? -1 : 1;

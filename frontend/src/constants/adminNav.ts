@@ -71,8 +71,8 @@ export function isEntwicklungEnvironment(isLocal: boolean): boolean {
  */
 export const ADMIN_SECTIONS: AdminSection[] = [
   // Ops
-  {key: 'system-news', label: 'System News', icon: 'bi-newspaper', group: 'ops'},
   {key: 'cockpit', label: 'Cockpit', icon: 'bi-speedometer2', group: 'ops'},
+  {key: 'system-news', label: 'System News', icon: 'bi-newspaper', group: 'ops'},
   {key: 'statistics', label: 'Statistiken', icon: 'bi-bar-chart', group: 'ops'},
   {key: 'plan-qualitaet', label: 'Plan Qualität', icon: 'bi-clipboard-check', group: 'ops'},
   {key: 'enrollments', label: 'Anmeldungen', icon: 'bi-person-plus', group: 'ops'},
@@ -145,15 +145,14 @@ export const ADMIN_ENTWICKLUNG_SECTIONS = ADMIN_SECTIONS.filter((s) => s.group =
  * Ops sidebar order. Folders nest existing sections; leftover items stay top-level.
  */
 export const ADMIN_OPS_NAV: AdminNavNode[] = [
-  {kind: 'section', key: 'system-news'},
-  {kind: 'section', key: 'cockpit'},
   {
     kind: 'folder',
-    key: 'zahlen',
-    label: 'Zahlen',
-    icon: 'bi-123',
-    children: ['statistics', 'plan-qualitaet', 'enrollments'],
+    key: 'cockpit-folder',
+    label: 'Cockpit',
+    icon: 'bi-speedometer2',
+    children: ['cockpit', 'statistics', 'plan-qualitaet', 'enrollments'],
   },
+  {kind: 'section', key: 'system-news'},
   {kind: 'section', key: 'calendar'},
   {kind: 'section', key: 'slugs'},
   {
