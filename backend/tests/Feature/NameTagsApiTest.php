@@ -60,7 +60,7 @@ class NameTagsApiTest extends TestCase
             ]);
     }
 
-    public function test_filename_is_flow_namensschilder(): void
+    public function test_filename_for_teams_is_coaches_und_teammitglieder(): void
     {
         $this->seedChallengeTeam(planNumber: 1, noshow: 0);
         $this->mockDraht(665, [
@@ -79,7 +79,30 @@ class NameTagsApiTest extends TestCase
         $response->assertOk();
         $filename = $response->headers->get('X-Filename');
         $this->assertNotNull($filename);
-        $this->assertStringStartsWith('FLOW_Namensschilder_', $filename);
+        $this->assertStringStartsWith('FLOW_Coaches_und_Teammitglieder_', $filename);
+        $this->assertStringEndsWith('.pdf', $filename);
+    }
+
+    public function test_filename_for_helpers_is_helferinnen(): void
+    {
+        $this->seedHelperPerson(11, 'Kim', 'Cross');
+        $this->seedCatalogRole(14, 'Publikum', null);
+        $this->seedStaffingRole(3, 14, 'Publikum', 1);
+        DB::table('event_staffing_assignment')->insert([
+            'event_staffing_role' => 3,
+            'event_staffing_group' => null,
+            'volunteer_person' => 11,
+            'created_at' => now(),
+        ]);
+
+        $response = $this->postJson('/api/export/name-tags/1', [
+            'filters' => ['cross' => ['helpers' => true]],
+        ]);
+
+        $response->assertOk();
+        $filename = $response->headers->get('X-Filename');
+        $this->assertNotNull($filename);
+        $this->assertStringStartsWith('FLOW_Helferinnen_', $filename);
         $this->assertStringEndsWith('.pdf', $filename);
     }
 

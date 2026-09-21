@@ -13,6 +13,7 @@ import type {StaffingRole} from '@/volunteers/staffingTypes'
 defineOptions({name: 'NameTagsPrint'})
 
 const props = defineProps<{
+  kind: 'teams' | 'helpers'
   logoId?: number | null
 }>()
 
@@ -34,6 +35,11 @@ type StaffingPayload = {
   roles?: StaffingRole[]
 }
 
+const TITLES = {
+  teams: 'Coaches und Teammitglieder',
+  helpers: 'Helfer:innen',
+} as const
+
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 const eventDate = computed(() => eventStore.selectedEvent?.date)
@@ -47,52 +53,55 @@ const hasCrossHelpers = computed(() =>
   roles.value.some((role) => !role.is_local && role.first_program == null),
 )
 const hasLocalHelpers = computed(() => roles.value.some((role) => role.is_local))
-const helperProgramIds = computed(() => {
-  const ids = new Set<number>()
-  for (const role of roles.value) {
-    if (role.is_local) continue
-    const id = role.first_program
-    if (id != null && id > 0) ids.add(id)
-  }
-  return ids
-})
 
 const groups = computed<PersonGroup[]>(() => {
-  const rows: PersonGroup[] = []
-  if (hasCrossHelpers.value) {
-    rows.push({
-      key: 'cross',
-      label: 'Übergreifend',
-      leaves: [{key: 'cross:helpers', leaf: 'helpers', label: 'Helfer:innen'}],
-    })
+  if (props.kind === 'helpers') {
+    const rows: PersonGroup[] = []
+    if (hasCrossHelpers.value) {
+      rows.push({
+        key: 'cross',
+        label: 'Übergreifend',
+        leaves: [{key: 'cross:helpers', leaf: 'helpers', label: 'Übergreifend'}],
+      })
+    }
+    for (const program of eventPrograms(eventStore.selectedEvent)) {
+      const id = programId(program)
+      if (id <= 0) continue
+      const label = programDisplayName(program)
+      rows.push({
+        key: `program:${id}`,
+        label,
+        leaves: [{key: `program:${id}:helpers`, leaf: 'helpers', label}],
+      })
+    }
+    if (hasLocalHelpers.value) {
+      rows.push({
+        key: 'local',
+        label: 'Zusätzlich',
+        leaves: [{key: 'local:helpers', leaf: 'helpers', label: 'Zusätzlich'}],
+      })
+    }
+    return rows
   }
+
+  const rows: PersonGroup[] = []
   for (const program of eventPrograms(eventStore.selectedEvent)) {
     const id = programId(program)
     if (id <= 0) continue
-    const leaves: PersonLeafRow[] = [
-      {key: `program:${id}:coaches`, leaf: 'coaches', label: 'Coach:innen'},
-      {key: `program:${id}:players`, leaf: 'players', label: 'Teammitglieder'},
-    ]
-    if (helperProgramIds.value.has(id)) {
-      leaves.push({key: `program:${id}:helpers`, leaf: 'helpers', label: 'Helfer:innen'})
-    }
     rows.push({
       key: `program:${id}`,
       label: programDisplayName(program),
-      leaves,
-    })
-  }
-  if (hasLocalHelpers.value) {
-    rows.push({
-      key: 'local',
-      label: 'Zusätzlich',
-      leaves: [{key: 'local:helpers', leaf: 'helpers', label: 'Helfer:innen'}],
+      leaves: [
+        {key: `program:${id}:coaches`, leaf: 'coaches', label: 'Coach:innen'},
+        {key: `program:${id}:players`, leaf: 'players', label: 'Teammitglieder'},
+      ],
     })
   }
   return rows
 })
 
 const allLeafKeys = computed(() => groups.value.flatMap((group) => group.leaves.map((leaf) => leaf.key)))
+const flatHelpers = computed(() => props.kind === 'helpers')
 
 watch(allLeafKeys, (keys, previous) => {
   const prev = new Set(previous ?? [])
@@ -160,7 +169,7 @@ async function errorMessage(error: unknown): Promise<string> {
 }
 
 async function loadStaffing() {
-  if (!eventId.value) {
+  if (props.kind !== 'helpers' || !eventId.value) {
     roles.value = []
     return
   }
@@ -172,7 +181,7 @@ async function loadStaffing() {
   }
 }
 
-watch(eventId, () => {
+watch([eventId, () => props.kind], () => {
   void loadStaffing()
 }, {immediate: true})
 
@@ -192,7 +201,7 @@ async function downloadPdf() {
     const url = window.URL.createObjectURL(response.data)
     const link = document.createElement('a')
     link.href = url
-    link.download = response.headers['x-filename'] || flowFilename('Namensschilder', 'pdf', eventDate.value)
+    link.download = response.headers['x-filename'] || flowFilename(TITLES[props.kind], 'pdf', eventDate.value)
     link.click()
     window.URL.revokeObjectURL(url)
   } catch (error) {
@@ -205,9 +214,12 @@ async function downloadPdf() {
 
 <template>
   <article class="liquid-surface-inner role-sheets">
-    <p class="role-sheets__sub">
-      No-Show-Teams und Teams über der geplanten Anzahl werden nicht übernommen.
-    </p>
+    <header class="role-sheets__head">
+      <h2 class="role-sheets__title">{{ TITLES[props.kind] }}</h2>
+      <p v-if="props.kind === 'teams'" class="role-sheets__sub">
+        No-Show-Teams und Teams über der geplanten Anzahl werden nicht übernommen.
+      </p>
+    </header>
 
     <div class="role-sheets__body">
       <div v-for="group in groups" :key="group.key" class="role-sheets__group">
@@ -223,19 +235,21 @@ async function downloadPdf() {
             <span>{{ group.label }}</span>
           </span>
         </label>
-        <label
-            v-for="leaf in group.leaves"
-            :key="leaf.key"
-            class="role-sheets__option role-sheets__option--role"
-        >
-          <input
-              type="checkbox"
-              class="accent-[var(--color-accent)]"
-              :checked="selected.has(leaf.key)"
-              @change="toggleLeaf(leaf.key, ($event.target as HTMLInputElement).checked)"
-          />
-          <span>{{ leaf.label }}</span>
-        </label>
+        <template v-if="!flatHelpers">
+          <label
+              v-for="leaf in group.leaves"
+              :key="leaf.key"
+              class="role-sheets__option role-sheets__option--role"
+          >
+            <input
+                type="checkbox"
+                class="accent-[var(--color-accent)]"
+                :checked="selected.has(leaf.key)"
+                @change="toggleLeaf(leaf.key, ($event.target as HTMLInputElement).checked)"
+            />
+            <span>{{ leaf.label }}</span>
+          </label>
+        </template>
       </div>
     </div>
 
@@ -269,6 +283,7 @@ async function downloadPdf() {
   flex-direction: column;
   gap: 0.7rem;
   min-width: 0;
+  height: 100%;
   padding: 1rem 1.05rem 1.05rem;
   border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--color-border-strong) 38%, var(--liquid-border-soft));
@@ -278,8 +293,16 @@ async function downloadPdf() {
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-.role-sheets__sub {
+.role-sheets__title {
   margin: 0;
+  font-size: 0.98rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.role-sheets__sub {
+  margin: 0.28rem 0 0;
   font-size: 0.8rem;
   line-height: 1.4;
   color: var(--color-text-muted);
@@ -294,6 +317,7 @@ async function downloadPdf() {
   justify-content: flex-end;
   align-items: center;
   gap: 0.75rem;
+  margin-top: auto;
 }
 
 .role-sheets__skip {

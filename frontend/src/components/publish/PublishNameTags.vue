@@ -78,7 +78,8 @@ watch(eventId, () => {
     </p>
 
     <div class="namensschilder-panes">
-      <NameTagsPrint :logo-id="selectedLogoId"/>
+      <NameTagsPrint kind="teams" :logo-id="selectedLogoId"/>
+      <NameTagsPrint kind="helpers" :logo-id="selectedLogoId"/>
       <section class="glass-card liquid-surface-inner namensschilder-logo">
         <NameTagPreview :organizer-url="selectedLogo?.url ?? null"/>
         <p class="text-sm text-[var(--color-text-muted)]">Drittes Logo auswählen</p>
@@ -113,7 +114,7 @@ watch(eventId, () => {
   min-width: 0;
 }
 
-.namensschilder-panes > :first-child {
+.namensschilder-panes > :nth-child(-n+2) {
   flex: 1 1 16rem;
   min-width: 0;
 }

@@ -88,7 +88,7 @@ class LabelController extends Controller
                 throw new \Exception('PDF generation failed: output is empty or invalid');
             }
 
-            $filename = FlowFilename::make('Namensschilder', 'pdf', $event->date);
+            $filename = FlowFilename::make($this->filenameStem($filters), 'pdf', $event->date);
 
             return response($pdfData, 200)
                 ->header('Content-Type', 'application/pdf')
@@ -351,6 +351,36 @@ class LabelController extends Controller
         }
 
         return filter_var($scopeFilters[$leaf] ?? false, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    private function filenameStem(array $filters): string
+    {
+        $hasTeam = false;
+        $hasHelper = false;
+        foreach ($filters as $scopeFilters) {
+            if (! is_array($scopeFilters)) {
+                continue;
+            }
+            if (filter_var($scopeFilters['coaches'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                || filter_var($scopeFilters['players'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $hasTeam = true;
+            }
+            if (filter_var($scopeFilters['helpers'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                $hasHelper = true;
+            }
+        }
+
+        if ($hasHelper && ! $hasTeam) {
+            return 'Helferinnen';
+        }
+        if ($hasTeam && ! $hasHelper) {
+            return 'Coaches und Teammitglieder';
+        }
+
+        return 'Namensschilder';
     }
 
     /**
