@@ -1247,12 +1247,10 @@ class StatisticController extends Controller
     }
 
     /**
-     * Get detailed extra blocks data for a plan (for statistics modal)
-     * Returns free extra blocks for a plan.
+     * Get detailed extra blocks data for a plan (for statistics / cockpit modal).
      */
     public function getExtraBlocksDetails(int $planId): JsonResponse
     {
-        // Get event information for the plan
         $eventInfo = DB::table('plan')
             ->join('event', 'event.id', '=', 'plan.event')
             ->where('plan.id', $planId)
@@ -1262,29 +1260,6 @@ class StatisticController extends Controller
                 'event.date as event_date'
             )
             ->first();
-
-        // Free blocks: type = free
-        $freeBlocks = DB::table('extra_block')
-            ->where('plan', $planId)
-            ->where('active', 1)
-            ->where('type', 'free')
-            ->select(
-                'id',
-                'name',
-                'start',
-                'end'
-            )
-            ->orderBy('start')
-            ->get()
-            ->map(function ($block) {
-                return [
-                    'id' => $block->id,
-                    'name' => $block->name,
-                    'date' => $block->start ? \Carbon\Carbon::parse($block->start)->format('d.m.Y') : null,
-                    'start' => $block->start ? \Carbon\Carbon::parse($block->start)->format('H:i') : null,
-                    'end' => $block->end ? \Carbon\Carbon::parse($block->end)->format('H:i') : null,
-                ];
-            });
 
         $titles = [];
         if ($eventInfo?->event_id) {
@@ -1298,8 +1273,58 @@ class StatisticController extends Controller
             'event_id' => $eventInfo->event_id ?? null,
             'event_name' => $titles['title_short'] ?? ($eventInfo->event_name ?? null),
             'event_date' => $eventInfo->event_date ? \Carbon\Carbon::parse($eventInfo->event_date)->format('d.m.Y') : null,
-            'free_blocks' => $freeBlocks,
+            'free_blocks' => $this->freeExtraBlocks($planId),
+            'slot_blocks' => $this->slotExtraBlocks($planId),
             ...$titles,
         ]);
+    }
+
+    /**
+     * @return list<array{id: mixed, name: mixed, date: string|null, start: string|null, end: string|null}>
+     */
+    private function freeExtraBlocks(int $planId): array
+    {
+        return DB::table('extra_block')
+            ->where('plan', $planId)
+            ->where('active', 1)
+            ->where('type', 'free')
+            ->select('id', 'name', 'start', 'end')
+            ->orderBy('start')
+            ->get()
+            ->map(function ($block) {
+                return [
+                    'id' => $block->id,
+                    'name' => $block->name,
+                    'date' => $block->start ? Carbon::parse($block->start)->format('d.m.Y') : null,
+                    'start' => $block->start ? Carbon::parse($block->start)->format('H:i') : null,
+                    'end' => $block->end ? Carbon::parse($block->end)->format('H:i') : null,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: mixed, name: mixed, duration: int|null}>
+     */
+    private function slotExtraBlocks(int $planId): array
+    {
+        return DB::table('extra_block')
+            ->where('plan', $planId)
+            ->where('active', 1)
+            ->where('type', 'slot')
+            ->select('id', 'name', 'duration')
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get()
+            ->map(function ($block) {
+                return [
+                    'id' => $block->id,
+                    'name' => $block->name,
+                    'duration' => $block->duration !== null ? (int) $block->duration : null,
+                ];
+            })
+            ->values()
+            ->all();
     }
 }

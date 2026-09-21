@@ -1,0 +1,108 @@
+<?php
+
+namespace App\Export\Admin;
+
+use App\Export\Spreadsheet\SpreadsheetColumn;
+use App\Export\Spreadsheet\SpreadsheetColumnType;
+use App\Export\Spreadsheet\SpreadsheetDocument;
+use App\Export\Spreadsheet\SpreadsheetSheet;
+use App\Export\Spreadsheet\SpreadsheetSource;
+use DateTimeInterface;
+
+final class AdminCockpitSpreadsheetSource implements SpreadsheetSource
+{
+    /**
+     * @param  list<array<string, mixed>>  $events
+     */
+    public function __construct(
+        private readonly array $events,
+        private readonly DateTimeInterface|string|null $date = null,
+    ) {}
+
+    public function document(): SpreadsheetDocument
+    {
+        $columns = [
+            new SpreadsheetColumn('rp', 'RP'),
+            new SpreadsheetColumn('date', 'Datum', SpreadsheetColumnType::Date),
+            new SpreadsheetColumn('event', 'Event'),
+            new SpreadsheetColumn('e', 'E'),
+            new SpreadsheetColumn('c', 'C'),
+            new SpreadsheetColumn('f8', 'F8'),
+            new SpreadsheetColumn('plan', 'Ablauf'),
+            new SpreadsheetColumn('rooms', 'Räume'),
+            new SpreadsheetColumn('staffing', 'Zuordnung'),
+            new SpreadsheetColumn('generator', 'Letzter Generatorlauf'),
+            new SpreadsheetColumn('params', 'Veränderte Parameter'),
+            new SpreadsheetColumn('blocks', 'Extra-Blöcke'),
+            new SpreadsheetColumn('helferliste', 'Helferliste', SpreadsheetColumnType::Number),
+            new SpreadsheetColumn('publish', 'Veröffentlichung'),
+        ];
+
+        $rows = [];
+        foreach ($this->events as $event) {
+            $params = $event['param_changes'] ?? null;
+            $paramCell = is_array($params)
+                ? ((int) ($params['input'] ?? 0)).' + '.((int) ($params['expert'] ?? 0))
+                : '';
+            $ran = ($event['generator_last_end'] ?? null) !== null && $event['generator_last_end'] !== '';
+            $rows[] = [
+                $event['regional_partner_name'] ?? '',
+                $event['event_date'] ?? '',
+                $event['event_name'] ?? '',
+                $this->teamCell($event, 2),
+                $this->teamCell($event, 3),
+                $this->teamCell($event, 8),
+                $this->liveDot($event['dots']['plan'] ?? null, $ran),
+                $this->liveDot($event['dots']['rooms'] ?? null, $ran),
+                $this->liveDot($event['dots']['staffing'] ?? null, $ran),
+                $event['generator_last_end'] ?? '',
+                $paramCell,
+                $this->extraBlocksCell($event),
+                (int) ($event['helferliste_count'] ?? 0),
+                $event['publication_level'] === null ? '' : (int) $event['publication_level'],
+            ];
+        }
+
+        return new SpreadsheetDocument(
+            'Cockpit',
+            $this->date,
+            [new SpreadsheetSheet('Cockpit', $columns, $rows)],
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function teamCell(array $event, int $programId): string
+    {
+        $teams = $event['teams'] ?? [];
+        $value = $teams[(string) $programId] ?? null;
+        if ($value === null) {
+            return '';
+        }
+
+        return (string) ((int) $value);
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function extraBlocksCell(array $event): string
+    {
+        $blocks = $event['extra_blocks'] ?? null;
+        if (! is_array($blocks)) {
+            return '';
+        }
+
+        return ((int) ($blocks['free'] ?? 0)).' + '.((int) ($blocks['slot'] ?? 0));
+    }
+
+    private function liveDot(mixed $value, bool $generatorRan): string
+    {
+        if (! $generatorRan || $value === null) {
+            return '—';
+        }
+
+        return $value ? 'ja' : 'nein';
+    }
+}
