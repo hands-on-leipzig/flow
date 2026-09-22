@@ -245,7 +245,7 @@ class VolunteerPersonController extends Controller
      */
     private function recentAssignments(int $personId, int $excludeEventId): array
     {
-        return DB::table('event_staffing_assignment as a')
+        $rows = DB::table('event_staffing_assignment as a')
             ->join('event_staffing_role as r', 'r.id', '=', 'a.event_staffing_role')
             ->leftJoin('event_staffing_group as g', 'g.id', '=', 'a.event_staffing_group')
             ->join('event as e', 'e.id', '=', 'r.event')
@@ -264,20 +264,40 @@ class VolunteerPersonController extends Controller
                 'r.label as local_label',
                 'r.group_label',
                 'g.group_index',
-            ])
-            ->map(function ($row) {
-                $roleLabel = trim((string) ($row->local_label ?: ($row->catalog_role ?: 'Rolle')));
-                $groupIndex = $row->group_index !== null ? (int) $row->group_index : null;
-                $groupLabel = $groupIndex !== null && $row->group_label !== null && $row->group_label !== ''
-                    ? (string) $row->group_label
-                    : null;
+                'mr.first_program',
+            ]);
 
-                return [
-                    'event_id' => (int) $row->event_id,
-                    'role' => StaffingAssignmentLabel::assignmentCaption($roleLabel, $groupLabel, $groupIndex),
-                    'year' => $row->season_year ?: ($row->season_name ?: (string) $row->event_date),
-                ];
-            })
-            ->all();
+        $mapsByEvent = [];
+
+        return $rows->map(function ($row) use (&$mapsByEvent) {
+            $eventId = (int) $row->event_id;
+            if (! isset($mapsByEvent[$eventId])) {
+                $mapsByEvent[$eventId] = StaffingAssignmentLabel::placeMapsForEvent($eventId);
+            }
+            $roleLabel = trim((string) ($row->local_label ?: ($row->catalog_role ?: 'Rolle')));
+            $groupIndex = $row->group_index !== null ? (int) $row->group_index : null;
+            $groupLabel = $groupIndex !== null && $row->group_label !== null && $row->group_label !== ''
+                ? (string) $row->group_label
+                : null;
+            $firstProgram = $row->first_program !== null ? (int) $row->first_program : null;
+            $placeLabel = StaffingAssignmentLabel::placeLabelForGroup(
+                $groupLabel,
+                $roleLabel,
+                $firstProgram,
+                $groupIndex,
+                $mapsByEvent[$eventId],
+            );
+
+            return [
+                'event_id' => $eventId,
+                'role' => StaffingAssignmentLabel::assignmentCaption(
+                    $roleLabel,
+                    $groupLabel,
+                    $groupIndex,
+                    $placeLabel,
+                ),
+                'year' => $row->season_year ?: ($row->season_name ?: (string) $row->event_date),
+            ];
+        })->all();
     }
 }

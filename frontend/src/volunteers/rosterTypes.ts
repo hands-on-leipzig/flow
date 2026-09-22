@@ -10,6 +10,7 @@ export type RosterDetail = {
 
 export type RosterAssignment = {
   tile_name: string
+  caption?: string | null
   label: string
   role_id: number
   first_program: number | null

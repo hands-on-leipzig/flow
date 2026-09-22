@@ -91,13 +91,26 @@ function isMatchPlaceRole(role: Role): boolean {
   return label.includes('tisch') || label.includes('feld') || label.includes('matte')
 }
 
+function isRobotCheckRole(role: Role): boolean {
+  if (!supportsTableFieldLabels(Number(role.first_program))) return false
+  return (role.group_label || '').toLowerCase().includes('robot-check')
+}
+
+function placeLabelForGroup(role: Role, group: Role['groups'][number]): string {
+  const fp = Number(role.first_program)
+  const count = tableCountByProgram.value[fp] || (role.groups?.length ?? 0)
+  const custom = tableCustomsByProgram.value[fp]?.[group.group_index - 1] ?? ''
+  return effectiveTableFieldLabel(fp, group.group_index, custom, count)
+}
+
 function tileTitle(role: Role, group: Role['groups'][number] | null): string {
+  if (group && isRobotCheckRole(role)) {
+    const place = placeLabelForGroup(role, group)
+    if (place) return `Robot-Check für ${place}`
+  }
   if (group && isMatchPlaceRole(role)) {
-    const fp = Number(role.first_program)
-    const count = tableCountByProgram.value[fp] || (role.groups?.length ?? 0)
-    const custom = tableCustomsByProgram.value[fp]?.[group.group_index - 1] ?? ''
-    const fromHelper = effectiveTableFieldLabel(fp, group.group_index, custom, count)
-    if (fromHelper) return fromHelper
+    const place = placeLabelForGroup(role, group)
+    if (place) return place
   }
   return staffingContainerTitle(role, group)
 }

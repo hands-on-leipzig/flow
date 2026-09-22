@@ -701,6 +701,7 @@ class CheckInService
     {
         $rows = $this->staffedHelpersQuery($eventId)->get();
         $byPerson = [];
+        $maps = StaffingAssignmentLabel::placeMapsForEvent($eventId);
 
         foreach ($rows as $row) {
             $id = (int) $row->id;
@@ -723,10 +724,22 @@ class CheckInService
                     'scope_picked' => false,
                 ];
             }
+            $roleLabel = trim((string) ($row->role_label ?: $row->catalog_role_name ?: 'Rolle'));
+            $groupLabel = $row->group_label !== null && $row->group_label !== '' ? (string) $row->group_label : null;
+            $groupIndex = $row->group_index !== null ? (int) $row->group_index : null;
+            $firstProgram = $row->first_program !== null ? (int) $row->first_program : null;
+            $placeLabel = StaffingAssignmentLabel::placeLabelForGroup(
+                $groupLabel,
+                $roleLabel,
+                $firstProgram,
+                $groupIndex,
+                $maps,
+            );
             $caption = StaffingAssignmentLabel::assignmentCaption(
-                trim((string) ($row->role_label ?: $row->catalog_role_name ?: 'Rolle')),
-                $row->group_label !== null && $row->group_label !== '' ? (string) $row->group_label : null,
-                $row->group_index !== null ? (int) $row->group_index : null,
+                $roleLabel,
+                $groupLabel,
+                $groupIndex,
+                $placeLabel,
             );
             if (! in_array($caption, $byPerson[$id]->role_labels, true)) {
                 $byPerson[$id]->role_labels[] = $caption;
