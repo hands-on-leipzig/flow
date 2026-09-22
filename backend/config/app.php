@@ -57,14 +57,14 @@ return [
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
 
     /*
-    | Public event links (QR codes, DRAHT, share UI). Production uses the
-    | vanity host handson.tools; other environments keep FRONTEND_URL unless
-    | PUBLIC_URL is set explicitly.
+    | Public event links (QR codes, DRAHT, share UI). PUBLIC_URL wins when set.
+    | Otherwise production is https://handson.tools, Test/Dev the vanity
+    | subdomains, and the laptop stays on FRONTEND_URL.
     */
-    'public_url' => rtrim((string) (env('PUBLIC_URL') ?: (
-        env('APP_ENV') === 'production'
-            ? 'https://handson.tools'
-            : env('FRONTEND_URL', 'http://localhost:5173')
+    'public_url' => rtrim((string) (env('PUBLIC_URL') ?: \App\Support\PublicBaseUrl::forEnvironment(
+        (string) env('APP_ENV', 'production'),
+        (string) env('FRONTEND_URL', 'http://localhost:5173'),
+        (string) env('APP_URL', 'http://localhost'),
     )), '/'),
 
     /*

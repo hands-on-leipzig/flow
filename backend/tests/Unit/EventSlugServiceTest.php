@@ -178,8 +178,8 @@ class EventSlugServiceTest extends TestCase
 
     public function test_public_base_may_address_an_instance_through_a_path(): void
     {
-        // Dev and Test hang under the vanity host as /dev and /test, so the base carries
-        // a path segment and the slug rules have to stay intact behind it.
+        // A PUBLIC_URL with a path (legacy /dev, /test) still has to keep slug
+        // uniqueness and season prefixes behind that segment.
         config(['app.public_url' => 'https://handson.tools/dev']);
 
         $current = $this->insertEvent(['id' => 1, 'name' => 'Aachen', 'level' => 1]);
