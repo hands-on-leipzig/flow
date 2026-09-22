@@ -16,6 +16,7 @@ import Spinner from '@/components/atoms/Spinner.vue'
 import VolunteerPublicFormFlow from '@/components/volunteers/VolunteerPublicFormFlow.vue'
 import TeamPublicFormFlow from '@/components/teams/TeamPublicFormFlow.vue'
 import {isNonProductionPublicHost} from '@/utils/publicFormOtpEnv'
+import {logOneLinkAccess} from '@/utils/usageCapture'
 
 const route = useRoute()
 const router = useRouter()
@@ -67,32 +68,8 @@ const loadEvent = async () => {
     }
 
     try {
-      let source = 'unknown'
-      if (route.query.source === 'qr') {
-        source = 'qr'
-      } else if (document.referrer) {
-        source = 'referrer'
-      } else {
-        source = 'direct'
-      }
-
-      const clientData = {
-        event_id: event.value.id,
-        source: source,
-        screen_width: window.screen.width,
-        screen_height: window.screen.height,
-        viewport_width: window.innerWidth,
-        viewport_height: window.innerHeight,
-        device_pixel_ratio: window.devicePixelRatio || 1,
-        touch_support: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-        connection_type: navigator.connection?.effectiveType ||
-            navigator.connection?.type ||
-            null
-      }
-
-      axios.post('/one-link-access', clientData).catch(err => {
-        console.error('Failed to log access:', err)
-      })
+      const source = route.query.source === 'qr' ? 'qr' : undefined
+      logOneLinkAccess(event.value.id, source)
     } catch (err) {
       console.error('Error preparing access log:', err)
     }
@@ -434,6 +411,7 @@ onMounted(async () => {
           :step="formStep"
           :email="formEmail"
           :slug="String(route.params.slug ?? '')"
+          :event-id="event.id"
           :sso-token="ssoToken"
           :sso-email="ssoEmail"
           @update:email="formEmail = $event"
@@ -447,6 +425,7 @@ onMounted(async () => {
           :email="teamFormEmail"
           :slug="String(route.params.slug ?? '')"
           :event="event"
+          :event-id="event.id"
           :sso-token="ssoToken"
           :sso-email="ssoEmail"
           @update:email="teamFormEmail = $event"

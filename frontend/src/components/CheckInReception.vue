@@ -5,6 +5,7 @@ import axios from 'axios'
 import QRCode from 'qrcode'
 import {imageUrl, programLogoSrc} from '@/utils/images'
 import {publicPlanPath} from '@/utils/publicPlanPath'
+import {isPlannerPreview, logSurfaceAccess} from '@/utils/usageCapture'
 import {photoConsentStatusClass} from '@/utils/photoConsentStatus'
 import PersonListHit from '@/components/molecules/PersonListHit.vue'
 
@@ -129,6 +130,19 @@ const toolsError = ref('')
 
 const storageKey = computed(() => `flow:check-in-token:${slug.value}`)
 
+let didLog = false
+
+function logUnlocked() {
+  if (didLog) return
+  if (isPlannerPreview()) return
+  if (!bootstrap.value?.enabled || !token.value) return
+  const eventId = Number(bootstrap.value.event_id)
+  if (!eventId) return
+  didLog = true
+  const source = route.query.source === 'qr' ? 'qr' : undefined
+  logSurfaceAccess(eventId, 'app_check_in', source)
+}
+
 const planPath = computed(() => publicPlanPath(bootstrap.value?.public_link, bootstrap.value?.slug || slug.value))
 
 const api = axios.create({
@@ -172,6 +186,7 @@ async function unlock() {
     sessionStorage.setItem(storageKey.value, data.token)
     pin.value = ''
     view.value = 'home'
+    logUnlocked()
     await loadOrganizer()
     await loadOverview()
   } catch (e: any) {
@@ -504,9 +519,11 @@ const homeTeamStats = computed(() => teamStatLines(overview.value?.teams, overvi
 const homeHelperStats = computed(() => overview.value?.helpers || [])
 
 watch(slug, async () => {
+  didLog = false
   token.value = sessionStorage.getItem(storageKey.value) || ''
   await loadBootstrap()
   if (unlocked.value) {
+    logUnlocked()
     await loadOrganizer()
     await loadOverview()
   }
@@ -516,6 +533,7 @@ onMounted(async () => {
   token.value = sessionStorage.getItem(storageKey.value) || ''
   await loadBootstrap()
   if (unlocked.value) {
+    logUnlocked()
     await loadOrganizer()
     await loadOverview()
   }

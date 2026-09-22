@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Print\GesamtplanAssembler;
 use App\Print\GesamtplanTcpdfRenderer;
 use App\Services\EventSlugService;
+use App\Services\PdfDownloadRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -17,6 +18,7 @@ class PrintGesamtplanController extends Controller
         private GesamtplanAssembler $assembler,
         private GesamtplanTcpdfRenderer $renderer,
         private EventSlugService $slugs,
+        private PdfDownloadRecorder $downloads,
     ) {}
 
     public function download(Request $request, int $eventId)
@@ -40,6 +42,8 @@ class PrintGesamtplanController extends Controller
         $document['wifi_qr_base64'] = self::wifiQrBase64($event);
         $bytes = $this->renderer->render($document);
         $filename = FlowFilename::make('Gesamtplan', 'pdf', $event?->date);
+
+        $this->downloads->record($eventId, 'gesamtplan', $request->user()?->id);
 
         return response($bytes, 200, [
             'Content-Type' => 'application/pdf',

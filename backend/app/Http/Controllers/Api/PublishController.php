@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Helpers\FlowFilename;
 use App\Models\Event;
-use App\Models\OneLinkAccess;
 use App\Services\EventSlugService;
+use App\Services\PublicAccessRecorder;
 use App\Services\ImportantTimesService;
 use App\Services\PdfLayoutService;
 
@@ -625,71 +625,19 @@ class PublishController extends Controller
      */
     public function logOneLinkAccess(Request $request): JsonResponse
     {
-        try {
-            // Validate event_id exists
-            $eventId = $request->input('event_id');
-            if (!$eventId) {
-                return response()->json(['error' => 'event_id is required'], 400);
-            }
-
-            $event = Event::find($eventId);
-            if (!$event) {
-                return response()->json(['error' => 'Event not found'], 400);
-            }
-
-            // Extract server-side data from request
-            $userAgent = $request->userAgent();
-            $referrer = $request->header('referer');
-            $ip = $request->ip();
-            $ipHash = hash('sha256', $ip . config('app.key'));
-            $acceptLanguage = $request->header('accept-language');
-
-            // Extract client-side data from request body
-            $screenWidth = $request->input('screen_width');
-            $screenHeight = $request->input('screen_height');
-            $viewportWidth = $request->input('viewport_width');
-            $viewportHeight = $request->input('viewport_height');
-            $devicePixelRatio = $request->input('device_pixel_ratio');
-            $touchSupport = $request->input('touch_support');
-            $connectionType = $request->input('connection_type');
-
-            // Determine source
-            $source = $request->input('source', 'unknown');
-            if ($source === 'qr') {
-                $source = 'qr';
-            } elseif ($referrer) {
-                $source = 'referrer';
-            } else {
-                $source = 'direct';
-            }
-
-            // Insert record into database
-            OneLinkAccess::create([
-                'event' => $eventId,
-                'access_date' => Carbon::now()->toDateString(),
-                'access_time' => Carbon::now(),
-                'user_agent' => $userAgent,
-                'referrer' => $referrer,
-                'ip_hash' => $ipHash,
-                'accept_language' => $acceptLanguage ? substr($acceptLanguage, 0, 50) : null,
-                'screen_width' => $screenWidth,
-                'screen_height' => $screenHeight,
-                'viewport_width' => $viewportWidth,
-                'viewport_height' => $viewportHeight,
-                'device_pixel_ratio' => $devicePixelRatio,
-                'touch_support' => $touchSupport,
-                'connection_type' => $connectionType ? substr($connectionType, 0, 20) : null,
-                'source' => $source,
-            ]);
-
-            return response()->json(['success' => true]);
-        } catch (\Exception $e) {
-            // Log error but don't fail - silent failure for user experience
-            Log::error('Failed to log one-link access', [
-                'error' => $e->getMessage(),
-                'event_id' => $request->input('event_id'),
-            ]);
-            return response()->json(['error' => 'Failed to log access'], 500);
+        $eventId = (int) $request->input('event_id');
+        if ($eventId < 1) {
+            return response()->json(['error' => 'event_id is required'], 400);
         }
+
+        $result = app(PublicAccessRecorder::class)->recordOneLink($request, $eventId);
+        if ($result['success']) {
+            return response()->json(['success' => true]);
+        }
+
+        return response()->json(
+            ['error' => $result['error'] ?? 'Failed to log access'],
+            $result['status'] ?? 500
+        );
     }
 }
