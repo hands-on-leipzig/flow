@@ -42,6 +42,7 @@ type CockpitEvent = {
   param_changes: {input: number; expert: number} | null
   extra_blocks: {free: number; slot: number} | null
   helferliste_count: number
+  public_helper_search: boolean
   publication_level: number | null
   access_count: number
 }
@@ -570,7 +571,17 @@ onMounted(async () => {
                   <i class="bi bi-search" aria-hidden="true"/>
                 </button>
               </td>
-              <td class="px-3 py-2">{{ row.helferliste_count }}</td>
+              <td class="px-3 py-2">
+                <span class="inline-flex items-center gap-1">
+                  {{ row.helferliste_count }}
+                  <i
+                      v-if="row.public_helper_search"
+                      class="bi bi-person-heart text-[var(--color-accent)]"
+                      title="Suche nach Helfer:innen"
+                      aria-label="Suche nach Helfer:innen"
+                  />
+                </span>
+              </td>
               <td class="px-3 py-2" :title="publishTitle(row.publication_level)">
                 <div v-if="row.publication_level != null" class="inline-flex">
                   <span

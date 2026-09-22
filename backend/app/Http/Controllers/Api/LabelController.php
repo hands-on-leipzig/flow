@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Models\MSeason;
 use App\Print\DrahtTeamPeople;
 use App\Services\LabelPdfService;
+use App\Services\PdfDownloadRecorder;
 use App\Services\PdfLayoutService;
 use App\Support\ProgramCatalog;
 use App\Support\StaffingAssignmentLabel;
@@ -21,6 +22,7 @@ class LabelController extends Controller
     public function __construct(
         private PdfLayoutService $pdfLayoutService,
         private LabelPdfService $labelPdfService,
+        private PdfDownloadRecorder $downloads,
     ) {}
 
     public function nameTagsPdf(int $eventId, Request $request)
@@ -89,6 +91,8 @@ class LabelController extends Controller
             }
 
             $filename = FlowFilename::make($this->filenameStem($filters), 'pdf', $event->date);
+
+            $this->downloads->record($eventId, 'name_tags', $request->user()?->id);
 
             return response($pdfData, 200)
                 ->header('Content-Type', 'application/pdf')
