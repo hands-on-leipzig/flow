@@ -50,4 +50,28 @@ class PublicBaseUrlTest extends TestCase
             PublicBaseUrl::forEnvironment('testing', 'http://localhost:5173', 'http://localhost'),
         );
     }
+
+    public function test_legacy_path_public_url_becomes_the_vanity_subdomain(): void
+    {
+        $this->assertSame(
+            'https://dev.handson.tools',
+            PublicBaseUrl::resolve('https://handson.tools/dev', 'local', 'https://dev.flow.hands-on-technology.org'),
+        );
+        $this->assertSame(
+            'https://test.handson.tools',
+            PublicBaseUrl::resolve('https://handson.tools/test/', 'testing', 'https://test.flow.hands-on-technology.org'),
+        );
+        $this->assertSame(
+            'https://handson.tools',
+            PublicBaseUrl::resolve('https://handson.tools', 'production', 'https://flow.hands-on-technology.org'),
+        );
+        $this->assertSame(
+            'https://dev.handson.tools',
+            PublicBaseUrl::resolve(null, 'local', 'https://dev.flow.hands-on-technology.org'),
+        );
+        $this->assertSame(
+            'https://test.handson.tools',
+            PublicBaseUrl::resolve(null, 'testing', 'https://test.flow.hands-on-technology.org'),
+        );
+    }
 }

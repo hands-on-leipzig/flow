@@ -58,6 +58,34 @@ class PublishLinkBaseTest extends TestCase
         $this->assertNotSame('stored-qr', $stored->qrcode);
     }
 
+    public function test_legacy_vanity_path_link_is_rebuilt_to_the_subdomain(): void
+    {
+        config(['app.public_url' => 'https://dev.handson.tools']);
+        $this->insertEvent('aachen', 'https://handson.tools/dev/aachen', 'stored-qr');
+
+        $payload = app(PublishController::class)->linkAndQRcode(1)->getData(true);
+
+        $this->assertSame('https://dev.handson.tools/aachen', $payload['link']);
+
+        $stored = DB::table('event')->where('id', 1)->first();
+        $this->assertSame('https://dev.handson.tools/aachen', $stored->link);
+        $this->assertNotSame('stored-qr', $stored->qrcode);
+    }
+
+    public function test_legacy_test_vanity_path_link_is_rebuilt_to_the_subdomain(): void
+    {
+        config(['app.public_url' => 'https://test.handson.tools']);
+        $this->insertEvent('aachen', 'https://handson.tools/test/aachen', 'stored-qr');
+
+        $payload = app(PublishController::class)->linkAndQRcode(1)->getData(true);
+
+        $this->assertSame('https://test.handson.tools/aachen', $payload['link']);
+
+        $stored = DB::table('event')->where('id', 1)->first();
+        $this->assertSame('https://test.handson.tools/aachen', $stored->link);
+        $this->assertNotSame('stored-qr', $stored->qrcode);
+    }
+
     private function insertEvent(string $slug, string $link, string $qrcode): void
     {
         Event::query()->create([
