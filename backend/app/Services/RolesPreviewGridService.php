@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\FirstProgram;
+use App\Support\OverviewPlanStyle;
 use App\Support\PlanParameter;
 use App\Support\PreviewGridOverlapResolver;
 use App\Support\PreviewTeamLabels;
@@ -355,7 +356,7 @@ class RolesPreviewGridService
 
             $programRoles = $rolesByProgram[$programId];
             $styleColumn = $this->styleColumnForProgram($programId);
-            $tableStyle = $programId === FirstProgram::FUTURE_8->value ? 'Game' : 'Robot-Game';
+            $tableStyle = OverviewPlanStyle::fieldOverviewColumn($programId);
 
             $lane = (int) ($a->lane ?? 0);
             if ($lane > 0) {

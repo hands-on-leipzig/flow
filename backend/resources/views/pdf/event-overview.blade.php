@@ -65,6 +65,9 @@ while ($current->lte($endTime)) {
 // Check if this is a multi-day event
 $isMultiDay = count($eventsByDay) > 1;
 
+$challengeFieldColumn = \App\Support\OverviewPlanStyle::fieldOverviewColumn(\App\Enums\FirstProgram::CHALLENGE->value);
+$futureFieldColumn = \App\Support\OverviewPlanStyle::fieldOverviewColumn(\App\Enums\FirstProgram::FUTURE_8->value);
+
 // Second pass: generate content for each day
 foreach($eventsByDay as $dayKey => $dayData) {
     $allEvents = collect($dayData['events']);
@@ -100,11 +103,11 @@ foreach($eventsByDay as $dayKey => $dayData) {
                 $actualHtmlColumns += 2; // Merged cell (Allgemein-3 + Challenge)
             } elseif ($columnName === 'Allgemein-4') {
                 $actualHtmlColumns += 2; // Merged cell (Allgemein-4 + Future 8+)
-            } elseif ($columnName === 'Robot-Game') {
+            } elseif ($columnName === $challengeFieldColumn) {
                 $actualHtmlColumns += 1; // Single column
             } elseif ($columnName === 'Live Challenge') {
                 $actualHtmlColumns += 1; // Single column
-            } elseif ($columnName === 'Game') {
+            } elseif ($columnName === $futureFieldColumn) {
                 $actualHtmlColumns += 1; // Single column
             }
             // Skip Explore, Challenge, Future 8+ as they are merged
@@ -135,11 +138,11 @@ foreach($eventsByDay as $dayKey => $dayData) {
         $hasExplore = in_array('Explore', $columnNames);
         $hasAllgemein3 = in_array('Allgemein-3', $columnNames);
         $hasChallenge = in_array('Challenge', $columnNames);
-        $hasRobotGame = in_array('Robot-Game', $columnNames);
+        $hasRobotGame = in_array($challengeFieldColumn, $columnNames);
         $hasLiveChallenge = in_array('Live Challenge', $columnNames);
         $hasAllgemein4 = in_array('Allgemein-4', $columnNames);
         $hasFuture8 = in_array('Future 8+', $columnNames);
-        $hasGame = in_array('Game', $columnNames);
+        $hasGame = in_array($futureFieldColumn, $columnNames);
         
         // Count columns for each merged group
         $exploreColumns = 0;
@@ -206,7 +209,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     $contentHtml .= '
                         <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
                 }
-            } elseif ($columnName === 'Robot-Game') {
+            } elseif ($columnName === $challengeFieldColumn) {
                 // Robot-Game gets text only if not merged with other columns
                 if (!$hasAllgemein3 && !$hasChallenge && !$hasLiveChallenge) {
                     $headerContent = htmlspecialchars($displayName);
@@ -236,7 +239,7 @@ foreach($eventsByDay as $dayKey => $dayData) {
                     $contentHtml .= '
                         <th style="width: ' . $columnWidth . '%; background-color: white; color: ' . $color . '; padding: 4px; border: 1px solid #ddd; font-size: 9px; font-weight: bold; text-align: center;">' . $headerContent . '</th>';
                 }
-            } elseif ($columnName === 'Game') {
+            } elseif ($columnName === $futureFieldColumn) {
                 if (!$hasAllgemein4 && !$hasFuture8) {
                     $headerContent = htmlspecialchars($displayName);
                     $contentHtml .= '
