@@ -470,9 +470,9 @@ class TeamsPreviewGridService
                 }
 
                 $isCheck = $code === 'r_check';
-                $style = $isCheck
-                    ? 'Robot-Game'
-                    : ($programId === FirstProgram::FUTURE_8->value ? 'Game' : 'Robot-Game');
+                $style = OverviewPlanStyle::fieldOverviewColumn(
+                    $isCheck ? FirstProgram::CHALLENGE->value : $programId
+                );
 
                 $placed[] = [
                     'column_key' => $key,

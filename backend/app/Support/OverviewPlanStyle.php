@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Enums\FirstProgram;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Überblick / event-overview cell colors.
@@ -68,6 +69,39 @@ final class OverviewPlanStyle
     }
 
     /**
+     * Überblick field-column name for a Challenge-shaped program (`r_match` / `f8_r_match`).
+     *
+     * @var array<int, string>
+     */
+    private static array $fieldOverviewColumnCache = [];
+
+    public static function fieldOverviewColumn(int $firstProgram): string
+    {
+        if (array_key_exists($firstProgram, self::$fieldOverviewColumnCache)) {
+            return self::$fieldOverviewColumnCache[$firstProgram];
+        }
+
+        $challengeId = FirstProgram::CHALLENGE->value;
+        $futureId = FirstProgram::FUTURE_8->value;
+        if ($firstProgram !== $challengeId && $firstProgram !== $futureId) {
+            return self::$fieldOverviewColumnCache[$firstProgram] = 'Robot-Game';
+        }
+
+        $code = $firstProgram === $futureId ? 'f8_r_match' : 'r_match';
+        $column = (string) (DB::table('m_activity_type_detail as atd')
+            ->join('m_activity_type as at', 'at.id', '=', 'atd.activity_type')
+            ->where('atd.code', $code)
+            ->where('atd.first_program', $firstProgram)
+            ->value('at.overview_plan_column') ?? '');
+
+        if ($column === '') {
+            $column = $firstProgram === $futureId ? 'Game' : 'Robot-Game';
+        }
+
+        return self::$fieldOverviewColumnCache[$firstProgram] = $column;
+    }
+
+    /**
      * @return array<string, int>
      */
     public static function columnOrder(): array
@@ -78,11 +112,11 @@ final class OverviewPlanStyle
             'Explore' => 2,
             'Allgemein-3' => 3,
             'Challenge' => 4,
-            'Robot-Game' => 5,
+            self::fieldOverviewColumn(FirstProgram::CHALLENGE->value) => 5,
             'Live Challenge' => 6,
             'Allgemein-4' => 7,
             'Future 8+' => 8,
-            'Game' => 9,
+            self::fieldOverviewColumn(FirstProgram::FUTURE_8->value) => 9,
         ];
     }
 
@@ -96,6 +130,8 @@ final class OverviewPlanStyle
             ProgramCatalog::colorCss('EXPLORE'),
             ProgramCatalog::colorCss('CHALLENGE'),
             ProgramCatalog::colorCss('FUTURE_8'),
+            self::fieldOverviewColumn(FirstProgram::CHALLENGE->value),
+            self::fieldOverviewColumn(FirstProgram::FUTURE_8->value),
         );
     }
 
@@ -107,6 +143,8 @@ final class OverviewPlanStyle
         string $exploreBorder,
         string $challengeBorder,
         string $future8Border,
+        string $challengeFieldColumn = 'Robot-Game',
+        string $futureFieldColumn = 'Game',
     ): array {
         $exploreTint = ProgramCatalog::mixHexWithWhite($exploreBorder, self::PROGRAM_TINT);
         $challengeTint = ProgramCatalog::mixHexWithWhite($challengeBorder, self::PROGRAM_TINT);
@@ -117,9 +155,9 @@ final class OverviewPlanStyle
         return match ($assignedColumn) {
             'Explore' => ['bg' => $exploreTint, 'border' => $exploreBorder],
             'Challenge' => ['bg' => $challengeTint, 'border' => $challengeBorder],
-            'Robot-Game' => ['bg' => $robotTint, 'border' => $challengeBorder],
+            $challengeFieldColumn => ['bg' => $robotTint, 'border' => $challengeBorder],
             'Future 8+' => ['bg' => $future8Tint, 'border' => $future8Border],
-            'Game' => ['bg' => $gameTint, 'border' => $future8Border],
+            $futureFieldColumn => ['bg' => $gameTint, 'border' => $future8Border],
             'Live Challenge' => ['bg' => self::LIVE_CHALLENGE_TINT, 'border' => self::LIVE_CHALLENGE_BORDER],
             'Allgemein-2' => ['bg' => self::GRAY_TINT, 'border' => $exploreBorder],
             'Allgemein-3' => ['bg' => self::GRAY_TINT, 'border' => $challengeBorder],

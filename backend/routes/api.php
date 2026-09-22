@@ -339,6 +339,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/events/{eventId}/check-attention', [EventController::class, 'checkAttention']);
     Route::get('/table-names/{eventId}', [EventController::class, 'getTableNames']);
     Route::put('/table-names/{eventId}', [EventController::class, 'updateTableNames']);
+    Route::get('/table-field-labels', [EventController::class, 'tableFieldLabels']);
 
     // Carousel controller
     Route::get('/slides/{slide}', [CarouselController::class, 'getSlide']);

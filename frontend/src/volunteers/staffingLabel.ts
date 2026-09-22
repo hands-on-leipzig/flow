@@ -31,9 +31,12 @@ export function staffingTileRoleSubtitle(tile: {
 
 export function rosterAssignmentCaption(assignment: {
   label: string
+  caption?: string | null
   group_label?: string | null
   group_index: number | null
 }): string {
+  const fromApi = (assignment.caption || '').trim()
+  if (fromApi) return fromApi
   const groupLabel = (assignment.group_label || '').trim()
   if (assignment.group_index != null && assignment.group_index > 0 && groupLabel) {
     return `${assignment.label} (${groupLabel} ${assignment.group_index})`
@@ -45,6 +48,7 @@ export function rosterEntrySearchHaystack(entry: {
   person: VolunteerPersonRef
   assignments?: Array<{
     label: string
+    caption?: string | null
     group_label?: string | null
     group_index: number | null
   }>
