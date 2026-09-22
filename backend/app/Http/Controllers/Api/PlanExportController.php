@@ -15,6 +15,7 @@ use App\Services\PdfLayoutService;
 use App\Services\RoleFetcherService;
 use App\Services\TeamJuryAssignmentService;
 use App\Support\OverviewPlanStyle;
+use App\Support\PlanParameter;
 use App\Support\ProgramCatalog;
 use App\Support\TableFieldLabels;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -36,6 +37,9 @@ class PlanExportController extends Controller
     private PdfLayoutService $pdfLayoutService;
 
     private TeamJuryAssignmentService $teamJuryAssignmentService;
+
+    /** @var array<int, array<int, int>> */
+    private array $tableCountCache = [];
 
     public function __construct(
         ActivityFetcherService $activityFetcher,
@@ -3977,13 +3981,34 @@ class PlanExportController extends Controller
 
     private function placeLabel(object $activity, int|string|null $tableNumber, ?string $storedName): string
     {
-        $fp = (int) ($activity->activity_first_program_id ?? 0);
+        $fp = (int) ($activity->activity_first_program_id ?? $activity->table_label_first_program ?? 0);
         $n = (int) $tableNumber;
         if ($n < 1) {
             return TableFieldLabels::noun($fp);
         }
 
-        return TableFieldLabels::effective($fp, $n, $storedName);
+        return TableFieldLabels::effective($fp, $n, $storedName, $this->tableCountForActivity($activity, $fp));
+    }
+
+    private function tableCountForActivity(object $activity, int $firstProgram): int
+    {
+        $planId = (int) ($activity->plan_id ?? 0);
+        if ($firstProgram < 1 || $planId < 1) {
+            return 0;
+        }
+        if (! isset($this->tableCountCache[$planId][$firstProgram])) {
+            try {
+                $params = PlanParameter::load($planId);
+                $this->tableCountCache[$planId][$firstProgram] = max(
+                    0,
+                    (int) $params->get(TableFieldLabels::countParamName($firstProgram), 0)
+                );
+            } catch (\Throwable) {
+                $this->tableCountCache[$planId][$firstProgram] = 0;
+            }
+        }
+
+        return $this->tableCountCache[$planId][$firstProgram];
     }
 
     /**

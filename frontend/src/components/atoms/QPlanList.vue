@@ -265,7 +265,7 @@ async function startRerun() {
 
           </div>
 
-          <!-- Filter-Kiste: RG-Tische / Felder -->
+          <!-- Filter-Kiste: RG-Tische / Matten -->
           <div class="glass-row-item px-2 py-2 flex justify-between items-center">
             
             <!-- Label-Teil -->

@@ -12,7 +12,7 @@ import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getProgramTheme } from '@/utils/programTheme'
 import { programDisplayName } from '@/utils/eventPrograms'
-import { defaultTableFieldLabel, tableFieldPlural } from '@/utils/tableFieldLabels'
+import { defaultTableFieldLabel, ensureTableFieldLabels, tableFieldPlural } from '@/utils/tableFieldLabels'
 import { formatPlanTeamNo, isMissingPlanTeamName } from '@/utils/planTeamLabel'
 
 const FIRST_PROGRAM = {
@@ -322,6 +322,7 @@ watch(showAdminInline, (visible) => {
 })
 
 onMounted(async () => {
+  await ensureTableFieldLabels()
   await loadMatchPlanMeta()
   load()
 })
@@ -650,10 +651,10 @@ onBeforeUnmount(hideTeamTip)
               <table class="table-auto text-sm border-collapse border border-[var(--color-border)]">
                 <thead class="bg-[var(--color-bg-muted)]">
                   <tr>
-                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 1) }}</th>
-                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 2) }}</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 3) }}</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 4) }}</th>
+                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 1, hasTable34(round) ? 4 : 2) }}</th>
+                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 2, hasTable34(round) ? 4 : 2) }}</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 3, 4) }}</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 4, 4) }}</th>
                   </tr>
                 </thead>
                 <tbody>

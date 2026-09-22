@@ -24,6 +24,7 @@ import {
   TABLE_FIELD_MAX_LENGTH,
   defaultTableFieldLabel,
   duplicateEffectiveTableFieldLabels,
+  ensureTableFieldLabels,
   supportsTableFieldLabels,
   tableCountParamName,
   tableFieldNoun,
@@ -120,6 +121,7 @@ const supportedPlanData = ref<any[] | null>(null)
 /** Custom names per first_program id (0-based arrays sized to table_count). */
 const tableNamesByProgram = ref<Record<number, string[]>>({})
 const tableCountByProgram = ref<Record<number, number>>({})
+const tableDefaultNamesByProgram = ref<Record<number, string[]>>({})
 const tableNameErrorsByProgram = ref<Record<number, string | null>>({})
 
 const isSpecial = (p: Parameter) => SPECIAL_KEYS.has((p.name || '').toLowerCase())
@@ -286,6 +288,7 @@ watch(
       if (count < 1) {
         tableNamesByProgram.value = {...tableNamesByProgram.value, [fp]: []}
         tableCountByProgram.value = {...tableCountByProgram.value, [fp]: 0}
+        tableDefaultNamesByProgram.value = {...tableDefaultNamesByProgram.value, [fp]: []}
         return
       }
       const prev = tableNamesByProgram.value[fp] || []
@@ -468,11 +471,16 @@ async function fetchTableNamesForProgram(firstProgram: number) {
     })
     tableNamesByProgram.value = {...tableNamesByProgram.value, [firstProgram]: names}
     tableCountByProgram.value = {...tableCountByProgram.value, [firstProgram]: count}
+    tableDefaultNamesByProgram.value = {
+      ...tableDefaultNamesByProgram.value,
+      [firstProgram]: Array.isArray(response.default_names) ? response.default_names : [],
+    }
     tableNameErrorsByProgram.value = {...tableNameErrorsByProgram.value, [firstProgram]: null}
   } catch (e) {
-    if (import.meta.env.DEV) console.error('Fehler beim Laden der Tisch-/Feld-Bezeichnungen:', e)
+    if (import.meta.env.DEV) console.error('Fehler beim Laden der Tisch-/Matten-Bezeichnungen:', e)
     tableNamesByProgram.value = {...tableNamesByProgram.value, [firstProgram]: []}
     tableCountByProgram.value = {...tableCountByProgram.value, [firstProgram]: 0}
+    tableDefaultNamesByProgram.value = {...tableDefaultNamesByProgram.value, [firstProgram]: []}
   }
 }
 
@@ -499,7 +507,16 @@ function tableFieldSectionTitle(firstProgram: number): string {
 }
 
 function tableFieldSlotLabel(firstProgram: number, indexZeroBased: number): string {
-  return defaultTableFieldLabel(firstProgram, indexZeroBased + 1)
+  const fromApi = tableDefaultNamesByProgram.value[firstProgram]?.[indexZeroBased]
+  if (fromApi) {
+    return fromApi
+  }
+
+  return defaultTableFieldLabel(
+    firstProgram,
+    indexZeroBased + 1,
+    tableCountByProgram.value[firstProgram] || 0,
+  )
 }
 
 async function updateTableName(firstProgram: number) {
@@ -517,7 +534,11 @@ async function updateTableName(firstProgram: number) {
     }
   }
 
-  const dupes = duplicateEffectiveTableFieldLabels(firstProgram, trimmed)
+  const dupes = duplicateEffectiveTableFieldLabels(
+    firstProgram,
+    trimmed,
+    tableCountByProgram.value[firstProgram] || trimmed.length,
+  )
   if (dupes.length > 0) {
     tableNameErrorsByProgram.value = {
       ...tableNameErrorsByProgram.value,
@@ -587,7 +608,7 @@ async function ensureLoaded() {
   const rows: LaneRow[] = Array.isArray(data?.rows) ? data.rows : data
   lanesIndex.value = buildLanesIndex(rows)
   supportedPlanData.value = rows
-  await fetchTableNames()
+  await Promise.all([fetchTableNames(), ensureTableFieldLabels()])
   bootstrapped.value = true
   loading.value = false
 }

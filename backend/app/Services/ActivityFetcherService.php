@@ -4,6 +4,8 @@
 
 namespace App\Services;
 
+use App\Enums\FirstProgram;
+use App\Support\PlanParameter;
 use App\Support\TableFieldLabels;
 use Illuminate\Support\Facades\DB;
 
@@ -177,16 +179,16 @@ class ActivityFetcherService
                 ->where('te4.table_number', 4);
         });
 
-        $nounExpr = TableFieldLabels::sqlDefaultNounExpression('atd.first_program');
-
         // Basisselektion
         $select = '
             a.id as activity_id,
             ag.id as activity_group_id,
+            ag.plan as plan_id,
             a.start as start_time,
             a.`end` as end_time,
             COALESCE(peb.name, atd.name_preview) as activity_name,
             atd.id as activity_type_detail_id,
+            atd.first_program as table_label_first_program,
             fp.name as program_name,
             a.jury_lane as lane,
             a.jury_team as team,
@@ -197,13 +199,13 @@ class ActivityFetcherService
             a.extra_block as extra_block_id,
             peb.type as extra_block_type,
             CASE a.table_1
-                WHEN 1 THEN COALESCE(NULLIF(TRIM(te1.table_name), ""), CONCAT('.$nounExpr.', " ", "1"))
-                WHEN 3 THEN COALESCE(NULLIF(TRIM(te3.table_name), ""), CONCAT('.$nounExpr.', " ", "3"))
+                WHEN 1 THEN NULLIF(TRIM(te1.table_name), "")
+                WHEN 3 THEN NULLIF(TRIM(te3.table_name), "")
                 ELSE NULL
             END AS table_1_name,
             CASE a.table_2
-                WHEN 2 THEN COALESCE(NULLIF(TRIM(te2.table_name), ""), CONCAT('.$nounExpr.', " ", "2"))
-                WHEN 4 THEN COALESCE(NULLIF(TRIM(te4.table_name), ""), CONCAT('.$nounExpr.', " ", "4"))
+                WHEN 2 THEN NULLIF(TRIM(te2.table_name), "")
+                WHEN 4 THEN NULLIF(TRIM(te4.table_name), "")
                 ELSE NULL
             END AS table_2_name,
             a.slot_team as slot_team
@@ -301,6 +303,41 @@ class ActivityFetcherService
         $q->orderBy('ag_min.group_first_start')
             ->orderBy('a.start');
 
-        return $q->selectRaw($select)->get();
+        $countsByProgram = $this->tableCountsForPlan($plan);
+        $rows = $q->selectRaw($select)->get();
+
+        foreach ($rows as $row) {
+            $fp = (int) ($row->activity_first_program_id ?? $row->table_label_first_program ?? 0);
+            $count = $countsByProgram[$fp] ?? 0;
+            $n1 = (int) ($row->table_1 ?? 0);
+            $row->table_1_name = $n1 >= 1
+                ? TableFieldLabels::effective($fp, $n1, $row->table_1_name ?? null, $count)
+                : null;
+            $n2 = (int) ($row->table_2 ?? 0);
+            $row->table_2_name = $n2 >= 1
+                ? TableFieldLabels::effective($fp, $n2, $row->table_2_name ?? null, $count)
+                : null;
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function tableCountsForPlan(int $planId): array
+    {
+        try {
+            $params = PlanParameter::load($planId);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $counts = [];
+        foreach ([FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value] as $fp) {
+            $counts[$fp] = max(0, (int) $params->get(TableFieldLabels::countParamName($fp), 0));
+        }
+
+        return $counts;
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Enums\FirstProgram;
 use App\Models\Event;
 use App\Models\MSeason;
 use App\Models\RegionalPartner;
@@ -396,10 +397,49 @@ class EventController extends Controller
             ->orderBy('table_number')
             ->get(['table_number', 'table_name', 'first_program']);
 
+        $defaultNames = [];
+        for ($i = 1; $i <= $tableCount; $i++) {
+            $defaultNames[] = TableFieldLabels::defaultLabel($firstProgram, $i, $tableCount);
+        }
+
         return response()->json([
             'first_program' => $firstProgram,
             'table_count' => $tableCount,
             'table_names' => $tables,
+            'default_names' => $defaultNames,
+        ]);
+    }
+
+    public function tableFieldLabels()
+    {
+        $challenge = FirstProgram::CHALLENGE->value;
+        $f8 = FirstProgram::FUTURE_8->value;
+
+        $defaults = static function (int $fp, int $count): array {
+            $labels = [];
+            for ($i = 1; $i <= $count; $i++) {
+                $labels[] = TableFieldLabels::defaultLabel($fp, $i, $count);
+            }
+
+            return $labels;
+        };
+
+        $payload = static function (int $fp) use ($defaults): array {
+            return [
+                'noun' => TableFieldLabels::noun($fp),
+                'plural' => TableFieldLabels::plural($fp),
+                'abbrev' => TableFieldLabels::abbrev($fp),
+                'defaults_by_count' => [
+                    '2' => $defaults($fp, 2),
+                    '4' => $defaults($fp, 4),
+                ],
+            ];
+        };
+
+        return response()->json([
+            'plural_slash' => TableFieldLabels::pluralSlash(),
+            (string) $challenge => $payload($challenge),
+            (string) $f8 => $payload($f8),
         ]);
     }
 
