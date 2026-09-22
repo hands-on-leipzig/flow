@@ -146,11 +146,11 @@
         },
         {
             "id": 19,
-            "name": "Game",
+            "name": "Spiel",
             "sequence": 740,
             "description": null,
             "first_program": 8,
-            "overview_plan_column": "Game"
+            "overview_plan_column": "Spiel"
         },
         {
             "id": 20,
@@ -1060,7 +1060,7 @@
         },
         {
             "id": 66,
-            "name": "Game Testrunde",
+            "name": "Spieltestrunde",
             "code": "f8_test_round",
             "presence": "punctual",
             "public_time": 0,
@@ -1070,7 +1070,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Teams testen das Game-Feld und kl\u00e4ren Fragen mit den Schiedsrichter:innen",
+            "description": "Die Teams testen das Spielfeld und kl\u00e4ren Fragen mit den Schiedsrichter:innen",
             "link": "",
             "link_text": null,
             "activity_type": 19,
@@ -1078,7 +1078,7 @@
         },
         {
             "id": 67,
-            "name": "Game Runde 1",
+            "name": "Spielrunde 1",
             "code": "f8_round_1",
             "presence": "punctual",
             "public_time": 0,
@@ -1088,7 +1088,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die erste von drei Game Runden",
+            "description": "Die erste von drei Spielrunden",
             "link": null,
             "link_text": null,
             "activity_type": 19,
@@ -1096,7 +1096,7 @@
         },
         {
             "id": 68,
-            "name": "Game Runde 2",
+            "name": "Spielrunde 2",
             "code": "f8_round_2",
             "presence": "punctual",
             "public_time": 0,
@@ -1106,7 +1106,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die zweite von drei Game Runden",
+            "description": "Die zweite von drei Spielrunden",
             "link": null,
             "link_text": null,
             "activity_type": 19,
@@ -1114,7 +1114,7 @@
         },
         {
             "id": 69,
-            "name": "Game Runde 3",
+            "name": "Spielrunde 3",
             "code": "f8_round_3",
             "presence": "punctual",
             "public_time": 0,
@@ -1124,7 +1124,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die dritte von drei Game Runden",
+            "description": "Die dritte von drei Spielrunden",
             "link": null,
             "link_text": null,
             "activity_type": 19,
@@ -1132,7 +1132,7 @@
         },
         {
             "id": 70,
-            "name": "Game Runde 4",
+            "name": "Spielrunde 4",
             "code": "f8_round_4",
             "presence": "punctual",
             "public_time": 0,
@@ -1150,7 +1150,7 @@
         },
         {
             "id": 71,
-            "name": "Game Runde 5",
+            "name": "Spielrunde 5",
             "code": "f8_round_5",
             "presence": "punctual",
             "public_time": 0,
@@ -1204,7 +1204,7 @@
         },
         {
             "id": 74,
-            "name": "Game Match",
+            "name": "Spiel-Match",
             "code": "f8_r_match",
             "presence": "punctual",
             "public_time": 0,
@@ -1977,7 +1977,7 @@
             "help_topic": 4,
             "title": "Welche Varianten gibt es f\u00fcr die Anzahl Teams in meiner Veranstaltung?",
             "sort_order": 41,
-            "body": "Je nach Anzahl der Teams gibt es Varianten mit unterschiedlicher Anzahl von Jury-Gruppen und Tischen\/Feldern.\n\nDer \u00dcberblick \u00fcber alle m\u00f6glichen Varianten pro Programm kann mit dem Tabellen-Icon angezeigt werden."
+            "body": "Je nach Anzahl der Teams gibt es Varianten mit unterschiedlicher Anzahl von Jury-Gruppen und Tischen\/Matten.\n\nDer \u00dcberblick \u00fcber alle m\u00f6glichen Varianten pro Programm kann mit dem Tabellen-Icon angezeigt werden."
         },
         {
             "id": 45,
@@ -2864,7 +2864,7 @@
             "route_path": "\/plan\/schedule",
             "description": "Hier wird automatisch ein Ablauf f\u00fcr den Veranstaltungstag erzeugt.",
             "must_do": "Die Anzahl der Teams im Ablauf (pro Programm) ausw\u00e4hlen.",
-            "can_do": "Zus\u00e4tzlich zur Anzahl der Teams auch noch ausw\u00e4hlen, wie viele Jury-Gruppen, Felder usw. genutzt werden sollen.\n\n\u201eWas w\u00e4re wenn\u201c ausprobieren, also z.B. zwischen vier und zwei Feldern umstellen, um den dazu passenden Ablauf zu bekommen.",
+            "can_do": "Zus\u00e4tzlich zur Anzahl der Teams auch noch ausw\u00e4hlen, wie viele Jury-Gruppen, Matten usw. genutzt werden sollen.\n\n\u201eWas w\u00e4re wenn\u201c ausprobieren, also z.B. zwischen vier und zwei Matten umstellen, um den dazu passenden Ablauf zu bekommen.",
             "sort_order": 10
         },
         {
@@ -9025,8 +9025,8 @@
             "step": "2",
             "first_program": 8,
             "sequence": 42,
-            "ui_label": "Felder",
-            "ui_description": "Anzahl Felder (2 pro Tisch) im Game. Die Auswahl wird passend zur Anzahl Team und Jurygruppen angeboten. Vier Felder f\u00fchren zu k\u00fcrzeren Game-Runden. Das kann gut sein, aber auch zu Leerlauf f\u00fcr Teams und Besucher f\u00fchren. Ausserdem brauchen vier Felder mehr Platz, Material und Schiedsrichter:innen."
+            "ui_label": "Matten",
+            "ui_description": "Anzahl Matten (2 pro Tisch) im Spiel. Die Auswahl wird passend zur Anzahl Team und Jurygruppen angeboten. Vier Matten f\u00fchren zu k\u00fcrzeren Spielrunden. Das kann gut sein, aber auch zu Leerlauf f\u00fcr Teams und Besucher f\u00fchren. Ausserdem brauchen vier Matten mehr Platz, Material und Schiedsrichter:innen."
         },
         {
             "id": 139,
@@ -9086,7 +9086,7 @@
             "first_program": 8,
             "sequence": 26,
             "ui_label": "Dauer Ergebnisse",
-            "ui_description": "Vor jeder Finalrunden muss bekanntgegeben werden, welche Team an welchen Feldern starten."
+            "ui_description": "Vor jeder Finalrunden muss bekanntgegeben werden, welche Team an welchen Matten starten."
         },
         {
             "id": 143,
@@ -9101,7 +9101,7 @@
             "first_program": 8,
             "sequence": 91,
             "ui_label": "Dauer Coach:innen-Briefing",
-            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Game statt. Darin sollen alle Fragen zum Zeitplan gekl\u00e4rt werden."
+            "ui_description": "Das Briefing findet vor der ersten Jury-Bewertung und dem ersten Spiel statt. Darin sollen alle Fragen zum Zeitplan gekl\u00e4rt werden."
         },
         {
             "id": 144,
@@ -9131,7 +9131,7 @@
             "first_program": 8,
             "sequence": 97,
             "ui_label": "Dauer Schiedsrichter:innen-Briefing",
-            "ui_description": "Das Briefing findet vor dem ersten Game statt. Darin sollen aktuelle Regel-\u00c4nderungen, die Einteilung zu den Game-Feldern und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker:innen zu diesem Briefing dazu."
+            "ui_description": "Das Briefing findet vor dem ersten Spiel statt. Darin sollen aktuelle Regel-\u00c4nderungen, die Einteilung zu den Spielfeldern und der Zeitplan besprochen werden. Falls Robot-Check genutzt wird, kommen die Robot-Checker:innen zu diesem Briefing dazu."
         },
         {
             "id": 146,
@@ -9221,7 +9221,7 @@
             "first_program": 8,
             "sequence": 125,
             "ui_label": "Dauer Pause Schiedsrichter:innen",
-            "ui_description": "Dauer der Pause zwischen zwei Game-Runden. Zwischen den Matches haben die Schiedsrichter:innen keine Zeit f\u00fcr eine Pause. Daher ist diese Pause wichtig!"
+            "ui_description": "Dauer der Pause zwischen zwei Spielrunden. Zwischen den Matches haben die Schiedsrichter:innen keine Zeit f\u00fcr eine Pause. Daher ist diese Pause wichtig!"
         },
         {
             "id": 152,
@@ -9281,7 +9281,7 @@
             "first_program": 8,
             "sequence": 144,
             "ui_label": "Wechsel zu\/von den Pr\u00e4sentationen",
-            "ui_description": "Zeit f\u00fcr den Umbau von Game. Die gleiche Zeit wird auch f\u00fcr den Umbau zur\u00fcck zu den Game-Finalrunden verwendet."
+            "ui_description": "Zeit f\u00fcr den Umbau vom Spiel. Die gleiche Zeit wird auch f\u00fcr den Umbau zur\u00fcck zu den Spielfinalrunden verwendet."
         },
         {
             "id": 156,
@@ -9296,7 +9296,7 @@
             "first_program": 8,
             "sequence": 146,
             "ui_label": "Wechsel zur Preisverleihung",
-            "ui_description": "Zeit f\u00fcr den Umbau von Finalrunden zur Preisverleihung.\n\u00dcblicherweise werden die Game-Felder zur Seite gestellt. Die Teams der Finalrunden bringen ihr Material in den Vorbereitungsbereich und dann versammeln sich alle wieder vor der \"B\u00fchne\"."
+            "ui_description": "Zeit f\u00fcr den Umbau von Finalrunden zur Preisverleihung.\n\u00dcblicherweise werden die Spielfelder zur Seite gestellt. Die Teams der Finalrunden bringen ihr Material in den Vorbereitungsbereich und dann versammeln sich alle wieder vor der \"B\u00fchne\"."
         },
         {
             "id": 157,
@@ -9386,7 +9386,7 @@
             "first_program": 8,
             "sequence": 17,
             "ui_label": "Dauer Match exklusive Allianz-Gespr\u00e4ch",
-            "ui_description": "Dauer eines Game-Matches inklusive Punktevergabe durch die Schiedsrichter:innen."
+            "ui_description": "Dauer eines Spiel-Matches inklusive Punktevergabe durch die Schiedsrichter:innen."
         },
         {
             "id": 163,
@@ -9401,7 +9401,7 @@
             "first_program": 8,
             "sequence": 22,
             "ui_label": "Dauer Versatz",
-            "ui_description": "Nur f\u00fcr vier Felder: Dauer zwischen dem Start zweier Matches"
+            "ui_description": "Nur f\u00fcr vier Matten: Dauer zwischen dem Start zweier Matches"
         },
         {
             "id": 164,
@@ -9505,8 +9505,8 @@
             "step": "5",
             "first_program": 8,
             "sequence": 123,
-            "ui_label": "Wechsel zum Game",
-            "ui_description": "Nach der Er\u00f6ffnung gehen gehen die Schiedsrichter:innen zu den Feldern. Die ersten Teams machen sich bereit."
+            "ui_label": "Wechsel zum Spiel",
+            "ui_description": "Nach der Er\u00f6ffnung gehen gehen die Schiedsrichter:innen zu den Matten. Die ersten Teams machen sich bereit."
         },
         {
             "id": 172,
@@ -9551,7 +9551,7 @@
             "first_program": 8,
             "sequence": 115,
             "ui_label": "Beratung vor Ende der letzten Runde erlauben",
-            "ui_description": "F\u00fcr die Pokalvergabe m\u00fcssen alle  Game-Vorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erlaubt das."
+            "ui_description": "F\u00fcr die Pokalvergabe m\u00fcssen alle Spielvorrunden abgeschlossen sein. Vorher schon mit der Beratung anzufangen, kann aber sinnvoll sein. Dieser Schalter erlaubt das."
         },
         {
             "id": 175,
@@ -9611,7 +9611,7 @@
             "first_program": 8,
             "sequence": 11,
             "ui_label": "Wo finden die Matches statt?",
-            "ui_description": "Wenn die Game-Bereiche der beiden Programm nicht zusammen in einen Raum passen, werden unabh\u00e4ngige Abl\u00e4ufe pro Programm erzeugt. Er\u00f6ffnung und Preisverleihung bleiben aber integriert."
+            "ui_description": "Wenn Robot-Game-Bereich und Spielbereich der beiden Programme nicht zusammen in einen Raum passen, werden unabh\u00e4ngige Abl\u00e4ufe pro Programm erzeugt. Er\u00f6ffnung und Preisverleihung bleiben aber integriert."
         },
         {
             "id": 179,
@@ -9716,7 +9716,7 @@
             "first_program": 8,
             "sequence": 18,
             "ui_label": "Dauer Match inklusive Allianz-Gespr\u00e4ch",
-            "ui_description": "Dauer eines Game-Matches inklusive Punktevergabe durch die Schiedsrichter:innen."
+            "ui_description": "Dauer eines Spiel-Matches inklusive Punktevergabe durch die Schiedsrichter:innen."
         }
     ],
     "m_parameter_condition": [],
@@ -9934,16 +9934,16 @@
         {
             "id": 23,
             "name": "Schiedsrichter:in",
-            "name_short": "F",
+            "name_short": "M",
             "sequence": 21,
             "first_program": 8,
-            "description": "K\u00fcmmert sich um das Game der Future 8+ Teams",
+            "description": "K\u00fcmmert sich um das Spiel der Future 8+ Teams",
             "differentiation_parameter": "table",
             "preview_matrix": 1,
             "pdf_export": 1,
             "public_plan": 1,
             "staffable": 1,
-            "group_label": "Game Feld"
+            "group_label": "Spiel-Matte"
         },
         {
             "id": 24,
@@ -10092,7 +10092,7 @@
             "sequence": 22,
             "first_program": 8,
             "description": "Hilft den Teams beim Allianz-Gespr\u00e4ch",
-            "differentiation_parameter": "table",
+            "differentiation_parameter": null,
             "preview_matrix": 1,
             "pdf_export": 1,
             "public_plan": 1,
@@ -10599,7 +10599,7 @@
         {
             "id": 68,
             "code": "f8_r_match",
-            "name": "Game-Bereich",
+            "name": "Spielbereich",
             "sequence": 460,
             "room_type_group": 11,
             "level": 1,
@@ -10843,7 +10843,7 @@
             "m_role": 23,
             "min": 1,
             "best": 1,
-            "ui_description": "Jedes Feld braucht mindestens eine:n Schiedsrichter:in."
+            "ui_description": "Jede Matte braucht mindestens eine:n Schiedsrichter:in."
         },
         {
             "id": 8,
@@ -10898,7 +10898,7 @@
             "id": 15,
             "m_role": 35,
             "min": 1,
-            "best": 1,
+            "best": 2,
             "ui_description": "Sehr hilfreich f\u00fcr die Teams und Coach:innen, weil das Thema f\u00fcr alle noch ganz neu ist"
         },
         {
@@ -14918,7 +14918,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-21T13:05:14.013605Z",
+        "exported_at": "2026-09-22T15:06:51.002210Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
