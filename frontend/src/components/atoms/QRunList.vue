@@ -183,7 +183,7 @@ function programTheme(qrun) {
             <div><strong>Runden:</strong> {{ qrun.selection.jury_rounds?.join(', ') ?? '?' }}</div>
           </div>
 
-          <!-- Spalte 3: Spuren + Tische/Felder -->
+          <!-- Spalte 3: Spuren + Tische/Matten -->
           <div class="basis-[20%] flex-shrink-0 text-sm text-[var(--color-text-muted)] space-y-1">
             <div><strong>Spuren:</strong> {{ qrun.selection.jury_lanes?.join(', ') ?? '?' }}</div>
             <div>

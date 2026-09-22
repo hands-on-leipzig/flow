@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Print\GotenbergChromium;
 use App\Print\OverviewSheetAudience;
 use App\Print\OverviewSheetPdf;
+use App\Services\PdfDownloadRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -16,6 +17,7 @@ class PrintOverviewSheetController extends Controller
     public function __construct(
         private GotenbergChromium $gotenberg,
         private OverviewSheetPdf $pdf,
+        private PdfDownloadRecorder $downloads,
     ) {}
 
     public function start(Request $request, int $eventId)
@@ -91,6 +93,8 @@ class PrintOverviewSheetController extends Controller
         }
 
         $filename = (string) ($payload['filename'] ?? FlowFilename::make('Uebersichtsplan', 'pdf'));
+
+        $this->downloads->record($eventId, 'overview_sheet', request()->user()?->id);
 
         return response($bytes, 200, [
             'Content-Type' => 'application/pdf',

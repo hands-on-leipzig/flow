@@ -474,7 +474,8 @@ class PublicPlanService
                     $label = TableFieldLabels::effective(
                         $firstProgram,
                         $i,
-                        $tableNames[$firstProgram][$i] ?? null
+                        $tableNames[$firstProgram][$i] ?? null,
+                        $count
                     );
                 } elseif (in_array($parameter, ['lane', 'table'], true) && $groupLabel !== '') {
                     $label = $groupLabel.' '.$i;

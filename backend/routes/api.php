@@ -62,6 +62,7 @@ use App\Http\Controllers\Api\StatisticController;
 use App\Http\Controllers\Api\TeamController;
 use App\Http\Controllers\Api\TeamPublicFormController;
 use App\Http\Controllers\Api\UserAccessController;
+use App\Http\Controllers\Api\UsageCaptureController;
 use App\Http\Controllers\Api\UserRegionalPartnerController;
 use App\Http\Controllers\Api\VisibilityController;
 use App\Http\Controllers\Api\EventVolunteerInquiryController;
@@ -108,6 +109,8 @@ Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanFo
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
 Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']); // Public one-link access logging
+Route::post('/surface-access', [UsageCaptureController::class, 'surface']);
+Route::post('/display-heartbeat', [UsageCaptureController::class, 'heartbeat']);
 Route::get('/calendar.ics', [CalendarFeedController::class, 'all']); // Public ICS subscription (all events in window)
 Route::get('/calendar/{postfix}.ics', [CalendarFeedController::class, 'postfix'])
     ->where('postfix', '[A-Za-z0-9_]+');
@@ -336,6 +339,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::post('/events/{eventId}/check-attention', [EventController::class, 'checkAttention']);
     Route::get('/table-names/{eventId}', [EventController::class, 'getTableNames']);
     Route::put('/table-names/{eventId}', [EventController::class, 'updateTableNames']);
+    Route::get('/table-field-labels', [EventController::class, 'tableFieldLabels']);
 
     // Carousel controller
     Route::get('/slides/{slide}', [CarouselController::class, 'getSlide']);

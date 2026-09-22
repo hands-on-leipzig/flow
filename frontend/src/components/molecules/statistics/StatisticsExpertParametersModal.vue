@@ -69,7 +69,7 @@
       
       <!-- Table / field names (per program) -->
       <div v-if="tableNames.length > 0">
-        <h4 class="text-md font-semibold mb-2">Tisch-/Feldnamen (überschrieben)</h4>
+        <h4 class="text-md font-semibold mb-2">Tisch-/Mattennamen (überschrieben)</h4>
         <table class="w-full text-sm border-collapse table-fixed">
           <thead class="bg-[var(--color-bg-muted)] text-left">
             <tr>

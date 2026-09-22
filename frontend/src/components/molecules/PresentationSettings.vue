@@ -64,6 +64,9 @@ const previewIframeKey = ref(0);
 const previewUrl = computed(() =>
   selectedSlideshow.value ? getSlideshowLink(selectedSlideshow.value) : ''
 );
+const previewIframeSrc = computed(() =>
+  previewUrl.value ? withPreviewQuery(previewUrl.value) : ''
+);
 const previewHasSlides = computed(() => (selectedSlideshow.value?.slides?.length ?? 0) > 0);
 
 watch(
@@ -81,10 +84,14 @@ watch(
   },
 );
 
+function withPreviewQuery(url: string) {
+  return url.includes('?') ? `${url}&preview=1` : `${url}?preview=1`
+}
+
 function openSlideshowInNewWindow(slideshow: Slideshow) {
   const link = getSlideshowLink(slideshow);
   if (link) {
-    window.open(link, '_blank', 'noopener,noreferrer');
+    window.open(withPreviewQuery(link), '_blank', 'noopener,noreferrer');
   }
 }
 
@@ -492,7 +499,7 @@ async function addSlide(selectedType: string) {
                     <iframe
                         :key="previewIframeKey"
                         class="digital-workspace__live-frame"
-                        :src="previewUrl"
+                        :src="previewIframeSrc"
                         title="Live-Vorschau"
                         tabindex="-1"
                     />

@@ -9,6 +9,7 @@ use App\Print\RoleSheetAssembler;
 use App\Print\RoleSheetCatalog;
 use App\Print\RoleSheetTcpdfRenderer;
 use App\Services\EventSlugService;
+use App\Services\PdfDownloadRecorder;
 use Illuminate\Http\Request;
 
 class PrintRoleSheetController extends Controller
@@ -18,6 +19,7 @@ class PrintRoleSheetController extends Controller
         private RoleSheetAssembler $assembler,
         private RoleSheetTcpdfRenderer $renderer,
         private EventSlugService $slugs,
+        private PdfDownloadRecorder $downloads,
     ) {}
 
     public function catalog(int $eventId)
@@ -66,6 +68,8 @@ class PrintRoleSheetController extends Controller
         $document['wifi_qr_base64'] = self::wifiQrBase64($event);
         $bytes = $this->renderer->render($document);
         $filename = FlowFilename::make('Rollenplaene', 'pdf', $event?->date);
+
+        $this->downloads->record($eventId, 'role_sheets', $request->user()?->id);
 
         return response($bytes, 200, [
             'Content-Type' => 'application/pdf',

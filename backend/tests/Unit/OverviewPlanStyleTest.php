@@ -49,6 +49,10 @@ class OverviewPlanStyleTest extends TestCase
         $game = OverviewPlanStyle::cellColorsFromCatalog('Game', $explore, $challenge, $future8);
         $this->assertSame($future8, $game['border']);
         $this->assertSame(ProgramCatalog::mixHexWithWhite($future8, OverviewPlanStyle::FIELD_TINT), $game['bg']);
+
+        $spiel = OverviewPlanStyle::cellColorsFromCatalog('Spiel', $explore, $challenge, $future8, 'Robot-Game', 'Spiel');
+        $this->assertSame($future8, $spiel['border']);
+        $this->assertSame(ProgramCatalog::mixHexWithWhite($future8, OverviewPlanStyle::FIELD_TINT), $spiel['bg']);
     }
 
     public function test_allgemein_suffix_keeps_gray_tint_and_program_border(): void

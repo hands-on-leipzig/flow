@@ -25,6 +25,13 @@ import {
 } from '@/utils/volunteerStaffingFilters'
 import {type VolunteerPersonRef, volunteerDisplayName, volunteerSearchHaystack} from '@/utils/volunteerPerson'
 import {staffingContainerTitle, staffingTileKey} from '@/volunteers/staffingLabel'
+import {
+  FIRST_PROGRAM_CHALLENGE,
+  FIRST_PROGRAM_FUTURE_8,
+  effectiveTableFieldLabel,
+  ensureTableFieldLabels,
+  supportsTableFieldLabels,
+} from '@/utils/tableFieldLabels'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import {
@@ -55,6 +62,8 @@ const personSearch = ref('')
 const planId = ref<number | null>(null)
 const loading = ref(false)
 const isSaving = ref(false)
+const tableCustomsByProgram = ref<Record<number, string[]>>({})
+const tableCountByProgram = ref<Record<number, number>>({})
 
 const isDragging = ref(false)
 const dragOverKey = ref<string | null>(null)
@@ -76,6 +85,36 @@ const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
 
 const staffingSummary = computed(() => computeStaffingSummary(roles.value, programFilters.value))
 
+function isMatchPlaceRole(role: Role): boolean {
+  if (!supportsTableFieldLabels(Number(role.first_program))) return false
+  const label = (role.group_label || '').toLowerCase()
+  return label.includes('tisch') || label.includes('feld') || label.includes('matte')
+}
+
+function isRobotCheckRole(role: Role): boolean {
+  if (!supportsTableFieldLabels(Number(role.first_program))) return false
+  return (role.group_label || '').toLowerCase().includes('robot-check')
+}
+
+function placeLabelForGroup(role: Role, group: Role['groups'][number]): string {
+  const fp = Number(role.first_program)
+  const count = tableCountByProgram.value[fp] || (role.groups?.length ?? 0)
+  const custom = tableCustomsByProgram.value[fp]?.[group.group_index - 1] ?? ''
+  return effectiveTableFieldLabel(fp, group.group_index, custom, count)
+}
+
+function tileTitle(role: Role, group: Role['groups'][number] | null): string {
+  if (group && isRobotCheckRole(role)) {
+    const place = placeLabelForGroup(role, group)
+    if (place) return `Robot-Check für ${place}`
+  }
+  if (group && isMatchPlaceRole(role)) {
+    const place = placeLabelForGroup(role, group)
+    if (place) return place
+  }
+  return staffingContainerTitle(role, group)
+}
+
 const tiles = computed<Tile[]>(() => {
   const list = roles.value.flatMap((role) => {
     if (role.grouped) {
@@ -85,7 +124,7 @@ const tiles = computed<Tile[]>(() => {
           key: staffingTileKey(role.id, group.id),
           role,
           group,
-          name: staffingContainerTitle(role, group),
+          name: tileTitle(role, group),
         }))
     }
     if (role.surplus && (role.people ?? []).length === 0) return []
@@ -262,14 +301,46 @@ async function saveBoundsModal(bounds: {min: number; best: number}) {
   }
 }
 
+async function loadTableNames(id: number) {
+  const nextCustoms: Record<number, string[]> = {}
+  const nextCount: Record<number, number> = {}
+  await Promise.all(
+    [FIRST_PROGRAM_CHALLENGE, FIRST_PROGRAM_FUTURE_8].map(async (fp) => {
+      try {
+        const {data} = await axios.get(`/table-names/${id}`, {
+          params: {first_program: fp},
+        })
+        const count = Number(data.table_count) || 0
+        const names = Array(Math.max(0, count)).fill('')
+        for (const row of data.table_names || []) {
+          const num = Number(row.table_number)
+          if (num >= 1 && num <= names.length) {
+            names[num - 1] = row.table_name ?? ''
+          }
+        }
+        nextCustoms[fp] = names
+        nextCount[fp] = count
+      } catch {
+        nextCustoms[fp] = []
+        nextCount[fp] = 0
+      }
+    }),
+  )
+  tableCustomsByProgram.value = nextCustoms
+  tableCountByProgram.value = nextCount
+}
+
 async function load() {
   if (!eventId.value) return
   loading.value = true
   try {
+    const id = eventId.value
     const [staffingRes, rosterRes, poolRes] = await Promise.all([
-      axios.get(`/events/${eventId.value}/staffing`),
-      axios.get(`/events/${eventId.value}/volunteer-roster`),
-      axios.get(`/events/${eventId.value}/volunteers`),
+      axios.get(`/events/${id}/staffing`),
+      axios.get(`/events/${id}/volunteer-roster`),
+      axios.get(`/events/${id}/volunteers`),
+      ensureTableFieldLabels(),
+      loadTableNames(id),
     ])
     roles.value = (staffingRes.data.roles ?? []).map((role: Role) => ({
       ...role,

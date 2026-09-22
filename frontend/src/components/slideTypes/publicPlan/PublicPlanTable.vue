@@ -275,7 +275,9 @@ function tableName(a: any, side: 1 | 2): string {
   const name = side === 1 ? a?.table_1_name : a?.table_2_name;
   const num = side === 1 ? a?.table_1 : a?.table_2;
   const fp = Number(a?.first_program_id ?? a?.activity_first_program_id ?? 3);
-  return name ?? (num != null ? defaultTableFieldLabel(fp, Number(num)) : '');
+  const count = (Number(a?.table_1) === 3 || Number(a?.table_1) === 4
+    || Number(a?.table_2) === 3 || Number(a?.table_2) === 4) ? 4 : 0;
+  return name ?? (num != null ? defaultTableFieldLabel(fp, Number(num), count) : '');
 }
 
 function hasTables(a: any): boolean {

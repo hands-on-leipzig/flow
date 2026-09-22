@@ -5,6 +5,7 @@ import axios from 'axios'
 import QRCode from 'qrcode'
 import {imageUrl} from '@/utils/images'
 import {publicPlanPath} from '@/utils/publicPlanPath'
+import {isPlannerPreview, logSurfaceAccess} from '@/utils/usageCapture'
 import CockpitToolShell from '@/components/molecules/CockpitToolShell.vue'
 import CockpitPhonebookPanel from '@/components/molecules/CockpitPhonebookPanel.vue'
 import CockpitOverviewPanel from '@/components/molecules/CockpitOverviewPanel.vue'
@@ -57,6 +58,19 @@ const qrDataUrl = ref('')
 const toolsError = ref('')
 
 const storageKey = computed(() => `flow:cockpit-token:${slug.value}`)
+
+let didLog = false
+
+function logUnlocked() {
+  if (didLog) return
+  if (isPlannerPreview()) return
+  if (!bootstrap.value?.enabled || !token.value) return
+  const eventId = Number(bootstrap.value.event_id)
+  if (!eventId) return
+  didLog = true
+  const source = route.query.source === 'qr' ? 'qr' : undefined
+  logSurfaceAccess(eventId, 'app_cockpit', source)
+}
 
 const planPath = computed(() => publicPlanPath(bootstrap.value?.public_link, bootstrap.value?.slug || slug.value))
 
@@ -225,6 +239,7 @@ async function unlock() {
     sessionStorage.setItem(storageKey.value, data.token)
     pin.value = ''
     view.value = 'home'
+    logUnlocked()
     await loadOrganizer()
   } catch (e: any) {
     const status = e?.response?.status
@@ -250,11 +265,13 @@ watch(token, (next) => {
 })
 
 watch(slug, async () => {
+  didLog = false
   token.value = sessionStorage.getItem(storageKey.value) || ''
   view.value = 'home'
   organizer.value = null
   await loadBootstrap()
   if (token.value && bootstrap.value?.enabled) {
+    logUnlocked()
     await loadOrganizer()
   }
 })
@@ -263,6 +280,7 @@ onMounted(async () => {
   token.value = sessionStorage.getItem(storageKey.value) || ''
   await loadBootstrap()
   if (token.value && bootstrap.value?.enabled) {
+    logUnlocked()
     await loadOrganizer()
   }
 })

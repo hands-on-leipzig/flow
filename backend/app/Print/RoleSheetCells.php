@@ -91,6 +91,7 @@ final class RoleSheetCells
                     $program,
                     $ownTable,
                     self::tableStoredName($activity, $ownTable),
+                    self::intOrNull($activity['table_count'] ?? null) ?? 0,
                 );
             }
         }

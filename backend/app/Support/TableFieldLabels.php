@@ -7,14 +7,28 @@ namespace App\Support;
 use App\Enums\FirstProgram;
 
 /**
- * Default nouns and uniqueness for Robot Game table / field display names.
+ * Default nouns and uniqueness for Robot Game table / mat display names.
  *
- * Challenge and unknown → "Tisch N", Future 8+ → "Feld N".
+ * Challenge and unknown → "Tisch N". Future 8+ → Matte rot/blau maps from table count.
  * Stored values are full free-text overrides; empty means use the default.
  */
 final class TableFieldLabels
 {
     public const MAX_LENGTH = 100;
+
+    /** @var array<int, string> */
+    private const FUTURE_LABELS_2 = [
+        1 => 'Matte rot',
+        2 => 'Matte blau',
+    ];
+
+    /** @var array<int, string> */
+    private const FUTURE_LABELS_4 = [
+        1 => 'Matte rot 1',
+        2 => 'Matte blau 1',
+        3 => 'Matte rot 2',
+        4 => 'Matte blau 2',
+    ];
 
     public static function supports(int $firstProgramId): bool
     {
@@ -24,27 +38,33 @@ final class TableFieldLabels
 
     public static function noun(int $firstProgramId): string
     {
-        return $firstProgramId === FirstProgram::FUTURE_8->value ? 'Feld' : 'Tisch';
+        return $firstProgramId === FirstProgram::FUTURE_8->value ? 'Matte' : 'Tisch';
     }
 
     public static function plural(int $firstProgramId): string
     {
-        return $firstProgramId === FirstProgram::FUTURE_8->value ? 'Felder' : 'Tische';
+        return $firstProgramId === FirstProgram::FUTURE_8->value ? 'Matten' : 'Tische';
     }
 
     public static function abbrev(int $firstProgramId): string
     {
-        return $firstProgramId === FirstProgram::FUTURE_8->value ? 'F' : 'T';
+        return $firstProgramId === FirstProgram::FUTURE_8->value ? 'M' : 'T';
     }
 
     public static function pluralSlash(): string
     {
-        return 'Tische/Felder';
+        return 'Tische/Matten';
     }
 
-    public static function defaultLabel(int $firstProgramId, int $tableNumber): string
+    public static function defaultLabel(int $firstProgramId, int $tableNumber, int $tableCount = 0): string
     {
-        return self::noun($firstProgramId).' '.$tableNumber;
+        if ($firstProgramId !== FirstProgram::FUTURE_8->value) {
+            return 'Tisch '.$tableNumber;
+        }
+
+        $map = self::futureMap($tableNumber, $tableCount);
+
+        return $map[$tableNumber] ?? ('Matte '.$tableNumber);
     }
 
     public static function juryPlaceHeader(int $firstProgramId): string
@@ -53,7 +73,7 @@ final class TableFieldLabels
     }
 
     /**
-     * Strip a leading default noun ("Tisch "/"Feld ") so compact PDFs can show the rest.
+     * Strip a leading default noun ("Tisch "/"Matte ") so compact PDFs can show the rest.
      * Custom names that do not start with the program noun are unchanged.
      */
     public static function stripLeadingNoun(int $firstProgramId, string $label): string
@@ -70,14 +90,14 @@ final class TableFieldLabels
     /**
      * Full display label: trimmed custom if non-empty, else program default.
      */
-    public static function effective(int $firstProgramId, int $tableNumber, ?string $custom): string
+    public static function effective(int $firstProgramId, int $tableNumber, ?string $custom, int $tableCount = 0): string
     {
         $trimmed = trim((string) $custom);
         if ($trimmed !== '') {
             return $trimmed;
         }
 
-        return self::defaultLabel($firstProgramId, $tableNumber);
+        return self::defaultLabel($firstProgramId, $tableNumber, $tableCount);
     }
 
     /**
@@ -102,7 +122,7 @@ final class TableFieldLabels
         $dupes = [];
 
         for ($n = 1; $n <= $count; $n++) {
-            $label = self::effective($firstProgramId, $n, $customsByNumber[$n] ?? null);
+            $label = self::effective($firstProgramId, $n, $customsByNumber[$n] ?? null, $count);
             $key = mb_strtolower($label);
             if (isset($seen[$key])) {
                 $dupes[$key] = $label;
@@ -115,13 +135,14 @@ final class TableFieldLabels
     }
 
     /**
-     * SQL expression fragment for the default noun from atd.first_program / fp.
-     * Challenge and unknown → Tisch; Future 8+ → Feld.
+     * @return array<int, string>
      */
-    public static function sqlDefaultNounExpression(string $firstProgramColumn = 'atd.first_program'): string
+    private static function futureMap(int $tableNumber, int $tableCount): array
     {
-        $f8 = FirstProgram::FUTURE_8->value;
+        if ($tableCount === 4) {
+            return self::FUTURE_LABELS_4;
+        }
 
-        return "CASE WHEN {$firstProgramColumn} = {$f8} THEN \"Feld\" ELSE \"Tisch\" END";
+        return $tableNumber >= 3 ? self::FUTURE_LABELS_4 : self::FUTURE_LABELS_2;
     }
 }

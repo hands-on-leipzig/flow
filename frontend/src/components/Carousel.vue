@@ -4,6 +4,7 @@ import SlideContentRenderer from "./slideTypes/SlideContentRenderer.vue";
 import {Slide} from "../models/slide.js";
 import axios from "axios";
 import {useAutoHideCursor} from "../composables/useAutoHideCursor";
+import {beatDisplay, isPlannerPreview} from "@/utils/usageCapture";
 
 // TODO Socket injector
 /*
@@ -28,6 +29,32 @@ const container = ref<HTMLElement>(null);
 const renderers = ref([]);
 
 useAutoHideCursor(container, 3000);
+
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+
+function beat() {
+  beatDisplay(+props.eventId)
+}
+
+function onVisibility() {
+  if (document.visibilityState === 'visible') beat()
+}
+
+function startHeartbeat() {
+  if (isPlannerPreview()) return
+  beat()
+  heartbeatTimer = setInterval(beat, 300000)
+  document.addEventListener('visibilitychange', onVisibility)
+}
+
+function stopHeartbeat() {
+  if (heartbeatTimer) {
+    clearInterval(heartbeatTimer)
+    heartbeatTimer = null
+  }
+  document.removeEventListener('visibilitychange', onVisibility)
+  if (!isPlannerPreview() && document.visibilityState === 'visible') beat()
+}
 
 async function fetchSlides() {
   const response = await axios.get(`/carousel/${props.eventId}/slideshows`);
@@ -95,9 +122,11 @@ function startFetchingSlides() {
 
 onMounted(startFetchingSlides)
 onMounted(fetchSlides)
+onMounted(startHeartbeat)
 
 onMounted(() => window.addEventListener('keydown', handleKeyDown));
 onUnmounted(() => window.removeEventListener('keydown', handleKeyDown));
+onUnmounted(stopHeartbeat);
 
 </script>
 

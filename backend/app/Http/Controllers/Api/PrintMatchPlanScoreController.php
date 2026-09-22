@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Print\MatchPlanScoreAssembler;
 use App\Print\MatchPlanScoreTcpdfRenderer;
 use App\Services\EventSlugService;
+use App\Services\PdfDownloadRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -18,6 +19,7 @@ class PrintMatchPlanScoreController extends Controller
         private MatchPlanScoreAssembler $assembler,
         private MatchPlanScoreTcpdfRenderer $renderer,
         private EventSlugService $slugs,
+        private PdfDownloadRecorder $downloads,
     ) {}
 
     public function download(Request $request, int $eventId)
@@ -49,6 +51,8 @@ class PrintMatchPlanScoreController extends Controller
         $document['wifi_qr_base64'] = self::wifiQrBase64($event);
         $bytes = $this->renderer->render($document);
         $filename = FlowFilename::make('Match-Plan', 'pdf', $event?->date);
+
+        $this->downloads->record($eventId, 'match_plan_score', $request->user()?->id);
 
         return response($bytes, 200, [
             'Content-Type' => 'application/pdf',

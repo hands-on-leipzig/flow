@@ -106,6 +106,58 @@ class VolunteerPersonApiTest extends TestCase
         $this->assertSame(1, VolunteerPerson::query()->whereNull('email')->count());
     }
 
+    public function test_recent_assignments_returns_array_not_collection(): void
+    {
+        DB::table('volunteer_person')->insert([
+            'id' => 1,
+            'regional_partner' => 1,
+            'first_name' => 'Ada',
+            'last_name' => 'Lovelace',
+            'email' => 'ada@example.com',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('event')->insert([
+            'id' => 2,
+            'name' => 'Other',
+            'slug' => 'other',
+            'regional_partner' => 1,
+            'level' => 1,
+            'season' => 1,
+            'date' => '2025-09-20',
+            'days' => 1,
+        ]);
+        DB::table('event_staffing_role')->insert([
+            'id' => 1,
+            'event' => 2,
+            'm_role' => null,
+            'label' => 'Jury',
+            'group_label' => 'Jury-Gruppe',
+            'min' => 1,
+            'best' => 1,
+            'sequence' => 1,
+        ]);
+        DB::table('event_staffing_group')->insert([
+            'id' => 1,
+            'event_staffing_role' => 1,
+            'group_index' => 2,
+        ]);
+        DB::table('event_staffing_assignment')->insert([
+            'event_staffing_role' => 1,
+            'event_staffing_group' => 1,
+            'volunteer_person' => 1,
+            'created_at' => now(),
+        ]);
+
+        $controller = app(VolunteerPersonController::class);
+        $method = new \ReflectionMethod($controller, 'recentAssignments');
+        $history = $method->invoke($controller, 1, 1);
+
+        $this->assertIsArray($history);
+        $this->assertSame('Jury (Jury-Gruppe 2)', $history[0]['role']);
+        $this->assertSame(2, $history[0]['event_id']);
+    }
+
     private function seedBase(): void
     {
         DB::table('event')->insert([
@@ -122,7 +174,13 @@ class VolunteerPersonApiTest extends TestCase
 
     private function truncateData(): void
     {
-        foreach (['volunteer_person', 'event'] as $table) {
+        foreach ([
+            'event_staffing_assignment',
+            'event_staffing_group',
+            'event_staffing_role',
+            'volunteer_person',
+            'event',
+        ] as $table) {
             if (Schema::hasTable($table)) {
                 DB::table($table)->delete();
             }
@@ -178,6 +236,11 @@ class VolunteerPersonApiTest extends TestCase
             Schema::create('m_role', function (Blueprint $table) {
                 $table->increments('id');
                 $table->string('name')->nullable();
+                $table->unsignedInteger('first_program')->nullable();
+            });
+        } elseif (! Schema::hasColumn('m_role', 'first_program')) {
+            Schema::table('m_role', function (Blueprint $table) {
+                $table->unsignedInteger('first_program')->nullable();
             });
         }
 

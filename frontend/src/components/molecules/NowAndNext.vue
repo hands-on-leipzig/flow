@@ -151,8 +151,10 @@ const splitWith = (a: any) => {
   // Table-Fall
   if (a?.table_1 || a?.table_2) {
     const fp = Number(a?.activity_first_program_id ?? a?.first_program_id ?? 3)
-    const t1Right = a?.table_1 ? (a?.table_1_name || defaultTableFieldLabel(fp, Number(a.table_1))) : ''
-    const t2Right = a?.table_2 ? (a?.table_2_name || defaultTableFieldLabel(fp, Number(a.table_2))) : ''
+    const count = (Number(a?.table_1) === 3 || Number(a?.table_1) === 4
+      || Number(a?.table_2) === 3 || Number(a?.table_2) === 4) ? 4 : 0
+    const t1Right = a?.table_1 ? (a?.table_1_name || defaultTableFieldLabel(fp, Number(a.table_1), count)) : ''
+    const t2Right = a?.table_2 ? (a?.table_2_name || defaultTableFieldLabel(fp, Number(a.table_2), count)) : ''
     const right = [t1Right, t2Right].filter(Boolean).join(' : ')
 
     const t1Team = a?.table_1 ? activityTeamCaption(a?.table_1_team, a?.table_1_team_name) : ''

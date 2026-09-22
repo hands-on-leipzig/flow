@@ -209,7 +209,7 @@ class PublicPlanServiceTest extends TestCase
         $payload = app(PublicPlanService::class)->getRoles(1);
         $labels = collect($payload['roles'][0]['options'])->pluck('label')->all();
 
-        $this->assertSame(['Feld 1'], $labels);
+        $this->assertSame(['Matte rot'], $labels);
     }
 
     public function test_table_option_labels_prefer_custom_names(): void

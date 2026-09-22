@@ -454,6 +454,104 @@ class StaffingSyncServiceTest extends TestCase
         $this->assertSame('Jury-Gruppe', $byPerson[1][0]['group_label']);
     }
 
+    public function test_assignment_labels_use_place_helper_except_allianz(): void
+    {
+        $this->seedChallengeEvent(lanes: 2);
+        $c = FirstProgram::CHALLENGE->value;
+        $f8 = FirstProgram::FUTURE_8->value;
+
+        DB::table('m_parameter')->insert([
+            ['id' => 48, 'name' => 'r_tables', 'value' => '2', 'first_program' => $c],
+            ['id' => 210, 'name' => 'f8_fields', 'value' => '2', 'first_program' => $f8],
+        ]);
+        DB::table('plan_param_value')->insert([
+            ['plan' => 1, 'parameter' => 48, 'set_value' => '2'],
+            ['plan' => 1, 'parameter' => 210, 'set_value' => '2'],
+        ]);
+        DB::table('table_event')->insert([
+            ['event' => 1, 'first_program' => $c, 'table_number' => 1, 'table_name' => 'Anton'],
+        ]);
+
+        DB::table('m_role')->insert([
+            [
+                'id' => 5,
+                'name' => 'Schiedsrichter:in',
+                'sequence' => 6,
+                'first_program' => $c,
+                'differentiation_parameter' => 'table',
+                'staffable' => 1,
+                'group_label' => 'Tisch',
+            ],
+            [
+                'id' => 11,
+                'name' => 'Robot-Check',
+                'sequence' => 7,
+                'first_program' => $c,
+                'differentiation_parameter' => 'table',
+                'staffable' => 1,
+                'group_label' => 'Robot-Check',
+            ],
+            [
+                'id' => 23,
+                'name' => 'Schiedsrichter:in',
+                'sequence' => 8,
+                'first_program' => $f8,
+                'differentiation_parameter' => 'table',
+                'staffable' => 1,
+                'group_label' => 'Spiel-Matte',
+            ],
+            [
+                'id' => 35,
+                'name' => 'Betreuer:in Allianz-Gespräche',
+                'sequence' => 9,
+                'first_program' => $f8,
+                'differentiation_parameter' => 'table',
+                'staffable' => 1,
+                'group_label' => null,
+            ],
+        ]);
+
+        $this->insertGroupedAssignment(10, 5, 'Schiedsrichter:in', 'Tisch', 1, 1);
+        $this->insertGroupedAssignment(11, 11, 'Robot-Check', 'Robot-Check', 2, 1);
+        $this->insertGroupedAssignment(12, 23, 'Schiedsrichter:in', 'Spiel-Matte', 3, 1);
+        DB::table('volunteer_person')->insert([
+            'id' => 4,
+            'regional_partner' => 1,
+            'first_name' => 'Dana',
+            'last_name' => 'Alliance',
+            'email' => 'dana@example.com',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('event_staffing_role')->insert([
+            'id' => 13,
+            'event' => 1,
+            'm_role' => 35,
+            'label' => 'Betreuer:in Allianz-Gespräche',
+            'group_label' => null,
+            'min' => 1,
+            'best' => 1,
+            'sequence' => 9,
+        ]);
+        DB::table('event_staffing_assignment')->insert([
+            'event_staffing_role' => 13,
+            'event_staffing_group' => null,
+            'volunteer_person' => 4,
+            'created_at' => now(),
+        ]);
+
+        $byPerson = StaffingAssignmentLabel::assignmentsByPerson(1);
+
+        $this->assertSame('CHALLENGE: Anton', $byPerson[1][0]['tile_name']);
+        $this->assertSame('Schiedsrichter:in (Anton)', $byPerson[1][0]['caption']);
+        $this->assertSame('CHALLENGE: Robot-Check für Anton', $byPerson[2][0]['tile_name']);
+        $this->assertSame('Robot-Check (Robot-Check für Anton)', $byPerson[2][0]['caption']);
+        $this->assertSame('FUTURE_8: Matte rot', $byPerson[3][0]['tile_name']);
+        $this->assertSame('Schiedsrichter:in (Matte rot)', $byPerson[3][0]['caption']);
+        $this->assertSame('FUTURE_8: Betreuer:in Allianz-Gespräche', $byPerson[4][0]['tile_name']);
+        $this->assertSame('Betreuer:in Allianz-Gespräche', $byPerson[4][0]['caption']);
+    }
+
     public function test_ceremony_on_plan_does_not_staff_juror_unless_they_own_the_atd(): void
     {
         $this->seedChallengeEvent(lanes: 3);
@@ -723,6 +821,14 @@ class StaffingSyncServiceTest extends TestCase
             $table->unique(['event_staffing_role', 'volunteer_person']);
         });
 
+        Schema::create('table_event', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedInteger('event');
+            $table->unsignedInteger('first_program');
+            $table->unsignedInteger('table_number');
+            $table->string('table_name')->nullable();
+        });
+
         Schema::create('event_volunteer_roster', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('event');
@@ -788,6 +894,50 @@ class StaffingSyncServiceTest extends TestCase
             'email' => 'ada@example.com',
             'created_at' => now(),
             'updated_at' => now(),
+        ]);
+    }
+
+    private function insertGroupedAssignment(
+        int $roleRowId,
+        int $mRoleId,
+        string $label,
+        string $groupLabel,
+        int $personId,
+        int $groupIndex,
+    ): void {
+        if ($personId !== 1) {
+            DB::table('volunteer_person')->insert([
+                'id' => $personId,
+                'regional_partner' => 1,
+                'first_name' => 'P'.$personId,
+                'last_name' => 'Person',
+                'email' => "p{$personId}@example.com",
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        DB::table('event_staffing_role')->insert([
+            'id' => $roleRowId,
+            'event' => 1,
+            'm_role' => $mRoleId,
+            'label' => $label,
+            'group_label' => $groupLabel,
+            'min' => 1,
+            'best' => 1,
+            'sequence' => $mRoleId,
+        ]);
+        $groupId = $roleRowId * 10;
+        DB::table('event_staffing_group')->insert([
+            'id' => $groupId,
+            'event_staffing_role' => $roleRowId,
+            'group_index' => $groupIndex,
+        ]);
+        DB::table('event_staffing_assignment')->insert([
+            'event_staffing_role' => $roleRowId,
+            'event_staffing_group' => $groupId,
+            'volunteer_person' => $personId,
+            'created_at' => now(),
         ]);
     }
 }

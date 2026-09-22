@@ -232,10 +232,13 @@ async function setDetailLevel(level: number) {
 
 function openPublic() {
   if (previewSchedule.value && planId.value) {
-    window.open(`/public-schedule/${planId.value}`, '_blank', 'noopener')
+    window.open(`/public-schedule/${planId.value}?preview=1`, '_blank', 'noopener')
     return
   }
-  if (publicUrl.value) window.open(publicUrl.value, '_blank', 'noopener')
+  if (publicUrl.value) {
+    const sep = publicUrl.value.includes('?') ? '&' : '?'
+    window.open(`${publicUrl.value}${sep}preview=1`, '_blank', 'noopener')
+  }
 }
 
 async function toggleSchedulePreview() {

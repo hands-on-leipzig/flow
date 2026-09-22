@@ -48,6 +48,8 @@ $dayHeaderClass = $isPdf ? '' : 'day-header';
 $exploreLabel = \App\Support\ProgramCatalog::displayName(\App\Support\ProgramCatalog::EXPLORE);
 $challengeLabel = \App\Support\ProgramCatalog::displayName(\App\Support\ProgramCatalog::CHALLENGE);
 $future8Label = \App\Support\ProgramCatalog::displayName('FUTURE_8');
+$challengeFieldColumn = \App\Support\OverviewPlanStyle::fieldOverviewColumn(\App\Enums\FirstProgram::CHALLENGE->value);
+$futureFieldColumn = \App\Support\OverviewPlanStyle::fieldOverviewColumn(\App\Enums\FirstProgram::FUTURE_8->value);
 @endphp
 
 <div class="{{ $containerClass }}">
@@ -72,11 +74,11 @@ $future8Label = \App\Support\ProgramCatalog::displayName('FUTURE_8');
                                 $hasExplore = in_array('Explore', $columnNames);
                                 $hasAllgemein3 = in_array('Allgemein-3', $columnNames);
                                 $hasChallenge = in_array('Challenge', $columnNames);
-                                $hasRobotGame = in_array('Robot-Game', $columnNames);
+                                $hasRobotGame = in_array($challengeFieldColumn, $columnNames);
                                 $hasLiveChallenge = in_array('Live Challenge', $columnNames);
                                 $hasAllgemein4 = in_array('Allgemein-4', $columnNames);
                                 $hasFuture8 = in_array('Future 8+', $columnNames);
-                                $hasGame = in_array('Game', $columnNames);
+                                $hasGame = in_array($futureFieldColumn, $columnNames);
                                 
                                 // Count columns for each merged group
                                 $exploreColumns = 0;
@@ -139,7 +141,7 @@ $future8Label = \App\Support\ProgramCatalog::displayName('FUTURE_8');
                                             </div>
                                         </th>
                                     @endif
-                                @elseif($columnName === 'Robot-Game' && $hasRobotGame)
+                                @elseif($columnName === $challengeFieldColumn && $hasRobotGame)
                                     @if(!$hasAllgemein3 && !$hasChallenge && !$hasLiveChallenge)
                                         <th class="column-header">{{ $columnName }}</th>
                                     @endif
@@ -167,7 +169,7 @@ $future8Label = \App\Support\ProgramCatalog::displayName('FUTURE_8');
                                             </div>
                                         </th>
                                     @endif
-                                @elseif($columnName === 'Game' && $hasGame)
+                                @elseif($columnName === $futureFieldColumn && $hasGame)
                                     @if(!$hasAllgemein4 && !$hasFuture8)
                                         <th class="column-header">{{ $columnName }}</th>
                                     @endif

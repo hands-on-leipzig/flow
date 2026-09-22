@@ -17,27 +17,44 @@ class TableFieldLabelsTest extends TestCase
         $this->assertSame('Tische', TableFieldLabels::plural($c));
         $this->assertSame('T', TableFieldLabels::abbrev($c));
         $this->assertSame('Tisch 2', TableFieldLabels::defaultLabel($c, 2));
+        $this->assertSame('Tisch 2', TableFieldLabels::defaultLabel($c, 2, 4));
 
-        $this->assertSame('Feld', TableFieldLabels::noun($f8));
-        $this->assertSame('Felder', TableFieldLabels::plural($f8));
-        $this->assertSame('F', TableFieldLabels::abbrev($f8));
-        $this->assertSame('Feld 1', TableFieldLabels::defaultLabel($f8, 1));
+        $this->assertSame('Matte', TableFieldLabels::noun($f8));
+        $this->assertSame('Matten', TableFieldLabels::plural($f8));
+        $this->assertSame('M', TableFieldLabels::abbrev($f8));
+        $this->assertSame('Matte rot', TableFieldLabels::defaultLabel($f8, 1));
+    }
+
+    public function test_future_defaults_by_count(): void
+    {
+        $f8 = FirstProgram::FUTURE_8->value;
+
+        $this->assertSame('Matte rot', TableFieldLabels::defaultLabel($f8, 1, 2));
+        $this->assertSame('Matte blau', TableFieldLabels::defaultLabel($f8, 2, 2));
+
+        $this->assertSame('Matte rot 1', TableFieldLabels::defaultLabel($f8, 1, 4));
+        $this->assertSame('Matte blau 1', TableFieldLabels::defaultLabel($f8, 2, 4));
+        $this->assertSame('Matte rot 2', TableFieldLabels::defaultLabel($f8, 3, 4));
+        $this->assertSame('Matte blau 2', TableFieldLabels::defaultLabel($f8, 4, 4));
     }
 
     public function test_unknown_program_uses_tisch(): void
     {
         $this->assertSame('Tisch', TableFieldLabels::noun(FirstProgram::EXPLORE->value));
         $this->assertSame('Tische', TableFieldLabels::plural(0));
-        $this->assertSame('Tische/Felder', TableFieldLabels::pluralSlash());
+        $this->assertSame('Tische/Matten', TableFieldLabels::pluralSlash());
+        $this->assertSame('Jury/Matte', TableFieldLabels::juryPlaceHeader(FirstProgram::FUTURE_8->value));
+        $this->assertSame('Jury/Tisch', TableFieldLabels::juryPlaceHeader(FirstProgram::CHALLENGE->value));
     }
 
     public function test_effective_prefers_custom_name(): void
     {
         $f8 = FirstProgram::FUTURE_8->value;
 
-        $this->assertSame('Rot', TableFieldLabels::effective($f8, 1, '  Rot  '));
-        $this->assertSame('Feld 1', TableFieldLabels::effective($f8, 1, '  '));
-        $this->assertSame('Feld 3', TableFieldLabels::effective($f8, 3, null));
+        $this->assertSame('Rot', TableFieldLabels::effective($f8, 1, '  Rot  ', 2));
+        $this->assertSame('Matte rot', TableFieldLabels::effective($f8, 1, '  ', 2));
+        $this->assertSame('Matte rot 2', TableFieldLabels::effective($f8, 3, null, 4));
+        $this->assertSame('Matte rot 2', TableFieldLabels::effective($f8, 3, null));
     }
 
     public function test_strip_leading_noun_leaves_custom_names(): void
@@ -46,17 +63,7 @@ class TableFieldLabelsTest extends TestCase
         $f8 = FirstProgram::FUTURE_8->value;
 
         $this->assertSame('1', TableFieldLabels::stripLeadingNoun($c, 'Tisch 1'));
-        $this->assertSame('1', TableFieldLabels::stripLeadingNoun($f8, 'Feld 1'));
+        $this->assertSame('rot 1', TableFieldLabels::stripLeadingNoun($f8, 'Matte rot 1'));
         $this->assertSame('Rot', TableFieldLabels::stripLeadingNoun($f8, 'Rot'));
-        $this->assertSame('Jury/Feld', TableFieldLabels::juryPlaceHeader($f8));
-    }
-
-    public function test_sql_default_noun_uses_feld_for_future(): void
-    {
-        $sql = TableFieldLabels::sqlDefaultNounExpression('atd.first_program');
-
-        $this->assertStringContainsString('THEN "Feld"', $sql);
-        $this->assertStringContainsString('ELSE "Tisch"', $sql);
-        $this->assertStringNotContainsString('Spielfeld', $sql);
     }
 }

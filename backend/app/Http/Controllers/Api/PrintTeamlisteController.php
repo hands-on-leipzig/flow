@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Print\TeamlisteAssembler;
 use App\Print\TeamlisteTcpdfRenderer;
 use App\Services\EventSlugService;
+use App\Services\PdfDownloadRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -17,6 +18,7 @@ class PrintTeamlisteController extends Controller
         private TeamlisteAssembler $assembler,
         private TeamlisteTcpdfRenderer $renderer,
         private EventSlugService $slugs,
+        private PdfDownloadRecorder $downloads,
     ) {}
 
     public function download(Request $request, int $eventId)
@@ -40,6 +42,8 @@ class PrintTeamlisteController extends Controller
         $document['wifi_qr_base64'] = self::wifiQrBase64($event);
         $bytes = $this->renderer->render($document);
         $filename = FlowFilename::make('Teamliste', 'pdf', $event?->date);
+
+        $this->downloads->record($eventId, 'teamliste', $request->user()?->id);
 
         return response($bytes, 200, [
             'Content-Type' => 'application/pdf',

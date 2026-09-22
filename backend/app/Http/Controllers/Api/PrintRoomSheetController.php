@@ -8,6 +8,7 @@ use App\Models\Event;
 use App\Print\RoomSheetAssembler;
 use App\Print\RoomSheetTcpdfRenderer;
 use App\Services\EventSlugService;
+use App\Services\PdfDownloadRecorder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -17,6 +18,7 @@ class PrintRoomSheetController extends Controller
         private RoomSheetAssembler $assembler,
         private RoomSheetTcpdfRenderer $renderer,
         private EventSlugService $slugs,
+        private PdfDownloadRecorder $downloads,
     ) {}
 
     public function download(Request $request, int $eventId)
@@ -40,6 +42,8 @@ class PrintRoomSheetController extends Controller
         $document['wifi_qr_base64'] = self::wifiQrBase64($event);
         $bytes = $this->renderer->render($document);
         $filename = FlowFilename::make('Raumplaene', 'pdf', $event?->date);
+
+        $this->downloads->record($eventId, 'room_sheets', $request->user()?->id);
 
         return response($bytes, 200, [
             'Content-Type' => 'application/pdf',

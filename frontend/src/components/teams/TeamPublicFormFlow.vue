@@ -8,6 +8,7 @@ import {
   photoConsentStatusForTeam,
 } from '@/utils/photoConsentStatus'
 import PublicFormOtpTestNotice from '@/components/molecules/PublicFormOtpTestNotice.vue'
+import {logSurfaceAccess} from '@/utils/usageCapture'
 
 type FormColumn = {
   key: string
@@ -47,6 +48,7 @@ const props = defineProps<{
   email: string
   slug: string
   event?: Record<string, unknown> | null
+  eventId?: number | null
   ssoToken?: string
   ssoEmail?: string
 }>()
@@ -56,6 +58,16 @@ const emit = defineEmits<{
   'update:step': [value: 'email' | 'otp' | 'pick-team' | 'data' | 'done']
   cancel: []
 }>()
+
+let didLog = false
+
+function logFormOnce() {
+  if (didLog) return
+  const eventId = Number(props.eventId)
+  if (!eventId) return
+  didLog = true
+  logSurfaceAccess(eventId, 'form_team')
+}
 
 const otpCode = ref('')
 const otpError = ref('')
@@ -179,6 +191,9 @@ async function loadLookup() {
       headers: otpHeaders(),
     })
     teams.value = data.teams ?? []
+    if (data.form || teams.value.length >= 1) {
+      logFormOnce()
+    }
     if (data.form) {
       applyForm(data.form)
       emit('update:step', 'data')
