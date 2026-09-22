@@ -74,6 +74,7 @@ class AdminCockpitApiTest extends TestCase
         $this->assertFalse($row['dots']['staffing']);
         $this->assertNull($row['dots']['team']);
         $this->assertSame(0, $row['helferliste_count']);
+        $this->assertFalse($row['public_helper_search']);
     }
 
     public function test_plan_row_counts_helferliste_params_blocks_and_generator(): void
@@ -82,6 +83,7 @@ class AdminCockpitApiTest extends TestCase
 
         $this->assertSame(10, $row['plan_id']);
         $this->assertSame(3, $row['helferliste_count']);
+        $this->assertTrue($row['public_helper_search']);
         $this->assertSame(['input' => 1, 'expert' => 1], $row['param_changes']);
         $this->assertSame(['free' => 2, 'slot' => 1], $row['extra_blocks']);
         $this->assertSame(4, $row['publication_level']);
@@ -233,10 +235,10 @@ class AdminCockpitApiTest extends TestCase
             ['id' => 8, 'name' => 'FUTURE_8', 'display_name' => 'Future 8+', 'sequence' => 3],
         ]);
         DB::table('event')->insert([
-            ['id' => 1, 'name' => 'München', 'date' => '2026-11-14', 'season' => 1, 'regional_partner' => 42, 'level' => 1],
-            ['id' => 2, 'name' => 'Hamburg', 'date' => '2026-12-01', 'season' => 1, 'regional_partner' => 43, 'level' => 1],
-            ['id' => 3, 'name' => 'QPlan Event', 'date' => '2026-11-20', 'season' => 1, 'regional_partner' => 99, 'level' => 1],
-            ['id' => 4, 'name' => 'Old', 'date' => '2025-11-01', 'season' => 2, 'regional_partner' => 42, 'level' => 1],
+            ['id' => 1, 'name' => 'München', 'date' => '2026-11-14', 'season' => 1, 'regional_partner' => 42, 'level' => 1, 'public_helper_search' => 1],
+            ['id' => 2, 'name' => 'Hamburg', 'date' => '2026-12-01', 'season' => 1, 'regional_partner' => 43, 'level' => 1, 'public_helper_search' => 0],
+            ['id' => 3, 'name' => 'QPlan Event', 'date' => '2026-11-20', 'season' => 1, 'regional_partner' => 99, 'level' => 1, 'public_helper_search' => 0],
+            ['id' => 4, 'name' => 'Old', 'date' => '2025-11-01', 'season' => 2, 'regional_partner' => 42, 'level' => 1, 'public_helper_search' => 0],
         ]);
         DB::table('plan')->insert([
             ['id' => 10, 'event' => 1, 'name' => 'Plan 1'],
@@ -321,6 +323,7 @@ class AdminCockpitApiTest extends TestCase
             $table->unsignedInteger('season')->nullable();
             $table->unsignedInteger('regional_partner')->nullable();
             $table->unsignedInteger('level')->nullable();
+            $table->boolean('public_helper_search')->default(0);
         });
         $this->table('plan', function (Blueprint $table) {
             $table->unsignedInteger('id')->primary();

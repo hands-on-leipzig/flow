@@ -58,6 +58,7 @@ class AdminCockpitService
                 'regional_partner.id as regional_partner_id',
                 'regional_partner.name as regional_partner_name',
                 'plan.id as plan_id',
+                'event.public_helper_search as public_helper_search',
             ]);
 
         $eventIds = $rows->pluck('event_id')->map(fn ($id) => (int) $id)->unique()->values()->all();
@@ -127,6 +128,7 @@ class AdminCockpitService
                     ? ($extraBlocks[$planId] ?? ['free' => 0, 'slot' => 0])
                     : null,
                 'helferliste_count' => (int) ($helferliste[$eventId] ?? 0),
+                'public_helper_search' => (bool) ($row->public_helper_search ?? false),
                 'publication_level' => $hasPlan ? ($publications[$eventId] ?? null) : null,
                 'access_count' => (int) ($accessCounts[$eventId] ?? 0),
             ];
