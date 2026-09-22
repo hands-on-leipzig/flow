@@ -560,6 +560,7 @@ async function updateTableName(firstProgram: number) {
     planCache().invalidateTableNames()
     // Keep local state; refresh cache entry for this program
     tableNamesByProgram.value = {...tableNamesByProgram.value, [firstProgram]: trimmed}
+    previewReload.value += 1
   } catch (e: any) {
     if (import.meta.env.DEV) console.error('Fehler beim Speichern der Bezeichnungen:', e)
     const msg = e?.response?.data?.error || 'Speichern fehlgeschlagen'

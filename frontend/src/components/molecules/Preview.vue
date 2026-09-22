@@ -12,7 +12,12 @@ import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import { getProgramTheme } from '@/utils/programTheme'
 import { programDisplayName } from '@/utils/eventPrograms'
-import { defaultTableFieldLabel, ensureTableFieldLabels, tableFieldPlural } from '@/utils/tableFieldLabels'
+import {
+  defaultTableFieldLabel,
+  effectiveTableFieldLabel,
+  ensureTableFieldLabels,
+  tableFieldPlural,
+} from '@/utils/tableFieldLabels'
 import { formatPlanTeamNo, isMissingPlanTeamName } from '@/utils/planTeamLabel'
 
 const FIRST_PROGRAM = {
@@ -48,6 +53,7 @@ type RobotGameData = {
   first_program?: number | null
   rounds: RobotGameRound[]
   team_summary: TeamSummary[]
+  place_labels?: string[]
 }
 
 const route = useRoute()
@@ -58,6 +64,8 @@ const {
   planLocked,
   isGenerating,
   regeneratePlan,
+  tableNamesFor,
+  tableCountByProgram,
 } = useScheduleWorkspace()
 
 // Ensure roles are initialized
@@ -356,6 +364,20 @@ function hasTable34(round: RobotGameRound): boolean {
   return round.matches.some(m => m.table_1 === 3 || m.table_1 === 4 || m.table_2 === 3 || m.table_2 === 4)
 }
 
+function matchPlaceLabel(slot: number, round: RobotGameRound): string {
+  const fp = previewPlaceProgram.value
+  const count = tableCountByProgram.value[fp] || (hasTable34(round) ? 4 : 2)
+  const customs = tableNamesFor(fp)
+  if (customs.length >= slot) {
+    return effectiveTableFieldLabel(fp, slot, customs[slot - 1], count)
+  }
+  const fromApi = robotGameData.value?.place_labels?.[slot - 1]
+  if (fromApi) {
+    return fromApi
+  }
+  return defaultTableFieldLabel(fp, slot, count)
+}
+
 function formatTeam(teamNum: number | null): string {
   return formatPlanTeamNo(teamNum)
 }
@@ -651,10 +673,10 @@ onBeforeUnmount(hideTeamTip)
               <table class="table-auto text-sm border-collapse border border-[var(--color-border)]">
                 <thead class="bg-[var(--color-bg-muted)]">
                   <tr>
-                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 1, hasTable34(round) ? 4 : 2) }}</th>
-                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 2, hasTable34(round) ? 4 : 2) }}</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 3, 4) }}</th>
-                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ defaultTableFieldLabel(previewPlaceProgram, 4, 4) }}</th>
+                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ matchPlaceLabel(1, round) }}</th>
+                    <th class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ matchPlaceLabel(2, round) }}</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ matchPlaceLabel(3, round) }}</th>
+                    <th v-if="hasTable34(round)" class="px-2 py-1 border border-[var(--color-border)] text-center font-normal">{{ matchPlaceLabel(4, round) }}</th>
                   </tr>
                 </thead>
                 <tbody>

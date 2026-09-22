@@ -10,6 +10,7 @@ use App\Services\RolesPreviewGridService;
 use App\Services\TeamsPreviewGridService;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
+use App\Support\TableFieldLabels;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -138,6 +139,7 @@ class PlanPreviewController extends Controller
                 'first_program' => null,
                 'rounds' => [],
                 'team_summary' => [],
+                'place_labels' => [],
             ]);
         }
 
@@ -310,7 +312,46 @@ class PlanPreviewController extends Controller
             'first_program' => $firstProgram,
             'rounds' => $rounds,
             'team_summary' => $teamSummary,
+            'place_labels' => $this->placeLabelsForPlanProgram($plan, $firstProgram, $params),
         ]);
+    }
+
+    /**
+     * Effective Tisch / Matte labels for slots 1..count (custom override or default).
+     *
+     * @return list<string>
+     */
+    private function placeLabelsForPlanProgram(int $planId, int $firstProgram, PlanParameter $params): array
+    {
+        $tableCount = max(0, (int) $params->get(TableFieldLabels::countParamName($firstProgram), 0));
+        if ($tableCount < 1) {
+            return [];
+        }
+
+        $eventId = (int) DB::table('plan')->where('id', $planId)->value('event');
+        $customs = [];
+        if ($eventId > 0) {
+            foreach (
+                DB::table('table_event')
+                    ->where('event', $eventId)
+                    ->where('first_program', $firstProgram)
+                    ->get(['table_number', 'table_name']) as $row
+            ) {
+                $customs[(int) $row->table_number] = $row->table_name;
+            }
+        }
+
+        $labels = [];
+        for ($i = 1; $i <= $tableCount; $i++) {
+            $labels[] = TableFieldLabels::effective(
+                $firstProgram,
+                $i,
+                $customs[$i] ?? null,
+                $tableCount
+            );
+        }
+
+        return $labels;
     }
 
     /**
