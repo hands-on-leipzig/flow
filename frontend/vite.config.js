@@ -51,6 +51,8 @@ export default defineConfig(({mode}) => {
                 },
                 workbox: {
                     globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
+                    // Decorative carousel art — load on demand, not in SW install
+                    globIgnores: ['**/background.png'],
                     navigateFallback: 'index.html',
                     // Do not rewrite backend/public endpoints to SPA shell.
                     // This keeps /output/zeitplan.cgi and similar routes working.
