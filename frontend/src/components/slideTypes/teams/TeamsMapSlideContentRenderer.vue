@@ -102,12 +102,6 @@ onMounted(loadCoordinates)
 <template>
   <div class="relative w-full h-full overflow-hidden">
     <img v-if="backgroundSrc" :src="backgroundSrc" alt="" class="map-backdrop"/>
-    <FabricSlideContentRenderer
-        v-if="props.content.background"
-        class="absolute inset-0 z-0"
-        :content="props.content"
-        :preview="props.preview"
-    />
     <div class="map-slide">
       <GenericLeafletMap
           v-if="coordinates"
@@ -119,6 +113,13 @@ onMounted(loadCoordinates)
           class="w-full h-full">
       </GenericLeafletMap>
     </div>
+    <FabricSlideContentRenderer
+        v-if="props.content.background"
+        class="map-foreground"
+        overlay
+        :content="props.content"
+        :preview="props.preview"
+    />
   </div>
 </template>
 
@@ -145,6 +146,13 @@ onMounted(loadCoordinates)
   border: 8px solid #fff;
   overflow: hidden;
   background: #fff;
+}
+
+.map-foreground {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
 }
 
 .map-slide :deep(.leaflet-container) {

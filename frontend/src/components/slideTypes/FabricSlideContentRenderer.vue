@@ -9,9 +9,11 @@ const DEFAULT_HEIGHT = 450;
 
 const props = withDefaults(defineProps<{
   content: SlideContent,
-  preview: boolean
+  preview: boolean,
+  overlay?: boolean,
 }>(), {
-  preview: false
+  preview: false,
+  overlay: false,
 });
 
 const root = shallowRef<HTMLElement | null>(null);
@@ -126,10 +128,10 @@ function loadFont() {
 </script>
 
 <template>
-  <div ref="root" :class="{ 'w-screen h-screen': !preview }"
+  <div ref="root" :class="{ 'w-screen h-screen': !preview, 'pointer-events-none': overlay }"
        class="flex items-center justify-center overflow-hidden">
     <div class="slide-frame">
-      <img v-if="backgroundSrc" :src="backgroundSrc" alt="" class="slide-background"/>
+      <img v-if="backgroundSrc && !overlay" :src="backgroundSrc" alt="" class="slide-background"/>
       <div class="flex items-center justify-center w-full h-full">
         <canvas ref="canvas"></canvas>
       </div>
