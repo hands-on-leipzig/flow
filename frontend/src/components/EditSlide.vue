@@ -319,58 +319,45 @@ function updateDuration(value: number) {
   </div>
 
   <div class="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-1">
-    <div class="glass-card liquid-surface-inner p-4 col-span-1" v-if="!!slide">
-      <span class="font-semibold px-2">
-        Einstellungen
-      </span>
-      <div class="grid grid-cols-2 gap-2 items-center">
-        <div>
-          <label class="text-sm font-medium pl-2">Saison Logo anzeigen</label>
-        </div>
-        <div>
+    <div class="glass-card liquid-surface-inner col-span-1" v-if="!!slide">
+      <h2 class="glass-card__heading">Einstellungen</h2>
+      <div class="glass-settings-block">
+        <label class="glass-settings-row">
           <input
               type="checkbox"
               :checked="slide.content.showSeasonLogo"
               @change="updateByName('showSeasonLogo', ($event.target as HTMLInputElement).checked)"
           />
-        </div>
-      </div>
-      <!-- Eigene Anzeigezeit - Alle Slides außer Robot Game -->
-      <div v-if="slide.type !== 'RobotGameSlideContent'">
-        <div class="grid grid-cols-2 gap-2 items-center">
-          <div>
-            <label class="text-sm font-medium pl-2">Anzeigedauer überschreiben</label>
-          </div>
-          <div>
+          <span class="glass-settings-label">Saison Logo anzeigen</span>
+        </label>
+        <!-- Eigene Anzeigezeit - Alle Slides außer Robot Game -->
+        <template v-if="slide.type !== 'RobotGameSlideContent'">
+          <div class="glass-settings-row">
             <input type="checkbox" :checked="slide.transition_time !== 0" @change="updateSlideDurationOverride"/>
+            <span class="glass-settings-label">Anzeigedauer überschreiben</span>
             <InfoPopover
                 text="Aktivieren, um dieser Folie eine spezielle Anzeigedauer zu geben. Wenn deaktiviert, wird die Zeit pro Folie der Slideshow verwendet."/>
           </div>
           <div :class="{'disabled': slide.transition_time === 0}">
-            <label class="text-sm font-medium pl-2">Anzeigezeit (in Sekunden)</label>
-          </div>
-          <div :class="{'disabled': slide.transition_time === 0}">
+            <label class="glass-settings-label">Anzeigezeit (in Sekunden)</label>
             <input
                 type="number"
                 min="0"
                 :value="slide.transition_time ?? 0"
                 :disabled="slide.transition_time === 0"
                 @input="updateDuration(+($event.target as HTMLInputElement).value)"
-                class="w-24 border rounded px-2 py-1"
+                class="glass-input glass-input--sm liquid-surface-control mt-2"
             />
           </div>
-        </div>
-      </div>
-      <div v-if="slide.type === 'PublicPlanSlideContent' || slide.type === 'PublicPlanNextSlideContent' || slide.type === 'PublicPlanNextEventSlideContent'">
-        <!-- Interval - nur next -->
-        <div v-if="slide.type === 'PublicPlanNextSlideContent' || slide.type === 'PublicPlanNextEventSlideContent'" class="grid grid-cols-2 gap-2 py-1 items-center">
-          <div>
-            <label class="text-sm font-medium pl-2">Minuten</label>
-            <InfoPopover text="Wie weit soll in die Zukunft vorausgeblickt werden?"/>
-          </div>
-          <div>
+        </template>
+        <template v-if="slide.type === 'PublicPlanSlideContent' || slide.type === 'PublicPlanNextSlideContent' || slide.type === 'PublicPlanNextEventSlideContent'">
+          <div v-if="slide.type === 'PublicPlanNextSlideContent' || slide.type === 'PublicPlanNextEventSlideContent'">
+            <div class="flex items-center gap-1">
+              <label class="glass-settings-label">Minuten</label>
+              <InfoPopover text="Wie weit soll in die Zukunft vorausgeblickt werden?"/>
+            </div>
             <input
-                class="mt-1 w-24 border rounded px-2 py-1"
+                class="glass-input glass-input--sm liquid-surface-control mt-2"
                 type="number"
                 min="1"
                 max="120"
@@ -378,42 +365,39 @@ function updateDuration(value: number) {
                 @input="updateByName('interval', Number(($event.target as HTMLInputElement).value || 0))"
             />
           </div>
-        </div>
-        <div class="grid grid-cols-2 gap-2 py-1 items-center">
-          <!-- Raum -->
           <div>
-            <label class="text-sm font-medium pl-2">Raum</label>
-            <InfoPopover
-                text="Der Raum, dessen Zeitplan angezeigt werden soll. Bei 'Alle Räume' werden alle Aktivitäten der Veranstaltung angezeigt."/>
-          </div>
-          <div>
-            <select class="mt-1 w-full border rounded px-2 py-1" :value="slide.content.room"
-                    @change="updateByName('room', Number($event.target.value))">
+            <div class="flex items-center gap-1">
+              <label class="glass-settings-label">Raum</label>
+              <InfoPopover
+                  text="Der Raum, dessen Zeitplan angezeigt werden soll. Bei 'Alle Räume' werden alle Aktivitäten der Veranstaltung angezeigt."/>
+            </div>
+            <select
+                class="glass-input glass-input--sm liquid-surface-control mt-2"
+                :value="slide.content.room"
+                @change="updateByName('room', Number($event.target.value))"
+            >
               <option :value="0">Alle Räume</option>
               <option v-for="room in rooms" :key="room.id" :value="room.id">{{ room.name }}</option>
             </select>
           </div>
-        </div>
-
-        <!-- Inhalte Anzeigen -->
-        <div class="grid grid-cols-1 gap-2 mb-4">
-          <div class="rounded-lg border px-2 py-2 transition hover:border-gray-400">
-            <label class="text-sm font-medium">Sichtbare Programmpunkte</label>
-            <InfoPopover text="Wähle Übergreifend und die Programme, deren Programmpunkte angezeigt werden."/>
-
-            <label class="flex items-center gap-2 text-sm mt-2">
+          <div class="glass-stack-card">
+            <div class="flex items-center gap-1">
+              <span class="glass-settings-label">Sichtbare Programmpunkte</span>
+              <InfoPopover text="Wähle Übergreifend und die Programme, deren Programmpunkte angezeigt werden."/>
+            </div>
+            <label class="glass-settings-row">
               <input
                   type="checkbox"
                   :checked="audienceSelection.joint"
                   @change="setJoint(($event.target as HTMLInputElement).checked)"
               />
               <i class="bi bi-intersect edit-scope-icon" aria-hidden="true"/>
-              Übergreifend
+              <span>Übergreifend</span>
             </label>
             <label
                 v-for="program in attachedPrograms"
                 :key="programId(program)"
-                class="flex items-center gap-2 text-sm mt-1"
+                class="glass-settings-row"
             >
               <input
                   type="checkbox"
@@ -421,151 +405,137 @@ function updateDuration(value: number) {
                   @change="toggleProgram(programId(program), ($event.target as HTMLInputElement).checked)"
               />
               <ProgramLogo :program="program" size="chip" decorative/>
-              {{ programDisplayName(program) }}
+              <span>{{ programDisplayName(program) }}</span>
             </label>
-            <p v-if="!audienceSelection.joint && audienceSelection.programs.length === 0" class="text-sm mt-2">
+            <p v-if="!audienceSelection.joint && audienceSelection.programs.length === 0" class="glass-alert-warning !mb-0">
               Nichts ausgewählt. Es werden keine Programmpunkte angezeigt.
             </p>
           </div>
-        </div>
-
-      </div>
-      <div v-if="slide.type === 'TeamsTableSlideContent' || slide.type === 'TeamsMapSlideContent'">
-        <div class="grid grid-cols-1 gap-2 mb-4">
-          <div class="rounded-lg border px-2 py-2 transition hover:border-gray-400">
-            <label class="text-sm font-medium">Sichtbare Programme</label>
+        </template>
+        <div v-if="slide.type === 'TeamsTableSlideContent' || slide.type === 'TeamsMapSlideContent'" class="glass-stack-card">
+          <div class="flex items-center gap-1">
+            <span class="glass-settings-label">Sichtbare Programme</span>
             <InfoPopover text="Wähle die Programme, deren Teams angezeigt werden."/>
-            <label
-                v-for="program in attachedPrograms"
-                :key="programId(program)"
-                class="flex items-center gap-2 text-sm mt-1"
-            >
-              <input
-                  type="checkbox"
-                  :checked="teamProgramChecked(programId(program))"
-                  @change="toggleTeamProgram(programId(program), ($event.target as HTMLInputElement).checked)"
-              />
-              <ProgramLogo :program="program" size="chip" decorative/>
-              {{ programDisplayName(program) }}
-            </label>
-            <p v-if="Array.isArray(slide.content.programs) && slide.content.programs.length === 0" class="text-sm mt-2">
-              Nichts ausgewählt. Es werden keine Teams angezeigt.
-            </p>
           </div>
-        </div>
-      </div>
-      <div v-if="slide.type === 'RobotGameSlideContent'">
-        <div class="grid grid-cols-2 gap-2 items-center">
-          <!-- Teams -->
-          <div class="flex items-center space-x-2">
-            <label class="text-sm font-medium">Teams pro Seite</label>
-            <InfoPopover text="Anzahl an Teams, die pro Seite angezeigt werden sollen."/>
-          </div>
-          <div>
+          <label
+              v-for="program in attachedPrograms"
+              :key="programId(program)"
+              class="glass-settings-row"
+          >
             <input
-                class="mt-1 w-full border rounded px-2 py-1"
+                type="checkbox"
+                :checked="teamProgramChecked(programId(program))"
+                @change="toggleTeamProgram(programId(program), ($event.target as HTMLInputElement).checked)"
+            />
+            <ProgramLogo :program="program" size="chip" decorative/>
+            <span>{{ programDisplayName(program) }}</span>
+          </label>
+          <p v-if="Array.isArray(slide.content.programs) && slide.content.programs.length === 0" class="glass-alert-warning !mb-0">
+            Nichts ausgewählt. Es werden keine Teams angezeigt.
+          </p>
+        </div>
+        <template v-if="slide.type === 'RobotGameSlideContent'">
+          <div>
+            <div class="flex items-center gap-1">
+              <label class="glass-settings-label">Teams pro Seite</label>
+              <InfoPopover text="Anzahl an Teams, die pro Seite angezeigt werden sollen."/>
+            </div>
+            <input
+                class="glass-input glass-input--sm liquid-surface-control mt-2"
                 type="number"
                 :value="slide.content.teamsPerPage"
                 @input="updateByName('teamsPerPage', ($event.target as HTMLInputElement).value || 0)"
             />
           </div>
-
-          <!-- Zeit pro Seite -->
-          <div class="flex items-center space-x-2">
-            <label class="text-sm font-medium">Sekunden pro Seite</label>
-            <InfoPopover text="Zeit in Sekunden, bis zur nächsten Seite geblättert wird."/>
-          </div>
           <div>
+            <div class="flex items-center gap-1">
+              <label class="glass-settings-label">Sekunden pro Seite</label>
+              <InfoPopover text="Zeit in Sekunden, bis zur nächsten Seite geblättert wird."/>
+            </div>
             <input
-                class="mt-1 w-full border rounded px-2 py-1"
+                class="glass-input glass-input--sm liquid-surface-control mt-2"
                 type="number"
                 :value="slide.content.secondsPerPage"
                 @input="updateByName('secondsPerPage', ($event.target as HTMLInputElement).value || 0)"
             />
           </div>
-
-          <!-- Text-Farbe -->
           <div>
-            <label class="text-sm font-medium">Text-Farbe</label>
-            <InfoPopover text="Die Farbe, die für den Text in der Tabelle verwendet wird."/>
-          </div>
-          <div>
+            <div class="flex items-center gap-1">
+              <label class="glass-settings-label">Text-Farbe</label>
+              <InfoPopover text="Die Farbe, die für den Text in der Tabelle verwendet wird."/>
+            </div>
             <input
-                class="mt-1 w-full border rounded px-2 py-1"
+                class="glass-input glass-input--sm liquid-surface-control edit-color mt-2"
                 type="color"
                 :value="slide.content.textColor"
                 @input="updateByName('textColor', ($event.target as HTMLInputElement).value || '#222222')"
             />
           </div>
-
-          <!-- Highlight-Farbe -->
           <div>
-            <label class="text-sm font-medium">Highlight-Farbe</label>
-            <InfoPopover text="Die Farbe, die für Hervorhebungen in der Tabelle verwendet wird."/>
-          </div>
-          <div>
+            <div class="flex items-center gap-1">
+              <label class="glass-settings-label">Highlight-Farbe</label>
+              <InfoPopover text="Die Farbe, die für Hervorhebungen in der Tabelle verwendet wird."/>
+            </div>
             <input
-                class="mt-1 w-full border rounded px-2 py-1"
+                class="glass-input glass-input--sm liquid-surface-control edit-color mt-2"
                 type="color"
                 :value="slide.content.highlightColor"
                 @input="updateByName('highlightColor', ($event.target as HTMLInputElement).value || '#FFD700')"
             />
           </div>
-
-          <!-- Tabellen-Hintergrundfarbe -->
           <div>
-            <label class="text-sm font-medium">Tabellen-Hintergrundfarbe</label>
-            <InfoPopover text="Hintergrundfarbe der Tabelle; Transparenz in Prozent einstellen."/>
+            <div class="flex items-center gap-1">
+              <label class="glass-settings-label">Tabellen-Hintergrundfarbe</label>
+              <InfoPopover text="Hintergrundfarbe der Tabelle; Transparenz in Prozent einstellen."/>
+            </div>
+            <div class="glass-settings-row mt-2">
+              <input
+                  type="color"
+                  class="glass-input glass-input--sm liquid-surface-control edit-color"
+                  v-model="tableBgHex"
+                  @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
+              />
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"
+                   aria-hidden="true">
+                <path d="M12 2.69L6 10.5c-3 4 1 11.5 6 11.5s9-7.5 6-11.5L12 2.69z"/>
+              </svg>
+              <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  class="glass-input glass-input--sm liquid-surface-control edit-percent"
+                  v-model.number="tableBgOpacity"
+                  @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
+                  aria-label="Transparenz in Prozent"
+              />
+              <span>%</span>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
+          <div>
+            <div class="flex items-center gap-1">
+              <label class="glass-settings-label">Tabellen-Rahmenfarbe</label>
+              <InfoPopover text="Farbe der Tabellenränder."/>
+            </div>
             <input
                 type="color"
-                class="mt-1 border rounded px-2 py-1"
-                v-model="tableBgHex"
-                @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
-            />
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 px-0" viewBox="0 0 24 24" fill="currentColor"
-                 aria-hidden="true">
-              <path d="M12 2.69L6 10.5c-3 4 1 11.5 6 11.5s9-7.5 6-11.5L12 2.69z"/>
-            </svg>
-            <input
-                type="number"
-                min="0"
-                max="100"
-                class="w-16 mt-1 border rounded px-2 py-1"
-                v-model.number="tableBgOpacity"
-                @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
-                aria-label="Transparenz in Prozent"
-            />
-            %
-          </div>
-
-          <!-- Tabellen Rahmenfarbe -->
-          <div>
-            <label class="text-sm font-medium">Tabellen-Rahmenfarbe</label>
-            <InfoPopover text="Farbe der Tabellenränder."/>
-          </div>
-          <div>
-            <input
-                type="color"
-                class="mt-1 w-full border rounded px-2 py-1"
+                class="glass-input glass-input--sm liquid-surface-control edit-color mt-2"
                 :value="slide.content.tableBorderColor"
                 @input="updateByName('tableBorderColor', ($event.target as HTMLInputElement).value || '#000000')"
             />
           </div>
+        </template>
+        <div v-if="slide.type === 'UrlSlideContent'">
+          <div class="flex items-center gap-1">
+            <label class="glass-settings-label">URL</label>
+            <InfoPopover text="Die Website, die auf der Folie angezeigt werden soll."/>
+          </div>
+          <input
+              class="glass-input glass-input--sm liquid-surface-control mt-2"
+              type="text"
+              :value="slide.content.url"
+              @input="updateByName('url', ($event.target as HTMLInputElement).value || '')"
+          />
         </div>
-      </div>
-      <div v-if="slide.type === 'UrlSlideContent'">
-        <!-- URL -->
-        <label class="text-sm font-medium pl-2">URL</label>
-        <InfoPopover text="Die Website, die auf der Folie angezeigt werden soll."/>
-        &nbsp;
-        <input
-            class="mt-1 w-80 border rounded px-2 py-1"
-            type="text"
-            :value="slide.content.url"
-            @input="updateByName('url', ($event.target as HTMLInputElement).value || '')"
-        />
       </div>
     </div>
 
@@ -587,5 +557,17 @@ function updateDuration(value: number) {
   font-size: 1rem;
   line-height: 1;
   flex-shrink: 0;
+}
+
+.edit-color {
+  width: 3rem;
+  min-width: 3rem;
+  padding: 0.2rem;
+}
+
+.edit-percent {
+  width: 4.5rem;
+  min-width: 4.5rem;
+  flex: 0 0 4.5rem;
 }
 </style>
