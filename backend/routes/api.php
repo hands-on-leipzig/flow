@@ -94,6 +94,7 @@ Route::get('/plans/{planId}/visitor/table-matches', [PublicPlanController::class
 Route::get('/events/slug/{slug}', [EventController::class, 'getEventBySlug']); // Public event lookup by slug
 Route::get('/events/public/{id}', [EventController::class, 'getPublicEventById']); // Public event lookup by id
 Route::get('/events/{event}/team-coordinates', [DrahtController::class, 'getTeamsCoordinates']);
+Route::get('/events/{event}/team-lanes', [TeamController::class, 'publicLanes']);
 Route::get('/events', [EventController::class, 'index']); // Get list of current events
 Route::get('/programs', [ProgramController::class, 'index']); // Catalog from m_first_program
 Route::get('/publish/public-information/{eventId}', [PublishController::class, 'scheduleInformation']); // Public publication information
@@ -108,6 +109,7 @@ Route::get('/public/event-links', [PublicEventLinkController::class, 'index']); 
 Route::get('/plans/public/{eventId}', [PlanController::class, 'getOrCreatePlanForEvent']); // Public plan lookup by event ID
 Route::get('/events/{eventId}/logos', [LogoController::class, 'getEventLogos']); // Public logos for event
 Route::get('/geocode', [EventController::class, 'geocodeAddress']); // Public geocoding endpoint
+Route::post('/geocode-cities', [EventController::class, 'geocodeCities']);
 Route::post('/one-link-access', [PublishController::class, 'logOneLinkAccess']); // Public one-link access logging
 Route::post('/surface-access', [UsageCaptureController::class, 'surface']);
 Route::post('/display-heartbeat', [UsageCaptureController::class, 'heartbeat']);

@@ -1,4 +1,5 @@
 import {SlideContent} from "./slideContent";
+import {readShowSeasonLogo} from "./seasonLogo";
 
 export class UrlSlideContent extends SlideContent {
 
@@ -7,13 +8,15 @@ export class UrlSlideContent extends SlideContent {
     constructor(data: object)  {
         super();
         Object.assign(this, data);
+        this.showSeasonLogo = readShowSeasonLogo(data, 'UrlSlideContent');
     }
 
     public toJSON(): object {
         return {
             type: "UrlSlideContent",
             background: this.background,
-            url: this.url
+            url: this.url,
+            showSeasonLogo: this.showSeasonLogo,
         };
     }
 }

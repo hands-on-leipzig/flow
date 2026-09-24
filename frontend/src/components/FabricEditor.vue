@@ -14,7 +14,9 @@ import {
 import {Slide} from "@/models/slide";
 import axios from "axios";
 import {imageUrl} from '@/utils/images'
+import {rewriteImageSrcs} from '@/utils/sameOriginSrc'
 import {programDisplayName} from '@/utils/eventPrograms'
+import {seasonLogoPlacement, SEASON_LOGO_HEIGHT, SEASON_LOGO_WIDTH} from '@/models/seasonLogo'
 import {useEventStore} from "@/stores/event";
 
 // Ideen und TODOS
@@ -69,6 +71,19 @@ function standardImages() {
 const availableImages = ref(standardImages());
 const availableQrCodes = ref([]);
 
+const seasonLogoStyle = computed(() => {
+  if (!props.slide?.content?.showSeasonLogo) {
+    return null;
+  }
+  const place = seasonLogoPlacement(props.slide.content.background);
+  return {
+    left: `${place.centerX}px`,
+    top: `${place.top}px`,
+    width: `${SEASON_LOGO_WIDTH * place.scaleX}px`,
+    height: `${SEASON_LOGO_HEIGHT * place.scaleY}px`,
+  };
+});
+
 const defaultObjectProperties = {
   transparentCorners: true,
   cornerColor: '#4e4d4d',
@@ -103,7 +118,7 @@ onMounted(() => {
       clearTimeout(changeTimeout);
     }
     changeTimeout = setTimeout(() => {
-      const json = JSON.stringify(canvas.toJSON());
+      const json = JSON.stringify(rewriteImageSrcs(canvas.toJSON()));
       if (props.slide) {
         props.slide.content.background = json;
         emit('change');
@@ -124,7 +139,7 @@ onMounted(loadFont);
 onMounted(loadImages);
 onBeforeUnmount(() => {
   // Save immediately on unmount - parent component will handle it
-  const json = JSON.stringify(canvas.toJSON());
+  const json = JSON.stringify(rewriteImageSrcs(canvas.toJSON()));
   if (props.slide) {
     props.slide.content.background = json;
     emit('change');
@@ -433,7 +448,7 @@ function sendToBack() {
 }
 
 function saveJson() {
-  const json = JSON.stringify(canvas.toJSON());
+  const json = JSON.stringify(rewriteImageSrcs(canvas.toJSON()));
   if (props.slide) {
     props.slide.content.background = json;
     const content = JSON.stringify(props.slide.content.toJSON());
@@ -571,7 +586,16 @@ async function paste() {
                @input="onStrokeWidthChange($event.target.value)"/>
       </div>
     </div>
-    <canvas ref="canvasEl" class="border border-grey rounded"></canvas>
+    <div class="editor-stage">
+      <canvas ref="canvasEl" class="border border-grey rounded"></canvas>
+      <img
+          v-if="seasonLogoStyle"
+          class="season-logo"
+          src="/logo.png"
+          alt=""
+          :style="seasonLogoStyle"
+      />
+    </div>
 
     <!-- Image Auswahl Overlay -->
     <div v-if="showImageModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -609,6 +633,18 @@ async function paste() {
 </template>
 
 <style scoped>
+
+.editor-stage {
+  position: relative;
+  display: inline-block;
+}
+
+.season-logo {
+  position: absolute;
+  z-index: 20;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
 
 @font-face {
   font-family: 'Uniform';

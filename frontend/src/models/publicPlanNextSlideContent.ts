@@ -1,10 +1,12 @@
 import {AbstractPublicPlanSlideContent} from "./abstractPublicPlanSlideContent";
+import {readShowSeasonLogo} from "./seasonLogo";
 
 export class PublicPlanNextSlideContent extends AbstractPublicPlanSlideContent {
 
     constructor(data: object) {
         super(data);
         Object.assign(this, data);
+        this.showSeasonLogo = readShowSeasonLogo(data, 'PublicPlanNextSlideContent');
     }
 
     public toJSON(): object {
@@ -12,9 +14,10 @@ export class PublicPlanNextSlideContent extends AbstractPublicPlanSlideContent {
             type: 'PublicPlanNextSlideContent',
             planId: this.planId,
             interval: this.interval,
-            role: this.role,
+            ...this.audienceFields(),
             room: this.room,
             background: this.background,
+            showSeasonLogo: this.showSeasonLogo,
         };
     }
 }

@@ -2,6 +2,7 @@
 import {shallowRef, onMounted, onUnmounted} from 'vue';
 import {StaticCanvas} from 'fabric';
 import {SlideContent} from "@/models/slideContent";
+import {rewriteImageSrcs} from "@/utils/sameOriginSrc";
 
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 450;
@@ -39,12 +40,31 @@ onMounted(() => {
   }, {threshold: 0.01});
   io.observe(root.value);
 
-  if (props.content.background) {
-    fabricCanvas.loadFromJSON(props.content.background).then(() => {
-      fabricCanvas.requestRenderAll();
-    });
-  }
+  loadSlideBackground();
 });
+
+function loadSlideBackground() {
+  const background = props.content.background;
+  if (!background || !fabricCanvas) return;
+
+  if (typeof background === 'string') {
+    try {
+      const parsed = JSON.parse(background);
+      fabricCanvas.loadFromJSON(rewriteImageSrcs(parsed)).then(() => {
+        fabricCanvas.requestRenderAll();
+      });
+    } catch {
+      fabricCanvas.loadFromJSON(background).then(() => {
+        fabricCanvas.requestRenderAll();
+      });
+    }
+    return;
+  }
+
+  fabricCanvas.loadFromJSON(rewriteImageSrcs(background)).then(() => {
+    fabricCanvas.requestRenderAll();
+  });
+}
 
 onMounted(loadFont);
 

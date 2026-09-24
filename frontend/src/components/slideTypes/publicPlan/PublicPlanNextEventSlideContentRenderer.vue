@@ -17,7 +17,9 @@ const props = withDefaults(
 const {result} = usePlanActionWithPolling(
     {
       planId: props.content.planId,
-      role: props.content.role,
+      joint: props.content.joint,
+      programs: props.content.programs,
+      legacyRole: props.content.legacyRole,
       room: props.content.room,
       interval: props.content.interval,
       eventId: props.eventId,

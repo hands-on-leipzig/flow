@@ -675,33 +675,61 @@ class DrahtController extends Controller
      */
     public function getTeamsCoordinates(Event $event)
     {
-        try {
-            $response = $this->makeDrahtCall("/handson/teams/{$event->programs->first()?->draht_id}/locations");
+        $event->loadMissing('programs');
+        $points = [];
 
-            if (!$response->ok()) {
-                Log::error("Failed to fetch teams locations from DRAHT API", [
-                    'event_id' => $event->id,
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
-                return response()->json([
-                    'error' => 'Failed to fetch teams locations from DRAHT API',
-                    'status' => $response->status()
-                ], $response->status());
+        foreach ($event->programs as $program) {
+            $drahtId = $program->draht_id;
+            if (! $drahtId) {
+                continue;
             }
+
+            try {
+                $response = $this->makeDrahtCall("/handson/teams/{$drahtId}/locations");
+            } catch (\Throwable $e) {
+                Log::warning('DRAHT team locations failed', [
+                    'event_id' => $event->id,
+                    'draht_id' => $drahtId,
+                    'error' => $e->getMessage(),
+                ]);
+                continue;
+            }
+
+            if (! $response->ok()) {
+                Log::warning('DRAHT team locations failed', [
+                    'event_id' => $event->id,
+                    'draht_id' => $drahtId,
+                    'status' => $response->status(),
+                ]);
+                continue;
+            }
+
             $locations = $response->json();
-            return response()->json($locations);
-        } catch (\Exception $e) {
-            Log::error("Failed to fetch teams locations from DRAHT API", [
-                'event_id' => $event->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json([
-                'error' => 'Internal server error',
-                'message' => $e->getMessage()
-            ], 500);
+            if (! is_array($locations)) {
+                continue;
+            }
+
+            foreach ($locations as $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+                $coord = $row['coord'] ?? null;
+                if (! is_array($coord) || ! array_key_exists('lat', $coord) || ! array_key_exists('lon', $coord)) {
+                    continue;
+                }
+                if ($coord['lat'] === null || $coord['lon'] === null) {
+                    continue;
+                }
+                $name = $row['name'] ?? '';
+                $points[] = [
+                    'program_id' => (int) $program->first_program,
+                    'name' => is_string($name) ? $name : '',
+                    'coord' => $coord,
+                ];
+            }
         }
+
+        return response()->json($points);
     }
 
     /**

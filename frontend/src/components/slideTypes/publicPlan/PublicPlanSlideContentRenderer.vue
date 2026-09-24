@@ -13,10 +13,12 @@ const props = withDefaults(
     {preview: false}
 );
 
-const {result} = usePlanActionWithPolling(
+const {result, event} = usePlanActionWithPolling(
     {
       planId: props.content.planId,
-      role: props.content.role,
+      joint: props.content.joint,
+      programs: props.content.programs,
+      legacyRole: props.content.legacyRole,
       room: props.content.room,
       eventId: props.eventId
     },
@@ -42,7 +44,7 @@ const {result} = usePlanActionWithPolling(
             class="flex flex-row items-center justify-center w-full h-full min-h-0"
             :class="{ 'min-h-screen': !props.preview, 'min-h-100': props.preview }"
         >
-          <PublicPlanTable :result="result"/>
+          <PublicPlanTable :result="result" :programs="event?.programs ?? []"/>
         </div>
       </div>
     </div>
