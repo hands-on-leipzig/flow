@@ -129,7 +129,7 @@ function loadFont() {
 
 <template>
   <div ref="root" :class="{ 'w-screen h-screen': !preview, 'pointer-events-none': overlay }"
-       class="flex items-center justify-center overflow-hidden">
+       class="absolute inset-0 overflow-hidden">
     <div class="slide-frame">
       <img v-if="backgroundSrc && !overlay" :src="backgroundSrc" alt="" class="slide-background"/>
       <div class="flex items-center justify-center w-full h-full">
@@ -141,9 +141,8 @@ function loadFont() {
 
 <style scoped>
 .slide-frame {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
 }
 
 .slide-background {
