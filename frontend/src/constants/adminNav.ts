@@ -1,4 +1,4 @@
-export const ADMIN_DEFAULT_SECTION = 'system-news'
+export const ADMIN_DEFAULT_SECTION = 'cockpit'
 
 export type AdminGroup = 'ops' | 'entwicklung'
 
