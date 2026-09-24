@@ -19,7 +19,6 @@ import {compareStaffingTiles, staffingSortableFromTile} from '@/utils/volunteerS
 import {
   buildStaffingFilterKeys,
   staffingFilterKeyFromScope,
-  syncStaffingFilters,
   toggleStaffingFilter,
   type StaffingFilterKey,
 } from '@/utils/volunteerStaffingFilters'
@@ -80,6 +79,8 @@ const newRoleMin = ref<number | ''>('')
 const newRoleBest = ref<number | ''>('')
 
 const activeTileFilters = ref<Set<StaffingFilterKey>>(new Set())
+/** Keys already offered on this event. A key is on the first time it appears. */
+const seenTileFilterKeys = ref<Set<StaffingFilterKey>>(new Set())
 
 const programFilters = computed(() => {
   const ids = new Set(
@@ -252,10 +253,14 @@ function searchChipIconClass(person: Person) {
 }
 
 function syncTileFilters() {
-  activeTileFilters.value = syncStaffingFilters(
-    activeTileFilters.value,
-    buildStaffingFilterKeys(programFilters.value),
-  )
+  const keys = buildStaffingFilterKeys(programFilters.value)
+  const seen = seenTileFilterKeys.value
+  const next = new Set<StaffingFilterKey>()
+  for (const key of keys) {
+    if (!seen.has(key) || activeTileFilters.value.has(key)) next.add(key)
+  }
+  activeTileFilters.value = next
+  seenTileFilterKeys.value = new Set(keys)
 }
 
 function tileFilterKey(tile: Tile): StaffingFilterKey {
@@ -529,7 +534,12 @@ async function confirmDeleteRole() {
 }
 
 watch(eventId, () => load(), {immediate: true})
-watch(() => eventStore.selectedEvent?.id, () => syncTileFilters(), {immediate: true})
+watch(() => eventStore.selectedEvent?.id, () => {
+  seenTileFilterKeys.value = new Set()
+  activeTileFilters.value = new Set()
+  syncTileFilters()
+}, {immediate: true})
+watch(programFilters, () => syncTileFilters())
 </script>
 
 <template>
