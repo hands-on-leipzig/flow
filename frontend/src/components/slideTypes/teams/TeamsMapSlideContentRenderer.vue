@@ -88,7 +88,7 @@ async function loadCoordinates() {
     coordinates.value = [...byCity.values()].map((city) => ({
       lat: city.lat,
       lon: city.lon,
-      label: city.rows.join(''),
+      label: `<div class="map-pin-label__box">${city.rows.join('')}</div>`,
     }));
   } catch (e) {
     console.error(e);
@@ -141,6 +141,10 @@ onMounted(loadCoordinates)
   right: 10%;
   top: 10%;
   bottom: 10%;
+  box-sizing: border-box;
+  border: 8px solid #fff;
+  overflow: hidden;
+  background: #fff;
 }
 
 .map-slide :deep(.leaflet-container) {
@@ -151,6 +155,7 @@ onMounted(loadCoordinates)
   display: flex;
   align-items: center;
   gap: 0.35em;
+  white-space: nowrap;
 }
 
 .map-slide :deep(.map-pin-label__row img) {

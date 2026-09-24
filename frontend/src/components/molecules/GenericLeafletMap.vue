@@ -279,11 +279,36 @@ onBeforeUnmount(() => {
 
 <style>
 .leaflet-tooltip.map-pin-label {
+  width: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  line-height: 0;
+}
+
+.leaflet-tooltip.map-pin-label.leaflet-tooltip-top {
+  margin-top: 0;
+}
+
+.leaflet-tooltip.map-pin-label::before {
+  content: none;
+}
+
+.map-pin-label__box {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 0.15rem;
+  width: max-content;
   background: #fff;
-  border: none;
   border-radius: 4px;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.28);
   color: #222;
@@ -291,10 +316,17 @@ onBeforeUnmount(() => {
   font-weight: 600;
   line-height: 1.25;
   padding: 0.2rem 0.4rem;
-  white-space: normal;
+  white-space: nowrap;
 }
 
-.leaflet-tooltip.map-pin-label.leaflet-tooltip-top::before {
+.map-pin-label__box::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  margin-left: -6px;
+  margin-bottom: -12px;
+  border: 6px solid transparent;
   border-top-color: #fff;
 }
 </style>
