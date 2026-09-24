@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import {TeamsMapSlideContent} from "../../../models/teamsMapSlideContent";
 import {onMounted, ref} from "vue";
-import axios from "axios";
 import FabricSlideContentRenderer from "../FabricSlideContentRenderer.vue";
 import GenericLeafletMap from "../../molecules/GenericLeafletMap.vue";
 import {programLogoAlt, programLogoSrc} from "../../../utils/images";
-import {loadEventPrograms, loadTeamLanes, programForLane, selectedLanes} from "./teamLanes";
+import {loadCityCoordinates, loadEventPrograms, loadTeamLanes, programForLane, selectedLanes} from "./teamLanes";
 
 const props = withDefaults(defineProps<{
   content: TeamsMapSlideContent,
@@ -28,37 +27,39 @@ function escapeHtml(value: string): string {
 
 async function loadCoordinates() {
   try {
-    const [lanes, eventProgramRows, response] = await Promise.all([
+    const [lanes, eventProgramRows] = await Promise.all([
       loadTeamLanes(props.eventId),
       loadEventPrograms(props.eventId),
-      axios.get(`/events/${props.eventId}/team-coordinates`),
     ]);
-    const points = Array.isArray(response.data) ? response.data : [];
+    const selected = selectedLanes(lanes, props.content.programs);
+    const cities = new Set<string>();
+    for (const lane of selected) {
+      for (const team of lane.teams ?? []) {
+        const city = String(team?.location ?? '').trim();
+        if (city !== '') {
+          cities.add(city);
+        }
+      }
+    }
+    const points = await loadCityCoordinates([...cities]);
     const markers: Array<{lat: number, lon: number, popup: string}> = [];
 
-    for (const lane of selectedLanes(lanes, props.content.programs)) {
+    for (const lane of selected) {
       const program = programForLane(lane, eventProgramRows);
       const teams = Array.isArray(lane.teams) ? lane.teams : [];
       for (const team of teams) {
         const teamName = String(team?.name ?? '').trim();
-        if (teamName === '') {
-          continue;
-        }
-        const point = points.find((candidate) => {
-          const pointName = String(candidate?.name ?? '').trim();
-          return pointName !== ''
-              && Number(candidate?.program_id) === Number(lane.program_id)
-              && pointName === teamName;
-        });
-        if (!point?.coord) {
+        const city = String(team?.location ?? '').trim();
+        const point = city === '' ? undefined : points[city];
+        if (teamName === '' || !point) {
           continue;
         }
         const src = programLogoSrc(program, 'h');
         const alt = escapeHtml(programLogoAlt(program));
         const name = escapeHtml(teamName);
         markers.push({
-          lat: point.coord.lat,
-          lon: point.coord.lon,
+          lat: point.lat,
+          lon: point.lon,
           popup: `<span style="display:inline-flex;align-items:center;gap:0.4em"><img src="${src}" alt="${alt}" style="height:1em;width:auto">${name}</span>`,
         });
       }

@@ -14,14 +14,23 @@ export type TeamLane = {
 };
 
 export async function loadTeamLanes(eventId: number): Promise<TeamLane[]> {
-    const {data} = await axios.get(`/publish/public-information/${eventId}`);
-    const lanes = data?.teams?.lanes;
+    const {data} = await axios.get(`/events/${eventId}/team-lanes`);
+    const lanes = data?.lanes;
     return Array.isArray(lanes) ? lanes : [];
 }
 
 export async function loadEventPrograms(eventId: number): Promise<EventProgramRef[]> {
     const {data} = await axios.get(`/events/public/${eventId}`);
     return Array.isArray(data?.programs) ? data.programs : [];
+}
+
+export async function loadCityCoordinates(cities: string[]): Promise<Record<string, {lat: number, lon: number}>> {
+    if (cities.length === 0) {
+        return {};
+    }
+    const {data} = await axios.post('/geocode-cities', {cities});
+    const rows = data?.cities;
+    return rows && typeof rows === 'object' ? rows : {};
 }
 
 export function selectedLanes(lanes: TeamLane[], programs: number[] | null): TeamLane[] {
