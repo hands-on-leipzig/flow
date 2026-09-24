@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import {TeamsMapSlideContent} from "../../../models/teamsMapSlideContent";
-import {onMounted, ref} from "vue";
+import {loadCityCoordinates, loadEventPrograms, loadTeamLanes, programForLane, selectedLanes} from "./teamLanes";
+import {computed, onMounted, ref} from "vue";
 import FabricSlideContentRenderer from "../FabricSlideContentRenderer.vue";
 import GenericLeafletMap from "../../molecules/GenericLeafletMap.vue";
 import {programLogoAlt, programLogoSrc} from "../../../utils/images";
-import {loadCityCoordinates, loadEventPrograms, loadTeamLanes, programForLane, selectedLanes} from "./teamLanes";
+import {sameOriginSrc} from "../../../utils/sameOriginSrc";
 
 const props = withDefaults(defineProps<{
   content: TeamsMapSlideContent,
@@ -15,6 +16,24 @@ const props = withDefaults(defineProps<{
 });
 
 const coordinates = ref<Array<{lat: number, lon: number, label: string}> | null>(null);
+
+const backgroundSrc = computed(() => slideBackgroundSrc(props.content.background));
+
+function slideBackgroundSrc(background: unknown): string {
+  let value = background;
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return '';
+    }
+  }
+  if (!value || typeof value !== 'object') {
+    return '';
+  }
+  const src = (value as {backgroundImage?: {src?: unknown}}).backgroundImage?.src;
+  return typeof src === 'string' ? sameOriginSrc(src) : '';
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -82,6 +101,7 @@ onMounted(loadCoordinates)
 
 <template>
   <div class="relative w-full h-full overflow-hidden">
+    <img v-if="backgroundSrc" :src="backgroundSrc" alt="" class="map-backdrop"/>
     <FabricSlideContentRenderer
         v-if="props.content.background"
         class="absolute inset-0 z-0"
@@ -103,6 +123,17 @@ onMounted(loadCoordinates)
 </template>
 
 <style scoped>
+.map-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+}
+
 .map-slide {
   position: absolute;
   z-index: 10;
@@ -110,6 +141,10 @@ onMounted(loadCoordinates)
   right: 10%;
   top: 10%;
   bottom: 10%;
+}
+
+.map-slide :deep(.leaflet-container) {
+  background: transparent;
 }
 
 .map-slide :deep(.map-pin-label__row) {

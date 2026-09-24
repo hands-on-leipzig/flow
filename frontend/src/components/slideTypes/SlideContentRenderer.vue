@@ -21,7 +21,6 @@ import TeamsTableSlideContentRenderer from "./teams/TeamsTableSlideContentRender
 import {PublicPlanNextEventSlideContent} from "../../models/publicPlanNextEventSlideContent";
 import PublicPlanNextEventSlideContentRenderer from "./publicPlan/PublicPlanNextEventSlideContentRenderer.vue";
 import {seasonLogoPlacement, SEASON_LOGO_HEIGHT, SEASON_LOGO_WIDTH} from "@/models/seasonLogo";
-import {coveredPlacement, screenBackgroundPlacement} from "@/utils/coverSlideBackground";
 
 const props = withDefaults(defineProps<{
   slide: Slide,
@@ -65,16 +64,7 @@ const seasonLogoStyle = computed(() => {
   if (zoom === 0) {
     return null;
   }
-  const screenPlace = screenBackgroundPlacement(props.slide.content, frame.value.width, frame.value.height);
-  if (screenPlace) {
-    return {
-      left: `${screenPlace.centerX}px`,
-      top: `${screenPlace.top}px`,
-      width: `${SEASON_LOGO_WIDTH * screenPlace.scaleX}px`,
-      height: `${SEASON_LOGO_HEIGHT * screenPlace.scaleY}px`,
-    };
-  }
-  const place = coveredPlacement(props.slide.content) ?? seasonLogoPlacement(props.slide.content.background);
+  const place = seasonLogoPlacement(props.slide.content.background);
   const boxWidth = DESIGN_WIDTH * zoom;
   const boxHeight = DESIGN_HEIGHT * zoom;
   const canvasLeft = (frame.value.width - boxWidth) / 2;

@@ -3,7 +3,6 @@ import {shallowRef, onMounted, onUnmounted, ref} from 'vue';
 import {FabricImage, StaticCanvas} from 'fabric';
 import {SlideContent} from "@/models/slideContent";
 import {rewriteImageSrcs} from "@/utils/sameOriginSrc";
-import {rememberBackgroundSize} from "@/utils/coverSlideBackground";
 
 const DEFAULT_WIDTH = 800;
 const DEFAULT_HEIGHT = 450;
@@ -66,7 +65,6 @@ function liftBackgroundToScreen() {
     return;
   }
   backgroundSrc.value = src;
-  rememberBackgroundSize(props.content, width, height);
   fabricCanvas.backgroundImage = undefined;
   fabricCanvas.backgroundColor = '';
   const canvasEl = fabricCanvas.getElement();

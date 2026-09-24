@@ -6,45 +6,11 @@ const DESIGN_WIDTH = 800;
 const DESIGN_HEIGHT = 450;
 
 const covers = new WeakMap<object, SeasonLogoPlacement>();
-const imageSizes = new WeakMap<object, {width: number; height: number}>();
 const coverVersion = ref(0);
 
 export function coveredPlacement(owner: object): SeasonLogoPlacement | null {
     coverVersion.value;
     return covers.get(owner) ?? null;
-}
-
-export function rememberBackgroundSize(owner: object, width: number, height: number) {
-    if (!(width > 0) || !(height > 0)) {
-        return;
-    }
-    imageSizes.set(owner, {width, height});
-    coverVersion.value += 1;
-}
-
-/**
- * Season-logo anchor in screen pixels. The background covers the frame:
- * scale to width when the screen is wider than the image, otherwise scale to height.
- */
-export function screenBackgroundPlacement(
-    owner: object,
-    frameWidth: number,
-    frameHeight: number,
-): SeasonLogoPlacement | null {
-    coverVersion.value;
-    const size = imageSizes.get(owner);
-    if (!size || frameWidth <= 0 || frameHeight <= 0) {
-        return null;
-    }
-    const scale = Math.max(frameWidth / size.width, frameHeight / size.height);
-    const imageTop = (frameHeight - size.height * scale) / 2;
-    const designZoom = Math.min(frameWidth / DESIGN_WIDTH, frameHeight / DESIGN_HEIGHT);
-    return {
-        centerX: frameWidth / 2,
-        top: Math.max(imageTop, 0) + 5 * designZoom,
-        scaleX: scale,
-        scaleY: scale,
-    };
 }
 
 /** Scale the slide background image so it covers the 800×450 canvas. Returns the season-logo anchor on that image. */

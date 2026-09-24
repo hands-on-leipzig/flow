@@ -21,6 +21,33 @@ export function readShowSeasonLogo(data: object, type: string): boolean {
     return SEASON_LOGO_DEFAULT[type] === true;
 }
 
+/** Same default as SlideGeneratorService: /background.png covering the 800×450 canvas. */
+export function defaultSlideBackground(): object {
+    return {
+        version: '6.7.1',
+        backgroundImage: {
+            type: 'Image',
+            version: '6.7.1',
+            left: 0,
+            top: -3.4337,
+            width: 1660,
+            height: 948,
+            scaleX: 0.4819,
+            scaleY: 0.4819,
+            originX: 'left',
+            originY: 'top',
+            src: '/background.png',
+        },
+    };
+}
+
+export function slideBackgroundOrDefault(background: unknown): object {
+    if (background == null || background === '') {
+        return defaultSlideBackground();
+    }
+    return background as object;
+}
+
 const CANVAS_WIDTH = 800;
 
 export type SeasonLogoPlacement = {
