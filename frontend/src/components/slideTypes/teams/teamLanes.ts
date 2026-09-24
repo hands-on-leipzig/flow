@@ -24,6 +24,26 @@ export async function loadEventPrograms(eventId: number): Promise<EventProgramRe
     return Array.isArray(data?.programs) ? data.programs : [];
 }
 
+export async function loadVenuePoint(eventId: number): Promise<{lat: number, lon: number} | null> {
+    try {
+        const {data} = await axios.get(`/publish/public-information/${eventId}`);
+        const address = String(data?.address ?? '').trim();
+        if (address === '') {
+            return null;
+        }
+        const point = await axios.get('/geocode', {params: {address}});
+        const lat = Number(point.data?.lat);
+        const lon = Number(point.data?.lon);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+            return null;
+        }
+        return {lat, lon};
+    } catch (e) {
+        console.error(e);
+        return null;
+    }
+}
+
 export async function loadCityCoordinates(cities: string[]): Promise<Record<string, {lat: number, lon: number}>> {
     if (cities.length === 0) {
         return {};

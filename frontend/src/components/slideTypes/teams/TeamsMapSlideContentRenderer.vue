@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import {TeamsMapSlideContent} from "../../../models/teamsMapSlideContent";
-import {onMounted, ref} from "vue";
+import {loadCityCoordinates, loadEventPrograms, loadTeamLanes, loadVenuePoint, programForLane, selectedLanes} from "./teamLanes";
+import {computed, onMounted, ref} from "vue";
 import FabricSlideContentRenderer from "../FabricSlideContentRenderer.vue";
 import GenericLeafletMap from "../../molecules/GenericLeafletMap.vue";
 import {programLogoAlt, programLogoSrc} from "../../../utils/images";
-import {loadCityCoordinates, loadEventPrograms, loadTeamLanes, programForLane, selectedLanes} from "./teamLanes";
+import {sameOriginSrc} from "../../../utils/sameOriginSrc";
 
 const props = withDefaults(defineProps<{
   content: TeamsMapSlideContent,
@@ -14,7 +15,25 @@ const props = withDefaults(defineProps<{
   preview: false
 });
 
-const coordinates = ref<Array<{lat: number, lon: number, popup: string}> | null>(null);
+const coordinates = ref<Array<{lat: number, lon: number, label: string}> | null>(null);
+
+const backgroundSrc = computed(() => slideBackgroundSrc(props.content.background));
+
+function slideBackgroundSrc(background: unknown): string {
+  let value = background;
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return '';
+    }
+  }
+  if (!value || typeof value !== 'object') {
+    return '';
+  }
+  const src = (value as {backgroundImage?: {src?: unknown}}).backgroundImage?.src;
+  return typeof src === 'string' ? sameOriginSrc(src) : '';
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -25,7 +44,17 @@ function escapeHtml(value: string): string {
       .replaceAll("'", '&#39;');
 }
 
+function venueMarker(point: {lat: number, lon: number}) {
+  return {
+    lat: point.lat,
+    lon: point.lon,
+    venue: true,
+    label: '<div class="map-pin-label__box"><span class="map-pin-label__row">Wir sind hier</span></div>',
+  };
+}
+
 async function loadCoordinates() {
+  const venuePromise = loadVenuePoint(props.eventId);
   try {
     const [lanes, eventProgramRows] = await Promise.all([
       loadTeamLanes(props.eventId),
@@ -42,7 +71,7 @@ async function loadCoordinates() {
       }
     }
     const points = await loadCityCoordinates([...cities]);
-    const markers: Array<{lat: number, lon: number, popup: string}> = [];
+    const byCity = new Map();
 
     for (const lane of selected) {
       const program = programForLane(lane, eventProgramRows);
@@ -54,20 +83,34 @@ async function loadCoordinates() {
         if (teamName === '' || !point) {
           continue;
         }
+        if (!byCity.has(city)) {
+          byCity.set(city, {lat: point.lat, lon: point.lon, rows: []});
+        }
         const src = programLogoSrc(program);
         const alt = escapeHtml(programLogoAlt(program));
         const name = escapeHtml(teamName);
-        markers.push({
-          lat: point.lat,
-          lon: point.lon,
-          popup: `<span style="display:inline-flex;align-items:center;gap:0.4em"><img src="${src}" alt="${alt}" style="width:2rem;height:2rem;object-fit:contain">${name}</span>`,
-        });
+        byCity.get(city).rows.push(
+            `<span class="map-pin-label__row"><img src="${src}" alt="${alt}">${name}</span>`
+        );
       }
     }
 
+    const markers = [...byCity.values()].map((city) => ({
+      lat: city.lat,
+      lon: city.lon,
+      label: `<div class="map-pin-label__box">${city.rows.join('')}</div>`,
+    }));
     coordinates.value = markers;
+    const venue = await venuePromise;
+    if (venue) {
+      coordinates.value = [...markers, venueMarker(venue)];
+    }
   } catch (e) {
     console.error(e);
+    const venue = await venuePromise;
+    if (venue) {
+      coordinates.value = [venueMarker(venue)];
+    }
   }
 }
 
@@ -77,23 +120,75 @@ onMounted(loadCoordinates)
 
 <template>
   <div class="relative w-full h-full overflow-hidden">
+    <img v-if="backgroundSrc" :src="backgroundSrc" alt="" class="map-backdrop"/>
+    <div class="map-slide">
+      <GenericLeafletMap
+          v-if="coordinates"
+          :markers="coordinates"
+          height="100%"
+          min-height="0"
+          :hideControls="true"
+          :static-map="true"
+          class="w-full h-full">
+      </GenericLeafletMap>
+    </div>
     <FabricSlideContentRenderer
         v-if="props.content.background"
-        class="absolute inset-0 z-0"
+        class="map-foreground"
+        overlay
         :content="props.content"
         :preview="props.preview"
     />
-    <GenericLeafletMap
-        v-if="coordinates"
-        :markers="coordinates"
-        :height="props.preview ? '9rem' : '100vh'"
-        :hideControls="true"
-        :static-map="true"
-        class="relative z-10 w-full h-full">
-    </GenericLeafletMap>
   </div>
 </template>
 
 <style scoped>
+.map-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+}
 
+.map-slide {
+  position: absolute;
+  z-index: 10;
+  left: 10%;
+  right: 10%;
+  top: 10%;
+  bottom: 10%;
+  box-sizing: border-box;
+  border: 8px solid #fff;
+  overflow: hidden;
+  background: #fff;
+}
+
+.map-foreground {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.map-slide :deep(.leaflet-container) {
+  background: transparent;
+}
+
+.map-slide :deep(.map-pin-label__row) {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+  white-space: nowrap;
+}
+
+.map-slide :deep(.map-pin-label__row img) {
+  width: 1.25rem;
+  height: 1.25rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
 </style>

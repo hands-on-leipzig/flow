@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import {shallowRef, onMounted, onUnmounted} from 'vue';
-import {StaticCanvas} from 'fabric';
+import {shallowRef, onMounted, onUnmounted, ref} from 'vue';
+import {FabricImage, StaticCanvas} from 'fabric';
 import {SlideContent} from "@/models/slideContent";
 import {rewriteImageSrcs} from "@/utils/sameOriginSrc";
 
@@ -9,15 +9,18 @@ const DEFAULT_HEIGHT = 450;
 
 const props = withDefaults(defineProps<{
   content: SlideContent,
-  preview: boolean
+  preview: boolean,
+  overlay?: boolean,
 }>(), {
-  preview: false
+  preview: false,
+  overlay: false,
 });
 
 const root = shallowRef<HTMLElement | null>(null);
 let io: IntersectionObserver | null = null;
 
 const canvas = shallowRef(null);
+const backgroundSrc = ref('');
 let fabricCanvas: StaticCanvas | null = null;
 
 onMounted(() => {
@@ -47,23 +50,39 @@ function loadSlideBackground() {
   const background = props.content.background;
   if (!background || !fabricCanvas) return;
 
-  if (typeof background === 'string') {
-    try {
-      const parsed = JSON.parse(background);
-      fabricCanvas.loadFromJSON(rewriteImageSrcs(parsed)).then(() => {
-        fabricCanvas.requestRenderAll();
-      });
-    } catch {
-      fabricCanvas.loadFromJSON(background).then(() => {
-        fabricCanvas.requestRenderAll();
-      });
-    }
+  const source = typeof background === 'string' ? parseBackground(background) : background;
+  fabricCanvas.loadFromJSON(rewriteImageSrcs(source)).then(() => {
+    liftBackgroundToScreen();
+  });
+}
+
+function liftBackgroundToScreen() {
+  const image = fabricCanvas?.backgroundImage;
+  if (!(image instanceof FabricImage) || !fabricCanvas) {
     return;
   }
+  const {width, height} = image.getOriginalSize();
+  const src = image.getSrc();
+  if (!(width > 0) || !(height > 0) || !src) {
+    return;
+  }
+  backgroundSrc.value = src;
+  fabricCanvas.backgroundImage = undefined;
+  fabricCanvas.backgroundColor = '';
+  const canvasEl = fabricCanvas.getElement();
+  canvasEl.style.background = 'transparent';
+  if (fabricCanvas.getObjects().length === 0) {
+    canvasEl.style.display = 'none';
+  }
+  fabricCanvas.requestRenderAll();
+}
 
-  fabricCanvas.loadFromJSON(rewriteImageSrcs(background)).then(() => {
-    fabricCanvas.requestRenderAll();
-  });
+function parseBackground(background: string) {
+  try {
+    return JSON.parse(background);
+  } catch {
+    return background;
+  }
 }
 
 onMounted(loadFont);
@@ -109,15 +128,43 @@ function loadFont() {
 </script>
 
 <template>
-  <div ref="root" :class="{ 'w-screen h-screen': !preview }"
-       class="flex items-center justify-center bg-gray-100 overflow-hidden">
-    <div class="flex items-center justify-center w-full h-full">
-      <canvas ref="canvas" class=""></canvas>
+  <div ref="root" :class="{ 'w-screen h-screen': !preview, 'pointer-events-none': overlay }"
+       class="absolute inset-0 overflow-hidden">
+    <div class="slide-frame">
+      <img v-if="backgroundSrc && !overlay" :src="backgroundSrc" alt="" class="slide-background"/>
+      <div class="slide-canvas">
+        <canvas ref="canvas"></canvas>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.slide-frame {
+  position: absolute;
+  inset: 0;
+  isolation: isolate;
+}
+
+.slide-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+}
+
+.slide-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 @font-face {
   font-family: 'Uniform';

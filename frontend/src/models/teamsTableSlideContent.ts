@@ -1,5 +1,5 @@
 import {SlideContent} from "./slideContent";
-import {readShowSeasonLogo} from "./seasonLogo";
+import {readShowSeasonLogo, slideBackgroundOrDefault} from "./seasonLogo";
 
 export class TeamsTableSlideContent extends SlideContent {
 
@@ -13,6 +13,7 @@ export class TeamsTableSlideContent extends SlideContent {
         Object.assign(this, data);
         this.programs = hasPrograms ? positiveProgramIds((data as {programs?: unknown}).programs) : null;
         this.showSeasonLogo = readShowSeasonLogo(data, 'TeamsTableSlideContent');
+        this.background = slideBackgroundOrDefault(this.background);
     }
 
     public toJSON(): object {
@@ -21,12 +22,14 @@ export class TeamsTableSlideContent extends SlideContent {
             teamsPerPage: number;
             secondsPerPage: number;
             showSeasonLogo: boolean;
+            background: object;
             programs?: number[];
         } = {
             type: "TeamsTableSlideContent",
             teamsPerPage: this.teamsPerPage,
             secondsPerPage: this.secondsPerPage,
             showSeasonLogo: this.showSeasonLogo,
+            background: this.background,
         };
         if (Array.isArray(this.programs)) {
             json.programs = this.programs;

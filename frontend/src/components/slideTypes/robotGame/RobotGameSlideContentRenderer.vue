@@ -102,7 +102,7 @@ defineExpose({handleArrow});
                                 class="absolute inset-0 z-0"
                                 :content="props.content" :preview="props.preview"></FabricSlideContentRenderer>
 
-    <div class="slide-container" :class="{ 'preview': props.preview }">
+    <div class="slide-container relative z-10" :class="{ 'preview': props.preview }">
       <RobotGameTable :name="scores?.name?.toUpperCase()" :paginatedTeams="paginatedItems" :round="round"
                       :content="content"></RobotGameTable>
     </div>

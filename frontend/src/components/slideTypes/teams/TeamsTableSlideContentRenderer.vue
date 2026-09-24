@@ -107,7 +107,7 @@ defineExpose({handleArrow});
         <table ref="tableRef" class="teams-table">
           <thead>
           <tr>
-            <th>Name</th>
+            <th>Team</th>
             <th>Organisation</th>
             <th>Ort</th>
           </tr>
