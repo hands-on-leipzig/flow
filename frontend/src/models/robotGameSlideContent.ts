@@ -1,4 +1,5 @@
 import {SlideContent} from "./slideContent";
+import {readShowSeasonLogo} from "./seasonLogo";
 
 export class RobotGameSlideContent extends SlideContent {
 
@@ -13,6 +14,7 @@ export class RobotGameSlideContent extends SlideContent {
     constructor(data: object) {
         super();
         Object.assign(this, data);
+        this.showSeasonLogo = readShowSeasonLogo(data, 'RobotGameSlideContent');
     }
 
     public toJSON(): object {
@@ -25,7 +27,8 @@ export class RobotGameSlideContent extends SlideContent {
             textColor: this.textColor,
             tableBackgroundColor: this.tableBackgroundColor,
             tableBorderColor: this.tableBorderColor,
-            background: this.background
+            background: this.background,
+            showSeasonLogo: this.showSeasonLogo,
         };
     }
 }

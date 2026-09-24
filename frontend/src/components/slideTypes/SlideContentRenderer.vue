@@ -20,6 +20,7 @@ import {TeamsTableSlideContent} from "../../models/teamsTableSlideContent";
 import TeamsTableSlideContentRenderer from "./teams/TeamsTableSlideContentRenderer.vue";
 import {PublicPlanNextEventSlideContent} from "../../models/publicPlanNextEventSlideContent";
 import PublicPlanNextEventSlideContentRenderer from "./publicPlan/PublicPlanNextEventSlideContentRenderer.vue";
+import {backgroundImageScale, SEASON_LOGO_HEIGHT, SEASON_LOGO_WIDTH} from "@/models/seasonLogo";
 
 const props = withDefaults(defineProps<{
   slide: Slide,
@@ -36,6 +37,41 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ (e: 'next'): void }>();
 
 const renderer = ref(null);
+const root = ref<HTMLElement | null>(null);
+const frame = ref({width: 0, height: 0});
+const DESIGN_WIDTH = 800;
+const DESIGN_HEIGHT = 450;
+let resizeObserver: ResizeObserver | null = null;
+
+function measureFrame() {
+  const rect = root.value?.getBoundingClientRect();
+  frame.value = {
+    width: rect?.width ?? 0,
+    height: rect?.height ?? 0,
+  };
+}
+
+const seasonLogoStyle = computed(() => {
+  if (!props.slide.content?.showSeasonLogo) {
+    return null;
+  }
+  if (frame.value.width <= 0 || frame.value.height <= 0) {
+    return null;
+  }
+  const width = props.preview ? 238 : frame.value.width;
+  const height = props.preview ? 134 : frame.value.height;
+  const zoom = Math.min(width / DESIGN_WIDTH, height / DESIGN_HEIGHT);
+  if (zoom === 0) {
+    return null;
+  }
+  const scale = backgroundImageScale(props.slide.content.background);
+  const boxHeight = DESIGN_HEIGHT * zoom;
+  return {
+    top: `${(frame.value.height - boxHeight) / 2 + 5 * zoom}px`,
+    width: `${SEASON_LOGO_WIDTH * scale.scaleX * zoom}px`,
+    height: `${SEASON_LOGO_HEIGHT * scale.scaleY * zoom}px`,
+  };
+});
 
 const componentName = computed(() => {
   const content = props.slide.content;
@@ -107,18 +143,47 @@ function startAdvanceTimeout() {
 }
 
 onMounted(() => {
+  measureFrame();
+  if (root.value && window.ResizeObserver) {
+    resizeObserver = new ResizeObserver(() => measureFrame());
+    resizeObserver.observe(root.value);
+  } else {
+    window.addEventListener('resize', measureFrame);
+  }
   if (props.visible && !props.preview && useDefaultAdvance.value) {
     startAdvanceTimeout();
   }
 });
 
 onUnmounted(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+  window.removeEventListener('resize', measureFrame);
   clearAdvanceTimeout();
 });
 </script>
 
 <template>
-  <component ref="renderer" :is="componentName" :content="props.slide.content" :preview="props.preview"
-             :eventId="props.eventId" :visible="props.visible"
-             @next="emit('next')"></component>
+  <div ref="root" class="relative w-full h-full">
+    <component ref="renderer" :is="componentName" :content="props.slide.content" :preview="props.preview"
+               :eventId="props.eventId" :visible="props.visible"
+               @next="emit('next')"></component>
+    <img
+        v-if="seasonLogoStyle"
+        class="season-logo"
+        src="/logo.png"
+        alt=""
+        :style="seasonLogoStyle"
+    />
+  </div>
 </template>
+
+<style scoped>
+.season-logo {
+  position: absolute;
+  left: 50%;
+  z-index: 50;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+</style>

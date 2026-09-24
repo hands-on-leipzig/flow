@@ -322,6 +322,18 @@ function updateDuration(value: number) {
       <span class="font-semibold px-2">
         Einstellungen
       </span>
+      <div class="grid grid-cols-2 gap-2 items-center">
+        <div>
+          <label class="text-sm font-medium pl-2">Saison Logo anzeigen</label>
+        </div>
+        <div>
+          <input
+              type="checkbox"
+              :checked="slide.content.showSeasonLogo"
+              @change="updateByName('showSeasonLogo', ($event.target as HTMLInputElement).checked)"
+          />
+        </div>
+      </div>
       <!-- Eigene Anzeigezeit - Alle Slides außer Robot Game -->
       <div v-if="slide.type !== 'RobotGameSlideContent'">
         <div class="grid grid-cols-2 gap-2 items-center">
