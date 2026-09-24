@@ -101,13 +101,19 @@ function todayBerlin(): string {
   }).format(new Date())
 }
 
+function sortValue(row: CockpitEvent): string | number | null {
+  if (sortKey.value === 'rp') return row.regional_partner_name
+  if (sortKey.value === 'generator') return row.generator_last_end
+  if (sortKey.value === 'publish') return row.publication_level
+  return row.event_date
+}
+
 function compareNullable(a: string | number | null | undefined, b: string | number | null | undefined): number {
   if (a == null && b == null) return 0
   if (a == null) return 1
   if (b == null) return -1
-  if (a < b) return -1
-  if (a > b) return 1
-  return 0
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  return String(a).localeCompare(String(b), 'de', {numeric: true, sensitivity: 'base'})
 }
 
 const filteredRows = computed(() => {
@@ -132,13 +138,18 @@ const filteredRows = computed(() => {
   }
   const dir = sortDir.value === 'desc' ? -1 : 1
   rows.sort((a, b) => {
-    let cmp = 0
-    if (sortKey.value === 'rp') cmp = compareNullable(a.regional_partner_name, b.regional_partner_name)
-    else if (sortKey.value === 'generator') cmp = compareNullable(a.generator_last_end, b.generator_last_end)
-    else if (sortKey.value === 'publish') cmp = compareNullable(a.publication_level, b.publication_level)
-    else cmp = compareNullable(a.event_date, b.event_date)
-    if (cmp !== 0) return cmp * dir
-    return compareNullable(a.regional_partner_name, b.regional_partner_name)
+    const aVal = sortValue(a)
+    const bVal = sortValue(b)
+    let cmp = compareNullable(aVal, bVal)
+    if (cmp !== 0) {
+      if (aVal == null || bVal == null) return cmp
+      return cmp * dir
+    }
+    cmp = compareNullable(a.regional_partner_name, b.regional_partner_name)
+    if (cmp !== 0) return cmp
+    cmp = compareNullable(a.event_date, b.event_date)
+    if (cmp !== 0) return cmp
+    return a.event_id - b.event_id
   })
   return rows
 })
