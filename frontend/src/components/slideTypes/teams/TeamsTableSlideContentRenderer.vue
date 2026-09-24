@@ -120,7 +120,7 @@ defineExpose({handleArrow});
             <td>
               <span class="name-line">
                 <img
-                  :src="programLogoSrc(team.program, 'h')"
+                  :src="programLogoSrc(team.program, 'hs')"
                   :alt="programLogoAlt(team.program)"
                   class="audience-program-icon"
                 />
@@ -174,8 +174,10 @@ defineExpose({handleArrow});
 }
 
 .audience-program-icon {
+  width: 1em;
   height: 1em;
-  width: auto;
+  flex-shrink: 0;
+  object-fit: contain;
   display: block;
 }
 </style>
