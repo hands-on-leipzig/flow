@@ -1315,7 +1315,7 @@ class CheckInService
         $teams = DB::table('team')
             ->leftJoin('m_first_program as fp', 'fp.id', '=', 'team.first_program')
             ->where('team.event', $event->id)
-            ->select('team.id', 'team.first_program', 'fp.name as program_name', 'fp.logo_stem')
+            ->select('team.id', 'team.first_program', 'fp.name as program_name', 'fp.logo_stem', 'fp.sequence as program_sequence')
             ->get();
 
         $teamRecords = CheckIn::query()
@@ -1781,6 +1781,7 @@ class CheckInService
         ]];
 
         $cross = null;
+        $programLines = [];
         foreach ($teams->groupBy(fn ($row) => $row->first_program ?? 0) as $programId => $group) {
             $ids = $group->pluck('id')->map(fn ($id) => (int) $id)->all();
             $payload = [
@@ -1796,8 +1797,24 @@ class CheckInService
                 continue;
             }
 
-            $lines[] = array_merge(['kind' => 'program'], $payload);
+            $sequence = $group->first()->program_sequence ?? null;
+            $programLines[] = array_merge(['kind' => 'program'], $payload, [
+                '_sequence' => $sequence !== null ? (int) $sequence : PHP_INT_MAX,
+            ]);
         }
+
+        usort($programLines, function (array $a, array $b): int {
+            if ($a['_sequence'] !== $b['_sequence']) {
+                return $a['_sequence'] <=> $b['_sequence'];
+            }
+
+            return ($a['program_id'] ?? 0) <=> ($b['program_id'] ?? 0);
+        });
+        foreach ($programLines as &$line) {
+            unset($line['_sequence']);
+        }
+        unset($line);
+        array_push($lines, ...$programLines);
 
         if ($cross && $cross['total'] > 0 && count($lines) > 1) {
             // Match Zuordnung filter order: Übergreifend before programs.
@@ -1842,10 +1859,12 @@ class CheckInService
             }
             $pid = (int) $helper->first_program;
             if (! isset($byProgram[$pid])) {
+                $sequence = $helper->program_sequence ?? null;
                 $byProgram[$pid] = [
                     'ids' => [],
                     'program_name' => $helper->program_name ?? 'Programm',
                     'logo_stem' => $helper->logo_stem ?: null,
+                    'sequence' => $sequence !== null ? (int) $sequence : PHP_INT_MAX,
                 ];
             }
             $byProgram[$pid]['ids'][] = $id;
@@ -1865,8 +1884,18 @@ class CheckInService
             ];
         }
 
-        ksort($byProgram);
-        foreach ($byProgram as $programId => $bucket) {
+        $programIds = array_keys($byProgram);
+        usort($programIds, function (int $a, int $b) use ($byProgram): int {
+            $sa = $byProgram[$a]['sequence'];
+            $sb = $byProgram[$b]['sequence'];
+            if ($sa !== $sb) {
+                return $sa <=> $sb;
+            }
+
+            return $a <=> $b;
+        });
+        foreach ($programIds as $programId) {
+            $bucket = $byProgram[$programId];
             $lines[] = [
                 'kind' => 'program',
                 'program_id' => $programId,

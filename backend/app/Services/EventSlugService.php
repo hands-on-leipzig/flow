@@ -35,8 +35,9 @@ class EventSlugService
     /**
      * The vanity host resolves its own short links before it falls back to FLOW, so
      * those names have to stay free as well. Keep in sync with urls.json and the
-     * routes of the handson.tools shortener. `dev` and `test` address the non-production
-     * FLOW instances, which is why they are prefixes and not event slugs.
+     * routes of the handson.tools shortener. `dev` and `test` used to address the
+     * non-production instances as path prefixes; they stay reserved so old links
+     * and the shortener do not collide with event slugs.
      */
     private const RESERVED_SHORTENER = [
         'auth', 'dev', 'flow', 'jury', 'pfand', 'rg', 's', 'test',

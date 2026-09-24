@@ -5,6 +5,8 @@ const NON_PRODUCTION_HOSTS = new Set([
   '127.0.0.1',
   'dev.flow.hands-on-technology.org',
   'test.flow.hands-on-technology.org',
+  'dev.handson.tools',
+  'test.handson.tools',
 ])
 
 export function isNonProductionPublicHost(hostname?: string): boolean {

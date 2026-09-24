@@ -12,7 +12,7 @@ import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import VolunteerPersonSearch from '@/components/volunteers/VolunteerPersonSearch.vue'
 import VolunteerRosterTable from '@/components/volunteers/VolunteerRosterTable.vue'
 import VolunteerShirtPopover from '@/components/volunteers/VolunteerShirtPopover.vue'
-import {eventPrograms} from '@/utils/eventPrograms'
+import {eventPrograms, programId} from '@/utils/eventPrograms'
 import {compareRosterEntriesByStaffingRole} from '@/utils/volunteerStaffingSort'
 import {
   buildStaffingFilterKeys,
@@ -83,7 +83,17 @@ async function onVolunteerDataEntryToggle(next: boolean) {
   }
 }
 
-const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
+const programFilters = computed(() => {
+  const ids = new Set<number>()
+  for (const entry of roster.value) {
+    for (const assignment of entry.assignments ?? []) {
+      if (assignment.first_program != null && assignment.first_program > 0) {
+        ids.add(assignment.first_program)
+      }
+    }
+  }
+  return eventPrograms(eventStore.selectedEvent).filter((program) => ids.has(programId(program)))
+})
 
 const rosterPersonIds = computed(() => new Set(roster.value.map((r) => r.person.id)))
 

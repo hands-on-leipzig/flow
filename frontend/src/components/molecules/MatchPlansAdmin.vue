@@ -77,10 +77,30 @@ const existsWarning = computed(() => {
   )
 })
 
+function programSequence(firstProgram) {
+  const row = programs.value.find((program) => Number(program.id) === Number(firstProgram))
+  return row?.sequence ?? Number.POSITIVE_INFINITY
+}
+
+const selectablePrograms = computed(() => {
+  const ids = new Set(storedKeys.value.map((key) => Number(key.first_program)))
+  return programs.value
+    .filter((program) => ids.has(Number(program.id)))
+    .slice()
+    .sort((a, b) => {
+      const seqA = a.sequence ?? Number.POSITIVE_INFINITY
+      const seqB = b.sequence ?? Number.POSITIVE_INFINITY
+      if (seqA !== seqB) return seqA - seqB
+      return Number(a.id) - Number(b.id)
+    })
+})
+
 const sortedStoredKeys = computed(() => {
   return [...storedKeys.value].sort((a, b) => {
-    const pa = Number(a.first_program) - Number(b.first_program)
+    const pa = programSequence(a.first_program) - programSequence(b.first_program)
     if (pa !== 0) return pa
+    const byId = Number(a.first_program) - Number(b.first_program)
+    if (byId !== 0) return byId
     const ta = Number(a.teams) - Number(b.teams)
     if (ta !== 0) return ta
     const la = Number(a.lanes) - Number(b.lanes)
@@ -499,6 +519,12 @@ async function loadPrograms() {
 async function loadKeys() {
   const {data} = await axios.get('/admin/match-plans/keys')
   storedKeys.value = data.keys ?? []
+  if (
+    selectablePrograms.value.length
+    && !selectablePrograms.value.some((program) => program.id === firstProgram.value)
+  ) {
+    firstProgram.value = selectablePrograms.value[0].id
+  }
 }
 
 async function openLoadPicker() {
@@ -686,7 +712,7 @@ watch([firstProgram, teams, lanes, tables], () => {
             :value="firstProgram"
             @change="onProgramSelect"
           >
-            <option v-for="p in programs" :key="p.id" :value="p.id">
+            <option v-for="p in selectablePrograms" :key="p.id" :value="p.id">
               {{ p.display_name || p.name }} (max {{ p.max_match_rounds }})
             </option>
           </select>

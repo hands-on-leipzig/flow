@@ -43,9 +43,13 @@ class AdminCockpitService
      */
     public function payload(int $seasonId): array
     {
+        $latestPlans = DB::table('plan')
+            ->select('event', DB::raw('MAX(id) as id'))
+            ->groupBy('event');
+
         $rows = DB::table('event')
             ->leftJoin('regional_partner', 'regional_partner.id', '=', 'event.regional_partner')
-            ->leftJoin('plan', 'plan.event', '=', 'event.id')
+            ->leftJoinSub($latestPlans, 'plan', 'plan.event', '=', 'event.id')
             ->where('event.season', $seasonId)
             ->where('regional_partner.name', 'not like', '%QPlan RP%')
             ->orderBy('event.date')
@@ -76,8 +80,13 @@ class AdminCockpitService
         $roomsTeamsRed = $this->roomsTeamsRedByEvent($eventIds);
 
         $events = [];
+        $seenEventIds = [];
         foreach ($rows as $row) {
             $eventId = (int) $row->event_id;
+            if (isset($seenEventIds[$eventId])) {
+                continue;
+            }
+            $seenEventIds[$eventId] = true;
             $planId = $row->plan_id !== null ? (int) $row->plan_id : null;
             $attached = $programsByEvent[$eventId] ?? [];
             $attachedIds = array_map(fn ($p) => (int) $p['id'], $attached);
@@ -250,17 +259,33 @@ class AdminCockpitService
         };
 
         usort($events, function (array $a, array $b) use ($sort, $dir): int {
-            $cmp = match ($sort) {
-                'rp' => $this->compareNullableString($a['regional_partner_name'] ?? null, $b['regional_partner_name'] ?? null),
-                'generator' => $this->compareNullableString($a['generator_last_end'] ?? null, $b['generator_last_end'] ?? null),
-                'publish' => $this->compareNullableInt($a['publication_level'] ?? null, $b['publication_level'] ?? null),
-                default => $this->compareNullableString($a['event_date'] ?? null, $b['event_date'] ?? null),
+            [$aVal, $bVal] = match ($sort) {
+                'rp' => [$a['regional_partner_name'] ?? null, $b['regional_partner_name'] ?? null],
+                'generator' => [$a['generator_last_end'] ?? null, $b['generator_last_end'] ?? null],
+                'publish' => [$a['publication_level'] ?? null, $b['publication_level'] ?? null],
+                default => [$a['event_date'] ?? null, $b['event_date'] ?? null],
             };
+            $cmp = $sort === 'publish'
+                ? $this->compareNullableInt($aVal, $bVal)
+                : $this->compareNullableString($aVal, $bVal);
             if ($cmp !== 0) {
+                if ($aVal === null || $bVal === null) {
+                    return $cmp;
+                }
+
                 return $cmp * $dir;
             }
 
-            return $this->compareNullableInt($a['regional_partner_id'] ?? null, $b['regional_partner_id'] ?? null);
+            $byName = $this->compareNullableString($a['regional_partner_name'] ?? null, $b['regional_partner_name'] ?? null);
+            if ($byName !== 0) {
+                return $byName;
+            }
+            $byDate = $this->compareNullableString($a['event_date'] ?? null, $b['event_date'] ?? null);
+            if ($byDate !== 0) {
+                return $byDate;
+            }
+
+            return $this->compareNullableInt($a['event_id'] ?? null, $b['event_id'] ?? null);
         });
 
         return $events;
@@ -776,6 +801,6 @@ class AdminCockpitService
             return -1;
         }
 
-        return strcmp((string) $a, (string) $b);
+        return strcasecmp((string) $a, (string) $b);
     }
 }

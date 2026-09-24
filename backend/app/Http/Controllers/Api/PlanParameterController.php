@@ -8,6 +8,7 @@ use App\Models\MParameter;
 use App\Models\Plan;
 use App\Models\PlanParamValue;
 use App\Services\EventAttentionService;
+use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -230,6 +231,7 @@ class PlanParameterController extends Controller
                 ->where('te.event', $plan->event)
                 ->whereNotNull('te.table_name')
                 ->where('te.table_name', '!=', '')
+                ->orderByRaw(ProgramCatalog::sequenceOrderSql('te.first_program'))
                 ->orderBy('te.first_program')
                 ->orderBy('te.table_number')
                 ->get([

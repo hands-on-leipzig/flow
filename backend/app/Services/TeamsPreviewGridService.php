@@ -103,18 +103,39 @@ class TeamsPreviewGridService
      */
     private function programsOnPlan(ProgramPresence $presence): array
     {
-        $order = [
-            FirstProgram::EXPLORE->value,
-            FirstProgram::CHALLENGE->value,
-            FirstProgram::FUTURE_8->value,
-        ];
-
         $ids = [];
-        foreach ($order as $id) {
+        foreach ([FirstProgram::EXPLORE->value, FirstProgram::CHALLENGE->value, FirstProgram::FUTURE_8->value] as $id) {
             if ($presence->programOn($id)) {
                 $ids[] = $id;
             }
         }
+
+        return $this->sortByCatalogSequence($ids);
+    }
+
+    /**
+     * @param  list<int>  $ids
+     * @return list<int>
+     */
+    private function sortByCatalogSequence(array $ids): array
+    {
+        if ($ids === []) {
+            return [];
+        }
+
+        $sequence = DB::table('m_first_program')
+            ->whereIn('id', $ids)
+            ->pluck('sequence', 'id');
+
+        usort($ids, function (int $a, int $b) use ($sequence): int {
+            $sa = (int) ($sequence[$a] ?? PHP_INT_MAX);
+            $sb = (int) ($sequence[$b] ?? PHP_INT_MAX);
+            if ($sa === $sb) {
+                return $a <=> $b;
+            }
+
+            return $sa <=> $sb;
+        });
 
         return $ids;
     }
