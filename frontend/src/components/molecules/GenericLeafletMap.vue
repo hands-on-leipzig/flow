@@ -113,6 +113,14 @@ const clearMarkers = () => {
   }
 }
 
+const venuePinIcon = (L) => L.divIcon({
+  className: 'venue-pin',
+  html: '<svg class="venue-pin__shape" viewBox="0 0 24 36" width="22" height="32" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 24 12 24s12-15 12-24C24 5.4 18.6 0 12 0z" fill="#111"/><circle cx="12" cy="11" r="4.5" fill="#fff"/></svg>',
+  iconSize: [22, 32],
+  iconAnchor: [11, 32],
+  tooltipAnchor: [0, -2],
+})
+
 const renderMarkers = (L) => {
   if (!mapInstance.value || !markerLayer.value) {
     return
@@ -127,7 +135,7 @@ const renderMarkers = (L) => {
   const bounds = []
 
   validMarkers.value.forEach((marker) => {
-    const leafletMarker = L.marker([marker.lat, marker.lon]).addTo(markerLayer.value)
+    const leafletMarker = L.marker([marker.lat, marker.lon], marker.venue ? {icon: venuePinIcon(L)} : undefined).addTo(markerLayer.value)
     if (marker.label) {
       leafletMarker.bindTooltip(marker.label, {
         permanent: true,
@@ -278,6 +286,16 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
+.leaflet-div-icon.venue-pin {
+  background: transparent;
+  border: none;
+}
+
+.venue-pin__shape {
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
 .leaflet-tooltip.map-pin-label {
   width: 0;
   height: 0;

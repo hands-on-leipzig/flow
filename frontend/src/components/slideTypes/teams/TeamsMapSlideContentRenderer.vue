@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {TeamsMapSlideContent} from "../../../models/teamsMapSlideContent";
-import {loadCityCoordinates, loadEventPrograms, loadTeamLanes, programForLane, selectedLanes} from "./teamLanes";
+import {loadCityCoordinates, loadEventPrograms, loadTeamLanes, loadVenuePoint, programForLane, selectedLanes} from "./teamLanes";
 import {computed, onMounted, ref} from "vue";
 import FabricSlideContentRenderer from "../FabricSlideContentRenderer.vue";
 import GenericLeafletMap from "../../molecules/GenericLeafletMap.vue";
@@ -44,7 +44,17 @@ function escapeHtml(value: string): string {
       .replaceAll("'", '&#39;');
 }
 
+function venueMarker(point: {lat: number, lon: number}) {
+  return {
+    lat: point.lat,
+    lon: point.lon,
+    venue: true,
+    label: '<div class="map-pin-label__box"><span class="map-pin-label__row">Veranstaltungsort</span></div>',
+  };
+}
+
 async function loadCoordinates() {
+  const venuePromise = loadVenuePoint(props.eventId);
   try {
     const [lanes, eventProgramRows] = await Promise.all([
       loadTeamLanes(props.eventId),
@@ -85,13 +95,22 @@ async function loadCoordinates() {
       }
     }
 
-    coordinates.value = [...byCity.values()].map((city) => ({
+    const markers = [...byCity.values()].map((city) => ({
       lat: city.lat,
       lon: city.lon,
       label: `<div class="map-pin-label__box">${city.rows.join('')}</div>`,
     }));
+    coordinates.value = markers;
+    const venue = await venuePromise;
+    if (venue) {
+      coordinates.value = [...markers, venueMarker(venue)];
+    }
   } catch (e) {
     console.error(e);
+    const venue = await venuePromise;
+    if (venue) {
+      coordinates.value = [venueMarker(venue)];
+    }
   }
 }
 
