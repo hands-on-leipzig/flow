@@ -162,6 +162,18 @@ defineExpose({handleArrow});
   text-align: left;
 }
 
+.teams-table th {
+  background: #fff;
+}
+
+.teams-table tbody tr:nth-child(odd) td {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.teams-table tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.55);
+}
+
 .name-line {
   display: inline-flex;
   align-items: center;
