@@ -54,13 +54,13 @@ async function loadCoordinates() {
         if (teamName === '' || !point) {
           continue;
         }
-        const src = programLogoSrc(program, 'hs');
+        const src = programLogoSrc(program);
         const alt = escapeHtml(programLogoAlt(program));
         const name = escapeHtml(teamName);
         markers.push({
           lat: point.lat,
           lon: point.lon,
-          popup: `<span style="display:inline-flex;align-items:center;gap:0.4em"><img src="${src}" alt="${alt}" style="height:1em;width:1em;object-fit:contain">${name}</span>`,
+          popup: `<span style="display:inline-flex;align-items:center;gap:0.4em"><img src="${src}" alt="${alt}" style="width:2rem;height:2rem;object-fit:contain">${name}</span>`,
         });
       }
     }
