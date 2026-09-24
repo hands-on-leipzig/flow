@@ -3,202 +3,136 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Http\Request;
+use App\Services\AudienceSchedule;
+use App\Support\EventDayClock;
 use Carbon\Carbon;
-use App\Services\ActivityFetcherService;
-
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PlanActivityController extends Controller
 {
-    public function __construct(private ActivityFetcherService $activities) {}
+    public function __construct(private AudienceSchedule $schedule) {}
 
-
-public function actionNow(int $planId, Request $req): JsonResponse
+    public function actionNow(int $planId, Request $req): JsonResponse
     {
-        [$pivot, $rows] = $this->prepareActivities($planId, $req);
-
-        $rows = $rows->filter(function ($r) use ($pivot) {
-            // Parse database datetime as Europe/Berlin time (activities are stored as Berlin time)
-            $start = Carbon::parse($r->start_time, 'Europe/Berlin');
-            $end   = Carbon::parse($r->end_time, 'Europe/Berlin');
-
-            return $start <= $pivot && $end >= $pivot;
-        });
-
-        return response()->json($this->groupActivitiesForApi($planId, $rows));
+        return response()->json($this->respond($planId, $req, 'now'));
     }
 
     public function actionNext(int $planId, Request $req): JsonResponse
     {
-
-        [$pivot, $rows] = $this->prepareActivities($planId, $req);
-
-        $interval = (int) $req->query('interval', 30);
-
-        $rows = $rows->filter(function ($r) use ($pivot, $interval) {
-            // Parse database datetime as Europe/Berlin time (activities are stored as Berlin time)
-            $start = Carbon::parse($r->start_time, 'Europe/Berlin');
-            $end   = Carbon::parse($r->end_time, 'Europe/Berlin');
-
-            return $start >= $pivot && $start <= (clone $pivot)->addMinutes($interval);
-        });
-
-        return response()->json($this->groupActivitiesForApi($planId, $rows));
+        return response()->json($this->respond($planId, $req, 'next'));
     }
 
     /**
-     * Gemeinsame Selektion und Ausgabeform für now/next.
+     * @return array{plan_id: int, groups: list<array<string, mixed>>}
      */
-
-    private function prepareActivities(int $planId, Request $req)
+    private function respond(int $planId, Request $req, string $window): array
     {
-        // Event-Datum holen
-        $eventDate = DB::table('event')
-            ->join('plan', 'plan.event', '=', 'event.id')
+        $plan = DB::table('plan')
+            ->join('event', 'event.id', '=', 'plan.event')
             ->where('plan.id', $planId)
-            ->value('event.date');
+            ->select('event.date as event_date', 'event.days as event_days')
+            ->first();
 
-        if (!$eventDate) {
+        if (! $plan || ! $plan->event_date) {
             abort(404, 'Event not found');
         }
 
-        // Optional day parameter: shift event date by (day - 1) days
-        $day = (int) $req->query('day', 1);
-        if ($day > 1) {
-            $eventDateCarbon = Carbon::parse($eventDate);
-            $eventDateCarbon->addDays($day - 1);
-            $eventDate = $eventDateCarbon->format('Y-m-d');
+        $eventDate = (string) $plan->event_date;
+        $eventDays = max(1, (int) ($plan->event_days ?? 1));
+        $pivot = $this->pivot($req, $eventDate, $eventDays);
+
+        [$roles, $joint, $programIds, $filterPrograms] = $this->selection($req);
+        $rows = $this->schedule->rows($planId, $roles, (int) $req->query('room', 0));
+        if ($filterPrograms) {
+            $rows = $this->schedule->keepSelected($rows, $joint, $programIds);
         }
 
-        // Uhrzeit aus Request holen
-        $timeInput = $req->query('point_in_time'); // erwartet "HH:MM"
-        if ($timeInput) {
-            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . $timeInput, 'Europe/Berlin');
-        } else {
-            $pivot = Carbon::createFromFormat('Y-m-d H:i', $eventDate . ' ' . now('Europe/Berlin')->format('H:i'), 'Europe/Berlin');
+        $interval = (int) $req->query('interval', 30);
+        if ($interval < 1) {
+            $interval = 30;
         }
 
-        // Erlaubte Rollen 14: Besucher Allgemein, 6: Besucher Challenge, 10: Besucher Explore
-        $role = $req->query('role', 14);
-        if (!is_numeric($role) || ((int)$role != 14 && (int)$role != 6 && (int)$role != 10)) {
-            $role = 14; // Default: Publikum
-        }
+        $rows = $this->schedule->window($rows, $window, $pivot, $window === 'next' ? $interval : 0);
 
-        $roles = [(int)$role];
-
-        // Filter auf RaumId. Wenn != 0 werden nur Aktivitäten in diesem Raum zurückgegeben
-        $roomId = (int) $req->query('room', 0);
-        $rooms = $roomId == 0 ? [] : [(int)$roomId];
-
-        // Activities laden
-        $rows = $this->activities->fetchActivities(
-            $planId,
-            $roles,                // Array mit genau 1 Rolle
-            includeRooms: true,
-            includeGroupMeta: true,
-            includeActivityMeta: true,
-            includeTeamNames: true,
-            freeBlocks: true,
-            rooms: $rooms
-        );
-
-        return [$pivot, $rows];
+        return [
+            'plan_id' => $planId,
+            'groups' => $this->schedule->present($rows),
+        ];
     }
 
-    private function groupActivitiesForApi(int $planId, $rows): array
+    /**
+     * @return array{0: list<int>, 1: bool, 2: list<int>, 3: bool}
+     */
+    private function selection(Request $req): array
     {
-        $groups = [];
-        foreach ($rows as $row) {
-            $gid = $row->activity_group_id ?? null;
+        if ($req->has('joint')) {
+            $joint = (string) $req->query('joint') === '1';
+            $programIds = $this->programIds($req);
 
-            if (!isset($groups[$gid])) {
-                $groups[$gid] = [
-                    'activity_group_id' => $gid,
-                    'group_meta' => [
-                        'name'               => $row->group_atd_name ?? null,
-                        'first_program_id'   => $row->group_first_program_id ?? null,
-                        'first_program_name' => $row->group_first_program_name ?? null,
-                        'description'        => $row->group_description ?? null,
-                    ],
-                    'activities' => [],
-                ];
-            }
+            return [$this->schedule->rolesForSelection($joint, $programIds), $joint, $programIds, true];
+        }
 
-            // --- NEU: Activity-Key prüfen ---
-            $aid = $row->activity_id;
-            if (!isset($groups[$gid]['activities'][$aid])) {
-                $groups[$gid]['activities'][$aid] = [
-                    'activity_id'      => $row->activity_id,
-                    'start_time'       => $row->start_time,
-                    'end_time'         => $row->end_time,
-                    'activity_name'    => $row->activity_name,
-                    'meta' => [
-                        'name'               => $row->activity_atd_name ?? null,
-                        'first_program_id'   => $row->activity_first_program_id ?? null,
-                        'first_program_name' => $row->activity_first_program_name ?? null,
-                        'description'        => $row->activity_description ?? null,
-                    ],
-                    'program'          => $row->program_name,
-                    'lane'             => $row->lane,
-                    'team'             => $row->team,
-                    'table_1'          => $row->table_1,
-                    'table_1_name'     => $row->table_1_name ?? null,
-                    'table_1_team'     => $row->table_1_team,
-                    'table_2'          => $row->table_2,
-                    'table_2_name'     => $row->table_2_name ?? null,
-                    'table_2_team'     => $row->table_2_team,
-                    'team_name'        => $row->jury_team_name ?? null,
-                    'table_1_team_name'=> $row->table_1_team_name ?? null,
-                    'table_2_team_name'=> $row->table_2_team_name ?? null,
-                    'room' => [
-                        'room_type_id'    => $row->room_type_id    ?? null,
-                        'room_type_name'  => $row->room_type_name  ?? null,
-                        'room_id'         => $row->room_id         ?? null,
-                        'room_name'       => $row->room_name       ?? null,
-                    ],
-                ];
-            } else {
-                // --- NEU: Teamnamen ergänzen falls leer ---
-                if (!$groups[$gid]['activities'][$aid]['table_1_team_name'] && $row->table_1_team_name) {
-                    $groups[$gid]['activities'][$aid]['table_1_team_name'] = $row->table_1_team_name;
-                }
-                if (!$groups[$gid]['activities'][$aid]['table_2_team_name'] && $row->table_2_team_name) {
-                    $groups[$gid]['activities'][$aid]['table_2_team_name'] = $row->table_2_team_name;
-                }
-                if (!$groups[$gid]['activities'][$aid]['team_name'] && $row->jury_team_name) {
-                    $groups[$gid]['activities'][$aid]['team_name'] = $row->jury_team_name;
-                }
+        $role = (int) $req->query('role', 14);
+
+        return match ($role) {
+            10 => [[10], true, [2], true],
+            6 => [[6], true, [3], true],
+            24 => [[24], true, [8], true],
+            default => [[14], false, [], false],
+        };
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function programIds(Request $req): array
+    {
+        $raw = trim((string) $req->query('programs', ''));
+        if ($raw === '') {
+            return [];
+        }
+
+        $ids = [];
+        foreach (explode(',', $raw) as $part) {
+            $id = (int) trim($part);
+            if ($id > 0) {
+                $ids[] = $id;
             }
         }
 
-    $result = [
-        'plan_id' => $planId,
-        'groups'  => array_values($groups),
-    ];
+        return array_values(array_unique($ids));
+    }
 
-    /*
+    private function pivot(Request $req, string $eventDate, int $eventDays): Carbon
+    {
+        $nowParam = $req->query('now');
+        if (is_string($nowParam) && preg_match('/^(\d{2}|\d{4})-(\d{1,2})-(\d{1,2})[ T+](\d{1,2}):(\d{1,2})$/', urldecode(str_replace('+', ' ', $nowParam)), $m)) {
+            $year = strlen($m[1]) === 2 ? '20'.$m[1] : $m[1];
 
-    // Log: erster Group-Eintrag mit erster Activity
-    if (!empty($result['groups'])) {
-        $firstGroup = $result['groups'][0];
-        $firstActivity = $firstGroup['activities'][0] ?? null;
+            return Carbon::createFromFormat(
+                'Y-m-d H:i',
+                sprintf('%s-%02d-%02d %02d:%02d', $year, $m[2], $m[3], $m[4], $m[5]),
+                EventDayClock::TZ
+            );
+        }
 
-        Log::info('groupActivitiesForApi first group', [
-            'plan_id' => $planId,
-            'group_id' => $firstGroup['activity_group_id'],
-            'group_meta' => $firstGroup['group_meta'],
-            'first_activity' => $firstActivity,
-        ]);
-    } else {
-        Log::info('groupActivitiesForApi: no groups found', [
-            'plan_id' => $planId,
-        ]);
-    } */
+        $timeInput = $req->query('point_in_time');
+        if (is_string($timeInput) && preg_match('/^\d{2}:\d{2}$/', $timeInput)) {
+            $day = (int) $req->query('day', 1);
+            $date = Carbon::parse(substr($eventDate, 0, 10), EventDayClock::TZ);
+            if ($day > 1) {
+                $date->addDays($day - 1);
+            }
 
-    return $result;
+            return Carbon::createFromFormat(
+                'Y-m-d H:i',
+                $date->format('Y-m-d').' '.$timeInput,
+                EventDayClock::TZ
+            );
+        }
+
+        return EventDayClock::pivot($eventDate, $eventDays);
     }
 }
-

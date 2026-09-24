@@ -5,6 +5,7 @@ import {Slide} from "../models/slide.js";
 import axios from "axios";
 import {useAutoHideCursor} from "../composables/useAutoHideCursor";
 import {beatDisplay, isPlannerPreview} from "@/utils/usageCapture";
+import {setPreviewClock} from "@/components/slideTypes/publicPlan/usePlanAction";
 
 // TODO Socket injector
 /*
@@ -20,6 +21,13 @@ socket.addListener((msg) => {
 const props = defineProps<{
   eventId: number
 }>();
+
+const plannerPreview = isPlannerPreview();
+
+function onPreviewTime(event: Event) {
+  const value = (event.target as HTMLInputElement).value;
+  setPreviewClock(value || null);
+}
 
 let slideshow = ref(null)
 let showSlide = ref(false)
@@ -137,6 +145,10 @@ onUnmounted(stopHeartbeat);
         ref="renderers"
         :slide="slide" :preview="false" :eventId="+props.eventId" :visible="index === slideKey"
         :defaultTransitionTime="slideshow?.transition_time" @next="nextSlide"/>
+    <label v-if="plannerPreview" class="test-clock">
+      Test-Uhrzeit
+      <input type="time" @change="onPreviewTime"/>
+    </label>
   </div>
 </template>
 
@@ -164,5 +176,19 @@ footer div {
 
 footer img {
   max-height: 9vh;
+}
+
+.test-clock {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 </style>
