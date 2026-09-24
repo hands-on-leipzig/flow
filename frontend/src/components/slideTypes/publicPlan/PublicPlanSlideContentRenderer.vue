@@ -13,7 +13,7 @@ const props = withDefaults(
     {preview: false}
 );
 
-const {result} = usePlanActionWithPolling(
+const {result, event} = usePlanActionWithPolling(
     {
       planId: props.content.planId,
       joint: props.content.joint,
@@ -44,7 +44,7 @@ const {result} = usePlanActionWithPolling(
             class="flex flex-row items-center justify-center w-full h-full min-h-0"
             :class="{ 'min-h-screen': !props.preview, 'min-h-100': props.preview }"
         >
-          <PublicPlanTable :result="result"/>
+          <PublicPlanTable :result="result" :programs="event?.programs ?? []"/>
         </div>
       </div>
     </div>

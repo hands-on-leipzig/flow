@@ -170,5 +170,5 @@ export function usePlanActionWithPolling(
         }
     });
 
-    return {result, loading, refresh};
+    return {result, loading, refresh, event};
 }

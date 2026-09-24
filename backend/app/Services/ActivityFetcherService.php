@@ -256,6 +256,9 @@ class ActivityFetcherService
                     ELSE ag_atd.first_program
                 END                        as group_first_program_id,
                 ag_fp.name                 as group_first_program_name,
+                ag_fp.logo_stem            as group_logo_stem,
+                ag_fp.display_name         as group_first_program_display_name,
+                ag_fp.official_name        as group_first_program_official_name,
                 ag_at.overview_plan_column as group_overview_plan_column,
                 ag_at.id                   as activity_type_id,
                 ag_at.name                 as activity_type_name,

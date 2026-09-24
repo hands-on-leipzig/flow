@@ -14,6 +14,7 @@ import {
 import {Slide} from "@/models/slide";
 import axios from "axios";
 import {imageUrl} from '@/utils/images'
+import {rewriteImageSrcs} from '@/utils/sameOriginSrc'
 import {programDisplayName} from '@/utils/eventPrograms'
 import {useEventStore} from "@/stores/event";
 
@@ -103,7 +104,7 @@ onMounted(() => {
       clearTimeout(changeTimeout);
     }
     changeTimeout = setTimeout(() => {
-      const json = JSON.stringify(canvas.toJSON());
+      const json = JSON.stringify(rewriteImageSrcs(canvas.toJSON()));
       if (props.slide) {
         props.slide.content.background = json;
         emit('change');
@@ -124,7 +125,7 @@ onMounted(loadFont);
 onMounted(loadImages);
 onBeforeUnmount(() => {
   // Save immediately on unmount - parent component will handle it
-  const json = JSON.stringify(canvas.toJSON());
+  const json = JSON.stringify(rewriteImageSrcs(canvas.toJSON()));
   if (props.slide) {
     props.slide.content.background = json;
     emit('change');
@@ -433,7 +434,7 @@ function sendToBack() {
 }
 
 function saveJson() {
-  const json = JSON.stringify(canvas.toJSON());
+  const json = JSON.stringify(rewriteImageSrcs(canvas.toJSON()));
   if (props.slide) {
     props.slide.content.background = json;
     const content = JSON.stringify(props.slide.content.toJSON());
