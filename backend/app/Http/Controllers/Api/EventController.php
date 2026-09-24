@@ -19,6 +19,7 @@ use App\Support\ProgramCatalog;
 use App\Support\TableFieldLabels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -614,6 +615,80 @@ class EventController extends Controller
                 'error' => 'Geocoding service unavailable',
             ], 500);
         }
+    }
+
+    public function geocodeCities(Request $request)
+    {
+        $raw = $request->input('cities', []);
+        if (! is_array($raw)) {
+            return response()->json(['cities' => []]);
+        }
+
+        $cities = [];
+        foreach ($raw as $city) {
+            if (! is_string($city)) {
+                continue;
+            }
+            $city = trim($city);
+            if ($city === '' || isset($cities[$city])) {
+                continue;
+            }
+            $cities[$city] = true;
+            if (count($cities) >= 80) {
+                break;
+            }
+        }
+
+        $points = [];
+        $nominatimCalls = 0;
+        foreach (array_keys($cities) as $city) {
+            $key = 'geocode-city:'.sha1(mb_strtolower($city));
+            $cached = Cache::get($key, '__missing__');
+            if ($cached === '__missing__') {
+                if ($nominatimCalls > 0) {
+                    usleep(1_100_000);
+                }
+                $nominatimCalls++;
+                try {
+                    $result = $this->callGeocodeCity($city);
+                } catch (\Throwable $e) {
+                    Log::warning('City geocoding failed', ['city' => $city, 'error' => $e->getMessage()]);
+                    $result = null;
+                }
+                $cached = $result ? ['lat' => $result['lat'], 'lon' => $result['lon']] : null;
+                Cache::put($key, $cached, now()->addDays(30));
+            }
+            if (is_array($cached)) {
+                $points[$city] = $cached;
+            }
+        }
+
+        return response()->json(['cities' => $points]);
+    }
+
+    private function callGeocodeCity(string $city): ?array
+    {
+        $response = Http::withHeaders([
+            'User-Agent' => 'FLL Flow Planning Tool (https://github.com/hands-on-leipzig/flow)',
+        ])->get('https://nominatim.openstreetmap.org/search', [
+            'city' => $city,
+            'format' => 'json',
+            'limit' => 1,
+        ]);
+
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $data = $response->json();
+        if (! is_array($data) || ! isset($data[0]['lat'], $data[0]['lon'])) {
+            return null;
+        }
+
+        return [
+            'lat' => (float) $data[0]['lat'],
+            'lon' => (float) $data[0]['lon'],
+        ];
     }
 
     private function callGeocodeAPI($address)

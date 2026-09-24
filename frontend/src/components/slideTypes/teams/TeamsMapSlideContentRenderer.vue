@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import {TeamsMapSlideContent} from "../../../models/teamsMapSlideContent";
 import {onMounted, ref} from "vue";
-import axios from "axios";
 import FabricSlideContentRenderer from "../FabricSlideContentRenderer.vue";
 import GenericLeafletMap from "../../molecules/GenericLeafletMap.vue";
+import {programLogoAlt, programLogoSrc} from "../../../utils/images";
+import {loadCityCoordinates, loadEventPrograms, loadTeamLanes, programForLane, selectedLanes} from "./teamLanes";
 
 const props = withDefaults(defineProps<{
   content: TeamsMapSlideContent,
@@ -13,20 +14,61 @@ const props = withDefaults(defineProps<{
   preview: false
 });
 
-const coordinates = ref(null);
+const coordinates = ref<Array<{lat: number, lon: number, popup: string}> | null>(null);
+
+function escapeHtml(value: string): string {
+  return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+}
 
 async function loadCoordinates() {
   try {
-    const response = await axios.get(`events/${props.eventId}/team-coordinates`);
-    coordinates.value = response.data.map(team => ({lat: team.coord.lat, lon: team.coord.lon, popup: team.name}));
+    const [lanes, eventProgramRows] = await Promise.all([
+      loadTeamLanes(props.eventId),
+      loadEventPrograms(props.eventId),
+    ]);
+    const selected = selectedLanes(lanes, props.content.programs);
+    const cities = new Set<string>();
+    for (const lane of selected) {
+      for (const team of lane.teams ?? []) {
+        const city = String(team?.location ?? '').trim();
+        if (city !== '') {
+          cities.add(city);
+        }
+      }
+    }
+    const points = await loadCityCoordinates([...cities]);
+    const markers: Array<{lat: number, lon: number, popup: string}> = [];
+
+    for (const lane of selected) {
+      const program = programForLane(lane, eventProgramRows);
+      const teams = Array.isArray(lane.teams) ? lane.teams : [];
+      for (const team of teams) {
+        const teamName = String(team?.name ?? '').trim();
+        const city = String(team?.location ?? '').trim();
+        const point = city === '' ? undefined : points[city];
+        if (teamName === '' || !point) {
+          continue;
+        }
+        const src = programLogoSrc(program);
+        const alt = escapeHtml(programLogoAlt(program));
+        const name = escapeHtml(teamName);
+        markers.push({
+          lat: point.lat,
+          lon: point.lon,
+          popup: `<span style="display:inline-flex;align-items:center;gap:0.4em"><img src="${src}" alt="${alt}" style="width:2rem;height:2rem;object-fit:contain">${name}</span>`,
+        });
+      }
+    }
+
+    coordinates.value = markers;
   } catch (e) {
     console.error(e);
   }
-  /*coordinates.value = [
-    {lat: 48.18, lon: 12.2833, popup: "GarsControl Senior"},
-    {lat: 50.5517, lon: 9.6832, popup: "1337.exe"},
-    {lat: 48.06488, lon: 11.6632, popup: "Here We GO"}
-  ];*/
 }
 
 onMounted(loadCoordinates)

@@ -1,9 +1,11 @@
 import {AbstractPublicPlanSlideContent} from "./abstractPublicPlanSlideContent";
+import {readShowSeasonLogo} from "./seasonLogo";
 
 export class PublicPlanNextEventSlideContent extends AbstractPublicPlanSlideContent {
 
     constructor(data: object) {
         super(data);
+        this.showSeasonLogo = readShowSeasonLogo(data, 'PublicPlanNextEventSlideContent');
     }
 
     public toJSON(): object {
@@ -14,6 +16,7 @@ export class PublicPlanNextEventSlideContent extends AbstractPublicPlanSlideCont
             ...this.audienceFields(),
             room: this.room,
             background: this.background,
+            showSeasonLogo: this.showSeasonLogo,
         };
     }
 }

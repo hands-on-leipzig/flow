@@ -380,4 +380,41 @@ class TeamController extends Controller
 
         Log::info("Renumbered team_plan entries for plan $planId, program $programId - new sequential order 1-" . count($teamPlanEntries));
     }
+
+    public function publicLanes(Event $event)
+    {
+        $rows = Team::query()
+            ->where('team.event', $event->id)
+            ->join('m_first_program', 'm_first_program.id', '=', 'team.first_program')
+            ->orderBy('m_first_program.sequence')
+            ->orderBy('m_first_program.id')
+            ->orderBy('team.name')
+            ->get([
+                'team.first_program',
+                'team.name',
+                'team.organization',
+                'team.location',
+                'm_first_program.display_name',
+                'm_first_program.name as program_name',
+            ]);
+
+        $lanes = [];
+        foreach ($rows as $row) {
+            $programId = (int) $row->first_program;
+            if (! isset($lanes[$programId])) {
+                $lanes[$programId] = [
+                    'program_id' => $programId,
+                    'name' => (string) ($row->display_name ?: $row->program_name),
+                    'teams' => [],
+                ];
+            }
+            $lanes[$programId]['teams'][] = [
+                'name' => $row->name,
+                'organization' => $row->organization,
+                'location' => $row->location,
+            ];
+        }
+
+        return response()->json(['lanes' => array_values($lanes)]);
+    }
 }
