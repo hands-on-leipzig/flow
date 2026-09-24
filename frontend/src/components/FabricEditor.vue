@@ -16,7 +16,7 @@ import axios from "axios";
 import {imageUrl} from '@/utils/images'
 import {rewriteImageSrcs} from '@/utils/sameOriginSrc'
 import {programDisplayName} from '@/utils/eventPrograms'
-import {backgroundImageScale, SEASON_LOGO_HEIGHT, SEASON_LOGO_WIDTH} from '@/models/seasonLogo'
+import {seasonLogoPlacement, SEASON_LOGO_HEIGHT, SEASON_LOGO_WIDTH} from '@/models/seasonLogo'
 import {useEventStore} from "@/stores/event";
 
 // Ideen und TODOS
@@ -75,10 +75,12 @@ const seasonLogoStyle = computed(() => {
   if (!props.slide?.content?.showSeasonLogo) {
     return null;
   }
-  const scale = backgroundImageScale(props.slide.content.background);
+  const place = seasonLogoPlacement(props.slide.content.background);
   return {
-    width: `${SEASON_LOGO_WIDTH * scale.scaleX}px`,
-    height: `${SEASON_LOGO_HEIGHT * scale.scaleY}px`,
+    left: `${place.centerX}px`,
+    top: `${place.top}px`,
+    width: `${SEASON_LOGO_WIDTH * place.scaleX}px`,
+    height: `${SEASON_LOGO_HEIGHT * place.scaleY}px`,
   };
 });
 
@@ -639,8 +641,6 @@ async function paste() {
 
 .season-logo {
   position: absolute;
-  left: 50%;
-  top: 5px;
   z-index: 20;
   transform: translateX(-50%);
   pointer-events: none;

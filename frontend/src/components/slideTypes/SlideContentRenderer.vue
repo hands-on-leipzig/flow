@@ -20,7 +20,7 @@ import {TeamsTableSlideContent} from "../../models/teamsTableSlideContent";
 import TeamsTableSlideContentRenderer from "./teams/TeamsTableSlideContentRenderer.vue";
 import {PublicPlanNextEventSlideContent} from "../../models/publicPlanNextEventSlideContent";
 import PublicPlanNextEventSlideContentRenderer from "./publicPlan/PublicPlanNextEventSlideContentRenderer.vue";
-import {backgroundImageScale, SEASON_LOGO_HEIGHT, SEASON_LOGO_WIDTH} from "@/models/seasonLogo";
+import {seasonLogoPlacement, SEASON_LOGO_HEIGHT, SEASON_LOGO_WIDTH} from "@/models/seasonLogo";
 
 const props = withDefaults(defineProps<{
   slide: Slide,
@@ -64,12 +64,16 @@ const seasonLogoStyle = computed(() => {
   if (zoom === 0) {
     return null;
   }
-  const scale = backgroundImageScale(props.slide.content.background);
+  const place = seasonLogoPlacement(props.slide.content.background);
+  const boxWidth = DESIGN_WIDTH * zoom;
   const boxHeight = DESIGN_HEIGHT * zoom;
+  const canvasLeft = (frame.value.width - boxWidth) / 2;
+  const canvasTop = (frame.value.height - boxHeight) / 2;
   return {
-    top: `${(frame.value.height - boxHeight) / 2 + 5 * zoom}px`,
-    width: `${SEASON_LOGO_WIDTH * scale.scaleX * zoom}px`,
-    height: `${SEASON_LOGO_HEIGHT * scale.scaleY * zoom}px`,
+    left: `${canvasLeft + place.centerX * zoom}px`,
+    top: `${canvasTop + place.top * zoom}px`,
+    width: `${SEASON_LOGO_WIDTH * place.scaleX * zoom}px`,
+    height: `${SEASON_LOGO_HEIGHT * place.scaleY * zoom}px`,
   };
 });
 
@@ -181,7 +185,6 @@ onUnmounted(() => {
 <style scoped>
 .season-logo {
   position: absolute;
-  left: 50%;
   z-index: 50;
   transform: translateX(-50%);
   pointer-events: none;
