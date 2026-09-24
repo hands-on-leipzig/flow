@@ -8,6 +8,7 @@ import {
   projectClockOntoBerlinDay,
 } from '@/utils/dateTimeFormat'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
+import {sameOriginSrc} from '@/utils/sameOriginSrc'
 import EventMap from '@/components/molecules/EventMap.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
 import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
@@ -356,23 +357,6 @@ const printChromePayload = computed((): PrintScheduleChrome => ({
   rolesReady: !loadingRoles.value,
   calendarReady: printFitReady.value,
 }))
-
-function sameOriginSrc(url: string): string {
-  if (!url || url.startsWith('/') || url.startsWith('data:')) return url
-  try {
-    const parsed = new URL(url)
-    if (
-      parsed.hostname === 'localhost'
-      || parsed.hostname === '127.0.0.1'
-      || parsed.hostname === 'host.docker.internal'
-    ) {
-      return parsed.pathname + parsed.search
-    }
-  } catch {
-    // keep original
-  }
-  return url
-}
 
 const ALLGEMEIN_LOGO = {logo_white: 'FLL_column_heading.png'}
 

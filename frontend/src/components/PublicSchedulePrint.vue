@@ -2,6 +2,7 @@
 import {computed, nextTick, onMounted, onUnmounted, ref, watch} from 'vue'
 import {useRoute} from 'vue-router'
 import {imageUrl} from '@/utils/images'
+import {sameOriginSrc} from '@/utils/sameOriginSrc'
 import PublicSchedule, {type PrintScheduleChrome} from '@/components/PublicSchedule.vue'
 import ProgramOfficialName from '@/components/atoms/ProgramOfficialName.vue'
 
@@ -39,23 +40,6 @@ const printFooterImagesReady = ref(true)
 let printFooterObserver: ResizeObserver | null = null
 
 const printFitReady = computed(() => chrome.value.calendarReady && printFooterImagesReady.value)
-
-function sameOriginSrc(url: string): string {
-  if (!url || url.startsWith('/') || url.startsWith('data:')) return url
-  try {
-    const parsed = new URL(url)
-    if (
-      parsed.hostname === 'localhost'
-      || parsed.hostname === '127.0.0.1'
-      || parsed.hostname === 'host.docker.internal'
-    ) {
-      return parsed.pathname + parsed.search
-    }
-  } catch {
-    // keep original
-  }
-  return url
-}
 
 function notePrintFooterImages() {
   measurePrintFooter()

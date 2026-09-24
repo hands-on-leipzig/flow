@@ -11,7 +11,7 @@ export class PublicPlanSlideContent extends AbstractPublicPlanSlideContent {
         return {
             type: "PublicPlanSlideContent",
             planId: this.planId,
-            role: this.role,
+            ...this.audienceFields(),
             room: this.room,
             background: this.background
         };

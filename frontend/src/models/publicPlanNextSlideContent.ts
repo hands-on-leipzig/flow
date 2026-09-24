@@ -12,7 +12,7 @@ export class PublicPlanNextSlideContent extends AbstractPublicPlanSlideContent {
             type: 'PublicPlanNextSlideContent',
             planId: this.planId,
             interval: this.interval,
-            role: this.role,
+            ...this.audienceFields(),
             room: this.room,
             background: this.background,
         };

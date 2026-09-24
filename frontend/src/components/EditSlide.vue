@@ -8,6 +8,8 @@ import FabricEditor from "@/components/FabricEditor.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
 import SavingToast from "@/components/atoms/SavingToast.vue";
 import {useEventStore} from "../stores/event";
+import {eventPrograms, programDisplayName, programId} from "@/utils/eventPrograms";
+import {resolvedAudienceSelection, type AbstractPublicPlanSlideContent} from "@/models/abstractPublicPlanSlideContent";
 
 const router = useRouter();
 const props = defineProps<{
@@ -39,6 +41,26 @@ const saveButtonText = computed(() => {
 });
 
 const shouldLoadRooms = ['PublicPlanSlideContent', 'PublicPlanNextSlideContent', 'PublicPlanNextEventSlideContent'];
+
+const attachedPrograms = computed(() => eventPrograms(event.value));
+
+const audienceSelection = computed(() => {
+  const content = slide.value?.content as AbstractPublicPlanSlideContent | undefined;
+  if (!content || content.legacyRole === undefined && content.joint === undefined) {
+    return {joint: false, programs: [] as number[]};
+  }
+  return resolvedAudienceSelection(content, event.value);
+});
+
+function materializeAudienceSelection() {
+  const content = slide.value?.content as AbstractPublicPlanSlideContent | undefined;
+  if (!content || content.legacyRole == null) return;
+  if (content.legacyRole === 14 && !event.value) return;
+  const resolved = resolvedAudienceSelection(content, event.value);
+  content.joint = resolved.joint;
+  content.programs = resolved.programs;
+  content.legacyRole = null;
+}
 
 onMounted(async () => {
   await loadSlide();
@@ -95,6 +117,8 @@ function scheduleSave() {
 async function saveSlide() {
   if (!slide.value || isSaving.value) return;
 
+  materializeAudienceSelection();
+
   // Clear indicator timeout if save happens before it shows
   if (showIndicatorTimeoutId.value) {
     clearTimeout(showIndicatorTimeoutId.value);
@@ -124,6 +148,20 @@ function updateByName(name: string, value: any) {
   slide.value.content[name] = value;
   scheduleSave();
   savingToast?.value?.show();
+}
+
+function setJoint(on: boolean) {
+  materializeAudienceSelection();
+  updateByName('joint', on);
+}
+
+function toggleProgram(id: number, on: boolean) {
+  materializeAudienceSelection();
+  const content = slide.value?.content as AbstractPublicPlanSlideContent | undefined;
+  if (!content) return;
+  const next = (content.programs ?? []).map((program) => Number(program)).filter((program) => program !== id);
+  if (on) next.push(id);
+  updateByName('programs', next);
 }
 
 function handleManualSave() {
@@ -318,41 +356,35 @@ function updateDuration(value: number) {
           </div>
         </div>
 
-        <!-- Inhalte Anzeigen (Rolle) -->
+        <!-- Inhalte Anzeigen -->
         <div class="grid grid-cols-1 gap-2 mb-4">
           <div class="rounded-lg border px-2 py-2 transition hover:border-gray-400">
             <label class="text-sm font-medium">Sichtbare Programmpunkte</label>
-            <InfoPopover text="Wähle aus, ob Programmpunkte aus Explore oder Challenge angezeigt werden sollen."/>
+            <InfoPopover text="Wähle Übergreifend und die Programme, deren Programmpunkte angezeigt werden."/>
 
-            <div class="flex gap-2 items-center">
-              <button
-                  type="button"
-                  class="px-2 py-1 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
-                  :class="slide.content.role == 14 ? 'ring-1 ring-gray-500 bg-[var(--color-bg-muted)]' : 'hover:border-gray-400'"
-                  @click="updateByName('role', 14)"
-              >
-                Explore & Challenge
-              </button>
-              <button
-                  type="button"
-                  class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
-                  :class="slide.content.role == 10 ? 'ring-1 ring-gray-500 bg-[var(--color-bg-muted)]' : 'hover:border-gray-400'"
-                  @click="updateByName('role', 10)"
-              >
-                Nur Explore
-              </button>
-              <button
-                  type="button"
-                  class="px-3 py-1.5 rounded-md border text-sm transition
-                     focus:outline-none focus:ring-2 focus:ring-offset-1 border-[var(--color-border)]"
-                  :class="slide.content.role == 6 ? 'ring-1 ring-gray-500 bg-[var(--color-bg-muted)]' : 'hover:border-gray-400'"
-                  @click="updateByName('role', 6)"
-              >
-                Nur Challenge
-              </button>
-            </div>
+            <label class="flex items-center gap-2 text-sm mt-2">
+              <input
+                  type="checkbox"
+                  :checked="audienceSelection.joint"
+                  @change="setJoint(($event.target as HTMLInputElement).checked)"
+              />
+              Übergreifend
+            </label>
+            <label
+                v-for="program in attachedPrograms"
+                :key="programId(program)"
+                class="flex items-center gap-2 text-sm mt-1"
+            >
+              <input
+                  type="checkbox"
+                  :checked="audienceSelection.programs.includes(programId(program))"
+                  @change="toggleProgram(programId(program), ($event.target as HTMLInputElement).checked)"
+              />
+              {{ programDisplayName(program) }}
+            </label>
+            <p v-if="!audienceSelection.joint && audienceSelection.programs.length === 0" class="text-sm mt-2">
+              Nichts ausgewählt. Es werden keine Programmpunkte angezeigt.
+            </p>
           </div>
         </div>
 

@@ -11,7 +11,7 @@ export class PublicPlanNextEventSlideContent extends AbstractPublicPlanSlideCont
             type: 'PublicPlanNextEventSlideContent',
             planId: this.planId,
             interval: this.interval,
-            role: this.role,
+            ...this.audienceFields(),
             room: this.room,
             background: this.background,
         };

@@ -2,15 +2,44 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { formatTimeOnly } from '@/utils/dateTimeFormat';
 import { programLogoAlt, programLogoSrc } from '@/utils/images';
+import type { EventProgramRef } from '@/utils/eventPrograms';
 import { useScaleToFit } from '@/composables/useScaleToFit';
 import { defaultTableFieldLabel } from '@/utils/tableFieldLabels';
 
 const props = withDefaults(defineProps<{
   result: any;
+  programs?: EventProgramRef[];
   showDemoData?: boolean;
 }>(), {
+  programs: () => [],
   showDemoData: false,
 });
+
+function programByName(name: string): EventProgramRef | undefined {
+  const wanted = name.toUpperCase();
+  return props.programs.find((program) => String(program.name || '').toUpperCase() === wanted);
+}
+
+function isJointGroup(meta: { first_program_id?: number | string | null } | null | undefined): boolean {
+  const id = meta?.first_program_id;
+  return id == null || Number(id) === 0;
+}
+
+function groupLogoRef(meta: {
+  logo_stem?: string | null;
+  first_program_name?: string | null;
+  display_name?: string | null;
+  official_name?: string | null;
+  first_program_id?: number | string | null;
+} | null | undefined) {
+  return {
+    logo_stem: meta?.logo_stem ?? null,
+    name: meta?.first_program_name ?? null,
+    display_name: meta?.display_name ?? null,
+    official_name: meta?.official_name ?? null,
+    first_program: meta?.first_program_id == null ? 0 : Number(meta.first_program_id),
+  };
+}
 
 const containerRef = ref<HTMLElement | null>(null);
 const contentRef = ref<HTMLElement | null>(null);
@@ -313,22 +342,24 @@ watch(
           class="audience-group"
       >
         <div class="audience-group-header">
-          <template v-if="g.group_meta?.first_program_id === 0">
+          <template v-if="isJointGroup(g.group_meta)">
             <img
-                :src="programLogoSrc('EXPLORE')"
-                :alt="programLogoAlt('EXPLORE')"
+                v-if="programByName('EXPLORE')"
+                :src="programLogoSrc(programByName('EXPLORE'))"
+                :alt="programLogoAlt(programByName('EXPLORE'))"
                 class="audience-program-icon"
             />
             <img
-                :src="programLogoSrc('CHALLENGE')"
-                :alt="programLogoAlt('CHALLENGE')"
+                v-if="programByName('CHALLENGE')"
+                :src="programLogoSrc(programByName('CHALLENGE'))"
+                :alt="programLogoAlt(programByName('CHALLENGE'))"
                 class="audience-program-icon"
             />
           </template>
           <img
               v-else
-              :src="programLogoSrc(g.group_meta?.first_program_name || { first_program: g.group_meta?.first_program_id })"
-              :alt="programLogoAlt(g.group_meta?.first_program_name || { first_program: g.group_meta?.first_program_id })"
+              :src="programLogoSrc(groupLogoRef(g.group_meta))"
+              :alt="programLogoAlt(groupLogoRef(g.group_meta))"
               class="audience-program-icon"
           />
           <span class="audience-group-title">

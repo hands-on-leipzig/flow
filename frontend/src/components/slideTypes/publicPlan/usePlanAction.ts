@@ -1,29 +1,44 @@
 import {ref, onMounted, onUnmounted, watch} from 'vue';
 import axios from 'axios';
 import type FllEvent from "../../../models/FllEvent";
+import {resolvedAudienceSelection} from "@/models/abstractPublicPlanSlideContent";
+import {isPlannerPreview} from "@/utils/usageCapture";
 
 export type PlanActionEndpoint = 'now' | 'next';
 
 export interface PlanActionContent {
     planId: number;
-    role: number;
+    joint: boolean;
+    programs: number[];
+    legacyRole?: number | null;
     room: number;
     interval?: number; // Only used for "next", ignored for "now"
     eventId: number;
 }
 
+/** HH:MM set by the preview clock. Null means the public carousel sends no time. */
+export const previewClock = ref<string | null>(null);
+
+export function setPreviewClock(value: string | null) {
+    previewClock.value = value && /^\d{2}:\d{2}$/.test(value) ? value : null;
+}
+
 export function buildRequestParameters(content: PlanActionContent, event?: FllEvent): Record<string, string | number> {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const day = getDateForEvent(event);
-    return {
-        point_in_time: `${hours}:${minutes}`,
-        role: content.role,
+    const selection = resolvedAudienceSelection(content, event);
+    const params: Record<string, string | number> = {
+        joint: selection.joint ? 1 : 0,
+        programs: selection.programs.join(','),
         room: content.room,
-        day: day,
-        interval: content.interval, // Only for "next", ignored for "now"
+        interval: content.interval ?? 30,
     };
+
+    const clock = previewClock.value;
+    const day = eventDayStamp(event);
+    if (isPlannerPreview() && clock && day) {
+        params.now = `${day} ${clock}`;
+    }
+
+    return params;
 }
 
 function getDateForEvent(event?: FllEvent): number {
@@ -47,24 +62,23 @@ function getDateForEvent(event?: FllEvent): number {
     return 1;
 }
 
-/**
- * Apply role-based program filter to plan groups.
- * Role 6 (Besucher Challenge): exclude Explore (first_program_id === 2).
- * Role 10 (Besucher Explore): exclude Challenge (first_program_id === 3).
- */
-export function applyRoleFilter(groups: any[] | null | undefined, role: number): any[] {
-    if (!groups || !Array.isArray(groups)) return [];
-    if (role === 6) {
-        return groups.filter((g: any) => g.group_meta?.first_program_id !== 2);
+function eventDayStamp(event?: FllEvent): string | null {
+    const raw = String(event?.date ?? '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        return null;
     }
-    if (role === 10) {
-        return groups.filter((g: any) => g.group_meta?.first_program_id !== 3);
+    if (getDateForEvent(event) !== 2) {
+        return raw;
     }
-    return groups;
+    const [year, month, day] = raw.split('-').map(Number);
+    const next = new Date(year, month - 1, day + 1);
+    const m = String(next.getMonth() + 1).padStart(2, '0');
+    const d = String(next.getDate()).padStart(2, '0');
+    return `${next.getFullYear()}-${m}-${d}`;
 }
 
 /**
- * Fetch plan action (now or next) and apply role filter.
+ * Fetch plan action (now or next) for the stored Übergreifend and program selection.
  * Returns result, loading, refresh and the fetched event ref.
  * Use refresh() when data should be re-fetched.
  */
@@ -91,9 +105,6 @@ export function usePlanAction(
                 `/plans/action-${endpoint}/${content.planId}`,
                 {params}
             );
-            if (data && data.groups) {
-                data.groups = applyRoleFilter(data.groups, content.role);
-            }
             result.value = data;
         } catch (e) {
             console.error(e);
@@ -101,6 +112,10 @@ export function usePlanAction(
             loading.value = false;
         }
     }
+
+    watch(previewClock, () => {
+        refresh();
+    });
 
     return {result, loading, refresh, event};
 }
@@ -155,5 +170,5 @@ export function usePlanActionWithPolling(
         }
     });
 
-    return {result, loading, refresh};
+    return {result, loading, refresh, event};
 }

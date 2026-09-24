@@ -7,6 +7,7 @@ import {computed, nextTick, onMounted, ref, watch} from "vue";
 import {Slideshow} from "@/models/slideshow";
 import axios from "axios";
 import {Slide} from "@/models/slide";
+import {eventPrograms, programId} from "@/utils/eventPrograms";
 import SavingToast from "@/components/atoms/SavingToast.vue";
 import ItemCard from "@/components/molecules/ItemCard.vue";
 import ItemComposer from "@/components/molecules/ItemComposer.vue";
@@ -316,6 +317,9 @@ async function addSlide(selectedType: string) {
 
   if (selectedType === 'PublicPlanSlideContent' || selectedType === 'PublicPlanNextSlideContent' || selectedType === 'PublicPlanNextEventSlideContent') {
     newSlide.content.planId = planId.value;
+    newSlide.content.joint = true;
+    newSlide.content.programs = eventPrograms(event.value).map((program) => programId(program)).filter((id) => id > 0);
+    newSlide.content.legacyRole = null;
   }
 
   const content = JSON.stringify(newSlide.content.toJSON());

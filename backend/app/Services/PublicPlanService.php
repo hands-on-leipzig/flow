@@ -40,7 +40,7 @@ class PublicPlanService
     ];
 
     public function __construct(
-        private ActivityFetcherService $activities,
+        private AudienceSchedule $audience,
         private RoleFetcherService $roleFetcher,
         private EventTitleService $eventTitles,
     ) {}
@@ -282,22 +282,13 @@ class PublicPlanService
         );
         $params = $this->planParameters($planId);
 
-        $rows = $this->activities->fetchActivities(
-            $planId,
-            [$role],
-            includeRooms: true,
-            includeGroupMeta: true,
-            includeActivityMeta: true,
-            includeTeamNames: true,
-            freeBlocks: true,
-            include_past: false,
-        );
+        $rows = $this->audience->rows($planId, [$role], null);
 
         $exploreGroups = DB::table('activity')
             ->whereIn('id', $rows->pluck('activity_id')->filter()->all())
             ->pluck('explore_group', 'id');
 
-        $rows = $rows->filter(function ($row) use ($team, $lane, $table, $role, $params, $exploreGroups, $includeExpired, $now) {
+        $rows = $rows->filter(function ($row) use ($team, $lane, $table, $role, $params, $exploreGroups) {
             if (! RoleScheduleSlice::matches(
                 $row,
                 $lane,
@@ -308,19 +299,10 @@ class PublicPlanService
                 return false;
             }
 
-            if (! $this->matchesExploreHalfDay($row, $role, $team, $lane, $params, $exploreGroups)) {
-                return false;
-            }
-
-            if (! $includeExpired) {
-                $end = Carbon::parse($row->end_time, 'Europe/Berlin');
-                if ($end->lt($now)) {
-                    return false;
-                }
-            }
-
-            return true;
+            return $this->matchesExploreHalfDay($row, $role, $team, $lane, $params, $exploreGroups);
         })->values();
+
+        $rows = $this->audience->window($rows, $includeExpired ? 'full' : 'rest', $now, 0);
 
         return [
             'plan_id' => $planId,
@@ -330,7 +312,7 @@ class PublicPlanService
             'table' => $table,
             'now' => $now->format('Y-m-d H:i'),
             'expired' => $includeExpired ? 'yes' : 'no',
-            'groups' => $this->groupActivities($rows),
+            'groups' => $this->audience->present($rows),
         ];
     }
 
@@ -760,112 +742,6 @@ class PublicPlanService
         }
 
         return EventDayClock::pivot($eventDate, $eventDays);
-    }
-
-    private function groupActivities(Collection $rows): array
-    {
-        $groups = [];
-        foreach ($rows as $row) {
-            $gid = $row->activity_group_id ?? null;
-            if (! isset($groups[$gid])) {
-                $groups[$gid] = [
-                    'activity_group_id' => $gid,
-                    'group_meta' => [
-                        'name' => $row->group_atd_name ?? null,
-                        'first_program_id' => $row->group_first_program_id ?? null,
-                        'first_program_name' => $row->group_first_program_name ?? null,
-                        'description' => $row->group_description ?? null,
-                        'activity_type_code' => $row->group_activity_type_code ?? null,
-                        // punctual | window | info — from m_activity_type_detail.presence
-                        'presence' => $row->group_presence ?? 'punctual',
-                    ],
-                    'start_time' => $row->start_time,
-                    'end_time' => $row->end_time,
-                    'activities' => [],
-                ];
-            }
-
-            // Expand group time span
-            if ($row->start_time && ($groups[$gid]['start_time'] === null || $row->start_time < $groups[$gid]['start_time'])) {
-                $groups[$gid]['start_time'] = $row->start_time;
-            }
-            if ($row->end_time && ($groups[$gid]['end_time'] === null || $row->end_time > $groups[$gid]['end_time'])) {
-                $groups[$gid]['end_time'] = $row->end_time;
-            }
-
-            $aid = $row->activity_id;
-            if (! isset($groups[$gid]['activities'][$aid])) {
-                $roomNav = trim((string) ($row->room_navigation ?? ''));
-                $roomAccessible = $row->room_is_accessible ?? null;
-                $groups[$gid]['activities'][$aid] = [
-                    'activity_id' => $row->activity_id,
-                    'start_time' => $row->start_time,
-                    'end_time' => $row->end_time,
-                    'activity_name' => $row->activity_atd_name ?? $row->activity_name,
-                    'activity_type_detail_id' => $row->activity_type_detail_id ?? null,
-                    'activity_type_code' => $row->activity_type_code ?? null,
-                    'presence' => $row->activity_presence ?? 'punctual',
-                    'extra_block_id' => self::extraBlockId($row),
-                    'extra_block_type' => self::extraBlockType($row),
-                    'meta' => [
-                        'name' => $row->activity_atd_name ?? null,
-                        'first_program_id' => $row->activity_first_program_id ?? null,
-                        'first_program_name' => $row->activity_first_program_name ?? null,
-                        'description' => $row->activity_description ?? null,
-                    ],
-                    'program' => $row->program_name,
-                    'lane' => $row->lane,
-                    'team' => $row->team,
-                    'table_1' => $row->table_1,
-                    'table_1_name' => $row->table_1_name ?? null,
-                    'table_1_team' => $row->table_1_team,
-                    'table_2' => $row->table_2,
-                    'table_2_name' => $row->table_2_name ?? null,
-                    'table_2_team' => $row->table_2_team,
-                    'team_name' => $row->jury_team_name ?? null,
-                    'jury_team_number_hot' => $row->jury_team_number_hot ?? null,
-                    'jury_team_noshow' => (bool) ($row->jury_team_noshow ?? false),
-                    'table_1_team_name' => $row->table_1_team_name ?? null,
-                    'table_1_team_number_hot' => $row->table_1_team_number_hot ?? null,
-                    'table_1_team_noshow' => (bool) ($row->table_1_team_noshow ?? false),
-                    'table_2_team_name' => $row->table_2_team_name ?? null,
-                    'table_2_team_number_hot' => $row->table_2_team_number_hot ?? null,
-                    'table_2_team_noshow' => (bool) ($row->table_2_team_noshow ?? false),
-                    'room' => [
-                        'room_type_id' => $row->room_type_id ?? null,
-                        'room_type_name' => $row->room_type_name ?? null,
-                        'room_id' => $row->room_id ?? null,
-                        'room_name' => $row->room_name ?? null,
-                        'navigation' => $roomNav !== '' ? $roomNav : null,
-                        'accessible' => $roomAccessible === null ? true : (bool) $roomAccessible,
-                    ],
-                ];
-            }
-        }
-
-        foreach ($groups as &$group) {
-            $group['activities'] = array_values($group['activities']);
-        }
-
-        return array_values($groups);
-    }
-
-    private static function extraBlockId(object $row): ?int
-    {
-        $id = $row->extra_block_id ?? $row->is_extra_block ?? null;
-        if ($id === null || $id === '' || $id === false) {
-            return null;
-        }
-        $id = (int) $id;
-
-        return $id > 0 ? $id : null;
-    }
-
-    private static function extraBlockType(object $row): ?string
-    {
-        $type = trim((string) ($row->extra_block_type ?? ''));
-
-        return $type !== '' ? $type : null;
     }
 
     private static function storedPng(mixed $value): ?string
