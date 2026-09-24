@@ -16,6 +16,7 @@ import axios from "axios";
 import {imageUrl} from '@/utils/images'
 import {rewriteImageSrcs} from '@/utils/sameOriginSrc'
 import {programDisplayName} from '@/utils/eventPrograms'
+import {backgroundImageScale, SEASON_LOGO_HEIGHT, SEASON_LOGO_WIDTH} from '@/models/seasonLogo'
 import {useEventStore} from "@/stores/event";
 
 // Ideen und TODOS
@@ -69,6 +70,17 @@ function standardImages() {
 }
 const availableImages = ref(standardImages());
 const availableQrCodes = ref([]);
+
+const seasonLogoStyle = computed(() => {
+  if (!props.slide?.content?.showSeasonLogo) {
+    return null;
+  }
+  const scale = backgroundImageScale(props.slide.content.background);
+  return {
+    width: `${SEASON_LOGO_WIDTH * scale.scaleX}px`,
+    height: `${SEASON_LOGO_HEIGHT * scale.scaleY}px`,
+  };
+});
 
 const defaultObjectProperties = {
   transparentCorners: true,
@@ -572,7 +584,16 @@ async function paste() {
                @input="onStrokeWidthChange($event.target.value)"/>
       </div>
     </div>
-    <canvas ref="canvasEl" class="border border-grey rounded"></canvas>
+    <div class="editor-stage">
+      <canvas ref="canvasEl" class="border border-grey rounded"></canvas>
+      <img
+          v-if="seasonLogoStyle"
+          class="season-logo"
+          src="/logo.png"
+          alt=""
+          :style="seasonLogoStyle"
+      />
+    </div>
 
     <!-- Image Auswahl Overlay -->
     <div v-if="showImageModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
@@ -610,6 +631,20 @@ async function paste() {
 </template>
 
 <style scoped>
+
+.editor-stage {
+  position: relative;
+  display: inline-block;
+}
+
+.season-logo {
+  position: absolute;
+  left: 50%;
+  top: 5px;
+  z-index: 20;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
 
 @font-face {
   font-family: 'Uniform';
