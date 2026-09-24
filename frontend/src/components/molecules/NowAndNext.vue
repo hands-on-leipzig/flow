@@ -7,7 +7,7 @@ import { formatTimeOnly } from '@/utils/dateTimeFormat'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'
 import { defaultTableFieldLabel } from '@/utils/tableFieldLabels'
 import { planTeamName } from '@/utils/planTeamLabel'
-import { programDisplayName } from '@/utils/eventPrograms'
+import { eventPrograms, programDisplayName, programId } from '@/utils/eventPrograms'
 
 // Event store
 const eventStore = useEventStore()
@@ -57,12 +57,33 @@ onMounted(async () => {
   }
 })
 
-// Rollendefinitionen
-const roles = computed(() => [
-  { id: 14, label: 'Besucher Allgemein' },
-  { id: 6,  label: `Besucher ${programDisplayName('CHALLENGE')}` },
-  { id: 10, label: `Besucher ${programDisplayName('EXPLORE')}` },
-])
+const AUDIENCE_ROLE_BY_PROGRAM: Record<number, number> = {
+  1: 10,
+  2: 10,
+  3: 6,
+  8: 24,
+}
+
+const roles = computed(() => {
+  const list = [{ id: 14, label: 'Besucher Allgemein' }]
+  const seen = new Set<number>([14])
+  for (const program of eventPrograms(event.value)) {
+    const roleId = AUDIENCE_ROLE_BY_PROGRAM[programId(program)]
+    if (roleId == null || seen.has(roleId)) continue
+    seen.add(roleId)
+    list.push({
+      id: roleId,
+      label: `Besucher ${programDisplayName(program)}`,
+    })
+  }
+  return list
+})
+
+watch(roles, (list) => {
+  if (!list.some((entry) => entry.id === role.value)) {
+    role.value = 14
+  }
+})
 
 // Output
 const loading = ref(false)

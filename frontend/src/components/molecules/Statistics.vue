@@ -4,7 +4,8 @@ import axios from 'axios'
 
 import { formatDateOnly, formatDateTime } from '@/utils/dateTimeFormat'
 import { programLogoSrc, programLogoAlt } from '@/utils/images'  
-import { eventPrograms, findProgram, programId, programDisplayName } from '@/utils/eventPrograms'
+import { eventPrograms, findProgram, programId, programDisplayName, type EventProgramRef } from '@/utils/eventPrograms'
+import { useProgramsStore } from '@/stores/programs'
 
 import { useRouter } from 'vue-router'
 import { useEventStore } from '@/stores/event'
@@ -81,18 +82,18 @@ const showOnlyNext14Days = ref(false) // Default: show all future events
 const sortBy = ref<'rp' | 'date'>('rp')
 
 /** Header program-icon filters (logical AND when multiple selected). Empty = no filter. */
-type ProgramFilterName = 'EXPLORE' | 'CHALLENGE' | 'FUTURE_8'
-const programFilters = ref<Set<ProgramFilterName>>(new Set())
+const programsStore = useProgramsStore()
+const programFilters = ref<Set<number>>(new Set())
 
-function toggleProgramFilter(name: ProgramFilterName) {
+function toggleProgramFilter(id: number) {
   const next = new Set(programFilters.value)
-  if (next.has(name)) next.delete(name)
-  else next.add(name)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
   programFilters.value = next
 }
 
-function isProgramFilterActive(name: ProgramFilterName): boolean {
-  return programFilters.value.has(name)
+function isProgramFilterActive(id: number): boolean {
+  return programFilters.value.has(id)
 }
 
 type DrahtEnrollment = { enrolled: number; capacity: number }
@@ -112,6 +113,7 @@ async function selectEvent(eventId, regionalPartnerId) {
 }
 
 onMounted(async () => {
+  await programsStore.ensureLoaded()
   try {
     const [plansRes, totalsRes, accessRes] = await Promise.all([
       axios.get('/stats/plans'),
@@ -494,6 +496,27 @@ const flattenedRows = computed<FlattenedRow[]>(() => {
   return rows
 })
 
+const columnPrograms = computed<EventProgramRef[]>(() => {
+  const ids = new Set<number>()
+  for (const row of flattenedRows.value) {
+    for (const program of row.programs || []) {
+      const id = Number(program.first_program)
+      if (id > 0) ids.add(id)
+    }
+  }
+  return programsStore.catalog
+    .filter((program) => ids.has(programId(program)))
+    .slice()
+    .sort((a, b) => {
+      const seqA = a.sequence ?? Number.POSITIVE_INFINITY
+      const seqB = b.sequence ?? Number.POSITIVE_INFINITY
+      if (seqA !== seqB) return seqA - seqB
+      return programId(a) - programId(b)
+    })
+})
+
+const showProgramFilters = computed(() => columnPrograms.value.length > 1)
+
 // Filtered rows based on toggle states (for display only)
 const filteredRows = computed(() => {
   if (!flattenedRows.value) return []
@@ -547,11 +570,10 @@ const filteredRows = computed(() => {
     })
   }
 
-  // Program icon filters (AND): keep only events that have every selected program
-  if (programFilters.value.size > 0) {
+  if (showProgramFilters.value && programFilters.value.size > 0) {
     const required = [...programFilters.value]
     filtered = filtered.filter((row) =>
-      required.every((name) => hasAttachedProgram(row.programs, name))
+      required.every((id) => (row.programs || []).some((program) => Number(program.first_program) === id))
     )
   }
 
@@ -849,12 +871,11 @@ function exportToCSV() {
     'Event Name',
     'Datum',
     'Event Link',
-    `Event ${programDisplayName('EXPLORE')}`,
-    `Event ${programDisplayName('CHALLENGE')}`,
+    ...columnPrograms.value.flatMap((program) => [
+      `Event ${programDisplayName(program)}`,
+      `${programDisplayName(program)} Anmeldungen`,
+    ]),
     'Event Needs Attention',
-    `${programDisplayName('EXPLORE')} Anmeldungen`,
-    `${programDisplayName('CHALLENGE')} Anmeldungen`,
-    `${programDisplayName('FUTURE_8')} Anmeldungen`,
     'DRAHT Issue',
     'Plan ID',
     `${programDisplayName('EXPLORE')} Mode`,
@@ -892,12 +913,14 @@ function exportToCSV() {
         escapeCSV(row.event_name),
         escapeCSV(row.event_date ? formatDateOnly(row.event_date) : ''),
         escapeCSV(row.event_link),
-        escapeCSV(programDraht(row.programs, 'EXPLORE')),
-        escapeCSV(programDraht(row.programs, 'CHALLENGE')),
+        ...columnPrograms.value.flatMap((program) => {
+          const name = String(program.name || '')
+          return [
+            escapeCSV(programDraht(row.programs, name)),
+            escapeCSV(formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, name))),
+          ]
+        }),
         escapeCSV(row.event_needs_attention ? 'Yes' : 'No'),
-        escapeCSV(formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'EXPLORE'))),
-        escapeCSV(formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'CHALLENGE'))),
-        escapeCSV(formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'FUTURE_8'))),
         escapeCSV(row.draht_issue ? 'Yes' : 'No'),
         escapeCSV(row.plan_id),
         escapeCSV(row.e_mode ?? 0),
@@ -1187,59 +1210,34 @@ function exportToCSV() {
                 <th class="px-3 py-2 w-24">Partner</th>
                 <th class="px-3 py-2">Event</th>
                 <th class="px-3 py-2">Name, Datum</th>
-                <th class="px-3 py-2 text-center">
+                <th
+                  v-for="program in columnPrograms"
+                  :key="`col-${programId(program)}`"
+                  class="px-3 py-2 text-center"
+                >
                   <button
+                    v-if="showProgramFilters"
                     type="button"
                     class="inline-flex items-center justify-center rounded p-0.5 transition"
-                    :class="isProgramFilterActive('EXPLORE')
+                    :class="isProgramFilterActive(programId(program))
                       ? 'ring-2 ring-blue-500 bg-blue-50'
                       : 'opacity-60 hover:opacity-100'"
-                    :title="isProgramFilterActive('EXPLORE') ? `${programDisplayName('EXPLORE')}-Filter entfernen` : `Nur Events mit ${programDisplayName('EXPLORE')}`"
-                    :aria-pressed="isProgramFilterActive('EXPLORE')"
-                    @click="toggleProgramFilter('EXPLORE')"
+                    :title="isProgramFilterActive(programId(program)) ? `${programDisplayName(program)}-Filter entfernen` : `Nur Events mit ${programDisplayName(program)}`"
+                    :aria-pressed="isProgramFilterActive(programId(program))"
+                    @click="toggleProgramFilter(programId(program))"
                   >
                     <img
-                      :src="programLogoSrc('EXPLORE')"
-                      :alt="programLogoAlt('EXPLORE')"
+                      :src="programLogoSrc(program)"
+                      :alt="programLogoAlt(program)"
                       class="w-5 h-5"
                     />
                   </button>
-                </th>
-                <th class="px-3 py-2 text-center">
-                  <button
-                    type="button"
-                    class="inline-flex items-center justify-center rounded p-0.5 transition"
-                    :class="isProgramFilterActive('CHALLENGE')
-                      ? 'ring-2 ring-blue-500 bg-blue-50'
-                      : 'opacity-60 hover:opacity-100'"
-                    :title="isProgramFilterActive('CHALLENGE') ? `${programDisplayName('CHALLENGE')}-Filter entfernen` : `Nur Events mit ${programDisplayName('CHALLENGE')}`"
-                    :aria-pressed="isProgramFilterActive('CHALLENGE')"
-                    @click="toggleProgramFilter('CHALLENGE')"
-                  >
-                    <img
-                      :src="programLogoSrc('CHALLENGE')"
-                      :alt="programLogoAlt('CHALLENGE')"
-                      class="w-5 h-5"
-                    />
-                  </button>
-                </th>
-                <th class="px-3 py-2 text-center">
-                  <button
-                    type="button"
-                    class="inline-flex items-center justify-center rounded p-0.5 transition"
-                    :class="isProgramFilterActive('FUTURE_8')
-                      ? 'ring-2 ring-blue-500 bg-blue-50'
-                      : 'opacity-60 hover:opacity-100'"
-                    :title="isProgramFilterActive('FUTURE_8') ? `${programDisplayName('FUTURE_8')}-Filter entfernen` : `Nur Events mit ${programDisplayName('FUTURE_8')}`"
-                    :aria-pressed="isProgramFilterActive('FUTURE_8')"
-                    @click="toggleProgramFilter('FUTURE_8')"
-                  >
-                    <img
-                      :src="programLogoSrc('FUTURE_8')"
-                      :alt="programLogoAlt('FUTURE_8')"
-                      class="w-5 h-5"
-                    />
-                  </button>
+                  <img
+                    v-else
+                    :src="programLogoSrc(program)"
+                    :alt="programLogoAlt(program)"
+                    class="inline-block w-5 h-5"
+                  />
                 </th>
                 <th class="px-3 py-2">Plan</th>
                 <th class="px-3 py-2">Letzte Änderung</th>
@@ -1341,24 +1339,13 @@ function exportToCSV() {
             </template>
           </td>
 
-          <!-- Explore Anmeldungen -->
-          <td class="px-3 py-2 text-center whitespace-nowrap text-[var(--color-text-muted)]">
-            <template v-if="shouldShowEvent(index) && hasAttachedProgram(row.programs, 'EXPLORE')">
-              {{ formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'EXPLORE')) }}
-            </template>
-          </td>
-
-          <!-- Challenge Anmeldungen -->
-          <td class="px-3 py-2 text-center whitespace-nowrap text-[var(--color-text-muted)]">
-            <template v-if="shouldShowEvent(index) && hasAttachedProgram(row.programs, 'CHALLENGE')">
-              {{ formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'CHALLENGE')) }}
-            </template>
-          </td>
-
-          <!-- Future 8+ Anmeldungen -->
-          <td class="px-3 py-2 text-center whitespace-nowrap text-[var(--color-text-muted)]">
-            <template v-if="shouldShowEvent(index) && hasAttachedProgram(row.programs, 'FUTURE_8')">
-              {{ formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, 'FUTURE_8')) }}
+          <td
+            v-for="program in columnPrograms"
+            :key="`${row.event_id}-${programId(program)}`"
+            class="px-3 py-2 text-center whitespace-nowrap text-[var(--color-text-muted)]"
+          >
+            <template v-if="shouldShowEvent(index) && hasAttachedProgram(row.programs, String(program.name || ''))">
+              {{ formatEnrollment(drahtEnrollmentFor(row.event_id, row.programs, String(program.name || ''))) }}
             </template>
           </td>
 

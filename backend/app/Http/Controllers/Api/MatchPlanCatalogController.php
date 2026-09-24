@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\FirstProgram;
 use App\Models\MMatch;
+use App\Support\ProgramCatalog;
 use App\Services\MatchPlanPairingQuality;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -50,6 +51,7 @@ class MatchPlanCatalogController extends Controller
             ->selectRaw('MAX(round) as max_round')
             ->selectRaw('MAX(comment) as comment')
             ->groupBy('first_program', 'teams', 'lanes', 'tables')
+            ->orderByRaw(ProgramCatalog::sequenceOrderSql('first_program'))
             ->orderBy('first_program')
             ->orderBy('teams')
             ->orderBy('lanes')

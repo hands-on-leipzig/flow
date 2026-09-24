@@ -51,7 +51,6 @@ type SortKey = 'rp' | 'date' | 'generator' | 'publish'
 type ModalMode = 'params' | 'blocks' | 'timeline' | 'access' | null
 type HelferFilter = 'empty' | 'filled' | 'both'
 
-const CHIP_NAMES = ['EXPLORE', 'CHALLENGE', 'FUTURE_8'] as const
 const HELFER_FILTERS: {id: HelferFilter; label: string}[] = [
   {id: 'empty', label: 'Liste leer'},
   {id: 'filled', label: 'Liste nicht leer'},
@@ -79,12 +78,19 @@ const eventStore = useEventStore()
 const programsStore = useProgramsStore()
 
 const programChips = computed<EventProgramRef[]>(() => {
-  const wanted = new Set(CHIP_NAMES)
+  const present = new Set(events.value.flatMap((row) => row.programs))
   return programsStore.catalog
-    .filter((row) => wanted.has(String(row.name || '').toUpperCase() as (typeof CHIP_NAMES)[number]))
+    .filter((row) => present.has(programId(row)))
     .slice()
-    .sort((a, b) => (a.sequence ?? 99) - (b.sequence ?? 99) || programId(a) - programId(b))
+    .sort((a, b) => {
+      const seqA = a.sequence ?? Number.POSITIVE_INFINITY
+      const seqB = b.sequence ?? Number.POSITIVE_INFINITY
+      if (seqA !== seqB) return seqA - seqB
+      return programId(a) - programId(b)
+    })
 })
+
+const showProgramChips = computed(() => programChips.value.length > 1)
 
 function todayBerlin(): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -105,7 +111,7 @@ function compareNullable(a: string | number | null | undefined, b: string | numb
 }
 
 const filteredRows = computed(() => {
-  if (activeProgramFilters.value.size === 0) {
+  if (showProgramChips.value && activeProgramFilters.value.size === 0) {
     return []
   }
   const today = todayBerlin()
@@ -121,7 +127,9 @@ const filteredRows = computed(() => {
   } else if (helferFilter.value === 'filled') {
     rows = rows.filter((row) => row.helferliste_count > 0)
   }
-  rows = rows.filter((row) => row.programs.some((id) => activeProgramFilters.value.has(id)))
+  if (showProgramChips.value) {
+    rows = rows.filter((row) => row.programs.some((id) => activeProgramFilters.value.has(id)))
+  }
   const dir = sortDir.value === 'desc' ? -1 : 1
   rows.sort((a, b) => {
     let cmp = 0
@@ -242,7 +250,10 @@ async function downloadExcel() {
   if (!selectedSeasonId.value || exportBusy.value) return
   exportBusy.value = true
   try {
-    const programs = Array.from(activeProgramFilters.value).join(',')
+    const programIds = showProgramChips.value
+      ? Array.from(activeProgramFilters.value)
+      : programChips.value.map((program) => programId(program))
+    const programs = programIds.join(',')
     const response = await axios.get('/admin/cockpit.xlsx', {
       params: {
         season: selectedSeasonId.value,
@@ -308,7 +319,7 @@ async function loadEvents() {
 }
 
 watch(programChips, (chips) => {
-  if (programFiltersSeeded.value || chips.length === 0) return
+  if (programFiltersSeeded.value || chips.length < 2) return
   activeProgramFilters.value = new Set(chips.map((program) => programId(program)))
   programFiltersSeeded.value = true
 }, {immediate: true})
@@ -360,6 +371,7 @@ onMounted(async () => {
 
     <VolunteerStaffingFilterBar>
       <template #middle>
+        <template v-if="showProgramChips">
         <button
             v-for="program in programChips"
             :key="programId(program)"
@@ -377,6 +389,7 @@ onMounted(async () => {
           />
           <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
         </button>
+        </template>
       </template>
       <template #trailing>
         <span class="vol-staffing-filters__sep" aria-hidden="true"/>

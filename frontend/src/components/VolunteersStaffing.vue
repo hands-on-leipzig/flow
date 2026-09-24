@@ -14,7 +14,7 @@ import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffing
 import VolunteerStaffingBoundsPopover from '@/components/volunteers/VolunteerStaffingBoundsPopover.vue'
 import VolunteerOpenPositions from '@/components/volunteers/VolunteerOpenPositions.vue'
 import VolunteerStaffingTile from '@/components/volunteers/VolunteerStaffingTile.vue'
-import {eventPrograms} from '@/utils/eventPrograms'
+import {eventPrograms, programId} from '@/utils/eventPrograms'
 import {compareStaffingTiles, staffingSortableFromTile} from '@/utils/volunteerStaffingSort'
 import {
   buildStaffingFilterKeys,
@@ -81,7 +81,14 @@ const newRoleBest = ref<number | ''>('')
 
 const activeTileFilters = ref<Set<StaffingFilterKey>>(new Set())
 
-const programFilters = computed(() => eventPrograms(eventStore.selectedEvent))
+const programFilters = computed(() => {
+  const ids = new Set(
+    roles.value
+      .map((role) => role.first_program)
+      .filter((id): id is number => id != null && id > 0),
+  )
+  return eventPrograms(eventStore.selectedEvent).filter((program) => ids.has(programId(program)))
+})
 
 const staffingSummary = computed(() => computeStaffingSummary(roles.value, programFilters.value))
 

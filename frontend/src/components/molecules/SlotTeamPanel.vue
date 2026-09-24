@@ -4,7 +4,7 @@ import axios from 'axios'
 import Spinner from '@/components/atoms/Spinner.vue'
 import IconDangerButton from '@/components/atoms/IconDangerButton.vue'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
-import {programDisplayName, programNameForId} from '@/utils/eventPrograms'
+import {eventPrograms, programDisplayName, programId, programNameForId} from '@/utils/eventPrograms'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {
   combineDateTime,
@@ -201,24 +201,31 @@ function wallTimeSortKey(s: string | null): string {
   return m ? `${m[1]}${m[2]}${m[3]}` : s
 }
 
-function comparePlanOrder(a: TeamRow, b: TeamRow): number {
+function programSequence(firstProgram: number): number {
+  const row = eventPrograms(selectedEvent.value).find((program) => programId(program) === firstProgram)
+  return row?.sequence == null ? Number.POSITIVE_INFINITY : row.sequence
+}
+
+function compareProgramThenTeam(a: TeamRow, b: TeamRow): number {
+  const bySequence = programSequence(a.first_program) - programSequence(b.first_program)
+  if (bySequence !== 0) return bySequence
   if (a.first_program !== b.first_program) return a.first_program - b.first_program
   return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
+}
+
+function comparePlanOrder(a: TeamRow, b: TeamRow): number {
+  return compareProgramThenTeam(a, b)
 }
 
 function compareRows(a: TeamRow, b: TeamRow): number {
   const aStart = startForSort(a)
   const bStart = startForSort(b)
-  if (!aStart && !bStart) {
-    if (a.first_program !== b.first_program) return a.first_program - b.first_program
-    return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
-  }
+  if (!aStart && !bStart) return compareProgramThenTeam(a, b)
   if (!aStart) return 1
   if (!bStart) return -1
   const byTime = wallTimeSortKey(aStart).localeCompare(wallTimeSortKey(bStart))
   if (byTime !== 0) return byTime
-  if (a.first_program !== b.first_program) return a.first_program - b.first_program
-  return (a.team_number_plan ?? 0) - (b.team_number_plan ?? 0)
+  return compareProgramThenTeam(a, b)
 }
 
 const displayRows = computed(() => {
@@ -239,7 +246,11 @@ const groupedRows = computed(() => {
     byProgram.get(fp)!.push(row)
   }
   return [...byProgram.entries()]
-    .sort(([a], [b]) => a - b)
+    .sort(([a], [b]) => {
+      const bySequence = programSequence(a) - programSequence(b)
+      if (bySequence !== 0) return bySequence
+      return a - b
+    })
     .map(([programId, groupRows]) => ({
       programId,
       label: groupLabel(programId),

@@ -8,6 +8,7 @@ use App\Models\EventStaffingRole;
 use App\Models\MRole;
 use App\Models\MStaffingRule;
 use App\Support\PlanParameter;
+use App\Support\ProgramCatalog;
 use App\Support\ProgramPresence;
 use App\Support\RoleDifferentiation;
 use Illuminate\Support\Facades\DB;
@@ -64,6 +65,7 @@ class StaffingSyncService
                 }
             })
             ->orderByRaw('(first_program is null) asc')
+            ->orderByRaw(ProgramCatalog::sequenceOrderSql('first_program'))
             ->orderBy('first_program')
             ->orderBy('sequence')
             ->get();

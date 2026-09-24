@@ -8,6 +8,7 @@ use App\Services\ActivityFetcherService;
 use App\Services\RoleFetcherService;
 use App\Services\RolesPreviewGridService;
 use App\Services\TeamsPreviewGridService;
+use App\Support\OverviewPlanStyle;
 use App\Support\PlanParameter;
 use App\Support\ProgramPresence;
 use App\Support\TableFieldLabels;
@@ -69,6 +70,7 @@ class PlanPreviewController extends Controller
             ->all();
 
         $data = $this->planExport->getEventOverviewData($planId, $previewRoles, false);
+        $data['columnNames'] = OverviewPlanStyle::sortColumnsByProgramSequence($data['columnNames']);
 
         // Return the data in the same format as other preview methods
         return response()->json([
