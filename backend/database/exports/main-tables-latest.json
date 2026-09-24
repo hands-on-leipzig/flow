@@ -606,7 +606,7 @@
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
             "link_text": null,
             "activity_type": 16,
-            "role": 13
+            "role": null
         },
         {
             "id": 34,
@@ -1182,7 +1182,7 @@
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
             "link_text": null,
             "activity_type": 21,
-            "role": 25
+            "role": null
         },
         {
             "id": 73,
@@ -1639,7 +1639,7 @@
             "official_name": "<i>FIRST<\/i> LEGO League Discover",
             "letter": "D",
             "ics_postfix": "discover",
-            "sequence": 3,
+            "sequence": 12,
             "max_match_rounds": null,
             "color_hex": "662D91",
             "logo_stem": null,
@@ -1652,7 +1652,7 @@
             "official_name": "<i>FIRST<\/i> LEGO League Explore",
             "letter": "E",
             "ics_postfix": "explore",
-            "sequence": 1,
+            "sequence": 13,
             "max_match_rounds": null,
             "color_hex": "00A651",
             "logo_stem": "fll_explore",
@@ -1665,7 +1665,7 @@
             "official_name": "<i>FIRST<\/i> LEGO League Challenge",
             "letter": "C",
             "ics_postfix": "challenge",
-            "sequence": 2,
+            "sequence": 14,
             "max_match_rounds": 3,
             "color_hex": "ED1C24",
             "logo_stem": "fll_challenge",
@@ -1678,7 +1678,7 @@
             "official_name": "<i>FIRST<\/i> LEGO League Future Edition 5+",
             "letter": "F5",
             "ics_postfix": "future_5",
-            "sequence": 4,
+            "sequence": 1,
             "max_match_rounds": null,
             "color_hex": null,
             "logo_stem": null,
@@ -1691,7 +1691,7 @@
             "official_name": "<i>FIRST<\/i> LEGO League Future Edition 8+",
             "letter": "F8",
             "ics_postfix": "future_8",
-            "sequence": 5,
+            "sequence": 2,
             "max_match_rounds": 5,
             "color_hex": "51BFB4",
             "logo_stem": "fll_future8",
@@ -10750,22 +10750,22 @@
         {
             "id": 2,
             "name": "FLL Explore",
-            "sequence": 2
+            "sequence": 12
         },
         {
             "id": 3,
             "name": "FLL Challenge",
-            "sequence": 3
+            "sequence": 13
         },
         {
             "id": 5,
             "name": "Mit Publikum",
-            "sequence": 10
+            "sequence": 90
         },
         {
             "id": 6,
             "name": "Live Challenge",
-            "sequence": 5
+            "sequence": 14
         },
         {
             "id": 10,
@@ -14918,7 +14918,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-22T15:06:51.002210Z",
+        "exported_at": "2026-09-24T08:13:24.395017Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
