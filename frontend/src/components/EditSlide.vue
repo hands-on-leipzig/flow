@@ -164,6 +164,32 @@ function toggleProgram(id: number, on: boolean) {
   updateByName('programs', next);
 }
 
+const teamSlideTypes = ['TeamsTableSlideContent', 'TeamsMapSlideContent'];
+
+function teamPrograms(): number[] | null | undefined {
+  const content = slide.value?.content as {programs?: number[] | null} | undefined;
+  if (!content || !teamSlideTypes.includes(slide.value?.type ?? '')) {
+    return undefined;
+  }
+  return content.programs ?? null;
+}
+
+function teamProgramChecked(id: number): boolean {
+  const programs = teamPrograms();
+  return programs == null || programs.includes(id);
+}
+
+function toggleTeamProgram(id: number, on: boolean) {
+  const programs = teamPrograms();
+  if (programs === undefined) return;
+  const base = programs == null
+      ? attachedPrograms.value.map((program) => programId(program)).filter((program) => program > 0)
+      : programs.map((program) => Number(program));
+  const next = base.filter((program) => program !== id);
+  if (on) next.push(id);
+  updateByName('programs', next);
+}
+
 function handleManualSave() {
   if (saveTimeoutId.value) {
     clearTimeout(saveTimeoutId.value);
@@ -388,6 +414,29 @@ function updateDuration(value: number) {
           </div>
         </div>
 
+      </div>
+      <div v-if="slide.type === 'TeamsTableSlideContent' || slide.type === 'TeamsMapSlideContent'">
+        <div class="grid grid-cols-1 gap-2 mb-4">
+          <div class="rounded-lg border px-2 py-2 transition hover:border-gray-400">
+            <label class="text-sm font-medium">Sichtbare Programme</label>
+            <InfoPopover text="Wähle die Programme, deren Teams angezeigt werden."/>
+            <label
+                v-for="program in attachedPrograms"
+                :key="programId(program)"
+                class="flex items-center gap-2 text-sm mt-1"
+            >
+              <input
+                  type="checkbox"
+                  :checked="teamProgramChecked(programId(program))"
+                  @change="toggleTeamProgram(programId(program), ($event.target as HTMLInputElement).checked)"
+              />
+              {{ programDisplayName(program) }}
+            </label>
+            <p v-if="Array.isArray(slide.content.programs) && slide.content.programs.length === 0" class="text-sm mt-2">
+              Nichts ausgewählt. Es werden keine Teams angezeigt.
+            </p>
+          </div>
+        </div>
       </div>
       <div v-if="slide.type === 'RobotGameSlideContent'">
         <div class="grid grid-cols-2 gap-2 items-center">

@@ -4,6 +4,8 @@ import {onMounted, ref} from "vue";
 import axios from "axios";
 import FabricSlideContentRenderer from "../FabricSlideContentRenderer.vue";
 import GenericLeafletMap from "../../molecules/GenericLeafletMap.vue";
+import {programLogoAlt, programLogoSrc} from "../../../utils/images";
+import {loadEventPrograms, loadTeamLanes, programForLane, selectedLanes} from "./teamLanes";
 
 const props = withDefaults(defineProps<{
   content: TeamsMapSlideContent,
@@ -13,20 +15,59 @@ const props = withDefaults(defineProps<{
   preview: false
 });
 
-const coordinates = ref(null);
+const coordinates = ref<Array<{lat: number, lon: number, popup: string}> | null>(null);
+
+function escapeHtml(value: string): string {
+  return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+}
 
 async function loadCoordinates() {
   try {
-    const response = await axios.get(`events/${props.eventId}/team-coordinates`);
-    coordinates.value = response.data.map(team => ({lat: team.coord.lat, lon: team.coord.lon, popup: team.name}));
+    const [lanes, eventProgramRows, response] = await Promise.all([
+      loadTeamLanes(props.eventId),
+      loadEventPrograms(props.eventId),
+      axios.get(`/events/${props.eventId}/team-coordinates`),
+    ]);
+    const points = Array.isArray(response.data) ? response.data : [];
+    const markers: Array<{lat: number, lon: number, popup: string}> = [];
+
+    for (const lane of selectedLanes(lanes, props.content.programs)) {
+      const program = programForLane(lane, eventProgramRows);
+      const teams = Array.isArray(lane.teams) ? lane.teams : [];
+      for (const team of teams) {
+        const teamName = String(team?.name ?? '').trim();
+        if (teamName === '') {
+          continue;
+        }
+        const point = points.find((candidate) => {
+          const pointName = String(candidate?.name ?? '').trim();
+          return pointName !== ''
+              && Number(candidate?.program_id) === Number(lane.program_id)
+              && pointName === teamName;
+        });
+        if (!point?.coord) {
+          continue;
+        }
+        const src = programLogoSrc(program, 'h');
+        const alt = escapeHtml(programLogoAlt(program));
+        const name = escapeHtml(teamName);
+        markers.push({
+          lat: point.coord.lat,
+          lon: point.coord.lon,
+          popup: `<span style="display:inline-flex;align-items:center;gap:0.4em"><img src="${src}" alt="${alt}" style="height:1em;width:auto">${name}</span>`,
+        });
+      }
+    }
+
+    coordinates.value = markers;
   } catch (e) {
     console.error(e);
   }
-  /*coordinates.value = [
-    {lat: 48.18, lon: 12.2833, popup: "GarsControl Senior"},
-    {lat: 50.5517, lon: 9.6832, popup: "1337.exe"},
-    {lat: 48.06488, lon: 11.6632, popup: "Here We GO"}
-  ];*/
 }
 
 onMounted(loadCoordinates)

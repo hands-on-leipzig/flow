@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import {computed, nextTick, onMounted, ref, watch} from "vue";
-import axios from "axios";
 import {TeamsTableSlideContent} from "../../../models/teamsTableSlideContent";
 import {useMultiPageTable} from "@/composables/useMultiPageTable";
 import FabricSlideContentRenderer from "@/components/slideTypes/FabricSlideContentRenderer.vue";
 import {useTableFontResize} from "@/composables/useTableFontResize";
 import {programLogoAlt, programLogoSrc} from "../../../utils/images";
+import {loadEventPrograms, loadTeamLanes, programForLane, selectedLanes} from "./teamLanes";
+import type {EventProgramRef} from "@/utils/eventPrograms";
 
 const props = withDefaults(defineProps<{
   content: TeamsTableSlideContent,
@@ -20,10 +21,10 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ (e: 'next'): void }>();
 
 type TeamRow = {
-  category: 'Explore' | 'Challenge',
   name: string,
   organization: string,
-  location: string
+  location: string,
+  program: EventProgramRef
 }
 
 const teams = ref<TeamRow[]>([]);
@@ -42,34 +43,25 @@ const {paginatedItems, handleArrow} = useMultiPageTable<TeamRow>({
   onAutoEnd: () => emit('next')
 });
 
-function normalizeTeam(team: any, category: 'Explore' | 'Challenge'): TeamRow {
-  return {
-    category,
-    name: team?.name || '-',
-    organization: team?.organization || '-',
-    location: team?.location || '-'
-  };
-}
-
 async function fetchTeams() {
   try {
-    const scheduleResponse = await axios.get(`/publish/public-information/${props.eventId}`);
-    if (scheduleResponse && scheduleResponse.data) {
-      const explore = (scheduleResponse.data?.teams?.explore?.list || []).map((team: any) => {
-        return normalizeTeam(team, 'Explore');
-      });
-
-      const challenge = (scheduleResponse.data?.teams?.challenge?.list || []).map((team: any) => {
-        return normalizeTeam(team, 'Challenge');
-      });
-
-      teams.value = [...explore, ...challenge];
-      nextTick(adjustFontSize);
-    }
+    const [lanes, eventProgramRows] = await Promise.all([
+      loadTeamLanes(props.eventId),
+      loadEventPrograms(props.eventId),
+    ]);
+    teams.value = selectedLanes(lanes, props.content.programs).flatMap((lane) => {
+      const program = programForLane(lane, eventProgramRows);
+      const list = Array.isArray(lane.teams) ? lane.teams : [];
+      return list.map((team) => ({
+        name: team?.name || '-',
+        organization: team?.organization || '-',
+        location: team?.location || '-',
+        program,
+      }));
+    });
+    nextTick(adjustFontSize);
   } catch (error) {
     console.error("Error fetching teams:", error);
-    /*teams.value = [{category: 'Explore', name: 'Test', location: "Testhausen", organization: "Test-Gymnasium"},
-      {category: 'Challenge', name: 'PaRaMeRoS', location: "Pullach im Isartal", organization: "Erzbischöfliche Pater-Rupert-Mayer Realschule"}];*/
   }
 }
 
@@ -115,7 +107,6 @@ defineExpose({handleArrow});
         <table ref="tableRef" class="teams-table">
           <thead>
           <tr>
-            <th>Programm</th>
             <th>Name</th>
             <th>Organisation</th>
             <th>Ort</th>
@@ -123,19 +114,19 @@ defineExpose({handleArrow});
           </thead>
           <tbody>
           <tr v-if="!paginatedItems.length">
-            <td colspan="4" class="teams-empty">Keine Teams vorhanden</td>
+            <td colspan="3" class="teams-empty">Keine Teams vorhanden</td>
           </tr>
-          <tr v-for="(team, index) in paginatedItems" :key="`${team.category}-${team.name}-${index}`">
-            <td class="program-cell">
-              <div class="program-icon-box">
+          <tr v-for="(team, index) in paginatedItems" :key="`${team.program.first_program}-${team.name}-${index}`">
+            <td>
+              <span class="name-line">
                 <img
-                  :src="programLogoSrc(team.category === 'Explore' ? 'EXPLORE' : 'CHALLENGE', 'h')"
-                  :alt="programLogoAlt(team.category === 'Explore' ? 'EXPLORE' : 'CHALLENGE')"
+                  :src="programLogoSrc(team.program, 'h')"
+                  :alt="programLogoAlt(team.program)"
                   class="audience-program-icon"
                 />
-              </div>
+                <span>{{ team.name }}</span>
+              </span>
             </td>
-            <td>{{ team.name }}</td>
             <td>{{ team.organization }}</td>
             <td>{{ team.location }}</td>
           </tr>
@@ -171,19 +162,10 @@ defineExpose({handleArrow});
   text-align: left;
 }
 
-.program-cell {
-  position: relative;
-  width: 4.5em;
-  min-width: 4.5em;
-}
-
-.program-icon-box {
-  position: absolute;
-  inset: 0.25rem 0.4rem;
-  display: flex;
+.name-line {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  gap: 0.4em;
 }
 
 .teams-empty {
@@ -192,11 +174,8 @@ defineExpose({handleArrow});
 }
 
 .audience-program-icon {
-  max-width: 100%;
-  max-height: 100%;
+  height: 1em;
   width: auto;
-  height: auto;
   display: block;
-  object-fit: contain;
 }
 </style>

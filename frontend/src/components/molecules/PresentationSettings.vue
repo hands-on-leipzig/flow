@@ -322,6 +322,10 @@ async function addSlide(selectedType: string) {
     newSlide.content.legacyRole = null;
   }
 
+  if (selectedType === 'TeamsTableSlideContent' || selectedType === 'TeamsMapSlideContent') {
+    newSlide.content.programs = eventPrograms(event.value).map((program) => programId(program)).filter((id) => id > 0);
+  }
+
   const content = JSON.stringify(newSlide.content.toJSON());
   newSlide = {...newSlide, content, order: slideshow.slides.length + 1};
 
