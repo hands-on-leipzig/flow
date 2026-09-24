@@ -121,6 +121,69 @@ final class OverviewPlanStyle
     }
 
     /**
+     * Preview column order: joint Allgemein first, then program groups by catalog sequence.
+     * Columns that belong to one program stay together in {@see columnOrder()} order.
+     *
+     * @param  list<string>  $columnNames
+     * @return list<string>
+     */
+    public static function sortColumnsByProgramSequence(array $columnNames): array
+    {
+        if ($columnNames === []) {
+            return [];
+        }
+
+        $sequence = DB::table('m_first_program')->pluck('sequence', 'id');
+        $withinGroup = self::columnOrder();
+        $challengeField = self::fieldOverviewColumn(FirstProgram::CHALLENGE->value);
+        $futureField = self::fieldOverviewColumn(FirstProgram::FUTURE_8->value);
+
+        usort($columnNames, function (string $a, string $b) use ($sequence, $withinGroup, $challengeField, $futureField): int {
+            [$seqA, $idA] = self::columnProgramRank($a, $sequence, $challengeField, $futureField);
+            [$seqB, $idB] = self::columnProgramRank($b, $sequence, $challengeField, $futureField);
+            if ($seqA !== $seqB) {
+                return $seqA <=> $seqB;
+            }
+            if ($idA !== $idB) {
+                return $idA <=> $idB;
+            }
+
+            return ($withinGroup[$a] ?? 999) <=> ($withinGroup[$b] ?? 999);
+        });
+
+        return array_values($columnNames);
+    }
+
+    /**
+     * Joint Allgemein sorts before every program. A missing sequence sorts after known ones.
+     *
+     * @param  \Illuminate\Support\Collection<int|string, mixed>  $sequence
+     * @return array{0: int, 1: int}
+     */
+    private static function columnProgramRank(string $columnName, $sequence, string $challengeField, string $futureField): array
+    {
+        if ($columnName === 'Allgemein') {
+            return [-1, 0];
+        }
+
+        $programId = match (true) {
+            $columnName === 'Allgemein-2', $columnName === 'Explore' => FirstProgram::EXPLORE->value,
+            $columnName === 'Allgemein-3', $columnName === 'Challenge', $columnName === 'Live Challenge', $columnName === $challengeField => FirstProgram::CHALLENGE->value,
+            $columnName === 'Allgemein-4', $columnName === 'Future 8+', $columnName === $futureField => FirstProgram::FUTURE_8->value,
+            str_starts_with($columnName, 'Allgemein-') => (int) substr($columnName, strlen('Allgemein-')),
+            default => null,
+        };
+
+        if ($programId === null) {
+            return [PHP_INT_MAX, PHP_INT_MAX];
+        }
+
+        $seq = $sequence[$programId] ?? null;
+
+        return [$seq === null ? PHP_INT_MAX : (int) $seq, $programId];
+    }
+
+    /**
      * @return array{bg: string, border: string}
      */
     public static function cellColors(string $assignedColumn): array

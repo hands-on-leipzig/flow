@@ -354,6 +354,7 @@ onActivated(() => {
           </div>
         </template>
         <template #middle>
+          <template v-if="programFilters.length > 1">
           <button
               v-for="program in programFilters"
               :key="program.first_program"
@@ -371,6 +372,7 @@ onActivated(() => {
             />
             <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
           </button>
+          </template>
         </template>
         <template #trailing>
           <span class="vol-staffing-filters__sep" aria-hidden="true"/>

@@ -239,6 +239,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
         <i class="bi bi-intersect vol-staffing-filter__icon" aria-hidden="true"/>
         <span class="vol-staffing-filter__label">Übergreifend</span>
       </button>
+      <template v-if="programsWithParameters.length > 1">
       <button
           v-for="program in programsWithParameters"
           :key="`filter-program-${programId(program)}`"
@@ -256,6 +257,7 @@ const contextBarClass = (ctx: string | null | undefined) => {
         />
         <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
       </button>
+      </template>
     </div>
 
     <!-- Context -->

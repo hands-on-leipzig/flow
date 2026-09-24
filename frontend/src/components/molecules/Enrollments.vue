@@ -1,15 +1,23 @@
 <script setup>
-import {onMounted, ref} from 'vue'
+import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 import {formatDateOnly} from '@/utils/dateTimeFormat'
 import {programLogoSrc, programLogoAlt} from '@/utils/images'
-import {programDisplayName} from '@/utils/eventPrograms'
+import {programDisplayName, programId} from '@/utils/eventPrograms'
+import {useProgramsStore} from '@/stores/programs'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {useGoToEventSchedule} from '@/composables/useGoToEventSchedule'
 
 defineOptions({name: 'Enrollments'})
 
 const {goToEventSchedule} = useGoToEventSchedule()
+const programsStore = useProgramsStore()
+
+const HISTOGRAM_SERIES = [
+  {key: 'explore', eventsKey: 'explore_events', name: 'EXPLORE'},
+  {key: 'challenge', eventsKey: 'challenge_events', name: 'CHALLENGE'},
+  {key: 'future8', eventsKey: 'future8_events', name: 'FUTURE_8'},
+]
 
 const loading = ref(true)
 const seasonName = ref('')
@@ -35,6 +43,20 @@ function enrolledLabel(row) {
 function overCapacity(row) {
   return !!row?.draht_id && row.capacity > 0 && row.enrolled > row.capacity
 }
+
+const histogramSeries = computed(() => {
+  const visible = HISTOGRAM_SERIES.filter((series) =>
+    histogram.value.some((row) => Number(row[series.key] ?? 0) > 0),
+  )
+  return visible.slice().sort((a, b) => {
+    const rowA = programsStore.catalog.find((program) => String(program.name || '').toUpperCase() === a.name)
+    const rowB = programsStore.catalog.find((program) => String(program.name || '').toUpperCase() === b.name)
+    const seqA = rowA?.sequence ?? Number.POSITIVE_INFINITY
+    const seqB = rowB?.sequence ?? Number.POSITIVE_INFINITY
+    if (seqA !== seqB) return seqA - seqB
+    return programId(rowA ?? {}) - programId(rowB ?? {})
+  })
+})
 
 const exploreLabel = () => programDisplayName('EXPLORE')
 const challengeLabel = () => programDisplayName('CHALLENGE')
@@ -66,7 +88,8 @@ function openEvent(row) {
   void goToEventSchedule(row.event_id, row.regional_partner_id)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await programsStore.ensureLoaded()
   void load()
 })
 </script>
@@ -96,27 +119,15 @@ onMounted(() => {
           <thead>
             <tr class="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">
               <th class="text-left font-semibold py-1.5 pr-3">Teams</th>
-              <th class="text-right font-semibold py-1.5 px-2">
+              <th
+                v-for="series in histogramSeries"
+                :key="series.key"
+                class="text-right font-semibold py-1.5 px-2"
+              >
                 <img
-                  :src="programLogoSrc('EXPLORE')"
-                  :alt="programLogoAlt('EXPLORE')"
-                  :title="exploreLabel()"
-                  class="inline-block h-6 w-6 object-contain"
-                />
-              </th>
-              <th class="text-right font-semibold py-1.5 px-2">
-                <img
-                  :src="programLogoSrc('CHALLENGE')"
-                  :alt="programLogoAlt('CHALLENGE')"
-                  :title="challengeLabel()"
-                  class="inline-block h-6 w-6 object-contain"
-                />
-              </th>
-              <th class="text-right font-semibold py-1.5 pl-2">
-                <img
-                  :src="programLogoSrc('FUTURE_8')"
-                  :alt="programLogoAlt('FUTURE_8')"
-                  :title="futureLabel()"
+                  :src="programLogoSrc(series.name)"
+                  :alt="programLogoAlt(series.name)"
+                  :title="programDisplayName(series.name)"
                   class="inline-block h-6 w-6 object-contain"
                 />
               </th>
@@ -131,20 +142,12 @@ onMounted(() => {
             >
               <td class="py-1 pr-3 tabular-nums text-[var(--color-text-muted)]">{{ row.teams }}</td>
               <td
+                v-for="series in histogramSeries"
+                :key="`${row.teams}-${series.key}`"
                 class="py-1 px-2 text-right tabular-nums"
-                :class="row.explore ? 'cursor-help' : ''"
-                :title="namesTitle(row.explore_events)"
-              >{{ cell(row.explore) }}</td>
-              <td
-                class="py-1 px-2 text-right tabular-nums"
-                :class="row.challenge ? 'cursor-help' : ''"
-                :title="namesTitle(row.challenge_events)"
-              >{{ cell(row.challenge) }}</td>
-              <td
-                class="py-1 pl-2 text-right tabular-nums"
-                :class="row.future8 ? 'cursor-help' : ''"
-                :title="namesTitle(row.future8_events)"
-              >{{ cell(row.future8) }}</td>
+                :class="row[series.key] ? 'cursor-help' : ''"
+                :title="namesTitle(row[series.eventsKey])"
+              >{{ cell(row[series.key]) }}</td>
             </tr>
           </tbody>
         </table>
