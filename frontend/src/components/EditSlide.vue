@@ -6,6 +6,7 @@ import axios from "axios";
 import {Slide} from "@/models/slide";
 import FabricEditor from "@/components/FabricEditor.vue";
 import InfoPopover from "@/components/atoms/InfoPopover.vue";
+import ProgramLogo from "@/components/atoms/ProgramLogo.vue";
 import SavingToast from "@/components/atoms/SavingToast.vue";
 import {useEventStore} from "../stores/event";
 import {eventPrograms, programDisplayName, programId} from "@/utils/eventPrograms";
@@ -406,6 +407,7 @@ function updateDuration(value: number) {
                   :checked="audienceSelection.joint"
                   @change="setJoint(($event.target as HTMLInputElement).checked)"
               />
+              <i class="bi bi-intersect edit-scope-icon" aria-hidden="true"/>
               Übergreifend
             </label>
             <label
@@ -418,6 +420,7 @@ function updateDuration(value: number) {
                   :checked="audienceSelection.programs.includes(programId(program))"
                   @change="toggleProgram(programId(program), ($event.target as HTMLInputElement).checked)"
               />
+              <ProgramLogo :program="program" size="chip" decorative/>
               {{ programDisplayName(program) }}
             </label>
             <p v-if="!audienceSelection.joint && audienceSelection.programs.length === 0" class="text-sm mt-2">
@@ -442,6 +445,7 @@ function updateDuration(value: number) {
                   :checked="teamProgramChecked(programId(program))"
                   @change="toggleTeamProgram(programId(program), ($event.target as HTMLInputElement).checked)"
               />
+              <ProgramLogo :program="program" size="chip" decorative/>
               {{ programDisplayName(program) }}
             </label>
             <p v-if="Array.isArray(slide.content.programs) && slide.content.programs.length === 0" class="text-sm mt-2">
@@ -577,5 +581,11 @@ function updateDuration(value: number) {
   opacity: 0.5;
   pointer-events: none;
   cursor: not-allowed;
+}
+
+.edit-scope-icon {
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
 }
 </style>
