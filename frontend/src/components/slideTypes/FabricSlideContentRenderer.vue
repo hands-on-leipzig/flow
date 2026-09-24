@@ -132,7 +132,7 @@ function loadFont() {
        class="absolute inset-0 overflow-hidden">
     <div class="slide-frame">
       <img v-if="backgroundSrc && !overlay" :src="backgroundSrc" alt="" class="slide-background"/>
-      <div class="flex items-center justify-center w-full h-full">
+      <div class="slide-canvas">
         <canvas ref="canvas"></canvas>
       </div>
     </div>
@@ -143,16 +143,27 @@ function loadFont() {
 .slide-frame {
   position: absolute;
   inset: 0;
+  isolation: isolate;
 }
 
 .slide-background {
   position: absolute;
   inset: 0;
+  z-index: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
   pointer-events: none;
+}
+
+.slide-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 @font-face {
