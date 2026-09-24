@@ -124,15 +124,23 @@ function loadFont() {
 
 <template>
   <div ref="root" :class="{ 'w-screen h-screen': !preview }"
-       class="relative flex items-center justify-center overflow-hidden">
-    <img v-if="backgroundSrc" :src="backgroundSrc" alt="" class="slide-background"/>
-    <div class="relative z-10 flex items-center justify-center w-full h-full">
-      <canvas ref="canvas" class=""></canvas>
+       class="flex items-center justify-center overflow-hidden">
+    <div class="slide-frame">
+      <img v-if="backgroundSrc" :src="backgroundSrc" alt="" class="slide-background"/>
+      <div class="flex items-center justify-center w-full h-full">
+        <canvas ref="canvas"></canvas>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.slide-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 .slide-background {
   position: absolute;
   inset: 0;
@@ -140,7 +148,6 @@ function loadFont() {
   height: 100%;
   object-fit: cover;
   object-position: center;
-  z-index: 0;
   pointer-events: none;
 }
 
