@@ -49,7 +49,7 @@ function venueMarker(point: {lat: number, lon: number}) {
     lat: point.lat,
     lon: point.lon,
     venue: true,
-    label: '<div class="map-pin-label__box"><span class="map-pin-label__row">Veranstaltungsort</span></div>',
+    label: '<div class="map-pin-label__box"><span class="map-pin-label__row">Wir sind hier</span></div>',
   };
 }
 
