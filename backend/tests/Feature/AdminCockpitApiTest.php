@@ -41,6 +41,19 @@ class AdminCockpitApiTest extends TestCase
         $this->assertCount(2, $payload['events']);
     }
 
+    public function test_multiple_plans_for_one_event_yield_a_single_row(): void
+    {
+        DB::table('plan')->insert([
+            ['id' => 11, 'event' => 1, 'name' => 'Plan 2'],
+        ]);
+
+        $payload = $this->getJson('/api/admin/cockpit?season=1')->assertOk()->json();
+        $matches = collect($payload['events'])->where('event_id', 1)->values();
+
+        $this->assertCount(1, $matches);
+        $this->assertSame(11, $matches[0]['plan_id']);
+    }
+
     public function test_invalid_season_falls_back_to_current(): void
     {
         $payload = $this->getJson('/api/admin/cockpit?season=999')->assertOk()->json();
