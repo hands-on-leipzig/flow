@@ -69,6 +69,11 @@ function liftBackgroundToScreen() {
   rememberBackgroundSize(props.content, width, height);
   fabricCanvas.backgroundImage = undefined;
   fabricCanvas.backgroundColor = '';
+  const canvasEl = fabricCanvas.getElement();
+  canvasEl.style.background = 'transparent';
+  if (fabricCanvas.getObjects().length === 0) {
+    canvasEl.style.display = 'none';
+  }
   fabricCanvas.requestRenderAll();
 }
 

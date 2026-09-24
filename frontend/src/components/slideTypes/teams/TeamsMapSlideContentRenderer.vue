@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{
   preview: false
 });
 
-const coordinates = ref<Array<{lat: number, lon: number, popup: string}> | null>(null);
+const coordinates = ref<Array<{lat: number, lon: number, label: string}> | null>(null);
 
 function escapeHtml(value: string): string {
   return value
@@ -42,7 +42,7 @@ async function loadCoordinates() {
       }
     }
     const points = await loadCityCoordinates([...cities]);
-    const markers: Array<{lat: number, lon: number, popup: string}> = [];
+    const byCity = new Map();
 
     for (const lane of selected) {
       const program = programForLane(lane, eventProgramRows);
@@ -54,18 +54,23 @@ async function loadCoordinates() {
         if (teamName === '' || !point) {
           continue;
         }
+        if (!byCity.has(city)) {
+          byCity.set(city, {lat: point.lat, lon: point.lon, rows: []});
+        }
         const src = programLogoSrc(program);
         const alt = escapeHtml(programLogoAlt(program));
         const name = escapeHtml(teamName);
-        markers.push({
-          lat: point.lat,
-          lon: point.lon,
-          popup: `<span style="display:inline-flex;align-items:center;gap:0.4em"><img src="${src}" alt="${alt}" style="width:2rem;height:2rem;object-fit:contain">${name}</span>`,
-        });
+        byCity.get(city).rows.push(
+            `<span class="map-pin-label__row"><img src="${src}" alt="${alt}">${name}</span>`
+        );
       }
     }
 
-    coordinates.value = markers;
+    coordinates.value = [...byCity.values()].map((city) => ({
+      lat: city.lat,
+      lon: city.lon,
+      label: city.rows.join(''),
+    }));
   } catch (e) {
     console.error(e);
   }
@@ -83,17 +88,40 @@ onMounted(loadCoordinates)
         :content="props.content"
         :preview="props.preview"
     />
-    <GenericLeafletMap
-        v-if="coordinates"
-        :markers="coordinates"
-        :height="props.preview ? '9rem' : '100vh'"
-        :hideControls="true"
-        :static-map="true"
-        class="relative z-10 w-full h-full">
-    </GenericLeafletMap>
+    <div class="map-slide">
+      <GenericLeafletMap
+          v-if="coordinates"
+          :markers="coordinates"
+          height="100%"
+          min-height="0"
+          :hideControls="true"
+          :static-map="true"
+          class="w-full h-full">
+      </GenericLeafletMap>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.map-slide {
+  position: absolute;
+  z-index: 10;
+  left: 10%;
+  right: 10%;
+  top: 10%;
+  bottom: 10%;
+}
 
+.map-slide :deep(.map-pin-label__row) {
+  display: flex;
+  align-items: center;
+  gap: 0.35em;
+}
+
+.map-slide :deep(.map-pin-label__row img) {
+  width: 1.25rem;
+  height: 1.25rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
 </style>

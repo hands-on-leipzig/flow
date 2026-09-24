@@ -128,7 +128,15 @@ const renderMarkers = (L) => {
 
   validMarkers.value.forEach((marker) => {
     const leafletMarker = L.marker([marker.lat, marker.lon]).addTo(markerLayer.value)
-    if (marker.popup) {
+    if (marker.label) {
+      leafletMarker.bindTooltip(marker.label, {
+        permanent: true,
+        direction: 'top',
+        offset: [0, -2],
+        className: 'map-pin-label',
+        opacity: 1,
+      })
+    } else if (marker.popup) {
       leafletMarker.bindPopup(marker.popup)
     }
     bounds.push([marker.lat, marker.lon])
@@ -137,13 +145,14 @@ const renderMarkers = (L) => {
   if (bounds.length === 1) {
     mapInstance.value.setView(bounds[0], props.zoom)
     const marker = markerLayer.value.getLayers()[0]
-    if (marker) {
+    if (marker && !validMarkers.value[0]?.label) {
       marker.openPopup()
     }
     return
   }
 
-  mapInstance.value.fitBounds(bounds, { padding: [20, 20] })
+  const hasLabel = validMarkers.value.some((marker) => marker.label)
+  mapInstance.value.fitBounds(bounds, {padding: hasLabel ? [40, 28] : [20, 20]})
 }
 
 const ensureMap = async () => {
@@ -267,4 +276,26 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style>
+.leaflet-tooltip.map-pin-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  background: #fff;
+  border: none;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.28);
+  color: #222;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.25;
+  padding: 0.2rem 0.4rem;
+  white-space: normal;
+}
+
+.leaflet-tooltip.map-pin-label.leaflet-tooltip-top::before {
+  border-top-color: #fff;
+}
+</style>
 
