@@ -591,6 +591,7 @@ async function paste() {
     </div>
     <div class="editor-stage">
       <canvas ref="canvasEl" class="border border-grey rounded"></canvas>
+      <div v-if="props.slide?.type === 'TeamsMapSlideContent'" class="map-guide"></div>
       <img
           v-if="seasonLogoStyle"
           class="season-logo"
@@ -640,6 +641,19 @@ async function paste() {
 .editor-stage {
   position: relative;
   display: inline-block;
+}
+
+.map-guide {
+  position: absolute;
+  z-index: 15;
+  left: 10%;
+  top: 10%;
+  width: 80%;
+  height: 80%;
+  box-sizing: border-box;
+  border: 8px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
 }
 
 .season-logo {
