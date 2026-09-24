@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {onMounted, onUnmounted, ref} from "vue";
+import {onMounted, onUnmounted, ref, watch} from "vue";
 import SlideContentRenderer from "./slideTypes/SlideContentRenderer.vue";
 import {Slide} from "../models/slide.js";
 import axios from "axios";
@@ -23,11 +23,19 @@ const props = defineProps<{
 }>();
 
 const plannerPreview = isPlannerPreview();
+const clockMode = ref<'current' | 'override'>('current');
+const previewTime = ref('');
 
 function onPreviewTime(event: Event) {
-  const value = (event.target as HTMLInputElement).value;
-  setPreviewClock(value || null);
+  previewTime.value = (event.target as HTMLInputElement).value;
+  if (clockMode.value === 'override') {
+    setPreviewClock(previewTime.value || null);
+  }
 }
+
+watch(clockMode, (mode) => {
+  setPreviewClock(mode === 'override' ? (previewTime.value || null) : null);
+});
 
 let slideshow = ref(null)
 let showSlide = ref(false)
@@ -145,10 +153,23 @@ onUnmounted(stopHeartbeat);
         ref="renderers"
         :slide="slide" :preview="false" :eventId="+props.eventId" :visible="index === slideKey"
         :defaultTransitionTime="slideshow?.transition_time" @next="nextSlide"/>
-    <label v-if="plannerPreview" class="test-clock">
-      Test-Uhrzeit
-      <input type="time" @change="onPreviewTime"/>
-    </label>
+    <fieldset v-if="plannerPreview" class="test-clock">
+      <legend>Test-Uhrzeit</legend>
+      <label>
+        <input type="radio" name="test-clock" value="current" v-model="clockMode"/>
+        Aktuelle Zeit
+      </label>
+      <label>
+        <input type="radio" name="test-clock" value="override" v-model="clockMode"/>
+        Übersteuern
+        <input
+            type="time"
+            :value="previewTime"
+            :disabled="clockMode !== 'override'"
+            @change="onPreviewTime"
+        />
+      </label>
+    </fieldset>
   </div>
 </template>
 
@@ -185,10 +206,26 @@ footer img {
   z-index: 10001;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  margin: 0;
   padding: 0.5rem 0.75rem;
+  border: 0;
   background: white;
   border-radius: 0.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.test-clock legend {
+  padding: 0 0.25rem;
+}
+
+.test-clock label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.test-clock input[type="time"]:disabled {
+  opacity: 0.45;
 }
 </style>
