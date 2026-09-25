@@ -171,7 +171,7 @@ const GUTTER = 52
 /** Pixel budget so a row is omitted instead of cut by overflow. */
 const BLOCK_CHROME_Y = 10
 const BLOCK_ROW_GAP = 1
-const BLOCK_TITLE_LINE = 17
+const BLOCK_TITLE_LINE = 14
 const BLOCK_META_LINE = 14
 const BLOCK_ROOM_LINE = 14
 const notAccessibleIcon = '/flow/accessible_no.png'
@@ -3500,7 +3500,6 @@ watch(
 }
 
 .public-schedule__block--narrow .public-schedule__block-title {
-  font-size: 0.72rem;
   -webkit-line-clamp: 1;
 }
 
@@ -3579,7 +3578,7 @@ watch(
 }
 
 .public-schedule__block-title {
-  font-size: 0.86rem;
+  font-size: 0.72rem;
   font-weight: 800;
   line-height: 1.2;
   overflow: hidden;
@@ -3593,7 +3592,6 @@ watch(
 }
 
 .public-schedule__block--compact .public-schedule__block-title {
-  font-size: 0.78rem;
   -webkit-line-clamp: 1;
 }
 
