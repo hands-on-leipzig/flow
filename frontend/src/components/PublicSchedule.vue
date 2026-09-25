@@ -169,7 +169,9 @@ type CalBlock = TimedGroup & {
 const PX_PER_MINUTE = 2
 const GUTTER = 52
 /** Pixel budget so a row is omitted instead of cut by overflow. */
-const BLOCK_CHROME_Y = 10
+const BLOCK_BORDER_Y = 2
+const BLOCK_PAD_Y = 8
+const BLOCK_CHROME_Y = BLOCK_BORDER_Y + BLOCK_PAD_Y
 const BLOCK_ROW_GAP = 1
 const BLOCK_TITLE_LINE = 14
 const BLOCK_META_LINE = 14
@@ -905,6 +907,7 @@ type BlockRows = {
   time: boolean
   duration: boolean
   room: boolean
+  tight: boolean
 }
 
 function durationFitsBesideTime(block: CalBlock): boolean {
@@ -925,8 +928,12 @@ function blockRows(block: CalBlock): BlockRows {
     time: false,
     duration: false,
     room: false,
+    tight: false,
   }
-  let left = block.height - BLOCK_CHROME_Y
+  const fitsWithPadding = block.height - BLOCK_CHROME_Y >= BLOCK_TITLE_LINE
+  const fitsWithoutPadding = block.height - BLOCK_BORDER_Y >= BLOCK_TITLE_LINE
+  rows.tight = !fitsWithPadding && fitsWithoutPadding
+  let left = block.height - (rows.tight ? BLOCK_BORDER_Y : BLOCK_CHROME_Y)
   if (left < BLOCK_TITLE_LINE) return rows
 
   rows.title = true
@@ -2230,7 +2237,10 @@ watch(
                   </template>
                   <template v-else>
                     <div class="public-schedule__block-accent" aria-hidden="true"/>
-                    <div class="public-schedule__block-body">
+                    <div
+                        class="public-schedule__block-body"
+                        :class="{'public-schedule__block-body--tight': blockRows(block).tight}"
+                    >
                       <div v-if="blockRows(block).time" class="public-schedule__block-meta">
                         <span>{{ timeLabel(block.group.start_time) }}–{{ timeLabel(block.group.end_time) }}</span>
                         <span v-if="blockRows(block).duration" class="public-schedule__block-dur">
@@ -3568,6 +3578,12 @@ watch(
   flex-direction: column;
   justify-content: flex-start;
   gap: 0.05rem;
+}
+
+.public-schedule__block-body--tight {
+  padding-top: 0;
+  padding-bottom: 0;
+  justify-content: center;
 }
 
 .public-schedule__block-meta {
