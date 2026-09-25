@@ -7458,7 +7458,7 @@
             "condition_key": null,
             "help_screen": 12,
             "title": null,
-            "body": "Der Anmeldeschluss war am 31.10.2026. Die Anzahl Teams pro Programm wird sich nicht mehr \u00e4ndern. Der Ablauf sollte nochmal angeschaut werden.",
+            "body": "Der Anmeldeschluss f\u00fcr Challenge und Future war am 31.10.2026. Die Anzahl Teams pro Programm wird sich nicht mehr \u00e4ndern. Der Ablauf sollte nochmal angeschaut werden.",
             "sort_order": 10,
             "time_mode": "absolute",
             "abs_start": "2026-11-01",
@@ -7525,6 +7525,51 @@
             "abs_end": null,
             "rel_start_days": 1,
             "rel_end_days": 30
+        },
+        {
+            "id": 12,
+            "key": "draht_closed",
+            "kind": "time",
+            "condition_key": null,
+            "help_screen": 3,
+            "title": null,
+            "body": "Die Anmeldedaten sind jetzt eingefroren. \u00c4nderungen an Teamnamen sind nur noch \u00fcber die Gesch\u00e4ftsstelle m\u00f6glich.",
+            "sort_order": 15,
+            "time_mode": "relative",
+            "abs_start": null,
+            "abs_end": null,
+            "rel_start_days": -40,
+            "rel_end_days": -1
+        },
+        {
+            "id": 13,
+            "key": "xmas",
+            "kind": "time",
+            "condition_key": null,
+            "help_screen": 1,
+            "title": null,
+            "body": "FLOW w\u00fcnscht Frohe Weihnachten!",
+            "sort_order": 16,
+            "time_mode": "absolute",
+            "abs_start": "2026-12-20",
+            "abs_end": "2026-12-27",
+            "rel_start_days": null,
+            "rel_end_days": null
+        },
+        {
+            "id": 14,
+            "key": "new_year",
+            "kind": "time",
+            "condition_key": null,
+            "help_screen": 1,
+            "title": null,
+            "body": "Alle Gute f\u00fcr das Neue Jahr!",
+            "sort_order": 17,
+            "time_mode": "absolute",
+            "abs_start": "2026-12-31",
+            "abs_end": "2027-01-07",
+            "rel_start_days": null,
+            "rel_end_days": null
         }
     ],
     "m_parameter": [
@@ -14918,7 +14963,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-24T08:13:24.395017Z",
+        "exported_at": "2026-09-25T06:05:59.793526Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
