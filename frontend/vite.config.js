@@ -93,6 +93,9 @@ export default defineConfig(({mode}) => {
         resolve: {
             alias: {
                 '@': fileURLToPath(new URL('./src', import.meta.url)),
+                // fabric/extensions re-exports a gesture module that imports `westures`, which fabric
+                // only lists as devDependency; import the guidelines module directly instead.
+                'fabric-aligning-guidelines': fileURLToPath(new URL('./node_modules/fabric/dist-extensions/aligning_guidelines/index.mjs', import.meta.url)),
             },
             dedupe: ['vue', 'leaflet'],
         },

@@ -46,12 +46,14 @@ onMounted(() => {
   loadSlideBackground();
 });
 
-function loadSlideBackground() {
+async function loadSlideBackground() {
   const background = props.content.background;
   if (!background || !fabricCanvas) return;
 
+  // Text is measured on load, so the fonts must be available first.
+  await loadFonts();
   const source = typeof background === 'string' ? parseBackground(background) : background;
-  fabricCanvas.loadFromJSON(rewriteImageSrcs(source)).then(() => {
+  fabricCanvas?.loadFromJSON(rewriteImageSrcs(source)).then(() => {
     liftBackgroundToScreen();
   });
 }
@@ -85,8 +87,6 @@ function parseBackground(background: string) {
   }
 }
 
-onMounted(loadFont);
-
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize);
   if (io && root.value) {
@@ -118,11 +118,12 @@ function handleResize() {
   }
 }
 
-function loadFont() {
-  const font = new FontFace('Uniform', 'url(/fonts/Uniform-Regular.otf)');
-  font.load().catch((e) => {
+async function loadFonts() {
+  try {
+    await Promise.all(['400 32px Uniform', '700 32px Uniform'].map(f => document.fonts.load(f)));
+  } catch (e) {
     console.error('Font loading failed', e);
-  });
+  }
 }
 
 </script>
