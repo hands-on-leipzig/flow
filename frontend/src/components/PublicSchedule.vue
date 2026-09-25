@@ -163,6 +163,8 @@ type CalBlock = TimedGroup & {
   isBand: boolean
   /** Titel-Position innerhalb des Bands (0–100%), Mitte der größten Lücke */
   labelTopPct: number
+  /** Pixelhöhe der freien Lücke, in die das Band-Label passen muss */
+  labelGapPx: number
 }
 
 /** Echter 1:1-Maßstab: 2px pro Minute = 120px pro Stunde */
@@ -176,6 +178,10 @@ const BLOCK_ROW_GAP = 1
 const BLOCK_TITLE_LINE = 14
 const BLOCK_META_LINE = 14
 const BLOCK_ROOM_LINE = 14
+/** Band type stays 0.95rem / 0.72rem. These match that size, not the card budget. */
+const BAND_TITLE_LINE = 19
+const BAND_META_LINE = 14
+const BAND_ROW_GAP = 3
 const notAccessibleIcon = '/flow/accessible_no.png'
 const printTimelineEl = ref<HTMLElement | null>(null)
 const printStageHeightPx = ref(0)
@@ -735,13 +741,13 @@ const hourMarks = computed(() => {
   return marks
 })
 
-function largestFreeGapCenterPct(
+function largestFreeGap(
     bandStart: number,
     bandEnd: number,
     blockers: {startMs: number; endMs: number}[]
-): number {
+): {centerPct: number; heightMs: number; spansBand: boolean} {
   const span = bandEnd - bandStart
-  if (span <= 0) return 50
+  if (span <= 0) return {centerPct: 50, heightMs: 0, spansBand: true}
 
   const clipped = blockers
       .map((b) => ({
@@ -767,10 +773,14 @@ function largestFreeGapCenterPct(
   }
   if (cursor < bandEnd) gaps.push({start: cursor, end: bandEnd})
 
-  if (!gaps.length) return 50
+  if (!gaps.length) return {centerPct: 50, heightMs: 0, spansBand: false}
   const best = gaps.reduce((a, b) => (b.end - b.start > a.end - a.start ? b : a))
   const center = (best.start + best.end) / 2
-  return ((center - bandStart) / span) * 100
+  return {
+    centerPct: ((center - bandStart) / span) * 100,
+    heightMs: best.end - best.start,
+    spansBand: best.start <= bandStart && best.end >= bandEnd,
+  }
 }
 
 /**
@@ -846,16 +856,23 @@ const calendarBlocks = computed((): CalBlock[] => {
         )
         : []
 
+    const height = Math.max(((item.endMs - item.startMs) / 60000) * pxPerMinute.value, 2)
+    const gap = isBand ? largestFreeGap(item.startMs, item.endMs, blockers) : null
+    const labelGapPx = !gap
+        ? 0
+        : gap.spansBand
+            ? Math.max(0, height - BLOCK_BORDER_Y)
+            : (gap.heightMs / 60000) * pxPerMinute.value
+
     return {
       ...item,
       top: ((item.startMs - base) / 60000) * pxPerMinute.value,
-      height: Math.max(((item.endMs - item.startMs) / 60000) * pxPerMinute.value, 2),
+      height,
       overlapCol: layout?.col ?? 0,
       overlapCols: layout?.cols ?? 1,
       isBand,
-      labelTopPct: isBand
-          ? largestFreeGapCenterPct(item.startMs, item.endMs, blockers)
-          : 50,
+      labelTopPct: gap?.centerPct ?? 50,
+      labelGapPx,
     }
   })
 })
@@ -951,6 +968,48 @@ function blockRows(block: CalBlock): BlockRows {
   }
 
   if (left - BLOCK_ROW_GAP >= BLOCK_TITLE_LINE) {
+    rows.titleLines = 2
+  }
+
+  return rows
+}
+
+function bandDurationFits(block: CalBlock): boolean {
+  const time = `${timeLabel(block.group.start_time)}–${timeLabel(block.group.end_time)}`
+  const duration = durationLabel(block.durationMin)
+  const timeline = timelineWidth.value > 0 ? timelineWidth.value : 360
+  const inner = Math.max(0, timeline - GUTTER - 6 - 16)
+  return (time.length + duration.length + 3) * 7 <= inner
+}
+
+/** Same keep-order as a card, measured against the open gap and the band's own line size. */
+function bandRows(block: CalBlock): BlockRows {
+  const rows: BlockRows = {
+    title: false,
+    titleLines: 1,
+    time: false,
+    duration: false,
+    room: false,
+    tight: false,
+  }
+  let left = block.labelGapPx
+  if (left < BAND_TITLE_LINE) return rows
+
+  rows.title = true
+  left -= BAND_TITLE_LINE
+
+  if (left - BAND_ROW_GAP >= BAND_META_LINE) {
+    rows.time = true
+    rows.duration = bandDurationFits(block)
+    left -= BAND_ROW_GAP + BAND_META_LINE
+  }
+
+  if (block.rooms.length > 0 && left - BAND_ROW_GAP >= BAND_META_LINE) {
+    rows.room = true
+    left -= BAND_ROW_GAP + BAND_META_LINE
+  }
+
+  if (left - BAND_ROW_GAP >= BAND_TITLE_LINE) {
     rows.titleLines = 2
   }
 
@@ -2226,12 +2285,26 @@ watch(
                 >
                   <template v-if="block.isBand">
                     <div class="public-schedule__band-label">
-                      <span class="public-schedule__band-title">
+                      <span v-if="bandRows(block).time" class="public-schedule__band-meta">
+                        {{ timeLabel(block.group.start_time) }}–{{ timeLabel(block.group.end_time) }}<template v-if="bandRows(block).duration"> · {{ durationLabel(block.durationMin) }}</template>
+                      </span>
+                      <span
+                          v-if="bandRows(block).title"
+                          class="public-schedule__band-title"
+                          :class="{'public-schedule__band-title--two': bandRows(block).titleLines === 2}"
+                      >
                         {{ block.group.group_meta?.name || 'Programmpunkt' }}
                       </span>
-                      <span class="public-schedule__band-meta">
-                        {{ timeLabel(block.group.start_time) }}–{{ timeLabel(block.group.end_time) }}
-                        · {{ durationLabel(block.durationMin) }}
+                      <span v-if="bandRows(block).room" class="public-schedule__band-meta public-schedule__band-room">
+                        <i class="bi bi-geo" aria-hidden="true"/>
+                        <span>{{ roomListLabel(block.rooms) }}</span>
+                        <img
+                            v-if="block.rooms.length === 1 && block.rooms[0].accessible === false"
+                            :src="notAccessibleIcon"
+                            alt="Nicht barrierefrei"
+                            title="Nicht barrierefrei"
+                            class="public-schedule__room-access"
+                        />
                       </span>
                     </div>
                   </template>
@@ -3516,15 +3589,59 @@ watch(
 .public-schedule__band-title {
   font-size: 0.95rem;
   font-weight: 800;
+  line-height: 1.25;
   color: #64748b;
   letter-spacing: 0.01em;
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+.public-schedule__band-title--two {
+  -webkit-line-clamp: 2;
 }
 
 .public-schedule__band-meta {
   font-size: 0.72rem;
   font-weight: 650;
+  line-height: 1.22;
   font-variant-numeric: tabular-nums;
   color: #94a3b8;
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-schedule__band-room {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+.public-schedule__band-room .bi-geo {
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.public-schedule__band-room > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-schedule__band-room .public-schedule__room-access {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex-shrink: 0;
 }
 
 .public-schedule__block--narrow .public-schedule__block-title {
