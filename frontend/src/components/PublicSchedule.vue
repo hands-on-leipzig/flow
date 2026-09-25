@@ -149,7 +149,7 @@ type TimedGroup = {
   current: boolean
   past: boolean
   parallel: boolean
-  room: RoomHint | null
+  rooms: RoomHint[]
 }
 
 type CalBlock = TimedGroup & {
@@ -600,12 +600,22 @@ function primaryRoomHint(group: Group): RoomHint | null {
   return null
 }
 
-/** Raum nur wenn er nicht schon der Gruppentitel ist */
-function displayRoom(group: Group): RoomHint | null {
-  const room = primaryRoomHint(group)
-  if (!room) return null
-  if (namesRedundant(room.name, group.group_meta?.name)) return null
-  return room
+/** Distinct rooms in activity order. A name that is already the group title is omitted. */
+function displayRooms(group: Group): RoomHint[] {
+  const seen = new Set<string>()
+  const rooms: RoomHint[] = []
+  const title = group.group_meta?.name
+  for (const activity of group.activities) {
+    const room = roomHintFromActivity(activity)
+    if (!room || namesRedundant(room.name, title) || seen.has(room.name)) continue
+    seen.add(room.name)
+    rooms.push(room)
+  }
+  return rooms
+}
+
+function roomListLabel(rooms: RoomHint[]): string {
+  return rooms.map((room) => room.name).join(', ')
 }
 
 /**
@@ -644,7 +654,7 @@ const parsedGroups = computed(() => {
           startMs,
           endMs,
           durationMin,
-          room: displayRoom(group),
+          rooms: displayRooms(group),
         }
       })
       .filter((g): g is NonNullable<typeof g> => g != null)
@@ -928,7 +938,7 @@ function blockRows(block: CalBlock): BlockRows {
     left -= BLOCK_ROW_GAP + BLOCK_META_LINE
   }
 
-  if (block.room && left - BLOCK_ROW_GAP >= BLOCK_ROOM_LINE) {
+  if (block.rooms.length > 0 && left - BLOCK_ROW_GAP >= BLOCK_ROOM_LINE) {
     rows.room = true
     left -= BLOCK_ROW_GAP + BLOCK_ROOM_LINE
   }
@@ -2235,9 +2245,9 @@ watch(
                         {{ block.group.group_meta?.name || 'Programmpunkt' }}
                       </div>
                       <div v-if="blockRows(block).room" class="public-schedule__block-room">
-                        <span>{{ block.room.name }}</span>
+                        <span>{{ roomListLabel(block.rooms) }}</span>
                         <img
-                            v-if="block.room.accessible === false"
+                            v-if="block.rooms.length === 1 && block.rooms[0].accessible === false"
                             :src="notAccessibleIcon"
                             alt="Nicht barrierefrei"
                             title="Nicht barrierefrei"
@@ -2495,20 +2505,27 @@ watch(
               {{ selectedItem.group.group_meta.description }}
             </p>
 
-            <div v-if="selectedItem.room" class="public-schedule__detail-room">
-              <p class="public-schedule__entity-row">
+            <div v-if="selectedItem.rooms.length" class="public-schedule__detail-room">
+              <p
+                  v-for="room in selectedItem.rooms"
+                  :key="room.name"
+                  class="public-schedule__entity-row"
+              >
                 <i class="bi bi-geo" aria-hidden="true"/>
-                <span>{{ selectedItem.room.name }}</span>
+                <span>{{ room.name }}</span>
                 <img
-                    v-if="selectedItem.room.accessible === false"
+                    v-if="selectedItem.rooms.length === 1 && room.accessible === false"
                     :src="notAccessibleIcon"
                     alt="Nicht barrierefrei"
                     title="Nicht barrierefrei"
                     class="public-schedule__room-access"
                 />
               </p>
-              <p v-if="selectedItem.room.navigation" class="public-schedule__room-nav">
-                {{ selectedItem.room.navigation }}
+              <p
+                  v-if="selectedItem.rooms.length === 1 && selectedItem.rooms[0].navigation"
+                  class="public-schedule__room-nav"
+              >
+                {{ selectedItem.rooms[0].navigation }}
               </p>
             </div>
 
