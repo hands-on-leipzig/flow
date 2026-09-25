@@ -31,12 +31,26 @@ function rowMatches(row: EventProgramRef, raw: string, compactKey: string): bool
   return id > 0 && String(id) === raw
 }
 
+/**
+ * Program id for a logo. A row that carries first_program (a role, or a group)
+ * uses only that field — its id is not a program. Catalog rows without
+ * first_program keep id as the program id.
+ */
+function logoProgramId(program: EventProgramRef): number | null {
+  if ('first_program' in program) {
+    const id = Number(program.first_program ?? 0)
+    return id > 0 ? id : null
+  }
+  const id = Number(program.id ?? 0)
+  return id > 0 ? id : null
+}
+
 function resolveLogoStem(program: ProgramLogoRef): string {
   if (program && typeof program === 'object') {
     if (program.logo_stem) return program.logo_stem
     const fromName = resolveLogoStem(program.name ?? null)
     if (fromName !== FALLBACK_STEM) return fromName
-    const id = programId(program)
+    const id = logoProgramId(program)
     return id ? resolveLogoStem(id) : FALLBACK_STEM
   }
 
