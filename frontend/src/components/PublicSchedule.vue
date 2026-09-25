@@ -168,6 +168,12 @@ type CalBlock = TimedGroup & {
 /** Echter 1:1-Maßstab: 2px pro Minute = 120px pro Stunde */
 const PX_PER_MINUTE = 2
 const GUTTER = 52
+/** Pixel budget so a row is omitted instead of cut by overflow. */
+const BLOCK_CHROME_Y = 10
+const BLOCK_ROW_GAP = 1
+const BLOCK_TITLE_LINE = 17
+const BLOCK_META_LINE = 14
+const BLOCK_ROOM_LINE = 14
 const notAccessibleIcon = '/flow/accessible_no.png'
 const printTimelineEl = ref<HTMLElement | null>(null)
 const printStageHeightPx = ref(0)
@@ -879,6 +885,59 @@ function blockAccent(block: {group: Group}): string {
   if (id == null) return MISSING_PROGRAM_ACCENT
   const program = programs.value.find((row) => row.id === id)
   return cssHex(program?.color_hex)
+}
+
+const timelineWidth = ref(0)
+
+type BlockRows = {
+  title: boolean
+  titleLines: 1 | 2
+  time: boolean
+  duration: boolean
+  room: boolean
+}
+
+function durationFitsBesideTime(block: CalBlock): boolean {
+  const time = `${timeLabel(block.group.start_time)}–${timeLabel(block.group.end_time)}`
+  const duration = durationLabel(block.durationMin)
+  const cols = Math.max(1, block.overlapCols)
+  const timeline = timelineWidth.value > 0 ? timelineWidth.value : 360
+  const track = Math.max(0, timeline - GUTTER - 6)
+  const inner = track / cols - 2 - 18
+  return (time.length + duration.length + 1) * 6.6 <= inner
+}
+
+/** Title first, then the time row, then the room. A row is included only when it fits whole. */
+function blockRows(block: CalBlock): BlockRows {
+  const rows: BlockRows = {
+    title: false,
+    titleLines: 1,
+    time: false,
+    duration: false,
+    room: false,
+  }
+  let left = block.height - BLOCK_CHROME_Y
+  if (left < BLOCK_TITLE_LINE) return rows
+
+  rows.title = true
+  left -= BLOCK_TITLE_LINE
+
+  if (left - BLOCK_ROW_GAP >= BLOCK_META_LINE) {
+    rows.time = true
+    rows.duration = durationFitsBesideTime(block)
+    left -= BLOCK_ROW_GAP + BLOCK_META_LINE
+  }
+
+  if (block.room && left - BLOCK_ROW_GAP >= BLOCK_ROOM_LINE) {
+    rows.room = true
+    left -= BLOCK_ROW_GAP + BLOCK_ROOM_LINE
+  }
+
+  if (left - BLOCK_ROW_GAP >= BLOCK_TITLE_LINE) {
+    rows.titleLines = 2
+  }
+
+  return rows
 }
 
 function blockStyle(block: CalBlock) {
@@ -1652,6 +1711,27 @@ async function resolveSelectionAfterRoles() {
   }
 }
 
+let timelineWidthObserver: ResizeObserver | null = null
+
+function measureTimelineWidth() {
+  const width = printTimelineEl.value?.clientWidth ?? 0
+  if (width > 0 && width !== timelineWidth.value) timelineWidth.value = width
+}
+
+function stopTimelineWidthObserver() {
+  timelineWidthObserver?.disconnect()
+  timelineWidthObserver = null
+}
+
+function startTimelineWidthObserver() {
+  stopTimelineWidthObserver()
+  const el = printTimelineEl.value
+  if (!el || typeof ResizeObserver === 'undefined') return
+  measureTimelineWidth()
+  timelineWidthObserver = new ResizeObserver(() => measureTimelineWidth())
+  timelineWidthObserver.observe(el)
+}
+
 function measurePrintStage() {
   if (!props.printFit) return
   const box = printTimelineEl.value ?? planScrollEl.value
@@ -1678,6 +1758,7 @@ function startPrintStageObserver() {
 
 watch([planScrollEl, printTimelineEl], () => {
   if (props.printFit) startPrintStageObserver()
+  startTimelineWidthObserver()
 })
 
 watch(pageTitle, (title) => {
@@ -1711,6 +1792,7 @@ onUnmounted(() => {
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   window.removeEventListener('resize', measurePrintStage)
   stopPrintStageObserver()
+  stopTimelineWidthObserver()
   if (typeof document !== 'undefined') {
     document.documentElement.style.overflow = ''
     document.body.style.overflow = ''
@@ -2139,16 +2221,20 @@ watch(
                   <template v-else>
                     <div class="public-schedule__block-accent" aria-hidden="true"/>
                     <div class="public-schedule__block-body">
-                      <div class="public-schedule__block-meta">
+                      <div v-if="blockRows(block).time" class="public-schedule__block-meta">
                         <span>{{ timeLabel(block.group.start_time) }}–{{ timeLabel(block.group.end_time) }}</span>
-                        <span v-if="block.height >= 36" class="public-schedule__block-dur">
+                        <span v-if="blockRows(block).duration" class="public-schedule__block-dur">
                           {{ durationLabel(block.durationMin) }}
                         </span>
                       </div>
-                      <div class="public-schedule__block-title">
+                      <div
+                          v-if="blockRows(block).title"
+                          class="public-schedule__block-title"
+                          :class="{'public-schedule__block-title--two': blockRows(block).titleLines === 2}"
+                      >
                         {{ block.group.group_meta?.name || 'Programmpunkt' }}
                       </div>
-                      <div v-if="block.height >= 56 && block.room" class="public-schedule__block-room">
+                      <div v-if="blockRows(block).room" class="public-schedule__block-room">
                         <span>{{ block.room.name }}</span>
                         <img
                             v-if="block.room.accessible === false"
@@ -3415,6 +3501,10 @@ watch(
 
 .public-schedule__block--narrow .public-schedule__block-title {
   font-size: 0.72rem;
+  -webkit-line-clamp: 1;
+}
+
+.public-schedule__block--narrow .public-schedule__block-title--two {
   -webkit-line-clamp: 2;
 }
 
@@ -3465,7 +3555,8 @@ watch(
 
 .public-schedule__block-meta {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
   gap: 0.25rem 0.4rem;
   font-size: 0.68rem;
   font-weight: 750;
@@ -3474,7 +3565,16 @@ watch(
   line-height: 1.15;
 }
 
+.public-schedule__block-meta > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .public-schedule__block-dur {
+  flex-shrink: 0;
+  white-space: nowrap;
   color: #9a3412;
 }
 
@@ -3484,8 +3584,12 @@ watch(
   line-height: 1.2;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
+}
+
+.public-schedule__block-title--two {
+  -webkit-line-clamp: 2;
 }
 
 .public-schedule__block--compact .public-schedule__block-title {
