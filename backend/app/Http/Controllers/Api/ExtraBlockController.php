@@ -829,9 +829,15 @@ class ExtraBlockController extends Controller
 
     private function visibilityRoleForProgram(int $teamFirstProgram): int
     {
-        return in_array($teamFirstProgram, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)
-            ? 8 // Explore teams
-            : 3; // Challenge teams
+        if (in_array($teamFirstProgram, [FirstProgram::DISCOVER->value, FirstProgram::EXPLORE->value], true)) {
+            return 8; // Explore teams
+        }
+
+        if ($teamFirstProgram === FirstProgram::FUTURE_8->value) {
+            return 21; // Future 8+ teams
+        }
+
+        return 3; // Challenge teams
     }
 
     /**
