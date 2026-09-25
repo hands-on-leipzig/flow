@@ -149,7 +149,7 @@ type TimedGroup = {
   current: boolean
   past: boolean
   parallel: boolean
-  room: RoomHint | null
+  rooms: RoomHint[]
 }
 
 type CalBlock = TimedGroup & {
@@ -163,11 +163,25 @@ type CalBlock = TimedGroup & {
   isBand: boolean
   /** Titel-Position innerhalb des Bands (0–100%), Mitte der größten Lücke */
   labelTopPct: number
+  /** Pixelhöhe der freien Lücke, in die das Band-Label passen muss */
+  labelGapPx: number
 }
 
 /** Echter 1:1-Maßstab: 2px pro Minute = 120px pro Stunde */
 const PX_PER_MINUTE = 2
 const GUTTER = 52
+/** Pixel budget so a row is omitted instead of cut by overflow. */
+const BLOCK_BORDER_Y = 2
+const BLOCK_PAD_Y = 8
+const BLOCK_CHROME_Y = BLOCK_BORDER_Y + BLOCK_PAD_Y
+const BLOCK_ROW_GAP = 1
+const BLOCK_TITLE_LINE = 14
+const BLOCK_META_LINE = 14
+const BLOCK_ROOM_LINE = 14
+/** Band type stays 0.95rem / 0.72rem. These match that size, not the card budget. */
+const BAND_TITLE_LINE = 19
+const BAND_META_LINE = 14
+const BAND_ROW_GAP = 3
 const notAccessibleIcon = '/flow/accessible_no.png'
 const printTimelineEl = ref<HTMLElement | null>(null)
 const printStageHeightPx = ref(0)
@@ -594,12 +608,22 @@ function primaryRoomHint(group: Group): RoomHint | null {
   return null
 }
 
-/** Raum nur wenn er nicht schon der Gruppentitel ist */
-function displayRoom(group: Group): RoomHint | null {
-  const room = primaryRoomHint(group)
-  if (!room) return null
-  if (namesRedundant(room.name, group.group_meta?.name)) return null
-  return room
+/** Distinct rooms in activity order. A name that is already the group title is omitted. */
+function displayRooms(group: Group): RoomHint[] {
+  const seen = new Set<string>()
+  const rooms: RoomHint[] = []
+  const title = group.group_meta?.name
+  for (const activity of group.activities) {
+    const room = roomHintFromActivity(activity)
+    if (!room || namesRedundant(room.name, title) || seen.has(room.name)) continue
+    seen.add(room.name)
+    rooms.push(room)
+  }
+  return rooms
+}
+
+function roomListLabel(rooms: RoomHint[]): string {
+  return rooms.map((room) => room.name).join(', ')
 }
 
 /**
@@ -638,7 +662,7 @@ const parsedGroups = computed(() => {
           startMs,
           endMs,
           durationMin,
-          room: displayRoom(group),
+          rooms: displayRooms(group),
         }
       })
       .filter((g): g is NonNullable<typeof g> => g != null)
@@ -717,13 +741,13 @@ const hourMarks = computed(() => {
   return marks
 })
 
-function largestFreeGapCenterPct(
+function largestFreeGap(
     bandStart: number,
     bandEnd: number,
     blockers: {startMs: number; endMs: number}[]
-): number {
+): {centerPct: number; heightMs: number; spansBand: boolean} {
   const span = bandEnd - bandStart
-  if (span <= 0) return 50
+  if (span <= 0) return {centerPct: 50, heightMs: 0, spansBand: true}
 
   const clipped = blockers
       .map((b) => ({
@@ -749,10 +773,14 @@ function largestFreeGapCenterPct(
   }
   if (cursor < bandEnd) gaps.push({start: cursor, end: bandEnd})
 
-  if (!gaps.length) return 50
+  if (!gaps.length) return {centerPct: 50, heightMs: 0, spansBand: false}
   const best = gaps.reduce((a, b) => (b.end - b.start > a.end - a.start ? b : a))
   const center = (best.start + best.end) / 2
-  return ((center - bandStart) / span) * 100
+  return {
+    centerPct: ((center - bandStart) / span) * 100,
+    heightMs: best.end - best.start,
+    spansBand: best.start <= bandStart && best.end >= bandEnd,
+  }
 }
 
 /**
@@ -828,16 +856,23 @@ const calendarBlocks = computed((): CalBlock[] => {
         )
         : []
 
+    const height = Math.max(((item.endMs - item.startMs) / 60000) * pxPerMinute.value, 2)
+    const gap = isBand ? largestFreeGap(item.startMs, item.endMs, blockers) : null
+    const labelGapPx = !gap
+        ? 0
+        : gap.spansBand
+            ? Math.max(0, height - BLOCK_BORDER_Y)
+            : (gap.heightMs / 60000) * pxPerMinute.value
+
     return {
       ...item,
       top: ((item.startMs - base) / 60000) * pxPerMinute.value,
-      height: Math.max(((item.endMs - item.startMs) / 60000) * pxPerMinute.value, 2),
+      height,
       overlapCol: layout?.col ?? 0,
       overlapCols: layout?.cols ?? 1,
       isBand,
-      labelTopPct: isBand
-          ? largestFreeGapCenterPct(item.startMs, item.endMs, blockers)
-          : 50,
+      labelTopPct: gap?.centerPct ?? 50,
+      labelGapPx,
     }
   })
 })
@@ -853,7 +888,136 @@ const selectedItem = computed(() =>
     timedGroups.value.find((g) => g.group.activity_group_id === selectedBlockId.value) || null
 )
 
+const MISSING_PROGRAM_ACCENT = '#888888'
+
+function cssHex(hex: string | null | undefined, fallback = MISSING_PROGRAM_ACCENT): string {
+  if (!hex) return fallback
+  return hex.startsWith('#') ? hex : `#${hex}`
+}
+
+/** Real catalog program. Joint (0) and missing have no program color. */
+function programIdOf(id: number | null | undefined): number | null {
+  if (id == null || id === 0) return null
+  return id
+}
+
+function activityProgramId(group: Group): number | null {
+  for (const activity of group.activities) {
+    const id = programIdOf(activity.meta?.first_program_id)
+    if (id != null) return id
+  }
+  return programIdOf(group.group_meta?.first_program_id)
+}
+
+function blockAccent(block: {group: Group}): string {
+  const id = activityProgramId(block.group)
+  if (id == null) return MISSING_PROGRAM_ACCENT
+  const program = programs.value.find((row) => row.id === id)
+  return cssHex(program?.color_hex)
+}
+
+const timelineWidth = ref(0)
+
+type BlockRows = {
+  title: boolean
+  titleLines: 1 | 2
+  time: boolean
+  duration: boolean
+  room: boolean
+  tight: boolean
+}
+
+function durationFitsBesideTime(block: CalBlock): boolean {
+  const time = `${timeLabel(block.group.start_time)}–${timeLabel(block.group.end_time)}`
+  const duration = durationLabel(block.durationMin)
+  const cols = Math.max(1, block.overlapCols)
+  const timeline = timelineWidth.value > 0 ? timelineWidth.value : 360
+  const track = Math.max(0, timeline - GUTTER - 6)
+  const inner = track / cols - 2 - 18
+  return (time.length + duration.length + 1) * 6.6 <= inner
+}
+
+/** Title first, then the time row, then the room. A row is included only when it fits whole. */
+function blockRows(block: CalBlock): BlockRows {
+  const rows: BlockRows = {
+    title: false,
+    titleLines: 1,
+    time: false,
+    duration: false,
+    room: false,
+    tight: false,
+  }
+  const fitsWithPadding = block.height - BLOCK_CHROME_Y >= BLOCK_TITLE_LINE
+  const fitsWithoutPadding = block.height - BLOCK_BORDER_Y >= BLOCK_TITLE_LINE
+  rows.tight = !fitsWithPadding && fitsWithoutPadding
+  let left = block.height - (rows.tight ? BLOCK_BORDER_Y : BLOCK_CHROME_Y)
+  if (left < BLOCK_TITLE_LINE) return rows
+
+  rows.title = true
+  left -= BLOCK_TITLE_LINE
+
+  if (left - BLOCK_ROW_GAP >= BLOCK_META_LINE) {
+    rows.time = true
+    rows.duration = durationFitsBesideTime(block)
+    left -= BLOCK_ROW_GAP + BLOCK_META_LINE
+  }
+
+  if (block.rooms.length > 0 && left - BLOCK_ROW_GAP >= BLOCK_ROOM_LINE) {
+    rows.room = true
+    left -= BLOCK_ROW_GAP + BLOCK_ROOM_LINE
+  }
+
+  if (left - BLOCK_ROW_GAP >= BLOCK_TITLE_LINE) {
+    rows.titleLines = 2
+  }
+
+  return rows
+}
+
+function bandDurationFits(block: CalBlock): boolean {
+  const time = `${timeLabel(block.group.start_time)}–${timeLabel(block.group.end_time)}`
+  const duration = durationLabel(block.durationMin)
+  const timeline = timelineWidth.value > 0 ? timelineWidth.value : 360
+  const inner = Math.max(0, timeline - GUTTER - 6 - 16)
+  return (time.length + duration.length + 3) * 7 <= inner
+}
+
+/** Same keep-order as a card, measured against the open gap and the band's own line size. */
+function bandRows(block: CalBlock): BlockRows {
+  const rows: BlockRows = {
+    title: false,
+    titleLines: 1,
+    time: false,
+    duration: false,
+    room: false,
+    tight: false,
+  }
+  let left = block.labelGapPx
+  if (left < BAND_TITLE_LINE) return rows
+
+  rows.title = true
+  left -= BAND_TITLE_LINE
+
+  if (left - BAND_ROW_GAP >= BAND_META_LINE) {
+    rows.time = true
+    rows.duration = bandDurationFits(block)
+    left -= BAND_ROW_GAP + BAND_META_LINE
+  }
+
+  if (block.rooms.length > 0 && left - BAND_ROW_GAP >= BAND_META_LINE) {
+    rows.room = true
+    left -= BAND_ROW_GAP + BAND_META_LINE
+  }
+
+  if (left - BAND_ROW_GAP >= BAND_TITLE_LINE) {
+    rows.titleLines = 2
+  }
+
+  return rows
+}
+
 function blockStyle(block: CalBlock) {
+  const accent = blockAccent(block)
   if (block.isBand) {
     return {
       top: `${block.top}px`,
@@ -861,7 +1025,7 @@ function blockStyle(block: CalBlock) {
       left: `${GUTTER}px`,
       right: '0.35rem',
       zIndex: 2,
-      '--accent': roleAccent.value,
+      '--accent': accent,
       '--label-top': `${block.labelTopPct}%`,
     }
   }
@@ -878,7 +1042,7 @@ function blockStyle(block: CalBlock) {
     width: `calc((${track}) / ${cols} - ${gap}px)`,
     right: 'auto',
     zIndex: 5 + col + (block.current ? 2 : 0),
-    '--accent': roleAccent.value,
+    '--accent': accent,
   }
 }
 
@@ -1151,6 +1315,12 @@ function onSheetPointerUp(e: PointerEvent) {
 
 const sheetPanelStyle = computed(() => ({
   '--accent': roleAccent.value,
+  transform: sheetDragY.value ? `translateY(${sheetDragY.value}px)` : undefined,
+  transition: sheetDragging.value ? 'none' : 'transform 0.2s ease-out',
+}))
+
+const detailSheetStyle = computed(() => ({
+  '--accent': selectedItem.value ? blockAccent(selectedItem.value) : roleAccent.value,
   transform: sheetDragY.value ? `translateY(${sheetDragY.value}px)` : undefined,
   transition: sheetDragging.value ? 'none' : 'transform 0.2s ease-out',
 }))
@@ -1617,6 +1787,27 @@ async function resolveSelectionAfterRoles() {
   }
 }
 
+let timelineWidthObserver: ResizeObserver | null = null
+
+function measureTimelineWidth() {
+  const width = printTimelineEl.value?.clientWidth ?? 0
+  if (width > 0 && width !== timelineWidth.value) timelineWidth.value = width
+}
+
+function stopTimelineWidthObserver() {
+  timelineWidthObserver?.disconnect()
+  timelineWidthObserver = null
+}
+
+function startTimelineWidthObserver() {
+  stopTimelineWidthObserver()
+  const el = printTimelineEl.value
+  if (!el || typeof ResizeObserver === 'undefined') return
+  measureTimelineWidth()
+  timelineWidthObserver = new ResizeObserver(() => measureTimelineWidth())
+  timelineWidthObserver.observe(el)
+}
+
 function measurePrintStage() {
   if (!props.printFit) return
   const box = printTimelineEl.value ?? planScrollEl.value
@@ -1643,6 +1834,7 @@ function startPrintStageObserver() {
 
 watch([planScrollEl, printTimelineEl], () => {
   if (props.printFit) startPrintStageObserver()
+  startTimelineWidthObserver()
 })
 
 watch(pageTitle, (title) => {
@@ -1676,6 +1868,7 @@ onUnmounted(() => {
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   window.removeEventListener('resize', measurePrintStage)
   stopPrintStageObserver()
+  stopTimelineWidthObserver()
   if (typeof document !== 'undefined') {
     document.documentElement.style.overflow = ''
     document.body.style.overflow = ''
@@ -2092,31 +2285,53 @@ watch(
                 >
                   <template v-if="block.isBand">
                     <div class="public-schedule__band-label">
-                      <span class="public-schedule__band-title">
+                      <span v-if="bandRows(block).time" class="public-schedule__band-meta">
+                        {{ timeLabel(block.group.start_time) }}–{{ timeLabel(block.group.end_time) }}<template v-if="bandRows(block).duration"> · {{ durationLabel(block.durationMin) }}</template>
+                      </span>
+                      <span
+                          v-if="bandRows(block).title"
+                          class="public-schedule__band-title"
+                          :class="{'public-schedule__band-title--two': bandRows(block).titleLines === 2}"
+                      >
                         {{ block.group.group_meta?.name || 'Programmpunkt' }}
                       </span>
-                      <span class="public-schedule__band-meta">
-                        {{ timeLabel(block.group.start_time) }}–{{ timeLabel(block.group.end_time) }}
-                        · {{ durationLabel(block.durationMin) }}
+                      <span v-if="bandRows(block).room" class="public-schedule__band-meta public-schedule__band-room">
+                        <i class="bi bi-geo" aria-hidden="true"/>
+                        <span>{{ roomListLabel(block.rooms) }}</span>
+                        <img
+                            v-if="block.rooms.length === 1 && block.rooms[0].accessible === false"
+                            :src="notAccessibleIcon"
+                            alt="Nicht barrierefrei"
+                            title="Nicht barrierefrei"
+                            class="public-schedule__room-access"
+                        />
                       </span>
                     </div>
                   </template>
                   <template v-else>
                     <div class="public-schedule__block-accent" aria-hidden="true"/>
-                    <div class="public-schedule__block-body">
-                      <div class="public-schedule__block-meta">
+                    <div
+                        class="public-schedule__block-body"
+                        :class="{'public-schedule__block-body--tight': blockRows(block).tight}"
+                    >
+                      <div v-if="blockRows(block).time" class="public-schedule__block-meta">
                         <span>{{ timeLabel(block.group.start_time) }}–{{ timeLabel(block.group.end_time) }}</span>
-                        <span v-if="block.height >= 36" class="public-schedule__block-dur">
+                        <span v-if="blockRows(block).duration" class="public-schedule__block-dur">
                           {{ durationLabel(block.durationMin) }}
                         </span>
                       </div>
-                      <div class="public-schedule__block-title">
+                      <div
+                          v-if="blockRows(block).title"
+                          class="public-schedule__block-title"
+                          :class="{'public-schedule__block-title--two': blockRows(block).titleLines === 2}"
+                      >
                         {{ block.group.group_meta?.name || 'Programmpunkt' }}
                       </div>
-                      <div v-if="block.height >= 56 && block.room" class="public-schedule__block-room">
-                        <span>{{ block.room.name }}</span>
+                      <div v-if="blockRows(block).room" class="public-schedule__block-room">
+                        <i class="bi bi-geo" aria-hidden="true"/>
+                        <span>{{ roomListLabel(block.rooms) }}</span>
                         <img
-                            v-if="block.room.accessible === false"
+                            v-if="block.rooms.length === 1 && block.rooms[0].accessible === false"
                             :src="notAccessibleIcon"
                             alt="Nicht barrierefrei"
                             title="Nicht barrierefrei"
@@ -2325,7 +2540,7 @@ watch(
               'public-schedule__detail-panel--current': selectedItem.current,
               'public-schedule__detail-panel--dragging': sheetDragging && activeSheet === 'detail',
             }"
-            :style="sheetPanelStyle"
+            :style="detailSheetStyle"
         >
           <div
               class="public-schedule__detail-head"
@@ -2374,20 +2589,27 @@ watch(
               {{ selectedItem.group.group_meta.description }}
             </p>
 
-            <div v-if="selectedItem.room" class="public-schedule__detail-room">
-              <p class="public-schedule__entity-row">
+            <div v-if="selectedItem.rooms.length" class="public-schedule__detail-room">
+              <p
+                  v-for="room in selectedItem.rooms"
+                  :key="room.name"
+                  class="public-schedule__entity-row"
+              >
                 <i class="bi bi-geo" aria-hidden="true"/>
-                <span>{{ selectedItem.room.name }}</span>
+                <span>{{ room.name }}</span>
                 <img
-                    v-if="selectedItem.room.accessible === false"
+                    v-if="selectedItem.rooms.length === 1 && room.accessible === false"
                     :src="notAccessibleIcon"
                     alt="Nicht barrierefrei"
                     title="Nicht barrierefrei"
                     class="public-schedule__room-access"
                 />
               </p>
-              <p v-if="selectedItem.room.navigation" class="public-schedule__room-nav">
-                {{ selectedItem.room.navigation }}
+              <p
+                  v-if="selectedItem.rooms.length === 1 && selectedItem.rooms[0].navigation"
+                  class="public-schedule__room-nav"
+              >
+                {{ selectedItem.rooms[0].navigation }}
               </p>
             </div>
 
@@ -3367,19 +3589,66 @@ watch(
 .public-schedule__band-title {
   font-size: 0.95rem;
   font-weight: 800;
+  line-height: 1.25;
   color: #64748b;
   letter-spacing: 0.01em;
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+}
+
+.public-schedule__band-title--two {
+  -webkit-line-clamp: 2;
 }
 
 .public-schedule__band-meta {
   font-size: 0.72rem;
   font-weight: 650;
+  line-height: 1.22;
   font-variant-numeric: tabular-nums;
   color: #94a3b8;
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-schedule__band-room {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+.public-schedule__band-room .bi-geo {
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.public-schedule__band-room > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-schedule__band-room .public-schedule__room-access {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex-shrink: 0;
 }
 
 .public-schedule__block--narrow .public-schedule__block-title {
-  font-size: 0.72rem;
+  -webkit-line-clamp: 1;
+}
+
+.public-schedule__block--narrow .public-schedule__block-title--two {
   -webkit-line-clamp: 2;
 }
 
@@ -3428,9 +3697,16 @@ watch(
   gap: 0.05rem;
 }
 
+.public-schedule__block-body--tight {
+  padding-top: 0;
+  padding-bottom: 0;
+  justify-content: center;
+}
+
 .public-schedule__block-meta {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  min-width: 0;
   gap: 0.25rem 0.4rem;
   font-size: 0.68rem;
   font-weight: 750;
@@ -3439,22 +3715,34 @@ watch(
   line-height: 1.15;
 }
 
+.public-schedule__block-meta > span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .public-schedule__block-dur {
+  flex-shrink: 0;
+  white-space: nowrap;
   color: #9a3412;
 }
 
 .public-schedule__block-title {
-  font-size: 0.86rem;
+  font-size: 0.72rem;
   font-weight: 800;
   line-height: 1.2;
   overflow: hidden;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
 }
 
+.public-schedule__block-title--two {
+  -webkit-line-clamp: 2;
+}
+
 .public-schedule__block--compact .public-schedule__block-title {
-  font-size: 0.78rem;
   -webkit-line-clamp: 1;
 }
 
@@ -3465,6 +3753,11 @@ watch(
   font-size: 0.68rem;
   color: #6b7280;
   min-width: 0;
+}
+
+.public-schedule__block-room .bi-geo {
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .public-schedule__block-room span {
