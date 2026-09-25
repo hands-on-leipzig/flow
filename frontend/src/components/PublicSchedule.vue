@@ -2245,6 +2245,7 @@ watch(
                         {{ block.group.group_meta?.name || 'Programmpunkt' }}
                       </div>
                       <div v-if="blockRows(block).room" class="public-schedule__block-room">
+                        <i class="bi bi-geo" aria-hidden="true"/>
                         <span>{{ roomListLabel(block.rooms) }}</span>
                         <img
                             v-if="block.rooms.length === 1 && block.rooms[0].accessible === false"
@@ -3619,6 +3620,11 @@ watch(
   font-size: 0.68rem;
   color: #6b7280;
   min-width: 0;
+}
+
+.public-schedule__block-room .bi-geo {
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 .public-schedule__block-room span {
