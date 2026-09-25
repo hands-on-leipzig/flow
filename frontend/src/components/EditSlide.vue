@@ -5,7 +5,9 @@ import {useRouter} from "vue-router";
 import axios from "axios";
 import {Slide} from "@/models/slide";
 import FabricEditor from "@/components/FabricEditor.vue";
-import InfoPopover from "@/components/atoms/InfoPopover.vue";
+import ColorField from "@/components/slideEditor/ColorField.vue";
+import NumberField from "@/components/slideEditor/NumberField.vue";
+import SearchSelect from "@/components/slideEditor/SearchSelect.vue";
 import ProgramLogo from "@/components/atoms/ProgramLogo.vue";
 import SavingToast from "@/components/atoms/SavingToast.vue";
 import {useEventStore} from "../stores/event";
@@ -42,6 +44,23 @@ const saveButtonText = computed(() => {
 });
 
 const shouldLoadRooms = ['PublicPlanSlideContent', 'PublicPlanNextSlideContent', 'PublicPlanNextEventSlideContent'];
+const isPublicPlan = computed(() => shouldLoadRooms.includes(slide.value?.type ?? ''));
+const isPlanLookahead = computed(() => ['PublicPlanNextSlideContent', 'PublicPlanNextEventSlideContent'].includes(slide.value?.type ?? ''));
+
+const roomOptions = computed(() => [
+  {value: 0, label: 'Alle Räume', description: 'Alle Aktivitäten der Veranstaltung', icon: 'bi-grid-3x3-gap'},
+  ...rooms.value.map((room: any) => {
+    const types = (room.room_types ?? []).map((t: any) => t.name).filter(Boolean).join(', ');
+    return {
+      value: room.id,
+      label: room.name,
+      description: types || room.navigation_instruction || undefined,
+      keywords: room.navigation_instruction ?? '',
+      icon: 'bi-door-open',
+      badges: room.is_accessible ? [{icon: 'bi-universal-access', title: 'Barrierefrei'}] : [],
+    };
+  }),
+]);
 
 const attachedPrograms = computed(() => eventPrograms(event.value));
 
@@ -70,14 +89,15 @@ onMounted(async () => {
   }
 });
 onBeforeUnmount(() => {
-  // Save any pending changes before leaving
+  // Save any pending changes before leaving (the indicator only appears after a delay)
+  const hasPendingSave = hasUnsavedChanges.value || !!saveTimeoutId.value;
   if (saveTimeoutId.value) {
     clearTimeout(saveTimeoutId.value);
   }
   if (showIndicatorTimeoutId.value) {
     clearTimeout(showIndicatorTimeoutId.value);
   }
-  if (hasUnsavedChanges.value) {
+  if (hasPendingSave) {
     saveSlide();
   }
 });
@@ -281,15 +301,17 @@ function updateSlideDurationOverride(event: Event) {
 
 function updateDuration(value: number) {
   slide.value.transition_time = value;
+  scheduleSave();
 }
 
 </script>
 
 <template>
+  <div class="flex flex-col min-h-0">
   <SavingToast ref="savingToast" message="Änderungen werden gespeichert…"/>
 
   <!-- Header -->
-  <div class="flex items-center justify-between border-b pb-4 mb-6 mt-4">
+  <div class="flex shrink-0 items-center justify-between border-b pb-3 mb-4 mt-2">
     <router-link
         to="/plan/publish/digital"
         class="flex items-center gap-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
@@ -318,256 +340,167 @@ function updateDuration(value: number) {
     </button>
   </div>
 
-  <div class="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-1">
-    <div class="glass-card liquid-surface-inner col-span-1" v-if="!!slide">
-      <h2 class="glass-card__heading">Einstellungen</h2>
-      <div class="glass-settings-block">
-        <label class="glass-settings-row">
-          <input
-              type="checkbox"
-              :checked="slide.content.showSeasonLogo"
-              @change="updateByName('showSeasonLogo', ($event.target as HTMLInputElement).checked)"
-          />
-          <span class="glass-settings-label">Saison Logo anzeigen</span>
-        </label>
-        <!-- Eigene Anzeigezeit - Alle Slides außer Robot Game -->
-        <template v-if="slide.type !== 'RobotGameSlideContent'">
-          <div class="glass-settings-row">
-            <input type="checkbox" :checked="slide.transition_time !== 0" @change="updateSlideDurationOverride"/>
-            <span class="glass-settings-label">Anzeigedauer überschreiben</span>
-            <InfoPopover
-                text="Aktivieren, um dieser Folie eine spezielle Anzeigedauer zu geben. Wenn deaktiviert, wird die Zeit pro Folie der Slideshow verwendet."/>
-          </div>
-          <div :class="{'disabled': slide.transition_time === 0}">
-            <label class="glass-settings-label">Anzeigezeit (in Sekunden)</label>
-            <input
-                type="number"
-                min="0"
-                :value="slide.transition_time ?? 0"
-                :disabled="slide.transition_time === 0"
-                @input="updateDuration(+($event.target as HTMLInputElement).value)"
-                class="glass-input glass-input--sm liquid-surface-control mt-2"
-            />
-          </div>
-        </template>
-        <template v-if="slide.type === 'PublicPlanSlideContent' || slide.type === 'PublicPlanNextSlideContent' || slide.type === 'PublicPlanNextEventSlideContent'">
-          <div v-if="slide.type === 'PublicPlanNextSlideContent' || slide.type === 'PublicPlanNextEventSlideContent'">
-            <div class="flex items-center gap-1">
-              <label class="glass-settings-label">Minuten</label>
-              <InfoPopover text="Wie weit soll in die Zukunft vorausgeblickt werden?"/>
-            </div>
-            <input
-                class="glass-input glass-input--sm liquid-surface-control mt-2"
-                type="number"
-                min="1"
-                max="120"
-                :value="slide.content.interval"
-                @input="updateByName('interval', Number(($event.target as HTMLInputElement).value || 0))"
-            />
-          </div>
-          <div>
-            <div class="flex items-center gap-1">
-              <label class="glass-settings-label">Raum</label>
-              <InfoPopover
-                  text="Der Raum, dessen Zeitplan angezeigt werden soll. Bei 'Alle Räume' werden alle Aktivitäten der Veranstaltung angezeigt."/>
-            </div>
-            <select
-                class="glass-input glass-input--sm liquid-surface-control mt-2"
-                :value="slide.content.room"
-                @change="updateByName('room', Number($event.target.value))"
-            >
-              <option :value="0">Alle Räume</option>
-              <option v-for="room in rooms" :key="room.id" :value="room.id">{{ room.name }}</option>
-            </select>
-          </div>
-          <div class="glass-stack-card">
-            <div class="flex items-center gap-1">
-              <span class="glass-settings-label">Sichtbare Programmpunkte</span>
-              <InfoPopover text="Wähle Übergreifend und die Programme, deren Programmpunkte angezeigt werden."/>
-            </div>
-            <label class="glass-settings-row">
-              <input
-                  type="checkbox"
-                  :checked="audienceSelection.joint"
-                  @change="setJoint(($event.target as HTMLInputElement).checked)"
-              />
-              <i class="bi bi-intersect edit-scope-icon" aria-hidden="true"/>
-              <span>Übergreifend</span>
+  <div v-if="!!slide" class="glass-card liquid-surface-inner !p-0 flex flex-1 flex-col min-h-0">
+    <div v-if="slide.type !== 'FabricSlideContent'" class="shrink-0 px-5 py-2.5 text-sm text-[var(--color-text-muted)]">
+      <i class="bi bi-info-circle"></i>
+      Hier gestaltest du den <strong>Hintergrund</strong>. Die Inhalte der Folie werden bei der Anzeige darüber gelegt.
+    </div>
+    <FabricEditor :slide="slide"
+                  :default-panel="slide.type === 'FabricSlideContent' ? 'design' : 'settings'"
+                  @change="scheduleSave">
+      <template #settings>
+        <section class="se-section">
+          <h3 class="se-section__title">Anzeige</h3>
+          <label class="flex items-center justify-between gap-2 cursor-pointer">
+            <span class="se-label">Saison-Logo anzeigen</span>
+            <input type="checkbox" class="se-switch" :checked="slide.content.showSeasonLogo"
+                   @change="updateByName('showSeasonLogo', ($event.target as HTMLInputElement).checked)"/>
+          </label>
+          <!-- Eigene Anzeigezeit - Alle Slides außer Robot Game -->
+          <template v-if="slide.type !== 'RobotGameSlideContent'">
+            <label class="flex items-center justify-between gap-2 cursor-pointer">
+              <span class="se-label">Eigene Anzeigedauer</span>
+              <input type="checkbox" class="se-switch" :checked="slide.transition_time !== 0"
+                     @change="updateSlideDurationOverride"/>
             </label>
-            <label
-                v-for="program in attachedPrograms"
-                :key="programId(program)"
-                class="glass-settings-row"
-            >
-              <input
-                  type="checkbox"
-                  :checked="audienceSelection.programs.includes(programId(program))"
-                  @change="toggleProgram(programId(program), ($event.target as HTMLInputElement).checked)"
-              />
+            <div v-if="slide.transition_time !== 0" class="flex items-center justify-between gap-2">
+              <span class="se-label">Sekunden</span>
+              <NumberField class="w-24" :min="1" :max="600" suffix="s" :model-value="slide.transition_time"
+                           @update:model-value="updateDuration"/>
+            </div>
+            <p class="se-hint">Ohne eigene Dauer gilt die Zeit pro Folie der Slideshow.</p>
+          </template>
+        </section>
+
+        <section v-if="isPublicPlan" class="se-section">
+          <h3 class="se-section__title">Zeitplan</h3>
+          <div v-if="isPlanLookahead" class="flex items-center justify-between gap-2">
+            <span class="se-label">Vorausschau</span>
+            <NumberField class="w-24" :min="1" :max="120" suffix="min" :model-value="slide.content.interval"
+                         @update:model-value="updateByName('interval', $event)"/>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="se-label">Raum</span>
+            <SearchSelect :model-value="Number(slide.content.room ?? 0)" :options="roomOptions"
+                          placeholder="Raum suchen…" empty-text="Kein Raum gefunden"
+                          @update:model-value="updateByName('room', Number($event))"/>
+          </div>
+          <div class="flex flex-col gap-1">
+            <span class="se-label">Sichtbare Programmpunkte</span>
+            <div class="program-list">
+              <label class="program-list__row">
+                <input type="checkbox" :checked="audienceSelection.joint"
+                       @change="setJoint(($event.target as HTMLInputElement).checked)"/>
+                <i class="bi bi-intersect program-list__icon" aria-hidden="true"></i>
+                <span>Übergreifend</span>
+              </label>
+              <label v-for="program in attachedPrograms" :key="programId(program)" class="program-list__row">
+                <input type="checkbox" :checked="audienceSelection.programs.includes(programId(program))"
+                       @change="toggleProgram(programId(program), ($event.target as HTMLInputElement).checked)"/>
+                <ProgramLogo :program="program" size="chip" decorative/>
+                <span>{{ programDisplayName(program) }}</span>
+              </label>
+            </div>
+            <p v-if="!audienceSelection.joint && audienceSelection.programs.length === 0" class="se-hint se-hint--warn">
+              <i class="bi bi-exclamation-triangle"></i> Nichts ausgewählt. Es werden keine Programmpunkte angezeigt.
+            </p>
+          </div>
+        </section>
+
+        <section v-if="slide.type === 'TeamsTableSlideContent' || slide.type === 'TeamsMapSlideContent'"
+                 class="se-section">
+          <h3 class="se-section__title">Teams</h3>
+          <span class="se-label">Sichtbare Programme</span>
+          <div class="program-list">
+            <label v-for="program in attachedPrograms" :key="programId(program)" class="program-list__row">
+              <input type="checkbox" :checked="teamProgramChecked(programId(program))"
+                     @change="toggleTeamProgram(programId(program), ($event.target as HTMLInputElement).checked)"/>
               <ProgramLogo :program="program" size="chip" decorative/>
               <span>{{ programDisplayName(program) }}</span>
             </label>
-            <p v-if="!audienceSelection.joint && audienceSelection.programs.length === 0" class="glass-alert-warning !mb-0">
-              Nichts ausgewählt. Es werden keine Programmpunkte angezeigt.
-            </p>
           </div>
-        </template>
-        <div v-if="slide.type === 'TeamsTableSlideContent' || slide.type === 'TeamsMapSlideContent'" class="glass-stack-card">
-          <div class="flex items-center gap-1">
-            <span class="glass-settings-label">Sichtbare Programme</span>
-            <InfoPopover text="Wähle die Programme, deren Teams angezeigt werden."/>
-          </div>
-          <label
-              v-for="program in attachedPrograms"
-              :key="programId(program)"
-              class="glass-settings-row"
-          >
-            <input
-                type="checkbox"
-                :checked="teamProgramChecked(programId(program))"
-                @change="toggleTeamProgram(programId(program), ($event.target as HTMLInputElement).checked)"
-            />
-            <ProgramLogo :program="program" size="chip" decorative/>
-            <span>{{ programDisplayName(program) }}</span>
-          </label>
-          <p v-if="Array.isArray(slide.content.programs) && slide.content.programs.length === 0" class="glass-alert-warning !mb-0">
-            Nichts ausgewählt. Es werden keine Teams angezeigt.
+          <p v-if="Array.isArray(slide.content.programs) && slide.content.programs.length === 0"
+             class="se-hint se-hint--warn">
+            <i class="bi bi-exclamation-triangle"></i> Nichts ausgewählt. Es werden keine Teams angezeigt.
           </p>
-        </div>
-        <template v-if="slide.type === 'RobotGameSlideContent'">
-          <div>
-            <div class="flex items-center gap-1">
-              <label class="glass-settings-label">Teams pro Seite</label>
-              <InfoPopover text="Anzahl an Teams, die pro Seite angezeigt werden sollen."/>
-            </div>
-            <input
-                class="glass-input glass-input--sm liquid-surface-control mt-2"
-                type="number"
-                :value="slide.content.teamsPerPage"
-                @input="updateByName('teamsPerPage', ($event.target as HTMLInputElement).value || 0)"
-            />
-          </div>
-          <div>
-            <div class="flex items-center gap-1">
-              <label class="glass-settings-label">Sekunden pro Seite</label>
-              <InfoPopover text="Zeit in Sekunden, bis zur nächsten Seite geblättert wird."/>
-            </div>
-            <input
-                class="glass-input glass-input--sm liquid-surface-control mt-2"
-                type="number"
-                :value="slide.content.secondsPerPage"
-                @input="updateByName('secondsPerPage', ($event.target as HTMLInputElement).value || 0)"
-            />
-          </div>
-          <div>
-            <div class="flex items-center gap-1">
-              <label class="glass-settings-label">Text-Farbe</label>
-              <InfoPopover text="Die Farbe, die für den Text in der Tabelle verwendet wird."/>
-            </div>
-            <input
-                class="glass-input glass-input--sm liquid-surface-control edit-color mt-2"
-                type="color"
-                :value="slide.content.textColor"
-                @input="updateByName('textColor', ($event.target as HTMLInputElement).value || '#222222')"
-            />
-          </div>
-          <div>
-            <div class="flex items-center gap-1">
-              <label class="glass-settings-label">Highlight-Farbe</label>
-              <InfoPopover text="Die Farbe, die für Hervorhebungen in der Tabelle verwendet wird."/>
-            </div>
-            <input
-                class="glass-input glass-input--sm liquid-surface-control edit-color mt-2"
-                type="color"
-                :value="slide.content.highlightColor"
-                @input="updateByName('highlightColor', ($event.target as HTMLInputElement).value || '#FFD700')"
-            />
-          </div>
-          <div>
-            <div class="flex items-center gap-1">
-              <label class="glass-settings-label">Tabellen-Hintergrundfarbe</label>
-              <InfoPopover text="Hintergrundfarbe der Tabelle; Transparenz in Prozent einstellen."/>
-            </div>
-            <div class="glass-settings-row mt-2">
-              <input
-                  type="color"
-                  class="glass-input glass-input--sm liquid-surface-control edit-color"
-                  v-model="tableBgHex"
-                  @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
-              />
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"
-                   aria-hidden="true">
-                <path d="M12 2.69L6 10.5c-3 4 1 11.5 6 11.5s9-7.5 6-11.5L12 2.69z"/>
-              </svg>
-              <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  class="glass-input glass-input--sm liquid-surface-control edit-percent"
-                  v-model.number="tableBgOpacity"
-                  @input="() => setTableBackgroundFromHexAndOpacity(tableBgHex, tableBgOpacity)"
-                  aria-label="Transparenz in Prozent"
-              />
-              <span>%</span>
-            </div>
-          </div>
-          <div>
-            <div class="flex items-center gap-1">
-              <label class="glass-settings-label">Tabellen-Rahmenfarbe</label>
-              <InfoPopover text="Farbe der Tabellenränder."/>
-            </div>
-            <input
-                type="color"
-                class="glass-input glass-input--sm liquid-surface-control edit-color mt-2"
-                :value="slide.content.tableBorderColor"
-                @input="updateByName('tableBorderColor', ($event.target as HTMLInputElement).value || '#000000')"
-            />
-          </div>
-        </template>
-        <div v-if="slide.type === 'UrlSlideContent'">
-          <div class="flex items-center gap-1">
-            <label class="glass-settings-label">URL</label>
-            <InfoPopover text="Die Website, die auf der Folie angezeigt werden soll."/>
-          </div>
-          <input
-              class="glass-input glass-input--sm liquid-surface-control mt-2"
-              type="text"
-              :value="slide.content.url"
-              @input="updateByName('url', ($event.target as HTMLInputElement).value || '')"
-          />
-        </div>
-      </div>
-    </div>
+        </section>
 
-    <div class="glass-card liquid-surface-inner p-4 col-span-2">
-      <span class="font-semibold">Hintergrund</span> <br>
-      <FabricEditor :slide="slide" @change="scheduleSave" v-if="!!slide"></FabricEditor>
-    </div>
+        <section v-if="slide.type === 'RobotGameSlideContent'" class="se-section">
+          <h3 class="se-section__title">Tabelle</h3>
+          <div class="flex items-center justify-between gap-2">
+            <span class="se-label">Teams pro Seite</span>
+            <NumberField class="w-24" :min="1" :model-value="Number(slide.content.teamsPerPage)"
+                         @update:model-value="updateByName('teamsPerPage', $event)"/>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <span class="se-label">Sekunden pro Seite</span>
+            <NumberField class="w-24" :min="1" suffix="s" :model-value="Number(slide.content.secondsPerPage)"
+                         @update:model-value="updateByName('secondsPerPage', $event)"/>
+          </div>
+          <ColorField label="Textfarbe" :model-value="slide.content.textColor"
+                      @update:model-value="updateByName('textColor', $event || '#222222')"/>
+          <ColorField label="Hervorhebung" :model-value="slide.content.highlightColor"
+                      @update:model-value="updateByName('highlightColor', $event || '#FFD700')"/>
+          <ColorField label="Rahmenfarbe" :model-value="slide.content.tableBorderColor"
+                      @update:model-value="updateByName('tableBorderColor', $event || '#000000')"/>
+          <ColorField label="Hintergrund" :model-value="tableBgHex ?? '#ffffff'"
+                      @update:model-value="setTableBackgroundFromHexAndOpacity($event || '#ffffff', tableBgOpacity ?? 100)"/>
+          <label class="se-range">
+            <span class="se-label">Deckkraft Hintergrund</span>
+            <input type="range" min="0" max="100" step="1" :value="tableBgOpacity ?? 100"
+                   @input="setTableBackgroundFromHexAndOpacity(tableBgHex ?? '#ffffff', Number(($event.target as HTMLInputElement).value))"/>
+            <span class="se-range__value">{{ tableBgOpacity ?? 100 }}%</span>
+          </label>
+        </section>
+
+        <section v-if="slide.type === 'UrlSlideContent'" class="se-section">
+          <h3 class="se-section__title">Website</h3>
+          <label class="flex flex-col gap-1">
+            <span class="se-label">URL</span>
+            <input class="se-input" type="url" placeholder="https://…" :value="slide.content.url"
+                   @input="updateByName('url', ($event.target as HTMLInputElement).value || '')"/>
+          </label>
+          <p class="se-hint">Die Website wird auf der ganzen Folie angezeigt.</p>
+        </section>
+      </template>
+    </FabricEditor>
+  </div>
   </div>
 </template>
 
 <style scoped>
-.disabled {
-  opacity: 0.5;
-  pointer-events: none;
-  cursor: not-allowed;
+.program-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0.3rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg-elevated);
 }
 
-.edit-scope-icon {
+.program-list__row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.1rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 7px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.program-list__row:hover {
+  background: var(--color-bg-hover);
+}
+
+.program-list__row input {
+  accent-color: var(--color-accent);
+}
+
+.program-list__icon {
   font-size: 1rem;
   line-height: 1;
   flex-shrink: 0;
-}
-
-.edit-color {
-  width: 3rem;
-  min-width: 3rem;
-  padding: 0.2rem;
-}
-
-.edit-percent {
-  width: 4.5rem;
-  min-width: 4.5rem;
-  flex: 0 0 4.5rem;
 }
 </style>
