@@ -1,33 +1,55 @@
 <script setup lang="ts">
-import {Canvas, Rect, Textbox, FabricImage, Triangle, Circle, ActiveSelection, util} from 'fabric'
-import {onBeforeUnmount, onMounted, reactive, shallowRef, watch, ref, computed} from 'vue';
-import SvgIcon from '@jamescoyle/vue-icon';
-import {
-  mdiFormatText,
-  mdiRectangle,
-  mdiImageArea,
-  mdiQrcodePlus,
-  mdiArrangeSendBackward,
-  mdiArrangeBringForward,
-  mdiDelete
-} from '@mdi/js';
-import {Slide} from "@/models/slide";
+import {ActiveSelection, Canvas, FabricImage, FabricObject, Gradient, Group, Point, Rect, Textbox, util} from 'fabric'
+import {AligningGuidelines} from 'fabric-aligning-guidelines'
+import {computed, onBeforeUnmount, onMounted, reactive, ref, shallowRef, useSlots} from 'vue';
+import {Popover, PopoverButton, PopoverPanel} from '@headlessui/vue';
 import axios from "axios";
+import {Slide} from "@/models/slide";
 import {imageUrl} from '@/utils/images'
 import {rewriteImageSrcs} from '@/utils/sameOriginSrc'
 import {coverSlideBackground} from '@/utils/coverSlideBackground'
 import {programDisplayName} from '@/utils/eventPrograms'
 import {seasonLogoPlacement, type SeasonLogoPlacement, SEASON_LOGO_HEIGHT, SEASON_LOGO_WIDTH} from '@/models/seasonLogo'
 import {useEventStore} from "@/stores/event";
+import {showGlassToast} from '@/composables/useGlassToast';
+import EditorInspector from '@/components/slideEditor/EditorInspector.vue';
+import EditorLayers from '@/components/slideEditor/EditorLayers.vue';
+import ImagePickerModal from '@/components/slideEditor/ImagePickerModal.vue';
+import {useHistory} from '@/components/slideEditor/useHistory';
+import {createShape, createText, SHAPES, TEXT_PRESETS, type ShapeId, type TextPresetId} from '@/components/slideEditor/objectFactory';
+import {
+  ACCENT,
+  BACKGROUND_GRADIENTS,
+  createGradient,
+  matchGradient,
+  SERIALIZED_PROPS,
+  SLIDE_HEIGHT,
+  SLIDE_WIDTH,
+} from '@/components/slideEditor/constants';
+import {
+  applyPatch,
+  emptySelection,
+  layerIcon,
+  layerLabel,
+  readSelection,
+  type LayerItem,
+  type SelectionState,
+} from '@/components/slideEditor/selection';
+import '@/components/slideEditor/editor.css';
 
-// Ideen und TODOS
-// Resize
-// Border korrekt, Layouting allgemein
-// Undo / Redo
-// Custom controls
+const props = withDefaults(defineProps<{
+  slide: Slide
+  defaultPanel?: 'design' | 'layers' | 'settings'
+}>(), {
+  defaultPanel: 'design',
+});
 
-const DEFAULT_WIDTH = 800;
-const DEFAULT_HEIGHT = 450;
+const slots = useSlots();
+const hasSettings = computed(() => !!slots.settings);
+
+const emit = defineEmits<{
+  change: []
+}>();
 
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
@@ -36,16 +58,46 @@ const qrWifiUrl = computed(() => {
   return event.value?.wifi_qrcode ? `data:image/png;base64,${event.value.wifi_qrcode}` : '';
 });
 
-const props = defineProps<{
-  slide: Slide
-}>();
+const CONTROL_STYLE = {
+  transparentCorners: false,
+  cornerColor: '#ffffff',
+  cornerStrokeColor: ACCENT,
+  borderColor: ACCENT,
+  cornerSize: 10,
+  cornerStyle: 'circle' as const,
+  borderScaleFactor: 1.5,
+};
+const CLIPBOARD_KEY = 'flow-slide-clipboard';
+const SNAPPING_KEY = 'flow-slide-snapping';
+const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 
-const emit = defineEmits<{
-  change: []
-}>();
-
-const canvasEl = shallowRef(null);
+const stageEl = shallowRef<HTMLDivElement | null>(null);
+const canvasEl = shallowRef<HTMLCanvasElement | null>(null);
 let canvas: Canvas;
+let guidelines: AligningGuidelines | null = null;
+let resizeObserver: ResizeObserver | null = null;
+let disposed = false;
+// True while the canvas is rebuilt from JSON; suppresses history/save handling.
+let suspended = false;
+
+const history = useHistory();
+const {canUndo, canRedo} = history;
+
+const selection = reactive<SelectionState>(emptySelection());
+const activeIds = ref<number[]>([]);
+const layers = ref<LayerItem[]>([]);
+const slideBackground = reactive({color: '#ffffff', gradientId: null as string | null, hasImage: false});
+const coveredLogo = ref<SeasonLogoPlacement | null>(null);
+const panelTab = ref<'design' | 'layers' | 'settings'>(
+    props.defaultPanel === 'settings' && !hasSettings.value ? 'design' : props.defaultPanel,
+);
+const snapping = ref(localStorage.getItem(SNAPPING_KEY) !== 'off');
+const zoomMode = ref<'fit' | number>('fit');
+const zoom = ref(1);
+
+// ---------------------------------------------------------------------------
+// Images / QR codes
+// ---------------------------------------------------------------------------
 
 function standardImages() {
   return [
@@ -69,581 +121,1055 @@ function standardImages() {
     {title: programDisplayName('FUTURE_8'), url: imageUrl('flow/fll_future8_v.png')},
   ]
 }
+
 const availableImages = ref(standardImages());
-const availableQrCodes = ref([]);
-
-const coveredLogo = ref<SeasonLogoPlacement | null>(null);
-
-const seasonLogoStyle = computed(() => {
-  if (!props.slide?.content?.showSeasonLogo) {
-    return null;
-  }
-  const place = coveredLogo.value ?? seasonLogoPlacement(props.slide.content.background);
-  return {
-    left: `${place.centerX}px`,
-    top: `${place.top}px`,
-    width: `${SEASON_LOGO_WIDTH * place.scaleX}px`,
-    height: `${SEASON_LOGO_HEIGHT * place.scaleY}px`,
-  };
-});
-
-const defaultObjectProperties = {
-  transparentCorners: true,
-  cornerColor: '#4e4d4d',
-};
-
-const toolbarState = reactive({
-  type: 'none', // 'none', 'text', 'shape', 'image'
-  object: undefined,
-});
-
-onMounted(() => {
-  canvas = new Canvas(canvasEl.value, {
-    width: DEFAULT_WIDTH,
-    height: DEFAULT_HEIGHT,
-    backgroundColor: '#ffffff',
-  });
-  canvas.preserveObjectStacking = true;
-
-  if (props.slide) {
-    paintSlide(props.slide);
-  }
-
-  // Toolbar
-  canvas.on('selection:created', updateToolbar);
-  canvas.on('selection:updated', updateToolbar);
-  canvas.on('selection:cleared', updateToolbar);
-
-  // Debounce change events to avoid too frequent updates
-  let changeTimeout: NodeJS.Timeout | null = null;
-  const emitChange = () => {
-    if (changeTimeout) {
-      clearTimeout(changeTimeout);
-    }
-    changeTimeout = setTimeout(() => {
-      const json = JSON.stringify(rewriteImageSrcs(canvas.toJSON()));
-      if (props.slide) {
-        props.slide.content.background = json;
-        emit('change');
-      }
-    }, 300); // Small delay to batch rapid changes
-  };
-
-  // Emit change events for debounced auto-save in parent
-  canvas.on('object:modified', emitChange);
-  canvas.on('object:added', emitChange);
-  canvas.on('object:removed', emitChange);
-
-  // Löschen
-  window.addEventListener('keydown', keyListener);
-});
-
-onMounted(loadFont);
-onMounted(loadImages);
-onBeforeUnmount(() => {
-  // Save immediately on unmount - parent component will handle it
-  const json = JSON.stringify(rewriteImageSrcs(canvas.toJSON()));
-  if (props.slide) {
-    props.slide.content.background = json;
-    emit('change');
-  }
-  window.removeEventListener('keydown', keyListener);
-});
-
-function keyListener(e: KeyboardEvent) {
-
-  // Don't interfere with typing in form fields
-  const target = e.target;
-  const isInput =
-      target.tagName === "INPUT" ||
-      target.tagName === "TEXTAREA" ||
-      target.isContentEditable;
-
-  if (isInput) return;
-
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
-    if (isEditingText()) {
-      return;
-    }
-    e.preventDefault();
-    paste();
-    return;
-  }
-
-  const activeObj = canvas.getActiveObject();
-  if (!activeObj) {
-    return;
-  }
-
-  if (isEditingText()) {
-    return;
-  }
-
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
-    e.preventDefault();
-    copy();
-    return;
-  }
-
-  if ((e.key === 'Delete' || e.key === 'Backspace') && canvas?.getActiveObject()) {
-    e.preventDefault();
-    removeSelection();
-    return;
-  }
-}
-
-function isEditingText() {
-  const activeObj = canvas.getActiveObject();
-  return activeObj?.get('type') === 'textbox' && activeObj.isEditing;
-}
-
-function removeSelection() {
-  const activeObj = canvas.getActiveObject();
-  if (!activeObj) {
-    return;
-  }
-  if (activeObj.get('type') === 'activeselection') {
-    activeObj.forEachObject(canvas.remove.bind(canvas));
-    canvas.discardActiveObject();
-  } else {
-    canvas.remove(activeObj);
-  }
-  updateToolbar();
-  canvas.requestRenderAll();
-}
+const availableQrCodes = ref<{ title: string, content: string }[]>([]);
+const imagePicker = ref<null | 'images' | 'qr'>(null);
+const uploading = ref(false);
 
 async function loadImages() {
-  const {data} = await axios.get('/logos');
-  availableImages.value = [...data, ...standardImages()];
+  try {
+    const {data} = await axios.get('/logos');
+    availableImages.value = [...data, ...standardImages()];
+  } catch (e) {
+    console.error('Fehler beim Laden der Logos:', e);
+  }
 }
 
 async function loadQRCodeImages() {
-  // Load both QR codes (public plan and WiFi)
   try {
     const publishData = await axios.get(`/publish/link/${event.value.id}`)
     const qr = publishData.data?.qrcode ?? null;
 
-    const codes = [{title: 'Zeitplan', content: qr}];
+    const codes = qr ? [{title: 'Zeitplan', content: qr}] : [];
     if (qrWifiUrl.value) {
       codes.push({title: 'WiFi', content: qrWifiUrl.value});
     }
     availableQrCodes.value = codes;
   } catch (e) {
     console.error('Fehler beim Laden von Publish-Daten:', e);
+    showGlassToast('QR-Codes konnten nicht geladen werden.', 'error');
+  }
+}
+
+async function openQrPicker() {
+  await loadQRCodeImages();
+  if (availableQrCodes.value.length > 1) {
+    imagePicker.value = 'qr';
+  } else if (availableQrCodes.value.length === 1) {
+    await insertImage(availableQrCodes.value[0].content);
+  } else {
+    showGlassToast('Für diese Veranstaltung ist noch kein QR-Code verfügbar.', 'info');
+  }
+}
+
+async function onPickImage(img: { url?: string, content?: string }) {
+  imagePicker.value = null;
+  const src = img.content || img.url;
+  if (src) await insertImage(src);
+}
+
+async function insertImage(src: string) {
+  try {
+    const img = await FabricImage.fromURL(src);
+    const maxWidth = SLIDE_WIDTH * 0.5;
+    const maxHeight = SLIDE_HEIGHT * 0.5;
+    if (img.width > maxWidth || img.height > maxHeight) {
+      img.scale(Math.min(maxWidth / img.width, maxHeight / img.height));
+    }
+    addObject(img);
+  } catch (e) {
+    console.error('Bild konnte nicht geladen werden:', e);
+    showGlassToast('Bild konnte nicht geladen werden.', 'error');
+  }
+}
+
+async function uploadImage(file: File) {
+  const partner = event.value?.regional_partner;
+  if (!partner) {
+    showGlassToast('Bitte wähle zuerst ein Event aus, bevor du ein Bild hochlädst.', 'info');
     return;
   }
-}
-
-function paintSlide(slide: Slide) {
-  if (!canvas || !slide || !slide.content.background) return;
-  canvas.clear();
-  canvas.loadFromJSON(slide.content.background).then(() => {
-    applyDefaultControls();
-    coveredLogo.value = coverSlideBackground(canvas, props.slide?.content);
-  });
-}
-
-function applyDefaultControls() {
-  canvas.getObjects().forEach(obj => {
-    obj.set(defaultObjectProperties);
-  });
-}
-
-function addRect() {
-  if (!canvas) return;
-  const rect = new Rect({
-    left: 100,
-    top: 100,
-    fill: '#add8e6',
-    width: 100,
-    height: 100,
-    ...defaultObjectProperties
-  });
-  canvas.add(rect);
-  canvas.requestRenderAll();
-}
-
-const showImageModal = ref(false);
-const imageModalContent = ref([]);
-
-function openImageModal(images) {
-  showImageModal.value = true;
-  imageModalContent.value = images;
-}
-
-function closeImageModal() {
-  showImageModal.value = false;
-  imageModalContent.value = [];
-}
-
-async function insertImageFromUrl(url) {
-  closeImageModal();
-  if (!canvas) return;
-  const img = await FabricImage.fromURL(url);
-  insertImage(img);
-}
-
-function insertImage(img) {
-  img.set({left: 100, top: 100, ...defaultObjectProperties});
-
-  const maxWidth = canvas.width * 0.5;
-  const maxHeight = canvas.height * 0.5;
-
-  if (img.width > maxWidth || img.height > maxHeight) {
-    const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
-    img.scale(scale);
+  if (!file.type.startsWith('image/') && !/\.svg$/i.test(file.name)) {
+    showGlassToast('Datei muss ein Bild sein.', 'error');
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    showGlassToast('Datei ist zu groß. Maximum: 2 MB', 'error');
+    return;
   }
 
-  canvas.add(img);
-  canvas.setActiveObject(img);
-  canvas.requestRenderAll();
-}
-
-function prepareImageModal() {
-  openImageModal(availableImages.value);
-}
-
-async function prepareQrCodeModal() {
-  await loadQRCodeImages();
-  if (availableQrCodes.value?.length > 1) {
-    openImageModal(availableQrCodes.value);
-  } else if (availableQrCodes.value?.length == 1) {
-    await addQRCode(availableQrCodes.value[0].content);
+  uploading.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('regional_partner', String(partner));
+    const {data} = await axios.post('/logos', formData);
+    imagePicker.value = null;
+    loadImages();
+    if (data?.url) await insertImage(data.url);
+  } catch (e) {
+    console.error('Upload fehlgeschlagen:', e);
+    showGlassToast('Upload fehlgeschlagen.', 'error');
+  } finally {
+    uploading.value = false;
   }
 }
 
-async function addQRCode(qr) {
-  if (!canvas) return;
-
-  const image = await FabricImage.fromObject({src: qr});
-  insertImage(image);
+function onStageDrop(e: DragEvent) {
+  const file = e.dataTransfer?.files?.[0];
+  if (file) uploadImage(file);
 }
 
-function addText() {
-  if (!canvasEl.value) return;
-  const text = new Textbox("FLOW", {
-    left: 100,
-    top: 100,
-    fontFamily: 'Uniform',
-    fontSize: 24,
-    fill: '#000000',
-    width: 200,
-    editable: true,
-    ...defaultObjectProperties
+// ---------------------------------------------------------------------------
+// Canvas lifecycle
+// ---------------------------------------------------------------------------
+
+onMounted(async () => {
+  canvas = new Canvas(canvasEl.value!, {
+    width: SLIDE_WIDTH,
+    height: SLIDE_HEIGHT,
+    backgroundColor: '#ffffff',
+    preserveObjectStacking: true,
+    selectionColor: 'rgba(255, 122, 0, 0.08)',
+    selectionBorderColor: ACCENT,
+    selectionLineWidth: 1,
   });
-  canvas.add(text);
-  canvas.setActiveObject(text);
-  canvas.requestRenderAll();
-}
 
-function loadFont() {
-  const font = new FontFace('Uniform', 'url(/fonts/Uniform-Regular.otf)');
-  font.load().then(() => {
-    if (canvas) {
-      canvas.requestRenderAll();
-    }
-  }).catch((e) => {
+  registerCanvasEvents();
+  enableGuidelines(snapping.value);
+
+  resizeObserver = new ResizeObserver(() => applyZoom());
+  resizeObserver.observe(stageEl.value!);
+  applyZoom();
+
+  window.addEventListener('keydown', onKeyDown);
+  loadImages();
+
+  await loadFonts();
+  if (!disposed) await paintSlide();
+});
+
+onBeforeUnmount(() => {
+  disposed = true;
+  window.removeEventListener('keydown', onKeyDown);
+  resizeObserver?.disconnect();
+  if (commitTimer) commit();
+  guidelines?.dispose();
+  canvas?.dispose();
+});
+
+async function loadFonts() {
+  try {
+    await Promise.all(['400 32px Uniform', '700 32px Uniform'].map(f => document.fonts.load(f)));
+  } catch (e) {
     console.error('Font loading failed', e);
+  }
+}
+
+function parseBackground(background: unknown) {
+  if (typeof background !== 'string') return background;
+  try {
+    return JSON.parse(background);
+  } catch {
+    return background;
+  }
+}
+
+async function paintSlide() {
+  const background = props.slide?.content?.background;
+  if (background) {
+    suspended = true;
+    try {
+      await canvas.loadFromJSON(rewriteImageSrcs(parseBackground(background)));
+    } catch (e) {
+      console.error('Folie konnte nicht geladen werden:', e);
+    } finally {
+      suspended = false;
+    }
+  }
+  if (disposed) return;
+  afterCanvasLoaded();
+  history.reset(serialize());
+}
+
+/** Editor-only setup after the canvas was (re)built from JSON. */
+function afterCanvasLoaded() {
+  canvas.getObjects().forEach(prepareObject);
+  coveredLogo.value = coverSlideBackground(canvas, props.slide?.content);
+  syncBackground();
+  refreshLayers();
+  refreshSelection();
+  canvas.requestRenderAll();
+}
+
+function registerCanvasEvents() {
+  canvas.on('object:added', ({target}) => {
+    if (suspended) return;
+    prepareObject(target);
+    onContentChanged();
+  });
+  canvas.on('object:removed', () => onContentChanged());
+  canvas.on('object:modified', ({target}) => {
+    if (target) normalizeTextScale(target);
+    onContentChanged(0);
+  });
+  canvas.on('object:moving', refreshSelectionSoon);
+  canvas.on('object:scaling', refreshSelectionSoon);
+  canvas.on('object:rotating', refreshSelectionSoon);
+  canvas.on('object:resizing', refreshSelectionSoon);
+  canvas.on('selection:created', onSelectionChanged);
+  canvas.on('selection:updated', onSelectionChanged);
+  canvas.on('selection:cleared', onSelectionChanged);
+  canvas.on('text:changed', () => onContentChanged(500));
+  canvas.on('text:selection:changed', refreshSelection);
+  canvas.on('text:editing:exited', () => onContentChanged(0));
+}
+
+function prepareObject(obj: FabricObject) {
+  obj.set(CONTROL_STYLE);
+  setLocked(obj, !!(obj as any).locked);
+}
+
+/** Locked objects can't be clicked on the slide; they stay reachable through the layer list. */
+function setLocked(obj: FabricObject, locked: boolean) {
+  obj.set({
+    locked,
+    selectable: !locked,
+    hasControls: !locked,
+    lockMovementX: locked,
+    lockMovementY: locked,
+    lockScalingX: locked,
+    lockScalingY: locked,
+    lockRotation: locked,
+  } as any);
+  if (obj instanceof Textbox) obj.set('editable', !locked);
+}
+
+/** Corner-scaling a textbox changes its font size instead of stretching the glyphs. */
+function normalizeTextScale(obj: FabricObject) {
+  if (!(obj instanceof Textbox) || (obj.scaleX === 1 && obj.scaleY === 1)) return;
+  obj.set({
+    fontSize: Math.round(obj.fontSize * obj.scaleY * 10) / 10,
+    width: obj.width * obj.scaleX,
+    scaleX: 1,
+    scaleY: 1,
+  });
+  obj.initDimensions();
+  obj.setCoords();
+}
+
+function enableGuidelines(enabled: boolean) {
+  guidelines?.dispose();
+  guidelines = null;
+  if (!enabled) return;
+
+  // Detached frame so objects also snap to the slide edges and centre lines.
+  const frame = new Rect({left: SLIDE_WIDTH / 2, top: SLIDE_HEIGHT / 2, width: SLIDE_WIDTH, height: SLIDE_HEIGHT, strokeWidth: 0});
+  frame.setCoords();
+
+  guidelines = new AligningGuidelines(canvas, {
+    margin: 6,
+    width: 1,
+    color: ACCENT,
+    getObjectsByTarget(target) {
+      const exclude = target instanceof ActiveSelection ? target.getObjects() : [target];
+      const set = new Set<FabricObject>([frame]);
+      canvas.getObjects().forEach(o => {
+        if (o.visible && !exclude.includes(o)) set.add(o);
+      });
+      return set;
+    },
   });
 }
 
-function updateToolbar() {
-  const activeObject = canvas.getActiveObject();
-  // Update toolbar based on selection
-  if (activeObject) {
-    // Example: Enable/disable buttons based on selection properties
-    const type = activeObject.get('type');
-    if (type === 'textbox') {
-      toolbarState.type = 'text';
-    } else if (type === 'rect' || type === 'circle' || type === 'triangle') {
-      toolbarState.type = 'shape';
-    } else {
-      toolbarState.type = 'none';
-    }
-    toolbarState.object = activeObject;
-  } else {
-    toolbarState.type = 'none';
-    toolbarState.object = undefined;
-  }
+function toggleSnapping() {
+  snapping.value = !snapping.value;
+  localStorage.setItem(SNAPPING_KEY, snapping.value ? 'on' : 'off');
+  enableGuidelines(snapping.value);
 }
 
-function makeBold() {
-  if (toolbarState.object.fontWeight === 'bold') {
-    toolbarState.object.set({fontWeight: 'normal'});
-  } else {
-    toolbarState.object.set({fontWeight: "bold"});
-  }
-  canvas.requestRenderAll();
-}
+// ---------------------------------------------------------------------------
+// Zoom
+// ---------------------------------------------------------------------------
 
-function makeItalic() {
-  if (toolbarState.object.fontStyle === 'italic') {
-    toolbarState.object.set({fontStyle: 'normal'});
-  } else {
-    toolbarState.object.set({fontStyle: "italic"});
-  }
-  canvas.requestRenderAll();
-}
+const zoomLabel = computed(() => `${Math.round(zoom.value * 100)} %`);
 
-function makeUnderline() {
-  toolbarState.object.set({underline: !toolbarState.object.underline});
-  canvas.requestRenderAll();
-}
-
-function onFillChange(color) {
-  toolbarState.object.set({fill: color});
-  canvas.requestRenderAll();
-}
-
-function onShapeTypeChange(type: string) {
-  const obj = toolbarState.object;
-  if (!obj) return;
-  const props = {
-    left: obj.left,
-    top: obj.top,
-    fill: obj.fill,
-    stroke: obj.stroke,
-    strokeWidth: obj.strokeWidth,
-    scaleX: obj.scaleX,
-    scaleY: obj.scaleY,
-    angle: obj.angle,
-    ...defaultObjectProperties
+const seasonLogoStyle = computed(() => {
+  if (!props.slide?.content?.showSeasonLogo) return null;
+  const place = coveredLogo.value ?? seasonLogoPlacement(props.slide.content.background);
+  const z = zoom.value;
+  return {
+    left: `${place.centerX * z}px`,
+    top: `${place.top * z}px`,
+    width: `${SEASON_LOGO_WIDTH * place.scaleX * z}px`,
+    height: `${SEASON_LOGO_HEIGHT * place.scaleY * z}px`,
   };
-  let newObj;
-  if (type === 'rect') {
-    newObj = new Rect({width: obj.width, height: obj.height, ...props});
-  } else if (type === 'circle') {
-    newObj = new Circle({radius: Math.min(obj.width, obj.height) / 2, ...props});
-  } else if (type === 'triangle') {
-    newObj = new Triangle({width: obj.width, height: obj.height, ...props});
-  }
-  canvas.remove(canvas.getActiveObject());
-  canvas.add(newObj);
-  canvas.setActiveObject(newObj);
-  toolbarState.object = newObj;
+});
+
+function fitZoom() {
+  const el = stageEl.value;
+  if (!el) return 1;
+  const padding = 48;
+  return Math.max(0.1, Math.min((el.clientWidth - padding) / SLIDE_WIDTH, (el.clientHeight - padding) / SLIDE_HEIGHT));
+}
+
+function applyZoom() {
+  if (!canvas || disposed) return;
+  const z = zoomMode.value === 'fit' ? fitZoom() : zoomMode.value;
+  zoom.value = z;
+  canvas.setDimensions({width: Math.round(SLIDE_WIDTH * z), height: Math.round(SLIDE_HEIGHT * z)});
+  canvas.setZoom(z);
+  canvas.calcOffset();
   canvas.requestRenderAll();
 }
 
-function onStrokeChange(color: string) {
-  toolbarState.object.set({stroke: color});
-  canvas.requestRenderAll();
+function zoomIn() {
+  zoomMode.value = ZOOM_STEPS.find(s => s > zoom.value + 0.01) ?? ZOOM_STEPS[ZOOM_STEPS.length - 1];
+  applyZoom();
 }
 
-function onStrokeWidthChange(width: string) {
-  toolbarState.object.set({strokeWidth: parseInt(width)});
-  canvas.requestRenderAll();
+function zoomOut() {
+  zoomMode.value = [...ZOOM_STEPS].reverse().find(s => s < zoom.value - 0.01) ?? ZOOM_STEPS[0];
+  applyZoom();
 }
 
-function bringToFront() {
-  const object = canvas.getActiveObject();
-  if (object && canvas) {
-    canvas.bringObjectToFront(object);
-    canvas.requestRenderAll();
+function zoomFit() {
+  zoomMode.value = 'fit';
+  applyZoom();
+}
+
+function onStageWheel(e: WheelEvent) {
+  if (!e.ctrlKey && !e.metaKey) return;
+  e.preventDefault();
+  e.deltaY < 0 ? zoomIn() : zoomOut();
+}
+
+// ---------------------------------------------------------------------------
+// State sync, history & saving
+// ---------------------------------------------------------------------------
+
+const objectIds = new WeakMap<FabricObject, number>();
+let nextObjectId = 1;
+
+function idOf(obj: FabricObject) {
+  let id = objectIds.get(obj);
+  if (!id) {
+    id = nextObjectId++;
+    objectIds.set(obj, id);
   }
+  return id;
 }
 
-function sendToBack() {
-  const object = canvas.getActiveObject();
-  if (object && canvas) {
-    canvas.sendObjectToBack(object);
-    canvas.requestRenderAll();
+function objectById(id: number) {
+  return canvas.getObjects().find(o => idOf(o) === id);
+}
+
+let rafId = 0;
+
+function refreshSelectionSoon() {
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = 0;
+    refreshSelection();
+  });
+}
+
+function refreshSelection() {
+  if (!canvas || disposed) return;
+  Object.assign(selection, readSelection(canvas.getActiveObject()));
+  activeIds.value = canvas.getActiveObjects().map(idOf);
+}
+
+function onSelectionChanged() {
+  const active = canvas.getActiveObject();
+  if (active instanceof ActiveSelection) active.set(CONTROL_STYLE);
+  if (active && panelTab.value === 'settings') panelTab.value = 'design';
+  refreshSelection();
+}
+
+function refreshLayers() {
+  layers.value = canvas.getObjects().slice().reverse().map(obj => ({
+    id: idOf(obj),
+    label: layerLabel(obj),
+    icon: layerIcon(obj),
+    visible: obj.visible !== false,
+    locked: !!(obj as any).locked,
+  }));
+}
+
+function syncBackground() {
+  const bg = canvas.backgroundColor as unknown;
+  if (bg instanceof Gradient) {
+    slideBackground.gradientId = matchGradient(bg as Gradient<'linear'>) ?? 'custom';
+  } else {
+    slideBackground.gradientId = null;
+    slideBackground.color = typeof bg === 'string' && bg ? bg : '#ffffff';
   }
+  slideBackground.hasImage = canvas.backgroundImage instanceof FabricImage;
 }
 
-function saveJson() {
-  const json = JSON.stringify(rewriteImageSrcs(canvas.toJSON()));
+function serialize() {
+  return JSON.stringify(rewriteImageSrcs(canvas.toObject(SERIALIZED_PROPS)));
+}
+
+let commitTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleCommit(delay = 250) {
+  if (commitTimer) clearTimeout(commitTimer);
+  commitTimer = setTimeout(commit, delay);
+}
+
+function commit() {
+  if (commitTimer) {
+    clearTimeout(commitTimer);
+    commitTimer = null;
+  }
+  if (!canvas) return;
+  const state = serialize();
+  if (history.push(state)) persist(state);
+}
+
+function persist(state: string) {
   if (props.slide) {
-    props.slide.content.background = json;
-    const content = JSON.stringify(props.slide.content.toJSON());
-    axios.put(`slides/${props.slide.id}`, {
-      content: content
-    }).then(response => {
-      console.log('Slide saved:', response.data);
-    }).catch(error => {
-      console.error('Error saving slide:', error);
-    });
+    props.slide.content.background = state;
+    emit('change');
   }
 }
 
-async function copy() {
-  const activeObjects = canvas.getActiveObjects();
-  if (!activeObjects?.length) return;
+function onContentChanged(delay = 250) {
+  if (suspended || disposed) return;
+  refreshLayers();
+  refreshSelection();
+  scheduleCommit(delay);
+}
 
-  const bbox = canvas.getActiveObject().getBoundingRect();
-  const data = {
-    bbox: {left: bbox.left, top: bbox.top},
-    objects: activeObjects.map(obj => obj.toObject()),
-  };
+function afterEdit(delay = 0) {
+  canvas.requestRenderAll();
+  onContentChanged(delay);
+}
 
-  localStorage.setItem("fabric-clipboard", JSON.stringify(data));
+let restoring = false;
+
+async function restore(state: string | null) {
+  if (!state || restoring) return;
+  restoring = true;
+  suspended = true;
+  try {
+    canvas.discardActiveObject();
+    await canvas.loadFromJSON(state);
+  } finally {
+    suspended = false;
+    restoring = false;
+  }
+  if (disposed) return;
+  afterCanvasLoaded();
+  persist(state);
+}
+
+function undo() {
+  if (commitTimer) commit();
+  restore(history.undo());
+}
+
+function redo() {
+  restore(history.redo());
+}
+
+// ---------------------------------------------------------------------------
+// Editing operations
+// ---------------------------------------------------------------------------
+
+/** Centres new objects and cascades them so repeated inserts don't stack exactly. */
+function addObject(obj: FabricObject) {
+  const center = new Point(SLIDE_WIDTH / 2, SLIDE_HEIGHT / 2);
+  const occupied = canvas.getObjects().filter(o => o.getCenterPoint().distanceFrom(center) < 4).length;
+  obj.setPositionByOrigin(center.add(new Point(occupied * 24, occupied * 24)), 'center', 'center');
+  canvas.add(obj);
+  canvas.setActiveObject(obj);
+  canvas.requestRenderAll();
+  panelTab.value = 'design';
+}
+
+function addText(preset: TextPresetId) {
+  addObject(createText(preset));
+}
+
+function addShape(id: ShapeId) {
+  addObject(createShape(id));
+}
+
+function selectObjects(objects: FabricObject[]) {
+  canvas.discardActiveObject();
+  if (objects.length === 1) {
+    canvas.setActiveObject(objects[0]);
+  } else if (objects.length > 1) {
+    canvas.setActiveObject(new ActiveSelection(objects, {canvas, ...CONTROL_STYLE}));
+  }
+  canvas.requestRenderAll();
+  refreshSelection();
+}
+
+function selectAll() {
+  selectObjects(canvas.getObjects().filter(o => o.visible && !(o as any).locked));
+}
+
+function removeSelection() {
+  const objects = canvas.getActiveObjects().filter(o => !(o as any).locked);
+  if (!objects.length) return;
+  canvas.discardActiveObject();
+  canvas.remove(...objects);
+  canvas.requestRenderAll();
+}
+
+function copy() {
+  const objects = canvas.getActiveObjects();
+  if (!objects.length) return;
+  // Objects inside an ActiveSelection carry coordinates relative to it; discard to serialize absolute ones.
+  const wasMulti = canvas.getActiveObject() instanceof ActiveSelection;
+  if (wasMulti) canvas.discardActiveObject();
+  const data = objects.map(o => o.toObject(SERIALIZED_PROPS));
+  if (wasMulti) selectObjects(objects);
+  localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(data));
+}
+
+function cut() {
+  copy();
+  removeSelection();
+}
+
+function addCopies(objects: FabricObject[]) {
+  objects.forEach(o => {
+    o.set({left: o.left + 20, top: o.top + 20, locked: false} as any);
+    canvas.add(o);
+  });
+  selectObjects(objects);
 }
 
 async function paste() {
+  const raw = localStorage.getItem(CLIPBOARD_KEY);
+  if (!raw) return;
   try {
-    const json = localStorage.getItem("fabric-clipboard");
-    if (!json) return;
-    const objectData = JSON.parse(json);
-    const objects = await util.enlivenObjects(objectData.objects);
-    const multiple = objects.length > 1;
-    for (const object of objects) {
-      const left = 10 + (multiple ? objectData.bbox?.left : 0) + (object?.left || 0);
-      const top = 10 + (multiple ? objectData.bbox?.top : 0) + (object.top || 0);
-      object.set({
-        left,
-        top,
-        ...defaultObjectProperties
-      });
-      canvas.add(object);
-    }
-
-    if (objects.length === 1) {
-      canvas.setActiveObject(objects[0]);
-    } else {
-      const sel = new ActiveSelection(objects, {canvas});
-      canvas.setActiveObject(sel);
-      sel.setCoords();
-    }
-
-    canvas.requestRenderAll();
-
+    addCopies(await util.enlivenObjects<FabricObject>(JSON.parse(raw)));
   } catch (e) {
-    // do nothing (paste with non valid JSON)
-    console.error(e);
+    console.error('Einfügen fehlgeschlagen:', e);
   }
 }
 
+async function duplicate() {
+  const objects = canvas.getActiveObjects();
+  if (!objects.length) return;
+  canvas.discardActiveObject();
+  addCopies(await Promise.all(objects.map(o => o.clone(SERIALIZED_PROPS))));
+}
+
+function nudge(dx: number, dy: number) {
+  const obj = canvas.getActiveObject();
+  if (!obj || (obj as any).locked) return;
+  obj.set({left: obj.left + dx, top: obj.top + dy});
+  obj.setCoords();
+  afterEdit(400);
+}
+
+function moveBy(obj: FabricObject, dx: number, dy: number) {
+  obj.set({left: obj.left + dx, top: obj.top + dy});
+  obj.setCoords();
+}
+
+type Area = { left: number, top: number, right: number, bottom: number };
+
+function alignInArea(obj: FabricObject, mode: string, area: Area) {
+  const b = obj.getBoundingRect();
+  switch (mode) {
+    case 'align-left':
+      return moveBy(obj, area.left - b.left, 0);
+    case 'align-hcenter':
+      return moveBy(obj, (area.left + area.right) / 2 - (b.left + b.width / 2), 0);
+    case 'align-right':
+      return moveBy(obj, area.right - (b.left + b.width), 0);
+    case 'align-top':
+      return moveBy(obj, 0, area.top - b.top);
+    case 'align-vcenter':
+      return moveBy(obj, 0, (area.top + area.bottom) / 2 - (b.top + b.height / 2));
+    case 'align-bottom':
+      return moveBy(obj, 0, area.bottom - (b.top + b.height));
+  }
+}
+
+function align(mode: string) {
+  const active = canvas.getActiveObject();
+  if (!active) return;
+  if (active instanceof ActiveSelection) {
+    const objects = active.getObjects();
+    canvas.discardActiveObject();
+    const boxes = objects.map(o => o.getBoundingRect());
+    const area = {
+      left: Math.min(...boxes.map(b => b.left)),
+      top: Math.min(...boxes.map(b => b.top)),
+      right: Math.max(...boxes.map(b => b.left + b.width)),
+      bottom: Math.max(...boxes.map(b => b.top + b.height)),
+    };
+    objects.forEach(o => alignInArea(o, mode, area));
+    selectObjects(objects);
+  } else {
+    alignInArea(active, mode, {left: 0, top: 0, right: SLIDE_WIDTH, bottom: SLIDE_HEIGHT});
+  }
+  afterEdit();
+}
+
+function distribute(axis: 'h' | 'v') {
+  const active = canvas.getActiveObject();
+  if (!(active instanceof ActiveSelection) || active.size() < 3) return;
+  const objects = active.getObjects();
+  canvas.discardActiveObject();
+
+  const horizontal = axis === 'h';
+  const items = objects
+      .map(o => ({o, b: o.getBoundingRect()}))
+      .sort((a, b) => horizontal ? a.b.left - b.b.left : a.b.top - b.b.top);
+  const start = horizontal ? items[0].b.left : items[0].b.top;
+  const last = items[items.length - 1].b;
+  const end = horizontal ? last.left + last.width : last.top + last.height;
+  const sizes = items.reduce((sum, it) => sum + (horizontal ? it.b.width : it.b.height), 0);
+  const gap = (end - start - sizes) / (items.length - 1);
+
+  let cursor = start;
+  items.forEach(({o, b}) => {
+    const delta = cursor - (horizontal ? b.left : b.top);
+    moveBy(o, horizontal ? delta : 0, horizontal ? 0 : delta);
+    cursor += (horizontal ? b.width : b.height) + gap;
+  });
+  selectObjects(objects);
+  afterEdit();
+}
+
+function reorder(mode: 'front' | 'forward' | 'backward' | 'back') {
+  const all = canvas.getObjects();
+  const objects = [...canvas.getActiveObjects()].sort((a, b) => all.indexOf(a) - all.indexOf(b));
+  if (!objects.length) return;
+  switch (mode) {
+    case 'front':
+      objects.forEach(o => canvas.bringObjectToFront(o));
+      break;
+    case 'back':
+      [...objects].reverse().forEach(o => canvas.sendObjectToBack(o));
+      break;
+    case 'forward':
+      [...objects].reverse().forEach(o => canvas.bringObjectForward(o));
+      break;
+    case 'backward':
+      objects.forEach(o => canvas.sendObjectBackwards(o));
+      break;
+  }
+  afterEdit();
+}
+
+function group() {
+  const active = canvas.getActiveObject();
+  if (!(active instanceof ActiveSelection)) return;
+  const all = canvas.getObjects();
+  const objects = [...active.getObjects()].sort((a, b) => all.indexOf(a) - all.indexOf(b));
+  const index = all.indexOf(objects[objects.length - 1]) - (objects.length - 1);
+  canvas.discardActiveObject();
+  canvas.remove(...objects);
+  const grouped = new Group(objects);
+  canvas.insertAt(index, grouped);
+  canvas.setActiveObject(grouped);
+  afterEdit();
+}
+
+function ungroup() {
+  const active = canvas.getActiveObject();
+  if (!(active instanceof Group) || active instanceof ActiveSelection) return;
+  const index = canvas.getObjects().indexOf(active);
+  canvas.discardActiveObject();
+  const objects = active.removeAll();
+  canvas.remove(active);
+  canvas.insertAt(index, ...objects);
+  selectObjects(objects);
+  afterEdit();
+}
+
+function toggleLock(obj: FabricObject | undefined = canvas.getActiveObject()) {
+  if (!obj || obj instanceof ActiveSelection) return;
+  setLocked(obj, !(obj as any).locked);
+  afterEdit();
+}
+
+/** The canvas background image is shown full-screen on the displays (see FabricSlideContentRenderer). */
+function useAsBackground() {
+  const img = canvas.getActiveObject();
+  if (!(img instanceof FabricImage)) return;
+  canvas.discardActiveObject();
+  canvas.remove(img);
+  img.set({angle: 0, flipX: false, flipY: false, opacity: 1, shadow: null});
+  canvas.set('backgroundImage', img);
+  coveredLogo.value = coverSlideBackground(canvas, props.slide?.content);
+  syncBackground();
+  afterEdit();
+  showGlassToast('Bild ist jetzt der Folienhintergrund und füllt auf den Displays den ganzen Bildschirm.', 'info');
+}
+
+function removeBackgroundImage() {
+  canvas.set('backgroundImage', undefined);
+  coveredLogo.value = null;
+  syncBackground();
+  afterEdit();
+}
+
+function setBackground(value: { type: 'color', color: string } | { type: 'gradient', id: string }) {
+  if (value.type === 'color') {
+    canvas.set('backgroundColor', value.color);
+  } else {
+    const preset = BACKGROUND_GRADIENTS.find(g => g.id === value.id);
+    if (preset) canvas.set('backgroundColor', createGradient(preset));
+  }
+  syncBackground();
+  afterEdit(150);
+}
+
+function onInspectorUpdate(patch: Partial<SelectionState>) {
+  const obj = canvas.getActiveObject();
+  if (!obj) return;
+  applyPatch(obj, patch);
+  afterEdit(300);
+}
+
+function onInspectorAction(name: string) {
+  if (name.startsWith('align-')) return align(name);
+  switch (name) {
+    case 'distribute-h':
+      return distribute('h');
+    case 'distribute-v':
+      return distribute('v');
+    case 'front':
+    case 'forward':
+    case 'backward':
+    case 'back':
+      return reorder(name);
+    case 'duplicate':
+      return duplicate();
+    case 'delete':
+      return removeSelection();
+    case 'lock':
+      return toggleLock();
+    case 'group':
+      return group();
+    case 'ungroup':
+      return ungroup();
+    case 'as-background':
+      return useAsBackground();
+    case 'remove-background-image':
+      return removeBackgroundImage();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Layer panel
+// ---------------------------------------------------------------------------
+
+function onLayerSelect(id: number, additive: boolean) {
+  const obj = objectById(id);
+  if (!obj) return;
+  if (additive) {
+    const current = canvas.getActiveObjects();
+    selectObjects(current.includes(obj) ? current.filter(o => o !== obj) : [...current, obj]);
+  } else {
+    selectObjects([obj]);
+  }
+}
+
+function onLayerToggleVisible(id: number) {
+  const obj = objectById(id);
+  if (!obj) return;
+  obj.set('visible', !obj.visible);
+  if (!obj.visible && canvas.getActiveObjects().includes(obj)) canvas.discardActiveObject();
+  afterEdit();
+}
+
+function onLayerToggleLock(id: number) {
+  const obj = objectById(id);
+  if (obj) toggleLock(obj);
+}
+
+function onLayerReorder(id: number, displayIndex: number) {
+  const obj = objectById(id);
+  if (!obj) return;
+  canvas.moveObjectTo(obj, canvas.getObjects().length - 1 - displayIndex);
+  afterEdit();
+}
+
+function onLayerRename(id: number, name: string) {
+  const obj = objectById(id);
+  if (!obj) return;
+  obj.set('name', name || undefined);
+  afterEdit();
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard
+// ---------------------------------------------------------------------------
+
+function onKeyDown(e: KeyboardEvent) {
+  if (!canvas || imagePicker.value) return;
+
+  // Don't interfere with typing in form fields (includes fabric's hidden textarea while editing text)
+  const target = e.target as HTMLElement | null;
+  if (target && (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable)) return;
+
+  const mod = e.ctrlKey || e.metaKey;
+  const key = e.key.toLowerCase();
+
+  if (mod && key === 'z') {
+    e.preventDefault();
+    e.shiftKey ? redo() : undo();
+    return;
+  }
+  if (mod && key === 'y') {
+    e.preventDefault();
+    redo();
+    return;
+  }
+  if (mod && key === 'v') {
+    e.preventDefault();
+    paste();
+    return;
+  }
+  if (mod && key === 'a') {
+    e.preventDefault();
+    selectAll();
+    return;
+  }
+
+  if (!canvas.getActiveObject()) return;
+
+  if (mod && key === 'c') {
+    e.preventDefault();
+    copy();
+  } else if (mod && key === 'x') {
+    e.preventDefault();
+    cut();
+  } else if (mod && key === 'd') {
+    e.preventDefault();
+    duplicate();
+  } else if (mod && key === 'g') {
+    e.preventDefault();
+    e.shiftKey ? ungroup() : group();
+  } else if (e.key === 'Delete' || e.key === 'Backspace') {
+    e.preventDefault();
+    removeSelection();
+  } else if (e.key === 'Escape') {
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+  } else if (e.key.startsWith('Arrow')) {
+    e.preventDefault();
+    const step = e.shiftKey ? 10 : 1;
+    const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
+    const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
+    nudge(dx, dy);
+  }
+}
+
+function onStageMouseDown() {
+  canvas.discardActiveObject();
+  canvas.requestRenderAll();
+}
 </script>
 
 <template>
-  <div class="inline-block pt-4">
-    <div class="flex items-start gap-x-2">
-      <button @click="addRect" title="Form einfügen"
-              class="px-3 rounded bg-blue-500 hover:bg-blue-600 h-10 w-12 mb-1">
-        <svg-icon type="mdi" :path="mdiRectangle"></svg-icon>
-      </button>
-      <button @click="addText" title="Textfeld einfügen"
-              class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
-        <svg-icon type="mdi" :path="mdiFormatText"></svg-icon>
-      </button>
-      <button @click="prepareImageModal" title="Logo einfügen"
-              class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
-        <svg-icon type="mdi" :path="mdiImageArea"></svg-icon>
-      </button>
-      <button @click="prepareQrCodeModal" title="QR-Code einfügen"
-              class="px-3 rounded bg-blue-500 hover:bg-blue-600 ml-2 h-10 w-12 mb-1">
-        <svg-icon type="mdi" :path="mdiQrcodePlus"></svg-icon>
-      </button>
-      <!-- Allgemeine Toolbar Vordergrund / Hintergrund -->
-      <div v-if="toolbarState.object" class="ml-4 flex items-center gap-x-2">
-        <button @click="bringToFront"
-                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 h-10 w-10"
-                title="In den Vordergrund">
-          <svg-icon type="mdi" :path="mdiArrangeBringForward"></svg-icon>
-        </button>
-        <button @click="sendToBack"
-                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 h-10 w-10"
-                title="In den Hintergrund">
-          <svg-icon type="mdi" :path="mdiArrangeSendBackward"></svg-icon>
-        </button>
-        <button @click="removeSelection"
-                class="px-2 py-1 rounded bg-red-200 hover:bg-red-300 h-10 w-10">
-          <svg-icon type="mdi" :path="mdiDelete"></svg-icon>
-        </button>
-      </div>
-      <div v-if="toolbarState.type === 'text'" class="ml-4 mb-1 flex items-center gap-x-2">
-        <!-- Text property toolbar -->
-        <input type="number" title="Textgröße" v-model.number="toolbarState.object.fontSize" v-on:change="triggerRender"
-               class="w-16 pr-1 border border-[var(--color-border)] rounded ml-2 h-10"/>
-        <button v-on:click="makeBold" title="Fett"
-                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-bold h-10 w-12"
-                :class="{ 'bg-gray-400': toolbarState.object.fontWeight === 'bold' }">B
-        </button>
-        <button v-on:click="makeItalic" title="Kursiv"
-                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 font-italic h-10 w-12"
-                :class="{ 'bg-gray-400': toolbarState.object.fontStyle === 'italic' }">I
-        </button>
-        <button v-on:click="makeUnderline" title="Unterstreichen"
-                class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 ml-2 h-10 w-12"
-                :class="{ 'bg-gray-400': toolbarState.object.underline }">U
-        </button>
-        <input type="color" title="Schriftfarbe" class="px-2 rounded ml-2 h-10 w-12" :value="toolbarState.object.fill"
-               @input="onFillChange($event.target.value)"/>
-      </div>
-      <div v-else-if="toolbarState.type === 'shape'" class="ml-4 flex items-start gap-x-2">
-        <!-- Shape Toolbar -->
-        <select v-model="toolbarState.object.type" title="Form ändern" @change="onShapeTypeChange($event.target.value)"
-                class="px-2 rounded ml-2 h-10">
-          <option value="rect">Rechteck</option>
-          <option value="circle">Kreis</option>
-          <option value="triangle">Dreieck</option>
-        </select>
-        <!-- Fill Color -->
-        <input type="color" title="Füllfarbe" class="px-2 rounded ml-2 mb-1 h-10 w-12" :value="toolbarState.object.fill"
-               @input="onFillChange($event.target.value)"/>
-        <!-- Border Color -->
-        <input type="color" title="Randfarbe" class="px-2 rounded ml-2 h-10 w-12" :value="toolbarState.object.stroke"
-               @input="onStrokeChange($event.target.value)"/>
-        <!-- Border Size -->
-        <input type="number" title="Randgröße" min="0" class="w-16 px-1 border border-[var(--color-border)] rounded ml-2 h-10"
-               :value="toolbarState.object.strokeWidth"
-               @input="onStrokeWidthChange($event.target.value)"/>
-      </div>
-    </div>
-    <div class="editor-stage">
-      <canvas ref="canvasEl" class="border border-grey rounded"></canvas>
-      <div v-if="props.slide?.type === 'TeamsMapSlideContent'" class="map-guide"></div>
-      <img
-          v-if="seasonLogoStyle"
-          class="season-logo"
-          src="/logo.png"
-          alt=""
-          :style="seasonLogoStyle"
-      />
-    </div>
-
-    <!-- Image Auswahl Overlay -->
-    <div v-if="showImageModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-      <div class="bg-white rounded shadow-lg p-6 w-1/3">
-        <h2 class="text-lg font-bold mb-4">Bild auswählen</h2>
-        <div class="grid grid-cols-3 gap-4 overflow-y-auto max-h-96">
-          <div v-for="img in imageModalContent" :key="img" class="cursor-pointer">
-            <img v-if="!!img.content" :src="img.content" :alt="img.title"
-                 class="w-28 h-28 object-contain rounded border"
-                 @click="addQRCode(img.content)"/>
-            <img v-else :src="img.url" :alt="img.title"
-                 class="w-28 h-28 object-contain rounded border"
-                 @click="insertImageFromUrl(img.url)"/>
-            <div class="text-xs text-center mt-1 w-28"
-                 style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;"
-            >{{ img.title }}</div>
-          </div>
-        </div>
-        <div class="mt-6 px-4 py-2 grid grid-cols-2">
-          <div>
-            <router-link to="/plan/publish/logos" class="block px-2">
-              <button class="rounded bg-gray-300 hover:bg-gray-400 w-full py-1">Logos verwalten</button>
-            </router-link>
-          </div>
-          <div>
-            <button @click="closeImageModal" class="rounded bg-gray-300 hover:bg-gray-400 w-full py-1 px-2">
-              Abbrechen
+  <div class="slide-editor">
+    <!-- Werkzeugleiste -->
+    <div class="se-toolbar">
+      <div class="se-toolbar__group">
+        <Popover class="relative">
+          <PopoverButton class="se-tool" title="Text einfügen">
+            <i class="bi bi-fonts"></i><span>Text</span><i class="bi bi-chevron-down se-tool__caret"></i>
+          </PopoverButton>
+          <PopoverPanel v-slot="{ close }" class="se-menu">
+            <button v-for="preset in TEXT_PRESETS" :key="preset.id" type="button" class="se-menu__text"
+                    :style="{ fontSize: `${Math.min(26, 10 + preset.fontSize / 3)}px`, fontWeight: preset.bold ? 700 : 400 }"
+                    @click="addText(preset.id); close()">
+              {{ preset.label }}
             </button>
-          </div>
-        </div>
+          </PopoverPanel>
+        </Popover>
 
+        <Popover class="relative">
+          <PopoverButton class="se-tool" title="Form einfügen">
+            <i class="bi bi-square"></i><span>Formen</span><i class="bi bi-chevron-down se-tool__caret"></i>
+          </PopoverButton>
+          <PopoverPanel v-slot="{ close }" class="se-menu se-menu--grid">
+            <button v-for="shape in SHAPES" :key="shape.id" type="button" class="se-menu__shape" :title="shape.label"
+                    @click="addShape(shape.id); close()">
+              <i class="bi" :class="shape.icon"></i>
+              <span>{{ shape.label }}</span>
+            </button>
+          </PopoverPanel>
+        </Popover>
+
+        <button type="button" class="se-tool" title="Logo oder Bild einfügen" @click="imagePicker = 'images'">
+          <i class="bi bi-image"></i><span>Bild</span>
+        </button>
+        <button type="button" class="se-tool" title="QR-Code einfügen" @click="openQrPicker">
+          <i class="bi bi-qr-code"></i><span>QR-Code</span>
+        </button>
+      </div>
+
+      <div class="se-toolbar__group">
+        <button type="button" class="se-icon-btn" :disabled="!canUndo" title="Rückgängig (Strg+Z)" @click="undo">
+          <i class="bi bi-arrow-counterclockwise"></i>
+        </button>
+        <button type="button" class="se-icon-btn" :disabled="!canRedo" title="Wiederholen (Strg+Umschalt+Z)"
+                @click="redo">
+          <i class="bi bi-arrow-clockwise"></i>
+        </button>
+      </div>
+
+      <div class="se-toolbar__group ml-auto">
+        <button type="button" class="se-icon-btn" title="Verkleinern" @click="zoomOut">
+          <i class="bi bi-zoom-out"></i>
+        </button>
+        <button type="button" class="se-zoom-label" title="An Fenster anpassen" @click="zoomFit">{{ zoomLabel }}</button>
+        <button type="button" class="se-icon-btn" title="Vergrößern" @click="zoomIn">
+          <i class="bi bi-zoom-in"></i>
+        </button>
+        <button type="button" class="se-icon-btn" :class="{ 'is-active': zoomMode === 'fit' }" title="An Fenster anpassen"
+                @click="zoomFit">
+          <i class="bi bi-aspect-ratio"></i>
+        </button>
       </div>
     </div>
+
+    <div class="se-body">
+      <!-- Bühne -->
+      <div ref="stageEl" class="se-stage" @wheel="onStageWheel" @dragover.prevent @drop.prevent="onStageDrop"
+           @mousedown.self="onStageMouseDown">
+        <div class="se-stage__slide">
+          <canvas ref="canvasEl"></canvas>
+          <div v-if="props.slide?.type === 'TeamsMapSlideContent'" class="se-map-guide"
+               title="Hier wird die Karte mit den Teams angezeigt"></div>
+          <img v-if="seasonLogoStyle" class="se-season-logo" src="/logo.png" alt="" :style="seasonLogoStyle"/>
+        </div>
+      </div>
+
+      <!-- Seitenleiste -->
+      <aside class="se-panel">
+        <div class="se-panel__tabs" role="tablist">
+          <button v-if="hasSettings" type="button" role="tab" :aria-selected="panelTab === 'settings'"
+                  :class="{ 'is-active': panelTab === 'settings' }" @click="panelTab = 'settings'">
+            <i class="bi bi-gear"></i> Einstellungen
+          </button>
+          <button type="button" role="tab" :aria-selected="panelTab === 'design'"
+                  :class="{ 'is-active': panelTab === 'design' }" @click="panelTab = 'design'">
+            <i class="bi bi-sliders"></i> Gestalten
+          </button>
+          <button type="button" role="tab" :aria-selected="panelTab === 'layers'"
+                  :class="{ 'is-active': panelTab === 'layers' }" @click="panelTab = 'layers'">
+            <i class="bi bi-layers"></i> Ebenen
+            <span v-if="layers.length" class="se-panel__count">{{ layers.length }}</span>
+          </button>
+        </div>
+        <div class="se-panel__body">
+          <div v-if="panelTab === 'settings'">
+            <slot name="settings"></slot>
+          </div>
+          <EditorInspector v-else-if="panelTab === 'design'"
+                           :selection="selection"
+                           :background="slideBackground"
+                           :snapping="snapping"
+                           @update="onInspectorUpdate"
+                           @action="onInspectorAction"
+                           @background="setBackground"
+                           @toggle-snapping="toggleSnapping"/>
+          <EditorLayers v-else
+                        :layers="layers"
+                        :active-ids="activeIds"
+                        @select="onLayerSelect"
+                        @toggle-visible="onLayerToggleVisible"
+                        @toggle-lock="onLayerToggleLock"
+                        @reorder="onLayerReorder"
+                        @rename="onLayerRename"/>
+        </div>
+      </aside>
+    </div>
+
+    <ImagePickerModal v-if="imagePicker === 'images'"
+                      title="Logo oder Bild einfügen"
+                      :images="availableImages"
+                      allow-upload
+                      :uploading="uploading"
+                      @pick="onPickImage"
+                      @upload="uploadImage"
+                      @close="imagePicker = null"/>
+    <ImagePickerModal v-else-if="imagePicker === 'qr'"
+                      title="QR-Code einfügen"
+                      :images="availableQrCodes"
+                      @pick="onPickImage"
+                      @close="imagePicker = null"/>
   </div>
 </template>
 
 <style scoped>
-
-.editor-stage {
-  position: relative;
-  display: inline-block;
+.slide-editor {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--color-border-strong);
 }
 
-.map-guide {
+.se-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border-strong);
+  background: var(--se-panel-bg);
+}
+
+.se-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.se-toolbar__group + .se-toolbar__group:not(.ml-auto) {
+  padding-left: 1rem;
+  border-left: 1px solid var(--color-border-strong);
+}
+
+.se-zoom-label {
+  min-width: 3.6rem;
+  height: 2rem;
+  padding: 0 0.4rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.se-zoom-label:hover {
+  background: var(--color-bg-hover);
+}
+
+/* Fills the remaining page height; the page itself must not scroll. */
+.se-body {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 420px;
+}
+
+.se-stage {
+  display: flex;
+  overflow: auto;
+  background-color: var(--se-stage-bg);
+  background-image: radial-gradient(var(--se-stage-dot) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+.se-map-guide {
   position: absolute;
   z-index: 15;
   left: 10%;
@@ -656,25 +1182,95 @@ async function paste() {
   pointer-events: none;
 }
 
-.season-logo {
+.se-season-logo {
   position: absolute;
   z-index: 20;
+  max-width: none;
   transform: translateX(-50%);
   pointer-events: none;
 }
 
-@font-face {
-  font-family: 'Uniform';
-  src: url('/fonts/Uniform-Regular.otf') format('otf');
-  font-weight: normal;
-  font-style: normal;
+.se-stage__slide {
+  position: relative;
+  overflow: hidden;
+  margin: auto;
+  line-height: 0;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 12px 32px rgba(15, 23, 42, 0.14);
 }
 
-@font-face {
-  font-family: 'Uniform';
-  src: url('/fonts/Uniform-Bold.otf') format('otf');
-  font-weight: bold;
-  font-style: normal;
+.se-panel {
+  display: flex;
+  flex-direction: column;
+  width: var(--se-panel-width);
+  min-width: min-content;
+  min-height: 0;
+  border-left: 1px solid var(--color-border-strong);
+  background: var(--se-panel-bg);
 }
 
+.se-panel__tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--color-border-strong);
+}
+
+.se-panel__tabs button {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 2rem;
+  padding: 0 0.55rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+}
+
+.se-panel__tabs button:hover {
+  background: var(--color-bg-hover);
+}
+
+.se-panel__tabs button.is-active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.se-panel__count {
+  min-width: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  line-height: 1.2rem;
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+}
+
+.se-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 1023px) {
+  .se-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(300px, 55vh) auto;
+    height: auto;
+  }
+
+  .se-panel {
+    width: auto;
+    max-height: 60vh;
+    border-left: 0;
+    border-top: 1px solid var(--color-border-strong);
+  }
+}
 </style>
