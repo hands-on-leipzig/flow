@@ -853,7 +853,36 @@ const selectedItem = computed(() =>
     timedGroups.value.find((g) => g.group.activity_group_id === selectedBlockId.value) || null
 )
 
+const MISSING_PROGRAM_ACCENT = '#888888'
+
+function cssHex(hex: string | null | undefined, fallback = MISSING_PROGRAM_ACCENT): string {
+  if (!hex) return fallback
+  return hex.startsWith('#') ? hex : `#${hex}`
+}
+
+/** Real catalog program. Joint (0) and missing have no program color. */
+function programIdOf(id: number | null | undefined): number | null {
+  if (id == null || id === 0) return null
+  return id
+}
+
+function activityProgramId(group: Group): number | null {
+  for (const activity of group.activities) {
+    const id = programIdOf(activity.meta?.first_program_id)
+    if (id != null) return id
+  }
+  return programIdOf(group.group_meta?.first_program_id)
+}
+
+function blockAccent(block: {group: Group}): string {
+  const id = activityProgramId(block.group)
+  if (id == null) return MISSING_PROGRAM_ACCENT
+  const program = programs.value.find((row) => row.id === id)
+  return cssHex(program?.color_hex)
+}
+
 function blockStyle(block: CalBlock) {
+  const accent = blockAccent(block)
   if (block.isBand) {
     return {
       top: `${block.top}px`,
@@ -861,7 +890,7 @@ function blockStyle(block: CalBlock) {
       left: `${GUTTER}px`,
       right: '0.35rem',
       zIndex: 2,
-      '--accent': roleAccent.value,
+      '--accent': accent,
       '--label-top': `${block.labelTopPct}%`,
     }
   }
@@ -878,7 +907,7 @@ function blockStyle(block: CalBlock) {
     width: `calc((${track}) / ${cols} - ${gap}px)`,
     right: 'auto',
     zIndex: 5 + col + (block.current ? 2 : 0),
-    '--accent': roleAccent.value,
+    '--accent': accent,
   }
 }
 
@@ -1151,6 +1180,12 @@ function onSheetPointerUp(e: PointerEvent) {
 
 const sheetPanelStyle = computed(() => ({
   '--accent': roleAccent.value,
+  transform: sheetDragY.value ? `translateY(${sheetDragY.value}px)` : undefined,
+  transition: sheetDragging.value ? 'none' : 'transform 0.2s ease-out',
+}))
+
+const detailSheetStyle = computed(() => ({
+  '--accent': selectedItem.value ? blockAccent(selectedItem.value) : roleAccent.value,
   transform: sheetDragY.value ? `translateY(${sheetDragY.value}px)` : undefined,
   transition: sheetDragging.value ? 'none' : 'transform 0.2s ease-out',
 }))
@@ -2325,7 +2360,7 @@ watch(
               'public-schedule__detail-panel--current': selectedItem.current,
               'public-schedule__detail-panel--dragging': sheetDragging && activeSheet === 'detail',
             }"
-            :style="sheetPanelStyle"
+            :style="detailSheetStyle"
         >
           <div
               class="public-schedule__detail-head"
