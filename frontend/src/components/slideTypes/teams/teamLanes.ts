@@ -44,13 +44,22 @@ export async function loadVenuePoint(eventId: number): Promise<{lat: number, lon
     }
 }
 
-export async function loadCityCoordinates(cities: string[]): Promise<Record<string, {lat: number, lon: number}>> {
+export type CityCoordinates = {
+    points: Record<string, {lat: number, lon: number}>,
+    missing: string[],
+};
+
+export async function loadCityCoordinates(cities: string[]): Promise<CityCoordinates> {
     if (cities.length === 0) {
-        return {};
+        return {points: {}, missing: []};
     }
     const {data} = await axios.post('/geocode-cities', {cities});
     const rows = data?.cities;
-    return rows && typeof rows === 'object' ? rows : {};
+    const missing = data?.missing;
+    return {
+        points: rows && typeof rows === 'object' ? rows : {},
+        missing: Array.isArray(missing) ? missing.filter((city) => typeof city === 'string') : [],
+    };
 }
 
 export function selectedLanes(lanes: TeamLane[], programs: number[] | null): TeamLane[] {

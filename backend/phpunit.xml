@@ -34,5 +34,6 @@
         <env name="GOTENBERG_USERNAME" value=""/>
         <env name="GOTENBERG_PASSWORD" value=""/>
         <env name="PRINT_PAGE_BASE_URL" value=""/>
+        <env name="NOMINATIM_MIN_INTERVAL" value="0"/>
     </php>
 </phpunit>

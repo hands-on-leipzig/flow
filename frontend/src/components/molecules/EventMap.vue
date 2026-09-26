@@ -46,50 +46,9 @@ const canShare = ref('share' in navigator)
 // Copy success timeout
 let copySuccessTimeout = null
 
-// Extract German address format (street + PLZ + city)
-// German addresses have format:
-// - First line: always the street
-// - Optional second and third lines
-// - Then: PLZ and city
-const extractGermanAddress = (address) => {
-  if (!address) return null
-  
-  // Split by newlines
-  const lines = address.split('\n').map(line => line.trim()).filter(line => line.length > 0)
-  
-  if (lines.length === 0) return null
-  
-  // First line is always the street
-  const street = lines[0]
-  
-  // PLZ is typically 5 digits, followed by city name
-  const plzPattern = /\b\d{5}\b/
-  
-  // Find the line containing PLZ (usually the last line, but could be second-to-last)
-  // Search from the end backwards
-  let plzCity = null
-  for (let i = lines.length - 1; i >= 1; i--) {
-    if (plzPattern.test(lines[i])) {
-      plzCity = lines[i]
-      break
-    }
-  }
-  
-  // If we found PLZ+City, combine with street
-  if (plzCity) {
-    return `${street}, ${plzCity}`
-  }
-  
-  // Fallback: if no PLZ found but we have at least 2 lines, use first and last
-  if (lines.length >= 2) {
-    return `${street}, ${lines[lines.length - 1]}`
-  }
-  
-  // Last resort: return just the street
-  return street
-}
-
-// Geocode address using backend API (proxies to OpenStreetMap Nominatim API)
+// Geocode address using backend API (proxies to OpenStreetMap Nominatim API).
+// The backend falls back to coarser variants of the address on its own and
+// reports which variant it matched in `query`.
 const geocodeAddress = async (address) => {
   if (!address) return null
 
@@ -103,7 +62,8 @@ const geocodeAddress = async (address) => {
     if (response.data && response.data.lat && response.data.lon) {
       return {
         lat: response.data.lat,
-        lon: response.data.lon
+        lon: response.data.lon,
+        query: response.data.query || address
       }
     }
     return null
@@ -126,36 +86,38 @@ const resolveAddressCoordinates = async (address) => {
   const requestId = ++geocodeRequestId
   isResolvingAddress.value = true
 
-  let coords = await geocodeAddress(address)
-  let addressUsed = address
-
-  // Retry with stripped street/city format if full address cannot be resolved.
-  if (!coords) {
-    const strippedAddress = extractGermanAddress(address)
-    if (strippedAddress && strippedAddress !== address) {
-      console.log('Full address failed, trying stripped address:', strippedAddress)
-      coords = await geocodeAddress(strippedAddress)
-      if (coords) {
-        addressUsed = strippedAddress
-      }
-    }
-  }
+  const coords = await geocodeAddress(address)
 
   if (requestId !== geocodeRequestId) {
     return
   }
 
   if (!coords) {
-    console.error('Failed to geocode address after retries')
+    console.error('Failed to geocode address')
     isResolvingAddress.value = false
     return
   }
 
-  // Track which address was used
-  usedAddress.value = addressUsed
-  mapCoordinates.value = coords
+  usedAddress.value = coords.query
+  mapCoordinates.value = {lat: coords.lat, lon: coords.lon}
   isResolvingAddress.value = false
 }
+
+// The backend joins the address lines with commas, so only a genuinely shortened
+// match should push the complete address above the map.
+const normalizeAddress = (value) => value
+    .split(/[\n,]+/)
+    .map(part => part.trim())
+    .filter(part => part.length > 0)
+    .join(', ')
+    .toLowerCase()
+
+const showFullAddress = computed(() => Boolean(
+    mapCoordinates.value
+    && usedAddress.value
+    && fullAddress.value
+    && normalizeAddress(usedAddress.value) !== normalizeAddress(fullAddress.value)
+))
 
 const mapMarkers = computed(() => {
   if (!mapCoordinates.value || !fullAddress.value) {
@@ -385,7 +347,7 @@ onBeforeUnmount(() => {
 <template>
   <div v-if="address" class="space-y-3">
     <!-- Show full address above map if using stripped address -->
-    <div v-if="mapCoordinates && usedAddress && fullAddress && usedAddress !== fullAddress"
+    <div v-if="showFullAddress"
          class="text-sm text-[var(--color-text-muted)] whitespace-pre-line bg-white rounded-lg p-3 border border-[var(--color-border)]">
       {{ fullAddress }}
     </div>
