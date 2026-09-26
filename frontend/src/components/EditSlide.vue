@@ -147,7 +147,9 @@ async function saveSlide() {
   }
 
   isSaving.value = true;
-  const s = {...slide.value, content: slide.value.content.toJSON()};
+  // The display time is edited in the slideshow overview, not here.
+  const {transition_time: _ignored, ...editable} = slide.value;
+  const s = {...editable, content: slide.value.content.toJSON()};
 
   try {
     await axios.put(`slides/${slide.value.id}`, s);
@@ -289,21 +291,6 @@ function setTableBackgroundFromHexAndOpacity(hex: string, opacityPercent: number
   updateByName('tableBackgroundColor', rgba);
 }
 
-function updateSlideDurationOverride(event: Event) {
-  const target = event.target as HTMLInputElement;
-  const isChecked = target.checked;
-  if (isChecked) {
-    updateDuration(15);
-  } else {
-    updateDuration(0);
-  }
-}
-
-function updateDuration(value: number) {
-  slide.value.transition_time = value;
-  scheduleSave();
-}
-
 </script>
 
 <template>
@@ -356,20 +343,6 @@ function updateDuration(value: number) {
             <input type="checkbox" class="se-switch" :checked="slide.content.showSeasonLogo"
                    @change="updateByName('showSeasonLogo', ($event.target as HTMLInputElement).checked)"/>
           </label>
-          <!-- Eigene Anzeigezeit - Alle Slides außer Robot Game -->
-          <template v-if="slide.type !== 'RobotGameSlideContent'">
-            <label class="flex items-center justify-between gap-2 cursor-pointer">
-              <span class="se-label">Eigene Anzeigedauer</span>
-              <input type="checkbox" class="se-switch" :checked="slide.transition_time !== 0"
-                     @change="updateSlideDurationOverride"/>
-            </label>
-            <div v-if="slide.transition_time !== 0" class="flex items-center justify-between gap-2">
-              <span class="se-label">Sekunden</span>
-              <NumberField class="w-24" :min="1" :max="600" suffix="s" :model-value="slide.transition_time"
-                           @update:model-value="updateDuration"/>
-            </div>
-            <p class="se-hint">Ohne eigene Dauer gilt die Zeit pro Folie der Slideshow.</p>
-          </template>
         </section>
 
         <section v-if="isPublicPlan" class="se-section">

@@ -275,6 +275,46 @@ async function updateTransitionTime(slideshow: Slideshow) {
   }
 }
 
+const slidesWithOwnDuration = computed(() =>
+    (selectedSlideshow.value?.slides ?? []).filter((slide) =>
+        slide.type !== 'RobotGameSlideContent' && (slide.transition_time ?? 0) > 0)
+);
+
+const showDurationPicker = ref(false);
+const durationPickerIds = ref<number[]>([]);
+
+function openDurationPicker() {
+  durationPickerIds.value = slidesWithOwnDuration.value.map((slide) => slide.id);
+  showDurationPicker.value = true;
+}
+
+/** Resets the slides' own time so they follow the slideshow time again. */
+async function applySlideshowDuration(slides: Slide[]) {
+  const targets = slides.filter((slide) => (slide.transition_time ?? 0) > 0);
+  if (!targets.length || !selectedSlideshow.value) return;
+  savingToast?.value?.show();
+  targets.forEach((slide) => {
+    slide.transition_time = 0;
+  });
+  try {
+    await Promise.all(targets.map((slide) => axios.put(`slides/${slide.id}`, {transition_time: 0})));
+    const seconds = selectedSlideshow.value.transition_time;
+    showGlassToast(targets.length === 1
+        ? `1 Folie nutzt jetzt ${seconds} s`
+        : `${targets.length} Folien nutzen jetzt ${seconds} s`, 'success');
+  } catch (e) {
+    console.error(e);
+    showGlassToast('Anzeigezeiten konnten nicht gespeichert werden', 'error');
+    await loadSlideshows();
+  }
+}
+
+async function applyDurationToPicked() {
+  const picked = slidesWithOwnDuration.value.filter((slide) => durationPickerIds.value.includes(slide.id));
+  showDurationPicker.value = false;
+  await applySlideshowDuration(picked);
+}
+
 async function persistSlideshowName(slideshow: Slideshow) {
   const name = slideshow.name?.trim();
   if (!name) return;
@@ -476,6 +516,27 @@ async function addSlide(selectedType: string) {
                     {{ preset }}s
                   </button>
                 </div>
+                <p class="digital-workspace__timing-hint">
+                  Gilt für alle Folien ohne eigene Zeit. Um die Zeit einer einzelnen Folie zu ändern,
+                  ändere einfach die <i class="bi bi-clock"></i>-Zeit oben rechts an der Folie.
+                </p>
+                <div class="digital-workspace__timing-apply">
+                  <span class="digital-workspace__timing-status">
+                    <template v-if="slidesWithOwnDuration.length === 1">1 Folie hat eine eigene Zeit</template>
+                    <template v-else-if="slidesWithOwnDuration.length">{{ slidesWithOwnDuration.length }} Folien haben eine eigene Zeit</template>
+                    <template v-else>Alle Folien nutzen diese Zeit</template>
+                  </span>
+                  <div v-if="slidesWithOwnDuration.length" class="digital-workspace__timing-actions">
+                    <button type="button" class="digital-workspace__timing-action"
+                            title="Eigene Zeiten aller Folien zurücksetzen"
+                            @click="applySlideshowDuration(slidesWithOwnDuration)">
+                      Für alle übernehmen
+                    </button>
+                    <button type="button" class="digital-workspace__timing-action" @click="openDurationPicker">
+                      Für Auswahl übernehmen…
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div
@@ -557,6 +618,7 @@ async function addSlide(selectedType: string) {
                     <template #item="{ element }">
                       <SlideThumb
                           :slide="element"
+                          :default-transition-time="selectedSlideshow.transition_time"
                           :class="{ 'opacity-0': draggedSlideId === element.id && isDragging }"
                           @deleteSlide="deleteSlide(selectedSlideshow, element.id)"/>
                     </template>
@@ -588,6 +650,52 @@ async function addSlide(selectedType: string) {
         @confirm="confirmDeleteSlideshow"
         @cancel="cancelDeleteSlideshow"
     />
+
+    <!-- Slideshow-Zeit auf ausgewählte Folien übernehmen -->
+    <div
+        v-if="showDurationPicker && selectedSlideshow"
+        class="glass-scrim fixed inset-0 flex items-center justify-center z-[100] p-4"
+        @click="showDurationPicker = false"
+    >
+      <div class="glass-modal w-full !max-w-lg" @click.stop>
+        <div class="glass-modal-header flex items-center justify-between gap-3">
+          <h3 class="text-lg font-semibold">Zeit für Auswahl übernehmen</h3>
+          <button type="button" class="text-2xl leading-none opacity-80 hover:opacity-100" title="Schließen"
+                  @click="showDurationPicker = false">&times;
+          </button>
+        </div>
+        <p class="text-sm text-[var(--color-text-muted)] mb-3">
+          Die ausgewählten Folien verlieren ihre eigene Zeit und nutzen wieder
+          <strong>{{ selectedSlideshow.transition_time }} s</strong> aus der Slideshow.
+        </p>
+        <div class="duration-picker">
+          <label v-for="slide in slidesWithOwnDuration" :key="slide.id" class="duration-picker__row">
+            <input v-model="durationPickerIds" type="checkbox" :value="slide.id"/>
+            <span class="duration-picker__name">{{ slide.name || 'Unbenannte Folie' }}</span>
+            <span class="duration-picker__time">
+              {{ slide.transition_time }} s
+              <i class="bi bi-arrow-right"></i>
+              {{ selectedSlideshow.transition_time }} s
+            </span>
+          </label>
+        </div>
+        <div class="glass-modal-footer flex items-center justify-between gap-3">
+          <button type="button" class="text-sm font-medium whitespace-nowrap text-[var(--color-accent)]"
+                  @click="durationPickerIds = durationPickerIds.length ? [] : slidesWithOwnDuration.map((s) => s.id)">
+            {{ durationPickerIds.length ? 'Keine auswählen' : 'Alle auswählen' }}
+          </button>
+          <div class="flex gap-2">
+            <button type="button" class="glass-btn-secondary duration-picker__btn" @click="showDurationPicker = false">
+              Abbrechen
+            </button>
+            <button type="button" class="glass-btn-accent duration-picker__btn" :disabled="!durationPickerIds.length"
+                    @click="applyDurationToPicked">
+              Übernehmen ({{ durationPickerIds.length }})
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Slide Type Selection Modal -->
     <div
@@ -886,6 +994,101 @@ async function addSlide(selectedType: string) {
 .digital-workspace__timing-preset--active {
   background: var(--color-accent, #2563eb);
   color: var(--color-on-accent, #fff);
+}
+
+.digital-workspace__timing-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--color-text-subtle);
+}
+
+.digital-workspace__timing-apply {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.75rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-strong) 55%, transparent);
+}
+
+.digital-workspace__timing-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.digital-workspace__timing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.digital-workspace__timing-action {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 45%, transparent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.digital-workspace__timing-action:hover {
+  background: var(--color-accent-muted);
+}
+
+.duration-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 0.3rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-bg-elevated);
+}
+
+.duration-picker__row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.5rem;
+  border-radius: 7px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.duration-picker__row:hover {
+  background: var(--color-bg-hover);
+}
+
+.duration-picker__row input {
+  accent-color: var(--color-accent);
+}
+
+.duration-picker__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duration-picker__btn {
+  padding: 0.55rem 1rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.duration-picker__time {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .digital-workspace__live-tile {
