@@ -2,6 +2,7 @@ import axios from "axios";
 import {programId, type EventProgramRef} from "@/utils/eventPrograms";
 
 export type TeamLaneTeam = {
+    ref?: string | null;
     name?: string | null;
     organization?: string | null;
     location?: string | null;

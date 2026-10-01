@@ -391,6 +391,7 @@ class TeamController extends Controller
             ->orderBy('team.name')
             ->get([
                 'team.first_program',
+                'team.team_number_hot',
                 'team.name',
                 'team.organization',
                 'team.location',
@@ -409,6 +410,7 @@ class TeamController extends Controller
                 ];
             }
             $lanes[$programId]['teams'][] = [
+                'ref' => $row->team_number_hot ? (string) $row->team_number_hot : null,
                 'name' => $row->name,
                 'organization' => $row->organization,
                 'location' => $row->location,
