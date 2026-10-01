@@ -72,6 +72,40 @@ class HelpCatalogApiTest extends TestCase
         $this->assertSame('/plan/volunteers', $screens[7]['route_path']);
         $this->assertSame('/plan/volunteers/staffing', $screens[9]['route_path']);
         $this->assertSame([], $response->json('actions'));
+        $this->assertSame([], $response->json('parameters'));
+    }
+
+    public function test_catalog_includes_non_protected_parameters_and_excludes_protected(): void
+    {
+        DB::table('m_parameter')->insert([
+            ['id' => 1, 'context' => 'protected', 'ui_label' => 'Secret', 'ui_description' => 'Hidden'],
+            ['id' => 2, 'context' => 'input', 'ui_label' => 'Explore Teams', 'ui_description' => 'Anzahl Explore Teams'],
+            ['id' => 3, 'context' => 'expert', 'ui_label' => 'Dauer Pause', 'ui_description' => 'Pause zwischen Runden'],
+            ['id' => 4, 'context' => 'afternoon', 'ui_label' => 'Präsentationen', 'ui_description' => 'Auf der Bühne'],
+            ['id' => 5, 'context' => 'integration', 'ui_label' => 'Gemeinsame Eröffnung', 'ui_description' => 'Beide Programme'],
+            ['id' => 6, 'context' => 'input', 'ui_label' => '', 'ui_description' => ''],
+            ['id' => 7, 'context' => 'expert', 'ui_label' => null, 'ui_description' => null],
+            ['id' => 8, 'context' => 'input', 'ui_label' => '  ', 'ui_description' => " \n "],
+        ]);
+
+        $response = $this->getJson('/api/help/catalog');
+        $response->assertOk();
+
+        $parameters = $response->json('parameters');
+        $this->assertSame(
+            [
+                ['id' => 3, 'ui_label' => 'Dauer Pause', 'ui_description' => 'Pause zwischen Runden', 'context' => 'expert'],
+                ['id' => 2, 'ui_label' => 'Explore Teams', 'ui_description' => 'Anzahl Explore Teams', 'context' => 'input'],
+                ['id' => 5, 'ui_label' => 'Gemeinsame Eröffnung', 'ui_description' => 'Beide Programme', 'context' => 'integration'],
+                ['id' => 4, 'ui_label' => 'Präsentationen', 'ui_description' => 'Auf der Bühne', 'context' => 'afternoon'],
+            ],
+            $parameters
+        );
+
+        foreach ($parameters as $row) {
+            $this->assertArrayNotHasKey('name', $row);
+            $this->assertArrayNotHasKey('value', $row);
+        }
     }
 
     public function test_screen_by_key_and_unknown_key_404(): void
@@ -256,6 +290,7 @@ class HelpCatalogApiTest extends TestCase
         Schema::dropIfExists('m_help_action');
         Schema::dropIfExists('m_help_screen');
         Schema::dropIfExists('m_help_topic');
+        Schema::dropIfExists('m_parameter');
 
         Schema::create('m_help_topic', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
@@ -299,6 +334,13 @@ class HelpCatalogApiTest extends TestCase
             $table->unique(['help_action', 'help_screen']);
             $table->foreign('help_action')->references('id')->on('m_help_action')->cascadeOnDelete();
             $table->foreign('help_screen')->references('id')->on('m_help_screen')->restrictOnDelete();
+        });
+
+        Schema::create('m_parameter', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->string('context', 32)->nullable();
+            $table->string('ui_label', 255)->nullable();
+            $table->text('ui_description')->nullable();
         });
     }
 
