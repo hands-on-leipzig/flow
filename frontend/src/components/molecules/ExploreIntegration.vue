@@ -4,6 +4,7 @@ import {RadioGroup, RadioGroupOption} from '@headlessui/vue'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import {eventPrograms, programDisplayName, programId, resolveProgramRef} from '@/utils/eventPrograms'
 import {useEventStore} from '@/stores/event'
+import {parameterAnchorAttr} from '@/utils/parameterAnchor'
 
 const EXPLORE_ID = 2
 
@@ -117,7 +118,7 @@ const exploreProgram = computed(() => resolveProgramRef(eventStore.selectedEvent
     </header>
 
     <div class="integration-tile__body glass-settings-block">
-      <div class="flex flex-col gap-1.5">
+      <div :id="parameterAnchorAttr(paramMapByName['e_mode'])" class="flex flex-col gap-1.5">
         <span class="glass-settings-label">Verbindung mit anderen Programmen</span>
         <RadioGroup v-model="connectionProxy" class="flex gap-1.5 flex-wrap">
           <RadioGroupOption

@@ -6,6 +6,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
+import { useScheduleParameterFocus } from '@/composables/useScheduleParameterFocus'
 import ScheduleToast from '@/components/atoms/ScheduleToast.vue'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
 import LoaderText from '@/components/atoms/LoaderText.vue'
@@ -80,6 +81,8 @@ const {
   dockPlanPopout,
   updatePlanLock,
 } = useScheduleWorkspace()
+
+useScheduleParameterFocus(() => loading.value)
 
 const leftWidth = ref(50)
 
@@ -455,5 +458,26 @@ watch(
   background: color-mix(in srgb, #ffffff 82%, transparent);
   backdrop-filter: blur(1px);
   pointer-events: none;
+}
+</style>
+
+<style>
+.parameter-focus {
+  border-radius: 0.55rem;
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--color-accent) 72%, transparent),
+    0 0 0 8px color-mix(in srgb, var(--color-accent) 16%, transparent);
+  animation: parameter-focus-fade 2.2s ease forwards;
+}
+
+@keyframes parameter-focus-fade {
+  0% {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--color-accent) 72%, transparent),
+      0 0 0 8px color-mix(in srgb, var(--color-accent) 16%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
 }
 </style>

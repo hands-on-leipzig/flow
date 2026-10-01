@@ -5,6 +5,7 @@ import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import ParameterField from '@/components/molecules/ParameterField.vue'
 import {programDisplayName, resolveProgramRef} from '@/utils/eventPrograms'
 import {useEventStore} from '@/stores/event'
+import {parameterAnchorAttr} from '@/utils/parameterAnchor'
 
 const props = defineProps<{
   parameters: any[]
@@ -109,7 +110,7 @@ const firstMatchOptions = computed(() => [
 
     <div class="integration-tile__body glass-settings-block">
       <!-- Rooms (outer): shared choice → nested switch → separate choice -->
-      <div v-if="roomsParam" class="flex flex-col gap-1.5">
+      <div v-if="roomsParam" :id="parameterAnchorAttr(roomsParam)" class="flex flex-col gap-1.5">
         <span class="glass-settings-label">{{ roomsParam.ui_label }}</span>
         <p v-if="roomsParam.ui_description" class="integration-desc">
           {{ roomsParam.ui_description }}
@@ -136,32 +137,34 @@ const firstMatchOptions = computed(() => [
               class="integration-nested"
           >
             <template v-if="switchParam">
-              <span class="glass-settings-label">{{ switchParam.ui_label }}</span>
-              <p v-if="switchParam.ui_description" class="integration-desc">
-                {{ switchParam.ui_description }}
-              </p>
-              <RadioGroup v-model="switchMode" class="flex gap-1.5 flex-wrap">
-                <RadioGroupOption
-                    v-for="opt in [
-                      {value: 'per_round', label: 'Nach einer kompletten Runde'},
-                      {value: 'within_round', label: 'Innerhalb einer Runde'},
-                    ]"
-                    :key="'switch_' + opt.value"
-                    v-slot="{ checked }"
-                    :value="opt.value"
-                    as="template"
-                >
-                  <button
-                      type="button"
-                      class="venues-view-btn"
-                      :class="{ 'is-active': checked }"
-                      :aria-pressed="checked"
-                      @click="switchMode = opt.value"
+              <div :id="parameterAnchorAttr(switchParam)" class="flex flex-col gap-1.5">
+                <span class="glass-settings-label">{{ switchParam.ui_label }}</span>
+                <p v-if="switchParam.ui_description" class="integration-desc">
+                  {{ switchParam.ui_description }}
+                </p>
+                <RadioGroup v-model="switchMode" class="flex gap-1.5 flex-wrap">
+                  <RadioGroupOption
+                      v-for="opt in [
+                        {value: 'per_round', label: 'Nach einer kompletten Runde'},
+                        {value: 'within_round', label: 'Innerhalb einer Runde'},
+                      ]"
+                      :key="'switch_' + opt.value"
+                      v-slot="{ checked }"
+                      :value="opt.value"
+                      as="template"
                   >
-                    {{ opt.label }}
-                  </button>
-                </RadioGroupOption>
-              </RadioGroup>
+                    <button
+                        type="button"
+                        class="venues-view-btn"
+                        :class="{ 'is-active': checked }"
+                        :aria-pressed="checked"
+                        @click="switchMode = opt.value"
+                    >
+                      {{ opt.label }}
+                    </button>
+                  </RadioGroupOption>
+                </RadioGroup>
+              </div>
             </template>
 
             <div
@@ -176,7 +179,12 @@ const firstMatchOptions = computed(() => [
               />
             </div>
 
-            <div v-if="firstParam" class="flex flex-col gap-1.5" :class="(switchParam || trParallelParam) ? 'mt-3' : ''">
+            <div
+                v-if="firstParam"
+                :id="parameterAnchorAttr(firstParam)"
+                class="flex flex-col gap-1.5"
+                :class="(switchParam || trParallelParam) ? 'mt-3' : ''"
+            >
               <span class="glass-settings-label">{{ firstParam.ui_label }}</span>
               <p v-if="firstParam.ui_description" class="integration-desc">
                 {{ firstParam.ui_description }}

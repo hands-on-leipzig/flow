@@ -157,16 +157,24 @@ function parameterRoutePath(param: CatalogParameter): string {
     case 'integration':
       return '/plan/schedule/integration'
     case 'input':
-      return isStartOrDurationLabel(param.ui_label) ? '/plan/schedule/times' : '/plan/schedule'
+      if (isStartOrDurationLabel(param.ui_label)) return '/plan/schedule/times'
+      if (/^\s*explore modus\b/i.test(param.ui_label || '')) return '/plan/schedule/integration'
+      return '/plan/schedule'
     default:
       return '/plan/schedule'
   }
 }
 
-function parameterJump(param: CatalogParameter): {name: string; to: string} {
-  const to = parameterRoutePath(param)
-  const screen = screens.value.find((row) => row.route_path === to)
-  return {name: screen?.name ?? 'Ablauf', to}
+function parameterJump(param: CatalogParameter): {
+  name: string
+  to: {path: string; query: {parameter: string}}
+} {
+  const path = parameterRoutePath(param)
+  const screen = screens.value.find((row) => row.route_path === path)
+  return {
+    name: screen?.name ?? 'Ablauf',
+    to: {path, query: {parameter: String(param.id)}},
+  }
 }
 
 function highlight(text: string): string {
