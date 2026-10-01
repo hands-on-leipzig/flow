@@ -24,6 +24,11 @@ class PlanActivityController extends Controller
         return response()->json($this->respond($planId, $req, 'next'));
     }
 
+    public function actionUpcoming(int $planId, Request $req): JsonResponse
+    {
+        return response()->json($this->respond($planId, $req, 'upcoming'));
+    }
+
     /**
      * @return array{plan_id: int, groups: list<array<string, mixed>>}
      */
@@ -54,7 +59,7 @@ class PlanActivityController extends Controller
             $interval = 30;
         }
 
-        $rows = $this->schedule->window($rows, $window, $pivot, $window === 'next' ? $interval : 0);
+        $rows = $this->schedule->window($rows, $window, $pivot, $window === 'now' ? 0 : $interval);
 
         return [
             'plan_id' => $planId,

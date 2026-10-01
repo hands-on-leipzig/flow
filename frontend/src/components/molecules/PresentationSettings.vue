@@ -122,6 +122,7 @@ const draggedSlideId = ref<number | null>(null);
 const publicPlanChoices = [
   {slide: 'PublicPlanSlideContent', label: 'Jetzt laufende Programmpunkte', icon: 'bi-clock'},
   {slide: 'PublicPlanNextSlideContent', label: 'Kommende Programmpunkte', icon: 'bi-calendar-event'},
+  {slide: 'PublicPlanUpcomingSlideContent', label: 'Coming up (jetzt & gleich, nach Programm)', icon: 'bi-collection-play'},
   {slide: 'PublicPlanNextEventSlideContent', label: 'Nächster Programmpunkt (groß)', icon: 'bi-alphabet-uppercase'},
 ];
 const teamsChoices = [
@@ -355,7 +356,7 @@ async function addSlide(selectedType: string) {
 
   let newSlide = Slide.createNewSlide(selectedType);
 
-  if (selectedType === 'PublicPlanSlideContent' || selectedType === 'PublicPlanNextSlideContent' || selectedType === 'PublicPlanNextEventSlideContent') {
+  if (selectedType === 'PublicPlanSlideContent' || selectedType === 'PublicPlanNextSlideContent' || selectedType === 'PublicPlanUpcomingSlideContent' || selectedType === 'PublicPlanNextEventSlideContent') {
     newSlide.content.planId = planId.value;
     newSlide.content.joint = true;
     newSlide.content.programs = eventPrograms(event.value).map((program) => programId(program)).filter((id) => id > 0);

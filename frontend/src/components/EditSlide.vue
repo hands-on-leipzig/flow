@@ -43,9 +43,9 @@ const saveButtonText = computed(() => {
   return 'Alle Änderungen gespeichert';
 });
 
-const shouldLoadRooms = ['PublicPlanSlideContent', 'PublicPlanNextSlideContent', 'PublicPlanNextEventSlideContent'];
+const shouldLoadRooms = ['PublicPlanSlideContent', 'PublicPlanNextSlideContent', 'PublicPlanUpcomingSlideContent', 'PublicPlanNextEventSlideContent'];
 const isPublicPlan = computed(() => shouldLoadRooms.includes(slide.value?.type ?? ''));
-const isPlanLookahead = computed(() => ['PublicPlanNextSlideContent', 'PublicPlanNextEventSlideContent'].includes(slide.value?.type ?? ''));
+const isPlanLookahead = computed(() => ['PublicPlanNextSlideContent', 'PublicPlanUpcomingSlideContent', 'PublicPlanNextEventSlideContent'].includes(slide.value?.type ?? ''));
 
 const roomOptions = computed(() => [
   {value: 0, label: 'Alle Räume', description: 'Alle Aktivitäten der Veranstaltung', icon: 'bi-grid-3x3-gap'},

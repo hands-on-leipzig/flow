@@ -5,6 +5,7 @@ import {UrlSlideContent} from "./urlSlideContent";
 import {FabricSlideContent} from "./fabricSlideContent";
 import {PublicPlanSlideContent} from './publicPlanSlideContent';
 import {PublicPlanNextSlideContent} from './publicPlanNextSlideContent';
+import {PublicPlanUpcomingSlideContent} from './publicPlanUpcomingSlideContent';
 import {TeamsMapSlideContent} from "./teamsMapSlideContent";
 import {TeamsTableSlideContent} from "./teamsTableSlideContent";
 import {PublicPlanNextEventSlideContent} from "./publicPlanNextEventSlideContent";
@@ -48,6 +49,8 @@ export class Slide {
                 return new PublicPlanSlideContent(content);
             case "PublicPlanNextSlideContent":
                 return new PublicPlanNextSlideContent(content);
+            case "PublicPlanUpcomingSlideContent":
+                return new PublicPlanUpcomingSlideContent(content);
             case "PublicPlanNextEventSlideContent":
                 return new PublicPlanNextEventSlideContent(content);
             case "TeamsMapSlideContent":

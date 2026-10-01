@@ -80,11 +80,15 @@ class AudienceSchedule
             $start = Carbon::parse($row->start_time, 'Europe/Berlin');
             $end = Carbon::parse($row->end_time, 'Europe/Berlin');
 
+            $now = $start->lte($pivot) && $end->gte($pivot);
+            $next = $start->gte($pivot) && $start->lte($pivot->copy()->addMinutes($intervalMinutes));
+
             return match ($name) {
                 'full' => true,
                 'rest' => ! $end->lt($pivot),
-                'now' => $start->lte($pivot) && $end->gte($pivot),
-                'next' => $start->gte($pivot) && $start->lte($pivot->copy()->addMinutes($intervalMinutes)),
+                'now' => $now,
+                'next' => $next,
+                'upcoming' => $now || $next,
                 default => true,
             };
         })->values();

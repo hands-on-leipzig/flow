@@ -5,6 +5,7 @@ const SEASON_LOGO_DEFAULT: Record<string, boolean> = {
     RobotGameSlideContent: true,
     PublicPlanSlideContent: true,
     PublicPlanNextSlideContent: true,
+    PublicPlanUpcomingSlideContent: true,
     PublicPlanNextEventSlideContent: true,
     TeamsMapSlideContent: true,
     UrlSlideContent: false,

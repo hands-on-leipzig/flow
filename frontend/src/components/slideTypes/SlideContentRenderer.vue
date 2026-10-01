@@ -14,6 +14,9 @@ import {PublicPlanNextSlideContent} from '@/models/publicPlanNextSlideContent';
 import PublicPlanSlideContentRenderer from '@/components/slideTypes/publicPlan/PublicPlanSlideContentRenderer.vue';
 import PublicPlanNextSlideContentRenderer
   from '@/components/slideTypes/publicPlan/PublicPlanNextSlideContentRenderer.vue';
+import {PublicPlanUpcomingSlideContent} from '@/models/publicPlanUpcomingSlideContent';
+import PublicPlanUpcomingSlideContentRenderer
+  from '@/components/slideTypes/publicPlan/PublicPlanUpcomingSlideContentRenderer.vue';
 import {TeamsMapSlideContent} from "../../models/teamsMapSlideContent";
 import TeamsMapSlideContentRenderer from "./teams/TeamsMapSlideContentRenderer.vue";
 import {TeamsTableSlideContent} from "../../models/teamsTableSlideContent";
@@ -91,6 +94,8 @@ const componentName = computed(() => {
     return PublicPlanSlideContentRenderer;
   } else if (content instanceof PublicPlanNextSlideContent) {
     return PublicPlanNextSlideContentRenderer;
+  } else if (content instanceof PublicPlanUpcomingSlideContent) {
+    return PublicPlanUpcomingSlideContentRenderer;
   } else if (content instanceof PublicPlanNextEventSlideContent) {
     return PublicPlanNextEventSlideContentRenderer;
   } else if (content instanceof TeamsMapSlideContent) {

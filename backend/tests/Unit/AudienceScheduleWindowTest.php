@@ -30,5 +30,9 @@ class AudienceScheduleWindowTest extends TestCase
             ['2026-06-01 10:15'],
             $schedule->window($rows, 'next', $pivot, 30)->pluck('start_time')->all(),
         );
+        $this->assertSame(
+            ['2026-06-01 09:30', '2026-06-01 10:15'],
+            $schedule->window($rows, 'upcoming', $pivot, 30)->pluck('start_time')->all(),
+        );
     }
 }

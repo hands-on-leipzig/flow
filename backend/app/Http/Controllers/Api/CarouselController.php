@@ -209,6 +209,9 @@ class CarouselController extends Controller
         } else if ($type == "PublicPlanNextSlideContent") {
             $slide['name'] = "Zeitplan - Als nächstes";
             $providedContent['background'] = $this->slideGeneratorService->generatePublicPlanBackground(false);
+        } else if ($type == "PublicPlanUpcomingSlideContent") {
+            $slide['name'] = "Zeitplan - Coming up";
+            $providedContent['background'] = $this->slideGeneratorService->generatePublicPlanBackground(false);
         } else if ($type == "PublicPlanNextEventSlideContent") {
             $slide['name'] = "Zeitplan - Nächstes Event";
         } else if ($type === 'RobotGameSlideContent') {
