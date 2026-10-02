@@ -145,6 +145,13 @@ watch(
 
 <template>
   <div class="space-y-6">
+    <EventSelectModal
+        :open="!event || showEventModal"
+        :required="!event"
+        @close="showEventModal = false"
+    />
+
+    <template v-if="event">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center gap-2.5 min-w-0 flex-1">
         <img
@@ -171,8 +178,6 @@ watch(
         <AdminDbIdsBox/>
       </div>
     </div>
-
-    <EventSelectModal :open="showEventModal" @close="showEventModal = false"/>
 
     <PublicLinkStrip/>
 
@@ -299,5 +304,6 @@ watch(
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
