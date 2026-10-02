@@ -263,8 +263,11 @@ function hasSingleTeam(a: any): boolean {
   return a?.team != null || !!(a?.team_name?.trim());
 }
 
-function description(a: any, group: any): string {
-  return a?.meta?.description ?? group?.group_meta?.description ?? '';
+function groupDescription(group: any): string {
+  const own = String(group?.group_meta?.description ?? '').trim();
+  if (own) return own;
+  const acts = group?.activities ?? [];
+  return acts.length === 1 ? String(acts[0]?.meta?.description ?? '').trim() : '';
 }
 
 function countdownLabel(a: any): string {
@@ -318,7 +321,7 @@ function countdownLabel(a: any): string {
             <div class="board-section" :class="`board-section--${section.kind}`">
               <span v-if="section.kind === 'now'" class="board-live-dot" aria-hidden="true"/>
               <i v-else class="bi bi-clock" aria-hidden="true"/>
-              {{ section.kind === 'now' ? 'Läuft gerade' : 'Gleich' }}
+              {{ section.kind === 'now' ? 'Läuft gerade' : 'Als nächstes' }}
             </div>
             <section
                 v-for="g in section.groups"
@@ -326,7 +329,10 @@ function countdownLabel(a: any): string {
                 class="board-group"
                 :class="`board-group--${section.kind}`"
             >
-              <h2 class="board-group-title">{{ g.group_meta?.name ?? '' }}</h2>
+              <h2 class="board-group-title">
+                {{ g.group_meta?.name ?? '' }}
+                <span v-if="groupDescription(g)" class="board-group-description">{{ groupDescription(g) }}</span>
+              </h2>
               <div v-for="a in g.activities" :key="a.activity_id" class="board-row">
                 <span v-if="section.kind === 'now'" class="board-time board-time--now">
                   bis {{ formatTimeOnly(a.end_time, true) }}
@@ -347,10 +353,6 @@ function countdownLabel(a: any): string {
                     </span>
                   </span>
                   <span v-else-if="hasSingleTeam(a)" class="board-team">{{ teamLabel(a.team_name) }}</span>
-                  <span
-                      v-else-if="g.activities.length === 1 && description(a, g)"
-                      class="board-description"
-                  >{{ description(a, g) }}</span>
                 </span>
                 <span class="board-room">
                   <template v-if="roomLabel(a)">
@@ -646,12 +648,15 @@ function countdownLabel(a: any): string {
   white-space: nowrap;
 }
 
-.board-description {
+.board-group-description {
   display: -webkit-box;
+  margin-top: 0.15em;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: 0.8em;
+  font-size: 0.72em;
+  font-weight: 500;
+  line-height: 1.3;
   color: #475569;
 }
 
