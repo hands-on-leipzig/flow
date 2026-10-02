@@ -25,14 +25,52 @@ const HOLD_SECONDS = 3;
 const SCROLL_EM_PER_SECOND = 1.2;
 const JOINT_KEY = 'joint';
 
+type BoardSection = {
+  kind: 'now' | 'next';
+  groups: any[];
+};
+
 type BoardTab = {
   key: string;
   label: string;
   logoSrc: string;
   logoAlt: string;
   color: string;
-  groups: any[];
+  live: boolean;
+  sections: BoardSection[];
 };
+
+/** Plan times are Berlin wall clock without zone; parse them as local like the pivot. */
+function wallMs(value: string | null | undefined): number {
+  return new Date(String(value ?? '').replace(' ', 'T')).getTime();
+}
+
+const clockOffset = ref(0);
+const tickMs = ref(Date.now());
+const clockTimer = setInterval(() => { tickMs.value = Date.now(); }, 15 * 1000);
+const boardNow = computed(() => tickMs.value + clockOffset.value);
+
+watch(() => props.result?.pivot, (pivot) => {
+  const ms = wallMs(pivot);
+  tickMs.value = Date.now();
+  clockOffset.value = Number.isFinite(ms) ? ms - tickMs.value : 0;
+}, {immediate: true});
+
+function splitSections(groups: any[]): BoardSection[] {
+  const now = boardNow.value;
+  const running: any[] = [];
+  const coming: any[] = [];
+  for (const group of groups) {
+    const live = group.activities.filter((a: any) => wallMs(a.start_time) <= now && wallMs(a.end_time) >= now);
+    const later = group.activities.filter((a: any) => wallMs(a.start_time) > now);
+    if (live.length) running.push({...group, activities: live});
+    if (later.length) coming.push({...group, activities: later});
+  }
+  const sections: BoardSection[] = [];
+  if (running.length) sections.push({kind: 'now', groups: running});
+  if (coming.length) sections.push({kind: 'next', groups: coming});
+  return sections;
+}
 
 function toArray(list: any): any[] {
   if (!list) return [];
@@ -57,13 +95,15 @@ const tabs = computed<BoardTab[]>(() => {
   const result: BoardTab[] = [];
   const joint = byProgram.get(0);
   if (joint?.length) {
+    const sections = splitSections(joint);
     result.push({
       key: JOINT_KEY,
       label: 'Gemeinsam',
       logoSrc: programLogoSrc(null),
       logoAlt: 'FIRST LEGO League Logo',
       color: '#334155',
-      groups: joint,
+      live: sections.some((s) => s.kind === 'now'),
+      sections,
     });
   }
 
@@ -85,17 +125,19 @@ const tabs = computed<BoardTab[]>(() => {
       logo_stem: meta.logo_stem ?? null,
     }, byProgram.get(id)!));
   }
-  return result;
+  return result.filter((tab) => tab.sections.length);
 });
 
 function programTab(program: EventProgramRef, groups: any[]): BoardTab {
+  const sections = splitSections(groups);
   return {
     key: `p${programId(program)}`,
     label: programDisplayName(program) || String(program.name ?? ''),
     logoSrc: programLogoSrc(program),
     logoAlt: programLogoAlt(program),
     color: program.color_hex ? `#${String(program.color_hex).replace(/^#/, '')}` : '#0f172a',
-    groups,
+    live: sections.some((s) => s.kind === 'now'),
+    sections,
   };
 }
 
@@ -186,7 +228,10 @@ watch(() => tabs.value.map((t) => t.key).join('|'), (keys, previous) => {
   }
 });
 
-onUnmounted(clearTimers);
+onUnmounted(() => {
+  clearTimers();
+  clearInterval(clockTimer);
+});
 
 function roomLabel(a: any): string {
   const r = a?.room;
@@ -222,12 +267,9 @@ function description(a: any, group: any): string {
   return a?.meta?.description ?? group?.group_meta?.description ?? '';
 }
 
-function timeLabel(a: any, group: any): string {
-  const start = formatTimeOnly(a.start_time, true);
-  if (group.activities.length === 1 && !hasTables(a)) {
-    return `${start}–${formatTimeOnly(a.end_time, true)}`;
-  }
-  return start;
+function countdownLabel(a: any): string {
+  const minutes = Math.max(1, Math.ceil((wallMs(a.start_time) - boardNow.value) / 60000));
+  return `in ${minutes} Min.`;
 }
 </script>
 
@@ -245,6 +287,7 @@ function timeLabel(a: any, group: any): string {
       >
         <img :src="tab.logoSrc" :alt="tab.logoAlt" class="board-tab-logo"/>
         <span class="board-tab-label">{{ tab.label }}</span>
+        <span v-if="tab.live" class="board-live-dot" aria-label="läuft gerade"/>
         <span
             v-if="index === activeIndex && props.active && rotates"
             :key="progressRun"
@@ -271,10 +314,27 @@ function timeLabel(a: any, group: any): string {
                 transitionDuration: `${scrollSeconds[index] ?? 0}s`,
               }"
           >
-            <section v-for="g in tab.groups" :key="g.activity_group_id" class="board-group">
+            <template v-for="section in tab.sections" :key="section.kind">
+            <div class="board-section" :class="`board-section--${section.kind}`">
+              <span v-if="section.kind === 'now'" class="board-live-dot" aria-hidden="true"/>
+              <i v-else class="bi bi-clock" aria-hidden="true"/>
+              {{ section.kind === 'now' ? 'Läuft gerade' : 'Gleich' }}
+            </div>
+            <section
+                v-for="g in section.groups"
+                :key="`${section.kind}-${g.activity_group_id}`"
+                class="board-group"
+                :class="`board-group--${section.kind}`"
+            >
               <h2 class="board-group-title">{{ g.group_meta?.name ?? '' }}</h2>
               <div v-for="a in g.activities" :key="a.activity_id" class="board-row">
-                <span class="board-time">{{ timeLabel(a, g) }}</span>
+                <span v-if="section.kind === 'now'" class="board-time board-time--now">
+                  bis {{ formatTimeOnly(a.end_time, true) }}
+                </span>
+                <span v-else class="board-time">
+                  {{ formatTimeOnly(a.start_time, true) }}
+                  <span class="board-countdown">{{ countdownLabel(a) }}</span>
+                </span>
                 <span class="board-main">
                   <span v-if="hasTables(a)" class="board-match">
                     <span class="board-side">
@@ -300,6 +360,7 @@ function timeLabel(a: any, group: any): string {
                 </span>
               </div>
             </section>
+            </template>
           </div>
         </div>
       </div>
@@ -353,6 +414,11 @@ function timeLabel(a: any, group: any): string {
   color: #0f172a;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
   transform: translateY(-0.08em);
+}
+
+.board-tab .board-live-dot {
+  width: 0.4em;
+  height: 0.4em;
 }
 
 .board-tab-logo {
@@ -410,6 +476,53 @@ function timeLabel(a: any, group: any): string {
   will-change: transform;
 }
 
+.board-live-dot {
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: #16a34a;
+  flex-shrink: 0;
+  animation: board-live 1.6s ease-out infinite;
+}
+
+@keyframes board-live {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6); }
+  70% { box-shadow: 0 0 0 0.45em rgba(22, 163, 74, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+}
+
+.board-section {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  align-self: flex-start;
+  margin-top: 0.3em;
+  padding: 0.15em 0.65em;
+  border-radius: 999px;
+  font-size: 0.8em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.board-section:first-child {
+  margin-top: 0;
+}
+
+.board-section--now {
+  background: #16a34a;
+  color: #fff;
+}
+
+.board-section--now .board-live-dot {
+  background: #fff;
+}
+
+.board-section--next {
+  background: rgba(255, 255, 255, 0.9);
+  color: #334155;
+}
+
 .board-group {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr) max-content;
@@ -418,6 +531,24 @@ function timeLabel(a: any, group: any): string {
   border-radius: 0.4em;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
   overflow: hidden;
+}
+
+.board-group--now {
+  background: #fff;
+  box-shadow: inset 0.3em 0 0 #16a34a, 0 4px 18px rgba(22, 163, 74, 0.25);
+}
+
+.board-group--now .board-group-title {
+  background: #f0fdf4;
+  border-bottom-color: #bbf7d0;
+}
+
+.board-group--next {
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.board-group--next .board-group-title {
+  background: rgba(248, 250, 252, 0.8);
 }
 
 .board-group-title {
@@ -451,6 +582,21 @@ function timeLabel(a: any, group: any): string {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.board-group--now .board-time {
+  padding-left: 0.9em !important;
+}
+
+.board-time--now {
+  color: #15803d;
+}
+
+.board-countdown {
+  margin-left: 0.3em;
+  font-size: 0.7em;
+  font-weight: 600;
+  color: #64748b;
 }
 
 .board-room {

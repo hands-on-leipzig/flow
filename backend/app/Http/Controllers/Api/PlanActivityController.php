@@ -30,7 +30,7 @@ class PlanActivityController extends Controller
     }
 
     /**
-     * @return array{plan_id: int, groups: list<array<string, mixed>>}
+     * @return array{plan_id: int, pivot: string, groups: list<array<string, mixed>>}
      */
     private function respond(int $planId, Request $req, string $window): array
     {
@@ -63,6 +63,7 @@ class PlanActivityController extends Controller
 
         return [
             'plan_id' => $planId,
+            'pivot' => $pivot->format('Y-m-d H:i:s'),
             'groups' => $this->schedule->present($rows),
         ];
     }
