@@ -90,6 +90,7 @@ class HelpController extends Controller
         }
 
         return MParameter::query()
+            ->where('level', 1)
             ->where('context', '!=', 'protected')
             ->orderBy('ui_label')
             ->orderBy('id')

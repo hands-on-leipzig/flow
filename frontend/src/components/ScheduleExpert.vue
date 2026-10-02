@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {RouterLink} from 'vue-router'
 import ParameterField from '@/components/molecules/ParameterField.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import { useScheduleWorkspace } from '@/composables/useScheduleWorkspace'
@@ -71,6 +72,17 @@ function changedSuffixFor(params: Parameter[]): string {
 
 <template>
   <div class="schedule-expert flex flex-col pb-2">
+    <p class="glass-alert-warning shrink-0 flex items-start gap-2">
+      <i class="bi bi-info-circle mt-0.5 shrink-0" aria-hidden="true"/>
+      <span>
+        Einzelne Parameter kannst du in der
+        <RouterLink
+            to="/plan/help"
+            class="font-semibold text-[var(--color-accent)] underline underline-offset-[0.14em] hover:decoration-2"
+        >Hilfe</RouterLink>
+        suchen.
+      </span>
+    </p>
     <ProgramSection
         v-for="program in attachedPrograms"
         :key="programId(program)"

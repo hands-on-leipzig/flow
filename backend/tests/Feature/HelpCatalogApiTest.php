@@ -75,17 +75,18 @@ class HelpCatalogApiTest extends TestCase
         $this->assertSame([], $response->json('parameters'));
     }
 
-    public function test_catalog_includes_non_protected_parameters_and_excludes_protected(): void
+    public function test_catalog_includes_level_one_non_protected_parameters(): void
     {
         DB::table('m_parameter')->insert([
-            ['id' => 1, 'context' => 'protected', 'ui_label' => 'Secret', 'ui_description' => 'Hidden'],
-            ['id' => 2, 'context' => 'input', 'ui_label' => 'Explore Teams', 'ui_description' => 'Anzahl Explore Teams'],
-            ['id' => 3, 'context' => 'expert', 'ui_label' => 'Dauer Pause', 'ui_description' => 'Pause zwischen Runden'],
-            ['id' => 4, 'context' => 'afternoon', 'ui_label' => 'Präsentationen', 'ui_description' => 'Auf der Bühne'],
-            ['id' => 5, 'context' => 'integration', 'ui_label' => 'Gemeinsame Eröffnung', 'ui_description' => 'Beide Programme'],
-            ['id' => 6, 'context' => 'input', 'ui_label' => '', 'ui_description' => ''],
-            ['id' => 7, 'context' => 'expert', 'ui_label' => null, 'ui_description' => null],
-            ['id' => 8, 'context' => 'input', 'ui_label' => '  ', 'ui_description' => " \n "],
+            ['id' => 1, 'level' => 1, 'context' => 'protected', 'ui_label' => 'Secret', 'ui_description' => 'Hidden'],
+            ['id' => 2, 'level' => 1, 'context' => 'input', 'ui_label' => 'Explore Teams', 'ui_description' => 'Anzahl Explore Teams'],
+            ['id' => 3, 'level' => 1, 'context' => 'expert', 'ui_label' => 'Dauer Pause', 'ui_description' => 'Pause zwischen Runden'],
+            ['id' => 4, 'level' => 1, 'context' => 'afternoon', 'ui_label' => 'Präsentationen', 'ui_description' => 'Auf der Bühne'],
+            ['id' => 5, 'level' => 1, 'context' => 'integration', 'ui_label' => 'Gemeinsame Eröffnung', 'ui_description' => 'Beide Programme'],
+            ['id' => 6, 'level' => 1, 'context' => 'input', 'ui_label' => '', 'ui_description' => ''],
+            ['id' => 7, 'level' => 1, 'context' => 'expert', 'ui_label' => null, 'ui_description' => null],
+            ['id' => 8, 'level' => 1, 'context' => 'input', 'ui_label' => '  ', 'ui_description' => " \n "],
+            ['id' => 9, 'level' => 3, 'context' => 'expert', 'ui_label' => 'Finale Only', 'ui_description' => 'Nur Finale'],
         ]);
 
         $response = $this->getJson('/api/help/catalog');
@@ -338,6 +339,7 @@ class HelpCatalogApiTest extends TestCase
 
         Schema::create('m_parameter', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('level')->nullable();
             $table->string('context', 32)->nullable();
             $table->string('ui_label', 255)->nullable();
             $table->text('ui_description')->nullable();
