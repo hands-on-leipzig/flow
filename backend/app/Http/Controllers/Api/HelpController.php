@@ -7,9 +7,11 @@ use App\Models\HelpActionStat;
 use App\Models\MHelpAction;
 use App\Models\MHelpScreen;
 use App\Models\MHelpTopic;
+use App\Models\MParameter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class HelpController extends Controller
 {
@@ -30,6 +32,7 @@ class HelpController extends Controller
             'topics' => $topics->map(fn (MHelpTopic $topic) => $this->topicPayload($topic))->values(),
             'screens' => $screens->map(fn (MHelpScreen $screen) => $this->screenPayload($screen))->values(),
             'actions' => $actions->map(fn (MHelpAction $action) => $action->toApiPayload())->values(),
+            'parameters' => $this->parameterPayloads(),
         ]);
     }
 
@@ -75,6 +78,50 @@ class HelpController extends Controller
         );
 
         return response()->json($this->counterPayload($action, $stat));
+    }
+
+    /**
+     * @return list<array{id: int, ui_label: string|null, ui_description: string|null, context: string}>
+     */
+    private function parameterPayloads(): array
+    {
+        if (! Schema::hasTable('m_parameter')) {
+            return [];
+        }
+
+        return MParameter::query()
+            ->where('level', 1)
+            ->where('context', '!=', 'protected')
+            ->orderBy('ui_label')
+            ->orderBy('id')
+            ->get(['id', 'ui_label', 'ui_description', 'context'])
+            ->map(function (MParameter $param) {
+                $label = $this->nullIfEmpty($param->ui_label);
+                $description = $this->nullIfEmpty($param->ui_description);
+                if ($label === null && $description === null) {
+                    return null;
+                }
+
+                return [
+                    'id' => (int) $param->id,
+                    'ui_label' => $label,
+                    'ui_description' => $description,
+                    'context' => (string) $param->context,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function nullIfEmpty(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 
     /**

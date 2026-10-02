@@ -9,6 +9,7 @@ import SupportedPlansDialog from '@/components/atoms/SupportedPlansDialog.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import {useEventStore} from '@/stores/event'
 import {usePlanCacheStore} from '@/stores/planCache'
+import {parameterAnchorAttr} from '@/utils/parameterAnchor'
 
 const PROGRAM_ID = 8
 
@@ -244,6 +245,7 @@ const teamsPerJuryHint = computed(() => {
       />
     </template>
     <TeamPlanBar
+        :id="parameterAnchorAttr(paramMapByName['f8_teams'])"
         :plan-teams="planTeams"
         :registered-teams="registeredTeams"
         :capacity="effectiveCapacity"
@@ -252,7 +254,7 @@ const teamsPerJuryHint = computed(() => {
         :on-update="(value) => updateByName('f8_teams', value)"
     />
 
-    <div class="flex flex-col gap-1.5">
+    <div :id="parameterAnchorAttr(paramMapByName['f8_lanes'])" class="flex flex-col gap-1.5">
       <div class="flex items-center gap-1 min-w-0">
         <span class="glass-settings-label">{{ paramMapByName['f8_lanes']?.ui_label }}</span>
         <InfoPopover :text="paramMapByName['f8_lanes']?.ui_description"/>
@@ -291,7 +293,7 @@ const teamsPerJuryHint = computed(() => {
       </p>
     </div>
 
-    <div class="flex flex-col gap-1.5">
+    <div :id="parameterAnchorAttr(paramMapByName['f8_fields'])" class="flex flex-col gap-1.5">
       <div class="flex items-center gap-1 min-w-0">
         <span class="glass-settings-label">{{ paramMapByName['f8_fields']?.ui_label }}</span>
         <InfoPopover :text="paramMapByName['f8_fields']?.ui_description"/>
