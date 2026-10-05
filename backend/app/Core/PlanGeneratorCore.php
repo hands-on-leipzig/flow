@@ -508,6 +508,7 @@ class PlanGeneratorCore
                 if ($index === $lastFutureCatalogRoundIndex) {
                     $this->insertFutureDeliberationsAfterLastCatalogRound();
                 }
+                // Shared rTime only (stage). F8 jury time must not delay Challenge blocks.
                 $this->syncSharedAfternoonClock();
             }
 
@@ -660,7 +661,6 @@ class PlanGeneratorCore
         }
 
         $this->future->emitSharedAfternoonGameRound($gameRound);
-        $this->advanceSharedClockToFutureJudgingAndGames();
     }
 
     /**
@@ -683,6 +683,11 @@ class PlanGeneratorCore
         return $last;
     }
 
+    /**
+     * F8 deliberations wait for the last Future game round (insertDeliberations).
+     * They stay on the jury clock. Do not pull the shared stage (Challenge
+     * research / finals) to the jury; awards wait via Future endAfternoon.
+     */
     private function insertFutureDeliberationsAfterLastCatalogRound(): void
     {
         if ($this->future === null) {
@@ -690,21 +695,6 @@ class PlanGeneratorCore
         }
 
         $this->future->insertDeliberations();
-        $this->advanceSharedClockToFutureJudgingAndGames();
-    }
-
-    private function advanceSharedClockToFutureJudgingAndGames(): void
-    {
-        if ($this->future === null) {
-            return;
-        }
-
-        $later = $this->future->jTime()->current();
-        if ($this->future->rTime()->current() > $later) {
-            $later = $this->future->rTime()->current();
-        }
-        $this->future->rTime()->set($later);
-        $this->challenge?->rTime()->set($later);
     }
 
     private function afternoonBlockShouldEmit(object $block): bool
