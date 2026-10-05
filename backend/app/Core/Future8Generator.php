@@ -530,9 +530,11 @@ class Future8Generator implements ChallengeShapedLead
         $this->rTime->addMinutes($this->pp('f8_r_duration_results'));
     }
 
-    public function presentations(): void
+    public function presentations(bool $skipReadyBefore = false, bool $skipReadyAfter = false): void
     {
-        $this->rTime->addMinutes($this->pp('f8_ready_presentations'));
+        if (! $skipReadyBefore) {
+            $this->rTime->addMinutes($this->pp('f8_ready_presentations'));
+        }
 
         $duration = $this->pp('f8_presentations') * $this->pp('f8_duration_presentation') + 5;
 
@@ -541,7 +543,9 @@ class Future8Generator implements ChallengeShapedLead
         });
 
         $this->rTime->addMinutes($duration);
-        $this->rTime->addMinutes($this->pp('f8_ready_presentations'));
+        if (! $skipReadyAfter) {
+            $this->rTime->addMinutes($this->pp('f8_ready_presentations'));
+        }
     }
 
     public function endAfternoon(): void
