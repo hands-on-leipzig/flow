@@ -18,7 +18,9 @@ use Tests\TestCase;
  *
  * Manual UI check (not automated): event with Challenge + Future 8+ attached,
  * c+f8_flip_after_round=0, g_separate_rooms=0 — generate and confirm R1–3 matches
- * interleave (r_check / f8_r_alliance follow toggles), TR parallel unless c+f8_tr_parallel is off, drain when match counts differ.
+ * interleave (f8_r_alliance / r_check sit immediately before the zip match start;
+ * scoring matches of C and F8 must not share a start). TR parallel unless
+ * c+f8_tr_parallel is off; drain when match counts differ.
  */
 class PolicyBVerificationTest extends TestCase
 {
@@ -175,6 +177,35 @@ class PolicyBVerificationTest extends TestCase
             ['challenge', 3, '10:20'],
             ['future', 1, '10:25'],
         ], $seq);
+    }
+
+    public function test_c4_f2_ex_duration_future_match_start_is_not_next_challenge(): void
+    {
+        // Plan 1372 shape: C4 D=10 ns=5, F2 D=_ex=10. Zip start is the MATCH start;
+        // alliance is written before it, so F0 @ 10:10 must not land on C2 @ 10:15.
+        $scheduler = new PolicyBRoundScheduler;
+        $plan = $scheduler->plan(
+            $this->matchEntries(4),
+            $this->matchEntries(3),
+            4,
+            2,
+            10,
+            10,
+            5,
+            5,
+            5,
+            false,
+            new DateTime('2026-01-01 10:00:00'),
+        );
+
+        $byProgram = ['challenge' => [], 'future' => []];
+        foreach ($plan['events'] as $event) {
+            $byProgram[$event['program']][] = $event['start']->format('H:i');
+        }
+
+        $this->assertSame(['10:00', '10:05', '10:15', '10:20'], $byProgram['challenge']);
+        $this->assertSame(['10:10', '10:25', '10:35'], $byProgram['future']);
+        $this->assertEmpty(array_intersect($byProgram['challenge'], $byProgram['future']));
     }
 
     public function test_protected_match_meta_from_dry_run_starts(): void

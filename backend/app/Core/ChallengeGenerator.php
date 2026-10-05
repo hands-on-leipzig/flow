@@ -350,7 +350,7 @@ class ChallengeGenerator implements ChallengeShapedLead
      * Align + one judging round for the coordinator (does not write robot game).
      *
      * @param-out TimeCursor $jTimeEarliest
-     * @param  array{rT2MMinutes: int, rA4JMinutes: int}|null  $policyBTiming  Dry-run offsets (no robot check).
+     * @param  array{rT2MMinutes: int, rA4JMinutes: int}|null  $policyBTiming  Dry-run offsets (rT2M is to alliance/check when that prefix is on).
      */
     public function runJudgingBlock(int $cBlock, TimeCursor &$jTimeEarliest, int &$jT, ?array $policyBTiming = null): void
     {
@@ -705,9 +705,11 @@ class ChallengeGenerator implements ChallengeShapedLead
         }
     }
 
-    public function presentations(): void
+    public function presentations(bool $skipReadyBefore = false, bool $skipReadyAfter = false): void
     {
-        $this->rTime->addMinutes($this->pp('c_ready_presentations'));
+        if (! $skipReadyBefore) {
+            $this->rTime->addMinutes($this->pp('c_ready_presentations'));
+        }
 
         $duration = $this->pp('c_presentations') * $this->pp('c_duration_presentation') + 5;
 
@@ -716,7 +718,9 @@ class ChallengeGenerator implements ChallengeShapedLead
         });
 
         $this->rTime->addMinutes($duration);
-        $this->rTime->addMinutes($this->pp('c_ready_presentations'));
+        if (! $skipReadyAfter) {
+            $this->rTime->addMinutes($this->pp('c_ready_presentations'));
+        }
     }
 
     /** Ready-for-awards pause; ceremony clock follows robot game, then judging if later. */

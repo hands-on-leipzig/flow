@@ -13,7 +13,7 @@ interface ChallengeShapedLead
 
     public function beginAfternoon(): void;
 
-    public function presentations(): void;
+    public function presentations(bool $skipReadyBefore = false, bool $skipReadyAfter = false): void;
 
     public function endAfternoon(): void;
 

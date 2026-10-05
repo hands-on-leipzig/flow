@@ -15,7 +15,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Überblick-style roles preview: 5-minute activity grid, param-driven lane/table columns.
+ * Überblick-style roles preview: 5-minute activity grid, param-driven lane/table/table_pair columns.
  * Cell text is the activity name plus team number " (Txx)" when a team is assigned.
  * Txx has a native title with the team name (or "Fehlendes Team").
  */
@@ -154,7 +154,7 @@ class RolesPreviewGridService
                 if ((int) $role->preview_matrix !== 1) {
                     return false;
                 }
-                if (! in_array($role->differentiation_parameter, ['lane', 'table'], true)) {
+                if (! in_array($role->differentiation_parameter, ['lane', 'table', 'table_pair'], true)) {
                     return false;
                 }
                 $fp = $role->first_program !== null ? (int) $role->first_program : null;
@@ -392,7 +392,7 @@ class RolesPreviewGridService
                     if ($key === null) {
                         continue;
                     }
-                    $placed[] = $this->withTeamTooltip([
+                    $placed[] = $this->withTeamLabels([
                         'column_key' => $key,
                         'start' => $gridStart->copy(),
                         'end' => $end->copy(),
@@ -400,7 +400,7 @@ class RolesPreviewGridService
                         'rowspan' => $rowspan,
                         'style_column' => $styleColumn,
                         'activity_id' => $activityId,
-                    ], $programId, (int) ($a->team ?? 0), $teamNames);
+                    ], $programId, [(int) ($a->team ?? 0)], $teamNames);
                 }
             }
 
@@ -421,7 +421,7 @@ class RolesPreviewGridService
                     if ($key === null) {
                         continue;
                     }
-                    $placed[] = $this->withTeamTooltip([
+                    $placed[] = $this->withTeamLabels([
                         'column_key' => $key,
                         'start' => $gridStart->copy(),
                         'end' => $end->copy(),
@@ -429,7 +429,38 @@ class RolesPreviewGridService
                         'rowspan' => $rowspan,
                         'style_column' => $tableStyle,
                         'activity_id' => $activityId,
-                    ], $programId, (int) ($a->{'table_'.$ti.'_team'} ?? 0), $teamNames);
+                    ], $programId, [(int) ($a->{'table_'.$ti.'_team'} ?? 0)], $teamNames);
+                }
+            }
+
+            $pairIndex = RoleDifferentiation::tablePairIndex(
+                (int) ($a->table_1 ?? 0),
+                (int) ($a->table_2 ?? 0),
+            );
+            if ($pairIndex !== null) {
+                foreach ($programRoles as $role) {
+                    if ($role->differentiation_parameter !== 'table_pair') {
+                        continue;
+                    }
+                    if (! isset($visibleRoles[(int) $role->id])) {
+                        continue;
+                    }
+                    $key = $byRoleIndex[$role->id.':'.$pairIndex] ?? null;
+                    if ($key === null) {
+                        continue;
+                    }
+                    $placed[] = $this->withTeamLabels([
+                        'column_key' => $key,
+                        'start' => $gridStart->copy(),
+                        'end' => $end->copy(),
+                        'text' => $text,
+                        'rowspan' => $rowspan,
+                        'style_column' => $tableStyle,
+                        'activity_id' => $activityId,
+                    ], $programId, [
+                        (int) ($a->table_1_team ?? 0),
+                        (int) ($a->table_2_team ?? 0),
+                    ], $teamNames);
                 }
             }
         }
@@ -439,18 +470,27 @@ class RolesPreviewGridService
 
     /**
      * @param  array<string, mixed>  $event
+     * @param  list<int>  $teamNos
      * @param  array<int, array<int, string>>  $teamNames
      * @return array<string, mixed>
      */
-    private function withTeamTooltip(array $event, int $programId, int $teamNo, array $teamNames): array
+    private function withTeamLabels(array $event, int $programId, array $teamNos, array $teamNames): array
     {
-        $tooltip = PreviewTeamLabels::tooltipFor($programId, $teamNo, $teamNames);
-        if ($tooltip === null) {
-            return $event;
+        $labels = [];
+        foreach ($teamNos as $teamNo) {
+            $no = (int) $teamNo;
+            $tooltip = PreviewTeamLabels::tooltipFor($programId, $no, $teamNames);
+            if ($tooltip === null) {
+                continue;
+            }
+            $labels[] = [
+                'no' => $no,
+                'tooltip' => $tooltip,
+            ];
         }
-
-        $event['team_no'] = $teamNo;
-        $event['team_tooltip'] = $tooltip;
+        if ($labels !== []) {
+            $event['team_labels'] = $labels;
+        }
 
         return $event;
     }

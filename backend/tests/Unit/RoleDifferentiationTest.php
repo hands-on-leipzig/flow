@@ -53,6 +53,25 @@ class RoleDifferentiationTest extends TestCase
         $this->assertSame(7, RoleDifferentiation::optionCount(FirstProgram::FUTURE_8->value, 'table', $params));
     }
 
+    public function test_table_pair_is_half_the_future_fields(): void
+    {
+        $this->assertSame(0, RoleDifferentiation::optionCount(FirstProgram::CHALLENGE->value, 'table_pair', $this->params(['r_tables' => 4])));
+        $this->assertSame(1, RoleDifferentiation::optionCount(FirstProgram::FUTURE_8->value, 'table_pair', $this->params(['f8_fields' => 2])));
+        $this->assertSame(2, RoleDifferentiation::optionCount(FirstProgram::FUTURE_8->value, 'table_pair', $this->params(['f8_fields' => 4])));
+        $this->assertSame(2, RoleDifferentiation::optionCount(FirstProgram::FUTURE_8->value, 'table_pair', $this->params(['f8_fields' => 3])));
+        $this->assertSame(0, RoleDifferentiation::optionCount(FirstProgram::FUTURE_8->value, 'table_pair', $this->params(['f8_fields' => 0])));
+    }
+
+    public function test_table_pair_index_from_match_sides(): void
+    {
+        $this->assertNull(RoleDifferentiation::tablePairIndex(0, 0));
+        $this->assertSame(1, RoleDifferentiation::tablePairIndex(1, 2));
+        $this->assertSame(2, RoleDifferentiation::tablePairIndex(3, 4));
+        $this->assertSame(1, RoleDifferentiation::tablePairIndex(2, 1));
+        $this->assertSame(1, RoleDifferentiation::tablePairIndex(1, 0));
+        $this->assertSame(2, RoleDifferentiation::tablePairIndex(0, 3));
+    }
+
     public function test_team_counts_use_e_teams_for_explore(): void
     {
         $params = $this->params([
