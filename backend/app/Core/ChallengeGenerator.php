@@ -350,7 +350,7 @@ class ChallengeGenerator implements ChallengeShapedLead
      * Align + one judging round for the coordinator (does not write robot game).
      *
      * @param-out TimeCursor $jTimeEarliest
-     * @param  array{rT2MMinutes: int, rA4JMinutes: int}|null  $policyBTiming  Dry-run offsets (no robot check).
+     * @param  array{rT2MMinutes: int, rA4JMinutes: int}|null  $policyBTiming  Dry-run offsets (rT2M is to alliance/check when that prefix is on).
      */
     public function runJudgingBlock(int $cBlock, TimeCursor &$jTimeEarliest, int &$jT, ?array $policyBTiming = null): void
     {
