@@ -47,6 +47,14 @@ return [
         'print_page_base_url' => env('PRINT_PAGE_BASE_URL'),
         'timeout' => (int) env('GOTENBERG_TIMEOUT', 90),
     ],
+    'nominatim' => [
+        'url' => env('NOMINATIM_URL', 'https://nominatim.openstreetmap.org/search'),
+        'min_interval' => (float) env('NOMINATIM_MIN_INTERVAL', 1.1),
+        // Comma separated ISO codes, empty for a worldwide search.
+        'countrycodes' => env('NOMINATIM_COUNTRYCODES', 'de'),
+        'timeout' => (int) env('NOMINATIM_TIMEOUT', 8),
+    ],
+
     'keycloak' => [
         'public_key_path' => env('KEYCLOAK_PUBLIC_KEY_PATH'),
     ],

@@ -6,30 +6,30 @@ use App\Http\Controllers\Controller;
 use App\Enums\FirstProgram;
 use App\Models\Event;
 use App\Models\MSeason;
-use App\Models\RegionalPartner;
 use App\Models\Slide;
 use App\Models\TableEvent;
 use App\Models\User;
 use App\Services\SeasonService;
 use App\Services\EventAttentionService;
+use App\Services\GeocodeService;
 use App\Services\EventSlugService;
 use App\Services\EventTitleService;
 use App\Support\PlanParameter;
-use App\Support\ProgramCatalog;
 use App\Support\TableFieldLabels;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\Encoding\Encoding;
 
 
 class EventController extends Controller
 {
+    /** Wall clock a single /geocode-cities request may spend on uncached lookups. */
+    private const GEOCODE_CITY_BUDGET_SECONDS = 8.0;
+
     public function __construct(
         private EventTitleService $eventTitles,
     ) {}
@@ -227,93 +227,6 @@ class EventController extends Controller
             ->values();
 
         return response()->json($grouped);
-    }
-
-    public function getCreateEventData()
-    {
-        $regionalPartners = RegionalPartner::select('id', 'name', 'region')
-            ->orderBy('name')
-            ->get()
-            ->map(function ($partner) {
-                return [
-                    'id' => $partner->id,
-                    'name' => $partner->name,
-                    'region' => $partner->region,
-                    'display_name' => "{$partner->name} ({$partner->region})"
-                ];
-            });
-
-        $levels = DB::table('m_level')
-            ->select('id', 'name')
-            ->orderBy('id')
-            ->get();
-
-        return response()->json([
-            'regional_partners' => $regionalPartners,
-            'levels' => $levels,
-            'programs' => ProgramCatalog::attachable()->map(fn ($program) => [
-                'id' => $program->id,
-                'name' => $program->name,
-                'display_name' => $program->display_name,
-                'official_name' => $program->official_name,
-                'letter' => $program->letter,
-                'sequence' => $program->sequence,
-                'color_hex' => $program->color_hex,
-                'logo_stem' => $program->logo_stem,
-                'logo_white' => $program->logo_white,
-            ])->values(),
-        ]);
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'regional_partner' => 'required|integer|exists:regional_partner,id',
-            'level' => 'required|integer|exists:m_level,id',
-            'date' => 'required|date',
-            'days' => 'integer|min:1|max:10',
-            'programs' => 'nullable|array',
-            'programs.*.first_program' => 'required_with:programs|integer|exists:m_first_program,id',
-            'programs.*.draht_id' => 'nullable|integer',
-            'programs.*.contao_id' => 'nullable|integer',
-        ]);
-
-        // Get the latest season
-        $season = MSeason::latest('year')->first();
-        if (!$season) {
-            return response()->json(['error' => 'No season found'], 400);
-        }
-
-        $event = Event::create([
-            'name' => $validated['name'],
-            'regional_partner' => $validated['regional_partner'],
-            'season' => $season->id,
-            'level' => $validated['level'],
-            'date' => $validated['date'],
-            'days' => $validated['days'] ?? 1,
-        ]);
-
-        if (! empty($validated['programs'])) {
-            ProgramCatalog::sync($event, $validated['programs']);
-        }
-
-        // Automatically generate link and QR code for new events
-        try {
-            $publishController = app(\App\Http\Controllers\Api\PublishController::class);
-            $publishController->linkAndQRcode($event->id);
-            Log::info("Automatically generated link and QR code for new event {$event->id}");
-        } catch (\Exception $e) {
-            Log::error("Failed to auto-generate link and QR code for event {$event->id}", [
-                'error' => $e->getMessage()
-            ]);
-            // Don't fail the entire process if link generation fails
-        }
-
-        return response()->json([
-            'message' => 'Event created successfully',
-            'event' => $event->load(['seasonRel', 'levelRel', 'programs'])
-        ], 201);
     }
 
     public function update(Request $request, int $eventId)
@@ -582,46 +495,28 @@ class EventController extends Controller
         }
     }
 
-    public function geocodeAddress(Request $request)
+    public function geocodeAddress(Request $request, GeocodeService $geocode)
     {
         $request->validate([
             'address' => 'required|string|max:500',
         ]);
 
-        try {
-            $address = $request->input('address');
-            $result = $this->callGeocodeAPI($address);
+        $result = $geocode->address((string) $request->input('address'));
 
-            if (!$result) {
-                // If the full address didn't work, try the address without the first part
-                // typically the first line is a building name, and the remaining part should be a street address
-                $parts = explode("\n", $address);
-                array_shift($parts); // remove first part
-                $address = implode("\n", $parts);
-
-                $result = $this->callGeocodeAPI($address);
-            }
-
-            if (!$result) {
-                return response()->json([
-                    'error' => 'Address not found',
-                ], 404);
-            }
-
-            return response()->json($result);
-        } catch (\Exception $e) {
-            Log::error('Geocoding error: ' . $e->getMessage());
+        if (!$result) {
             return response()->json([
-                'error' => 'Geocoding service unavailable',
-            ], 500);
+                'error' => 'Address not found',
+            ], 404);
         }
+
+        return response()->json($result);
     }
 
-    public function geocodeCities(Request $request)
+    public function geocodeCities(Request $request, GeocodeService $geocode)
     {
         $raw = $request->input('cities', []);
         if (! is_array($raw)) {
-            return response()->json(['cities' => []]);
+            return response()->json(['cities' => [], 'missing' => []]);
         }
 
         $cities = [];
@@ -634,85 +529,38 @@ class EventController extends Controller
                 continue;
             }
             $cities[$city] = true;
-            if (count($cities) >= 80) {
+            if (count($cities) >= 200) {
                 break;
             }
         }
 
         $points = [];
-        $nominatimCalls = 0;
+        $pending = [];
         foreach (array_keys($cities) as $city) {
-            $key = 'geocode-city:'.sha1(mb_strtolower($city));
-            $cached = Cache::get($key, '__missing__');
-            if ($cached === '__missing__') {
-                if ($nominatimCalls > 0) {
-                    usleep(1_100_000);
-                }
-                $nominatimCalls++;
-                try {
-                    $result = $this->callGeocodeCity($city);
-                } catch (\Throwable $e) {
-                    Log::warning('City geocoding failed', ['city' => $city, 'error' => $e->getMessage()]);
-                    $result = null;
-                }
-                $cached = $result ? ['lat' => $result['lat'], 'lon' => $result['lon']] : null;
-                Cache::put($key, $cached, now()->addDays(30));
-            }
-            if (is_array($cached)) {
-                $points[$city] = $cached;
+            $result = $geocode->city($city, cacheOnly: true);
+            if ($result) {
+                $points[$city] = ['lat' => $result['lat'], 'lon' => $result['lon']];
+            } else {
+                $pending[] = $city;
             }
         }
 
-        return response()->json(['cities' => $points]);
-    }
-
-    private function callGeocodeCity(string $city): ?array
-    {
-        $response = Http::withHeaders([
-            'User-Agent' => 'FLL Flow Planning Tool (https://github.com/hands-on-leipzig/flow)',
-        ])->get('https://nominatim.openstreetmap.org/search', [
-            'city' => $city,
-            'format' => 'json',
-            'limit' => 1,
-        ]);
-
-        if (! $response->successful()) {
-            return null;
-        }
-
-        $data = $response->json();
-        if (! is_array($data) || ! isset($data[0]['lat'], $data[0]['lon'])) {
-            return null;
-        }
-
-        return [
-            'lat' => (float) $data[0]['lat'],
-            'lon' => (float) $data[0]['lon'],
-        ];
-    }
-
-    private function callGeocodeAPI($address)
-    {
-        $response = Http::withHeaders([
-            'User-Agent' => 'FLL Flow Planning Tool (https://github.com/hands-on-leipzig/flow)',
-        ])->get('https://nominatim.openstreetmap.org/search', [
-            'q' => $address,
-            'format' => 'json',
-            'limit' => 1,
-        ]);
-
-        if ($response->successful() && $response->json()) {
-            $data = $response->json();
-            if (!empty($data) && isset($data[0])) {
-                $result = $data[0];
-                return [
-                    'lat' => (float)$result['lat'],
-                    'lon' => (float)$result['lon'],
-                    'display_name' => $result['display_name'] ?? $address,
-                ];
+        // Nominatim allows one call per second, so a large event would blow past any
+        // request timeout. Resolve what fits into the budget and let the client ask
+        // again for the rest; every answered city is cached from then on.
+        $missing = [];
+        $deadline = microtime(true) + self::GEOCODE_CITY_BUDGET_SECONDS;
+        foreach ($pending as $city) {
+            if (microtime(true) >= $deadline) {
+                $missing[] = $city;
+                continue;
+            }
+            $result = $geocode->city($city);
+            if ($result) {
+                $points[$city] = ['lat' => $result['lat'], 'lon' => $result['lon']];
             }
         }
 
-        return null;
+        return response()->json(['cities' => $points, 'missing' => $missing]);
     }
 }

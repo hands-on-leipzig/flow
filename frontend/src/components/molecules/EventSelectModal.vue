@@ -4,7 +4,6 @@ import {useRouter} from 'vue-router'
 import axios from 'axios'
 import dayjs from 'dayjs'
 import {useEventStore} from '@/stores/event'
-import {useAuth} from '@/composables/useAuth'
 import {showGlassToast} from '@/composables/useGlassToast'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
@@ -14,6 +13,8 @@ import {eventPrograms} from '@/utils/eventPrograms'
 
 const props = defineProps<{
   open: boolean
+  /** No event selected yet: the user must pick one, so the modal cannot be dismissed. */
+  required?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -21,7 +22,6 @@ const emit = defineEmits<{
 }>()
 
 const eventStore = useEventStore()
-const {isAdmin} = useAuth()
 const router = useRouter()
 
 type Season = {id: number; name: string; year: number}
@@ -165,10 +165,14 @@ function isSelected(ev: SelectableEvent) {
   return eventStore.selectedEvent?.id === ev.id
 }
 
+function requestClose() {
+  if (!props.required) emit('close')
+}
+
 function onKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && props.open) {
     event.preventDefault()
-    emit('close')
+    requestClose()
   }
 }
 
@@ -224,7 +228,7 @@ onBeforeUnmount(() => {
   <div
       v-if="open"
       class="event-modal-backdrop"
-      @click.self="emit('close')"
+      @click.self="requestClose"
   >
     <div
         class="event-modal"
@@ -249,6 +253,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <button
+            v-if="!required"
             type="button"
             class="event-modal__close"
             aria-label="Schließen"
@@ -257,6 +262,10 @@ onBeforeUnmount(() => {
           <i class="bi bi-x-lg" aria-hidden="true"/>
         </button>
       </header>
+
+      <p v-if="eventStore.staleSeasonCleared" class="event-modal__notice">
+        Deine zuletzt gewählte Veranstaltung gehört zur letzten Saison. Bitte wähle eine Veranstaltung der aktuellen Saison.
+      </p>
 
       <div class="event-modal__filters">
         <div class="event-modal__season-chips" role="tablist" aria-label="Saison">
@@ -364,15 +373,6 @@ onBeforeUnmount(() => {
           {{ visibleEvents.length }}
           {{ visibleEvents.length === 1 ? 'Veranstaltung' : 'Veranstaltungen' }}
         </span>
-        <button
-            v-if="isAdmin"
-            type="button"
-            class="event-modal__admin-link"
-            @click="emit('close'); router.push('/plan/events')"
-        >
-          Event-Verwaltung
-          <i class="bi bi-arrow-right" aria-hidden="true"/>
-        </button>
       </footer>
     </div>
   </div>
@@ -700,17 +700,13 @@ onBeforeUnmount(() => {
   color: var(--color-text-muted);
 }
 
-.event-modal__admin-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
+.event-modal__notice {
+  margin: 0;
+  padding: 0.65rem 1.25rem;
+  border-bottom: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #78350f;
   font-size: 0.82rem;
-  font-weight: 650;
-  color: var(--color-accent);
-}
-
-.event-modal__admin-link:hover {
-  text-decoration: underline;
 }
 
 @media (max-width: 520px) {

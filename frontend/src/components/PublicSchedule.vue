@@ -252,7 +252,6 @@ const entityInfo = ref<{
   firstProgram: number | null
   activityTypeCode?: string | null
 } | null>(null)
-const entityInfoConfirm = ref(false)
 const entityMeetings = ref<EntityMeeting[]>([])
 let entityMeetingsSeq = 0
 
@@ -305,15 +304,8 @@ const selectedRoleMeta = computed(() =>
     roles.value.find((r) => r.id === selectedRole.value) || null
 )
 
-const chromeRole = computed(() => entityInfoRole.value || selectedRoleMeta.value)
-
-const chromeLogo = computed(() => {
-  if (entityInfo.value) return entityInfoProgram.value || entityInfoRole.value || null
-  return selectedRoleMeta.value
-})
-
 const roleAccent = computed(() => {
-  const hex = chromeRole.value?.color_hex
+  const hex = selectedRoleMeta.value?.color_hex
   return hex ? `#${hex}` : '#ea580c'
 })
 
@@ -435,7 +427,7 @@ const entityPageLabel = computed(() => {
   return title
 })
 
-const roleChipLabel = computed(() => entityPageLabel.value || selectionLabel.value || 'Überblick')
+const roleChipLabel = computed(() => selectionLabel.value || 'Überblick')
 
 const pageTitle = computed(() => {
   const label = entityPageLabel.value || selectionLabel.value
@@ -520,6 +512,44 @@ function activityHasLinks(activity: Activity): boolean {
       || activity.table_2_team
       || activity.lane
   )
+}
+
+type ActivityLinkRow = {
+  place: {kind: 'table' | 'lane', value: number, label: string} | null
+  team: {value: number, label: string} | null
+}
+
+function activityLinkRows(activity: Activity): ActivityLinkRow[] {
+  const program = activity.meta?.first_program_id
+  const typeCode = activity.activity_type_code
+  const team = (value: number | null | undefined, label: string | null | undefined) =>
+      value && label ? {value, label} : null
+  const rows: ActivityLinkRow[] = []
+
+  for (const [table, tableTeam, tableTeamName] of [
+    [activity.table_1, activity.table_1_team, activity.table_1_team_name],
+    [activity.table_2, activity.table_2_team, activity.table_2_team_name],
+  ] as const) {
+    if (!table && !tableTeam) continue
+    rows.push({
+      place: table
+          ? {kind: 'table', value: table, label: sliceOptionLabel('table', table, program, typeCode)}
+          : null,
+      team: team(tableTeam, tableTeamName),
+    })
+  }
+
+  const ownTeam = team(activity.team, activity.team_name)
+  if (activity.lane) {
+    rows.push({
+      place: {kind: 'lane', value: activity.lane, label: sliceOptionLabel('lane', activity.lane, program)},
+      team: ownTeam,
+    })
+  } else if (ownTeam) {
+    rows.push({place: null, team: ownTeam})
+  }
+
+  return rows.filter((row) => row.place || row.team)
 }
 
 function activityAddsDetail(group: Group, activity: Activity): boolean {
@@ -649,6 +679,38 @@ function hasExpandableDetail(group: Group): boolean {
   return detailActivities(group).length > 0
 }
 
+type DetailTimeBlock = {
+  key: string
+  start: string
+  end: string | null
+  activities: Activity[]
+}
+
+function detailTimeBlocks(group: Group): DetailTimeBlock[] {
+  const blocks: DetailTimeBlock[] = []
+  const byKey = new Map<string, DetailTimeBlock>()
+  for (const activity of detailActivities(group)) {
+    const key = `${activity.start_time}|${activity.end_time ?? ''}`
+    let block = byKey.get(key)
+    if (!block) {
+      block = {key, start: activity.start_time, end: activity.end_time ?? null, activities: []}
+      byKey.set(key, block)
+      blocks.push(block)
+    }
+    block.activities.push(activity)
+  }
+  return blocks
+}
+
+/** `each`: names differ per row; `once`: shared name worth one caption; `none`: repeats the group title. */
+function detailNameMode(group: Group): 'each' | 'once' | 'none' {
+  const acts = detailActivities(group)
+  const names = new Set(acts.map((a) => normalizeLabel(a.activity_name)))
+  if (names.size > 1) return 'each'
+  if (namesRedundant(acts[0]?.activity_name, group.group_meta?.name)) return 'none'
+  return acts.length > 1 ? 'once' : 'each'
+}
+
 /** Alle geparsten Gruppen (ohne Filter), sortiert */
 const parsedGroups = computed(() => {
   return groups.value
@@ -697,6 +759,12 @@ const timedGroups = computed((): TimedGroup[] => {
     openEnd = Math.max(openEnd, item.endMs)
     return {...item, parallel}
   })
+})
+
+const hiddenPastCount = computed(() => {
+  if (includeExpired.value || props.printFit) return 0
+  const now = scheduleNowMs.value
+  return parsedGroups.value.filter((item) => item.endMs < now).length
 })
 
 const dayRange = computed(() => {
@@ -1092,7 +1160,6 @@ function closeDetail() {
 
 function closeEntityInfo() {
   entityInfo.value = null
-  entityInfoConfirm.value = false
   entityMeetings.value = []
 }
 
@@ -1155,7 +1222,7 @@ const entityInfoProgram = computed(() => {
       ?? null
 })
 
-const entityInfoCta = computed(() => 'Detailsicht')
+const entityInfoCta = computed(() => `Zeitplan von ${entityInfoTitle.value} anzeigen`)
 
 const entityInfoTeamOption = computed(() => {
   if (!entityInfo.value || entityInfo.value.kind !== 'team') return null
@@ -1183,8 +1250,6 @@ const entityInfoRoom = computed((): RoomHint | null => {
   }
   return null
 })
-
-const entityInfoImmediateSwitch = computed(() => entityInfo.value != null)
 
 function resetPickerToTop() {
   roleFilter.value = ''
@@ -1226,12 +1291,26 @@ const pickerSliceNoun = computed(() => {
 
 const pickerLead = computed(() => {
   if (pickerLevel.value === 3 && pickerRole.value) {
-    return `Unten ${pickerSliceNoun.value} wählen…`
+    return pickerSliceNoun.value === 'Team' ? 'Wähle dein Team' : `Wähle aus: ${pickerSliceNoun.value}`
   }
   if (pickerLevel.value === 1 && showProgramLevel.value) {
-    return 'Unten Programm und Rolle wählen…'
+    return 'Wähle dein Programm'
   }
-  return 'Unten Rolle wählen…'
+  return 'Wähle deine Rolle'
+})
+
+const pickerPath = computed((): string[] => {
+  const path: string[] = []
+  if (pickerLevel.value >= 2 && showProgramLevel.value) {
+    if (pickerProgramKey.value === 'allgemein') {
+      path.push('Alle Programme')
+    } else {
+      const program = programRows.value.find((p) => p.id === pickerProgramKey.value)
+      if (program) path.push(program.display_name || program.official_name || 'Programm')
+    }
+  }
+  if (pickerLevel.value === 3 && pickerRole.value) path.push(pickerRole.value.name)
+  return path
 })
 
 function openRoleSheet() {
@@ -1648,7 +1727,6 @@ function openEntityInfo(
 ) {
   if (!value) return
   closeDetail()
-  entityInfoConfirm.value = false
   entityInfo.value = {
     kind,
     value,
@@ -1959,20 +2037,23 @@ watch(
                   class="public-schedule__role-chip"
                   :aria-expanded="roleSheetOpen"
                   aria-haspopup="dialog"
-                  :aria-label="hasRoleSelection ? `Rolle wechseln: ${roleChipLabel}` : 'Überblick'"
+                  :aria-label="hasRoleSelection ? `Zeitplan wechseln: ${roleChipLabel}` : 'Zeitplan auswählen'"
                   @click="openRoleSheet"
               >
                 <img
-                    v-if="chromeLogo"
-                    :src="programLogo(chromeLogo)"
-                    :alt="programLogoAlt(chromeLogo)"
+                    v-if="selectedRoleMeta"
+                    :src="programLogo(selectedRoleMeta)"
+                    :alt="programLogoAlt(selectedRoleMeta)"
                     class="public-schedule__role-chip-logo"
                 />
                 <span class="public-schedule__role-chip-text">
                   <span class="public-schedule__toolbar-event">
                     {{ eventName || 'Online-Zeitplan' }}
                   </span>
-                  <span class="public-schedule__selection">{{ roleChipLabel }}</span>
+                  <span class="public-schedule__selection-row">
+                    <span class="public-schedule__selection">{{ roleChipLabel }}</span>
+                    <i class="bi bi-chevron-down public-schedule__role-chip-chevron" aria-hidden="true"/>
+                  </span>
                 </span>
               </button>
 
@@ -1996,20 +2077,6 @@ watch(
               >
                 <i class="bi bi-speedometer2" aria-hidden="true"/>
               </button>
-
-              <button
-                  type="button"
-                  class="public-schedule__role-chip-action"
-                  :aria-expanded="roleSheetOpen"
-                  aria-haspopup="dialog"
-                  :aria-label="hasRoleSelection ? `Rolle wechseln: ${roleChipLabel}` : 'Überblick'"
-                  @click="openRoleSheet"
-              >
-                <span class="public-schedule__role-chip-action-label">
-                  {{ hasRoleSelection ? 'Wechseln' : 'Wählen' }}
-                </span>
-                <i class="bi bi-chevron-down" aria-hidden="true"/>
-              </button>
             </div>
 
             <div v-if="hasRoleSelection && !entityInfo" ref="filterRootEl" class="public-schedule__filter">
@@ -2019,7 +2086,7 @@ watch(
                   :class="{'public-schedule__filter-btn--active': !includeExpired}"
                   :aria-expanded="filterOpen"
                   aria-haspopup="true"
-                  aria-label="Filter"
+                  :aria-label="includeExpired ? 'Filter: alles' : 'Filter: nur Kommende'"
                   @click="toggleFilterMenu"
               >
                 <i
@@ -2118,28 +2185,17 @@ watch(
               </div>
             </template>
             <div class="public-schedule__page-actions">
-              <template v-if="entityInfoRole">
-                <template v-if="entityInfoImmediateSwitch">
-                  <button type="button" class="public-schedule__text-action" @click="confirmEntityInfoSwitch">
-                    {{ entityInfoCta }}
-                  </button>
-                </template>
-                <template v-else-if="!entityInfoConfirm">
-                  <button type="button" class="public-schedule__text-action" @click="entityInfoConfirm = true">
-                    {{ entityInfoCta }}
-                  </button>
-                </template>
-                <template v-else>
-                  <button type="button" class="public-schedule__text-action" @click="confirmEntityInfoSwitch">
-                    Wechseln
-                  </button>
-                  <button type="button" class="public-schedule__text-action" @click="entityInfoConfirm = false">
-                    Abbrechen
-                  </button>
-                </template>
-              </template>
+              <button
+                  v-if="entityInfoRole"
+                  type="button"
+                  class="public-schedule__primary-action"
+                  @click="confirmEntityInfoSwitch"
+              >
+                {{ entityInfoCta }}
+              </button>
               <button type="button" class="public-schedule__text-action" @click="closeEntityInfo">
-                Zurück
+                <i class="bi bi-chevron-left" aria-hidden="true"/>
+                Zurück zu deinem Zeitplan
               </button>
             </div>
           </div>
@@ -2182,12 +2238,15 @@ watch(
                 </a>
               </div>
             </template>
+            <p class="public-schedule__overview-hint">
+              Wähle aus, wer du bist – dann siehst du deinen persönlichen Zeitplan.
+            </p>
             <button
                 type="button"
-                class="public-schedule__overview-pick"
+                class="public-schedule__primary-action"
                 @click="openRoleSheet"
             >
-              Für den detaillierten Zeitplan bitte oben eine Rolle wählen.
+              Meinen Zeitplan wählen
             </button>
             <button
                 v-if="canLeaveToPublicPage"
@@ -2229,6 +2288,15 @@ watch(
                 :style="printFit ? {pointerEvents: 'none'} : undefined"
                 aria-label="Tageskalender im Zeitmaßstab"
             >
+              <p v-if="hiddenPastCount" class="public-schedule__past-hint">
+                <i class="bi bi-funnel-fill" aria-hidden="true"/>
+                <span>
+                  {{ hiddenPastCount === 1 ? '1 vergangener Programmpunkt ausgeblendet' : `${hiddenPastCount} vergangene Programmpunkte ausgeblendet` }}
+                </span>
+                <button type="button" class="public-schedule__past-hint-btn" @click="toggleExpired">
+                  Anzeigen
+                </button>
+              </p>
               <div
                   ref="printTimelineEl"
                   class="public-schedule__timeline"
@@ -2387,9 +2455,12 @@ watch(
               >
                 <i class="bi bi-chevron-left" aria-hidden="true"/>
               </button>
-              <p class="public-schedule__picker-lead">
-                {{ pickerLead }}
-              </p>
+              <div class="public-schedule__picker-lead">
+                <p v-if="pickerPath.length" class="public-schedule__picker-path">
+                  {{ pickerPath.join(' › ') }}
+                </p>
+                <p class="public-schedule__picker-step">{{ pickerLead }}</p>
+              </div>
               <p class="public-schedule__picker-aside">
                 … oder zum
                 <button
@@ -2613,79 +2684,63 @@ watch(
               </p>
             </div>
 
-            <ul
-                v-if="hasExpandableDetail(selectedItem.group)"
-                class="public-schedule__activities"
-            >
-              <li
-                  v-for="activity in detailActivities(selectedItem.group)"
-                  :key="activity.activity_id"
-                  class="public-schedule__activity"
+            <template v-if="hasExpandableDetail(selectedItem.group)">
+              <p
+                  v-if="detailNameMode(selectedItem.group) === 'once'"
+                  class="public-schedule__activities-caption"
               >
-                <div class="public-schedule__activity-top">
-                  <div class="public-schedule__activity-name">
-                    {{ activity.activity_name || 'Aktivität' }}
-                  </div>
-                  <div class="public-schedule__activity-time">
-                    {{ timeLabel(activity.start_time) }}
-                    <template v-if="activity.end_time">–{{ timeLabel(activity.end_time) }}</template>
-                  </div>
-                </div>
-                <div
-                    v-if="activityHasLinks(activity)"
-                    class="public-schedule__chips"
+                {{ detailActivities(selectedItem.group)[0]?.activity_name }}
+              </p>
+              <ul class="public-schedule__activities">
+                <li
+                    v-for="block in detailTimeBlocks(selectedItem.group)"
+                    :key="block.key"
+                    class="public-schedule__activity"
                 >
-                  <button
-                      v-if="activity.team_name && activity.team"
-                      type="button"
-                      class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('team', activity.team, activity.meta?.first_program_id)"
-                  >
-                    {{ activity.team_name }}
-                  </button>
-                  <button
-                      v-if="activity.table_1"
-                      type="button"
-                      class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('table', activity.table_1, activity.meta?.first_program_id, activity.activity_type_code)"
-                  >
-                    {{ sliceOptionLabel('table', activity.table_1, activity.meta?.first_program_id, activity.activity_type_code) }}
-                  </button>
-                  <button
-                      v-if="activity.table_1_team_name && activity.table_1_team"
-                      type="button"
-                      class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('team', activity.table_1_team, activity.meta?.first_program_id)"
-                  >
-                    {{ activity.table_1_team_name }}
-                  </button>
-                  <button
-                      v-if="activity.table_2"
-                      type="button"
-                      class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('table', activity.table_2, activity.meta?.first_program_id, activity.activity_type_code)"
-                  >
-                    {{ sliceOptionLabel('table', activity.table_2, activity.meta?.first_program_id, activity.activity_type_code) }}
-                  </button>
-                  <button
-                      v-if="activity.table_2_team_name && activity.table_2_team"
-                      type="button"
-                      class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('team', activity.table_2_team, activity.meta?.first_program_id)"
-                  >
-                    {{ activity.table_2_team_name }}
-                  </button>
-                  <button
-                      v-if="activity.lane"
-                      type="button"
-                      class="public-schedule__chip public-schedule__chip--action"
-                      @click="openEntityInfo('lane', activity.lane, activity.meta?.first_program_id)"
-                  >
-                    {{ sliceOptionLabel('lane', activity.lane, activity.meta?.first_program_id) }}
-                  </button>
-                </div>
-              </li>
-            </ul>
+                  <div class="public-schedule__activity-time">
+                    <span>{{ timeLabel(block.start) }}</span>
+                    <span v-if="block.end" class="public-schedule__activity-end">
+                      bis {{ timeLabel(block.end) }}
+                    </span>
+                  </div>
+                  <div class="public-schedule__activity-main">
+                    <template v-for="activity in block.activities" :key="activity.activity_id">
+                      <div
+                          v-if="detailNameMode(selectedItem.group) === 'each' || !activityHasLinks(activity)"
+                          class="public-schedule__activity-name"
+                      >
+                        {{ activity.activity_name || 'Aktivität' }}
+                      </div>
+                      <div
+                          v-for="(row, rowIndex) in activityLinkRows(activity)"
+                          :key="rowIndex"
+                          class="public-schedule__pairing"
+                      >
+                        <button
+                            v-if="row.place"
+                            type="button"
+                            class="public-schedule__pairing-place"
+                            @click="openEntityInfo(row.place.kind, row.place.value, activity.meta?.first_program_id, activity.activity_type_code)"
+                        >
+                          {{ row.place.label }}
+                        </button>
+                        <span v-else aria-hidden="true"/>
+                        <button
+                            v-if="row.team"
+                            type="button"
+                            class="public-schedule__pairing-team"
+                            @click="openEntityInfo('team', row.team.value, activity.meta?.first_program_id)"
+                        >
+                          <span class="public-schedule__pairing-team-name">{{ row.team.label }}</span>
+                          <i class="bi bi-chevron-right" aria-hidden="true"/>
+                        </button>
+                        <span v-else class="public-schedule__pairing-empty">–</span>
+                      </div>
+                    </template>
+                  </div>
+                </li>
+              </ul>
+            </template>
           </div>
         </section>
       </div>
@@ -3072,16 +3127,66 @@ watch(
   object-fit: contain;
 }
 
-.public-schedule__overview-pick {
+.public-schedule__overview-hint {
   margin: 0.35rem 0 0;
-  padding: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: #374151;
+  text-align: center;
+}
+
+.public-schedule__primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0.6rem 1.25rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #c2410c;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.95rem;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.public-schedule__primary-action:active {
+  background: #9a3412;
+}
+
+.public-schedule__past-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff7ed;
+  color: #6b7280;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.public-schedule__past-hint .bi {
+  color: #c2410c;
+  font-size: 0.75rem;
+}
+
+.public-schedule__past-hint span {
+  flex: 1;
+  min-width: 0;
+}
+
+.public-schedule__past-hint-btn {
+  flex-shrink: 0;
+  padding: 0.25rem 0.1rem;
   border: 0;
   background: none;
   color: #c2410c;
-  font-weight: 800;
-  font-size: 1.05rem;
-  line-height: 1.35;
-  text-align: center;
+  font-weight: 700;
+  font-size: inherit;
 }
 
 .public-schedule__overview-leave {
@@ -3102,17 +3207,31 @@ watch(
 }
 
 .public-schedule__picker-head {
-  align-items: baseline;
+  align-items: flex-end;
   gap: 0.5rem;
 }
 
 .public-schedule__picker-lead {
-  margin: 0;
   flex: 1;
   min-width: 0;
-  font-size: 0.88rem;
-  line-height: 1.35;
   color: #fff;
+}
+
+.public-schedule__picker-path {
+  margin: 0 0 0.1rem;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.public-schedule__picker-step {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .public-schedule__picker-aside {
@@ -3322,13 +3441,35 @@ watch(
   text-overflow: ellipsis;
 }
 
+.public-schedule__selection-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
 .public-schedule__selection {
+  min-width: 0;
   font-size: 0.95rem;
   font-weight: 800;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.public-schedule__role-chip-chevron {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  line-height: 1;
+  color: var(--accent, #c2410c);
+  -webkit-text-stroke: 0.6px currentColor;
+}
+
+@media (hover: hover) {
+  .public-schedule__role-chip:hover {
+    background: #f9fafb;
+  }
 }
 
 .public-schedule__app-btn {
@@ -3347,37 +3488,6 @@ watch(
 
 .public-schedule__app-btn:active {
   background: #f3f4f6;
-}
-
-.public-schedule__role-chip-action {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
-  min-height: 1.85rem;
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  color: #374151;
-  font-size: 0.72rem;
-  font-weight: 750;
-  letter-spacing: 0.01em;
-}
-
-.public-schedule__role-chip-action:active {
-  background: #e5e7eb;
-}
-
-.public-schedule__role-chip-action .bi {
-  font-size: 0.75rem;
-  line-height: 1;
-}
-
-@media (max-width: 360px) {
-  .public-schedule__role-chip-action-label {
-    display: none;
-  }
 }
 
 .public-schedule__filter {
@@ -3923,64 +4033,128 @@ watch(
   gap: 0.15rem;
 }
 
+.public-schedule__activities-caption {
+  margin: 0;
+  padding: 0.85rem 0.9rem 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
 .public-schedule__activities {
   list-style: none;
   margin: 0;
-  padding: 0.35rem 0 0.4rem;
+  padding: 0.25rem 0 0.5rem;
 }
 
 .public-schedule__activity {
-  padding: 0.75rem 0.9rem;
-  border-top: 1px solid #f3f4f6;
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr);
+  column-gap: 0.75rem;
+  padding: 0.55rem 0.9rem;
+  border-top: 1px solid #f1f5f9;
 }
 
-.public-schedule__activity-top {
+.public-schedule__activity:first-child {
+  border-top: 0;
+}
+
+.public-schedule__activity-time {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.65rem;
+  flex-direction: column;
+  padding-top: 0.55rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  color: #0f172a;
+}
+
+.public-schedule__activity-end {
+  margin-top: 0.1rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.public-schedule__activity-main {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  column-gap: 0.85rem;
+  align-items: center;
 }
 
 .public-schedule__activity-name {
+  grid-column: 1 / -1;
+  padding-top: 0.55rem;
   font-weight: 700;
   font-size: 0.95rem;
   line-height: 1.3;
   min-width: 0;
 }
 
-.public-schedule__activity-time {
-  flex-shrink: 0;
-  font-size: 0.85rem;
-  font-weight: 750;
-  font-variant-numeric: tabular-nums;
-  color: #374151;
+.public-schedule__pairing {
+  display: contents;
 }
 
-.public-schedule__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 0.55rem;
-}
-
-.public-schedule__chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.4rem;
-  padding: 0.35rem 0.65rem;
-  border-radius: 0.65rem;
-  background: #f3f4f6;
-  color: #374151;
-  font-size: 0.85rem;
-}
-
-.public-schedule__chip--action {
-  background: #fff7ed;
-  color: #9a3412;
+.public-schedule__pairing-place {
+  max-width: 8rem;
+  min-height: 2.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #64748b;
+  font-size: 0.7rem;
   font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.public-schedule__pairing-team {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.25;
   text-align: left;
 }
 
-.public-schedule__chip--action:active { background: #ffedd5; }
+.public-schedule__pairing-team-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-schedule__pairing-team .bi {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: #cbd5e1;
+}
+
+.public-schedule__pairing-place:active,
+.public-schedule__pairing-team:active {
+  color: #c2410c;
+}
+
+.public-schedule__pairing-empty {
+  color: #cbd5e1;
+}
 
 </style>

@@ -4,7 +4,7 @@ import type FllEvent from "../../../models/FllEvent";
 import {resolvedAudienceSelection} from "@/models/abstractPublicPlanSlideContent";
 import {isPlannerPreview} from "@/utils/usageCapture";
 
-export type PlanActionEndpoint = 'now' | 'next';
+export type PlanActionEndpoint = 'now' | 'next' | 'upcoming';
 
 export interface PlanActionContent {
     planId: number;
@@ -12,7 +12,7 @@ export interface PlanActionContent {
     programs: number[];
     legacyRole?: number | null;
     room: number;
-    interval?: number; // Only used for "next", ignored for "now"
+    interval?: number; // Used for "next" and "upcoming", ignored for "now"
     eventId: number;
 }
 
@@ -96,7 +96,6 @@ export function usePlanAction(
 
     async function refresh() {
         loading.value = true;
-        result.value = null;
         try {
             const params: Record<string, string | number> = {
                 ...buildRequestParameters(content, event.value),

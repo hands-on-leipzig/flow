@@ -9,9 +9,34 @@ import {computed, ref} from "vue";
 const eventStore = useEventStore();
 const event = computed(() => eventStore.selectedEvent);
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   slide: Slide
-}>();
+  defaultTransitionTime?: number
+}>(), {
+  defaultTransitionTime: 15,
+});
+
+// Robot game slides page through their tables at their own pace.
+const hasDuration = computed(() => props.slide.type !== 'RobotGameSlideContent');
+const hasOwnDuration = computed(() => (props.slide.transition_time ?? 0) > 0);
+const effectiveDuration = computed(() => hasOwnDuration.value ? props.slide.transition_time : props.defaultTransitionTime);
+
+function saveTransitionTime(seconds: number) {
+  if (seconds === (props.slide.transition_time ?? 0)) return;
+  props.slide.transition_time = seconds;
+  componentSlide.transition_time = seconds;
+  axios.put(`slides/${props.slide.id}`, {transition_time: seconds}).catch(error => {
+    console.error('Error updating slide duration:', error);
+  });
+}
+
+/** Empty or equal to the slideshow time means: follow the slideshow time. */
+function onDurationChange(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const seconds = Math.max(0, Math.round(Number(input.value) || 0));
+  saveTransitionTime(seconds === props.defaultTransitionTime ? 0 : seconds);
+  input.value = String(effectiveDuration.value);
+}
 
 const showDeleteModal = ref(false);
 const loadingDelete = ref(false);
@@ -43,8 +68,7 @@ async function toggleActive() {
   const active = componentSlide.active === 1 ? 0 : 1;
   componentSlide.active = active;
   props.slide.active = active;
-  const s = {...componentSlide, content: componentSlide.content.toJSON()};
-  axios.put(`slides/${props.slide.id}`, s).then().catch(error => {
+  axios.put(`slides/${props.slide.id}`, {active}).then().catch(error => {
     console.error('Error saving slide:', error);
   });
 }
@@ -99,6 +123,25 @@ const componentSlide = Slide.fromObject(props.slide);
           <i class="bi bi-trash-fill text-red-600"></i>
         </button>
       </div>
+
+      <!-- Anzeigedauer -->
+      <label v-if="hasDuration" class="duration-bubble" :class="{ 'duration-bubble--own': hasOwnDuration }"
+             :title="hasOwnDuration
+               ? 'Eigene Anzeigezeit dieser Folie. Zurücksetzen, um die Zeit der Slideshow zu verwenden.'
+               : 'Zeit der Slideshow. Wert ändern, um dieser Folie eine eigene Zeit zu geben.'">
+        <i class="bi bi-clock"></i>
+        <input type="number" min="1" max="600" :value="effectiveDuration"
+               aria-label="Anzeigezeit dieser Folie in Sekunden" draggable="false"
+               @change="onDurationChange" @keydown.enter="($event.target as HTMLInputElement).blur()"/>
+        <span>s</span>
+        <button v-if="hasOwnDuration" type="button" class="duration-bubble__reset"
+                title="Zeit der Slideshow verwenden" @click.prevent="saveTransitionTime(0)">
+          <i class="bi bi-arrow-counterclockwise"></i>
+        </button>
+      </label>
+      <span v-else class="duration-bubble duration-bubble--auto" title="Blättert selbstständig durch die Seiten der Tabelle">
+        <i class="bi bi-arrow-repeat"></i> auto
+      </span>
     </div>
 
     <!-- Bottom Section -->
@@ -164,5 +207,72 @@ const componentSlide = Slide.fromObject(props.slide);
 </template>
 
 <style scoped>
+.duration-bubble {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 70;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  height: 1.6rem;
+  padding: 0 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #475569;
+  cursor: text;
+}
 
+.duration-bubble:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.duration-bubble input {
+  width: 1.9rem;
+  border: 0;
+  background: transparent;
+  text-align: right;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.duration-bubble input::-webkit-outer-spin-button,
+.duration-bubble input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.duration-bubble--own {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: 700;
+}
+
+.duration-bubble--auto {
+  cursor: default;
+}
+
+.duration-bubble__reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-left: 0.1rem;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  color: inherit;
+  font-size: 0.65rem;
+}
+
+.duration-bubble__reset:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
 </style>

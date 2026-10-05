@@ -2,6 +2,7 @@
 import {ref, watch, computed} from 'vue'
 import InfoPopover from '@/components/atoms/InfoPopover.vue'
 import {isParameterChangedFromDefault} from '@/utils/parameterDefault'
+import {parameterAnchorAttr} from '@/utils/parameterAnchor'
 
 const props = defineProps({
   param: {
@@ -267,6 +268,7 @@ const timeStepSeconds = computed(() => {
 
 <template>
   <div
+      :id="parameterAnchorAttr(param)"
       class="param-field min-w-0"
       :class="compact ? '' : 'flex flex-col gap-1.5 w-full'"
   >

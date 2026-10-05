@@ -1178,7 +1178,7 @@
             "afternoon_chain": 71,
             "afternoon_default": 8,
             "afternoon_parameter": 140,
-            "description": "Von den Juror:innen ausgew\u00e4hlte Forschungen werden noch einmal \u00f6ffentlich pr\u00e4sentiert. Eine Fragerunde gibt es nicht",
+            "description": "Von den Juror:innen ausgew\u00e4hlte Projekte werden noch einmal \u00f6ffentlich pr\u00e4sentiert. Eine Fragerunde gibt es nicht",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/forschung",
             "link_text": null,
             "activity_type": 21,
@@ -1232,7 +1232,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Zu beiden stellen die Juror:innen Fragen",
+            "description": "Die Teams pr\u00e4sentieren ihr Projekt und techniches Design. Zu beiden stellen die Juror:innen Fragen",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20,
@@ -1286,7 +1286,7 @@
             "afternoon_chain": null,
             "afternoon_default": null,
             "afternoon_parameter": null,
-            "description": "Die Teams pr\u00e4sentieren ihre Forschung und ihr Roboterdesign. Anschlie\u00dfend f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
+            "description": "Die Teams pr\u00e4sentieren ihr Projekt und technisches Design. Anschlie\u00dfend f\u00fcllen die Juror:innen Bewertungsb\u00f6gen aus",
             "link": "https:\/\/www.first-lego-league.org\/de\/saison-2025-26\/challenge-ressourcen\/bewertung",
             "link_text": null,
             "activity_type": 20,
@@ -2237,6 +2237,13 @@
             "title": "Wie sind die Aufkleber im PDF sortiert?",
             "sort_order": 80,
             "body": "Coaches und Teammitglieder (linkes PDF)\n\n1 Programm \n2 Teamname A\u2013Z\n3 Innerhalb des Teams zuerst Coaches nach Nachname, dann Teammitglieder nach Nachname\n\nHelfer:innen (rechtes PDF)\n\n1 Programm: \u00dcbergreifend, dann die Programme, zuletzt Zus\u00e4tzlich\n2 Rolle (Juror:innen, Schiedsrichter:innen, ...)\n3 Nachname A\u2013Z\n\nDas erlaubt, nach dem Druck die Bl\u00e4tter zu zerschneiden, falls die Aufkleber nicht zentral beim Check-In, sondern bei den Briefings verteilt werden."
+        },
+        {
+            "id": 84,
+            "help_topic": 4,
+            "title": "Wie kann ich Jury-Kalibrierung einstellen?",
+            "sort_order": 81,
+            "body": "Diese Funktion bietet FLOW nicht.\n\nStatt Kalibrierung sollten die Juror:innen geschult und gebrieft sein. \nUnd vor allem m\u00fcssen die Texte der Wertungsb\u00f6gen w\u00f6rtlich genommen werden."
         }
     ],
     "m_help_action_screen": [
@@ -2764,6 +2771,11 @@
             "id": 108,
             "help_action": 83,
             "help_screen": 22
+        },
+        {
+            "id": 109,
+            "help_action": 84,
+            "help_screen": 16
         }
     ],
     "m_help_screen": [
@@ -10137,7 +10149,7 @@
             "sequence": 22,
             "first_program": 8,
             "description": "Hilft den Teams beim Allianz-Gespr\u00e4ch",
-            "differentiation_parameter": null,
+            "differentiation_parameter": "table_pair",
             "preview_matrix": 1,
             "pdf_export": 1,
             "public_plan": 1,
@@ -14963,7 +14975,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-09-25T07:38:27.271553Z",
+        "exported_at": "2026-10-05T10:39:40.352339Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",

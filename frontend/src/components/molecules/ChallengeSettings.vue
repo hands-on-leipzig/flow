@@ -8,6 +8,7 @@ import CapacityOverrideDialog from '@/components/atoms/CapacityOverrideDialog.vu
 import SupportedPlansDialog from '@/components/atoms/SupportedPlansDialog.vue'
 import {useEventStore} from '@/stores/event'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
+import {parameterAnchorAttr} from '@/utils/parameterAnchor'
 
 const PROGRAM_ID = 3
 
@@ -246,6 +247,7 @@ const teamsPerJuryHint = computed(() => {
       />
     </template>
     <TeamPlanBar
+        :id="parameterAnchorAttr(paramMapByName['c_teams'])"
         :plan-teams="planTeams"
         :registered-teams="registeredTeams"
         :capacity="effectiveCapacity"
@@ -255,7 +257,7 @@ const teamsPerJuryHint = computed(() => {
     />
 
       <!-- Jury lanes -->
-      <div class="flex flex-col gap-1.5">
+      <div :id="parameterAnchorAttr(paramMapByName['j_lanes'])" class="flex flex-col gap-1.5">
         <div class="flex items-center gap-1 min-w-0">
           <span class="glass-settings-label">{{ paramMapByName['j_lanes']?.ui_label }}</span>
           <InfoPopover :text="paramMapByName['j_lanes']?.ui_description"/>
@@ -297,7 +299,7 @@ const teamsPerJuryHint = computed(() => {
 
 
       <!-- Robot game tables -->
-      <div class="flex flex-col gap-1.5">
+      <div :id="parameterAnchorAttr(paramMapByName['r_tables'])" class="flex flex-col gap-1.5">
         <div class="flex items-center gap-1 min-w-0">
           <span class="glass-settings-label">{{ paramMapByName['r_tables']?.ui_label }}</span>
           <InfoPopover :text="paramMapByName['r_tables']?.ui_description"/>

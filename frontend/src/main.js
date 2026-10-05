@@ -17,7 +17,6 @@ import ScheduleProtected from "@/components/ScheduleProtected.vue";
 import ScheduleFreeActivities from "@/components/ScheduleFreeActivities.vue";
 import Logos from "@/components/Logos.vue";
 import {createPinia, setActivePinia} from "pinia";
-import SelectEvent from "@/components/SelectEvent.vue";
 import dayjs from "dayjs";
 import 'dayjs/locale/de';
 import Rooms from "@/components/Rooms.vue";
@@ -115,7 +114,7 @@ const routes = [
             {path: 'volunteers/roster', name: 'volunteers-roster', component: VolunteersRoster},
             {path: 'volunteers/staffing', name: 'volunteers-staffing', component: VolunteersStaffing},
             {path: 'logos', redirect: '/plan/publish/logos'},
-            {path: 'events', component: SelectEvent},
+            {path: 'events', redirect: '/plan/overview'},
             {path: 'rooms', component: Rooms},
             {
                 path: 'publish',
@@ -167,7 +166,7 @@ const routes = [
     {path: '/teams/challenge', redirect: '/plan/teams/challenge'},
     {path: '/teams/future8', redirect: '/plan/teams/future_8'},
     {path: '/logos', redirect: '/plan/publish/logos'},
-    {path: '/events', redirect: '/plan/events'},
+    {path: '/events', redirect: '/plan/overview'},
     {path: '/rooms', redirect: '/plan/rooms'},
     {path: '/publish', redirect: '/plan/publish'},
     {path: '/publish/wlan', redirect: '/plan/publish/wlan'},
@@ -256,12 +255,9 @@ router.beforeEach(async (to, from, next) => {
         localStorage.setItem('kc_token', keycloak.token);
     }
 
-    // Check if event is selected for non-public routes
-    // Skip check for the events selection page itself and slim pop-out windows
+    // Check if event is selected for non-public routes (pop-outs carry their own plan id)
     if (
         !to.meta?.popout &&
-        to.path !== '/plan/events' &&
-        to.path !== '/events' &&
         to.path !== '/plan/profile' &&
         to.path !== '/plan/access' &&
         to.path.startsWith('/plan')
@@ -275,11 +271,13 @@ router.beforeEach(async (to, from, next) => {
             await eventStore.validateSelectedEventSeason();
         }
 
-        // If still no event selected, redirect to event selection page
+        // No event yet: the overview opens the event picker and cannot be left until one is chosen
         if (!eventStore.selectedEvent) {
-            next(eventStore.staleSeasonCleared
-                ? '/plan/events?reason=stale-season'
-                : '/plan/events');
+            if (to.path === '/plan/overview') {
+                next();
+            } else {
+                next('/plan/overview');
+            }
             return;
         }
 

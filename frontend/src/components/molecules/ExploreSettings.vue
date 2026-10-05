@@ -10,6 +10,7 @@ import SupportedPlansDialog from '@/components/atoms/SupportedPlansDialog.vue'
 import ProgramSection from '@/components/atoms/ProgramSection.vue'
 import {useEventStore} from '@/stores/event'
 import {eventPrograms, programId} from '@/utils/eventPrograms'
+import {parameterAnchorAttr} from '@/utils/parameterAnchor'
 
 const PROGRAM_ID = 2
 
@@ -289,6 +290,7 @@ watch(
       />
     </template>
     <TeamPlanBar
+        :id="parameterAnchorAttr(paramMapByName['e_teams'])"
         :plan-teams="planTeams"
         :registered-teams="registeredTeams"
         :capacity="effectiveCapacity"
@@ -297,13 +299,22 @@ watch(
         :on-update="(value) => updateByName('e_teams', value)"
     />
 
-    <TeamSplitBar
-        :total="eTeams"
-        :left-teams="e1Teams"
-        :on-update="setSplit"
-    />
+    <div :id="parameterAnchorAttr(paramMapByName['e1_teams'])">
+      <div :id="parameterAnchorAttr(paramMapByName['e2_teams'])">
+        <TeamSplitBar
+            :total="eTeams"
+            :left-teams="e1Teams"
+            :on-update="setSplit"
+        />
+      </div>
+    </div>
 
-    <div v-for="(group, groupIndex) in laneGroups" :key="group.key" class="flex flex-col gap-1.5">
+    <div
+        v-for="(group, groupIndex) in laneGroups"
+        :id="parameterAnchorAttr(paramMapByName[group.param])"
+        :key="group.key"
+        class="flex flex-col gap-1.5"
+    >
       <div class="flex items-center gap-1 min-w-0">
         <span class="glass-settings-label">{{ group.label }}</span>
         <InfoPopover :text="group.description"/>

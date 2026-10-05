@@ -87,6 +87,7 @@ Route::get('/carousel/{event}/slideshows', [CarouselController::class, 'getPubli
 Route::get('/carousel/{event}/slide/{slide}', [CarouselController::class, 'getPublicSingleSlide']);
 Route::get('/plans/action-now/{planId}', [PlanActivityController::class, 'actionNow']); // optional: ?room=24&point_in_time=YYYY-MM-DD HH:mm
 Route::get('/plans/action-next/{planId}', [PlanActivityController::class, 'actionNext']); // optional: ?room=24&interval=15&point_in_time=...
+Route::get('/plans/action-upcoming/{planId}', [PlanActivityController::class, 'actionUpcoming']); // now + next; optional: ?room=24&interval=15
 Route::get('/plans/{planId}/visitor/roles', [PublicPlanController::class, 'roles']); // Public role picker for interactive plan
 Route::get('/plans/{planId}/visitor/schedule', [PublicPlanController::class, 'schedule']); // Public role-filtered schedule
 Route::get('/plans/{planId}/visitor/lane-meetings', [PublicPlanController::class, 'laneMeetings']); // Public first with-team meetings on a jury lane
@@ -334,8 +335,6 @@ Route::middleware(['keycloak'])->group(function () {
 
     // Event controller
     Route::get('/events/selectable', [EventController::class, 'getSelectableEvents']);
-    Route::get('/events/create-data', [EventController::class, 'getCreateEventData']);
-    Route::post('/events', [EventController::class, 'store']);
     Route::get('/events/{eventId}', [EventController::class, 'getEvent']);
     Route::put('/events/{eventId}', [EventController::class, 'update']);
     Route::post('/events/{eventId}/check-attention', [EventController::class, 'checkAttention']);

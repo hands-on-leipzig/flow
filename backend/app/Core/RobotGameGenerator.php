@@ -108,6 +108,8 @@ class RobotGameGenerator
     /**
      * Write one match at an absolute start (Policy B commit). Does not advance rTime.
      * When $allowRobotCheck is false, never emits a robot-check activity.
+     * Alliance / robot-check is placed immediately before $start so the match
+     * stays on the zip grid (stand-alone insertOneRound still overlays at slot start).
      *
      * @param  array<string, mixed>  $match
      */
@@ -126,9 +128,11 @@ class RobotGameGenerator
 
         if ($allowRobotCheck && $this->robotCheckEnabled() && $this->write->checkCode !== null) {
             $checkDuration = $this->checkDuration();
+            $checkTime = $time->copy();
+            $checkTime->subMinutes($checkDuration);
             $this->writer->insertActivity(
                 $this->write->checkCode,
-                $time,
+                $checkTime,
                 $checkDuration,
                 null,
                 null,
@@ -137,7 +141,6 @@ class RobotGameGenerator
                 $match['table_2'],
                 $match['team_2'] === 0 ? null : $match['team_2']
             );
-            $time->addMinutes($checkDuration);
         }
 
         $this->writer->insertActivity(

@@ -23,6 +23,12 @@ type Action = {
   screens: ActionScreen[]
   topic: {id: number; key: string; name: string} | null
 }
+type CatalogParameter = {
+  id: number
+  ui_label: string | null
+  ui_description: string | null
+  context: string
+}
 
 const VIDEO_URL = 'https://handsontechnology-my.sharepoint.com/:v:/g/personal/jr_hands-on-technology_org/EYLes-Kq4GlDuBpUaxolgn4B4naGZakiVMW7Dq0xgWmskA?nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJTdHJlYW1XZWJBcHAiLCJyZWZlcnJhbFZpZXciOiJTaGFyZURpYWxvZy1MaW5rIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXcifX0%3D&e=T5yiJJ'
 
@@ -30,6 +36,7 @@ const eventStore = useEventStore()
 const topics = ref<Topic[]>([])
 const screens = ref<Screen[]>([])
 const actions = ref<Action[]>([])
+const parameters = ref<CatalogParameter[]>([])
 const query = ref('')
 const loading = ref(true)
 
@@ -39,6 +46,7 @@ onMounted(async () => {
     topics.value = data.topics ?? []
     screens.value = data.screens ?? []
     actions.value = data.actions ?? []
+    parameters.value = data.parameters ?? []
   } finally {
     loading.value = false
   }
@@ -92,7 +100,28 @@ const grouped = computed(() => {
     .filter((group) => group.actions.length > 0)
 })
 
-const listEmpty = computed(() => !loading.value && topTen.value.length === 0)
+function parameterMatches(param: CatalogParameter, q: string): boolean {
+  const needle = q.toLowerCase()
+  if ((param.ui_label || '').toLowerCase().includes(needle)) return true
+  return (param.ui_description || '').toLowerCase().includes(needle)
+}
+
+const matchingParameters = computed(() => {
+  const q = query.value.trim()
+  if (!q) return []
+  return parameters.value
+    .filter((param) => parameterMatches(param, q))
+    .slice()
+    .sort((a, b) => {
+      const label = (a.ui_label || '').localeCompare(b.ui_label || '', 'de')
+      return label !== 0 ? label : a.id - b.id
+    })
+})
+
+const hasActionHits = computed(() => topTen.value.length > 0)
+const hasParameterHits = computed(() => matchingParameters.value.length > 0)
+const listEmpty = computed(() => !loading.value && !hasActionHits.value && !hasParameterHits.value)
+const showTypicalHeading = computed(() => !query.value.trim() || hasActionHits.value || listEmpty.value)
 
 const missingQuery = computed(() => query.value.trim())
 
@@ -113,6 +142,39 @@ function jumpScreens(action: Action): {screen: ActionScreen; to: string}[] {
   return (action.screens ?? [])
     .map((screen) => ({screen, to: helpJumpPath(screen, eventStore.selectedEvent)}))
     .filter((row): row is {screen: ActionScreen; to: string} => row.to != null)
+}
+
+function isStartOrDurationLabel(label: string | null): boolean {
+  return /^\s*(start|dauer)\b/i.test(label || '')
+}
+
+function parameterRoutePath(param: CatalogParameter): string {
+  switch (param.context) {
+    case 'expert':
+      return '/plan/schedule/expert'
+    case 'afternoon':
+      return '/plan/schedule/afternoon'
+    case 'integration':
+      return '/plan/schedule/integration'
+    case 'input':
+      if (isStartOrDurationLabel(param.ui_label)) return '/plan/schedule/times'
+      if (/^\s*explore modus\b/i.test(param.ui_label || '')) return '/plan/schedule/integration'
+      return '/plan/schedule'
+    default:
+      return '/plan/schedule'
+  }
+}
+
+function parameterJump(param: CatalogParameter): {
+  name: string
+  to: {path: string; query: {parameter: string}}
+} {
+  const path = parameterRoutePath(param)
+  const screen = screens.value.find((row) => row.route_path === path)
+  return {
+    name: screen?.name ?? 'Ablauf',
+    to: {path, query: {parameter: String(param.id)}},
+  }
 }
 
 function highlight(text: string): string {
@@ -163,7 +225,7 @@ function escapeHtml(value: string): string {
       </a>
     </p>
 
-    <h2 class="text-xl font-semibold mb-3">Typische Aufgaben</h2>
+    <h2 v-if="showTypicalHeading" class="text-xl font-semibold mb-3">Typische Aufgaben</h2>
 
     <div v-if="listEmpty" class="help-catalog__missing" role="status">
       <p class="help-catalog__missing-text">
@@ -179,7 +241,7 @@ function escapeHtml(value: string): string {
       </p>
     </div>
 
-    <div v-else class="space-y-6">
+    <div v-else-if="hasActionHits" class="space-y-6">
       <section v-for="group in grouped" :key="group.topic.id">
         <h3 class="text-lg font-semibold mb-2">{{ group.topic.name }}</h3>
         <details
@@ -207,6 +269,24 @@ function escapeHtml(value: string): string {
         </details>
       </section>
     </div>
+
+    <section v-if="hasParameterHits" class="help-catalog__parameters" :class="{'mt-6': hasActionHits}">
+      <h2 class="text-xl font-semibold mb-3">Parameter</h2>
+      <details
+          v-for="param in matchingParameters"
+          :key="param.id"
+          class="glass-card liquid-surface-inner p-3 mb-2"
+      >
+        <summary class="help-catalog__action-title" v-html="highlight(param.ui_label || 'Parameter')"/>
+        <p v-if="param.ui_description" class="help-catalog__action-body">{{ param.ui_description }}</p>
+        <div class="help-catalog__pages">
+          <RouterLink :to="parameterJump(param).to" class="help-catalog__page">
+            {{ parameterJump(param).name }}
+            <i class="bi bi-arrow-right" aria-hidden="true"/>
+          </RouterLink>
+        </div>
+      </details>
+    </section>
   </div>
 </template>
 

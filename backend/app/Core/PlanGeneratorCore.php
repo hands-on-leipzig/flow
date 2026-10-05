@@ -498,16 +498,29 @@ class PlanGeneratorCore
 
             $lastFutureCatalogRoundIndex = $this->lastSharedFutureCatalogRoundIndex($blocks);
 
+            $toEmit = [];
             foreach ($blocks as $index => $block) {
                 if (! $this->afternoonBlockShouldEmit($block)) {
                     continue;
                 }
+                $toEmit[] = ['index' => $index, 'block' => $block];
+            }
+
+            foreach ($toEmit as $i => $item) {
+                $code = (string) $item['block']->code;
+                $prevCode = $i > 0 ? (string) $toEmit[$i - 1]['block']->code : null;
+                $nextCode = isset($toEmit[$i + 1]) ? (string) $toEmit[$i + 1]['block']->code : null;
 
                 $this->syncSharedAfternoonClock();
-                $this->emitAfternoonBlock($block);
-                if ($index === $lastFutureCatalogRoundIndex) {
+                $this->emitAfternoonBlock(
+                    $item['block'],
+                    self::researchPresentationsAreAdjacent($prevCode, $code),
+                    self::researchPresentationsAreAdjacent($code, $nextCode),
+                );
+                if ($item['index'] === $lastFutureCatalogRoundIndex) {
                     $this->insertFutureDeliberationsAfterLastCatalogRound();
                 }
+                // Shared rTime only (stage). F8 jury time must not delay Challenge blocks.
                 $this->syncSharedAfternoonClock();
             }
 
@@ -555,11 +568,23 @@ class PlanGeneratorCore
         $this->future->endAfternoon();
     }
 
-    private function emitAfternoonBlock(object $block): void
+    /** Adjacent C and F8 research on the shared stage: no ready-pause between them. */
+    public static function researchPresentationsAreAdjacent(?string $leftCode, ?string $rightCode): bool
+    {
+        $research = ['c_presentations', 'f8_presentations'];
+
+        return $leftCode !== null
+            && $rightCode !== null
+            && $leftCode !== $rightCode
+            && in_array($leftCode, $research, true)
+            && in_array($rightCode, $research, true);
+    }
+
+    private function emitAfternoonBlock(object $block, bool $skipReadyBefore = false, bool $skipReadyAfter = false): void
     {
         match ((string) $block->code) {
-            'c_presentations' => $this->challenge?->presentations(),
-            'f8_presentations' => $this->future?->presentations(),
+            'c_presentations' => $this->challenge?->presentations($skipReadyBefore, $skipReadyAfter),
+            'f8_presentations' => $this->future?->presentations($skipReadyBefore, $skipReadyAfter),
             'r_final_16' => $this->insertChallengeFinalRound(16),
             'r_final_8' => $this->insertChallengeFinalRound(8),
             'r_final_4' => $this->insertChallengeFinalRound(4),
@@ -660,7 +685,6 @@ class PlanGeneratorCore
         }
 
         $this->future->emitSharedAfternoonGameRound($gameRound);
-        $this->advanceSharedClockToFutureJudgingAndGames();
     }
 
     /**
@@ -683,6 +707,11 @@ class PlanGeneratorCore
         return $last;
     }
 
+    /**
+     * F8 deliberations wait for the last Future game round (insertDeliberations).
+     * They stay on the jury clock. Do not pull the shared stage (Challenge
+     * research / finals) to the jury; awards wait via Future endAfternoon.
+     */
     private function insertFutureDeliberationsAfterLastCatalogRound(): void
     {
         if ($this->future === null) {
@@ -690,21 +719,6 @@ class PlanGeneratorCore
         }
 
         $this->future->insertDeliberations();
-        $this->advanceSharedClockToFutureJudgingAndGames();
-    }
-
-    private function advanceSharedClockToFutureJudgingAndGames(): void
-    {
-        if ($this->future === null) {
-            return;
-        }
-
-        $later = $this->future->jTime()->current();
-        if ($this->future->rTime()->current() > $later) {
-            $later = $this->future->rTime()->current();
-        }
-        $this->future->rTime()->set($later);
-        $this->challenge?->rTime()->set($later);
     }
 
     private function afternoonBlockShouldEmit(object $block): bool

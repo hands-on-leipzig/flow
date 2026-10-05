@@ -90,7 +90,7 @@
 
     @if(!empty($isTwoDayEvent))
         <div class="section">
-            <div class="day-header">Tag 1 ({{ $day1Date ?? $eventDate }}) - FIRST LEGO League Challenge</div>
+            <div class="day-header">Tag 1 ({{ $day1Date ?? $eventDate }}) - <i>FIRST</i> LEGO League Challenge</div>
             <table>
                 <thead>
                     <tr>
@@ -130,7 +130,7 @@
         </div>
 
         <div class="section">
-            <div class="day-header">Tag 2 ({{ $day2Date ?? $eventDate }}) - FIRST LEGO League Explore</div>
+            <div class="day-header">Tag 2 ({{ $day2Date ?? $eventDate }}) - <i>FIRST</i> LEGO League Explore</div>
             @if(!empty($exploreHasTwoGroups))
                 <div class="section-header">Vormittag</div>
                 <table>
@@ -232,7 +232,7 @@
         @if(!empty($exploreTeams))
             <div class="section">
                 @if(!empty($exploreHasTwoGroups))
-                    <div class="section-header">FIRST LEGO League Explore - Vormittag</div>
+                    <div class="section-header"><i>FIRST</i> LEGO League Explore - Vormittag</div>
                     <table>
                         <thead>
                             <tr>
@@ -264,7 +264,7 @@
                         </tbody>
                     </table>
 
-                    <div class="section-header">FIRST LEGO League Explore - Nachmittag</div>
+                    <div class="section-header"><i>FIRST</i> LEGO League Explore - Nachmittag</div>
                     <table>
                         <thead>
                             <tr>
@@ -296,7 +296,7 @@
                         </tbody>
                     </table>
                 @else
-                    <div class="section-header">FIRST LEGO League Explore</div>
+                    <div class="section-header"><i>FIRST</i> LEGO League Explore</div>
                     <table>
                         <thead>
                             <tr>
@@ -333,7 +333,7 @@
 
         @if(!empty($challengeTeams))
             <div class="section">
-                <div class="section-header">FIRST LEGO League Challenge</div>
+                <div class="section-header"><i>FIRST</i> LEGO League Challenge</div>
                 
                 <table>
                     <thead>
