@@ -10137,7 +10137,7 @@
             "sequence": 22,
             "first_program": 8,
             "description": "Hilft den Teams beim Allianz-Gespr\u00e4ch",
-            "differentiation_parameter": null,
+            "differentiation_parameter": "table_pair",
             "preview_matrix": 1,
             "pdf_export": 1,
             "public_plan": 1,

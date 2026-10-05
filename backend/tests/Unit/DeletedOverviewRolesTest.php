@@ -35,5 +35,10 @@ class DeletedOverviewRolesTest extends TestCase
             $this->assertArrayNotHasKey('differentiation_source', $row);
             $this->assertArrayHasKey('differentiation_parameter', $row);
         }
+
+        $alliance = collect($data['m_role'])->firstWhere('id', 35);
+        $this->assertNotNull($alliance);
+        $this->assertSame('table_pair', $alliance['differentiation_parameter']);
+        $this->assertSame(1, (int) $alliance['preview_matrix']);
     }
 }
