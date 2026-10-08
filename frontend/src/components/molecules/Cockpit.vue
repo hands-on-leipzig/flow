@@ -442,6 +442,9 @@ onMounted(async () => {
             <span class="vol-staffing-filter__label">{{ option.label }}</span>
           </button>
         </div>
+        <span class="vol-toolbar__count vol-staffing-filters__count">
+          {{ filteredRows.length }} / {{ events.length }}
+        </span>
       </template>
     </VolunteerStaffingFilterBar>
 
