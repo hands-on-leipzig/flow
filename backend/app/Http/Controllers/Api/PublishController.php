@@ -2,35 +2,27 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Helpers\FlowFilename;
+use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Services\EventSlugService;
 use App\Services\PublicAccessRecorder;
 use App\Services\ImportantTimesService;
-use App\Services\PdfLayoutService;
-
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Endroid\QrCode\Color\Color;
+use Endroid\QrCode\Encoding\Encoding;
+use Endroid\QrCode\ErrorCorrectionLevel;
+use Endroid\QrCode\Logo\Logo;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Writer\PngWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Crypt;
-
-use Carbon\Carbon;
-
-use Endroid\QrCode\QrCode;
-use Endroid\QrCode\Encoding\Encoding;
-use Endroid\QrCode\ErrorCorrectionLevel;
-use Endroid\QrCode\RoundBlockSizeMode;
-use Endroid\QrCode\Color\Color;
-use Endroid\QrCode\Writer\PngWriter;
-use Endroid\QrCode\Logo\Logo;
-
-
-use Barryvdh\DomPDF\Facade\Pdf;
 
 // composer require barryvdh/laravel-dompdf
-
 
 class PublishController extends Controller
 {
@@ -52,7 +44,7 @@ class PublishController extends Controller
                 return response()->json([
                     'link' => $event->link,  // Clean display link
                     'slug' => $event->slug,
-                    'qrcode' => 'data:image/png;base64,' . $event->qrcode,
+                    'qrcode' => 'data:image/png;base64,'.$event->qrcode,
                 ]);
             }
         }
@@ -74,7 +66,7 @@ class PublishController extends Controller
         // Display link (stored in DB, shown to users) - clean without query params
         $displayLink = $this->slugs->url($event);
         // QR code link (includes source parameter for tracking)
-        $qrCodeLink = $displayLink . "?source=qr";
+        $qrCodeLink = $displayLink.'?source=qr';
 
         // QR-Code mit Endroid erzeugen (use QR code link with source parameter)
         $qrCode = new QrCode(
@@ -88,11 +80,11 @@ class PublishController extends Controller
             new Color(255, 255, 255)   // weiß
         );
 
-        $writer = new PngWriter();
+        $writer = new PngWriter;
 
         // Logo optional hinzufügen
         $logo = null;
-        $logoPath = public_path("flow/hot_outline.png");
+        $logoPath = public_path('flow/hot_outline.png');
         if (file_exists($logoPath)) {
             $logo = new Logo($logoPath, 100); // 50px breit
         }
@@ -124,7 +116,7 @@ class PublishController extends Controller
         return response()->json([
             'link' => $displayLink,
             'slug' => $slug,
-            'qrcode' => 'data:image/png;base64,' . $qrcodeRaw,
+            'qrcode' => 'data:image/png;base64,'.$qrcodeRaw,
         ]);
     }
 
@@ -174,14 +166,14 @@ class PublishController extends Controller
     /**
      * Regenerate link and QR code for an event (admin only)
      */
-    public function regenerateLinkAndQRcode(int $eventId): JsonResponse
+    public function regenerateLinkAndQRcode(int $eventId, bool $tryCalendarRebuild = true): JsonResponse
     {
         // Event direkt laden
         $event = DB::table('event')
             ->where('id', $eventId)
             ->first();
 
-        if (!$event) {
+        if (! $event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
 
@@ -195,7 +187,7 @@ class PublishController extends Controller
             ]);
 
         // Now call the existing method to regenerate
-        return $this->linkAndQRcode($eventId);
+        return $this->linkAndQRcode($eventId, $tryCalendarRebuild);
     }
 
     /**
@@ -214,7 +206,7 @@ class PublishController extends Controller
                     'success' => false,
                     'message' => 'No events found for this season',
                     'regenerated' => 0,
-                    'failed' => 0
+                    'failed' => 0,
                 ], 404);
             }
 
@@ -232,7 +224,7 @@ class PublishController extends Controller
 
             Log::info("Regenerating links for season {$seasonId}", [
                 'event_count' => $eventCount,
-                'time_limit' => $estimatedTime
+                'time_limit' => $estimatedTime,
             ]);
 
             foreach ($events as $index => $event) {
@@ -260,30 +252,30 @@ class PublishController extends Controller
                 } catch (\Exception $e) {
                     app(\App\Services\CalendarFeedService::class)->markStale((int) $event->id);
                     $failed++;
-                    $errorMsg = "Failed to regenerate link for event {$event->id} ({$event->name}): " . $e->getMessage();
+                    $errorMsg = "Failed to regenerate link for event {$event->id} ({$event->name}): ".$e->getMessage();
                     $errors[] = $errorMsg;
                     Log::error($errorMsg, [
                         'event_id' => $event->id,
                         'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
+                        'trace' => $e->getTraceAsString(),
                     ]);
                 }
             }
 
             return response()->json([
                 'success' => true,
-                'message' => "Regenerated links for {$regenerated} events" . ($failed > 0 ? ", {$failed} failed" : ''),
+                'message' => "Regenerated links for {$regenerated} events".($failed > 0 ? ", {$failed} failed" : ''),
                 'regenerated' => $regenerated,
                 'failed' => $failed,
                 'total' => $eventCount,
-                'errors' => $errors
+                'errors' => $errors,
             ]);
 
         } catch (\Throwable $e) {
             // Catch both Exception and Error (like FatalError) for better error handling
-            Log::error("Error regenerating links for season {$seasonId}: " . $e->getMessage(), [
+            Log::error("Error regenerating links for season {$seasonId}: ".$e->getMessage(), [
                 'error_type' => get_class($e),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             $errorMessage = $e->getMessage();
@@ -293,14 +285,12 @@ class PublishController extends Controller
 
             return response()->json([
                 'success' => false,
-                'error' => $errorMessage
+                'error' => $errorMessage,
             ], 500);
         }
     }
 
-
     // Informationen fürs Volk ...
-
 
     public function scheduleInformation(int $eventId, Request $request): JsonResponse
     {
@@ -317,7 +307,7 @@ class PublishController extends Controller
         // Falls im Request level übergeben wird -> überschreibt DB-Wert
         $override = $request->input('level'); // liest Body ODER Query
         if ($override !== null) {
-            $level = (int)$override;
+            $level = (int) $override;
         }
 
         // Basisdaten aus DrahtController holen
@@ -350,7 +340,7 @@ class PublishController extends Controller
     public function getPublicHelperSearch(int $eventId): JsonResponse
     {
         $event = Event::find($eventId);
-        if (!$event) {
+        if (! $event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
 
@@ -363,7 +353,7 @@ class PublishController extends Controller
     public function setPublicHelperSearch(int $eventId, Request $request): JsonResponse
     {
         $event = Event::find($eventId);
-        if (!$event) {
+        if (! $event) {
             return response()->json(['error' => 'Event not found'], 404);
         }
 
@@ -450,7 +440,6 @@ class PublishController extends Controller
         return $this->importantTimes($eventId)->getData(true);
     }
 
-
     // Aktuellen Level holen
     public function getPublicationLevel(int $eventId): JsonResponse
     {
@@ -462,7 +451,7 @@ class PublishController extends Controller
             ->first();
 
         // Falls noch kein Eintrag vorhanden → neuen mit Level 1 anlegen
-        if (!$publication) {
+        if (! $publication) {
             DB::table('publication')->insert([
                 'event' => $eventId,
                 'level' => 1,
@@ -483,7 +472,7 @@ class PublishController extends Controller
     // Level setzen/überschreiben
     public function setPublicationLevel(int $eventId, Request $request): JsonResponse
     {
-        $level = (int)$request->input('level', 1);
+        $level = (int) $request->input('level', 1);
 
         // Get current latest level
         $latest = DB::table('publication')
@@ -493,7 +482,7 @@ class PublishController extends Controller
             ->first();
 
         // Only insert if level actually changed (avoid duplicates)
-        if (!$latest || $latest->level !== $level) {
+        if (! $latest || $latest->level !== $level) {
             DB::table('publication')->insert([
                 'event' => $eventId,
                 'level' => $level,
@@ -545,6 +534,7 @@ class PublishController extends Controller
         ])->render();
 
         $layout = app(\App\Services\PdfLayoutService::class);
+
         return $layout->renderLayout($event, $contentHtml, 'Event Sheet', true); // true = isQrCodePdf
     }
 
@@ -562,7 +552,7 @@ class PublishController extends Controller
         $pdf = Pdf::loadHTML($html, 'UTF-8')->setPaper('a4', 'landscape');
         $pdfData = $pdf->output();
 
-        if (!$asPng) {
+        if (! $asPng) {
 
             // log::alert("PDF generated, size: " . strlen($pdfData) . " bytes");
 
@@ -572,7 +562,7 @@ class PublishController extends Controller
         // log::alert("Converting PDF to PNG...");
 
         // PDF -> PNG konvertieren (erste Seite)
-        $imagick = new \Imagick();
+        $imagick = new \Imagick;
         $imagick->setResolution(120, 120);
         $imagick->readImageBlob($pdfData);
         $imagick->setIteratorIndex(0);
@@ -600,7 +590,7 @@ class PublishController extends Controller
 
         return response($pdfData, 200)
             ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', 'attachment; filename="' . rawurlencode($filename) . '"')
+            ->header('Content-Disposition', 'attachment; filename="'.rawurlencode($filename).'"')
             ->header('X-Filename', $filename)
             ->header('Access-Control-Expose-Headers', 'X-Filename');
     }
@@ -612,7 +602,7 @@ class PublishController extends Controller
     {
         $pngData = $this->buildEventSheetPdf($type, $eventId, true);
 
-        return response('data:image/png;base64,' . base64_encode($pngData))
+        return response('data:image/png;base64,'.base64_encode($pngData))
             ->header('Content-Type', 'image/png')
             ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
             ->header('Pragma', 'no-cache')
