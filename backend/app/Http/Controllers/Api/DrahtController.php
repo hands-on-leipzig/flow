@@ -2,26 +2,28 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Models\Event;
-use App\Models\MSeason;
+use App\Models\FirstProgram;
 use App\Models\RegionalPartner;
 use App\Models\Team;
+use App\Services\DrahtEventPlacement;
+use App\Services\DrahtEventPlacementService;
 use App\Services\DrahtProgramDetachService;
 use App\Services\DrahtTeamEnrichmentService;
 use App\Support\DrahtScheduleData;
 use App\Support\ProgramCatalog;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Log;
 
 class DrahtController extends Controller
 {
-
     public function makeDrahtCall($route)
     {
         $headers = ['DOLAPIKEY' => config('services.draht_api.key')];
-        return Http::withHeaders($headers)->get(config('services.draht_api.base_url') . $route);
+
+        return Http::withHeaders($headers)->get(config('services.draht_api.base_url').$route);
     }
 
     /**
@@ -30,10 +32,10 @@ class DrahtController extends Controller
     public function makeDrahtPostCall($route, array $data)
     {
         $headers = ['DOLAPIKEY' => config('services.draht_api.key')];
-        return Http::withHeaders($headers)
-            ->post(config('services.draht_api.base_url') . $route, $data);
-    }
 
+        return Http::withHeaders($headers)
+            ->post(config('services.draht_api.base_url').$route, $data);
+    }
 
     public function show(Event $event)
     {
@@ -73,6 +75,7 @@ class DrahtController extends Controller
                     'teams' => [],
                     'capacity' => 0,
                 ];
+
                 continue;
             }
 
@@ -96,6 +99,7 @@ class DrahtController extends Controller
                     $detachService->detachProgram($event->id, (int) $row->first_program);
                 }
                 $detachedAny = true;
+
                 continue;
             }
 
@@ -132,17 +136,18 @@ class DrahtController extends Controller
         try {
             Log::info('Starting sync-draht-regions');
 
-            $res = $this->makeDrahtCall("/handson/rp");
+            $res = $this->makeDrahtCall('/handson/rp');
 
-            if (!$res->ok()) {
+            if (! $res->ok()) {
                 Log::error('Draht API call failed', [
                     'status' => $res->status(),
-                    'body' => $res->body()
+                    'body' => $res->body(),
                 ]);
+
                 return response()->json([
                     'error' => 'Failed to fetch regions from Draht API',
                     'status' => $res->status(),
-                    'message' => $res->body()
+                    'message' => $res->body(),
                 ], 500);
             }
 
@@ -171,7 +176,7 @@ class DrahtController extends Controller
                         Log::info('Updated regional partner', ['id' => $region->id, 'name' => $r['name']]);
                     } else {
                         // Create new regional partner
-                        $region = new RegionalPartner();
+                        $region = new RegionalPartner;
                         $region->name = $r['name'];
                         $region->dolibarr_id = $r['id'];
                         $region->region = $r['name'];
@@ -182,7 +187,7 @@ class DrahtController extends Controller
                 } catch (\Exception $e) {
                     Log::error('Failed to save regional partner', [
                         'data' => $r,
-                        'error' => $e->getMessage()
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
@@ -194,18 +199,18 @@ class DrahtController extends Controller
                 'message' => 'Regions synced successfully',
                 'created' => $created,
                 'updated' => $updated,
-                'total' => count($regions)
+                'total' => count($regions),
             ]);
 
         } catch (\Exception $e) {
             Log::error('Error in sync-draht-regions', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'error' => 'Internal server error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -213,43 +218,73 @@ class DrahtController extends Controller
     public function getAllEventsAndTeams(int $seasonId)
     {
         try {
-            $response = $this->makeDrahtCall("/handson/flow/events");
+            $response = $this->makeDrahtCall('/handson/flow/events');
 
-            if (!$response->ok()) {
+            if (! $response->ok()) {
                 Log::error('Failed to fetch events from Draht API', [
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
+
                 return response()->json([
                     'error' => 'Failed to fetch events from Draht API',
-                    'message' => 'HTTP ' . $response->status() . ': ' . $response->body()
+                    'message' => 'HTTP '.$response->status().': '.$response->body(),
                 ], 500);
             }
 
             ini_set('max_execution_time', 300);
             $eventsData = $response->json();
 
-            if (!is_array($eventsData)) {
+            if (! is_array($eventsData)) {
                 Log::error('Invalid response format from Draht API', [
-                    'response' => $eventsData
+                    'response' => $eventsData,
                 ]);
+
                 return response()->json([
                     'error' => 'Invalid response format from Draht API',
-                    'message' => 'Expected array but got ' . gettype($eventsData)
+                    'message' => 'Expected array but got '.gettype($eventsData),
                 ], 500);
             }
 
+            [$passthrough, $applications] = $this->partitionDrahtFeed($seasonId, $eventsData);
+            $feedDrahtIds = [];
+            foreach ($eventsData as $eventData) {
+                if (is_array($eventData) && ! empty($eventData['id'])) {
+                    $feedDrahtIds[] = (int) $eventData['id'];
+                }
+            }
+
             $icsEventIds = [];
-            $drahtIdsByEvent = [];
-            DB::transaction(function () use ($seasonId, $eventsData, &$icsEventIds, &$drahtIdsByEvent) {
+            $touchedIds = [];
+            DB::transaction(function () use ($seasonId, $passthrough, $applications, $feedDrahtIds, &$icsEventIds, &$touchedIds) {
+                foreach ($applications as $application) {
+                    try {
+                        $touchedIds = array_merge(
+                            $touchedIds,
+                            $this->applyDrahtPlacement(
+                                $seasonId,
+                                $application['placement'],
+                                $application['raw'],
+                                $feedDrahtIds
+                            )
+                        );
+                    } catch (\Exception $e) {
+                        Log::error('Error regrouping events from Draht', [
+                            'error' => $e->getMessage(),
+                            'trace' => $e->getTraceAsString(),
+                        ]);
+                    }
+                }
+
                 $processedEventIds = [];
                 $processedDrahtIds = [];
+                $drahtIdsByEvent = [];
                 $detachService = app(DrahtProgramDetachService::class);
 
-                foreach ($eventsData as $eventData) {
+                foreach ($passthrough as $eventData) {
                     try {
-                        $date = (isset($eventData["date"]) && $eventData["date"] != "") ? $eventData["date"] : "1970-01-01";
-                        $enddate = (isset($eventData["enddate"]) && $eventData["enddate"] != "") ? $eventData["enddate"] : "1970-01-01";
+                        $date = (isset($eventData['date']) && $eventData['date'] != '') ? $eventData['date'] : '1970-01-01';
+                        $enddate = (isset($eventData['enddate']) && $eventData['enddate'] != '') ? $eventData['enddate'] : '1970-01-01';
 
                         $regionalPartner = RegionalPartner::where('dolibarr_id', $eventData['region'])->first();
                         $firstProgram = (int) $eventData['first_program'];
@@ -321,7 +356,7 @@ class DrahtController extends Controller
                             }
                         } catch (\Exception $e) {
                             Log::error("Failed to auto-generate link and QR code for event {$event->id}", [
-                                'error' => $e->getMessage()
+                                'error' => $e->getMessage(),
                             ]);
                             // Don't fail the entire process if link generation fails
                         }
@@ -344,8 +379,9 @@ class DrahtController extends Controller
                                 if ($teamNumberHot === null) {
                                     Log::warning('Skipping team without team_number_hot', [
                                         'event_id' => $event->id,
-                                        'team_data' => $teamData
+                                        'team_data' => $teamData,
                                     ]);
+
                                     continue;
                                 }
 
@@ -376,56 +412,379 @@ class DrahtController extends Controller
                         Log::error('Error processing event from Draht', [
                             'event_data' => $eventData,
                             'error' => $e->getMessage(),
-                            'trace' => $e->getTraceAsString()
+                            'trace' => $e->getTraceAsString(),
                         ]);
+
                         continue;
                     }
                 }
 
-                foreach ($drahtIdsByEvent as $eventId => $activeDrahtIds) {
-                    $detachService->detachStaleByDrahtIds((int) $eventId, $activeDrahtIds);
+                $feedSet = array_fill_keys($feedDrahtIds, true);
+                foreach (array_keys($drahtIdsByEvent) as $eventId) {
+                    $present = DB::table('event_program')
+                        ->where('event', $eventId)
+                        ->whereNotNull('draht_id')
+                        ->pluck('draht_id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
+                    $active = array_values(array_filter($present, fn (int $id) => isset($feedSet[$id])));
+                    $detachService->detachStaleByDrahtIds((int) $eventId, $active);
                 }
             });
 
             $enrichmentService = app(DrahtTeamEnrichmentService::class);
-            foreach (array_unique($icsEventIds) as $eventId) {
+            foreach (array_unique(array_merge($icsEventIds, $touchedIds)) as $eventId) {
                 $event = Event::find($eventId);
                 if ($event) {
                     $enrichmentService->enrichEvent($event);
                 }
             }
 
-            $calendar = app(\App\Services\CalendarFeedService::class);
-            foreach (array_unique($icsEventIds) as $eventId) {
-                $calendar->markStale((int) $eventId);
-            }
+            $this->recalculateTouchedEventLinks($touchedIds);
 
             return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             Log::error('Connection error while fetching events from Draht API', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return response()->json([
                 'error' => 'Connection error',
-                'message' => 'Could not connect to Draht API: ' . $e->getMessage()
+                'message' => 'Could not connect to Draht API: '.$e->getMessage(),
             ], 500);
         } catch (\Exception $e) {
             Log::error('Error in getAllEventsAndTeams', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'error' => 'Internal server error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
+        }
+    }
+
+    /**
+     * Split the feed into partners whose dates still match FLOW, and partners
+     * that need a regroup. Rows that cannot be placed stay on the old path.
+     *
+     * @param  list<mixed>  $eventsData
+     * @return array{0: list<array<string, mixed>>, 1: list<array{placement: DrahtEventPlacement, raw: array<int, array<string, mixed>>}>}
+     */
+    private function partitionDrahtFeed(int $seasonId, array $eventsData): array
+    {
+        $regionIds = [];
+        foreach ($eventsData as $eventData) {
+            if (! is_array($eventData) || ! isset($eventData['region']) || $eventData['region'] === '') {
+                continue;
+            }
+            $regionIds[] = $eventData['region'];
+        }
+
+        $partners = $regionIds === []
+            ? collect()
+            : RegionalPartner::query()->whereIn('dolibarr_id', array_unique($regionIds))->get()->keyBy('dolibarr_id');
+        $sequences = FirstProgram::query()->pluck('sequence', 'id');
+        $snapshots = $this->seasonEventSnapshots($seasonId);
+
+        $passthrough = [];
+        $groups = [];
+        foreach ($eventsData as $eventData) {
+            if (! is_array($eventData) || empty($eventData['id']) || empty($eventData['first_program'])) {
+                if (is_array($eventData)) {
+                    $passthrough[] = $eventData;
+                }
+
+                continue;
+            }
+
+            $partner = $partners->get($eventData['region'] ?? null);
+            $partnerId = $partner?->id !== null ? (int) $partner->id : null;
+            $key = $partnerId === null ? 'none' : (string) $partnerId;
+            $groups[$key]['raw'][(int) $eventData['id']] = $eventData;
+            $groups[$key]['feed'][] = [
+                'draht_id' => (int) $eventData['id'],
+                'first_program' => (int) $eventData['first_program'],
+                'sequence' => (int) ($sequences[(int) $eventData['first_program']] ?? $eventData['first_program']),
+                'date' => $eventData['date'] ?? null,
+                'name' => $eventData['name'] ?? null,
+                'level' => $eventData['level'] ?? null,
+                'regional_partner' => $partnerId,
+            ];
+        }
+
+        $placementService = app(DrahtEventPlacementService::class);
+        $applications = [];
+        foreach ($groups as $group) {
+            $decision = $placementService->place($seasonId, $group['feed'], $snapshots);
+            if (! $decision->regroup) {
+                foreach ($group['raw'] as $row) {
+                    $passthrough[] = $row;
+                }
+
+                continue;
+            }
+
+            $applications[] = [
+                'placement' => $decision,
+                'raw' => $group['raw'],
+            ];
+        }
+
+        return [$passthrough, $applications];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function seasonEventSnapshots(int $seasonId): array
+    {
+        return Event::query()
+            ->where('season', $seasonId)
+            ->with('programs.firstProgram')
+            ->get()
+            ->map(function (Event $event) use ($seasonId) {
+                $date = $event->date;
+                if ($date instanceof \DateTimeInterface) {
+                    $date = $date->format('Y-m-d');
+                }
+
+                return [
+                    'id' => (int) $event->id,
+                    'date' => $date,
+                    'season' => $seasonId,
+                    'regional_partner' => $event->regional_partner !== null ? (int) $event->regional_partner : null,
+                    'level' => $event->level !== null ? (int) $event->level : null,
+                    'programs' => $event->programs->map(fn ($program) => [
+                        'draht_id' => $program->draht_id ? (int) $program->draht_id : null,
+                        'first_program' => (int) $program->first_program,
+                        'sequence' => (int) ($program->sequence ?? $program->first_program),
+                    ])->all(),
+                ];
+            })
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rawByDraht
+     * @param  list<int>  $feedDrahtIds
+     * @return list<int>
+     */
+    private function applyDrahtPlacement(int $seasonId, DrahtEventPlacement $placement, array $rawByDraht, array $feedDrahtIds): array
+    {
+        $created = [];
+        foreach ($placement->creates as $create) {
+            $event = Event::create([
+                'name' => $create['name'],
+                'date' => $create['date'],
+                'season' => $seasonId,
+                'days' => 1,
+                'regional_partner' => $create['regional_partner'],
+                'level' => $create['level'],
+            ]);
+            $created[$create['key']] = (int) $event->id;
+        }
+
+        foreach ($placement->updates as $update) {
+            $event = Event::find($update['id']);
+            if (! $event) {
+                continue;
+            }
+            $event->update([
+                'name' => $update['name'] ?? $event->name,
+                'date' => $update['date'],
+                'regional_partner' => $update['regional_partner'] ?? $event->regional_partner,
+                'level' => $update['level'] ?? $event->level,
+            ]);
+        }
+
+        foreach ($placement->targets as $drahtId => $target) {
+            $eventId = is_int($target) ? $target : ($created[$target] ?? null);
+            $raw = $rawByDraht[(int) $drahtId] ?? null;
+            if ($eventId === null || ! is_array($raw)) {
+                continue;
+            }
+            $this->moveDrahtProgram($seasonId, (int) $drahtId, (int) $eventId, $raw);
+        }
+
+        foreach ($placement->targets as $drahtId => $target) {
+            $eventId = is_int($target) ? $target : ($created[$target] ?? null);
+            $raw = $rawByDraht[(int) $drahtId] ?? null;
+            if ($eventId === null || ! is_array($raw) || ! isset($raw['teams']) || ! is_array($raw['teams'])) {
+                continue;
+            }
+            $this->upsertProgramTeams((int) $eventId, (int) ($raw['first_program'] ?? 0), $raw['teams']);
+        }
+
+        if ($placement->deleteIds !== []) {
+            Event::whereIn('id', $placement->deleteIds)->delete();
+        }
+
+        $detachService = app(DrahtProgramDetachService::class);
+        $feedSet = array_fill_keys($feedDrahtIds, true);
+        $touched = [];
+        foreach (array_unique(array_merge($placement->touchedIds, array_values($created))) as $eventId) {
+            $eventId = (int) $eventId;
+            if (! Event::whereKey($eventId)->exists()) {
+                continue;
+            }
+
+            $present = DB::table('event_program')
+                ->where('event', $eventId)
+                ->whereNotNull('draht_id')
+                ->pluck('draht_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            $active = array_values(array_filter($present, fn (int $id) => isset($feedSet[$id])));
+            $detachService->detachStaleByDrahtIds($eventId, $active);
+
+            if ((int) DB::table('event_program')->where('event', $eventId)->count() < 1) {
+                Event::whereKey($eventId)->delete();
+
+                continue;
+            }
+
+            $touched[] = $eventId;
+        }
+
+        return $touched;
+    }
+
+    /**
+     * @param  array<string, mixed>  $raw
+     */
+    private function moveDrahtProgram(int $seasonId, int $drahtId, int $targetEventId, array $raw): void
+    {
+        $firstProgram = (int) ($raw['first_program'] ?? 0);
+        $contaoId = isset($raw['contao_id']) ? (int) $raw['contao_id'] : null;
+
+        $existing = DB::table('event_program as ep')
+            ->join('event as e', 'e.id', '=', 'ep.event')
+            ->where('e.season', $seasonId)
+            ->where('ep.draht_id', $drahtId)
+            ->first(['ep.id', 'ep.event', 'ep.first_program']);
+
+        if ($existing && (int) $existing->event !== $targetEventId) {
+            DB::table('team')
+                ->where('event', $existing->event)
+                ->where('first_program', $existing->first_program)
+                ->update([
+                    'event' => $targetEventId,
+                    'first_program' => $firstProgram,
+                ]);
+            DB::table('event_program')->where('id', $existing->id)->update([
+                'event' => $targetEventId,
+                'first_program' => $firstProgram,
+                'contao_id' => $contaoId,
+            ]);
+
+            return;
+        }
+
+        $event = Event::find($targetEventId);
+        if (! $event) {
+            return;
+        }
+
+        ProgramCatalog::upsertDrahtProgram($event, $firstProgram, $drahtId, $contaoId);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $teams
+     */
+    private function upsertProgramTeams(int $eventId, int $firstProgram, array $teams): void
+    {
+        foreach ($teams as $teamData) {
+            if (! is_array($teamData)) {
+                continue;
+            }
+
+            try {
+                $teamNumberHot = $teamData['team_number_hot'] ?? null;
+                if ($teamNumberHot === null) {
+                    Log::warning('Skipping team without team_number_hot', [
+                        'event_id' => $eventId,
+                        'team_data' => $teamData,
+                    ]);
+
+                    continue;
+                }
+
+                $programId = (int) ($teamData['first_program'] ?? $firstProgram);
+                $existingTeam = Team::where('event', $eventId)
+                    ->where('first_program', $programId)
+                    ->where('team_number_hot', $teamNumberHot)
+                    ->first();
+
+                if ($existingTeam) {
+                    $existingTeam->update([
+                        'name' => $teamData['name'],
+                        'location' => $teamData['location'] ?? null,
+                        'organization' => $teamData['organization'] ?? null,
+                        'first_program' => $programId,
+                    ]);
+
+                    continue;
+                }
+
+                Team::create([
+                    'event' => $eventId,
+                    'name' => $teamData['name'],
+                    'team_number_hot' => $teamNumberHot,
+                    'first_program' => $programId,
+                    'location' => $teamData['location'] ?? null,
+                    'organization' => $teamData['organization'] ?? null,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Error saving team from Draht', [
+                    'event_id' => $eventId,
+                    'team_data' => $teamData,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * @param  list<int>  $eventIds
+     */
+    private function recalculateTouchedEventLinks(array $eventIds): void
+    {
+        $publish = app(PublishController::class);
+        $calendar = app(\App\Services\CalendarFeedService::class);
+
+        foreach (array_unique($eventIds) as $eventId) {
+            $eventId = (int) $eventId;
+            if ($eventId < 1 || ! Event::whereKey($eventId)->exists()) {
+                continue;
+            }
+
+            try {
+                $response = $publish->regenerateLinkAndQRcode($eventId, false);
+                if ($response->getStatusCode() >= 400) {
+                    Log::error('Failed to recalculate public link after DRAHT regroup', [
+                        'event_id' => $eventId,
+                        'status' => $response->getStatusCode(),
+                        'body' => $response->getContent(),
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::error('Failed to recalculate public link after DRAHT regroup', [
+                    'event_id' => $eventId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            $calendar->markStale($eventId);
         }
     }
 
     /**
      * Update the public link in DRAHT for an event
      *
-     * @param int $drahtEventId The DRAHT event ID
-     * @param string $link The public link URL
+     * @param  int  $drahtEventId  The DRAHT event ID
+     * @param  string  $link  The public link URL
      * @return bool True if successful, false otherwise
      */
     public function updateEventLink(int $drahtEventId, string $link): bool
@@ -438,22 +797,25 @@ class DrahtController extends Controller
 
             if ($response->ok()) {
                 Log::info("Successfully updated link in DRAHT for event {$drahtEventId}", [
-                    'link' => $link
+                    'link' => $link,
                 ]);
+
                 return true;
             } else {
                 Log::error("Failed to update link in DRAHT for event {$drahtEventId}", [
                     'status' => $response->status(),
                     'body' => $response->body(),
-                    'link' => $link
+                    'link' => $link,
                 ]);
+
                 return false;
             }
         } catch (\Exception $e) {
             Log::error("Exception while updating link in DRAHT for event {$drahtEventId}", [
                 'error' => $e->getMessage(),
-                'link' => $link
+                'link' => $link,
             ]);
+
             return false;
         }
     }
@@ -461,7 +823,7 @@ class DrahtController extends Controller
     /**
      * Get regional partners for a user from Draht API
      *
-     * @param int $dolibarrId The user's dolibarr_id
+     * @param  int  $dolibarrId  The user's dolibarr_id
      * @return array Array of regional partner dolibarr_ids
      */
     public function getUserRegionalPartners(int $dolibarrId): array
@@ -469,12 +831,13 @@ class DrahtController extends Controller
         try {
             $response = $this->makeDrahtCall("/handson/contact/{$dolibarrId}/regionalpartner");
 
-            if (!$response->ok()) {
-                Log::warning("Failed to fetch regional partners for user", [
+            if (! $response->ok()) {
+                Log::warning('Failed to fetch regional partners for user', [
                     'dolibarr_id' => $dolibarrId,
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
+
                 return [];
             }
 
@@ -496,18 +859,19 @@ class DrahtController extends Controller
                 }
             }
 
-            Log::warning("Unexpected response format from Draht API for user regional partners", [
+            Log::warning('Unexpected response format from Draht API for user regional partners', [
                 'dolibarr_id' => $dolibarrId,
-                'response' => $data
+                'response' => $data,
             ]);
 
             return [];
         } catch (\Exception $e) {
-            Log::error("Exception while fetching regional partners for user", [
+            Log::error('Exception while fetching regional partners for user', [
                 'dolibarr_id' => $dolibarrId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return [];
         }
     }
@@ -515,16 +879,17 @@ class DrahtController extends Controller
     /**
      * Sync user-regional partner relations from Draht API
      *
-     * @param \App\Models\User $user The user to sync
+     * @param  \App\Models\User  $user  The user to sync
      * @return bool True if sync was successful, false otherwise
      */
     public function syncUserRegionalPartners(\App\Models\User $user): bool
     {
-        if (!$user->dolibarr_id) {
-            Log::info("Skipping regional partner sync - user has no dolibarr_id", [
+        if (! $user->dolibarr_id) {
+            Log::info('Skipping regional partner sync - user has no dolibarr_id', [
                 'user_id' => $user->id,
-                'subject' => $user->subject
+                'subject' => $user->subject,
             ]);
+
             return false;
         }
 
@@ -535,24 +900,26 @@ class DrahtController extends Controller
 
             // Only Draht-sourced links are managed here. Manual FLOW grants stay untouched.
             if (empty($regionalPartnerIds)) {
-                Log::info("No regional partners found for user in Draht", [
+                Log::info('No regional partners found for user in Draht', [
                     'user_id' => $user->id,
-                    'dolibarr_id' => $user->dolibarr_id
+                    'dolibarr_id' => $user->dolibarr_id,
                 ]);
                 DB::table('user_regional_partner')
                     ->where('user', $user->id)
                     ->where('source', $sourceDraht)
                     ->delete();
+
                 return true;
             }
 
             $regionalPartners = RegionalPartner::whereIn('dolibarr_id', $regionalPartnerIds)->get();
 
             if ($regionalPartners->isEmpty()) {
-                Log::warning("Regional partners not found in database", [
+                Log::warning('Regional partners not found in database', [
                     'user_id' => $user->id,
-                    'dolibarr_ids' => $regionalPartnerIds
+                    'dolibarr_ids' => $regionalPartnerIds,
                 ]);
+
                 return false;
             }
 
@@ -573,20 +940,20 @@ class DrahtController extends Controller
                 ->all();
 
             $toRemove = array_diff($currentDraht, $targetRelations);
-            if (!empty($toRemove)) {
+            if (! empty($toRemove)) {
                 DB::table('user_regional_partner')
                     ->where('user', $user->id)
                     ->where('source', $sourceDraht)
                     ->whereIn('regional_partner', $toRemove)
                     ->delete();
-                Log::info("Removed Draht regional partner relations", [
+                Log::info('Removed Draht regional partner relations', [
                     'user_id' => $user->id,
-                    'removed' => array_values($toRemove)
+                    'removed' => array_values($toRemove),
                 ]);
             }
 
             $toAdd = array_diff($targetRelations, $currentDraht, $currentManual);
-            if (!empty($toAdd)) {
+            if (! empty($toAdd)) {
                 $insertData = array_map(function ($rpId) use ($user, $sourceDraht) {
                     return [
                         'user' => $user->id,
@@ -598,15 +965,15 @@ class DrahtController extends Controller
                 }, $toAdd);
 
                 DB::table('user_regional_partner')->insert($insertData);
-                Log::info("Added Draht regional partner relations", [
+                Log::info('Added Draht regional partner relations', [
                     'user_id' => $user->id,
-                    'added' => array_values($toAdd)
+                    'added' => array_values($toAdd),
                 ]);
             }
 
             // If Draht confirms a previously manual grant, mark it as Draht-owned
             $toPromote = array_intersect($targetRelations, $currentManual);
-            if (!empty($toPromote)) {
+            if (! empty($toPromote)) {
                 DB::table('user_regional_partner')
                     ->where('user', $user->id)
                     ->where('source', $sourceManual)
@@ -619,12 +986,13 @@ class DrahtController extends Controller
 
             return true;
         } catch (\Exception $e) {
-            Log::error("Failed to sync user regional partners", [
+            Log::error('Failed to sync user regional partners', [
                 'user_id' => $user->id,
                 'dolibarr_id' => $user->dolibarr_id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return false;
         }
     }
@@ -632,7 +1000,7 @@ class DrahtController extends Controller
     /**
      * Get people data (players and coaches) for a DRAHT event
      *
-     * @param int $drahtEventId The DRAHT event ID
+     * @param  int  $drahtEventId  The DRAHT event ID
      * @return \Illuminate\Http\JsonResponse
      */
     public function getPeople(int $drahtEventId)
@@ -640,29 +1008,32 @@ class DrahtController extends Controller
         try {
             $response = $this->makeDrahtCall("/handson/flow/{$drahtEventId}/people");
 
-            if (!$response->ok()) {
-                Log::error("Failed to fetch people data from DRAHT API", [
+            if (! $response->ok()) {
+                Log::error('Failed to fetch people data from DRAHT API', [
                     'draht_event_id' => $drahtEventId,
                     'status' => $response->status(),
-                    'body' => $response->body()
+                    'body' => $response->body(),
                 ]);
+
                 return response()->json([
                     'error' => 'Failed to fetch people data from DRAHT API',
-                    'status' => $response->status()
+                    'status' => $response->status(),
                 ], $response->status());
             }
 
             $peopleData = $response->json();
+
             return response()->json($peopleData);
         } catch (\Exception $e) {
-            Log::error("Exception while fetching people data from DRAHT API", [
+            Log::error('Exception while fetching people data from DRAHT API', [
                 'draht_event_id' => $drahtEventId,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return response()->json([
                 'error' => 'Internal server error',
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
@@ -670,7 +1041,7 @@ class DrahtController extends Controller
     /**
      * Get coordinates of all the teams of a given event
      *
-     * @param int $event
+     * @param  int  $event
      * @return \Illuminate\Http\JsonResponse
      */
     public function getTeamsCoordinates(Event $event)
@@ -737,7 +1108,7 @@ class DrahtController extends Controller
      */
     private function formatContactData($contactData)
     {
-        if (!$contactData) {
+        if (! $contactData) {
             return [];
         }
 
