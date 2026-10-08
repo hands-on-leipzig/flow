@@ -92,8 +92,6 @@ const boundsAnchorEl = ref<HTMLElement | null>(null)
 const composerRef = ref<{focusTitle?: () => void} | null>(null)
 
 const newRoleName = ref('')
-const newRoleMin = ref<number | ''>('')
-const newRoleBest = ref<number | ''>('')
 
 const activeTileFilters = ref<Set<StaffingFilterKey>>(new Set())
 /** Keys already offered on this event. A key is on the first time it appears. */
@@ -346,20 +344,6 @@ function filterHasAttention(key: StaffingFilterKey) {
   return tiles.value.some((tile) => tileFilterKey(tile) === key && tileNeedsAttention(tile))
 }
 
-function resolveRoleBounds(minRaw: number | '', bestRaw: number | '') {
-  const isEmpty = (value: number | '') =>
-    value === '' || value === null || value === undefined || Number.isNaN(Number(value))
-
-  if (isEmpty(minRaw) && isEmpty(bestRaw)) {
-    return {min: 1, best: 1}
-  }
-
-  return {
-    min: Number(minRaw),
-    best: Number(bestRaw),
-  }
-}
-
 function openBoundsModal(role: Role, anchor: HTMLElement) {
   boundsAnchorEl.value = anchor
   boundsEditRole.value = role
@@ -599,23 +583,15 @@ async function unassign(tile: Tile, person: Person) {
 async function createLocalRole() {
   if (!eventId.value || isSaving.value) return
   const label = newRoleName.value.trim()
-  const {min, best} = resolveRoleBounds(newRoleMin.value, newRoleBest.value)
   if (!label) return
-  const validationError = boundsValidationError(min, best)
-  if (validationError) {
-    showGlassToast(validationError, 'info')
-    return
-  }
   isSaving.value = true
   try {
     await axios.post(`/events/${eventId.value}/staffing/local-roles`, {
       label,
-      min,
-      best,
+      min: 1,
+      best: 1,
     })
     newRoleName.value = ''
-    newRoleMin.value = ''
-    newRoleBest.value = ''
     await load()
     await nextTick()
     composerRef.value?.focusTitle?.()
@@ -756,37 +732,7 @@ watch(programFilters, () => syncTileFilters())
               title-placeholder="Neue Rolle z. B. Check-in"
               empty-hint="Eigene Rolle für diese Veranstaltung, unabhängig vom Ablauf."
               @commit="createLocalRole"
-          >
-            <transition name="fade">
-              <div v-if="newRoleName.trim().length > 0" class="staffing-composer-extra">
-                <div class="staffing-bounds staffing-bounds--composer">
-                  <label class="staffing-bounds__field">
-                    <span>min</span>
-                    <input
-                        v-model.number="newRoleMin"
-                        :disabled="isSaving"
-                        class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                        type="number"
-                        min="1"
-                        placeholder="1"
-                    />
-                  </label>
-                  <label class="staffing-bounds__field">
-                    <span>ideal</span>
-                    <input
-                        v-model.number="newRoleBest"
-                        :disabled="isSaving"
-                        class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                        type="number"
-                        min="1"
-                        placeholder="1"
-                    />
-                  </label>
-                </div>
-                <p class="item-card__hint">min ≤ ideal — wie viele Personen diese Rolle braucht.</p>
-              </div>
-            </transition>
-          </ItemComposer>
+          />
         </div>
       </div>
 
@@ -968,50 +914,6 @@ watch(programFilters, () => syncTileFilters())
   .vol-staffing-tiles {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
-}
-
-.staffing-bounds {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.3rem;
-  flex-shrink: 0;
-}
-
-.staffing-bounds--composer {
-  width: 100%;
-}
-
-.staffing-bounds__field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  font-size: 0.65rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-subtle);
-}
-
-.staffing-bounds__input {
-  width: 3.1rem;
-  padding-left: 0.35rem !important;
-  padding-right: 0.35rem !important;
-  text-align: center;
-}
-
-.staffing-composer-extra {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 
 .vol-multi-assign__list {
