@@ -1,8 +1,7 @@
 <script setup>
-import {ref, watch, onMounted, computed} from 'vue'
+import {watch, onMounted, computed} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import Quality from '@/components/molecules/Quality.vue'
-import Statistics from '@/components/molecules/Statistics.vue'
 import NowAndNext from '@/components/molecules/NowAndNext.vue'
 import UserRegionalPartnerRelations from '@/components/molecules/UserRegionalPartnerRelations.vue'
 import MainTablesAdmin from '@/components/molecules/MainTablesAdmin.vue'
@@ -36,8 +35,6 @@ const route = useRoute()
 const router = useRouter()
 const {isDevEnvironment, isLocal, ensureLoaded: ensureAdminEnvironment} = useAdminEnvironment()
 
-const statisticsTableOnly = ref(false)
-
 const activeTab = computed(() => {
   const section = resolveAdminSection(String(route.params.section || ''))
   return isAdminSection(section) ? section : ADMIN_DEFAULT_SECTION
@@ -51,7 +48,7 @@ const sectionAllowed = computed(() => {
 
 function redirectIfSectionBlocked(section) {
   // Admin stays keep-alive'd; ignore route changes after leaving /plan/admin
-  // (otherwise empty section redirects back to Statistiken).
+  // (otherwise empty section redirects back to Cockpit).
   if (!route.path.startsWith('/plan/admin')) return
 
   const resolved = resolveAdminSection(String(section || ''))
@@ -145,21 +142,6 @@ onMounted(() => {
 
     <div v-else-if="activeTab === 'slugs'">
       <SlugRegistryAdmin/>
-    </div>
-
-    <div v-else-if="activeTab === 'statistics'">
-      <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
-        <h2 class="text-xl font-bold">Statistiken</h2>
-        <label class="glass-chip !px-3 !py-1.5 !text-sm inline-flex items-center gap-2 cursor-pointer select-none">
-          <input
-              v-model="statisticsTableOnly"
-              type="checkbox"
-              class="rounded border-[var(--color-border)]"
-          />
-          <span class="text-[var(--color-text-muted)]">Nur Tabelle</span>
-        </label>
-      </div>
-      <Statistics :table-only="statisticsTableOnly"/>
     </div>
 
     <div v-else-if="activeTab === 'external-api'">
