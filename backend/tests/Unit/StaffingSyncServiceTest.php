@@ -370,6 +370,99 @@ class StaffingSyncServiceTest extends TestCase
         ]);
     }
 
+    public function test_person_can_hold_catalog_and_local_roles(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+        $this->insertUngroupedChallengeRole();
+        $this->sync->syncForEvent(1);
+
+        $head = EventStaffingRole::query()->where('event', 1)->where('m_role', 27)->firstOrFail();
+        DB::table('event_volunteer_roster')->insert([
+            'event' => 1,
+            'volunteer_person' => 1,
+            'created_at' => now(),
+        ]);
+
+        $event = Event::query()->findOrFail(1);
+        $controller = app(EventStaffingAssignmentController::class);
+
+        $catalog = $controller->storeOnRole(
+            Request::create('/', 'POST', ['volunteer_person' => 1]),
+            $event,
+            $head,
+        );
+        $this->assertSame(201, $catalog->getStatusCode());
+
+        $localResponse = $controller->storeLocalRole(
+            Request::create('/', 'POST', [
+                'label' => 'Catering',
+                'min' => 1,
+                'best' => 1,
+            ]),
+            $event,
+        );
+        $this->assertSame(201, $localResponse->getStatusCode());
+        $localRole = EventStaffingRole::query()->findOrFail($localResponse->getData(true)['role']['id']);
+
+        $local = $controller->storeOnRole(
+            Request::create('/', 'POST', ['volunteer_person' => 1]),
+            $event,
+            $localRole,
+        );
+        $this->assertSame(201, $local->getStatusCode());
+
+        $this->assertSame(
+            2,
+            EventStaffingAssignment::query()->where('volunteer_person', 1)->count()
+        );
+        $this->assertDatabaseHas('event_staffing_assignment', [
+            'event_staffing_role' => $head->id,
+            'volunteer_person' => 1,
+        ]);
+        $this->assertDatabaseHas('event_staffing_assignment', [
+            'event_staffing_role' => $localRole->id,
+            'volunteer_person' => 1,
+        ]);
+    }
+
+    public function test_second_assign_same_role_is_idempotent(): void
+    {
+        $this->seedChallengeEvent(lanes: 1);
+        $this->insertUngroupedChallengeRole();
+        $this->sync->syncForEvent(1);
+
+        $head = EventStaffingRole::query()->where('event', 1)->where('m_role', 27)->firstOrFail();
+        DB::table('event_volunteer_roster')->insert([
+            'event' => 1,
+            'volunteer_person' => 1,
+            'created_at' => now(),
+        ]);
+
+        $event = Event::query()->findOrFail(1);
+        $controller = app(EventStaffingAssignmentController::class);
+
+        $first = $controller->storeOnRole(
+            Request::create('/', 'POST', ['volunteer_person' => 1]),
+            $event,
+            $head,
+        );
+        $second = $controller->storeOnRole(
+            Request::create('/', 'POST', ['volunteer_person' => 1]),
+            $event,
+            $head,
+        );
+
+        $this->assertSame(201, $first->getStatusCode());
+        $this->assertSame(200, $second->getStatusCode());
+        $this->assertSame(
+            1,
+            EventStaffingAssignment::query()
+                ->where('event_staffing_role', $head->id)
+                ->where('volunteer_person', 1)
+                ->count()
+        );
+    }
+
     public function test_second_assign_on_ungrouped_role_is_not_capped(): void
     {
         $this->seedChallengeEvent(lanes: 1);

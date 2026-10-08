@@ -7,6 +7,7 @@ import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
+import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
@@ -14,7 +15,7 @@ import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffing
 import VolunteerStaffingBoundsPopover from '@/components/volunteers/VolunteerStaffingBoundsPopover.vue'
 import VolunteerOpenPositions from '@/components/volunteers/VolunteerOpenPositions.vue'
 import VolunteerStaffingTile from '@/components/volunteers/VolunteerStaffingTile.vue'
-import {eventPrograms, programId} from '@/utils/eventPrograms'
+import {eventPrograms, programId, type EventProgramRef} from '@/utils/eventPrograms'
 import {compareStaffingTiles, staffingSortableFromTile} from '@/utils/volunteerStaffingSort'
 import {
   buildStaffingFilterKeys,
@@ -50,6 +51,19 @@ type Person = VolunteerPersonRef
 type Role = StaffingRole
 type Tile = StaffingTile
 
+type MultiAssignRoleRef = {
+  id: number
+  label: string
+  first_program: number | null
+  sequence: number
+  program: EventProgramRef | null
+}
+
+type MultiAssignEntry = {
+  person: Person
+  roles: MultiAssignRoleRef[]
+}
+
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
@@ -70,6 +84,7 @@ const dragSourceKey = ref<string | null>(null)
 const draggedPerson = ref<Person | null>(null)
 
 const roleToDelete = ref<Role | null>(null)
+const pendingMultiAssign = ref<{person: Person; tile: Tile} | null>(null)
 const boundsEditRole = ref<Role | null>(null)
 const boundsAnchorEl = ref<HTMLElement | null>(null)
 const composerRef = ref<{focusTitle?: () => void} | null>(null)
@@ -92,6 +107,49 @@ const programFilters = computed(() => {
 })
 
 const staffingSummary = computed(() => computeStaffingSummary(roles.value, programFilters.value))
+
+const multiAssignedPeople = computed<MultiAssignEntry[]>(() => {
+  const programs = eventPrograms(eventStore.selectedEvent)
+  const byPerson = new Map<number, {person: Person; roles: Map<number, MultiAssignRoleRef>}>()
+
+  const remember = (person: Person, role: Role) => {
+    let entry = byPerson.get(person.id)
+    if (!entry) {
+      entry = {person, roles: new Map()}
+      byPerson.set(person.id, entry)
+    }
+    if (entry.roles.has(role.id)) return
+    const fp = role.first_program
+    const program = fp != null && fp > 0
+      ? programs.find((p) => programId(p) === fp) ?? null
+      : null
+    entry.roles.set(role.id, {
+      id: role.id,
+      label: (role.label || '').trim() || 'Unbenannt',
+      first_program: fp,
+      sequence: role.sequence,
+      program,
+    })
+  }
+
+  for (const role of roles.value) {
+    for (const person of role.people ?? []) remember(person, role)
+    for (const group of role.groups ?? []) {
+      for (const person of group.people) remember(person, role)
+    }
+  }
+
+  return [...byPerson.values()]
+    .filter((row) => row.roles.size > 1)
+    .map((row) => ({
+      person: row.person,
+      roles: [...row.roles.values()].sort((a, b) => {
+        if (a.sequence !== b.sequence) return a.sequence - b.sequence
+        return a.id - b.id
+      }),
+    }))
+    .sort((a, b) => sortPeople(a.person, b.person))
+})
 
 function isMatchPlaceRole(role: Role): boolean {
   if (!supportsTableFieldLabels(Number(role.first_program))) return false
@@ -224,6 +282,11 @@ const deleteRoleMessage = computed(() => {
   return `„${name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
 
+const multiAssignMessage = computed(() => {
+  if (!pendingMultiAssign.value) return ''
+  return `${volunteerDisplayName(pendingMultiAssign.value.person)} hat bereits eine andere Rolle.`
+})
+
 const peopleGroup = {name: 'staffing-people', pull: true, put: false}
 const searchDragGroup = {name: 'staffing-people', pull: 'clone', put: false}
 
@@ -237,12 +300,23 @@ function isOnRoster(person: Person) {
   return rosterPersonIds.value.has(person.id)
 }
 
-function isAssigned(person: Person) {
-  return assignedIds.value.has(person.id)
+function canDragFromSearch(_person: Person) {
+  return true
 }
 
-function canDragFromSearch(person: Person) {
-  return !isAssigned(person)
+function personAssignedRoleIds(personId: number): Set<number> {
+  const ids = new Set<number>()
+  for (const role of roles.value) {
+    if ((role.people ?? []).some((p) => p.id === personId)) {
+      ids.add(role.id)
+    }
+    for (const group of role.groups ?? []) {
+      if (group.people.some((p) => p.id === personId)) {
+        ids.add(role.id)
+      }
+    }
+  }
+  return ids
 }
 
 function searchChipIconClass(person: Person) {
@@ -415,21 +489,57 @@ function onDropzoneLeave(event: DragEvent, tileKey: string) {
 
 async function handleDrop(event: any, tile: Tile) {
   const person = draggedPerson.value || event.item?.__draggable_context?.element
+  const sourceKey = dragSourceKey.value
   dragOverKey.value = null
   isDragging.value = false
   if (!person?.id || !eventId.value) return
-  if (dragSourceKey.value === tile.key) return
+  if (sourceKey === tile.key) return
   const surplus = tileSurplus(tile)
   if (surplus) {
     showGlassToast('Diese Rolle wird nicht mehr benötigt — Personen nur umsetzen.', 'info')
+    dragSourceKey.value = null
+    draggedPerson.value = null
+    await load()
+    return
+  }
+
+  // Tile → tile: move (delete source, then post). No confirm.
+  if (sourceKey) {
+    try {
+      await axios.delete(assignmentItemUrl(sourceKey, person.id))
+      await ensureOnRoster(person)
+      await axios.post(assignmentCollectionUrl(tile), {
+        volunteer_person: person.id,
+      })
+    } catch (e: any) {
+      showGlassToast(apiError(e, 'Zuweisen fehlgeschlagen'), 'error')
+    } finally {
+      dragSourceKey.value = null
+      draggedPerson.value = null
+      await load()
+    }
+    return
+  }
+
+  // Search / unassigned → tile: add (keep existing). Confirm if already assigned elsewhere.
+  const assignedRoleIds = personAssignedRoleIds(person.id)
+  if (assignedRoleIds.has(tile.role.id)) {
+    showGlassToast('Person ist dieser Rolle schon zugeordnet.', 'info')
+    dragSourceKey.value = null
+    draggedPerson.value = null
+    await load()
+    return
+  }
+
+  if (assignedRoleIds.size > 0) {
+    pendingMultiAssign.value = {person, tile}
+    dragSourceKey.value = null
+    draggedPerson.value = null
     await load()
     return
   }
 
   try {
-    if (dragSourceKey.value) {
-      await axios.delete(assignmentItemUrl(dragSourceKey.value, person.id))
-    }
     await ensureOnRoster(person)
     await axios.post(assignmentCollectionUrl(tile), {
       volunteer_person: person.id,
@@ -441,6 +551,29 @@ async function handleDrop(event: any, tile: Tile) {
     draggedPerson.value = null
     await load()
   }
+}
+
+async function confirmMultiAssign() {
+  const pending = pendingMultiAssign.value
+  pendingMultiAssign.value = null
+  if (!pending?.person?.id || !eventId.value) return
+  try {
+    await ensureOnRoster(pending.person)
+    await axios.post(assignmentCollectionUrl(pending.tile), {
+      volunteer_person: pending.person.id,
+    })
+  } catch (e: any) {
+    showGlassToast(apiError(e, 'Zuweisen fehlgeschlagen'), 'error')
+  } finally {
+    await load()
+  }
+}
+
+async function cancelMultiAssign() {
+  pendingMultiAssign.value = null
+  dragSourceKey.value = null
+  draggedPerson.value = null
+  await load()
 }
 
 async function unassign(tile: Tile, person: Person) {
@@ -700,6 +833,36 @@ watch(programFilters, () => syncTileFilters())
           </div>
         </div>
 
+        <div v-if="multiAssignedPeople.length" class="vol-multi-assign">
+          <h3 class="vol-multi-assign__title">
+            Helfer:innen mit mehr als einer Zuordnung
+          </h3>
+          <ul class="vol-multi-assign__list">
+            <li
+                v-for="entry in multiAssignedPeople"
+                :key="entry.person.id"
+                class="vol-multi-assign__item"
+            >
+              <span class="vol-multi-assign__name">{{ volunteerDisplayName(entry.person) }}</span>:
+              <span class="vol-multi-assign__roles">
+                <span
+                    v-for="(role, index) in entry.roles"
+                    :key="role.id"
+                    class="vol-multi-assign__role"
+                >
+                  <ProgramLogo
+                      v-if="role.program"
+                      :program="role.program"
+                      size="chip"
+                      decorative
+                  />
+                  <span>{{ role.label }}</span><span v-if="index < entry.roles.length - 1">, </span>
+                </span>
+              </span>
+            </li>
+          </ul>
+        </div>
+
         <div class="glass-card liquid-surface-inner vol-sidebar-tile">
           <h2 class="vol-sidebar-heading">Helfer:innen ohne Zuordnung</h2>
 
@@ -741,6 +904,17 @@ watch(programFilters, () => syncTileFilters())
         cancel-text="Abbrechen"
         @confirm="confirmDeleteRole"
         @cancel="cancelDeleteRole"
+    />
+
+    <ConfirmationModal
+        :show="!!pendingMultiAssign"
+        title="Mehrfache Zuordnung"
+        :message="multiAssignMessage"
+        type="info"
+        confirm-text="Ok"
+        cancel-text="Abbrechen"
+        @confirm="confirmMultiAssign"
+        @cancel="cancelMultiAssign"
     />
 
     <VolunteerStaffingBoundsPopover
@@ -832,5 +1006,53 @@ watch(programFilters, () => syncTileFilters())
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.vol-multi-assign {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--liquid-border);
+  background: var(--liquid-tile-bg);
+  padding: 0.85rem 1rem;
+  box-shadow:
+    0 6px 14px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.vol-multi-assign__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.vol-multi-assign__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vol-multi-assign__item {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-text);
+}
+
+.vol-multi-assign__item + .vol-multi-assign__item {
+  margin-top: 0.35rem;
+}
+
+.vol-multi-assign__name {
+  font-weight: 600;
+}
+
+.vol-multi-assign__roles {
+  display: inline;
+}
+
+.vol-multi-assign__role {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  vertical-align: middle;
 }
 </style>
