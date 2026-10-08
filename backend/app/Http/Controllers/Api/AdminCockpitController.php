@@ -28,11 +28,14 @@ class AdminCockpitController extends Controller
         $seasonId = $this->cockpit->resolveSeasonId($request->query('season'));
         $payload = $this->cockpit->payload($seasonId);
         $programIds = $this->programIds($request->query('programs'));
+        $levelsRaw = $request->query('levels');
+        $levels = $levelsRaw === null ? [1, 2, 3] : $this->levels($levelsRaw);
         $events = $this->cockpit->filterUpcoming(
             $payload['events'],
             $request->query('upcoming') === '1',
         );
         $events = $this->cockpit->filterPrograms($events, $programIds);
+        $events = $this->cockpit->filterLevels($events, $levels);
         $events = $this->cockpit->filterWithoutPlan(
             $events,
             $request->query('without_plan') === '1',
@@ -64,6 +67,21 @@ class AdminCockpitController extends Controller
         return array_values(array_filter(
             array_map('intval', explode(',', $raw)),
             static fn (int $id) => $id > 0,
+        ));
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function levels(mixed $raw): array
+    {
+        if (! is_string($raw) || trim($raw) === '') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map('intval', explode(',', $raw)),
+            static fn (int $level) => in_array($level, [1, 2, 3], true),
         ));
     }
 }
