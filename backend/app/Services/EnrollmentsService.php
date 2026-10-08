@@ -22,6 +22,7 @@ class EnrollmentsService
      *     season_name: string,
      *     season_year: mixed,
      *     event_count: int,
+     *     totals: array{explore: array{enrolled: int, capacity: int}, challenge: array{enrolled: int, capacity: int}, future8: array{enrolled: int, capacity: int}},
      *     histogram: list<array{teams: int|string, explore: int, challenge: int, future8: int, explore_events: list<string>, challenge_events: list<string>, future8_events: list<string>}>,
      *     dual: list<array<string, mixed>>,
      *     future_standalone: list<array<string, mixed>>
@@ -47,6 +48,12 @@ class EnrollmentsService
             $future8Names[$i] = [];
         }
 
+        $totals = [
+            'explore' => ['enrolled' => 0, 'capacity' => 0],
+            'challenge' => ['enrolled' => 0, 'capacity' => 0],
+            'future8' => ['enrolled' => 0, 'capacity' => 0],
+        ];
+
         $dual = [];
         $futureStandalone = [];
 
@@ -69,12 +76,19 @@ class EnrollmentsService
             if ($this->hasDrahtId($byProgram, FirstProgram::EXPLORE->value)
                 || $this->hasDrahtId($byProgram, FirstProgram::DISCOVER->value)) {
                 $this->bump($explore, $exploreNames, $exploreEnrolled, $eventName);
+                $totals['explore']['enrolled'] += $exploreEnrolled;
+                $totals['explore']['capacity'] += $this->capacityWithDraht($byProgram, FirstProgram::EXPLORE->value)
+                    + $this->capacityWithDraht($byProgram, FirstProgram::DISCOVER->value);
             }
             if ($this->hasDrahtId($byProgram, FirstProgram::CHALLENGE->value)) {
                 $this->bump($challenge, $challengeNames, $challengeEnrolled, $eventName);
+                $totals['challenge']['enrolled'] += $challengeEnrolled;
+                $totals['challenge']['capacity'] += $this->capacityWithDraht($byProgram, FirstProgram::CHALLENGE->value);
             }
             if ($this->hasDrahtId($byProgram, FirstProgram::FUTURE_8->value)) {
                 $this->bump($future8, $future8Names, $future8Enrolled, $eventName);
+                $totals['future8']['enrolled'] += $future8Enrolled;
+                $totals['future8']['capacity'] += $this->capacityWithDraht($byProgram, FirstProgram::FUTURE_8->value);
             }
 
             $attached = $event->programs
@@ -102,6 +116,7 @@ class EnrollmentsService
             'season_name' => (string) ($season->name ?? ''),
             'season_year' => $season->year ?? null,
             'event_count' => $events->count(),
+            'totals' => $totals,
             'histogram' => $histogram,
             'dual' => $this->sortEventRows($dual),
             'future_standalone' => $this->sortEventRows($futureStandalone),
@@ -151,6 +166,18 @@ class EnrollmentsService
         }
 
         return (int) ($byProgram[$programId]['enrolled'] ?? 0);
+    }
+
+    /**
+     * @param  array<int, array{draht_id: mixed, enrolled: int, capacity: int}>  $byProgram
+     */
+    private function capacityWithDraht(array $byProgram, int $programId): int
+    {
+        if (! $this->hasDrahtId($byProgram, $programId)) {
+            return 0;
+        }
+
+        return (int) ($byProgram[$programId]['capacity'] ?? 0);
     }
 
     /**

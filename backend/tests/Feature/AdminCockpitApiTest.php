@@ -39,6 +39,7 @@ class AdminCockpitApiTest extends TestCase
         $ids = collect($payload['events'])->pluck('event_id')->all();
         $this->assertSame([1, 2], $ids);
         $this->assertCount(2, $payload['events']);
+        $this->assertSame(1, $payload['events'][0]['event_level']);
     }
 
     public function test_multiple_plans_for_one_event_yield_a_single_row(): void

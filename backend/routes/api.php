@@ -585,16 +585,11 @@ Route::middleware(['keycloak'])->group(function () {
         // compress endpoint removed (no longer needed)
     });
 
-    // Statistic controller
-    Route::get('/stats/one-link-access', [StatisticController::class, 'oneLinkAccess']);
-    Route::get('/stats/one-link-access/{eventId}', [StatisticController::class, 'oneLinkAccessChart']);
+    // Statistic controller (Cockpit drill-down modals)
     Route::prefix('stats')->group(function () {
-        Route::get('/plans', [StatisticController::class, 'listPlans']);                  // Liste aller Pläne mit Events und Partnern
-        Route::get('/totals', [StatisticController::class, 'totals']);                  // Summen
-        Route::get('/draht-check/{eventId}', [StatisticController::class, 'checkDrahtIssue']); // Check DRAHT for single event
-        Route::delete('/orphans/{type}/cleanup', [StatisticController::class, 'cleanupOrphans']);
-        Route::get('/timeline/{planId}', [StatisticController::class, 'timeline']);      // Timeline data for a plan
-        Route::get('/extra-blocks/{planId}', [StatisticController::class, 'getExtraBlocksDetails']); // Extra blocks details for a plan
+        Route::get('/one-link-access/{eventId}', [StatisticController::class, 'oneLinkAccessChart']);
+        Route::get('/timeline/{planId}', [StatisticController::class, 'timeline']);
+        Route::get('/extra-blocks/{planId}', [StatisticController::class, 'getExtraBlocksDetails']);
     });
 
     // Visibility controller

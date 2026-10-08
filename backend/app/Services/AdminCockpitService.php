@@ -110,6 +110,7 @@ class AdminCockpitService
                 'regional_partner_id' => $row->regional_partner_id !== null ? (int) $row->regional_partner_id : null,
                 'regional_partner_name' => $row->regional_partner_name,
                 'event_date' => $eventDate,
+                'event_level' => (int) ($row->event_level ?? 0),
                 'event_name' => $this->eventTitles->getEventTitleShort((object) [
                     'name' => $row->event_name,
                     'level' => $row->event_level ?? 0,
@@ -197,6 +198,27 @@ class AdminCockpitService
 
                 return array_intersect($wanted, $have) !== [];
             },
+        ));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $events
+     * @param  list<int>  $levels
+     * @return list<array<string, mixed>>
+     */
+    public function filterLevels(array $events, array $levels): array
+    {
+        $wanted = array_values(array_unique(array_filter(
+            array_map('intval', $levels),
+            static fn (int $level) => in_array($level, [1, 2, 3], true),
+        )));
+        if ($wanted === []) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $events,
+            static fn (array $row): bool => in_array((int) ($row['event_level'] ?? 0), $wanted, true),
         ));
     }
 
