@@ -171,6 +171,9 @@ class EnrollmentsServiceTest extends TestCase
         $this->assertSame(6, $result['dual'][0]['future8']['enrolled']);
         $this->assertSame(8, $result['dual'][0]['future8']['capacity']);
         $this->assertSame([], $result['future_standalone']);
+        $this->assertSame(['enrolled' => 14, 'capacity' => 22], $result['totals']['challenge']);
+        $this->assertSame(['enrolled' => 6, 'capacity' => 8], $result['totals']['future8']);
+        $this->assertSame(['enrolled' => 0, 'capacity' => 0], $result['totals']['explore']);
     }
 
     public function test_future_standalone_when_future8_is_attached_without_challenge(): void
