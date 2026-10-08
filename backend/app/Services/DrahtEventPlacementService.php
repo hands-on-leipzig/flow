@@ -97,23 +97,41 @@ class DrahtEventPlacementService
         }
 
         foreach ($this->cohortsByDate($cohorts) as $date => $group) {
-            usort($group, fn (array $a, array $b) => $a['event_id'] <=> $b['event_id']);
-            if ($this->sitterIds($state, $partnerId, (string) $date) !== []) {
-                foreach ($group as $cohort) {
-                    foreach ($cohort['rows'] as $row) {
-                        $free[] = $row;
-                    }
-                }
+            $date = (string) $date;
+            $candidateIds = $this->sitterIds($state, $partnerId, $date);
+            foreach ($group as $cohort) {
+                $candidateIds[] = (int) $cohort['event_id'];
+            }
+            $candidateIds = array_values(array_unique($candidateIds));
+            $survivorId = $this->pickSurvivor($state, $candidateIds, $date);
 
-                continue;
+            $pending = [];
+            foreach ($group as $cohort) {
+                if ((int) $cohort['event_id'] === $survivorId) {
+                    $this->assignGroup($state, $survivorId, $cohort['rows'], $date);
+
+                    continue;
+                }
+                foreach ($cohort['rows'] as $row) {
+                    $pending[] = $row;
+                }
             }
 
-            $survivor = array_shift($group);
-            $this->assignGroup($state, $survivor['event_id'], $survivor['rows'], (string) $date);
-            foreach ($group as $cohort) {
-                foreach ($cohort['rows'] as $row) {
-                    $free[] = $row;
+            foreach ($candidateIds as $eventId) {
+                if ($eventId === $survivorId) {
+                    continue;
                 }
+                $this->transferAssigned($state, $eventId, $survivorId);
+            }
+
+            foreach ($pending as $row) {
+                if (isset($state[$survivorId]['occupied'][$row['first_program']])) {
+                    $free[] = $row;
+
+                    continue;
+                }
+                $writeHeader = $state[$survivorId]['resultDate'] !== $state[$survivorId]['originalDate'];
+                $this->assign($state, $survivorId, $row, $writeHeader);
             }
         }
 
@@ -259,14 +277,19 @@ class DrahtEventPlacementService
 
             $id = (int) $event['id'];
             $date = $this->normalizeDate($event['date'] ?? null);
+            $level = isset($event['level']) && $event['level'] !== null && $event['level'] !== ''
+                ? (int) $event['level']
+                : null;
             $state[$id] = [
                 'id' => $id,
                 'partner' => $eventPartner,
+                'level' => $level,
                 'originalDate' => $date,
                 'resultDate' => $date,
                 'originalProgramCount' => count($programs),
                 'links' => $links,
                 'others' => $others,
+                'otherPrograms' => $occupied,
                 'occupied' => $occupied,
                 'assigned' => [],
                 'writeHeader' => false,
@@ -420,8 +443,7 @@ class DrahtEventPlacementService
      */
     private function findHome(array $state, ?int $partnerId, string $date, int $firstProgram): ?int
     {
-        $sitters = [];
-        $moved = [];
+        $candidates = [];
         foreach ($state as $eventId => $event) {
             if ($event['partner'] !== $partnerId || $event['resultDate'] !== $date) {
                 continue;
@@ -432,22 +454,89 @@ class DrahtEventPlacementService
             if (isset($event['occupied'][$firstProgram])) {
                 continue;
             }
-            if ($event['originalDate'] === $date) {
-                $sitters[] = (int) $eventId;
+            $candidates[] = (int) $eventId;
+        }
 
+        if ($candidates === []) {
+            return null;
+        }
+
+        return $this->pickSurvivor($state, $candidates, $date);
+    }
+
+    /**
+     * Highest level, then the event already on this date, then the lower id.
+     *
+     * @param  array<int, array<string, mixed>>  $state
+     * @param  list<int>  $ids
+     */
+    private function pickSurvivor(array $state, array $ids, string $date): int
+    {
+        usort($ids, function (int $a, int $b) use ($state, $date) {
+            $level = $this->levelRank($state[$b]) <=> $this->levelRank($state[$a]);
+            if ($level !== 0) {
+                return $level;
+            }
+            $sitting = ($this->alreadyOnDate($state[$a], $date) ? 0 : 1)
+                <=> ($this->alreadyOnDate($state[$b], $date) ? 0 : 1);
+            if ($sitting !== 0) {
+                return $sitting;
+            }
+
+            return $a <=> $b;
+        });
+
+        return $ids[0];
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function levelRank(array $event): int
+    {
+        $level = $event['level'] ?? null;
+
+        return $level === null ? 0 : (int) $level;
+    }
+
+    /**
+     * @param  array<string, mixed>  $event
+     */
+    private function alreadyOnDate(array $event, string $date): bool
+    {
+        return $event['originalDate'] === $date
+            && ($event['assigned'] !== [] || $event['others'] !== []);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $state
+     */
+    private function transferAssigned(array &$state, int $fromId, int $toId): void
+    {
+        foreach ($state[$fromId]['assigned'] as $drahtId => $row) {
+            if (isset($state[$toId]['occupied'][$row['first_program']])) {
                 continue;
             }
-            $moved[] = (int) $eventId;
+            unset($state[$fromId]['assigned'][$drahtId]);
+            $this->releaseOccupied($state, $fromId, (int) $row['first_program']);
+            $this->assign($state, $toId, $row, false);
         }
+    }
 
-        sort($sitters);
-        sort($moved);
-
-        if ($sitters !== []) {
-            return $sitters[0];
+    /**
+     * @param  array<int, array<string, mixed>>  $state
+     */
+    private function releaseOccupied(array &$state, int $eventId, int $firstProgram): void
+    {
+        foreach ($state[$eventId]['assigned'] as $row) {
+            if ((int) $row['first_program'] === $firstProgram) {
+                return;
+            }
         }
-
-        return $moved[0] ?? null;
+        if (isset($state[$eventId]['otherPrograms'][$firstProgram])) {
+            return;
+        }
+        unset($state[$eventId]['occupied'][$firstProgram]);
     }
 
     /**
@@ -507,7 +596,7 @@ class DrahtEventPlacementService
                     'id' => (int) $eventId,
                     'date' => $event['resultDate'],
                     'name' => $header['name'] ?? null,
-                    'level' => $header['level'] ?? null,
+                    'level' => $this->keptLevel($event, $header),
                     'regional_partner' => $partnerId,
                 ];
             }
@@ -556,6 +645,29 @@ class DrahtEventPlacementService
         }
 
         return $best ?? [];
+    }
+
+    /**
+     * A joining program must not replace the event's level with a lower one.
+     *
+     * @param  array<string, mixed>  $event
+     * @param  array<string, mixed>  $header
+     */
+    private function keptLevel(array $event, array $header): ?int
+    {
+        $incoming = isset($header['level']) && $header['level'] !== null && $header['level'] !== ''
+            ? (int) $header['level']
+            : null;
+        $stored = $event['level'] ?? null;
+        $stored = $stored !== null ? (int) $stored : null;
+        if ($stored === null) {
+            return $incoming;
+        }
+        if ($incoming === null || $incoming < $stored) {
+            return $stored;
+        }
+
+        return $incoming;
     }
 
     private function normalizeDate(mixed $date): string

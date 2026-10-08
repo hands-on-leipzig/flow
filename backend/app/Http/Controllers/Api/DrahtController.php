@@ -555,6 +555,7 @@ class DrahtController extends Controller
                     'date' => $date,
                     'season' => $seasonId,
                     'regional_partner' => $event->regional_partner !== null ? (int) $event->regional_partner : null,
+                    'level' => $event->level !== null ? (int) $event->level : null,
                     'programs' => $event->programs->map(fn ($program) => [
                         'draht_id' => $program->draht_id ? (int) $program->draht_id : null,
                         'first_program' => (int) $program->first_program,

@@ -163,6 +163,85 @@ class DrahtEventPlacementServiceTest extends TestCase
         $this->assertSame(10, $placement->updates[0]['id']);
     }
 
+    public function test_finale_moving_onto_a_regional_date_keeps_the_finale_id(): void
+    {
+        $placement = $this->service->place(1, [
+            $this->row(2, 3, 2, '2026-02-01', 'Finale'),
+            $this->row(3, 8, 3, '2026-02-01', 'Regional'),
+        ], [
+            $this->event(10, '2026-01-01', [
+                $this->program(2, 3, 2),
+            ], 3),
+            $this->event(20, '2026-02-01', [
+                $this->program(3, 8, 3),
+            ], 1),
+        ]);
+
+        $this->assertSame([2 => 10, 3 => 10], $placement->targets);
+        $this->assertSame([10], $placement->touchedIds);
+        $this->assertSame([20], $placement->deleteIds);
+        $this->assertSame([], $placement->creates);
+        $this->assertSame([
+            [
+                'id' => 10,
+                'date' => '2026-02-01',
+                'name' => 'Finale',
+                'level' => 3,
+                'regional_partner' => 5,
+            ],
+        ], $placement->updates);
+    }
+
+    public function test_higher_level_survives_when_both_events_move_to_an_empty_date(): void
+    {
+        $placement = $this->service->place(1, [
+            $this->row(1, 2, 1, '2026-03-01', 'Regional'),
+            $this->row(3, 8, 3, '2026-03-01', 'Finale'),
+        ], [
+            $this->event(10, '2026-01-01', [
+                $this->program(1, 2, 1),
+            ], 1),
+            $this->event(30, '2026-02-01', [
+                $this->program(3, 8, 3),
+            ], 3),
+        ]);
+
+        $this->assertSame([1 => 30, 3 => 30], $placement->targets);
+        $this->assertSame([30], $placement->touchedIds);
+        $this->assertSame([10], $placement->deleteIds);
+        $this->assertSame([], $placement->creates);
+        $this->assertSame([
+            [
+                'id' => 30,
+                'date' => '2026-03-01',
+                'name' => 'Finale',
+                'level' => 3,
+                'regional_partner' => 5,
+            ],
+        ], $placement->updates);
+    }
+
+    public function test_equal_levels_keep_the_event_already_on_the_date(): void
+    {
+        $placement = $this->service->place(1, [
+            $this->row(1, 2, 1, '2026-02-01', 'A'),
+            $this->row(3, 8, 3, '2026-02-01', 'C'),
+        ], [
+            $this->event(10, '2026-01-01', [
+                $this->program(1, 2, 1),
+            ], 1),
+            $this->event(20, '2026-02-01', [
+                $this->program(3, 8, 3),
+            ], 1),
+        ]);
+
+        $this->assertSame([1 => 20, 3 => 20], $placement->targets);
+        $this->assertSame([20], $placement->touchedIds);
+        $this->assertSame([10], $placement->deleteIds);
+        $this->assertSame([], $placement->creates);
+        $this->assertSame([], $placement->updates);
+    }
+
     public function test_programs_leaving_for_different_dates_keep_the_lowest_sequence_on_the_existing_id(): void
     {
         $placement = $this->service->place(1, [
@@ -202,13 +281,14 @@ class DrahtEventPlacementServiceTest extends TestCase
      * @param  list<array<string, mixed>>  $programs
      * @return array<string, mixed>
      */
-    private function event(int $id, string $date, array $programs): array
+    private function event(int $id, string $date, array $programs, ?int $level = null): array
     {
         return [
             'id' => $id,
             'date' => $date,
             'season' => 1,
             'regional_partner' => 5,
+            'level' => $level,
             'programs' => $programs,
         ];
     }
