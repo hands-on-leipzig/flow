@@ -82,6 +82,8 @@ const isDragging = ref(false)
 const dragOverKey = ref<string | null>(null)
 const dragSourceKey = ref<string | null>(null)
 const draggedPerson = ref<Person | null>(null)
+/** Role ids before the drop — vuedraggable mutates the target list before @add. */
+const dragAssignedRoleIds = ref<Set<number>>(new Set())
 
 const roleToDelete = ref<Role | null>(null)
 const pendingMultiAssign = ref<{person: Person; tile: Tile} | null>(null)
@@ -471,7 +473,11 @@ function assignmentItemUrl(tileKey: string, personId: number) {
 function onDragStart(event: any, tileKey: string | null) {
   isDragging.value = true
   dragSourceKey.value = tileKey
-  draggedPerson.value = event.item?.__draggable_context?.element ?? null
+  const person = event.item?.__draggable_context?.element ?? null
+  draggedPerson.value = person
+  dragAssignedRoleIds.value = person?.id
+    ? personAssignedRoleIds(person.id)
+    : new Set()
 }
 
 function onDragEnd() {
@@ -479,6 +485,7 @@ function onDragEnd() {
   dragOverKey.value = null
   dragSourceKey.value = null
   draggedPerson.value = null
+  // Keep dragAssignedRoleIds until handleDrop reads it (@end can race @add).
 }
 
 function onDropzoneLeave(event: DragEvent, tileKey: string) {
@@ -490,6 +497,8 @@ function onDropzoneLeave(event: DragEvent, tileKey: string) {
 async function handleDrop(event: any, tile: Tile) {
   const person = draggedPerson.value || event.item?.__draggable_context?.element
   const sourceKey = dragSourceKey.value
+  // Snapshot before any await — @end clears drag refs while this runs.
+  const priorRoleIds = new Set(dragAssignedRoleIds.value)
   dragOverKey.value = null
   isDragging.value = false
   if (!person?.id || !eventId.value) return
@@ -499,6 +508,7 @@ async function handleDrop(event: any, tile: Tile) {
     showGlassToast('Diese Rolle wird nicht mehr benötigt — Personen nur umsetzen.', 'info')
     dragSourceKey.value = null
     draggedPerson.value = null
+    dragAssignedRoleIds.value = new Set()
     await load()
     return
   }
@@ -516,25 +526,28 @@ async function handleDrop(event: any, tile: Tile) {
     } finally {
       dragSourceKey.value = null
       draggedPerson.value = null
+      dragAssignedRoleIds.value = new Set()
       await load()
     }
     return
   }
 
   // Search / unassigned → tile: add (keep existing). Confirm if already assigned elsewhere.
-  const assignedRoleIds = personAssignedRoleIds(person.id)
-  if (assignedRoleIds.has(tile.role.id)) {
+  // Use priorRoleIds — vuedraggable already pushed the person into the target list.
+  if (priorRoleIds.has(tile.role.id)) {
     showGlassToast('Person ist dieser Rolle schon zugeordnet.', 'info')
     dragSourceKey.value = null
     draggedPerson.value = null
+    dragAssignedRoleIds.value = new Set()
     await load()
     return
   }
 
-  if (assignedRoleIds.size > 0) {
+  if (priorRoleIds.size > 0) {
     pendingMultiAssign.value = {person, tile}
     dragSourceKey.value = null
     draggedPerson.value = null
+    dragAssignedRoleIds.value = new Set()
     await load()
     return
   }
@@ -549,6 +562,7 @@ async function handleDrop(event: any, tile: Tile) {
   } finally {
     dragSourceKey.value = null
     draggedPerson.value = null
+    dragAssignedRoleIds.value = new Set()
     await load()
   }
 }
@@ -573,6 +587,7 @@ async function cancelMultiAssign() {
   pendingMultiAssign.value = null
   dragSourceKey.value = null
   draggedPerson.value = null
+  dragAssignedRoleIds.value = new Set()
   await load()
 }
 
