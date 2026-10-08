@@ -135,10 +135,11 @@ watch(() => event.value?.id, () => {
 </script>
 
 <template>
-  <div v-if="showTile" class="teams-multi-team-coaches">
-    <h3 class="teams-multi-team-coaches__title">
-      Coach:innen mit mehr als einem Team
-    </h3>
+  <div
+      v-if="showTile"
+      class="glass-card liquid-surface-inner vol-sidebar-tile"
+  >
+    <h2 class="vol-sidebar-heading">Coach:innen mit mehr als einem Team</h2>
 
     <ul class="teams-multi-team-coaches__list">
       <li
@@ -163,23 +164,6 @@ watch(() => event.value?.id, () => {
 </template>
 
 <style scoped>
-.teams-multi-team-coaches {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--liquid-border);
-  background: var(--liquid-tile-bg);
-  padding: 0.85rem 1rem;
-  box-shadow:
-    0 6px 14px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-.teams-multi-team-coaches__title {
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-}
-
 .teams-multi-team-coaches__list {
   margin: 0;
   padding: 0;

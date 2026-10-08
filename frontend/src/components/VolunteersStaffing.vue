@@ -848,10 +848,11 @@ watch(programFilters, () => syncTileFilters())
           </div>
         </div>
 
-        <div v-if="multiAssignedPeople.length" class="vol-multi-assign">
-          <h3 class="vol-multi-assign__title">
-            Helfer:innen mit mehr als einer Zuordnung
-          </h3>
+        <div
+            v-if="multiAssignedPeople.length"
+            class="glass-card liquid-surface-inner vol-sidebar-tile"
+        >
+          <h2 class="vol-sidebar-heading">Helfer:innen mit mehr als einer Zuordnung</h2>
           <ul class="vol-multi-assign__list">
             <li
                 v-for="entry in multiAssignedPeople"
@@ -1021,23 +1022,6 @@ watch(programFilters, () => syncTileFilters())
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-.vol-multi-assign {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--liquid-border);
-  background: var(--liquid-tile-bg);
-  padding: 0.85rem 1rem;
-  box-shadow:
-    0 6px 14px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-.vol-multi-assign__title {
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
 }
 
 .vol-multi-assign__list {
