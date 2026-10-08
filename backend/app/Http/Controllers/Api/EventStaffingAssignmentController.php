@@ -11,7 +11,6 @@ use App\Models\EventVolunteerRoster;
 use App\Models\VolunteerPerson;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class EventStaffingAssignmentController extends Controller
 {
@@ -31,10 +30,6 @@ class EventStaffingAssignmentController extends Controller
         $personId = $this->validatedPersonOnRoster($request, $event);
         if ($personId instanceof JsonResponse) {
             return $personId;
-        }
-
-        if ($conflict = $this->exclusivityConflict($event->id, $personId, $role)) {
-            return response()->json(['error' => $conflict], 409);
         }
 
         $assignment = EventStaffingAssignment::firstOrCreate(
@@ -83,10 +78,6 @@ class EventStaffingAssignmentController extends Controller
         $personId = $this->validatedPersonOnRoster($request, $event);
         if ($personId instanceof JsonResponse) {
             return $personId;
-        }
-
-        if ($conflict = $this->exclusivityConflict($event->id, $personId, $role)) {
-            return response()->json(['error' => $conflict], 409);
         }
 
         $assignment = EventStaffingAssignment::firstOrCreate(
@@ -243,31 +234,5 @@ class EventStaffingAssignmentController extends Controller
                 'volunteer_person' => $assignment->volunteer_person,
             ],
         ], $assignment->wasRecentlyCreated ? 201 : 200);
-    }
-
-    private function exclusivityConflict(int $eventId, int $personId, EventStaffingRole $targetRole): ?string
-    {
-        $existing = DB::table('event_staffing_assignment as a')
-            ->join('event_staffing_role as r', 'r.id', '=', 'a.event_staffing_role')
-            ->where('r.event', $eventId)
-            ->where('a.volunteer_person', $personId)
-            ->get(['r.id as role_id', 'r.m_role']);
-
-        if ($existing->isEmpty()) {
-            return null;
-        }
-
-        $onCatalog = $existing->contains(fn ($row) => $row->m_role !== null);
-        $targetIsCatalog = $targetRole->m_role !== null;
-
-        if ($onCatalog) {
-            return 'Person hat bereits eine Katalog-Rolle (exklusiv).';
-        }
-
-        if ($targetIsCatalog) {
-            return 'Person hat bereits lokale Einsätze; zuerst entfernen oder Katalog-Rolle anders besetzen.';
-        }
-
-        return null;
     }
 }

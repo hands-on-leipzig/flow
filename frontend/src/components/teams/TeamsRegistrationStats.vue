@@ -84,12 +84,10 @@ watch(() => event.value?.id, () => {
 </script>
 
 <template>
-  <div class="teams-registration-stats">
-    <h3 class="text-xs font-semibold tracking-wide text-[var(--color-text-muted)] mb-2">
-      Aktuelle Zahlen aus der Anmeldung
-    </h3>
+  <div class="glass-card liquid-surface-inner vol-sidebar-tile teams-registration-stats">
+    <h2 class="vol-sidebar-heading">Aktuelle Zahlen aus der Anmeldung</h2>
 
-    <div v-if="loading" class="text-sm text-[var(--color-text-muted)]">Laden…</div>
+    <div v-if="loading" class="vol-sidebar-muted">Laden…</div>
 
     <div v-else class="teams-registration-stats__table-wrap overflow-x-auto">
       <table class="teams-registration-stats__table w-full text-sm border-collapse">
@@ -172,13 +170,6 @@ watch(() => event.value?.id, () => {
 
 <style scoped>
 .teams-registration-stats {
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--liquid-border);
-  background: var(--liquid-tile-bg);
-  padding: 0.85rem 1rem;
-  box-shadow:
-    0 6px 14px rgba(15, 23, 42, 0.06),
-    inset 0 1px 0 rgba(255, 255, 255, 0.9);
   height: fit-content;
 }
 

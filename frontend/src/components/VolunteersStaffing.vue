@@ -12,6 +12,7 @@ import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import VolunteerStaffingBoundsPopover from '@/components/volunteers/VolunteerStaffingBoundsPopover.vue'
+import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
 import VolunteerOpenPositions from '@/components/volunteers/VolunteerOpenPositions.vue'
 import VolunteerStaffingTile from '@/components/volunteers/VolunteerStaffingTile.vue'
 import {eventPrograms, programId} from '@/utils/eventPrograms'
@@ -50,6 +51,19 @@ type Person = VolunteerPersonRef
 type Role = StaffingRole
 type Tile = StaffingTile
 
+type MultiAssignRoleRef = {
+  id: number
+  label: string
+  is_local: boolean
+  first_program: number | null
+  sequence: number
+}
+
+type MultiAssignEntry = {
+  person: Person
+  roles: MultiAssignRoleRef[]
+}
+
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
 
@@ -68,15 +82,16 @@ const isDragging = ref(false)
 const dragOverKey = ref<string | null>(null)
 const dragSourceKey = ref<string | null>(null)
 const draggedPerson = ref<Person | null>(null)
+/** Role ids before the drop — vuedraggable mutates the target list before @add. */
+const dragAssignedRoleIds = ref<Set<number>>(new Set())
 
 const roleToDelete = ref<Role | null>(null)
+const pendingMultiAssign = ref<{person: Person; tile: Tile} | null>(null)
 const boundsEditRole = ref<Role | null>(null)
 const boundsAnchorEl = ref<HTMLElement | null>(null)
 const composerRef = ref<{focusTitle?: () => void} | null>(null)
 
 const newRoleName = ref('')
-const newRoleMin = ref<number | ''>('')
-const newRoleBest = ref<number | ''>('')
 
 const activeTileFilters = ref<Set<StaffingFilterKey>>(new Set())
 /** Keys already offered on this event. A key is on the first time it appears. */
@@ -92,6 +107,44 @@ const programFilters = computed(() => {
 })
 
 const staffingSummary = computed(() => computeStaffingSummary(roles.value, programFilters.value))
+
+const multiAssignedPeople = computed<MultiAssignEntry[]>(() => {
+  const byPerson = new Map<number, {person: Person; roles: Map<number, MultiAssignRoleRef>}>()
+
+  const remember = (person: Person, role: Role) => {
+    let entry = byPerson.get(person.id)
+    if (!entry) {
+      entry = {person, roles: new Map()}
+      byPerson.set(person.id, entry)
+    }
+    if (entry.roles.has(role.id)) return
+    entry.roles.set(role.id, {
+      id: role.id,
+      label: (role.label || '').trim() || 'Unbenannt',
+      is_local: role.is_local,
+      first_program: role.first_program,
+      sequence: role.sequence,
+    })
+  }
+
+  for (const role of roles.value) {
+    for (const person of role.people ?? []) remember(person, role)
+    for (const group of role.groups ?? []) {
+      for (const person of group.people) remember(person, role)
+    }
+  }
+
+  return [...byPerson.values()]
+    .filter((row) => row.roles.size > 1)
+    .map((row) => ({
+      person: row.person,
+      roles: [...row.roles.values()].sort((a, b) => {
+        if (a.sequence !== b.sequence) return a.sequence - b.sequence
+        return a.id - b.id
+      }),
+    }))
+    .sort((a, b) => sortPeople(a.person, b.person))
+})
 
 function isMatchPlaceRole(role: Role): boolean {
   if (!supportsTableFieldLabels(Number(role.first_program))) return false
@@ -224,6 +277,11 @@ const deleteRoleMessage = computed(() => {
   return `„${name}“ wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`
 })
 
+const multiAssignMessage = computed(() => {
+  if (!pendingMultiAssign.value) return ''
+  return `${volunteerDisplayName(pendingMultiAssign.value.person)} hat bereits eine andere Rolle.`
+})
+
 const peopleGroup = {name: 'staffing-people', pull: true, put: false}
 const searchDragGroup = {name: 'staffing-people', pull: 'clone', put: false}
 
@@ -237,12 +295,23 @@ function isOnRoster(person: Person) {
   return rosterPersonIds.value.has(person.id)
 }
 
-function isAssigned(person: Person) {
-  return assignedIds.value.has(person.id)
+function canDragFromSearch(_person: Person) {
+  return true
 }
 
-function canDragFromSearch(person: Person) {
-  return !isAssigned(person)
+function personAssignedRoleIds(personId: number): Set<number> {
+  const ids = new Set<number>()
+  for (const role of roles.value) {
+    if ((role.people ?? []).some((p) => p.id === personId)) {
+      ids.add(role.id)
+    }
+    for (const group of role.groups ?? []) {
+      if (group.people.some((p) => p.id === personId)) {
+        ids.add(role.id)
+      }
+    }
+  }
+  return ids
 }
 
 function searchChipIconClass(person: Person) {
@@ -273,20 +342,6 @@ function onToggleTileFilter(key: StaffingFilterKey) {
 
 function filterHasAttention(key: StaffingFilterKey) {
   return tiles.value.some((tile) => tileFilterKey(tile) === key && tileNeedsAttention(tile))
-}
-
-function resolveRoleBounds(minRaw: number | '', bestRaw: number | '') {
-  const isEmpty = (value: number | '') =>
-    value === '' || value === null || value === undefined || Number.isNaN(Number(value))
-
-  if (isEmpty(minRaw) && isEmpty(bestRaw)) {
-    return {min: 1, best: 1}
-  }
-
-  return {
-    min: Number(minRaw),
-    best: Number(bestRaw),
-  }
 }
 
 function openBoundsModal(role: Role, anchor: HTMLElement) {
@@ -397,7 +452,11 @@ function assignmentItemUrl(tileKey: string, personId: number) {
 function onDragStart(event: any, tileKey: string | null) {
   isDragging.value = true
   dragSourceKey.value = tileKey
-  draggedPerson.value = event.item?.__draggable_context?.element ?? null
+  const person = event.item?.__draggable_context?.element ?? null
+  draggedPerson.value = person
+  dragAssignedRoleIds.value = person?.id
+    ? personAssignedRoleIds(person.id)
+    : new Set()
 }
 
 function onDragEnd() {
@@ -405,6 +464,7 @@ function onDragEnd() {
   dragOverKey.value = null
   dragSourceKey.value = null
   draggedPerson.value = null
+  // Keep dragAssignedRoleIds until handleDrop reads it (@end can race @add).
 }
 
 function onDropzoneLeave(event: DragEvent, tileKey: string) {
@@ -415,21 +475,63 @@ function onDropzoneLeave(event: DragEvent, tileKey: string) {
 
 async function handleDrop(event: any, tile: Tile) {
   const person = draggedPerson.value || event.item?.__draggable_context?.element
+  const sourceKey = dragSourceKey.value
+  // Snapshot before any await — @end clears drag refs while this runs.
+  const priorRoleIds = new Set(dragAssignedRoleIds.value)
   dragOverKey.value = null
   isDragging.value = false
   if (!person?.id || !eventId.value) return
-  if (dragSourceKey.value === tile.key) return
+  if (sourceKey === tile.key) return
   const surplus = tileSurplus(tile)
   if (surplus) {
     showGlassToast('Diese Rolle wird nicht mehr benötigt — Personen nur umsetzen.', 'info')
+    dragSourceKey.value = null
+    draggedPerson.value = null
+    dragAssignedRoleIds.value = new Set()
+    await load()
+    return
+  }
+
+  // Tile → tile: move (delete source, then post). No confirm.
+  if (sourceKey) {
+    try {
+      await axios.delete(assignmentItemUrl(sourceKey, person.id))
+      await ensureOnRoster(person)
+      await axios.post(assignmentCollectionUrl(tile), {
+        volunteer_person: person.id,
+      })
+    } catch (e: any) {
+      showGlassToast(apiError(e, 'Zuweisen fehlgeschlagen'), 'error')
+    } finally {
+      dragSourceKey.value = null
+      draggedPerson.value = null
+      dragAssignedRoleIds.value = new Set()
+      await load()
+    }
+    return
+  }
+
+  // Search / unassigned → tile: add (keep existing). Confirm if already assigned elsewhere.
+  // Use priorRoleIds — vuedraggable already pushed the person into the target list.
+  if (priorRoleIds.has(tile.role.id)) {
+    showGlassToast('Person ist dieser Rolle schon zugeordnet.', 'info')
+    dragSourceKey.value = null
+    draggedPerson.value = null
+    dragAssignedRoleIds.value = new Set()
+    await load()
+    return
+  }
+
+  if (priorRoleIds.size > 0) {
+    pendingMultiAssign.value = {person, tile}
+    dragSourceKey.value = null
+    draggedPerson.value = null
+    dragAssignedRoleIds.value = new Set()
     await load()
     return
   }
 
   try {
-    if (dragSourceKey.value) {
-      await axios.delete(assignmentItemUrl(dragSourceKey.value, person.id))
-    }
     await ensureOnRoster(person)
     await axios.post(assignmentCollectionUrl(tile), {
       volunteer_person: person.id,
@@ -439,8 +541,33 @@ async function handleDrop(event: any, tile: Tile) {
   } finally {
     dragSourceKey.value = null
     draggedPerson.value = null
+    dragAssignedRoleIds.value = new Set()
     await load()
   }
+}
+
+async function confirmMultiAssign() {
+  const pending = pendingMultiAssign.value
+  pendingMultiAssign.value = null
+  if (!pending?.person?.id || !eventId.value) return
+  try {
+    await ensureOnRoster(pending.person)
+    await axios.post(assignmentCollectionUrl(pending.tile), {
+      volunteer_person: pending.person.id,
+    })
+  } catch (e: any) {
+    showGlassToast(apiError(e, 'Zuweisen fehlgeschlagen'), 'error')
+  } finally {
+    await load()
+  }
+}
+
+async function cancelMultiAssign() {
+  pendingMultiAssign.value = null
+  dragSourceKey.value = null
+  draggedPerson.value = null
+  dragAssignedRoleIds.value = new Set()
+  await load()
 }
 
 async function unassign(tile: Tile, person: Person) {
@@ -456,23 +583,15 @@ async function unassign(tile: Tile, person: Person) {
 async function createLocalRole() {
   if (!eventId.value || isSaving.value) return
   const label = newRoleName.value.trim()
-  const {min, best} = resolveRoleBounds(newRoleMin.value, newRoleBest.value)
   if (!label) return
-  const validationError = boundsValidationError(min, best)
-  if (validationError) {
-    showGlassToast(validationError, 'info')
-    return
-  }
   isSaving.value = true
   try {
     await axios.post(`/events/${eventId.value}/staffing/local-roles`, {
       label,
-      min,
-      best,
+      min: 1,
+      best: 1,
     })
     newRoleName.value = ''
-    newRoleMin.value = ''
-    newRoleBest.value = ''
     await load()
     await nextTick()
     composerRef.value?.focusTitle?.()
@@ -613,37 +732,7 @@ watch(programFilters, () => syncTileFilters())
               title-placeholder="Neue Rolle z. B. Check-in"
               empty-hint="Eigene Rolle für diese Veranstaltung, unabhängig vom Ablauf."
               @commit="createLocalRole"
-          >
-            <transition name="fade">
-              <div v-if="newRoleName.trim().length > 0" class="staffing-composer-extra">
-                <div class="staffing-bounds staffing-bounds--composer">
-                  <label class="staffing-bounds__field">
-                    <span>min</span>
-                    <input
-                        v-model.number="newRoleMin"
-                        :disabled="isSaving"
-                        class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                        type="number"
-                        min="1"
-                        placeholder="1"
-                    />
-                  </label>
-                  <label class="staffing-bounds__field">
-                    <span>ideal</span>
-                    <input
-                        v-model.number="newRoleBest"
-                        :disabled="isSaving"
-                        class="glass-input glass-input--sm liquid-surface-control staffing-bounds__input"
-                        type="number"
-                        min="1"
-                        placeholder="1"
-                    />
-                  </label>
-                </div>
-                <p class="item-card__hint">min ≤ ideal — wie viele Personen diese Rolle braucht.</p>
-              </div>
-            </transition>
-          </ItemComposer>
+          />
         </div>
       </div>
 
@@ -700,6 +789,32 @@ watch(programFilters, () => syncTileFilters())
           </div>
         </div>
 
+        <div
+            v-if="multiAssignedPeople.length"
+            class="glass-card liquid-surface-inner vol-sidebar-tile"
+        >
+          <h2 class="vol-sidebar-heading">Helfer:innen mit mehr als einer Zuordnung</h2>
+          <ul class="vol-multi-assign__list">
+            <li
+                v-for="entry in multiAssignedPeople"
+                :key="entry.person.id"
+                class="vol-multi-assign__item"
+            >
+              <span class="vol-multi-assign__name">{{ volunteerDisplayName(entry.person) }}</span>:
+              <span class="vol-multi-assign__roles">
+                <span
+                    v-for="(role, index) in entry.roles"
+                    :key="role.id"
+                    class="vol-multi-assign__role"
+                >
+                  <StaffingScopeLeading :role="role" size="chip"/>
+                  <span>{{ role.label }}</span><span v-if="index < entry.roles.length - 1">, </span>
+                </span>
+              </span>
+            </li>
+          </ul>
+        </div>
+
         <div class="glass-card liquid-surface-inner vol-sidebar-tile">
           <h2 class="vol-sidebar-heading">Helfer:innen ohne Zuordnung</h2>
 
@@ -741,6 +856,17 @@ watch(programFilters, () => syncTileFilters())
         cancel-text="Abbrechen"
         @confirm="confirmDeleteRole"
         @cancel="cancelDeleteRole"
+    />
+
+    <ConfirmationModal
+        :show="!!pendingMultiAssign"
+        title="Mehrfache Zuordnung"
+        :message="multiAssignMessage"
+        type="info"
+        confirm-text="Ok"
+        cancel-text="Abbrechen"
+        @confirm="confirmMultiAssign"
+        @cancel="cancelMultiAssign"
     />
 
     <VolunteerStaffingBoundsPopover
@@ -790,47 +916,34 @@ watch(programFilters, () => syncTileFilters())
   }
 }
 
-.staffing-bounds {
-  display: flex;
-  align-items: flex-end;
-  gap: 0.3rem;
-  flex-shrink: 0;
+.vol-multi-assign__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.staffing-bounds--composer {
-  width: 100%;
+.vol-multi-assign__item {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-text);
 }
 
-.staffing-bounds__field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  font-size: 0.65rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-subtle);
+.vol-multi-assign__item + .vol-multi-assign__item {
+  margin-top: 0.35rem;
 }
 
-.staffing-bounds__input {
-  width: 3.1rem;
-  padding-left: 0.35rem !important;
-  padding-right: 0.35rem !important;
-  text-align: center;
+.vol-multi-assign__name {
+  font-weight: 600;
 }
 
-.staffing-composer-extra {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+.vol-multi-assign__roles {
+  display: inline;
 }
 
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.vol-multi-assign__role {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  vertical-align: middle;
 }
 </style>
