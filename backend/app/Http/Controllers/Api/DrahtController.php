@@ -289,6 +289,7 @@ class DrahtController extends Controller
                         $regionalPartner = RegionalPartner::where('dolibarr_id', $eventData['region'])->first();
                         $firstProgram = (int) $eventData['first_program'];
                         $days = 1;
+                        $replacedHeader = false;
 
                         $existingEvent = Event::where('season', $seasonId)
                             ->whereHas('programs', function ($query) use ($eventData) {
@@ -307,13 +308,26 @@ class DrahtController extends Controller
                         }
 
                         if ($existingEvent) {
+                            $storedLevel = $existingEvent->level !== null ? (int) $existingEvent->level : null;
+                            $incomingLevel = isset($eventData['level']) && $eventData['level'] !== '' && $eventData['level'] !== null
+                                ? (int) $eventData['level']
+                                : null;
+                            $header = app(DrahtEventPlacementService::class)->preferHigherLevel(
+                                $storedLevel,
+                                $existingEvent->name !== null ? (string) $existingEvent->name : null,
+                                $incomingLevel,
+                                isset($eventData['name']) && is_string($eventData['name']) && $eventData['name'] !== ''
+                                    ? $eventData['name']
+                                    : null,
+                            );
+                            $replacedHeader = $header['name'] !== $existingEvent->name || $header['level'] !== $storedLevel;
                             $existingEvent->update([
-                                'name' => $eventData['name'] ?? $existingEvent->name,
+                                'name' => $header['name'],
                                 'date' => $date,
                                 'enddate' => $enddate,
                                 'days' => $days,
                                 'regional_partner' => $regionalPartner?->id ?? $existingEvent->regional_partner,
-                                'level' => $eventData['level'] ?? $existingEvent->level,
+                                'level' => $header['level'],
                             ]);
                             $event = $existingEvent;
                             $isNewEvent = false;
@@ -343,8 +357,12 @@ class DrahtController extends Controller
                             $publishController = app(\App\Http\Controllers\Api\PublishController::class);
                             $hadLink = ! empty($event->link);
 
-                            // Generating the link pushes it to every attached program.
-                            $publishController->linkAndQRcode($event->id, tryCalendarRebuild: false);
+                            // A higher level that joins after the link exists has to rebuild it.
+                            if ($replacedHeader && $hadLink) {
+                                $publishController->regenerateLinkAndQRcode($event->id, tryCalendarRebuild: false);
+                            } else {
+                                $publishController->linkAndQRcode($event->id, tryCalendarRebuild: false);
+                            }
 
                             if ($hadLink) {
                                 // Event already had its link; this program is new to it.
