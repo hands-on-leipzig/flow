@@ -98,6 +98,44 @@ class DrahtEventPlacementServiceTest extends TestCase
         $this->assertSame([2], $placement->creates[0]['draht_ids']);
     }
 
+    public function test_new_event_takes_the_highest_level_even_when_its_sequence_is_higher(): void
+    {
+        $placement = $this->service->place(1, [
+            $this->row(1, 2, 1, '2026-01-01', 'A'),
+            $this->row(2, 3, 2, '2026-03-01', 'Regional', 1),
+            $this->row(4, 8, 4, '2026-03-01', 'Finale', 3),
+        ], [
+            $this->event(10, '2026-01-01', [
+                $this->program(1, 2, 1),
+                $this->program(2, 3, 2),
+                $this->program(4, 8, 4),
+            ]),
+        ]);
+
+        $this->assertSame('new-1', $placement->targets[2]);
+        $this->assertSame('new-1', $placement->targets[4]);
+        $this->assertSame([
+            'key' => 'new-1',
+            'date' => '2026-03-01',
+            'name' => 'Finale',
+            'level' => 3,
+            'regional_partner' => 5,
+            'draht_ids' => [2, 4],
+        ], $placement->creates[0]);
+    }
+
+    public function test_normal_merge_keeps_the_higher_level_on_a_new_event(): void
+    {
+        $header = $this->service->preferHigherLevel(1, 'Regional', 3, 'Finale');
+        $this->assertSame(['name' => 'Finale', 'level' => 3], $header);
+
+        $header = $this->service->preferHigherLevel(3, 'Finale', 1, 'Regional');
+        $this->assertSame(['name' => 'Finale', 'level' => 3], $header);
+
+        $header = $this->service->preferHigherLevel(null, 'Regional', 3, 'Finale');
+        $this->assertSame(['name' => 'Finale', 'level' => 3], $header);
+    }
+
     public function test_whole_event_moving_to_an_empty_date_keeps_its_id(): void
     {
         $placement = $this->service->place(1, [
@@ -264,7 +302,7 @@ class DrahtEventPlacementServiceTest extends TestCase
     /**
      * @return array<string, mixed>
      */
-    private function row(int $drahtId, int $firstProgram, int $sequence, string $date, string $name): array
+    private function row(int $drahtId, int $firstProgram, int $sequence, string $date, string $name, ?int $level = 1): array
     {
         return [
             'draht_id' => $drahtId,
@@ -272,7 +310,7 @@ class DrahtEventPlacementServiceTest extends TestCase
             'sequence' => $sequence,
             'date' => $date,
             'name' => $name,
-            'level' => 1,
+            'level' => $level,
             'regional_partner' => 5,
         ];
     }
