@@ -20,9 +20,10 @@ const BLOCKED_HOSTS = ['test.flow.hands-on-technology.org', 'flow.hands-on-techn
 const SECTION_ALIASES: Record<string, string> = {
   sync: 'wartung',
   hilfsfunktionen: 'wartung',
-  conditions: 'statistics',
-  mparameter: 'statistics',
-  zahlen: 'statistics',
+  conditions: 'cockpit',
+  mparameter: 'cockpit',
+  zahlen: 'cockpit',
+  statistics: 'cockpit',
   schnittstellen: 'user-regional-partners',
   anmeldungen: 'enrollments',
 }
@@ -73,7 +74,6 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   // Ops
   {key: 'cockpit', label: 'Cockpit', icon: 'bi-speedometer2', group: 'ops'},
   {key: 'system-news', label: 'System News', icon: 'bi-newspaper', group: 'ops'},
-  {key: 'statistics', label: 'Statistiken', icon: 'bi-bar-chart', group: 'ops'},
   {key: 'plan-qualitaet', label: 'Plan Qualität', icon: 'bi-clipboard-check', group: 'ops'},
   {key: 'enrollments', label: 'Anmeldungen', icon: 'bi-person-plus', group: 'ops'},
   {key: 'user-regional-partners', label: 'User ↔ Regionen', icon: 'bi-people', group: 'ops'},
@@ -150,7 +150,7 @@ export const ADMIN_OPS_NAV: AdminNavNode[] = [
     key: 'cockpit-folder',
     label: 'Cockpit',
     icon: 'bi-speedometer2',
-    children: ['cockpit', 'statistics', 'plan-qualitaet', 'enrollments'],
+    children: ['cockpit', 'plan-qualitaet', 'enrollments'],
   },
   {kind: 'section', key: 'system-news'},
   {kind: 'section', key: 'calendar'},

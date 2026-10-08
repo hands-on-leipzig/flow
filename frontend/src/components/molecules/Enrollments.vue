@@ -22,6 +22,11 @@ const HISTOGRAM_SERIES = [
 const loading = ref(true)
 const seasonName = ref('')
 const eventCount = ref(0)
+const totals = ref({
+  explore: {enrolled: 0, capacity: 0},
+  challenge: {enrolled: 0, capacity: 0},
+  future8: {enrolled: 0, capacity: 0},
+})
 const histogram = ref([])
 const dual = ref([])
 const futureStandalone = ref([])
@@ -44,18 +49,41 @@ function overCapacity(row) {
   return !!row?.draht_id && row.capacity > 0 && row.enrolled > row.capacity
 }
 
+function catalogSequence(name) {
+  const row = programsStore.catalog.find((program) => String(program.name || '').toUpperCase() === name)
+  return {
+    sequence: row?.sequence ?? Number.POSITIVE_INFINITY,
+    id: programId(row ?? {}),
+  }
+}
+
+function sortByCatalog(a, b) {
+  const rowA = catalogSequence(a.name)
+  const rowB = catalogSequence(b.name)
+  if (rowA.sequence !== rowB.sequence) return rowA.sequence - rowB.sequence
+  return rowA.id - rowB.id
+}
+
 const histogramSeries = computed(() => {
   const visible = HISTOGRAM_SERIES.filter((series) =>
     histogram.value.some((row) => Number(row[series.key] ?? 0) > 0),
   )
-  return visible.slice().sort((a, b) => {
-    const rowA = programsStore.catalog.find((program) => String(program.name || '').toUpperCase() === a.name)
-    const rowB = programsStore.catalog.find((program) => String(program.name || '').toUpperCase() === b.name)
-    const seqA = rowA?.sequence ?? Number.POSITIVE_INFINITY
-    const seqB = rowB?.sequence ?? Number.POSITIVE_INFINITY
-    if (seqA !== seqB) return seqA - seqB
-    return programId(rowA ?? {}) - programId(rowB ?? {})
-  })
+  return visible.slice().sort(sortByCatalog)
+})
+
+const seasonTotals = computed(() => {
+  return HISTOGRAM_SERIES
+    .filter((series) => {
+      const row = totals.value[series.key]
+      return !!row && (Number(row.enrolled) > 0 || Number(row.capacity) > 0)
+    })
+    .slice()
+    .sort(sortByCatalog)
+    .map((series) => ({
+      ...series,
+      enrolled: Number(totals.value[series.key]?.enrolled ?? 0),
+      capacity: Number(totals.value[series.key]?.capacity ?? 0),
+    }))
 })
 
 const exploreLabel = () => programDisplayName('EXPLORE')
@@ -68,6 +96,20 @@ async function load() {
     const {data} = await axios.get('/admin/enrollments', {timeout: 0})
     seasonName.value = data.season_name || ''
     eventCount.value = data.event_count ?? 0
+    totals.value = {
+      explore: {
+        enrolled: Number(data.totals?.explore?.enrolled ?? 0),
+        capacity: Number(data.totals?.explore?.capacity ?? 0),
+      },
+      challenge: {
+        enrolled: Number(data.totals?.challenge?.enrolled ?? 0),
+        capacity: Number(data.totals?.challenge?.capacity ?? 0),
+      },
+      future8: {
+        enrolled: Number(data.totals?.future8?.enrolled ?? 0),
+        capacity: Number(data.totals?.future8?.capacity ?? 0),
+      },
+    }
     histogram.value = Array.isArray(data.histogram) ? data.histogram : []
     dual.value = Array.isArray(data.dual) ? data.dual : []
     futureStandalone.value = Array.isArray(data.future_standalone) ? data.future_standalone : []
@@ -76,6 +118,11 @@ async function load() {
       'Anmeldungen konnten nicht geladen werden: ' + (error.response?.data?.message || error.message),
       'error',
     )
+    totals.value = {
+      explore: {enrolled: 0, capacity: 0},
+      challenge: {enrolled: 0, capacity: 0},
+      future8: {enrolled: 0, capacity: 0},
+    }
     histogram.value = []
     dual.value = []
     futureStandalone.value = []
@@ -98,11 +145,28 @@ onMounted(async () => {
   <div class="space-y-4">
     <div>
       <h2 class="text-xl font-bold mb-1">Anmeldungen</h2>
-      <p class="text-sm text-[var(--color-text-muted)]">
-        Live aus DRAHT
-        <span v-if="seasonName"> · {{ seasonName }}</span>
-        <span v-if="!loading"> · {{ eventCount }} Events</span>
-      </p>
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[var(--color-text-muted)]">
+        <p class="m-0">
+          Live aus DRAHT
+          <span v-if="seasonName"> · {{ seasonName }}</span>
+          <span v-if="!loading"> · {{ eventCount }} Events</span>
+        </p>
+        <template v-if="!loading && seasonTotals.length">
+          <span
+              v-for="series in seasonTotals"
+              :key="`total-${series.key}`"
+              class="inline-flex items-center gap-1.5 tabular-nums"
+              :title="`${programDisplayName(series.name)}: angemeldet / Kapazität`"
+          >
+            <img
+                :src="programLogoSrc(series.name)"
+                :alt="programLogoAlt(series.name)"
+                class="h-5 w-5 object-contain"
+            />
+            <span>{{ series.enrolled }} / {{ series.capacity }}</span>
+          </span>
+        </template>
+      </div>
     </div>
 
     <p v-if="loading" class="text-sm text-[var(--color-text-subtle)]">

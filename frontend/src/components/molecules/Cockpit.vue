@@ -32,6 +32,7 @@ type CockpitEvent = {
   regional_partner_id: number | null
   regional_partner_name: string | null
   event_date: string | null
+  event_level: number
   event_name: string
   plan_id: number | null
   programs: number[]
@@ -50,6 +51,9 @@ type CockpitEvent = {
 type SortKey = 'rp' | 'date' | 'generator' | 'publish'
 type ModalMode = 'params' | 'blocks' | 'timeline' | 'access' | null
 type HelferFilter = 'empty' | 'filled' | 'both'
+type EventLevel = 1 | 2 | 3
+
+const EVENT_LEVELS: EventLevel[] = [1, 2, 3]
 
 const HELFER_FILTERS: {id: HelferFilter; label: string}[] = [
   {id: 'empty', label: 'Liste leer'},
@@ -66,6 +70,7 @@ const withoutPlanOnly = ref(false)
 const helferFilter = ref<HelferFilter>('both')
 const activeProgramFilters = ref<Set<number>>(new Set())
 const programFiltersSeeded = ref(false)
+const activeLevelFilters = ref<Set<EventLevel>>(new Set(EVENT_LEVELS))
 const sortKey = ref<SortKey>('date')
 const sortDir = ref<'asc' | 'desc'>('asc')
 const modalMode = ref<ModalMode>(null)
@@ -120,6 +125,9 @@ const filteredRows = computed(() => {
   if (showProgramChips.value && activeProgramFilters.value.size === 0) {
     return []
   }
+  if (activeLevelFilters.value.size === 0) {
+    return []
+  }
   const today = todayBerlin()
   let rows = events.value.slice()
   if (upcomingOnly.value) {
@@ -136,6 +144,7 @@ const filteredRows = computed(() => {
   if (showProgramChips.value) {
     rows = rows.filter((row) => row.programs.some((id) => activeProgramFilters.value.has(id)))
   }
+  rows = rows.filter((row) => activeLevelFilters.value.has(row.event_level as EventLevel))
   const dir = sortDir.value === 'desc' ? -1 : 1
   rows.sort((a, b) => {
     const aVal = sortValue(a)
@@ -159,6 +168,13 @@ function toggleProgramFilter(id: number) {
   if (next.has(id)) next.delete(id)
   else next.add(id)
   activeProgramFilters.value = next
+}
+
+function toggleLevelFilter(level: EventLevel) {
+  const next = new Set(activeLevelFilters.value)
+  if (next.has(level)) next.delete(level)
+  else next.add(level)
+  activeLevelFilters.value = next
 }
 
 function toggleSort(key: SortKey) {
@@ -265,6 +281,7 @@ async function downloadExcel() {
       ? Array.from(activeProgramFilters.value)
       : programChips.value.map((program) => programId(program))
     const programs = programIds.join(',')
+    const levels = Array.from(activeLevelFilters.value).join(',')
     const response = await axios.get('/admin/cockpit.xlsx', {
       params: {
         season: selectedSeasonId.value,
@@ -272,6 +289,7 @@ async function downloadExcel() {
         without_plan: withoutPlanOnly.value ? '1' : '0',
         helferliste: helferFilter.value,
         programs,
+        levels,
         sort: sortKey.value,
         dir: sortDir.value,
       },
@@ -400,7 +418,19 @@ onMounted(async () => {
           />
           <span class="vol-staffing-filter__label">{{ programDisplayName(program) }}</span>
         </button>
+        <span class="vol-staffing-filters__sep" aria-hidden="true"/>
         </template>
+        <button
+            v-for="level in EVENT_LEVELS"
+            :key="`level-${level}`"
+            type="button"
+            class="vol-staffing-filter"
+            :class="{'vol-staffing-filter--active': activeLevelFilters.has(level)}"
+            :aria-pressed="activeLevelFilters.has(level)"
+            @click="toggleLevelFilter(level)"
+        >
+          <span class="vol-staffing-filter__label">{{ level }}</span>
+        </button>
       </template>
       <template #trailing>
         <span class="vol-staffing-filters__sep" aria-hidden="true"/>
@@ -442,6 +472,9 @@ onMounted(async () => {
             <span class="vol-staffing-filter__label">{{ option.label }}</span>
           </button>
         </div>
+        <span class="vol-toolbar__count vol-staffing-filters__count">
+          {{ filteredRows.length }} / {{ events.length }}
+        </span>
       </template>
     </VolunteerStaffingFilterBar>
 
