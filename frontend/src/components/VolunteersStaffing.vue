@@ -7,15 +7,15 @@ import {useEventStore} from '@/stores/event'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import LoaderFlow from '@/components/atoms/LoaderFlow.vue'
-import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
 import ConfirmationModal from '@/components/molecules/ConfirmationModal.vue'
 import ItemComposer from '@/components/molecules/ItemComposer.vue'
 import VolunteerEmailOutreach from '@/components/molecules/VolunteerEmailOutreach.vue'
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import VolunteerStaffingBoundsPopover from '@/components/volunteers/VolunteerStaffingBoundsPopover.vue'
+import StaffingScopeLeading from '@/components/volunteers/StaffingScopeLeading.vue'
 import VolunteerOpenPositions from '@/components/volunteers/VolunteerOpenPositions.vue'
 import VolunteerStaffingTile from '@/components/volunteers/VolunteerStaffingTile.vue'
-import {eventPrograms, programId, type EventProgramRef} from '@/utils/eventPrograms'
+import {eventPrograms, programId} from '@/utils/eventPrograms'
 import {compareStaffingTiles, staffingSortableFromTile} from '@/utils/volunteerStaffingSort'
 import {
   buildStaffingFilterKeys,
@@ -54,9 +54,9 @@ type Tile = StaffingTile
 type MultiAssignRoleRef = {
   id: number
   label: string
+  is_local: boolean
   first_program: number | null
   sequence: number
-  program: EventProgramRef | null
 }
 
 type MultiAssignEntry = {
@@ -111,7 +111,6 @@ const programFilters = computed(() => {
 const staffingSummary = computed(() => computeStaffingSummary(roles.value, programFilters.value))
 
 const multiAssignedPeople = computed<MultiAssignEntry[]>(() => {
-  const programs = eventPrograms(eventStore.selectedEvent)
   const byPerson = new Map<number, {person: Person; roles: Map<number, MultiAssignRoleRef>}>()
 
   const remember = (person: Person, role: Role) => {
@@ -121,16 +120,12 @@ const multiAssignedPeople = computed<MultiAssignEntry[]>(() => {
       byPerson.set(person.id, entry)
     }
     if (entry.roles.has(role.id)) return
-    const fp = role.first_program
-    const program = fp != null && fp > 0
-      ? programs.find((p) => programId(p) === fp) ?? null
-      : null
     entry.roles.set(role.id, {
       id: role.id,
       label: (role.label || '').trim() || 'Unbenannt',
-      first_program: fp,
+      is_local: role.is_local,
+      first_program: role.first_program,
       sequence: role.sequence,
-      program,
     })
   }
 
@@ -866,12 +861,7 @@ watch(programFilters, () => syncTileFilters())
                     :key="role.id"
                     class="vol-multi-assign__role"
                 >
-                  <ProgramLogo
-                      v-if="role.program"
-                      :program="role.program"
-                      size="chip"
-                      decorative
-                  />
+                  <StaffingScopeLeading :role="role" size="chip"/>
                   <span>{{ role.label }}</span><span v-if="index < entry.roles.length - 1">, </span>
                 </span>
               </span>
