@@ -19,12 +19,20 @@ export function buildStaffingFilterKeys(programs: ReadonlyArray<ProgramRef>): St
   return keys
 }
 
+/**
+ * Keep toggles for keys the planner already saw; turn on any newly available key
+ * (e.g. program scopes that appear once event.programs loads).
+ */
 export function syncStaffingFilters(
   active: ReadonlySet<StaffingFilterKey>,
   keys: readonly StaffingFilterKey[],
-): Set<StaffingFilterKey> {
-  const kept = keys.filter((key) => active.has(key))
-  return kept.length > 0 ? new Set(kept) : new Set(keys)
+  seenKeys: ReadonlySet<StaffingFilterKey> = new Set(),
+): {active: Set<StaffingFilterKey>; seen: Set<StaffingFilterKey>} {
+  const next = new Set<StaffingFilterKey>()
+  for (const key of keys) {
+    if (!seenKeys.has(key) || active.has(key)) next.add(key)
+  }
+  return {active: next, seen: new Set(keys)}
 }
 
 export function toggleStaffingFilter(

@@ -63,9 +63,8 @@ function assignedCount(key: StaffingFilterKey) {
             title="Unter Min"
         />
       </button>
-      <template v-if="(programs?.length ?? 0) > 1">
       <button
-          v-for="program in programs"
+          v-for="program in (programs ?? [])"
           :key="`filter-program-${programId(program)}`"
           type="button"
           class="vol-staffing-filter"
@@ -87,7 +86,6 @@ function assignedCount(key: StaffingFilterKey) {
             title="Unter Min"
         />
       </button>
-      </template>
       <button
           type="button"
           class="vol-staffing-filter"
