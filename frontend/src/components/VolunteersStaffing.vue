@@ -20,6 +20,7 @@ import {compareStaffingTiles, staffingSortableFromTile} from '@/utils/volunteerS
 import {
   buildStaffingFilterKeys,
   staffingFilterKeyFromScope,
+  syncStaffingFilters,
   toggleStaffingFilter,
   type StaffingFilterKey,
 } from '@/utils/volunteerStaffingFilters'
@@ -322,14 +323,13 @@ function searchChipIconClass(person: Person) {
 }
 
 function syncTileFilters() {
-  const keys = buildStaffingFilterKeys(programFilters.value)
-  const seen = seenTileFilterKeys.value
-  const next = new Set<StaffingFilterKey>()
-  for (const key of keys) {
-    if (!seen.has(key) || activeTileFilters.value.has(key)) next.add(key)
-  }
-  activeTileFilters.value = next
-  seenTileFilterKeys.value = new Set(keys)
+  const synced = syncStaffingFilters(
+    activeTileFilters.value,
+    buildStaffingFilterKeys(programFilters.value),
+    seenTileFilterKeys.value,
+  )
+  activeTileFilters.value = synced.active
+  seenTileFilterKeys.value = synced.seen
 }
 
 function tileFilterKey(tile: Tile): StaffingFilterKey {

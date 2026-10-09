@@ -58,6 +58,8 @@ const sortKey = ref<'name' | 'role'>('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
 
 const activeAssignmentFilters = ref<Set<StaffingFilterKey>>(new Set())
+/** Keys already offered for this event. A key is on the first time it appears. */
+const seenAssignmentFilterKeys = ref<Set<StaffingFilterKey>>(new Set())
 const nameFilter = ref('')
 const showOnlyUnset = ref(false)
 const showOnlyPhotoUnset = ref(false)
@@ -170,10 +172,13 @@ const removeMessage = computed(() => {
 })
 
 function syncAssignmentFilters() {
-  activeAssignmentFilters.value = syncStaffingFilters(
+  const synced = syncStaffingFilters(
     activeAssignmentFilters.value,
     buildStaffingFilterKeys(programFilters.value),
+    seenAssignmentFilterKeys.value,
   )
+  activeAssignmentFilters.value = synced.active
+  seenAssignmentFilterKeys.value = synced.seen
 }
 
 function onToggleAssignmentFilter(key: StaffingFilterKey) {
@@ -285,7 +290,12 @@ async function confirmRemove() {
   }
 }
 
-watch(eventId, () => syncAssignmentFilters(), {immediate: true})
+watch(eventId, () => {
+  seenAssignmentFilterKeys.value = new Set()
+  activeAssignmentFilters.value = new Set()
+  syncAssignmentFilters()
+}, {immediate: true})
+watch(programFilters, () => syncAssignmentFilters())
 watch(eventId, () => load(), {immediate: true})
 
 onMounted(() => load())

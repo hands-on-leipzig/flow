@@ -604,7 +604,7 @@ class DrahtEventPlacementService
 
         $createRows = [];
         foreach ($creates as $create) {
-            $header = $this->headerRow($create['rows']);
+            $header = $this->leadingRow($create['rows']);
             $drahtIds = [];
             foreach ($create['rows'] as $row) {
                 $drahtIds[] = (int) $row['draht_id'];
@@ -645,6 +645,73 @@ class DrahtEventPlacementService
         }
 
         return $best ?? [];
+    }
+
+    /**
+     * Highest level, then the lowest sequence, then the lower DRAHT id.
+     *
+     * @param  array<int|string, array<string, mixed>>  $rows
+     * @return array<string, mixed>
+     */
+    private function leadingRow(array $rows): array
+    {
+        $best = null;
+        $bestRank = null;
+        foreach ($rows as $row) {
+            $rank = [-$this->rowLevelRank($row), $row['sequence'], $row['draht_id']];
+            if ($bestRank === null || $rank < $bestRank) {
+                $bestRank = $rank;
+                $best = $row;
+            }
+        }
+
+        return $best ?? [];
+    }
+
+    /**
+     * Header for the normal merge, including a FLOW event created earlier in the same sync.
+     * A higher level replaces the name and level. A lower level leaves both in place.
+     *
+     * @return array{name: ?string, level: ?int}
+     */
+    public function preferHigherLevel(?int $storedLevel, ?string $storedName, ?int $incomingLevel, ?string $incomingName): array
+    {
+        $storedRank = $this->rankLevel($storedLevel);
+        $incomingRank = $this->rankLevel($incomingLevel);
+
+        if ($incomingRank > $storedRank) {
+            return [
+                'name' => ($incomingName !== null && $incomingName !== '') ? $incomingName : $storedName,
+                'level' => $incomingLevel,
+            ];
+        }
+
+        if ($storedRank > $incomingRank) {
+            return [
+                'name' => $storedName,
+                'level' => $storedLevel,
+            ];
+        }
+
+        return [
+            'name' => ($incomingName !== null && $incomingName !== '') ? $incomingName : $storedName,
+            'level' => $storedLevel ?? $incomingLevel,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     */
+    private function rowLevelRank(array $row): int
+    {
+        $level = $row['level'] ?? null;
+
+        return $this->rankLevel($level === null ? null : (int) $level);
+    }
+
+    private function rankLevel(?int $level): int
+    {
+        return $level === null || $level < 1 ? 0 : $level;
     }
 
     /**
