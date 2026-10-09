@@ -9,8 +9,10 @@ use App\Models\RegionalPartner;
 use App\Models\Team;
 use App\Services\DrahtEventPlacement;
 use App\Services\DrahtEventPlacementService;
+use App\Services\DrahtPlanFollowUp;
 use App\Services\DrahtProgramDetachService;
 use App\Services\DrahtTeamEnrichmentService;
+use App\Services\PlanGeneratorService;
 use App\Support\DrahtScheduleData;
 use App\Support\ProgramCatalog;
 use Illuminate\Support\Facades\DB;
@@ -247,6 +249,11 @@ class DrahtController extends Controller
             }
 
             [$passthrough, $applications] = $this->partitionDrahtFeed($seasonId, $eventsData);
+            $snapshotDates = [];
+            foreach ($this->seasonEventSnapshots($seasonId) as $snapshot) {
+                $snapshotDate = $snapshot['date'] ?? null;
+                $snapshotDates[(int) $snapshot['id']] = is_string($snapshotDate) ? $snapshotDate : null;
+            }
             $feedDrahtIds = [];
             foreach ($eventsData as $eventData) {
                 if (is_array($eventData) && ! empty($eventData['id'])) {
@@ -256,7 +263,8 @@ class DrahtController extends Controller
 
             $icsEventIds = [];
             $touchedIds = [];
-            DB::transaction(function () use ($seasonId, $passthrough, $applications, $feedDrahtIds, &$icsEventIds, &$touchedIds) {
+            $generateEventIds = [];
+            DB::transaction(function () use ($seasonId, $passthrough, $applications, $feedDrahtIds, $snapshotDates, &$icsEventIds, &$touchedIds, &$generateEventIds) {
                 foreach ($applications as $application) {
                     try {
                         $touchedIds = array_merge(
@@ -265,7 +273,8 @@ class DrahtController extends Controller
                                 $seasonId,
                                 $application['placement'],
                                 $application['raw'],
-                                $feedDrahtIds
+                                $feedDrahtIds,
+                                $generateEventIds
                             )
                         );
                     } catch (\Exception $e) {
@@ -297,6 +306,7 @@ class DrahtController extends Controller
                             })
                             ->first();
 
+                        $joinedExistingEvent = false;
                         if (! $existingEvent) {
                             $existingEvent = Event::where('regional_partner', $regionalPartner?->id)
                                 ->where('date', $date)
@@ -305,6 +315,7 @@ class DrahtController extends Controller
                                     $query->where('first_program', $firstProgram);
                                 })
                                 ->first();
+                            $joinedExistingEvent = $existingEvent !== null;
                         }
 
                         if ($existingEvent) {
@@ -350,6 +361,10 @@ class DrahtController extends Controller
                             (int) $eventData['id'],
                             isset($eventData['contao_id']) ? (int) $eventData['contao_id'] : null
                         );
+
+                        if ($joinedExistingEvent) {
+                            $generateEventIds[] = (int) $event->id;
+                        }
 
                         // Link and QR code only after the program is attached: pushing the
                         // link back to DRAHT needs the draht_id to exist.
@@ -446,7 +461,36 @@ class DrahtController extends Controller
                         ->map(fn ($id) => (int) $id)
                         ->all();
                     $active = array_values(array_filter($present, fn (int $id) => isset($feedSet[$id])));
-                    $detachService->detachStaleByDrahtIds((int) $eventId, $active);
+                    $detachedPrograms = $detachService->detachStaleByDrahtIds((int) $eventId, $active);
+                    if ($detachedPrograms !== [] && Event::whereKey((int) $eventId)->exists()) {
+                        $generateEventIds[] = (int) $eventId;
+                    }
+                }
+
+                $followUp = app(DrahtPlanFollowUp::class);
+                foreach ($applications as $application) {
+                    foreach ($application['placement']->updates as $update) {
+                        $eventId = (int) $update['id'];
+                        if (! Event::whereKey($eventId)->exists()) {
+                            continue;
+                        }
+                        $decision = $followUp->decide(
+                            $snapshotDates[$eventId] ?? null,
+                            isset($update['date']) ? (string) $update['date'] : null,
+                            false
+                        );
+                        if ($decision['shiftDays'] === 0) {
+                            continue;
+                        }
+                        foreach (DB::table('plan')->where('event', $eventId)->pluck('id') as $planId) {
+                            $followUp->shiftPlan((int) $planId, $decision['shiftDays']);
+                        }
+                    }
+                    foreach ($application['placement']->touchedIds as $eventId) {
+                        if (Event::whereKey((int) $eventId)->exists()) {
+                            $generateEventIds[] = (int) $eventId;
+                        }
+                    }
                 }
             });
 
@@ -459,6 +503,7 @@ class DrahtController extends Controller
             }
 
             $this->recalculateTouchedEventLinks($touchedIds);
+            $this->queueDrahtPlanGenerates($generateEventIds);
 
             return response()->json(['status' => 200, 'message' => 'Events and teams synced successfully']);
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
@@ -589,7 +634,7 @@ class DrahtController extends Controller
      * @param  list<int>  $feedDrahtIds
      * @return list<int>
      */
-    private function applyDrahtPlacement(int $seasonId, DrahtEventPlacement $placement, array $rawByDraht, array $feedDrahtIds): array
+    private function applyDrahtPlacement(int $seasonId, DrahtEventPlacement $placement, array $rawByDraht, array $feedDrahtIds, array &$generateEventIds): array
     {
         $created = [];
         foreach ($placement->creates as $create) {
@@ -655,12 +700,16 @@ class DrahtController extends Controller
                 ->map(fn ($id) => (int) $id)
                 ->all();
             $active = array_values(array_filter($present, fn (int $id) => isset($feedSet[$id])));
-            $detachService->detachStaleByDrahtIds($eventId, $active);
+            $detachedPrograms = $detachService->detachStaleByDrahtIds($eventId, $active);
 
             if ((int) DB::table('event_program')->where('event', $eventId)->count() < 1) {
                 Event::whereKey($eventId)->delete();
 
                 continue;
+            }
+
+            if ($detachedPrograms !== []) {
+                $generateEventIds[] = $eventId;
             }
 
             $touched[] = $eventId;
@@ -760,6 +809,58 @@ class DrahtController extends Controller
                     'team_data' => $teamData,
                     'error' => $e->getMessage(),
                 ]);
+            }
+        }
+    }
+
+    /**
+     * @param  list<int>  $eventIds
+     */
+    private function queueDrahtPlanGenerates(array $eventIds): void
+    {
+        $followUp = app(DrahtPlanFollowUp::class);
+        $generator = app(PlanGeneratorService::class);
+
+        foreach (array_unique($eventIds) as $eventId) {
+            $eventId = (int) $eventId;
+            if ($eventId < 1 || ! Event::whereKey($eventId)->exists()) {
+                continue;
+            }
+
+            $plans = DB::table('plan')->where('event', $eventId)->get(['id', 'locked']);
+            foreach ($plans as $plan) {
+                $planId = (int) $plan->id;
+                try {
+                    if ((bool) $plan->locked) {
+                        Log::info('DRAHT sync skipped generate for locked plan', [
+                            'event_id' => $eventId,
+                            'plan_id' => $planId,
+                        ]);
+
+                        continue;
+                    }
+
+                    $support = $generator->isSupported($planId);
+                    if (! ($support['supported'] ?? false)) {
+                        Log::warning('DRAHT sync skipped plan generate', [
+                            'event_id' => $eventId,
+                            'plan_id' => $planId,
+                            'error' => $support['error'] ?? null,
+                        ]);
+
+                        continue;
+                    }
+
+                    $followUp->deleteMatchesForDetachedPrograms($planId, $eventId);
+                    $generator->prepare($planId, 'job', null);
+                    $generator->dispatchJob($planId, false, null);
+                } catch (\Throwable $e) {
+                    Log::error('DRAHT sync failed to queue plan generate', [
+                        'event_id' => $eventId,
+                        'plan_id' => $planId,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
             }
         }
     }
