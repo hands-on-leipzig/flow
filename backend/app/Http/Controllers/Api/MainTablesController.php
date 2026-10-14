@@ -336,18 +336,23 @@ class MainTablesController extends Controller
 
     private function prFailureMessage(string $output): string
     {
-        if (preg_match('/Failed to create PR:\s*(.+)/', $output, $matches)) {
-            $message = trim($matches[1]);
-            if (strlen($message) > 300) {
-                $message = substr($message, 0, 300).'…';
+        $message = '';
+        if (preg_match('/"message"\s*:\s*"((?:\\\\.|[^"\\\\])*)"/', $output, $json)) {
+            $detail = stripcslashes($json[1]);
+            $status = '';
+            if (preg_match('/"status"\s*:\s*"(\d+)"/', $output, $statusMatch)) {
+                $status = 'GitHub '.$statusMatch[1].': ';
             }
-
-            if ($message !== '') {
-                return $message;
-            }
+            $message = $status.$detail;
+        } elseif (preg_match('/Failed to create PR:\s*(.+)/s', $output, $matches)) {
+            $message = trim(preg_replace('/\s+/', ' ', $matches[1]) ?? '');
         }
 
-        return 'GitHub PR creation failed';
+        if (strlen($message) > 300) {
+            $message = substr($message, 0, 300).'…';
+        }
+
+        return $message !== '' ? $message : 'GitHub PR creation failed';
     }
 
     /**
