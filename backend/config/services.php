@@ -59,5 +59,9 @@ return [
         'public_key_path' => env('KEYCLOAK_PUBLIC_KEY_PATH'),
     ],
 
+    'github' => [
+        'token' => env('GITHUB_TOKEN'),
+    ],
+
 
 ];

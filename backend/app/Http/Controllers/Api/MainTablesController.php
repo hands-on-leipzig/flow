@@ -303,6 +303,7 @@ class MainTablesController extends Controller
             $output = Artisan::output();
 
             if ($exitCode !== 0) {
+                $message = $this->prFailureMessage($output);
                 Log::error('Main data PR creation failed', [
                     'exit_code' => $exitCode,
                     'output' => $output,
@@ -310,8 +311,8 @@ class MainTablesController extends Controller
 
                 return response()->json([
                     'success' => false,
-                    'error' => 'GitHub PR creation failed',
-                    'message' => 'GitHub PR creation failed',
+                    'error' => $message,
+                    'message' => $message,
                     'output' => $output,
                     'exit_code' => $exitCode,
                 ], 500);
@@ -331,6 +332,22 @@ class MainTablesController extends Controller
 
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    private function prFailureMessage(string $output): string
+    {
+        if (preg_match('/Failed to create PR:\s*(.+)/', $output, $matches)) {
+            $message = trim($matches[1]);
+            if (strlen($message) > 300) {
+                $message = substr($message, 0, 300).'…';
+            }
+
+            if ($message !== '') {
+                return $message;
+            }
+        }
+
+        return 'GitHub PR creation failed';
     }
 
     /**
