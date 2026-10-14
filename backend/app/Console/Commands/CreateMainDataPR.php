@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Process;
 
 class CreateMainDataPR extends Command
 {
@@ -96,11 +96,7 @@ class CreateMainDataPR extends Command
         $branchName = 'main-data-update-' . now()->format('Y-m-d-H-i-s');
         $baseBranch = 'main';
 
-        // GitHub token from environment
-        $token = env('GITHUB_TOKEN');
-        if (!$token) {
-            throw new \Exception('GITHUB_TOKEN environment variable not set');
-        }
+        $token = $this->githubToken();
 
         $headers = [
             'Authorization' => 'token ' . $token,
@@ -174,6 +170,62 @@ class CreateMainDataPR extends Command
         $this->info('🎉 Pull Request created: ' . $prData['html_url']);
 
         return $prData;
+    }
+
+    private function githubToken(): string
+    {
+        $configured = config('services.github.token');
+        if (is_string($configured) && $configured !== '') {
+            return $configured;
+        }
+
+        $fromGh = $this->tokenFromGhCli();
+        if ($fromGh !== null) {
+            return $fromGh;
+        }
+
+        throw new \Exception('GITHUB_TOKEN is not set. Add it to .env, or sign in with `gh auth login`.');
+    }
+
+    private function tokenFromGhCli(): ?string
+    {
+        $gh = $this->ghBinary();
+        if ($gh === null) {
+            return null;
+        }
+
+        $result = Process::run([$gh, 'auth', 'token']);
+        if (! $result->successful()) {
+            return null;
+        }
+
+        $token = trim($result->output());
+
+        return $token !== '' ? $token : null;
+    }
+
+    private function ghBinary(): ?string
+    {
+        $candidates = [
+            '/opt/homebrew/bin/gh',
+            '/usr/local/bin/gh',
+            '/usr/bin/gh',
+        ];
+
+        $path = getenv('PATH') ?: '';
+        foreach (explode(PATH_SEPARATOR, $path) as $dir) {
+            if ($dir !== '') {
+                $candidates[] = rtrim($dir, DIRECTORY_SEPARATOR).DIRECTORY_SEPARATOR.'gh';
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            if (is_executable($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     private function generatePRDescription()
