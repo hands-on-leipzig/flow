@@ -280,7 +280,7 @@ const deleteRoleMessage = computed(() => {
 
 const multiAssignMessage = computed(() => {
   if (!pendingMultiAssign.value) return ''
-  return `${volunteerDisplayName(pendingMultiAssign.value.person)} hat bereits eine andere Rolle.`
+  return `${volunteerDisplayName(pendingMultiAssign.value.person)} hat bereits eine andere Rolle.\nTrotzdem zuordnen?`
 })
 
 const peopleGroup = {name: 'staffing-people', pull: true, put: false}
@@ -863,8 +863,9 @@ watch(programFilters, () => syncTileFilters())
         title="Mehrfache Zuordnung"
         :message="multiAssignMessage"
         type="info"
-        confirm-text="Ok"
-        cancel-text="Abbrechen"
+        confirm-text="Ja"
+        cancel-text="Nein"
+        confirm-first
         @confirm="confirmMultiAssign"
         @cancel="cancelMultiAssign"
     />

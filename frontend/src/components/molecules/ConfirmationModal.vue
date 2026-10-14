@@ -25,26 +25,47 @@
           <h3 class="text-lg font-medium text-[var(--color-text)] mb-2">
             {{ title }}
           </h3>
-          <p class="text-sm text-[var(--color-text-muted)] mb-6">
+          <p class="text-sm text-[var(--color-text-muted)] mb-6 whitespace-pre-line">
             {{ message }}
           </p>
 
           <div class="flex space-x-3 justify-center">
-            <button
-                type="button"
-                class="glass-btn-secondary"
-                @click="handleCancel"
-            >
-              {{ cancelText }}
-            </button>
-            <button
-                type="button"
-                :class="confirmButtonClass"
-                :disabled="disableConfirmButton"
-                @click="handleConfirm"
-            >
-              {{ confirmText }}
-            </button>
+            <template v-if="confirmFirst">
+              <button
+                  ref="confirmBtnRef"
+                  type="button"
+                  :class="confirmButtonClass"
+                  :disabled="disableConfirmButton"
+                  @click="handleConfirm"
+              >
+                {{ confirmText }}
+              </button>
+              <button
+                  type="button"
+                  class="glass-btn-secondary"
+                  @click="handleCancel"
+              >
+                {{ cancelText }}
+              </button>
+            </template>
+            <template v-else>
+              <button
+                  type="button"
+                  class="glass-btn-secondary"
+                  @click="handleCancel"
+              >
+                {{ cancelText }}
+              </button>
+              <button
+                  ref="confirmBtnRef"
+                  type="button"
+                  :class="confirmButtonClass"
+                  :disabled="disableConfirmButton"
+                  @click="handleConfirm"
+              >
+                {{ confirmText }}
+              </button>
+            </template>
           </div>
         </div>
       </div>
@@ -53,7 +74,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 const props = defineProps({
   show: {
@@ -81,6 +102,11 @@ const props = defineProps({
     type: String,
     default: 'Abbrechen'
   },
+  /** Put confirm (primary) on the left; still the default focused action. */
+  confirmFirst: {
+    type: Boolean,
+    default: false
+  },
   closeOnBackdrop: {
     type: Boolean,
     default: true
@@ -97,6 +123,16 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
+const confirmBtnRef = ref(null)
+
+watch(
+  () => props.show,
+  async (visible) => {
+    if (!visible) return
+    await nextTick()
+    confirmBtnRef.value?.focus?.()
+  },
+)
 
 const iconBgClass = computed(() => {
   switch (props.type) {
