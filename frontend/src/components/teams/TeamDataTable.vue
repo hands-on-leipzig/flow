@@ -393,8 +393,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 }
 
 .vol-table-frame--team-data thead .vol-table__sticky {
-  background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
-  backdrop-filter: blur(8px);
+  background: var(--vol-table-head-bg);
 }
 
 .vol-table-frame--team-data tbody .vol-table__sticky {
