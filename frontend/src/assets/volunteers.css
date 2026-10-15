@@ -439,6 +439,8 @@
 }
 
 .vol-table-frame {
+  /* Must stay opaque: Glass --color-bg-muted is translucent and lets scrolled rows show through. */
+  --vol-table-head-bg: #f4f6f9;
   width: 100%;
   scrollbar-gutter: stable;
 }
@@ -480,8 +482,7 @@
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
-  backdrop-filter: blur(8px);
+  background: var(--vol-table-head-bg);
 }
 
 .vol-table tbody tr:last-child td {
