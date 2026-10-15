@@ -117,6 +117,7 @@ type Activity = {
   meta: {
     first_program_id: number | null
     description: string | null
+    link?: string | null
   }
   room: {
     room_name: string | null
@@ -132,6 +133,7 @@ type Group = {
     name: string | null
     first_program_id: number | null
     description: string | null
+    link?: string | null
     activity_type_code?: string | null
     /** punctual | window | info — from m_activity_type_detail.presence */
     presence?: 'punctual' | 'window' | 'info' | string | null
@@ -677,6 +679,12 @@ function detailActivities(group: Group): Activity[] {
 
 function hasExpandableDetail(group: Group): boolean {
   return detailActivities(group).length > 0
+}
+
+function groupInfoLink(group: Group): string | null {
+  if (group.group_meta?.link) return group.group_meta.link
+  const links = new Set((group.activities || []).map((a) => a.meta?.link).filter((l): l is string => !!l))
+  return links.size === 1 ? [...links][0] : null
 }
 
 type DetailTimeBlock = {
@@ -2659,6 +2667,16 @@ watch(
             >
               {{ selectedItem.group.group_meta.description }}
             </p>
+            <p v-if="groupInfoLink(selectedItem.group)" class="public-schedule__detail-link">
+              <a
+                  :href="groupInfoLink(selectedItem.group)!"
+                  target="_blank"
+                  rel="noopener noreferrer"
+              >
+                Weitere Infos
+                <i class="bi bi-box-arrow-up-right" aria-hidden="true"/>
+              </a>
+            </p>
 
             <div v-if="selectedItem.rooms.length" class="public-schedule__detail-room">
               <p
@@ -4023,6 +4041,26 @@ watch(
   font-size: 0.85rem;
   color: #4b5563;
   line-height: 1.4;
+}
+
+.public-schedule__detail-link {
+  padding: 0.4rem 0.9rem 0;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.public-schedule__detail-link a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 600;
+  color: #c2410c;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.public-schedule__detail-link i {
+  font-size: 0.75rem;
 }
 
 .public-schedule__detail-room {

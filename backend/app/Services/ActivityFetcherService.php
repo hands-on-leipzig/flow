@@ -222,7 +222,11 @@ class ActivityFetcherService
                 CASE 
                     WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.description, atd.description)
                     ELSE atd.description
-                END                        as activity_description
+                END                        as activity_description,
+                CASE 
+                    WHEN a.extra_block IS NOT NULL THEN COALESCE(NULLIF(TRIM(peb.link), ""), atd.link)
+                    ELSE atd.link
+                END                        as activity_link
             ';
         }
 
@@ -253,7 +257,11 @@ class ActivityFetcherService
                 CASE 
                     WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.description, ag_atd.description)
                     ELSE ag_atd.description
-                END                        as group_description
+                END                        as group_description,
+                CASE 
+                    WHEN a.extra_block IS NOT NULL THEN COALESCE(NULLIF(TRIM(peb.link), ""), ag_atd.link)
+                    ELSE ag_atd.link
+                END                        as group_link
             ';
         }
 
