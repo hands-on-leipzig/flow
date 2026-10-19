@@ -19,6 +19,8 @@ export type TeamDataRow = {
   program_label: string
   people_count: number | null
   players_count: number | null
+  /** Team members whose age on the season reference date is outside the program range. */
+  players_age_out_of_range: number | null
   photo_consent?: Record<string, number>
   meals?: Record<string, number>
   custom: Record<string, unknown>

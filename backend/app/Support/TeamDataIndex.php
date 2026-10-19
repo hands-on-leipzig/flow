@@ -191,7 +191,7 @@ final class TeamDataIndex
 
     /**
      * @param  Collection<int, EventTeamFieldValue>  $values
-     * @param  array{coaches: int, players: int, total: int}|null  $peopleBreakdown
+     * @param  array{coaches: int, players: int, total: int, players_age_out_of_range: int}|null  $peopleBreakdown
      * @param  array{labels: array<int, string>, sequences: array<int, int>}  $programMeta
      * @return array<string, mixed>
      */
@@ -225,6 +225,7 @@ final class TeamDataIndex
             'program_label' => $programMeta['labels'][$firstProgramId] ?? '',
             'people_count' => $peopleBreakdown !== null ? $peopleBreakdown['total'] : null,
             'players_count' => $peopleBreakdown !== null ? $peopleBreakdown['players'] : null,
+            'players_age_out_of_range' => $peopleBreakdown !== null ? $peopleBreakdown['players_age_out_of_range'] : null,
             'photo_consent' => TeamPhotoCounts::mapForTeamWithDefaults($team->id),
             'custom' => $custom,
             'touched' => [

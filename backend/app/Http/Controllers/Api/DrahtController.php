@@ -39,6 +39,17 @@ class DrahtController extends Controller
             ->post(config('services.draht_api.base_url').$route, $data);
     }
 
+    /**
+     * Make a PUT request to DRAHT API
+     */
+    public function makeDrahtPutCall($route, array $data)
+    {
+        $headers = ['DOLAPIKEY' => config('services.draht_api.key')];
+
+        return Http::withHeaders($headers)
+            ->put(config('services.draht_api.base_url').$route, $data);
+    }
+
     public function show(Event $event)
     {
         return response()->json($this->fetchScheduleData($event)['data']);
@@ -1155,6 +1166,51 @@ class DrahtController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Replace the team members of a DRAHT team (addressed by DRAHT event id + team ref).
+     *
+     * @param  list<array{firstname: string, name: string, gender: string, birthday: ?string}>  $players
+     * @return array{ok: bool, status: int, data: array<string, mixed>|null, message: ?string}
+     */
+    public function putTeamPlayers(int $drahtEventId, int $teamNumberHot, array $players): array
+    {
+        try {
+            $response = $this->makeDrahtPutCall(
+                "/handson/flow/{$drahtEventId}/teams/{$teamNumberHot}/players",
+                ['players' => $players]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Exception while updating team players in DRAHT', [
+                'draht_event_id' => $drahtEventId,
+                'team_number_hot' => $teamNumberHot,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['ok' => false, 'status' => 502, 'data' => null, 'message' => null];
+        }
+
+        if (! $response->ok()) {
+            Log::error('Failed to update team players in DRAHT', [
+                'draht_event_id' => $drahtEventId,
+                'team_number_hot' => $teamNumberHot,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            $message = $response->json('error.message') ?? $response->json('message');
+
+            return [
+                'ok' => false,
+                'status' => $response->status(),
+                'data' => null,
+                'message' => is_string($message) ? $message : null,
+            ];
+        }
+
+        $data = $response->json();
+
+        return ['ok' => true, 'status' => 200, 'data' => is_array($data) ? $data : null, 'message' => null];
     }
 
     /**
