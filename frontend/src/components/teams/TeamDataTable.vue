@@ -28,8 +28,16 @@ const props = defineProps<{
 const emit = defineEmits<{
   'toggle-sort': [key: TeamDataSortKey]
   'open-count': [team: TeamDataRow, column: TeamDataColumn, anchor: HTMLElement]
+  'open-players': [team: TeamDataRow]
   updated: [team: TeamDataRow]
 }>()
+
+function playersTitle(row: TeamDataRow) {
+  const outOfRange = row.players_age_out_of_range ?? 0
+  if (outOfRange === 1) return 'Teammitglieder anzeigen – 1 außerhalb der Altersgrenze'
+  if (outOfRange > 1) return `Teammitglieder anzeigen – ${outOfRange} außerhalb der Altersgrenze`
+  return 'Teammitglieder anzeigen und bearbeiten'
+}
 
 const savingTeamId = ref<number | null>(null)
 
@@ -176,6 +184,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
         <col class="vol-col--name">
         <col class="vol-col--organization">
         <col class="vol-col--people">
+        <col class="vol-col--players">
         <col
             v-for="column in columns"
             :key="column.key"
@@ -221,6 +230,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
             </button>
           </th>
           <th scope="col">Personen</th>
+          <th scope="col">Teammitglieder</th>
           <th
               v-for="column in columns"
               :key="column.key"
@@ -251,6 +261,25 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
           </td>
           <td class="team-data-table__people">
             {{ displayNumber(row.people_count) }}
+          </td>
+          <td class="vol-table__field">
+            <button
+                type="button"
+                class="vol-detail-trigger glass-input glass-input--sm team-data-count-trigger"
+                :class="{
+                  'vol-detail-trigger--unset': !row.players_count,
+                  'team-data-cell--mismatch': (row.players_age_out_of_range ?? 0) > 0,
+                }"
+                :title="playersTitle(row)"
+                @click="emit('open-players', row)"
+            >
+              <i
+                  v-if="(row.players_age_out_of_range ?? 0) > 0"
+                  class="bi bi-exclamation-triangle"
+                  aria-hidden="true"
+              />
+              {{ displayNumber(row.players_count) }}
+            </button>
           </td>
           <td
               v-for="column in columns"
@@ -370,6 +399,10 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 
 .vol-col--people {
   min-width: 4.75rem;
+}
+
+.vol-col--players {
+  min-width: 7.5rem;
 }
 
 .vol-col--meal {

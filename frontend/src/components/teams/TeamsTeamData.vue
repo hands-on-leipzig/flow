@@ -10,6 +10,7 @@ import VolunteerMealOptionsPanel from '@/components/molecules/VolunteerMealOptio
 import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffingFilterBar.vue'
 import TeamDataTable from '@/components/teams/TeamDataTable.vue'
 import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
+import TeamPlayersDialog from '@/components/teams/TeamPlayersDialog.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
@@ -52,6 +53,7 @@ const sortDir = ref<'asc' | 'desc'>('asc')
 const countEditTeam = ref<TeamDataRow | null>(null)
 const countEditColumn = ref<TeamDataColumn | null>(null)
 const countAnchorEl = ref<HTMLElement | null>(null)
+const playersTeam = ref<TeamDataRow | null>(null)
 
 const {options: mealOptions, setOptions: setMealOptions} = useVolunteerMealOptions(eventId)
 
@@ -429,6 +431,7 @@ onActivated(() => {
           :sort-dir="sortDir"
           @toggle-sort="toggleSort"
           @open-count="openCountPopover"
+          @open-players="playersTeam = $event"
           @updated="onTeamUpdated"
       />
     </section>
@@ -462,6 +465,13 @@ onActivated(() => {
         :meal-options="mealOptions"
         @close="closeCountPopover"
         @saved="onCountSaved"
+    />
+
+    <TeamPlayersDialog
+        :event-id="eventId"
+        :team="playersTeam"
+        @close="playersTeam = null"
+        @saved="onTeamUpdated"
     />
   </div>
 </template>

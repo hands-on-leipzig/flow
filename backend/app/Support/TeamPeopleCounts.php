@@ -27,7 +27,7 @@ final class TeamPeopleCounts
     }
 
     /**
-     * @return array<int, array{coaches: int, players: int, total: int}|null>
+     * @return array<int, array{coaches: int, players: int, total: int, players_age_out_of_range: int}|null>
      */
     public static function breakdownsByTeamIdForEvent(Event $event): array
     {
@@ -35,7 +35,7 @@ final class TeamPeopleCounts
     }
 
     /**
-     * @return array{coaches: int, players: int, total: int}|null
+     * @return array{coaches: int, players: int, total: int, players_age_out_of_range: int}|null
      */
     public static function breakdownForTeam(Event $event, int $teamId): ?array
     {
@@ -43,7 +43,7 @@ final class TeamPeopleCounts
     }
 
     /**
-     * @return array<int, array{coaches: int, players: int, total: int}|null>
+     * @return array<int, array{coaches: int, players: int, total: int, players_age_out_of_range: int}|null>
      */
     private function computeBreakdowns(Event $event): array
     {
@@ -82,11 +82,15 @@ final class TeamPeopleCounts
                 }
 
                 $coaches = is_array($teamData['coaches'] ?? null) ? count($teamData['coaches']) : 0;
-                $players = is_array($teamData['players'] ?? null) ? count($teamData['players']) : 0;
+                $players = TeamPlayers::serializeList($teamData['players'] ?? null);
                 $result[$team->id] = [
                     'coaches' => $coaches,
-                    'players' => $players,
-                    'total' => $coaches + $players,
+                    'players' => count($players),
+                    'total' => $coaches + count($players),
+                    'players_age_out_of_range' => TeamPlayers::countAgeOutOfRange(
+                        $players,
+                        TeamPlayers::ageRule($teamData['player_age_rule'] ?? null),
+                    ),
                 ];
             }
         }

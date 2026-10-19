@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Http\Controllers\Api\EventStaffingController;
 use App\Http\Controllers\Api\EventTeamDataController;
 use App\Http\Controllers\Api\EventTeamFieldController;
+use App\Http\Controllers\Api\EventTeamPlayersController;
 use App\Http\Controllers\Api\EventVolunteerCollectController;
 use App\Http\Controllers\Api\EventVolunteerFieldController;
 use App\Http\Controllers\Api\EventVolunteerMealOptionController;
@@ -373,6 +374,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::delete('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'destroy']);
     Route::get('/events/{event}/team-data', [EventTeamDataController::class, 'index']);
     Route::patch('/events/{event}/teams/{team}/team-data', [EventTeamDataController::class, 'update']);
+    Route::get('/events/{event}/teams/{team}/players', [EventTeamPlayersController::class, 'show']);
+    Route::put('/events/{event}/teams/{team}/players', [EventTeamPlayersController::class, 'update']);
     Route::get('/events/{event}/team-data/export', [EventTeamDataController::class, 'exportXlsx']);
 
     // Volunteer staffing (pool + roster)
