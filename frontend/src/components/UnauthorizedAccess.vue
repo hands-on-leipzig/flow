@@ -32,13 +32,18 @@
 
       <!-- Message -->
       <p class="text-gray-600 mb-6">
-        Dieser Account hat keine Berechtigung,<br>auf FLOW zuzugreifen.
+        Dieser Account hat keinen Zugang zu {{ appLabel }}.<br>
+        Bitte deinen Regionalpartner, dich für die Veranstaltung einzuladen.
+        <template v-if="appLabel === 'FLOW'">
+          Eine Einladung nur für SCOR öffnet FLOW nicht.
+        </template>
       </p>
 
       <!-- Contact information -->
       <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p class="text-sm text-blue-800">
-          Wenn du glaubst, dass du Zugriff haben solltest, kontaktiere bitte
+          Wenn du glaubst, dass du Zugriff haben solltest, bitte deinen Regionalpartner, dich einzuladen.
+          Sonst schreib an
           <a
               href="mailto:flow@hands-on-technology.org"
               class="font-semibold underline hover:text-blue-900"
@@ -60,8 +65,13 @@
 </template>
 
 <script setup lang="ts">
+import {computed} from 'vue'
+import {useRoute} from 'vue-router'
 import {imageUrl} from '@/utils/images'
 import keycloak from '@/keycloak.js'
+
+const route = useRoute()
+const appLabel = computed(() => route.query.app === 'scor' ? 'SCOR' : 'FLOW')
 
 function logout() {
   localStorage.removeItem('kc_token')

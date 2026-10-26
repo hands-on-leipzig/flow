@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\User;
+
 /**
  * Keycloak role helpers for FLOW.
  *
@@ -11,6 +13,11 @@ namespace App\Support;
  * - flow-tester → local/staging only
  *
  * Legacy role names are still accepted during the Keycloak migration.
+ *
+ * App permissions live in FLOW, not in Keycloak roles.
+ * Draht contacts get FLOW and SCOR for every event of their regional partner (`user_regional_partner`).
+ * Everyone else is invited per event (`event_invitation` → `event_user_access`).
+ * Keycloak only authenticates. `flow_user` still opens FLOW for staff without an event grant.
  */
 class FlowAccess
 {
@@ -20,6 +27,25 @@ class FlowAccess
 
     public const SOURCE_DRAHT = 'draht';
     public const SOURCE_MANUAL = 'manual';
+
+    public const PERMISSION_FLOW = 'flow';
+    public const PERMISSION_SCOR = 'scor';
+
+    public const PERMISSIONS = [self::PERMISSION_FLOW, self::PERMISSION_SCOR];
+
+    public static function permissionColumn(string $permission): string
+    {
+        if (!in_array($permission, self::PERMISSIONS, true)) {
+            throw new \InvalidArgumentException("Unknown permission: {$permission}");
+        }
+
+        return 'can_'.$permission;
+    }
+
+    public static function permissionForPath(string $path): string
+    {
+        return str_starts_with($path, 'api/scor') ? self::PERMISSION_SCOR : self::PERMISSION_FLOW;
+    }
 
     /**
      * @param  object|array|null  $jwt
@@ -85,15 +111,29 @@ class FlowAccess
         ]) || self::isAdmin($roles);
     }
 
-    /**
-     * Environment gate: who may call authenticated FLOW APIs at all.
-     */
-    public static function canAccessApp(array $roles, string $env): bool
+    public static function isTesterEnvironment(string $env): bool
     {
-        if (in_array($env, ['local', 'staging'], true)) {
+        return in_array($env, ['local', 'staging'], true);
+    }
+
+    /**
+     * App gate: who may call authenticated FLOW (or SCOR) APIs at all.
+     * Event / regional partner checks still apply on top.
+     */
+    public static function canUse(array $roles, User $user, string $permission, string $env): bool
+    {
+        if (self::isTesterEnvironment($env)) {
             return self::isTester($roles);
         }
 
-        return self::isFlowUser($roles);
+        if (self::isAdmin($roles)) {
+            return true;
+        }
+
+        if ($permission === self::PERMISSION_FLOW && self::isFlowUser($roles)) {
+            return true;
+        }
+
+        return $user->hasPermission($permission);
     }
 }

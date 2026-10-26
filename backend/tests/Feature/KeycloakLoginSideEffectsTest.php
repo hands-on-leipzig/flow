@@ -130,6 +130,9 @@ class KeycloakLoginSideEffectsTest extends TestCase
 
     private function createSchema(): void
     {
+        Schema::dropIfExists('access_log');
+        Schema::dropIfExists('event_user_access');
+        Schema::dropIfExists('event_invitation');
         Schema::dropIfExists('user_regional_partner');
         Schema::dropIfExists('user');
 
@@ -149,8 +152,44 @@ class KeycloakLoginSideEffectsTest extends TestCase
             $table->unsignedInteger('user');
             $table->unsignedInteger('regional_partner');
             $table->string('source', 16)->default('draht');
+            $table->boolean('can_flow')->default(true);
+            $table->boolean('can_scor')->default(false);
             $table->timestamp('granted_at')->nullable();
             $table->unsignedInteger('granted_by')->nullable();
+        });
+
+        Schema::create('event_invitation', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('event');
+            $table->string('email');
+            $table->boolean('can_flow')->default(true);
+            $table->boolean('can_scor')->default(false);
+            $table->unsignedInteger('invited_by')->nullable();
+            $table->timestamp('invited_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
+        });
+
+        Schema::create('event_user_access', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('user');
+            $table->unsignedInteger('event');
+            $table->boolean('can_flow')->default(false);
+            $table->boolean('can_scor')->default(false);
+            $table->timestamp('granted_at')->nullable();
+            $table->unsignedInteger('granted_by')->nullable();
+        });
+
+        Schema::create('access_log', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->timestamp('created_at')->nullable();
+            $table->unsignedInteger('event')->nullable();
+            $table->unsignedInteger('regional_partner')->nullable();
+            $table->unsignedInteger('actor_user')->nullable();
+            $table->unsignedInteger('target_user')->nullable();
+            $table->string('target_email')->nullable();
+            $table->string('action', 32);
+            $table->boolean('can_flow')->nullable();
+            $table->boolean('can_scor')->nullable();
         });
 
         Cache::flush();

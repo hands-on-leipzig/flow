@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\EventAccessService;
 use Closure;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -59,14 +60,13 @@ class KeycloakJwtMiddleware
             $env = App::environment();
             $path = $request->path();
 
-            // Env-based role access - check BEFORE creating user
-            // Prod gate: flow_user (via Keycloak groups). Legacy roles still accepted.
-            if (!\App\Support\FlowAccess::canAccessApp($roles, $env)) {
-                $message = in_array($env, ['local', 'staging'], true)
-                    ? 'Forbidden - tester role required'
-                    : 'Forbidden - flow_user or flow_admin role required';
-
-                return response()->json(['error' => $message], 403);
+            // Local/staging stay tester-only, checked before a user row exists.
+            if (\App\Support\FlowAccess::isTesterEnvironment($env) && !\App\Support\FlowAccess::isTester($roles)) {
+                return response()->json([
+                    'error' => 'Forbidden - tester role required',
+                    'code' => 'app_access_denied',
+                    'app' => 'flow',
+                ], 403);
             }
 
             try {
@@ -135,6 +135,28 @@ class KeycloakJwtMiddleware
                 }
 
                 $this->syncUserRegionalPartnersFromDraht($user);
+            }
+
+            // Every request, not per session: an invitation must work while the invitee is logged in.
+            try {
+                app(EventAccessService::class)->claim($user, $claims);
+            } catch (\Exception $e) {
+                Log::error('Failed to claim event invitations', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            // Prod gate: Keycloak flow roles, or an app permission on some event.
+            $permission = \App\Support\FlowAccess::permissionForPath($path);
+            if (!\App\Support\FlowAccess::canUse($roles, $user, $permission, $env)) {
+                $app = $permission === \App\Support\FlowAccess::PERMISSION_SCOR ? 'scor' : 'flow';
+
+                return response()->json([
+                    'error' => $app === 'scor' ? 'Forbidden - kein Zugriff auf SCOR' : 'Forbidden - kein Zugriff auf FLOW',
+                    'code' => 'app_access_denied',
+                    'app' => $app,
+                ], 403);
             }
 
             Auth::login($user);

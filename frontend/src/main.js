@@ -316,15 +316,10 @@ axios.interceptors.request.use(config => {
 axios.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 403) {
-            // Store error message for display
-            const errorMessage = error.response.data?.error || 'Zugriff verweigert'
-            sessionStorage.setItem('unauthorized_error', errorMessage)
-
-            // Only redirect if not already on unauthorized page
+        if (error.response?.status === 403 && error.response?.data?.code === 'app_access_denied') {
+            const app = error.response.data?.app === 'scor' ? 'scor' : 'flow'
             if (window.location.pathname !== '/unauthorized') {
-                // Redirect to unauthorized page
-                window.location.href = '/unauthorized?error=' + encodeURIComponent(errorMessage)
+                window.location.href = '/unauthorized?app=' + app
             }
         }
         return Promise.reject(error)
