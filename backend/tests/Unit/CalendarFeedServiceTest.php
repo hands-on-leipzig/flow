@@ -52,6 +52,44 @@ class CalendarFeedServiceTest extends TestCase
         $this->assertSame('LOCAL', CalendarFeedService::environmentLabel());
     }
 
+    public function test_subscription_base_uses_handson_tools_and_keeps_local_request_host(): void
+    {
+        config(['app.public_url' => 'https://handson.tools']);
+        $this->assertSame(
+            'https://handson.tools',
+            CalendarFeedService::subscriptionBase('https://flow.hands-on-technology.org')
+        );
+
+        config(['app.public_url' => 'https://dev.handson.tools']);
+        $this->assertSame(
+            'https://dev.handson.tools',
+            CalendarFeedService::subscriptionBase('https://dev.flow.hands-on-technology.org')
+        );
+
+        config(['app.public_url' => 'http://localhost:5173']);
+        $this->assertSame(
+            'https://flow.hands-on-technology.org',
+            CalendarFeedService::subscriptionBase('https://flow.hands-on-technology.org')
+        );
+    }
+
+    public function test_vevent_url_and_zeitplan_use_the_public_base(): void
+    {
+        config(['app.public_url' => 'https://handson.tools']);
+        $this->insertEvent([
+            'link' => 'https://flow.hands-on-technology.org/2025/aachen',
+        ]);
+        $this->mockDraht(ok: true, data: CalendarFeedService::emptyDrahtData());
+
+        app(CalendarFeedService::class)->rebuild(1);
+        $vevent = EventCalendar::query()->where('event', 1)->value('vevent');
+
+        $this->assertStringContainsString('URL:https://handson.tools/2025/aachen', $vevent);
+        $this->assertStringContainsString('Zeitplan: https://handson.tools/2025/aachen', $vevent);
+        $this->assertStringContainsString('UID:event-1@flow.hands-on-technology.org', $vevent);
+        $this->assertStringNotContainsString('flow.hands-on-technology.org/2025/aachen', $vevent);
+    }
+
     public function test_rebuild_safely_does_not_throw_when_event_is_missing(): void
     {
         app(CalendarFeedService::class)->rebuildSafely(999999);
