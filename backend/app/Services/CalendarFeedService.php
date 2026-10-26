@@ -436,6 +436,15 @@ class CalendarFeedService
         return 'DEV';
     }
 
+    /**
+     * Abo-URL host. Vanity public_url (handson.tools and its subdomains) wins;
+     * a laptop keeps the request host, because Vite does not serve the ICS.
+     */
+    public static function subscriptionBase(string $requestBase): string
+    {
+        return self::vanityBase() ?? rtrim($requestBase, '/');
+    }
+
     public static function uidHost(): string
     {
         $host = (string) (parse_url((string) config('app.url'), PHP_URL_HOST) ?? '');
@@ -505,10 +514,11 @@ class CalendarFeedService
         }
 
         $drahtData = is_array($fetched['data'] ?? null) ? $fetched['data'] : self::emptyDrahtData();
+        $planUrl = $this->publicEventUrl($event);
         $payload = PublicSchedulePayload::from($event, $drahtData, 1, null);
         $description = IcsDescription::fromPublicPayload(
             $payload,
-            $this->string($event->link),
+            $planUrl,
             $this->programDisplayNames($event)
         );
         $cancelled = false;
@@ -527,7 +537,7 @@ class CalendarFeedService
             'sequence' => $sequence,
             'description' => $description,
             'location' => self::locationFromDraht($drahtData['address'] ?? null),
-            'url' => $this->string($event->link) !== '' ? $this->string($event->link) : null,
+            'url' => $planUrl,
             'cancelled' => $cancelled,
             'environmentLabel' => self::environmentLabel(),
         ]);
@@ -605,6 +615,41 @@ class CalendarFeedService
     private function slug(Event $event): string
     {
         return $this->string($event->slug);
+    }
+
+    /**
+     * Zeitplan and URL use the public vanity host. The stored link keeps its path,
+     * including a past-season year prefix. UID stays on the FLOW host.
+     */
+    private function publicEventUrl(Event $event): ?string
+    {
+        $link = $this->string($event->link);
+        $base = self::vanityBase();
+        if ($base === null) {
+            return $link !== '' ? $link : null;
+        }
+
+        $path = $link !== '' ? (string) (parse_url($link, PHP_URL_PATH) ?? '') : '';
+        if ($path === '' || $path === '/') {
+            $slug = $this->slug($event);
+            $path = $slug !== '' ? '/'.$slug : '';
+        }
+        if ($path === '' || ! str_starts_with($path, '/')) {
+            return $link !== '' ? $link : null;
+        }
+
+        return $base.$path;
+    }
+
+    private static function vanityBase(): ?string
+    {
+        $public = rtrim((string) config('app.public_url', ''), '/');
+        $host = strtolower((string) (parse_url($public, PHP_URL_HOST) ?? ''));
+        if ($host === 'handson.tools' || str_ends_with($host, '.handson.tools')) {
+            return $public;
+        }
+
+        return null;
     }
 
     private function string(mixed $value): string
