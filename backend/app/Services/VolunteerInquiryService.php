@@ -333,7 +333,16 @@ class VolunteerInquiryService
 
         $userIds = DB::table('user_regional_partner')
             ->where('regional_partner', $rpId)
+            ->where('source', \App\Support\FlowAccess::SOURCE_DRAHT)
+            ->where('can_flow', true)
             ->pluck('user');
+
+        $eventUserIds = DB::table('event_user_access')
+            ->where('event', $event->id)
+            ->where('can_flow', true)
+            ->pluck('user');
+
+        $userIds = $userIds->merge($eventUserIds)->unique()->values();
 
         if ($userIds->isEmpty()) {
             return [];

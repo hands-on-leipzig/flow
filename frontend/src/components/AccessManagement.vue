@@ -8,14 +8,19 @@ import NoticePane from '@/components/molecules/NoticePane.vue'
 
 defineOptions({name: 'AccessManagement'})
 
-type Partner = {
+type Permissions = {
+  can_flow: boolean
+  can_scor: boolean
+}
+
+type Partner = Permissions & {
   id: number
   name: string
   region?: string | null
   source?: string | null
 }
 
-type AccessUser = {
+type AccessUser = Permissions & {
   user_id: number
   name: string | null
   email: string | null
@@ -23,6 +28,33 @@ type AccessUser = {
   source: string
   granted_by_name: string | null
   is_self: boolean
+}
+
+type Invitation = Permissions & {
+  id: number
+  email: string
+  invited_at: string | null
+  expires_at: string | null
+  invited_by_name: string | null
+}
+
+type AccessLogEntry = {
+  id: number
+  created_at: string | null
+  event_name: string | null
+  action: string
+  actor_name: string | null
+  target_name: string | null
+  target_email: string | null
+  can_flow: boolean | null
+  can_scor: boolean | null
+}
+
+type AccessPayload = {
+  users?: AccessUser[]
+  invitations?: Invitation[]
+  log?: AccessLogEntry[]
+  can_manage?: boolean
 }
 
 type EventRow = {
@@ -42,13 +74,6 @@ type SeasonGroup = {
   events: EventRow[]
 }
 
-type SearchUser = {
-  id: number
-  name: string | null
-  email: string | null
-  display_name: string
-}
-
 const eventStore = useEventStore()
 const loading = ref(true)
 const error = ref('')
@@ -58,14 +83,21 @@ const events = ref<EventRow[]>([])
 
 const shareEventId = ref<number | null>(null)
 const accessUsers = ref<AccessUser[]>([])
+const invitations = ref<Invitation[]>([])
+const accessLog = ref<AccessLogEntry[]>([])
+const canManage = ref(false)
 const usersLoading = ref(false)
 
-const grantQuery = ref('')
-const grantResults = ref<SearchUser[]>([])
-const grantSelected = ref<SearchUser | null>(null)
+const inviteEmail = ref('')
+const inviteFlow = ref(true)
+const inviteScor = ref(false)
 const grantBusy = ref(false)
-const showGrantDropdown = ref(false)
-let searchTimer: ReturnType<typeof setTimeout> | undefined
+
+const canInvite = computed(() =>
+    !!shareEventId.value
+    && inviteEmail.value.includes('@')
+    && (inviteFlow.value || inviteScor.value)
+)
 
 const shareEvent = computed(() =>
     events.value.find((e) => e.id === shareEventId.value) ?? null
@@ -100,91 +132,117 @@ async function loadOverview() {
   }
 }
 
+function applyAccess(data: AccessPayload) {
+  accessUsers.value = data.users || []
+  invitations.value = data.invitations || []
+  accessLog.value = data.log || []
+  canManage.value = !!data.can_manage
+}
+
 async function loadEventUsers() {
   if (!shareEventId.value) {
-    accessUsers.value = []
+    applyAccess({})
     return
   }
   usersLoading.value = true
   try {
     const {data} = await axios.get(`/user/access/events/${shareEventId.value}/users`)
-    accessUsers.value = data.users || []
+    applyAccess(data)
   } catch (e: any) {
-    accessUsers.value = []
+    applyAccess({})
     showGlassToast(e?.response?.data?.error || 'Accounts konnten nicht geladen werden.', 'error')
   } finally {
     usersLoading.value = false
   }
 }
 
-function onSearchInput() {
-  grantSelected.value = null
-  if (searchTimer) clearTimeout(searchTimer)
-  const q = grantQuery.value.trim()
-  if (q.length < 2) {
-    grantResults.value = []
-    showGrantDropdown.value = false
-    return
-  }
-  searchTimer = setTimeout(async () => {
-    try {
-      const {data} = await axios.get('/user/access/users', {params: {q}})
-      grantResults.value = data.users || []
-      showGrantDropdown.value = grantResults.value.length > 0
-    } catch {
-      grantResults.value = []
-      showGrantDropdown.value = false
-    }
-  }, 220)
-}
-
-function selectGrantUser(user: SearchUser) {
-  grantSelected.value = user
-  grantQuery.value = user.display_name
-  showGrantDropdown.value = false
-}
-
-async function grantAccess() {
-  if (!shareEventId.value || !grantSelected.value) {
-    showGlassToast('Bitte Veranstaltung und Account wählen.', 'info')
+async function inviteByEmail() {
+  if (!canInvite.value) {
+    showGlassToast('Bitte E-Mail-Adresse und mindestens eine Berechtigung wählen.', 'info')
     return
   }
   grantBusy.value = true
   try {
     const {data} = await axios.post('/user/access/grants', {
-      user_id: grantSelected.value.id,
       event_id: shareEventId.value,
+      email: inviteEmail.value.trim(),
+      can_flow: inviteFlow.value,
+      can_scor: inviteScor.value,
     })
-    accessUsers.value = data.users || []
-    grantQuery.value = ''
-    grantSelected.value = null
-    grantResults.value = []
-    showGlassToast('Zugriff gewährt.', 'success')
+    applyAccess(data)
+    inviteEmail.value = ''
+    showGlassToast(
+        data.mail_sent === false
+            ? 'Einladung gespeichert. Die E-Mail konnte nicht gesendet werden.'
+            : 'Einladung gespeichert.',
+        data.mail_sent === false ? 'error' : 'success',
+    )
   } catch (e: any) {
-    showGlassToast(e?.response?.data?.error || 'Zugriff konnte nicht gewährt werden.', 'error')
+    showGlassToast(e?.response?.data?.error || 'Einladung fehlgeschlagen', 'error')
   } finally {
     grantBusy.value = false
   }
 }
 
-async function revokeAccess(row: AccessUser) {
-  if (row.source === 'draht' || row.is_self || !shareEventId.value) return
+type Target = {user_id: number} | {invitation_id: number}
+
+async function setPermission(target: Target, current: Permissions, key: keyof Permissions, value: boolean) {
+  const next = {...current, [key]: value}
+  if (!next.can_flow && !next.can_scor) {
+    showGlassToast('Mindestens eine Berechtigung muss bleiben.', 'info')
+    await loadEventUsers()
+    return
+  }
+  try {
+    const {data} = await axios.patch('/user/access/grants', {
+      ...target,
+      event_id: shareEventId.value,
+      ...next,
+    })
+    applyAccess(data)
+  } catch (e: any) {
+    showGlassToast(e?.response?.data?.error || 'Speichern fehlgeschlagen', 'error')
+    await loadEventUsers()
+  }
+}
+
+async function revoke(target: Target, message: string) {
+  if (!shareEventId.value) return
   try {
     const {data} = await axios.delete('/user/access/grants', {
-      data: {
-        user_id: row.user_id,
-        event_id: shareEventId.value,
-      },
+      data: {...target, event_id: shareEventId.value},
     })
-    accessUsers.value = data.users || []
-    showGlassToast('Zugriff entfernt.', 'success')
+    applyAccess(data)
+    showGlassToast(message, 'success')
   } catch (e: any) {
-    showGlassToast(e?.response?.data?.error || 'Zugriff konnte nicht entfernt werden.', 'error')
+    showGlassToast(e?.response?.data?.error || 'Entfernen fehlgeschlagen', 'error')
   }
+}
+
+function canEditRow(row: AccessUser) {
+  return canManage.value && row.source === 'manual' && !row.is_self
 }
 
 function sourceLabel(source: string) {
   return source === 'manual' ? 'Einladung' : 'Draht'
+}
+
+function permissionLabels(p: {can_flow?: boolean | null; can_scor?: boolean | null}) {
+  return [p.can_flow && 'FLOW', p.can_scor && 'SCOR'].filter(Boolean) as string[]
+}
+
+const actionLabels: Record<string, string> = {
+  invited: 'Einladung',
+  invitation_updated: 'Einladung geändert',
+  invitation_withdrawn: 'Einladung zurückgezogen',
+  claimed: 'Angenommen',
+  expired: 'Abgelaufen',
+  permissions_updated: 'Rechte geändert',
+  revoked: 'Zugriff entfernt',
+}
+
+function actionLabel(action: string) {
+  return actionLabels[action] || action
 }
 
 watch(shareEventId, (id, prev) => {
@@ -202,7 +260,7 @@ onMounted(async () => {
     <div>
       <h1 class="text-2xl font-bold tracking-tight">Zugangsverwaltung</h1>
       <p class="mt-1 text-sm text-[var(--color-text-muted)]">
-        Deine Regionalpartner, die Veranstaltungen dazu — und wen du einladen kannst.
+        Deine Regionalpartner, die Veranstaltungen dazu — und wen du pro Veranstaltung einladen kannst.
       </p>
     </div>
 
@@ -240,6 +298,13 @@ onMounted(async () => {
               <span class="glass-chip !px-2 !py-0.5 !text-xs shrink-0">{{ sourceLabel(p.source || 'draht') }}</span>
             </div>
             <p v-if="p.region" class="text-xs text-[var(--color-text-muted)] mt-0.5">{{ p.region }}</p>
+            <div class="mt-1.5 flex gap-1">
+              <span
+                  v-for="label in permissionLabels(p)"
+                  :key="label"
+                  class="glass-chip !px-2 !py-0.5 !text-xs"
+              >{{ label }}</span>
+            </div>
           </li>
         </ul>
       </section>
@@ -300,7 +365,7 @@ onMounted(async () => {
         <div>
           <h2 class="font-bold text-lg">Zugriff teilen</h2>
           <p class="text-sm text-[var(--color-text-muted)]">
-            Wähle eine Veranstaltung und lade einen anderen FLOW-Account ein.
+            Wähle eine Veranstaltung und lade eine Person per E-Mail ein. Der Zugang gilt nur für diese Veranstaltung.
           </p>
         </div>
 
@@ -332,55 +397,51 @@ onMounted(async () => {
           </label>
 
           <p v-if="shareEvent" class="text-xs text-[var(--color-text-muted)]">
-            Eingeladene Personen können diese Veranstaltung in FLOW öffnen
-            <span v-if="shareEvent.regional_partner_name">
-              (Regionalpartner {{ shareEvent.regional_partner_name }})
-            </span>.
+            Eingeladene Personen können nur diese Veranstaltung öffnen. Der Zugang gilt nicht für andere Veranstaltungen des Regionalpartners.
           </p>
 
-          <div class="rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg-muted)_40%,#fff)] p-3 space-y-2">
+          <div
+              v-if="canManage"
+              class="rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg-muted)_40%,#fff)] p-3 space-y-2"
+          >
             <p class="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
-              Account einladen
+              Person einladen
             </p>
             <p class="text-xs text-[var(--color-text-muted)]">
-              Die Person muss sich mindestens einmal bei FLOW angemeldet haben.
+              Die Person braucht ein Hands-on-Login mit bestätigter E-Mail-Adresse.
+              Die Einladung gilt 30 Tage und nur für die gewählte Veranstaltung.
+              Eine E-Mail geht an die eingeladene Adresse.
             </p>
-            <div class="flex flex-col sm:flex-row gap-2">
-              <div class="relative flex-1">
-                <input
-                    v-model="grantQuery"
-                    type="search"
-                    class="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm"
-                    placeholder="Name oder E-Mail suchen…"
-                    autocomplete="off"
-                    @input="onSearchInput"
-                    @focus="showGrantDropdown = grantResults.length > 0"
-                />
-                <ul
-                    v-if="showGrantDropdown"
-                    class="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-lg border border-[var(--color-border)] bg-white shadow-lg"
-                >
-                  <li v-for="u in grantResults" :key="u.id">
-                    <button
-                        type="button"
-                        class="w-full px-3 py-2 text-left text-sm hover:bg-[var(--color-bg-muted)]"
-                        @click="selectGrantUser(u)"
-                    >
-                      {{ u.display_name }}
-                    </button>
-                  </li>
-                </ul>
-              </div>
+            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+              <input
+                  v-model="inviteEmail"
+                  type="email"
+                  class="flex-1 rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm"
+                  placeholder="name@beispiel.de"
+                  autocomplete="off"
+                  @keydown.enter.prevent="inviteByEmail"
+              />
+              <label class="inline-flex items-center gap-1.5 text-sm">
+                <input v-model="inviteFlow" type="checkbox" class="accent-gray-600"/>
+                FLOW
+              </label>
+              <label class="inline-flex items-center gap-1.5 text-sm">
+                <input v-model="inviteScor" type="checkbox" class="accent-gray-600"/>
+                SCOR
+              </label>
               <button
                   type="button"
                   class="glass-btn-accent !px-4 !py-2 !text-sm shrink-0"
-                  :disabled="grantBusy || !grantSelected || !shareEventId"
-                  @click="grantAccess"
+                  :disabled="grantBusy || !canInvite"
+                  @click="inviteByEmail"
               >
                 {{ grantBusy ? '…' : 'Einladen' }}
               </button>
             </div>
           </div>
+          <p v-else class="text-xs text-[var(--color-text-muted)]">
+            Einladen und Berechtigungen ändern können nur Kontaktpersonen aus Draht.
+          </p>
 
           <div>
             <h3 class="text-sm font-bold mb-2">
@@ -390,13 +451,13 @@ onMounted(async () => {
               </span>
             </h3>
             <div v-if="usersLoading" class="text-sm text-[var(--color-text-muted)]">Lade…</div>
-            <p v-else-if="!accessUsers.length" class="text-sm text-[var(--color-text-muted)]">
+            <p v-else-if="!accessUsers.length && !invitations.length" class="text-sm text-[var(--color-text-muted)]">
               Noch keine weiteren Accounts.
             </p>
             <ul v-else class="divide-y divide-[var(--color-border)]">
               <li
                   v-for="row in accessUsers"
-                  :key="row.user_id"
+                  :key="`u-${row.user_id}`"
                   class="flex flex-wrap items-center justify-between gap-3 py-3"
               >
                 <div class="min-w-0">
@@ -412,18 +473,105 @@ onMounted(async () => {
                     </template>
                   </p>
                 </div>
-                <button
-                    v-if="row.source === 'manual' && !row.is_self"
-                    type="button"
-                    class="glass-btn-secondary !px-3 !py-1.5 !text-sm text-red-700"
-                    @click="revokeAccess(row)"
-                >
-                  Entfernen
-                </button>
-                <span
-                    v-else-if="row.source === 'draht'"
-                    class="glass-chip !px-2 !py-0.5 !text-xs"
-                >Draht</span>
+                <div class="flex items-center gap-3">
+                  <template v-if="canEditRow(row)">
+                    <label class="inline-flex items-center gap-1.5 text-sm">
+                      <input
+                          type="checkbox"
+                          class="accent-gray-600"
+                          :checked="row.can_flow"
+                          @change="setPermission({user_id: row.user_id}, row, 'can_flow', ($event.target as HTMLInputElement).checked)"
+                      />
+                      FLOW
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 text-sm">
+                      <input
+                          type="checkbox"
+                          class="accent-gray-600"
+                          :checked="row.can_scor"
+                          @change="setPermission({user_id: row.user_id}, row, 'can_scor', ($event.target as HTMLInputElement).checked)"
+                      />
+                      SCOR
+                    </label>
+                    <button
+                        type="button"
+                        class="glass-btn-secondary !px-3 !py-1.5 !text-sm text-red-700"
+                        @click="revoke({user_id: row.user_id}, 'Zugriff entfernt.')"
+                    >
+                      Entfernen
+                    </button>
+                  </template>
+                  <template v-else>
+                    <span
+                        v-for="label in permissionLabels(row)"
+                        :key="label"
+                        class="glass-chip !px-2 !py-0.5 !text-xs"
+                    >{{ label }}</span>
+                  </template>
+                </div>
+              </li>
+              <li
+                  v-for="inv in invitations"
+                  :key="`i-${inv.id}`"
+                  class="flex flex-wrap items-center justify-between gap-3 py-3"
+              >
+                <div class="min-w-0">
+                  <p class="font-semibold truncate">{{ inv.email }}</p>
+                  <p class="text-xs text-[var(--color-text-subtle)] mt-0.5">
+                    Eingeladen, wartet auf Anmeldung
+                    <template v-if="inv.expires_at"> bis {{ dayjs(inv.expires_at).format('DD.MM.YYYY') }}</template>
+                    <template v-if="inv.invited_by_name"> · von {{ inv.invited_by_name }}</template>
+                  </p>
+                </div>
+                <div class="flex items-center gap-3">
+                  <label class="inline-flex items-center gap-1.5 text-sm">
+                    <input
+                        type="checkbox"
+                        class="accent-gray-600"
+                        :checked="inv.can_flow"
+                        @change="setPermission({invitation_id: inv.id}, inv, 'can_flow', ($event.target as HTMLInputElement).checked)"
+                    />
+                    FLOW
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-sm">
+                    <input
+                        type="checkbox"
+                        class="accent-gray-600"
+                        :checked="inv.can_scor"
+                        @change="setPermission({invitation_id: inv.id}, inv, 'can_scor', ($event.target as HTMLInputElement).checked)"
+                    />
+                    SCOR
+                  </label>
+                  <button
+                      type="button"
+                      class="glass-btn-secondary !px-3 !py-1.5 !text-sm text-red-700"
+                      @click="revoke({invitation_id: inv.id}, 'Einladung zurückgezogen.')"
+                  >
+                    Zurückziehen
+                  </button>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div v-if="canManage">
+            <h3 class="text-sm font-bold mb-2">Protokoll</h3>
+            <p v-if="!accessLog.length" class="text-sm text-[var(--color-text-muted)]">
+              Noch keine Einträge für diese Veranstaltung.
+            </p>
+            <ul v-else class="divide-y divide-[var(--color-border)]">
+              <li v-for="entry in accessLog" :key="entry.id" class="py-2 text-sm">
+                <p>
+                  <span class="font-semibold">{{ actionLabel(entry.action) }}</span>
+                  <span class="text-[var(--color-text-muted)]">
+                    · {{ entry.target_name || entry.target_email || '—' }}
+                  </span>
+                </p>
+                <p class="text-xs text-[var(--color-text-subtle)]">
+                  {{ entry.created_at ? dayjs(entry.created_at).format('DD.MM.YYYY HH:mm') : '' }}
+                  <template v-if="entry.actor_name"> · {{ entry.actor_name }}</template>
+                  <template v-if="permissionLabels(entry).length"> · {{ permissionLabels(entry).join(', ') }}</template>
+                </p>
               </li>
             </ul>
           </div>

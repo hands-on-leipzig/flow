@@ -175,17 +175,13 @@ class EventController extends Controller
             ->orderBy('name');
 
         if (!$isAdmin) {
-            $rpIds = $user->regionalPartners()
-                ->pluck('regional_partner.id')
-                ->filter()
-                ->values()
-                ->all();
+            $eventIds = $user->accessibleEventIds(\App\Support\FlowAccess::PERMISSION_FLOW);
 
-            if ($rpIds === []) {
+            if ($eventIds === []) {
                 return response()->json([]);
             }
 
-            $eventsQuery->whereIn('regional_partner', $rpIds);
+            $eventsQuery->whereIn('id', $eventIds);
         }
 
         $events = $eventsQuery->get();

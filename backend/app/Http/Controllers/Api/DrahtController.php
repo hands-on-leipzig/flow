@@ -1089,6 +1089,8 @@ class DrahtController extends Controller
                         'user' => $user->id,
                         'regional_partner' => $rpId,
                         'source' => $sourceDraht,
+                        'can_flow' => true,
+                        'can_scor' => true,
                         'granted_at' => now(),
                         'granted_by' => null,
                     ];
@@ -1110,6 +1112,8 @@ class DrahtController extends Controller
                     ->whereIn('regional_partner', $toPromote)
                     ->update([
                         'source' => $sourceDraht,
+                        'can_flow' => true,
+                        'can_scor' => true,
                         'granted_by' => null,
                     ]);
             }

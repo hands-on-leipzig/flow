@@ -56,6 +56,7 @@ use App\Http\Controllers\Api\PublicVolunteerOpeningsController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\ScorAdminController;
 use App\Http\Controllers\Api\SeasonPlanBulkController;
 use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\SlugRegistryController;
@@ -201,8 +202,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/user/me', [UserAccessController::class, 'me']);
     Route::get('/user/access', [UserAccessController::class, 'overview']);
     Route::get('/user/access/events/{eventId}/users', [UserAccessController::class, 'eventUsers']);
-    Route::get('/user/access/users', [UserAccessController::class, 'searchUsers']);
     Route::post('/user/access/grants', [UserAccessController::class, 'grant']);
+    Route::patch('/user/access/grants', [UserAccessController::class, 'update']);
     Route::delete('/user/access/grants', [UserAccessController::class, 'revoke']);
     Route::get('/user/regional-partners', function (Request $request) {
         $user = $request->user();
@@ -461,6 +462,9 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/reorder', [MParameterController::class, 'reorderMparameter']);  // !!! Reihenfolge in dieser Liste ist wichtig
         Route::post('/{id}', [MParameterController::class, 'updateMparameter']);
     });
+
+    Route::get('/admin/scor/events', [ScorAdminController::class, 'events']);
+    Route::get('/admin/scor/log', [ScorAdminController::class, 'log']);
 
     Route::prefix('admin/user-regional-partners')->group(function () {
         Route::get('/', [UserRegionalPartnerController::class, 'index']);

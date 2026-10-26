@@ -17,6 +17,7 @@ import SlugRegistryAdmin from '@/components/molecules/SlugRegistryAdmin.vue'
 import AdminWartung from '@/components/molecules/AdminWartung.vue'
 import PlanQualitaet from '@/components/molecules/PlanQualitaet.vue'
 import Enrollments from '@/components/molecules/Enrollments.vue'
+import ScorAdmin from '@/components/molecules/ScorAdmin.vue'
 import Cockpit from '@/components/molecules/Cockpit.vue'
 import HelpAdmin from '@/components/molecules/HelpAdmin.vue'
 import {
@@ -163,6 +164,10 @@ onMounted(() => {
 
     <div v-else-if="activeTab === 'enrollments'">
       <Enrollments/>
+    </div>
+
+    <div v-else-if="activeTab === 'scor'">
+      <ScorAdmin/>
     </div>
 
     <div v-else-if="activeTab === 'wartung'">

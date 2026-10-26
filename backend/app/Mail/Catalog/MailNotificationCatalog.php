@@ -4,6 +4,7 @@ namespace App\Mail\Catalog;
 
 use App\Mail\AdminTestMail;
 use App\Mail\PublicOtpMail;
+use App\Mail\EventAccessInvitationMail;
 use App\Mail\VolunteerInquiryAcceptedMail;
 use App\Mail\VolunteerInquiryDeclinedMail;
 use App\Mail\VolunteerInquiryPlannerMail;
@@ -50,7 +51,7 @@ class MailNotificationCatalog
                 key: 'volunteer-inquiry-planner',
                 name: 'Neue Helfer:innen-Anfrage',
                 trigger: 'Über HERO geht eine Anfrage für eine offene Rolle ein.',
-                audience: 'FLOW-Nutzer:innen des Regionalpartners',
+                audience: 'Personen mit FLOW-Zugang zu dieser Veranstaltung',
                 status: MailNotificationDefinition::STATUS_LIVE,
                 sample: fn () => new VolunteerInquiryPlannerMail(
                     eventName: self::SAMPLE_EVENT,
@@ -77,6 +78,19 @@ class MailNotificationCatalog
                 status: MailNotificationDefinition::STATUS_LIVE,
                 sample: fn () => new VolunteerInquiryDeclinedMail(
                     eventName: self::SAMPLE_EVENT,
+                ),
+            ),
+            new MailNotificationDefinition(
+                key: 'event-access-invitation',
+                name: 'Einladung zu einer Veranstaltung',
+                trigger: 'Eine Kontaktperson aus Draht lädt eine E-Mail-Adresse zu einer Veranstaltung ein.',
+                audience: 'Die eingeladene E-Mail-Adresse',
+                status: MailNotificationDefinition::STATUS_LIVE,
+                sample: fn () => new EventAccessInvitationMail(
+                    eventName: self::SAMPLE_EVENT,
+                    permissions: ['FLOW', 'SCOR'],
+                    loginUrl: 'https://flow.hands-on-technology.org',
+                    expiresOn: '21.11.2026',
                 ),
             ),
         ];

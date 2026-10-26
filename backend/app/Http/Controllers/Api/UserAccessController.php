@@ -5,18 +5,19 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Models\User;
+use App\Services\EventAccessService;
 use App\Services\EventTitleService;
 use App\Support\FlowAccess;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class UserAccessController extends Controller
 {
     public function __construct(
         private EventTitleService $eventTitles,
+        private EventAccessService $access,
     ) {}
 
     /**
@@ -44,17 +45,7 @@ class UserAccessController extends Controller
             }
         }
 
-        $partners = $user->regionalPartners()
-            ->withPivot(['source', 'granted_at', 'granted_by'])
-            ->orderBy('regional_partner.name')
-            ->get()
-            ->map(fn ($rp) => [
-                'id' => $rp->id,
-                'name' => $rp->name,
-                'region' => $rp->region,
-                'source' => $rp->pivot->source ?? FlowAccess::SOURCE_DRAHT,
-                'granted_at' => $rp->pivot->granted_at,
-            ]);
+        $partners = $this->partnersOf($user);
 
         return response()->json([
             'user' => [
@@ -83,18 +74,15 @@ class UserAccessController extends Controller
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
-        $myPartners = $user->regionalPartners()
-            ->withPivot(['source', 'granted_at', 'granted_by'])
-            ->orderBy('regional_partner.name')
-            ->get();
+        $myPartners = $this->partnersOf($user);
 
-        $partnerIds = $myPartners->pluck('id')->all();
+        $eventIds = $user->accessibleEventIds(FlowAccess::PERMISSION_FLOW);
         $eventsBySeason = [];
         $flatEvents = [];
 
-        if ($partnerIds !== []) {
+        if ($eventIds !== []) {
             $events = Event::query()
-                ->whereIn('regional_partner', $partnerIds)
+                ->whereIn('id', $eventIds)
                 ->with(['seasonRel', 'levelRel', 'regionalPartner'])
                 ->orderBy('date')
                 ->get();
@@ -146,13 +134,7 @@ class UserAccessController extends Controller
         }
 
         return response()->json([
-            'my_partners' => $myPartners->map(fn ($rp) => [
-                'id' => $rp->id,
-                'name' => $rp->name,
-                'region' => $rp->region,
-                'source' => $rp->pivot->source ?? FlowAccess::SOURCE_DRAHT,
-                'granted_at' => $rp->pivot->granted_at,
-            ])->values(),
+            'my_partners' => $myPartners,
             'events_by_season' => $eventsBySeason,
             'events' => $flatEvents,
             'selected_event_id' => $selectedEventId ?: null,
@@ -160,7 +142,7 @@ class UserAccessController extends Controller
     }
 
     /**
-     * Accounts that can access a specific event (via its regional partner).
+     * Accounts and pending invitations for a specific event's regional partner.
      */
     public function eventUsers(Request $request, int $eventId): JsonResponse
     {
@@ -186,45 +168,13 @@ class UserAccessController extends Controller
                 'regional_partner_id' => (int) $event->regional_partner,
                 'regional_partner_name' => $event->regionalPartner?->name,
             ], $event),
-            'users' => $this->usersForPartner((int) $event->regional_partner),
+            ...$this->accessPayload($user, (int) $event->id, (int) $event->regional_partner),
         ]);
     }
 
-    public function searchUsers(Request $request): JsonResponse
-    {
-        $user = $request->user() ?? Auth::user();
-        if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-
-        $q = trim((string) $request->query('q', ''));
-        if (mb_strlen($q) < 2) {
-            return response()->json(['users' => []]);
-        }
-
-        $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
-
-        $users = User::query()
-            ->where('id', '!=', $user->id)
-            ->where(function ($query) use ($like) {
-                $query->where('name', 'like', $like)
-                    ->orWhere('email', 'like', $like)
-                    ->orWhere('nick', 'like', $like);
-            })
-            ->orderBy('name')
-            ->limit(20)
-            ->get(['id', 'name', 'email', 'nick'])
-            ->map(fn (User $u) => [
-                'id' => $u->id,
-                'name' => $u->name,
-                'email' => $u->email,
-                'nick' => $u->nick,
-                'display_name' => trim(($u->name ?: 'Unbekannt') . ($u->email ? " ({$u->email})" : '')),
-            ]);
-
-        return response()->json(['users' => $users]);
-    }
-
+    /**
+     * Invite an SSO account by email to this event only.
+     */
     public function grant(Request $request): JsonResponse
     {
         $actor = $request->user() ?? Auth::user();
@@ -233,58 +183,109 @@ class UserAccessController extends Controller
         }
 
         $validated = $request->validate([
-            'user_id' => 'required|integer|exists:user,id',
             'event_id' => 'required|integer|exists:event,id',
+            'email' => 'required|email|max:255',
+            'can_flow' => 'required|boolean',
+            'can_scor' => 'required|boolean',
         ]);
 
-        $event = Event::find($validated['event_id']);
-        if (!$event) {
-            return response()->json(['error' => 'Veranstaltung nicht gefunden'], 404);
+        $eventId = (int) $validated['event_id'];
+        $regionalPartnerId = $this->managedRegionalPartner($actor, $eventId);
+        if ($regionalPartnerId instanceof JsonResponse) {
+            return $regionalPartnerId;
         }
 
-        $regionalPartnerId = (int) $event->regional_partner;
-
-        if (!$actor->hasEventAccess((int) $event->id)) {
-            return response()->json(['error' => 'Forbidden — kein Zugriff auf diese Veranstaltung'], 403);
+        if (!$validated['can_flow'] && !$validated['can_scor']) {
+            return response()->json(['error' => 'Bitte wähle mindestens eine Berechtigung.'], 422);
         }
 
-        if ((int) $validated['user_id'] === (int) $actor->id) {
-            return response()->json(['error' => 'Du hast bereits Zugriff.'], 422);
+        $email = EventAccessService::normalizeEmail($validated['email']);
+
+        if ($this->access->emailHasAccess($eventId, $email)) {
+            return response()->json(['error' => 'Diese E-Mail-Adresse hat bereits Zugriff auf diese Veranstaltung.'], 409);
         }
 
-        $existing = DB::table('user_regional_partner')
-            ->where('user', $validated['user_id'])
-            ->where('regional_partner', $regionalPartnerId)
-            ->first();
-
-        if ($existing) {
-            return response()->json([
-                'error' => 'Zugriff besteht bereits',
-                'source' => $existing->source ?? FlowAccess::SOURCE_DRAHT,
-            ], 409);
+        $pending = DB::table('event_invitation')
+            ->where('event', $eventId)
+            ->where('email', $email)
+            ->where(function ($query) {
+                $query->whereNull('expires_at')->orWhere('expires_at', '>=', now());
+            })
+            ->exists();
+        if ($pending) {
+            return response()->json(['error' => 'Für diese E-Mail-Adresse gibt es schon eine Einladung zu dieser Veranstaltung.'], 409);
         }
 
-        // Access in FLOW is modelled per regional partner (covers that partner's events).
-        DB::table('user_regional_partner')->insert([
-            'user' => $validated['user_id'],
-            'regional_partner' => $regionalPartnerId,
-            'source' => FlowAccess::SOURCE_MANUAL,
-            'granted_at' => now(),
-            'granted_by' => $actor->id,
-        ]);
-
-        Log::info('User access grant created via event', [
-            'user_id' => $validated['user_id'],
-            'event_id' => $event->id,
-            'regional_partner_id' => $regionalPartnerId,
-            'granted_by' => $actor->id,
-        ]);
+        $created = $this->access->invite(
+            $actor,
+            $eventId,
+            $regionalPartnerId,
+            $email,
+            (bool) $validated['can_flow'],
+            (bool) $validated['can_scor'],
+        );
 
         return response()->json([
-            'message' => 'Zugriff gewährt',
-            'source' => FlowAccess::SOURCE_MANUAL,
-            'users' => $this->usersForPartner($regionalPartnerId),
+            'message' => 'Einladung gespeichert',
+            'mail_sent' => $created['mail_sent'],
+            ...$this->accessPayload($actor, $eventId, $regionalPartnerId),
         ], 201);
+    }
+
+    /**
+     * Change FLOW / SCOR permissions of a manual grant or a pending invitation.
+     */
+    public function update(Request $request): JsonResponse
+    {
+        $actor = $request->user() ?? Auth::user();
+        if (!$actor) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+
+        $validated = $request->validate([
+            'event_id' => 'required|integer|exists:event,id',
+            'user_id' => 'nullable|required_without:invitation_id|integer',
+            'invitation_id' => 'nullable|required_without:user_id|integer',
+            'can_flow' => 'required|boolean',
+            'can_scor' => 'required|boolean',
+        ]);
+
+        $eventId = (int) $validated['event_id'];
+        $regionalPartnerId = $this->managedRegionalPartner($actor, $eventId);
+        if ($regionalPartnerId instanceof JsonResponse) {
+            return $regionalPartnerId;
+        }
+
+        if (!$validated['can_flow'] && !$validated['can_scor']) {
+            return response()->json(['error' => 'Mindestens eine Berechtigung muss bleiben. Zum Entfernen bitte „Entfernen“ nutzen.'], 422);
+        }
+
+        $canFlow = (bool) $validated['can_flow'];
+        $canScor = (bool) $validated['can_scor'];
+
+        if (!empty($validated['invitation_id'])) {
+            $invitation = DB::table('event_invitation')
+                ->where('id', $validated['invitation_id'])
+                ->where('event', $eventId)
+                ->first();
+            if (!$invitation) {
+                return response()->json(['error' => 'Einladung nicht gefunden'], 404);
+            }
+
+            $this->access->updateInvitation((int) $invitation->id, $eventId, $regionalPartnerId, $actor, $canFlow, $canScor);
+        } else {
+            $grant = $this->eventGrant($actor, (int) $validated['user_id'], $eventId);
+            if ($grant instanceof JsonResponse) {
+                return $grant;
+            }
+
+            $this->access->updateGrant((int) $grant->id, $eventId, $regionalPartnerId, $actor, (int) $grant->user, $canFlow, $canScor);
+        }
+
+        return response()->json([
+            'message' => 'Berechtigungen gespeichert',
+            ...$this->accessPayload($actor, $eventId, $regionalPartnerId),
+        ]);
     }
 
     public function revoke(Request $request): JsonResponse
@@ -295,90 +296,200 @@ class UserAccessController extends Controller
         }
 
         $validated = $request->validate([
-            'user_id' => 'required|integer|exists:user,id',
             'event_id' => 'required|integer|exists:event,id',
+            'user_id' => 'nullable|required_without:invitation_id|integer',
+            'invitation_id' => 'nullable|required_without:user_id|integer',
         ]);
 
-        $event = Event::find($validated['event_id']);
-        if (!$event) {
-            return response()->json(['error' => 'Veranstaltung nicht gefunden'], 404);
+        $eventId = (int) $validated['event_id'];
+        $regionalPartnerId = $this->managedRegionalPartner($actor, $eventId);
+        if ($regionalPartnerId instanceof JsonResponse) {
+            return $regionalPartnerId;
         }
 
-        $regionalPartnerId = (int) $event->regional_partner;
+        if (!empty($validated['invitation_id'])) {
+            $invitation = DB::table('event_invitation')
+                ->where('id', $validated['invitation_id'])
+                ->where('event', $eventId)
+                ->first();
+            if (!$invitation) {
+                return response()->json(['error' => 'Einladung nicht gefunden'], 404);
+            }
 
-        if (!$actor->hasEventAccess((int) $event->id)) {
-            return response()->json(['error' => 'Forbidden'], 403);
+            $this->access->withdrawInvitation((int) $invitation->id, $eventId, $regionalPartnerId, $actor);
+        } else {
+            $grant = $this->eventGrant($actor, (int) $validated['user_id'], $eventId);
+            if ($grant instanceof JsonResponse) {
+                return $grant;
+            }
+
+            $this->access->revokeGrant(
+                (int) $grant->id,
+                $eventId,
+                $regionalPartnerId,
+                $actor,
+                (int) $grant->user,
+                (bool) $grant->can_flow,
+                (bool) $grant->can_scor,
+            );
         }
-
-        $relation = DB::table('user_regional_partner')
-            ->where('user', $validated['user_id'])
-            ->where('regional_partner', $regionalPartnerId)
-            ->first();
-
-        if (!$relation) {
-            return response()->json(['error' => 'Zuordnung nicht gefunden'], 404);
-        }
-
-        if (($relation->source ?? FlowAccess::SOURCE_DRAHT) === FlowAccess::SOURCE_DRAHT) {
-            return response()->json([
-                'error' => 'Draht-Zugänge können hier nicht entfernt werden. Bitte in Draht die Kontaktperson ändern.',
-                'source' => FlowAccess::SOURCE_DRAHT,
-            ], 409);
-        }
-
-        DB::table('user_regional_partner')
-            ->where('user', $validated['user_id'])
-            ->where('regional_partner', $regionalPartnerId)
-            ->where('source', FlowAccess::SOURCE_MANUAL)
-            ->delete();
-
-        Log::info('User access grant revoked via event', [
-            'user_id' => $validated['user_id'],
-            'event_id' => $event->id,
-            'regional_partner_id' => $regionalPartnerId,
-            'revoked_by' => $actor->id,
-        ]);
 
         return response()->json([
             'message' => 'Zugriff entfernt',
-            'users' => $this->usersForPartner($regionalPartnerId),
+            ...$this->accessPayload($actor, $eventId, $regionalPartnerId),
         ]);
+    }
+
+    /**
+     * Regional partner of the event, if the actor may manage its access.
+     */
+    private function managedRegionalPartner(User $actor, int $eventId): int|JsonResponse
+    {
+        $regionalPartnerId = (int) DB::table('event')->where('id', $eventId)->value('regional_partner');
+        if ($regionalPartnerId <= 0) {
+            return response()->json(['error' => 'Veranstaltung nicht gefunden'], 404);
+        }
+
+        if (!$actor->canManageRegionalPartner($regionalPartnerId)) {
+            return response()->json(['error' => 'Forbidden — nur Kontaktpersonen aus Draht können Zugänge verwalten.'], 403);
+        }
+
+        return $regionalPartnerId;
+    }
+
+    private function eventGrant(User $actor, int $userId, int $eventId): \stdClass|JsonResponse
+    {
+        if ($userId === (int) $actor->id) {
+            return response()->json(['error' => 'Den eigenen Zugang kannst du hier nicht ändern.'], 422);
+        }
+
+        $grant = DB::table('event_user_access')
+            ->where('user', $userId)
+            ->where('event', $eventId)
+            ->first();
+
+        if (!$grant) {
+            $draht = DB::table('user_regional_partner as urp')
+                ->join('event', 'event.regional_partner', '=', 'urp.regional_partner')
+                ->where('event.id', $eventId)
+                ->where('urp.user', $userId)
+                ->where('urp.source', FlowAccess::SOURCE_DRAHT)
+                ->exists();
+
+            if ($draht) {
+                return response()->json([
+                    'error' => 'Draht-Zugänge können hier nicht geändert werden. Bitte in Draht die Kontaktperson ändern.',
+                    'source' => FlowAccess::SOURCE_DRAHT,
+                ], 409);
+            }
+
+            return response()->json(['error' => 'Zuordnung nicht gefunden'], 404);
+        }
+
+        return $grant;
+    }
+
+    /**
+     * @return array{users: list<array<string, mixed>>, invitations: list<array<string, mixed>>, log: list<array<string, mixed>>, can_manage: bool}
+     */
+    private function accessPayload(User $viewer, int $eventId, int $regionalPartnerId): array
+    {
+        $canManage = $viewer->canManageRegionalPartner($regionalPartnerId);
+
+        return [
+            'users' => $this->usersForEvent($eventId, $regionalPartnerId),
+            'invitations' => $canManage ? $this->access->pendingForEvent($eventId) : [],
+            'log' => $canManage ? $this->access->logForEvent($eventId) : [],
+            'can_manage' => $canManage,
+        ];
     }
 
     /**
      * @return list<array<string, mixed>>
      */
-    private function usersForPartner(int $regionalPartnerId): array
+    private function partnersOf(User $user): array
     {
-        return DB::table('user_regional_partner as urp')
+        return $user->regionalPartners()
+            ->withPivot(['source', 'can_flow', 'can_scor', 'granted_at'])
+            ->orderBy('regional_partner.name')
+            ->get()
+            ->map(fn ($rp) => [
+                'id' => $rp->id,
+                'name' => $rp->name,
+                'region' => $rp->region,
+                'source' => $rp->pivot->source ?? FlowAccess::SOURCE_DRAHT,
+                'can_flow' => (bool) $rp->pivot->can_flow,
+                'can_scor' => (bool) $rp->pivot->can_scor,
+                'granted_at' => $rp->pivot->granted_at,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Draht contacts of the regional partner, plus people invited to this event.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function usersForEvent(int $eventId, int $regionalPartnerId): array
+    {
+        $draht = DB::table('user_regional_partner as urp')
             ->join('user as u', 'urp.user', '=', 'u.id')
-            ->leftJoin('user as granter', 'urp.granted_by', '=', 'granter.id')
             ->where('urp.regional_partner', $regionalPartnerId)
+            ->where('urp.source', FlowAccess::SOURCE_DRAHT)
             ->orderBy('u.name')
             ->get([
                 'u.id as user_id',
                 'u.name as user_name',
                 'u.email as user_email',
-                'u.nick as user_nick',
                 'u.last_login',
-                'urp.source',
+                'urp.can_flow',
+                'urp.can_scor',
                 'urp.granted_at',
-                'urp.granted_by',
+            ])
+            ->map(fn ($row) => $this->userRow($row, FlowAccess::SOURCE_DRAHT, null))
+            ->all();
+
+        $drahtIds = array_map(fn ($row) => (int) $row['user_id'], $draht);
+
+        $invited = DB::table('event_user_access as access')
+            ->join('user as u', 'access.user', '=', 'u.id')
+            ->leftJoin('user as granter', 'access.granted_by', '=', 'granter.id')
+            ->where('access.event', $eventId)
+            ->when($drahtIds !== [], fn ($query) => $query->whereNotIn('access.user', $drahtIds))
+            ->orderBy('u.name')
+            ->get([
+                'u.id as user_id',
+                'u.name as user_name',
+                'u.email as user_email',
+                'u.last_login',
+                'access.can_flow',
+                'access.can_scor',
+                'access.granted_at',
                 'granter.name as granted_by_name',
             ])
-            ->map(fn ($row) => [
-                'user_id' => $row->user_id,
-                'name' => $row->user_name,
-                'email' => $row->user_email,
-                'nick' => $row->user_nick,
-                'last_login' => $row->last_login,
-                'source' => $row->source ?? FlowAccess::SOURCE_DRAHT,
-                'granted_at' => $row->granted_at,
-                'granted_by' => $row->granted_by,
-                'granted_by_name' => $row->granted_by_name,
-                'is_self' => (int) $row->user_id === (int) Auth::id(),
-            ])
-            ->values()
+            ->map(fn ($row) => $this->userRow($row, FlowAccess::SOURCE_MANUAL, $row->granted_by_name))
             ->all();
+
+        return [...$draht, ...$invited];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function userRow(object $row, string $source, ?string $grantedByName): array
+    {
+        return [
+            'user_id' => $row->user_id,
+            'name' => $row->user_name,
+            'email' => $row->user_email,
+            'last_login' => $row->last_login,
+            'source' => $source,
+            'can_flow' => (bool) $row->can_flow,
+            'can_scor' => (bool) $row->can_scor,
+            'granted_at' => $row->granted_at,
+            'granted_by_name' => $grantedByName,
+            'is_self' => (int) $row->user_id === (int) Auth::id(),
+        ];
     }
 }
