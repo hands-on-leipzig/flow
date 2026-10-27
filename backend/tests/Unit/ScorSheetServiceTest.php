@@ -62,6 +62,43 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame('Freundliches Miteinander', $sheet['sections'][7]['title']);
     }
 
+    public function test_no_show_can_stay_off_and_a_missing_row_still_blocks_confirm(): void
+    {
+        $sheet = $this->sheets->refereeSheet($this->user(), 1, 1, 1);
+        $values = [];
+        $penaltyId = null;
+        foreach ($sheet['sections'] as $section) {
+            foreach ($section['items'] as $item) {
+                $options = $item['config']['options'] ?? [];
+                if ($item['item_type'] === 'choice' && count($options) === 1) {
+                    continue;
+                }
+                if ($item['item_type'] === 'choice') {
+                    $penaltyId = $item['id'];
+                    $values[$item['id']] = 0;
+                    continue;
+                }
+                if ($item['item_type'] === 'yes_no') {
+                    $values[$item['id']] = 'no';
+                }
+                if ($item['item_type'] === 'count') {
+                    $values[$item['id']] = 0;
+                }
+            }
+        }
+
+        $this->sheets->saveReferee($this->user(), 1, 1, 1, ['values' => $values]);
+        $confirmed = $this->sheets->confirmReferee($this->user(), 1, 1, 1, 'referee');
+        $this->assertTrue($confirmed['confirmed_referee']);
+
+        unset($values[$penaltyId]);
+        $this->sheets->saveReferee($this->user(), 1, 1, 1, ['values' => $values]);
+
+        $this->expectException(\App\Scor\ScorAccessException::class);
+        $this->expectExceptionMessage('Bitte jede Zeile ausfüllen.');
+        $this->sheets->confirmReferee($this->user(), 1, 1, 1, 'team');
+    }
+
     public function test_referee_points_and_lock_after_both_confirmations(): void
     {
         $formId = app(ScorFormStore::class)->formId(1, 'referee');

@@ -16,6 +16,7 @@ const sheet = ref<any>(null)
 const error = ref('')
 const loading = ref(false)
 const tab = ref<'schiri' | 'jury'>('schiri')
+const closedRounds = ref<string[]>([])
 
 const eventId = computed(() => route.params.eventId ? Number(route.params.eventId) : null)
 const matchId = computed(() => route.params.matchId ? Number(route.params.matchId) : null)
@@ -41,6 +42,16 @@ const viewTabs = computed(() => {
   if (overview.value?.roles?.jury) tabs.push({id: 'jury', label: 'Jury', icon: 'bi-people'})
   return tabs
 })
+
+function isRoundOpen(label: string) {
+  return !closedRounds.value.includes(label)
+}
+
+function toggleRound(label: string) {
+  closedRounds.value = isRoundOpen(label)
+      ? [...closedRounds.value, label]
+      : closedRounds.value.filter((entry) => entry !== label)
+}
 
 function statusLabel(status?: string) {
   if (status === 'done') return 'fertig'
@@ -151,8 +162,17 @@ function openJury(teamIdValue: number) {
       <div v-if="tab === 'schiri' && overview.roles.referee" class="scor-rounds">
         <p v-if="overview.has_plan && !overview.matches.length" class="text-sm text-[var(--color-text-muted)]">Im Matchplan stehen noch keine Future-Matches.</p>
         <section v-for="round in rounds" :key="round.label" class="scor-round">
-          <h2 class="scor-round__title">{{ round.label }}</h2>
-          <article v-for="match in round.matches" :key="match.id" class="scor-match glass-card liquid-surface-inner">
+          <button
+              type="button"
+              class="scor-round__toggle"
+              :aria-expanded="isRoundOpen(round.label)"
+              @click="toggleRound(round.label)"
+          >
+            <span class="scor-round__title">{{ round.label }}</span>
+            <span class="scor-round__count">{{ round.matches.length }}</span>
+            <i class="bi" :class="isRoundOpen(round.label) ? 'bi-chevron-up' : 'bi-chevron-down'" aria-hidden="true"/>
+          </button>
+          <article v-for="match in round.matches" v-show="isRoundOpen(round.label)" :key="match.id" class="scor-match glass-card liquid-surface-inner">
             <div class="scor-match__when">
               <span class="scor-match__clock">{{ match.start_label || '–' }}</span>
               <span class="scor-match__meta">Match {{ match.match_no }}</span>
@@ -202,9 +222,33 @@ function openJury(teamIdValue: number) {
   gap: 0.65rem;
 }
 
+.scor-round__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.35rem 0.15rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
 .scor-round__title {
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
+}
+
+.scor-round__count {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.scor-round__toggle .bi {
+  margin-left: auto;
+  font-size: 1.15rem;
 }
 
 .scor-match {
