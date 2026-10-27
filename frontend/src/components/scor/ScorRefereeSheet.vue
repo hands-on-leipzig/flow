@@ -42,7 +42,9 @@ watch(() => props.sheet, (sheet) => {
   const next: Record<string, string | number> = {}
   for (const section of sheet?.sections || []) {
     for (const item of section.items || []) {
-      if (item.value !== null && item.value !== undefined && item.value !== '') {
+      if (item.item_type === 'count' && (item.value === null || item.value === undefined || item.value === '')) {
+        next[String(item.id)] = 0
+      } else if (item.value !== null && item.value !== undefined && item.value !== '') {
         next[String(item.id)] = item.value
       }
     }
@@ -54,6 +56,18 @@ watch(() => props.sheet, (sheet) => {
 
 function setCount(id: string, next: number, max: number) {
   values.value[id] = Math.max(0, Math.min(max, next))
+}
+
+function countMax(item: any) {
+  return Number(item.config?.max ?? 0)
+}
+
+function countIsScale(item: any) {
+  return countMax(item) <= 8
+}
+
+function countScale(item: any) {
+  return Array.from({length: countMax(item) + 1}, (_, index) => index)
 }
 
 function choose(id: string, index: number) {
@@ -94,7 +108,7 @@ function isAnswered(item: any, value: string | number | undefined): boolean {
     if (choiceOptional(item) && (value === undefined || value === null || value === '')) return true
     return item.config?.options?.[Number(value)] != null && value !== ''
   }
-  if (item.item_type === 'count') return value !== undefined && value !== null && value !== '' && !Number.isNaN(Number(value))
+  if (item.item_type === 'count') return true
   return true
 }
 
@@ -191,7 +205,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <p v-if="!sheet.sections?.length" class="text-sm text-[var(--color-text-muted)]">Für diese Saison gibt es noch keinen Schiri-Bogen. Den legt die FLOW-Admin an.</p>
+    <p v-if="!sheet.sections?.length" class="text-lg text-[var(--color-text-muted)]">Für diese Saison gibt es noch keinen Schiri-Bogen. Den legt die FLOW-Admin an.</p>
 
     <section v-for="section in sheet.sections" :key="section.id" class="glass-card liquid-surface-inner scor-block">
       <h2 class="scor-block__title">{{ section.title }}</h2>
@@ -234,6 +248,19 @@ onBeforeUnmount(() => {
             <span>{{ option.label }}</span>
             <span class="scor-choice__points">{{ option.points }}</span>
           </button>
+        </div>
+
+        <div v-else-if="item.item_type === 'count' && countIsScale(item)" class="scor-scale">
+          <button
+              v-for="n in countScale(item)"
+              :key="n"
+              type="button"
+              class="scor-scale__btn"
+              :class="{'is-on': Number(values[String(item.id)] ?? 0) === n}"
+              :disabled="sheet.locked"
+              @click="setCount(String(item.id), n, countMax(item))"
+          >{{ n }}</button>
+          <span class="scor-count__hint">je {{ item.config?.points_each ?? 0 }}</span>
         </div>
 
         <div v-else-if="item.item_type === 'count'" class="scor-count">
@@ -303,7 +330,7 @@ onBeforeUnmount(() => {
 
 .scor-sheet__meta {
   margin-top: 0.25rem;
-  font-size: 0.85rem;
+  font-size: 1.125rem;
   color: var(--color-text-muted);
 }
 
@@ -313,12 +340,13 @@ onBeforeUnmount(() => {
   line-height: 1.15;
 }
 
-.scor-block {
+.scor-sheet .scor-block.liquid-surface-inner {
   padding: 0.9rem;
+  box-shadow: none;
 }
 
 .scor-block__title {
-  font-size: 1.05rem;
+  font-size: 1.3rem;
   font-weight: 800;
   margin-bottom: 0.35rem;
 }
@@ -339,7 +367,7 @@ onBeforeUnmount(() => {
 }
 
 .scor-q__label {
-  font-size: 1.05rem;
+  font-size: 1.25rem;
   font-weight: 700;
   margin-bottom: 0.55rem;
 }
@@ -383,6 +411,27 @@ onBeforeUnmount(() => {
   color: inherit;
 }
 
+.scor-scale {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(3.4rem, 1fr));
+  gap: 0.5rem;
+}
+
+.scor-scale__btn {
+  min-height: 3.75rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg, 0.85rem);
+  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+  font-size: 1.45rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.scor-scale__btn.is-on {
+  border-color: var(--color-accent);
+  background: var(--color-bg-hover);
+}
+
 .scor-count {
   display: grid;
   grid-template-columns: 4.25rem 1fr 4.25rem;
@@ -408,7 +457,7 @@ onBeforeUnmount(() => {
 
 .scor-count__hint {
   grid-column: 1 / -1;
-  font-size: 0.85rem;
+  font-size: 1.125rem;
   color: var(--color-text-muted);
 }
 
@@ -469,7 +518,7 @@ onBeforeUnmount(() => {
 }
 
 .scor-confirm__state {
-  font-size: 1rem;
+  font-size: 1.2rem;
   font-weight: 700;
   color: var(--color-text-muted);
 }
@@ -494,7 +543,7 @@ onBeforeUnmount(() => {
 }
 
 .scor-sheet__points span {
-  font-size: 0.9rem;
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--color-text-muted);
 }

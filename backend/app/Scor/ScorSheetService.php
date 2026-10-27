@@ -391,6 +391,9 @@ final class ScorSheetService
             }
 
             $value = $answers['values'][$id] ?? null;
+            if ($item->item_type === 'count') {
+                continue;
+            }
             if ($item->item_type === 'choice' && $this->choiceIsOptional($this->decode($item->config) ?? []) && ($value === null || $value === '')) {
                 continue;
             }
@@ -398,7 +401,6 @@ final class ScorSheetService
                 'rubric' => $this->inRange((int) $value, 1, 4),
                 'yes_no' => $value === 'yes' || $value === 'no',
                 'choice' => $this->choicePoints($this->decode($item->config) ?? [], is_numeric($value) ? (int) $value : -1) !== null,
-                'count' => is_numeric($value),
                 default => false,
             };
             if (!$answered) {

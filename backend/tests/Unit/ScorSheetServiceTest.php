@@ -62,6 +62,28 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame('Freundliches Miteinander', $sheet['sections'][7]['title']);
     }
 
+    public function test_untouched_count_is_zero_and_does_not_block_confirm(): void
+    {
+        $formId = app(ScorFormStore::class)->formId(1, 'referee');
+        app(ScorFormStore::class)->replace($formId, [[
+            'title' => 'Baum',
+            'kind' => 'mission',
+            'note' => '',
+            'items' => [[
+                'item_type' => 'count',
+                'label' => 'Wie viele Dinge sind im Baum',
+                'config' => ['max' => 3, 'points_each' => 20],
+            ]],
+        ]]);
+
+        $saved = $this->sheets->saveReferee($this->user(), 1, 1, 1, ['values' => []]);
+        $this->assertSame(0, $saved['points']);
+
+        $confirmed = $this->sheets->confirmReferee($this->user(), 1, 1, 1, 'referee');
+        $this->assertTrue($confirmed['confirmed_referee']);
+        $this->assertSame(0, $confirmed['points']);
+    }
+
     public function test_no_show_can_stay_off_and_a_missing_row_still_blocks_confirm(): void
     {
         $sheet = $this->sheets->refereeSheet($this->user(), 1, 1, 1);
