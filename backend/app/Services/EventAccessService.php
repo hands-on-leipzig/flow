@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\EventAccessInvitationMail;
 use App\Models\User;
 use App\Support\FlowAccess;
+use App\Support\ScorGrant;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -42,38 +43,38 @@ class EventAccessService
     /**
      * @return array{id: int, mail_sent: bool}
      */
-    public function invite(User $actor, int $eventId, int $regionalPartnerId, string $email, bool $canFlow, bool $canScor): array
+    public function invite(User $actor, int $eventId, int $regionalPartnerId, string $email, bool $canFlow, bool $canScor, ?ScorGrant $roles = null): array
     {
         $this->purgeExpired();
 
+        $roles = $roles ?? ScorGrant::fromLegacy($canScor);
         $expiresAt = now()->addDays(self::INVITATION_DAYS);
 
-        $id = DB::table('event_invitation')->insertGetId([
+        $id = DB::table('event_invitation')->insertGetId(array_merge([
             'event' => $eventId,
             'email' => $email,
             'can_flow' => $canFlow,
-            'can_scor' => $canScor,
             'invited_by' => $actor->id,
             'invited_at' => now(),
             'expires_at' => $expiresAt,
-        ]);
+        ], $roles->columns()));
 
-        $this->writeLog($eventId, $regionalPartnerId, self::ACTION_INVITED, $actor->id, null, $email, $canFlow, $canScor);
+        $this->writeLog($eventId, $regionalPartnerId, self::ACTION_INVITED, $actor->id, null, $email, $canFlow, $roles->any(), $roles);
 
         return [
             'id' => (int) $id,
-            'mail_sent' => $this->sendInvitationMail($eventId, $email, $canFlow, $canScor, $expiresAt),
+            'mail_sent' => $this->sendInvitationMail($eventId, $email, $canFlow, $roles, $expiresAt),
         ];
     }
 
-    public function updateInvitation(int $invitationId, int $eventId, int $regionalPartnerId, User $actor, bool $canFlow, bool $canScor): void
+    public function updateInvitation(int $invitationId, int $eventId, int $regionalPartnerId, User $actor, bool $canFlow, bool $canScor, ?ScorGrant $roles = null): void
     {
         $invitation = DB::table('event_invitation')->where('id', $invitationId)->first();
+        $roles = $roles ?? ScorGrant::fromLegacy($canScor);
 
-        DB::table('event_invitation')->where('id', $invitationId)->update([
+        DB::table('event_invitation')->where('id', $invitationId)->update(array_merge([
             'can_flow' => $canFlow,
-            'can_scor' => $canScor,
-        ]);
+        ], $roles->columns()));
 
         $this->writeLog(
             $eventId,
@@ -83,7 +84,8 @@ class EventAccessService
             null,
             $invitation->email ?? null,
             $canFlow,
-            $canScor,
+            $roles->any(),
+            $roles,
         );
     }
 
@@ -104,12 +106,13 @@ class EventAccessService
         );
     }
 
-    public function updateGrant(int $grantId, int $eventId, int $regionalPartnerId, User $actor, int $targetUserId, bool $canFlow, bool $canScor): void
+    public function updateGrant(int $grantId, int $eventId, int $regionalPartnerId, User $actor, int $targetUserId, bool $canFlow, bool $canScor, ?ScorGrant $roles = null): void
     {
-        DB::table('event_user_access')->where('id', $grantId)->update([
+        $roles = $roles ?? ScorGrant::fromLegacy($canScor);
+
+        DB::table('event_user_access')->where('id', $grantId)->update(array_merge([
             'can_flow' => $canFlow,
-            'can_scor' => $canScor,
-        ]);
+        ], $roles->columns()));
 
         $this->writeLog(
             $eventId,
@@ -119,7 +122,8 @@ class EventAccessService
             $targetUserId,
             $this->emailOf($targetUserId),
             $canFlow,
-            $canScor,
+            $roles->any(),
+            $roles,
         );
     }
 
@@ -172,22 +176,20 @@ class EventAccessService
                     ->first();
 
                 $canFlow = (bool) $current->can_flow || (bool) ($existing->can_flow ?? false);
-                $canScor = (bool) $current->can_scor || (bool) ($existing->can_scor ?? false);
+                $roles = ScorGrant::fromRow($current)->or(ScorGrant::fromRow($existing));
 
                 if (!$existing) {
-                    DB::table('event_user_access')->insert([
+                    DB::table('event_user_access')->insert(array_merge([
                         'user' => $user->id,
                         'event' => $current->event,
                         'can_flow' => $canFlow,
-                        'can_scor' => $canScor,
                         'granted_at' => $current->invited_at ?? now(),
                         'granted_by' => $current->invited_by,
-                    ]);
+                    ], $roles->columns()));
                 } else {
-                    DB::table('event_user_access')->where('id', $existing->id)->update([
+                    DB::table('event_user_access')->where('id', $existing->id)->update(array_merge([
                         'can_flow' => $canFlow,
-                        'can_scor' => $canScor,
-                    ]);
+                    ], $roles->columns()));
                 }
 
                 DB::table('event_invitation')->where('id', $current->id)->delete();
@@ -200,7 +202,8 @@ class EventAccessService
                     (int) $user->id,
                     self::normalizeEmail((string) $current->email),
                     $canFlow,
-                    $canScor,
+                    $roles->any(),
+                    $roles,
                 );
             });
         }
@@ -278,19 +281,26 @@ class EventAccessService
                 'i.email',
                 'i.can_flow',
                 'i.can_scor',
+                'i.can_scor_referee',
+                'i.can_scor_jury',
+                'i.can_scor_admin',
                 'i.invited_at',
                 'i.expires_at',
                 'inviter.name as invited_by_name',
             ])
-            ->map(fn ($row) => [
-                'id' => (int) $row->id,
-                'email' => $row->email,
-                'can_flow' => (bool) $row->can_flow,
-                'can_scor' => (bool) $row->can_scor,
-                'invited_at' => $row->invited_at,
-                'expires_at' => $row->expires_at,
-                'invited_by_name' => $row->invited_by_name,
-            ])
+            ->map(function ($row) {
+                $roles = ScorGrant::fromRow($row);
+
+                return [
+                    'id' => (int) $row->id,
+                    'email' => $row->email,
+                    'can_flow' => (bool) $row->can_flow,
+                    ...$roles->columns(),
+                    'invited_at' => $row->invited_at,
+                    'expires_at' => $row->expires_at,
+                    'invited_by_name' => $row->invited_by_name,
+                ];
+            })
             ->values()
             ->all();
     }
@@ -360,18 +370,25 @@ class EventAccessService
         ];
     }
 
-    private function sendInvitationMail(int $eventId, string $email, bool $canFlow, bool $canScor, Carbon $expiresAt): bool
+    private function sendInvitationMail(int $eventId, string $email, bool $canFlow, ScorGrant $roles, Carbon $expiresAt): bool
     {
         $permissions = array_values(array_filter([
             $canFlow ? 'FLOW' : null,
-            $canScor ? 'SCOR' : null,
+            $roles->referee ? 'Schiri' : null,
+            $roles->jury ? 'Jury' : null,
+            $roles->admin ? 'Veranstaltung-Admin' : null,
         ]));
+
+        $loginUrl = rtrim((string) config('app.url'), '/');
+        if (!$canFlow && $roles->any()) {
+            $loginUrl .= '/scor';
+        }
 
         try {
             Mail::to($email)->send(new EventAccessInvitationMail(
                 eventName: $this->eventName($eventId),
                 permissions: $permissions,
-                loginUrl: rtrim((string) config('app.url'), '/'),
+                loginUrl: $loginUrl,
                 expiresOn: $expiresAt->timezone(config('app.timezone'))->format('d.m.Y'),
             ));
 
@@ -414,8 +431,10 @@ class EventAccessService
         ?string $targetEmail,
         ?bool $canFlow,
         ?bool $canScor,
+        ?ScorGrant $roles = null,
     ): void {
-        DB::table('access_log')->insert([
+        $roles = $roles ?? ($canScor === null ? null : ScorGrant::fromLegacy((bool) $canScor));
+        $row = [
             'created_at' => now(),
             'event' => $eventId,
             'regional_partner' => $regionalPartnerId,
@@ -424,7 +443,14 @@ class EventAccessService
             'target_email' => $targetEmail,
             'action' => $action,
             'can_flow' => $canFlow,
-            'can_scor' => $canScor,
-        ]);
+            'can_scor' => $roles?->any() ?? $canScor,
+        ];
+        if ($roles) {
+            $row['can_scor_referee'] = $roles->referee;
+            $row['can_scor_jury'] = $roles->jury;
+            $row['can_scor_admin'] = $roles->admin;
+        }
+
+        DB::table('access_log')->insert($row);
     }
 }

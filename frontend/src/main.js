@@ -52,11 +52,13 @@ import PublicSchedule from "@/components/PublicSchedule.vue";
 import PublicSchedulePrint from "@/components/PublicSchedulePrint.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
 import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
+import ScorApp from "@/components/scor/ScorApp.vue";
 import PublicScores from "@/components/PublicScores.vue";
 import Profile from "@/components/Profile.vue";
 import AccessManagement from "@/components/AccessManagement.vue";
 import {useEventStore} from "@/stores/event";
 import {useProgramsStore} from "@/stores/programs";
+import {useApps} from "@/composables/useApps";
 import {firstTeamsPath} from "@/utils/eventPrograms";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
@@ -69,6 +71,10 @@ const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
     {path: '/carousel/:eventId/:slideId', component: StandaloneSlide, props: true, meta: {public: true}},
     {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
+    {path: '/scor', component: ScorApp},
+    {path: '/scor/:eventId', component: ScorApp},
+    {path: '/scor/:eventId/match/:matchId/team/:teamId', component: ScorApp},
+    {path: '/scor/:eventId/jury/:teamId', component: ScorApp},
     {
         path: '/public-schedule/:planId/print',
         component: PublicSchedulePrint,
@@ -214,10 +220,13 @@ function isTodayWithinEvent(event) {
 }
 
 router.beforeEach(async (to, from, next) => {
-    await useProgramsStore().ensureLoaded()
+    const scorPath = to.path === '/scor' || to.path.startsWith('/scor/')
 
     // Allow public routes (including unauthorized page)
     if (to.meta?.public || to.path === '/unauthorized') {
+        if (!scorPath) {
+            await useProgramsStore().ensureLoaded()
+        }
         next();
         return;
     }
@@ -253,6 +262,20 @@ router.beforeEach(async (to, from, next) => {
     // This is needed because the token might not be in localStorage from a previous session
     if (keycloak.authenticated && keycloak.token) {
         localStorage.setItem('kc_token', keycloak.token);
+    }
+
+    const apps = useApps()
+    await apps.ensure()
+    if ((to.path.startsWith('/plan') || to.path === '/overview') && !apps.canFlow.value && apps.canScor.value) {
+        next('/scor')
+        return
+    }
+    if (scorPath && !apps.canScor.value && apps.canFlow.value) {
+        next('/plan/overview')
+        return
+    }
+    if (apps.canFlow.value) {
+        await useProgramsStore().ensureLoaded()
     }
 
     // Check if event is selected for non-public routes (pop-outs carry their own plan id)
@@ -317,9 +340,16 @@ axios.interceptors.response.use(
     response => response,
     error => {
         if (error.response?.status === 403 && error.response?.data?.code === 'app_access_denied') {
-            const app = error.response.data?.app === 'scor' ? 'scor' : 'flow'
+            if (error.config?.skipAppRedirect) {
+                return Promise.reject(error)
+            }
+            const deniedApp = error.response.data?.app === 'scor' ? 'scor' : 'flow'
+            const onScor = window.location.pathname === '/scor' || window.location.pathname.startsWith('/scor/')
+            if (deniedApp === 'flow' && onScor) {
+                return Promise.reject(error)
+            }
             if (window.location.pathname !== '/unauthorized') {
-                window.location.href = '/unauthorized?app=' + app
+                window.location.href = '/unauthorized?app=' + deniedApp
             }
         }
         return Promise.reject(error)

@@ -6,9 +6,11 @@ import {useNoticeStore} from '@/stores/notice'
 import {usePlanCacheStore} from '@/stores/planCache'
 import {useProgramsStore} from '@/stores/programs'
 import {useAuth} from '@/composables/useAuth'
+import {useApps} from '@/composables/useApps'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
 import {imageUrl, programLogoSrc} from '@/utils/images'
+import AppSwitcher from '@/components/AppSwitcher.vue'
 import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
 import {
   ADMIN_SECTIONS,
@@ -31,6 +33,7 @@ const noticeStore = useNoticeStore()
 const programsStore = useProgramsStore()
 const planCache = usePlanCacheStore()
 const {isAdmin, initializeUserRoles} = useAuth()
+const {canFlow, canScor, ensure: ensureApps} = useApps()
 const {planLocked} = useScheduleWorkspace()
 const {
   showAdminInline,
@@ -157,7 +160,22 @@ const navEntries = computed<NavEntry[]>(() => [
 ])
 
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
+const isScorMode = computed(() => route.path === '/scor' || route.path.startsWith('/scor/'))
 const showBackToOverview = computed(() => isAdminMode.value)
+
+const scorNavEntries = computed<NavEntry[]>(() => {
+  const entries: NavEntry[] = [
+    {name: 'Veranstaltungen', path: '/scor', icon: 'bi-calendar-event'},
+  ]
+  const eventId = route.params.eventId
+  if (eventId) {
+    entries.push(
+      {name: 'Schiri', path: `/scor/${eventId}`, icon: 'bi-clipboard-check'},
+      {name: 'Jury', path: `/scor/${eventId}?sicht=jury`, icon: 'bi-people'},
+    )
+  }
+  return entries
+})
 
 function toAdminNavEntry(item: AdminSection): NavEntry {
   const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
@@ -247,6 +265,8 @@ function childNavProps(child: NavChild) {
 
 onMounted(async () => {
   initializeUserRoles()
+  await ensureApps()
+  if (!canFlow.value || isScorMode.value) return
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
@@ -307,14 +327,29 @@ function normalizePlanPath(path: string): string {
 }
 
 function isActive(path: string) {
+  if (path.startsWith('/scor')) {
+    const current = route.path.replace(/\/$/, '') || '/'
+    const [pathOnly, query = ''] = path.split('?')
+    const sicht = new URLSearchParams(query).get('sicht')
+    if (pathOnly === '/scor') return current === '/scor'
+    const onEvent = current === pathOnly || current.startsWith(`${pathOnly}/`)
+    const juryView = route.query.sicht === 'jury' || current.includes('/jury/')
+    if (sicht === 'jury') return onEvent && juryView
+    return onEvent && !juryView
+  }
   const target = normalizePlanPath(path)
   const current = route.path.replace(/\/$/, '') || '/'
   return current === target
 }
 
 function goToPath(path: string) {
-  const target = normalizePlanPath(path)
   mobileMenuOpen.value = false
+  if (path.startsWith('/scor')) {
+    if (route.fullPath === path) return
+    void router.push(path)
+    return
+  }
+  const target = normalizePlanPath(path)
   if (isActive(target)) return
   void router.push(target)
 }
@@ -353,9 +388,11 @@ function logout() {
       @update:open="mobileMenuOpen = $event"
   >
     <template #brand>
-      <RouterLink to="/plan/overview" class="glass-sidebar__brand" @click="mobileMenuOpen = false">
-        <img :src="imageUrl('/flow/flow.png')" alt="FLOW" class="glass-sidebar__brand-logo"/>
-      </RouterLink>
+      <AppSwitcher
+          :can-flow="canFlow"
+          :can-scor="canScor"
+          :scor-mode="isScorMode"
+      />
     </template>
 
     <template v-if="showBackToOverview" #nav-pinned>
@@ -410,6 +447,16 @@ function logout() {
           />
         </div>
       </template>
+      <template v-else-if="isScorMode">
+        <SidebarNavItem
+            v-for="entry in scorNavEntries"
+            :key="entry.path ?? entry.name"
+            :label="entry.name"
+            :icon="entry.icon"
+            :active="!!entry.path && isActive(entry.path)"
+            @select="onNavSelect(entry)"
+        />
+      </template>
       <template v-else>
         <SidebarNavItem
             v-for="entry in currentNavEntries"
@@ -435,9 +482,10 @@ function logout() {
         <template #identity="{ close }">
           <div class="glass-sidebar-footer__menu-header">
             <span class="glass-sidebar-footer__menu-title">{{ userLabel }}</span>
-            <span class="glass-sidebar-footer__menu-subtitle">FLOW</span>
+            <span class="glass-sidebar-footer__menu-subtitle">{{ isScorMode ? 'SCOR' : 'FLOW' }}</span>
           </div>
           <button
+              v-if="canFlow"
               type="button"
               class="glass-sidebar-footer__menu-item"
               role="menuitem"
@@ -447,6 +495,7 @@ function logout() {
             <span>Profil</span>
           </button>
           <button
+              v-if="canFlow"
               type="button"
               class="glass-sidebar-footer__menu-item"
               role="menuitem"
@@ -495,7 +544,7 @@ function logout() {
             </div>
           </div>
           <button
-              v-if="isAdmin"
+              v-if="isAdmin && !isScorMode"
               type="button"
               class="glass-sidebar-footer__menu-item"
               role="menuitemcheckbox"
@@ -524,7 +573,7 @@ function logout() {
           </button>
         </template>
 
-        <template #extra="{ close }">
+        <template v-if="canFlow && !isScorMode" #extra="{ close }">
           <button
               type="button"
               class="glass-sidebar-footer__icon-btn"

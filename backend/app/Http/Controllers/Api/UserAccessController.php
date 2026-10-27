@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\EventAccessService;
 use App\Services\EventTitleService;
 use App\Support\FlowAccess;
+use App\Support\ScorGrant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -58,6 +59,8 @@ class UserAccessController extends Controller
                 'last_login' => $user->last_login,
                 'roles' => $roles,
                 'is_admin' => FlowAccess::isAdmin($roles),
+                'can_flow' => $user->isFlowUser() || $user->hasPermission(FlowAccess::PERMISSION_FLOW),
+                'can_scor' => $user->isFlowAdmin() || $user->hasPermission(FlowAccess::PERMISSION_SCOR),
             ],
             'selected_event' => $selectedEvent,
             'regional_partners' => $partners,
@@ -186,7 +189,10 @@ class UserAccessController extends Controller
             'event_id' => 'required|integer|exists:event,id',
             'email' => 'required|email|max:255',
             'can_flow' => 'required|boolean',
-            'can_scor' => 'required|boolean',
+            'can_scor' => 'sometimes|boolean',
+            'can_scor_referee' => 'sometimes|boolean',
+            'can_scor_jury' => 'sometimes|boolean',
+            'can_scor_admin' => 'sometimes|boolean',
         ]);
 
         $eventId = (int) $validated['event_id'];
@@ -195,7 +201,8 @@ class UserAccessController extends Controller
             return $regionalPartnerId;
         }
 
-        if (!$validated['can_flow'] && !$validated['can_scor']) {
+        $roles = $this->resolveRoles($validated);
+        if (!$validated['can_flow'] && !$roles->any()) {
             return response()->json(['error' => 'Bitte wähle mindestens eine Berechtigung.'], 422);
         }
 
@@ -222,7 +229,8 @@ class UserAccessController extends Controller
             $regionalPartnerId,
             $email,
             (bool) $validated['can_flow'],
-            (bool) $validated['can_scor'],
+            $roles->any(),
+            $roles,
         );
 
         return response()->json([
@@ -247,7 +255,10 @@ class UserAccessController extends Controller
             'user_id' => 'nullable|required_without:invitation_id|integer',
             'invitation_id' => 'nullable|required_without:user_id|integer',
             'can_flow' => 'required|boolean',
-            'can_scor' => 'required|boolean',
+            'can_scor' => 'sometimes|boolean',
+            'can_scor_referee' => 'sometimes|boolean',
+            'can_scor_jury' => 'sometimes|boolean',
+            'can_scor_admin' => 'sometimes|boolean',
         ]);
 
         $eventId = (int) $validated['event_id'];
@@ -256,12 +267,12 @@ class UserAccessController extends Controller
             return $regionalPartnerId;
         }
 
-        if (!$validated['can_flow'] && !$validated['can_scor']) {
+        $roles = $this->resolveRoles($validated);
+        if (!$validated['can_flow'] && !$roles->any()) {
             return response()->json(['error' => 'Mindestens eine Berechtigung muss bleiben. Zum Entfernen bitte „Entfernen“ nutzen.'], 422);
         }
 
         $canFlow = (bool) $validated['can_flow'];
-        $canScor = (bool) $validated['can_scor'];
 
         if (!empty($validated['invitation_id'])) {
             $invitation = DB::table('event_invitation')
@@ -272,14 +283,14 @@ class UserAccessController extends Controller
                 return response()->json(['error' => 'Einladung nicht gefunden'], 404);
             }
 
-            $this->access->updateInvitation((int) $invitation->id, $eventId, $regionalPartnerId, $actor, $canFlow, $canScor);
+            $this->access->updateInvitation((int) $invitation->id, $eventId, $regionalPartnerId, $actor, $canFlow, $roles->any(), $roles);
         } else {
             $grant = $this->eventGrant($actor, (int) $validated['user_id'], $eventId);
             if ($grant instanceof JsonResponse) {
                 return $grant;
             }
 
-            $this->access->updateGrant((int) $grant->id, $eventId, $regionalPartnerId, $actor, (int) $grant->user, $canFlow, $canScor);
+            $this->access->updateGrant((int) $grant->id, $eventId, $regionalPartnerId, $actor, (int) $grant->user, $canFlow, $roles->any(), $roles);
         }
 
         return response()->json([
@@ -410,7 +421,7 @@ class UserAccessController extends Controller
     private function partnersOf(User $user): array
     {
         return $user->regionalPartners()
-            ->withPivot(['source', 'can_flow', 'can_scor', 'granted_at'])
+            ->withPivot(['source', 'can_flow', 'can_scor', 'can_scor_referee', 'can_scor_jury', 'can_scor_admin', 'granted_at'])
             ->orderBy('regional_partner.name')
             ->get()
             ->map(fn ($rp) => [
@@ -419,7 +430,7 @@ class UserAccessController extends Controller
                 'region' => $rp->region,
                 'source' => $rp->pivot->source ?? FlowAccess::SOURCE_DRAHT,
                 'can_flow' => (bool) $rp->pivot->can_flow,
-                'can_scor' => (bool) $rp->pivot->can_scor,
+                ...ScorGrant::fromRow($rp->pivot)->columns(),
                 'granted_at' => $rp->pivot->granted_at,
             ])
             ->values()
@@ -445,6 +456,9 @@ class UserAccessController extends Controller
                 'u.last_login',
                 'urp.can_flow',
                 'urp.can_scor',
+                'urp.can_scor_referee',
+                'urp.can_scor_jury',
+                'urp.can_scor_admin',
                 'urp.granted_at',
             ])
             ->map(fn ($row) => $this->userRow($row, FlowAccess::SOURCE_DRAHT, null))
@@ -465,6 +479,9 @@ class UserAccessController extends Controller
                 'u.last_login',
                 'access.can_flow',
                 'access.can_scor',
+                'access.can_scor_referee',
+                'access.can_scor_jury',
+                'access.can_scor_admin',
                 'access.granted_at',
                 'granter.name as granted_by_name',
             ])
@@ -486,10 +503,29 @@ class UserAccessController extends Controller
             'last_login' => $row->last_login,
             'source' => $source,
             'can_flow' => (bool) $row->can_flow,
-            'can_scor' => (bool) $row->can_scor,
+            ...ScorGrant::fromRow($row)->columns(),
             'granted_at' => $row->granted_at,
             'granted_by_name' => $grantedByName,
             'is_self' => (int) $row->user_id === (int) Auth::id(),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function resolveRoles(array $validated): ScorGrant
+    {
+        $explicit = array_key_exists('can_scor_referee', $validated)
+            || array_key_exists('can_scor_jury', $validated)
+            || array_key_exists('can_scor_admin', $validated);
+        if ($explicit) {
+            return ScorGrant::fromFlags(
+                (bool) ($validated['can_scor_referee'] ?? false),
+                (bool) ($validated['can_scor_jury'] ?? false),
+                (bool) ($validated['can_scor_admin'] ?? false),
+            );
+        }
+
+        return ScorGrant::fromLegacy((bool) ($validated['can_scor'] ?? false));
     }
 }
