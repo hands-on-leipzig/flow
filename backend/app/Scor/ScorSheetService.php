@@ -391,11 +391,16 @@ final class ScorSheetService
             }
 
             $value = $answers['values'][$id] ?? null;
+            if ($item->item_type === 'count') {
+                continue;
+            }
+            if ($item->item_type === 'choice' && $this->choiceIsOptional($this->decode($item->config) ?? []) && ($value === null || $value === '')) {
+                continue;
+            }
             $answered = match ($item->item_type) {
                 'rubric' => $this->inRange((int) $value, 1, 4),
                 'yes_no' => $value === 'yes' || $value === 'no',
                 'choice' => $this->choicePoints($this->decode($item->config) ?? [], is_numeric($value) ? (int) $value : -1) !== null,
-                'count' => is_numeric($value),
                 default => false,
             };
             if (!$answered) {
@@ -407,6 +412,21 @@ final class ScorSheetService
                 }
             }
         }
+    }
+
+    /**
+     * A single option is a flag (Kein Erscheinen): leaving it off is a valid answer.
+     *
+     * @param  array<string, mixed>  $config
+     */
+    private function choiceIsOptional(array $config): bool
+    {
+        if (!empty($config['optional'])) {
+            return true;
+        }
+        $options = $config['options'] ?? [];
+
+        return is_array($options) && count($options) === 1;
     }
 
     /**

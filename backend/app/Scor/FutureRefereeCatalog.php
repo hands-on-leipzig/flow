@@ -131,7 +131,7 @@ final class FutureRefereeCatalog
                 'items' => [
                     self::choice('Bewertung für dieses Match', null, [
                         ['label' => 'Kein Erscheinen', 'points' => 0],
-                    ]),
+                    ], optional: true),
                 ],
             ],
         ];
@@ -174,14 +174,14 @@ final class FutureRefereeCatalog
      * @param  list<array{label: string, points: int}>  $options
      * @return array<string, mixed>
      */
-    private static function choice(string $label, ?string $hint, array $options): array
+    private static function choice(string $label, ?string $hint, array $options, bool $optional = false): array
     {
         return [
             'item_type' => 'choice',
             'label' => $label,
             'hint' => $hint,
             'core_value' => false,
-            'config' => ['options' => $options],
+            'config' => ['options' => $options, 'optional' => $optional],
         ];
     }
 }

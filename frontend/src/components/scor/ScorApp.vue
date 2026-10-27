@@ -16,6 +16,7 @@ const sheet = ref<any>(null)
 const error = ref('')
 const loading = ref(false)
 const tab = ref<'schiri' | 'jury'>('schiri')
+const closedRounds = ref<string[]>([])
 
 const eventId = computed(() => route.params.eventId ? Number(route.params.eventId) : null)
 const matchId = computed(() => route.params.matchId ? Number(route.params.matchId) : null)
@@ -41,6 +42,20 @@ const viewTabs = computed(() => {
   if (overview.value?.roles?.jury) tabs.push({id: 'jury', label: 'Jury', icon: 'bi-people'})
   return tabs
 })
+
+function matchCount(count: number) {
+  return count === 1 ? '1 Match' : `${count} Matches`
+}
+
+function isRoundOpen(label: string) {
+  return !closedRounds.value.includes(label)
+}
+
+function toggleRound(label: string) {
+  closedRounds.value = isRoundOpen(label)
+      ? [...closedRounds.value, label]
+      : closedRounds.value.filter((entry) => entry !== label)
+}
 
 function statusLabel(status?: string) {
   if (status === 'done') return 'fertig'
@@ -114,7 +129,7 @@ function openJury(teamIdValue: number) {
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-2xl font-bold tracking-tight">{{ sheet?.event?.name || overview?.event?.name || 'Auswertung' }}</h1>
-        <p class="mt-1 text-sm text-[var(--color-text-muted)]">Future</p>
+        <p class="mt-1 text-lg text-[var(--color-text-muted)]">Future</p>
       </div>
       <button v-if="eventId" type="button" class="glass-btn-text" @click="router.push(sheet ? `/scor/${eventId}` : '/scor')">
         <i class="bi bi-arrow-left" aria-hidden="true"/>
@@ -123,14 +138,14 @@ function openJury(teamIdValue: number) {
     </div>
 
     <HotGearLoader v-if="loading"/>
-    <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
+    <p v-if="error" class="text-lg text-red-700">{{ error }}</p>
 
     <ul v-if="!eventId" class="glass-card liquid-surface-inner divide-y divide-[var(--color-border)]">
-      <li v-if="!events.length" class="p-4 text-sm text-[var(--color-text-muted)]">Keine Future-Veranstaltung mit Auswertungsrecht.</li>
+      <li v-if="!events.length" class="p-4 text-lg text-[var(--color-text-muted)]">Keine Future-Veranstaltung mit Auswertungsrecht.</li>
       <li v-for="event in events" :key="event.id">
         <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openEvent(event.id)">
           <span class="font-semibold">{{ event.name }}</span>
-          <span class="text-sm text-[var(--color-text-muted)]">{{ event.date }}</span>
+          <span class="text-lg text-[var(--color-text-muted)]">{{ event.date }}</span>
         </button>
       </li>
     </ul>
@@ -139,7 +154,7 @@ function openJury(teamIdValue: number) {
     <ScorJurySheet v-else-if="sheet && juryRoute" :sheet="sheet" @update="sheet = $event"/>
 
     <template v-else-if="overview">
-      <p v-if="!overview.has_plan" class="text-sm text-[var(--color-text-muted)]">Für diese Veranstaltung gibt es noch keinen Matchplan.</p>
+      <p v-if="!overview.has_plan" class="text-lg text-[var(--color-text-muted)]">Für diese Veranstaltung gibt es noch keinen Matchplan.</p>
       <PageTabs
           v-if="viewTabs.length > 1"
           aria-label="Auswertung"
@@ -149,10 +164,21 @@ function openJury(teamIdValue: number) {
       />
 
       <div v-if="tab === 'schiri' && overview.roles.referee" class="scor-rounds">
-        <p v-if="overview.has_plan && !overview.matches.length" class="text-sm text-[var(--color-text-muted)]">Im Matchplan stehen noch keine Future-Matches.</p>
+        <p v-if="overview.has_plan && !overview.matches.length" class="text-lg text-[var(--color-text-muted)]">Im Matchplan stehen noch keine Future-Matches.</p>
         <section v-for="round in rounds" :key="round.label" class="scor-round">
-          <h2 class="scor-round__title">{{ round.label }}</h2>
-          <article v-for="match in round.matches" :key="match.id" class="scor-match glass-card liquid-surface-inner">
+          <button
+              type="button"
+              class="scor-round__toggle"
+              :aria-expanded="isRoundOpen(round.label)"
+              @click="toggleRound(round.label)"
+          >
+            <span class="scor-round__title">{{ round.label }}</span>
+            <span class="scor-round__meta">
+              <span class="scor-round__count">{{ matchCount(round.matches.length) }}</span>
+              <i class="bi" :class="isRoundOpen(round.label) ? 'bi-chevron-up' : 'bi-chevron-down'" aria-hidden="true"/>
+            </span>
+          </button>
+          <article v-for="match in round.matches" v-show="isRoundOpen(round.label)" :key="match.id" class="scor-match glass-card liquid-surface-inner">
             <div class="scor-match__when">
               <span class="scor-match__clock">{{ match.start_label || '–' }}</span>
               <span class="scor-match__meta">Match {{ match.match_no }}</span>
@@ -177,11 +203,11 @@ function openJury(teamIdValue: number) {
       </div>
 
       <ul v-else-if="overview.roles.jury" class="glass-card liquid-surface-inner divide-y divide-[var(--color-border)]">
-        <li v-if="!overview.teams.length" class="p-4 text-sm text-[var(--color-text-muted)]">Keine Teams im Matchplan.</li>
+        <li v-if="!overview.teams.length" class="p-4 text-lg text-[var(--color-text-muted)]">Keine Teams im Matchplan.</li>
         <li v-for="team in overview.teams" :key="team.id">
           <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id)">
             <span class="font-semibold">{{ team.number }} {{ team.name }}</span>
-            <span class="text-xs text-[var(--color-text-muted)]">{{ statusLabel(team.jury_status) }}</span>
+            <span class="text-lg text-[var(--color-text-muted)]">{{ statusLabel(team.jury_status) }}</span>
           </button>
         </li>
       </ul>
@@ -202,9 +228,39 @@ function openJury(teamIdValue: number) {
   gap: 0.65rem;
 }
 
+.scor-round__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.35rem 0.15rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
 .scor-round__title {
+  margin-right: auto;
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: 1.15rem;
+}
+
+.scor-round__meta {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--color-text-muted);
+}
+
+.scor-round__count {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.scor-round__toggle .bi {
+  font-size: 1.15rem;
 }
 
 .scor-match {
@@ -230,7 +286,7 @@ function openJury(teamIdValue: number) {
 }
 
 .scor-match__meta {
-  font-size: 0.75rem;
+  font-size: 1.125rem;
   color: var(--color-text-muted);
 }
 
@@ -273,7 +329,7 @@ function openJury(teamIdValue: number) {
 }
 
 .scor-side__place {
-  font-size: 0.75rem;
+  font-size: 1.05rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -287,7 +343,7 @@ function openJury(teamIdValue: number) {
 }
 
 .scor-side__status {
-  font-size: 0.8rem;
+  font-size: 1.125rem;
   color: var(--color-text-muted);
 }
 

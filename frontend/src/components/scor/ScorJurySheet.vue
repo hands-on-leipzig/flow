@@ -111,18 +111,18 @@ function toggleSection(id: number, checked: boolean) {
   <div class="space-y-4">
     <header>
       <h2 class="text-xl font-bold">{{ sheet.team.number }} {{ sheet.team.name }}</h2>
-      <p class="text-sm text-[var(--color-text-muted)]">Jurybewertung</p>
+      <p class="text-lg text-[var(--color-text-muted)]">Jurybewertung</p>
     </header>
 
-    <p v-if="error" class="text-sm text-red-700">{{ error }}</p>
+    <p v-if="error" class="text-lg text-red-700">{{ error }}</p>
 
     <section v-for="section in sheet.sections" :key="section.id" class="glass-card liquid-surface-inner space-y-3 p-4">
       <div class="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 class="font-semibold">{{ section.title }}</h2>
-          <p v-if="section.note" class="text-sm text-[var(--color-text-muted)]">{{ section.note }}</p>
+          <p v-if="section.note" class="text-lg text-[var(--color-text-muted)]">{{ section.note }}</p>
         </div>
-        <label v-if="section.kind === 'rubric'" class="inline-flex items-center gap-1.5 text-sm">
+        <label v-if="section.kind === 'rubric'" class="inline-flex items-center gap-1.5 text-lg">
           <input
               type="checkbox"
               :checked="disabled.includes(section.id)"
@@ -134,17 +134,17 @@ function toggleSection(id: number, checked: boolean) {
       </div>
 
       <template v-if="section.kind === 'rubric' && !disabled.includes(section.id)">
-        <div class="hidden gap-2 text-xs font-semibold text-[var(--color-text-muted)] md:grid md:grid-cols-4">
+        <div class="hidden gap-2 text-lg font-semibold text-[var(--color-text-muted)] md:grid md:grid-cols-4">
           <span v-for="column in sheet.columns" :key="column.value">{{ column.label }} · {{ column.value }}</span>
         </div>
         <div v-for="group in groups(section.items)" :key="group.group + group.items[0].id" class="space-y-2">
-          <p v-if="group.group" class="text-sm"><strong>{{ group.group }}</strong> <span class="text-[var(--color-text-muted)]">{{ group.hint }}</span></p>
+          <p v-if="group.group" class="text-lg"><strong>{{ group.group }}</strong> <span class="text-[var(--color-text-muted)]">{{ group.hint }}</span></p>
           <div v-for="item in group.items" :key="item.id" class="grid gap-2 md:grid-cols-4">
-            <label v-for="(cell, index) in (item.config?.cells || [])" :key="index" class="rounded-lg border border-[var(--color-border)] p-2 text-sm" :class="values[String(item.id)] === index + 1 ? 'border-[var(--color-accent)] bg-[var(--color-bg-hover)]' : ''">
+            <label v-for="(cell, index) in (item.config?.cells || [])" :key="index" class="rounded-lg border border-[var(--color-border)] p-3 text-lg" :class="values[String(item.id)] === index + 1 ? 'border-[var(--color-accent)] bg-[var(--color-bg-hover)]' : ''">
               <input v-model="values[String(item.id)]" class="mr-1" type="radio" :value="index + 1" :disabled="sheet.completed" :name="`item-${item.id}`"/>
               <span class="md:hidden font-semibold">{{ sheet.columns?.[index]?.label }} · </span>{{ cell }}
             </label>
-            <label class="rounded-lg border border-[var(--color-border)] p-2 text-sm" :class="values[String(item.id)] === 4 ? 'border-[var(--color-accent)] bg-[var(--color-bg-hover)]' : ''">
+            <label class="rounded-lg border border-[var(--color-border)] p-3 text-lg" :class="values[String(item.id)] === 4 ? 'border-[var(--color-accent)] bg-[var(--color-bg-hover)]' : ''">
               <input v-model="values[String(item.id)]" class="mr-1" type="radio" :value="4" :disabled="sheet.completed" :name="`item-${item.id}`"/>
               Herausragend
               <textarea
@@ -162,7 +162,7 @@ function toggleSection(id: number, checked: boolean) {
       </template>
 
       <template v-else-if="section.kind === 'feedback'">
-        <label v-for="item in section.items" :key="item.id" class="block text-sm">
+        <label v-for="item in section.items" :key="item.id" class="block text-lg">
           {{ item.label }}
           <textarea
               v-model="texts[String(item.id)]"
@@ -176,7 +176,7 @@ function toggleSection(id: number, checked: boolean) {
 
     <div class="glass-card liquid-surface-inner space-y-2 p-4">
       <p class="font-semibold">{{ sheet.points }} Punkte</p>
-      <p class="text-sm text-[var(--color-text-muted)]">Grundwerte: {{ sheet.core_points }}. {{ sheet.core_values_note }}</p>
+      <p class="text-lg text-[var(--color-text-muted)]">Grundwerte: {{ sheet.core_points }}. {{ sheet.core_values_note }}</p>
       <div class="flex flex-wrap gap-3">
         <button type="button" class="glass-btn-secondary" :disabled="busy || sheet.completed" @click="save">Speichern</button>
         <button type="button" class="glass-btn-accent" :disabled="busy || sheet.completed" @click="complete">Bewertung abschließen</button>
