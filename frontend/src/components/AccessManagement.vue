@@ -10,7 +10,10 @@ defineOptions({name: 'AccessManagement'})
 
 type Permissions = {
   can_flow: boolean
-  can_scor: boolean
+  can_scor?: boolean
+  can_scor_referee?: boolean
+  can_scor_jury?: boolean
+  can_scor_admin?: boolean
 }
 
 type Partner = Permissions & {
@@ -90,13 +93,15 @@ const usersLoading = ref(false)
 
 const inviteEmail = ref('')
 const inviteFlow = ref(true)
-const inviteScor = ref(false)
+const inviteReferee = ref(false)
+const inviteJury = ref(false)
+const inviteAdmin = ref(false)
 const grantBusy = ref(false)
 
 const canInvite = computed(() =>
     !!shareEventId.value
     && inviteEmail.value.includes('@')
-    && (inviteFlow.value || inviteScor.value)
+    && (inviteFlow.value || inviteReferee.value || inviteJury.value || inviteAdmin.value)
 )
 
 const shareEvent = computed(() =>
@@ -167,7 +172,9 @@ async function inviteByEmail() {
       event_id: shareEventId.value,
       email: inviteEmail.value.trim(),
       can_flow: inviteFlow.value,
-      can_scor: inviteScor.value,
+      can_scor_referee: inviteReferee.value,
+      can_scor_jury: inviteJury.value,
+      can_scor_admin: inviteAdmin.value,
     })
     applyAccess(data)
     inviteEmail.value = ''
@@ -188,7 +195,8 @@ type Target = {user_id: number} | {invitation_id: number}
 
 async function setPermission(target: Target, current: Permissions, key: keyof Permissions, value: boolean) {
   const next = {...current, [key]: value}
-  if (!next.can_flow && !next.can_scor) {
+  const hasScor = Boolean(next.can_scor_referee || next.can_scor_jury || next.can_scor_admin)
+  if (!next.can_flow && !hasScor) {
     showGlassToast('Mindestens eine Berechtigung muss bleiben.', 'info')
     await loadEventUsers()
     return
@@ -228,7 +236,12 @@ function sourceLabel(source: string) {
 }
 
 function permissionLabels(p: {can_flow?: boolean | null; can_scor?: boolean | null}) {
-  return [p.can_flow && 'FLOW', p.can_scor && 'SCOR'].filter(Boolean) as string[]
+  return [
+    p.can_flow && 'FLOW',
+    p.can_scor_referee && 'Schiri',
+    p.can_scor_jury && 'Jury',
+    p.can_scor_admin && 'Veranstaltung-Admin',
+  ].filter(Boolean) as string[]
 }
 
 const actionLabels: Record<string, string> = {
@@ -426,8 +439,16 @@ onMounted(async () => {
                 FLOW
               </label>
               <label class="inline-flex items-center gap-1.5 text-sm">
-                <input v-model="inviteScor" type="checkbox" class="accent-gray-600"/>
-                SCOR
+                <input v-model="inviteReferee" type="checkbox" class="accent-gray-600"/>
+                Schiri
+              </label>
+              <label class="inline-flex items-center gap-1.5 text-sm">
+                <input v-model="inviteJury" type="checkbox" class="accent-gray-600"/>
+                Jury
+              </label>
+              <label class="inline-flex items-center gap-1.5 text-sm">
+                <input v-model="inviteAdmin" type="checkbox" class="accent-gray-600"/>
+                Veranstaltung-Admin
               </label>
               <button
                   type="button"
@@ -488,10 +509,28 @@ onMounted(async () => {
                       <input
                           type="checkbox"
                           class="accent-gray-600"
-                          :checked="row.can_scor"
-                          @change="setPermission({user_id: row.user_id}, row, 'can_scor', ($event.target as HTMLInputElement).checked)"
+                          :checked="row.can_scor_referee"
+                          @change="setPermission({user_id: row.user_id}, row, 'can_scor_referee', ($event.target as HTMLInputElement).checked)"
                       />
-                      SCOR
+                      Schiri
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 text-sm">
+                      <input
+                          type="checkbox"
+                          class="accent-gray-600"
+                          :checked="row.can_scor_jury"
+                          @change="setPermission({user_id: row.user_id}, row, 'can_scor_jury', ($event.target as HTMLInputElement).checked)"
+                      />
+                      Jury
+                    </label>
+                    <label class="inline-flex items-center gap-1.5 text-sm">
+                      <input
+                          type="checkbox"
+                          class="accent-gray-600"
+                          :checked="row.can_scor_admin"
+                          @change="setPermission({user_id: row.user_id}, row, 'can_scor_admin', ($event.target as HTMLInputElement).checked)"
+                      />
+                      Veranstaltung-Admin
                     </label>
                     <button
                         type="button"
@@ -537,10 +576,28 @@ onMounted(async () => {
                     <input
                         type="checkbox"
                         class="accent-gray-600"
-                        :checked="inv.can_scor"
-                        @change="setPermission({invitation_id: inv.id}, inv, 'can_scor', ($event.target as HTMLInputElement).checked)"
+                        :checked="inv.can_scor_referee"
+                        @change="setPermission({invitation_id: inv.id}, inv, 'can_scor_referee', ($event.target as HTMLInputElement).checked)"
                     />
-                    SCOR
+                    Schiri
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-sm">
+                    <input
+                        type="checkbox"
+                        class="accent-gray-600"
+                        :checked="inv.can_scor_jury"
+                        @change="setPermission({invitation_id: inv.id}, inv, 'can_scor_jury', ($event.target as HTMLInputElement).checked)"
+                    />
+                    Jury
+                  </label>
+                  <label class="inline-flex items-center gap-1.5 text-sm">
+                    <input
+                        type="checkbox"
+                        class="accent-gray-600"
+                        :checked="inv.can_scor_admin"
+                        @change="setPermission({invitation_id: inv.id}, inv, 'can_scor_admin', ($event.target as HTMLInputElement).checked)"
+                    />
+                    Veranstaltung-Admin
                   </label>
                   <button
                       type="button"

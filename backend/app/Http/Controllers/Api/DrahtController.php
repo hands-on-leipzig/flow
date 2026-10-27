@@ -1091,6 +1091,9 @@ class DrahtController extends Controller
                         'source' => $sourceDraht,
                         'can_flow' => true,
                         'can_scor' => true,
+                        'can_scor_referee' => true,
+                        'can_scor_jury' => true,
+                        'can_scor_admin' => true,
                         'granted_at' => now(),
                         'granted_by' => null,
                     ];
@@ -1114,6 +1117,9 @@ class DrahtController extends Controller
                         'source' => $sourceDraht,
                         'can_flow' => true,
                         'can_scor' => true,
+                        'can_scor_referee' => true,
+                        'can_scor_jury' => true,
+                        'can_scor_admin' => true,
                         'granted_by' => null,
                     ]);
             }

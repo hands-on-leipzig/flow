@@ -57,6 +57,8 @@ use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
 use App\Http\Controllers\Api\ScorAdminController;
+use App\Http\Controllers\Api\ScorController;
+use App\Http\Controllers\Api\ScorFormAdminController;
 use App\Http\Controllers\Api\SeasonPlanBulkController;
 use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\SlugRegistryController;
@@ -465,6 +467,22 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::get('/admin/scor/events', [ScorAdminController::class, 'events']);
     Route::get('/admin/scor/log', [ScorAdminController::class, 'log']);
+    Route::get('/admin/scor-forms', [ScorFormAdminController::class, 'show']);
+    Route::put('/admin/scor-forms/{form}', [ScorFormAdminController::class, 'update']);
+
+    Route::prefix('scor')->group(function () {
+        Route::get('/access', [ScorController::class, 'access']);
+        Route::get('/events', [ScorController::class, 'events']);
+        Route::get('/events/{eventId}', [ScorController::class, 'overview']);
+        Route::get('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'referee']);
+        Route::put('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'saveReferee']);
+        Route::post('/events/{eventId}/matches/{match}/teams/{team}/confirm', [ScorController::class, 'confirmReferee']);
+        Route::post('/events/{eventId}/matches/{match}/teams/{team}/reopen', [ScorController::class, 'reopenReferee']);
+        Route::get('/events/{eventId}/teams/{team}/jury', [ScorController::class, 'jury']);
+        Route::put('/events/{eventId}/teams/{team}/jury', [ScorController::class, 'saveJury']);
+        Route::post('/events/{eventId}/teams/{team}/jury/complete', [ScorController::class, 'completeJury']);
+        Route::post('/events/{eventId}/teams/{team}/jury/reopen', [ScorController::class, 'reopenJury']);
+    });
 
     Route::prefix('admin/user-regional-partners')->group(function () {
         Route::get('/', [UserRegionalPartnerController::class, 'index']);

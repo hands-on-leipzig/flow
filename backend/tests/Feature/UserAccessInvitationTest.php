@@ -291,6 +291,9 @@ class UserAccessInvitationTest extends TestCase
             $table->string('source', 16)->default('draht');
             $table->boolean('can_flow')->default(true);
             $table->boolean('can_scor')->default(false);
+            $table->boolean('can_scor_referee')->default(false);
+            $table->boolean('can_scor_jury')->default(false);
+            $table->boolean('can_scor_admin')->default(false);
             $table->timestamp('granted_at')->nullable();
             $table->unsignedInteger('granted_by')->nullable();
         });
@@ -301,6 +304,9 @@ class UserAccessInvitationTest extends TestCase
             $table->string('email');
             $table->boolean('can_flow')->default(true);
             $table->boolean('can_scor')->default(false);
+            $table->boolean('can_scor_referee')->default(false);
+            $table->boolean('can_scor_jury')->default(false);
+            $table->boolean('can_scor_admin')->default(false);
             $table->unsignedInteger('invited_by')->nullable();
             $table->timestamp('invited_at')->nullable();
             $table->timestamp('expires_at')->nullable();
@@ -312,6 +318,9 @@ class UserAccessInvitationTest extends TestCase
             $table->unsignedInteger('event');
             $table->boolean('can_flow')->default(false);
             $table->boolean('can_scor')->default(false);
+            $table->boolean('can_scor_referee')->default(false);
+            $table->boolean('can_scor_jury')->default(false);
+            $table->boolean('can_scor_admin')->default(false);
             $table->timestamp('granted_at')->nullable();
             $table->unsignedInteger('granted_by')->nullable();
         });
@@ -327,6 +336,9 @@ class UserAccessInvitationTest extends TestCase
             $table->string('action', 32);
             $table->boolean('can_flow')->nullable();
             $table->boolean('can_scor')->nullable();
+            $table->boolean('can_scor_referee')->nullable();
+            $table->boolean('can_scor_jury')->nullable();
+            $table->boolean('can_scor_admin')->nullable();
         });
 
         Cache::flush();
