@@ -74,7 +74,10 @@ const loadEvent = async () => {
       console.error('Error preparing access log:', err)
     }
 
-    const scheduleResponse = await axios.get(`/publish/public-information/${event.value.id}`)
+    const previewLevel = previewLevelFromQuery()
+    const scheduleResponse = await axios.get(`/publish/public-information/${event.value.id}`, {
+      params: previewLevel == null ? {} : {level: previewLevel},
+    })
     scheduleInfo.value = scheduleResponse.data
 
     if (scheduleInfo.value?.level === 4) {
@@ -168,6 +171,14 @@ function laneFill(lane) {
   if (cap <= 0) return '0%'
   const n = Array.isArray(lane?.teams) ? lane.teams.length : 0
   return `${Math.min(100, (n / cap) * 100)}%`
+}
+
+function previewLevelFromQuery() {
+  const raw = route.query.preview_level
+  const value = Array.isArray(raw) ? raw[0] : raw
+  const level = Number(value)
+  if (!Number.isInteger(level) || level < 1 || level > 4) return null
+  return level
 }
 
 const publicationLevel = computed(() => Number(scheduleInfo.value?.level ?? 1))

@@ -558,6 +558,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
+        Route::post('/preview-level/{eventId}', [PublishController::class, 'setPublicationPreviewLevel']);
         Route::get('/helper-search/{eventId}', [PublishController::class, 'getPublicHelperSearch']);
         Route::post('/helper-search/{eventId}', [PublishController::class, 'setPublicHelperSearch']);
         Route::get('/volunteer-data-entry/{eventId}', [PublishController::class, 'getPublicVolunteerDataEntry']);
