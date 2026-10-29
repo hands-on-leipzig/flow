@@ -51,6 +51,12 @@ function sortLabel(key: string) {
 function roundCell(team: any, round: number) {
   return (team.rounds || []).find((cell: any) => cell && cell.round === round) || null
 }
+
+function formatPoints(value: number) {
+  if (!Number.isFinite(value)) return '–'
+  if (Number.isInteger(value)) return String(value)
+  return value.toLocaleString('de-DE', {minimumFractionDigits: 1, maximumFractionDigits: 1})
+}
 </script>
 
 <template>
@@ -87,7 +93,7 @@ function roundCell(team: any, round: number) {
               </th>
               <td v-for="column in columns" :key="column.key">
                 <span class="scor-place">{{ team[column.key] }}</span>
-                <span v-if="column.points" class="scor-place__points">{{ team[column.points] }}</span>
+                <span v-if="column.points" class="scor-place__points">{{ formatPoints(team[column.points]) }}</span>
               </td>
             </tr>
           </tbody>
@@ -97,7 +103,7 @@ function roundCell(team: any, round: number) {
         * Gesamtwertung aus Robot-Game, Forschung, Roboterdesign und Grundwerten.
         Gleiche Punktzahl, gleicher Platz.
         <br>
-        ** Beste Runde, ohne Testrunde. Darunter steht die Punktzahl.
+        ** Schnitt aller Wertungsrunden, ohne Testrunde. Eine fehlende Runde zählt als 0. Darunter steht der Schnitt.
       </p>
     </section>
 
@@ -109,7 +115,7 @@ function roundCell(team: any, round: number) {
             <tr>
               <th scope="col">Team</th>
               <th v-for="round in results.rounds" :key="round.round" scope="col">{{ round.label }}</th>
-              <th scope="col">Beste Runde</th>
+              <th scope="col">Schnitt</th>
             </tr>
           </thead>
           <tbody>
@@ -126,7 +132,7 @@ function roundCell(team: any, round: number) {
                 <span v-else class="scor-points__state">–</span>
               </td>
               <td>
-                <span class="scor-points scor-points--best">{{ team.robot }}</span>
+                <span class="scor-points scor-points--best">{{ formatPoints(team.robot) }}</span>
               </td>
             </tr>
           </tbody>

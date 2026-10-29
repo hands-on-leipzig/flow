@@ -105,7 +105,8 @@ final class ScorSheetService
     /**
      * Standings in the shape of the Contao scoreboard.
      * Champion sums dense ranks (tied scores share a step). The table shows competition ranks.
-     * Robot-Game is the best scoring round. The test round stays out.
+     * Future Robot-Game for the champion sum is the average of every scoring round.
+     * A missing sheet counts as 0. The test round stays out.
      *
      * @return array{event: array{id: int, name: mixed}, rounds: list<array{round: int, label: string}>, teams: list<array<string, mixed>>}
      */
@@ -167,7 +168,7 @@ final class ScorSheetService
         $rows = [];
         foreach ($teams as $id => $team) {
             $cells = [];
-            $best = null;
+            $sum = 0;
             foreach ($rounds as $round) {
                 $cell = $referee[$id][$round['round']] ?? null;
                 $cells[] = $cell === null ? null : [
@@ -175,8 +176,8 @@ final class ScorSheetService
                     'points' => $cell['points'],
                     'confirmed' => $cell['confirmed'],
                 ];
-                if ($cell !== null && ($best === null || $cell['points'] > $best)) {
-                    $best = $cell['points'];
+                if ($cell !== null) {
+                    $sum += $cell['points'];
                 }
             }
             $categories = $jury[$id] ?? ['research' => 0, 'robotdesign' => 0, 'core_values' => 0];
@@ -185,7 +186,7 @@ final class ScorSheetService
                 'number' => $team['number'],
                 'name' => $team['name'],
                 'rounds' => $cells,
-                'robot' => $best ?? 0,
+                'robot' => $rounds === [] ? 0 : $sum / count($rounds),
                 'research' => $categories['research'],
                 'robotdesign' => $categories['robotdesign'],
                 'core_values' => $categories['core_values'],

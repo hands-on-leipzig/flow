@@ -432,7 +432,9 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame([1, 2], array_column($results['rounds'], 'round'));
         $this->assertSame([1, 2, 3], array_column($results['teams'], 'id'));
 
-        $this->assertSame(30, $byId[1]['robot']);
+        $this->assertEquals(20, $byId[1]['robot']);
+        $this->assertEquals(15, $byId[2]['robot']);
+        $this->assertEquals(10, $byId[3]['robot']);
         $this->assertSame(10, $byId[1]['rounds'][0]['points']);
         $this->assertTrue($byId[1]['rounds'][0]['confirmed']);
         $this->assertSame(30, $byId[1]['rounds'][1]['points']);
@@ -440,7 +442,7 @@ class ScorSheetServiceTest extends TestCase
         $this->assertNull($byId[3]['rounds'][1]);
 
         $this->assertSame(1, $byId[1]['robot_rank']);
-        $this->assertSame(1, $byId[2]['robot_rank']);
+        $this->assertSame(2, $byId[2]['robot_rank']);
         $this->assertSame(3, $byId[3]['robot_rank']);
 
         $this->assertSame(7, $byId[1]['research']);
@@ -460,10 +462,10 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame(3, $byId[3]['core_values_rank']);
 
         $this->assertSame(5, $byId[1]['champion']);
-        $this->assertSame(5, $byId[2]['champion']);
-        $this->assertSame(9, $byId[3]['champion']);
+        $this->assertSame(6, $byId[2]['champion']);
+        $this->assertSame(10, $byId[3]['champion']);
         $this->assertSame(1, $byId[1]['champion_rank']);
-        $this->assertSame(1, $byId[2]['champion_rank']);
+        $this->assertSame(2, $byId[2]['champion_rank']);
         $this->assertSame(3, $byId[3]['champion_rank']);
     }
 
