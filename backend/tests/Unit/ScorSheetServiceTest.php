@@ -187,6 +187,47 @@ class ScorSheetServiceTest extends TestCase
         $this->assertCount(2, $saved['awards']['nominations']);
     }
 
+    public function test_closed_event_blocks_sheets_and_playground_is_wiped_the_day_before(): void
+    {
+        Schema::create('scor_event', function (Blueprint $table) {
+            $table->unsignedInteger('event')->primary();
+            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('released_at')->nullable();
+            $table->timestamp('playground_reset_at')->nullable();
+            $table->text('mail_body')->nullable();
+        });
+        DB::table('event')->where('id', 1)->update(['date' => now()->addDay()->toDateString()]);
+
+        $closed = $this->sheets->closeEvent($this->user(), 1);
+        $this->assertTrue($closed['closed']);
+
+        $this->expectException(\App\Scor\ScorAccessException::class);
+        $this->sheets->saveReferee($this->user(), 1, 1, 1, ['values' => []]);
+    }
+
+    public function test_playground_reset_clears_sheets_the_day_before(): void
+    {
+        Schema::create('scor_event', function (Blueprint $table) {
+            $table->unsignedInteger('event')->primary();
+            $table->timestamp('closed_at')->nullable();
+            $table->timestamp('released_at')->nullable();
+            $table->timestamp('playground_reset_at')->nullable();
+            $table->text('mail_body')->nullable();
+        });
+        DB::table('event')->where('id', 1)->update(['date' => now()->addDay()->toDateString()]);
+        DB::table('scor_sheet')->insert([
+            'event' => 1,
+            'kind' => 'referee',
+            'team' => 1,
+            'match' => 1,
+            'points' => 10,
+        ]);
+
+        $this->assertSame(1, (new \App\Scor\ScorLifecycle())->resetPlaygroundDue());
+        $this->assertSame(0, DB::table('scor_sheet')->count());
+        $this->assertNotNull(DB::table('scor_event')->where('event', 1)->value('playground_reset_at'));
+    }
+
     public function test_noteworthy_teams_can_be_sent_on_stage_only_up_to_the_flow_count(): void
     {
         Schema::create('scor_noteworthy', function (Blueprint $table) {
@@ -705,7 +746,7 @@ class ScorSheetServiceTest extends TestCase
 
     private function createSchema(): void
     {
-        foreach (['scor_stage_pick', 'scor_noteworthy', 'scor_award', 'event_staffing_assignment', 'event_staffing_group', 'event_staffing_role', 'volunteer_person', 'activity', 'activity_group', 'm_activity_type_detail', 'm_role', 'scor_sheet', 'scor_item', 'scor_section', 'scor_form', 'match', 'team_plan', 'team', 'plan', 'event_program', 'event_user_access', 'user_regional_partner', 'event', 'm_season'] as $table) {
+        foreach (['scor_event', 'scor_stage_pick', 'scor_noteworthy', 'scor_award', 'event_staffing_assignment', 'event_staffing_group', 'event_staffing_role', 'volunteer_person', 'activity', 'activity_group', 'm_activity_type_detail', 'm_role', 'scor_sheet', 'scor_item', 'scor_section', 'scor_form', 'match', 'team_plan', 'team', 'plan', 'event_program', 'event_user_access', 'user_regional_partner', 'event', 'm_season'] as $table) {
             Schema::dropIfExists($table);
         }
 

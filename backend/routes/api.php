@@ -179,6 +179,9 @@ Route::prefix('contao')->group(function () {
 });
 
 Route::post('/scor/login', [ScorController::class, 'login']);
+Route::get('/scor/public/practice/{eventId}', [ScorController::class, 'practice']);
+Route::get('/scor/public/results/{eventId}', [ScorController::class, 'published']);
+Route::post('/scor/public/practice/score', [ScorController::class, 'practiceScore']);
 
 Route::middleware(['keycloak'])->group(function () {
     // For testing: manually trigger round write
@@ -485,6 +488,9 @@ Route::middleware(['keycloak'])->group(function () {
         Route::put('/events/{eventId}/awards', [ScorController::class, 'saveAwards']);
         Route::put('/events/{eventId}/teams/{team}/noteworthy', [ScorController::class, 'tagNoteworthy']);
         Route::put('/events/{eventId}/stage', [ScorController::class, 'pickStage']);
+        Route::post('/events/{eventId}/close', [ScorController::class, 'closeEvent']);
+        Route::post('/events/{eventId}/release', [ScorController::class, 'releaseEvent']);
+        Route::post('/events/{eventId}/coach-mail', [ScorController::class, 'sendResults']);
         Route::get('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'referee']);
         Route::put('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'saveReferee']);
         Route::post('/events/{eventId}/matches/{match}/teams/{team}/confirm', [ScorController::class, 'confirmReferee']);

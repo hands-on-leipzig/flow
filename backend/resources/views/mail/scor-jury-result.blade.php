@@ -1,0 +1,4 @@
+{{ $body }}
+
+{{ $eventName }}
+{{ $teamName }}

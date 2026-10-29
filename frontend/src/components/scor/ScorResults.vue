@@ -6,6 +6,7 @@ const props = defineProps<{results: any}>()
 const emit = defineEmits<{saved: [results: any]}>()
 
 const awardError = ref('')
+const mailNotice = ref('')
 const awardBusy = ref(false)
 const trophies = ref<{team: number, category: string}[]>([])
 const nominations = ref<{team: number, category: string}[]>([])
@@ -38,6 +39,29 @@ function toggleMark(rows: {team: number, category: string}[], team: number, cate
   const index = rows.findIndex((row) => row.team === team && row.category === category)
   if (index >= 0) rows.splice(index, 1)
   else rows.push({team, category})
+}
+
+async function closeEvent() {
+  const {data} = await axios.post(`/scor/events/${props.results.event.id}/close`)
+  emit('saved', {...props.results, lifecycle: data})
+}
+
+async function releaseEvent() {
+  const {data} = await axios.post(`/scor/events/${props.results.event.id}/release`)
+  emit('saved', {...props.results, lifecycle: data})
+}
+
+async function sendMail() {
+  mailNotice.value = ''
+  try {
+    const {data} = await axios.post(`/scor/events/${props.results.event.id}/coach-mail`)
+    mailNotice.value = data.sent
+        ? `${data.sent} Mails gesendet.`
+        : 'Keine Coach-Adresse gefunden.'
+    if (data.missing?.length) mailNotice.value += ' Ohne Adresse: '+data.missing.join(', ')
+  } catch (e: any) {
+    mailNotice.value = e?.response?.data?.error || 'Mail fehlgeschlagen.'
+  }
 }
 
 async function saveAwards() {
@@ -281,6 +305,12 @@ function formatPoints(value: number) {
       <p v-else class="scor-results__note">Coaching: {{ coachingLabel }}</p>
       <p v-if="awardError" class="text-lg text-red-700">{{ awardError }}</p>
       <button v-if="results.can_edit_awards" type="button" class="glass-btn-accent" :disabled="awardBusy" @click="saveAwards">Auszeichnungen speichern</button>
+      <div v-if="results.lifecycle" class="flex flex-wrap gap-3">
+        <button v-if="results.can_edit_awards && !results.lifecycle.closed" type="button" class="glass-btn-secondary" @click="closeEvent">Auswertung schließen</button>
+        <button v-if="results.flow_admin && results.lifecycle.closed && !results.lifecycle.released" type="button" class="glass-btn-accent" @click="releaseEvent">Veröffentlichen</button>
+        <button v-if="results.can_edit_awards && results.lifecycle.released" type="button" class="glass-btn-secondary" @click="sendMail">Jury-PDF an Coaches</button>
+      </div>
+      <p v-if="mailNotice" class="scor-results__note">{{ mailNotice }}</p>
     </section>
   </div>
 </template>

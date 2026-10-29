@@ -98,6 +98,8 @@ final class ScorSheetService
             'has_plan' => $planId !== null,
             'groups' => $groups,
             'stage' => (new ScorStage())->state($eventId),
+            'lifecycle' => (new ScorLifecycle())->state($eventId),
+            'flow_admin' => $user->isFlowAdmin(),
             'matches' => $matches,
             'teams' => array_values($teams),
         ];
@@ -111,9 +113,9 @@ final class ScorSheetService
      *
      * @return array{event: array{id: int, name: mixed}, rounds: list<array{round: int, label: string}>, teams: list<array<string, mixed>>}
      */
-    public function results(User $user, int $eventId): array
+    public function results(User $user, int $eventId, bool $public = false): array
     {
-        $roles = $this->requireEvent($user, $eventId);
+        $roles = $public ? \App\Support\ScorGrant::none() : $this->requireEvent($user, $eventId);
         $event = $this->eventRow($eventId);
         $planId = $this->planId($eventId);
         $matches = $planId ? $this->matches($planId) : [];
@@ -235,7 +237,43 @@ final class ScorSheetService
             'teams' => $rows,
             'awards' => (new ScorAwards())->forEvent($eventId),
             'can_edit_awards' => $roles->admin || $user->isFlowAdmin(),
+            'flow_admin' => $user->isFlowAdmin(),
+            'lifecycle' => (new ScorLifecycle())->state($eventId),
         ];
+    }
+
+    public function publishedResults(int $eventId): array
+    {
+        (new ScorLifecycle())->assertPublic($eventId);
+        $user = new User;
+        $user->id = 0;
+
+        return $this->results($user, $eventId, public: true);
+    }
+
+    public function closeEvent(User $user, int $eventId): array
+    {
+        $this->requireEvent($user, $eventId);
+
+        return (new ScorLifecycle())->close($user, $eventId);
+    }
+
+    public function releaseEvent(User $user, int $eventId): array
+    {
+        $this->requireEvent($user, $eventId);
+
+        return (new ScorLifecycle())->release($user, $eventId);
+    }
+
+    public function sendResults(User $user, int $eventId, ?string $body): array
+    {
+        $this->requireEvent($user, $eventId);
+        $life = new ScorLifecycle();
+        if ($body !== null) {
+            $life->saveMail($user, $eventId, $body);
+        }
+
+        return $life->sendCoachMail($user, $eventId);
     }
 
     /**
@@ -467,6 +505,7 @@ final class ScorSheetService
 
     private function writeSheet(User $user, int $eventId, string $kind, int $teamId, int $matchId, array $answers, bool $complete): void
     {
+        (new ScorLifecycle())->assertWritable($eventId);
         $sheet = $this->findSheet($eventId, $kind, $teamId, $matchId);
         if ($kind === 'referee' && $this->isLocked($sheet)) {
             throw new ScorAccessException('Bogen ist bestätigt.', 409);
