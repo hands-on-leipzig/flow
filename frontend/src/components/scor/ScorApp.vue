@@ -66,6 +66,37 @@ function statusLabel(status?: string) {
   return 'offen'
 }
 
+function peopleLabel(people?: string[]) {
+  return people?.length ? people.join(', ') : 'noch niemand'
+}
+
+const jurySections = computed(() => {
+  const catalog = overview.value?.groups?.jury || []
+  const teams = overview.value?.teams || []
+  const grouped = catalog.length > 0 || teams.some((team: any) => team.jury_lane)
+  if (!grouped) return null
+
+  const sections = new Map<number, {index: number, label: string, people: string[], teams: any[]}>()
+  for (const group of catalog) {
+    sections.set(group.index, {index: group.index, label: group.label, people: group.people || [], teams: []})
+  }
+  const loose: any[] = []
+  for (const team of teams) {
+    const lane = Number(team.jury_lane || 0)
+    if (lane > 0) {
+      if (!sections.has(lane)) {
+        sections.set(lane, {index: lane, label: `Jury-Gruppe ${lane}`, people: [], teams: []})
+      }
+      sections.get(lane)!.teams.push(team)
+    } else {
+      loose.push(team)
+    }
+  }
+  const list = [...sections.values()].sort((a, b) => a.index - b.index)
+  if (loose.length) list.push({index: 0, label: 'ohne Gruppe', people: [], teams: loose})
+  return list
+})
+
 async function load() {
   error.value = ''
   loading.value = true
@@ -175,6 +206,15 @@ function openJury(teamIdValue: number) {
       <ScorResults v-if="tab === 'ergebnisse'" :results="results"/>
 
       <div v-else-if="tab === 'schiri' && overview.roles.referee" class="scor-rounds">
+        <section v-if="overview.groups?.referee?.length" class="scor-assign" aria-label="Schiri-Zuteilung">
+          <h2 class="scor-assign__title">Zuteilung</h2>
+          <ul class="scor-assign__list">
+            <li v-for="group in overview.groups.referee" :key="group.index">
+              <span class="scor-assign__group">{{ group.label }}</span>
+              <span class="scor-assign__people">{{ peopleLabel(group.people) }}</span>
+            </li>
+          </ul>
+        </section>
         <p v-if="overview.has_plan && !overview.matches.length" class="text-lg text-[var(--color-text-muted)]">Im Matchplan stehen noch keine Future-Matches.</p>
         <section v-for="round in rounds" :key="round.label" class="scor-round">
           <button
@@ -205,11 +245,30 @@ function openJury(teamIdValue: number) {
                   @click="side.id && openMatch(match.id, side.id)"
               >
                 <span class="scor-side__place">{{ side.table_label }}</span>
+                <span v-if="side.staff?.length" class="scor-side__staff">{{ side.staff.join(', ') }}</span>
                 <span class="scor-side__name">{{ side.id ? `${side.number} ${side.name}` : 'kein Team' }}</span>
                 <span v-if="side.id" class="scor-side__status">{{ statusLabel(side.referee_status) }}</span>
               </button>
             </div>
           </article>
+        </section>
+      </div>
+
+      <div v-else-if="tab === 'jury' && overview.roles.jury && jurySections" class="scor-rounds">
+        <section v-for="group in jurySections" :key="group.index" class="scor-round">
+          <header class="scor-assign">
+            <h2 class="scor-assign__title">{{ group.label }}</h2>
+            <p class="scor-assign__people">{{ peopleLabel(group.people) }}</p>
+          </header>
+          <ul class="glass-card liquid-surface-inner divide-y divide-[var(--color-border)]">
+            <li v-if="!group.teams.length" class="p-4 text-lg text-[var(--color-text-muted)]">Keine Teams in dieser Gruppe.</li>
+            <li v-for="team in group.teams" :key="team.id">
+              <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id)">
+                <span class="font-semibold">{{ team.number }} {{ team.name }}</span>
+                <span class="text-lg text-[var(--color-text-muted)]">{{ statusLabel(team.jury_status) }}</span>
+              </button>
+            </li>
+          </ul>
         </section>
       </div>
 
@@ -345,6 +404,41 @@ function openJury(teamIdValue: number) {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-muted);
+}
+
+.scor-side__staff {
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.scor-assign__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.scor-assign__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scor-assign__group,
+.scor-assign__people {
+  display: block;
+}
+
+.scor-assign__group {
+  font-weight: 800;
+}
+
+.scor-assign__people {
+  color: var(--color-text-muted);
+  font-size: 1.125rem;
 }
 
 .scor-side__name {

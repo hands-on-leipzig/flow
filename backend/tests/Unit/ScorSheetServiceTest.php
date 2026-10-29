@@ -38,6 +38,119 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame('Beta', $overview['matches'][0]['team_2']['name']);
         $this->assertSame('open', $overview['matches'][0]['team_1']['referee_status']);
         $this->assertCount(2, $overview['teams']);
+        $this->assertSame([], $overview['groups']['jury']);
+        $this->assertSame([], $overview['groups']['referee']);
+    }
+
+    public function test_overview_shows_who_is_assigned_to_jury_and_referee_groups(): void
+    {
+        Schema::create('m_role', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name');
+            $table->unsignedInteger('first_program')->nullable();
+            $table->string('differentiation_parameter')->nullable();
+            $table->string('group_label')->nullable();
+        });
+        Schema::create('m_activity_type_detail', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('code')->nullable();
+            $table->unsignedInteger('first_program')->nullable();
+        });
+        Schema::create('activity_group', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_type_detail');
+            $table->unsignedInteger('plan');
+        });
+        Schema::create('activity', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('activity_group');
+            $table->unsignedInteger('activity_type_detail');
+            $table->dateTime('start')->nullable();
+            $table->integer('table_1')->nullable();
+            $table->integer('table_1_team')->nullable();
+            $table->integer('table_2')->nullable();
+            $table->integer('table_2_team')->nullable();
+            $table->unsignedInteger('jury_team')->nullable();
+            $table->unsignedTinyInteger('jury_lane')->nullable();
+        });
+        Schema::create('volunteer_person', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('first_name');
+            $table->string('last_name');
+        });
+        Schema::create('event_staffing_role', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('event');
+            $table->unsignedInteger('m_role')->nullable();
+            $table->string('label')->nullable();
+            $table->string('group_label')->nullable();
+            $table->unsignedSmallInteger('sequence')->default(0);
+            $table->boolean('surplus')->default(false);
+        });
+        Schema::create('event_staffing_group', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('event_staffing_role');
+            $table->unsignedSmallInteger('group_index');
+            $table->boolean('surplus')->default(false);
+        });
+        Schema::create('event_staffing_assignment', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->unsignedInteger('event_staffing_group');
+            $table->unsignedInteger('volunteer_person');
+        });
+
+        DB::table('m_role')->insert([
+            ['id' => 22, 'name' => 'Juror:in', 'first_program' => FirstProgram::FUTURE_8->value, 'differentiation_parameter' => 'lane', 'group_label' => 'Jury-Gruppe'],
+            ['id' => 23, 'name' => 'Schiedsrichter:in', 'first_program' => FirstProgram::FUTURE_8->value, 'differentiation_parameter' => 'table', 'group_label' => 'Spiel-Matte'],
+        ]);
+        DB::table('event_staffing_role')->insert([
+            ['id' => 1, 'event' => 1, 'm_role' => 22, 'label' => 'Juror:in', 'group_label' => 'Jury-Gruppe', 'sequence' => 11, 'surplus' => false],
+            ['id' => 2, 'event' => 1, 'm_role' => 23, 'label' => 'Schiedsrichter:in', 'group_label' => 'Spiel-Matte', 'sequence' => 21, 'surplus' => false],
+        ]);
+        DB::table('event_staffing_group')->insert([
+            ['id' => 1, 'event_staffing_role' => 1, 'group_index' => 1, 'surplus' => false],
+            ['id' => 2, 'event_staffing_role' => 1, 'group_index' => 2, 'surplus' => false],
+            ['id' => 3, 'event_staffing_role' => 2, 'group_index' => 1, 'surplus' => false],
+            ['id' => 4, 'event_staffing_role' => 2, 'group_index' => 2, 'surplus' => false],
+        ]);
+        DB::table('volunteer_person')->insert([
+            ['id' => 1, 'first_name' => 'Ada', 'last_name' => 'Kern'],
+            ['id' => 2, 'first_name' => 'Bea', 'last_name' => 'Holm'],
+            ['id' => 3, 'first_name' => 'Cem', 'last_name' => 'Roth'],
+            ['id' => 4, 'first_name' => 'Dina', 'last_name' => 'Falk'],
+        ]);
+        DB::table('event_staffing_assignment')->insert([
+            ['id' => 1, 'event_staffing_group' => 1, 'volunteer_person' => 1],
+            ['id' => 2, 'event_staffing_group' => 2, 'volunteer_person' => 2],
+            ['id' => 3, 'event_staffing_group' => 3, 'volunteer_person' => 3],
+            ['id' => 4, 'event_staffing_group' => 4, 'volunteer_person' => 4],
+        ]);
+        DB::table('m_activity_type_detail')->insert([
+            'id' => 10,
+            'first_program' => FirstProgram::FUTURE_8->value,
+        ]);
+        DB::table('activity_group')->insert([
+            'id' => 1,
+            'activity_type_detail' => 10,
+            'plan' => 1,
+        ]);
+        DB::table('activity')->insert([
+            ['id' => 1, 'activity_group' => 1, 'activity_type_detail' => 10, 'jury_team' => 1, 'jury_lane' => 2],
+            ['id' => 2, 'activity_group' => 1, 'activity_type_detail' => 10, 'jury_team' => 2, 'jury_lane' => 1],
+        ]);
+
+        $overview = $this->sheets->overview($this->user(), 1);
+        $teams = collect($overview['teams'])->keyBy('id');
+
+        $this->assertSame(2, $teams[1]['jury_lane']);
+        $this->assertSame(1, $teams[2]['jury_lane']);
+        $this->assertSame('Jury-Gruppe 1', $overview['groups']['jury'][0]['label']);
+        $this->assertSame(['Ada Kern'], $overview['groups']['jury'][0]['people']);
+        $this->assertSame(['Bea Holm'], $overview['groups']['jury'][1]['people']);
+        $this->assertSame('Spiel-Matte 1', $overview['groups']['referee'][0]['label']);
+        $this->assertSame(['Cem Roth'], $overview['groups']['referee'][0]['people']);
+        $this->assertSame(['Cem Roth'], $overview['matches'][0]['team_1']['staff']);
+        $this->assertSame(['Dina Falk'], $overview['matches'][0]['team_2']['staff']);
     }
 
     public function test_bioglow_referee_sheet_scores_the_sample(): void
@@ -452,7 +565,7 @@ class ScorSheetServiceTest extends TestCase
 
     private function createSchema(): void
     {
-        foreach (['scor_sheet', 'scor_item', 'scor_section', 'scor_form', 'match', 'team_plan', 'team', 'plan', 'event_program', 'event_user_access', 'user_regional_partner', 'event', 'm_season'] as $table) {
+        foreach (['event_staffing_assignment', 'event_staffing_group', 'event_staffing_role', 'volunteer_person', 'activity', 'activity_group', 'm_activity_type_detail', 'm_role', 'scor_sheet', 'scor_item', 'scor_section', 'scor_form', 'match', 'team_plan', 'team', 'plan', 'event_program', 'event_user_access', 'user_regional_partner', 'event', 'm_season'] as $table) {
             Schema::dropIfExists($table);
         }
 

@@ -4,6 +4,7 @@ namespace App\Scor;
 
 use App\Enums\FirstProgram;
 use App\Models\User;
+use App\Services\TeamJuryAssignmentService;
 use App\Support\FlowAccess;
 use App\Support\ScorGrant;
 use App\Support\TableFieldLabels;
@@ -55,10 +56,19 @@ final class ScorSheetService
             $status[$sheet->kind.'-'.$sheet->match.'-'.$sheet->team] = $this->statusOf($sheet);
         }
 
+        $groups = $this->staffingGroups($eventId);
+        $referees = [];
+        foreach ($groups['referee'] as $group) {
+            $referees[$group['index']] = $group['people'];
+        }
+        $lanes = $planId ? $this->juryLanes($planId) : [];
+
         $teams = [];
         foreach ($matches as &$match) {
             foreach (['team_1', 'team_2'] as $side) {
                 $team = $match[$side];
+                $table = (int) ($team['table'] ?? 0);
+                $match[$side]['staff'] = $referees[$table] ?? [];
                 if (empty($team['id'])) {
                     continue;
                 }
@@ -70,6 +80,7 @@ final class ScorSheetService
         unset($match);
 
         foreach ($teams as $id => $team) {
+            $teams[$id]['jury_lane'] = $lanes[(int) ($team['plan_slot'] ?? 0)] ?? null;
             $teams[$id]['jury_status'] = $status['jury-0-'.$id] ?? 'open';
         }
 
@@ -85,6 +96,7 @@ final class ScorSheetService
                 'admin' => $roles->admin || $user->isFlowAdmin(),
             ],
             'has_plan' => $planId !== null,
+            'groups' => $groups,
             'matches' => $matches,
             'teams' => array_values($teams),
         ];
@@ -935,6 +947,7 @@ final class ScorSheetService
             'id' => (int) $team->id,
             'name' => (string) $team->name,
             'number' => $team->team_number_hot,
+            'plan_slot' => $slot,
             'table' => $table,
             'table_label' => $this->tableLabel($table, $tableNames, $tableCount),
         ];
@@ -1042,6 +1055,110 @@ final class ScorSheetService
         $decoded = json_decode($config, true);
 
         return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Future jury lanes and referee tables, with the people assigned in staffing.
+     *
+     * @return array{jury: list<array{index: int, label: string, people: list<string>}>, referee: list<array{index: int, label: string, people: list<string>}>}
+     */
+    private function staffingGroups(int $eventId): array
+    {
+        $empty = ['jury' => [], 'referee' => []];
+        foreach (['event_staffing_role', 'event_staffing_group', 'event_staffing_assignment', 'volunteer_person', 'm_role'] as $table) {
+            if (!Schema::hasTable($table)) {
+                return $empty;
+            }
+        }
+
+        $roles = DB::table('event_staffing_role as r')
+            ->join('m_role as mr', 'mr.id', '=', 'r.m_role')
+            ->where('r.event', $eventId)
+            ->where('mr.first_program', FirstProgram::FUTURE_8->value)
+            ->whereIn('mr.differentiation_parameter', ['lane', 'table'])
+            ->where('r.surplus', false)
+            ->orderBy('r.sequence')
+            ->orderBy('r.id')
+            ->get([
+                'r.id',
+                'r.label',
+                'r.group_label',
+                'mr.group_label as catalog_group_label',
+                'mr.differentiation_parameter',
+            ]);
+        if ($roles->isEmpty()) {
+            return $empty;
+        }
+
+        $roleKind = [];
+        $roleLabel = [];
+        foreach ($roles as $role) {
+            $roleKind[(int) $role->id] = $role->differentiation_parameter === 'lane' ? 'jury' : 'referee';
+            $base = trim((string) ($role->group_label ?: $role->catalog_group_label ?: $role->label));
+            $roleLabel[(int) $role->id] = $base;
+        }
+
+        $groups = DB::table('event_staffing_group')
+            ->whereIn('event_staffing_role', array_keys($roleKind))
+            ->where('surplus', false)
+            ->orderBy('group_index')
+            ->get(['id', 'event_staffing_role', 'group_index']);
+        if ($groups->isEmpty()) {
+            return $empty;
+        }
+
+        $peopleByGroup = [];
+        $assignments = DB::table('event_staffing_assignment as a')
+            ->join('volunteer_person as p', 'p.id', '=', 'a.volunteer_person')
+            ->whereIn('a.event_staffing_group', $groups->pluck('id'))
+            ->orderBy('p.last_name')
+            ->orderBy('p.first_name')
+            ->get(['a.event_staffing_group', 'p.first_name', 'p.last_name']);
+        foreach ($assignments as $assignment) {
+            $name = trim($assignment->first_name.' '.$assignment->last_name);
+            if ($name === '') {
+                continue;
+            }
+            $peopleByGroup[(int) $assignment->event_staffing_group][] = $name;
+        }
+
+        $merged = ['jury' => [], 'referee' => []];
+        foreach ($groups as $group) {
+            $roleId = (int) $group->event_staffing_role;
+            $kind = $roleKind[$roleId];
+            $index = (int) $group->group_index;
+            $base = $roleLabel[$roleId];
+            $label = $base === '' ? 'Gruppe '.$index : $base.' '.$index;
+            if (!isset($merged[$kind][$index])) {
+                $merged[$kind][$index] = [
+                    'index' => $index,
+                    'label' => $label,
+                    'people' => [],
+                ];
+            }
+            foreach ($peopleByGroup[(int) $group->id] ?? [] as $name) {
+                if (!in_array($name, $merged[$kind][$index]['people'], true)) {
+                    $merged[$kind][$index]['people'][] = $name;
+                }
+            }
+        }
+
+        return [
+            'jury' => array_values($merged['jury']),
+            'referee' => array_values($merged['referee']),
+        ];
+    }
+
+    /**
+     * @return array<int, int> plan slot => jury lane
+     */
+    private function juryLanes(int $planId): array
+    {
+        if (!Schema::hasTable('activity') || !Schema::hasTable('activity_group') || !Schema::hasTable('m_activity_type_detail')) {
+            return [];
+        }
+
+        return (new TeamJuryAssignmentService())->assignmentsForProgram($planId, FirstProgram::FUTURE_8->value);
     }
 
     private function inRange(int $value, int $min, int $max): bool
