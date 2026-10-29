@@ -153,6 +153,40 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame(['Dina Falk'], $overview['matches'][0]['team_2']['staff']);
     }
 
+    public function test_one_trophy_rule_rejects_two_judged_awards_and_keeps_three_with_extras(): void
+    {
+        $this->createAwardTable();
+
+        try {
+            $this->sheets->saveAwards($this->user(), 1, [
+                'trophies' => [
+                    ['team' => 1, 'category' => 'champion'],
+                    ['team' => 1, 'category' => 'research'],
+                ],
+                'nominations' => [],
+            ]);
+            $this->fail('Zwei Wertungspokale für ein Team müssen scheitern.');
+        } catch (\App\Scor\ScorAccessException $e) {
+            $this->assertSame(422, $e->status);
+        }
+
+        $saved = $this->sheets->saveAwards($this->user(), 1, [
+            'trophies' => [
+                ['team' => 1, 'category' => 'champion'],
+                ['team' => 1, 'category' => 'robot'],
+            ],
+            'nominations' => [
+                ['team' => 1, 'category' => 'research'],
+                ['team' => 2, 'category' => 'research'],
+            ],
+            'coaching' => 1,
+        ]);
+
+        $this->assertCount(2, $saved['awards']['trophies']);
+        $this->assertSame(1, $saved['awards']['coaching']);
+        $this->assertCount(2, $saved['awards']['nominations']);
+    }
+
     public function test_bioglow_referee_sheet_scores_the_sample(): void
     {
         $sheet = $this->sheets->refereeSheet($this->user(), 1, 1, 1);
@@ -475,6 +509,17 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame(3, $byId[3]['champion_rank']);
     }
 
+    private function createAwardTable(): void
+    {
+        Schema::create('scor_award', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('event');
+            $table->unsignedInteger('team')->nullable();
+            $table->string('category', 32);
+            $table->string('kind', 16);
+        });
+    }
+
     private function user(): User
     {
         $user = new User;
@@ -573,7 +618,7 @@ class ScorSheetServiceTest extends TestCase
 
     private function createSchema(): void
     {
-        foreach (['event_staffing_assignment', 'event_staffing_group', 'event_staffing_role', 'volunteer_person', 'activity', 'activity_group', 'm_activity_type_detail', 'm_role', 'scor_sheet', 'scor_item', 'scor_section', 'scor_form', 'match', 'team_plan', 'team', 'plan', 'event_program', 'event_user_access', 'user_regional_partner', 'event', 'm_season'] as $table) {
+        foreach (['scor_award', 'event_staffing_assignment', 'event_staffing_group', 'event_staffing_role', 'volunteer_person', 'activity', 'activity_group', 'm_activity_type_detail', 'm_role', 'scor_sheet', 'scor_item', 'scor_section', 'scor_form', 'match', 'team_plan', 'team', 'plan', 'event_program', 'event_user_access', 'user_regional_partner', 'event', 'm_season'] as $table) {
             Schema::dropIfExists($table);
         }
 

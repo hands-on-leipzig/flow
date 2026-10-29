@@ -203,7 +203,7 @@ function openJury(teamIdValue: number) {
           @update:model-value="selectSicht"
       />
 
-      <ScorResults v-if="tab === 'ergebnisse'" :results="results"/>
+      <ScorResults v-if="tab === 'ergebnisse'" :results="results" @saved="results = $event"/>
 
       <div v-else-if="tab === 'schiri' && overview.roles.referee" class="scor-rounds">
         <section v-if="overview.groups?.referee?.length" class="scor-assign" aria-label="Schiri-Zuteilung">

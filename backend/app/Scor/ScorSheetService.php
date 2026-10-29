@@ -112,7 +112,7 @@ final class ScorSheetService
      */
     public function results(User $user, int $eventId): array
     {
-        $this->requireEvent($user, $eventId);
+        $roles = $this->requireEvent($user, $eventId);
         $event = $this->eventRow($eventId);
         $planId = $this->planId($eventId);
         $matches = $planId ? $this->matches($planId) : [];
@@ -232,7 +232,62 @@ final class ScorSheetService
             ],
             'rounds' => array_values($rounds),
             'teams' => $rows,
+            'awards' => (new ScorAwards())->forEvent($eventId),
+            'can_edit_awards' => $roles->admin || $user->isFlowAdmin(),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    public function saveAwards(User $user, int $eventId, array $input): array
+    {
+        $roles = $this->requireEvent($user, $eventId);
+        if (!$roles->admin && !$user->isFlowAdmin()) {
+            throw new ScorAccessException('Auszeichnungen setzt die Veranstaltungs-Admin.');
+        }
+
+        $known = [];
+        foreach ($this->results($user, $eventId)['teams'] as $team) {
+            $known[(int) $team['id']] = true;
+        }
+        $trophies = $this->awardRows($input['trophies'] ?? [], $known);
+        $nominations = $this->awardRows($input['nominations'] ?? [], $known);
+        $coaching = isset($input['coaching']) && $input['coaching'] !== null && $input['coaching'] !== ''
+            ? (int) $input['coaching']
+            : null;
+        if ($coaching !== null && !isset($known[$coaching])) {
+            throw new ScorAccessException('Das Team gehört nicht zu dieser Veranstaltung.', 422);
+        }
+
+        $saved = (new ScorAwards())->replace($eventId, $trophies, $nominations, $coaching);
+
+        return array_merge($this->results($user, $eventId), ['awards' => $saved]);
+    }
+
+    /**
+     * @param  mixed  $rows
+     * @param  array<int, bool>  $known
+     * @return list<array{team: int, category: string}>
+     */
+    private function awardRows(mixed $rows, array $known): array
+    {
+        if (!is_array($rows)) {
+            throw new ScorAccessException('Auszeichnungen sind unvollständig.', 422);
+        }
+        $out = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                throw new ScorAccessException('Auszeichnungen sind unvollständig.', 422);
+            }
+            $team = (int) ($row['team'] ?? 0);
+            if (!isset($known[$team])) {
+                throw new ScorAccessException('Das Team gehört nicht zu dieser Veranstaltung.', 422);
+            }
+            $out[] = ['team' => $team, 'category' => (string) ($row['category'] ?? '')];
+        }
+
+        return $out;
     }
 
     public function refereeSheet(User $user, int $eventId, int $matchId, int $teamId): array

@@ -1,7 +1,62 @@
 <script setup lang="ts">
-import {computed, ref} from 'vue'
+import {computed, ref, watch} from 'vue'
+import axios from 'axios'
 
 const props = defineProps<{results: any}>()
+const emit = defineEmits<{saved: [results: any]}>()
+
+const awardError = ref('')
+const awardBusy = ref(false)
+const trophies = ref<{team: number, category: string}[]>([])
+const nominations = ref<{team: number, category: string}[]>([])
+const coaching = ref<number | ''>('')
+
+const trophyColumns = [
+  {id: 'champion', label: 'Champion'},
+  {id: 'research', label: 'Forschung'},
+  {id: 'robotdesign', label: 'Roboterdesign'},
+  {id: 'core_values', label: 'Grundwerte'},
+  {id: 'robot', label: 'Spiel'},
+]
+const nominationColumns = [
+  {id: 'research', label: 'Forschung'},
+  {id: 'robotdesign', label: 'Roboterdesign'},
+  {id: 'core_values', label: 'Grundwerte'},
+]
+
+watch(() => props.results, (results) => {
+  trophies.value = [...(results?.awards?.trophies || [])]
+  nominations.value = [...(results?.awards?.nominations || [])]
+  coaching.value = results?.awards?.coaching || ''
+  awardError.value = ''
+}, {immediate: true})
+
+function marked(rows: {team: number, category: string}[], team: number, category: string) {
+  return rows.some((row) => row.team === team && row.category === category)
+}
+
+function toggleMark(rows: {team: number, category: string}[], team: number, category: string) {
+  const index = rows.findIndex((row) => row.team === team && row.category === category)
+  if (index >= 0) rows.splice(index, 1)
+  else rows.push({team, category})
+}
+
+async function saveAwards() {
+  awardError.value = ''
+  awardBusy.value = true
+  try {
+    const {data} = await axios.put(`/scor/events/${props.results.event.id}/awards`, {
+      trophies: trophies.value,
+      nominations: nominations.value,
+      coaching: coaching.value || null,
+    })
+    emit('saved', data)
+  } catch (e: any) {
+    awardError.value = e?.response?.data?.error || 'Speichern fehlgeschlagen.'
+  } finally {
+    awardBusy.value = false
+  }
+}
 
 const sortKey = ref('champion_rank')
 const sortDir = ref<'asc' | 'desc'>('asc')
@@ -51,6 +106,11 @@ function sortLabel(key: string) {
 function roundCell(team: any, round: number) {
   return (team.rounds || []).find((cell: any) => cell && cell.round === round) || null
 }
+
+const coachingLabel = computed(() => {
+  const team = (props.results?.teams || []).find((entry: any) => entry.id === coaching.value)
+  return team ? `${team.number} ${team.name}` : '–'
+})
 
 function formatPoints(value: number) {
   if (!Number.isFinite(value)) return '–'
@@ -142,6 +202,62 @@ function formatPoints(value: number) {
         Gespeicherte Bögen zählen mit. „begonnen“ heißt: Schiri und Team haben noch nicht beide bestätigt.
         Die Testrunde steht hier nicht.
       </p>
+    </section>
+
+    <section class="scor-results__block">
+      <h2 class="scor-results__title">Auszeichnungen</h2>
+      <p class="scor-results__note">
+        Ein Team bekommt nur einen Pokal aus Champion, Forschung, Roboterdesign und Grundwerten.
+        Spiel und Coaching können zusätzlich vergeben werden, höchstens drei Pokale insgesamt.
+        Je Kategorie höchstens vier Nominierungen.
+      </p>
+      <div class="scor-board glass-card liquid-surface-inner">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Team</th>
+              <th v-for="column in trophyColumns" :key="column.id" scope="col">{{ column.label }}</th>
+              <th v-for="column in nominationColumns" :key="`n-${column.id}`" scope="col">Nom. {{ column.label }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="team in results.teams" :key="team.id">
+              <th scope="row">
+                <span class="scor-team__name">{{ team.name }}</span>
+                <span class="scor-team__number">{{ team.number }}</span>
+              </th>
+              <td v-for="column in trophyColumns" :key="column.id">
+                <input
+                    v-if="results.can_edit_awards"
+                    type="checkbox"
+                    :checked="marked(trophies, team.id, column.id)"
+                    @change="toggleMark(trophies, team.id, column.id)"
+                />
+                <span v-else>{{ marked(trophies, team.id, column.id) ? 'Pokal' : '–' }}</span>
+              </td>
+              <td v-for="column in nominationColumns" :key="`n-${column.id}`">
+                <input
+                    v-if="results.can_edit_awards"
+                    type="checkbox"
+                    :checked="marked(nominations, team.id, column.id)"
+                    @change="toggleMark(nominations, team.id, column.id)"
+                />
+                <span v-else>{{ marked(nominations, team.id, column.id) ? 'nominiert' : '–' }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <label v-if="results.can_edit_awards" class="scor-results__note">
+        Coaching
+        <select v-model="coaching" class="glass-input ml-2">
+          <option value="">–</option>
+          <option v-for="team in results.teams" :key="team.id" :value="team.id">{{ team.number }} {{ team.name }}</option>
+        </select>
+      </label>
+      <p v-else class="scor-results__note">Coaching: {{ coachingLabel }}</p>
+      <p v-if="awardError" class="text-lg text-red-700">{{ awardError }}</p>
+      <button v-if="results.can_edit_awards" type="button" class="glass-btn-accent" :disabled="awardBusy" @click="saveAwards">Auszeichnungen speichern</button>
     </section>
   </div>
 </template>
