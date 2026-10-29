@@ -67,6 +67,7 @@ const inviteBusy = ref(false)
 const notice = ref('')
 
 const log = ref<LogEntry[]>([])
+const helpers = ref<{id: number, name: string, email: string, has_account: boolean}[]>([])
 
 const actionLabels: Record<string, string> = {
   invited: 'Einladung',
@@ -139,7 +140,40 @@ async function loadLog() {
 async function selectEvent(id: number) {
   selectedId.value = id
   notice.value = ''
-  await loadDetail()
+  await Promise.all([loadDetail(), loadHelpers()])
+}
+
+async function loadHelpers() {
+  if (!selectedId.value) return
+  try {
+    const {data} = await axios.get(`/admin/scor/events/${selectedId.value}/helpers`)
+    helpers.value = data.helpers || []
+  } catch {
+    helpers.value = []
+  }
+}
+
+async function grantHelper(helper: {id: number, name: string}) {
+  if (!selectedId.value || (!inviteReferee.value && !inviteJury.value && !inviteAdmin.value)) {
+    notice.value = 'Bitte mindestens Schiri, Jury oder Veranstaltung-Admin wählen.'
+    return
+  }
+  inviteBusy.value = true
+  notice.value = ''
+  try {
+    await axios.post(`/admin/scor/events/${selectedId.value}/helpers`, {
+      volunteer_person: helper.id,
+      can_scor_referee: inviteReferee.value,
+      can_scor_jury: inviteJury.value,
+      can_scor_admin: inviteAdmin.value,
+    })
+    notice.value = `${helper.name} hat jetzt Zugang über das HERO-Konto.`
+    await loadDetail()
+  } catch (e: any) {
+    notice.value = e?.response?.data?.error || 'Zugang fehlgeschlagen'
+  } finally {
+    inviteBusy.value = false
+  }
 }
 
 async function invite() {
@@ -286,6 +320,25 @@ onMounted(async () => {
           >
             Einladen
           </button>
+        </div>
+        <div v-if="helpers.length" class="space-y-2">
+          <h3 class="text-sm font-semibold">Helfer:innen</h3>
+          <p class="text-xs text-gray-500">Wer ein HERO-Konto hat, bekommt den Zugang mit den Rechten oben direkt. Ohne HERO-Konto gibt es noch keine Passwort-Anmeldung.</p>
+          <ul class="divide-y divide-gray-100">
+            <li v-for="helper in helpers" :key="helper.id" class="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
+              <span>{{ helper.name }} <span class="text-gray-500">{{ helper.email }}</span></span>
+              <button
+                  v-if="helper.has_account"
+                  type="button"
+                  class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
+                  :disabled="inviteBusy"
+                  @click="grantHelper(helper)"
+              >
+                Zugang geben
+              </button>
+              <span v-else class="text-xs text-gray-500">kein HERO-Konto</span>
+            </li>
+          </ul>
         </div>
         <p v-if="notice" class="text-sm text-gray-700">{{ notice }}</p>
         <p class="text-xs text-gray-500">Die Einladung gilt 30 Tage und nur für diese Veranstaltung. Eine E-Mail geht an die Adresse.</p>

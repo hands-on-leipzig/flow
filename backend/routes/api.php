@@ -466,6 +466,8 @@ Route::middleware(['keycloak'])->group(function () {
     });
 
     Route::get('/admin/scor/events', [ScorAdminController::class, 'events']);
+    Route::get('/admin/scor/events/{eventId}/helpers', [ScorAdminController::class, 'helpers']);
+    Route::post('/admin/scor/events/{eventId}/helpers', [ScorAdminController::class, 'grantHelper']);
     Route::get('/admin/scor/log', [ScorAdminController::class, 'log']);
     Route::get('/admin/scor-forms', [ScorFormAdminController::class, 'show']);
     Route::put('/admin/scor-forms/{form}', [ScorFormAdminController::class, 'update']);
