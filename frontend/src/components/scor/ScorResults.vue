@@ -12,7 +12,6 @@ const nominations = ref<{team: number, category: string}[]>([])
 const coaching = ref<number | ''>('')
 
 const trophyColumns = [
-  {id: 'champion', label: 'Champion'},
   {id: 'research', label: 'Forschung'},
   {id: 'robotdesign', label: 'Roboterdesign'},
   {id: 'core_values', label: 'Grundwerte'},
@@ -106,6 +105,22 @@ function sortLabel(key: string) {
 function roundCell(team: any, round: number) {
   return (team.rounds || []).find((cell: any) => cell && cell.round === round) || null
 }
+
+const championLeaders = computed(() => (props.results?.teams || []).filter((team: any) => team.champion_rank === 1))
+
+const championTeam = computed({
+  get: () => trophies.value.find((row) => row.category === 'champion')?.team || '',
+  set: (team: number | '') => {
+    trophies.value = trophies.value.filter((row) => row.category !== 'champion')
+    if (team) trophies.value.push({team: Number(team), category: 'champion'})
+  },
+})
+
+const championLabel = computed(() => {
+  const id = championTeam.value
+  const team = (props.results?.teams || []).find((entry: any) => entry.id === id)
+  return team ? `${team.number} ${team.name}` : '–'
+})
 
 const coachingLabel = computed(() => {
   const team = (props.results?.teams || []).find((entry: any) => entry.id === coaching.value)
@@ -207,10 +222,18 @@ function formatPoints(value: number) {
     <section class="scor-results__block">
       <h2 class="scor-results__title">Auszeichnungen</h2>
       <p class="scor-results__note">
+        Zuerst den Champion. Bei gleichem Platz entscheidet die Jury. Danach Nominierungen, dann die weiteren Pokale.
         Ein Team bekommt nur einen Pokal aus Champion, Forschung, Roboterdesign und Grundwerten.
         Spiel und Coaching können zusätzlich vergeben werden, höchstens drei Pokale insgesamt.
-        Je Kategorie höchstens vier Nominierungen.
       </p>
+      <label class="scor-results__note">
+        Champion
+        <select v-if="results.can_edit_awards" v-model="championTeam" class="glass-input ml-2">
+          <option value="">–</option>
+          <option v-for="team in championLeaders" :key="team.id" :value="team.id">{{ team.number }} {{ team.name }}</option>
+        </select>
+        <span v-else> {{ championLabel }}</span>
+      </label>
       <div class="scor-board glass-card liquid-surface-inner">
         <table>
           <thead>

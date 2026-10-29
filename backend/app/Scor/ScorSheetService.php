@@ -259,10 +259,31 @@ final class ScorSheetService
         if ($coaching !== null && !isset($known[$coaching])) {
             throw new ScorAccessException('Das Team gehört nicht zu dieser Veranstaltung.', 422);
         }
+        $this->assertChampionPick($user, $eventId, $trophies);
 
         $saved = (new ScorAwards())->replace($eventId, $trophies, $nominations, $coaching);
 
         return array_merge($this->results($user, $eventId), ['awards' => $saved]);
+    }
+
+    /**
+     * @param  list<array{team: int, category: string}>  $trophies
+     */
+    private function assertChampionPick(User $user, int $eventId, array $trophies): void
+    {
+        $picks = array_values(array_filter($trophies, fn (array $row) => $row['category'] === 'champion'));
+        if (count($picks) !== 1) {
+            throw new ScorAccessException('Bitte genau einen Champion festlegen.', 422);
+        }
+        $leaders = [];
+        foreach ($this->results($user, $eventId)['teams'] as $team) {
+            if ((int) $team['champion_rank'] === 1) {
+                $leaders[] = (int) $team['id'];
+            }
+        }
+        if ($leaders !== [] && !in_array($picks[0]['team'], $leaders, true)) {
+            throw new ScorAccessException('Der Champion ist eines der Teams auf Platz 1.', 422);
+        }
     }
 
     /**
