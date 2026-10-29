@@ -178,6 +178,8 @@ Route::prefix('contao')->group(function () {
     Route::get('/score', [ContaoController::class, 'getScore']);
 });
 
+Route::post('/scor/login', [ScorController::class, 'login']);
+
 Route::middleware(['keycloak'])->group(function () {
     // For testing: manually trigger round write
     Route::put('/contao/write-rounds', [ContaoController::class, 'writeRoundsEndpoint']);
@@ -474,6 +476,9 @@ Route::middleware(['keycloak'])->group(function () {
 
     Route::prefix('scor')->group(function () {
         Route::get('/access', [ScorController::class, 'access']);
+        Route::get('/events/{eventId}/local-accounts', [ScorController::class, 'localAccounts']);
+        Route::post('/events/{eventId}/local-accounts', [ScorController::class, 'createLocalAccount']);
+        Route::post('/events/{eventId}/local-accounts/{account}/password', [ScorController::class, 'resetLocalPassword']);
         Route::get('/events', [ScorController::class, 'events']);
         Route::get('/events/{eventId}', [ScorController::class, 'overview']);
         Route::get('/events/{eventId}/results', [ScorController::class, 'results']);

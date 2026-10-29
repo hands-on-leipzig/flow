@@ -4,13 +4,55 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Scor\ScorAccessException;
+use App\Scor\ScorLocalAccounts;
 use App\Scor\ScorSheetService;
+use App\Support\ScorGrant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ScorController extends Controller
 {
     public function __construct(private ScorSheetService $sheets) {}
+
+    public function login(Request $request): JsonResponse
+    {
+        try {
+            return response()->json(app(ScorLocalAccounts::class)->login(
+                (string) $request->input('username', ''),
+                (string) $request->input('password', ''),
+            ));
+        } catch (ScorAccessException $e) {
+            return response()->json(['error' => $e->getMessage()], $e->status);
+        }
+    }
+
+    public function localAccounts(Request $request, int $eventId): JsonResponse
+    {
+        return $this->respond(function () use ($request, $eventId) {
+            app(ScorLocalAccounts::class)->assertManager($request->user(), $eventId);
+
+            return ['accounts' => app(ScorLocalAccounts::class)->list($eventId)];
+        });
+    }
+
+    public function createLocalAccount(Request $request, int $eventId): JsonResponse
+    {
+        return $this->respond(fn () => app(ScorLocalAccounts::class)->create(
+            $request->user(),
+            $eventId,
+            (string) $request->input('username', ''),
+            ScorGrant::fromFlags(
+                $request->boolean('can_scor_referee'),
+                $request->boolean('can_scor_jury'),
+                $request->boolean('can_scor_admin'),
+            ),
+        ));
+    }
+
+    public function resetLocalPassword(Request $request, int $eventId, int $account): JsonResponse
+    {
+        return $this->respond(fn () => app(ScorLocalAccounts::class)->resetPassword($request->user(), $eventId, $account));
+    }
 
     public function access(Request $request): JsonResponse
     {

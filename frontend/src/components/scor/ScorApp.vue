@@ -2,6 +2,7 @@
 import {computed, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
+import keycloak from '@/keycloak.js'
 import PageTabs from '@hands-on/glass/page-tabs'
 import ScorRefereeSheet from '@/components/scor/ScorRefereeSheet.vue'
 import ScorJurySheet from '@/components/scor/ScorJurySheet.vue'
@@ -10,6 +11,30 @@ import HotGearLoader from '@/components/scor/HotGearLoader.vue'
 
 const route = useRoute()
 const router = useRouter()
+const needsLogin = ref(!keycloak.authenticated && !localStorage.getItem('scor_token'))
+const localName = ref('')
+const localPassword = ref('')
+const localError = ref('')
+const localBusy = ref(false)
+
+async function localLogin() {
+  localError.value = ''
+  localBusy.value = true
+  try {
+    const {data} = await axios.post('/scor/login', {
+      username: localName.value,
+      password: localPassword.value,
+    }, {skipAppRedirect: true})
+    localStorage.removeItem('kc_token')
+    localStorage.setItem('scor_token', data.token)
+    needsLogin.value = false
+    await load()
+  } catch (e: any) {
+    localError.value = e?.response?.data?.error || 'Anmeldung fehlgeschlagen.'
+  } finally {
+    localBusy.value = false
+  }
+}
 
 const events = ref<any[]>([])
 const overview = ref<any>(null)
@@ -98,6 +123,7 @@ const jurySections = computed(() => {
 })
 
 async function load() {
+  if (needsLogin.value) return
   error.value = ''
   loading.value = true
   try {
@@ -165,7 +191,21 @@ function openJury(teamIdValue: number) {
 </script>
 
 <template>
-  <div class="mx-auto max-w-5xl space-y-6">
+  <form v-if="needsLogin" class="mx-auto max-w-md space-y-4" @submit.prevent="localLogin">
+    <h1 class="text-2xl font-bold tracking-tight">SCOR</h1>
+    <p class="text-lg text-[var(--color-text-muted)]">Mit dem Namen und Passwort von der Veranstaltung anmelden.</p>
+    <label class="block text-lg">
+      Name
+      <input v-model="localName" class="glass-input mt-1 w-full" autocomplete="username" placeholder="Schiri 1"/>
+    </label>
+    <label class="block text-lg">
+      Passwort
+      <input v-model="localPassword" type="password" class="glass-input mt-1 w-full" autocomplete="current-password"/>
+    </label>
+    <p v-if="localError" class="text-lg text-red-700">{{ localError }}</p>
+    <button type="submit" class="glass-btn-accent" :disabled="localBusy">Anmelden</button>
+  </form>
+  <div v-else class="mx-auto max-w-5xl space-y-6">
     <div class="flex flex-wrap items-end justify-between gap-3">
       <div>
         <h1 class="text-2xl font-bold tracking-tight">{{ sheet?.event?.name || overview?.event?.name || 'Auswertung' }}</h1>

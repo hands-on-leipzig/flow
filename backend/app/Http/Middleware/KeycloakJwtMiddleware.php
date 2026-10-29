@@ -33,6 +33,11 @@ class KeycloakJwtMiddleware
         }
 
         $token = substr($authHeader, 7);
+        $local = $this->localScorClaims($token);
+        if ($local !== null) {
+            return $this->acceptLocalScor($request, $next, $local);
+        }
+
         $publicKeyPath = base_path((string) config('services.keycloak.public_key_path'));
 
         if (!file_exists($publicKeyPath)) {
@@ -171,6 +176,41 @@ class KeycloakJwtMiddleware
         } catch (\Exception $e) {
             return response()->json(['error' => 'Invalid token', 'details' => $e->getMessage()], 401);
         }
+
+        return $next($request);
+    }
+
+    /**
+     * @return array{user: int, account: int, event: int}|null
+     */
+    private function localScorClaims(string $token): ?array
+    {
+        $parts = explode('.', $token);
+        if (count($parts) < 2) {
+            return null;
+        }
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')) ?: '', true);
+        if (!is_array($payload) || ($payload['iss'] ?? '') !== \App\Scor\ScorLocalAccounts::ISSUER) {
+            return null;
+        }
+
+        return app(\App\Scor\ScorLocalAccounts::class)->claims($token);
+    }
+
+    /**
+     * @param  array{user: int, account: int, event: int}  $claims
+     */
+    private function acceptLocalScor(Request $request, Closure $next, array $claims): mixed
+    {
+        if (!str_starts_with($request->path(), 'api/scor')) {
+            return response()->json(['error' => 'Forbidden - kein Zugriff auf FLOW', 'code' => 'app_access_denied', 'app' => 'flow'], 403);
+        }
+        $user = User::query()->find($claims['user']);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        $request->attributes->set('jwt', ['iss' => \App\Scor\ScorLocalAccounts::ISSUER]);
+        Auth::login($user);
 
         return $next($request);
     }

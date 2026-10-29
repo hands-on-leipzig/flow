@@ -15,7 +15,8 @@ async function load() {
     return
   } catch (error) {
     const denied = error?.response?.status === 403 && error?.response?.data?.code === 'app_access_denied'
-    if (!denied || error?.response?.data?.app !== 'flow') {
+    const localScor = error?.response?.status === 401 && localStorage.getItem('scor_token')
+    if (!localScor && (!denied || error?.response?.data?.app !== 'flow')) {
       loaded.value = true
       return
     }

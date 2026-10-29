@@ -231,6 +231,19 @@ router.beforeEach(async (to, from, next) => {
         return;
     }
 
+    // SCOR can open with a local event account. HERO login stays optional there.
+    if (scorPath && !keycloak.authenticated) {
+        try {
+            await keycloak.init({onLoad: 'check-sso', pkceMethod: 'S256'});
+        } catch (error) {
+            console.error('Keycloak initialization failed:', error);
+        }
+        if (!keycloak.authenticated) {
+            next();
+            return;
+        }
+    }
+
     // Handle authentication
     if (!keycloak.authenticated) {
         try {
@@ -328,7 +341,7 @@ axios.interceptors.request.use(config => {
     if (config.method === "post" && !(config.data instanceof FormData)) {
         config.headers["Content-Type"] = "application/json"
     }
-    const token = localStorage.getItem('kc_token')
+    const token = localStorage.getItem('kc_token') || localStorage.getItem('scor_token')
     if (token) {
         config.headers.Authorization = `Bearer ${token}`
     }

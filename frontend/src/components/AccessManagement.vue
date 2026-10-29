@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {useEventStore} from '@/stores/event'
 import NoticePane from '@/components/molecules/NoticePane.vue'
+import ScorLocalAccounts from '@/components/scor/ScorLocalAccounts.vue'
 
 defineOptions({name: 'AccessManagement'})
 
@@ -460,6 +461,7 @@ onMounted(async () => {
               </button>
             </div>
           </div>
+          <ScorLocalAccounts v-if="canManage && shareEventId" :event-id="shareEventId"/>
           <p v-else class="text-xs text-[var(--color-text-muted)]">
             Einladen und Berechtigungen ändern können nur Kontaktpersonen aus Draht.
           </p>

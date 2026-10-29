@@ -2,6 +2,7 @@
 import {onMounted, ref} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
+import ScorLocalAccounts from '@/components/scor/ScorLocalAccounts.vue'
 
 defineOptions({name: 'ScorAdmin'})
 
@@ -323,7 +324,7 @@ onMounted(async () => {
         </div>
         <div v-if="helpers.length" class="space-y-2">
           <h3 class="text-sm font-semibold">Helfer:innen</h3>
-          <p class="text-xs text-gray-500">Wer ein HERO-Konto hat, bekommt den Zugang mit den Rechten oben direkt. Ohne HERO-Konto gibt es noch keine Passwort-Anmeldung.</p>
+          <p class="text-xs text-gray-500">Wer ein HERO-Konto hat, bekommt den Zugang mit den Rechten oben direkt.</p>
           <ul class="divide-y divide-gray-100">
             <li v-for="helper in helpers" :key="helper.id" class="flex flex-wrap items-center justify-between gap-3 py-2 text-sm">
               <span>{{ helper.name }} <span class="text-gray-500">{{ helper.email }}</span></span>
@@ -340,6 +341,7 @@ onMounted(async () => {
             </li>
           </ul>
         </div>
+        <ScorLocalAccounts v-if="selectedId" :event-id="selectedId"/>
         <p v-if="notice" class="text-sm text-gray-700">{{ notice }}</p>
         <p class="text-xs text-gray-500">Die Einladung gilt 30 Tage und nur für diese Veranstaltung. Eine E-Mail geht an die Adresse.</p>
 
