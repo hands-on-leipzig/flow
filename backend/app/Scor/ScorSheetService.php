@@ -311,6 +311,7 @@ final class ScorSheetService
     {
         $this->refereeSheet($user, $eventId, $matchId, $teamId);
         $this->writeSheet($user, $eventId, 'referee', $teamId, $matchId, $answers, complete: false);
+        $this->syncRetreat($eventId, $matchId, $teamId, $answers);
 
         return $this->refereeSheet($user, $eventId, $matchId, $teamId);
     }
@@ -449,10 +450,16 @@ final class ScorSheetService
     private function storeFlags(int $eventId, string $kind, int $teamId, int $matchId, array $answers, int $formId, array $flags): void
     {
         $scored = $this->score($formId, $answers);
+        $points = $scored['points'];
+        if ($kind === 'referee') {
+            $items = $this->forms->itemsFor($formId);
+            FutureRefereeRules::assertLegal($items, $answers);
+            $points = FutureRefereeRules::finalizePoints($points, $items, $answers);
+        }
         $existing = $this->findSheet($eventId, $kind, $teamId, $matchId);
         $row = array_merge([
             'answers' => json_encode($answers, JSON_UNESCAPED_UNICODE),
-            'points' => $scored['points'],
+            'points' => $points,
             'core_points' => $scored['core_points'],
             'updated_at' => now(),
         ], $flags);
@@ -481,6 +488,10 @@ final class ScorSheetService
     {
         $answers = $this->answersOf($sheet);
         $scored = $this->score($formId, $answers);
+        if ($kind === 'referee') {
+            $items = $this->forms->itemsFor($formId);
+            $scored['points'] = FutureRefereeRules::finalizePoints($scored['points'], $items, $answers);
+        }
         $event = $this->eventRow($eventId);
         $items = $this->forms->itemsFor($formId);
         $sections = [];
@@ -1111,6 +1122,44 @@ final class ScorSheetService
         $decoded = json_decode($config, true);
 
         return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $answers
+     */
+    private function syncRetreat(int $eventId, int $matchId, int $teamId, array $answers): void
+    {
+        $formId = $this->forms->formId((int) $this->eventRow($eventId)->season, 'referee');
+        $items = $this->forms->itemsFor($formId);
+        $item = FutureRefereeRules::retreatItem($items);
+        if (!$item) {
+            return;
+        }
+        $normalized = $this->normalizeAnswers($answers);
+        $raw = $normalized['values'][(string) $item->id] ?? null;
+        if ($raw === null || $raw === '') {
+            return;
+        }
+        $value = (int) $raw;
+        $opponentId = $this->matchTeam($eventId, $matchId, $teamId)['opponent']['id'] ?? null;
+        if (!$opponentId) {
+            return;
+        }
+        $opponent = $this->findSheet($eventId, 'referee', (int) $opponentId, $matchId);
+        $existing = $this->answersOf($opponent)['values'][(string) $item->id] ?? null;
+        if ($this->isLocked($opponent)) {
+            if ($existing !== null && (int) $existing !== $value) {
+                throw new ScorAccessException('Der Rückzugsort muss auf beiden Bögen gleich sein. Der andere Bogen ist schon bestätigt.', 422);
+            }
+
+            return;
+        }
+        if ($existing !== null && (int) $existing === $value) {
+            return;
+        }
+        $oppAnswers = $this->answersOf($opponent);
+        $oppAnswers['values'][(string) $item->id] = $value;
+        $this->storeFlags($eventId, 'referee', (int) $opponentId, $matchId, $oppAnswers, $formId, []);
     }
 
     /**

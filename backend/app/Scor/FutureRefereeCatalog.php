@@ -4,7 +4,7 @@ namespace App\Scor;
 
 /**
  * BIOGLOW Future Edition referee sheet, from the 2026–27 mission and rules booklets.
- * Flow-Admins can still edit rows, labels and point values.
+ * Illegal combinations and the shared retreat mission are enforced in FutureRefereeRules.
  */
 final class FutureRefereeCatalog
 {
@@ -115,12 +115,13 @@ final class FutureRefereeCatalog
             [
                 'title' => 'Strafen',
                 'kind' => 'mission',
-                'note' => 'Erste Beeinträchtigung 10 Punkte Abzug, zweite weitere 20. Die dritte setzt das gesamte Matchergebnis auf 0. Das setzt der Bogen noch nicht von allein.',
+                'note' => 'Erste Beeinträchtigung 10 Punkte Abzug, zweite weitere 20. Die dritte setzt das gesamte Matchergebnis auf 0.',
                 'items' => [
                     self::choice('Beeinträchtigungen in diesem Match', null, [
                         ['label' => 'Keine', 'points' => 0],
                         ['label' => 'Erste', 'points' => -10],
                         ['label' => 'Zweite', 'points' => -30],
+                        ['label' => 'Dritte', 'points' => 0],
                     ]),
                 ],
             ],

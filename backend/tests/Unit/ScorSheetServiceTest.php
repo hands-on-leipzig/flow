@@ -209,6 +209,70 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame('Freundliches Miteinander', $sheet['sections'][7]['title']);
     }
 
+    public function test_future_rules_block_the_queen_bonus_zero_the_third_penalty_and_share_the_retreat(): void
+    {
+        $sheet = $this->sheets->refereeSheet($this->user(), 1, 1, 1);
+        $young = null;
+        $bonus = null;
+        $penalty = null;
+        $retreat = null;
+        foreach ($sheet['sections'] as $section) {
+            foreach ($section['items'] as $item) {
+                if ($item['label'] === 'Schlüsselarten im jungen Wald') {
+                    $young = $item['id'];
+                }
+                if ($item['label'] === 'Bonus invasive Königin') {
+                    $bonus = $item['id'];
+                }
+                if ($item['label'] === 'Beeinträchtigungen in diesem Match') {
+                    $penalty = $item['id'];
+                }
+                if ($item['label'] === 'Schlüsselarten oder Ressourcen vollständig im Rückzugsort') {
+                    $retreat = $item['id'];
+                }
+            }
+        }
+
+        try {
+            $this->sheets->saveReferee($this->user(), 1, 1, 1, [
+                'values' => [$young => 2, $bonus => 'yes'],
+            ]);
+            $this->fail('Der Königinnen-Bonus ohne drei Schlüsselarten muss scheitern.');
+        } catch (\App\Scor\ScorAccessException $e) {
+            $this->assertSame(422, $e->status);
+        }
+
+        $penaltyItem = null;
+        foreach ($sheet['sections'] as $section) {
+            foreach ($section['items'] as $item) {
+                if ($item['id'] === $penalty) {
+                    $penaltyItem = $item;
+                }
+            }
+        }
+        $this->assertSame('Dritte', $penaltyItem['config']['options'][3]['label'] ?? null);
+
+        $zeroed = $this->sheets->saveReferee($this->user(), 1, 1, 1, [
+            'values' => [$young => 3, $penalty => 3],
+        ]);
+        $this->assertSame(0, $zeroed['points']);
+
+        $shared = $this->sheets->saveReferee($this->user(), 1, 1, 1, [
+            'values' => [$retreat => 4],
+        ]);
+        $this->assertSame(20, $shared['points']);
+        $opponent = $this->sheets->refereeSheet($this->user(), 1, 1, 2);
+        $opponentRetreat = null;
+        foreach ($opponent['sections'] as $section) {
+            foreach ($section['items'] as $item) {
+                if ($item['label'] === 'Schlüsselarten oder Ressourcen vollständig im Rückzugsort') {
+                    $opponentRetreat = $item['value'];
+                }
+            }
+        }
+        $this->assertSame(4, $opponentRetreat);
+    }
+
     public function test_untouched_count_is_zero_and_does_not_block_confirm(): void
     {
         $formId = app(ScorFormStore::class)->formId(1, 'referee');
