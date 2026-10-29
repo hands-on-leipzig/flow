@@ -327,9 +327,15 @@ class ScorSheetServiceTest extends TestCase
             }
         }
         $texts = [];
-        foreach ($sheet['sections'][2]['items'] as $item) {
-            $texts[$item['id']] = 'Konstruktives Feedback für das Team.';
+        foreach ($sheet['sections'] as $section) {
+            if ($section['kind'] !== 'feedback') {
+                continue;
+            }
+            foreach ($section['items'] as $item) {
+                $texts[$item['id']] = 'Konstruktives Feedback für das Team.';
+            }
         }
+        $this->assertCount(6, $texts);
 
         $this->sheets->saveJury($this->user(), 1, 1, [
             'values' => $values,

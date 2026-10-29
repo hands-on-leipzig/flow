@@ -153,6 +153,63 @@ final class ScorFormStore
         $hasSections = DB::table('scor_section')->where('form', $form->id)->exists();
         if (!$hasSections) {
             $this->replace((int) $form->id, $sections);
+
+            return;
+        }
+
+        if ($kind === 'jury') {
+            $this->syncJuryFeedback((int) $form->id, $sections);
+        }
+    }
+
+    /**
+     * Jury feedback is one pair of fields per category. Older forms had a single block.
+     *
+     * @param  list<array<string, mixed>>  $sections
+     */
+    private function syncJuryFeedback(int $formId, array $sections): void
+    {
+        $wanted = array_values(array_filter($sections, fn ($section) => ($section['kind'] ?? '') === 'feedback'));
+        $wantedTitles = array_map(fn ($section) => (string) $section['title'], $wanted);
+        $existing = DB::table('scor_section')
+            ->where('form', $formId)
+            ->where('kind', 'feedback')
+            ->orderBy('sequence')
+            ->pluck('title')
+            ->map(fn ($title) => (string) $title)
+            ->values()
+            ->all();
+        if ($existing === $wantedTitles) {
+            return;
+        }
+
+        $ids = DB::table('scor_section')->where('form', $formId)->where('kind', 'feedback')->pluck('id');
+        if ($ids->isNotEmpty()) {
+            DB::table('scor_item')->whereIn('section', $ids)->delete();
+            DB::table('scor_section')->whereIn('id', $ids)->delete();
+        }
+
+        $sequence = (int) DB::table('scor_section')->where('form', $formId)->max('sequence');
+        foreach ($wanted as $section) {
+            $sequence++;
+            $sectionId = DB::table('scor_section')->insertGetId([
+                'form' => $formId,
+                'sequence' => $sequence,
+                'title' => trim((string) ($section['title'] ?? '')),
+                'kind' => 'feedback',
+                'note' => trim((string) ($section['note'] ?? '')) ?: null,
+            ]);
+            foreach (array_values($section['items'] ?? []) as $itemIndex => $item) {
+                DB::table('scor_item')->insert([
+                    'section' => $sectionId,
+                    'sequence' => $itemIndex,
+                    'item_type' => 'text',
+                    'label' => trim((string) ($item['label'] ?? '')) ?: null,
+                    'hint' => null,
+                    'core_value' => false,
+                    'config' => null,
+                ]);
+            }
         }
     }
 
