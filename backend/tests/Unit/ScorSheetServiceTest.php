@@ -231,12 +231,182 @@ class ScorSheetServiceTest extends TestCase
         $this->assertGreaterThan(0, $core);
     }
 
+    public function test_results_follow_the_contao_ranking(): void
+    {
+        DB::table('team')->insert([
+            'id' => 3,
+            'name' => 'Gamma',
+            'event' => 1,
+            'first_program' => FirstProgram::FUTURE_8->value,
+            'team_number_hot' => 103,
+        ]);
+        DB::table('team_plan')->insert(['team' => 3, 'plan' => 1, 'team_number_plan' => 3]);
+        DB::table('match')->insert([
+            [
+                'id' => 2,
+                'plan' => 1,
+                'first_program' => FirstProgram::FUTURE_8->value,
+                'round' => 1,
+                'match_no' => 2,
+                'table_1' => 1,
+                'table_2' => 2,
+                'table_1_team' => 3,
+                'table_2_team' => 0,
+            ],
+            [
+                'id' => 3,
+                'plan' => 1,
+                'first_program' => FirstProgram::FUTURE_8->value,
+                'round' => 2,
+                'match_no' => 1,
+                'table_1' => 1,
+                'table_2' => 2,
+                'table_1_team' => 1,
+                'table_2_team' => 2,
+            ],
+            [
+                'id' => 4,
+                'plan' => 1,
+                'first_program' => FirstProgram::FUTURE_8->value,
+                'round' => 0,
+                'match_no' => 1,
+                'table_1' => 1,
+                'table_2' => 2,
+                'table_1_team' => 1,
+                'table_2_team' => 2,
+            ],
+        ]);
+        DB::table('scor_sheet')->insert([
+            $this->refereeRow(1, 1, 10, true),
+            $this->refereeRow(1, 3, 30, false),
+            $this->refereeRow(1, 4, 99, true),
+            $this->refereeRow(2, 1, 30, true),
+            $this->refereeRow(3, 2, 20, true),
+        ]);
+
+        $formId = app(ScorFormStore::class)->formId(1, 'jury');
+        app(ScorFormStore::class)->replace($formId, [
+            [
+                'title' => 'Forschung',
+                'kind' => 'rubric',
+                'note' => '',
+                'items' => [
+                    $this->rubric(false),
+                    $this->rubric(true),
+                ],
+            ],
+            [
+                'title' => 'Roboterdesign',
+                'kind' => 'rubric',
+                'note' => '',
+                'items' => [
+                    $this->rubric(false),
+                    $this->rubric(true),
+                ],
+            ],
+        ]);
+
+        $sheet = $this->sheets->jurySheet($this->user(), 1, 1);
+        $research = $sheet['sections'][0]['items'];
+        $design = $sheet['sections'][1]['items'];
+        $this->saveJuryScores(1, $research, $design, 4, 3, 4, 2);
+        $this->saveJuryScores(2, $research, $design, 4, 4, 4, 1);
+        $this->saveJuryScores(3, $research, $design, 2, 2, 3, 2);
+
+        $results = $this->sheets->results($this->user(), 1);
+        $byId = collect($results['teams'])->keyBy('id');
+
+        $this->assertSame([1, 2], array_column($results['rounds'], 'round'));
+        $this->assertSame([1, 2, 3], array_column($results['teams'], 'id'));
+
+        $this->assertSame(30, $byId[1]['robot']);
+        $this->assertSame(10, $byId[1]['rounds'][0]['points']);
+        $this->assertTrue($byId[1]['rounds'][0]['confirmed']);
+        $this->assertSame(30, $byId[1]['rounds'][1]['points']);
+        $this->assertFalse($byId[1]['rounds'][1]['confirmed']);
+        $this->assertNull($byId[3]['rounds'][1]);
+
+        $this->assertSame(1, $byId[1]['robot_rank']);
+        $this->assertSame(1, $byId[2]['robot_rank']);
+        $this->assertSame(3, $byId[3]['robot_rank']);
+
+        $this->assertSame(7, $byId[1]['research']);
+        $this->assertSame(2, $byId[1]['research_rank']);
+        $this->assertSame(8, $byId[2]['research']);
+        $this->assertSame(1, $byId[2]['research_rank']);
+        $this->assertSame(3, $byId[3]['research_rank']);
+
+        $this->assertSame(6, $byId[1]['robotdesign']);
+        $this->assertSame(1, $byId[1]['robotdesign_rank']);
+        $this->assertSame(2, $byId[2]['robotdesign_rank']);
+        $this->assertSame(2, $byId[3]['robotdesign_rank']);
+
+        $this->assertSame(5, $byId[1]['core_values']);
+        $this->assertSame(1, $byId[1]['core_values_rank']);
+        $this->assertSame(1, $byId[2]['core_values_rank']);
+        $this->assertSame(3, $byId[3]['core_values_rank']);
+
+        $this->assertSame(5, $byId[1]['champion']);
+        $this->assertSame(5, $byId[2]['champion']);
+        $this->assertSame(9, $byId[3]['champion']);
+        $this->assertSame(1, $byId[1]['champion_rank']);
+        $this->assertSame(1, $byId[2]['champion_rank']);
+        $this->assertSame(3, $byId[3]['champion_rank']);
+    }
+
     private function user(): User
     {
         $user = new User;
         $user->id = 1;
 
         return $user;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function refereeRow(int $teamId, int $matchId, int $points, bool $confirmed): array
+    {
+        return [
+            'event' => 1,
+            'kind' => 'referee',
+            'team' => $teamId,
+            'match' => $matchId,
+            'points' => $points,
+            'core_points' => 0,
+            'confirmed_referee' => $confirmed,
+            'confirmed_team' => $confirmed,
+            'completed' => false,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rubric(bool $coreValue): array
+    {
+        return [
+            'item_type' => 'rubric',
+            'label' => 'Kriterium',
+            'core_value' => $coreValue,
+            'config' => ['group' => 'Benennen', 'cells' => ['wenig', 'etwas', 'klar']],
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $research
+     * @param  list<array<string, mixed>>  $design
+     */
+    private function saveJuryScores(int $teamId, array $research, array $design, int $a, int $b, int $c, int $d): void
+    {
+        $this->sheets->saveJury($this->user(), 1, $teamId, [
+            'values' => [
+                $research[0]['id'] => $a,
+                $research[1]['id'] => $b,
+                $design[0]['id'] => $c,
+                $design[1]['id'] => $d,
+            ],
+        ]);
     }
 
     private function seedEvent(): void

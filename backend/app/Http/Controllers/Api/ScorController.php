@@ -32,6 +32,11 @@ class ScorController extends Controller
         return $this->respond(fn () => $this->sheets->overview($request->user(), $eventId));
     }
 
+    public function results(Request $request, int $eventId): JsonResponse
+    {
+        return $this->respond(fn () => $this->sheets->results($request->user(), $eventId));
+    }
+
     public function referee(Request $request, int $eventId, int $match, int $team): JsonResponse
     {
         return $this->respond(fn () => $this->sheets->refereeSheet($request->user(), $eventId, $match, $team));

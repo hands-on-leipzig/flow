@@ -5,6 +5,7 @@ import axios from 'axios'
 import PageTabs from '@hands-on/glass/page-tabs'
 import ScorRefereeSheet from '@/components/scor/ScorRefereeSheet.vue'
 import ScorJurySheet from '@/components/scor/ScorJurySheet.vue'
+import ScorResults from '@/components/scor/ScorResults.vue'
 import HotGearLoader from '@/components/scor/HotGearLoader.vue'
 
 const route = useRoute()
@@ -12,10 +13,11 @@ const router = useRouter()
 
 const events = ref<any[]>([])
 const overview = ref<any>(null)
+const results = ref<any>(null)
 const sheet = ref<any>(null)
 const error = ref('')
 const loading = ref(false)
-const tab = ref<'schiri' | 'jury'>('schiri')
+const tab = ref<'schiri' | 'jury' | 'ergebnisse'>('schiri')
 const closedRounds = ref<string[]>([])
 
 const eventId = computed(() => route.params.eventId ? Number(route.params.eventId) : null)
@@ -40,6 +42,7 @@ const viewTabs = computed(() => {
   const tabs = []
   if (overview.value?.roles?.referee) tabs.push({id: 'schiri', label: 'Schiri', icon: 'bi-clipboard-check'})
   if (overview.value?.roles?.jury) tabs.push({id: 'jury', label: 'Jury', icon: 'bi-people'})
+  tabs.push({id: 'ergebnisse', label: 'Ergebnisse', icon: 'bi-award'})
   return tabs
 })
 
@@ -71,6 +74,7 @@ async function load() {
       const {data} = await axios.get('/scor/events')
       events.value = data.events || []
       overview.value = null
+      results.value = null
       return
     }
     if (matchId.value && teamId.value) {
@@ -85,9 +89,14 @@ async function load() {
     }
     const {data} = await axios.get(`/scor/events/${eventId.value}`)
     overview.value = data
-    if (route.query.sicht === 'jury' && data.roles?.jury) tab.value = 'jury'
+    const standings = await axios.get(`/scor/events/${eventId.value}/results`)
+    results.value = standings.data
+    sheet.value = null
+    if (route.query.sicht === 'ergebnisse') tab.value = 'ergebnisse'
+    else if (route.query.sicht === 'jury' && data.roles?.jury) tab.value = 'jury'
     else if (data.roles?.referee) tab.value = 'schiri'
     else if (data.roles?.jury) tab.value = 'jury'
+    else tab.value = 'ergebnisse'
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Laden fehlgeschlagen.'
   } finally {
@@ -100,10 +109,10 @@ watch(() => route.fullPath, () => {
 }, {immediate: true})
 
 function selectSicht(next: string | number) {
-  const sichtName = next === 'jury' ? 'jury' : 'schiri'
+  const sichtName = next === 'jury' ? 'jury' : next === 'ergebnisse' ? 'ergebnisse' : 'schiri'
   tab.value = sichtName
   if (!eventId.value || matchId.value || juryRoute.value) return
-  const sicht = sichtName === 'jury' ? 'jury' : undefined
+  const sicht = sichtName === 'schiri' ? undefined : sichtName
   if ((route.query.sicht || undefined) === sicht) return
   const query = {...route.query}
   if (sicht) query.sicht = sicht
@@ -163,7 +172,9 @@ function openJury(teamIdValue: number) {
           @update:model-value="selectSicht"
       />
 
-      <div v-if="tab === 'schiri' && overview.roles.referee" class="scor-rounds">
+      <ScorResults v-if="tab === 'ergebnisse'" :results="results"/>
+
+      <div v-else-if="tab === 'schiri' && overview.roles.referee" class="scor-rounds">
         <p v-if="overview.has_plan && !overview.matches.length" class="text-lg text-[var(--color-text-muted)]">Im Matchplan stehen noch keine Future-Matches.</p>
         <section v-for="round in rounds" :key="round.label" class="scor-round">
           <button
@@ -202,7 +213,7 @@ function openJury(teamIdValue: number) {
         </section>
       </div>
 
-      <ul v-else-if="overview.roles.jury" class="glass-card liquid-surface-inner divide-y divide-[var(--color-border)]">
+      <ul v-else-if="tab === 'jury' && overview.roles.jury" class="glass-card liquid-surface-inner divide-y divide-[var(--color-border)]">
         <li v-if="!overview.teams.length" class="p-4 text-lg text-[var(--color-text-muted)]">Keine Teams im Matchplan.</li>
         <li v-for="team in overview.teams" :key="team.id">
           <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id)">

@@ -90,6 +90,138 @@ final class ScorSheetService
         ];
     }
 
+    /**
+     * Standings in the shape of the Contao scoreboard.
+     * Champion sums dense ranks (tied scores share a step). The table shows competition ranks.
+     * Robot-Game is the best scoring round. The test round stays out.
+     *
+     * @return array{event: array{id: int, name: mixed}, rounds: list<array{round: int, label: string}>, teams: list<array<string, mixed>>}
+     */
+    public function results(User $user, int $eventId): array
+    {
+        $this->requireEvent($user, $eventId);
+        $event = $this->eventRow($eventId);
+        $planId = $this->planId($eventId);
+        $matches = $planId ? $this->matches($planId) : [];
+        $matchById = [];
+        $rounds = [];
+        $teams = [];
+        foreach ($matches as $match) {
+            $matchById[$match['id']] = $match;
+            if ($match['round'] > 0 && !isset($rounds[$match['round']])) {
+                $rounds[$match['round']] = [
+                    'round' => $match['round'],
+                    'label' => $match['round_label'],
+                ];
+            }
+            foreach (['team_1', 'team_2'] as $side) {
+                $team = $match[$side];
+                if (empty($team['id']) || isset($teams[$team['id']])) {
+                    continue;
+                }
+                $teams[$team['id']] = [
+                    'id' => $team['id'],
+                    'number' => $team['number'],
+                    'name' => $team['name'],
+                ];
+            }
+        }
+        ksort($rounds);
+
+        $sheets = DB::table('scor_sheet')->where('event', $eventId)->get();
+        $referee = [];
+        foreach ($sheets as $sheet) {
+            if ($sheet->kind !== 'referee') {
+                continue;
+            }
+            $match = $matchById[(int) $sheet->match] ?? null;
+            $teamId = (int) $sheet->team;
+            if (!$match || (int) $match['round'] < 1 || !isset($teams[$teamId])) {
+                continue;
+            }
+            $round = (int) $match['round'];
+            $points = (int) $sheet->points;
+            $current = $referee[$teamId][$round] ?? null;
+            if ($current !== null && $points < $current['points']) {
+                continue;
+            }
+            $referee[$teamId][$round] = [
+                'points' => $points,
+                'confirmed' => (bool) $sheet->confirmed_referee && (bool) $sheet->confirmed_team,
+            ];
+        }
+
+        $jury = $this->juryCategoryScores((int) $event->season, $sheets);
+        $rows = [];
+        foreach ($teams as $id => $team) {
+            $cells = [];
+            $best = null;
+            foreach ($rounds as $round) {
+                $cell = $referee[$id][$round['round']] ?? null;
+                $cells[] = $cell === null ? null : [
+                    'round' => $round['round'],
+                    'points' => $cell['points'],
+                    'confirmed' => $cell['confirmed'],
+                ];
+                if ($cell !== null && ($best === null || $cell['points'] > $best)) {
+                    $best = $cell['points'];
+                }
+            }
+            $categories = $jury[$id] ?? ['research' => 0, 'robotdesign' => 0, 'core_values' => 0];
+            $rows[] = [
+                'id' => $id,
+                'number' => $team['number'],
+                'name' => $team['name'],
+                'rounds' => $cells,
+                'robot' => $best ?? 0,
+                'research' => $categories['research'],
+                'robotdesign' => $categories['robotdesign'],
+                'core_values' => $categories['core_values'],
+            ];
+        }
+
+        $robotRank = $this->competitionRanks($rows, 'robot', false);
+        $researchRank = $this->competitionRanks($rows, 'research', false);
+        $designRank = $this->competitionRanks($rows, 'robotdesign', false);
+        $coreRank = $this->competitionRanks($rows, 'core_values', false);
+        $denseRobot = $this->denseRanks($rows, 'robot');
+        $denseResearch = $this->denseRanks($rows, 'research');
+        $denseDesign = $this->denseRanks($rows, 'robotdesign');
+        $denseCore = $this->denseRanks($rows, 'core_values');
+        foreach ($rows as &$row) {
+            $id = $row['id'];
+            $row['robot_rank'] = $robotRank[$id];
+            $row['research_rank'] = $researchRank[$id];
+            $row['robotdesign_rank'] = $designRank[$id];
+            $row['core_values_rank'] = $coreRank[$id];
+            $row['champion'] = $denseRobot[$id] + $denseResearch[$id] + $denseDesign[$id] + $denseCore[$id];
+        }
+        unset($row);
+
+        $championRank = $this->competitionRanks($rows, 'champion', true);
+        foreach ($rows as &$row) {
+            $row['champion_rank'] = $championRank[$row['id']];
+        }
+        unset($row);
+
+        usort($rows, function (array $a, array $b): int {
+            if ($a['champion_rank'] !== $b['champion_rank']) {
+                return $a['champion_rank'] <=> $b['champion_rank'];
+            }
+
+            return (int) $a['number'] <=> (int) $b['number'];
+        });
+
+        return [
+            'event' => [
+                'id' => (int) $event->id,
+                'name' => $event->name,
+            ],
+            'rounds' => array_values($rounds),
+            'teams' => $rows,
+        ];
+    }
+
     public function refereeSheet(User $user, int $eventId, int $matchId, int $teamId): array
     {
         $roles = $this->requireEvent($user, $eventId);
@@ -915,5 +1047,135 @@ final class ScorSheetService
     private function inRange(int $value, int $min, int $max): bool
     {
         return $value >= $min && $value <= $max;
+    }
+
+    /**
+     * Forschung and Roboterdesign are the rubric sections. Grundwerte are the rows flagged as core values.
+     *
+     * @param  iterable<object>  $sheets
+     * @return array<int, array{research: int, robotdesign: int, core_values: int}>
+     */
+    private function juryCategoryScores(int $seasonId, iterable $sheets): array
+    {
+        $items = $this->forms->itemsFor($this->forms->formId($seasonId, 'jury'));
+        $sectionCategory = [];
+        $rubricIndex = 0;
+        foreach ($items as $item) {
+            $sectionId = (int) $item->section_id;
+            if (isset($sectionCategory[$sectionId]) || $item->section_kind !== 'rubric') {
+                continue;
+            }
+            $sectionCategory[$sectionId] = $this->juryCategory((string) $item->section_title, $rubricIndex);
+            $rubricIndex++;
+        }
+
+        $byTeam = [];
+        foreach ($sheets as $sheet) {
+            if ($sheet->kind !== 'jury' || (int) $sheet->match !== 0) {
+                continue;
+            }
+            $answers = $this->answersOf($sheet);
+            $scores = ['research' => 0, 'robotdesign' => 0, 'core_values' => 0];
+            foreach ($items as $item) {
+                if (in_array((int) $item->section_id, $answers['disabled_sections'], true)) {
+                    continue;
+                }
+                $points = $this->itemPoints($item, $answers);
+                $category = $sectionCategory[(int) $item->section_id] ?? null;
+                if ($category !== null) {
+                    $scores[$category] += $points;
+                }
+                if ($item->item_type === 'rubric' && (bool) $item->core_value) {
+                    $scores['core_values'] += $points;
+                }
+            }
+            $byTeam[(int) $sheet->team] = $scores;
+        }
+
+        return $byTeam;
+    }
+
+    private function juryCategory(string $title, int $index): ?string
+    {
+        $title = mb_strtolower($title);
+        if (str_contains($title, 'forschung') || str_contains($title, 'research')) {
+            return 'research';
+        }
+        if (str_contains($title, 'roboter') || str_contains($title, 'robot')) {
+            return 'robotdesign';
+        }
+
+        return match ($index) {
+            0 => 'research',
+            1 => 'robotdesign',
+            default => null,
+        };
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<int, int>
+     */
+    private function competitionRanks(array $rows, string $scoreKey, bool $lowerIsBetter): array
+    {
+        $ordered = $rows;
+        usort($ordered, function (array $a, array $b) use ($scoreKey, $lowerIsBetter): int {
+            if ($a[$scoreKey] !== $b[$scoreKey]) {
+                return $lowerIsBetter ? $a[$scoreKey] <=> $b[$scoreKey] : $b[$scoreKey] <=> $a[$scoreKey];
+            }
+
+            return $a['id'] <=> $b['id'];
+        });
+
+        $rank = 1;
+        $tied = 0;
+        $last = null;
+        $out = [];
+        foreach ($ordered as $row) {
+            if ($last !== null) {
+                $worse = $lowerIsBetter ? $row[$scoreKey] > $last[$scoreKey] : $row[$scoreKey] < $last[$scoreKey];
+                if ($worse) {
+                    $rank++;
+                    $rank += $tied;
+                    $tied = 0;
+                }
+                if ($row[$scoreKey] === $last[$scoreKey]) {
+                    $tied++;
+                }
+            }
+            $out[$row['id']] = $rank;
+            $last = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<int, int>
+     */
+    private function denseRanks(array $rows, string $scoreKey): array
+    {
+        $ordered = $rows;
+        usort($ordered, function (array $a, array $b) use ($scoreKey): int {
+            if ($a[$scoreKey] !== $b[$scoreKey]) {
+                return $b[$scoreKey] <=> $a[$scoreKey];
+            }
+
+            return $a['id'] <=> $b['id'];
+        });
+
+        $rank = 1;
+        $last = null;
+        $out = [];
+        foreach ($ordered as $row) {
+            if ($last !== null && $row[$scoreKey] < $last[$scoreKey]) {
+                $rank++;
+            }
+            $out[$row['id']] = $rank;
+            $last = $row;
+        }
+
+        return $out;
     }
 }

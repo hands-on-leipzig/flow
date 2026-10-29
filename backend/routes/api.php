@@ -474,6 +474,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/access', [ScorController::class, 'access']);
         Route::get('/events', [ScorController::class, 'events']);
         Route::get('/events/{eventId}', [ScorController::class, 'overview']);
+        Route::get('/events/{eventId}/results', [ScorController::class, 'results']);
         Route::get('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'referee']);
         Route::put('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'saveReferee']);
         Route::post('/events/{eventId}/matches/{match}/teams/{team}/confirm', [ScorController::class, 'confirmReferee']);
