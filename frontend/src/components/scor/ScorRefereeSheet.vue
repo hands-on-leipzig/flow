@@ -209,8 +209,14 @@ onBeforeUnmount(() => {
 
     <section v-for="section in sheet.sections" :key="section.id" class="glass-card liquid-surface-inner scor-block">
       <h2 class="scor-block__title">{{ section.title }}</h2>
-      <div v-for="item in section.items" :key="item.id" class="scor-q" :class="{'is-missing': missing.includes(String(item.id))}">
-        <p class="scor-q__label">{{ item.label }}</p>
+      <div v-for="item in section.items" :key="item.id" class="scor-q" :class="{'is-missing': missing.includes(String(item.id)), 'is-done': isAnswered(item, values[String(item.id)])}">
+        <div class="scor-q__top">
+          <p class="scor-q__label">{{ item.label }}</p>
+          <p v-if="item.item_type === 'count'" class="scor-q__hint">
+            <template v-if="countIsScale(item)">je {{ item.config?.points_each ?? 0 }}</template>
+            <template v-else>max. {{ item.config?.max ?? 0 }}, je {{ item.config?.points_each ?? 0 }}</template>
+          </p>
+        </div>
 
         <div v-if="item.item_type === 'yes_no'" class="scor-choices">
           <button
@@ -260,14 +266,12 @@ onBeforeUnmount(() => {
               :disabled="sheet.locked"
               @click="setCount(String(item.id), n, countMax(item))"
           >{{ n }}</button>
-          <span class="scor-count__hint">je {{ item.config?.points_each ?? 0 }}</span>
         </div>
 
         <div v-else-if="item.item_type === 'count'" class="scor-count">
           <button type="button" class="glass-btn-secondary scor-count__btn" aria-label="weniger" :disabled="sheet.locked" @click="setCount(String(item.id), Number(values[String(item.id)] || 0) - 1, item.config?.max ?? 0)">−</button>
           <span class="scor-count__value">{{ values[String(item.id)] || 0 }}</span>
           <button type="button" class="glass-btn-secondary scor-count__btn" aria-label="mehr" :disabled="sheet.locked" @click="setCount(String(item.id), Number(values[String(item.id)] || 0) + 1, item.config?.max ?? 0)">+</button>
-          <span class="scor-count__hint">max. {{ item.config?.max ?? 0 }}, je {{ item.config?.points_each ?? 0 }}</span>
         </div>
       </div>
       </section>
@@ -352,9 +356,25 @@ onBeforeUnmount(() => {
 }
 
 .scor-q {
+  position: relative;
   padding-top: 0.85rem;
   margin-top: 0.85rem;
   border-top: 1px solid var(--color-border);
+}
+
+.scor-q.is-done {
+  padding-left: 0.85rem;
+}
+
+.scor-q.is-done::before {
+  content: "";
+  position: absolute;
+  top: 0.85rem;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  border-radius: 4px;
+  background: #146c36;
 }
 
 .scor-q.is-missing {
@@ -362,14 +382,31 @@ onBeforeUnmount(() => {
   margin-right: -0.35rem;
   padding: 0.85rem 0.35rem 0.35rem;
   border: 3px solid #b42318;
-  border-radius: var(--radius-lg, 0.85rem);
-  background: color-mix(in srgb, #b42318 12%, transparent);
+  border-radius: 0.9rem;
+  background: #fde8e6;
+}
+
+.scor-q__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
 }
 
 .scor-q__label {
+  margin: 0;
   font-size: 1.25rem;
   font-weight: 700;
-  margin-bottom: 0.55rem;
+}
+
+.scor-q__hint {
+  margin: 0;
+  flex: none;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .scor-choices {
@@ -387,49 +424,55 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  min-height: 4.25rem;
-  padding: 0.75rem 0.9rem;
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-lg, 0.85rem);
-  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
-  font-size: 1.15rem;
-  font-weight: 700;
+  min-height: 4.75rem;
+  padding: 0.85rem 1rem;
+  border: 3px solid #c8c8c8;
+  border-radius: 0.9rem;
+  background: #fff;
+  font-size: 1.25rem;
+  font-weight: 800;
   text-align: left;
+  color: #1a1a1a;
 }
 
 .scor-choice.is-on {
-  border-color: var(--color-accent);
-  background: var(--color-bg-hover);
+  border-color: #146c36;
+  background: #146c36;
+  color: #fff;
 }
 
 .scor-choice__points {
+  font-size: 1.45rem;
   font-variant-numeric: tabular-nums;
-  color: var(--color-text-muted);
+  color: #5c5c5c;
 }
 
 .scor-choice.is-on .scor-choice__points {
-  color: inherit;
+  color: #fff;
 }
 
 .scor-scale {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(3.4rem, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 .scor-scale__btn {
-  min-height: 3.75rem;
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-lg, 0.85rem);
-  background: color-mix(in srgb, var(--color-bg) 72%, transparent);
-  font-size: 1.45rem;
+  width: 3.6rem;
+  min-height: 3.6rem;
+  border: 3px solid #c8c8c8;
+  border-radius: 0.9rem;
+  background: #fff;
+  color: #1a1a1a;
+  font-size: 1.7rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
 
 .scor-scale__btn.is-on {
-  border-color: var(--color-accent);
-  background: var(--color-bg-hover);
+  border-color: #146c36;
+  background: #146c36;
+  color: #fff;
 }
 
 .scor-count {
@@ -455,41 +498,34 @@ onBeforeUnmount(() => {
   font-variant-numeric: tabular-nums;
 }
 
-.scor-count__hint {
-  grid-column: 1 / -1;
-  font-size: 1.125rem;
-  color: var(--color-text-muted);
+.scor-count__btn {
+  box-sizing: border-box;
 }
 
 .scor-sheet__bar {
   position: fixed;
-  bottom: 0.75rem;
+  bottom: 0;
   z-index: 40;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.5rem;
+  grid-template-columns: auto 1fr;
+  gap: 0.45rem;
+  align-items: center;
   box-sizing: border-box;
-  padding: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.38);
-  border-radius: var(--radius-lg, 0.85rem);
-  background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(42px) saturate(1.25);
-  -webkit-backdrop-filter: blur(42px) saturate(1.25);
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.06);
-}
-
-:global(html[data-theme='dark']) .scor-sheet__bar {
-  background: rgba(24, 20, 18, 0.22);
-  border-color: rgba(255, 255, 255, 0.12);
+  padding: 0.65rem 0.75rem calc(0.65rem + env(safe-area-inset-bottom));
+  border: 0;
+  border-radius: 0;
+  background: #fff;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
 }
 
 .scor-sheet__alert {
+  grid-column: 1 / -1;
   margin: 0;
-  padding: 0.95rem 1rem;
-  border-radius: var(--radius-lg, 0.85rem);
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
   background: #b42318;
   color: #fff;
-  font-size: 1.45rem;
+  font-size: 1.35rem;
   font-weight: 800;
   line-height: 1.2;
   text-align: center;
@@ -538,8 +574,11 @@ onBeforeUnmount(() => {
 }
 
 .scor-sheet__points {
-  font-size: 1.35rem;
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 2rem;
   font-weight: 800;
+  line-height: 1;
 }
 
 .scor-sheet__points span {
@@ -550,13 +589,22 @@ onBeforeUnmount(() => {
 
 .scor-sheet__bar .glass-btn-secondary,
 .scor-sheet__bar .glass-btn-accent {
-  min-height: 3.25rem;
+  min-height: 3.4rem;
   justify-content: center;
 }
 
-.scor-sheet__bar .glass-btn-secondary {
-  background: rgba(255, 255, 255, 0.42);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+@media (min-width: 800px) {
+  .scor-sheet__bar {
+    grid-template-columns: auto 1fr 1fr auto;
+  }
+
+  .scor-sheet__points,
+  .scor-sheet__alert {
+    grid-column: auto;
+  }
+
+  .scor-sheet__alert {
+    grid-column: 1 / -1;
+  }
 }
 </style>

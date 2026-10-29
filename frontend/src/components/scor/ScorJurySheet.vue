@@ -105,68 +105,85 @@ async function reopen() {
 function toggleSection(id: number, checked: boolean) {
   disabled.value = checked ? [...disabled.value, id] : disabled.value.filter((entry) => entry !== id)
 }
+
+function setLevel(id: number, level: number) {
+  if (props.sheet.completed) return
+  values.value = {...values.value, [String(id)]: level}
+}
 </script>
 
 <template>
-  <div class="space-y-4">
-    <header>
-      <h2 class="text-xl font-bold">{{ sheet.team.number }} {{ sheet.team.name }}</h2>
-      <p class="text-lg text-[var(--color-text-muted)]">Jurybewertung</p>
+  <div class="jury-sheet">
+    <header class="jury-sheet__head">
+      <h2>{{ sheet.team.number }} {{ sheet.team.name }}</h2>
     </header>
 
-    <p v-if="error" class="text-lg text-red-700">{{ error }}</p>
+    <p v-if="error" class="jury-sheet__alert" role="alert">{{ error }}</p>
 
-    <section v-for="section in sheet.sections" :key="section.id" class="glass-card liquid-surface-inner space-y-3 p-4">
-      <div class="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 class="font-semibold">{{ section.title }}</h2>
-          <p v-if="section.note" class="text-lg text-[var(--color-text-muted)]">{{ section.note }}</p>
-        </div>
-        <label v-if="section.kind === 'rubric'" class="inline-flex items-center gap-1.5 text-lg">
-          <input
-              type="checkbox"
-              :checked="disabled.includes(section.id)"
-              :disabled="sheet.completed"
-              @change="toggleSection(section.id, ($event.target as HTMLInputElement).checked)"
-          />
-          Team ist in dieser Kategorie nicht angetreten
-        </label>
+    <section v-for="section in sheet.sections" :key="section.id" class="jury-block">
+      <div class="jury-block__head">
+        <h2>{{ section.title }}</h2>
+        <button
+            v-if="section.kind === 'rubric'"
+            type="button"
+            class="jury-skip"
+            :class="{'is-on': disabled.includes(section.id)}"
+            :disabled="sheet.completed"
+            @click="toggleSection(section.id, !disabled.includes(section.id))"
+        >
+          {{ disabled.includes(section.id) ? 'Nicht angetreten' : 'Nicht angetreten?' }}
+        </button>
       </div>
 
       <template v-if="section.kind === 'rubric' && !disabled.includes(section.id)">
-        <div class="hidden gap-2 text-lg font-semibold text-[var(--color-text-muted)] md:grid md:grid-cols-4">
-          <span v-for="column in sheet.columns" :key="column.value">{{ column.label }} · {{ column.value }}</span>
-        </div>
-        <div v-for="group in groups(section.items)" :key="group.group + group.items[0].id" class="space-y-2">
-          <p v-if="group.group" class="text-lg"><strong>{{ group.group }}</strong> <span class="text-[var(--color-text-muted)]">{{ group.hint }}</span></p>
-          <div v-for="item in group.items" :key="item.id" class="grid gap-2 md:grid-cols-4">
-            <label v-for="(cell, index) in (item.config?.cells || [])" :key="index" class="rounded-lg border border-[var(--color-border)] p-3 text-lg" :class="values[String(item.id)] === index + 1 ? 'border-[var(--color-accent)] bg-[var(--color-bg-hover)]' : ''">
-              <input v-model="values[String(item.id)]" class="mr-1" type="radio" :value="index + 1" :disabled="sheet.completed" :name="`item-${item.id}`"/>
-              <span class="md:hidden font-semibold">{{ sheet.columns?.[index]?.label }} · </span>{{ cell }}
-            </label>
-            <label class="rounded-lg border border-[var(--color-border)] p-3 text-lg" :class="values[String(item.id)] === 4 ? 'border-[var(--color-accent)] bg-[var(--color-bg-hover)]' : ''">
-              <input v-model="values[String(item.id)]" class="mr-1" type="radio" :value="4" :disabled="sheet.completed" :name="`item-${item.id}`"/>
-              Herausragend
-              <textarea
-                  v-if="values[String(item.id)] === 4"
-                  v-model="comments[String(item.id)]"
-                  class="glass-input mt-2 w-full"
-                  rows="2"
-                  maxlength="200"
-                  placeholder="Kommentar, mindestens 20 Zeichen"
+        <div v-for="group in groups(section.items)" :key="group.group + group.items[0].id" class="jury-group">
+          <p v-if="group.group" class="jury-group__title">{{ group.group }}</p>
+          <div v-for="item in group.items" :key="item.id" class="jury-row" :class="{'is-done': values[String(item.id)]}">
+            <div class="jury-levels">
+              <button
+                  v-for="(cell, index) in (item.config?.cells || [])"
+                  :key="index"
+                  type="button"
+                  class="jury-level"
+                  :class="{'is-on': values[String(item.id)] === index + 1}"
                   :disabled="sheet.completed"
-              />
-            </label>
+                  @click="setLevel(item.id, index + 1)"
+              >
+                <span class="jury-level__n">{{ index + 1 }}</span>
+                <span class="jury-level__name">{{ sheet.columns?.[index]?.label }}</span>
+                <span class="jury-level__text">{{ cell }}</span>
+              </button>
+              <button
+                  type="button"
+                  class="jury-level"
+                  :class="{'is-on': values[String(item.id)] === 4}"
+                  :disabled="sheet.completed"
+                  @click="setLevel(item.id, 4)"
+              >
+                <span class="jury-level__n">4</span>
+                <span class="jury-level__name">Herausragend</span>
+                <span class="jury-level__text">Kurz begründen</span>
+              </button>
+            </div>
+            <textarea
+                v-if="values[String(item.id)] === 4"
+                v-model="comments[String(item.id)]"
+                class="glass-input jury-comment"
+                rows="2"
+                maxlength="200"
+                placeholder="Kommentar, mindestens 20 Zeichen"
+                :disabled="sheet.completed"
+            />
           </div>
         </div>
       </template>
 
       <template v-else-if="section.kind === 'feedback'">
-        <label v-for="item in section.items" :key="item.id" class="block text-lg">
+        <label v-for="item in section.items" :key="item.id" class="jury-feedback">
           {{ item.label }}
           <textarea
               v-model="texts[String(item.id)]"
-              class="glass-input mt-1 w-full"
+              class="glass-input"
               rows="3"
               :disabled="sheet.completed"
           />
@@ -174,14 +191,204 @@ function toggleSection(id: number, checked: boolean) {
       </template>
     </section>
 
-    <div class="glass-card liquid-surface-inner space-y-2 p-4">
-      <p class="font-semibold">{{ sheet.points }} Punkte</p>
-      <p class="text-lg text-[var(--color-text-muted)]">Grundwerte: {{ sheet.core_points }}. {{ sheet.core_values_note }}</p>
-      <div class="flex flex-wrap gap-3">
-        <button type="button" class="glass-btn-secondary" :disabled="busy || sheet.completed" @click="save">Speichern</button>
-        <button type="button" class="glass-btn-accent" :disabled="busy || sheet.completed" @click="complete">Bewertung abschließen</button>
-        <button v-if="sheet.roles?.admin && sheet.completed" type="button" class="glass-btn-secondary" :disabled="busy" @click="reopen">Wieder öffnen</button>
-      </div>
+    <div class="jury-bar">
+      <p class="jury-bar__points">{{ sheet.points }} <span>Punkte</span></p>
+      <p class="jury-bar__core">Grundwerte {{ sheet.core_points }}</p>
+      <button type="button" class="glass-btn-accent" :disabled="busy || sheet.completed" @click="complete">Bewertung abschließen</button>
+      <button type="button" class="glass-btn-secondary" :disabled="busy || sheet.completed" @click="save">Speichern</button>
+      <button v-if="sheet.roles?.admin && sheet.completed" type="button" class="glass-btn-secondary" :disabled="busy" @click="reopen">Wieder öffnen</button>
     </div>
   </div>
 </template>
+
+<style scoped>
+.jury-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.jury-sheet__head h2 {
+  margin: 0;
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.jury-sheet__alert {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 0.75rem;
+  background: #b42318;
+  color: #fff;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.jury-block__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.jury-block__head h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.jury-skip {
+  min-height: 3rem;
+  padding: 0.4rem 0.8rem;
+  border: 3px solid #c8c8c8;
+  border-radius: 0.8rem;
+  background: #fff;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.jury-skip.is-on {
+  border-color: #8a5a00;
+  background: #8a5a00;
+  color: #fff;
+}
+
+.jury-group {
+  margin-bottom: 1rem;
+}
+
+.jury-group__title {
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.jury-row {
+  margin-bottom: 0.75rem;
+}
+
+.jury-row.is-done {
+  position: relative;
+  padding-left: 0.85rem;
+}
+
+.jury-row.is-done::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  border-radius: 4px;
+  background: #146c36;
+}
+
+.jury-levels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.jury-level {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-height: 5.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 3px solid #c8c8c8;
+  border-radius: 0.85rem;
+  background: #fff;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.jury-level.is-on {
+  border-color: #146c36;
+  background: #146c36;
+  color: #fff;
+}
+
+.jury-level__n {
+  font-size: 1.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.jury-level__name {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.jury-level__text {
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.jury-comment {
+  margin-top: 0.45rem;
+  width: 100%;
+  font-size: 1.15rem;
+}
+
+.jury-feedback {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.jury-feedback textarea {
+  margin-top: 0.35rem;
+  width: 100%;
+  font-size: 1.15rem;
+  font-weight: 500;
+}
+
+.jury-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+  padding: 0.65rem 0.75rem calc(0.65rem + env(safe-area-inset-bottom));
+  background: #fff;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.jury-bar__points {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.jury-bar__points span,
+.jury-bar__core {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #5c5c5c;
+}
+
+.jury-bar__core {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.jury-bar .glass-btn-accent,
+.jury-bar .glass-btn-secondary {
+  min-height: 3.4rem;
+  justify-content: center;
+}
+
+@media (min-width: 900px) {
+  .jury-levels {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+</style>
