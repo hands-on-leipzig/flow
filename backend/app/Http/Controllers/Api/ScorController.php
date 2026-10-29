@@ -79,6 +79,27 @@ class ScorController extends Controller
         return $this->respond(fn () => $this->sheets->results($request->user(), $eventId));
     }
 
+    public function tagNoteworthy(Request $request, int $eventId, int $team): JsonResponse
+    {
+        return $this->respond(fn () => $this->sheets->tagNoteworthy(
+            $request->user(),
+            $eventId,
+            $team,
+            $request->boolean('on'),
+        ));
+    }
+
+    public function pickStage(Request $request, int $eventId): JsonResponse
+    {
+        $teams = $request->input('teams', []);
+
+        return $this->respond(fn () => $this->sheets->pickStage(
+            $request->user(),
+            $eventId,
+            is_array($teams) ? $teams : [],
+        ));
+    }
+
     public function saveAwards(Request $request, int $eventId): JsonResponse
     {
         return $this->respond(fn () => $this->sheets->saveAwards($request->user(), $eventId, $request->all()));

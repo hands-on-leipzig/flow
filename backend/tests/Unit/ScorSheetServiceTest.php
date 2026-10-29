@@ -187,6 +187,29 @@ class ScorSheetServiceTest extends TestCase
         $this->assertCount(2, $saved['awards']['nominations']);
     }
 
+    public function test_noteworthy_teams_can_be_sent_on_stage_only_up_to_the_flow_count(): void
+    {
+        Schema::create('scor_noteworthy', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('event');
+            $table->unsignedInteger('team');
+            $table->unique(['event', 'team']);
+        });
+        Schema::create('scor_stage_pick', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('event');
+            $table->unsignedSmallInteger('slot');
+            $table->unsignedInteger('team');
+        });
+
+        $tagged = $this->sheets->tagNoteworthy($this->user(), 1, 1, true);
+        $this->assertSame([1], $tagged['noteworthy']);
+
+        $this->expectException(\App\Scor\ScorAccessException::class);
+        $this->expectExceptionMessage('FLOW hat für diese Veranstaltung keine Bühnenplätze.');
+        $this->sheets->pickStage($this->user(), 1, [1]);
+    }
+
     public function test_bioglow_referee_sheet_scores_the_sample(): void
     {
         $sheet = $this->sheets->refereeSheet($this->user(), 1, 1, 1);
@@ -682,7 +705,7 @@ class ScorSheetServiceTest extends TestCase
 
     private function createSchema(): void
     {
-        foreach (['scor_award', 'event_staffing_assignment', 'event_staffing_group', 'event_staffing_role', 'volunteer_person', 'activity', 'activity_group', 'm_activity_type_detail', 'm_role', 'scor_sheet', 'scor_item', 'scor_section', 'scor_form', 'match', 'team_plan', 'team', 'plan', 'event_program', 'event_user_access', 'user_regional_partner', 'event', 'm_season'] as $table) {
+        foreach (['scor_stage_pick', 'scor_noteworthy', 'scor_award', 'event_staffing_assignment', 'event_staffing_group', 'event_staffing_role', 'volunteer_person', 'activity', 'activity_group', 'm_activity_type_detail', 'm_role', 'scor_sheet', 'scor_item', 'scor_section', 'scor_form', 'match', 'team_plan', 'team', 'plan', 'event_program', 'event_user_access', 'user_regional_partner', 'event', 'm_season'] as $table) {
             Schema::dropIfExists($table);
         }
 

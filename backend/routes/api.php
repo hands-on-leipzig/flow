@@ -483,6 +483,8 @@ Route::middleware(['keycloak'])->group(function () {
         Route::get('/events/{eventId}', [ScorController::class, 'overview']);
         Route::get('/events/{eventId}/results', [ScorController::class, 'results']);
         Route::put('/events/{eventId}/awards', [ScorController::class, 'saveAwards']);
+        Route::put('/events/{eventId}/teams/{team}/noteworthy', [ScorController::class, 'tagNoteworthy']);
+        Route::put('/events/{eventId}/stage', [ScorController::class, 'pickStage']);
         Route::get('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'referee']);
         Route::put('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'saveReferee']);
         Route::post('/events/{eventId}/matches/{match}/teams/{team}/confirm', [ScorController::class, 'confirmReferee']);

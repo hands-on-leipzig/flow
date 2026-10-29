@@ -97,6 +97,7 @@ final class ScorSheetService
             ],
             'has_plan' => $planId !== null,
             'groups' => $groups,
+            'stage' => (new ScorStage())->state($eventId),
             'matches' => $matches,
             'teams' => array_values($teams),
         ];
@@ -240,6 +241,33 @@ final class ScorSheetService
     /**
      * @param  array<string, mixed>  $input
      */
+    public function tagNoteworthy(User $user, int $eventId, int $teamId, bool $on): array
+    {
+        $roles = $this->requireEvent($user, $eventId);
+        if (!$roles->allowsJury()) {
+            throw new ScorAccessException('Nur die Jury markiert bemerkenswerte Teams.');
+        }
+        $this->teamOnEvent($eventId, $teamId);
+
+        return (new ScorStage())->tag($eventId, $teamId, $on);
+    }
+
+    /**
+     * @param  list<int>  $teamIds
+     */
+    public function pickStage(User $user, int $eventId, array $teamIds): array
+    {
+        $roles = $this->requireEvent($user, $eventId);
+        if (!$roles->admin && !$user->isFlowAdmin()) {
+            throw new ScorAccessException('Die Bühnenauswahl trifft die Veranstaltungs-Admin.');
+        }
+        foreach ($teamIds as $teamId) {
+            $this->teamOnEvent($eventId, (int) $teamId);
+        }
+
+        return (new ScorStage())->pick($eventId, $teamIds);
+    }
+
     public function saveAwards(User $user, int $eventId, array $input): array
     {
         $roles = $this->requireEvent($user, $eventId);

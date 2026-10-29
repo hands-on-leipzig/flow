@@ -44,6 +44,7 @@ const error = ref('')
 const loading = ref(false)
 const tab = ref<'schiri' | 'jury' | 'ergebnisse'>('schiri')
 const closedRounds = ref<string[]>([])
+const stagePicks = ref<number[]>([])
 
 const eventId = computed(() => route.params.eventId ? Number(route.params.eventId) : null)
 const matchId = computed(() => route.params.matchId ? Number(route.params.matchId) : null)
@@ -148,6 +149,7 @@ async function load() {
     overview.value = data
     const standings = await axios.get(`/scor/events/${eventId.value}/results`)
     results.value = standings.data
+    stagePicks.value = [...(data.stage?.picks || [])]
     sheet.value = null
     if (route.query.sicht === 'ergebnisse') tab.value = 'ergebnisse'
     else if (route.query.sicht === 'jury' && data.roles?.jury) tab.value = 'jury'
@@ -187,6 +189,45 @@ function openMatch(matchIdValue: number, teamIdValue: number) {
 
 function openJury(teamIdValue: number) {
   void router.push(`/scor/${eventId.value}/jury/${teamIdValue}`)
+}
+
+function isNoted(teamId: number) {
+  return (overview.value?.stage?.noteworthy || []).includes(teamId)
+}
+
+function isPicked(teamId: number) {
+  return (overview.value?.stage?.picks || []).includes(teamId)
+}
+
+async function toggleNoted(teamId: number) {
+  const {data} = await axios.put(`/scor/events/${eventId.value}/teams/${teamId}/noteworthy`, {on: !isNoted(teamId)})
+  if (overview.value) overview.value.stage = data
+}
+
+function notedTeams() {
+  const ids = new Set(overview.value?.stage?.noteworthy || [])
+  return (overview.value?.teams || []).filter((team: any) => ids.has(team.id))
+}
+
+function togglePick(teamId: number) {
+  const slots = overview.value?.stage?.slots || 0
+  if (stagePicks.value.includes(teamId)) {
+    stagePicks.value = stagePicks.value.filter((id) => id !== teamId)
+    return
+  }
+  if (stagePicks.value.length >= slots) return
+  stagePicks.value = [...stagePicks.value, teamId]
+}
+
+async function saveStage() {
+  error.value = ''
+  try {
+    const {data} = await axios.put(`/scor/events/${eventId.value}/stage`, {teams: stagePicks.value})
+    if (overview.value) overview.value.stage = data
+    stagePicks.value = [...(data.picks || [])]
+  } catch (e: any) {
+    error.value = e?.response?.data?.error || 'Bühne speichern fehlgeschlagen.'
+  }
 }
 </script>
 
@@ -294,7 +335,20 @@ function openJury(teamIdValue: number) {
         </section>
       </div>
 
-      <div v-else-if="tab === 'jury' && overview.roles.jury && jurySections" class="scor-rounds">
+      <section v-if="tab === 'jury' && overview.roles.admin && overview.stage" class="scor-assign">
+        <h2 class="scor-assign__title">Bühne</h2>
+        <p v-if="!overview.stage.slots" class="scor-assign__people">FLOW hat keine Anzahl für die Bühne eingetragen.</p>
+        <template v-else>
+          <p class="scor-assign__people">{{ overview.stage.slots }} Plätze, nur aus den bemerkenswerten Teams.</p>
+          <label v-for="team in notedTeams()" :key="team.id" class="flex items-center gap-2 text-lg">
+            <input type="checkbox" :checked="stagePicks.includes(team.id)" @change="togglePick(team.id)"/>
+            {{ team.number }} {{ team.name }}
+          </label>
+          <button type="button" class="glass-btn-accent" @click="saveStage">Bühne speichern</button>
+        </template>
+      </section>
+
+      <div v-if="tab === 'jury' && overview.roles.jury && jurySections" class="scor-rounds">
         <section v-for="group in jurySections" :key="group.index" class="scor-round">
           <header class="scor-assign">
             <h2 class="scor-assign__title">{{ group.label }}</h2>
@@ -305,7 +359,14 @@ function openJury(teamIdValue: number) {
             <li v-for="team in group.teams" :key="team.id">
               <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id)">
                 <span class="font-semibold">{{ team.number }} {{ team.name }}</span>
-                <span class="text-lg text-[var(--color-text-muted)]">{{ statusLabel(team.jury_status) }}</span>
+                <span class="flex items-center gap-3 text-lg text-[var(--color-text-muted)]">
+                  <label v-if="overview.roles.jury" class="inline-flex items-center gap-1" @click.stop>
+                    <input type="checkbox" :checked="isNoted(team.id)" @change="toggleNoted(team.id)"/>
+                    bemerkenswert
+                  </label>
+                  <span v-if="isPicked(team.id)">Bühne</span>
+                  {{ statusLabel(team.jury_status) }}
+                </span>
               </button>
             </li>
           </ul>
@@ -317,7 +378,13 @@ function openJury(teamIdValue: number) {
         <li v-for="team in overview.teams" :key="team.id">
           <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id)">
             <span class="font-semibold">{{ team.number }} {{ team.name }}</span>
-            <span class="text-lg text-[var(--color-text-muted)]">{{ statusLabel(team.jury_status) }}</span>
+            <span class="flex items-center gap-3 text-lg text-[var(--color-text-muted)]">
+              <label v-if="overview.roles.jury" class="inline-flex items-center gap-1" @click.stop>
+                <input type="checkbox" :checked="isNoted(team.id)" @change="toggleNoted(team.id)"/>
+                bemerkenswert
+              </label>
+              {{ statusLabel(team.jury_status) }}
+            </span>
           </button>
         </li>
       </ul>
