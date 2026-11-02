@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import {ref, watch} from 'vue'
+import {useRouter} from 'vue-router'
 import axios from 'axios'
 
 const props = defineProps<{sheet: any}>()
 const emit = defineEmits<{update: [sheet: any]}>()
+const router = useRouter()
 
 const values = ref<Record<string, number>>({})
 const comments = ref<Record<string, string>>({})
@@ -60,6 +62,10 @@ function payload() {
 
 function url() {
   return `/scor/events/${props.sheet.event.id}/teams/${props.sheet.team.id}/jury`
+}
+
+function leave() {
+  void router.push(`/scor/${props.sheet.event.id}?sicht=jury`)
 }
 
 async function save() {
@@ -194,8 +200,9 @@ function setLevel(id: number, level: number) {
     <div class="jury-bar">
       <p class="jury-bar__points">{{ sheet.points }} <span>Punkte</span></p>
       <p class="jury-bar__core">Grundwerte {{ sheet.core_points }}</p>
-      <button type="button" class="glass-btn-accent" :disabled="busy || sheet.completed" @click="complete">Bewertung abschließen</button>
-      <button type="button" class="glass-btn-secondary" :disabled="busy || sheet.completed" @click="save">Speichern</button>
+      <button v-if="!sheet.completed" type="button" class="glass-btn-accent" :disabled="busy" @click="complete">Bewertung abschließen</button>
+      <button v-if="!sheet.completed" type="button" class="glass-btn-secondary" :disabled="busy" @click="save">Speichern</button>
+      <button v-if="sheet.completed" type="button" class="glass-btn-accent jury-bar__leave" @click="leave">zurück zur Übersicht</button>
       <button v-if="sheet.roles?.admin && sheet.completed" type="button" class="glass-btn-secondary" :disabled="busy" @click="reopen">Wieder öffnen</button>
     </div>
   </div>
@@ -384,6 +391,10 @@ function setLevel(id: number, level: number) {
 .jury-bar .glass-btn-secondary {
   min-height: 3.4rem;
   justify-content: center;
+}
+
+.jury-bar__leave {
+  grid-column: 1 / -1;
 }
 
 @media (min-width: 900px) {

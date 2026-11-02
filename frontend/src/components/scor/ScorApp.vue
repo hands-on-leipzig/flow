@@ -183,11 +183,18 @@ function openEvent(id: number) {
   void router.push(`/scor/${id}`)
 }
 
-function openMatch(matchIdValue: number, teamIdValue: number) {
+function confirmOpen(done: boolean) {
+  if (!done) return true
+  return window.confirm('Dieser Bogen ist abgeschlossen. Trotzdem öffnen?')
+}
+
+function openMatch(matchIdValue: number, teamIdValue: number, done = false) {
+  if (!confirmOpen(done)) return
   void router.push(`/scor/${eventId.value}/match/${matchIdValue}/team/${teamIdValue}`)
 }
 
-function openJury(teamIdValue: number) {
+function openJury(teamIdValue: number, done = false) {
+  if (!confirmOpen(done)) return
   void router.push(`/scor/${eventId.value}/jury/${teamIdValue}`)
 }
 
@@ -326,7 +333,7 @@ async function saveStage() {
                   class="scor-side"
                   :class="side.id ? `scor-side--${side.referee_status || 'open'}` : 'scor-side--empty'"
                   :disabled="!side.id"
-                  @click="side.id && openMatch(match.id, side.id)"
+                  @click="side.id && openMatch(match.id, side.id, side.referee_status === 'done')"
               >
                 <span class="scor-side__place">{{ side.table_label }}</span>
                 <span v-if="side.staff?.length" class="scor-side__staff">{{ side.staff.join(', ') }}</span>
@@ -360,7 +367,7 @@ async function saveStage() {
           <ul class="glass-card liquid-surface-inner divide-y divide-[var(--color-border)]">
             <li v-if="!group.teams.length" class="p-4 text-lg text-[var(--color-text-muted)]">Keine Teams in dieser Gruppe.</li>
             <li v-for="team in group.teams" :key="team.id">
-              <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id)">
+              <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id, team.jury_status === 'done')">
                 <span class="font-semibold">{{ team.number }} {{ team.name }}</span>
                 <span class="flex items-center gap-3 text-lg text-[var(--color-text-muted)]">
                   <label v-if="overview.roles.jury" class="inline-flex items-center gap-1" @click.stop>
@@ -379,7 +386,7 @@ async function saveStage() {
       <ul v-else-if="tab === 'jury' && overview.roles.jury" class="glass-card liquid-surface-inner divide-y divide-[var(--color-border)]">
         <li v-if="!overview.teams.length" class="p-4 text-lg text-[var(--color-text-muted)]">Keine Teams im Matchplan.</li>
         <li v-for="team in overview.teams" :key="team.id">
-          <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id)">
+          <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id, team.jury_status === 'done')">
             <span class="font-semibold">{{ team.number }} {{ team.name }}</span>
             <span class="flex items-center gap-3 text-lg text-[var(--color-text-muted)]">
               <label v-if="overview.roles.jury" class="inline-flex items-center gap-1" @click.stop>

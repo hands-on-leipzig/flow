@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
+import {useRouter} from 'vue-router'
 import axios from 'axios'
 
 const props = defineProps<{sheet: any}>()
 const emit = defineEmits<{update: [sheet: any]}>()
+const router = useRouter()
 
 const values = ref<Record<string, string | number>>({})
 const error = ref('')
@@ -178,6 +180,10 @@ function url() {
   return `/scor/events/${props.sheet.event.id}/matches/${props.sheet.match.id}/teams/${props.sheet.team.id}`
 }
 
+function leave() {
+  void router.push(`/scor/${props.sheet.event.id}`)
+}
+
 onMounted(() => {
   placeBar()
   requestAnimationFrame(placeBar)
@@ -297,7 +303,8 @@ onBeforeUnmount(() => {
           </button>
           <i v-else class="bi bi-check-circle-fill scor-confirm__mark" aria-hidden="true"/>
         </div>
-        <button type="button" class="glass-btn-secondary" :disabled="busy || sheet.locked" @click="save">Speichern</button>
+        <button v-if="!sheet.locked" type="button" class="glass-btn-secondary" :disabled="busy" @click="save">Speichern</button>
+        <button v-if="sheet.locked" type="button" class="glass-btn-accent scor-sheet__leave" @click="leave">zurück zur Übersicht</button>
         <button v-if="sheet.roles?.admin && sheet.locked" type="button" class="glass-btn-secondary" :disabled="busy" @click="reopen">Wieder öffnen</button>
       </div>
     </Teleport>
@@ -591,6 +598,10 @@ onBeforeUnmount(() => {
 .scor-sheet__bar .glass-btn-accent {
   min-height: 3.4rem;
   justify-content: center;
+}
+
+.scor-sheet__leave {
+  grid-column: 1 / -1;
 }
 
 @media (min-width: 800px) {

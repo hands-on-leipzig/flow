@@ -12,17 +12,84 @@ const trophies = ref<{team: number, category: string}[]>([])
 const nominations = ref<{team: number, category: string}[]>([])
 const coaching = ref<number | ''>('')
 
-const trophyColumns = [
+const judgedTrophies = [
   {id: 'research', label: 'Forschung'},
   {id: 'robotdesign', label: 'Roboterdesign'},
   {id: 'core_values', label: 'Grundwerte'},
-  {id: 'robot', label: 'Spiel'},
 ]
 const nominationColumns = [
   {id: 'research', label: 'Forschung'},
   {id: 'robotdesign', label: 'Roboterdesign'},
   {id: 'core_values', label: 'Grundwerte'},
 ]
+const judgedIds = ['champion', 'research', 'robotdesign', 'core_values']
+
+const awardTeams = computed(() => {
+  return [...(props.results?.teams || [])].sort((a, b) => {
+    if (a.champion_rank !== b.champion_rank) return a.champion_rank - b.champion_rank
+    return Number(a.number ?? 0) - Number(b.number ?? 0)
+  })
+})
+
+function heldTrophy(teamId: number) {
+  return trophies.value.find((row) => row.team === teamId && judgedIds.includes(row.category))
+}
+
+function nominationCount(category: string) {
+  return nominations.value.filter((row) => row.category === category).length
+}
+
+type CellState = 'on' | 'open' | 'wait' | 'locked' | 'taken' | 'full'
+
+function trophyState(team: any, category: string): CellState {
+  const on = marked(trophies.value, team.id, category)
+  if (!props.results?.can_edit_awards) return on ? 'on' : 'locked'
+  if (category !== 'champion' && !championTeam.value) return 'wait'
+  if (category === 'champion' && team.champion_rank !== 1 && !on) return 'locked'
+  if (category !== 'champion' && category !== 'robot') {
+    const held = heldTrophy(team.id)
+    if (held && held.category !== category) return 'taken'
+  }
+  return on ? 'on' : 'open'
+}
+
+function nominationState(team: any, category: string): CellState {
+  const on = marked(nominations.value, team.id, category)
+  if (!props.results?.can_edit_awards) return on ? 'on' : 'locked'
+  if (!championTeam.value) return 'wait'
+  if (!on && nominationCount(category) >= 4) return 'full'
+  return on ? 'on' : 'open'
+}
+
+function coachingState(team: any): CellState {
+  const on = coaching.value === team.id
+  if (!props.results?.can_edit_awards) return on ? 'on' : 'locked'
+  if (!championTeam.value) return 'wait'
+  return on ? 'on' : 'open'
+}
+
+function pickTrophy(team: any, category: string) {
+  const state = trophyState(team, category)
+  if (state === 'wait' || state === 'locked' || state === 'taken') return
+  if (category === 'champion') {
+    championTeam.value = state === 'on' ? '' : team.id
+    return
+  }
+  trophies.value = trophies.value.filter((row) => row.category !== category)
+  if (state !== 'on') trophies.value.push({team: team.id, category})
+}
+
+function pickNomination(team: any, category: string) {
+  const state = nominationState(team, category)
+  if (state === 'wait' || state === 'locked' || state === 'full') return
+  toggleMark(nominations.value, team.id, category)
+}
+
+function pickCoaching(team: any) {
+  const state = coachingState(team)
+  if (state === 'wait' || state === 'locked') return
+  coaching.value = state === 'on' ? '' : team.id
+}
 
 watch(() => props.results, (results) => {
   trophies.value = [...(results?.awards?.trophies || [])]
@@ -130,8 +197,6 @@ function roundCell(team: any, round: number) {
   return (team.rounds || []).find((cell: any) => cell && cell.round === round) || null
 }
 
-const championLeaders = computed(() => (props.results?.teams || []).filter((team: any) => team.champion_rank === 1))
-
 const championTeam = computed({
   get: () => trophies.value.find((row) => row.category === 'champion')?.team || '',
   set: (team: number | '') => {
@@ -140,16 +205,25 @@ const championTeam = computed({
   },
 })
 
-const championLabel = computed(() => {
-  const id = championTeam.value
-  const team = (props.results?.teams || []).find((entry: any) => entry.id === id)
-  return team ? `${team.number} ${team.name}` : '–'
-})
+function cellClass(state: CellState) {
+  return {
+    'is-on': state === 'on',
+    'is-wait': state === 'wait' || state === 'locked' || state === 'taken' || state === 'full',
+  }
+}
 
-const coachingLabel = computed(() => {
-  const team = (props.results?.teams || []).find((entry: any) => entry.id === coaching.value)
-  return team ? `${team.number} ${team.name}` : '–'
-})
+function pickDisabled(state: CellState) {
+  return state === 'wait' || state === 'locked' || state === 'taken' || state === 'full'
+}
+
+function pickLabel(state: CellState, onLabel: string) {
+  if (state === 'on') return onLabel
+  if (state === 'taken') return 'hat Pokal'
+  if (state === 'wait') return 'wartet'
+  if (state === 'full') return '4 voll'
+  if (state === 'locked') return '–'
+  return 'wählen'
+}
 
 function formatPoints(value: number) {
   if (!Number.isFinite(value)) return '–'
@@ -245,64 +319,63 @@ function formatPoints(value: number) {
 
     <section class="scor-results__block">
       <h2 class="scor-results__title">Auszeichnungen</h2>
-      <p class="scor-results__note">
-        Zuerst den Champion. Bei gleichem Platz entscheidet die Jury. Danach Nominierungen, dann die weiteren Pokale.
-        Ein Team bekommt nur einen Pokal aus Champion, Forschung, Roboterdesign und Grundwerten.
-        Spiel und Coaching können zusätzlich vergeben werden, höchstens drei Pokale insgesamt.
+      <p class="scor-flow">
+        <span :class="{'is-now': !championTeam}">1 Champion</span>
+        <span :class="{'is-now': championTeam}">2 Pokale</span>
+        <span :class="{'is-now': championTeam}">3 Nominierungen</span>
+        <span :class="{'is-now': championTeam}">4 Spiel und Coaching</span>
       </p>
-      <label class="scor-results__note">
-        Champion
-        <select v-if="results.can_edit_awards" v-model="championTeam" class="glass-input ml-2">
-          <option value="">–</option>
-          <option v-for="team in championLeaders" :key="team.id" :value="team.id">{{ team.number }} {{ team.name }}</option>
-        </select>
-        <span v-else> {{ championLabel }}</span>
-      </label>
+      <p class="scor-results__note">
+        <template v-if="!championTeam">Zuerst den Champion. Alles andere wartet.</template>
+        <template v-else>Der Champion ist für Forschung, Roboterdesign und Grundwerte gesperrt. Jeder weitere Pokal dort sperrt das Team ebenfalls. Spiel und Coaching bleiben frei, höchstens drei Pokale insgesamt.</template>
+      </p>
       <div class="scor-board glass-card liquid-surface-inner">
-        <table>
+        <table class="scor-awards">
           <thead>
             <tr>
               <th scope="col">Team</th>
-              <th v-for="column in trophyColumns" :key="column.id" scope="col">{{ column.label }}</th>
-              <th v-for="column in nominationColumns" :key="`n-${column.id}`" scope="col">Nom. {{ column.label }}</th>
+              <th scope="col" :class="{'is-now': !championTeam}">Champion</th>
+              <th v-for="column in judgedTrophies" :key="column.id" scope="col" :class="{'is-wait': !championTeam}">{{ column.label }}</th>
+              <th v-for="column in nominationColumns" :key="`n-${column.id}`" scope="col" :class="{'is-wait': !championTeam}">Nom. {{ column.label }}</th>
+              <th scope="col" :class="{'is-wait': !championTeam}">Spiel</th>
+              <th scope="col" :class="{'is-wait': !championTeam}">Coaching</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="team in results.teams" :key="team.id">
+            <tr v-for="team in awardTeams" :key="team.id">
               <th scope="row">
                 <span class="scor-team__name">{{ team.name }}</span>
-                <span class="scor-team__number">{{ team.number }}</span>
+                <span class="scor-team__number">Platz {{ team.champion_rank }} · {{ team.number }}</span>
               </th>
-              <td v-for="column in trophyColumns" :key="column.id">
-                <input
-                    v-if="results.can_edit_awards"
-                    type="checkbox"
-                    :checked="marked(trophies, team.id, column.id)"
-                    @change="toggleMark(trophies, team.id, column.id)"
-                />
-                <span v-else>{{ marked(trophies, team.id, column.id) ? 'Pokal' : '–' }}</span>
+              <td :class="cellClass(trophyState(team, 'champion'))">
+                <button type="button" class="scor-pick" :disabled="pickDisabled(trophyState(team, 'champion'))" @click="pickTrophy(team, 'champion')">
+                  {{ pickLabel(trophyState(team, 'champion'), 'Champion') }}
+                </button>
               </td>
-              <td v-for="column in nominationColumns" :key="`n-${column.id}`">
-                <input
-                    v-if="results.can_edit_awards"
-                    type="checkbox"
-                    :checked="marked(nominations, team.id, column.id)"
-                    @change="toggleMark(nominations, team.id, column.id)"
-                />
-                <span v-else>{{ marked(nominations, team.id, column.id) ? 'nominiert' : '–' }}</span>
+              <td v-for="column in judgedTrophies" :key="column.id" :class="cellClass(trophyState(team, column.id))">
+                <button type="button" class="scor-pick" :disabled="pickDisabled(trophyState(team, column.id))" @click="pickTrophy(team, column.id)">
+                  {{ pickLabel(trophyState(team, column.id), 'Pokal') }}
+                </button>
+              </td>
+              <td v-for="column in nominationColumns" :key="`n-${column.id}`" :class="cellClass(nominationState(team, column.id))">
+                <button type="button" class="scor-pick" :disabled="pickDisabled(nominationState(team, column.id))" @click="pickNomination(team, column.id)">
+                  {{ pickLabel(nominationState(team, column.id), 'Nom.') }}
+                </button>
+              </td>
+              <td :class="cellClass(trophyState(team, 'robot'))">
+                <button type="button" class="scor-pick" :disabled="pickDisabled(trophyState(team, 'robot'))" @click="pickTrophy(team, 'robot')">
+                  {{ pickLabel(trophyState(team, 'robot'), 'Spiel') }}
+                </button>
+              </td>
+              <td :class="cellClass(coachingState(team))">
+                <button type="button" class="scor-pick" :disabled="pickDisabled(coachingState(team))" @click="pickCoaching(team)">
+                  {{ pickLabel(coachingState(team), 'Coaching') }}
+                </button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <label v-if="results.can_edit_awards" class="scor-results__note">
-        Coaching
-        <select v-model="coaching" class="glass-input ml-2">
-          <option value="">–</option>
-          <option v-for="team in results.teams" :key="team.id" :value="team.id">{{ team.number }} {{ team.name }}</option>
-        </select>
-      </label>
-      <p v-else class="scor-results__note">Coaching: {{ coachingLabel }}</p>
       <p v-if="awardError" class="text-lg text-red-700">{{ awardError }}</p>
       <button v-if="results.can_edit_awards" type="button" class="glass-btn-accent" :disabled="awardBusy" @click="saveAwards">Auszeichnungen speichern</button>
       <div v-if="results.lifecycle" class="flex flex-wrap gap-3">
@@ -417,5 +490,60 @@ function formatPoints(value: number) {
   color: var(--color-text-muted);
   font-size: 1rem;
   line-height: 1.45;
+}
+
+.scor-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.35rem;
+}
+
+.scor-flow span {
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.scor-flow span.is-now {
+  background: #146c36;
+  color: #fff;
+}
+
+.scor-awards th.is-now {
+  color: #146c36;
+}
+
+.scor-awards th.is-wait,
+.scor-awards td.is-wait {
+  opacity: 0.38;
+}
+
+.scor-awards td.is-on {
+  background: color-mix(in srgb, #146c36 14%, transparent);
+}
+
+.scor-pick {
+  min-width: 5.5rem;
+  min-height: 2.6rem;
+  padding: 0.35rem 0.6rem;
+  border: 2px solid var(--color-border);
+  border-radius: 0.7rem;
+  background: #fff;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.scor-awards td.is-on .scor-pick {
+  border-color: #146c36;
+  background: #146c36;
+  color: #fff;
+}
+
+.scor-pick:disabled {
+  cursor: default;
 }
 </style>
