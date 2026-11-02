@@ -18,7 +18,8 @@ final class TeamDataIndex
      *   teams: list<array<string, mixed>>,
      *   columns: list<array<string, mixed>>,
      *   collect: array{meal: bool},
-     *   meal_options: list<array<string, mixed>>
+     *   meal_options: list<array<string, mixed>>,
+     *   team_data_deadline: string|null
      * }
      */
     public static function payloadForEvent(Event $event): array
@@ -59,11 +60,20 @@ final class TeamDataIndex
             );
         })->values()->all();
 
+        $deadline = null;
+        foreach ($peopleBreakdowns as $breakdown) {
+            if (is_array($breakdown) && is_string($breakdown['team_data_deadline'] ?? null) && $breakdown['team_data_deadline'] !== '') {
+                $deadline = $breakdown['team_data_deadline'];
+                break;
+            }
+        }
+
         return [
             'teams' => $payload,
             'columns' => TeamDataColumns::tablePayloadForEvent($event->id),
             'collect' => ['meal' => $collectMeal],
             'meal_options' => VolunteerMealOptions::serializeList($mealOptions),
+            'team_data_deadline' => $deadline,
         ];
     }
 
@@ -191,7 +201,7 @@ final class TeamDataIndex
 
     /**
      * @param  Collection<int, EventTeamFieldValue>  $values
-     * @param  array{coaches: int, players: int, total: int, players_age_out_of_range: int}|null  $peopleBreakdown
+     * @param  array{coaches: int, players: int, total: int, players_age_out_of_range: int, players_complete?: bool|null, team_data_deadline?: string|null}|null  $peopleBreakdown
      * @param  array{labels: array<int, string>, sequences: array<int, int>}  $programMeta
      * @return array<string, mixed>
      */
@@ -226,6 +236,7 @@ final class TeamDataIndex
             'people_count' => $peopleBreakdown !== null ? $peopleBreakdown['total'] : null,
             'players_count' => $peopleBreakdown !== null ? $peopleBreakdown['players'] : null,
             'players_age_out_of_range' => $peopleBreakdown !== null ? $peopleBreakdown['players_age_out_of_range'] : null,
+            'players_complete' => is_array($peopleBreakdown) ? ($peopleBreakdown['players_complete'] ?? null) : null,
             'photo_consent' => TeamPhotoCounts::mapForTeamWithDefaults($team->id),
             'custom' => $custom,
             'touched' => [

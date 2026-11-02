@@ -376,6 +376,7 @@ Route::middleware(['keycloak'])->group(function () {
     Route::patch('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'update']);
     Route::delete('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'destroy']);
     Route::get('/events/{event}/team-data', [EventTeamDataController::class, 'index']);
+    Route::put('/events/{event}/team-data-deadline', [EventTeamDataController::class, 'updateDeadline']);
     Route::patch('/events/{event}/teams/{team}/team-data', [EventTeamDataController::class, 'update']);
     Route::get('/events/{event}/teams/{team}/players', [EventTeamPlayersController::class, 'show']);
     Route::put('/events/{event}/teams/{team}/players', [EventTeamPlayersController::class, 'update']);

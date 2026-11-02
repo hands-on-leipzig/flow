@@ -19,6 +19,7 @@ import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
 import {
+  isTeamDataUnconfirmed,
   isTeamParticipantListIncomplete,
   isTeamPhotoConsentUnset,
   isTeamRowIncomplete,
@@ -45,6 +46,10 @@ const exportBusy = ref(false)
 const showOnlyIncomplete = ref(false)
 const showOnlyPhotoUnset = ref(false)
 const showOnlyParticipantListIncomplete = ref(false)
+const showOnlyUnconfirmed = ref(false)
+const deadline = ref('')
+const deadlineDraft = ref('')
+const deadlineSaving = ref(false)
 const nameFilter = ref('')
 const activeProgramFilters = ref<Set<number>>(new Set())
 const sortKey = ref<'team_number_hot' | 'name' | 'organization'>('name')
@@ -113,6 +118,9 @@ const filteredTeams = computed(() => {
   }
   if (showOnlyParticipantListIncomplete.value) {
     rows = rows.filter((row) => isTeamParticipantListIncomplete(row))
+  }
+  if (showOnlyUnconfirmed.value) {
+    rows = rows.filter((row) => isTeamDataUnconfirmed(row))
   }
 
   const dir = sortDir.value === 'asc' ? 1 : -1
@@ -226,6 +234,8 @@ async function load() {
     const {data} = await axios.get(`/events/${eventId.value}/team-data`)
     teams.value = data.teams ?? []
     columns.value = data.columns ?? []
+    deadline.value = typeof data.team_data_deadline === 'string' ? data.team_data_deadline : ''
+    deadlineDraft.value = deadline.value
     collectMeal.value = data.collect?.meal !== false
     if (data.meal_options) {
       setMealOptions(data.meal_options)
@@ -235,6 +245,31 @@ async function load() {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
     loading.value = false
+  }
+}
+
+const deadlineUnchanged = computed(() => deadlineDraft.value === '' || deadlineDraft.value === deadline.value)
+
+async function saveDeadline() {
+  if (!eventId.value || deadlineSaving.value || deadlineUnchanged.value) return
+  deadlineSaving.value = true
+  try {
+    const {data} = await axios.put(`/events/${eventId.value}/team-data-deadline`, {
+      deadline: deadlineDraft.value,
+    })
+    deadline.value = data.team_data_deadline ?? deadlineDraft.value
+    deadlineDraft.value = deadline.value
+    if (data.changed && data.mailed > 0) {
+      showGlassToast('Frist gespeichert. Die Coaches bekommen eine E-Mail.')
+    } else if (data.changed) {
+      showGlassToast('Frist gespeichert. Keine Coach-Adresse für eine E-Mail gefunden.')
+    } else {
+      showGlassToast('Frist gespeichert')
+    }
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Frist konnte nicht gespeichert werden'), 'error')
+  } finally {
+    deadlineSaving.value = false
   }
 }
 
@@ -280,7 +315,7 @@ onActivated(() => {
           <h1 class="vol-page__title">Teamdaten</h1>
           <ScreenHelpButton/>
         </div>
-        <p class="vol-page__sub">Verwalten von Daten für diese Veranstaltung</p>
+        <p class="vol-page__sub">Bitte prüfe, ob die Teamdaten vollständig sind.</p>
       </div>
       <div class="vol-page__actions">
         <button
@@ -330,8 +365,29 @@ onActivated(() => {
               @update:modelValue="onTeamDataEntryToggle"
           />
         </div>
-        <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
+        <p class="glass-settings-hint vol-roster-publish__hint">
           Coach:innen können über die öffentliche Seite Daten zu ihren Teams eingeben.
+        </p>
+        <div class="vol-roster-publish__row">
+          <label class="vol-roster-publish__label" for="team-data-deadline">Frist für Teamdaten</label>
+          <input
+              id="team-data-deadline"
+              v-model="deadlineDraft"
+              type="date"
+              class="glass-input glass-input--sm"
+              :disabled="!eventId || deadlineSaving"
+          >
+          <button
+              type="button"
+              class="glass-btn-secondary"
+              :disabled="!eventId || deadlineSaving || deadlineUnchanged"
+              @click="saveDeadline"
+          >
+            {{ deadlineSaving ? 'Speichern…' : 'Frist speichern' }}
+          </button>
+        </div>
+        <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
+          Standard sind 4 Wochen vor dem Event. Eine Änderung schickt den Coaches eine E-Mail.
         </p>
       </section>
     </div>
@@ -409,6 +465,17 @@ onActivated(() => {
           >
             <i class="bi bi-people vol-staffing-filter__icon" aria-hidden="true"/>
             <span class="vol-staffing-filter__label">Teilnehmerliste unvollständig</span>
+          </button>
+          <button
+              type="button"
+              class="vol-staffing-filter"
+              :class="{'vol-staffing-filter--active': showOnlyUnconfirmed}"
+              :aria-pressed="showOnlyUnconfirmed"
+              title="Nur Teams ohne Bestätigung „Teamdaten komplett“ anzeigen"
+              @click="showOnlyUnconfirmed = !showOnlyUnconfirmed"
+          >
+            <i class="bi bi-check2-square vol-staffing-filter__icon" aria-hidden="true"/>
+            <span class="vol-staffing-filter__label">Bestätigung fehlt</span>
           </button>
           <span class="vol-toolbar__count vol-staffing-filters__count">
             {{ filteredTeams.length }} / {{ teams.length }}
