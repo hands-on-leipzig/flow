@@ -6,13 +6,17 @@ use App\Http\Controllers\Api\EventTeamPlayersController;
 use App\Models\Event;
 use App\Models\Team;
 use App\Support\TeamDataIndex;
+use App\Support\TeamPeopleCounts;
 use App\Support\TeamPlayers;
 use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Api\EventTeamDataController;
+use App\Mail\TeamDataDeadlineMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -151,6 +155,72 @@ class TeamPlayersApiTest extends TestCase
             Event::findOrFail(1),
             Team::findOrFail(1),
         );
+    }
+
+    public function test_team_row_exposes_coach_confirmation(): void
+    {
+        $payload = $this->peoplePayload([]);
+        $payload['10']['players_complete'] = false;
+        $payload['team_data_deadline'] = '2026-10-17';
+        Http::fake([
+            'http://draht.test/handson/flow/500/people' => Http::response($payload),
+        ]);
+
+        $row = TeamDataIndex::teamPayload(Event::findOrFail(1), Team::findOrFail(1));
+
+        $this->assertFalse($row['players_complete']);
+        $this->assertSame('2026-10-17', TeamPeopleCounts::breakdownForTeam(Event::findOrFail(1), 1)['team_data_deadline']);
+    }
+
+    public function test_deadline_change_mails_coaches_once(): void
+    {
+        Mail::fake();
+        Http::fake([
+            'http://draht.test/handson/flow/500/team-data-deadline' => Http::response([
+                'deadline' => '2026-10-01',
+                'previous' => '2026-10-17',
+                'changed' => true,
+                'coaches' => [
+                    ['email' => 'Coach@Example.test', 'firstname' => 'Ada'],
+                    ['email' => 'coach@example.test', 'firstname' => 'Ada'],
+                    ['email' => 'not-an-email', 'firstname' => 'Nope'],
+                ],
+            ]),
+        ]);
+
+        $response = app(EventTeamDataController::class)->updateDeadline(
+            Request::create('/', 'PUT', ['deadline' => '2026-10-01']),
+            Event::findOrFail(1),
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(1, $response->getData(true)['mailed']);
+        Mail::assertSent(TeamDataDeadlineMail::class, function (TeamDataDeadlineMail $mail) {
+            return $mail->hasTo('coach@example.test')
+                && $mail->deadline === '01.10.2026'
+                && $mail->firstname === 'Ada';
+        });
+    }
+
+    public function test_unchanged_deadline_does_not_mail(): void
+    {
+        Mail::fake();
+        Http::fake([
+            'http://draht.test/handson/flow/500/team-data-deadline' => Http::response([
+                'deadline' => '2026-10-17',
+                'previous' => '2026-10-17',
+                'changed' => false,
+                'coaches' => [['email' => 'coach@example.test', 'firstname' => 'Ada']],
+            ]),
+        ]);
+
+        $response = app(EventTeamDataController::class)->updateDeadline(
+            Request::create('/', 'PUT', ['deadline' => '2026-10-17']),
+            Event::findOrFail(1),
+        );
+
+        $this->assertFalse($response->getData(true)['changed']);
+        Mail::assertNothingSent();
     }
 
     public function test_team_without_draht_link_is_not_found(): void

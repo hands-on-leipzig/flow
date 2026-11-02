@@ -33,10 +33,13 @@ const emit = defineEmits<{
 }>()
 
 function playersTitle(row: TeamDataRow) {
+  const parts = ['Teammitglieder anzeigen und bearbeiten']
   const outOfRange = row.players_age_out_of_range ?? 0
-  if (outOfRange === 1) return 'Teammitglieder anzeigen – 1 außerhalb der Altersgrenze'
-  if (outOfRange > 1) return `Teammitglieder anzeigen – ${outOfRange} außerhalb der Altersgrenze`
-  return 'Teammitglieder anzeigen und bearbeiten'
+  if (outOfRange === 1) parts[0] = 'Teammitglieder anzeigen – 1 außerhalb der Altersgrenze'
+  else if (outOfRange > 1) parts[0] = `Teammitglieder anzeigen – ${outOfRange} außerhalb der Altersgrenze`
+  if (row.players_complete === true) parts.push('Coach hat „Teamdaten komplett“ bestätigt')
+  else if (row.players_complete === false) parts.push('Bestätigung fehlt')
+  return parts.join(' – ')
 }
 
 const savingTeamId = ref<number | null>(null)
@@ -276,6 +279,11 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
               <i
                   v-if="(row.players_age_out_of_range ?? 0) > 0"
                   class="bi bi-exclamation-triangle"
+                  aria-hidden="true"
+              />
+              <i
+                  v-else-if="row.players_complete === true"
+                  class="bi bi-check-circle"
                   aria-hidden="true"
               />
               {{ displayNumber(row.players_count) }}

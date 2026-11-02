@@ -1224,6 +1224,48 @@ class DrahtController extends Controller
     }
 
     /**
+     * Set the team-data deadline on a DRAHT event (Y-m-d). Mail is sent by FLOW when `changed` is true.
+     *
+     * @return array{ok: bool, status: int, data: array<string, mixed>|null, message: ?string}
+     */
+    public function putTeamDataDeadline(int $drahtEventId, string $deadline): array
+    {
+        try {
+            $response = $this->makeDrahtPutCall(
+                "/handson/flow/{$drahtEventId}/team-data-deadline",
+                ['deadline' => $deadline]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Exception while updating team data deadline in DRAHT', [
+                'draht_event_id' => $drahtEventId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['ok' => false, 'status' => 502, 'data' => null, 'message' => null];
+        }
+
+        if (! $response->ok()) {
+            Log::error('Failed to update team data deadline in DRAHT', [
+                'draht_event_id' => $drahtEventId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            $message = $response->json('error.message') ?? $response->json('message');
+
+            return [
+                'ok' => false,
+                'status' => $response->status(),
+                'data' => null,
+                'message' => is_string($message) ? $message : null,
+            ];
+        }
+
+        $data = $response->json();
+
+        return ['ok' => true, 'status' => 200, 'data' => is_array($data) ? $data : null, 'message' => null];
+    }
+
+    /**
      * Get coordinates of all the teams of a given event
      *
      * @param  int  $event
