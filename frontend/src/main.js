@@ -53,6 +53,8 @@ import PublicSchedulePrint from "@/components/PublicSchedulePrint.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
 import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
 import ScorApp from "@/components/scor/ScorApp.vue";
+import ScorPractice from "@/components/scor/ScorPractice.vue";
+import ScorPublished from "@/components/scor/ScorPublished.vue";
 import PublicScores from "@/components/PublicScores.vue";
 import Profile from "@/components/Profile.vue";
 import AccessManagement from "@/components/AccessManagement.vue";
@@ -71,6 +73,8 @@ const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
     {path: '/carousel/:eventId/:slideId', component: StandaloneSlide, props: true, meta: {public: true}},
     {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
+    {path: '/scor/uebung/:eventId', component: ScorPractice, props: true, meta: {public: true}},
+    {path: '/scor/ergebnisse/:eventId', component: ScorPublished, props: true, meta: {public: true}},
     {path: '/scor', component: ScorApp},
     {path: '/scor/:eventId', component: ScorApp},
     {path: '/scor/:eventId/match/:matchId/team/:teamId', component: ScorApp},
@@ -231,6 +235,19 @@ router.beforeEach(async (to, from, next) => {
         return;
     }
 
+    // SCOR can open with a local event account. HERO login stays optional there.
+    if (scorPath && !keycloak.authenticated) {
+        try {
+            await keycloak.init({onLoad: 'check-sso', pkceMethod: 'S256'});
+        } catch (error) {
+            console.error('Keycloak initialization failed:', error);
+        }
+        if (!keycloak.authenticated) {
+            next();
+            return;
+        }
+    }
+
     // Handle authentication
     if (!keycloak.authenticated) {
         try {
@@ -328,7 +345,7 @@ axios.interceptors.request.use(config => {
     if (config.method === "post" && !(config.data instanceof FormData)) {
         config.headers["Content-Type"] = "application/json"
     }
-    const token = localStorage.getItem('kc_token')
+    const token = localStorage.getItem('kc_token') || localStorage.getItem('scor_token')
     if (token) {
         config.headers.Authorization = `Bearer ${token}`
     }

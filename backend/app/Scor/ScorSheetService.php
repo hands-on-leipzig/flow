@@ -4,6 +4,7 @@ namespace App\Scor;
 
 use App\Enums\FirstProgram;
 use App\Models\User;
+use App\Services\TeamJuryAssignmentService;
 use App\Support\FlowAccess;
 use App\Support\ScorGrant;
 use App\Support\TableFieldLabels;
@@ -55,10 +56,19 @@ final class ScorSheetService
             $status[$sheet->kind.'-'.$sheet->match.'-'.$sheet->team] = $this->statusOf($sheet);
         }
 
+        $groups = $this->staffingGroups($eventId);
+        $referees = [];
+        foreach ($groups['referee'] as $group) {
+            $referees[$group['index']] = $group['people'];
+        }
+        $lanes = $planId ? $this->juryLanes($planId) : [];
+
         $teams = [];
         foreach ($matches as &$match) {
             foreach (['team_1', 'team_2'] as $side) {
                 $team = $match[$side];
+                $table = (int) ($team['table'] ?? 0);
+                $match[$side]['staff'] = $referees[$table] ?? [];
                 if (empty($team['id'])) {
                     continue;
                 }
@@ -70,6 +80,7 @@ final class ScorSheetService
         unset($match);
 
         foreach ($teams as $id => $team) {
+            $teams[$id]['jury_lane'] = $lanes[(int) ($team['plan_slot'] ?? 0)] ?? null;
             $teams[$id]['jury_status'] = $status['jury-0-'.$id] ?? 'open';
         }
 
@@ -85,9 +96,285 @@ final class ScorSheetService
                 'admin' => $roles->admin || $user->isFlowAdmin(),
             ],
             'has_plan' => $planId !== null,
+            'groups' => $groups,
+            'stage' => (new ScorStage())->state($eventId),
+            'lifecycle' => (new ScorLifecycle())->state($eventId),
+            'flow_admin' => $user->isFlowAdmin(),
             'matches' => $matches,
             'teams' => array_values($teams),
         ];
+    }
+
+    /**
+     * Standings in the shape of the Contao scoreboard.
+     * Champion sums dense ranks (tied scores share a step). The table shows competition ranks.
+     * Future Robot-Game for the champion sum is the average of every scoring round.
+     * A missing sheet counts as 0. The test round stays out.
+     *
+     * @return array{event: array{id: int, name: mixed}, rounds: list<array{round: int, label: string}>, teams: list<array<string, mixed>>}
+     */
+    public function results(User $user, int $eventId, bool $public = false): array
+    {
+        $roles = $public ? \App\Support\ScorGrant::none() : $this->requireEvent($user, $eventId);
+        $event = $this->eventRow($eventId);
+        $planId = $this->planId($eventId);
+        $matches = $planId ? $this->matches($planId) : [];
+        $matchById = [];
+        $rounds = [];
+        $teams = [];
+        foreach ($matches as $match) {
+            $matchById[$match['id']] = $match;
+            if ($match['round'] > 0 && !isset($rounds[$match['round']])) {
+                $rounds[$match['round']] = [
+                    'round' => $match['round'],
+                    'label' => $match['round_label'],
+                ];
+            }
+            foreach (['team_1', 'team_2'] as $side) {
+                $team = $match[$side];
+                if (empty($team['id']) || isset($teams[$team['id']])) {
+                    continue;
+                }
+                $teams[$team['id']] = [
+                    'id' => $team['id'],
+                    'number' => $team['number'],
+                    'name' => $team['name'],
+                ];
+            }
+        }
+        ksort($rounds);
+
+        $sheets = DB::table('scor_sheet')->where('event', $eventId)->get();
+        $referee = [];
+        foreach ($sheets as $sheet) {
+            if ($sheet->kind !== 'referee') {
+                continue;
+            }
+            $match = $matchById[(int) $sheet->match] ?? null;
+            $teamId = (int) $sheet->team;
+            if (!$match || (int) $match['round'] < 1 || !isset($teams[$teamId])) {
+                continue;
+            }
+            $round = (int) $match['round'];
+            $points = (int) $sheet->points;
+            $current = $referee[$teamId][$round] ?? null;
+            if ($current !== null && $points < $current['points']) {
+                continue;
+            }
+            $referee[$teamId][$round] = [
+                'points' => $points,
+                'confirmed' => (bool) $sheet->confirmed_referee && (bool) $sheet->confirmed_team,
+            ];
+        }
+
+        $jury = $this->juryCategoryScores((int) $event->season, $sheets);
+        $rows = [];
+        foreach ($teams as $id => $team) {
+            $cells = [];
+            $sum = 0;
+            foreach ($rounds as $round) {
+                $cell = $referee[$id][$round['round']] ?? null;
+                $cells[] = $cell === null ? null : [
+                    'round' => $round['round'],
+                    'points' => $cell['points'],
+                    'confirmed' => $cell['confirmed'],
+                ];
+                if ($cell !== null) {
+                    $sum += $cell['points'];
+                }
+            }
+            $categories = $jury[$id] ?? ['research' => 0, 'robotdesign' => 0, 'core_values' => 0];
+            $rows[] = [
+                'id' => $id,
+                'number' => $team['number'],
+                'name' => $team['name'],
+                'rounds' => $cells,
+                'robot' => $rounds === [] ? 0 : $sum / count($rounds),
+                'research' => $categories['research'],
+                'robotdesign' => $categories['robotdesign'],
+                'core_values' => $categories['core_values'],
+            ];
+        }
+
+        $robotRank = $this->competitionRanks($rows, 'robot', false);
+        $researchRank = $this->competitionRanks($rows, 'research', false);
+        $designRank = $this->competitionRanks($rows, 'robotdesign', false);
+        $coreRank = $this->competitionRanks($rows, 'core_values', false);
+        $denseRobot = $this->denseRanks($rows, 'robot');
+        $denseResearch = $this->denseRanks($rows, 'research');
+        $denseDesign = $this->denseRanks($rows, 'robotdesign');
+        $denseCore = $this->denseRanks($rows, 'core_values');
+        foreach ($rows as &$row) {
+            $id = $row['id'];
+            $row['robot_rank'] = $robotRank[$id];
+            $row['research_rank'] = $researchRank[$id];
+            $row['robotdesign_rank'] = $designRank[$id];
+            $row['core_values_rank'] = $coreRank[$id];
+            $row['champion'] = $denseRobot[$id] + $denseResearch[$id] + $denseDesign[$id] + $denseCore[$id];
+        }
+        unset($row);
+
+        $championRank = $this->competitionRanks($rows, 'champion', true);
+        foreach ($rows as &$row) {
+            $row['champion_rank'] = $championRank[$row['id']];
+        }
+        unset($row);
+
+        usort($rows, function (array $a, array $b): int {
+            if ($a['champion_rank'] !== $b['champion_rank']) {
+                return $a['champion_rank'] <=> $b['champion_rank'];
+            }
+
+            return (int) $a['number'] <=> (int) $b['number'];
+        });
+
+        return [
+            'event' => [
+                'id' => (int) $event->id,
+                'name' => $event->name,
+            ],
+            'rounds' => array_values($rounds),
+            'teams' => $rows,
+            'awards' => (new ScorAwards())->forEvent($eventId),
+            'can_edit_awards' => $roles->admin || $user->isFlowAdmin(),
+            'flow_admin' => $user->isFlowAdmin(),
+            'lifecycle' => (new ScorLifecycle())->state($eventId),
+        ];
+    }
+
+    public function publishedResults(int $eventId): array
+    {
+        (new ScorLifecycle())->assertPublic($eventId);
+        $user = new User;
+        $user->id = 0;
+
+        return $this->results($user, $eventId, public: true);
+    }
+
+    public function closeEvent(User $user, int $eventId): array
+    {
+        $this->requireEvent($user, $eventId);
+
+        return (new ScorLifecycle())->close($user, $eventId);
+    }
+
+    public function releaseEvent(User $user, int $eventId): array
+    {
+        $this->requireEvent($user, $eventId);
+
+        return (new ScorLifecycle())->release($user, $eventId);
+    }
+
+    public function sendResults(User $user, int $eventId, ?string $body): array
+    {
+        $this->requireEvent($user, $eventId);
+        $life = new ScorLifecycle();
+        if ($body !== null) {
+            $life->saveMail($user, $eventId, $body);
+        }
+
+        return $life->sendCoachMail($user, $eventId);
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    public function tagNoteworthy(User $user, int $eventId, int $teamId, bool $on): array
+    {
+        $roles = $this->requireEvent($user, $eventId);
+        if (!$roles->allowsJury()) {
+            throw new ScorAccessException('Nur die Jury markiert bemerkenswerte Teams.');
+        }
+        $this->teamOnEvent($eventId, $teamId);
+
+        return (new ScorStage())->tag($eventId, $teamId, $on);
+    }
+
+    /**
+     * @param  list<int>  $teamIds
+     */
+    public function pickStage(User $user, int $eventId, array $teamIds): array
+    {
+        $roles = $this->requireEvent($user, $eventId);
+        if (!$roles->admin && !$user->isFlowAdmin()) {
+            throw new ScorAccessException('Die Bühnenauswahl trifft die Veranstaltungs-Admin.');
+        }
+        foreach ($teamIds as $teamId) {
+            $this->teamOnEvent($eventId, (int) $teamId);
+        }
+
+        return (new ScorStage())->pick($eventId, $teamIds);
+    }
+
+    public function saveAwards(User $user, int $eventId, array $input): array
+    {
+        $roles = $this->requireEvent($user, $eventId);
+        if (!$roles->admin && !$user->isFlowAdmin()) {
+            throw new ScorAccessException('Auszeichnungen setzt die Veranstaltungs-Admin.');
+        }
+
+        $known = [];
+        foreach ($this->results($user, $eventId)['teams'] as $team) {
+            $known[(int) $team['id']] = true;
+        }
+        $trophies = $this->awardRows($input['trophies'] ?? [], $known);
+        $nominations = $this->awardRows($input['nominations'] ?? [], $known);
+        $coaching = isset($input['coaching']) && $input['coaching'] !== null && $input['coaching'] !== ''
+            ? (int) $input['coaching']
+            : null;
+        if ($coaching !== null && !isset($known[$coaching])) {
+            throw new ScorAccessException('Das Team gehört nicht zu dieser Veranstaltung.', 422);
+        }
+        $this->assertChampionPick($user, $eventId, $trophies);
+
+        $saved = (new ScorAwards())->replace($eventId, $trophies, $nominations, $coaching);
+
+        return array_merge($this->results($user, $eventId), ['awards' => $saved]);
+    }
+
+    /**
+     * @param  list<array{team: int, category: string}>  $trophies
+     */
+    private function assertChampionPick(User $user, int $eventId, array $trophies): void
+    {
+        $picks = array_values(array_filter($trophies, fn (array $row) => $row['category'] === 'champion'));
+        if (count($picks) !== 1) {
+            throw new ScorAccessException('Bitte genau einen Champion festlegen.', 422);
+        }
+        $leaders = [];
+        foreach ($this->results($user, $eventId)['teams'] as $team) {
+            if ((int) $team['champion_rank'] === 1) {
+                $leaders[] = (int) $team['id'];
+            }
+        }
+        if ($leaders !== [] && !in_array($picks[0]['team'], $leaders, true)) {
+            throw new ScorAccessException('Der Champion ist eines der Teams auf Platz 1.', 422);
+        }
+    }
+
+    /**
+     * @param  mixed  $rows
+     * @param  array<int, bool>  $known
+     * @return list<array{team: int, category: string}>
+     */
+    private function awardRows(mixed $rows, array $known): array
+    {
+        if (!is_array($rows)) {
+            throw new ScorAccessException('Auszeichnungen sind unvollständig.', 422);
+        }
+        $out = [];
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                throw new ScorAccessException('Auszeichnungen sind unvollständig.', 422);
+            }
+            $team = (int) ($row['team'] ?? 0);
+            if (!isset($known[$team])) {
+                throw new ScorAccessException('Das Team gehört nicht zu dieser Veranstaltung.', 422);
+            }
+            $out[] = ['team' => $team, 'category' => (string) ($row['category'] ?? '')];
+        }
+
+        return $out;
     }
 
     public function refereeSheet(User $user, int $eventId, int $matchId, int $teamId): array
@@ -111,6 +398,7 @@ final class ScorSheetService
     {
         $this->refereeSheet($user, $eventId, $matchId, $teamId);
         $this->writeSheet($user, $eventId, 'referee', $teamId, $matchId, $answers, complete: false);
+        $this->syncRetreat($eventId, $matchId, $teamId, $answers);
 
         return $this->refereeSheet($user, $eventId, $matchId, $teamId);
     }
@@ -217,6 +505,7 @@ final class ScorSheetService
 
     private function writeSheet(User $user, int $eventId, string $kind, int $teamId, int $matchId, array $answers, bool $complete): void
     {
+        (new ScorLifecycle())->assertWritable($eventId);
         $sheet = $this->findSheet($eventId, $kind, $teamId, $matchId);
         if ($kind === 'referee' && $this->isLocked($sheet)) {
             throw new ScorAccessException('Bogen ist bestätigt.', 409);
@@ -249,10 +538,16 @@ final class ScorSheetService
     private function storeFlags(int $eventId, string $kind, int $teamId, int $matchId, array $answers, int $formId, array $flags): void
     {
         $scored = $this->score($formId, $answers);
+        $points = $scored['points'];
+        if ($kind === 'referee') {
+            $items = $this->forms->itemsFor($formId);
+            FutureRefereeRules::assertLegal($items, $answers);
+            $points = FutureRefereeRules::finalizePoints($points, $items, $answers);
+        }
         $existing = $this->findSheet($eventId, $kind, $teamId, $matchId);
         $row = array_merge([
             'answers' => json_encode($answers, JSON_UNESCAPED_UNICODE),
-            'points' => $scored['points'],
+            'points' => $points,
             'core_points' => $scored['core_points'],
             'updated_at' => now(),
         ], $flags);
@@ -281,6 +576,10 @@ final class ScorSheetService
     {
         $answers = $this->answersOf($sheet);
         $scored = $this->score($formId, $answers);
+        if ($kind === 'referee') {
+            $items = $this->forms->itemsFor($formId);
+            $scored['points'] = FutureRefereeRules::finalizePoints($scored['points'], $items, $answers);
+        }
         $event = $this->eventRow($eventId);
         $items = $this->forms->itemsFor($formId);
         $sections = [];
@@ -803,6 +1102,7 @@ final class ScorSheetService
             'id' => (int) $team->id,
             'name' => (string) $team->name,
             'number' => $team->team_number_hot,
+            'plan_slot' => $slot,
             'table' => $table,
             'table_label' => $this->tableLabel($table, $tableNames, $tableCount),
         ];
@@ -912,8 +1212,280 @@ final class ScorSheetService
         return is_array($decoded) ? $decoded : null;
     }
 
+    /**
+     * @param  array<string, mixed>  $answers
+     */
+    private function syncRetreat(int $eventId, int $matchId, int $teamId, array $answers): void
+    {
+        $formId = $this->forms->formId((int) $this->eventRow($eventId)->season, 'referee');
+        $items = $this->forms->itemsFor($formId);
+        $item = FutureRefereeRules::retreatItem($items);
+        if (!$item) {
+            return;
+        }
+        $normalized = $this->normalizeAnswers($answers);
+        $raw = $normalized['values'][(string) $item->id] ?? null;
+        if ($raw === null || $raw === '') {
+            return;
+        }
+        $value = (int) $raw;
+        $opponentId = $this->matchTeam($eventId, $matchId, $teamId)['opponent']['id'] ?? null;
+        if (!$opponentId) {
+            return;
+        }
+        $opponent = $this->findSheet($eventId, 'referee', (int) $opponentId, $matchId);
+        $existing = $this->answersOf($opponent)['values'][(string) $item->id] ?? null;
+        if ($this->isLocked($opponent)) {
+            if ($existing !== null && (int) $existing !== $value) {
+                throw new ScorAccessException('Der Rückzugsort muss auf beiden Bögen gleich sein. Der andere Bogen ist schon bestätigt.', 422);
+            }
+
+            return;
+        }
+        if ($existing !== null && (int) $existing === $value) {
+            return;
+        }
+        $oppAnswers = $this->answersOf($opponent);
+        $oppAnswers['values'][(string) $item->id] = $value;
+        $this->storeFlags($eventId, 'referee', (int) $opponentId, $matchId, $oppAnswers, $formId, []);
+    }
+
+    /**
+     * Future jury lanes and referee tables, with the people assigned in staffing.
+     *
+     * @return array{jury: list<array{index: int, label: string, people: list<string>}>, referee: list<array{index: int, label: string, people: list<string>}>}
+     */
+    private function staffingGroups(int $eventId): array
+    {
+        $empty = ['jury' => [], 'referee' => []];
+        foreach (['event_staffing_role', 'event_staffing_group', 'event_staffing_assignment', 'volunteer_person', 'm_role'] as $table) {
+            if (!Schema::hasTable($table)) {
+                return $empty;
+            }
+        }
+
+        $roles = DB::table('event_staffing_role as r')
+            ->join('m_role as mr', 'mr.id', '=', 'r.m_role')
+            ->where('r.event', $eventId)
+            ->where('mr.first_program', FirstProgram::FUTURE_8->value)
+            ->whereIn('mr.differentiation_parameter', ['lane', 'table'])
+            ->where('r.surplus', false)
+            ->orderBy('r.sequence')
+            ->orderBy('r.id')
+            ->get([
+                'r.id',
+                'r.label',
+                'r.group_label',
+                'mr.group_label as catalog_group_label',
+                'mr.differentiation_parameter',
+            ]);
+        if ($roles->isEmpty()) {
+            return $empty;
+        }
+
+        $roleKind = [];
+        $roleLabel = [];
+        foreach ($roles as $role) {
+            $roleKind[(int) $role->id] = $role->differentiation_parameter === 'lane' ? 'jury' : 'referee';
+            $base = trim((string) ($role->group_label ?: $role->catalog_group_label ?: $role->label));
+            $roleLabel[(int) $role->id] = $base;
+        }
+
+        $groups = DB::table('event_staffing_group')
+            ->whereIn('event_staffing_role', array_keys($roleKind))
+            ->where('surplus', false)
+            ->orderBy('group_index')
+            ->get(['id', 'event_staffing_role', 'group_index']);
+        if ($groups->isEmpty()) {
+            return $empty;
+        }
+
+        $peopleByGroup = [];
+        $assignments = DB::table('event_staffing_assignment as a')
+            ->join('volunteer_person as p', 'p.id', '=', 'a.volunteer_person')
+            ->whereIn('a.event_staffing_group', $groups->pluck('id'))
+            ->orderBy('p.last_name')
+            ->orderBy('p.first_name')
+            ->get(['a.event_staffing_group', 'p.first_name', 'p.last_name']);
+        foreach ($assignments as $assignment) {
+            $name = trim($assignment->first_name.' '.$assignment->last_name);
+            if ($name === '') {
+                continue;
+            }
+            $peopleByGroup[(int) $assignment->event_staffing_group][] = $name;
+        }
+
+        $merged = ['jury' => [], 'referee' => []];
+        foreach ($groups as $group) {
+            $roleId = (int) $group->event_staffing_role;
+            $kind = $roleKind[$roleId];
+            $index = (int) $group->group_index;
+            $base = $roleLabel[$roleId];
+            $label = $base === '' ? 'Gruppe '.$index : $base.' '.$index;
+            if (!isset($merged[$kind][$index])) {
+                $merged[$kind][$index] = [
+                    'index' => $index,
+                    'label' => $label,
+                    'people' => [],
+                ];
+            }
+            foreach ($peopleByGroup[(int) $group->id] ?? [] as $name) {
+                if (!in_array($name, $merged[$kind][$index]['people'], true)) {
+                    $merged[$kind][$index]['people'][] = $name;
+                }
+            }
+        }
+
+        return [
+            'jury' => array_values($merged['jury']),
+            'referee' => array_values($merged['referee']),
+        ];
+    }
+
+    /**
+     * @return array<int, int> plan slot => jury lane
+     */
+    private function juryLanes(int $planId): array
+    {
+        if (!Schema::hasTable('activity') || !Schema::hasTable('activity_group') || !Schema::hasTable('m_activity_type_detail')) {
+            return [];
+        }
+
+        return (new TeamJuryAssignmentService())->assignmentsForProgram($planId, FirstProgram::FUTURE_8->value);
+    }
+
     private function inRange(int $value, int $min, int $max): bool
     {
         return $value >= $min && $value <= $max;
+    }
+
+    /**
+     * Forschung and Roboterdesign are the rubric sections. Grundwerte are the rows flagged as core values.
+     *
+     * @param  iterable<object>  $sheets
+     * @return array<int, array{research: int, robotdesign: int, core_values: int}>
+     */
+    private function juryCategoryScores(int $seasonId, iterable $sheets): array
+    {
+        $items = $this->forms->itemsFor($this->forms->formId($seasonId, 'jury'));
+        $sectionCategory = [];
+        $rubricIndex = 0;
+        foreach ($items as $item) {
+            $sectionId = (int) $item->section_id;
+            if (isset($sectionCategory[$sectionId]) || $item->section_kind !== 'rubric') {
+                continue;
+            }
+            $sectionCategory[$sectionId] = $this->juryCategory((string) $item->section_title, $rubricIndex);
+            $rubricIndex++;
+        }
+
+        $byTeam = [];
+        foreach ($sheets as $sheet) {
+            if ($sheet->kind !== 'jury' || (int) $sheet->match !== 0) {
+                continue;
+            }
+            $answers = $this->answersOf($sheet);
+            $scores = ['research' => 0, 'robotdesign' => 0, 'core_values' => 0];
+            foreach ($items as $item) {
+                if (in_array((int) $item->section_id, $answers['disabled_sections'], true)) {
+                    continue;
+                }
+                $points = $this->itemPoints($item, $answers);
+                $category = $sectionCategory[(int) $item->section_id] ?? null;
+                if ($category !== null) {
+                    $scores[$category] += $points;
+                }
+                if ($item->item_type === 'rubric' && (bool) $item->core_value) {
+                    $scores['core_values'] += $points;
+                }
+            }
+            $byTeam[(int) $sheet->team] = $scores;
+        }
+
+        return $byTeam;
+    }
+
+    private function juryCategory(string $title, int $index): ?string
+    {
+        $title = mb_strtolower($title);
+        if (str_contains($title, 'forschung') || str_contains($title, 'research')) {
+            return 'research';
+        }
+        if (str_contains($title, 'roboter') || str_contains($title, 'robot')) {
+            return 'robotdesign';
+        }
+
+        return match ($index) {
+            0 => 'research',
+            1 => 'robotdesign',
+            default => null,
+        };
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<int, int>
+     */
+    private function competitionRanks(array $rows, string $scoreKey, bool $lowerIsBetter): array
+    {
+        $ordered = $rows;
+        usort($ordered, function (array $a, array $b) use ($scoreKey, $lowerIsBetter): int {
+            if ($a[$scoreKey] !== $b[$scoreKey]) {
+                return $lowerIsBetter ? $a[$scoreKey] <=> $b[$scoreKey] : $b[$scoreKey] <=> $a[$scoreKey];
+            }
+
+            return $a['id'] <=> $b['id'];
+        });
+
+        $rank = 1;
+        $tied = 0;
+        $last = null;
+        $out = [];
+        foreach ($ordered as $row) {
+            if ($last !== null) {
+                $worse = $lowerIsBetter ? $row[$scoreKey] > $last[$scoreKey] : $row[$scoreKey] < $last[$scoreKey];
+                if ($worse) {
+                    $rank++;
+                    $rank += $tied;
+                    $tied = 0;
+                }
+                if ($row[$scoreKey] === $last[$scoreKey]) {
+                    $tied++;
+                }
+            }
+            $out[$row['id']] = $rank;
+            $last = $row;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<int, int>
+     */
+    private function denseRanks(array $rows, string $scoreKey): array
+    {
+        $ordered = $rows;
+        usort($ordered, function (array $a, array $b) use ($scoreKey): int {
+            if ($a[$scoreKey] !== $b[$scoreKey]) {
+                return $b[$scoreKey] <=> $a[$scoreKey];
+            }
+
+            return $a['id'] <=> $b['id'];
+        });
+
+        $rank = 1;
+        $last = null;
+        $out = [];
+        foreach ($ordered as $row) {
+            if ($last !== null && $row[$scoreKey] < $last[$scoreKey]) {
+                $rank++;
+            }
+            $out[$row['id']] = $rank;
+            $last = $row;
+        }
+
+        return $out;
     }
 }

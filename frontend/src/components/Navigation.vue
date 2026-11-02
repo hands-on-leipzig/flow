@@ -172,6 +172,7 @@ const scorNavEntries = computed<NavEntry[]>(() => {
     entries.push(
       {name: 'Schiri', path: `/scor/${eventId}`, icon: 'bi-clipboard-check'},
       {name: 'Jury', path: `/scor/${eventId}?sicht=jury`, icon: 'bi-people'},
+      {name: 'Ergebnisse', path: `/scor/${eventId}?sicht=ergebnisse`, icon: 'bi-award'},
     )
   }
   return entries
@@ -334,8 +335,10 @@ function isActive(path: string) {
     if (pathOnly === '/scor') return current === '/scor'
     const onEvent = current === pathOnly || current.startsWith(`${pathOnly}/`)
     const juryView = route.query.sicht === 'jury' || current.includes('/jury/')
+    const resultsView = route.query.sicht === 'ergebnisse'
     if (sicht === 'jury') return onEvent && juryView
-    return onEvent && !juryView
+    if (sicht === 'ergebnisse') return onEvent && resultsView && !current.includes('/jury/') && !current.includes('/match/')
+    return onEvent && !juryView && !resultsView
   }
   const target = normalizePlanPath(path)
   const current = route.path.replace(/\/$/, '') || '/'

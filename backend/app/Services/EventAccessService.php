@@ -403,6 +403,42 @@ class EventAccessService
         }
     }
 
+    public function grantUser(User $actor, int $eventId, int $userId, ScorGrant $roles, bool $canFlow = false): void
+    {
+        $existing = DB::table('event_user_access')
+            ->where('user', $userId)
+            ->where('event', $eventId)
+            ->first();
+        $merged = $roles->or(ScorGrant::fromRow($existing));
+        $flow = $canFlow || (bool) ($existing->can_flow ?? false);
+
+        if (!$existing) {
+            DB::table('event_user_access')->insert(array_merge([
+                'user' => $userId,
+                'event' => $eventId,
+                'can_flow' => $flow,
+                'granted_at' => now(),
+                'granted_by' => $actor->id,
+            ], $merged->columns()));
+        } else {
+            DB::table('event_user_access')->where('id', $existing->id)->update(array_merge([
+                'can_flow' => $flow,
+            ], $merged->columns()));
+        }
+
+        $this->writeLog(
+            $eventId,
+            $this->regionalPartnerOfEvent($eventId),
+            self::ACTION_PERMISSIONS_UPDATED,
+            $actor->id,
+            $userId,
+            $this->emailOf($userId),
+            $flow,
+            $merged->any(),
+            $merged,
+        );
+    }
+
     private function eventName(int $eventId): string
     {
         $name = trim((string) DB::table('event')->where('id', $eventId)->value('name'));

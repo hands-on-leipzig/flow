@@ -143,15 +143,9 @@ final class FutureJuryCatalog
                     ], true),
                 ],
             ],
-            [
-                'title' => 'Feedback',
-                'kind' => 'feedback',
-                'note' => 'Kurzes Feedback für das Team, mindestens 20 Zeichen je Feld.',
-                'items' => [
-                    ['item_type' => 'text', 'label' => 'Das war gut:', 'hint' => null, 'core_value' => false, 'config' => null],
-                    ['item_type' => 'text', 'label' => 'Das könnt ihr verbessern:', 'hint' => null, 'core_value' => false, 'config' => null],
-                ],
-            ],
+            self::feedback('Feedback Forschung'),
+            self::feedback('Feedback Roboterdesign'),
+            self::feedback('Feedback Grundwerte'),
         ];
     }
 
@@ -159,6 +153,22 @@ final class FutureJuryCatalog
      * @param  list<string>  $cells
      * @return array<string, mixed>
      */
+    /**
+     * @return array{title: string, kind: string, note: string, items: list<array<string, mixed>>}
+     */
+    private static function feedback(string $title): array
+    {
+        return [
+            'title' => $title,
+            'kind' => 'feedback',
+            'note' => 'Pflicht für diese Kategorie, mindestens 20 Zeichen je Feld.',
+            'items' => [
+                ['item_type' => 'text', 'label' => 'Das war gut:', 'hint' => null, 'core_value' => false, 'config' => null],
+                ['item_type' => 'text', 'label' => 'Das könnt ihr verbessern:', 'hint' => null, 'core_value' => false, 'config' => null],
+            ],
+        ];
+    }
+
     private static function row(string $group, string $groupHint, array $cells, bool $coreValue): array
     {
         return [
