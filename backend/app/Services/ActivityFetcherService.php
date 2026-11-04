@@ -13,7 +13,10 @@ class ActivityFetcherService
 {
     /**
      * Zentrale Activity-Query mit optionalen Joins/Filtern.
-     * Signatur unverändert, damit bestehende Aufrufer minimal angepasst werden können.
+     *
+     * @param  list<int>  $roles
+     * @param  list<int>  $rooms
+     * @param  list<string>  $alsoAtdCodes  Extra ATD codes included even when not visible to $roles.
      */
     public function fetchActivities(
         int $plan,
@@ -25,6 +28,7 @@ class ActivityFetcherService
         bool $freeBlocks = true,
         bool $include_past = false,
         array $rooms = [], // optionaler Filter: nur Aktivitäten in diesen Räumen (IDs), empty = alle Räume
+        array $alsoAtdCodes = [],
     ) {
 
         $q = DB::table('activity as a')
@@ -44,12 +48,18 @@ class ActivityFetcherService
             })
             ->where('ag.plan', $plan);
 
-        // Rollen-Filter (optional)
+        // Rollen-Filter (optional). alsoAtdCodes is OR-ed in so Überblick can
+        // include coaches briefings without adding Team to the role list.
         if (! empty($roles)) {
-            $q->whereIn('atd.id', function ($sub) use ($roles) {
-                $sub->select('activity_type_detail')
-                    ->from('m_visibility')
-                    ->whereIn('role', $roles);
+            $q->where(function ($w) use ($roles, $alsoAtdCodes) {
+                $w->whereIn('atd.id', function ($sub) use ($roles) {
+                    $sub->select('activity_type_detail')
+                        ->from('m_visibility')
+                        ->whereIn('role', $roles);
+                });
+                if ($alsoAtdCodes !== []) {
+                    $w->orWhereIn('atd.code', $alsoAtdCodes);
+                }
             });
         }
 
@@ -68,8 +78,16 @@ class ActivityFetcherService
 
             // Upper bound: activities must start on or before event end date
             // Event end date = e.date + (e.days - 1) days
-            // Use DATE() to compare only the date part, ignoring time
-            $q->whereRaw('DATE(a.start) <= DATE(e.date) + INTERVAL (COALESCE(e.days, 1) - 1) DAY');
+            $driver = DB::connection()->getDriverName();
+            if ($driver === 'sqlite') {
+                $q->whereRaw(
+                    "date(a.start) <= date(e.date, '+' || (COALESCE(e.days, 1) - 1) || ' days')"
+                );
+            } else {
+                $q->whereRaw(
+                    'DATE(a.start) <= DATE(e.date) + INTERVAL (COALESCE(e.days, 1) - 1) DAY'
+                );
+            }
         }
 
         // Group-Meta (optional)
