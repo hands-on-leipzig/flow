@@ -651,7 +651,7 @@ onBeforeUnmount(hideTeamTip)
     </div>
 
     <!-- ANSICHT: Match-Plan -->
-    <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-y-auto rounded-md border border-[var(--color-border)] bg-white p-4">
+    <div v-else-if="view === 'robot-game'" class="flex-1 min-h-0 overflow-auto rounded-md border border-[var(--color-border)] bg-white p-4">
       <div v-if="loading" class="px-3 py-8 text-left text-[var(--color-text-subtle)]">Wird geladen…</div>
 
       <template v-else>

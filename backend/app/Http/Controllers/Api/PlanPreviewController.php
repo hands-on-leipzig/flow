@@ -14,6 +14,7 @@ use App\Support\ProgramPresence;
 use App\Support\TableFieldLabels;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class PlanPreviewController extends Controller
@@ -215,60 +216,24 @@ class PlanPreviewController extends Controller
                 ];
             }
 
-            foreach ([1, 2, 3] as $roundNum) {
-                $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
-                if ($roundMatches->isEmpty()) {
+            foreach ($this->distinctMatchRounds($matches, scoringOnly: true) as $roundNum) {
+                $roundPayload = $this->previewRoundPayload($matches, $roundNum);
+                if ($roundPayload === null) {
                     continue;
                 }
-
-                $rounds[] = [
-                    'round' => $roundNum,
-                    'name' => 'Runde ' . $roundNum,
-                    'matches' => $roundMatches->map(function ($match) {
-                        return [
-                            'match_id' => $match->id,
-                            'match_no' => $match->match_no,
-                            'table_1' => $match->table_1,
-                            'table_1_team' => $match->table_1_team,
-                            'table_2' => $match->table_2,
-                            'table_2_team' => $match->table_2_team,
-                        ];
-                    })->toArray(),
-                ];
+                $rounds[] = $roundPayload;
             }
         } else {
-            $roundNames = [
-                0 => 'Testrunde',
-                1 => 'Runde 1',
-                2 => 'Runde 2',
-                3 => 'Runde 3',
-            ];
-
-            foreach ([0, 1, 2, 3] as $roundNum) {
-                $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
-
-                if ($roundMatches->isEmpty()) {
+            foreach ($this->distinctMatchRounds($matches, scoringOnly: false) as $roundNum) {
+                $roundPayload = $this->previewRoundPayload($matches, $roundNum);
+                if ($roundPayload === null) {
                     continue;
                 }
-
-                $rounds[] = [
-                    'round' => $roundNum,
-                    'name' => $roundNames[$roundNum],
-                    'matches' => $roundMatches->map(function ($match) {
-                        return [
-                            'match_id' => $match->id,
-                            'match_no' => $match->match_no,
-                            'table_1' => $match->table_1,
-                            'table_1_team' => $match->table_1_team,
-                            'table_2' => $match->table_2,
-                            'table_2_team' => $match->table_2_team,
-                        ];
-                    })->toArray(),
-                ];
+                $rounds[] = $roundPayload;
             }
         }
 
-        $robotGameMatches = $matches->whereIn('round', [1, 2, 3]);
+        $robotGameMatches = $matches->filter(fn ($match) => (int) $match->round >= 1);
 
         $allTeams = collect();
         foreach ($robotGameMatches as $match) {
@@ -316,6 +281,52 @@ class PlanPreviewController extends Controller
             'team_summary' => $teamSummary,
             'place_labels' => $this->placeLabelsForPlanProgram($plan, $firstProgram, $params),
         ]);
+    }
+
+    /**
+     * Distinct match.round values in order. Scoring-only skips the Testrunde (round 0).
+     *
+     * @return list<int>
+     */
+    private function distinctMatchRounds(Collection $matches, bool $scoringOnly): array
+    {
+        $nums = $matches->pluck('round')
+            ->map(fn ($round) => (int) $round)
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($scoringOnly) {
+            $nums = $nums->filter(fn (int $round) => $round >= 1)->values();
+        }
+
+        return $nums->all();
+    }
+
+    /**
+     * @return array{round: int, name: string, matches: list<array<string, mixed>>}|null
+     */
+    private function previewRoundPayload(Collection $matches, int $roundNum): ?array
+    {
+        $roundMatches = $matches->where('round', $roundNum)->sortBy('match_no')->values();
+        if ($roundMatches->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'round' => $roundNum,
+            'name' => $roundNum === 0 ? 'Testrunde' : 'Runde '.$roundNum,
+            'matches' => $roundMatches->map(function ($match) {
+                return [
+                    'match_id' => $match->id,
+                    'match_no' => $match->match_no,
+                    'table_1' => $match->table_1,
+                    'table_1_team' => $match->table_1_team,
+                    'table_2' => $match->table_2,
+                    'table_2_team' => $match->table_2_team,
+                ];
+            })->toArray(),
+        ];
     }
 
     /**
