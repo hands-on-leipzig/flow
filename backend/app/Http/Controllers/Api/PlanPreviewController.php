@@ -19,6 +19,13 @@ use Illuminate\Support\Facades\DB;
 
 class PlanPreviewController extends Controller
 {
+    /** Coaches briefings: not visible to preview_matrix helper roles, still shown in Überblick. */
+    private const OVERVIEW_COACH_BRIEFING_CODES = [
+        'c_briefing',
+        'e_briefing_coach',
+        'f8_briefing',
+    ];
+
     public function __construct(
         private ActivityFetcherService $activities,
         private RoleFetcherService $roles,
@@ -70,7 +77,12 @@ class PlanPreviewController extends Controller
             ->values()
             ->all();
 
-        $data = $this->planExport->getEventOverviewData($planId, $previewRoles, false);
+        $data = $this->planExport->getEventOverviewData(
+            $planId,
+            $previewRoles,
+            false,
+            self::OVERVIEW_COACH_BRIEFING_CODES,
+        );
         $data['columnNames'] = OverviewPlanStyle::sortColumnsByProgramSequence($data['columnNames']);
 
         // Return the data in the same format as other preview methods

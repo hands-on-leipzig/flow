@@ -3286,16 +3286,20 @@ class PlanExportController extends Controller
     }
 
     /**
-     * Get event overview data for both PDF and HTML rendering
+     * Get event overview data for both PDF and HTML rendering.
+     *
+     * @param  list<int>  $roles
+     * @param  list<string>  $alsoAtdCodes
      */
-    public function getEventOverviewData(int $planId, array $roles = [6, 10, 14], bool $isPdf = true): array
+    public function getEventOverviewData(int $planId, array $roles = [6, 10, 14], bool $isPdf = true, array $alsoAtdCodes = []): array
     {
         // Get activities using specified roles
         $activities = $this->activityFetcher->fetchActivities(
             plan: $planId,
             roles: $roles,
             includeGroupMeta: true,
-            freeBlocks: true
+            freeBlocks: true,
+            alsoAtdCodes: $alsoAtdCodes,
         );
 
         if ($activities->isEmpty()) {
