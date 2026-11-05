@@ -391,7 +391,8 @@ onBeforeUnmount(() => {
   background:
     radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--color-accent) 18%, transparent), transparent 55%),
     rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(6px);
+  backdrop-filter: blur(var(--liquid-modal-scrim-blur)) saturate(var(--liquid-saturate));
+  -webkit-backdrop-filter: blur(var(--liquid-modal-scrim-blur)) saturate(var(--liquid-saturate));
 }
 
 .event-modal {

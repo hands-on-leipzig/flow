@@ -50,7 +50,8 @@ const emit = defineEmits<{
   padding: 0.85rem 1rem 0.75rem;
   padding-top: max(0.85rem, env(safe-area-inset-top));
   background: color-mix(in srgb, var(--color-bg, #f4f4f5) 92%, transparent);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   border-bottom: 1px solid var(--liquid-border-soft);
 }
 
