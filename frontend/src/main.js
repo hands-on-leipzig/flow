@@ -206,6 +206,43 @@ const router = createRouter({
     routes,
 });
 
+// One login for every navigation. A second init throws, and reloading on that
+// error bounces a signed-in session between this host and SSO forever.
+let plannerLogin = null
+
+function ensurePlannerLogin() {
+    if (plannerLogin) return plannerLogin
+    if (keycloak.authenticated) return Promise.resolve(true)
+    if (keycloak.didInitialize) {
+        return keycloak.login().then(() => false)
+    }
+
+    const redirectUri = window.location.origin + window.location.pathname + window.location.search
+    plannerLogin = keycloak.init({
+        onLoad: 'login-required',
+        checkLoginIframe: false,
+        pkceMethod: 'S256',
+        redirectUri,
+    }).then((authenticated) => {
+        if (authenticated && keycloak.token) {
+            localStorage.setItem('kc_token', keycloak.token)
+            setInterval(() => {
+                keycloak.updateToken(60).then(refreshed => {
+                    if (refreshed) {
+                        localStorage.setItem('kc_token', keycloak.token)
+                    }
+                })
+            }, 10000)
+        }
+        return Boolean(authenticated)
+    }).catch((error) => {
+        console.error('Keycloak initialization failed:', error)
+        plannerLogin = null
+        return false
+    })
+    return plannerLogin
+}
+
 // Create pinia instance early so it can be used in router guard
 const pinia = createPinia()
 setActivePinia(pinia)
@@ -248,31 +285,19 @@ router.beforeEach(async (to, from, next) => {
         }
     }
 
-    // Handle authentication
+    // Handle authentication. Do not reload here: a reload with an SSO session
+    // is an instant round trip and never settles.
     if (!keycloak.authenticated) {
-        try {
-            const authenticated = await keycloak.init({onLoad: 'login-required'});
-            if (!authenticated) {
-                window.location.reload()
-                return;
-            }
-
-            // save token to use with axios
-            localStorage.setItem('kc_token', keycloak.token)
-
-            // refresh token periodically
-            setInterval(() => {
-                keycloak.updateToken(60).then(refreshed => {
-                    if (refreshed) {
-                        localStorage.setItem('kc_token', keycloak.token)
-                    }
-                })
-            }, 10000);
-        } catch (error) {
-            console.error('Keycloak initialization failed:', error);
-            window.location.reload()
-            return;
+        const authenticated = await ensurePlannerLogin()
+        if (!authenticated) {
+            next(false)
+            return
         }
+    }
+
+    if (to.path === '/') {
+        next('/plan/overview')
+        return
     }
 
     // Ensure token is in localStorage - even if already authenticated
