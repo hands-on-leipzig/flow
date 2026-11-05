@@ -15,7 +15,7 @@ on:
 
 jobs:
   deploy-dev:
-    if: github.ref == 'refs/heads/scor-arbeit'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/scor-arbeit'
     uses: ./.github/workflows/deploy-reusable.yml
     with:
       checkout_ref: ${{ github.ref }}
