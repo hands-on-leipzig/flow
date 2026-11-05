@@ -85,6 +85,19 @@ final class ScorPractice
         return $sections;
     }
 
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    private function countPoints(array $config, int $count): int
+    {
+        $count = max(0, $count);
+        if (array_key_exists('max', $config) && $config['max'] !== null && $config['max'] !== '') {
+            $count = min($count, max(0, (int) $config['max']));
+        }
+
+        return $count * (int) ($config['points_each'] ?? 0);
+    }
+
     private function points(object $item, mixed $raw): int
     {
         $config = is_array($item->config) ? $item->config : [];
@@ -94,7 +107,7 @@ final class ScorPractice
 
         return match ($item->item_type) {
             'yes_no' => $raw === 'yes' ? (int) ($config['yes_points'] ?? 0) : ($raw === 'no' ? (int) ($config['no_points'] ?? 0) : 0),
-            'count' => max(0, min((int) ($config['max'] ?? 0), (int) $raw)) * (int) ($config['points_each'] ?? 0),
+            'count' => $this->countPoints($config, (int) $raw),
             'choice' => (int) ($config['options'][(int) $raw]['points'] ?? 0),
             default => 0,
         };

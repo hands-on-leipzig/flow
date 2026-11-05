@@ -13,13 +13,13 @@ const nominations = ref<{team: number, category: string}[]>([])
 const coaching = ref<number | ''>('')
 
 const judgedTrophies = [
-  {id: 'research', label: 'Forschung'},
-  {id: 'robotdesign', label: 'Roboterdesign'},
+  {id: 'research', label: 'Projekt'},
+  {id: 'robotdesign', label: 'Technisches Design'},
   {id: 'core_values', label: 'Grundwerte'},
 ]
 const nominationColumns = [
-  {id: 'research', label: 'Forschung'},
-  {id: 'robotdesign', label: 'Roboterdesign'},
+  {id: 'research', label: 'Projekt'},
+  {id: 'robotdesign', label: 'Technisches Design'},
   {id: 'core_values', label: 'Grundwerte'},
 ]
 const judgedIds = ['champion', 'research', 'robotdesign', 'core_values']
@@ -118,6 +118,11 @@ async function releaseEvent() {
   emit('saved', {...props.results, lifecycle: data})
 }
 
+async function reopenEvent() {
+  const {data} = await axios.post(`/scor/events/${props.results.event.id}/reopen`)
+  emit('saved', {...props.results, lifecycle: data})
+}
+
 async function sendMail() {
   mailNotice.value = ''
   try {
@@ -153,9 +158,9 @@ const sortDir = ref<'asc' | 'desc'>('asc')
 
 const columns = [
   {key: 'champion_rank', label: 'Champion', note: '*'},
-  {key: 'robot_rank', label: 'Robot-Game', note: '**', points: 'robot'},
-  {key: 'research_rank', label: 'Forschung', points: 'research'},
-  {key: 'robotdesign_rank', label: 'Roboterdesign', points: 'robotdesign'},
+  {key: 'robot_rank', label: 'Spiel', note: '**', points: 'robot'},
+  {key: 'research_rank', label: 'Projekt', points: 'research'},
+  {key: 'robotdesign_rank', label: 'Technisches Design', points: 'robotdesign'},
   {key: 'core_values_rank', label: 'Grundwerte', points: 'core_values'},
 ]
 
@@ -273,7 +278,7 @@ function formatPoints(value: number) {
         </table>
       </div>
       <p class="scor-results__note">
-        * Gesamtwertung aus Robot-Game, Forschung, Roboterdesign und Grundwerten.
+        * Gesamtwertung aus Spiel, Projekt, Technisches Design und Grundwerten.
         Gleiche Punktzahl, gleicher Platz.
         <br>
         ** Schnitt aller Wertungsrunden, ohne Testrunde. Eine fehlende Runde zählt als 0. Darunter steht der Schnitt.
@@ -281,7 +286,7 @@ function formatPoints(value: number) {
     </section>
 
     <section class="scor-results__block">
-      <h2 class="scor-results__title">Robot-Game</h2>
+      <h2 class="scor-results__title">Spiel</h2>
       <div class="scor-board glass-card liquid-surface-inner">
         <table>
           <thead>
@@ -327,7 +332,7 @@ function formatPoints(value: number) {
       </p>
       <p class="scor-results__note">
         <template v-if="!championTeam">Zuerst den Champion. Alles andere wartet.</template>
-        <template v-else>Der Champion ist für Forschung, Roboterdesign und Grundwerte gesperrt. Jeder weitere Pokal dort sperrt das Team ebenfalls. Spiel und Coaching bleiben frei, höchstens drei Pokale insgesamt.</template>
+        <template v-else>Der Champion ist für Projekt, Technisches Design und Grundwerte gesperrt. Jeder weitere Pokal dort sperrt das Team ebenfalls. Spiel und Coaching bleiben frei, höchstens drei Pokale insgesamt.</template>
       </p>
       <div class="scor-board glass-card liquid-surface-inner">
         <table class="scor-awards">
@@ -380,6 +385,7 @@ function formatPoints(value: number) {
       <button v-if="results.can_edit_awards" type="button" class="glass-btn-accent" :disabled="awardBusy" @click="saveAwards">Auszeichnungen speichern</button>
       <div v-if="results.lifecycle" class="flex flex-wrap gap-3">
         <button v-if="results.can_edit_awards && !results.lifecycle.closed" type="button" class="glass-btn-secondary" @click="closeEvent">Auswertung schließen</button>
+        <button v-if="results.can_edit_awards && results.lifecycle.closed && !results.lifecycle.released" type="button" class="glass-btn-secondary" @click="reopenEvent">Wieder öffnen</button>
         <button v-if="results.flow_admin && results.lifecycle.closed && !results.lifecycle.released" type="button" class="glass-btn-accent" @click="releaseEvent">Veröffentlichen</button>
         <button v-if="results.can_edit_awards && results.lifecycle.released" type="button" class="glass-btn-secondary" @click="sendMail">Jury-PDF an Coaches</button>
       </div>

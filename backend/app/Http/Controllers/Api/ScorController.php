@@ -128,6 +128,11 @@ class ScorController extends Controller
         return $this->respond(fn () => $this->sheets->releaseEvent($request->user(), $eventId));
     }
 
+    public function reopenEvent(Request $request, int $eventId): JsonResponse
+    {
+        return $this->respond(fn () => $this->sheets->reopenEvent($request->user(), $eventId));
+    }
+
     public function sendResults(Request $request, int $eventId): JsonResponse
     {
         return $this->respond(fn () => $this->sheets->sendResults(

@@ -35,7 +35,7 @@
         Dieser Account hat keinen Zugang zu {{ appLabel }}.<br>
         Bitte deinen Regionalpartner, dich für die Veranstaltung einzuladen.
         <template v-if="appLabel === 'FLOW'">
-          Eine Einladung nur für SCOR öffnet FLOW nicht.
+          Eine Einladung nur für WISE öffnet FLOW nicht.
         </template>
       </p>
 
@@ -71,7 +71,7 @@ import {imageUrl} from '@/utils/images'
 import keycloak from '@/keycloak.js'
 
 const route = useRoute()
-const appLabel = computed(() => route.query.app === 'scor' ? 'SCOR' : 'FLOW')
+const appLabel = computed(() => route.query.app === 'scor' ? 'WISE' : 'FLOW')
 
 function logout() {
   localStorage.removeItem('kc_token')

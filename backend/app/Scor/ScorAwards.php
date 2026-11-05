@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * One trophy among Champion, Forschung, Roboterdesign and Grundwerte.
+ * One trophy among Champion, Projekt, Technisches Design and Grundwerte.
  * Spiel and Coaching may be added. A team holds at most three trophies.
  * Each judged category has at most four nominations.
  */
@@ -43,7 +43,7 @@ final class ScorAwards
             }
             $judged = array_values(array_intersect($categories, self::JUDGED));
             if (count($judged) > 1) {
-                throw new ScorAccessException('Ein Team bekommt nur einen Pokal aus Champion, Forschung, Roboterdesign und Grundwerten.', 422);
+                throw new ScorAccessException('Ein Team bekommt nur einen Pokal aus Champion, Projekt, Technisches Design und Grundwerten.', 422);
             }
             if (count($categories) > 3) {
                 throw new ScorAccessException('Ein Team bekommt höchstens drei Pokale.', 422);
@@ -54,7 +54,7 @@ final class ScorAwards
         foreach ($nominations as $row) {
             $category = (string) $row['category'];
             if (!in_array($category, self::NOMINATED, true)) {
-                throw new ScorAccessException('Nominierungen gibt es für Forschung, Roboterdesign und Grundwerte.', 422);
+                throw new ScorAccessException('Nominierungen gibt es für Projekt, Technisches Design und Grundwerte.', 422);
             }
             $counts[$category] = ($counts[$category] ?? 0) + 1;
             if ($counts[$category] > 4) {

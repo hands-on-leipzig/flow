@@ -252,9 +252,9 @@ onMounted(async () => {
 <template>
   <div class="space-y-6 max-w-5xl">
     <div>
-      <h2 class="text-xl font-bold">SCOR</h2>
+      <h2 class="text-xl font-bold">WISE</h2>
       <p class="mt-1 text-sm text-gray-600">
-        Zugänge pro Veranstaltung. FLOW ist die Planung, SCOR die Auswertung.
+        Zugänge pro Veranstaltung. FLOW ist die Planung, WISE die Auswertung.
         Kontaktpersonen aus Draht haben beides für alle Veranstaltungen ihres Regionalpartners.
       </p>
     </div>

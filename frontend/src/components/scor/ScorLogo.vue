@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import {imageUrl} from '@/utils/images'
 
-const src = imageUrl('/flow/scor.png')
+const word = imageUrl('/flow/wise.png')
+const mark = imageUrl('/flow/wise-mark.png')
 </script>
 
 <template>
-  <img class="scor-logo glass-sidebar__brand-logo" :src="src" alt="SCOR">
+  <img class="scor-logo scor-logo--word glass-sidebar__brand-logo" :src="word" alt="WISE">
+  <img class="scor-logo scor-logo--mark glass-sidebar__brand-logo" :src="mark" alt="">
 </template>

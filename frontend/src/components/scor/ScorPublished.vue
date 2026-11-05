@@ -23,7 +23,7 @@ onMounted(async () => {
     <ol v-else-if="results" class="space-y-2">
       <li v-for="team in results.teams" :key="team.id" class="glass-card liquid-surface-inner flex justify-between px-4 py-3">
         <span class="font-semibold">{{ team.champion_rank }}. {{ team.number }} {{ team.name }}</span>
-        <span class="text-[var(--color-text-muted)]">Spiel {{ team.robot }} · Forschung {{ team.research }} · Roboterdesign {{ team.robotdesign }} · Grundwerte {{ team.core_values }}</span>
+        <span class="text-[var(--color-text-muted)]">Spiel {{ team.robot }} · Projekt {{ team.research }} · Technisches Design {{ team.robotdesign }} · Grundwerte {{ team.core_values }}</span>
       </li>
     </ol>
   </div>

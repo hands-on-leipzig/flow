@@ -51,8 +51,8 @@ final class FutureRefereeCatalog
                 'items' => [
                     self::count(
                         'Ressourcen im Fuß des großen Baums',
-                        'In den Missionen ohne Obergrenze. Der Zähler geht bis 30.',
-                        30,
+                        'Durch den Baum nach oben befördert. Ohne Obergrenze.',
+                        null,
                         5,
                     ),
                     self::count(
@@ -87,8 +87,8 @@ final class FutureRefereeCatalog
                 'items' => [
                     self::count(
                         'Schlüsselarten oder Ressourcen vollständig im Rückzugsort',
-                        'Vollständig innerhalb der Fläche, Linien zählen mit.',
-                        40,
+                        'Vollständig innerhalb der Fläche, Linien zählen mit. Ohne Obergrenze.',
+                        null,
                         5,
                     ),
                 ],
@@ -115,24 +115,27 @@ final class FutureRefereeCatalog
             [
                 'title' => 'Strafen',
                 'kind' => 'mission',
-                'note' => 'Erste Beeinträchtigung 10 Punkte Abzug, zweite weitere 20. Die dritte setzt das gesamte Matchergebnis auf 0.',
+                'note' => 'Erste Beeinträchtigung 10 Punkte Abzug, zweite weitere 20. 3 oder mehr setzt das gesamte Matchergebnis auf 0.',
                 'items' => [
                     self::choice('Beeinträchtigungen in diesem Match', null, [
                         ['label' => 'Keine', 'points' => 0],
                         ['label' => 'Erste', 'points' => -10],
                         ['label' => 'Zweite', 'points' => -30],
-                        ['label' => 'Dritte', 'points' => 0],
+                        ['label' => '3 oder mehr', 'points' => 0, 'zeros_match' => true],
                     ]),
                 ],
             ],
             [
                 'title' => 'Freundliches Miteinander',
                 'kind' => 'mission',
-                'note' => 'Kein Erscheinen gibt 0. Die weiteren Stufen stehen nicht in den Spielmissionen und Spielregeln.',
+                'note' => 'Standard ist Sehr gut. Erscheint das Team nicht zum Match, gibt es für diese Zeile 0 Punkte.',
                 'items' => [
                     self::choice('Bewertung für dieses Match', null, [
-                        ['label' => 'Kein Erscheinen', 'points' => 0],
-                    ], optional: true),
+                        ['label' => 'Team ist zum Match nicht erschienen', 'points' => 0],
+                        ['label' => 'Gut', 'points' => 2],
+                        ['label' => 'Sehr gut', 'points' => 3],
+                        ['label' => 'Herausragend', 'points' => 4],
+                    ], default: 2),
                 ],
             ],
         ];
@@ -141,14 +144,19 @@ final class FutureRefereeCatalog
     /**
      * @return array<string, mixed>
      */
-    private static function count(string $label, ?string $hint, int $max, int $pointsEach): array
+    private static function count(string $label, ?string $hint, ?int $max, int $pointsEach): array
     {
+        $config = ['points_each' => $pointsEach];
+        if ($max !== null) {
+            $config['max'] = $max;
+        }
+
         return [
             'item_type' => 'count',
             'label' => $label,
             'hint' => $hint,
             'core_value' => false,
-            'config' => ['max' => $max, 'points_each' => $pointsEach],
+            'config' => $config,
         ];
     }
 
@@ -175,14 +183,22 @@ final class FutureRefereeCatalog
      * @param  list<array{label: string, points: int}>  $options
      * @return array<string, mixed>
      */
-    private static function choice(string $label, ?string $hint, array $options, bool $optional = false): array
+    private static function choice(string $label, ?string $hint, array $options, bool $optional = false, ?int $default = null): array
     {
+        $config = ['options' => $options];
+        if ($optional) {
+            $config['optional'] = true;
+        }
+        if ($default !== null) {
+            $config['default'] = $default;
+        }
+
         return [
             'item_type' => 'choice',
             'label' => $label,
             'hint' => $hint,
             'core_value' => false,
-            'config' => ['options' => $options, 'optional' => $optional],
+            'config' => $config,
         ];
     }
 }
