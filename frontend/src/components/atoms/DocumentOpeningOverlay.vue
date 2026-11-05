@@ -12,7 +12,7 @@ defineProps<{
     <Transition name="doc-opening-fade">
       <div
           v-if="open"
-          class="fixed inset-0 z-[10100] flex items-center justify-center bg-black/45 backdrop-blur-[2px] p-4"
+          class="fixed inset-0 z-[10100] flex items-center justify-center bg-black/45 backdrop-blur-[var(--liquid-modal-scrim-blur)] p-4"
           role="status"
           aria-live="polite"
           aria-busy="true"
