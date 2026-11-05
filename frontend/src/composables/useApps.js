@@ -3,14 +3,21 @@ import axios from 'axios'
 
 const canFlow = ref(false)
 const canScor = ref(false)
+const userLang = ref('de')
 const loaded = ref(false)
 let pending = null
+
+function normalizePageLang(raw) {
+  const value = String(raw || '').trim().toLowerCase()
+  return value.startsWith('en') ? 'en' : 'de'
+}
 
 async function load() {
   try {
     const {data} = await axios.get('/user/me', {skipAppRedirect: true})
     canFlow.value = Boolean(data?.user?.can_flow)
     canScor.value = Boolean(data?.user?.can_scor)
+    userLang.value = normalizePageLang(data?.user?.lang)
     loaded.value = true
     return
   } catch (error) {
@@ -47,6 +54,7 @@ export function useApps() {
   return {
     canFlow: computed(() => canFlow.value),
     canScor: computed(() => canScor.value),
+    userLang: computed(() => userLang.value),
     loaded: computed(() => loaded.value),
     showSwitch: computed(() => canFlow.value && canScor.value),
     ensure,

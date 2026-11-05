@@ -17,16 +17,20 @@ class SharepointConfig extends Model
         'client_id',
         'client_secret',
         'folder_url',
+        'folder_url_de',
+        'folder_url_en',
         'is_enabled',
         'cached_drive_id',
         'cached_root_item_id',
         'cached_root_name',
+        'cached_roots',
     ];
 
     protected function casts(): array
     {
         return [
             'is_enabled' => 'boolean',
+            'cached_roots' => 'array',
         ];
     }
 
