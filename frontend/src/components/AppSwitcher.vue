@@ -52,7 +52,7 @@ const choices = computed<AppChoice[]>(() => {
     items.push({id: 'flow', label: 'FLOW', href: '/plan/overview', internal: true, current: !props.scorMode})
   }
   if (props.canScor) {
-    items.push({id: 'scor', label: 'SCOR', href: '/scor', internal: true, current: props.scorMode})
+    items.push({id: 'scor', label: 'WISE', href: '/scor', internal: true, current: props.scorMode})
   }
   if (coach) {
     items.push({id: 'join', label: 'JOIN', href: externalUrl('join'), internal: false, current: false})
@@ -276,5 +276,17 @@ function openInternal(href: string) {
   max-width: none;
   height: 2.35rem;
   max-height: 2.35rem;
+}
+
+.scor-logo--mark {
+  display: none;
+}
+
+.glass-sidebar--collapsed .app-brand__logo .scor-logo--word {
+  display: none;
+}
+
+.glass-sidebar--collapsed .app-brand__logo .scor-logo--mark {
+  display: block;
 }
 </style>

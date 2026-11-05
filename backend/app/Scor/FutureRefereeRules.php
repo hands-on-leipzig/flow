@@ -34,7 +34,7 @@ final class FutureRefereeRules
      */
     public static function finalizePoints(int $points, iterable $items, array $answers): int
     {
-        if (self::choiceLabel($items, self::PENALTY, $answers) === 'Dritte') {
+        if (self::zerosMatch($items, $answers)) {
             return 0;
         }
 
@@ -79,20 +79,26 @@ final class FutureRefereeRules
      * @param  iterable<object>  $items
      * @param  array{values: array<string, mixed>}  $answers
      */
-    private static function choiceLabel(iterable $items, string $label, array $answers): ?string
+    private static function zerosMatch(iterable $items, array $answers): bool
     {
-        $item = self::find($items, $label);
+        $item = self::find($items, self::PENALTY);
         $raw = $item ? ($answers['values'][(string) $item->id] ?? null) : null;
         if ($item === null || !is_numeric($raw)) {
-            return null;
+            return false;
         }
         $config = json_decode((string) ($item->config ?? ''), true);
         if (!is_array($config)) {
             $config = is_array($item->config ?? null) ? $item->config : [];
         }
         $option = $config['options'][(int) $raw] ?? null;
+        if (!is_array($option)) {
+            return false;
+        }
+        if (!empty($option['zeros_match'])) {
+            return true;
+        }
 
-        return is_array($option) ? (string) ($option['label'] ?? '') : null;
+        return in_array((string) ($option['label'] ?? ''), ['Dritte', '3 oder mehr'], true);
     }
 
     /**

@@ -490,6 +490,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::put('/events/{eventId}/stage', [ScorController::class, 'pickStage']);
         Route::post('/events/{eventId}/close', [ScorController::class, 'closeEvent']);
         Route::post('/events/{eventId}/release', [ScorController::class, 'releaseEvent']);
+        Route::post('/events/{eventId}/reopen', [ScorController::class, 'reopenEvent']);
         Route::post('/events/{eventId}/coach-mail', [ScorController::class, 'sendResults']);
         Route::get('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'referee']);
         Route::put('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'saveReferee']);

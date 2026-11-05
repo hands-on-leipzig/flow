@@ -89,7 +89,7 @@ class ScorAdminController extends Controller
             (bool) $request->boolean('can_scor_admin'),
         );
         if (!$roles->any()) {
-            return response()->json(['error' => 'Mindestens eine SCOR-Berechtigung wählen.'], 422);
+            return response()->json(['error' => 'Mindestens eine WISE-Berechtigung wählen.'], 422);
         }
         $onRoster = EventVolunteerRoster::query()
             ->where('event', $eventId)

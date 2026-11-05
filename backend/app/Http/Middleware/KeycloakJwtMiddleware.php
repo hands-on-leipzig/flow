@@ -76,10 +76,10 @@ class KeycloakJwtMiddleware
 
             try {
                 $subject = $claims['sub'] ?? null;
-                
+
                 // Try to get dolibarr_id from JWT token if available
                 $dolibarrId = $claims['dolibarr_id'] ?? $claims['dolibarrId'] ?? null;
-                
+
                 // Get name and email from JWT token
                 $name = $claims['name'] ?? null;
                 $email = $claims['email'] ?? null;
@@ -108,7 +108,7 @@ class KeycloakJwtMiddleware
                 if ($email && $user->email !== $email) {
                     $updateData['email'] = $email;
                 }
-                
+
                 if (!empty($updateData)) {
                     $user->update($updateData);
                 }
@@ -158,7 +158,7 @@ class KeycloakJwtMiddleware
                 $app = $permission === \App\Support\FlowAccess::PERMISSION_SCOR ? 'scor' : 'flow';
 
                 return response()->json([
-                    'error' => $app === 'scor' ? 'Forbidden - kein Zugriff auf SCOR' : 'Forbidden - kein Zugriff auf FLOW',
+                    'error' => $app === 'scor' ? 'Forbidden - kein Zugriff auf WISE' : 'Forbidden - kein Zugriff auf FLOW',
                     'code' => 'app_access_denied',
                     'app' => $app,
                 ], 403);

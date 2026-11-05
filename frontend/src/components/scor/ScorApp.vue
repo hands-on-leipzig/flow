@@ -3,14 +3,15 @@ import {computed, ref, watch} from 'vue'
 import {useRoute, useRouter} from 'vue-router'
 import axios from 'axios'
 import keycloak from '@/keycloak.js'
-import PageTabs from '@hands-on/glass/page-tabs'
 import ScorRefereeSheet from '@/components/scor/ScorRefereeSheet.vue'
 import ScorJurySheet from '@/components/scor/ScorJurySheet.vue'
 import ScorResults from '@/components/scor/ScorResults.vue'
 import HotGearLoader from '@/components/scor/HotGearLoader.vue'
+import {useWiseRoles} from '@/composables/useWiseRoles'
 
 const route = useRoute()
 const router = useRouter()
+const wiseRoles = useWiseRoles()
 const needsLogin = ref(!keycloak.authenticated && !localStorage.getItem('scor_token'))
 const localName = ref('')
 const localPassword = ref('')
@@ -45,6 +46,9 @@ const loading = ref(false)
 const tab = ref<'schiri' | 'jury' | 'ergebnisse'>('schiri')
 const closedRounds = ref<string[]>([])
 const stagePicks = ref<number[]>([])
+const stageOpen = ref(false)
+const stageDragY = ref(0)
+let stageDragStart = 0
 
 const eventId = computed(() => route.params.eventId ? Number(route.params.eventId) : null)
 const matchId = computed(() => route.params.matchId ? Number(route.params.matchId) : null)
@@ -72,6 +76,35 @@ const viewTabs = computed(() => {
   return tabs
 })
 
+function sichtKey(id: number) {
+  return `wise-sicht-${id}`
+}
+
+function readSicht(id: number) {
+  try {
+    return sessionStorage.getItem(sichtKey(id))
+  } catch {
+    return null
+  }
+}
+
+function writeSicht(id: number, sicht: string) {
+  try {
+    sessionStorage.setItem(sichtKey(id), sicht)
+  } catch {
+    /* private mode */
+  }
+}
+
+function resolveSicht(asked: string | null, roles?: {referee?: boolean, jury?: boolean}) {
+  if (asked === 'ergebnisse') return 'ergebnisse' as const
+  if (asked === 'jury' && roles?.jury) return 'jury' as const
+  if (asked === 'schiri' && roles?.referee) return 'schiri' as const
+  if (roles?.referee) return 'schiri' as const
+  if (roles?.jury) return 'jury' as const
+  return 'ergebnisse' as const
+}
+
 function matchCount(count: number) {
   return count === 1 ? '1 Match' : `${count} Matches`
 }
@@ -93,7 +126,7 @@ function statusLabel(status?: string) {
 }
 
 function peopleLabel(people?: string[]) {
-  return people?.length ? people.join(', ') : 'noch niemand'
+  return people?.length ? people.join(', ') : 'niemand zugeteilt'
 }
 
 const jurySections = computed(() => {
@@ -133,6 +166,7 @@ async function load() {
       events.value = data.events || []
       overview.value = null
       results.value = null
+      wiseRoles.setRoles(null)
       return
     }
     if (matchId.value && teamId.value) {
@@ -151,11 +185,13 @@ async function load() {
     results.value = standings.data
     stagePicks.value = [...(data.stage?.picks || [])]
     sheet.value = null
-    if (route.query.sicht === 'ergebnisse') tab.value = 'ergebnisse'
-    else if (route.query.sicht === 'jury' && data.roles?.jury) tab.value = 'jury'
-    else if (data.roles?.referee) tab.value = 'schiri'
-    else if (data.roles?.jury) tab.value = 'jury'
-    else tab.value = 'ergebnisse'
+    const asked = typeof route.query.sicht === 'string' ? route.query.sicht : readSicht(eventId.value)
+    tab.value = resolveSicht(asked, data.roles)
+    writeSicht(eventId.value, tab.value)
+    wiseRoles.setRoles({
+      referee: !!data.roles?.referee,
+      jury: !!data.roles?.jury,
+    })
   } catch (e: any) {
     error.value = e?.response?.data?.error || 'Laden fehlgeschlagen.'
   } finally {
@@ -170,6 +206,7 @@ watch(() => route.fullPath, () => {
 function selectSicht(next: string | number) {
   const sichtName = next === 'jury' ? 'jury' : next === 'ergebnisse' ? 'ergebnisse' : 'schiri'
   tab.value = sichtName
+  if (eventId.value) writeSicht(eventId.value, sichtName)
   if (!eventId.value || matchId.value || juryRoute.value) return
   const sicht = sichtName === 'schiri' ? undefined : sichtName
   if ((route.query.sicht || undefined) === sicht) return
@@ -226,21 +263,48 @@ function togglePick(teamId: number) {
   stagePicks.value = [...stagePicks.value, teamId]
 }
 
+function openStage() {
+  stagePicks.value = [...(overview.value?.stage?.picks || [])]
+  stageDragY.value = 0
+  error.value = ''
+  stageOpen.value = true
+}
+
+function closeStage() {
+  stageOpen.value = false
+  stageDragY.value = 0
+}
+
+function onStageTouchStart(event: TouchEvent) {
+  stageDragStart = event.touches[0]?.clientY ?? 0
+}
+
+function onStageTouchMove(event: TouchEvent) {
+  const y = event.touches[0]?.clientY ?? stageDragStart
+  stageDragY.value = Math.max(0, y - stageDragStart)
+}
+
+function onStageTouchEnd() {
+  if (stageDragY.value > 90) closeStage()
+  else stageDragY.value = 0
+}
+
 async function saveStage() {
   error.value = ''
   try {
     const {data} = await axios.put(`/scor/events/${eventId.value}/stage`, {teams: stagePicks.value})
     if (overview.value) overview.value.stage = data
     stagePicks.value = [...(data.picks || [])]
+    closeStage()
   } catch (e: any) {
-    error.value = e?.response?.data?.error || 'Bühne speichern fehlgeschlagen.'
+    error.value = e?.response?.data?.error || 'Auswahl speichern fehlgeschlagen.'
   }
 }
 </script>
 
 <template>
   <form v-if="needsLogin" class="mx-auto max-w-md space-y-4" @submit.prevent="localLogin">
-    <h1 class="text-2xl font-bold tracking-tight">SCOR</h1>
+    <h1 class="text-2xl font-bold tracking-tight">WISE</h1>
     <p class="text-lg text-[var(--color-text-muted)]">Mit dem Namen und Passwort von der Veranstaltung anmelden.</p>
     <label class="block text-lg">
       Name
@@ -257,15 +321,18 @@ async function saveStage() {
     <p v-if="overview?.lifecycle?.playground" class="rounded-lg border border-amber-400 bg-amber-50 px-4 py-3 text-lg">
       Spielwiese. Bis zum Tag der Veranstaltung zählen die Bögen nur zum Üben und werden in der Nacht davor gelöscht. Nichts davon ist öffentlich.
     </p>
-    <div class="flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 class="text-2xl font-bold tracking-tight">{{ sheet?.event?.name || overview?.event?.name || 'Auswertung' }}</h1>
-        <p class="mt-1 text-lg text-[var(--color-text-muted)]">Future</p>
-      </div>
-      <button v-if="eventId" type="button" class="glass-btn-text" @click="router.push(sheet ? `/scor/${eventId}` : '/scor')">
-        <i class="bi bi-arrow-left" aria-hidden="true"/>
-        {{ sheet ? 'zurück zur Übersicht' : 'alle Veranstaltungen' }}
+    <div>
+      <button
+          v-if="sheet && eventId"
+          type="button"
+          class="wise-back wise-back--desk"
+          @click="router.push(juryRoute ? `/scor/${eventId}?sicht=jury` : `/scor/${eventId}`)"
+      >
+        <i class="bi bi-chevron-left" aria-hidden="true"/>
+        {{ juryRoute ? 'Jury' : 'Schiri' }}
       </button>
+      <h1 class="text-2xl font-bold tracking-tight">{{ sheet?.event?.name || overview?.event?.name || 'Auswertung' }}</h1>
+      <p class="mt-1 text-lg text-[var(--color-text-muted)]">Future</p>
     </div>
 
     <HotGearLoader v-if="loading"/>
@@ -285,14 +352,21 @@ async function saveStage() {
     <ScorJurySheet v-else-if="sheet && juryRoute" :sheet="sheet" @update="sheet = $event"/>
 
     <template v-else-if="overview">
+      <div v-if="viewTabs.length > 1" class="wise-switch" role="group" aria-label="Ansicht">
+        <button
+            v-for="item in viewTabs"
+            :key="item.id"
+            type="button"
+            class="wise-switch__btn"
+            :class="{'is-on': tab === item.id}"
+            :aria-pressed="tab === item.id"
+            @click="selectSicht(item.id)"
+        >
+          <i class="bi" :class="item.icon" aria-hidden="true"/>
+          {{ item.label }}
+        </button>
+      </div>
       <p v-if="!overview.has_plan" class="text-lg text-[var(--color-text-muted)]">Für diese Veranstaltung gibt es noch keinen Matchplan.</p>
-      <PageTabs
-          v-if="viewTabs.length > 1"
-          aria-label="Auswertung"
-          :tabs="viewTabs"
-          :model-value="tab"
-          @update:model-value="selectSicht"
-      />
 
       <ScorResults v-if="tab === 'ergebnisse'" :results="results" @saved="results = $event"/>
 
@@ -345,18 +419,15 @@ async function saveStage() {
         </section>
       </div>
 
-      <section v-if="tab === 'jury' && overview.roles.admin && overview.stage" class="scor-assign">
-        <h2 class="scor-assign__title">Bühne</h2>
-        <p v-if="!overview.stage.slots" class="scor-assign__people">FLOW hat keine Anzahl für die Bühne eingetragen.</p>
-        <template v-else>
-          <p class="scor-assign__people">{{ overview.stage.slots }} Plätze, nur aus den bemerkenswerten Teams.</p>
-          <label v-for="team in notedTeams()" :key="team.id" class="flex items-center gap-2 text-lg">
-            <input type="checkbox" :checked="stagePicks.includes(team.id)" @change="togglePick(team.id)"/>
-            {{ team.number }} {{ team.name }}
-          </label>
-          <button type="button" class="glass-btn-accent" @click="saveStage">Bühne speichern</button>
-        </template>
-      </section>
+      <button
+          v-if="tab === 'jury' && overview.roles.admin && overview.stage"
+          type="button"
+          class="glass-btn-secondary wise-stage-open"
+          @click="openStage"
+      >
+        <i class="bi bi-easel" aria-hidden="true"/>
+        Öffentliche Präsentation verwalten
+      </button>
 
       <div v-if="tab === 'jury' && overview.roles.jury && jurySections" class="scor-rounds">
         <section v-for="group in jurySections" :key="group.index" class="scor-round">
@@ -367,17 +438,26 @@ async function saveStage() {
           <ul class="glass-card liquid-surface-inner divide-y divide-[var(--color-border)]">
             <li v-if="!group.teams.length" class="p-4 text-lg text-[var(--color-text-muted)]">Keine Teams in dieser Gruppe.</li>
             <li v-for="team in group.teams" :key="team.id">
-              <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id, team.jury_status === 'done')">
-                <span class="font-semibold">{{ team.number }} {{ team.name }}</span>
-                <span class="flex items-center gap-3 text-lg text-[var(--color-text-muted)]">
-                  <label v-if="overview.roles.jury" class="inline-flex items-center gap-1" @click.stop>
-                    <input type="checkbox" :checked="isNoted(team.id)" @change="toggleNoted(team.id)"/>
-                    bemerkenswert
-                  </label>
-                  <span v-if="isPicked(team.id)">Bühne</span>
-                  {{ statusLabel(team.jury_status) }}
+              <div class="wise-team" :class="`wise-team--${team.jury_status || 'open'}`">
+                <button type="button" class="wise-team__open" @click="openJury(team.id, team.jury_status === 'done')">
+                  {{ team.number }} {{ team.name }}
+                </button>
+                <span class="wise-team__side">
+                  <i v-if="isPicked(team.id)" class="bi bi-easel wise-stage-mark" title="Öffentliche Präsentation" aria-label="Öffentliche Präsentation"/>
+                  <button
+                      v-if="overview.roles.jury"
+                      type="button"
+                      class="wise-star"
+                      :class="{'is-on': isNoted(team.id)}"
+                      :aria-pressed="isNoted(team.id)"
+                      :aria-label="isNoted(team.id) ? 'Stern entfernen' : 'Stern für die Präsentation'"
+                      @click.stop="toggleNoted(team.id)"
+                  >
+                    <i class="bi" :class="isNoted(team.id) ? 'bi-star-fill' : 'bi-star'" aria-hidden="true"/>
+                  </button>
+                  <span class="wise-team__status">{{ statusLabel(team.jury_status) }}</span>
                 </span>
-              </button>
+              </div>
             </li>
           </ul>
         </section>
@@ -386,23 +466,116 @@ async function saveStage() {
       <ul v-else-if="tab === 'jury' && overview.roles.jury" class="glass-card liquid-surface-inner divide-y divide-[var(--color-border)]">
         <li v-if="!overview.teams.length" class="p-4 text-lg text-[var(--color-text-muted)]">Keine Teams im Matchplan.</li>
         <li v-for="team in overview.teams" :key="team.id">
-          <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[var(--color-bg-hover)]" @click="openJury(team.id, team.jury_status === 'done')">
-            <span class="font-semibold">{{ team.number }} {{ team.name }}</span>
-            <span class="flex items-center gap-3 text-lg text-[var(--color-text-muted)]">
-              <label v-if="overview.roles.jury" class="inline-flex items-center gap-1" @click.stop>
-                <input type="checkbox" :checked="isNoted(team.id)" @change="toggleNoted(team.id)"/>
-                bemerkenswert
-              </label>
-              {{ statusLabel(team.jury_status) }}
+          <div class="wise-team" :class="`wise-team--${team.jury_status || 'open'}`">
+            <button type="button" class="wise-team__open" @click="openJury(team.id, team.jury_status === 'done')">
+              {{ team.number }} {{ team.name }}
+            </button>
+            <span class="wise-team__side">
+              <button
+                  v-if="overview.roles.jury"
+                  type="button"
+                  class="wise-star"
+                  :class="{'is-on': isNoted(team.id)}"
+                  :aria-pressed="isNoted(team.id)"
+                  :aria-label="isNoted(team.id) ? 'Stern entfernen' : 'Stern für die Präsentation'"
+                  @click.stop="toggleNoted(team.id)"
+              >
+                <i class="bi" :class="isNoted(team.id) ? 'bi-star-fill' : 'bi-star'" aria-hidden="true"/>
+              </button>
+              <span class="wise-team__status">{{ statusLabel(team.jury_status) }}</span>
             </span>
-          </button>
+          </div>
         </li>
       </ul>
     </template>
+
+    <Teleport to="body">
+      <div v-if="stageOpen" class="wise-sheet">
+        <button type="button" class="wise-sheet__backdrop" aria-label="Schließen" @click="closeStage"/>
+        <div
+            class="wise-sheet__panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="wise-stage-title"
+            :style="stageDragY ? {transform: `translateY(${stageDragY}px)`} : undefined"
+            @touchstart.passive="onStageTouchStart"
+            @touchmove="onStageTouchMove"
+            @touchend="onStageTouchEnd"
+        >
+          <button type="button" class="wise-sheet__handle" aria-label="Schließen" @click="closeStage">
+            <span class="wise-sheet__handle-bar"/>
+          </button>
+          <h2 id="wise-stage-title" class="wise-sheet__title">Öffentliche Präsentation</h2>
+          <p v-if="!overview?.stage?.slots" class="wise-sheet__hint">Im Zeitplan steht keine Anzahl für die Präsentation.</p>
+          <template v-else>
+            <p class="wise-sheet__hint">{{ stagePicks.length }} von {{ overview.stage.slots }} Plätzen. Nur Teams mit Stern.</p>
+            <p v-if="!notedTeams().length" class="wise-sheet__hint">Noch kein Team mit Stern. Die Jury setzt den Stern in der Liste.</p>
+            <ul v-else class="wise-sheet__list">
+              <li v-for="team in notedTeams()" :key="team.id">
+                <button
+                    type="button"
+                    class="wise-sheet__team"
+                    :class="{'is-on': stagePicks.includes(team.id)}"
+                    :aria-pressed="stagePicks.includes(team.id)"
+                    @click="togglePick(team.id)"
+                >
+                  <span>{{ team.number }} {{ team.name }}</span>
+                  <i class="bi" :class="stagePicks.includes(team.id) ? 'bi-check-circle-fill' : 'bi-circle'" aria-hidden="true"/>
+                </button>
+              </li>
+            </ul>
+            <p v-if="error" class="wise-sheet__error" role="alert">{{ error }}</p>
+            <button type="button" class="glass-btn-accent wise-sheet__save" @click="saveStage">Auswahl speichern</button>
+          </template>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <style scoped>
+.wise-switch {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-bg));
+}
+
+.wise-switch__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 3.25rem;
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.125rem;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+.wise-switch__btn.is-on {
+  background: var(--color-bg);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+
+.wise-switch__btn .bi {
+  font-size: 1.2rem;
+}
+
+@media (max-width: 1366px) {
+  .wise-switch {
+    display: none;
+  }
+}
+
 .scor-rounds {
   display: flex;
   flex-direction: column;
@@ -558,6 +731,208 @@ async function saveStage() {
   font-size: 1.125rem;
 }
 
+.wise-stage-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3.25rem;
+}
+
+.wise-team {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding-right: 0.65rem;
+  background: #f3f5f8;
+}
+
+.wise-team--draft {
+  background: #fff3dc;
+}
+
+.wise-team--done {
+  background: #e5f6ec;
+}
+
+.wise-team--draft .wise-team__status,
+.wise-team--done .wise-team__status {
+  font-weight: 800;
+}
+
+.wise-team--draft .wise-team__status {
+  color: #9a6700;
+}
+
+.wise-team--done .wise-team__status {
+  color: #146c36;
+}
+
+.wise-team__open {
+  flex: 1;
+  min-width: 0;
+  min-height: 3.4rem;
+  padding: 0.75rem 0.35rem 0.75rem 1rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.wise-team__open:hover,
+.wise-team__open:focus-visible {
+  background: var(--color-bg-hover);
+}
+
+.wise-team__side {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: none;
+}
+
+.wise-team__status {
+  font-size: 1.05rem;
+  color: var(--color-text-muted);
+}
+
+.wise-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.35rem;
+}
+
+.wise-star.is-on {
+  color: #e85d04;
+}
+
+.wise-stage-mark {
+  color: var(--color-accent, #e85d04);
+  font-size: 1.15rem;
+}
+
+.wise-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+
+.wise-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(15, 23, 42, 0.36);
+}
+
+.wise-sheet__panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: min(88dvh, 40rem);
+  overflow: auto;
+  padding: 0.35rem 1.1rem calc(1.1rem + env(safe-area-inset-bottom));
+  border-radius: 1.4rem 1.4rem 0 0;
+  background: #f7f8fb;
+  box-shadow: 0 -18px 40px rgba(15, 23, 42, 0.18);
+}
+
+.wise-sheet__handle {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  padding: 0.45rem 0 0.7rem;
+  border: 0;
+  background: transparent;
+}
+
+.wise-sheet__handle-bar {
+  width: 2.6rem;
+  height: 0.28rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text-muted) 45%, transparent);
+}
+
+.wise-sheet__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.wise-sheet__hint {
+  margin: 0 0 0.85rem;
+  color: var(--color-text-muted);
+  font-size: 1.05rem;
+}
+
+.wise-sheet__list {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.wise-sheet__team {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 3.4rem;
+  padding: 0.65rem 0.15rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: inherit;
+  font-size: 1.1rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.wise-sheet__team .bi {
+  font-size: 1.35rem;
+  color: var(--color-text-muted);
+}
+
+.wise-sheet__team.is-on .bi {
+  color: #1f8a4c;
+}
+
+.wise-sheet__error {
+  margin: 0 0 0.75rem;
+  color: #b42318;
+  font-weight: 700;
+}
+
+.wise-sheet__save {
+  width: 100%;
+  min-height: 3.25rem;
+  justify-content: center;
+}
+
+html[data-theme='dark'] .wise-sheet__panel {
+  background: #2a2725;
+}
+
+html[data-theme='dark'] .wise-team {
+  background: #3a3532;
+}
+
+html[data-theme='dark'] .wise-team--draft {
+  background: #4a3b24;
+}
+
+html[data-theme='dark'] .wise-team--done {
+  background: #1d3a2a;
+}
+
 .scor-side__name {
   font-size: 1.15rem;
   font-weight: 700;
@@ -586,7 +961,7 @@ async function saveStage() {
   }
 }
 
-@media (min-width: 900px) {
+@media (min-width: 760px) {
   .scor-match__sides {
     grid-template-columns: 1fr 1fr;
   }
