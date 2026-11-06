@@ -61,6 +61,27 @@ final class ScorAwards
                 throw new ScorAccessException('Höchstens vier Nominierungen je Kategorie.', 422);
             }
         }
+
+        $nominated = [];
+        $any = [];
+        foreach ($nominations as $row) {
+            $team = (int) $row['team'];
+            $nominated[(string) $row['category']][$team] = true;
+            $any[$team] = true;
+        }
+        foreach ($trophies as $row) {
+            $team = (int) $row['team'];
+            $category = (string) $row['category'];
+            if ($category === 'champion' && empty($any[$team])) {
+                throw new ScorAccessException('Der Champion braucht mindestens eine Nominierung.', 422);
+            }
+            if (in_array($category, self::NOMINATED, true) && empty($nominated[$category][$team])) {
+                throw new ScorAccessException('Der Pokal geht nur an ein nominiertes Team.', 422);
+            }
+        }
+        if ($coachingTeam && empty($any[$coachingTeam])) {
+            throw new ScorAccessException('Coaching geht nur an ein nominiertes Team.', 422);
+        }
     }
 
     /**

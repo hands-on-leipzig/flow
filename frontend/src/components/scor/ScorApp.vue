@@ -68,14 +68,6 @@ const rounds = computed(() => {
   return groups
 })
 
-const viewTabs = computed(() => {
-  const tabs = []
-  if (overview.value?.roles?.referee) tabs.push({id: 'schiri', label: 'Schiri', icon: 'bi-clipboard-check'})
-  if (overview.value?.roles?.jury) tabs.push({id: 'jury', label: 'Jury', icon: 'bi-people'})
-  tabs.push({id: 'ergebnisse', label: 'Ergebnisse', icon: 'bi-award'})
-  return tabs
-})
-
 function sichtKey(id: number) {
   return `wise-sicht-${id}`
 }
@@ -202,19 +194,6 @@ async function load() {
 watch(() => route.fullPath, () => {
   void load()
 }, {immediate: true})
-
-function selectSicht(next: string | number) {
-  const sichtName = next === 'jury' ? 'jury' : next === 'ergebnisse' ? 'ergebnisse' : 'schiri'
-  tab.value = sichtName
-  if (eventId.value) writeSicht(eventId.value, sichtName)
-  if (!eventId.value || matchId.value || juryRoute.value) return
-  const sicht = sichtName === 'schiri' ? undefined : sichtName
-  if ((route.query.sicht || undefined) === sicht) return
-  const query = {...route.query}
-  if (sicht) query.sicht = sicht
-  else delete query.sicht
-  void router.replace({query})
-}
 
 function openEvent(id: number) {
   void router.push(`/scor/${id}`)
@@ -352,20 +331,6 @@ async function saveStage() {
     <ScorJurySheet v-else-if="sheet && juryRoute" :sheet="sheet" @update="sheet = $event"/>
 
     <template v-else-if="overview">
-      <div v-if="viewTabs.length > 1" class="wise-switch" role="group" aria-label="Ansicht">
-        <button
-            v-for="item in viewTabs"
-            :key="item.id"
-            type="button"
-            class="wise-switch__btn"
-            :class="{'is-on': tab === item.id}"
-            :aria-pressed="tab === item.id"
-            @click="selectSicht(item.id)"
-        >
-          <i class="bi" :class="item.icon" aria-hidden="true"/>
-          {{ item.label }}
-        </button>
-      </div>
       <p v-if="!overview.has_plan" class="text-lg text-[var(--color-text-muted)]">Für diese Veranstaltung gibt es noch keinen Matchplan.</p>
 
       <ScorResults v-if="tab === 'ergebnisse'" :results="results" @saved="results = $event"/>
@@ -534,48 +499,6 @@ async function saveStage() {
 </template>
 
 <style scoped>
-.wise-switch {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: 0.35rem;
-  padding: 0.35rem;
-  border-radius: 1rem;
-  background: color-mix(in srgb, var(--color-text) 6%, var(--color-bg));
-}
-
-.wise-switch__btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  min-height: 3.25rem;
-  padding: 0.55rem 0.75rem;
-  border: 0;
-  border-radius: 0.75rem;
-  background: transparent;
-  color: var(--color-text-muted);
-  font-size: 1.125rem;
-  font-weight: 800;
-  touch-action: manipulation;
-}
-
-.wise-switch__btn.is-on {
-  background: var(--color-bg);
-  color: var(--color-text);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
-}
-
-.wise-switch__btn .bi {
-  font-size: 1.2rem;
-}
-
-@media (max-width: 1366px) {
-  .wise-switch {
-    display: none;
-  }
-}
-
 .scor-rounds {
   display: flex;
   flex-direction: column;

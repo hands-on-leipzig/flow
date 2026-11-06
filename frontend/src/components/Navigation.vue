@@ -634,8 +634,29 @@ function logout() {
             :key="entry.path ?? entry.name"
             :label="entry.name"
             :icon="entry.icon"
-            :active="!!entry.path && isActive(entry.path)"
+            :active="!!entry.path && isActive(entry.path) && !wiseEventId"
             @select="onNavSelect(entry)"
+        />
+        <SidebarNavItem
+            v-if="wiseEventId && (!wiseRoles || wiseRoles.referee)"
+            label="Schiri"
+            icon="bi-clipboard-check"
+            :active="wiseSicht === 'schiri'"
+            @select="openWiseSicht('schiri')"
+        />
+        <SidebarNavItem
+            v-if="wiseEventId && wiseRoles?.jury"
+            label="Jury"
+            icon="bi-people"
+            :active="wiseSicht === 'jury'"
+            @select="openWiseSicht('jury')"
+        />
+        <SidebarNavItem
+            v-if="wiseEventId"
+            label="Ergebnisse"
+            icon="bi-award"
+            :active="wiseSicht === 'ergebnisse'"
+            @select="openWiseSicht('ergebnisse')"
         />
       </template>
       <template v-else>
