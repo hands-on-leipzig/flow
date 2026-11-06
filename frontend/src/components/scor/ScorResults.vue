@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import {computed, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 import axios from 'axios'
 
 const props = defineProps<{results: any}>()
@@ -12,17 +12,25 @@ const trophies = ref<{team: number, category: string}[]>([])
 const nominations = ref<{team: number, category: string}[]>([])
 const coaching = ref<number | ''>('')
 
-const judgedTrophies = [
-  {id: 'research', label: 'Projekt'},
-  {id: 'robotdesign', label: 'Technisches Design'},
-  {id: 'core_values', label: 'Grundwerte'},
-]
-const nominationColumns = [
-  {id: 'research', label: 'Projekt'},
-  {id: 'robotdesign', label: 'Technisches Design'},
-  {id: 'core_values', label: 'Grundwerte'},
+const awardColumns = [
+  {id: 'champion', label: 'Champion', nominate: false, trophy: true},
+  {id: 'research', label: 'Projekt', nominate: true, trophy: true},
+  {id: 'robotdesign', label: 'Technisches Design', nominate: true, trophy: true},
+  {id: 'core_values', label: 'Grundwerte', nominate: true, trophy: true},
+  {id: 'coaching', label: 'Coaching', nominate: false, trophy: true},
+  {id: 'robot', label: 'Spiel', nominate: false, trophy: false},
 ]
 const judgedIds = ['champion', 'research', 'robotdesign', 'core_values']
+const presentRoot = ref<HTMLElement | null>(null)
+const presenting = ref(false)
+const phase = ref<'nominations' | 'champion' | 'awards'>('nominations')
+let phaseChosen = false
+
+const phases = [
+  {id: 'nominations' as const, label: 'Nominierungen'},
+  {id: 'champion' as const, label: 'Champion'},
+  {id: 'awards' as const, label: 'Auszeichnungen'},
+]
 
 const awardTeams = computed(() => {
   return [...(props.results?.teams || [])].sort((a, b) => {
@@ -31,71 +39,186 @@ const awardTeams = computed(() => {
   })
 })
 
-function heldTrophy(teamId: number) {
-  return trophies.value.find((row) => row.team === teamId && judgedIds.includes(row.category))
-}
+const nominationSlots = computed(() => Math.min(4, awardTeams.value.length))
+
+const nominationsReady = computed(() => {
+  if (nominationSlots.value < 1) return false
+  return awardColumns.filter((column) => column.nominate).every((column) => nominationCount(column.id) >= nominationSlots.value)
+})
 
 function nominationCount(category: string) {
   return nominations.value.filter((row) => row.category === category).length
 }
 
-type CellState = 'on' | 'open' | 'wait' | 'locked' | 'taken' | 'full'
-
-function trophyState(team: any, category: string): CellState {
-  const on = marked(trophies.value, team.id, category)
-  if (!props.results?.can_edit_awards) return on ? 'on' : 'locked'
-  if (category !== 'champion' && !championTeam.value) return 'wait'
-  if (category === 'champion' && team.champion_rank !== 1 && !on) return 'locked'
-  if (category !== 'champion' && category !== 'robot') {
-    const held = heldTrophy(team.id)
-    if (held && held.category !== category) return 'taken'
-  }
-  return on ? 'on' : 'open'
+function heldTrophy(teamId: number) {
+  return trophies.value.find((row) => row.team === teamId && judgedIds.includes(row.category))
 }
 
-function nominationState(team: any, category: string): CellState {
-  const on = marked(nominations.value, team.id, category)
-  if (!props.results?.can_edit_awards) return on ? 'on' : 'locked'
-  if (!championTeam.value) return 'wait'
-  if (!on && nominationCount(category) >= 4) return 'full'
-  return on ? 'on' : 'open'
+function teamById(id: number) {
+  return awardTeams.value.find((team) => team.id === id)
 }
 
-function coachingState(team: any): CellState {
-  const on = coaching.value === team.id
-  if (!props.results?.can_edit_awards) return on ? 'on' : 'locked'
-  if (!championTeam.value) return 'wait'
-  return on ? 'on' : 'open'
+function hasTrophy(teamId: number, category: string) {
+  if (category === 'coaching') return coaching.value === teamId
+  return marked(trophies.value, teamId, category)
 }
 
-function pickTrophy(team: any, category: string) {
-  const state = trophyState(team, category)
-  if (state === 'wait' || state === 'locked' || state === 'taken') return
+function canNominate(category: string, teamId: number) {
+  if (phase.value !== 'nominations') return false
+  if (!props.results?.can_edit_awards || presenting.value) return false
+  if (marked(nominations.value, teamId, category)) return true
+  return nominationCount(category) < nominationSlots.value
+}
+
+function trophyCount(teamId: number) {
+  const cups = trophies.value.filter((row) => row.team === teamId).length
+  return cups + (coaching.value === teamId ? 1 : 0)
+}
+
+function nominationTotal(teamId: number) {
+  return awardColumns.filter((column) => column.nominate && marked(nominations.value, teamId, column.id)).length
+}
+
+function anyNomination(teamId: number) {
+  return nominationTotal(teamId) > 0
+}
+
+function canAward(team: any, category: string) {
+  if (!props.results?.can_edit_awards || presenting.value || !nominationsReady.value) return false
+  if (category === 'robot') return false
+  if (category === 'champion') return phase.value === 'champion' && (hasTrophy(team.id, category) || anyNomination(team.id))
+  if (phase.value !== 'awards') return false
+  const on = hasTrophy(team.id, category)
+  if (!on && trophyCount(team.id) >= 3) return false
+  if (category === 'coaching') return on || anyNomination(team.id)
+  if (!on && !marked(nominations.value, team.id, category)) return false
+  if (!on && championTeam.value === team.id) return false
+  const held = heldTrophy(team.id)
+  return !held || held.category === category
+}
+
+const phaseRank = {nominations: 0, champion: 1, awards: 2} as const
+
+function rewindTo(next: 'nominations' | 'champion' | 'awards') {
+  if (phaseRank[next] >= phaseRank[phase.value]) return
+  trophies.value = []
+  coaching.value = ''
+}
+
+function openPhase(next: 'nominations' | 'champion' | 'awards') {
+  if (!phaseReachable(next) || next === phase.value) return
+  rewindTo(next)
+  phase.value = next
+  phaseChosen = true
+}
+
+function phaseReachable(next: 'nominations' | 'champion' | 'awards') {
+  if (next === 'nominations') return true
+  if (next === 'champion') return nominationsReady.value
+  return Boolean(championTeam.value)
+}
+
+function toggleNomination(teamId: number, category: string) {
+  if (!canNominate(category, teamId)) return
+  toggleMark(nominations.value, teamId, category)
+  const championId = Number(championTeam.value || 0)
+  if (championId && !anyNomination(championId)) championTeam.value = ''
+  trophies.value = trophies.value.filter((row) => {
+    if (row.category === 'champion') return anyNomination(row.team)
+    if (row.category === 'research' || row.category === 'robotdesign' || row.category === 'core_values') {
+      return marked(nominations.value, row.team, row.category)
+    }
+    return true
+  })
+  if (coaching.value && !anyNomination(Number(coaching.value))) coaching.value = ''
+}
+
+function toggleAward(team: any, category: string) {
+  if (!canAward(team, category) && !hasTrophy(team.id, category)) return
+  if (!props.results?.can_edit_awards || presenting.value || !nominationsReady.value) return
+  const on = hasTrophy(team.id, category)
   if (category === 'champion') {
-    championTeam.value = state === 'on' ? '' : team.id
+    championTeam.value = on ? '' : team.id
+    if (!on) phase.value = 'awards'
+    return
+  }
+  if (category === 'coaching') {
+    coaching.value = on ? '' : team.id
     return
   }
   trophies.value = trophies.value.filter((row) => row.category !== category)
-  if (state !== 'on') trophies.value.push({team: team.id, category})
+  if (!on) trophies.value.push({team: team.id, category})
 }
 
-function pickNomination(team: any, category: string) {
-  const state = nominationState(team, category)
-  if (state === 'wait' || state === 'locked' || state === 'full') return
-  toggleMark(nominations.value, team.id, category)
+function awardHolder(category: string) {
+  if (category === 'coaching') return coaching.value ? teamById(Number(coaching.value)) : null
+  const row = trophies.value.find((entry) => entry.category === category)
+  return row ? teamById(row.team) : null
 }
 
-function pickCoaching(team: any) {
-  const state = coachingState(team)
-  if (state === 'wait' || state === 'locked') return
-  coaching.value = state === 'on' ? '' : team.id
+function holderLine(category: string) {
+  if (category === 'robot') {
+    const leaders = awardTeams.value.filter((team) => team.robot_rank === 1)
+    return leaders.length ? leaders.map((team) => `${team.number} ${team.name}`).join(', ') : '—'
+  }
+  const team = awardHolder(category)
+  return team ? `${team.number} ${team.name}` : '—'
 }
+
+function nomineeTeams(category: string) {
+  return nominations.value
+      .filter((row) => row.category === category)
+      .map((row) => teamById(row.team))
+      .filter((team) => !!team)
+}
+
+async function startPresent() {
+  presenting.value = true
+  await nextTick()
+  const node = presentRoot.value
+  if (!node || document.fullscreenElement) return
+  try {
+    await node.requestFullscreen()
+  } catch {
+    /* overlay still covers the page */
+  }
+}
+
+function stopPresent() {
+  presenting.value = false
+  if (document.fullscreenElement) {
+    void document.exitFullscreen().catch(() => {})
+  }
+}
+
+function onPresentKey(event: KeyboardEvent) {
+  if (event.key === 'Escape') stopPresent()
+}
+
+function onFullscreenChange() {
+  if (!document.fullscreenElement) presenting.value = false
+}
+
+watch(presenting, (on) => {
+  if (on) {
+    document.addEventListener('fullscreenchange', onFullscreenChange)
+    document.addEventListener('keydown', onPresentKey)
+  } else {
+    document.removeEventListener('fullscreenchange', onFullscreenChange)
+    document.removeEventListener('keydown', onPresentKey)
+  }
+})
 
 watch(() => props.results, (results) => {
-  trophies.value = [...(results?.awards?.trophies || [])]
+  trophies.value = [...(results?.awards?.trophies || [])].filter((row) => row.category !== 'robot')
   nominations.value = [...(results?.awards?.nominations || [])]
   coaching.value = results?.awards?.coaching || ''
   awardError.value = ''
+  if (!phaseChosen) {
+    const hasChampion = trophies.value.some((row) => row.category === 'champion')
+    phase.value = hasChampion ? 'awards' : (nominationsReady.value ? 'champion' : 'nominations')
+    phaseChosen = true
+  }
 }, {immediate: true})
 
 function marked(rows: {team: number, category: string}[], team: number, category: string) {
@@ -141,7 +264,10 @@ async function saveAwards() {
   awardBusy.value = true
   try {
     const {data} = await axios.put(`/scor/events/${props.results.event.id}/awards`, {
-      trophies: trophies.value,
+      trophies: [
+        ...trophies.value.filter((row) => row.category !== 'robot'),
+        ...spielTrophy(),
+      ],
       nominations: nominations.value,
       coaching: coaching.value || null,
     })
@@ -153,12 +279,66 @@ async function saveAwards() {
   }
 }
 
-const sortKey = ref('champion_rank')
+const sortKey = ref('research_rank')
+const awardSortKey = ref('noms')
+const awardSortDir = ref<'asc' | 'desc'>('desc')
 const sortDir = ref<'asc' | 'desc'>('asc')
+const board = ref<'spiel' | 'jury' | 'awards'>('spiel')
+const switchEl = ref<HTMLElement | null>(null)
+const lens = ref({on: false, x: 0, y: 0, width: 0, height: 0, swoosh: false})
+let lensPlaced = false
+let lensResize: ResizeObserver | null = null
+let lensSwooshTimer = 0
 
-const columns = [
-  {key: 'champion_rank', label: 'Champion', note: '*'},
-  {key: 'robot_rank', label: 'Spiel', note: '**', points: 'robot'},
+function placeLens() {
+  const nav = switchEl.value
+  if (!nav) return
+  const active = nav.querySelector('.scor-switch__btn.is-on')
+  if (!(active instanceof HTMLElement)) {
+    lensPlaced = false
+    lens.value = {...lens.value, on: false, swoosh: false}
+    return
+  }
+  const navBox = nav.getBoundingClientRect()
+  const box = active.getBoundingClientRect()
+  const x = box.left - navBox.left
+  const y = box.top - navBox.top
+  const moved = lensPlaced && Math.abs(x - lens.value.x) > 1
+  if (lensPlaced && !moved && Math.abs(box.width - lens.value.width) < 1 && Math.abs(box.height - lens.value.height) < 1) return
+  lens.value = {on: true, x, y, width: box.width, height: box.height, swoosh: moved}
+  lensPlaced = true
+  if (!moved) return
+  window.clearTimeout(lensSwooshTimer)
+  lensSwooshTimer = window.setTimeout(() => {
+    lens.value = {...lens.value, swoosh: false}
+  }, 280)
+}
+
+watch(switchEl, (el) => {
+  lensResize?.disconnect()
+  lensResize = null
+  lensPlaced = false
+  if (!el) return
+  nextTick(() => {
+    placeLens()
+    if (typeof ResizeObserver !== 'undefined') {
+      lensResize = new ResizeObserver(() => placeLens())
+      lensResize.observe(el)
+    }
+  })
+})
+
+watch(board, () => nextTick(() => placeLens()))
+
+onBeforeUnmount(() => {
+  lensResize?.disconnect()
+  window.clearTimeout(lensSwooshTimer)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+  document.removeEventListener('keydown', onPresentKey)
+  if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+})
+
+const juryColumns = [
   {key: 'research_rank', label: 'Projekt', points: 'research'},
   {key: 'robotdesign_rank', label: 'Technisches Design', points: 'robotdesign'},
   {key: 'core_values_rank', label: 'Grundwerte', points: 'core_values'},
@@ -183,6 +363,54 @@ const byRobot = computed(() => {
     return Number(a.number ?? 0) - Number(b.number ?? 0)
   })
 })
+
+function spielTrophy() {
+  const leaders = (props.results?.teams || []).filter((team: any) => team.robot_rank === 1)
+  if (leaders.length !== 1) return []
+  return [{team: leaders[0].id, category: 'robot'}]
+}
+
+function awardSortValue(team: any, key: string) {
+  if (key === 'number') return Number(team.number ?? 0)
+  if (key === 'noms') return nominationTotal(team.id)
+  if (key === 'robot') return Number(team.robot_rank ?? 999)
+  if (key === 'champion') return hasTrophy(team.id, 'champion') ? 2 : nominationTotal(team.id)
+  if (key === 'coaching') return hasTrophy(team.id, 'coaching') ? 1 : 0
+  const nominated = marked(nominations.value, team.id, key) ? 1 : 0
+  return nominated + (hasTrophy(team.id, key) ? 1 : 0)
+}
+
+const sortedAwardTeams = computed(() => {
+  const teams = [...awardTeams.value]
+  if (phase.value === 'nominations') {
+    teams.sort((a, b) => Number(a.number ?? 0) - Number(b.number ?? 0))
+    return teams
+  }
+  const key = awardSortKey.value
+  const dir = awardSortDir.value === 'asc' ? 1 : -1
+  teams.sort((a, b) => {
+    const left = awardSortValue(a, key)
+    const right = awardSortValue(b, key)
+    if (left !== right) return (left - right) * dir
+    return Number(a.number ?? 0) - Number(b.number ?? 0)
+  })
+  return teams
+})
+
+function toggleAwardSort(key: string) {
+  if (phase.value === 'nominations') return
+  if (awardSortKey.value === key) {
+    awardSortDir.value = awardSortDir.value === 'asc' ? 'desc' : 'asc'
+    return
+  }
+  awardSortKey.value = key
+  awardSortDir.value = key === 'number' || key === 'robot' ? 'asc' : 'desc'
+}
+
+function awardSortLabel(key: string) {
+  if (awardSortKey.value !== key) return 'sortieren'
+  return awardSortDir.value === 'asc' ? 'aufsteigend sortiert' : 'absteigend sortiert'
+}
 
 function toggleSort(key: string) {
   if (sortKey.value === key) {
@@ -210,26 +438,6 @@ const championTeam = computed({
   },
 })
 
-function cellClass(state: CellState) {
-  return {
-    'is-on': state === 'on',
-    'is-wait': state === 'wait' || state === 'locked' || state === 'taken' || state === 'full',
-  }
-}
-
-function pickDisabled(state: CellState) {
-  return state === 'wait' || state === 'locked' || state === 'taken' || state === 'full'
-}
-
-function pickLabel(state: CellState, onLabel: string) {
-  if (state === 'on') return onLabel
-  if (state === 'taken') return 'hat Pokal'
-  if (state === 'wait') return 'wartet'
-  if (state === 'full') return '4 voll'
-  if (state === 'locked') return '–'
-  return 'wählen'
-}
-
 function formatPoints(value: number) {
   if (!Number.isFinite(value)) return '–'
   if (Number.isInteger(value)) return String(value)
@@ -243,50 +451,26 @@ function formatPoints(value: number) {
   </div>
 
   <div v-else class="scor-results">
-    <section class="scor-results__block">
-      <h2 class="scor-results__title">Gesamtwertung</h2>
-      <div class="scor-board glass-card liquid-surface-inner">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">
-                <button type="button" class="scor-sort" :class="{ 'is-active': sortKey === 'number' }" :aria-label="`Team, ${sortLabel('number')}`" @click="toggleSort('number')">
-                  Team
-                  <i v-if="sortKey === 'number'" class="bi" :class="sortDir === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'" aria-hidden="true"/>
-                </button>
-              </th>
-              <th v-for="column in columns" :key="column.key" scope="col">
-                <button type="button" class="scor-sort" :class="{ 'is-active': sortKey === column.key }" :aria-label="`${column.label}, ${sortLabel(column.key)}`" @click="toggleSort(column.key)">
-                  {{ column.label }}<sup v-if="column.note">{{ column.note }}</sup>
-                  <i v-if="sortKey === column.key" class="bi" :class="sortDir === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'" aria-hidden="true"/>
-                </button>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="team in ranked" :key="team.id">
-              <th scope="row">
-                <span class="scor-team__name">{{ team.name }}</span>
-                <span class="scor-team__number">{{ team.number }}</span>
-              </th>
-              <td v-for="column in columns" :key="column.key">
-                <span class="scor-place">{{ team[column.key] }}</span>
-                <span v-if="column.points" class="scor-place__points">{{ formatPoints(team[column.points]) }}</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="scor-results__note">
-        * Gesamtwertung aus Spiel, Projekt, Technisches Design und Grundwerten.
-        Gleiche Punktzahl, gleicher Platz.
-        <br>
-        ** Schnitt aller Wertungsrunden, ohne Testrunde. Eine fehlende Runde zählt als 0. Darunter steht der Schnitt.
-      </p>
-    </section>
+    <div ref="switchEl" class="scor-switch" role="tablist" aria-label="Tabelle">
+      <span
+          v-show="lens.on"
+          class="scor-switch__lens"
+          :class="{'is-swoosh': lens.swoosh}"
+          :style="{
+            width: `${lens.width}px`,
+            height: `${lens.height}px`,
+            transform: `translate(${lens.x}px, ${lens.y}px)`,
+          }"
+          aria-hidden="true"
+      >
+        <span class="scor-switch__lens-glass"/>
+      </span>
+      <button type="button" class="scor-switch__btn" role="tab" :class="{'is-on': board === 'spiel'}" :aria-selected="board === 'spiel'" @click="board = 'spiel'">Spiel</button>
+      <button type="button" class="scor-switch__btn" role="tab" :class="{'is-on': board === 'jury'}" :aria-selected="board === 'jury'" @click="board = 'jury'">Jury-Bewertungen</button>
+      <button type="button" class="scor-switch__btn" role="tab" :class="{'is-on': board === 'awards'}" :aria-selected="board === 'awards'" @click="board = 'awards'">Auszeichnungen</button>
+    </div>
 
-    <section class="scor-results__block">
-      <h2 class="scor-results__title">Spiel</h2>
+    <section v-if="board === 'spiel'" class="scor-results__block">
       <div class="scor-board glass-card liquid-surface-inner">
         <table>
           <thead>
@@ -318,69 +502,159 @@ function formatPoints(value: number) {
       </div>
       <p class="scor-results__note">
         Gespeicherte Bögen zählen mit. „begonnen“ heißt: Schiri und Team haben noch nicht beide bestätigt.
-        Die Testrunde steht hier nicht.
+        Die Testrunde steht hier nicht. Der Schnitt lässt eine fehlende Runde als 0 zählen.
       </p>
     </section>
 
-    <section class="scor-results__block">
-      <h2 class="scor-results__title">Auszeichnungen</h2>
-      <p class="scor-flow">
-        <span :class="{'is-now': !championTeam}">1 Champion</span>
-        <span :class="{'is-now': championTeam}">2 Pokale</span>
-        <span :class="{'is-now': championTeam}">3 Nominierungen</span>
-        <span :class="{'is-now': championTeam}">4 Spiel und Coaching</span>
-      </p>
-      <p class="scor-results__note">
-        <template v-if="!championTeam">Zuerst den Champion. Alles andere wartet.</template>
-        <template v-else>Der Champion ist für Projekt, Technisches Design und Grundwerte gesperrt. Jeder weitere Pokal dort sperrt das Team ebenfalls. Spiel und Coaching bleiben frei, höchstens drei Pokale insgesamt.</template>
-      </p>
+    <section v-else-if="board === 'jury'" class="scor-results__block">
       <div class="scor-board glass-card liquid-surface-inner">
-        <table class="scor-awards">
+        <table>
           <thead>
             <tr>
-              <th scope="col">Team</th>
-              <th scope="col" :class="{'is-now': !championTeam}">Champion</th>
-              <th v-for="column in judgedTrophies" :key="column.id" scope="col" :class="{'is-wait': !championTeam}">{{ column.label }}</th>
-              <th v-for="column in nominationColumns" :key="`n-${column.id}`" scope="col" :class="{'is-wait': !championTeam}">Nom. {{ column.label }}</th>
-              <th scope="col" :class="{'is-wait': !championTeam}">Spiel</th>
-              <th scope="col" :class="{'is-wait': !championTeam}">Coaching</th>
+              <th scope="col">
+                <button type="button" class="scor-sort" :class="{ 'is-active': sortKey === 'number' }" :aria-label="`Team, ${sortLabel('number')}`" @click="toggleSort('number')">
+                  Team
+                  <i v-if="sortKey === 'number'" class="bi" :class="sortDir === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'" aria-hidden="true"/>
+                </button>
+              </th>
+              <th v-for="column in juryColumns" :key="column.key" scope="col">
+                <button type="button" class="scor-sort" :class="{ 'is-active': sortKey === column.key }" :aria-label="`${column.label}, ${sortLabel(column.key)}`" @click="toggleSort(column.key)">
+                  {{ column.label }}
+                  <i v-if="sortKey === column.key" class="bi" :class="sortDir === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'" aria-hidden="true"/>
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="team in awardTeams" :key="team.id">
+            <tr v-for="team in ranked" :key="team.id">
               <th scope="row">
                 <span class="scor-team__name">{{ team.name }}</span>
-                <span class="scor-team__number">Platz {{ team.champion_rank }} · {{ team.number }}</span>
+                <span class="scor-team__number">{{ team.number }}</span>
               </th>
-              <td :class="cellClass(trophyState(team, 'champion'))">
-                <button type="button" class="scor-pick" :disabled="pickDisabled(trophyState(team, 'champion'))" @click="pickTrophy(team, 'champion')">
-                  {{ pickLabel(trophyState(team, 'champion'), 'Champion') }}
-                </button>
-              </td>
-              <td v-for="column in judgedTrophies" :key="column.id" :class="cellClass(trophyState(team, column.id))">
-                <button type="button" class="scor-pick" :disabled="pickDisabled(trophyState(team, column.id))" @click="pickTrophy(team, column.id)">
-                  {{ pickLabel(trophyState(team, column.id), 'Pokal') }}
-                </button>
-              </td>
-              <td v-for="column in nominationColumns" :key="`n-${column.id}`" :class="cellClass(nominationState(team, column.id))">
-                <button type="button" class="scor-pick" :disabled="pickDisabled(nominationState(team, column.id))" @click="pickNomination(team, column.id)">
-                  {{ pickLabel(nominationState(team, column.id), 'Nom.') }}
-                </button>
-              </td>
-              <td :class="cellClass(trophyState(team, 'robot'))">
-                <button type="button" class="scor-pick" :disabled="pickDisabled(trophyState(team, 'robot'))" @click="pickTrophy(team, 'robot')">
-                  {{ pickLabel(trophyState(team, 'robot'), 'Spiel') }}
-                </button>
-              </td>
-              <td :class="cellClass(coachingState(team))">
-                <button type="button" class="scor-pick" :disabled="pickDisabled(coachingState(team))" @click="pickCoaching(team)">
-                  {{ pickLabel(coachingState(team), 'Coaching') }}
-                </button>
+              <td v-for="column in juryColumns" :key="column.key">
+                <span class="scor-place">{{ team[column.key] }}</span>
+                <span class="scor-place__points">{{ formatPoints(team[column.points]) }}</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+      <p class="scor-results__note">
+        Platz und Punkte aus dem Jury-Bogen. Gleiche Punktzahl, gleicher Platz.
+      </p>
+    </section>
+
+    <section v-else class="scor-results__block">
+      <div class="scor-award-head">
+        <ol class="scor-phases">
+          <li
+              v-for="(step, index) in phases"
+              :key="step.id"
+              class="scor-phases__item"
+              :class="{'is-on': phase === step.id, 'is-done': phase !== step.id && phaseReachable(step.id)}"
+          >
+            <button
+                type="button"
+                class="scor-phases__step"
+                :disabled="!phaseReachable(step.id)"
+                :aria-current="phase === step.id ? 'step' : undefined"
+                @click="openPhase(step.id)"
+            >
+              <span class="scor-phases__mark">{{ index + 1 }}</span>
+              <span class="scor-phases__label">{{ step.label }}</span>
+            </button>
+          </li>
+        </ol>
+        <div class="scor-award-tools">
+          <p class="scor-results__note">
+            <template v-if="phase === 'nominations'">Vier Sterne für Projekt, Technisches Design und Grundwerte.</template>
+            <template v-else-if="phase === 'champion'">Ein Team, das schon einen Stern hat.</template>
+            <template v-else>Die Pokale gehen an nominierte Teams.</template>
+          </p>
+          <button type="button" class="glass-btn-secondary" @click="startPresent">Präsentieren</button>
+        </div>
+      </div>
+      <div ref="presentRoot" class="scor-stage" :class="{'is-present': presenting}">
+        <div class="scor-board glass-card liquid-surface-inner">
+          <table class="scor-awards">
+            <thead>
+              <tr>
+                <th scope="col">
+                  <button type="button" class="scor-sort" :disabled="phase === 'nominations'" :class="{ 'is-active': phase !== 'nominations' && awardSortKey === 'number' }" :aria-label="`Team, ${awardSortLabel('number')}`" @click="toggleAwardSort('number')">
+                    Team
+                    <i v-if="phase !== 'nominations' && awardSortKey === 'number'" class="bi" :class="awardSortDir === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'" aria-hidden="true"/>
+                  </button>
+                </th>
+                <th scope="col">
+                  <button type="button" class="scor-sort" :disabled="phase === 'nominations'" :class="{ 'is-active': phase !== 'nominations' && awardSortKey === 'noms' }" :aria-label="`Anzahl der Nominierungen, ${awardSortLabel('noms')}`" @click="toggleAwardSort('noms')">
+                    Anzahl
+                    <i v-if="phase !== 'nominations' && awardSortKey === 'noms'" class="bi" :class="awardSortDir === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'" aria-hidden="true"/>
+                  </button>
+                </th>
+                <th v-for="column in awardColumns" :key="column.id" scope="col">
+                  <button type="button" class="scor-sort" :disabled="phase === 'nominations'" :class="{ 'is-active': phase !== 'nominations' && awardSortKey === column.id }" :aria-label="`${column.label}, ${awardSortLabel(column.id)}`" @click="toggleAwardSort(column.id)">
+                    {{ column.label }}
+                    <span v-if="column.nominate" class="scor-award-count">{{ nominationCount(column.id) }}/{{ nominationSlots }}</span>
+                    <i v-if="phase !== 'nominations' && awardSortKey === column.id" class="bi" :class="awardSortDir === 'asc' ? 'bi-caret-up-fill' : 'bi-caret-down-fill'" aria-hidden="true"/>
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="team in sortedAwardTeams" :key="team.id">
+                <th scope="row">
+                  <span class="scor-team__name">{{ team.name }}</span>
+                  <span class="scor-team__number">{{ team.number }}</span>
+                </th>
+                <td>
+                  <span class="scor-place">{{ nominationTotal(team.id) }}</span>
+                </td>
+                <td v-for="column in awardColumns" :key="column.id">
+                  <div v-if="column.id === 'robot'" class="scor-award-cell scor-award-cell--result">
+                    <span class="scor-place">{{ team.robot_rank }}</span>
+                    <span class="scor-place__points">{{ formatPoints(team.robot) }}</span>
+                  </div>
+                  <div v-else class="scor-award-cell">
+                    <button
+                        v-if="column.nominate"
+                        type="button"
+                        class="scor-mark"
+                        :class="{'is-on': marked(nominations, team.id, column.id), 'is-locked': phase !== 'nominations'}"
+                        :disabled="phase !== 'nominations' || presenting || (!canNominate(column.id, team.id) && !marked(nominations, team.id, column.id))"
+                        :aria-pressed="marked(nominations, team.id, column.id)"
+                        :aria-label="`${column.label} nominieren`"
+                        @click="toggleNomination(team.id, column.id)"
+                    >
+                      <i class="bi" :class="marked(nominations, team.id, column.id) ? 'bi-star-fill' : 'bi-star'" aria-hidden="true"/>
+                    </button>
+                    <button
+                        v-if="column.trophy"
+                        type="button"
+                        class="scor-mark scor-mark--cup"
+                        :class="{'is-on': hasTrophy(team.id, column.id), 'is-locked': column.id === 'champion' ? phase !== 'champion' : phase !== 'awards'}"
+                        :disabled="!canAward(team, column.id)"
+                        :aria-pressed="hasTrophy(team.id, column.id)"
+                        :aria-label="`${column.label} Pokal`"
+                        @click="toggleAward(team, column.id)"
+                    >
+                      <i class="bi" :class="hasTrophy(team.id, column.id) ? 'bi-trophy-fill' : 'bi-trophy'" aria-hidden="true"/>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <ul class="scor-recap">
+        <li v-for="column in awardColumns" :key="column.id">
+          <span class="scor-recap__label">{{ column.label }}</span>
+          <strong>{{ holderLine(column.id) }}</strong>
+          <span v-if="column.nominate" class="scor-recap__noms">
+            {{ nomineeTeams(column.id).map((team) => `${team.number} ${team.name}`).join(', ') || 'keine Nominierung' }}
+          </span>
+        </li>
+      </ul>
       <p v-if="awardError" class="text-lg text-red-700">{{ awardError }}</p>
       <button v-if="results.can_edit_awards" type="button" class="glass-btn-accent" :disabled="awardBusy" @click="saveAwards">Auszeichnungen speichern</button>
       <div v-if="results.lifecycle" class="flex flex-wrap gap-3">
@@ -398,7 +672,115 @@ function formatPoints(value: number) {
 .scor-results {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  gap: 1rem;
+}
+
+.scor-switch {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0.2rem;
+  min-height: 3.65rem;
+  padding: 0.28rem;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--liquid-border);
+  border-radius: 1.85rem;
+  background: var(--liquid-tile-bg);
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  box-shadow: var(--liquid-shadow);
+}
+
+.scor-switch::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.12) 34%, transparent 58%);
+}
+
+html[data-theme='dark'] .scor-switch::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, transparent 48%);
+}
+
+.scor-switch__lens {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  border-radius: 1.5rem;
+  pointer-events: none;
+  transition: transform 0.62s cubic-bezier(0.22, 1.45, 0.36, 1);
+}
+
+.scor-switch__lens-glass {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--color-bg, #fff) 88%, transparent);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 1),
+    inset 0 -1px 0 rgba(15, 23, 42, 0.08),
+    0 6px 16px rgba(15, 23, 42, 0.12);
+  transform: scaleX(1) scaleY(1);
+  transition: transform 0.5s cubic-bezier(0.22, 1.35, 0.36, 1);
+}
+
+.scor-switch__lens.is-swoosh .scor-switch__lens-glass {
+  transform: scaleX(1.22) scaleY(0.9);
+}
+
+html[data-theme='dark'] .scor-switch__lens-glass {
+  background: color-mix(in srgb, #fff 22%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 6px 16px rgba(0, 0, 0, 0.28);
+}
+
+.scor-switch__btn {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 3rem;
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border: 0;
+  border-radius: 1.5rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.15;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scor-switch__btn:hover,
+.scor-switch__btn:focus-visible {
+  color: var(--color-text);
+  outline: none;
+}
+
+.scor-switch__btn.is-on,
+.scor-switch__btn.is-on:hover,
+.scor-switch__btn.is-on:focus-visible {
+  color: var(--color-accent, #e85d04);
+  font-weight: 800;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scor-switch__lens,
+  .scor-switch__lens-glass {
+    transition: none;
+  }
 }
 
 .scor-results__title {
@@ -498,58 +880,260 @@ function formatPoints(value: number) {
   line-height: 1.45;
 }
 
-.scor-flow {
+.scor-results__block {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0 0 0.35rem;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.scor-flow span {
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  background: var(--color-bg);
+.scor-results__block > .scor-results__note,
+.scor-award-tools .scor-results__note {
+  margin: 0;
+}
+
+.scor-award-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scor-phases {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0.15rem 0 0;
+  list-style: none;
+}
+
+.scor-phases__item {
+  position: relative;
+  min-width: 0;
+}
+
+.scor-phases__item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 0.85rem;
+  left: calc(50% + 1.15rem);
+  right: calc(-50% + 1.15rem);
+  height: 2px;
+  background: var(--color-border);
+}
+
+.scor-phases__item.is-done:not(:last-child)::after,
+.scor-phases__item.is-on:not(:last-child)::after {
+  background: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+}
+
+.scor-phases__step {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--color-text-muted);
-  font-size: 0.95rem;
+  font: inherit;
+  font-size: 0.8rem;
   font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
 }
 
-.scor-flow span.is-now {
-  background: #146c36;
-  color: #fff;
-}
-
-.scor-awards th.is-now {
-  color: #146c36;
-}
-
-.scor-awards th.is-wait,
-.scor-awards td.is-wait {
-  opacity: 0.38;
-}
-
-.scor-awards td.is-on {
-  background: color-mix(in srgb, #146c36 14%, transparent);
-}
-
-.scor-pick {
-  min-width: 5.5rem;
-  min-height: 2.6rem;
-  padding: 0.35rem 0.6rem;
+.scor-phases__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
   border: 2px solid var(--color-border);
-  border-radius: 0.7rem;
-  background: #fff;
-  font-size: 0.95rem;
+  border-radius: 999px;
+  background: var(--orbit-base, #e8ebf0);
+  font-size: 0.8rem;
   font-weight: 800;
 }
 
-.scor-awards td.is-on .scor-pick {
-  border-color: #146c36;
-  background: #146c36;
-  color: #fff;
+.scor-phases__step.is-on,
+.scor-phases__item.is-on .scor-phases__step {
+  color: var(--color-text);
 }
 
-.scor-pick:disabled {
+.scor-phases__item.is-on .scor-phases__mark {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-on-accent, #fff);
+}
+
+.scor-phases__item.is-done .scor-phases__mark {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+.scor-phases__step:disabled {
   cursor: default;
+  opacity: 0.45;
+}
+
+.scor-award-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.scor-sort:disabled {
+  cursor: default;
+}
+
+.scor-stage.is-present,
+.scor-stage:fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  box-sizing: border-box;
+  overflow: auto;
+  padding: 2rem;
+  background: var(--orbit-base, #e8ebf0);
+}
+
+.scor-stage:fullscreen {
+  position: static;
+  padding: 2.5rem 3rem;
+}
+
+.scor-stage:fullscreen .scor-team__name {
+  font-size: 1.45rem;
+}
+
+.scor-stage:fullscreen .scor-mark {
+  width: 3.4rem;
+  height: 3.4rem;
+  font-size: 1.85rem;
+}
+
+.scor-award-count {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.scor-board .scor-awards {
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.scor-awards th,
+.scor-awards td {
+  padding: 0.4rem 0.25rem;
+  text-align: center;
+}
+
+.scor-awards tbody th {
+  min-width: 0;
+  width: 16%;
+  text-align: left;
+}
+
+.scor-awards thead th {
+  font-size: 0.78rem;
+  line-height: 1.15;
+  vertical-align: bottom;
+}
+
+.scor-awards .scor-sort {
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  white-space: normal;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  font-weight: 700;
+  text-align: center;
+}
+
+.scor-awards tbody tr:hover td,
+.scor-awards tbody tr:hover th {
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-bg));
+}
+
+.scor-award-cell--result {
+  flex-direction: column;
+  gap: 0;
+}
+
+.scor-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.scor-mark.is-on {
+  color: #b45309;
+}
+
+.scor-mark--cup.is-on {
+  color: #146c36;
+}
+
+.scor-mark.is-locked,
+.scor-mark:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.scor-mark:not(:disabled):hover {
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.scor-recap {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.scor-recap li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg-muted);
+}
+
+.scor-recap__label {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.scor-recap strong {
+  font-size: 1.05rem;
+}
+
+.scor-recap__noms {
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
 }
 </style>
