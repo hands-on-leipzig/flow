@@ -138,8 +138,12 @@ function toggleAward(team: any, category: string) {
   if (!props.results?.can_edit_awards || presenting.value || !nominationsReady.value) return
   const on = hasTrophy(team.id, category)
   if (category === 'champion') {
-    championTeam.value = on ? '' : team.id
-    if (!on) phase.value = 'awards'
+    const select = !hasTrophy(team.id, 'champion')
+    championTeam.value = select ? team.id : ''
+    if (select) {
+      phase.value = 'awards'
+      phaseChosen = true
+    }
     return
   }
   if (category === 'coaching') {
@@ -436,6 +440,13 @@ const championTeam = computed({
     trophies.value = trophies.value.filter((row) => row.category !== 'champion')
     if (team) trophies.value.push({team: Number(team), category: 'champion'})
   },
+})
+
+watch(championTeam, (id) => {
+  if (id && phase.value === 'champion') {
+    phase.value = 'awards'
+    phaseChosen = true
+  }
 })
 
 function formatPoints(value: number) {
