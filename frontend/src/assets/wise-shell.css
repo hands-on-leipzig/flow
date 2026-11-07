@@ -93,6 +93,97 @@
     background: transparent;
   }
 
+  .glass-app--wise-compact .glass-sidebar__brand,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar__brand {
+    justify-content: flex-start;
+    margin: 0;
+    padding: 0.1rem 1.15rem 0.85rem;
+  }
+
+  .glass-app--wise-compact .glass-sidebar__brand-logo,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar__brand-logo {
+    width: auto;
+    max-width: 9rem;
+    max-height: 1.75rem;
+    margin: 0;
+    object-fit: contain;
+    object-position: left center;
+  }
+
+  .glass-app--wise-compact .glass-sidebar__item,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar__item {
+    width: 100%;
+    margin: 0;
+    min-height: 3rem;
+    padding: 0.55rem 0.85rem;
+    justify-content: flex-start;
+    gap: 0.75rem;
+    border: 0;
+    border-radius: 0.85rem;
+    background: transparent;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar__item-label,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar__chevron-hit,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar-footer__prepend .glass-sidebar__item-label {
+    position: static;
+    display: block;
+    width: auto;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    clip: auto;
+  }
+
+  .glass-app--wise-compact .glass-sidebar__nav,
+  .glass-app--wise-compact .glass-sidebar__nav-pinned,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar__nav,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar__nav-pinned {
+    align-items: stretch;
+    gap: 0.15rem;
+    padding: 0 0.65rem;
+    overflow: auto;
+  }
+
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar__item--active,
+  .glass-app--wise-compact .glass-sidebar__item--active {
+    background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+    transform: none;
+    box-shadow: none;
+  }
+
+  .glass-app--wise-compact .glass-sidebar-footer__bar,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar-footer__bar {
+    flex-direction: row;
+    justify-content: flex-start;
+    background: transparent;
+    padding: 0.65rem 0.85rem max(0.65rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar-footer__menu {
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: calc(100% + 0.45rem);
+    width: auto;
+  }
+
+  .glass-app--wise-compact .glass-sidebar__partners {
+    align-items: flex-start;
+    text-align: left;
+  }
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 0;
+    padding: 0.55rem 0 0.2rem;
+    border: 0;
+    background: transparent;
+  }
+
   .glass-app--wise-compact .glass-app__main {
     gap: 0;
     border-radius: 0;
