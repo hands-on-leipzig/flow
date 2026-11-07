@@ -68,8 +68,8 @@
     z-index: 1095;
     width: 100%;
     max-width: none;
-    height: min(88dvh, 40rem);
-    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 0.5rem);
+    height: auto;
+    max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 0.75rem);
     transform: translateY(105%);
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     pointer-events: none;
@@ -157,10 +157,48 @@
 
   .glass-app--wise-compact .glass-sidebar-footer__bar,
   .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar-footer__bar {
-    flex-direction: row;
+    flex-direction: column;
+    align-items: stretch;
     justify-content: flex-start;
+    gap: 0;
+    margin: 0.55rem 0.85rem 0;
+    padding: 0.2rem;
+    border-top: none;
+    border-radius: 1rem;
+    background: color-mix(in srgb, #fff 96%, var(--orbit-base, #e8ebf0));
+  }
+
+  .glass-app--wise-compact .glass-sidebar-footer__icon-btn,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar-footer__icon-btn {
+    width: 100%;
+    height: auto;
+    min-height: 2.85rem;
+    padding: 0.4rem 0.7rem;
+    justify-content: flex-start;
+    gap: 0.7rem;
+    border: 0;
+    border-radius: 0.75rem;
     background: transparent;
-    padding: 0.65rem 0.85rem max(0.65rem, env(safe-area-inset-bottom, 0px));
+    box-shadow: none;
+  }
+
+  .glass-app--wise-compact .glass-sidebar-footer__icon-btn::after {
+    content: attr(aria-label);
+  }
+
+  .glass-app--wise-compact .glass-sidebar__partner-link {
+    width: auto;
+  }
+
+  .glass-app--wise-compact .glass-sidebar__partner-logo--primary,
+  .glass-app--wise-compact .glass-sidebar__partner-logo--secondary,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar__partner-logo--primary,
+  .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar__partner-logo--secondary {
+    width: auto;
+    height: 2.75rem;
+    max-width: none;
+    max-height: none;
+    object-fit: contain;
   }
 
   .glass-app--wise-compact .glass-sidebar--collapsed .glass-sidebar-footer__menu {

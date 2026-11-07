@@ -4,6 +4,7 @@ import {useRouter} from 'vue-router'
 import keycloak from '@/keycloak.js'
 import {imageUrl} from '@/utils/images'
 import ScorLogo from '@/components/scor/ScorLogo.vue'
+import AppSwitchMark from '@hands-on/glass/components/AppSwitchMark.vue'
 
 const props = defineProps<{
   canFlow: boolean
@@ -141,7 +142,7 @@ function openInternal(href: string) {
         :aria-expanded="open"
         @click.stop="toggle"
     >
-      <i class="bi bi-arrow-left-right" aria-hidden="true"/>
+      <AppSwitchMark />
     </button>
 
     <div
@@ -161,7 +162,7 @@ function openInternal(href: string) {
             @click="openInternal(app.href)"
         >
           <span class="app-brand__choice-logo">
-            <img :src="imageUrl(`/flow/${app.id}.png`)" :alt="app.label">
+            <img :src="imageUrl(app.id === 'scor' ? '/flow/wise.png' : `/flow/${app.id}.png`)" :alt="app.label">
           </span>
           <i v-if="app.current" class="bi bi-check-lg" aria-hidden="true"/>
         </button>
@@ -172,7 +173,7 @@ function openInternal(href: string) {
             :href="app.href"
         >
           <span class="app-brand__choice-logo">
-            <img :src="imageUrl(`/flow/${app.id}.png`)" :alt="app.label">
+            <img :src="imageUrl(app.id === 'scor' ? '/flow/wise.png' : `/flow/${app.id}.png`)" :alt="app.label">
           </span>
         </a>
       </template>
@@ -183,16 +184,19 @@ function openInternal(href: string) {
 <style scoped>
 .app-brand {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: space-between;
+  gap: 0.5rem;
   width: 100%;
   padding-bottom: 0.35rem;
 }
 
 .app-brand__logo {
-  display: block;
-  width: 100%;
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  width: auto;
   min-width: 0;
   text-decoration: none;
 }
@@ -203,8 +207,17 @@ function openInternal(href: string) {
 }
 
 .app-brand__switch {
-  width: 2.25rem;
-  height: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.85rem;
+  height: 2.15rem;
+  padding: 0;
+  border: 1px solid var(--liquid-border-soft);
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, #fff 72%, transparent);
+  color: var(--color-text);
 }
 
 .app-brand__menu {
@@ -264,6 +277,12 @@ function openInternal(href: string) {
 </style>
 
 <style>
+.glass-sidebar--collapsed .app-brand {
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
 .glass-sidebar--collapsed .app-brand__logo {
   width: 2.5rem;
   height: 2.35rem;
