@@ -169,7 +169,7 @@ class ChallengeGenerator implements ChallengeShapedLead
         if (!$this->pp('g_finale')) {
             $this->writer->withGroup('c_briefing', function () use ($t) {
                 $cursor = new TimeCursor($t);
-                $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening'));
+                $cursor->subMinutes($this->pp('c_duration_briefing') + $this->pp('c_ready_opening_c'));
                 $this->writer->insertActivity('c_briefing', $cursor, $this->pp('c_duration_briefing'));
             });
         }
@@ -178,7 +178,7 @@ class ChallengeGenerator implements ChallengeShapedLead
         $this->writer->withGroup('j_briefing', function () use ($t) {
             if (!$this->pp('j_briefing_after_opening')) {
                 $cursor = new TimeCursor($t);
-                $cursor->subMinutes($this->pp('j_duration_briefing') + $this->pp('c_ready_opening'));
+                $cursor->subMinutes($this->pp('j_duration_briefing') + $this->pp('c_ready_opening_j'));
                 $this->writer->insertActivity('j_briefing', $cursor, $this->pp('j_duration_briefing'));
                 
 
@@ -199,7 +199,7 @@ class ChallengeGenerator implements ChallengeShapedLead
         $this->writer->withGroup('r_briefing', function () use ($t, $refereeBriefingDuration) {
             if (!$this->pp('r_briefing_after_opening')) {
                 $cursor = new TimeCursor($t);
-                $cursor->subMinutes($refereeBriefingDuration + $this->pp('c_ready_opening'));
+                $cursor->subMinutes($refereeBriefingDuration + $this->pp('c_ready_opening_r'));
                 $this->writer->insertActivity('r_briefing', $cursor, $refereeBriefingDuration);
             } else {
                 $cursor = $this->rTime->copy();
