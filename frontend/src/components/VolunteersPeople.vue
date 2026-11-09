@@ -644,7 +644,7 @@ watch(eventId, () => {
                     type="tel"
                     inputmode="tel"
                     autocomplete="tel"
-                    placeholder="0170 1234567 oder +49 170 1234567"
+                    placeholder="0170 1234567 oder +41 79 123 45 67"
                     :aria-invalid="createMobileError ? true : undefined"
                     :title="createMobileError || undefined"
                     @input="createMobileError = ''"
