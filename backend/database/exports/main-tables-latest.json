@@ -162,7 +162,7 @@
         },
         {
             "id": 21,
-            "name": "Forschung auf der B\u00fchne",
+            "name": "Projekt auf der B\u00fchne",
             "sequence": 740,
             "description": null,
             "first_program": 8,
@@ -1168,11 +1168,11 @@
         },
         {
             "id": 72,
-            "name": "Forschung auf der B\u00fchne",
+            "name": "Projekte auf der B\u00fchne",
             "code": "f8_presentations",
             "presence": "punctual",
             "public_time": 0,
-            "name_preview": "Forschung",
+            "name_preview": "Projekte",
             "sequence": 70,
             "first_program": 8,
             "afternoon_chain": 71,
@@ -7977,7 +7977,7 @@
         },
         {
             "id": 28,
-            "name": "c_ready_opening",
+            "name": "c_ready_opening_c",
             "context": "expert",
             "level": 1,
             "type": "integer",
@@ -7987,7 +7987,7 @@
             "step": "5",
             "first_program": 3,
             "sequence": 99,
-            "ui_label": "Wechsel zur Er\u00f6ffnung",
+            "ui_label": "Wechsel zu Er\u00f6ffnung (Coach:innen)",
             "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
         },
         {
@@ -9192,7 +9192,7 @@
         },
         {
             "id": 146,
-            "name": "f8_ready_opening",
+            "name": "f8_ready_opening_c",
             "context": "expert",
             "level": 1,
             "type": "integer",
@@ -9202,7 +9202,7 @@
             "step": "5",
             "first_program": 8,
             "sequence": 100,
-            "ui_label": "Wechsel zur Er\u00f6ffnung",
+            "ui_label": "Wechsel zu Er\u00f6ffnung (Coach:innen)",
             "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
         },
         {
@@ -9427,7 +9427,7 @@
             "step": "5",
             "first_program": 8,
             "sequence": 24,
-            "ui_label": "Dauer Forschungspr\u00e4sentation",
+            "ui_label": "Dauer Projektpr\u00e4sentation",
             "ui_description": "Dauer einer Projektpr\u00e4sentation auf der B\u00fchne."
         },
         {
@@ -9774,6 +9774,66 @@
             "sequence": 18,
             "ui_label": "Dauer Match inklusive Allianz-Gespr\u00e4ch",
             "ui_description": "Dauer eines Spiel-Matches inklusive Punktevergabe durch die Schiedsrichter:innen."
+        },
+        {
+            "id": 187,
+            "name": "c_ready_opening_j",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 100,
+            "ui_label": "Wechsel zu Er\u00f6ffnung (Juror:innen)",
+            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
+        },
+        {
+            "id": 188,
+            "name": "c_ready_opening_r",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 3,
+            "sequence": 101,
+            "ui_label": "Wechsel zu Er\u00f6ffnung (Schiedsrichter:innen)",
+            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
+        },
+        {
+            "id": 189,
+            "name": "f8_ready_opening_j",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 8,
+            "sequence": 101,
+            "ui_label": "Wechsel zu Er\u00f6ffnung (Juror:innen)",
+            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
+        },
+        {
+            "id": 190,
+            "name": "f8_ready_opening_r",
+            "context": "expert",
+            "level": 1,
+            "type": "integer",
+            "value": "15",
+            "min": "5",
+            "max": "20",
+            "step": "5",
+            "first_program": 8,
+            "sequence": 102,
+            "ui_label": "Wechsel zu Er\u00f6ffnung (Schiedsrichter:innen)",
+            "ui_description": "Nach den Briefings kommen alle zur Er\u00f6ffnung zusammen. Je nachdem wo vorher die Briefings stattfinden, braucht das Zeit f\u00fcr den Raumwechsel."
         }
     ],
     "m_parameter_condition": [],
@@ -10728,7 +10788,7 @@
         {
             "id": 76,
             "code": "f8_presentations",
-            "name": "Forschung auf der B\u00fchne",
+            "name": "Projekt auf der B\u00fchne",
             "sequence": 490,
             "room_type_group": 5,
             "level": 1,
@@ -14975,7 +15035,7 @@
         }
     ],
     "_metadata": {
-        "exported_at": "2026-11-04T13:59:22.973880Z",
+        "exported_at": "2026-11-09T12:45:21.165110Z",
         "tables": [
             "m_activity_type",
             "m_activity_type_detail",
