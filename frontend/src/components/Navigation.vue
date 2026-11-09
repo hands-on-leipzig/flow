@@ -486,6 +486,12 @@ function logout() {
       >
         <span class="wise-sync__dot" aria-hidden="true"/>
       </span>
+      <AppSwitcher
+          button-only
+          :can-flow="canFlow"
+          :can-scor="canScor"
+          :scor-mode="isScorMode"
+      />
     </template>
     <template #mobile-tabs="{ open, toggle }">
       <template v-if="!isScorMode">

@@ -8,6 +8,7 @@ const emit = defineEmits<{saved: [results: any]}>()
 const awardError = ref('')
 const mailNotice = ref('')
 const awardBusy = ref(false)
+const publishOpen = ref(false)
 const trophies = ref<{team: number, category: string}[]>([])
 const nominations = ref<{team: number, category: string}[]>([])
 const coaching = ref<number | ''>('')
@@ -25,6 +26,8 @@ const presentRoot = ref<HTMLElement | null>(null)
 const presenting = ref(false)
 const phase = ref<'nominations' | 'champion' | 'awards'>('nominations')
 let phaseChosen = false
+let hydratingAwards = false
+let awardSaveTimer = 0
 
 const phases = [
   {id: 'nominations' as const, label: 'Nominierungen'},
@@ -64,6 +67,7 @@ function hasTrophy(teamId: number, category: string) {
 }
 
 function canNominate(category: string, teamId: number) {
+  if (props.results?.lifecycle?.closed) return false
   if (phase.value !== 'nominations') return false
   if (!props.results?.can_edit_awards || presenting.value) return false
   if (marked(nominations.value, teamId, category)) return true
@@ -83,7 +87,13 @@ function anyNomination(teamId: number) {
   return nominationTotal(teamId) > 0
 }
 
+const awardsComplete = computed(() => {
+  if (!nominationsReady.value || !championTeam.value || !coaching.value) return false
+  return ['research', 'robotdesign', 'core_values'].every((id) => trophies.value.some((row) => row.category === id))
+})
+
 function canAward(team: any, category: string) {
+  if (props.results?.lifecycle?.closed) return false
   if (!props.results?.can_edit_awards || presenting.value || !nominationsReady.value) return false
   if (category === 'robot') return false
   if (category === 'champion') return phase.value === 'champion' && (hasTrophy(team.id, category) || anyNomination(team.id))
@@ -214,6 +224,7 @@ watch(presenting, (on) => {
 })
 
 watch(() => props.results, (results) => {
+  hydratingAwards = true
   trophies.value = [...(results?.awards?.trophies || [])].filter((row) => row.category !== 'robot')
   nominations.value = [...(results?.awards?.nominations || [])]
   coaching.value = results?.awards?.coaching || ''
@@ -223,7 +234,16 @@ watch(() => props.results, (results) => {
     phase.value = hasChampion ? 'awards' : (nominationsReady.value ? 'champion' : 'nominations')
     phaseChosen = true
   }
+  hydratingAwards = false
 }, {immediate: true})
+
+watch([trophies, nominations, coaching], () => {
+  if (hydratingAwards || !props.results?.can_edit_awards || props.results?.lifecycle?.closed) return
+  window.clearTimeout(awardSaveTimer)
+  awardSaveTimer = window.setTimeout(() => {
+    void saveAwards()
+  }, 700)
+}, {deep: true})
 
 function marked(rows: {team: number, category: string}[], team: number, category: string) {
   return rows.some((row) => row.team === team && row.category === category)
@@ -240,13 +260,13 @@ async function closeEvent() {
   emit('saved', {...props.results, lifecycle: data})
 }
 
-async function releaseEvent() {
-  const {data} = await axios.post(`/scor/events/${props.results.event.id}/release`)
-  emit('saved', {...props.results, lifecycle: data})
+async function confirmPublish() {
+  publishOpen.value = false
+  await releaseEvent()
 }
 
-async function reopenEvent() {
-  const {data} = await axios.post(`/scor/events/${props.results.event.id}/reopen`)
+async function releaseEvent() {
+  const {data} = await axios.post(`/scor/events/${props.results.event.id}/release`)
   emit('saved', {...props.results, lifecycle: data})
 }
 
@@ -264,6 +284,7 @@ async function sendMail() {
 }
 
 async function saveAwards() {
+  if (!props.results?.can_edit_awards || props.results?.lifecycle?.closed) return
   awardError.value = ''
   awardBusy.value = true
   try {
@@ -337,6 +358,7 @@ watch(board, () => nextTick(() => placeLens()))
 onBeforeUnmount(() => {
   lensResize?.disconnect()
   window.clearTimeout(lensSwooshTimer)
+  window.clearTimeout(awardSaveTimer)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
   document.removeEventListener('keydown', onPresentKey)
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
@@ -582,7 +604,9 @@ function formatPoints(value: number) {
             <template v-else-if="phase === 'champion'">Ein Team, das schon einen Stern hat.</template>
             <template v-else>Die Pokale gehen an nominierte Teams.</template>
           </p>
-          <button type="button" class="glass-btn-secondary" @click="startPresent">Präsentieren</button>
+          <button type="button" class="scor-present" :aria-label="presenting ? 'Vollbild beenden' : 'Vollbild'" @click="presenting ? stopPresent() : startPresent()">
+            <i class="bi" :class="presenting ? 'bi-fullscreen-exit' : 'bi-fullscreen'" aria-hidden="true"/>
+          </button>
         </div>
       </div>
       <div ref="presentRoot" class="scor-stage" :class="{'is-present': presenting}">
@@ -656,25 +680,54 @@ function formatPoints(value: number) {
             </tbody>
           </table>
         </div>
+        <ul class="scor-recap">
+          <li v-for="column in awardColumns" :key="column.id">
+            <span class="scor-recap__label">{{ column.label }}</span>
+            <strong>{{ holderLine(column.id) }}</strong>
+            <span v-if="column.nominate" class="scor-recap__noms">
+              {{ nomineeTeams(column.id).map((team) => `${team.number} ${team.name}`).join(', ') || 'keine Nominierung' }}
+            </span>
+          </li>
+        </ul>
       </div>
-      <ul class="scor-recap">
-        <li v-for="column in awardColumns" :key="column.id">
-          <span class="scor-recap__label">{{ column.label }}</span>
-          <strong>{{ holderLine(column.id) }}</strong>
-          <span v-if="column.nominate" class="scor-recap__noms">
-            {{ nomineeTeams(column.id).map((team) => `${team.number} ${team.name}`).join(', ') || 'keine Nominierung' }}
-          </span>
-        </li>
-      </ul>
       <p v-if="awardError" class="text-lg text-red-700">{{ awardError }}</p>
-      <button v-if="results.can_edit_awards" type="button" class="glass-btn-accent" :disabled="awardBusy" @click="saveAwards">Auszeichnungen speichern</button>
-      <div v-if="results.lifecycle" class="flex flex-wrap gap-3">
-        <button v-if="results.can_edit_awards && !results.lifecycle.closed" type="button" class="glass-btn-secondary" @click="closeEvent">Auswertung schließen</button>
-        <button v-if="results.can_edit_awards && results.lifecycle.closed && !results.lifecycle.released" type="button" class="glass-btn-secondary" @click="reopenEvent">Wieder öffnen</button>
-        <button v-if="results.flow_admin && results.lifecycle.closed && !results.lifecycle.released" type="button" class="glass-btn-accent" @click="releaseEvent">Veröffentlichen</button>
-        <button v-if="results.can_edit_awards && results.lifecycle.released" type="button" class="glass-btn-secondary" @click="sendMail">Jury-PDF an Coaches</button>
-      </div>
+      <template v-if="results.can_edit_awards && results.lifecycle">
+        <button
+            v-if="!results.lifecycle.closed"
+            type="button"
+            class="scor-finalize"
+            :disabled="!awardsComplete || awardBusy"
+            @click="closeEvent"
+        >
+          Auswertung festschreiben
+        </button>
+        <p v-if="results.lifecycle.closed && !results.lifecycle.released" class="scor-results__note">
+          Die Auswertung ist festgeschrieben. Änderungen sind nicht mehr möglich. Öffentlich sichtbar ist sie noch nicht.
+        </p>
+        <button
+            v-if="results.lifecycle.closed && !results.lifecycle.released"
+            type="button"
+            class="scor-finalize"
+            @click="publishOpen = true"
+        >
+          Veröffentlichen
+        </button>
+        <p v-if="results.lifecycle.released" class="scor-results__note">
+          Die Ergebnisse stehen auf der Standortseite.
+        </p>
+        <button v-if="results.lifecycle.released" type="button" class="glass-btn-secondary" @click="sendMail">Jury-PDF an Coaches</button>
+      </template>
       <p v-if="mailNotice" class="scor-results__note">{{ mailNotice }}</p>
+      <div v-if="publishOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-publish-title">
+        <div class="scor-publish__card">
+          <h2 id="scor-publish-title">Ergebnisse veröffentlichen</h2>
+          <p>Danach sind die Ergebnisse auf der Standortseite zu sehen. Ein Wiedereröffnen ist nicht mehr möglich.</p>
+          <div class="scor-publish__actions">
+            <button type="button" class="glass-btn-secondary" @click="publishOpen = false">Abbrechen</button>
+            <button type="button" class="glass-btn-accent" @click="confirmPublish">Veröffentlichen</button>
+          </div>
+        </div>
+      </div>
     </section>
   </div>
 </template>
@@ -1020,7 +1073,108 @@ html[data-theme='dark'] .scor-switch__lens-glass {
 }
 
 .scor-stage:fullscreen .scor-team__name {
+  font-size: 1.65rem;
+}
+
+.scor-stage:fullscreen .scor-team__number,
+.scor-stage:fullscreen .scor-award-count,
+.scor-stage:fullscreen .scor-place__points {
+  font-size: 1.2rem;
+}
+
+.scor-stage:fullscreen .scor-awards thead th,
+.scor-stage:fullscreen .scor-awards .scor-sort {
+  font-size: 1.2rem;
+}
+
+.scor-stage:fullscreen .scor-place {
+  font-size: 1.8rem;
+}
+
+.scor-stage:fullscreen .scor-recap__label {
+  font-size: 1.05rem;
+}
+
+.scor-stage:fullscreen .scor-recap strong {
   font-size: 1.45rem;
+}
+
+.scor-stage:fullscreen .scor-mark {
+  width: 3.4rem;
+  height: 3.4rem;
+  font-size: 1.85rem;
+}
+
+.scor-present {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid var(--liquid-border);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, #fff 80%, transparent);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.scor-present .bi {
+  font-size: 1.2rem;
+}
+
+.scor-finalize {
+  width: 100%;
+  min-height: 3.25rem;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--color-accent);
+  color: var(--color-on-accent, #fff);
+  font: inherit;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.scor-finalize:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.scor-publish {
+  position: fixed;
+  inset: 0;
+  z-index: 13000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.46);
+}
+
+.scor-publish__card {
+  width: min(100%, 28rem);
+  padding: 1.25rem 1.35rem;
+  border-radius: var(--radius-lg);
+  background: var(--orbit-base, #f4f6f9);
+  color: var(--color-text);
+}
+
+.scor-publish__card h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.scor-publish__card p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.scor-publish__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1rem;
 }
 
 .scor-stage:fullscreen .scor-mark {

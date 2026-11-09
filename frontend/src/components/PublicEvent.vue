@@ -26,6 +26,7 @@ const loading = ref(true)
 const error = ref(null)
 const publicPlanId = ref(null)
 const eventLogos = ref([])
+const publishedResults = ref(null)
 
 const formStep = ref(null)
 const formEmail = ref('')
@@ -49,6 +50,30 @@ const heroTitle = computed(() => {
   const parts = [headingTitle.value]
   if (headingDate.value) parts.push(headingDate.value)
   return parts.join(' · ')
+})
+
+const publishedAwardLines = computed(() => {
+  const payload = publishedResults.value
+  if (!payload?.teams) return []
+  const byId = new Map(payload.teams.map((team) => [team.id, team]))
+  const nameOf = (id) => {
+    const team = byId.get(id)
+    return team ? `${team.number} ${team.name}` : ''
+  }
+  const awards = payload.awards || {}
+  const trophy = (category) => awards.trophies?.find((row) => row.category === category)
+  const lines = [
+    {label: 'Champion', value: nameOf(trophy('champion')?.team)},
+    {label: 'Projekt', value: nameOf(trophy('research')?.team)},
+    {label: 'Technisches Design', value: nameOf(trophy('robotdesign')?.team)},
+    {label: 'Grundwerte', value: nameOf(trophy('core_values')?.team)},
+    {label: 'Coaching', value: nameOf(awards.coaching)},
+    {
+      label: 'Spiel',
+      value: payload.teams.filter((team) => team.robot_rank === 1).map((team) => nameOf(team.id)).filter(Boolean).join(', '),
+    },
+  ]
+  return lines.filter((line) => line.value)
 })
 
 const loadEvent = async () => {
@@ -96,6 +121,13 @@ const loadEvent = async () => {
     } catch (logoError) {
       console.error('Error fetching logos:', logoError)
       eventLogos.value = []
+    }
+
+    try {
+      const resultsResponse = await axios.get(`/scor/public/results/${event.value.id}`)
+      publishedResults.value = resultsResponse.data
+    } catch {
+      publishedResults.value = null
     }
   } catch (err) {
     console.error('Error loading event:', err)
@@ -453,6 +485,19 @@ onMounted(async () => {
         />
         <h1 class="pe-hero__title">{{ heroTitle }}</h1>
       </header>
+
+      <section
+          v-if="publishedAwardLines.length"
+          class="glass-card liquid-surface-inner pe-section"
+      >
+        <h2 class="glass-card__title">Ergebnisse</h2>
+        <ul class="pe-results">
+          <li v-for="line in publishedAwardLines" :key="line.label">
+            <span>{{ line.label }}</span>
+            <strong>{{ line.value }}</strong>
+          </li>
+        </ul>
+      </section>
 
       <!-- First box: placeholder / Wichtige Zeiten / springboard -->
       <section
@@ -957,6 +1002,26 @@ onMounted(async () => {
   font-size: clamp(1.35rem, 3.5vw, 2rem);
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.pe-results {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.pe-results li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pe-results span {
+  color: var(--color-text-muted);
+}
   color: var(--color-text);
   line-height: 1.2;
 }

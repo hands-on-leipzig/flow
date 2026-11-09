@@ -1,21 +1,19 @@
 <script setup lang="ts">
-import {computed, onBeforeUnmount, ref, watch} from 'vue'
+import {computed} from 'vue'
 import {useRouter} from 'vue-router'
 import keycloak from '@/keycloak.js'
 import {imageUrl} from '@/utils/images'
 import ScorLogo from '@/components/scor/ScorLogo.vue'
-import AppSwitchMark from '@hands-on/glass/components/AppSwitchMark.vue'
+import AppSwitch from '@hands-on/glass/app-switch'
 
 const props = defineProps<{
   canFlow: boolean
   canScor: boolean
   scorMode: boolean
+  buttonOnly?: boolean
 }>()
 
 const router = useRouter()
-const open = ref(false)
-const rootEl = ref<HTMLElement | null>(null)
-const menuStyle = ref<Record<string, string>>({})
 
 type AppChoice = {
   id: string
@@ -64,120 +62,31 @@ const choices = computed<AppChoice[]>(() => {
   return items
 })
 
-const canSwitch = computed(() => choices.value.length > 1)
+const menuApps = computed(() => choices.value.map((app) => ({
+  ...app,
+  logo: imageUrl(app.id === 'scor' ? '/flow/wise.png' : `/flow/${app.id}.png`),
+})))
 
-function placeMenu() {
-  const button = rootEl.value?.querySelector('.app-brand__switch')
-  if (!(button instanceof HTMLElement)) return
-  const rect = button.getBoundingClientRect()
-  const width = 220
-  const left = Math.min(rect.left, window.innerWidth - width - 12)
-  menuStyle.value = {
-    top: `${rect.bottom + 8}px`,
-    left: `${Math.max(8, left)}px`,
-    width: `${width}px`,
-  }
-}
-
-function toggle() {
-  open.value = !open.value
-  if (open.value) placeMenu()
-}
-
-function close() {
-  open.value = false
-}
-
-function onDocumentPointer(event: PointerEvent) {
-  if (!open.value) return
-  const target = event.target
-  if (target instanceof Node && rootEl.value?.contains(target)) return
-  close()
-}
-
-function onKey(event: KeyboardEvent) {
-  if (event.key === 'Escape') close()
-}
-
-watch(open, (isOpen) => {
-  if (isOpen) {
-    document.addEventListener('pointerdown', onDocumentPointer)
-    document.addEventListener('keydown', onKey)
-    window.addEventListener('resize', placeMenu)
-  } else {
-    document.removeEventListener('pointerdown', onDocumentPointer)
-    document.removeEventListener('keydown', onKey)
-    window.removeEventListener('resize', placeMenu)
-  }
-})
-
-onBeforeUnmount(() => {
-  document.removeEventListener('pointerdown', onDocumentPointer)
-  document.removeEventListener('keydown', onKey)
-  window.removeEventListener('resize', placeMenu)
-})
-
-function openInternal(href: string) {
-  close()
-  void router.push(href)
+function openInternal(app: {href: string}) {
+  void router.push(app.href)
 }
 </script>
 
 <template>
-  <div ref="rootEl" class="app-brand">
+  <AppSwitch
+      v-if="buttonOnly"
+      :apps="menuApps"
+      @select="openInternal"
+  />
+  <div v-else class="app-brand">
     <RouterLink
         :to="scorMode ? '/scor' : '/plan/overview'"
         class="app-brand__logo"
-        @click="close"
     >
       <ScorLogo v-if="scorMode"/>
       <img v-else :src="imageUrl('/flow/flow.png')" alt="FLOW" class="glass-sidebar__brand-logo"/>
     </RouterLink>
-
-    <button
-        v-if="canSwitch"
-        type="button"
-        class="app-brand__switch glass-btn-icon"
-        aria-label="App wechseln"
-        :aria-expanded="open"
-        @click.stop="toggle"
-    >
-      <AppSwitchMark />
-    </button>
-
-    <div
-        v-if="open"
-        class="app-brand__menu glass-card liquid-surface"
-        :style="menuStyle"
-        role="menu"
-        aria-label="Apps"
-    >
-      <template v-for="app in choices" :key="app.id">
-        <button
-            v-if="app.internal"
-            type="button"
-            class="app-brand__choice"
-            :class="{'is-current': app.current}"
-            role="menuitem"
-            @click="openInternal(app.href)"
-        >
-          <span class="app-brand__choice-logo">
-            <img :src="imageUrl(app.id === 'scor' ? '/flow/wise.png' : `/flow/${app.id}.png`)" :alt="app.label">
-          </span>
-          <i v-if="app.current" class="bi bi-check-lg" aria-hidden="true"/>
-        </button>
-        <a
-            v-else
-            class="app-brand__choice"
-            role="menuitem"
-            :href="app.href"
-        >
-          <span class="app-brand__choice-logo">
-            <img :src="imageUrl(app.id === 'scor' ? '/flow/wise.png' : `/flow/${app.id}.png`)" :alt="app.label">
-          </span>
-        </a>
-      </template>
-    </div>
+    <AppSwitch :apps="menuApps" @select="openInternal"/>
   </div>
 </template>
 
@@ -206,74 +115,6 @@ function openInternal(href: string) {
   max-height: 2.5rem;
 }
 
-.app-brand__switch {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: none;
-  width: 2.85rem;
-  height: 2.15rem;
-  padding: 0;
-  border: 1px solid var(--liquid-border-soft);
-  border-radius: 0.7rem;
-  background: color-mix(in srgb, #fff 72%, transparent);
-  color: var(--color-text);
-}
-
-.app-brand__menu {
-  position: fixed;
-  z-index: 80;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.45rem;
-}
-
-.app-brand__choice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0.35rem 0.55rem;
-  border: 0;
-  border-radius: var(--radius);
-  background: transparent;
-  color: inherit;
-  text-decoration: none;
-  text-align: left;
-  cursor: pointer;
-}
-
-.app-brand__choice:hover,
-.app-brand__choice:focus-visible {
-  background: var(--color-bg-hover);
-}
-
-.app-brand__choice.is-current {
-  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
-}
-
-.app-brand__choice-logo {
-  display: flex;
-  align-items: center;
-  height: 1.65rem;
-  width: 7.5rem;
-}
-
-.app-brand__choice-logo img {
-  height: 100%;
-  width: auto;
-  max-height: none;
-  max-width: 100%;
-  object-fit: contain;
-  object-position: left center;
-}
-
-.app-brand__choice .bi {
-  color: var(--color-accent);
-  font-size: 1.1rem;
-}
 </style>
 
 <style>
