@@ -12,7 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * "Forschung auf der Bühne": which teams present on stage, per program.
+ * "Forschung/Projekt auf der Bühne": which teams present on stage, per program.
  *
  * The jury enters the teams and the Moderator / Stage Crew read the same
  * screen, so selections persist on every change and the per-program lock is

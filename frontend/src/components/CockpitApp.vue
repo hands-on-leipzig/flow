@@ -152,8 +152,8 @@ const tools: CockpitTool[] = [
   },
   {
     id: 'stage-research',
-    title: 'Forschung auf der Bühne',
-    homeLabel: 'Forschung',
+    title: 'Forschung/Projekt auf der Bühne',
+    homeLabel: 'Forschung/Projekt',
     explanation: 'Jury-Verantwortliche können hier eintragen, welche Teams auf die Bühne sollen. Die Anzahl kommt aus dem Zeitplan.',
     icons: ['bi-easel'],
     ready: true,
