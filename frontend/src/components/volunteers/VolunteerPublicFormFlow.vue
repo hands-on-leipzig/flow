@@ -390,7 +390,7 @@ watch(
           </div>
           <div class="vol-public-form__row">
             <label class="vol-public-form__label" for="vol-form-mobile">Mobil</label>
-            <input id="vol-form-mobile" v-model="personDraft.mobile" type="tel" class="glass-input">
+            <input id="vol-form-mobile" v-model="personDraft.mobile" type="tel" class="glass-input" placeholder="0170 1234567 oder +41 79 123 45 67">
           </div>
           <div class="vol-public-form__row">
             <label class="vol-public-form__label" for="vol-form-org">Organisation</label>
