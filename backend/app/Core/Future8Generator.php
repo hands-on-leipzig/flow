@@ -154,14 +154,14 @@ class Future8Generator implements ChallengeShapedLead
     {
         $this->writer->withGroup('f8_briefing', function () use ($t) {
             $cursor = new TimeCursor($t);
-            $cursor->subMinutes($this->pp('f8_duration_briefing') + $this->pp('f8_ready_opening'));
+            $cursor->subMinutes($this->pp('f8_duration_briefing') + $this->pp('f8_ready_opening_c'));
             $this->writer->insertActivity('f8_briefing', $cursor, $this->pp('f8_duration_briefing'));
         });
 
         $this->writer->withGroup('f8_j_briefing', function () use ($t) {
             if (! $this->pp('f8_j_briefing_after_opening')) {
                 $cursor = new TimeCursor($t);
-                $cursor->subMinutes($this->pp('f8_j_duration_briefing') + $this->pp('f8_ready_opening'));
+                $cursor->subMinutes($this->pp('f8_j_duration_briefing') + $this->pp('f8_ready_opening_j'));
                 $this->writer->insertActivity('f8_j_briefing', $cursor, $this->pp('f8_j_duration_briefing'));
             } else {
                 $cursor = $this->jTime->copy();
@@ -176,7 +176,7 @@ class Future8Generator implements ChallengeShapedLead
             $duration = $this->pp('f8_r_duration_briefing');
             if (! $this->pp('f8_r_briefing_after_opening')) {
                 $cursor = new TimeCursor($t);
-                $cursor->subMinutes($duration + $this->pp('f8_ready_opening'));
+                $cursor->subMinutes($duration + $this->pp('f8_ready_opening_r'));
                 $this->writer->insertActivity('f8_r_briefing', $cursor, $duration);
             } else {
                 $cursor = $this->rTime->copy();
