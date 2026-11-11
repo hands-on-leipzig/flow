@@ -65,6 +65,7 @@ import {firstTeamsPath} from "@/utils/eventPrograms";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
 import '@hands-on/glass/styles.css'
+import './assets/wise-shell.css'
 import {initTheme} from '@hands-on/glass/theme'
 
 initTheme()
@@ -357,6 +358,13 @@ router.beforeEach(async (to, from, next) => {
     next();
 });
 
+router.afterEach((to) => {
+    const wise = to.path === '/scor' || to.path.startsWith('/scor/')
+    document.title = wise ? 'WISE' : 'FLOW - Flexibles OrganisationsWerkzeug'
+    const icon = document.querySelector('link[rel="icon"]')
+    if (icon) icon.setAttribute('href', wise ? '/wise-icon.png' : '/favicon.ico')
+})
+
 const app = createApp(App)
 
 registerSW({immediate: true})
@@ -402,4 +410,10 @@ dayjs.locale('de')
 
 app.use(router)
 app.use(pinia)
-app.mount('#app')
+
+// The first navigation stays on the start location until beforeEach finishes
+// (public catalog load, WISE check-sso, FLOW login). Mounting earlier paints
+// that empty route, which has no meta and therefore the full FLOW shell.
+router.isReady().finally(() => {
+    app.mount('#app')
+})

@@ -265,6 +265,13 @@ final class ScorSheetService
         return (new ScorLifecycle())->release($user, $eventId);
     }
 
+    public function reopenEvent(User $user, int $eventId): array
+    {
+        $this->requireEvent($user, $eventId);
+
+        return (new ScorLifecycle())->reopen($user, $eventId);
+    }
+
     public function sendResults(User $user, int $eventId, ?string $body): array
     {
         $this->requireEvent($user, $eventId);
@@ -338,17 +345,11 @@ final class ScorSheetService
     private function assertChampionPick(User $user, int $eventId, array $trophies): void
     {
         $picks = array_values(array_filter($trophies, fn (array $row) => $row['category'] === 'champion'));
+        if ($trophies === []) {
+            return;
+        }
         if (count($picks) !== 1) {
             throw new ScorAccessException('Bitte genau einen Champion festlegen.', 422);
-        }
-        $leaders = [];
-        foreach ($this->results($user, $eventId)['teams'] as $team) {
-            if ((int) $team['champion_rank'] === 1) {
-                $leaders[] = (int) $team['id'];
-            }
-        }
-        if ($leaders !== [] && !in_array($picks[0]['team'], $leaders, true)) {
-            throw new ScorAccessException('Der Champion ist eines der Teams auf Platz 1.', 422);
         }
     }
 
@@ -620,6 +621,7 @@ final class ScorSheetService
             'confirmed_referee' => (bool) ($sheet->confirmed_referee ?? false),
             'confirmed_team' => (bool) ($sheet->confirmed_team ?? false),
             'completed' => (bool) ($sheet->completed ?? false),
+            'lifecycle' => (new ScorLifecycle())->state($eventId),
             'points' => $scored['points'],
             'core_points' => $scored['core_points'],
             'columns' => $kind === 'jury' ? FutureJuryCatalog::columns() : [],
@@ -677,12 +679,17 @@ final class ScorSheetService
      */
     private function assertAnswered(int $formId, array $answers, bool $requireComments): void
     {
-        foreach ($this->forms->itemsFor($formId) as $item) {
+        $items = $this->forms->itemsFor($formId);
+        $absent = $this->juryAbsent($items, $answers);
+        foreach ($items as $item) {
             if (in_array((int) $item->section_id, $answers['disabled_sections'], true)) {
                 continue;
             }
             $id = (string) $item->id;
             if ($item->item_type === 'text') {
+                if ($absent) {
+                    continue;
+                }
                 if ($requireComments && mb_strlen(trim((string) ($answers['texts'][$id] ?? ''))) < 20) {
                     throw new ScorAccessException('Bitte in jedes Feedback mindestens 20 Zeichen eintragen.', 422);
                 }
@@ -711,6 +718,30 @@ final class ScorSheetService
                 }
             }
         }
+    }
+
+    /**
+     * @param  list<object>  $items
+     * @param  array<string, mixed>  $answers
+     */
+    private function juryAbsent(array $items, array $answers): bool
+    {
+        $rubrics = [];
+        foreach ($items as $item) {
+            if (($item->section_kind ?? '') === 'rubric') {
+                $rubrics[(int) $item->section_id] = true;
+            }
+        }
+        if ($rubrics === []) {
+            return false;
+        }
+        foreach (array_keys($rubrics) as $sectionId) {
+            if (!in_array($sectionId, $answers['disabled_sections'], true)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -746,8 +777,10 @@ final class ScorSheetService
      */
     private function countPoints(array $config, int $count): int
     {
-        $max = max(0, (int) ($config['max'] ?? 0));
-        $count = max(0, min($max, $count));
+        $count = max(0, $count);
+        if (array_key_exists('max', $config) && $config['max'] !== null && $config['max'] !== '') {
+            $count = min($count, max(0, (int) $config['max']));
+        }
 
         return $count * (int) ($config['points_each'] ?? 0);
     }
@@ -1360,7 +1393,7 @@ final class ScorSheetService
     }
 
     /**
-     * Forschung and Roboterdesign are the rubric sections. Grundwerte are the rows flagged as core values.
+     * Projekt and Technisches Design are the rubric sections. Grundwerte are the rows flagged as core values.
      *
      * @param  iterable<object>  $sheets
      * @return array<int, array{research: int, robotdesign: int, core_values: int}>

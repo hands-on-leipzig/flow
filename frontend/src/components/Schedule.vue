@@ -456,7 +456,8 @@ watch(
   justify-content: center;
   color: var(--color-text-muted);
   background: color-mix(in srgb, #ffffff 82%, transparent);
-  backdrop-filter: blur(1px);
+  backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(var(--liquid-saturate));
   pointer-events: none;
 }
 </style>

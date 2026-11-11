@@ -157,9 +157,55 @@ final class ScorFormStore
             return;
         }
 
+        if ($this->catalogIsStale((int) $form->id, $kind)) {
+            $this->replace((int) $form->id, $sections);
+
+            return;
+        }
+
         if ($kind === 'jury') {
             $this->syncJuryFeedback((int) $form->id, $sections);
         }
+    }
+
+    /**
+     * Starter sheets from the first Future pass get the current catalog once.
+     * A form an admin already replaced keeps its own rows.
+     */
+    private function catalogIsStale(int $formId, string $kind): bool
+    {
+        if ($kind === 'jury') {
+            return DB::table('scor_item')
+                ->join('scor_section', 'scor_section.id', '=', 'scor_item.section')
+                ->where('scor_section.form', $formId)
+                ->where('scor_item.label', 'Das Team definierte ein Problem klar und recherchierte gründlich.')
+                ->exists();
+        }
+
+        $rows = DB::table('scor_item')
+            ->join('scor_section', 'scor_section.id', '=', 'scor_item.section')
+            ->where('scor_section.form', $formId)
+            ->get(['scor_item.label', 'scor_item.config']);
+
+        foreach ($rows as $row) {
+            $config = json_decode((string) $row->config, true);
+            if (!is_array($config)) {
+                continue;
+            }
+            if ($row->label === 'Ressourcen im Fuß des großen Baums' && (int) ($config['max'] ?? -1) === 30) {
+                return true;
+            }
+            if ($row->label === 'Schlüsselarten oder Ressourcen vollständig im Rückzugsort' && (int) ($config['max'] ?? -1) === 40) {
+                return true;
+            }
+            foreach ($config['options'] ?? [] as $option) {
+                if (in_array((string) ($option['label'] ?? ''), ['Dritte', 'Kein Erscheinen'], true)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -276,13 +322,17 @@ final class ScorFormStore
 
         if ($type === 'rubric') {
             $cells = array_values(array_map(fn ($cell) => trim((string) $cell), $config['cells'] ?? []));
-            $cells = array_pad(array_slice($cells, 0, 3), 3, '');
-
-            return json_encode([
+            $prompt = trim((string) ($config['prompt'] ?? ''));
+            $payload = [
                 'group' => trim((string) ($config['group'] ?? '')),
                 'group_hint' => trim((string) ($config['group_hint'] ?? '')),
-                'cells' => $cells,
-            ], JSON_UNESCAPED_UNICODE);
+                'cells' => $prompt !== '' && $cells === [] ? [] : array_pad(array_slice($cells, 0, 3), 3, ''),
+            ];
+            if ($prompt !== '') {
+                $payload['prompt'] = $prompt;
+            }
+
+            return json_encode($payload, JSON_UNESCAPED_UNICODE);
         }
 
         if ($type === 'yes_no') {
@@ -304,20 +354,34 @@ final class ScorFormStore
                 if ($label === '') {
                     continue;
                 }
-                $options[] = ['label' => $label, 'points' => (int) ($option['points'] ?? 0)];
+                $entry = ['label' => $label, 'points' => (int) ($option['points'] ?? 0)];
+                if (!empty($option['zeros_match'])) {
+                    $entry['zeros_match'] = true;
+                }
+                $options[] = $entry;
             }
             if ($options === []) {
                 throw new ScorAccessException('Eine Auswahl braucht mindestens eine Beschriftung.', 422);
             }
 
-            return json_encode(['options' => $options], JSON_UNESCAPED_UNICODE);
+            $encoded = ['options' => $options];
+            if (!empty($config['optional'])) {
+                $encoded['optional'] = true;
+            }
+            if (isset($config['default']) && $config['default'] !== '' && $config['default'] !== null) {
+                $encoded['default'] = (int) $config['default'];
+            }
+
+            return json_encode($encoded, JSON_UNESCAPED_UNICODE);
         }
 
         if ($type === 'count') {
-            return json_encode([
-                'max' => max(0, (int) ($config['max'] ?? 0)),
-                'points_each' => (int) ($config['points_each'] ?? 0),
-            ], JSON_UNESCAPED_UNICODE);
+            $encoded = ['points_each' => (int) ($config['points_each'] ?? 0)];
+            if (array_key_exists('max', $config) && $config['max'] !== null && $config['max'] !== '') {
+                $encoded['max'] = max(0, (int) $config['max']);
+            }
+
+            return json_encode($encoded, JSON_UNESCAPED_UNICODE);
         }
 
         return null;

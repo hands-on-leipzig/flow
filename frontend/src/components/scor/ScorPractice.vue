@@ -47,7 +47,7 @@ async function score() {
         </div>
         <label v-else-if="item.item_type === 'count'" class="text-lg">
           Anzahl
-          <input v-model.number="values[item.id]" type="number" min="0" :max="item.config?.max ?? 0" class="glass-input ml-2 w-24"/>
+          <input v-model.number="values[item.id]" type="number" min="0" :max="item.config?.max ?? undefined" class="glass-input ml-2 w-24"/>
         </label>
         <select v-else-if="item.item_type === 'choice'" v-model="values[item.id]" class="glass-input">
           <option value="">–</option>

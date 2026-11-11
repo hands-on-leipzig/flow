@@ -314,7 +314,36 @@ class ScorSheetServiceTest extends TestCase
                 }
             }
         }
-        $this->assertSame('Dritte', $penaltyItem['config']['options'][3]['label'] ?? null);
+        $this->assertSame('3 oder mehr', $penaltyItem['config']['options'][3]['label'] ?? null);
+        $this->assertTrue($penaltyItem['config']['options'][3]['zeros_match'] ?? false);
+
+        $foot = null;
+        $retreatItem = null;
+        $sportsmanship = null;
+        foreach ($sheet['sections'] as $section) {
+            foreach ($section['items'] as $item) {
+                if ($item['label'] === 'Ressourcen im Fuß des großen Baums') {
+                    $foot = $item;
+                }
+                if ($item['label'] === 'Schlüsselarten oder Ressourcen vollständig im Rückzugsort') {
+                    $retreatItem = $item;
+                }
+                if ($item['label'] === 'Bewertung für dieses Match') {
+                    $sportsmanship = $item;
+                }
+            }
+        }
+        $this->assertArrayNotHasKey('max', $foot['config']);
+        $this->assertArrayNotHasKey('max', $retreatItem['config']);
+        $this->assertSame('Team ist zum Match nicht erschienen', $sportsmanship['config']['options'][0]['label']);
+        $this->assertSame(2, $sportsmanship['config']['default']);
+        $this->assertSame('Sehr gut', $sportsmanship['config']['options'][2]['label']);
+        $this->assertSame(3, $sportsmanship['config']['options'][2]['points']);
+
+        $openCount = $this->sheets->saveReferee($this->user(), 1, 1, 1, [
+            'values' => [$foot['id'] => 31],
+        ]);
+        $this->assertSame(155, $openCount['points']);
 
         $zeroed = $this->sheets->saveReferee($this->user(), 1, 1, 1, [
             'values' => [$young => 3, $penalty => 3],
@@ -510,6 +539,30 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame($total, $done['points']);
         $this->assertSame($core, $done['core_points']);
         $this->assertGreaterThan(0, $core);
+        $this->assertSame('Projekt', $sheet['sections'][0]['title']);
+        $this->assertSame('Technisches Design', $sheet['sections'][1]['title']);
+    }
+
+    public function test_absent_jury_team_can_finish_without_feedback(): void
+    {
+        $sheet = $this->sheets->jurySheet($this->user(), 1, 1);
+        $disabled = [];
+        foreach ($sheet['sections'] as $section) {
+            if ($section['kind'] === 'rubric') {
+                $disabled[] = $section['id'];
+            }
+        }
+
+        $this->sheets->saveJury($this->user(), 1, 1, [
+            'values' => [],
+            'comments' => [],
+            'texts' => [],
+            'disabled_sections' => $disabled,
+        ]);
+        $done = $this->sheets->completeJury($this->user(), 1, 1);
+
+        $this->assertTrue($done['completed']);
+        $this->assertSame(0, $done['points']);
     }
 
     public function test_results_follow_the_contao_ranking(): void

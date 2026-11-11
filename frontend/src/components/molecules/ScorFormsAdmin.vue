@@ -118,7 +118,7 @@ onMounted(() => {
 <template>
   <div class="max-w-4xl space-y-4">
     <div>
-      <h2 class="text-xl font-bold">SCOR Bögen</h2>
+      <h2 class="text-xl font-bold">WISE Bögen</h2>
       <p class="text-sm text-[var(--color-text-muted)]">Future, einmal pro Saison. Jury: Zeilen und Beschriftungen. Schiri: zusätzlich die Art der Frage.</p>
     </div>
 

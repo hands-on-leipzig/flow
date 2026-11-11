@@ -47,7 +47,7 @@ async function create() {
       can_scor_admin: admin.value,
     })
     password.value = data.password
-    notice.value = `${data.username} ist angelegt. Das Passwort gilt nur für SCOR und wird nur jetzt angezeigt.`
+    notice.value = `${data.username} ist angelegt. Das Passwort gilt nur für WISE und wird nur jetzt angezeigt.`
     username.value = ''
     await load()
   } catch (e: any) {
@@ -92,9 +92,9 @@ onMounted(() => {
 
 <template>
   <div class="space-y-3">
-    <h3 class="text-sm font-bold">Lokale SCOR-Konten</h3>
+    <h3 class="text-sm font-bold">Lokale WISE-Konten</h3>
     <p class="text-xs text-[var(--color-text-muted)]">
-      Namen wie Schiri 1. Das Konto bleibt in SCOR und gilt nicht für HERO.
+      Namen wie Schiri 1. Das Konto bleibt in WISE und gilt nicht für HERO.
     </p>
     <div class="flex flex-wrap items-center gap-2">
       <input v-model="username" class="glass-input !py-2 !text-sm" placeholder="Schiri 1" @keydown.enter.prevent="create"/>

@@ -25,6 +25,9 @@ import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import keycloak from '@/keycloak.js'
 import {theme, setTheme} from '@hands-on/glass/theme'
 import AppShell from '@hands-on/glass/app-shell'
+import ScorLogo from '@/components/scor/ScorLogo.vue'
+import {useWiseRoles} from '@/composables/useWiseRoles'
+import {useWiseSync, wiseSyncLabel} from '@/composables/useWiseSync'
 import SidebarFooter from '@hands-on/glass/sidebar-footer'
 import SidebarNavItem from '@hands-on/glass/sidebar-nav-item'
 
@@ -163,20 +166,87 @@ const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
 const isScorMode = computed(() => route.path === '/scor' || route.path.startsWith('/scor/'))
 const showBackToOverview = computed(() => isAdminMode.value)
 
-const scorNavEntries = computed<NavEntry[]>(() => {
-  const entries: NavEntry[] = [
-    {name: 'Veranstaltungen', path: '/scor', icon: 'bi-calendar-event'},
-  ]
-  const eventId = route.params.eventId
-  if (eventId) {
-    entries.push(
-      {name: 'Schiri', path: `/scor/${eventId}`, icon: 'bi-clipboard-check'},
-      {name: 'Jury', path: `/scor/${eventId}?sicht=jury`, icon: 'bi-people'},
-      {name: 'Ergebnisse', path: `/scor/${eventId}?sicht=ergebnisse`, icon: 'bi-award'},
-    )
+const scorNavEntries = computed<NavEntry[]>(() => [
+  {name: 'Veranstaltungen', path: '/scor', icon: 'bi-calendar-event'},
+])
+
+const wiseCollapsed = ref(true)
+
+function onShellCollapsed(value: boolean) {
+  if (!isScorMode.value) return
+  wiseCollapsed.value = value
+  try {
+    localStorage.setItem('wise-sidebar-collapsed', value ? '1' : '0')
+  } catch {
+    /* private mode */
   }
-  return entries
+}
+
+const {roles: wiseRoles} = useWiseRoles()
+const {sync: wiseSync} = useWiseSync()
+const wiseEventId = computed(() => {
+  const id = route.params.eventId
+  return typeof id === 'string' && id !== '' ? id : null
 })
+
+function wiseStoredSicht() {
+  if (!wiseEventId.value) return null
+  try {
+    return sessionStorage.getItem(`wise-sicht-${wiseEventId.value}`)
+  } catch {
+    return null
+  }
+}
+
+const wiseBack = computed(() => {
+  if (!wiseEventId.value) return null
+  if (route.path.includes('/match/')) return {label: 'Schiri', to: `/scor/${wiseEventId.value}`}
+  if (route.path.includes('/jury/')) return {label: 'Jury', to: `/scor/${wiseEventId.value}?sicht=jury`}
+  return null
+})
+
+function goWiseBack() {
+  if (!wiseBack.value) return
+  void router.push(wiseBack.value.to)
+}
+
+const wiseSicht = computed(() => {
+  if (!wiseEventId.value) return null
+  if (route.path.includes('/match/')) return 'schiri'
+  if (route.path.includes('/jury/')) return 'jury'
+  if (route.query.sicht === 'jury' || route.query.sicht === 'ergebnisse') return route.query.sicht
+  const stored = wiseStoredSicht()
+  if (stored === 'jury' || stored === 'ergebnisse' || stored === 'schiri') return stored
+  if (wiseRoles.value?.referee) return 'schiri'
+  if (wiseRoles.value?.jury) return 'jury'
+  return 'ergebnisse'
+})
+
+function flowTabOn(id: 'overview' | 'schedule' | 'teams' | 'live') {
+  const path = route.path
+  if (id === 'overview') return path === '/plan/overview'
+  if (id === 'schedule') {
+    return path.startsWith('/plan/schedule')
+        && !path.startsWith('/plan/schedule/free')
+        && !path.startsWith('/plan/schedule/slots')
+  }
+  if (id === 'teams') return path.startsWith('/plan/teams')
+  return path.startsWith('/plan/live')
+}
+
+function openWiseSicht(sicht: 'schiri' | 'jury' | 'ergebnisse') {
+  if (!wiseEventId.value) return
+  try {
+    sessionStorage.setItem(`wise-sicht-${wiseEventId.value}`, sicht)
+  } catch {
+    /* private mode */
+  }
+  mobileMenuOpen.value = false
+  const path = sicht === 'schiri'
+      ? `/scor/${wiseEventId.value}`
+      : `/scor/${wiseEventId.value}?sicht=${sicht}`
+  goToPath(path)
+}
 
 function toAdminNavEntry(item: AdminSection): NavEntry {
   const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
@@ -265,6 +335,12 @@ function childNavProps(child: NavChild) {
 }
 
 onMounted(async () => {
+  try {
+    const stored = localStorage.getItem('wise-sidebar-collapsed')
+    if (stored === '0') wiseCollapsed.value = false
+  } catch {
+    /* private mode */
+  }
   initializeUserRoles()
   await ensureApps()
   if (!canFlow.value || isScorMode.value) return
@@ -385,11 +461,119 @@ function logout() {
 
 <template>
   <AppShell
+      :class="{'glass-app--wise-compact': isScorMode}"
       :open="mobileMenuOpen"
+      :collapsed="isScorMode ? wiseCollapsed : undefined"
       menu-aria-label="Menü öffnen"
       @toggle="toggleMobileMenu"
       @update:open="mobileMenuOpen = $event"
+      @update:collapsed="onShellCollapsed"
   >
+    <template v-if="isScorMode" #mobile-top>
+      <button v-if="wiseBack" type="button" class="wise-back" @click="goWiseBack">
+        <i class="bi bi-chevron-left" aria-hidden="true"/>
+        {{ wiseBack.label }}
+      </button>
+      <ScorLogo/>
+    </template>
+    <template v-if="isScorMode" #mobile-top-actions>
+      <span
+          v-if="wiseSync !== 'idle'"
+          class="wise-sync"
+          :class="'is-' + wiseSync"
+          role="status"
+          :aria-label="wiseSyncLabel(wiseSync)"
+      >
+        <span class="wise-sync__dot" aria-hidden="true"/>
+      </span>
+      <AppSwitcher
+          button-only
+          :can-flow="canFlow"
+          :can-scor="canScor"
+          :scor-mode="isScorMode"
+      />
+    </template>
+    <template #mobile-tabs="{ open, toggle }">
+      <template v-if="!isScorMode">
+        <button
+            type="button"
+            class="glass-app__mobile-tab"
+            :class="{'glass-app__mobile-tab--active': !open && flowTabOn('overview')}"
+            @click="goToPath('/plan/overview')"
+        >
+          <i class="bi bi-house-door" aria-hidden="true"/>
+          <span class="glass-app__mobile-tab-label">Übersicht</span>
+        </button>
+        <button
+            type="button"
+            class="glass-app__mobile-tab"
+            :class="{'glass-app__mobile-tab--active': !open && flowTabOn('schedule')}"
+            @click="goToPath('/plan/schedule')"
+        >
+          <i class="bi bi-list-check" aria-hidden="true"/>
+          <span class="glass-app__mobile-tab-label">Ablauf</span>
+        </button>
+        <button
+            type="button"
+            class="glass-app__mobile-tab"
+            :class="{'glass-app__mobile-tab--active': !open && flowTabOn('teams')}"
+            @click="goToPath(firstTeamsPath(eventStore.selectedEvent))"
+        >
+          <i class="bi bi-people" aria-hidden="true"/>
+          <span class="glass-app__mobile-tab-label">Teams</span>
+        </button>
+        <button
+            type="button"
+            class="glass-app__mobile-tab"
+            :class="{'glass-app__mobile-tab--active': !open && flowTabOn('live')}"
+            @click="goToPath('/plan/live/check-in')"
+        >
+          <i class="bi bi-play-circle" aria-hidden="true"/>
+          <span class="glass-app__mobile-tab-label">am Tag</span>
+        </button>
+      </template>
+      <button
+          v-if="isScorMode && wiseEventId && (!wiseRoles || wiseRoles.referee)"
+          type="button"
+          class="glass-app__mobile-tab"
+          :class="{'glass-app__mobile-tab--active': !open && wiseSicht === 'schiri'}"
+          @click="openWiseSicht('schiri')"
+      >
+        <i class="bi bi-clipboard-check" aria-hidden="true"/>
+        <span class="glass-app__mobile-tab-label">Schiri</span>
+      </button>
+      <button
+          v-if="isScorMode && wiseEventId && wiseRoles?.jury"
+          type="button"
+          class="glass-app__mobile-tab"
+          :class="{'glass-app__mobile-tab--active': !open && wiseSicht === 'jury'}"
+          @click="openWiseSicht('jury')"
+      >
+        <i class="bi bi-people" aria-hidden="true"/>
+        <span class="glass-app__mobile-tab-label">Jury</span>
+      </button>
+      <button
+          v-if="isScorMode && wiseEventId"
+          type="button"
+          class="glass-app__mobile-tab"
+          :class="{'glass-app__mobile-tab--active': !open && wiseSicht === 'ergebnisse'}"
+          @click="openWiseSicht('ergebnisse')"
+      >
+        <i class="bi bi-award" aria-hidden="true"/>
+        <span class="glass-app__mobile-tab-label">Ergebnisse</span>
+      </button>
+      <button
+          type="button"
+          class="glass-app__mobile-tab glass-app__mobile-tab--more"
+          :class="{'glass-app__mobile-tab--active': open}"
+          :aria-pressed="open"
+          aria-label="Mehr"
+          @click="toggle"
+      >
+        <i class="bi" :class="open ? 'bi-x-lg' : 'bi-three-dots'" aria-hidden="true"/>
+        <span class="glass-app__mobile-tab-label">Mehr</span>
+      </button>
+    </template>
     <template #brand>
       <AppSwitcher
           :can-flow="canFlow"
@@ -456,8 +640,29 @@ function logout() {
             :key="entry.path ?? entry.name"
             :label="entry.name"
             :icon="entry.icon"
-            :active="!!entry.path && isActive(entry.path)"
+            :active="!!entry.path && isActive(entry.path) && !wiseEventId"
             @select="onNavSelect(entry)"
+        />
+        <SidebarNavItem
+            v-if="wiseEventId && (!wiseRoles || wiseRoles.referee)"
+            label="Schiri"
+            icon="bi-clipboard-check"
+            :active="wiseSicht === 'schiri'"
+            @select="openWiseSicht('schiri')"
+        />
+        <SidebarNavItem
+            v-if="wiseEventId && wiseRoles?.jury"
+            label="Jury"
+            icon="bi-people"
+            :active="wiseSicht === 'jury'"
+            @select="openWiseSicht('jury')"
+        />
+        <SidebarNavItem
+            v-if="wiseEventId"
+            label="Ergebnisse"
+            icon="bi-award"
+            :active="wiseSicht === 'ergebnisse'"
+            @select="openWiseSicht('ergebnisse')"
         />
       </template>
       <template v-else>
@@ -485,7 +690,7 @@ function logout() {
         <template #identity="{ close }">
           <div class="glass-sidebar-footer__menu-header">
             <span class="glass-sidebar-footer__menu-title">{{ userLabel }}</span>
-            <span class="glass-sidebar-footer__menu-subtitle">{{ isScorMode ? 'SCOR' : 'FLOW' }}</span>
+            <span class="glass-sidebar-footer__menu-subtitle">{{ isScorMode ? 'WISE' : 'FLOW' }}</span>
           </div>
           <button
               v-if="canFlow"
