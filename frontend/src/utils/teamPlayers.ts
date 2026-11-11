@@ -42,3 +42,13 @@ export function formatReferenceDate(rule: PlayerAgeRule): string {
   const [y, m, d] = rule.referenceDate.split('-')
   return `${d}.${m}.${y}`
 }
+
+export function formatPlayerDate(value: string | null): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '')
+  if (!match) return '—'
+  return `${match[3]}.${match[2]}.${match[1]}`
+}
+
+export function playerGenderLabel(gender: string): string {
+  return PLAYER_GENDER_OPTIONS.find((option) => option.value === gender)?.label ?? '—'
+}

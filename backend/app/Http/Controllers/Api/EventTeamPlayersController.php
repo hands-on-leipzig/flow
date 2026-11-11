@@ -8,6 +8,7 @@ use App\Models\Team;
 use App\Support\ProgramCatalog;
 use App\Support\TeamDataIndex;
 use App\Support\TeamPlayers;
+use App\Support\TeamPlayersChangeMailer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -20,6 +21,7 @@ class EventTeamPlayersController extends Controller
 {
     public function __construct(
         private readonly DrahtController $drahtController,
+        private readonly TeamPlayersChangeMailer $changeMailer,
     ) {}
 
     public function show(Event $event, Team $team): JsonResponse
@@ -74,6 +76,8 @@ class EventTeamPlayersController extends Controller
             ];
         }
 
+        $before = $this->currentRoster($resolved);
+
         $result = $this->drahtController->putTeamPlayers(
             $resolved['draht_event_id'],
             $resolved['team_number_hot'],
@@ -87,9 +91,42 @@ class EventTeamPlayersController extends Controller
             ], $status);
         }
 
+        $mailed = 0;
+        if ($before !== null && ! TeamPlayers::rostersEqual($before['players'], $players)) {
+            $mailed = $this->changeMailer->send($event, $team, $before['coaches']);
+        }
+
         return response()->json($this->payload($team, $result['data']) + [
             'team' => TeamDataIndex::teamPayload($event, $team),
+            'mailed' => $mailed,
         ]);
+    }
+
+    /**
+     * Roster and coaches as DRAHT currently stores them, before a write.
+     *
+     * @param  array{draht_event_id: int, team_number_hot: int}  $resolved
+     * @return array{players: list<array<string, mixed>>, coaches: list<array<string, mixed>>}|null
+     */
+    private function currentRoster(array $resolved): ?array
+    {
+        $response = $this->drahtController->getPeople($resolved['draht_event_id']);
+        if ($response->getStatusCode() !== 200) {
+            return null;
+        }
+
+        $people = $response->getData(true);
+        $teamData = is_array($people) ? ($people[(string) $resolved['team_number_hot']] ?? null) : null;
+        if (! is_array($teamData)) {
+            return null;
+        }
+
+        $coaches = $teamData['coaches'] ?? [];
+
+        return [
+            'players' => TeamPlayers::serializeList($teamData['players'] ?? null),
+            'coaches' => is_array($coaches) ? array_values(array_filter($coaches, 'is_array')) : [],
+        ];
     }
 
     /**

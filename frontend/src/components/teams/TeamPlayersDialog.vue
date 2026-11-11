@@ -6,10 +6,12 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
 import type {TeamDataRow} from '@/utils/teamDataCompletion'
 import {
+  formatPlayerDate,
   formatReferenceDate,
   PLAYER_GENDER_OPTIONS,
   playerAgeOn,
   playerAgeOutOfRange,
+  playerGenderLabel,
   type PlayerAgeRule,
   type TeamPlayer,
 } from '@/utils/teamPlayers'
@@ -38,6 +40,7 @@ const loading = ref(false)
 const saving = ref(false)
 const loadError = ref('')
 const dirty = ref(false)
+const editingIndex = ref<number | null>(null)
 
 const titleId = 'team-players-dialog-title'
 const today = new Date().toISOString().slice(0, 10)
@@ -63,6 +66,7 @@ function applyResponse(data: PlayersResponse) {
   rule.value = data.player_age_rule ?? null
   maxPlayers.value = data.max_players ?? null
   dirty.value = false
+  editingIndex.value = null
 }
 
 async function load() {
@@ -105,12 +109,20 @@ function update(index: number, field: keyof TeamPlayer, value: string) {
 function addPlayer() {
   if (atMax.value) return
   players.value.push({firstname: '', name: '', gender: '', birthday: null})
+  editingIndex.value = players.value.length - 1
   dirty.value = true
 }
 
 function removePlayer(index: number) {
   players.value.splice(index, 1)
+  if (editingIndex.value === index) editingIndex.value = null
+  else if (editingIndex.value !== null && editingIndex.value > index) editingIndex.value -= 1
   dirty.value = true
+}
+
+function displayName(value: string) {
+  const trimmed = value.trim()
+  return trimmed === '' ? '—' : trimmed
 }
 
 async function save() {
@@ -173,7 +185,7 @@ watch(
             <span v-if="team.team_number_hot != null" class="team-players-dialog__nr">#{{ team.team_number_hot }}</span>
           </h2>
           <p class="vol-columns-dialog__hint">
-            Änderungen werden direkt in der Anmeldung (DRAHT) gespeichert und sind für den Coach in JOIN sichtbar.
+            Änderungen werden in der Anmeldung gespeichert. Coach und Co-Coaches bekommen eine E-Mail mit dem Teamnamen und einem Link zu FLOW.
             <template v-if="ruleHint"> {{ ruleHint }}</template>
           </p>
         </header>
@@ -199,7 +211,7 @@ watch(
                   <th scope="col">Geschlecht</th>
                   <th scope="col">Geburtsdatum</th>
                   <th v-if="rule" scope="col" class="team-players-dialog__age">Alter</th>
-                  <th scope="col"><span class="sr-only">Entfernen</span></th>
+                  <th scope="col"><span class="sr-only">Bearbeiten und entfernen</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -208,50 +220,58 @@ watch(
                     :key="index"
                     :class="{'team-players-dialog__row--warning': isOutOfRange(player)}"
                 >
-                  <td>
-                    <input
-                        type="text"
-                        class="glass-input glass-input--sm"
-                        aria-label="Vorname"
-                        :value="player.firstname"
-                        :disabled="saving"
-                        @input="update(index, 'firstname', ($event.target as HTMLInputElement).value)"
-                    >
-                  </td>
-                  <td>
-                    <input
-                        type="text"
-                        class="glass-input glass-input--sm"
-                        aria-label="Nachname"
-                        :value="player.name"
-                        :disabled="saving"
-                        @input="update(index, 'name', ($event.target as HTMLInputElement).value)"
-                    >
-                  </td>
-                  <td>
-                    <select
-                        class="select-input vol-detail-select vol-detail-select--full"
-                        aria-label="Geschlecht"
-                        :value="player.gender"
-                        :disabled="saving"
-                        @change="update(index, 'gender', ($event.target as HTMLSelectElement).value)"
-                    >
-                      <option v-for="option in PLAYER_GENDER_OPTIONS" :key="option.value" :value="option.value">
-                        {{ option.label }}
-                      </option>
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                        type="date"
-                        class="glass-input glass-input--sm"
-                        aria-label="Geburtsdatum"
-                        :max="today"
-                        :value="player.birthday ?? ''"
-                        :disabled="saving"
-                        @change="update(index, 'birthday', ($event.target as HTMLInputElement).value)"
-                    >
-                  </td>
+                  <template v-if="editingIndex === index">
+                    <td>
+                      <input
+                          type="text"
+                          class="glass-input glass-input--sm"
+                          aria-label="Vorname"
+                          :value="player.firstname"
+                          :disabled="saving"
+                          @input="update(index, 'firstname', ($event.target as HTMLInputElement).value)"
+                      >
+                    </td>
+                    <td>
+                      <input
+                          type="text"
+                          class="glass-input glass-input--sm"
+                          aria-label="Nachname"
+                          :value="player.name"
+                          :disabled="saving"
+                          @input="update(index, 'name', ($event.target as HTMLInputElement).value)"
+                      >
+                    </td>
+                    <td>
+                      <select
+                          class="select-input vol-detail-select vol-detail-select--full"
+                          aria-label="Geschlecht"
+                          :value="player.gender"
+                          :disabled="saving"
+                          @change="update(index, 'gender', ($event.target as HTMLSelectElement).value)"
+                      >
+                        <option v-for="option in PLAYER_GENDER_OPTIONS" :key="option.value" :value="option.value">
+                          {{ option.label }}
+                        </option>
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                          type="date"
+                          class="glass-input glass-input--sm"
+                          aria-label="Geburtsdatum"
+                          :max="today"
+                          :value="player.birthday ?? ''"
+                          :disabled="saving"
+                          @change="update(index, 'birthday', ($event.target as HTMLInputElement).value)"
+                      >
+                    </td>
+                  </template>
+                  <template v-else>
+                    <td class="team-players-dialog__text">{{ displayName(player.firstname) }}</td>
+                    <td class="team-players-dialog__text">{{ displayName(player.name) }}</td>
+                    <td class="team-players-dialog__text">{{ playerGenderLabel(player.gender) }}</td>
+                    <td class="team-players-dialog__text">{{ formatPlayerDate(player.birthday) }}</td>
+                  </template>
                   <td
                       v-if="rule"
                       class="team-players-dialog__age"
@@ -261,15 +281,40 @@ watch(
                     {{ ageLabel(player) }}
                   </td>
                   <td>
-                    <button
-                        type="button"
-                        class="glass-btn-icon"
-                        aria-label="Teammitglied entfernen"
-                        :disabled="saving"
-                        @click="removePlayer(index)"
-                    >
-                      <i class="bi bi-trash" aria-hidden="true"/>
-                    </button>
+                    <div class="team-players-dialog__actions">
+                      <button
+                          v-if="editingIndex === index"
+                          type="button"
+                          class="glass-btn-icon"
+                          aria-label="Bearbeitung schließen"
+                          title="Bearbeitung schließen"
+                          :disabled="saving"
+                          @click="editingIndex = null"
+                      >
+                        <i class="bi bi-check-lg" aria-hidden="true"/>
+                      </button>
+                      <button
+                          v-else
+                          type="button"
+                          class="glass-btn-icon"
+                          aria-label="Teammitglied bearbeiten"
+                          title="Bearbeiten"
+                          :disabled="saving"
+                          @click="editingIndex = index"
+                      >
+                        <i class="bi bi-pencil" aria-hidden="true"/>
+                      </button>
+                      <button
+                          type="button"
+                          class="glass-btn-icon"
+                          aria-label="Teammitglied entfernen"
+                          title="Entfernen"
+                          :disabled="saving"
+                          @click="removePlayer(index)"
+                      >
+                        <i class="bi bi-trash" aria-hidden="true"/>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -368,6 +413,18 @@ watch(
   margin: 0;
   font-size: 0.85rem;
   color: var(--color-danger, #c0392b);
+}
+
+.team-players-dialog__text {
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+}
+
+.team-players-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.15rem;
+  white-space: nowrap;
 }
 
 .team-players-dialog__add {

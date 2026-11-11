@@ -5,6 +5,7 @@ namespace App\Mail\Catalog;
 use App\Mail\AdminTestMail;
 use App\Mail\PublicOtpMail;
 use App\Mail\EventAccessInvitationMail;
+use App\Mail\TeamPlayersChangedMail;
 use App\Mail\VolunteerInquiryAcceptedMail;
 use App\Mail\VolunteerInquiryDeclinedMail;
 use App\Mail\VolunteerInquiryPlannerMail;
@@ -91,6 +92,18 @@ class MailNotificationCatalog
                     permissions: ['FLOW', 'SCOR'],
                     loginUrl: 'https://flow.hands-on-technology.org',
                     expiresOn: '21.11.2026',
+                ),
+            ),
+            new MailNotificationDefinition(
+                key: 'team-players-changed',
+                name: 'Teamdaten durch Regionalpartner geändert',
+                trigger: 'Ein Regionalpartner speichert geänderte Teammitglieder.',
+                audience: 'Coach und Co-Coaches des Teams',
+                status: MailNotificationDefinition::STATUS_LIVE,
+                sample: fn () => new TeamPlayersChangedMail(
+                    eventName: self::SAMPLE_EVENT,
+                    teamName: 'RoboKids',
+                    flowUrl: 'https://handson.tools/beispielstadt',
                 ),
             ),
         ];

@@ -59,6 +59,7 @@ class AdminMailTest extends TestCase
                 'volunteer-inquiry-accepted',
                 'volunteer-inquiry-declined',
                 'event-access-invitation',
+                'team-players-changed',
             ],
             $keys,
         );
