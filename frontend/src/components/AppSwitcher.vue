@@ -64,7 +64,7 @@ const choices = computed<AppChoice[]>(() => {
 
 const menuApps = computed(() => choices.value.map((app) => ({
   ...app,
-  logo: imageUrl(app.id === 'scor' ? '/flow/wise.png' : `/flow/${app.id}.png`),
+  logo: imageUrl(app.id === 'scor' ? '/flow/scor.png' : `/flow/${app.id}.png`),
 })))
 
 function openInternal(app: {href: string}) {
