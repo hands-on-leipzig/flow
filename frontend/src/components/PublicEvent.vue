@@ -1002,6 +1002,8 @@ onMounted(async () => {
   font-size: clamp(1.35rem, 3.5vw, 2rem);
   font-weight: 700;
   letter-spacing: -0.02em;
+  color: var(--color-text);
+  line-height: 1.2;
 }
 
 .pe-results {
@@ -1021,9 +1023,6 @@ onMounted(async () => {
 
 .pe-results span {
   color: var(--color-text-muted);
-}
-  color: var(--color-text);
-  line-height: 1.2;
 }
 
 .pe-section {

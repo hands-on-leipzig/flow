@@ -212,15 +212,6 @@
     align-items: flex-start;
     text-align: left;
   }
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    margin: 0;
-    padding: 0.55rem 0 0.2rem;
-    border: 0;
-    background: transparent;
-  }
 
   .glass-app--wise-compact .glass-app__main {
     gap: 0;
