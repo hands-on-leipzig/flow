@@ -14,6 +14,7 @@ use Illuminate\Http\Client\Request as HttpRequest;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Api\EventTeamDataController;
 use App\Mail\TeamDataDeadlineMail;
+use App\Mail\TeamPlayersChangedMail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
@@ -92,8 +93,24 @@ class TeamPlayersApiTest extends TestCase
         $this->assertSame(1, $row['players_age_out_of_range']);
     }
 
+    public function test_roster_equality_ignores_blank_rows_and_gender_case(): void
+    {
+        $this->assertTrue(TeamPlayers::rostersEqual(
+            [
+                ['firstname' => 'Ada', 'name' => 'A', 'gender' => 'f', 'birthday' => '2014-05-05'],
+                ['firstname' => '', 'name' => '', 'birthday' => null],
+            ],
+            [['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2014-05-05']],
+        ));
+        $this->assertFalse(TeamPlayers::rostersEqual(
+            [['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2014-05-05']],
+            [['firstname' => 'Ben', 'name' => 'A', 'gender' => 'F', 'birthday' => '2014-05-05']],
+        ));
+    }
+
     public function test_update_sends_roster_to_draht_and_returns_updated_team(): void
     {
+        Mail::fake();
         $saved = [['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => $this->ts('2008-06-01')]];
         Http::fake([
             'http://draht.test/handson/flow/500/teams/10/players' => Http::response([
@@ -124,6 +141,64 @@ class TeamPlayersApiTest extends TestCase
             && $request->data() === ['players' => [
                 ['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2008-06-01'],
             ]]);
+        $this->assertSame(0, $data['mailed']);
+        Mail::assertNothingSent();
+    }
+
+    public function test_roster_change_mails_coach_and_coaches_without_member_details(): void
+    {
+        Mail::fake();
+        config(['app.public_url' => 'https://handson.tools']);
+        $saved = [['firstname' => 'Ben', 'name' => 'Neu', 'gender' => 'M', 'birthday' => $this->ts('2008-06-01')]];
+        $people = $this->peoplePayload([
+            ['firstname' => 'Ada', 'name' => 'Alt', 'gender' => 'F', 'birthday' => $this->ts('2014-05-05')],
+        ]);
+        $people['10']['coaches'] = [
+            ['email' => 'Coach@Example.test', 'firstname' => 'Ada', 'name' => 'Coach'],
+            ['email' => 'coach@example.test', 'firstname' => 'Ada', 'name' => 'Coach'],
+            ['email' => 'cocoach@example.test', 'firstname' => 'Bea', 'name' => 'Co'],
+            ['email' => 'not-an-email', 'firstname' => 'Nope'],
+            ['firstname' => 'Ohne Mail'],
+        ];
+        Http::fake([
+            'http://draht.test/handson/flow/500/teams/10/players' => Http::response([
+                'id' => 77,
+                'max_players' => 10,
+                'player_age_rule' => self::CHALLENGE_RULE,
+                'players' => $saved,
+            ]),
+            'http://draht.test/handson/flow/500/people' => Http::response($people),
+        ]);
+
+        $response = app(EventTeamPlayersController::class)->update(
+            Request::create('/', 'PUT', ['players' => [
+                ['firstname' => 'Ben', 'name' => 'Neu', 'gender' => 'M', 'birthday' => '2008-06-01'],
+            ]]),
+            Event::findOrFail(1),
+            Team::findOrFail(1),
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(2, $response->getData(true)['mailed']);
+        Mail::assertSent(TeamPlayersChangedMail::class, 2);
+        Mail::assertSent(TeamPlayersChangedMail::class, function (TeamPlayersChangedMail $mail) {
+            $html = preg_replace('/data:image\/[^"\']+/', '', $mail->render()) ?? '';
+
+            return $mail->hasTo('coach@example.test')
+                && $mail->teamName === 'Team A'
+                && str_starts_with($mail->flowUrl, 'https://handson.tools')
+                && str_contains($html, 'Team A')
+                && str_contains($html, 'Regionalpartner')
+                && str_contains($html, $mail->flowUrl)
+                && ! str_contains($html, 'Ada')
+                && ! str_contains($html, 'Ben')
+                && ! str_contains($html, '2008-06-01')
+                && ! str_contains($html, '01.06.2008');
+        });
+        Mail::assertSent(
+            TeamPlayersChangedMail::class,
+            fn (TeamPlayersChangedMail $mail) => $mail->hasTo('cocoach@example.test'),
+        );
     }
 
     public function test_update_passes_draht_rejection_as_validation_error(): void

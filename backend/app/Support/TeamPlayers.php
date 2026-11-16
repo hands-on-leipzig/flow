@@ -119,4 +119,33 @@ final class TeamPlayers
 
         return $count;
     }
+
+    /**
+     * True when two rosters describe the same members in the same order.
+     * Blank rows and gender casing do not count as a difference.
+     *
+     * @param  list<array<string, mixed>>  $left
+     * @param  list<array<string, mixed>>  $right
+     */
+    public static function rostersEqual(array $left, array $right): bool
+    {
+        return self::comparableRoster($left) === self::comparableRoster($right);
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $players
+     * @return list<array{firstname: string, name: string, gender: string, birthday: ?string}>
+     */
+    private static function comparableRoster(array $players): array
+    {
+        $rows = [];
+        foreach (self::serializeList($players) as $player) {
+            if ($player['firstname'] === '' && $player['name'] === '' && $player['birthday'] === null) {
+                continue;
+            }
+            $rows[] = $player;
+        }
+
+        return $rows;
+    }
 }
