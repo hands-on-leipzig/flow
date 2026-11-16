@@ -208,6 +208,20 @@ function isTeamExpanded(team) {
   return teamNumber && expandedTeams.value.has(teamNumber)
 }
 
+async function reloadPeople() {
+  const drahtEventId = drahtIdFor(event.value, props.program)
+  if (!drahtEventId) return
+  try {
+    const peopleRes = await axios.get(`/draht/people/${drahtEventId}`)
+    if (peopleRes.data) {
+      const {total_players, total_coaches, ...teamsData} = peopleRes.data
+      peopleData.value = teamsData
+    }
+  } catch (peopleErr) {
+    if (import.meta.env.DEV) console.error('Failed to fetch people data', peopleErr)
+  }
+}
+
 function formatBirthday(timestamp) {
   if (!timestamp || timestamp === false) return 'N/A'
   return new Date(timestamp * 1000).toLocaleDateString('de-DE')
@@ -245,18 +259,7 @@ onMounted(async () => {
 
     await reloadTeams()
 
-    const drahtEventId = drahtIdFor(event.value, props.program)
-    if (drahtEventId) {
-      try {
-        const peopleRes = await axios.get(`/draht/people/${drahtEventId}`)
-        if (peopleRes.data) {
-          const {total_players, total_coaches, ...teamsData} = peopleRes.data
-          peopleData.value = teamsData
-        }
-      } catch (peopleErr) {
-        if (import.meta.env.DEV) console.error('Failed to fetch people data', peopleErr)
-      }
-    }
+    await reloadPeople()
   } catch (err) {
     if (import.meta.env.DEV) console.error('Failed to fetch teams', err)
   }
@@ -319,7 +322,9 @@ onMounted(async () => {
         :get-team-border-style="getTeamBorderStyle"
         :get-team-group="getTeamGroup"
         :format-birthday="formatBirthday"
+        :event-id="event?.id ?? null"
         @sort="onSort"
+        @players-saved="reloadPeople"
         @update-noshow="updateTeamNoshow"
         @toggle="toggleTeamExpansion"
         @copy="copyToClipboard"

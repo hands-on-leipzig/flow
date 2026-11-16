@@ -2,6 +2,7 @@
 import {ref} from 'vue'
 import axios from 'axios'
 import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import TeamPlayersEditor from '@/components/teams/TeamPlayersEditor.vue'
 import {
   countSetCellMismatch,
   countSetTotal,
@@ -28,15 +29,16 @@ const props = defineProps<{
 const emit = defineEmits<{
   'toggle-sort': [key: TeamDataSortKey]
   'open-count': [team: TeamDataRow, column: TeamDataColumn, anchor: HTMLElement]
-  'open-players': [team: TeamDataRow]
   updated: [team: TeamDataRow]
 }>()
 
+const expandedTeamId = ref<number | null>(null)
+
 function playersTitle(row: TeamDataRow) {
-  const parts = ['Teammitglieder anzeigen und bearbeiten']
+  const parts = [expandedTeamId.value === row.id ? 'Teammitglieder zuklappen' : 'Teammitglieder aufklappen']
   const outOfRange = row.players_age_out_of_range ?? 0
-  if (outOfRange === 1) parts[0] = 'Teammitglieder anzeigen – 1 außerhalb der Altersgrenze'
-  else if (outOfRange > 1) parts[0] = `Teammitglieder anzeigen – ${outOfRange} außerhalb der Altersgrenze`
+  if (outOfRange === 1) parts.push('1 außerhalb der Altersgrenze')
+  else if (outOfRange > 1) parts.push(`${outOfRange} außerhalb der Altersgrenze`)
   if (row.players_complete === true) parts.push('Coach hat „Teamdaten komplett“ bestätigt')
   else if (row.players_complete === false) parts.push('Bestätigung fehlt')
   return parts.join(' – ')
@@ -164,6 +166,10 @@ function saveScalar(row: TeamDataRow, column: TeamDataColumn, raw: string) {
   void saveCustomField(row, column, trimmed === '' ? null : trimmed)
 }
 
+function togglePlayers(row: TeamDataRow) {
+  expandedTeamId.value = expandedTeamId.value === row.id ? null : row.id
+}
+
 function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataColumn) {
   const target = event.currentTarget
   if (!(target instanceof HTMLElement)) return
@@ -244,7 +250,8 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="row in teams" :key="row.id" class="glass-table-row--hover">
+        <template v-for="row in teams" :key="row.id">
+        <tr class="glass-table-row--hover">
           <td class="vol-table__roster vol-table__sticky vol-table__sticky--program">
             <ProgramLogo
                 v-if="row.first_program"
@@ -274,7 +281,8 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
                   'team-data-cell--mismatch': (row.players_age_out_of_range ?? 0) > 0,
                 }"
                 :title="playersTitle(row)"
-                @click="emit('open-players', row)"
+                :aria-expanded="expandedTeamId === row.id"
+                @click="togglePlayers(row)"
             >
               <i
                   v-if="(row.players_age_out_of_range ?? 0) > 0"
@@ -287,6 +295,11 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
                   aria-hidden="true"
               />
               {{ displayNumber(row.players_count) }}
+              <i
+                  class="bi"
+                  :class="expandedTeamId === row.id ? 'bi-chevron-up' : 'bi-chevron-down'"
+                  aria-hidden="true"
+              />
             </button>
           </td>
           <td
@@ -371,6 +384,16 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
             >
           </td>
         </tr>
+        <tr v-if="expandedTeamId === row.id" class="team-data-players-row">
+          <td :colspan="6 + columns.length">
+            <TeamPlayersEditor
+                :event-id="eventId"
+                :team-id="row.id"
+                @saved="emit('updated', $event)"
+            />
+          </td>
+        </tr>
+        </template>
       </tbody>
     </table>
   </div>
@@ -487,6 +510,11 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 
 .team-data-table__dash {
   opacity: 0.5;
+}
+
+.team-data-players-row td {
+  background: var(--color-bg-muted);
+  padding: 0.85rem 1rem 1rem;
 }
 
 .team-data-count-trigger,

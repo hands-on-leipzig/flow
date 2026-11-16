@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import IconDraggable from '@/components/icons/IconDraggable.vue'
+import TeamPlayersEditor from '@/components/teams/TeamPlayersEditor.vue'
 import {formatJuryCell, juryCellAriaLabel} from '@/utils/teamJury'
 
 const props = defineProps({
@@ -22,9 +23,12 @@ const props = defineProps({
   peopleData: {type: Object, default: null},
   formatBirthday: {type: Function, required: true},
   syncChangeLabel: {type: String, default: ''},
+  eventId: {type: Number, default: null},
 })
 
-const emit = defineEmits(['toggle', 'update-noshow', 'copy'])
+const emit = defineEmits(['toggle', 'update-noshow', 'copy', 'players-saved'])
+
+const canEditMembers = computed(() => !isPending() && props.eventId != null && props.team?.id != null)
 
 const isPending = () => props.variant === 'pending'
 const beyondCapacity = () => props.teamsBeyondCapacity && props.index >= props.planCapacity
@@ -280,27 +284,35 @@ function onCopy(text: string, label: string) {
       </div>
       <div v-else class="text-sm text-[var(--color-text-subtle)] italic mb-3">Keine Coaches gefunden</div>
 
-      <div v-if="peopleData.players?.length">
+      <div>
         <div class="text-xs font-semibold text-[var(--color-text-muted)] mb-1">
-          Mitglieder ({{ peopleData.num_players || 0 }}):
+          Mitglieder<span v-if="!canEditMembers"> ({{ peopleData.num_players || 0 }})</span>:
         </div>
-        <div class="space-y-1">
-          <div
-              v-for="(player, playerIndex) in peopleData.players"
-              :key="playerIndex"
-              class="text-sm text-[var(--color-text-muted)]"
-          >
-            <span v-if="player.name || player.firstname">
-              {{ player.firstname || '' }} {{ player.name || '' }}
-              <span class="text-[var(--color-text-subtle)]">
-                ({{ player.gender || 'N/A' }}, {{ formatBirthday(player.birthday) }})
+        <TeamPlayersEditor
+            v-if="canEditMembers"
+            :event-id="eventId"
+            :team-id="Number(team.id)"
+            @saved="emit('players-saved')"
+        />
+        <template v-else>
+          <div v-if="peopleData.players?.length" class="space-y-1">
+            <div
+                v-for="(player, playerIndex) in peopleData.players"
+                :key="playerIndex"
+                class="text-sm text-[var(--color-text-muted)]"
+            >
+              <span v-if="player.name || player.firstname">
+                {{ player.firstname || '' }} {{ player.name || '' }}
+                <span class="text-[var(--color-text-subtle)]">
+                  ({{ player.gender || 'N/A' }}, {{ formatBirthday(player.birthday) }})
+                </span>
               </span>
-            </span>
-            <span v-else class="italic">Unbekanntes Mitglied</span>
+              <span v-else class="italic">Unbekanntes Mitglied</span>
+            </div>
           </div>
-        </div>
+          <div v-else class="text-sm text-[var(--color-text-subtle)] italic">Keine Mitglieder gefunden</div>
+        </template>
       </div>
-      <div v-else class="text-sm text-[var(--color-text-subtle)] italic">Keine Mitglieder gefunden</div>
     </div>
   </li>
 </template>
