@@ -149,6 +149,7 @@ Route::post('/public-volunteer-form/{slug}/otp/verify', [VolunteerPublicFormCont
 Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
 Route::get('/public-volunteer-form/{slug}/person/{volunteer}', [VolunteerPublicFormController::class, 'person']);
 Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
+Route::get('/public-team-form/for-coach', [TeamPublicFormController::class, 'forCoach']);
 Route::post('/public-team-form/{slug}/otp', [TeamPublicFormController::class, 'requestOtp'])
     ->middleware('throttle:8,1');
 Route::post('/public-team-form/{slug}/otp/verify', [TeamPublicFormController::class, 'verifyOtp'])

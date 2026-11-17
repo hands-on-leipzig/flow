@@ -39,7 +39,7 @@ function playersTitle(row: TeamDataRow) {
   const outOfRange = row.players_age_out_of_range ?? 0
   if (outOfRange === 1) parts.push('1 außerhalb der Altersgrenze')
   else if (outOfRange > 1) parts.push(`${outOfRange} außerhalb der Altersgrenze`)
-  if (row.players_complete === true) parts.push('Coach hat „Teamdaten komplett“ bestätigt')
+  if (row.players_complete === true) parts.push('Coach hat „Teilnehmende komplett“ bestätigt')
   else if (row.players_complete === false) parts.push('Bestätigung fehlt')
   return parts.join(' – ')
 }

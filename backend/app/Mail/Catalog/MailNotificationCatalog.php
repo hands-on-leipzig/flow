@@ -5,6 +5,7 @@ namespace App\Mail\Catalog;
 use App\Mail\AdminTestMail;
 use App\Mail\PublicOtpMail;
 use App\Mail\EventAccessInvitationMail;
+use App\Mail\TeamDataDeadlineMail;
 use App\Mail\TeamPlayersChangedMail;
 use App\Mail\VolunteerInquiryAcceptedMail;
 use App\Mail\VolunteerInquiryDeclinedMail;
@@ -92,6 +93,18 @@ class MailNotificationCatalog
                     permissions: ['FLOW', 'WISE'],
                     loginUrl: 'https://flow.hands-on-technology.org',
                     expiresOn: '21.11.2026',
+                ),
+            ),
+            new MailNotificationDefinition(
+                key: 'team-data-deadline',
+                name: 'Frist für Teamdaten geändert',
+                trigger: 'Ein Regionalpartner speichert eine andere Frist für die Teamdaten.',
+                audience: 'info@hands-on-technology.org und Coaches ohne Bestätigung „Teilnehmende komplett“',
+                status: MailNotificationDefinition::STATUS_LIVE,
+                sample: fn () => new TeamDataDeadlineMail(
+                    eventName: self::SAMPLE_EVENT,
+                    deadline: '18.10.2026',
+                    firstname: 'Ada',
                 ),
             ),
             new MailNotificationDefinition(

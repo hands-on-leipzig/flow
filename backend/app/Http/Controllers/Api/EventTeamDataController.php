@@ -183,10 +183,16 @@ class EventTeamDataController extends Controller
         $mailed = 0;
         if ($changed) {
             $formatted = \Carbon\Carbon::parse($deadline)->locale('de')->isoFormat('DD.MM.YYYY');
+            $office = 'info@hands-on-technology.org';
             foreach ($coaches as $email => $firstname) {
+                if ($email === $office) {
+                    continue;
+                }
                 Mail::to($email)->send(new TeamDataDeadlineMail($event->name, $formatted, $firstname));
                 $mailed++;
             }
+            Mail::to($office)->send(new TeamDataDeadlineMail($event->name, $formatted, '', true));
+            $mailed++;
         }
 
         return response()->json([

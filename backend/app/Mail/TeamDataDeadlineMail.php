@@ -12,6 +12,7 @@ class TeamDataDeadlineMail extends Mailable
         public readonly string $eventName,
         public readonly string $deadline,
         public readonly string $firstname = '',
+        public readonly bool $forOffice = false,
     ) {}
 
     public function envelope(): Envelope

@@ -257,10 +257,8 @@ async function saveDeadline() {
     })
     deadline.value = data.team_data_deadline ?? deadlineDraft.value
     deadlineDraft.value = deadline.value
-    if (data.changed && data.mailed > 0) {
-      showGlassToast('Frist gespeichert. Die Coaches bekommen eine E-Mail.')
-    } else if (data.changed) {
-      showGlassToast('Frist gespeichert. Keine Coach-Adresse für eine E-Mail gefunden.')
+    if (data.changed) {
+      showGlassToast('Frist gespeichert. Die Info-Mail ist raus.')
     } else {
       showGlassToast('Frist gespeichert')
     }
@@ -385,7 +383,7 @@ onActivated(() => {
           </button>
         </div>
         <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
-          Standard sind 4 Wochen vor dem Event. Eine Änderung schickt den Coaches eine E-Mail.
+          Standard sind 4 Wochen vor dem Event. Eine Änderung geht an info@hands-on-technology.org und an Coaches, die „Teilnehmende komplett“ noch nicht bestätigt haben.
         </p>
       </section>
     </div>

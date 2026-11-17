@@ -269,11 +269,17 @@ class TeamPlayersApiTest extends TestCase
         );
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame(1, $response->getData(true)['mailed']);
+        $this->assertSame(2, $response->getData(true)['mailed']);
         Mail::assertSent(TeamDataDeadlineMail::class, function (TeamDataDeadlineMail $mail) {
             return $mail->hasTo('coach@example.test')
                 && $mail->deadline === '01.10.2026'
-                && $mail->firstname === 'Ada';
+                && $mail->firstname === 'Ada'
+                && $mail->forOffice === false;
+        });
+        Mail::assertSent(TeamDataDeadlineMail::class, function (TeamDataDeadlineMail $mail) {
+            return $mail->hasTo('info@hands-on-technology.org')
+                && $mail->forOffice === true
+                && $mail->deadline === '01.10.2026';
         });
     }
 
