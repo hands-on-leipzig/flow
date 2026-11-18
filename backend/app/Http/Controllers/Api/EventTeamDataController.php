@@ -139,6 +139,7 @@ class EventTeamDataController extends Controller
     {
         $validated = $request->validate([
             'deadline' => ['required', 'date_format:Y-m-d'],
+            'answers_deadline' => ['nullable', 'date_format:Y-m-d'],
         ]);
 
         $event->loadMissing('programs');
@@ -154,10 +155,11 @@ class EventTeamDataController extends Controller
         }
 
         $deadline = $validated['deadline'];
+        $answersDeadline = $validated['answers_deadline'] ?? null;
         $changed = false;
         $coaches = [];
         foreach ($drahtIds as $drahtId) {
-            $result = $this->drahtController->putTeamDataDeadline($drahtId, $deadline);
+            $result = $this->drahtController->putTeamDataDeadline($drahtId, $deadline, $answersDeadline);
             if (! $result['ok'] || ! is_array($result['data'])) {
                 $status = in_array($result['status'], [400, 404], true) ? 422 : 502;
 
@@ -197,6 +199,9 @@ class EventTeamDataController extends Controller
 
         return response()->json([
             'team_data_deadline' => $deadline,
+            'answers_deadline' => is_array($result['data'] ?? null)
+                ? ($result['data']['answers_deadline'] ?? $answersDeadline ?? $deadline)
+                : ($answersDeadline ?? $deadline),
             'changed' => $changed,
             'mailed' => $mailed,
         ]);

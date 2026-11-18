@@ -10,7 +10,23 @@ export type TeamPlayer = {
   name: string
   gender: string
   birthday: string | null
+  photo: '' | 'yes' | 'no'
+  meal: '' | 'standard' | 'vegetarisch' | 'vegan' | 'keine'
 }
+
+export const PLAYER_PHOTO_OPTIONS = [
+  {value: '', label: 'Offen'},
+  {value: 'yes', label: 'Ja'},
+  {value: 'no', label: 'Nein'},
+] as const
+
+export const PLAYER_MEAL_OPTIONS = [
+  {value: '', label: 'Offen'},
+  {value: 'standard', label: 'Standard'},
+  {value: 'vegetarisch', label: 'Vegetarisch'},
+  {value: 'vegan', label: 'Vegan'},
+  {value: 'keine', label: 'Keine'},
+] as const
 
 export const PLAYER_GENDER_OPTIONS = [
   {value: '', label: '—'},

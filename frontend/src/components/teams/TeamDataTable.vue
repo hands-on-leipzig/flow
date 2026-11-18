@@ -6,6 +6,7 @@ import TeamPlayersEditor from '@/components/teams/TeamPlayersEditor.vue'
 import {
   countSetCellMismatch,
   countSetTotal,
+  isTeamRowIncomplete,
   type TeamDataColumn,
   type TeamDataRow,
 } from '@/utils/teamDataCompletion'
@@ -33,6 +34,12 @@ const emit = defineEmits<{
 }>()
 
 const expandedTeamId = ref<number | null>(null)
+
+function eventAnswersLabel(row: TeamDataRow) {
+  const answerColumns = props.columns.filter((column) => column.editor === 'meal_counts' || column.kind === 'custom')
+  if (!answerColumns.length) return '—'
+  return isTeamRowIncomplete(row, answerColumns) ? 'Offen' : 'Ausgefüllt'
+}
 
 function playersTitle(row: TeamDataRow) {
   const parts = [expandedTeamId.value === row.id ? 'Teammitglieder zuklappen' : 'Teammitglieder aufklappen']
@@ -63,6 +70,11 @@ function displayNumber(value: number | null | undefined) {
 function displayOrganization(value: string | null | undefined) {
   const trimmed = (value ?? '').trim()
   return trimmed === '' ? '—' : trimmed
+}
+
+function displayPlace(value: string | null | undefined) {
+  const trimmed = (value ?? '').trim()
+  return trimmed === '' ? '' : trimmed
 }
 
 function photoCellClass(row: TeamDataRow, column: TeamDataColumn) {
@@ -177,6 +189,18 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 }
 
 /** Show entered total against registered people for Fotoerlaubnis / Essen. */
+function answerTally(row: TeamDataRow, column: TeamDataColumn) {
+  const total = row.players_count ?? 0
+  const answered = column.kind === 'photo' ? (row.photo_answered ?? 0) : (row.meal_answered ?? 0)
+  return `${answered} / ${total}`
+}
+
+function answerTallyOpen(row: TeamDataRow, column: TeamDataColumn) {
+  const total = row.players_count ?? 0
+  const answered = column.kind === 'photo' ? (row.photo_answered ?? 0) : (row.meal_answered ?? 0)
+  return total > 0 && answered < total
+}
+
 function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   const total = countSetTotal(row, column)
   if (row.people_count === null) return String(total)
@@ -194,6 +218,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
         <col class="vol-col--organization">
         <col class="vol-col--people">
         <col class="vol-col--players">
+        <col class="vol-col--answers">
         <col
             v-for="column in columns"
             :key="column.key"
@@ -239,7 +264,8 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
             </button>
           </th>
           <th scope="col">Personen</th>
-          <th scope="col">Teammitglieder</th>
+          <th scope="col">Teilnehmende</th>
+          <th scope="col">Eventangaben</th>
           <th
               v-for="column in columns"
               :key="column.key"
@@ -267,7 +293,8 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
           </td>
           <td class="vol-table__name vol-table__sticky vol-table__sticky--name">{{ row.name }}</td>
           <td class="vol-table__role">
-            {{ displayOrganization(row.organization) }}
+            <span class="team-data-table__org">{{ displayOrganization(row.organization) }}</span>
+            <span v-if="displayPlace(row.location)" class="team-data-table__place">{{ displayPlace(row.location) }}</span>
           </td>
           <td class="team-data-table__people">
             {{ displayNumber(row.people_count) }}
@@ -302,13 +329,20 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
               />
             </button>
           </td>
+          <td>{{ eventAnswersLabel(row) }}</td>
           <td
               v-for="column in columns"
               :key="`${row.id}-${column.key}`"
               class="vol-table__field"
           >
+            <span
+                v-if="column.kind === 'photo' || column.kind === 'meal'"
+                :class="{'team-data-cell--mismatch': answerTallyOpen(row, column)}"
+            >
+              {{ answerTally(row, column) }}
+            </span>
             <button
-                v-if="column.editor === 'meal_counts' || column.editor === 'count_set'"
+                v-else-if="column.editor === 'meal_counts' || column.editor === 'count_set'"
                 type="button"
                 class="vol-detail-trigger glass-input glass-input--sm team-data-count-trigger"
                 :class="photoCellClass(row, column)"
@@ -385,7 +419,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
           </td>
         </tr>
         <tr v-if="expandedTeamId === row.id" class="team-data-players-row">
-          <td :colspan="6 + columns.length">
+          <td :colspan="7 + columns.length">
             <TeamPlayersEditor
                 :event-id="eventId"
                 :team-id="row.id"
@@ -494,6 +528,18 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 
 .vol-table__role {
   color: var(--color-text-muted);
+}
+
+.team-data-table__org,
+.team-data-table__place {
+  display: block;
+}
+
+.team-data-table__place {
+  margin-top: 0.1rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--color-text-subtle);
 }
 
 .vol-table__assignment-icon {

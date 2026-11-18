@@ -8,6 +8,8 @@ import type {TeamDataRow} from '@/utils/teamDataCompletion'
 import {
   formatReferenceDate,
   PLAYER_GENDER_OPTIONS,
+  PLAYER_MEAL_OPTIONS,
+  PLAYER_PHOTO_OPTIONS,
   playerAgeOn,
   playerAgeOutOfRange,
   type PlayerAgeRule,
@@ -56,6 +58,14 @@ function genderLabel(gender: string) {
   return PLAYER_GENDER_OPTIONS.find((option) => option.value === gender)?.label ?? '—'
 }
 
+function photoLabel(photo: string) {
+  return PLAYER_PHOTO_OPTIONS.find((option) => option.value === photo)?.label ?? 'Offen'
+}
+
+function mealLabel(meal: string) {
+  return PLAYER_MEAL_OPTIONS.find((option) => option.value === meal)?.label ?? 'Offen'
+}
+
 function formatDate(value: string | null) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '')
   if (!match) return '—'
@@ -73,6 +83,8 @@ function applyResponse(data: PlayersResponse) {
     name: player.name ?? '',
     gender: player.gender ?? '',
     birthday: player.birthday ?? null,
+    photo: player.photo === 'yes' || player.photo === 'no' ? player.photo : '',
+    meal: player.meal === 'standard' || player.meal === 'vegetarisch' || player.meal === 'vegan' || player.meal === 'keine' ? player.meal : '',
   }))
   rule.value = data.player_age_rule ?? null
   maxPlayers.value = data.max_players ?? null
@@ -108,6 +120,8 @@ function isOutOfRange(player: TeamPlayer): boolean {
 function update(index: number, field: keyof TeamPlayer, value: string) {
   const next = {...players.value[index]}
   if (field === 'birthday') next.birthday = value === '' ? null : value
+  else if (field === 'photo') next.photo = value === 'yes' || value === 'no' ? value : ''
+  else if (field === 'meal') next.meal = value === 'standard' || value === 'vegetarisch' || value === 'vegan' || value === 'keine' ? value : ''
   else next[field] = value
   players.value[index] = next
   dirty.value = true
@@ -115,7 +129,7 @@ function update(index: number, field: keyof TeamPlayer, value: string) {
 
 function addPlayer() {
   if (atMax.value) return
-  players.value.push({firstname: '', name: '', gender: '', birthday: null})
+  players.value.push({firstname: '', name: '', gender: '', birthday: null, photo: '', meal: ''})
   editingIndex.value = players.value.length - 1
   dirty.value = true
 }
@@ -137,6 +151,8 @@ async function save() {
         name: player.name.trim(),
         gender: player.gender,
         birthday: player.birthday,
+        photo: player.photo,
+        meal: player.meal,
       })),
     })
     applyResponse(data)
@@ -217,11 +233,35 @@ watch(
                 :disabled="saving"
                 @change="update(index, 'birthday', ($event.target as HTMLInputElement).value)"
             >
+            <select
+                class="select-input vol-detail-select"
+                aria-label="Fotoerlaubnis"
+                :value="player.photo"
+                :disabled="saving"
+                @change="update(index, 'photo', ($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="option in PLAYER_PHOTO_OPTIONS" :key="'photo-' + option.value" :value="option.value">
+                Foto {{ option.label }}
+              </option>
+            </select>
+            <select
+                class="select-input vol-detail-select"
+                aria-label="Essen"
+                :value="player.meal"
+                :disabled="saving"
+                @change="update(index, 'meal', ($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="option in PLAYER_MEAL_OPTIONS" :key="'meal-' + option.value" :value="option.value">
+                Essen {{ option.label }}
+              </option>
+            </select>
           </template>
           <template v-else>
             <span class="team-players-editor__name">{{ displayName(player.firstname) }} {{ displayName(player.name) }}</span>
             <span class="team-players-editor__meta">{{ genderLabel(player.gender) }}</span>
             <span class="team-players-editor__meta">{{ formatDate(player.birthday) }}</span>
+            <span class="team-players-editor__meta">Foto {{ photoLabel(player.photo) }}</span>
+            <span class="team-players-editor__meta">Essen {{ mealLabel(player.meal) }}</span>
             <span
                 v-if="rule"
                 class="team-players-editor__meta"

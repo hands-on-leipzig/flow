@@ -1228,12 +1228,16 @@ class DrahtController extends Controller
      *
      * @return array{ok: bool, status: int, data: array<string, mixed>|null, message: ?string}
      */
-    public function putTeamDataDeadline(int $drahtEventId, string $deadline): array
+    public function putTeamDataDeadline(int $drahtEventId, string $deadline, ?string $answersDeadline = null): array
     {
+        $body = ['deadline' => $deadline];
+        if ($answersDeadline !== null) {
+            $body['answers_deadline'] = $answersDeadline;
+        }
         try {
             $response = $this->makeDrahtPutCall(
                 "/handson/flow/{$drahtEventId}/team-data-deadline",
-                ['deadline' => $deadline]
+                $body
             );
         } catch (\Throwable $e) {
             Log::error('Exception while updating team data deadline in DRAHT', [

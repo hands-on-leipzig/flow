@@ -81,9 +81,9 @@ class TeamPlayersApiTest extends TestCase
         $this->assertSame(self::CHALLENGE_RULE, $data['player_age_rule']);
         $this->assertSame(
             [
-                ['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2014-05-05', 'age_out_of_range' => null],
-                ['firstname' => 'Ben', 'name' => 'B', 'gender' => 'M', 'birthday' => '2008-06-01', 'age_out_of_range' => 17],
-                ['firstname' => 'Cem', 'name' => 'C', 'gender' => '', 'birthday' => null, 'age_out_of_range' => null],
+                ['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2014-05-05', 'photo' => '', 'meal' => '', 'age_out_of_range' => null],
+                ['firstname' => 'Ben', 'name' => 'B', 'gender' => 'M', 'birthday' => '2008-06-01', 'photo' => '', 'meal' => '', 'age_out_of_range' => 17],
+                ['firstname' => 'Cem', 'name' => 'C', 'gender' => '', 'birthday' => null, 'photo' => '', 'meal' => '', 'age_out_of_range' => null],
             ],
             $data['players'],
         );
@@ -101,6 +101,10 @@ class TeamPlayersApiTest extends TestCase
                 ['firstname' => '', 'name' => '', 'birthday' => null],
             ],
             [['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2014-05-05']],
+        ));
+        $this->assertTrue(TeamPlayers::rostersEqual(
+            [['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2014-05-05', 'photo' => 'yes', 'meal' => 'vegan']],
+            [['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2014-05-05', 'photo' => '', 'meal' => '']],
         ));
         $this->assertFalse(TeamPlayers::rostersEqual(
             [['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2014-05-05']],
@@ -139,7 +143,7 @@ class TeamPlayersApiTest extends TestCase
         Http::assertSent(fn (HttpRequest $request) => $request->method() === 'PUT'
             && $request->url() === 'http://draht.test/handson/flow/500/teams/10/players'
             && $request->data() === ['players' => [
-                ['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2008-06-01'],
+                ['firstname' => 'Ada', 'name' => 'A', 'gender' => 'F', 'birthday' => '2008-06-01', 'photo' => '', 'meal' => ''],
             ]]);
         $this->assertSame(0, $data['mailed']);
         Mail::assertNothingSent();
