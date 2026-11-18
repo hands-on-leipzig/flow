@@ -73,6 +73,10 @@ final class TeamPeopleCounts
                 ? $peopleData['team_data_deadline']
                 : null;
             unset($peopleData['team_data_deadline']);
+            $answersDeadline = is_string($peopleData['answers_deadline'] ?? null) && $peopleData['answers_deadline'] !== ''
+                ? $peopleData['answers_deadline']
+                : $deadline;
+            unset($peopleData['answers_deadline']);
 
             foreach ($programTeams as $team) {
                 $hot = (int) ($team->team_number_hot ?? 0);
@@ -87,10 +91,14 @@ final class TeamPeopleCounts
 
                 $coaches = is_array($teamData['coaches'] ?? null) ? count($teamData['coaches']) : 0;
                 $players = TeamPlayers::serializeList($teamData['players'] ?? null);
+                $answers = TeamPlayers::answerCounts($players);
                 $result[$team->id] = [
                     'coaches' => $coaches,
                     'players' => count($players),
                     'total' => $coaches + count($players),
+                    'photo_answered' => $answers['photo'],
+                    'meal_answered' => $answers['meal'],
+                    'answers_deadline' => $answersDeadline,
                     'players_age_out_of_range' => TeamPlayers::countAgeOutOfRange(
                         $players,
                         TeamPlayers::ageRule($teamData['player_age_rule'] ?? null),

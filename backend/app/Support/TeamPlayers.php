@@ -12,11 +12,15 @@ final class TeamPlayers
 {
     public const GENDERS = ['', 'M', 'F', 'D'];
 
+    public const PHOTOS = ['', 'yes', 'no'];
+
+    public const MEALS = ['', 'standard', 'vegetarisch', 'vegan', 'keine'];
+
     private const DRAHT_TIMEZONE = 'Europe/Berlin';
 
     /**
      * @param  mixed  $players  DRAHT players list
-     * @return list<array{firstname: string, name: string, gender: string, birthday: ?string}>
+     * @return list<array{firstname: string, name: string, gender: string, birthday: ?string, photo: string, meal: string}>
      */
     public static function serializeList(mixed $players): array
     {
@@ -29,15 +33,39 @@ final class TeamPlayers
             if (! is_array($player)) {
                 continue;
             }
+            $photo = strtolower((string) ($player['photo'] ?? ''));
+            $meal = strtolower((string) ($player['meal'] ?? ''));
             $result[] = [
                 'firstname' => (string) ($player['firstname'] ?? ''),
                 'name' => (string) ($player['name'] ?? ''),
                 'gender' => strtoupper((string) ($player['gender'] ?? '')),
                 'birthday' => self::birthdayYmd($player['birthday'] ?? null),
+                'photo' => in_array($photo, ['yes', 'no'], true) ? $photo : '',
+                'meal' => in_array($meal, ['standard', 'vegetarisch', 'vegan', 'keine'], true) ? $meal : '',
             ];
         }
 
         return $result;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $players
+     * @return array{photo: int, meal: int}
+     */
+    public static function answerCounts(array $players): array
+    {
+        $photo = 0;
+        $meal = 0;
+        foreach ($players as $player) {
+            if (in_array($player['photo'] ?? '', ['yes', 'no'], true)) {
+                $photo++;
+            }
+            if (($player['meal'] ?? '') !== '') {
+                $meal++;
+            }
+        }
+
+        return ['photo' => $photo, 'meal' => $meal];
     }
 
     public static function birthdayYmd(mixed $value): ?string
@@ -143,6 +171,7 @@ final class TeamPlayers
             if ($player['firstname'] === '' && $player['name'] === '' && $player['birthday'] === null) {
                 continue;
             }
+            unset($player['photo'], $player['meal']);
             $rows[] = $player;
         }
 

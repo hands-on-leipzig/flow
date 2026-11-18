@@ -117,6 +117,7 @@ final class TeamDataColumns
             ['key' => 'team_number_hot', 'label' => 'Nr', 'export' => true],
             ['key' => 'team_name', 'label' => 'Teamname', 'export' => true],
             ['key' => 'organization', 'label' => 'Organisation', 'export' => true],
+            ['key' => 'location', 'label' => 'Ort', 'export' => true],
             ['key' => 'people_count', 'label' => 'Personen', 'export' => true],
         ];
 
@@ -189,6 +190,9 @@ final class TeamDataColumns
         }
         if ($key === 'organization') {
             return $team['organization'] ?? '';
+        }
+        if ($key === 'location') {
+            return $team['location'] ?? '';
         }
         if ($key === 'people_count') {
             $count = $team['people_count'] ?? null;

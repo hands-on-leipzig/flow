@@ -58,6 +58,8 @@ class EventTeamPlayersController extends Controller
             'players.*.name' => ['nullable', 'string', 'max:255'],
             'players.*.gender' => ['nullable', 'string', Rule::in(TeamPlayers::GENDERS)],
             'players.*.birthday' => ['nullable', 'date_format:Y-m-d', 'before:today'],
+            'players.*.photo' => ['nullable', 'string', Rule::in(TeamPlayers::PHOTOS)],
+            'players.*.meal' => ['nullable', 'string', Rule::in(TeamPlayers::MEALS)],
         ]);
 
         $players = [];
@@ -73,6 +75,8 @@ class EventTeamPlayersController extends Controller
                 'name' => $name,
                 'gender' => (string) ($player['gender'] ?? ''),
                 'birthday' => $birthday,
+                'photo' => (string) ($player['photo'] ?? ''),
+                'meal' => (string) ($player['meal'] ?? ''),
             ];
         }
 

@@ -61,10 +61,16 @@ final class TeamDataIndex
         })->values()->all();
 
         $deadline = null;
+        $answersDeadline = null;
         foreach ($peopleBreakdowns as $breakdown) {
-            if (is_array($breakdown) && is_string($breakdown['team_data_deadline'] ?? null) && $breakdown['team_data_deadline'] !== '') {
+            if (! is_array($breakdown)) {
+                continue;
+            }
+            if ($deadline === null && is_string($breakdown['team_data_deadline'] ?? null) && $breakdown['team_data_deadline'] !== '') {
                 $deadline = $breakdown['team_data_deadline'];
-                break;
+            }
+            if ($answersDeadline === null && is_string($breakdown['answers_deadline'] ?? null) && $breakdown['answers_deadline'] !== '') {
+                $answersDeadline = $breakdown['answers_deadline'];
             }
         }
 
@@ -74,6 +80,7 @@ final class TeamDataIndex
             'collect' => ['meal' => $collectMeal],
             'meal_options' => VolunteerMealOptions::serializeList($mealOptions),
             'team_data_deadline' => $deadline,
+            'answers_deadline' => $answersDeadline ?? $deadline,
         ];
     }
 
@@ -229,6 +236,7 @@ final class TeamDataIndex
             'id' => $team->id,
             'name' => $team->name,
             'organization' => $team->organization,
+            'location' => $team->location,
             'team_number_hot' => $team->team_number_hot !== null ? (int) $team->team_number_hot : null,
             'team_number_plan' => $team->team_number_plan !== null ? (int) $team->team_number_plan : null,
             'first_program' => $firstProgramId ?: null,
@@ -237,6 +245,8 @@ final class TeamDataIndex
             'players_count' => $peopleBreakdown !== null ? $peopleBreakdown['players'] : null,
             'players_age_out_of_range' => $peopleBreakdown !== null ? $peopleBreakdown['players_age_out_of_range'] : null,
             'players_complete' => is_array($peopleBreakdown) ? ($peopleBreakdown['players_complete'] ?? null) : null,
+            'photo_answered' => is_array($peopleBreakdown) ? ($peopleBreakdown['photo_answered'] ?? 0) : 0,
+            'meal_answered' => is_array($peopleBreakdown) ? ($peopleBreakdown['meal_answered'] ?? 0) : 0,
             'photo_consent' => TeamPhotoCounts::mapForTeamWithDefaults($team->id),
             'custom' => $custom,
             'touched' => [

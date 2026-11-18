@@ -343,6 +343,7 @@ class TeamDataApiTest extends TestCase
                 $table->string('name');
                 $table->unsignedInteger('team_number_hot')->nullable();
                 $table->string('organization')->nullable();
+                $table->string('location')->nullable();
             });
         }
         if (! Schema::hasTable('event_volunteer_meal_option')) {
