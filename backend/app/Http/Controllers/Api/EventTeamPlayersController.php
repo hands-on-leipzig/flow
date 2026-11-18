@@ -100,7 +100,12 @@ class EventTeamPlayersController extends Controller
             $mailed = $this->changeMailer->send($event, $team, $before['coaches']);
         }
 
-        return response()->json($this->payload($team, $result['data']) + [
+        $written = $result['data'];
+        if (! isset($written['coaches']) && $before !== null) {
+            $written['coaches'] = $before['coaches'];
+        }
+
+        return response()->json($this->payload($team, $written) + [
             'team' => TeamDataIndex::teamPayload($event, $team),
             'mailed' => $mailed,
         ]);
@@ -167,8 +172,49 @@ class EventTeamPlayersController extends Controller
         return [
             'team_id' => $team->id,
             'players' => $players,
+            'coaches' => $this->coaches($teamData),
             'max_players' => $maxPlayers > 0 ? $maxPlayers : null,
             'player_age_rule' => $rule,
         ];
+    }
+
+    /**
+     * DRAHT lists the primary coach first, then linked and manual co-coaches.
+     *
+     * @param  array<string, mixed>  $teamData
+     * @return list<array{role: string, firstname: string, name: string, email: string, phone: string}>
+     */
+    private function coaches(array $teamData): array
+    {
+        $raw = $teamData['coaches'] ?? [];
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        $index = 0;
+        foreach ($raw as $coach) {
+            $role = $index === 0 ? 'coach' : 'co_coach';
+            $index++;
+            if (! is_array($coach)) {
+                continue;
+            }
+            $firstname = trim((string) ($coach['firstname'] ?? ''));
+            $name = trim((string) ($coach['name'] ?? ''));
+            $email = trim((string) ($coach['email'] ?? ''));
+            $phone = trim((string) ($coach['phone'] ?? ''));
+            if ($firstname === '' && $name === '' && $email === '' && $phone === '') {
+                continue;
+            }
+            $out[] = [
+                'role' => $role,
+                'firstname' => $firstname,
+                'name' => $name,
+                'email' => $email,
+                'phone' => $phone,
+            ];
+        }
+
+        return $out;
     }
 }

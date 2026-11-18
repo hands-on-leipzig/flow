@@ -226,6 +226,44 @@
   margin-top: 0.5rem;
 }
 
+.vol-roster-publish__deadlines {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  margin-top: 0.7rem;
+}
+
+.vol-roster-publish__deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.vol-roster-publish__deadline label {
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+input.vol-roster-publish__date.glass-input {
+  width: 10.75rem;
+  min-width: 0;
+  max-width: 10.75rem;
+  flex: 0 0 10.75rem;
+}
+
+.vol-roster-publish__deadline-save {
+  margin-left: auto;
+}
+
+/* Drop shadows on stacked roster cards paint a dark band into the gap. */
+.vol-page .vol-roster-publish.glass-card.liquid-surface-inner,
+.vol-page .vol-roster-table-tile.glass-card.liquid-surface-inner {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+
 .vol-roster-publish__link {
   color: var(--color-accent);
   text-decoration: underline;
