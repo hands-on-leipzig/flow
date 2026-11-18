@@ -9,9 +9,9 @@ import {useAuth} from '@/composables/useAuth'
 import {useApps} from '@/composables/useApps'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
-import {imageUrl, programLogoSrc} from '@/utils/images'
+import {imageUrl} from '@/utils/images'
 import AppSwitcher from '@/components/AppSwitcher.vue'
-import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
+import {eventPrograms, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
 import {
   ADMIN_SECTIONS,
   ADMIN_OPS_NAV,
@@ -78,18 +78,6 @@ type NavEntry = {
   children?: NavChild[]
 }
 
-const teamNavChildren = computed<NavChild[]>(() => {
-  const programs = eventPrograms(eventStore.selectedEvent).map((program) => ({
-    name: programDisplayName(program),
-    path: teamPathFor(program),
-    icon: 'bi-people',
-    iconSrc: programLogoSrc(program),
-  }))
-  return [
-    {name: 'Teamdaten', path: '/plan/teams/data', icon: 'bi-table'},
-    ...programs,
-  ]
-})
 
 const navEntries = computed<NavEntry[]>(() => [
   {name: 'Übersicht', path: '/plan/overview', icon: 'bi-house-door'},
@@ -125,7 +113,6 @@ const navEntries = computed<NavEntry[]>(() => [
     name: 'Teams',
     path: firstTeamsPath(eventStore.selectedEvent),
     icon: 'bi-people',
-    children: teamNavChildren.value,
   },
   {name: 'Räume', path: '/plan/rooms', icon: 'bi-door-open'},
   {

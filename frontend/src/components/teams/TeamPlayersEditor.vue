@@ -39,7 +39,6 @@ const loading = ref(false)
 const saving = ref(false)
 const loadError = ref('')
 const dirty = ref(false)
-const editingIndex = ref<number | null>(null)
 
 const today = new Date().toISOString().slice(0, 10)
 
@@ -54,29 +53,6 @@ const outOfRangeCount = computed(() =>
   players.value.filter((player) => playerAgeOutOfRange(player.birthday, rule.value) !== null).length,
 )
 
-function genderLabel(gender: string) {
-  return PLAYER_GENDER_OPTIONS.find((option) => option.value === gender)?.label ?? '—'
-}
-
-function photoLabel(photo: string) {
-  return PLAYER_PHOTO_OPTIONS.find((option) => option.value === photo)?.label ?? 'Offen'
-}
-
-function mealLabel(meal: string) {
-  return PLAYER_MEAL_OPTIONS.find((option) => option.value === meal)?.label ?? 'Offen'
-}
-
-function formatDate(value: string | null) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value ?? '')
-  if (!match) return '—'
-  return `${match[3]}.${match[2]}.${match[1]}`
-}
-
-function displayName(value: string) {
-  const trimmed = value.trim()
-  return trimmed === '' ? '—' : trimmed
-}
-
 function applyResponse(data: PlayersResponse) {
   players.value = (data.players ?? []).map((player) => ({
     firstname: player.firstname ?? '',
@@ -89,7 +65,6 @@ function applyResponse(data: PlayersResponse) {
   rule.value = data.player_age_rule ?? null
   maxPlayers.value = data.max_players ?? null
   dirty.value = false
-  editingIndex.value = null
 }
 
 async function load() {
@@ -130,14 +105,11 @@ function update(index: number, field: keyof TeamPlayer, value: string) {
 function addPlayer() {
   if (atMax.value) return
   players.value.push({firstname: '', name: '', gender: '', birthday: null, photo: '', meal: ''})
-  editingIndex.value = players.value.length - 1
   dirty.value = true
 }
 
 function removePlayer(index: number) {
   players.value.splice(index, 1)
-  if (editingIndex.value === index) editingIndex.value = null
-  else if (editingIndex.value !== null && editingIndex.value > index) editingIndex.value -= 1
   dirty.value = true
 }
 
@@ -189,124 +161,114 @@ watch(
         außerhalb der Altersgrenze.
       </p>
       <p v-if="!players.length" class="vol-muted">Keine Teammitglieder eingetragen.</p>
-      <ul v-else class="team-players-editor__list">
-        <li
-            v-for="(player, index) in players"
-            :key="index"
-            class="team-players-editor__row"
-            :class="{'team-players-editor__row--warning': isOutOfRange(player)}"
-        >
-          <template v-if="editingIndex === index">
-            <input
-                type="text"
-                class="glass-input glass-input--sm"
-                aria-label="Vorname"
-                :value="player.firstname"
-                :disabled="saving"
-                @input="update(index, 'firstname', ($event.target as HTMLInputElement).value)"
-            >
-            <input
-                type="text"
-                class="glass-input glass-input--sm"
-                aria-label="Nachname"
-                :value="player.name"
-                :disabled="saving"
-                @input="update(index, 'name', ($event.target as HTMLInputElement).value)"
-            >
-            <select
-                class="select-input vol-detail-select"
-                aria-label="Geschlecht"
-                :value="player.gender"
-                :disabled="saving"
-                @change="update(index, 'gender', ($event.target as HTMLSelectElement).value)"
-            >
-              <option v-for="option in PLAYER_GENDER_OPTIONS" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
-            <input
-                type="date"
-                class="glass-input glass-input--sm"
-                aria-label="Geburtsdatum"
-                :max="today"
-                :value="player.birthday ?? ''"
-                :disabled="saving"
-                @change="update(index, 'birthday', ($event.target as HTMLInputElement).value)"
-            >
-            <select
-                class="select-input vol-detail-select"
-                aria-label="Fotoerlaubnis"
-                :value="player.photo"
-                :disabled="saving"
-                @change="update(index, 'photo', ($event.target as HTMLSelectElement).value)"
-            >
-              <option v-for="option in PLAYER_PHOTO_OPTIONS" :key="'photo-' + option.value" :value="option.value">
-                Foto {{ option.label }}
-              </option>
-            </select>
-            <select
-                class="select-input vol-detail-select"
-                aria-label="Essen"
-                :value="player.meal"
-                :disabled="saving"
-                @change="update(index, 'meal', ($event.target as HTMLSelectElement).value)"
-            >
-              <option v-for="option in PLAYER_MEAL_OPTIONS" :key="'meal-' + option.value" :value="option.value">
-                Essen {{ option.label }}
-              </option>
-            </select>
-          </template>
-          <template v-else>
-            <span class="team-players-editor__name">{{ displayName(player.firstname) }} {{ displayName(player.name) }}</span>
-            <span class="team-players-editor__meta">{{ genderLabel(player.gender) }}</span>
-            <span class="team-players-editor__meta">{{ formatDate(player.birthday) }}</span>
-            <span class="team-players-editor__meta">Foto {{ photoLabel(player.photo) }}</span>
-            <span class="team-players-editor__meta">Essen {{ mealLabel(player.meal) }}</span>
-            <span
-                v-if="rule"
-                class="team-players-editor__meta"
-                :title="isOutOfRange(player) ? `Außerhalb ${rule.minAge}–${rule.maxAge} Jahre` : undefined"
-            >
+      <table v-else class="team-players-editor__table">
+        <thead>
+          <tr>
+            <th scope="col">Vorname</th>
+            <th scope="col">Nachname</th>
+            <th scope="col">Geschlecht</th>
+            <th scope="col">Geburtsdatum</th>
+            <th scope="col">Fotoerlaubnis</th>
+            <th scope="col">Essen</th>
+            <th v-if="rule" scope="col">Alter</th>
+            <th scope="col"><span class="sr-only">Entfernen</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr
+              v-for="(player, index) in players"
+              :key="index"
+              :class="{'team-players-editor__row--warning': isOutOfRange(player)}"
+          >
+            <td>
+              <input
+                  type="text"
+                  class="glass-input glass-input--sm"
+                  aria-label="Vorname"
+                  :value="player.firstname"
+                  :disabled="saving"
+                  @input="update(index, 'firstname', ($event.target as HTMLInputElement).value)"
+              >
+            </td>
+            <td>
+              <input
+                  type="text"
+                  class="glass-input glass-input--sm"
+                  aria-label="Nachname"
+                  :value="player.name"
+                  :disabled="saving"
+                  @input="update(index, 'name', ($event.target as HTMLInputElement).value)"
+              >
+            </td>
+            <td>
+              <select
+                  class="select-input vol-detail-select"
+                  aria-label="Geschlecht"
+                  :value="player.gender"
+                  :disabled="saving"
+                  @change="update(index, 'gender', ($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="option in PLAYER_GENDER_OPTIONS" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </td>
+            <td>
+              <input
+                  type="date"
+                  class="glass-input glass-input--sm"
+                  aria-label="Geburtsdatum"
+                  :max="today"
+                  :value="player.birthday ?? ''"
+                  :disabled="saving"
+                  @change="update(index, 'birthday', ($event.target as HTMLInputElement).value)"
+              >
+            </td>
+            <td>
+              <select
+                  class="select-input vol-detail-select"
+                  aria-label="Fotoerlaubnis"
+                  :value="player.photo"
+                  :disabled="saving"
+                  @change="update(index, 'photo', ($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="option in PLAYER_PHOTO_OPTIONS" :key="'photo-' + option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </td>
+            <td>
+              <select
+                  class="select-input vol-detail-select"
+                  aria-label="Essen"
+                  :value="player.meal"
+                  :disabled="saving"
+                  @change="update(index, 'meal', ($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="option in PLAYER_MEAL_OPTIONS" :key="'meal-' + option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </td>
+            <td v-if="rule" class="team-players-editor__age">
               <i v-if="isOutOfRange(player)" class="bi bi-exclamation-triangle" aria-hidden="true"/>
               {{ ageLabel(player) }}
-            </span>
-          </template>
-          <span class="team-players-editor__actions">
-            <button
-                v-if="editingIndex === index"
-                type="button"
-                class="glass-btn-icon"
-                aria-label="Bearbeitung schließen"
-                title="Bearbeitung schließen"
-                :disabled="saving"
-                @click="editingIndex = null"
-            >
-              <i class="bi bi-check-lg" aria-hidden="true"/>
-            </button>
-            <button
-                v-else
-                type="button"
-                class="glass-btn-icon"
-                aria-label="Teammitglied bearbeiten"
-                title="Bearbeiten"
-                :disabled="saving"
-                @click="editingIndex = index"
-            >
-              <i class="bi bi-pencil" aria-hidden="true"/>
-            </button>
-            <button
-                type="button"
-                class="glass-btn-icon"
-                aria-label="Teammitglied entfernen"
-                title="Entfernen"
-                :disabled="saving"
-                @click="removePlayer(index)"
-            >
-              <i class="bi bi-trash" aria-hidden="true"/>
-            </button>
-          </span>
-        </li>
-      </ul>
+            </td>
+            <td>
+              <button
+                  type="button"
+                  class="glass-btn-icon"
+                  aria-label="Teammitglied entfernen"
+                  title="Entfernen"
+                  :disabled="saving"
+                  @click="removePlayer(index)"
+              >
+                <i class="bi bi-trash" aria-hidden="true"/>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
       <div class="team-players-editor__footer">
         <button
             type="button"
@@ -354,48 +316,44 @@ watch(
   color: var(--color-text-muted);
 }
 
-.team-players-editor__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+.team-players-editor__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
 }
 
-.team-players-editor__row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+.team-players-editor__table th {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--color-text-muted);
+  padding: 0 0.35rem 0.35rem;
+  white-space: nowrap;
 }
 
-.team-players-editor__row--warning .team-players-editor__meta {
+.team-players-editor__table td {
+  padding: 0.2rem 0.35rem 0.45rem 0;
+  vertical-align: middle;
+}
+
+.team-players-editor__table input[type="text"] {
+  width: 8rem;
+}
+
+.team-players-editor__table select,
+.team-players-editor__table input[type="date"] {
+  width: 100%;
+  min-width: 6.5rem;
+}
+
+.team-players-editor__row--warning .team-players-editor__age {
   color: var(--color-warning, #b45309);
 }
 
-.team-players-editor__name {
-  min-width: 10rem;
-  font-weight: 600;
-}
-
-.team-players-editor__meta {
-  color: var(--color-text-muted);
+.team-players-editor__age {
   font-variant-numeric: tabular-nums;
-}
-
-.team-players-editor__row input,
-.team-players-editor__row select {
-  min-width: 0;
-}
-
-.team-players-editor__row input[type="text"] {
-  width: 8.5rem;
-}
-
-.team-players-editor__actions {
-  display: inline-flex;
-  margin-left: auto;
+  color: var(--color-text-muted);
+  white-space: nowrap;
 }
 
 .team-players-editor__footer {

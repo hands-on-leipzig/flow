@@ -17,6 +17,7 @@ import NoticePane from '@/components/molecules/NoticePane.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
+import {formatJuryCell} from '@/utils/teamJury'
 import {
   isTeamDataUnconfirmed,
   isTeamParticipantListIncomplete,
@@ -52,6 +53,7 @@ const deadlineSaving = ref(false)
 const nameFilter = ref('')
 const activeProgramFilters = ref<Set<number>>(new Set())
 const sortKey = ref<'team_number_hot' | 'name' | 'organization'>('name')
+const planById = ref<Record<number, {plan: number | null, noshow: boolean, jury: string}>>({})
 const sortDir = ref<'asc' | 'desc'>('asc')
 
 const countEditTeam = ref<TeamDataRow | null>(null)
@@ -91,7 +93,15 @@ const filteredTeams = computed(() => {
     return []
   }
 
-  let rows = [...teams.value]
+  let rows = [...teams.value].map((row) => {
+    const plan = planById.value[row.id]
+    return {
+      ...row,
+      plan_number: plan?.plan ?? row.team_number_plan,
+      noshow: plan?.noshow ?? false,
+      jury_label: plan?.jury ?? '–',
+    }
+  })
   rows = rows.filter((row) => row.first_program != null && activeProgramFilters.value.has(row.first_program))
 
   const query = nameFilter.value.trim().toLowerCase()
@@ -122,9 +132,12 @@ const filteredTeams = computed(() => {
     rows = rows.filter((row) => isTeamDataUnconfirmed(row))
   }
 
+  const programOrder = new Map(programFilters.value.map((program, index) => [Number(program.first_program), index]))
   const dir = sortDir.value === 'asc' ? 1 : -1
   const key = sortKey.value
   rows.sort((a, b) => {
+    const programDelta = (programOrder.get(Number(a.first_program)) ?? 99) - (programOrder.get(Number(b.first_program)) ?? 99)
+    if (programDelta !== 0) return programDelta
     if (key === 'team_number_hot') {
       const an = a.team_number_hot
       const bn = b.team_number_hot
@@ -244,6 +257,7 @@ async function load() {
       setMealOptions(data.meal_options)
     }
     syncProgramFilters()
+    await attachPlan()
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
@@ -253,6 +267,43 @@ async function load() {
 
 const answersDeadline = ref('')
 const answersDeadlineDraft = ref('')
+
+async function attachPlan() {
+  if (!eventId.value) return
+  const next: Record<number, {plan: number | null, noshow: boolean, jury: string}> = {}
+  await Promise.all(programFilters.value.map(async (program) => {
+    try {
+      const {data} = await axios.get(`/events/${eventId.value}/teams`, {
+        params: {program: programSlug(program.name), sort: 'plan_order'},
+      })
+      const list = Array.isArray(data) ? data : (data?.teams ?? [])
+      for (const team of list) {
+        next[Number(team.id)] = {
+          plan: team.team_number_plan ?? null,
+          noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1',
+          jury: formatJuryCell(String(program.name ?? ''), team.jury_lane),
+        }
+      }
+    } catch {
+      // A program without a plan still shows its team data.
+    }
+  }))
+  planById.value = next
+}
+
+async function onNoshow(team: TeamDataRow, noshow: boolean) {
+  if (!eventId.value) return
+  planById.value = {
+    ...planById.value,
+    [team.id]: {...(planById.value[team.id] ?? {plan: team.plan_number ?? null, jury: team.jury_label ?? '–', noshow}), noshow},
+  }
+  try {
+    await axios.put(`/events/${eventId.value}/teams`, {id: team.id, noshow: noshow ? 1 : 0})
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'No-show konnte nicht gespeichert werden'), 'error')
+    await attachPlan()
+  }
+}
 
 const deadlineUnchanged = computed(() =>
   (deadlineDraft.value === '' || deadlineDraft.value === deadline.value)
@@ -322,7 +373,7 @@ onActivated(() => {
     <header class="vol-page__header">
       <div>
         <div class="vol-page__title-row">
-          <h1 class="vol-page__title">Teamdaten</h1>
+          <h1 class="vol-page__title">Teams</h1>
           <ScreenHelpButton/>
         </div>
         <p class="vol-page__sub">Bitte prüfe, ob die Teamdaten vollständig sind.</p>
@@ -517,6 +568,7 @@ onActivated(() => {
           @toggle-sort="toggleSort"
           @open-count="openCountPopover"
           @updated="onTeamUpdated"
+          @noshow="onNoshow"
       />
     </section>
 
