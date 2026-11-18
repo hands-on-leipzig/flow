@@ -31,6 +31,7 @@ const emit = defineEmits<{
   'toggle-sort': [key: TeamDataSortKey]
   'open-count': [team: TeamDataRow, column: TeamDataColumn, anchor: HTMLElement]
   updated: [team: TeamDataRow]
+  noshow: [team: TeamDataRow, value: boolean]
 }>()
 
 const expandedTeamId = ref<number | null>(null)
@@ -189,6 +190,16 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 }
 
 /** Show entered total against registered people for Fotoerlaubnis / Essen. */
+function showProgramGroup(index: number) {
+  const row = props.teams[index]
+  const previous = props.teams[index - 1]
+  return !previous || previous.first_program !== row?.first_program
+}
+
+function programCount(programId: number | null) {
+  return props.teams.filter((row) => row.first_program === programId).length
+}
+
 function answerTally(row: TeamDataRow, column: TeamDataColumn) {
   const total = row.players_count ?? 0
   const answered = column.kind === 'photo' ? (row.photo_answered ?? 0) : (row.meal_answered ?? 0)
@@ -241,6 +252,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
               <i class="bi" :class="sortIcon('team_number_hot')" aria-hidden="true"/>
             </button>
           </th>
+          <th scope="col">Ablauf</th>
           <th class="vol-table__name vol-table__sticky vol-table__sticky--name" scope="col">
             <button
                 type="button"
@@ -265,6 +277,8 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
           </th>
           <th scope="col">Personen</th>
           <th scope="col">Teilnehmende</th>
+          <th scope="col">Jury</th>
+          <th scope="col">No-show</th>
           <th scope="col">Eventangaben</th>
           <th
               v-for="column in columns"
@@ -276,8 +290,14 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
         </tr>
       </thead>
       <tbody>
-        <template v-for="row in teams" :key="row.id">
-        <tr class="glass-table-row--hover">
+        <template v-for="(row, index) in teams" :key="row.id">
+        <tr v-if="showProgramGroup(index)" class="team-data-group">
+          <td :colspan="10 + columns.length">
+            <strong>{{ row.program_label || 'Programm' }}</strong>
+            <span class="team-data-group__count">{{ programCount(row.first_program) }} Teams</span>
+          </td>
+        </tr>
+        <tr class="glass-table-row--hover" :class="{'team-data-row--noshow': row.noshow}">
           <td class="vol-table__roster vol-table__sticky vol-table__sticky--program">
             <ProgramLogo
                 v-if="row.first_program"
@@ -291,6 +311,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
           <td class="vol-table__sticky vol-table__sticky--nr team-data-table__nr">
             {{ displayNumber(row.team_number_hot) }}
           </td>
+          <td class="team-data-table__nr">{{ displayNumber(row.plan_number) }}</td>
           <td class="vol-table__name vol-table__sticky vol-table__sticky--name">{{ row.name }}</td>
           <td class="vol-table__role">
             <span class="team-data-table__org">{{ displayOrganization(row.organization) }}</span>
@@ -327,6 +348,17 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
                   :class="expandedTeamId === row.id ? 'bi-chevron-up' : 'bi-chevron-down'"
                   aria-hidden="true"
               />
+            </button>
+          </td>
+          <td>{{ row.jury_label || '–' }}</td>
+          <td>
+            <button
+                type="button"
+                class="glass-btn-secondary team-data-noshow"
+                :aria-pressed="!!row.noshow"
+                @click="emit('noshow', row, !row.noshow)"
+            >
+              {{ row.noshow ? 'No-show' : 'dabei' }}
             </button>
           </td>
           <td>{{ eventAnswersLabel(row) }}</td>
@@ -419,7 +451,7 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
           </td>
         </tr>
         <tr v-if="expandedTeamId === row.id" class="team-data-players-row">
-          <td :colspan="7 + columns.length">
+          <td :colspan="10 + columns.length">
             <TeamPlayersEditor
                 :event-id="eventId"
                 :team-id="row.id"
@@ -556,6 +588,27 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 
 .team-data-table__dash {
   opacity: 0.5;
+}
+
+.team-data-group td {
+  padding-top: 0.85rem;
+  background: var(--color-bg-muted);
+  font-size: 0.85rem;
+}
+
+.team-data-group__count {
+  margin-left: 0.75rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.team-data-row--noshow {
+  opacity: 0.55;
+}
+
+.team-data-noshow {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
 }
 
 .team-data-players-row td {
