@@ -100,6 +100,7 @@ const filteredTeams = computed(() => {
       const haystack = [
         row.name,
         row.organization ?? '',
+        row.location ?? '',
         row.team_number_hot != null ? String(row.team_number_hot) : '',
       ]
         .join(' ')
@@ -234,6 +235,10 @@ async function load() {
     columns.value = data.columns ?? []
     deadline.value = typeof data.team_data_deadline === 'string' ? data.team_data_deadline : ''
     deadlineDraft.value = deadline.value
+    answersDeadline.value = typeof data.answers_deadline === 'string' && data.answers_deadline !== ''
+      ? data.answers_deadline
+      : deadline.value
+    answersDeadlineDraft.value = answersDeadline.value
     collectMeal.value = data.collect?.meal !== false
     if (data.meal_options) {
       setMealOptions(data.meal_options)
@@ -246,7 +251,13 @@ async function load() {
   }
 }
 
-const deadlineUnchanged = computed(() => deadlineDraft.value === '' || deadlineDraft.value === deadline.value)
+const answersDeadline = ref('')
+const answersDeadlineDraft = ref('')
+
+const deadlineUnchanged = computed(() =>
+  (deadlineDraft.value === '' || deadlineDraft.value === deadline.value)
+  && (answersDeadlineDraft.value === '' || answersDeadlineDraft.value === answersDeadline.value),
+)
 
 async function saveDeadline() {
   if (!eventId.value || deadlineSaving.value || deadlineUnchanged.value) return
@@ -254,9 +265,12 @@ async function saveDeadline() {
   try {
     const {data} = await axios.put(`/events/${eventId.value}/team-data-deadline`, {
       deadline: deadlineDraft.value,
+      answers_deadline: answersDeadlineDraft.value,
     })
     deadline.value = data.team_data_deadline ?? deadlineDraft.value
     deadlineDraft.value = deadline.value
+    answersDeadline.value = data.answers_deadline ?? answersDeadlineDraft.value
+    answersDeadlineDraft.value = answersDeadline.value
     if (data.changed) {
       showGlassToast('Frist gespeichert. Die Info-Mail ist raus.')
     } else {
@@ -365,10 +379,18 @@ onActivated(() => {
           Coach:innen können über die öffentliche Seite Daten zu ihren Teams eingeben.
         </p>
         <div class="vol-roster-publish__row">
-          <label class="vol-roster-publish__label" for="team-data-deadline">Frist für Teamdaten</label>
+          <label class="vol-roster-publish__label" for="team-data-deadline">Frist Teilnehmende</label>
           <input
               id="team-data-deadline"
               v-model="deadlineDraft"
+              type="date"
+              class="glass-input glass-input--sm"
+              :disabled="!eventId || deadlineSaving"
+          >
+          <label class="vol-roster-publish__label" for="answers-deadline">Frist übrige Angaben</label>
+          <input
+              id="answers-deadline"
+              v-model="answersDeadlineDraft"
               type="date"
               class="glass-input glass-input--sm"
               :disabled="!eventId || deadlineSaving"
@@ -379,11 +401,11 @@ onActivated(() => {
               :disabled="!eventId || deadlineSaving || deadlineUnchanged"
               @click="saveDeadline"
           >
-            {{ deadlineSaving ? 'Speichern…' : 'Frist speichern' }}
+            {{ deadlineSaving ? 'Speichern…' : 'Fristen speichern' }}
           </button>
         </div>
         <p class="glass-settings-hint !mb-0 vol-roster-publish__hint">
-          Standard sind 4 Wochen vor dem Event. Eine Änderung geht an info@hands-on-technology.org und an Coaches, die „Teilnehmende komplett“ noch nicht bestätigt haben.
+          Teilnehmende: Name, Geschlecht, Geburtsdatum. Übrige Angaben: Foto und Essen pro Person. Gleiches Datum ist der Standard. Eine Änderung der Teilnehmenden-Frist geht an info@hands-on-technology.org und an Coaches, die „Teilnehmende komplett“ noch nicht bestätigt haben.
         </p>
       </section>
     </div>
@@ -467,7 +489,7 @@ onActivated(() => {
               class="vol-staffing-filter"
               :class="{'vol-staffing-filter--active': showOnlyUnconfirmed}"
               :aria-pressed="showOnlyUnconfirmed"
-              title="Nur Teams ohne Bestätigung „Teamdaten komplett“ anzeigen"
+              title="Nur Teams ohne Bestätigung „Teilnehmende komplett“ anzeigen"
               @click="showOnlyUnconfirmed = !showOnlyUnconfirmed"
           >
             <i class="bi bi-check2-square vol-staffing-filter__icon" aria-hidden="true"/>

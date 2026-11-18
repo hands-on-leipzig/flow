@@ -13,6 +13,7 @@ export type TeamDataRow = {
   id: number
   name: string
   organization: string | null
+  location?: string | null
   team_number_hot: number | null
   team_number_plan: number | null
   first_program: number | null
@@ -23,6 +24,8 @@ export type TeamDataRow = {
   players_age_out_of_range: number | null
   /** Coach confirmed names, gender and birth dates. Null when DRAHT did not say. */
   players_complete?: boolean | null
+  photo_answered?: number
+  meal_answered?: number
   photo_consent?: Record<string, number>
   meals?: Record<string, number>
   custom: Record<string, unknown>
