@@ -66,11 +66,21 @@ class TeamPlayersApiTest extends TestCase
     public function test_show_returns_players_with_age_flags(): void
     {
         Http::fake([
-            'http://draht.test/handson/flow/500/people' => Http::response($this->peoplePayload([
-                ['firstname' => 'Ada', 'name' => 'A', 'gender' => 'f', 'birthday' => $this->ts('2014-05-05')],
-                ['firstname' => 'Ben', 'name' => 'B', 'gender' => 'M', 'birthday' => $this->ts('2008-06-01')],
-                ['firstname' => 'Cem', 'name' => 'C', 'gender' => '', 'birthday' => null],
-            ])),
+            'http://draht.test/handson/flow/500/people' => Http::response((function () {
+                $people = $this->peoplePayload([
+                    ['firstname' => 'Ada', 'name' => 'A', 'gender' => 'f', 'birthday' => $this->ts('2014-05-05')],
+                    ['firstname' => 'Ben', 'name' => 'B', 'gender' => 'M', 'birthday' => $this->ts('2008-06-01')],
+                    ['firstname' => 'Cem', 'name' => 'C', 'gender' => '', 'birthday' => null],
+                ]);
+                $people['10']['coaches'][] = [
+                    'firstname' => 'Bea',
+                    'name' => 'Co',
+                    'email' => 'bea@example.test',
+                    'phone' => '0123',
+                ];
+
+                return $people;
+            })()),
         ]);
 
         $response = app(EventTeamPlayersController::class)->show(Event::findOrFail(1), Team::findOrFail(1));
@@ -86,6 +96,13 @@ class TeamPlayersApiTest extends TestCase
                 ['firstname' => 'Cem', 'name' => 'C', 'gender' => '', 'birthday' => null, 'photo' => '', 'meal' => '', 'age_out_of_range' => null],
             ],
             $data['players'],
+        );
+        $this->assertSame(
+            [
+                ['role' => 'coach', 'firstname' => 'C', 'name' => 'Coach', 'email' => '', 'phone' => ''],
+                ['role' => 'co_coach', 'firstname' => 'Bea', 'name' => 'Co', 'email' => 'bea@example.test', 'phone' => '0123'],
+            ],
+            $data['coaches'],
         );
 
         $row = TeamDataIndex::teamPayload(Event::findOrFail(1), Team::findOrFail(1));

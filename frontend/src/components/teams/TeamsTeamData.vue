@@ -429,26 +429,30 @@ onActivated(() => {
         <p class="glass-settings-hint vol-roster-publish__hint">
           Coach:innen können über die öffentliche Seite Daten zu ihren Teams eingeben.
         </p>
-        <div class="vol-roster-publish__row">
-          <label class="vol-roster-publish__label" for="team-data-deadline">Frist Teilnehmende</label>
-          <input
-              id="team-data-deadline"
-              v-model="deadlineDraft"
-              type="date"
-              class="glass-input glass-input--sm"
-              :disabled="!eventId || deadlineSaving"
-          >
-          <label class="vol-roster-publish__label" for="answers-deadline">Frist übrige Angaben</label>
-          <input
-              id="answers-deadline"
-              v-model="answersDeadlineDraft"
-              type="date"
-              class="glass-input glass-input--sm"
-              :disabled="!eventId || deadlineSaving"
-          >
+        <div class="vol-roster-publish__deadlines">
+          <div class="vol-roster-publish__deadline">
+            <label for="team-data-deadline">Frist Teilnehmende</label>
+            <input
+                id="team-data-deadline"
+                v-model="deadlineDraft"
+                type="date"
+                class="glass-input glass-input--sm vol-roster-publish__date"
+                :disabled="!eventId || deadlineSaving"
+            >
+          </div>
+          <div class="vol-roster-publish__deadline">
+            <label for="answers-deadline">Frist übrige Angaben</label>
+            <input
+                id="answers-deadline"
+                v-model="answersDeadlineDraft"
+                type="date"
+                class="glass-input glass-input--sm vol-roster-publish__date"
+                :disabled="!eventId || deadlineSaving"
+            >
+          </div>
           <button
               type="button"
-              class="glass-btn-secondary"
+              class="glass-btn-secondary vol-roster-publish__deadline-save"
               :disabled="!eventId || deadlineSaving || deadlineUnchanged"
               @click="saveDeadline"
           >
