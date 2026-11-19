@@ -37,6 +37,10 @@ defineOptions({name: 'TeamsTeamData'})
 
 const eventStore = useEventStore()
 const eventId = computed(() => eventStore.selectedEvent?.id)
+const publicEventUrl = computed(() => {
+  const link = (eventStore.selectedEvent as {link?: string | null} | null)?.link
+  return typeof link === 'string' ? link.trim() : ''
+})
 
 const teams = ref<TeamDataRow[]>([])
 const columns = ref<TeamDataColumn[]>([])
@@ -429,7 +433,15 @@ onActivated(() => {
           />
         </div>
         <p class="glass-settings-hint vol-roster-publish__hint">
-          Coach:innen können über die öffentliche Seite Daten zu ihren Teams eingeben.
+          Dateneingabe erfolgt im Coach-Login in JOIN.
+          <a
+              v-if="publicEventUrl"
+              :href="publicEventUrl"
+              class="vol-roster-publish__link"
+              target="_blank"
+              rel="noopener"
+          >Die öffentliche Seite des Events</a><template v-else>Die öffentliche Seite des Events</template>
+          führt dahin, wenn du sie einschaltest.
         </p>
         <div class="vol-roster-publish__deadlines">
           <div class="vol-roster-publish__deadline">
