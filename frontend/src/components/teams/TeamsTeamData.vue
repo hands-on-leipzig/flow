@@ -11,6 +11,8 @@ import VolunteerStaffingFilterBar from '@/components/molecules/VolunteerStaffing
 import TeamDataTable from '@/components/teams/TeamDataTable.vue'
 import TeamDataCountPopover from '@/components/teams/TeamDataCountPopover.vue'
 import TeamsEmailOutreach from '@/components/teams/TeamsEmailOutreach.vue'
+import TeamsRegistrationStats from '@/components/teams/TeamsRegistrationStats.vue'
+import TeamsMultiTeamCoaches from '@/components/teams/TeamsMultiTeamCoaches.vue'
 import ScreenHelpButton from '@/components/atoms/ScreenHelpButton.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
 import NoticePane from '@/components/molecules/NoticePane.vue'
@@ -416,8 +418,8 @@ onActivated(() => {
 
     <NoticePane/>
 
-    <div class="vol-roster-toolbar vol-roster-toolbar--solo">
-      <section class="glass-card liquid-surface-inner vol-tile vol-roster-publish">
+    <div class="teams-overview">
+      <section class="glass-card liquid-surface-inner vol-sidebar-tile vol-roster-publish">
         <div class="vol-roster-publish__row">
           <span class="vol-roster-publish__label">Dateneingabe durch Coaches</span>
           <ToggleSwitch
@@ -463,6 +465,8 @@ onActivated(() => {
           Teilnehmende: Name, Geschlecht, Geburtsdatum. Übrige Angaben: Foto und Essen pro Person. Gleiches Datum ist der Standard. Eine Änderung der Teilnehmenden-Frist geht an info@hands-on-technology.org und an Coaches, die „Teilnehmende komplett“ noch nicht bestätigt haben.
         </p>
       </section>
+      <TeamsRegistrationStats/>
+      <TeamsMultiTeamCoaches/>
     </div>
 
     <section class="glass-card liquid-surface-inner vol-tile vol-roster-table-tile">
@@ -609,4 +613,65 @@ onActivated(() => {
 
   </div>
 </template>
+
+<style scoped>
+.teams-overview {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.teams-overview :deep(.glass-card) {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+
+.teams-overview :deep(.vol-sidebar-heading) {
+  margin-bottom: 0.45rem;
+}
+
+.teams-overview :deep(.vol-roster-publish__deadlines) {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin-top: 0.65rem;
+}
+
+.teams-overview :deep(.vol-roster-publish__deadline) {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+}
+
+.teams-overview :deep(input.vol-roster-publish__date.glass-input) {
+  width: 9.5rem;
+  min-width: 9.5rem;
+  max-width: 9.5rem;
+  height: 1.85rem;
+  min-height: 1.85rem;
+  max-height: 1.85rem;
+  flex: none;
+  padding: 0 0.35rem 0 0.5rem;
+}
+
+.teams-overview :deep(.vol-roster-publish__deadline-save) {
+  margin-left: 0;
+  margin-top: 0.1rem;
+}
+
+.teams-overview :deep(.teams-multi-team-coaches__list) {
+  max-height: 7.5rem;
+  overflow: auto;
+}
+
+@media (max-width: 768px) {
+  .teams-overview {
+    flex-direction: column;
+  }
+}
+</style>
 

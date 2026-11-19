@@ -248,10 +248,14 @@
 }
 
 input.vol-roster-publish__date.glass-input {
-  width: 10.75rem;
-  min-width: 0;
-  max-width: 10.75rem;
-  flex: 0 0 10.75rem;
+  width: 9.5rem;
+  min-width: 9.5rem;
+  max-width: 9.5rem;
+  height: 1.85rem;
+  min-height: 1.85rem;
+  flex: none;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .vol-roster-publish__deadline-save {
