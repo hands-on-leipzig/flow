@@ -6,10 +6,12 @@ import {useNoticeStore} from '@/stores/notice'
 import {usePlanCacheStore} from '@/stores/planCache'
 import {useProgramsStore} from '@/stores/programs'
 import {useAuth} from '@/composables/useAuth'
+import {useApps} from '@/composables/useApps'
 import {useScheduleWorkspace} from '@/composables/useScheduleWorkspace'
 import {useAdminInlineVisibility} from '@/composables/useAdminInlineVisibility'
-import {imageUrl, programLogoSrc} from '@/utils/images'
-import {eventPrograms, programDisplayName, teamPathFor, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
+import {imageUrl} from '@/utils/images'
+import AppSwitcher from '@/components/AppSwitcher.vue'
+import {eventPrograms, firstTeamsPath, programCompact, hasAfternoon} from '@/utils/eventPrograms'
 import {
   ADMIN_SECTIONS,
   ADMIN_OPS_NAV,
@@ -23,6 +25,9 @@ import {useAdminEnvironment} from '@/composables/useAdminEnvironment'
 import keycloak from '@/keycloak.js'
 import {theme, setTheme} from '@hands-on/glass/theme'
 import AppShell from '@hands-on/glass/app-shell'
+import ScorLogo from '@/components/scor/ScorLogo.vue'
+import {useWiseRoles} from '@/composables/useWiseRoles'
+import {useWiseSync, wiseSyncLabel} from '@/composables/useWiseSync'
 import SidebarFooter from '@hands-on/glass/sidebar-footer'
 import SidebarNavItem from '@hands-on/glass/sidebar-nav-item'
 
@@ -31,6 +36,7 @@ const noticeStore = useNoticeStore()
 const programsStore = useProgramsStore()
 const planCache = usePlanCacheStore()
 const {isAdmin, initializeUserRoles} = useAuth()
+const {canFlow, canScor, ensure: ensureApps} = useApps()
 const {planLocked} = useScheduleWorkspace()
 const {
   showAdminInline,
@@ -72,18 +78,6 @@ type NavEntry = {
   children?: NavChild[]
 }
 
-const teamNavChildren = computed<NavChild[]>(() => {
-  const programs = eventPrograms(eventStore.selectedEvent).map((program) => ({
-    name: programDisplayName(program),
-    path: teamPathFor(program),
-    icon: 'bi-people',
-    iconSrc: programLogoSrc(program),
-  }))
-  return [
-    {name: 'Teamdaten', path: '/plan/teams/data', icon: 'bi-table'},
-    ...programs,
-  ]
-})
 
 const navEntries = computed<NavEntry[]>(() => [
   {name: 'Übersicht', path: '/plan/overview', icon: 'bi-house-door'},
@@ -119,7 +113,6 @@ const navEntries = computed<NavEntry[]>(() => [
     name: 'Teams',
     path: firstTeamsPath(eventStore.selectedEvent),
     icon: 'bi-people',
-    children: teamNavChildren.value,
   },
   {name: 'Räume', path: '/plan/rooms', icon: 'bi-door-open'},
   {
@@ -157,7 +150,90 @@ const navEntries = computed<NavEntry[]>(() => [
 ])
 
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
+const isScorMode = computed(() => route.path === '/scor' || route.path.startsWith('/scor/'))
 const showBackToOverview = computed(() => isAdminMode.value)
+
+const scorNavEntries = computed<NavEntry[]>(() => [
+  {name: 'Veranstaltungen', path: '/scor', icon: 'bi-calendar-event'},
+])
+
+const wiseCollapsed = ref(true)
+
+function onShellCollapsed(value: boolean) {
+  if (!isScorMode.value) return
+  wiseCollapsed.value = value
+  try {
+    localStorage.setItem('wise-sidebar-collapsed', value ? '1' : '0')
+  } catch {
+    /* private mode */
+  }
+}
+
+const {roles: wiseRoles} = useWiseRoles()
+const {sync: wiseSync} = useWiseSync()
+const wiseEventId = computed(() => {
+  const id = route.params.eventId
+  return typeof id === 'string' && id !== '' ? id : null
+})
+
+function wiseStoredSicht() {
+  if (!wiseEventId.value) return null
+  try {
+    return sessionStorage.getItem(`wise-sicht-${wiseEventId.value}`)
+  } catch {
+    return null
+  }
+}
+
+const wiseBack = computed(() => {
+  if (!wiseEventId.value) return null
+  if (route.path.includes('/match/')) return {label: 'Schiri', to: `/scor/${wiseEventId.value}`}
+  if (route.path.includes('/jury/')) return {label: 'Jury', to: `/scor/${wiseEventId.value}?sicht=jury`}
+  return null
+})
+
+function goWiseBack() {
+  if (!wiseBack.value) return
+  void router.push(wiseBack.value.to)
+}
+
+const wiseSicht = computed(() => {
+  if (!wiseEventId.value) return null
+  if (route.path.includes('/match/')) return 'schiri'
+  if (route.path.includes('/jury/')) return 'jury'
+  if (route.query.sicht === 'jury' || route.query.sicht === 'ergebnisse') return route.query.sicht
+  const stored = wiseStoredSicht()
+  if (stored === 'jury' || stored === 'ergebnisse' || stored === 'schiri') return stored
+  if (wiseRoles.value?.referee) return 'schiri'
+  if (wiseRoles.value?.jury) return 'jury'
+  return 'ergebnisse'
+})
+
+function flowTabOn(id: 'overview' | 'schedule' | 'teams' | 'live') {
+  const path = route.path
+  if (id === 'overview') return path === '/plan/overview'
+  if (id === 'schedule') {
+    return path.startsWith('/plan/schedule')
+        && !path.startsWith('/plan/schedule/free')
+        && !path.startsWith('/plan/schedule/slots')
+  }
+  if (id === 'teams') return path.startsWith('/plan/teams')
+  return path.startsWith('/plan/live')
+}
+
+function openWiseSicht(sicht: 'schiri' | 'jury' | 'ergebnisse') {
+  if (!wiseEventId.value) return
+  try {
+    sessionStorage.setItem(`wise-sicht-${wiseEventId.value}`, sicht)
+  } catch {
+    /* private mode */
+  }
+  mobileMenuOpen.value = false
+  const path = sicht === 'schiri'
+      ? `/scor/${wiseEventId.value}`
+      : `/scor/${wiseEventId.value}?sicht=${sicht}`
+  goToPath(path)
+}
 
 function toAdminNavEntry(item: AdminSection): NavEntry {
   const available = isAdminSectionAvailable(item, isDevEnvironment.value, isLocal)
@@ -246,7 +322,15 @@ function childNavProps(child: NavChild) {
 }
 
 onMounted(async () => {
+  try {
+    const stored = localStorage.getItem('wise-sidebar-collapsed')
+    if (stored === '0') wiseCollapsed.value = false
+  } catch {
+    /* private mode */
+  }
   initializeUserRoles()
+  await ensureApps()
+  if (!canFlow.value || isScorMode.value) return
   if (!eventStore.selectedEvent) {
     await eventStore.fetchSelectedEvent()
   }
@@ -307,14 +391,31 @@ function normalizePlanPath(path: string): string {
 }
 
 function isActive(path: string) {
+  if (path.startsWith('/scor')) {
+    const current = route.path.replace(/\/$/, '') || '/'
+    const [pathOnly, query = ''] = path.split('?')
+    const sicht = new URLSearchParams(query).get('sicht')
+    if (pathOnly === '/scor') return current === '/scor'
+    const onEvent = current === pathOnly || current.startsWith(`${pathOnly}/`)
+    const juryView = route.query.sicht === 'jury' || current.includes('/jury/')
+    const resultsView = route.query.sicht === 'ergebnisse'
+    if (sicht === 'jury') return onEvent && juryView
+    if (sicht === 'ergebnisse') return onEvent && resultsView && !current.includes('/jury/') && !current.includes('/match/')
+    return onEvent && !juryView && !resultsView
+  }
   const target = normalizePlanPath(path)
   const current = route.path.replace(/\/$/, '') || '/'
   return current === target
 }
 
 function goToPath(path: string) {
-  const target = normalizePlanPath(path)
   mobileMenuOpen.value = false
+  if (path.startsWith('/scor')) {
+    if (route.fullPath === path) return
+    void router.push(path)
+    return
+  }
+  const target = normalizePlanPath(path)
   if (isActive(target)) return
   void router.push(target)
 }
@@ -347,15 +448,125 @@ function logout() {
 
 <template>
   <AppShell
+      :class="{'glass-app--wise-compact': isScorMode}"
       :open="mobileMenuOpen"
+      :collapsed="isScorMode ? wiseCollapsed : undefined"
       menu-aria-label="Menü öffnen"
       @toggle="toggleMobileMenu"
       @update:open="mobileMenuOpen = $event"
+      @update:collapsed="onShellCollapsed"
   >
+    <template v-if="isScorMode" #mobile-top>
+      <button v-if="wiseBack" type="button" class="wise-back" @click="goWiseBack">
+        <i class="bi bi-chevron-left" aria-hidden="true"/>
+        {{ wiseBack.label }}
+      </button>
+      <ScorLogo/>
+    </template>
+    <template v-if="isScorMode" #mobile-top-actions>
+      <span
+          v-if="wiseSync !== 'idle'"
+          class="wise-sync"
+          :class="'is-' + wiseSync"
+          role="status"
+          :aria-label="wiseSyncLabel(wiseSync)"
+      >
+        <span class="wise-sync__dot" aria-hidden="true"/>
+      </span>
+      <AppSwitcher
+          button-only
+          :can-flow="canFlow"
+          :can-scor="canScor"
+          :scor-mode="isScorMode"
+      />
+    </template>
+    <template #mobile-tabs="{ open, toggle }">
+      <template v-if="!isScorMode">
+        <button
+            type="button"
+            class="glass-app__mobile-tab"
+            :class="{'glass-app__mobile-tab--active': !open && flowTabOn('overview')}"
+            @click="goToPath('/plan/overview')"
+        >
+          <i class="bi bi-house-door" aria-hidden="true"/>
+          <span class="glass-app__mobile-tab-label">Übersicht</span>
+        </button>
+        <button
+            type="button"
+            class="glass-app__mobile-tab"
+            :class="{'glass-app__mobile-tab--active': !open && flowTabOn('schedule')}"
+            @click="goToPath('/plan/schedule')"
+        >
+          <i class="bi bi-list-check" aria-hidden="true"/>
+          <span class="glass-app__mobile-tab-label">Ablauf</span>
+        </button>
+        <button
+            type="button"
+            class="glass-app__mobile-tab"
+            :class="{'glass-app__mobile-tab--active': !open && flowTabOn('teams')}"
+            @click="goToPath(firstTeamsPath(eventStore.selectedEvent))"
+        >
+          <i class="bi bi-people" aria-hidden="true"/>
+          <span class="glass-app__mobile-tab-label">Teams</span>
+        </button>
+        <button
+            type="button"
+            class="glass-app__mobile-tab"
+            :class="{'glass-app__mobile-tab--active': !open && flowTabOn('live')}"
+            @click="goToPath('/plan/live/check-in')"
+        >
+          <i class="bi bi-play-circle" aria-hidden="true"/>
+          <span class="glass-app__mobile-tab-label">am Tag</span>
+        </button>
+      </template>
+      <button
+          v-if="isScorMode && wiseEventId && (!wiseRoles || wiseRoles.referee)"
+          type="button"
+          class="glass-app__mobile-tab"
+          :class="{'glass-app__mobile-tab--active': !open && wiseSicht === 'schiri'}"
+          @click="openWiseSicht('schiri')"
+      >
+        <i class="bi bi-clipboard-check" aria-hidden="true"/>
+        <span class="glass-app__mobile-tab-label">Schiri</span>
+      </button>
+      <button
+          v-if="isScorMode && wiseEventId && wiseRoles?.jury"
+          type="button"
+          class="glass-app__mobile-tab"
+          :class="{'glass-app__mobile-tab--active': !open && wiseSicht === 'jury'}"
+          @click="openWiseSicht('jury')"
+      >
+        <i class="bi bi-people" aria-hidden="true"/>
+        <span class="glass-app__mobile-tab-label">Jury</span>
+      </button>
+      <button
+          v-if="isScorMode && wiseEventId"
+          type="button"
+          class="glass-app__mobile-tab"
+          :class="{'glass-app__mobile-tab--active': !open && wiseSicht === 'ergebnisse'}"
+          @click="openWiseSicht('ergebnisse')"
+      >
+        <i class="bi bi-award" aria-hidden="true"/>
+        <span class="glass-app__mobile-tab-label">Ergebnisse</span>
+      </button>
+      <button
+          type="button"
+          class="glass-app__mobile-tab glass-app__mobile-tab--more"
+          :class="{'glass-app__mobile-tab--active': open}"
+          :aria-pressed="open"
+          aria-label="Mehr"
+          @click="toggle"
+      >
+        <i class="bi" :class="open ? 'bi-x-lg' : 'bi-three-dots'" aria-hidden="true"/>
+        <span class="glass-app__mobile-tab-label">Mehr</span>
+      </button>
+    </template>
     <template #brand>
-      <RouterLink to="/plan/overview" class="glass-sidebar__brand" @click="mobileMenuOpen = false">
-        <img :src="imageUrl('/flow/flow.png')" alt="FLOW" class="glass-sidebar__brand-logo"/>
-      </RouterLink>
+      <AppSwitcher
+          :can-flow="canFlow"
+          :can-scor="canScor"
+          :scor-mode="isScorMode"
+      />
     </template>
 
     <template v-if="showBackToOverview" #nav-pinned>
@@ -410,6 +621,37 @@ function logout() {
           />
         </div>
       </template>
+      <template v-else-if="isScorMode">
+        <SidebarNavItem
+            v-for="entry in scorNavEntries"
+            :key="entry.path ?? entry.name"
+            :label="entry.name"
+            :icon="entry.icon"
+            :active="!!entry.path && isActive(entry.path) && !wiseEventId"
+            @select="onNavSelect(entry)"
+        />
+        <SidebarNavItem
+            v-if="wiseEventId && (!wiseRoles || wiseRoles.referee)"
+            label="Schiri"
+            icon="bi-clipboard-check"
+            :active="wiseSicht === 'schiri'"
+            @select="openWiseSicht('schiri')"
+        />
+        <SidebarNavItem
+            v-if="wiseEventId && wiseRoles?.jury"
+            label="Jury"
+            icon="bi-people"
+            :active="wiseSicht === 'jury'"
+            @select="openWiseSicht('jury')"
+        />
+        <SidebarNavItem
+            v-if="wiseEventId"
+            label="Ergebnisse"
+            icon="bi-award"
+            :active="wiseSicht === 'ergebnisse'"
+            @select="openWiseSicht('ergebnisse')"
+        />
+      </template>
       <template v-else>
         <SidebarNavItem
             v-for="entry in currentNavEntries"
@@ -435,9 +677,10 @@ function logout() {
         <template #identity="{ close }">
           <div class="glass-sidebar-footer__menu-header">
             <span class="glass-sidebar-footer__menu-title">{{ userLabel }}</span>
-            <span class="glass-sidebar-footer__menu-subtitle">FLOW</span>
+            <span class="glass-sidebar-footer__menu-subtitle">{{ isScorMode ? 'WISE' : 'FLOW' }}</span>
           </div>
           <button
+              v-if="canFlow"
               type="button"
               class="glass-sidebar-footer__menu-item"
               role="menuitem"
@@ -447,6 +690,7 @@ function logout() {
             <span>Profil</span>
           </button>
           <button
+              v-if="canFlow"
               type="button"
               class="glass-sidebar-footer__menu-item"
               role="menuitem"
@@ -495,7 +739,7 @@ function logout() {
             </div>
           </div>
           <button
-              v-if="isAdmin"
+              v-if="isAdmin && !isScorMode"
               type="button"
               class="glass-sidebar-footer__menu-item"
               role="menuitemcheckbox"
@@ -524,7 +768,7 @@ function logout() {
           </button>
         </template>
 
-        <template #extra="{ close }">
+        <template v-if="canFlow && !isScorMode" #extra="{ close }">
           <button
               type="button"
               class="glass-sidebar-footer__icon-btn"

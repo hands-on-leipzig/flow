@@ -399,8 +399,7 @@ function setCustomBoolean(entry: RosterEntry, fieldKey: string, value: boolean |
 }
 
 .vol-table-frame--roster thead .vol-table__sticky {
-  background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
-  backdrop-filter: blur(8px);
+  background: var(--vol-table-head-bg);
 }
 
 .vol-table-frame--roster tbody .vol-table__sticky {

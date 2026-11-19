@@ -282,6 +282,24 @@ class TeamPublicFormTest extends TestCase
         });
     }
 
+    public function test_for_coach_returns_the_event_form_for_a_draht_event(): void
+    {
+        $this->mockPeople();
+        $this->installKeycloakKey();
+
+        $this->withHeaders($this->ssoBearer('coach@example.com'))
+            ->getJson('/api/public-team-form/for-coach?draht_event=665')
+            ->assertOk()
+            ->assertJsonPath('enabled', true)
+            ->assertJsonPath('slug', 'test')
+            ->assertJsonPath('forms.0.team.name', 'Team A');
+
+        $this->withHeaders($this->ssoBearer('coach@example.com'))
+            ->getJson('/api/public-team-form/for-coach?draht_event=999')
+            ->assertOk()
+            ->assertJsonPath('enabled', false);
+    }
+
     public function test_keycloak_token_unlocks_lookup_without_otp(): void
     {
         $this->mockPeople();

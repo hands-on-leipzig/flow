@@ -37,7 +37,6 @@ import {ADMIN_DEFAULT_SECTION} from '@/constants/adminNav'
 // Admin is lazy-loaded - only loads when /admin route is accessed
 // This reduces initial bundle size since most users are not admins
 import Teams from "@/components/Teams.vue";
-import TeamsProgram from "@/components/teams/TeamsProgram.vue";
 import TeamsTeamData from "@/components/teams/TeamsTeamData.vue";
 import VolunteersPeople from "@/components/VolunteersPeople.vue";
 import VolunteersRoster from "@/components/VolunteersRoster.vue";
@@ -52,15 +51,20 @@ import PublicSchedule from "@/components/PublicSchedule.vue";
 import PublicSchedulePrint from "@/components/PublicSchedulePrint.vue";
 import EventNotFound from "@/components/EventNotFound.vue";
 import UnauthorizedAccess from "@/components/UnauthorizedAccess.vue";
+import ScorApp from "@/components/scor/ScorApp.vue";
+import ScorPractice from "@/components/scor/ScorPractice.vue";
+import ScorPublished from "@/components/scor/ScorPublished.vue";
 import PublicScores from "@/components/PublicScores.vue";
 import Profile from "@/components/Profile.vue";
 import AccessManagement from "@/components/AccessManagement.vue";
 import {useEventStore} from "@/stores/event";
 import {useProgramsStore} from "@/stores/programs";
+import {useApps} from "@/composables/useApps";
 import {firstTeamsPath} from "@/utils/eventPrograms";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
 import '@hands-on/glass/styles.css'
+import './assets/wise-shell.css'
 import {initTheme} from '@hands-on/glass/theme'
 
 initTheme()
@@ -69,6 +73,12 @@ const routes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
     {path: '/carousel/:eventId/:slideId', component: StandaloneSlide, props: true, meta: {public: true}},
     {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
+    {path: '/scor/uebung/:eventId', component: ScorPractice, props: true, meta: {public: true}},
+    {path: '/scor/ergebnisse/:eventId', component: ScorPublished, props: true, meta: {public: true}},
+    {path: '/scor', component: ScorApp},
+    {path: '/scor/:eventId', component: ScorApp},
+    {path: '/scor/:eventId/match/:matchId/team/:teamId', component: ScorApp},
+    {path: '/scor/:eventId/jury/:teamId', component: ScorApp},
     {
         path: '/public-schedule/:planId/print',
         component: PublicSchedulePrint,
@@ -107,7 +117,7 @@ const routes = [
                 redirect: () => firstTeamsPath(useEventStore().selectedEvent),
                 children: [
                     {path: 'data', name: 'teams-data', component: TeamsTeamData},
-                    {path: ':program', name: 'teams-program', component: TeamsProgram},
+                    {path: ':program', redirect: {name: 'teams-data'}},
                 ],
             },
             {path: 'volunteers', name: 'volunteers-people', component: VolunteersPeople},
@@ -196,6 +206,43 @@ const router = createRouter({
     routes,
 });
 
+// One login for every navigation. A second init throws, and reloading on that
+// error bounces a signed-in session between this host and SSO forever.
+let plannerLogin = null
+
+function ensurePlannerLogin() {
+    if (plannerLogin) return plannerLogin
+    if (keycloak.authenticated) return Promise.resolve(true)
+    if (keycloak.didInitialize) {
+        return keycloak.login().then(() => false)
+    }
+
+    const redirectUri = window.location.origin + window.location.pathname + window.location.search
+    plannerLogin = keycloak.init({
+        onLoad: 'login-required',
+        checkLoginIframe: false,
+        pkceMethod: 'S256',
+        redirectUri,
+    }).then((authenticated) => {
+        if (authenticated && keycloak.token) {
+            localStorage.setItem('kc_token', keycloak.token)
+            setInterval(() => {
+                keycloak.updateToken(60).then(refreshed => {
+                    if (refreshed) {
+                        localStorage.setItem('kc_token', keycloak.token)
+                    }
+                })
+            }, 10000)
+        }
+        return Boolean(authenticated)
+    }).catch((error) => {
+        console.error('Keycloak initialization failed:', error)
+        plannerLogin = null
+        return false
+    })
+    return plannerLogin
+}
+
 // Create pinia instance early so it can be used in router guard
 const pinia = createPinia()
 setActivePinia(pinia)
@@ -214,45 +261,63 @@ function isTodayWithinEvent(event) {
 }
 
 router.beforeEach(async (to, from, next) => {
-    await useProgramsStore().ensureLoaded()
+    const scorPath = to.path === '/scor' || to.path.startsWith('/scor/')
 
     // Allow public routes (including unauthorized page)
     if (to.meta?.public || to.path === '/unauthorized') {
+        if (!scorPath) {
+            await useProgramsStore().ensureLoaded()
+        }
         next();
         return;
     }
 
-    // Handle authentication
-    if (!keycloak.authenticated) {
+    // SCOR can open with a local event account. HERO login stays optional there.
+    if (scorPath && !keycloak.authenticated) {
         try {
-            const authenticated = await keycloak.init({onLoad: 'login-required'});
-            if (!authenticated) {
-                window.location.reload()
-                return;
-            }
-
-            // save token to use with axios
-            localStorage.setItem('kc_token', keycloak.token)
-
-            // refresh token periodically
-            setInterval(() => {
-                keycloak.updateToken(60).then(refreshed => {
-                    if (refreshed) {
-                        localStorage.setItem('kc_token', keycloak.token)
-                    }
-                })
-            }, 10000);
+            await keycloak.init({onLoad: 'check-sso', pkceMethod: 'S256'});
         } catch (error) {
             console.error('Keycloak initialization failed:', error);
-            window.location.reload()
+        }
+        if (!keycloak.authenticated) {
+            next();
             return;
         }
+    }
+
+    // Handle authentication. Do not reload here: a reload with an SSO session
+    // is an instant round trip and never settles.
+    if (!keycloak.authenticated) {
+        const authenticated = await ensurePlannerLogin()
+        if (!authenticated) {
+            next(false)
+            return
+        }
+    }
+
+    if (to.path === '/') {
+        next('/plan/overview')
+        return
     }
 
     // Ensure token is in localStorage - even if already authenticated
     // This is needed because the token might not be in localStorage from a previous session
     if (keycloak.authenticated && keycloak.token) {
         localStorage.setItem('kc_token', keycloak.token);
+    }
+
+    const apps = useApps()
+    await apps.ensure()
+    if ((to.path.startsWith('/plan') || to.path === '/overview') && !apps.canFlow.value && apps.canScor.value) {
+        next('/scor')
+        return
+    }
+    if (scorPath && !apps.canScor.value && apps.canFlow.value) {
+        next('/plan/overview')
+        return
+    }
+    if (apps.canFlow.value) {
+        await useProgramsStore().ensureLoaded()
     }
 
     // Check if event is selected for non-public routes (pop-outs carry their own plan id)
@@ -292,6 +357,13 @@ router.beforeEach(async (to, from, next) => {
     next();
 });
 
+router.afterEach((to) => {
+    const wise = to.path === '/scor' || to.path.startsWith('/scor/')
+    document.title = wise ? 'WISE' : 'FLOW - Flexibles OrganisationsWerkzeug'
+    const icon = document.querySelector('link[rel="icon"]')
+    if (icon) icon.setAttribute('href', wise ? '/wise-icon.png' : '/favicon.ico')
+})
+
 const app = createApp(App)
 
 registerSW({immediate: true})
@@ -305,7 +377,7 @@ axios.interceptors.request.use(config => {
     if (config.method === "post" && !(config.data instanceof FormData)) {
         config.headers["Content-Type"] = "application/json"
     }
-    const token = localStorage.getItem('kc_token')
+    const token = localStorage.getItem('kc_token') || localStorage.getItem('scor_token')
     if (token) {
         config.headers.Authorization = `Bearer ${token}`
     }
@@ -316,15 +388,17 @@ axios.interceptors.request.use(config => {
 axios.interceptors.response.use(
     response => response,
     error => {
-        if (error.response?.status === 403) {
-            // Store error message for display
-            const errorMessage = error.response.data?.error || 'Zugriff verweigert'
-            sessionStorage.setItem('unauthorized_error', errorMessage)
-
-            // Only redirect if not already on unauthorized page
+        if (error.response?.status === 403 && error.response?.data?.code === 'app_access_denied') {
+            if (error.config?.skipAppRedirect) {
+                return Promise.reject(error)
+            }
+            const deniedApp = error.response.data?.app === 'scor' ? 'scor' : 'flow'
+            const onScor = window.location.pathname === '/scor' || window.location.pathname.startsWith('/scor/')
+            if (deniedApp === 'flow' && onScor) {
+                return Promise.reject(error)
+            }
             if (window.location.pathname !== '/unauthorized') {
-                // Redirect to unauthorized page
-                window.location.href = '/unauthorized?error=' + encodeURIComponent(errorMessage)
+                window.location.href = '/unauthorized?app=' + deniedApp
             }
         }
         return Promise.reject(error)
@@ -335,4 +409,10 @@ dayjs.locale('de')
 
 app.use(router)
 app.use(pinia)
-app.mount('#app')
+
+// The first navigation stays on the start location until beforeEach finishes
+// (public catalog load, WISE check-sso, FLOW login). Mounting earlier paints
+// that empty route, which has no meta and therefore the full FLOW shell.
+router.isReady().finally(() => {
+    app.mount('#app')
+})

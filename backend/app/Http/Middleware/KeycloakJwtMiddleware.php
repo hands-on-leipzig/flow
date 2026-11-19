@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\EventAccessService;
 use Closure;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -32,6 +33,11 @@ class KeycloakJwtMiddleware
         }
 
         $token = substr($authHeader, 7);
+        $local = $this->localScorClaims($token);
+        if ($local !== null) {
+            return $this->acceptLocalScor($request, $next, $local);
+        }
+
         $publicKeyPath = base_path((string) config('services.keycloak.public_key_path'));
 
         if (!file_exists($publicKeyPath)) {
@@ -59,22 +65,21 @@ class KeycloakJwtMiddleware
             $env = App::environment();
             $path = $request->path();
 
-            // Env-based role access - check BEFORE creating user
-            // Prod gate: flow_user (via Keycloak groups). Legacy roles still accepted.
-            if (!\App\Support\FlowAccess::canAccessApp($roles, $env)) {
-                $message = in_array($env, ['local', 'staging'], true)
-                    ? 'Forbidden - tester role required'
-                    : 'Forbidden - flow_user or flow_admin role required';
-
-                return response()->json(['error' => $message], 403);
+            // Local/staging stay tester-only, checked before a user row exists.
+            if (\App\Support\FlowAccess::isTesterEnvironment($env) && !\App\Support\FlowAccess::isTester($roles)) {
+                return response()->json([
+                    'error' => 'Forbidden - tester role required',
+                    'code' => 'app_access_denied',
+                    'app' => 'flow',
+                ], 403);
             }
 
             try {
                 $subject = $claims['sub'] ?? null;
-                
+
                 // Try to get dolibarr_id from JWT token if available
                 $dolibarrId = $claims['dolibarr_id'] ?? $claims['dolibarrId'] ?? null;
-                
+
                 // Get name and email from JWT token
                 $name = $claims['name'] ?? null;
                 $email = $claims['email'] ?? null;
@@ -103,7 +108,7 @@ class KeycloakJwtMiddleware
                 if ($email && $user->email !== $email) {
                     $updateData['email'] = $email;
                 }
-                
+
                 if (!empty($updateData)) {
                     $user->update($updateData);
                 }
@@ -137,6 +142,28 @@ class KeycloakJwtMiddleware
                 $this->syncUserRegionalPartnersFromDraht($user);
             }
 
+            // Every request, not per session: an invitation must work while the invitee is logged in.
+            try {
+                app(EventAccessService::class)->claim($user, $claims);
+            } catch (\Exception $e) {
+                Log::error('Failed to claim event invitations', [
+                    'user_id' => $user->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            // Prod gate: Keycloak flow roles, or an app permission on some event.
+            $permission = \App\Support\FlowAccess::permissionForPath($path);
+            if (!\App\Support\FlowAccess::canUse($roles, $user, $permission, $env)) {
+                $app = $permission === \App\Support\FlowAccess::PERMISSION_SCOR ? 'scor' : 'flow';
+
+                return response()->json([
+                    'error' => $app === 'scor' ? 'Forbidden - kein Zugriff auf WISE' : 'Forbidden - kein Zugriff auf FLOW',
+                    'code' => 'app_access_denied',
+                    'app' => $app,
+                ], 403);
+            }
+
             Auth::login($user);
 
             // Admin route restriction
@@ -149,6 +176,41 @@ class KeycloakJwtMiddleware
         } catch (\Exception $e) {
             return response()->json(['error' => 'Invalid token', 'details' => $e->getMessage()], 401);
         }
+
+        return $next($request);
+    }
+
+    /**
+     * @return array{user: int, account: int, event: int}|null
+     */
+    private function localScorClaims(string $token): ?array
+    {
+        $parts = explode('.', $token);
+        if (count($parts) < 2) {
+            return null;
+        }
+        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')) ?: '', true);
+        if (!is_array($payload) || ($payload['iss'] ?? '') !== \App\Scor\ScorLocalAccounts::ISSUER) {
+            return null;
+        }
+
+        return app(\App\Scor\ScorLocalAccounts::class)->claims($token);
+    }
+
+    /**
+     * @param  array{user: int, account: int, event: int}  $claims
+     */
+    private function acceptLocalScor(Request $request, Closure $next, array $claims): mixed
+    {
+        if (!str_starts_with($request->path(), 'api/scor')) {
+            return response()->json(['error' => 'Forbidden - kein Zugriff auf FLOW', 'code' => 'app_access_denied', 'app' => 'flow'], 403);
+        }
+        $user = User::query()->find($claims['user']);
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        $request->attributes->set('jwt', ['iss' => \App\Scor\ScorLocalAccounts::ISSUER]);
+        Auth::login($user);
 
         return $next($request);
     }

@@ -18,7 +18,8 @@ final class TeamDataIndex
      *   teams: list<array<string, mixed>>,
      *   columns: list<array<string, mixed>>,
      *   collect: array{meal: bool},
-     *   meal_options: list<array<string, mixed>>
+     *   meal_options: list<array<string, mixed>>,
+     *   team_data_deadline: string|null
      * }
      */
     public static function payloadForEvent(Event $event): array
@@ -59,11 +60,27 @@ final class TeamDataIndex
             );
         })->values()->all();
 
+        $deadline = null;
+        $answersDeadline = null;
+        foreach ($peopleBreakdowns as $breakdown) {
+            if (! is_array($breakdown)) {
+                continue;
+            }
+            if ($deadline === null && is_string($breakdown['team_data_deadline'] ?? null) && $breakdown['team_data_deadline'] !== '') {
+                $deadline = $breakdown['team_data_deadline'];
+            }
+            if ($answersDeadline === null && is_string($breakdown['answers_deadline'] ?? null) && $breakdown['answers_deadline'] !== '') {
+                $answersDeadline = $breakdown['answers_deadline'];
+            }
+        }
+
         return [
             'teams' => $payload,
             'columns' => TeamDataColumns::tablePayloadForEvent($event->id),
             'collect' => ['meal' => $collectMeal],
             'meal_options' => VolunteerMealOptions::serializeList($mealOptions),
+            'team_data_deadline' => $deadline,
+            'answers_deadline' => $answersDeadline ?? $deadline,
         ];
     }
 
@@ -191,7 +208,7 @@ final class TeamDataIndex
 
     /**
      * @param  Collection<int, EventTeamFieldValue>  $values
-     * @param  array{coaches: int, players: int, total: int}|null  $peopleBreakdown
+     * @param  array{coaches: int, players: int, total: int, players_age_out_of_range: int, players_complete?: bool|null, team_data_deadline?: string|null}|null  $peopleBreakdown
      * @param  array{labels: array<int, string>, sequences: array<int, int>}  $programMeta
      * @return array<string, mixed>
      */
@@ -219,12 +236,17 @@ final class TeamDataIndex
             'id' => $team->id,
             'name' => $team->name,
             'organization' => $team->organization,
+            'location' => $team->location,
             'team_number_hot' => $team->team_number_hot !== null ? (int) $team->team_number_hot : null,
             'team_number_plan' => $team->team_number_plan !== null ? (int) $team->team_number_plan : null,
             'first_program' => $firstProgramId ?: null,
             'program_label' => $programMeta['labels'][$firstProgramId] ?? '',
             'people_count' => $peopleBreakdown !== null ? $peopleBreakdown['total'] : null,
             'players_count' => $peopleBreakdown !== null ? $peopleBreakdown['players'] : null,
+            'players_age_out_of_range' => $peopleBreakdown !== null ? $peopleBreakdown['players_age_out_of_range'] : null,
+            'players_complete' => is_array($peopleBreakdown) ? ($peopleBreakdown['players_complete'] ?? null) : null,
+            'photo_answered' => is_array($peopleBreakdown) ? ($peopleBreakdown['photo_answered'] ?? 0) : 0,
+            'meal_answered' => is_array($peopleBreakdown) ? ($peopleBreakdown['meal_answered'] ?? 0) : 0,
             'photo_consent' => TeamPhotoCounts::mapForTeamWithDefaults($team->id),
             'custom' => $custom,
             'touched' => [

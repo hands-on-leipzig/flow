@@ -1,6 +1,6 @@
 <script setup>
-import {computed, defineAsyncComponent, onMounted, ref, watch} from "vue";
-import {useRoute, useRouter} from "vue-router";
+import {computed, defineAsyncComponent, ref, watch} from "vue";
+import {useRoute} from "vue-router";
 import axios from "axios";
 
 const Navigation = defineAsyncComponent(() => import('@/components/Navigation.vue'));
@@ -35,7 +35,6 @@ const isPanelFillRoute = computed(() => {
     || path.startsWith('/plan/live')
 })
 
-const router = useRouter();
 const route = useRoute();
 
 // News Modal State
@@ -91,11 +90,6 @@ watch(() => route.path, async () => {
   }
 })
 
-onMounted(() => {
-  if (window.location.pathname === "/") {
-    router.push("/overview")
-  }
-})
 </script>
 
 <template>

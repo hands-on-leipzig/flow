@@ -13,12 +13,22 @@ export type TeamDataRow = {
   id: number
   name: string
   organization: string | null
+  location?: string | null
   team_number_hot: number | null
   team_number_plan: number | null
+  plan_number?: number | null
+  noshow?: boolean
+  jury_label?: string
   first_program: number | null
   program_label: string
   people_count: number | null
   players_count: number | null
+  /** Team members whose age on the season reference date is outside the program range. */
+  players_age_out_of_range: number | null
+  /** Coach confirmed names, gender and birth dates. Null when DRAHT did not say. */
+  players_complete?: boolean | null
+  photo_answered?: number
+  meal_answered?: number
   photo_consent?: Record<string, number>
   meals?: Record<string, number>
   custom: Record<string, unknown>
@@ -121,10 +131,18 @@ export function countSetTotal(row: TeamDataRow, column: TeamDataColumn): number 
 
 /** Team has not yet entered Fotoerlaubnis counts (parallel to volunteer photo unset). */
 export function isTeamPhotoConsentUnset(row: TeamDataRow): boolean {
+  if (row.players_count != null && row.photo_answered != null) {
+    return row.players_count > 0 && row.photo_answered < row.players_count
+  }
   return !row.touched?.photo
 }
 
 /** Draht returned a people list and it has zero Teilnehmer (coaches ignored). */
 export function isTeamParticipantListIncomplete(row: TeamDataRow): boolean {
   return row.players_count === 0
+}
+
+/** Coach has not checked „Teamdaten komplett“. Unknown (null) is not treated as missing. */
+export function isTeamDataUnconfirmed(row: TeamDataRow): boolean {
+  return row.players_complete === false
 }

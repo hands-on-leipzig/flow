@@ -30,6 +30,35 @@ class TeamPublicFormController extends Controller
         private readonly PublicFormOtpService $otp,
     ) {}
 
+    public function forCoach(Request $request): JsonResponse
+    {
+        $email = KeycloakAccessToken::email($request);
+        if ($email === null) {
+            return response()->json(['error' => 'Anmeldung fehlt.'], 401);
+        }
+
+        $drahtId = (int) $request->query('draht_event', 0);
+        if ($drahtId <= 0) {
+            return response()->json(['enabled' => false]);
+        }
+
+        $event = Event::query()
+            ->where('season', SeasonService::currentSeasonId())
+            ->whereHas('programs', fn ($query) => $query->where('draht_id', $drahtId))
+            ->first();
+        if (! $event || ! (bool) $event->public_team_data_entry || trim((string) $event->slug) === '') {
+            return response()->json(['enabled' => false]);
+        }
+
+        $teams = TeamCoachLookup::teamsForEmail($event, $email);
+
+        return response()->json([
+            'enabled' => true,
+            'slug' => $event->slug,
+            'forms' => $teams->map(fn (Team $team) => $this->formPayload($event, $team))->values()->all(),
+        ]);
+    }
+
     public function requestOtp(Request $request, string $slug): JsonResponse
     {
         $email = $this->otp->normalizeEmail((string) $request->input('email', ''));

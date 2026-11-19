@@ -226,6 +226,48 @@
   margin-top: 0.5rem;
 }
 
+.vol-roster-publish__deadlines {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  margin-top: 0.7rem;
+}
+
+.vol-roster-publish__deadline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.vol-roster-publish__deadline label {
+  white-space: nowrap;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+input.vol-roster-publish__date.glass-input {
+  width: 9.5rem;
+  min-width: 9.5rem;
+  max-width: 9.5rem;
+  height: 1.85rem;
+  min-height: 1.85rem;
+  flex: none;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.vol-roster-publish__deadline-save {
+  margin-left: auto;
+}
+
+/* Drop shadows on stacked roster cards paint a dark band into the gap. */
+.vol-page .vol-roster-publish.glass-card.liquid-surface-inner,
+.vol-page .vol-roster-table-tile.glass-card.liquid-surface-inner {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+
 .vol-roster-publish__link {
   color: var(--color-accent);
   text-decoration: underline;
@@ -439,6 +481,8 @@
 }
 
 .vol-table-frame {
+  /* Must stay opaque: Glass --color-bg-muted is translucent and lets scrolled rows show through. */
+  --vol-table-head-bg: #f4f6f9;
   width: 100%;
   scrollbar-gutter: stable;
 }
@@ -480,8 +524,7 @@
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--color-text-muted);
-  background: color-mix(in srgb, var(--color-bg-muted) 88%, #fff);
-  backdrop-filter: blur(8px);
+  background: var(--vol-table-head-bg);
 }
 
 .vol-table tbody tr:last-child td {

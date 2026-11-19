@@ -110,6 +110,7 @@ class AudienceSchedule
                         'display_name' => $row->group_first_program_display_name ?? null,
                         'official_name' => $row->group_first_program_official_name ?? null,
                         'description' => $row->group_description ?? null,
+                        'link' => self::link($row->group_link ?? null),
                         'activity_type_code' => $row->group_activity_type_code ?? null,
                         'presence' => $row->group_presence ?? 'punctual',
                     ],
@@ -145,6 +146,7 @@ class AudienceSchedule
                         'first_program_id' => $row->activity_first_program_id ?? null,
                         'first_program_name' => $row->activity_first_program_name ?? null,
                         'description' => $row->activity_description ?? null,
+                        'link' => self::link($row->activity_link ?? null),
                     ],
                     'program' => $row->program_name,
                     'lane' => $row->lane,
@@ -192,6 +194,20 @@ class AudienceSchedule
         $id = (int) $id;
 
         return $id > 0 ? $id : null;
+    }
+
+    /** Only http(s) targets reach the public page; planner-entered links may lack the scheme. */
+    private static function link(?string $link): ?string
+    {
+        $link = trim((string) $link);
+        if ($link === '') {
+            return null;
+        }
+        if (preg_match('#^https?://#i', $link)) {
+            return $link;
+        }
+
+        return str_contains($link, ':') ? null : 'https://'.$link;
     }
 
     private static function extraBlockType(object $row): ?string

@@ -39,6 +39,17 @@ class DrahtController extends Controller
             ->post(config('services.draht_api.base_url').$route, $data);
     }
 
+    /**
+     * Make a PUT request to DRAHT API
+     */
+    public function makeDrahtPutCall($route, array $data)
+    {
+        $headers = ['DOLAPIKEY' => config('services.draht_api.key')];
+
+        return Http::withHeaders($headers)
+            ->put(config('services.draht_api.base_url').$route, $data);
+    }
+
     public function show(Event $event)
     {
         return response()->json($this->fetchScheduleData($event)['data']);
@@ -1078,6 +1089,11 @@ class DrahtController extends Controller
                         'user' => $user->id,
                         'regional_partner' => $rpId,
                         'source' => $sourceDraht,
+                        'can_flow' => true,
+                        'can_scor' => true,
+                        'can_scor_referee' => true,
+                        'can_scor_jury' => true,
+                        'can_scor_admin' => true,
                         'granted_at' => now(),
                         'granted_by' => null,
                     ];
@@ -1099,6 +1115,11 @@ class DrahtController extends Controller
                     ->whereIn('regional_partner', $toPromote)
                     ->update([
                         'source' => $sourceDraht,
+                        'can_flow' => true,
+                        'can_scor' => true,
+                        'can_scor_referee' => true,
+                        'can_scor_jury' => true,
+                        'can_scor_admin' => true,
                         'granted_by' => null,
                     ]);
             }
@@ -1155,6 +1176,97 @@ class DrahtController extends Controller
                 'message' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Replace the team members of a DRAHT team (addressed by DRAHT event id + team ref).
+     *
+     * @param  list<array{firstname: string, name: string, gender: string, birthday: ?string}>  $players
+     * @return array{ok: bool, status: int, data: array<string, mixed>|null, message: ?string}
+     */
+    public function putTeamPlayers(int $drahtEventId, int $teamNumberHot, array $players): array
+    {
+        try {
+            $response = $this->makeDrahtPutCall(
+                "/handson/flow/{$drahtEventId}/teams/{$teamNumberHot}/players",
+                ['players' => $players]
+            );
+        } catch (\Throwable $e) {
+            Log::error('Exception while updating team players in DRAHT', [
+                'draht_event_id' => $drahtEventId,
+                'team_number_hot' => $teamNumberHot,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['ok' => false, 'status' => 502, 'data' => null, 'message' => null];
+        }
+
+        if (! $response->ok()) {
+            Log::error('Failed to update team players in DRAHT', [
+                'draht_event_id' => $drahtEventId,
+                'team_number_hot' => $teamNumberHot,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            $message = $response->json('error.message') ?? $response->json('message');
+
+            return [
+                'ok' => false,
+                'status' => $response->status(),
+                'data' => null,
+                'message' => is_string($message) ? $message : null,
+            ];
+        }
+
+        $data = $response->json();
+
+        return ['ok' => true, 'status' => 200, 'data' => is_array($data) ? $data : null, 'message' => null];
+    }
+
+    /**
+     * Set the team-data deadline on a DRAHT event (Y-m-d). Mail is sent by FLOW when `changed` is true.
+     *
+     * @return array{ok: bool, status: int, data: array<string, mixed>|null, message: ?string}
+     */
+    public function putTeamDataDeadline(int $drahtEventId, string $deadline, ?string $answersDeadline = null): array
+    {
+        $body = ['deadline' => $deadline];
+        if ($answersDeadline !== null) {
+            $body['answers_deadline'] = $answersDeadline;
+        }
+        try {
+            $response = $this->makeDrahtPutCall(
+                "/handson/flow/{$drahtEventId}/team-data-deadline",
+                $body
+            );
+        } catch (\Throwable $e) {
+            Log::error('Exception while updating team data deadline in DRAHT', [
+                'draht_event_id' => $drahtEventId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['ok' => false, 'status' => 502, 'data' => null, 'message' => null];
+        }
+
+        if (! $response->ok()) {
+            Log::error('Failed to update team data deadline in DRAHT', [
+                'draht_event_id' => $drahtEventId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            $message = $response->json('error.message') ?? $response->json('message');
+
+            return [
+                'ok' => false,
+                'status' => $response->status(),
+                'data' => null,
+                'message' => is_string($message) ? $message : null,
+            ];
+        }
+
+        $data = $response->json();
+
+        return ['ok' => true, 'status' => 200, 'data' => is_array($data) ? $data : null, 'message' => null];
     }
 
     /**

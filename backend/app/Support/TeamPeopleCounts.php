@@ -27,7 +27,7 @@ final class TeamPeopleCounts
     }
 
     /**
-     * @return array<int, array{coaches: int, players: int, total: int}|null>
+     * @return array<int, array{coaches: int, players: int, total: int, players_age_out_of_range: int, players_complete: bool|null, team_data_deadline: string|null}|null>
      */
     public static function breakdownsByTeamIdForEvent(Event $event): array
     {
@@ -35,7 +35,7 @@ final class TeamPeopleCounts
     }
 
     /**
-     * @return array{coaches: int, players: int, total: int}|null
+     * @return array{coaches: int, players: int, total: int, players_age_out_of_range: int}|null
      */
     public static function breakdownForTeam(Event $event, int $teamId): ?array
     {
@@ -43,7 +43,7 @@ final class TeamPeopleCounts
     }
 
     /**
-     * @return array<int, array{coaches: int, players: int, total: int}|null>
+     * @return array<int, array{coaches: int, players: int, total: int, players_age_out_of_range: int, players_complete: bool|null, team_data_deadline: string|null}|null>
      */
     private function computeBreakdowns(Event $event): array
     {
@@ -69,6 +69,14 @@ final class TeamPeopleCounts
             }
 
             unset($peopleData['total_players'], $peopleData['total_coaches']);
+            $deadline = is_string($peopleData['team_data_deadline'] ?? null) && $peopleData['team_data_deadline'] !== ''
+                ? $peopleData['team_data_deadline']
+                : null;
+            unset($peopleData['team_data_deadline']);
+            $answersDeadline = is_string($peopleData['answers_deadline'] ?? null) && $peopleData['answers_deadline'] !== ''
+                ? $peopleData['answers_deadline']
+                : $deadline;
+            unset($peopleData['answers_deadline']);
 
             foreach ($programTeams as $team) {
                 $hot = (int) ($team->team_number_hot ?? 0);
@@ -82,11 +90,23 @@ final class TeamPeopleCounts
                 }
 
                 $coaches = is_array($teamData['coaches'] ?? null) ? count($teamData['coaches']) : 0;
-                $players = is_array($teamData['players'] ?? null) ? count($teamData['players']) : 0;
+                $players = TeamPlayers::serializeList($teamData['players'] ?? null);
+                $answers = TeamPlayers::answerCounts($players);
                 $result[$team->id] = [
                     'coaches' => $coaches,
-                    'players' => $players,
-                    'total' => $coaches + $players,
+                    'players' => count($players),
+                    'total' => $coaches + count($players),
+                    'photo_answered' => $answers['photo'],
+                    'meal_answered' => $answers['meal'],
+                    'answers_deadline' => $answersDeadline,
+                    'players_age_out_of_range' => TeamPlayers::countAgeOutOfRange(
+                        $players,
+                        TeamPlayers::ageRule($teamData['player_age_rule'] ?? null),
+                    ),
+                    'players_complete' => array_key_exists('players_complete', $teamData)
+                        ? (bool) $teamData['players_complete']
+                        : null,
+                    'team_data_deadline' => $deadline,
                 ];
             }
         }

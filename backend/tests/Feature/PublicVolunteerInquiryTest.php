@@ -407,6 +407,8 @@ class PublicVolunteerInquiryTest extends TestCase
         DB::table('user_regional_partner')->insert([
             'user' => 9,
             'regional_partner' => 1,
+            'source' => 'draht',
+            'can_flow' => true,
         ]);
         DB::table('m_first_program')->insert([
             'id' => 2,
@@ -492,6 +494,16 @@ class PublicVolunteerInquiryTest extends TestCase
                 $table->increments('id');
                 $table->unsignedInteger('user');
                 $table->unsignedInteger('regional_partner');
+                $table->string('source', 16)->default('draht');
+                $table->boolean('can_flow')->default(true);
+            });
+        }
+        if (! Schema::hasTable('event_user_access')) {
+            Schema::create('event_user_access', function (Blueprint $table) {
+                $table->increments('id');
+                $table->unsignedInteger('user');
+                $table->unsignedInteger('event');
+                $table->boolean('can_flow')->default(false);
             });
         }
         if (! Schema::hasTable('m_first_program')) {

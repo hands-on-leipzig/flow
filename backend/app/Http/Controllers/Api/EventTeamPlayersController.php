@@ -1,0 +1,220 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Event;
+use App\Models\Team;
+use App\Support\ProgramCatalog;
+use App\Support\TeamDataIndex;
+use App\Support\TeamPlayers;
+use App\Support\TeamPlayersChangeMailer;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+
+/**
+ * Team members (Teammitglieder) of a team, read from and written to DRAHT.
+ * Out-of-range ages are reported, not rejected: the regional partner may allow exceptions.
+ */
+class EventTeamPlayersController extends Controller
+{
+    public function __construct(
+        private readonly DrahtController $drahtController,
+        private readonly TeamPlayersChangeMailer $changeMailer,
+    ) {}
+
+    public function show(Event $event, Team $team): JsonResponse
+    {
+        $resolved = $this->resolveDrahtTeam($event, $team);
+        if ($resolved instanceof JsonResponse) {
+            return $resolved;
+        }
+
+        $response = $this->drahtController->getPeople($resolved['draht_event_id']);
+        if ($response->getStatusCode() !== 200) {
+            return response()->json(['error' => 'Teammitglieder konnten nicht aus DRAHT geladen werden.'], 502);
+        }
+
+        $people = $response->getData(true);
+        $teamData = is_array($people) ? ($people[(string) $resolved['team_number_hot']] ?? null) : null;
+        if (! is_array($teamData)) {
+            return response()->json(['error' => 'Team ist in DRAHT nicht für diese Veranstaltung angemeldet.'], 404);
+        }
+
+        return response()->json($this->payload($team, $teamData));
+    }
+
+    public function update(Request $request, Event $event, Team $team): JsonResponse
+    {
+        $resolved = $this->resolveDrahtTeam($event, $team);
+        if ($resolved instanceof JsonResponse) {
+            return $resolved;
+        }
+
+        $validated = $request->validate([
+            'players' => ['present', 'array'],
+            'players.*.firstname' => ['nullable', 'string', 'max:255'],
+            'players.*.name' => ['nullable', 'string', 'max:255'],
+            'players.*.gender' => ['nullable', 'string', Rule::in(TeamPlayers::GENDERS)],
+            'players.*.birthday' => ['nullable', 'date_format:Y-m-d', 'before:today'],
+            'players.*.photo' => ['nullable', 'string', Rule::in(TeamPlayers::PHOTOS)],
+            'players.*.meal' => ['nullable', 'string', Rule::in(TeamPlayers::MEALS)],
+        ]);
+
+        $players = [];
+        foreach ($validated['players'] as $player) {
+            $firstname = trim((string) ($player['firstname'] ?? ''));
+            $name = trim((string) ($player['name'] ?? ''));
+            $birthday = $player['birthday'] ?? null;
+            if ($firstname === '' && $name === '' && $birthday === null) {
+                continue;
+            }
+            $players[] = [
+                'firstname' => $firstname,
+                'name' => $name,
+                'gender' => (string) ($player['gender'] ?? ''),
+                'birthday' => $birthday,
+                'photo' => (string) ($player['photo'] ?? ''),
+                'meal' => (string) ($player['meal'] ?? ''),
+            ];
+        }
+
+        $before = $this->currentRoster($resolved);
+
+        $result = $this->drahtController->putTeamPlayers(
+            $resolved['draht_event_id'],
+            $resolved['team_number_hot'],
+            $players,
+        );
+        if (! $result['ok'] || $result['data'] === null) {
+            $status = in_array($result['status'], [400, 404], true) ? 422 : 502;
+
+            return response()->json([
+                'error' => $result['message'] ?? 'Teammitglieder konnten nicht in DRAHT gespeichert werden.',
+            ], $status);
+        }
+
+        $mailed = 0;
+        if ($before !== null && ! TeamPlayers::rostersEqual($before['players'], $players)) {
+            $mailed = $this->changeMailer->send($event, $team, $before['coaches']);
+        }
+
+        $written = $result['data'];
+        if (! isset($written['coaches']) && $before !== null) {
+            $written['coaches'] = $before['coaches'];
+        }
+
+        return response()->json($this->payload($team, $written) + [
+            'team' => TeamDataIndex::teamPayload($event, $team),
+            'mailed' => $mailed,
+        ]);
+    }
+
+    /**
+     * Roster and coaches as DRAHT currently stores them, before a write.
+     *
+     * @param  array{draht_event_id: int, team_number_hot: int}  $resolved
+     * @return array{players: list<array<string, mixed>>, coaches: list<array<string, mixed>>}|null
+     */
+    private function currentRoster(array $resolved): ?array
+    {
+        $response = $this->drahtController->getPeople($resolved['draht_event_id']);
+        if ($response->getStatusCode() !== 200) {
+            return null;
+        }
+
+        $people = $response->getData(true);
+        $teamData = is_array($people) ? ($people[(string) $resolved['team_number_hot']] ?? null) : null;
+        if (! is_array($teamData)) {
+            return null;
+        }
+
+        $coaches = $teamData['coaches'] ?? [];
+
+        return [
+            'players' => TeamPlayers::serializeList($teamData['players'] ?? null),
+            'coaches' => is_array($coaches) ? array_values(array_filter($coaches, 'is_array')) : [],
+        ];
+    }
+
+    /**
+     * @return array{draht_event_id: int, team_number_hot: int}|JsonResponse
+     */
+    private function resolveDrahtTeam(Event $event, Team $team): array|JsonResponse
+    {
+        if ((int) $team->event !== (int) $event->id) {
+            return response()->json(['error' => 'Team gehört nicht zu dieser Veranstaltung.'], 404);
+        }
+
+        $teamNumberHot = (int) ($team->team_number_hot ?? 0);
+        $drahtEventId = ProgramCatalog::drahtId($event, (int) $team->first_program);
+        if ($teamNumberHot <= 0 || $drahtEventId === null || $drahtEventId <= 0) {
+            return response()->json(['error' => 'Team ist nicht mit DRAHT verknüpft.'], 404);
+        }
+
+        return ['draht_event_id' => $drahtEventId, 'team_number_hot' => $teamNumberHot];
+    }
+
+    /**
+     * @param  array<string, mixed>  $teamData  DRAHT team entry
+     * @return array<string, mixed>
+     */
+    private function payload(Team $team, array $teamData): array
+    {
+        $rule = TeamPlayers::ageRule($teamData['player_age_rule'] ?? null);
+        $players = array_map(
+            fn (array $player) => $player + ['age_out_of_range' => TeamPlayers::ageOutOfRange($player['birthday'], $rule)],
+            TeamPlayers::serializeList($teamData['players'] ?? null),
+        );
+        $maxPlayers = (int) ($teamData['max_players'] ?? 0);
+
+        return [
+            'team_id' => $team->id,
+            'players' => $players,
+            'coaches' => $this->coaches($teamData),
+            'max_players' => $maxPlayers > 0 ? $maxPlayers : null,
+            'player_age_rule' => $rule,
+        ];
+    }
+
+    /**
+     * DRAHT lists the primary coach first, then linked and manual co-coaches.
+     *
+     * @param  array<string, mixed>  $teamData
+     * @return list<array{role: string, firstname: string, name: string, email: string, phone: string}>
+     */
+    private function coaches(array $teamData): array
+    {
+        $raw = $teamData['coaches'] ?? [];
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $out = [];
+        $index = 0;
+        foreach ($raw as $coach) {
+            $role = $index === 0 ? 'coach' : 'co_coach';
+            $index++;
+            if (! is_array($coach)) {
+                continue;
+            }
+            $firstname = trim((string) ($coach['firstname'] ?? ''));
+            $name = trim((string) ($coach['name'] ?? ''));
+            $email = trim((string) ($coach['email'] ?? ''));
+            $phone = trim((string) ($coach['phone'] ?? ''));
+            if ($firstname === '' && $name === '' && $email === '' && $phone === '') {
+                continue;
+            }
+            $out[] = [
+                'role' => $role,
+                'firstname' => $firstname,
+                'name' => $name,
+                'email' => $email,
+                'phone' => $phone,
+            ];
+        }
+
+        return $out;
+    }
+}

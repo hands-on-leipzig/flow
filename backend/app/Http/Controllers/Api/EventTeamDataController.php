@@ -15,14 +15,20 @@ use App\Support\TeamDataIndex;
 use App\Support\TeamIdsFilter;
 use App\Support\TeamMealCounts;
 use App\Support\TeamPeopleCounts;
+use App\Mail\TeamDataDeadlineMail;
 use App\Support\TeamPhotoCounts;
 use App\Support\VolunteerCollectOptions;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class EventTeamDataController extends Controller
 {
+    public function __construct(
+        private readonly DrahtController $drahtController,
+    ) {}
+
     public function index(Event $event): JsonResponse
     {
         return response()->json(TeamDataIndex::payloadForEvent($event));
@@ -127,5 +133,77 @@ class EventTeamDataController extends Controller
                 TeamIdsFilter::parse($request),
             ))->document()
         );
+    }
+
+    public function updateDeadline(Request $request, Event $event): JsonResponse
+    {
+        $validated = $request->validate([
+            'deadline' => ['required', 'date_format:Y-m-d'],
+            'answers_deadline' => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $event->loadMissing('programs');
+        $drahtIds = [];
+        foreach ($event->programs as $program) {
+            $drahtId = (int) ($program->draht_id ?? 0);
+            if ($drahtId > 0) {
+                $drahtIds[$drahtId] = $drahtId;
+            }
+        }
+        if ($drahtIds === []) {
+            return response()->json(['error' => 'Veranstaltung ist nicht mit DRAHT verknüpft.'], 422);
+        }
+
+        $deadline = $validated['deadline'];
+        $answersDeadline = $validated['answers_deadline'] ?? null;
+        $changed = false;
+        $coaches = [];
+        foreach ($drahtIds as $drahtId) {
+            $result = $this->drahtController->putTeamDataDeadline($drahtId, $deadline, $answersDeadline);
+            if (! $result['ok'] || ! is_array($result['data'])) {
+                $status = in_array($result['status'], [400, 404], true) ? 422 : 502;
+
+                return response()->json([
+                    'error' => $result['message'] ?? 'Frist konnte nicht in DRAHT gespeichert werden.',
+                ], $status);
+            }
+            if (! empty($result['data']['changed'])) {
+                $changed = true;
+            }
+            foreach ($result['data']['coaches'] ?? [] as $coach) {
+                if (! is_array($coach)) {
+                    continue;
+                }
+                $email = strtolower(trim((string) ($coach['email'] ?? '')));
+                if ($email === '' || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    continue;
+                }
+                $coaches[$email] = trim((string) ($coach['firstname'] ?? ''));
+            }
+        }
+
+        $mailed = 0;
+        if ($changed) {
+            $formatted = \Carbon\Carbon::parse($deadline)->locale('de')->isoFormat('DD.MM.YYYY');
+            $office = 'info@hands-on-technology.org';
+            foreach ($coaches as $email => $firstname) {
+                if ($email === $office) {
+                    continue;
+                }
+                Mail::to($email)->send(new TeamDataDeadlineMail($event->name, $formatted, $firstname));
+                $mailed++;
+            }
+            Mail::to($office)->send(new TeamDataDeadlineMail($event->name, $formatted, '', true));
+            $mailed++;
+        }
+
+        return response()->json([
+            'team_data_deadline' => $deadline,
+            'answers_deadline' => is_array($result['data'] ?? null)
+                ? ($result['data']['answers_deadline'] ?? $answersDeadline ?? $deadline)
+                : ($answersDeadline ?? $deadline),
+            'changed' => $changed,
+            'mailed' => $mailed,
+        ]);
     }
 }

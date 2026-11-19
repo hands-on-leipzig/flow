@@ -84,6 +84,96 @@ class VolunteerPublicFormTest extends TestCase
         $response->assertJsonPath('volunteer_data_entry.enabled', true);
     }
 
+    public function test_public_level_query_does_not_override_the_published_level(): void
+    {
+        $this->seedEvent();
+        DB::table('publication')->insert([
+            'event' => 1,
+            'level' => 1,
+            'last_change' => now(),
+        ]);
+
+        $this->mock(\App\Http\Controllers\Api\DrahtController::class, function ($mock) {
+            $mock->shouldReceive('show')->andReturn(response()->json([
+                'address' => 'Test',
+                'contact' => [],
+                'programs' => [],
+            ]));
+        });
+
+        $this->getJson('/api/publish/public-information/1?level=4')
+            ->assertOk()
+            ->assertJsonPath('level', 1);
+
+        $this->assertSame(1, (int) DB::table('publication')->where('event', 1)->value('level'));
+    }
+
+    public function test_planner_preview_level_overrides_only_the_payload(): void
+    {
+        $this->seedEvent();
+        $this->installKeycloakKey();
+        DB::table('publication')->insert([
+            'event' => 1,
+            'level' => 1,
+            'last_change' => now(),
+        ]);
+
+        $this->mock(\App\Http\Controllers\Api\DrahtController::class, function ($mock) {
+            $mock->shouldReceive('show')->andReturn(response()->json([
+                'address' => 'Test',
+                'contact' => [],
+                'programs' => [],
+            ]));
+        });
+
+        $payload = [
+            'iss' => 'https://sso.hands-on-technology.org/realms/master',
+            'aud' => 'flow',
+            'sub' => 'planner-preview',
+            'email' => 'planner@example.com',
+            'exp' => time() + 3600,
+            'iat' => time(),
+        ];
+
+        $this->withHeaders([
+            'Authorization' => 'Bearer '.JWT::encode($payload, $this->privatePem, 'RS256'),
+        ])->getJson('/api/publish/public-information/1?level=4')
+            ->assertOk()
+            ->assertJsonPath('level', 4);
+
+        $this->assertSame(1, (int) DB::table('publication')->where('event', 1)->value('level'));
+    }
+
+    public function test_preview_level_is_stored_apart_from_the_published_level(): void
+    {
+        $this->seedEvent();
+        DB::table('publication')->insert([
+            'event' => 1,
+            'level' => 1,
+            'last_change' => now(),
+        ]);
+
+        $controller = app(PublishController::class);
+        $saved = $controller->setPublicationPreviewLevel(1, Request::create('/', 'POST', ['level' => 3]));
+        $this->assertSame(200, $saved->getStatusCode());
+        $this->assertSame(3, (int) DB::table('event')->where('id', 1)->value('publication_preview_level'));
+        $this->assertSame(1, (int) DB::table('publication')->where('event', 1)->value('level'));
+        $this->assertSame(1, DB::table('publication')->where('event', 1)->count());
+
+        $loaded = $controller->getPublicationLevel(1);
+        $this->assertSame(1, $loaded->getData(true)['level']);
+        $this->assertSame(3, $loaded->getData(true)['preview_level']);
+
+        $this->mock(\App\Services\CalendarFeedService::class, function ($mock) {
+            $mock->shouldReceive('tryRebuildOne')->once()->andReturn('skipped');
+        });
+
+        $applied = $controller->setPublicationLevel(1, Request::create('/', 'POST', ['level' => 3]));
+        $this->assertSame(200, $applied->getStatusCode());
+        $this->assertNull(DB::table('event')->where('id', 1)->value('publication_preview_level'));
+        $this->assertSame(3, (int) DB::table('publication')->orderByDesc('id')->value('level'));
+    }
+
     public function test_schedule_information_includes_volunteer_data_entry_when_enabled_at_level_four(): void
     {
         $this->seedEvent(['public_volunteer_data_entry' => true]);
@@ -920,6 +1010,13 @@ class VolunteerPublicFormTest extends TestCase
                 $table->boolean('public_volunteer_data_entry')->default(false);
                 $table->boolean('volunteer_collect_t_shirt')->default(true);
                 $table->boolean('collect_meal')->default(true);
+                $table->unsignedTinyInteger('publication_preview_level')->nullable();
+            });
+        }
+
+        if (Schema::hasTable('event') && ! Schema::hasColumn('event', 'publication_preview_level')) {
+            Schema::table('event', function (Blueprint $table) {
+                $table->unsignedTinyInteger('publication_preview_level')->nullable();
             });
         }
 

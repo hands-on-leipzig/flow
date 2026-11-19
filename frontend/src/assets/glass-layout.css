@@ -267,8 +267,8 @@
 .glass-surface,
 .glass-surface-lg {
   background: var(--liquid-tile-bg-inner);
-  backdrop-filter: blur(calc(var(--liquid-blur) * 0.55)) saturate(calc(var(--liquid-saturate) * 0.92));
-  -webkit-backdrop-filter: blur(calc(var(--liquid-blur) * 0.55)) saturate(calc(var(--liquid-saturate) * 0.92));
+  backdrop-filter: blur(var(--liquid-blur)) saturate(calc(var(--liquid-saturate) * 0.92));
+  -webkit-backdrop-filter: blur(var(--liquid-blur)) saturate(calc(var(--liquid-saturate) * 0.92));
   border: 1px solid var(--liquid-border-soft);
   box-shadow: var(--liquid-shadow-inset);
 }
@@ -285,6 +285,8 @@
 
 .glass-scrim {
   background: var(--liquid-modal-scrim-bg);
+  backdrop-filter: blur(var(--liquid-modal-scrim-blur)) saturate(var(--liquid-saturate));
+  -webkit-backdrop-filter: blur(var(--liquid-modal-scrim-blur)) saturate(var(--liquid-saturate));
 }
 
 .glass-modal {

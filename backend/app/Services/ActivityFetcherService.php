@@ -176,25 +176,16 @@ class ActivityFetcherService
         }
 
         // Table-Names (Override aus table_event, scoped by program)
+        // Join on the actual number: rotated rounds and catalog plans put any table on either side.
         $q->leftJoin('table_event as te1', function ($j) {
             $j->on('te1.event', '=', 'p.event')
                 ->on('te1.first_program', '=', 'atd.first_program')
-                ->where('te1.table_number', 1);
+                ->on('te1.table_number', '=', 'a.table_1');
         });
         $q->leftJoin('table_event as te2', function ($j) {
             $j->on('te2.event', '=', 'p.event')
                 ->on('te2.first_program', '=', 'atd.first_program')
-                ->where('te2.table_number', 2);
-        });
-        $q->leftJoin('table_event as te3', function ($j) {
-            $j->on('te3.event', '=', 'p.event')
-                ->on('te3.first_program', '=', 'atd.first_program')
-                ->where('te3.table_number', 3);
-        });
-        $q->leftJoin('table_event as te4', function ($j) {
-            $j->on('te4.event', '=', 'p.event')
-                ->on('te4.first_program', '=', 'atd.first_program')
-                ->where('te4.table_number', 4);
+                ->on('te2.table_number', '=', 'a.table_2');
         });
 
         // Basisselektion
@@ -216,16 +207,8 @@ class ActivityFetcherService
             a.table_2_team as table_2_team,
             a.extra_block as extra_block_id,
             peb.type as extra_block_type,
-            CASE a.table_1
-                WHEN 1 THEN NULLIF(TRIM(te1.table_name), "")
-                WHEN 3 THEN NULLIF(TRIM(te3.table_name), "")
-                ELSE NULL
-            END AS table_1_name,
-            CASE a.table_2
-                WHEN 2 THEN NULLIF(TRIM(te2.table_name), "")
-                WHEN 4 THEN NULLIF(TRIM(te4.table_name), "")
-                ELSE NULL
-            END AS table_2_name,
+            NULLIF(TRIM(te1.table_name), "") AS table_1_name,
+            NULLIF(TRIM(te2.table_name), "") AS table_2_name,
             a.slot_team as slot_team
         ';
 
@@ -257,7 +240,11 @@ class ActivityFetcherService
                 CASE 
                     WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.description, atd.description)
                     ELSE atd.description
-                END                        as activity_description
+                END                        as activity_description,
+                CASE 
+                    WHEN a.extra_block IS NOT NULL THEN COALESCE(NULLIF(TRIM(peb.link), ""), atd.link)
+                    ELSE atd.link
+                END                        as activity_link
             ';
         }
 
@@ -288,7 +275,11 @@ class ActivityFetcherService
                 CASE 
                     WHEN a.extra_block IS NOT NULL THEN COALESCE(peb.description, ag_atd.description)
                     ELSE ag_atd.description
-                END                        as group_description
+                END                        as group_description,
+                CASE 
+                    WHEN a.extra_block IS NOT NULL THEN COALESCE(NULLIF(TRIM(peb.link), ""), ag_atd.link)
+                    ELSE ag_atd.link
+                END                        as group_link
             ';
         }
 

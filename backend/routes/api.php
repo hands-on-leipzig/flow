@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\EventStaffingAssignmentController;
 use App\Http\Controllers\Api\EventStaffingController;
 use App\Http\Controllers\Api\EventTeamDataController;
 use App\Http\Controllers\Api\EventTeamFieldController;
+use App\Http\Controllers\Api\EventTeamPlayersController;
 use App\Http\Controllers\Api\EventVolunteerCollectController;
 use App\Http\Controllers\Api\EventVolunteerFieldController;
 use App\Http\Controllers\Api\EventVolunteerMealOptionController;
@@ -55,6 +56,9 @@ use App\Http\Controllers\Api\PublicVolunteerOpeningsController;
 use App\Http\Controllers\Api\PublishController;
 use App\Http\Controllers\Api\QualityController;
 use App\Http\Controllers\Api\RoomController;
+use App\Http\Controllers\Api\ScorAdminController;
+use App\Http\Controllers\Api\ScorController;
+use App\Http\Controllers\Api\ScorFormAdminController;
 use App\Http\Controllers\Api\SeasonPlanBulkController;
 use App\Http\Controllers\Api\SharepointController;
 use App\Http\Controllers\Api\SlugRegistryController;
@@ -145,6 +149,7 @@ Route::post('/public-volunteer-form/{slug}/otp/verify', [VolunteerPublicFormCont
 Route::get('/public-volunteer-form/{slug}/lookup', [VolunteerPublicFormController::class, 'lookup']);
 Route::get('/public-volunteer-form/{slug}/person/{volunteer}', [VolunteerPublicFormController::class, 'person']);
 Route::post('/public-volunteer-form/{slug}/save', [VolunteerPublicFormController::class, 'save']);
+Route::get('/public-team-form/for-coach', [TeamPublicFormController::class, 'forCoach']);
 Route::post('/public-team-form/{slug}/otp', [TeamPublicFormController::class, 'requestOtp'])
     ->middleware('throttle:8,1');
 Route::post('/public-team-form/{slug}/otp/verify', [TeamPublicFormController::class, 'verifyOtp'])
@@ -174,6 +179,11 @@ Route::prefix('contao')->group(function () {
     Route::get('/score', [ContaoController::class, 'getScore']);
 });
 
+Route::post('/scor/login', [ScorController::class, 'login']);
+Route::get('/scor/public/practice/{eventId}', [ScorController::class, 'practice']);
+Route::get('/scor/public/results/{eventId}', [ScorController::class, 'published']);
+Route::post('/scor/public/practice/score', [ScorController::class, 'practiceScore']);
+
 Route::middleware(['keycloak'])->group(function () {
     // For testing: manually trigger round write
     Route::put('/contao/write-rounds', [ContaoController::class, 'writeRoundsEndpoint']);
@@ -200,8 +210,8 @@ Route::middleware(['keycloak'])->group(function () {
     Route::get('/user/me', [UserAccessController::class, 'me']);
     Route::get('/user/access', [UserAccessController::class, 'overview']);
     Route::get('/user/access/events/{eventId}/users', [UserAccessController::class, 'eventUsers']);
-    Route::get('/user/access/users', [UserAccessController::class, 'searchUsers']);
     Route::post('/user/access/grants', [UserAccessController::class, 'grant']);
+    Route::patch('/user/access/grants', [UserAccessController::class, 'update']);
     Route::delete('/user/access/grants', [UserAccessController::class, 'revoke']);
     Route::get('/user/regional-partners', function (Request $request) {
         $user = $request->user();
@@ -372,7 +382,10 @@ Route::middleware(['keycloak'])->group(function () {
     Route::patch('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'update']);
     Route::delete('/events/{event}/team-fields/{field}', [EventTeamFieldController::class, 'destroy']);
     Route::get('/events/{event}/team-data', [EventTeamDataController::class, 'index']);
+    Route::put('/events/{event}/team-data-deadline', [EventTeamDataController::class, 'updateDeadline']);
     Route::patch('/events/{event}/teams/{team}/team-data', [EventTeamDataController::class, 'update']);
+    Route::get('/events/{event}/teams/{team}/players', [EventTeamPlayersController::class, 'show']);
+    Route::put('/events/{event}/teams/{team}/players', [EventTeamPlayersController::class, 'update']);
     Route::get('/events/{event}/team-data/export', [EventTeamDataController::class, 'exportXlsx']);
 
     // Volunteer staffing (pool + roster)
@@ -459,6 +472,38 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/{id}', [MParameterController::class, 'updateMparameter']);
     });
 
+    Route::get('/admin/scor/events', [ScorAdminController::class, 'events']);
+    Route::get('/admin/scor/events/{eventId}/helpers', [ScorAdminController::class, 'helpers']);
+    Route::post('/admin/scor/events/{eventId}/helpers', [ScorAdminController::class, 'grantHelper']);
+    Route::get('/admin/scor/log', [ScorAdminController::class, 'log']);
+    Route::get('/admin/scor-forms', [ScorFormAdminController::class, 'show']);
+    Route::put('/admin/scor-forms/{form}', [ScorFormAdminController::class, 'update']);
+
+    Route::prefix('scor')->group(function () {
+        Route::get('/access', [ScorController::class, 'access']);
+        Route::get('/events/{eventId}/local-accounts', [ScorController::class, 'localAccounts']);
+        Route::post('/events/{eventId}/local-accounts', [ScorController::class, 'createLocalAccount']);
+        Route::post('/events/{eventId}/local-accounts/{account}/password', [ScorController::class, 'resetLocalPassword']);
+        Route::get('/events', [ScorController::class, 'events']);
+        Route::get('/events/{eventId}', [ScorController::class, 'overview']);
+        Route::get('/events/{eventId}/results', [ScorController::class, 'results']);
+        Route::put('/events/{eventId}/awards', [ScorController::class, 'saveAwards']);
+        Route::put('/events/{eventId}/teams/{team}/noteworthy', [ScorController::class, 'tagNoteworthy']);
+        Route::put('/events/{eventId}/stage', [ScorController::class, 'pickStage']);
+        Route::post('/events/{eventId}/close', [ScorController::class, 'closeEvent']);
+        Route::post('/events/{eventId}/release', [ScorController::class, 'releaseEvent']);
+        Route::post('/events/{eventId}/reopen', [ScorController::class, 'reopenEvent']);
+        Route::post('/events/{eventId}/coach-mail', [ScorController::class, 'sendResults']);
+        Route::get('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'referee']);
+        Route::put('/events/{eventId}/matches/{match}/teams/{team}', [ScorController::class, 'saveReferee']);
+        Route::post('/events/{eventId}/matches/{match}/teams/{team}/confirm', [ScorController::class, 'confirmReferee']);
+        Route::post('/events/{eventId}/matches/{match}/teams/{team}/reopen', [ScorController::class, 'reopenReferee']);
+        Route::get('/events/{eventId}/teams/{team}/jury', [ScorController::class, 'jury']);
+        Route::put('/events/{eventId}/teams/{team}/jury', [ScorController::class, 'saveJury']);
+        Route::post('/events/{eventId}/teams/{team}/jury/complete', [ScorController::class, 'completeJury']);
+        Route::post('/events/{eventId}/teams/{team}/jury/reopen', [ScorController::class, 'reopenJury']);
+    });
+
     Route::prefix('admin/user-regional-partners')->group(function () {
         Route::get('/', [UserRegionalPartnerController::class, 'index']);
         Route::get('/statistics', [UserRegionalPartnerController::class, 'statistics']);
@@ -533,6 +578,7 @@ Route::middleware(['keycloak'])->group(function () {
         Route::post('/information/{eventId}', [PublishController::class, 'scheduleInformation']); // Infos nach Aussen
         Route::get('/level/{eventId}', [PublishController::class, 'getPublicationLevel']);
         Route::post('/level/{eventId}', [PublishController::class, 'setPublicationLevel']);
+        Route::post('/preview-level/{eventId}', [PublishController::class, 'setPublicationPreviewLevel']);
         Route::get('/helper-search/{eventId}', [PublishController::class, 'getPublicHelperSearch']);
         Route::post('/helper-search/{eventId}', [PublishController::class, 'setPublicHelperSearch']);
         Route::get('/volunteer-data-entry/{eventId}', [PublishController::class, 'getPublicVolunteerDataEntry']);

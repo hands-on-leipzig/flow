@@ -124,6 +124,10 @@ export default defineConfig(({mode}) => {
                     fileURLToPath(new URL('../backend/resources/fonts', import.meta.url)),
                 ],
             },
+            // @hands-on/glass is a symlink into node_modules, which Vite does not watch.
+            watch: {
+                ignored: ['!**/node_modules/@hands-on/glass/**'],
+            },
             proxy: {
                 // Blade-Views (unsere Tabelle)
                 '^/schedule/.*': {

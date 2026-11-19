@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Process;
 
@@ -97,40 +98,35 @@ class CreateMainDataPR extends Command
         $baseBranch = 'main';
 
         $token = $this->githubToken();
-
-        $headers = [
-            'Authorization' => 'token ' . $token,
+        $http = Http::withToken($token)->withHeaders([
             'Accept' => 'application/vnd.github.v3+json',
-            'User-Agent' => 'FLOW-MainData-Exporter'
-        ];
+            'User-Agent' => 'FLOW-MainData-Exporter',
+        ]);
 
         // Step 1: Get current main branch SHA
         $this->line('  📋 Getting main branch reference...');
-        $refResponse = Http::withHeaders($headers)
-            ->get("https://api.github.com/repos/{$repoOwner}/{$repoName}/git/refs/heads/{$baseBranch}");
+        $refResponse = $http->get("https://api.github.com/repos/{$repoOwner}/{$repoName}/git/ref/heads/{$baseBranch}");
 
         if (!$refResponse->successful()) {
-            throw new \Exception('Failed to get main branch reference: ' . $refResponse->body());
+            throw new \Exception($this->githubError('Failed to get main branch reference', $refResponse));
         }
 
         $mainSha = $refResponse->json()['object']['sha'];
 
         // Step 2: Create new branch
         $this->line('  🌿 Creating new branch: ' . $branchName);
-        $branchResponse = Http::withHeaders($headers)
-            ->post("https://api.github.com/repos/{$repoOwner}/{$repoName}/git/refs", [
-                'ref' => 'refs/heads/' . $branchName,
-                'sha' => $mainSha
-            ]);
+        $branchResponse = $http->post("https://api.github.com/repos/{$repoOwner}/{$repoName}/git/refs", [
+            'ref' => 'refs/heads/' . $branchName,
+            'sha' => $mainSha
+        ]);
 
         if (!$branchResponse->successful()) {
-            throw new \Exception('Failed to create branch: ' . $branchResponse->body());
+            throw new \Exception($this->githubError('Failed to create branch', $branchResponse));
         }
 
         // Step 3: Get current main-tables-latest.json SHA (if exists)
         $this->line('  📄 Getting current main-tables-latest.json SHA...');
-        $fileResponse = Http::withHeaders($headers)
-            ->get("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/backend/database/exports/main-tables-latest.json");
+        $fileResponse = $http->get("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/backend/database/exports/main-tables-latest.json");
 
         $fileSha = null;
         if ($fileResponse->successful()) {
@@ -139,22 +135,20 @@ class CreateMainDataPR extends Command
 
         // Step 4: Create/Update main-tables-latest.json
         $this->line('  💾 Uploading main-tables-latest.json...');
-        $updateResponse = Http::withHeaders($headers)
-            ->put("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/backend/database/exports/main-tables-latest.json", [
-                'message' => 'Update main-tables-latest.json with latest main data export',
-                'content' => base64_encode($jsonContent),
-                'branch' => $branchName,
-                'sha' => $fileSha // null for new file, existing SHA for update
-            ]);
+        $updateResponse = $http->put("https://api.github.com/repos/{$repoOwner}/{$repoName}/contents/backend/database/exports/main-tables-latest.json", [
+            'message' => 'Update main-tables-latest.json with latest main data export',
+            'content' => base64_encode($jsonContent),
+            'branch' => $branchName,
+            'sha' => $fileSha // null for new file, existing SHA for update
+        ]);
 
         if (!$updateResponse->successful()) {
-            throw new \Exception('Failed to update main-tables-latest.json: ' . $updateResponse->body());
+            throw new \Exception($this->githubError('Failed to update main-tables-latest.json', $updateResponse));
         }
 
         // Step 5: Create Pull Request
         $this->line('  🔀 Creating pull request...');
-        $prResponse = Http::withHeaders($headers)
-            ->post("https://api.github.com/repos/{$repoOwner}/{$repoName}/pulls", [
+        $prResponse = $http->post("https://api.github.com/repos/{$repoOwner}/{$repoName}/pulls", [
                 'title' => 'Update Main Data Export (JSON) - ' . now()->format('Y-m-d H:i:s'),
                 'head' => $branchName,
                 'base' => $baseBranch,
@@ -163,7 +157,7 @@ class CreateMainDataPR extends Command
             ]);
 
         if (!$prResponse->successful()) {
-            throw new \Exception('Failed to create pull request: ' . $prResponse->body());
+            throw new \Exception($this->githubError('Failed to create pull request', $prResponse));
         }
 
         $prData = $prResponse->json();
@@ -175,8 +169,11 @@ class CreateMainDataPR extends Command
     private function githubToken(): string
     {
         $configured = config('services.github.token');
-        if (is_string($configured) && $configured !== '') {
-            return $configured;
+        if (is_string($configured)) {
+            $configured = $this->normalizeToken($configured);
+            if ($configured !== '') {
+                return $configured;
+            }
         }
 
         $fromGh = $this->tokenFromGhCli();
@@ -199,9 +196,40 @@ class CreateMainDataPR extends Command
             return null;
         }
 
-        $token = trim($result->output());
+        $token = $this->normalizeToken($result->output());
 
         return $token !== '' ? $token : null;
+    }
+
+    private function normalizeToken(string $token): string
+    {
+        $token = trim($token);
+        if (
+            (str_starts_with($token, '"') && str_ends_with($token, '"'))
+            || (str_starts_with($token, "'") && str_ends_with($token, "'"))
+        ) {
+            $token = substr($token, 1, -1);
+        }
+
+        $token = trim(preg_replace('/^(?:Bearer|token)\s+/i', '', trim($token)) ?? '');
+
+        return $token;
+    }
+
+    private function githubError(string $action, Response $response): string
+    {
+        $decoded = json_decode($response->body(), true);
+        $message = is_array($decoded) && is_string($decoded['message'] ?? null)
+            ? $decoded['message']
+            : trim(preg_replace('/\s+/', ' ', $response->body()) ?? '');
+        $status = $response->status();
+        $hint = match ($status) {
+            401 => ' The GITHUB_TOKEN on this server was rejected.',
+            404 => ' The token cannot read hands-on-leipzig/flow.',
+            default => '',
+        };
+
+        return $action.': GitHub '.$status.' '.$message.'.'.$hint;
     }
 
     private function ghBinary(): ?string

@@ -55,7 +55,7 @@ class CalendarFeedController extends Controller
 
     private function publicBaseUrl(Request $request): string
     {
-        return rtrim($request->getSchemeAndHttpHost(), '/');
+        return CalendarFeedService::subscriptionBase($request->getSchemeAndHttpHost());
     }
 
     protected function icsResponse(Request $request, string $body, ?DateTimeInterface $lastModified): Response

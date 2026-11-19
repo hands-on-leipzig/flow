@@ -6,6 +6,7 @@ use App\Helpers\FlowFilename;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
 use App\Services\EventSlugService;
+use App\Support\KeycloakAccessToken;
 use App\Services\PublicAccessRecorder;
 use App\Services\ImportantTimesService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -304,10 +305,10 @@ class PublishController extends Controller
 
         $level = $publication?->level ?? 1; // Fallback Level 1
 
-        // Falls im Request level übergeben wird -> überschreibt DB-Wert
-        $override = $request->input('level'); // liest Body ODER Query
+        // Planner preview only. Guests keep the published level, even if the URL carries one.
+        $override = $this->plannerPreviewLevel($request);
         if ($override !== null) {
-            $level = (int) $override;
+            $level = $override;
         }
 
         // Basisdaten aus DrahtController holen
@@ -466,6 +467,33 @@ class PublishController extends Controller
         return response()->json([
             'event_id' => $eventId,
             'level' => $level,
+            'preview_level' => $this->storedPreviewLevel($eventId, (int) $level),
+        ]);
+    }
+
+    // Vorschau-Level speichern, ohne den veröffentlichten Stand anzufassen
+    public function setPublicationPreviewLevel(int $eventId, Request $request): JsonResponse
+    {
+        $level = (int) $request->input('level', 0);
+        if (! in_array($level, [1, 2, 3, 4], true)) {
+            return response()->json(['error' => 'Ungültiger Vorschau-Level.'], 422);
+        }
+
+        if (! Event::query()->whereKey($eventId)->exists()) {
+            return response()->json(['error' => 'Event not found'], 404);
+        }
+
+        $published = $this->latestPublicationLevel($eventId);
+        $stored = $level === $published ? null : $level;
+        DB::table('event')->where('id', $eventId)->update([
+            'publication_preview_level' => $stored,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'event_id' => $eventId,
+            'level' => $published,
+            'preview_level' => $stored,
         ]);
     }
 
@@ -482,7 +510,7 @@ class PublishController extends Controller
             ->first();
 
         // Only insert if level actually changed (avoid duplicates)
-        if (! $latest || $latest->level !== $level) {
+        if (! $latest || (int) $latest->level !== $level) {
             DB::table('publication')->insert([
                 'event' => $eventId,
                 'level' => $level,
@@ -491,11 +519,72 @@ class PublishController extends Controller
             app(\App\Services\CalendarFeedService::class)->tryRebuildOne($eventId);
         }
 
+        DB::table('event')->where('id', $eventId)->update([
+            'publication_preview_level' => null,
+        ]);
+
         return response()->json([
             'success' => true,
             'event_id' => $eventId,
             'level' => $level,
+            'preview_level' => null,
         ]);
+    }
+
+    /**
+     * Saved simulation, or null when it matches the published level.
+     */
+    private function storedPreviewLevel(int $eventId, int $publishedLevel): ?int
+    {
+        $preview = DB::table('event')->where('id', $eventId)->value('publication_preview_level');
+        if ($preview === null) {
+            return null;
+        }
+        $preview = (int) $preview;
+        if ($preview < 1 || $preview > 4 || $preview === $publishedLevel) {
+            return null;
+        }
+
+        return $preview;
+    }
+
+    private function latestPublicationLevel(int $eventId): int
+    {
+        $level = DB::table('publication')
+            ->where('event', $eventId)
+            ->orderBy('last_change', 'desc')
+            ->orderBy('id', 'desc')
+            ->value('level');
+
+        return $level !== null ? (int) $level : 1;
+    }
+
+    /**
+     * Query/body `level` is a planner simulation. It does not change `publication`.
+     */
+    private function plannerPreviewLevel(Request $request): ?int
+    {
+        $override = $request->input('level');
+        if ($override === null || $override === '') {
+            return null;
+        }
+
+        $claims = KeycloakAccessToken::optionalClaims($request);
+        if ($claims === null) {
+            return null;
+        }
+
+        $audience = (array) ($claims['aud'] ?? []);
+        if (! in_array('flow', $audience, true)) {
+            return null;
+        }
+
+        $level = (int) $override;
+        if ($level < 1 || $level > 4) {
+            return null;
+        }
+
+        return $level;
     }
 
     // Wichtige Zeite für die Veröffentlichung

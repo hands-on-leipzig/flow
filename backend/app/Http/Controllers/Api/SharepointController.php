@@ -15,9 +15,9 @@ class SharepointController extends Controller
         private readonly SharepointService $sharepointService,
     ) {}
 
-    public function status(): JsonResponse
+    public function status(Request $request): JsonResponse
     {
-        return response()->json($this->sharepointService->getPublicStatus());
+        return response()->json($this->sharepointService->getPublicStatus($request->query('lang')));
     }
 
     public function listDocuments(Request $request): JsonResponse
@@ -32,7 +32,7 @@ class SharepointController extends Controller
             }
 
             $itemId = $request->query('item_id');
-            $data = $this->sharepointService->listFolder($itemId ?: null);
+            $data = $this->sharepointService->listFolder($itemId ?: null, $request->query('lang'));
             $data['configured'] = true;
 
             return response()->json($data);
@@ -64,6 +64,7 @@ class SharepointController extends Controller
                 $this->sharepointService->resolveGuestFileLink(
                     $validated['drive_id'],
                     $validated['item_id'],
+                    $request->query('lang'),
                 )
             );
         } catch (\RuntimeException $e) {
@@ -114,6 +115,8 @@ class SharepointController extends Controller
             'client_id' => 'nullable|string|max:64',
             'client_secret' => 'nullable|string|max:500',
             'folder_url' => 'nullable|string|max:2000',
+            'folder_url_de' => 'nullable|url|max:2000',
+            'folder_url_en' => 'nullable|url|max:2000',
             'is_enabled' => 'nullable|boolean',
         ]);
 

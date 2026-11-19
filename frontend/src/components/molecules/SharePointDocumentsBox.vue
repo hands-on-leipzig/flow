@@ -1,7 +1,8 @@
 <script lang="ts" setup>
-import {computed, onMounted, ref} from 'vue'
+import {computed, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
 import dayjs from 'dayjs'
+import {useApps} from '@/composables/useApps'
 import DocumentViewerModal from '@/components/atoms/DocumentViewerModal.vue'
 import DocumentOpeningOverlay from '@/components/atoms/DocumentOpeningOverlay.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
@@ -21,6 +22,8 @@ interface Breadcrumb {
   id: string
   name: string
 }
+
+const {ensure, userLang} = useApps()
 
 const configured = ref(false)
 const loading = ref(false)
@@ -97,7 +100,8 @@ async function loadFolder(itemId: string | null = null) {
   loading.value = true
   error.value = null
   try {
-    const params = itemId ? {item_id: itemId} : {}
+    const params: {item_id?: string, lang: string} = {lang: userLang.value}
+    if (itemId) params.item_id = itemId
     const {data} = await axios.get('/sharepoint/documents', {params})
     configured.value = data.configured ?? false
     if (data.error) {
@@ -160,15 +164,25 @@ async function goToRoot() {
   await loadFolder(null)
 }
 
-onMounted(async () => {
-  const statusRes = await axios.get('/sharepoint/status')
+async function refresh() {
+  const statusRes = await axios.get('/sharepoint/status', {params: {lang: userLang.value}})
   configured.value = statusRes.data.configured ?? false
-  if (statusRes.data.folder_url) {
-    folderWebUrl.value = statusRes.data.folder_url
-  }
+  folderWebUrl.value = statusRes.data.folder_url || null
+  breadcrumbs.value = []
+  items.value = []
   if (configured.value) {
     await loadFolder(null)
   }
+}
+
+onMounted(async () => {
+  await ensure()
+  await refresh()
+})
+
+watch(userLang, async (next, prev) => {
+  if (next === prev) return
+  await refresh()
 })
 </script>
 

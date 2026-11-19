@@ -6,6 +6,7 @@ use App\Support\FlowAccess;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 
 class User extends Authenticatable
 {
@@ -84,27 +85,128 @@ class User extends Authenticatable
         return FlowAccess::isFlowUser($this->getRoles());
     }
 
-    public function hasRegionalPartnerAccess(int $regionalPartnerId): bool
+    /**
+     * Draht membership covers every event of that regional partner.
+     * Invitations are stored per event in event_user_access.
+     */
+    public function hasPermission(string $permission): bool
     {
-        if ($this->isFlowAdmin()) {
+        $column = FlowAccess::permissionColumn($permission);
+
+        $viaDraht = DB::table('user_regional_partner')
+            ->where('user', $this->id)
+            ->where('source', FlowAccess::SOURCE_DRAHT)
+            ->where($column, true)
+            ->exists();
+
+        if ($viaDraht) {
             return true;
         }
 
-        return $this->regionalPartners()
-            ->where('regional_partner.id', $regionalPartnerId)
+        return DB::table('event_user_access')
+            ->where('user', $this->id)
+            ->where($column, true)
             ->exists();
     }
 
-    public function hasEventAccess(int $eventId): bool
+    /**
+     * @return list<int>
+     */
+    public function accessibleEventIds(string $permission): array
+    {
+        $column = FlowAccess::permissionColumn($permission);
+
+        $direct = DB::table('event_user_access')
+            ->where('user', $this->id)
+            ->where($column, true)
+            ->pluck('event')
+            ->all();
+
+        $rpIds = DB::table('user_regional_partner')
+            ->where('user', $this->id)
+            ->where('source', FlowAccess::SOURCE_DRAHT)
+            ->where($column, true)
+            ->pluck('regional_partner')
+            ->all();
+
+        $viaPartner = $rpIds === []
+            ? []
+            : DB::table('event')->whereIn('regional_partner', $rpIds)->pluck('id')->all();
+
+        return array_values(array_unique(array_map('intval', [...$direct, ...$viaPartner])));
+    }
+
+    public function hasRegionalPartnerAccess(int $regionalPartnerId, string $permission = FlowAccess::PERMISSION_FLOW): bool
     {
         if ($this->isFlowAdmin()) {
             return true;
         }
 
-        return $this->regionalPartners()
-            ->whereHas('events', function ($query) use ($eventId) {
-                $query->where('id', $eventId);
-            })
+        $column = FlowAccess::permissionColumn($permission);
+
+        $viaDraht = DB::table('user_regional_partner')
+            ->where('user', $this->id)
+            ->where('regional_partner', $regionalPartnerId)
+            ->where('source', FlowAccess::SOURCE_DRAHT)
+            ->where($column, true)
+            ->exists();
+
+        if ($viaDraht) {
+            return true;
+        }
+
+        return DB::table('event_user_access as access')
+            ->join('event', 'access.event', '=', 'event.id')
+            ->where('access.user', $this->id)
+            ->where('event.regional_partner', $regionalPartnerId)
+            ->where('access.'.$column, true)
+            ->exists();
+    }
+
+    public function hasEventAccess(int $eventId, string $permission = FlowAccess::PERMISSION_FLOW): bool
+    {
+        if ($this->isFlowAdmin()) {
+            return true;
+        }
+
+        $column = FlowAccess::permissionColumn($permission);
+
+        $direct = DB::table('event_user_access')
+            ->where('user', $this->id)
+            ->where('event', $eventId)
+            ->where($column, true)
+            ->exists();
+
+        if ($direct) {
+            return true;
+        }
+
+        $regionalPartnerId = (int) DB::table('event')->where('id', $eventId)->value('regional_partner');
+        if ($regionalPartnerId <= 0) {
+            return false;
+        }
+
+        return DB::table('user_regional_partner')
+            ->where('user', $this->id)
+            ->where('regional_partner', $regionalPartnerId)
+            ->where('source', FlowAccess::SOURCE_DRAHT)
+            ->where($column, true)
+            ->exists();
+    }
+
+    /**
+     * Draht contacts (and admins) decide who else gets access to their regional partner.
+     */
+    public function canManageRegionalPartner(int $regionalPartnerId): bool
+    {
+        if ($this->isFlowAdmin()) {
+            return true;
+        }
+
+        return DB::table('user_regional_partner')
+            ->where('user', $this->id)
+            ->where('regional_partner', $regionalPartnerId)
+            ->where('source', FlowAccess::SOURCE_DRAHT)
             ->exists();
     }
 }

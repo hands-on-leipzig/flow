@@ -9,12 +9,13 @@ on:
     branches:
       - main
       - test
+      - scor-arbeit
   release:
     types: [ published ]
 
 jobs:
   deploy-dev:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/scor-arbeit'
     uses: ./.github/workflows/deploy-reusable.yml
     with:
       checkout_ref: ${{ github.ref }}

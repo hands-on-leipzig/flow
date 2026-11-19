@@ -29,6 +29,7 @@ const props = defineProps({
   getTeamBorderStyle: {type: Function, required: true},
   getTeamGroup: {type: Function, required: true},
   formatBirthday: {type: Function, required: true},
+  eventId: {type: Number, default: null},
 })
 
 const emit = defineEmits([
@@ -38,6 +39,7 @@ const emit = defineEmits([
   'toggle',
   'copy',
   'sync',
+  'players-saved',
 ])
 
 const visibleRemote = computed(() => visibleDrahtTeams(props.remoteTeams as Record<string, unknown>[]))
@@ -180,7 +182,9 @@ function updateTeamList(value: unknown[]) {
               :expanded="isTeamExpanded(team)"
               :people-data="getTeamPeopleData(team)"
               :format-birthday="formatBirthday"
+              :event-id="eventId"
               @toggle="emit('toggle', team)"
+              @players-saved="emit('players-saved')"
               @update-noshow="emit('update-noshow', $event)"
               @copy="(text, label) => emit('copy', text, label)"
           />

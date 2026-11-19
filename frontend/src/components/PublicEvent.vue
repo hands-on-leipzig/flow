@@ -9,13 +9,9 @@ import {imageUrl} from '@/utils/images'
 import {eventPrograms, resolveProgramRef} from '@/utils/eventPrograms'
 import {getEventTitleLong} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
-import {usePublicEventSso} from '@/composables/usePublicEventSso'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
-import VolunteerPublicFormFlow from '@/components/volunteers/VolunteerPublicFormFlow.vue'
-import TeamPublicFormFlow from '@/components/teams/TeamPublicFormFlow.vue'
-import {isNonProductionPublicHost} from '@/utils/publicFormOtpEnv'
 import {logOneLinkAccess} from '@/utils/usageCapture'
 
 const route = useRoute()
@@ -26,12 +22,8 @@ const loading = ref(true)
 const error = ref(null)
 const publicPlanId = ref(null)
 const eventLogos = ref([])
+const publishedResults = ref(null)
 
-const formStep = ref(null)
-const formEmail = ref('')
-const teamFormStep = ref(null)
-const teamFormEmail = ref('')
-const {ssoToken, ssoEmail, awaitSso} = usePublicEventSso()
 
 const headingTitle = computed(() => getEventTitleLong(event.value) || event.value?.name || 'Veranstaltung')
 const headingDate = computed(() => {
@@ -49,6 +41,30 @@ const heroTitle = computed(() => {
   const parts = [headingTitle.value]
   if (headingDate.value) parts.push(headingDate.value)
   return parts.join(' · ')
+})
+
+const publishedAwardLines = computed(() => {
+  const payload = publishedResults.value
+  if (!payload?.teams) return []
+  const byId = new Map(payload.teams.map((team) => [team.id, team]))
+  const nameOf = (id) => {
+    const team = byId.get(id)
+    return team ? `${team.number} ${team.name}` : ''
+  }
+  const awards = payload.awards || {}
+  const trophy = (category) => awards.trophies?.find((row) => row.category === category)
+  const lines = [
+    {label: 'Champion', value: nameOf(trophy('champion')?.team)},
+    {label: 'Projekt', value: nameOf(trophy('research')?.team)},
+    {label: 'Technisches Design', value: nameOf(trophy('robotdesign')?.team)},
+    {label: 'Grundwerte', value: nameOf(trophy('core_values')?.team)},
+    {label: 'Coaching', value: nameOf(awards.coaching)},
+    {
+      label: 'Spiel',
+      value: payload.teams.filter((team) => team.robot_rank === 1).map((team) => nameOf(team.id)).filter(Boolean).join(', '),
+    },
+  ]
+  return lines.filter((line) => line.value)
 })
 
 const loadEvent = async () => {
@@ -74,7 +90,10 @@ const loadEvent = async () => {
       console.error('Error preparing access log:', err)
     }
 
-    const scheduleResponse = await axios.get(`/publish/public-information/${event.value.id}`)
+    const previewLevel = previewLevelFromQuery()
+    const scheduleResponse = await axios.get(`/publish/public-information/${event.value.id}`, {
+      params: previewLevel == null ? {} : {level: previewLevel},
+    })
     scheduleInfo.value = scheduleResponse.data
 
     if (scheduleInfo.value?.level === 4) {
@@ -93,6 +112,13 @@ const loadEvent = async () => {
     } catch (logoError) {
       console.error('Error fetching logos:', logoError)
       eventLogos.value = []
+    }
+
+    try {
+      const resultsResponse = await axios.get(`/scor/public/results/${event.value.id}`)
+      publishedResults.value = resultsResponse.data
+    } catch {
+      publishedResults.value = null
     }
   } catch (err) {
     console.error('Error loading event:', err)
@@ -168,6 +194,14 @@ function laneFill(lane) {
   if (cap <= 0) return '0%'
   const n = Array.isArray(lane?.teams) ? lane.teams.length : 0
   return `${Math.min(100, (n / cap) * 100)}%`
+}
+
+function previewLevelFromQuery() {
+  const raw = route.query.preview_level
+  const value = Array.isArray(raw) ? raw[0] : raw
+  const level = Number(value)
+  if (!Number.isInteger(level) || level < 1 || level > 4) return null
+  return level
 }
 
 const publicationLevel = computed(() => Number(scheduleInfo.value?.level ?? 1))
@@ -283,40 +317,15 @@ const showTeamDataEntrySection = computed(() =>
   !!scheduleInfo.value && !!teamDataEntry.value?.enabled
 )
 
-async function openVolunteerForm() {
-  await awaitSso()
-  teamFormStep.value = null
-  teamFormEmail.value = ''
-  if (isNonProductionPublicHost()) {
-    formEmail.value = ''
-    formStep.value = 'email'
-    return
-  }
-  formEmail.value = ssoEmail.value
-  formStep.value = ssoEmail.value ? 'data' : 'email'
-}
-
-function closeVolunteerForm() {
-  formStep.value = null
-  formEmail.value = ''
-}
-
-async function openTeamForm() {
-  await awaitSso()
-  formStep.value = null
-  formEmail.value = ''
-  if (isNonProductionPublicHost()) {
-    teamFormEmail.value = ''
-    teamFormStep.value = 'email'
-    return
-  }
-  teamFormEmail.value = ssoEmail.value
-  teamFormStep.value = ssoEmail.value ? 'data' : 'email'
-}
-
-function closeTeamForm() {
-  teamFormStep.value = null
-  teamFormEmail.value = ''
+function entryUrl(app) {
+  const host = window.location.hostname
+  const tier = host.startsWith('dev.') || host === 'localhost' || host === '127.0.0.1'
+    ? 'dev.'
+    : host.startsWith('test.')
+      ? 'test.'
+      : ''
+  const slug = encodeURIComponent(String(route.params.slug ?? ''))
+  return `https://${tier}${app}.hands-on-technology.org/eintragen/${slug}`
 }
 
 const helperSearchPrimaryScopes = computed(() => {
@@ -406,34 +415,7 @@ onMounted(async () => {
 
     <!-- Public landing (all publication levels) -->
     <div v-else-if="event" class="pe-content">
-      <VolunteerPublicFormFlow
-          v-if="formStep"
-          :step="formStep"
-          :email="formEmail"
-          :slug="String(route.params.slug ?? '')"
-          :event-id="event.id"
-          :sso-token="ssoToken"
-          :sso-email="ssoEmail"
-          @update:email="formEmail = $event"
-          @update:step="formStep = $event"
-          @cancel="closeVolunteerForm"
-      />
-
-      <TeamPublicFormFlow
-          v-else-if="teamFormStep"
-          :step="teamFormStep"
-          :email="teamFormEmail"
-          :slug="String(route.params.slug ?? '')"
-          :event="event"
-          :event-id="event.id"
-          :sso-token="ssoToken"
-          :sso-email="ssoEmail"
-          @update:email="teamFormEmail = $event"
-          @update:step="teamFormStep = $event"
-          @cancel="closeTeamForm"
-      />
-
-      <template v-else>
+      <template>
       <header class="pe-hero glass-card liquid-surface-inner">
         <img
             :src="imageUrl('/flow/hot+fll.png')"
@@ -442,6 +424,19 @@ onMounted(async () => {
         />
         <h1 class="pe-hero__title">{{ heroTitle }}</h1>
       </header>
+
+      <section
+          v-if="publishedAwardLines.length"
+          class="glass-card liquid-surface-inner pe-section"
+      >
+        <h2 class="glass-card__title">Ergebnisse</h2>
+        <ul class="pe-results">
+          <li v-for="line in publishedAwardLines" :key="line.label">
+            <span>{{ line.label }}</span>
+            <strong>{{ line.value }}</strong>
+          </li>
+        </ul>
+      </section>
 
       <!-- First box: placeholder / Wichtige Zeiten / springboard -->
       <section
@@ -595,13 +590,11 @@ onMounted(async () => {
           v-if="showVolunteerDataEntrySection"
           class="glass-card liquid-surface-inner pe-section"
       >
-        <h2 class="glass-card__title">Dateneingabe für Helfer:innen</h2>
+        <h2 class="glass-card__title">Helfer:innen</h2>
         <p class="pe-muted pe-volunteer-form-intro">
-          Helfer:innen können hier ihre Daten für diese Veranstaltung prüfen und ergänzen.
+          Helfer:in? Daten für diese Veranstaltung in HERO eintragen.
         </p>
-        <button type="button" class="glass-btn-accent" @click="openVolunteerForm">
-          Daten eingeben
-        </button>
+        <a class="glass-btn-accent pe-entry-link" :href="entryUrl('hero')">Daten eintragen</a>
       </section>
 
       <!-- Dateneingabe für Coaches -->
@@ -609,13 +602,11 @@ onMounted(async () => {
           v-if="showTeamDataEntrySection"
           class="glass-card liquid-surface-inner pe-section"
       >
-        <h2 class="glass-card__title">Dateneingabe für Coaches</h2>
+        <h2 class="glass-card__title">Coaches</h2>
         <p class="pe-muted pe-volunteer-form-intro">
-          Coaches können hier die Teamdaten für diese Veranstaltung prüfen und ergänzen.
+          Coach? Daten für diese Veranstaltung in JOIN eintragen.
         </p>
-        <button type="button" class="glass-btn-accent" @click="openTeamForm">
-          Daten eingeben
-        </button>
+        <a class="glass-btn-accent pe-entry-link" :href="entryUrl('join')">Daten eintragen</a>
       </section>
 
       <!-- Suche nach Helfer:innen -->
@@ -948,6 +939,25 @@ onMounted(async () => {
   letter-spacing: -0.02em;
   color: var(--color-text);
   line-height: 1.2;
+}
+
+.pe-results {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.pe-results li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pe-results span {
+  color: var(--color-text-muted);
 }
 
 .pe-section {
@@ -1310,6 +1320,11 @@ onMounted(async () => {
 
 .pe-volunteer-form-intro {
   margin-bottom: 1rem;
+}
+
+.pe-entry-link {
+  display: inline-flex;
+  text-decoration: none;
 }
 
 .pe-times-stand {

@@ -31,6 +31,9 @@ const volunteerDataEntrySaving = ref<{show: (ms?: number) => void; hide: () => v
 const teamDataEntrySaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const dayAppsSaving = ref<{show: (ms?: number) => void; hide: () => void} | null>(null)
 const detailLevel = ref(0)
+const publishedLevel = ref(0)
+const savingMessage = ref('Vorschau wird gespeichert…')
+const applyingLive = ref(false)
 const checkInEnabled = ref(false)
 const cockpitEnabled = ref(false)
 const dayAppsLoading = ref(false)
@@ -169,12 +172,15 @@ const previewSrc = computed(() => {
   const url = publicUrl.value
   if (!url) return ''
   const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}_pv=${iframeKey.value}`
+  const level = frontendToBackendLevel(detailLevel.value)
+  return `${url}${sep}preview_level=${level}&_pv=${iframeKey.value}`
 })
 
 const hasPreview = computed(() => !!previewSrc.value)
 
 const activeLevel = computed(() => levels[detailLevel.value] ?? levels[0])
+const publishedLevelOption = computed(() => levels[publishedLevel.value] ?? levels[0])
+const previewDiffers = computed(() => detailLevel.value !== publishedLevel.value)
 
 const previewChromeLabel = computed(() =>
   previewSchedule.value ? 'Online-Zeitplan' : activeLevel.value.name,
@@ -202,8 +208,12 @@ async function fetchPublicationLevel() {
   if (!event.value?.id) return
   try {
     const {data} = await axios.get(`/publish/level/${event.value.id}`)
-    detailLevel.value = backendToFrontendLevel(data.level ?? 1)
+    publishedLevel.value = backendToFrontendLevel(data.level ?? 1)
+    detailLevel.value = data.preview_level == null
+      ? publishedLevel.value
+      : backendToFrontendLevel(data.preview_level)
   } catch {
+    publishedLevel.value = 0
     detailLevel.value = 0
   }
 }
@@ -219,13 +229,31 @@ async function setDetailLevel(level: number) {
   const prev = detailLevel.value
   detailLevel.value = level
   try {
+    savingMessage.value = 'Vorschau wird gespeichert…'
     saving.value?.show()
-    await axios.post(`/publish/level/${event.value.id}`, {level: frontendToBackendLevel(level)})
+    await axios.post(`/publish/preview-level/${event.value.id}`, {level: frontendToBackendLevel(level)})
     reloadPreview()
   } catch {
     detailLevel.value = prev
-    showGlassToast('Informationen zum Zeitplan konnten nicht gespeichert werden.', 'error')
+    showGlassToast('Vorschau konnte nicht gespeichert werden.', 'error')
   } finally {
+    saving.value?.hide()
+  }
+}
+
+async function applyPreviewToLive() {
+  if (!event.value?.id || !previewDiffers.value || applyingLive.value) return
+  applyingLive.value = true
+  try {
+    savingMessage.value = 'Veröffentlichung wird übernommen…'
+    saving.value?.show()
+    await axios.post(`/publish/level/${event.value.id}`, {level: frontendToBackendLevel(detailLevel.value)})
+    publishedLevel.value = detailLevel.value
+    reloadPreview()
+  } catch {
+    showGlassToast('Veröffentlichung konnte nicht übernommen werden.', 'error')
+  } finally {
+    applyingLive.value = false
     saving.value?.hide()
   }
 }
@@ -237,7 +265,8 @@ function openPublic() {
   }
   if (publicUrl.value) {
     const sep = publicUrl.value.includes('?') ? '&' : '?'
-    window.open(`${publicUrl.value}${sep}preview=1`, '_blank', 'noopener')
+    const level = frontendToBackendLevel(detailLevel.value)
+    window.open(`${publicUrl.value}${sep}preview_level=${level}&preview=1`, '_blank', 'noopener')
   }
 }
 
@@ -396,7 +425,7 @@ onMounted(async () => {
 
 <template>
   <div class="vol-page vol-page--fill pub">
-    <SavingToast ref="saving" message="Informationen zum Zeitplan werden gespeichert…" />
+    <SavingToast ref="saving" :message="savingMessage" />
     <SavingToast ref="helperSaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="volunteerDataEntrySaving" message="Einstellung wird gespeichert…" />
     <SavingToast ref="teamDataEntrySaving" message="Einstellung wird gespeichert…" />
@@ -426,7 +455,10 @@ onMounted(async () => {
 
             <section class="pub__tile glass-card liquid-surface-inner">
               <h2 class="glass-card__heading">Informationen zum Zeitplan</h2>
-              <div class="pub__levels" role="radiogroup" aria-label="Informationen zum Zeitplan">
+              <p class="glass-settings-hint !mb-0">
+                Zum Ausprobieren. Der veröffentlichte Stand bleibt, bis du die Vorschau übernimmst.
+              </p>
+              <div class="pub__levels" role="radiogroup" aria-label="Vorschau der Informationen zum Zeitplan">
                 <div
                     v-for="level in levels"
                     :key="level.id"
@@ -444,8 +476,23 @@ onMounted(async () => {
                       <i v-if="detailLevel === level.id" class="bi bi-check2"/>
                     </span>
                     <span class="pub__level-name">{{ level.name }}</span>
+                    <span v-if="publishedLevel === level.id" class="pub__level-live">Veröffentlicht</span>
                   </div>
                 </div>
+              </div>
+              <div v-if="previewDiffers" class="pub__drift" role="status">
+                <p>
+                  Die Vorschau zeigt „{{ activeLevel.name }}“. Veröffentlicht ist „{{ publishedLevelOption.name }}“.
+                  Bitte übernimm die Vorschau, wenn sie live gehen soll.
+                </p>
+                <button
+                    type="button"
+                    class="glass-btn-accent"
+                    :disabled="applyingLive"
+                    @click="applyPreviewToLive"
+                >
+                  Live übernehmen
+                </button>
               </div>
               <p class="pub__schedule-preview-line">
                 <button
@@ -579,14 +626,14 @@ onMounted(async () => {
         <section class="pub__right">
           <div
               class="pub__preview glass-card liquid-surface-inner"
-              :aria-label="previewSchedule ? 'Live-Vorschau des Online-Zeitplans' : 'Live-Vorschau der öffentlichen Seite'"
+              :aria-label="previewSchedule ? 'Vorschau des Online-Zeitplans' : 'Vorschau der öffentlichen Seite'"
           >
             <div class="pub__preview-bar">
               <span class="pub__preview-dot" aria-hidden="true"/>
               <span class="pub__preview-dot" aria-hidden="true"/>
               <span class="pub__preview-dot" aria-hidden="true"/>
               <span class="pub__preview-path">
-                Live-Vorschau · {{ previewChromeLabel }}
+                Vorschau · {{ previewChromeLabel }}
                 <span v-if="isFixedPreviewViewport" class="pub__preview-viewport"> · {{ previewViewportHint }}</span>
               </span>
               <div class="pub__preview-actions">
@@ -838,6 +885,26 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.pub__drift {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.75rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 8%, #fff);
+}
+
+.pub__drift p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--color-text);
 }
 
 .pub__level {
@@ -900,6 +967,16 @@ onMounted(async () => {
   font-weight: 700;
   color: var(--color-text);
   line-height: 1.25;
+}
+
+.pub__level-live {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
 }
 
 .pub__preview-bar {

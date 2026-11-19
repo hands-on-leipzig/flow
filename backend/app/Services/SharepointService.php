@@ -12,6 +12,32 @@ class SharepointService
 {
     private const GRAPH_BASE = 'https://graph.microsoft.com/v1.0';
 
+    public function normalizeLang(?string $lang): string
+    {
+        $lang = strtolower(trim((string) $lang));
+
+        return str_starts_with($lang, 'en') ? 'en' : 'de';
+    }
+
+    public function folderUrlFor(SharepointConfig $config, ?string $lang = null): ?string
+    {
+        $lang = $this->normalizeLang($lang);
+        $legacy = $this->cleanUrl($config->folder_url);
+        $de = $this->cleanUrl($config->folder_url_de);
+        $en = $this->cleanUrl($config->folder_url_en);
+
+        if ($de === null && $en === null) {
+            return $legacy;
+        }
+
+        $de ??= $legacy;
+        $en ??= $legacy;
+        $primary = $lang === 'en' ? $en : $de;
+        $secondary = $lang === 'en' ? $de : $en;
+
+        return $primary ?? $secondary;
+    }
+
     public function isConfigured(): bool
     {
         $config = SharepointConfig::instance();
@@ -20,39 +46,52 @@ class SharepointService
             && filled($config->tenant_id)
             && filled($config->client_id)
             && filled($config->client_secret)
-            && filled($config->folder_url);
+            && filled($this->folderUrlFor($config));
     }
 
-    public function getPublicStatus(): array
+    public function getPublicStatus(?string $lang = null): array
     {
         $config = SharepointConfig::instance();
+        $lang = $this->normalizeLang($lang);
+        $url = $this->folderUrlFor($config, $lang);
+        $cached = $url ? $this->readCachedRoot($config, $url) : null;
 
         return [
-            'configured' => $this->isConfigured(),
-            'folder_name' => $config->cached_root_name,
-            'folder_url' => $config->folder_url,
+            'configured' => $this->isConfigured() && filled($url),
+            'lang' => $lang,
+            'folder_name' => $cached['name'] ?? null,
+            'folder_url' => $url,
         ];
     }
 
     public function getAdminConfig(): array
     {
         $config = SharepointConfig::instance();
+        $deRoot = $this->readCachedRoot($config, (string) $this->folderUrlFor($config, 'de'));
+        $enRoot = $this->readCachedRoot($config, (string) $this->folderUrlFor($config, 'en'));
 
         return [
             'tenant_id' => $config->tenant_id,
             'client_id' => $config->client_id,
             'has_client_secret' => filled($config->client_secret),
             'folder_url' => $config->folder_url,
+            'folder_url_de' => $config->folder_url_de,
+            'folder_url_en' => $config->folder_url_en,
             'is_enabled' => $config->is_enabled,
-            'cached_root_name' => $config->cached_root_name,
+            'cached_root_name' => $deRoot['name'] ?? $config->cached_root_name,
+            'cached_root_name_de' => $deRoot['name'] ?? null,
+            'cached_root_name_en' => $enRoot['name'] ?? null,
         ];
     }
 
     public function updateConfig(array $data): SharepointConfig
     {
         $config = SharepointConfig::instance();
-        $folderChanged = array_key_exists('folder_url', $data)
-            && $data['folder_url'] !== $config->folder_url;
+        $before = [
+            $this->cleanUrl($config->folder_url),
+            $this->cleanUrl($config->folder_url_de),
+            $this->cleanUrl($config->folder_url_en),
+        ];
 
         if (array_key_exists('tenant_id', $data)) {
             $config->tenant_id = $data['tenant_id'] ?: null;
@@ -63,17 +102,33 @@ class SharepointService
         if (! empty($data['client_secret'])) {
             $config->client_secret = Crypt::encryptString($data['client_secret']);
         }
-        if (array_key_exists('folder_url', $data)) {
-            $config->folder_url = $data['folder_url'] ?: null;
+        if (array_key_exists('folder_url_de', $data) || array_key_exists('folder_url_en', $data)) {
+            $de = array_key_exists('folder_url_de', $data)
+                ? $this->cleanUrl($data['folder_url_de'])
+                : $this->cleanUrl($config->folder_url_de);
+            $en = array_key_exists('folder_url_en', $data)
+                ? $this->cleanUrl($data['folder_url_en'])
+                : $this->cleanUrl($config->folder_url_en);
+            $config->folder_url_de = $de;
+            $config->folder_url_en = $en;
+            $config->folder_url = $de ?? $en;
+        } elseif (array_key_exists('folder_url', $data)) {
+            $config->folder_url = $this->cleanUrl($data['folder_url']);
         }
         if (array_key_exists('is_enabled', $data)) {
             $config->is_enabled = (bool) $data['is_enabled'];
         }
 
-        if ($folderChanged) {
+        $after = [
+            $this->cleanUrl($config->folder_url),
+            $this->cleanUrl($config->folder_url_de),
+            $this->cleanUrl($config->folder_url_en),
+        ];
+        if ($before !== $after) {
             $config->cached_drive_id = null;
             $config->cached_root_item_id = null;
             $config->cached_root_name = null;
+            $config->cached_roots = null;
         }
 
         $config->save();
@@ -85,33 +140,33 @@ class SharepointService
     /**
      * @return array{items: array, breadcrumbs: array, current_item_id: ?string, folder_name: ?string}
      */
-    public function listFolder(?string $itemId = null): array
+    public function listFolder(?string $itemId = null, ?string $lang = null): array
     {
         if (! $this->isConfigured()) {
             throw new \RuntimeException('SharePoint ist nicht konfiguriert.');
         }
 
         $config = SharepointConfig::instance();
-        $token = $this->getAccessToken($config);
+        $folderUrl = $this->folderUrlFor($config, $lang);
+        if ($folderUrl === null) {
+            throw new \RuntimeException('SharePoint ist nicht konfiguriert.');
+        }
 
-        $isRoot = $itemId === null;
+        $token = $this->getAccessToken($config);
+        $root = $this->resolveRootFolder($config, $token, $folderUrl);
+
+        $isRoot = $itemId === null || $itemId === $root['id'];
 
         if ($itemId === null) {
-            $root = $this->resolveRootFolder($config, $token);
             $itemId = $root['id'];
             $driveId = $root['drive_id'];
             $folderName = $root['name'];
             $breadcrumbs = [['id' => $itemId, 'name' => $folderName]];
         } else {
-            $driveId = $config->cached_drive_id;
-            if (! $driveId) {
-                $root = $this->resolveRootFolder($config, $token);
-                $driveId = $root['drive_id'];
-            }
-            $isRoot = $itemId === $config->cached_root_item_id;
+            $driveId = $root['drive_id'];
             $folderName = null;
             $this->assertItemAllowed($driveId, $itemId, $token);
-            $breadcrumbs = $this->buildBreadcrumbs($driveId, $itemId, $token);
+            $breadcrumbs = $this->buildBreadcrumbs($driveId, $itemId, $token, $root);
         }
 
         $children = $this->fetchChildren($driveId, $itemId, $token);
@@ -120,8 +175,8 @@ class SharepointService
         // access that Graph's own webUrl for the item does not). Only resolve a webUrl via
         // Graph when navigating into a subfolder, where no admin link exists.
         $folderWebUrl = $isRoot
-            ? (trim((string) $config->folder_url) ?: $this->getItemWebUrl($driveId, $itemId, $token))
-            : ($this->getItemWebUrl($driveId, $itemId, $token) ?: trim((string) $config->folder_url));
+            ? ($folderUrl ?: $this->getItemWebUrl($driveId, $itemId, $token))
+            : ($this->getItemWebUrl($driveId, $itemId, $token) ?: $folderUrl);
 
         return [
             'items' => $children,
@@ -138,7 +193,7 @@ class SharepointService
      *
      * @return array{url: string, via: string, use_stream: bool, drive_id: string, item_id: string}
      */
-    public function resolveGuestFileLink(string $driveId, string $itemId): array
+    public function resolveGuestFileLink(string $driveId, string $itemId, ?string $lang = null): array
     {
         $driveId = trim($driveId);
         $itemId = trim($itemId);
@@ -150,7 +205,7 @@ class SharepointService
         $token = $this->getAccessToken($config);
         $this->assertItemAllowed($driveId, $itemId, $token);
 
-        $folderShareUrl = trim((string) $config->folder_url);
+        $folderShareUrl = (string) ($this->folderUrlFor($config, $lang) ?? '');
         $resolved = $this->resolveGuestFileLinkInternal($driveId, $itemId, $token, $folderShareUrl);
 
         if ($resolved['url'] !== '') {
@@ -197,12 +252,50 @@ class SharepointService
 
     public function testConnection(): array
     {
-        $result = $this->listFolder();
+        $config = SharepointConfig::instance();
+        if (! $this->isConfigured()) {
+            throw new \RuntimeException('SharePoint ist nicht konfiguriert.');
+        }
+
+        $languages = [];
+        $byUrl = [];
+        foreach (['de', 'en'] as $lang) {
+            $url = $this->folderUrlFor($config, $lang);
+            if ($url === null) {
+                $languages[$lang] = ['success' => false, 'error' => 'Kein Link hinterlegt.', 'folder_url' => null];
+
+                continue;
+            }
+            if (! isset($byUrl[$url])) {
+                try {
+                    $result = $this->listFolder(null, $lang);
+                    $byUrl[$url] = [
+                        'success' => true,
+                        'folder_name' => $result['folder_name'],
+                        'item_count' => count($result['items']),
+                        'folder_url' => $url,
+                    ];
+                } catch (\RuntimeException $e) {
+                    $byUrl[$url] = [
+                        'success' => false,
+                        'error' => $e->getMessage(),
+                        'folder_url' => $url,
+                    ];
+                }
+            }
+            $languages[$lang] = $byUrl[$url];
+        }
+
+        $primary = ($languages['de']['success'] ?? false) ? $languages['de'] : $languages['en'];
+        if (! ($primary['success'] ?? false)) {
+            throw new \RuntimeException($primary['error'] ?? 'Verbindungstest fehlgeschlagen.');
+        }
 
         return [
-            'success' => true,
-            'folder_name' => $result['folder_name'],
-            'item_count' => count($result['items']),
+            'success' => ($languages['de']['success'] ?? false) && ($languages['en']['success'] ?? false),
+            'folder_name' => $primary['folder_name'] ?? null,
+            'item_count' => $primary['item_count'] ?? 0,
+            'languages' => $languages,
         ];
     }
 
@@ -244,17 +337,14 @@ class SharepointService
     /**
      * @return array{id: string, drive_id: string, name: string}
      */
-    private function resolveRootFolder(SharepointConfig $config, string $token): array
+    private function resolveRootFolder(SharepointConfig $config, string $token, string $folderUrl): array
     {
-        if ($config->cached_drive_id && $config->cached_root_item_id) {
-            return [
-                'id' => $config->cached_root_item_id,
-                'drive_id' => $config->cached_drive_id,
-                'name' => $config->cached_root_name ?? 'Ordner',
-            ];
+        $cached = $this->readCachedRoot($config, $folderUrl);
+        if ($cached !== null) {
+            return $cached;
         }
 
-        $shareId = $this->encodeShareUrl($config->folder_url);
+        $shareId = $this->encodeShareUrl($folderUrl);
         $response = Http::withToken($token)
             ->get(self::GRAPH_BASE."/shares/{$shareId}/driveItem");
 
@@ -281,16 +371,83 @@ class SharepointService
             throw new \RuntimeException('SharePoint-Ordner konnte nicht aufgelöst werden.');
         }
 
-        $config->cached_drive_id = $driveId;
-        $config->cached_root_item_id = $itemId;
-        $config->cached_root_name = $name;
-        $config->save();
-
-        return [
+        $root = [
             'id' => $itemId,
             'drive_id' => $driveId,
             'name' => $name,
         ];
+        $this->writeCachedRoot($config, $folderUrl, $root);
+
+        return $root;
+    }
+
+    private function cleanUrl(mixed $url): ?string
+    {
+        $url = trim((string) $url);
+
+        return $url !== '' ? $url : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function configuredFolderUrls(SharepointConfig $config): array
+    {
+        $urls = [];
+        foreach (['de', 'en'] as $lang) {
+            $url = $this->folderUrlFor($config, $lang);
+            if ($url !== null) {
+                $urls[$url] = $url;
+            }
+        }
+
+        return array_values($urls);
+    }
+
+    /**
+     * @return array{id: string, drive_id: string, name: string}|null
+     */
+    private function readCachedRoot(SharepointConfig $config, string $url): ?array
+    {
+        if ($url === '') {
+            return null;
+        }
+
+        $roots = is_array($config->cached_roots) ? $config->cached_roots : [];
+        $hit = $roots[sha1($url)] ?? null;
+        if (is_array($hit) && filled($hit['id'] ?? null) && filled($hit['drive_id'] ?? null)) {
+            return [
+                'id' => (string) $hit['id'],
+                'drive_id' => (string) $hit['drive_id'],
+                'name' => (string) ($hit['name'] ?? 'Ordner'),
+            ];
+        }
+
+        if ($this->cleanUrl($config->folder_url) === $url && $config->cached_drive_id && $config->cached_root_item_id) {
+            return [
+                'id' => (string) $config->cached_root_item_id,
+                'drive_id' => (string) $config->cached_drive_id,
+                'name' => (string) ($config->cached_root_name ?? 'Ordner'),
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array{id: string, drive_id: string, name: string}  $root
+     */
+    private function writeCachedRoot(SharepointConfig $config, string $url, array $root): void
+    {
+        $roots = is_array($config->cached_roots) ? $config->cached_roots : [];
+        $roots[sha1($url)] = $root;
+        $config->cached_roots = $roots;
+        if ($this->cleanUrl($config->folder_url) === $url) {
+            $config->cached_drive_id = $root['drive_id'];
+            $config->cached_root_item_id = $root['id'];
+            $config->cached_root_name = $root['name'];
+        }
+        $config->save();
     }
 
     private function encodeShareUrl(string $url): string
@@ -363,18 +520,21 @@ class SharepointService
     /**
      * @return array<int, array{id: string, name: string}>
      */
-    private function buildBreadcrumbs(string $driveId, string $itemId, string $token): array
+    /**
+     * @param  array{id: string, drive_id: string, name: string}  $root
+     * @return array<int, array{id: string, name: string}>
+     */
+    private function buildBreadcrumbs(string $driveId, string $itemId, string $token, array $root): array
     {
-        $config = SharepointConfig::instance();
         $crumbs = [];
         $currentId = $itemId;
         $maxDepth = 20;
 
         while ($currentId && $maxDepth-- > 0) {
-            if ($config->cached_root_item_id && $currentId === $config->cached_root_item_id) {
+            if ($currentId === $root['id']) {
                 array_unshift($crumbs, [
                     'id' => $currentId,
-                    'name' => $config->cached_root_name ?? 'Ordner',
+                    'name' => $root['name'] ?? 'Ordner',
                 ]);
                 break;
             }
@@ -395,11 +555,11 @@ class SharepointService
             ]);
 
             $parentId = $item['parentReference']['id'] ?? null;
-            if (! $parentId || $parentId === $config->cached_root_item_id) {
-                if ($config->cached_root_item_id && $parentId === $config->cached_root_item_id) {
+            if (! $parentId || $parentId === $root['id']) {
+                if ($parentId === $root['id']) {
                     array_unshift($crumbs, [
-                        'id' => $config->cached_root_item_id,
-                        'name' => $config->cached_root_name ?? 'Ordner',
+                        'id' => $root['id'],
+                        'name' => $root['name'] ?? 'Ordner',
                     ]);
                 }
                 break;
@@ -408,10 +568,10 @@ class SharepointService
             $currentId = $parentId;
         }
 
-        if (empty($crumbs) && $config->cached_root_item_id) {
+        if ($crumbs === []) {
             return [[
-                'id' => $config->cached_root_item_id,
-                'name' => $config->cached_root_name ?? 'Ordner',
+                'id' => $root['id'],
+                'name' => $root['name'] ?? 'Ordner',
             ]];
         }
 
@@ -428,7 +588,25 @@ class SharepointService
     private function isItemUnderRoot(string $driveId, string $itemId, string $token): bool
     {
         $config = SharepointConfig::instance();
-        $root = $this->resolveRootFolder($config, $token);
+        foreach ($this->configuredFolderUrls($config) as $folderUrl) {
+            try {
+                $root = $this->resolveRootFolder($config, $token, $folderUrl);
+            } catch (\RuntimeException) {
+                continue;
+            }
+            if ($this->itemIsUnderRoot($driveId, $itemId, $token, $root)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  array{id: string, drive_id: string, name: string}  $root
+     */
+    private function itemIsUnderRoot(string $driveId, string $itemId, string $token, array $root): bool
+    {
         $rootDriveId = $root['drive_id'];
         $rootItemId = $root['id'];
 
