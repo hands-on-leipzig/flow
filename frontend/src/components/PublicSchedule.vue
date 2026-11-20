@@ -5,7 +5,6 @@ import axios from 'axios'
 import {
   formatBerlinTimeOnly,
   parseBerlinWallTime,
-  projectClockOntoBerlinDay,
 } from '@/utils/dateTimeFormat'
 import {programLogoAlt, programLogoSrc} from '@/utils/images'
 import {sameOriginSrc} from '@/utils/sameOriginSrc'
@@ -740,13 +739,9 @@ const parsedGroups = computed(() => {
 })
 
 /**
- * „Jetzt“ relativ zum Veranstaltungstag: aktuelle Uhrzeit auf den Plantag gelegt.
- * So wandert der rote Balken mit der Uhr, auch wenn der Event-Tag ≠ Kalender-heute.
+ * „Jetzt“ mit echtem Datum: vor dem Event ist alles kommend, danach alles vergangen.
  */
-const scheduleNowMs = computed(() => {
-  if (!parsedGroups.value.length) return nowMs.value
-  return projectClockOntoBerlinDay(nowMs.value, parsedGroups.value[0].startMs)
-})
+const scheduleNowMs = computed(() => nowMs.value)
 
 const timedGroups = computed((): TimedGroup[] => {
   const now = scheduleNowMs.value
