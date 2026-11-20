@@ -19,7 +19,12 @@ import NoticePane from '@/components/molecules/NoticePane.vue'
 import {useVolunteerMealOptions} from '@/composables/useVolunteerMealOptions'
 import {usePublicTeamDataEntry} from '@/composables/usePublicTeamDataEntry'
 import {eventPrograms, programDisplayName, programSlug} from '@/utils/eventPrograms'
-import {formatJuryCell} from '@/utils/teamJury'
+import {visibleDrahtTeams, mergeTeams, hasSyncWork, syncButtonLabel} from '@/utils/teamSync'
+import {
+  applyJuryLanesForPlanSlots,
+  buildJuryLaneByPlanSlot,
+  formatJuryCell,
+} from '@/utils/teamJury'
 import {
   isTeamDataUnconfirmed,
   isTeamParticipantListIncomplete,
@@ -58,8 +63,11 @@ const deadlineDraft = ref('')
 const deadlineSaving = ref(false)
 const nameFilter = ref('')
 const activeProgramFilters = ref<Set<number>>(new Set())
-const sortKey = ref<'team_number_hot' | 'name' | 'organization'>('name')
-const planById = ref<Record<number, {plan: number | null, noshow: boolean, jury: string}>>({})
+const sortKey = ref<'plan' | 'team_number_hot' | 'name' | 'organization'>('plan')
+const planById = ref<Record<number, {plan: number | null, noshow: boolean, jury: string, juryLane: number | null}>>({})
+const remoteByProgram = ref<Record<number, Record<string, unknown>[]>>({})
+const remoteTeamsLoaded = ref(false)
+const syncingProgramId = ref<number | null>(null)
 const sortDir = ref<'asc' | 'desc'>('asc')
 
 const countEditTeam = ref<TeamDataRow | null>(null)
@@ -88,6 +96,18 @@ async function onTeamDataEntryToggle(next: boolean) {
   }
 }
 
+function textOrNull(value: unknown): string | null {
+  const text = String(value ?? '').trim()
+  return text === '' ? null : text
+}
+
+function remoteTeamFor(row: TeamDataRow): Record<string, unknown> | undefined {
+  const programId = Number(row.first_program ?? 0)
+  const number = Number(row.team_number_hot ?? 0)
+  if (!programId || !number) return undefined
+  return (remoteByProgram.value[programId] ?? []).find((team) => Number(team.number) === number)
+}
+
 const programFilters = computed(() => {
   const programs = eventPrograms(eventStore.selectedEvent)
   const idsWithTeams = new Set(teams.value.map((row) => row.first_program).filter(Boolean) as number[])
@@ -101,8 +121,11 @@ const filteredTeams = computed(() => {
 
   let rows = [...teams.value].map((row) => {
     const plan = planById.value[row.id]
+    const remote = remoteTeamFor(row)
     return {
       ...row,
+      organization: textOrNull(row.organization) ?? textOrNull(remote?.organization) ?? null,
+      location: textOrNull(row.location) ?? textOrNull(remote?.location) ?? null,
       plan_number: plan?.plan ?? row.team_number_plan,
       noshow: plan?.noshow ?? false,
       jury_label: plan?.jury ?? '–',
@@ -156,6 +179,10 @@ const filteredTeams = computed(() => {
       } else if (an !== bn) {
         return (an - bn) * dir
       }
+    } else if (key === 'plan') {
+      const an = a.plan_number ?? Number.MAX_SAFE_INTEGER
+      const bn = b.plan_number ?? Number.MAX_SAFE_INTEGER
+      if (an !== bn) return (an - bn) * dir
     } else if (key === 'organization') {
       const av = (a.organization ?? '').toLocaleLowerCase('de')
       const bv = (b.organization ?? '').toLocaleLowerCase('de')
@@ -213,7 +240,60 @@ function toggleProgramFilter(programId: number) {
   activeProgramFilters.value = next
 }
 
-function toggleSort(key: 'team_number_hot' | 'name' | 'organization') {
+const rowFilterActive = computed(() =>
+  nameFilter.value.trim() !== ''
+  || showOnlyPhotoUnset.value
+  || showOnlyIncomplete.value
+  || showOnlyParticipantListIncomplete.value
+  || showOnlyUnconfirmed.value
+)
+
+const canReorder = computed(() =>
+  sortKey.value === 'plan' && sortDir.value === 'asc' && !rowFilterActive.value
+)
+
+const syncByProgram = computed(() => {
+  const map: Record<number, {
+    label: string
+    pending: Array<{key: string, label: string, number: string, name: string, organization: string}>
+    missingIds: number[]
+    buttonLabel: string
+  }> = {}
+  if (!remoteTeamsLoaded.value) return map
+  for (const program of programFilters.value) {
+    const programId = Number(program.first_program)
+    const local = teams.value.filter((row) => row.first_program === programId)
+    const remote = remoteByProgram.value[programId] ?? []
+    const merged = mergeTeams(local as unknown as Record<string, unknown>[], remote)
+    if (!hasSyncWork(merged)) continue
+    const missingIds: number[] = []
+    const pending: Array<{key: string, label: string, number: string, name: string, organization: string}> = []
+    for (const row of merged) {
+      if (row.status === 'missing' && row.local?.id != null) {
+        missingIds.push(Number(row.local.id))
+      }
+      if (row.draht && (row.status === 'new' || row.status === 'conflict')) {
+        const draht = row.draht
+        pending.push({
+          key: `${row.status}-${draht.id ?? draht.number ?? pending.length}`,
+          label: row.status === 'conflict' ? 'Umbenannt' : 'Neu',
+          number: draht.number != null ? String(draht.number) : '–',
+          name: String(draht.name || '–'),
+          organization: String(draht.organization || ''),
+        })
+      }
+    }
+    map[programId] = {
+      label: programDisplayName(program),
+      pending,
+      missingIds,
+      buttonLabel: syncButtonLabel(merged),
+    }
+  }
+  return map
+})
+
+function toggleSort(key: 'plan' | 'team_number_hot' | 'name' | 'organization') {
   if (sortKey.value === key) {
     sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
   } else {
@@ -263,7 +343,7 @@ async function load() {
       setMealOptions(data.meal_options)
     }
     syncProgramFilters()
-    await attachPlan()
+    await Promise.all([attachPlan(), loadRemoteTeams()])
   } catch (e: unknown) {
     showGlassToast(apiError(e, 'Laden fehlgeschlagen'), 'error')
   } finally {
@@ -276,7 +356,7 @@ const answersDeadlineDraft = ref('')
 
 async function attachPlan() {
   if (!eventId.value) return
-  const next: Record<number, {plan: number | null, noshow: boolean, jury: string}> = {}
+  const next: Record<number, {plan: number | null, noshow: boolean, jury: string, juryLane: number | null}> = {}
   await Promise.all(programFilters.value.map(async (program) => {
     try {
       const {data} = await axios.get(`/events/${eventId.value}/teams`, {
@@ -284,10 +364,12 @@ async function attachPlan() {
       })
       const list = Array.isArray(data) ? data : (data?.teams ?? [])
       for (const team of list) {
+        const lane = team.jury_lane == null ? null : Number(team.jury_lane)
         next[Number(team.id)] = {
           plan: team.team_number_plan ?? null,
           noshow: team.noshow === 1 || team.noshow === true || team.noshow === '1',
-          jury: formatJuryCell(String(program.name ?? ''), team.jury_lane),
+          jury: formatJuryCell(String(program.name ?? ''), lane),
+          juryLane: lane != null && Number.isFinite(lane) ? lane : null,
         }
       }
     } catch {
@@ -297,11 +379,125 @@ async function attachPlan() {
   planById.value = next
 }
 
+function teamListFromDraht(teams: unknown): unknown[] {
+  if (Array.isArray(teams)) return teams
+  if (teams && typeof teams === 'object') return Object.values(teams)
+  return []
+}
+
+async function loadRemoteTeams() {
+  if (!eventId.value) {
+    remoteByProgram.value = {}
+    remoteTeamsLoaded.value = false
+    return
+  }
+  try {
+    const {data} = await axios.get(`/events/${eventId.value}/draht-data`)
+    const programs = Array.isArray(data?.programs) ? data.programs : []
+    const next: Record<number, Record<string, unknown>[]> = {}
+    for (const program of programFilters.value) {
+      const programId = Number(program.first_program)
+      const match = programs.find((row: {first_program?: number, name?: string}) =>
+        Number(row.first_program) === programId
+        || String(row.name || '').toUpperCase() === String(program.name || '').toUpperCase(),
+      ) as {teams?: unknown} | undefined
+      next[programId] = visibleDrahtTeams(teamListFromDraht(match?.teams).map((team) => {
+        const row = team as {ref?: unknown, number?: unknown, team_number_hot?: unknown, name?: string, organization?: string, id?: unknown}
+        return {
+          number: row.ref ?? row.number ?? row.team_number_hot ?? null,
+          name: row.name || '',
+          organization: row.organization || '',
+          id: row.id ?? null,
+        }
+      }))
+    }
+    remoteByProgram.value = next
+    remoteTeamsLoaded.value = true
+  } catch {
+    remoteByProgram.value = {}
+    remoteTeamsLoaded.value = false
+  }
+}
+
+async function onReorder(programId: number, orderedIds: number[]) {
+  if (!eventId.value || orderedIds.length === 0) return
+  const program = programFilters.value.find((row) => Number(row.first_program) === programId)
+  if (!program) return
+  const current = teams.value
+    .filter((row) => row.first_program === programId)
+    .map((row) => ({
+      id: row.id,
+      team_number_plan: planById.value[row.id]?.plan ?? null,
+      jury_lane: planById.value[row.id]?.juryLane ?? null,
+    }))
+  const slotMap = buildJuryLaneByPlanSlot(current)
+  const byId = new Map(current.map((row) => [row.id, row]))
+  const ordered = orderedIds
+    .map((id, index) => {
+      const row = byId.get(id)
+      if (!row) return null
+      return {...row, team_number_plan: index + 1}
+    })
+    .filter((row): row is NonNullable<typeof row> => row != null)
+  const withLanes = applyJuryLanesForPlanSlots(ordered, slotMap)
+  const next = {...planById.value}
+  for (const row of withLanes) {
+    const previous = next[row.id]
+    next[row.id] = {
+      plan: row.team_number_plan,
+      noshow: previous?.noshow ?? false,
+      jury: formatJuryCell(String(program.name ?? ''), row.jury_lane),
+      juryLane: row.jury_lane ?? null,
+    }
+  }
+  planById.value = next
+  try {
+    await axios.post(`/events/${eventId.value}/teams/update-order`, {
+      program: programSlug(program.name),
+      order: withLanes.map((row) => ({
+        team_id: row.id,
+        order: row.team_number_plan,
+      })),
+    })
+    await eventStore.updateTeamDiscrepancyStatus()
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Reihenfolge konnte nicht gespeichert werden'), 'error')
+    await attachPlan()
+  }
+}
+
+async function onSyncProgram(programId: number) {
+  if (!eventId.value || syncingProgramId.value != null) return
+  const program = programFilters.value.find((row) => Number(row.first_program) === programId)
+  if (!program) return
+  syncingProgramId.value = programId
+  try {
+    await axios.post(`/events/${eventId.value}/teams/sync`, {
+      program: programSlug(program.name),
+    })
+    await load()
+    await eventStore.updateTeamDiscrepancyStatus()
+    await eventStore.refreshReadiness(eventId.value)
+    showGlassToast('Abgleich abgeschlossen', 'success')
+  } catch (e: unknown) {
+    showGlassToast(apiError(e, 'Abgleich fehlgeschlagen'), 'error')
+  } finally {
+    syncingProgramId.value = null
+  }
+}
 async function onNoshow(team: TeamDataRow, noshow: boolean) {
   if (!eventId.value) return
   planById.value = {
     ...planById.value,
-    [team.id]: {...(planById.value[team.id] ?? {plan: team.plan_number ?? null, jury: team.jury_label ?? '–', noshow}), noshow},
+    [team.id]: {
+      ...(planById.value[team.id] ?? {
+        plan: team.plan_number ?? null,
+        jury: team.jury_label ?? '–',
+        juryLane: null,
+        noshow,
+      }),
+      noshow,
+    },
   }
   try {
     await axios.put(`/events/${eventId.value}/teams`, {id: team.id, noshow: noshow ? 1 : 0})
@@ -585,10 +781,15 @@ onActivated(() => {
           :columns="columns"
           :sort-key="sortKey"
           :sort-dir="sortDir"
+          :can-reorder="canReorder"
+          :sync-by-program="syncByProgram"
+          :syncing-program-id="syncingProgramId"
           @toggle-sort="toggleSort"
           @open-count="openCountPopover"
           @updated="onTeamUpdated"
           @noshow="onNoshow"
+          @reorder="onReorder"
+          @sync="onSyncProgram"
       />
     </section>
 

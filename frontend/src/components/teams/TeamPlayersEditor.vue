@@ -55,7 +55,7 @@ const today = new Date().toISOString().slice(0, 10)
 
 const atMax = computed(() => maxPlayers.value !== null && players.value.length >= maxPlayers.value)
 const aligned = computed(() => props.columns != null)
-const span = computed(() => 12 + (props.columns?.length ?? 0))
+const span = computed(() => 10 + (props.columns?.length ?? 0))
 
 const outOfRangeCount = computed(() =>
   players.value.filter((player) => playerAgeOutOfRange(player.birthday, rule.value) !== null).length,
@@ -171,7 +171,7 @@ watch(
 </script>
 
 <template>
-  <tbody v-if="aligned" class="team-players-editor team-players-editor--aligned">
+<template v-if="aligned">
     <tr v-if="loading" class="team-players-editor__note">
       <td :colspan="span">
         <span class="vol-muted inline-flex items-center gap-2">
@@ -206,11 +206,9 @@ watch(
         </td>
       </tr>
       <tr v-if="players.length" class="team-players-editor__subhead">
-        <td class="vol-table__sticky vol-table__sticky--expand"></td>
-        <td class="vol-table__sticky vol-table__sticky--program"></td>
-        <td class="vol-table__sticky vol-table__sticky--nr"></td>
-        <td class="vol-table__sticky vol-table__sticky--ablauf"></td>
-        <td class="vol-table__sticky vol-table__sticky--name">Vorname</td>
+        <td class="vol-table__sticky vol-table__sticky--drag"></td>
+        <td class="vol-table__sticky vol-table__sticky--seq"></td>
+        <td class="vol-table__sticky vol-table__sticky--identity">Vorname</td>
         <td>Nachname</td>
         <td>Geschlecht</td>
         <td>Geburtsdatum</td>
@@ -231,11 +229,9 @@ watch(
           class="team-players-editor__row"
           :class="{'team-players-editor__row--warning': isOutOfRange(player)}"
       >
-        <td class="vol-table__sticky vol-table__sticky--expand"></td>
-        <td class="vol-table__sticky vol-table__sticky--program"></td>
-        <td class="vol-table__sticky vol-table__sticky--nr"></td>
-        <td class="vol-table__sticky vol-table__sticky--ablauf"></td>
-        <td class="vol-table__sticky vol-table__sticky--name">
+        <td class="vol-table__sticky vol-table__sticky--drag"></td>
+        <td class="vol-table__sticky vol-table__sticky--seq"></td>
+        <td class="vol-table__sticky vol-table__sticky--identity">
           <input
               type="text"
               class="glass-input glass-input--sm team-data-control"
@@ -351,7 +347,7 @@ watch(
         </td>
       </tr>
     </template>
-  </tbody>
+  </template>
   <div v-else class="team-players-editor">
     <p v-if="loading" class="vol-muted inline-flex items-center gap-2">
       <Spinner size="sm"/>
@@ -567,19 +563,19 @@ div.team-players-editor__footer {
   margin-top: 0.75rem;
 }
 
-.team-players-editor--aligned .team-players-editor__hint,
-.team-players-editor--aligned .team-players-editor__warning,
-.team-players-editor--aligned .team-players-editor__error {
+tr.team-players-editor__note .team-players-editor__hint,
+tr.team-players-editor__note .team-players-editor__warning,
+tr.team-players-editor__note .team-players-editor__error {
   margin: 0;
   font-size: 0.75rem;
 }
 
-.team-players-editor--aligned .team-players-editor__warning {
+tr.team-players-editor__note .team-players-editor__warning {
   display: inline-flex;
   margin-left: 0;
 }
 
-.team-players-editor--aligned .team-players-editor__subhead td {
+tr.team-players-editor__subhead td {
   font-size: 0.68rem;
   font-weight: 650;
   letter-spacing: 0.03em;

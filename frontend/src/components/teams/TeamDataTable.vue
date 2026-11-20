@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import {ref} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import axios from 'axios'
-import ProgramLogo from '@/components/atoms/ProgramLogo.vue'
+import Sortable from 'sortablejs'
 import TeamPlayersEditor from '@/components/teams/TeamPlayersEditor.vue'
 import {
   countSetCellMismatch,
@@ -16,8 +16,16 @@ import {
 } from '@/utils/photoConsentStatus'
 import {showGlassToast} from '@/composables/useGlassToast'
 import {apiError} from '@/utils/apiError'
+import {formatPlanTeamNo} from '@/utils/planTeamLabel'
 
-type TeamDataSortKey = 'team_number_hot' | 'name' | 'organization'
+type TeamDataSortKey = 'plan' | 'team_number_hot' | 'name' | 'organization'
+
+type ProgramSync = {
+  label?: string
+  pending: Array<{key: string, label: string, number: string, name: string, organization: string}>
+  missingIds: number[]
+  buttonLabel: string
+}
 
 const props = defineProps<{
   eventId?: number | null
@@ -25,6 +33,9 @@ const props = defineProps<{
   columns: TeamDataColumn[]
   sortKey: TeamDataSortKey
   sortDir: 'asc' | 'desc'
+  canReorder?: boolean
+  syncByProgram?: Record<number, ProgramSync>
+  syncingProgramId?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -32,9 +43,96 @@ const emit = defineEmits<{
   'open-count': [team: TeamDataRow, column: TeamDataColumn, anchor: HTMLElement]
   updated: [team: TeamDataRow]
   noshow: [team: TeamDataRow, value: boolean]
+  reorder: [programId: number, orderedIds: number[]]
+  sync: [programId: number]
 }>()
 
 const expandedTeamId = ref<number | null>(null)
+const tableEl = ref<HTMLTableElement | null>(null)
+
+function programSync(programId: number | null | undefined): ProgramSync | null {
+  if (programId == null) return null
+  return props.syncByProgram?.[programId] ?? null
+}
+
+function isMissing(row: TeamDataRow) {
+  return programSync(row.first_program)?.missingIds.includes(row.id) ?? false
+}
+
+function programGroups() {
+  const groups: Array<{programId: number, label: string, rows: TeamDataRow[]}> = []
+  for (const row of props.teams) {
+    const programId = Number(row.first_program ?? 0)
+    const last = groups[groups.length - 1]
+    if (!last || last.programId !== programId) {
+      groups.push({programId, label: row.program_label || 'Programm', rows: [row]})
+    } else {
+      last.rows.push(row)
+    }
+  }
+  return groups
+}
+
+const groups = computed(programGroups)
+
+const sortables = new Map<number, Sortable>()
+
+function destroySortables() {
+  for (const instance of sortables.values()) instance.destroy()
+  sortables.clear()
+}
+
+function restoreSortableDom(evt: Sortable.SortableEvent) {
+  const parent = evt.from
+  const item = evt.item
+  if (evt.oldIndex == null || evt.oldIndex === evt.newIndex) return
+  parent.removeChild(item)
+  const remaining = [...parent.children]
+  parent.insertBefore(item, remaining[evt.oldIndex] ?? null)
+}
+
+function mountSortables() {
+  destroySortables()
+  if (!props.canReorder) return
+  const table = tableEl.value
+  if (!table) return
+  for (const body of table.querySelectorAll('tbody.team-data-program')) {
+    const programId = Number((body as HTMLElement).dataset.program)
+    if (!Number.isFinite(programId)) continue
+    const instance = Sortable.create(body as HTMLElement, {
+      draggable: 'tr.team-data-row',
+      handle: '.team-data-drag',
+      animation: 150,
+      ghostClass: 'team-data-row--ghost',
+      forceFallback: true,
+      fallbackOnBody: true,
+      onEnd(evt) {
+        const ids = [...(evt.from.querySelectorAll('tr.team-data-row'))]
+          .map((node) => Number((node as HTMLElement).dataset.teamId))
+          .filter((id) => Number.isFinite(id))
+        restoreSortableDom(evt)
+        if (evt.oldIndex === evt.newIndex) return
+        emit('reorder', programId, ids)
+      },
+    })
+    sortables.set(programId, instance)
+  }
+}
+
+onMounted(() => {
+  void nextTick(mountSortables)
+})
+
+onBeforeUnmount(() => {
+  destroySortables()
+})
+
+watch(
+  () => [props.canReorder, props.teams.map((row) => `${row.first_program}:${row.id}`).join(','), props.sortKey, props.sortDir] as const,
+  () => {
+    void nextTick(mountSortables)
+  },
+)
 
 function eventAnswersLabel(row: TeamDataRow) {
   const answerColumns = props.columns.filter((column) => column.editor === 'meal_counts' || column.kind === 'custom')
@@ -191,8 +289,30 @@ function onTeamRowClick(event: MouseEvent, row: TeamDataRow) {
 }
 
 function tableSpan() {
-  return 12 + props.columns.length
+  return 10 + props.columns.length
 }
+
+function displayHotNumber(value: number | null | undefined) {
+  if (value === null || value === undefined) return '–'
+  return String(value).padStart(4, '0')
+}
+
+const syncBubbles = computed(() => {
+  const entries = Object.entries(props.syncByProgram ?? {})
+  return entries.map(([id, sync]) => {
+    const programId = Number(id)
+    const action = sync.buttonLabel.replace(/^Abgleichen:\s*/, '')
+    const detail = sync.pending
+      .map((item) => `${item.label}: ${item.number} ${item.name}`)
+      .join(', ')
+    return {
+      programId,
+      label: sync.label || 'Programm',
+      action,
+      title: detail || sync.buttonLabel,
+    }
+  })
+})
 
 function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataColumn) {
   const target = event.currentTarget
@@ -201,16 +321,6 @@ function onCountCellClick(event: MouseEvent, row: TeamDataRow, column: TeamDataC
 }
 
 /** Show entered total against registered people for Fotoerlaubnis / Essen. */
-function showProgramGroup(index: number) {
-  const row = props.teams[index]
-  const previous = props.teams[index - 1]
-  return !previous || previous.first_program !== row?.first_program
-}
-
-function programCount(programId: number | null) {
-  return props.teams.filter((row) => row.first_program === programId).length
-}
-
 function answerTally(row: TeamDataRow, column: TeamDataColumn) {
   const total = row.players_count ?? 0
   const answered = column.kind === 'photo' ? (row.photo_answered ?? 0) : (row.meal_answered ?? 0)
@@ -231,14 +341,28 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 </script>
 
 <template>
-  <div class="vol-table-frame vol-table-frame--scroll vol-table-frame--roster vol-table-frame--team-data">
-    <table class="vol-table vol-table--roster vol-table--team-data">
+  <div>
+    <div v-if="syncBubbles.length" class="team-data-sync-bubbles">
+      <button
+          v-for="bubble in syncBubbles"
+          :key="bubble.programId"
+          type="button"
+          class="team-data-sync-bubble no-touch-min"
+          :title="bubble.title"
+          :disabled="syncingProgramId === bubble.programId"
+          @click="emit('sync', bubble.programId)"
+      >
+        <i class="bi bi-arrow-repeat" aria-hidden="true"/>
+        <span>{{ bubble.label }}</span>
+        <span>{{ syncingProgramId === bubble.programId ? 'Abgleichen…' : bubble.action }}</span>
+      </button>
+    </div>
+    <div class="vol-table-frame vol-table-frame--scroll vol-table-frame--roster vol-table-frame--team-data">
+    <table ref="tableEl" class="vol-table vol-table--roster vol-table--team-data">
       <colgroup>
-        <col class="vol-col--expand">
-        <col class="vol-col--program">
-        <col class="vol-col--nr">
-        <col class="vol-col--ablauf">
-        <col class="vol-col--name">
+        <col class="vol-col--drag">
+        <col class="vol-col--seq">
+        <col class="vol-col--identity">
         <col class="vol-col--organization">
         <col class="vol-col--people">
         <col class="vol-col--players">
@@ -254,13 +378,21 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
       </colgroup>
       <thead>
         <tr>
-          <th class="vol-table__sticky vol-table__sticky--expand" scope="col">
-            <span class="sr-only">Aufklappen</span>
+          <th class="vol-table__sticky vol-table__sticky--drag" scope="col">
+            <span class="sr-only">Sortieren</span>
           </th>
-          <th class="vol-table__roster vol-table__sticky vol-table__sticky--program" scope="col">
-            <span class="sr-only">Programm</span>
+          <th class="vol-table__sticky vol-table__sticky--seq" scope="col">
+            <button
+                type="button"
+                class="vol-sort"
+                :class="{'vol-sort--active': sortKey === 'plan'}"
+                @click="emit('toggle-sort', 'plan')"
+            >
+              Reihenfolge
+              <i class="bi" :class="sortIcon('plan')" aria-hidden="true"/>
+            </button>
           </th>
-          <th class="vol-table__sticky vol-table__sticky--nr" scope="col">
+          <th class="vol-table__name vol-table__sticky vol-table__sticky--identity" scope="col">
             <button
                 type="button"
                 class="vol-sort"
@@ -270,16 +402,13 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
               Nr
               <i class="bi" :class="sortIcon('team_number_hot')" aria-hidden="true"/>
             </button>
-          </th>
-          <th class="vol-table__sticky vol-table__sticky--ablauf" scope="col">Ablauf</th>
-          <th class="vol-table__name vol-table__sticky vol-table__sticky--name" scope="col">
             <button
                 type="button"
                 class="vol-sort"
                 :class="{'vol-sort--active': sortKey === 'name'}"
                 @click="emit('toggle-sort', 'name')"
             >
-              Teamname
+              Team
               <i class="bi" :class="sortIcon('name')" aria-hidden="true"/>
             </button>
           </th>
@@ -309,51 +438,61 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
           <th scope="col"><span class="sr-only">Aktionen</span></th>
         </tr>
       </thead>
-      <template v-for="(row, index) in teams" :key="row.id">
-        <tbody>
-        <tr v-if="showProgramGroup(index)" class="team-data-group">
+      <tbody
+          v-for="group in groups"
+          :key="group.programId"
+          class="team-data-program"
+          :data-program="group.programId"
+      >
+        <tr class="team-data-group">
           <td :colspan="tableSpan()">
-            <strong>{{ row.program_label || 'Programm' }}</strong>
-            <span class="team-data-group__count">{{ programCount(row.first_program) }} Teams</span>
+            <strong>{{ group.label }}</strong>
+            <span class="team-data-group__count">{{ group.rows.length }} Teams</span>
           </td>
         </tr>
+        <template v-for="row in group.rows" :key="row.id">
         <tr
             class="team-data-row glass-table-row--hover"
+            :data-team-id="row.id"
+            :data-program="group.programId"
             :class="{
               'team-data-row--noshow': row.noshow,
               'team-data-row--open': expandedTeamId === row.id,
+              'team-data-row--missing': isMissing(row),
             }"
             @click="onTeamRowClick($event, row)"
         >
-          <td class="vol-table__sticky vol-table__sticky--expand">
+          <td class="vol-table__sticky vol-table__sticky--drag">
             <button
+                v-if="canReorder"
                 type="button"
-                class="team-data-expand no-touch-min"
-                :title="playersTitle(row)"
-                :aria-expanded="expandedTeamId === row.id"
-                :aria-label="expandedTeamId === row.id ? 'Team zuklappen' : 'Team aufklappen'"
-                @click="togglePlayers(row)"
+                class="team-data-drag no-touch-min"
+                title="Reihenfolge ändern"
+                aria-label="Reihenfolge ändern"
+                @click.stop
             >
-              <svg class="team-data-expand__icon" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M2.5 5.25 8 10.75 13.5 5.25" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <i class="bi bi-grip-vertical" aria-hidden="true"/>
             </button>
           </td>
-          <td class="vol-table__roster vol-table__sticky vol-table__sticky--program">
-            <ProgramLogo
-                v-if="row.first_program"
-                :program="row.first_program"
-                size="chip"
-                decorative
-                class="vol-table__assignment-icon"
-            />
-            <span v-else class="team-data-table__dash">—</span>
+          <td class="vol-table__sticky vol-table__sticky--seq team-data-table__nr">{{ formatPlanTeamNo(row.plan_number) || '–' }}</td>
+          <td class="vol-table__sticky vol-table__sticky--identity">
+            <span class="team-data-identity">
+              <span class="team-data-identity__nr">{{ displayHotNumber(row.team_number_hot) }}</span>
+              <span class="team-data-identity__name" :title="row.name">{{ row.name || '–' }}</span>
+              <button
+                  type="button"
+                  class="team-data-expand no-touch-min"
+                  :title="playersTitle(row)"
+                  :aria-expanded="expandedTeamId === row.id"
+                  :aria-label="expandedTeamId === row.id ? 'Team zuklappen' : 'Team aufklappen'"
+                  @click.stop="togglePlayers(row)"
+              >
+                <svg class="team-data-expand__icon" viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M2.5 5.25 8 10.75 13.5 5.25" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+            </span>
           </td>
-          <td class="vol-table__sticky vol-table__sticky--nr team-data-table__nr">
-            {{ displayNumber(row.team_number_hot) }}
-          </td>
-          <td class="vol-table__sticky vol-table__sticky--ablauf team-data-table__nr">{{ displayNumber(row.plan_number) }}</td>
-          <td class="vol-table__name vol-table__sticky vol-table__sticky--name">{{ row.name }}</td>
           <td class="vol-table__role">
             <span class="team-data-table__org">{{ displayOrganization(row.organization) }}</span>
             <span v-if="displayPlace(row.location)" class="team-data-table__place">{{ displayPlace(row.location) }}</span>
@@ -484,7 +623,6 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
           </td>
           <td class="team-data-table__remove"></td>
         </tr>
-        </tbody>
         <TeamPlayersEditor
             v-if="expandedTeamId === row.id"
             :event-id="eventId"
@@ -492,18 +630,18 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
             :columns="columns"
             @saved="emit('updated', $event)"
         />
-      </template>
+        </template>
+      </tbody>
     </table>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .vol-table-frame--team-data {
-  --td-expand: 2.15rem;
-  --td-program: 2.35rem;
-  --td-nr: 4.5rem;
-  --td-ablauf: 4.25rem;
-  --td-name: 13rem;
+  --td-drag: 1.75rem;
+  --td-seq: 7.4rem;
+  --td-identity: 24rem;
   --td-row-bg: #fbfcfe;
   --td-open-bg: #f4f7fb;
   --td-hover-bg: #eef2f7;
@@ -515,11 +653,9 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   font-size: 0.8125rem;
 }
 
-.vol-col--expand { width: var(--td-expand); }
-.vol-col--program { width: var(--td-program); }
-.vol-col--nr { width: var(--td-nr); }
-.vol-col--ablauf { width: var(--td-ablauf); }
-.vol-col--name { width: var(--td-name); }
+.vol-col--drag { width: var(--td-drag); }
+.vol-col--seq { width: var(--td-seq); }
+.vol-col--identity { width: 24rem; min-width: 24rem; }
 .vol-col--organization { width: 16rem; }
 .vol-col--people { width: 9.25rem; }
 .vol-col--players { width: 11rem; }
@@ -555,28 +691,18 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
   background: var(--td-row-bg);
 }
 
-.vol-table-frame--team-data :deep(.vol-table__sticky--expand) {
+.vol-table-frame--team-data :deep(.vol-table__sticky--drag) {
   left: 0;
   z-index: 2;
 }
 
-.vol-table-frame--team-data :deep(.vol-table__sticky--program) {
-  left: var(--td-expand);
+.vol-table-frame--team-data :deep(.vol-table__sticky--seq) {
+  left: var(--td-drag);
   z-index: 2;
 }
 
-.vol-table-frame--team-data :deep(.vol-table__sticky--nr) {
-  left: calc(var(--td-expand) + var(--td-program));
-  z-index: 2;
-}
-
-.vol-table-frame--team-data :deep(.vol-table__sticky--ablauf) {
-  left: calc(var(--td-expand) + var(--td-program) + var(--td-nr));
-  z-index: 2;
-}
-
-.vol-table-frame--team-data :deep(.vol-table__sticky--name) {
-  left: calc(var(--td-expand) + var(--td-program) + var(--td-nr) + var(--td-ablauf));
+.vol-table-frame--team-data :deep(.vol-table__sticky--identity) {
+  left: calc(var(--td-drag) + var(--td-seq));
   z-index: 2;
 }
 
@@ -653,7 +779,10 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 }
 
 .vol-table-frame--team-data :deep(.team-data-row--open td),
-.vol-table-frame--team-data :deep(.team-players-editor--aligned td) {
+.vol-table-frame--team-data :deep(tr.team-players-editor__row td),
+.vol-table-frame--team-data :deep(tr.team-players-editor__subhead td),
+.vol-table-frame--team-data :deep(tr.team-players-editor__note td),
+.vol-table-frame--team-data :deep(tr.team-players-editor__footer td) {
   background: var(--td-open-bg);
   border-bottom-color: color-mix(in srgb, var(--color-border) 65%, transparent);
 }
@@ -670,8 +799,123 @@ function countCellLabel(row: TeamDataRow, column: TeamDataColumn) {
 .vol-table-frame--team-data :deep(.team-data-row--open:hover td),
 .vol-table-frame--team-data :deep(.team-data-row--open:hover td.vol-table__sticky),
 .vol-table-frame--team-data :deep(.team-data-row--open td.vol-table__sticky),
-.vol-table-frame--team-data :deep(.team-players-editor--aligned td.vol-table__sticky) {
+.vol-table-frame--team-data :deep(tr.team-players-editor__row td.vol-table__sticky),
+.vol-table-frame--team-data :deep(tr.team-players-editor__subhead td.vol-table__sticky),
+.vol-table-frame--team-data :deep(tr.team-players-editor__note td.vol-table__sticky),
+.vol-table-frame--team-data :deep(tr.team-players-editor__footer td.vol-table__sticky) {
   background: var(--td-open-bg);
+}
+
+.team-data-expand-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.05rem;
+}
+
+.team-data-drag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.55rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: grab;
+  font-size: 1.15rem;
+}
+
+.team-data-drag:active {
+  cursor: grabbing;
+}
+
+.team-data-row--ghost {
+  opacity: 0.45;
+}
+
+.team-data-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.team-data-identity__nr,
+.team-data-identity__name {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.team-data-identity__nr {
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.team-data-identity__name {
+  flex: 1 1 auto;
+  min-width: 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-data-identity .team-data-expand {
+  flex: 0 0 auto;
+  margin-left: 0.15rem;
+}
+
+.team-data-row--missing .team-data-identity__nr,
+.team-data-row--missing .team-data-identity__name,
+.team-data-row--missing .vol-table__role {
+  text-decoration: line-through;
+}
+
+.team-data-sync-bubbles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.65rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #e07a2f;
+  border-radius: 0.85rem;
+  background: #fff1e4;
+}
+
+.team-data-sync-bubbles::before {
+  content: 'Änderungen aus der Anmeldung';
+  margin-right: 0.35rem;
+  font-size: 0.84rem;
+  font-weight: 750;
+  color: #9a3412;
+}
+
+.team-data-sync-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.4rem 0.85rem;
+  border: none;
+  border-radius: 999px;
+  background: #e86a1a;
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(122, 45, 8, 0.25);
+}
+
+.team-data-sync-bubble:hover:not(:disabled) {
+  background: #cf5510;
+}
+
+.team-data-sync-bubble:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
 .team-data-expand {
