@@ -87,6 +87,8 @@ class ScorAdminController extends Controller
             (bool) $request->boolean('can_scor_referee'),
             (bool) $request->boolean('can_scor_jury'),
             (bool) $request->boolean('can_scor_admin'),
+            (bool) $request->boolean('can_scor_head_referee'),
+            (bool) $request->boolean('can_scor_head_judge'),
         );
         if (!$roles->any()) {
             return response()->json(['error' => 'Mindestens eine WISE-Berechtigung wählen.'], 422);

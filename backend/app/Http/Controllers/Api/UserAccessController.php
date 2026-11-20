@@ -193,6 +193,8 @@ class UserAccessController extends Controller
             'can_scor_referee' => 'sometimes|boolean',
             'can_scor_jury' => 'sometimes|boolean',
             'can_scor_admin' => 'sometimes|boolean',
+            'can_scor_head_referee' => 'sometimes|boolean',
+            'can_scor_head_judge' => 'sometimes|boolean',
         ]);
 
         $eventId = (int) $validated['event_id'];
@@ -259,6 +261,8 @@ class UserAccessController extends Controller
             'can_scor_referee' => 'sometimes|boolean',
             'can_scor_jury' => 'sometimes|boolean',
             'can_scor_admin' => 'sometimes|boolean',
+            'can_scor_head_referee' => 'sometimes|boolean',
+            'can_scor_head_judge' => 'sometimes|boolean',
         ]);
 
         $eventId = (int) $validated['event_id'];
@@ -421,7 +425,7 @@ class UserAccessController extends Controller
     private function partnersOf(User $user): array
     {
         return $user->regionalPartners()
-            ->withPivot(['source', 'can_flow', 'can_scor', 'can_scor_referee', 'can_scor_jury', 'can_scor_admin', 'granted_at'])
+            ->withPivot(['source', 'can_flow', 'can_scor', 'can_scor_referee', 'can_scor_jury', 'can_scor_admin', 'can_scor_head_referee', 'can_scor_head_judge', 'granted_at'])
             ->orderBy('regional_partner.name')
             ->get()
             ->map(fn ($rp) => [
@@ -459,6 +463,8 @@ class UserAccessController extends Controller
                 'urp.can_scor_referee',
                 'urp.can_scor_jury',
                 'urp.can_scor_admin',
+                'urp.can_scor_head_referee',
+                'urp.can_scor_head_judge',
                 'urp.granted_at',
             ])
             ->map(fn ($row) => $this->userRow($row, FlowAccess::SOURCE_DRAHT, null))
@@ -482,6 +488,8 @@ class UserAccessController extends Controller
                 'access.can_scor_referee',
                 'access.can_scor_jury',
                 'access.can_scor_admin',
+                'access.can_scor_head_referee',
+                'access.can_scor_head_judge',
                 'access.granted_at',
                 'granter.name as granted_by_name',
             ])
@@ -517,12 +525,16 @@ class UserAccessController extends Controller
     {
         $explicit = array_key_exists('can_scor_referee', $validated)
             || array_key_exists('can_scor_jury', $validated)
-            || array_key_exists('can_scor_admin', $validated);
+            || array_key_exists('can_scor_admin', $validated)
+            || array_key_exists('can_scor_head_referee', $validated)
+            || array_key_exists('can_scor_head_judge', $validated);
         if ($explicit) {
             return ScorGrant::fromFlags(
                 (bool) ($validated['can_scor_referee'] ?? false),
                 (bool) ($validated['can_scor_jury'] ?? false),
                 (bool) ($validated['can_scor_admin'] ?? false),
+                (bool) ($validated['can_scor_head_referee'] ?? false),
+                (bool) ($validated['can_scor_head_judge'] ?? false),
             );
         }
 

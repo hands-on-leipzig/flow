@@ -63,6 +63,8 @@ class ScorController extends Controller
                 $request->boolean('can_scor_referee'),
                 $request->boolean('can_scor_jury'),
                 $request->boolean('can_scor_admin'),
+                $request->boolean('can_scor_head_referee'),
+                $request->boolean('can_scor_head_judge'),
             ),
         ));
     }

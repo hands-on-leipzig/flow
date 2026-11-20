@@ -6,15 +6,13 @@ import {showGlassToast} from '@/composables/useGlassToast'
 import {useEventStore} from '@/stores/event'
 import NoticePane from '@/components/molecules/NoticePane.vue'
 import ScorLocalAccounts from '@/components/scor/ScorLocalAccounts.vue'
+import {SCOR_RIGHTS, hasScorRight, noScorRights, scorRightLabels, type ScorRightKey, type ScorRights} from '@/constants/scorRights'
 
 defineOptions({name: 'AccessManagement'})
 
-type Permissions = {
+type Permissions = ScorRights & {
   can_flow: boolean
   can_scor?: boolean
-  can_scor_referee?: boolean
-  can_scor_jury?: boolean
-  can_scor_admin?: boolean
 }
 
 type Partner = Permissions & {
@@ -94,15 +92,13 @@ const usersLoading = ref(false)
 
 const inviteEmail = ref('')
 const inviteFlow = ref(true)
-const inviteReferee = ref(false)
-const inviteJury = ref(false)
-const inviteAdmin = ref(false)
+const inviteRights = ref(noScorRights())
 const grantBusy = ref(false)
 
 const canInvite = computed(() =>
     !!shareEventId.value
     && inviteEmail.value.includes('@')
-    && (inviteFlow.value || inviteReferee.value || inviteJury.value || inviteAdmin.value)
+    && (inviteFlow.value || hasScorRight(inviteRights.value))
 )
 
 const shareEvent = computed(() =>
@@ -173,9 +169,7 @@ async function inviteByEmail() {
       event_id: shareEventId.value,
       email: inviteEmail.value.trim(),
       can_flow: inviteFlow.value,
-      can_scor_referee: inviteReferee.value,
-      can_scor_jury: inviteJury.value,
-      can_scor_admin: inviteAdmin.value,
+      ...inviteRights.value,
     })
     applyAccess(data)
     inviteEmail.value = ''
@@ -194,10 +188,9 @@ async function inviteByEmail() {
 
 type Target = {user_id: number} | {invitation_id: number}
 
-async function setPermission(target: Target, current: Permissions, key: keyof Permissions, value: boolean) {
+async function setPermission(target: Target, current: Permissions, key: 'can_flow' | ScorRightKey, value: boolean) {
   const next = {...current, [key]: value}
-  const hasScor = Boolean(next.can_scor_referee || next.can_scor_jury || next.can_scor_admin)
-  if (!next.can_flow && !hasScor) {
+  if (!next.can_flow && !hasScorRight(next)) {
     showGlassToast('Mindestens eine Berechtigung muss bleiben.', 'info')
     await loadEventUsers()
     return
@@ -236,13 +229,8 @@ function sourceLabel(source: string) {
   return source === 'manual' ? 'Einladung' : 'Draht'
 }
 
-function permissionLabels(p: {can_flow?: boolean | null; can_scor?: boolean | null}) {
-  return [
-    p.can_flow && 'FLOW',
-    p.can_scor_referee && 'Schiri',
-    p.can_scor_jury && 'Jury',
-    p.can_scor_admin && 'Veranstaltung-Admin',
-  ].filter(Boolean) as string[]
+function permissionLabels(p: ScorRights & {can_flow?: boolean | null; can_scor?: boolean | null}) {
+  return [p.can_flow && 'FLOW', ...scorRightLabels(p)].filter(Boolean) as string[]
 }
 
 const actionLabels: Record<string, string> = {
@@ -439,17 +427,9 @@ onMounted(async () => {
                 <input v-model="inviteFlow" type="checkbox" class="accent-gray-600"/>
                 FLOW
               </label>
-              <label class="inline-flex items-center gap-1.5 text-sm">
-                <input v-model="inviteReferee" type="checkbox" class="accent-gray-600"/>
-                Schiri
-              </label>
-              <label class="inline-flex items-center gap-1.5 text-sm">
-                <input v-model="inviteJury" type="checkbox" class="accent-gray-600"/>
-                Jury
-              </label>
-              <label class="inline-flex items-center gap-1.5 text-sm">
-                <input v-model="inviteAdmin" type="checkbox" class="accent-gray-600"/>
-                Veranstaltung-Admin
+              <label v-for="right in SCOR_RIGHTS" :key="right.key" class="inline-flex items-center gap-1.5 text-sm">
+                <input v-model="inviteRights[right.key]" type="checkbox" class="accent-gray-600"/>
+                {{ right.label }}
               </label>
               <button
                   type="button"
@@ -507,32 +487,14 @@ onMounted(async () => {
                       />
                       FLOW
                     </label>
-                    <label class="inline-flex items-center gap-1.5 text-sm">
+                    <label v-for="right in SCOR_RIGHTS" :key="right.key" class="inline-flex items-center gap-1.5 text-sm">
                       <input
                           type="checkbox"
                           class="accent-gray-600"
-                          :checked="row.can_scor_referee"
-                          @change="setPermission({user_id: row.user_id}, row, 'can_scor_referee', ($event.target as HTMLInputElement).checked)"
+                          :checked="!!row[right.key]"
+                          @change="setPermission({user_id: row.user_id}, row, right.key, ($event.target as HTMLInputElement).checked)"
                       />
-                      Schiri
-                    </label>
-                    <label class="inline-flex items-center gap-1.5 text-sm">
-                      <input
-                          type="checkbox"
-                          class="accent-gray-600"
-                          :checked="row.can_scor_jury"
-                          @change="setPermission({user_id: row.user_id}, row, 'can_scor_jury', ($event.target as HTMLInputElement).checked)"
-                      />
-                      Jury
-                    </label>
-                    <label class="inline-flex items-center gap-1.5 text-sm">
-                      <input
-                          type="checkbox"
-                          class="accent-gray-600"
-                          :checked="row.can_scor_admin"
-                          @change="setPermission({user_id: row.user_id}, row, 'can_scor_admin', ($event.target as HTMLInputElement).checked)"
-                      />
-                      Veranstaltung-Admin
+                      {{ right.label }}
                     </label>
                     <button
                         type="button"
@@ -574,32 +536,14 @@ onMounted(async () => {
                     />
                     FLOW
                   </label>
-                  <label class="inline-flex items-center gap-1.5 text-sm">
+                  <label v-for="right in SCOR_RIGHTS" :key="right.key" class="inline-flex items-center gap-1.5 text-sm">
                     <input
                         type="checkbox"
                         class="accent-gray-600"
-                        :checked="inv.can_scor_referee"
-                        @change="setPermission({invitation_id: inv.id}, inv, 'can_scor_referee', ($event.target as HTMLInputElement).checked)"
+                        :checked="!!inv[right.key]"
+                        @change="setPermission({invitation_id: inv.id}, inv, right.key, ($event.target as HTMLInputElement).checked)"
                     />
-                    Schiri
-                  </label>
-                  <label class="inline-flex items-center gap-1.5 text-sm">
-                    <input
-                        type="checkbox"
-                        class="accent-gray-600"
-                        :checked="inv.can_scor_jury"
-                        @change="setPermission({invitation_id: inv.id}, inv, 'can_scor_jury', ($event.target as HTMLInputElement).checked)"
-                    />
-                    Jury
-                  </label>
-                  <label class="inline-flex items-center gap-1.5 text-sm">
-                    <input
-                        type="checkbox"
-                        class="accent-gray-600"
-                        :checked="inv.can_scor_admin"
-                        @change="setPermission({invitation_id: inv.id}, inv, 'can_scor_admin', ($event.target as HTMLInputElement).checked)"
-                    />
-                    Veranstaltung-Admin
+                    {{ right.label }}
                   </label>
                   <button
                       type="button"

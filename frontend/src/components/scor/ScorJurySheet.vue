@@ -3,6 +3,7 @@ import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
 import axios from 'axios'
 import ScorGear from '@/components/scor/ScorGear.vue'
+import ScorText from '@/components/scor/ScorText.vue'
 import {useWiseSync, wiseSyncLabel} from '@/composables/useWiseSync'
 
 const props = defineProps<{sheet: any}>()
@@ -137,14 +138,21 @@ const syncLabel = computed(() => wiseSyncLabel(syncState.value))
 
 const rubricSections = computed(() => (props.sheet?.sections || []).filter((section: any) => section.kind === 'rubric'))
 const teamAbsent = computed(() => rubricSections.value.length > 0 && rubricSections.value.every((section: any) => disabled.value.includes(section.id)))
+const visibleSections = computed(() => (props.sheet?.sections || []).filter((section: any) => !feedbackSkipped(section)))
+
+const gracious = computed(() => {
+  const rounds = props.sheet?.game_gracious || []
+  if (!rounds.length) return ''
+  return `Spiel: ${rounds.map((round: any) => round.points ?? '–').join(' · ')}`
+})
+
+function feedbackSkipped(section: any) {
+  if (section.kind !== 'feedback') return false
+  return section.follows ? disabled.value.includes(section.follows) : teamAbsent.value
+}
 
 function hasLevelText(item: any) {
   return (item.config?.cells || []).some((cell: string) => String(cell || '').trim() !== '')
-}
-
-function isFirstFeedback(section: any) {
-  const first = (props.sheet?.sections || []).find((entry: any) => entry.kind === 'feedback')
-  return first?.id === section.id
 }
 
 function groups(items: any[]) {
@@ -265,7 +273,7 @@ function setLevel(id: number, level: number) {
     </p>
     <p v-if="error" class="jury-sheet__alert" role="alert">{{ error }}</p>
 
-    <section v-for="section in sheet.sections" :key="section.id" class="jury-block">
+    <section v-for="section in visibleSections" :key="section.id" class="jury-block">
       <div class="jury-block__head">
         <h2>{{ section.title }}</h2>
         <button
@@ -280,17 +288,17 @@ function setLevel(id: number, level: number) {
         </button>
       </div>
 
-      <p v-if="section.note && !(section.kind === 'feedback' && teamAbsent)" class="jury-note">{{ section.note }}</p>
+      <ScorText v-if="section.note" tag="div" class="jury-note" :text="section.note"/>
 
       <template v-if="section.kind === 'rubric' && !disabled.includes(section.id)">
         <div v-for="group in groups(section.items)" :key="group.group + group.items[0].id" class="jury-group">
-          <p v-if="group.group" class="jury-group__title">{{ group.group }}</p>
-          <p v-if="group.hint" class="jury-group__hint">{{ group.hint }}</p>
+          <ScorText v-if="group.group" tag="div" class="jury-group__title" :text="group.group"/>
+          <ScorText v-if="group.hint" tag="div" class="jury-group__hint" :text="group.hint"/>
           <div v-for="item in group.items" :key="item.id" class="jury-row" :class="{'is-done': values[String(item.id)]}">
-            <p v-if="!hasLevelText(item)" class="jury-prompt">
+            <div v-if="!hasLevelText(item)" class="jury-prompt">
               <ScorGear v-if="item.core_value"/>
-              <span>{{ item.config?.prompt || item.label }}</span>
-            </p>
+              <ScorText :text="item.config?.prompt || item.label"/>
+            </div>
             <div class="jury-levels" :class="{'jury-levels--plain': !hasLevelText(item)}">
               <template v-if="hasLevelText(item)">
                 <button
@@ -304,7 +312,7 @@ function setLevel(id: number, level: number) {
                 >
                   <span class="jury-level__n">{{ index + 1 }}</span>
                   <span class="jury-level__name">{{ sheet.columns?.[index]?.label }}</span>
-                  <span class="jury-level__text">{{ cell }}</span>
+                  <ScorText class="jury-level__text" :text="cell"/>
                 </button>
                 <button
                     type="button"
@@ -344,33 +352,37 @@ function setLevel(id: number, level: number) {
             />
           </div>
         </div>
-        <p v-if="sheet.core_values_note" class="jury-legend">
+        <div v-if="sheet.core_values_note" class="jury-legend">
           <ScorGear/>
-          <span>{{ sheet.core_values_note }}</span>
-        </p>
+          <ScorText :text="sheet.core_values_note"/>
+        </div>
       </template>
 
       <template v-else-if="section.kind === 'feedback'">
-        <p v-if="teamAbsent && isFirstFeedback(section)" class="jury-note">Das Team ist nicht angetreten. Die Feedbackfelder bleiben leer.</p>
         <label v-for="item in section.items" :key="item.id" class="jury-feedback">
-          {{ item.label }}
+          <ScorText :text="item.label"/>
           <textarea
               v-model="texts[String(item.id)]"
               class="glass-input"
               rows="3"
-              :disabled="sheet.completed || teamAbsent"
+              :disabled="sheet.completed"
           />
         </label>
       </template>
     </section>
 
+    <p v-if="teamAbsent" class="jury-note">Das Team ist nicht angetreten. Es gibt kein Feedback.</p>
+
     <div class="jury-bar">
       <p class="jury-bar__points">{{ sheet.points }} <span>Punkte</span></p>
-      <p class="jury-bar__core">Grundwerte {{ sheet.core_points }}</p>
+      <p class="jury-bar__core">
+        Grundwerte {{ sheet.core_points }}
+        <span v-if="gracious" class="jury-bar__game" title="Freundliches Miteinander aus den Schiri-Bögen, je Runde">({{ gracious }})</span>
+      </p>
       <button v-if="!sheet.completed" type="button" class="glass-btn-accent" :disabled="busy || sheet.lifecycle?.closed" @click="complete">Bewertung abschließen</button>
       <button v-if="!sheet.completed" type="button" class="glass-btn-secondary" :disabled="busy || sheet.lifecycle?.closed" @click="save">Speichern</button>
       <button v-if="sheet.completed" type="button" class="glass-btn-accent jury-bar__leave" @click="leave">zurück zur Übersicht</button>
-      <button v-if="sheet.roles?.admin && sheet.completed" type="button" class="glass-btn-secondary" :disabled="busy" @click="reopen">Wieder öffnen</button>
+      <button v-if="sheet.roles?.head_judge && sheet.completed" type="button" class="glass-btn-secondary" :disabled="busy" @click="reopen">Wieder öffnen</button>
     </div>
   </div>
 </template>
@@ -637,6 +649,10 @@ function setLevel(id: number, level: number) {
 .jury-bar__core {
   grid-column: 1 / -1;
   margin: 0;
+}
+
+.jury-bar__game {
+  font-weight: 500;
 }
 
 .jury-bar .glass-btn-accent,

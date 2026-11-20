@@ -565,6 +565,92 @@ class ScorSheetServiceTest extends TestCase
         $this->assertSame(0, $done['points']);
     }
 
+    public function test_feedback_of_a_skipped_category_is_not_required_and_not_kept(): void
+    {
+        $sheet = $this->sheets->jurySheet($this->user(), 1, 1);
+        $byTitle = collect($sheet['sections'])->keyBy('title');
+        $project = $byTitle['Projekt'];
+        $design = $byTitle['Technisches Design'];
+        $this->assertSame($project['id'], $byTitle['Feedback Projekt']['follows']);
+        $this->assertSame($design['id'], $byTitle['Feedback Technisches Design']['follows']);
+        $this->assertNull($byTitle['Feedback Grundwerte']['follows']);
+
+        $values = [];
+        foreach ($design['items'] as $item) {
+            $values[$item['id']] = 2;
+        }
+        $texts = [];
+        foreach (['Feedback Projekt', 'Feedback Technisches Design', 'Feedback Grundwerte'] as $title) {
+            foreach ($byTitle[$title]['items'] as $item) {
+                $texts[$item['id']] = $title === 'Feedback Projekt' ? 'kurz' : 'Konstruktives Feedback für das Team.';
+            }
+        }
+        $this->sheets->saveJury($this->user(), 1, 1, [
+            'values' => $values,
+            'texts' => $texts,
+            'disabled_sections' => [$project['id']],
+        ]);
+        $done = $this->sheets->completeJury($this->user(), 1, 1);
+
+        $this->assertTrue($done['completed']);
+        $kept = collect($done['sections'])->keyBy('title');
+        foreach ($kept['Feedback Projekt']['items'] as $item) {
+            $this->assertNull($item['value']);
+        }
+        foreach ($kept['Feedback Grundwerte']['items'] as $item) {
+            $this->assertSame('Konstruktives Feedback für das Team.', $item['value']);
+        }
+    }
+
+    public function test_jury_sheet_shows_gracious_points_per_scoring_round(): void
+    {
+        DB::table('match')->insert([
+            'id' => 5,
+            'plan' => 1,
+            'first_program' => FirstProgram::FUTURE_8->value,
+            'round' => 0,
+            'match_no' => 1,
+            'table_1' => 1,
+            'table_2' => 2,
+            'table_1_team' => 1,
+            'table_2_team' => 2,
+        ]);
+        $referee = $this->sheets->refereeSheet($this->user(), 1, 1, 1);
+        $gracious = collect($referee['sections'])->firstWhere('title', 'Freundliches Miteinander')['items'][0]['id'];
+        foreach ([1 => 3, 5 => 1] as $matchId => $option) {
+            DB::table('scor_sheet')->insert(array_merge($this->refereeRow(1, $matchId, 0, false), [
+                'answers' => json_encode(['values' => [(string) $gracious => $option]]),
+            ]));
+        }
+
+        $sheet = $this->sheets->jurySheet($this->user(), 1, 1);
+
+        $this->assertSame([['round' => 1, 'label' => 'Runde 1', 'points' => 4]], $sheet['game_gracious']);
+    }
+
+    public function test_results_and_reopening_follow_the_head_rights(): void
+    {
+        DB::table('event_user_access')->where('user', 1)->update(['can_scor_admin' => false]);
+
+        $this->assertFalse($this->sheets->overview($this->user(), 1)['roles']['results']);
+        try {
+            $this->sheets->results($this->user(), 1);
+            $this->fail('Schiri and Jury must not see the results.');
+        } catch (\App\Scor\ScorAccessException) {
+        }
+
+        DB::table('event_user_access')->where('user', 1)->update(['can_scor_head_judge' => true]);
+        $roles = $this->sheets->overview($this->user(), 1)['roles'];
+        $this->assertTrue($roles['results']);
+        $this->assertTrue($roles['stage']);
+        $this->assertFalse($roles['admin']);
+        $this->assertSame(1, $this->sheets->results($this->user(), 1)['event']['id']);
+        $this->assertFalse($this->sheets->reopenJury($this->user(), 1, 1)['completed']);
+
+        $this->expectException(\App\Scor\ScorAccessException::class);
+        $this->sheets->reopenReferee($this->user(), 1, 1, 1);
+    }
+
     public function test_results_follow_the_contao_ranking(): void
     {
         DB::table('team')->insert([
@@ -828,6 +914,8 @@ class ScorSheetServiceTest extends TestCase
             $table->boolean('can_scor_referee')->default(false);
             $table->boolean('can_scor_jury')->default(false);
             $table->boolean('can_scor_admin')->default(false);
+            $table->boolean('can_scor_head_referee')->default(false);
+            $table->boolean('can_scor_head_judge')->default(false);
         });
         Schema::create('event_user_access', function (Blueprint $table) {
             $table->unsignedInteger('id')->autoIncrement();
@@ -838,6 +926,8 @@ class ScorSheetServiceTest extends TestCase
             $table->boolean('can_scor_referee')->default(false);
             $table->boolean('can_scor_jury')->default(false);
             $table->boolean('can_scor_admin')->default(false);
+            $table->boolean('can_scor_head_referee')->default(false);
+            $table->boolean('can_scor_head_judge')->default(false);
         });
         Schema::create('plan', function (Blueprint $table) {
             $table->unsignedInteger('id')->primary();

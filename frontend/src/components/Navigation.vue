@@ -52,7 +52,8 @@ const userLabel = computed(() => {
   const name = typeof parsed?.name === 'string' ? parsed.name.trim() : ''
   if (name) return name
   const preferred = typeof parsed?.preferred_username === 'string' ? parsed.preferred_username.trim() : ''
-  return preferred || 'FLOW'
+  if (preferred) return preferred
+  return (!keycloak.authenticated && localStorage.getItem('scor_user')) || 'FLOW'
 })
 
 async function checkDataReadiness() {
@@ -435,6 +436,8 @@ function toggleMobileMenu() {
 
 function logout() {
   localStorage.removeItem('kc_token')
+  localStorage.removeItem('scor_token')
+  localStorage.removeItem('scor_user')
 
   if (keycloak.authenticated) {
     keycloak.logout({
@@ -540,7 +543,7 @@ function logout() {
         <span class="glass-app__mobile-tab-label">Jury</span>
       </button>
       <button
-          v-if="isScorMode && wiseEventId"
+          v-if="isScorMode && wiseEventId && wiseRoles?.results"
           type="button"
           class="glass-app__mobile-tab"
           :class="{'glass-app__mobile-tab--active': !open && wiseSicht === 'ergebnisse'}"
@@ -645,7 +648,7 @@ function logout() {
             @select="openWiseSicht('jury')"
         />
         <SidebarNavItem
-            v-if="wiseEventId"
+            v-if="wiseEventId && wiseRoles?.results"
             label="Ergebnisse"
             icon="bi-award"
             :active="wiseSicht === 'ergebnisse'"
