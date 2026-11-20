@@ -5,6 +5,7 @@ namespace Tests\Unit;
 use App\Services\ActivityFetcherService;
 use App\Services\PublicPlanService;
 use App\Services\RoleFetcherService;
+use Carbon\Carbon;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -27,6 +28,7 @@ class PublicPlanServiceTest extends TestCase
 
     protected function tearDown(): void
     {
+        Carbon::setTestNow();
         Mockery::close();
         parent::tearDown();
     }
@@ -375,6 +377,28 @@ class PublicPlanServiceTest extends TestCase
         $this->assertSame([1, 2, 4], $ids);
     }
 
+    public function test_get_schedule_upcoming_before_event_keeps_everything_on_real_clock(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-10 08:30', 'Europe/Berlin'));
+
+        $this->assertSame([1, 2], $this->upcomingIds([], false));
+        $this->assertSame([2], $this->upcomingIds([], true));
+    }
+
+    public function test_get_schedule_upcoming_after_event_is_empty_on_real_clock(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-20 08:30', 'Europe/Berlin'));
+
+        $this->assertSame([], $this->upcomingIds([], false));
+    }
+
+    public function test_get_schedule_explicit_now_wins_over_real_clock(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-03-10 08:30', 'Europe/Berlin'));
+
+        $this->assertSame([2], $this->upcomingIds(['now' => '2026-03-15 08:30'], false));
+    }
+
     public function test_get_roles_includes_team_even_when_role_fetcher_omits_it(): void
     {
         $this->attachFuture8(teams: 2);
@@ -539,6 +563,49 @@ class PublicPlanServiceTest extends TestCase
                 'label' => 'T08 (Noch nicht angemeldet)',
             ],
         ], $payload['matches']);
+    }
+
+    /**
+     * Team 1 schedule (08:00 opening, 09:00 match on 2026-03-15) with expired=no.
+     *
+     * @return list<int>
+     */
+    private function upcomingIds(array $query, bool $projectOntoEventDay): array
+    {
+        $fetcher = Mockery::mock(ActivityFetcherService::class);
+        $fetcher->shouldReceive('fetchActivities')->andReturn(collect([
+            $this->futureScheduleRow(
+                activityId: 1,
+                groupId: 10,
+                code: 'f8_opening',
+                atdId: 73,
+                groupCode: 'f8_opening',
+                start: '08:00:00',
+                name: 'Eröffnung Future 8+',
+            ),
+            $this->futureScheduleRow(
+                activityId: 2,
+                groupId: 11,
+                code: 'f8_r_match',
+                atdId: 74,
+                groupCode: 'f8_round_1',
+                start: '09:00:00',
+                name: 'Game Match',
+                table1Team: 1,
+                table2Team: 2,
+            ),
+        ]));
+        $this->app->instance(ActivityFetcherService::class, $fetcher);
+
+        $payload = app(PublicPlanService::class)->getSchedule(1, array_merge([
+            'role' => 21,
+            'team' => 1,
+            'expired' => 'no',
+        ], $query), $projectOntoEventDay);
+
+        return collect($payload['groups'])->flatMap(
+            fn (array $group) => collect($group['activities'])->pluck('activity_id')
+        )->values()->all();
     }
 
     private function bindRoles(array $roles): void
