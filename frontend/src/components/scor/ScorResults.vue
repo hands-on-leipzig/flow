@@ -34,8 +34,10 @@ const recapItems = [
 const judgedIds = [...podiumIds, 'research', 'robotdesign', 'core_values']
 const presentRoot = ref<HTMLElement | null>(null)
 const presenting = ref(false)
-let storedAwardsKey = ''
+let storedAwardsKey: string | null = null
 let awardSaveTimer = 0
+let awardSave: Promise<void> | null = null
+let awardSaveAgain = false
 
 const awardTeams = computed(() => {
   return [...(props.results?.teams || [])].sort((a, b) => {
@@ -87,10 +89,6 @@ function nominationTotal(teamId: number) {
   return awardColumns.filter((column) => column.nominate && marked(nominations.value, teamId, column.id)).length
 }
 
-function anyNomination(teamId: number) {
-  return nominationTotal(teamId) > 0
-}
-
 const podiumSlots = computed(() => Math.min(podium.length, awardTeams.value.length))
 
 const awardsComplete = computed(() => {
@@ -103,7 +101,7 @@ function canAward(team: any, category: string) {
   if (!awardsEditable.value || category === 'robot') return false
   const on = hasTrophy(team.id, category)
   if (!on && trophyCount(team.id) >= 3) return false
-  if (category === 'coaching') return on || anyNomination(team.id)
+  if (category === 'coaching') return true
   if (!on && !marked(nominations.value, team.id, category)) return false
   const held = heldTrophy(team.id)
   return !held || held.category === category
@@ -175,7 +173,6 @@ function toggleNomination(teamId: number, category: string) {
     }
     return true
   })
-  if (coaching.value && !anyNomination(Number(coaching.value))) coaching.value = ''
 }
 
 function toggleAward(team: any, category: string) {
@@ -248,17 +245,31 @@ watch(presenting, (on) => {
   }
 })
 
-function awardsKey() {
+function awardsKey(
+    trophyRows: {team: number, category: string}[] = trophies.value,
+    nominationRows: {team: number, category: string}[] = nominations.value,
+    coachingTeam: number | '' = coaching.value,
+) {
   const rows = (list: {team: number, category: string}[]) => list.map((row) => `${row.team}:${row.category}`).sort().join(',')
-  return `${rows(trophies.value)}|${rows(nominations.value)}|${coaching.value}`
+  return `${rows(trophyRows)}|${rows(nominationRows)}|${coachingTeam}`
 }
 
 watch(() => props.results, (results) => {
-  trophies.value = [...(results?.awards?.trophies || [])].filter((row) => row.category !== 'robot')
-  nominations.value = [...(results?.awards?.nominations || [])]
-  coaching.value = results?.awards?.coaching || ''
+  const incoming = {
+    trophies: [...(results?.awards?.trophies || [])].filter((row) => row.category !== 'robot'),
+    nominations: [...(results?.awards?.nominations || [])],
+    coaching: results?.awards?.coaching || '',
+  }
+  const clickedAhead = storedAwardsKey !== null && awardsKey() !== storedAwardsKey && !results?.lifecycle?.closed
+  if (clickedAhead) {
+    storedAwardsKey = awardsKey(incoming.trophies, incoming.nominations, incoming.coaching)
+  } else {
+    trophies.value = incoming.trophies
+    nominations.value = incoming.nominations
+    coaching.value = incoming.coaching
+    storedAwardsKey = awardsKey()
+  }
   awardError.value = ''
-  storedAwardsKey = awardsKey()
   if (!results?.lifecycle?.closed) trophies.value = resolvePodium(trophies.value)
   queueAwardSave()
 }, {immediate: true})
@@ -271,7 +282,7 @@ function queueAwardSave() {
   if (awardsKey() === storedAwardsKey) return
   awardSaveTimer = window.setTimeout(() => {
     void saveAwards()
-  }, 700)
+  }, 400)
 }
 
 function marked(rows: {team: number, category: string}[], team: number, category: string) {
@@ -286,10 +297,15 @@ function toggleMark(rows: {team: number, category: string}[], team: number, cate
 
 async function closeEvent() {
   window.clearTimeout(awardSaveTimer)
+  if (awardSave) {
+    await saveAwards()
+    await nextTick()
+  }
   if (awardsKey() !== storedAwardsKey) {
     await saveAwards()
     if (awardError.value) return
   }
+  window.clearTimeout(awardSaveTimer)
   const {data} = await axios.post(`/scor/events/${props.results.event.id}/close`)
   emit('saved', {...props.results, lifecycle: data})
 }
@@ -318,6 +334,24 @@ async function sendMail() {
 }
 
 async function saveAwards() {
+  if (awardSave) {
+    awardSaveAgain = true
+    return awardSave
+  }
+  awardSave = sendAwards()
+  try {
+    await awardSave
+  } finally {
+    awardSave = null
+  }
+  await nextTick()
+  if (awardSaveAgain) {
+    awardSaveAgain = false
+    queueAwardSave()
+  }
+}
+
+async function sendAwards() {
   if (!props.results?.can_edit_awards || props.results?.lifecycle?.closed) return
   awardError.value = ''
   awardBusy.value = true
