@@ -45,26 +45,19 @@ const heroTitle = computed(() => {
 
 const publishedAwardLines = computed(() => {
   const payload = publishedResults.value
-  if (!payload?.teams) return []
-  const byId = new Map(payload.teams.map((team) => [team.id, team]))
-  const nameOf = (id) => {
-    const team = byId.get(id)
-    return team ? `${team.number} ${team.name}` : ''
-  }
-  const awards = payload.awards || {}
-  const trophy = (category) => awards.trophies?.find((row) => row.category === category)
+  if (!payload?.game) return []
+  const line = (team) => team ? `${team.number} ${team.name}` : ''
+  const place = (id) => line(payload.podium?.find((entry) => entry.place === id)?.team)
+  const winner = (id) => line(payload.categories?.find((entry) => entry.category === id)?.nominees.find((team) => team.trophy))
   const lines = [
-    {label: 'Champion', value: nameOf(trophy('champion')?.team)},
-    {label: 'Silber', value: nameOf(trophy('silver')?.team)},
-    {label: 'Bronze', value: nameOf(trophy('bronze')?.team)},
-    {label: 'Projekt', value: nameOf(trophy('research')?.team)},
-    {label: 'Technisches Design', value: nameOf(trophy('robotdesign')?.team)},
-    {label: 'Grundwerte', value: nameOf(trophy('core_values')?.team)},
-    {label: 'Coaching', value: nameOf(awards.coaching)},
-    {
-      label: 'Spiel',
-      value: payload.teams.filter((team) => team.robot_rank === 1).map((team) => nameOf(team.id)).filter(Boolean).join(', '),
-    },
+    {label: 'Champion', value: place('champion')},
+    {label: 'Silber', value: place('silver')},
+    {label: 'Bronze', value: place('bronze')},
+    {label: 'Projekt', value: winner('research')},
+    {label: 'Technisches Design', value: winner('robotdesign')},
+    {label: 'Grundwerte', value: winner('core_values')},
+    {label: 'Coaching', value: line(payload.coaching)},
+    {label: 'Spiel', value: payload.game.filter((team) => team.rank === 1).map(line).join(', ')},
   ]
   return lines.filter((line) => line.value)
 })
@@ -438,6 +431,9 @@ onMounted(async () => {
             <strong>{{ line.value }}</strong>
           </li>
         </ul>
+        <router-link :to="`/scor/ergebnisse/${event.id}`" class="glass-btn-secondary pe-results__more">
+          Alle Ergebnisse mit Spielpunkten und Nominierungen
+        </router-link>
       </section>
 
       <!-- First box: placeholder / Wichtige Zeiten / springboard -->
@@ -960,6 +956,12 @@ onMounted(async () => {
 
 .pe-results span {
   color: var(--color-text-muted);
+}
+
+.pe-results__more {
+  display: inline-flex;
+  margin-top: 1rem;
+  text-decoration: none;
 }
 
 .pe-section {
