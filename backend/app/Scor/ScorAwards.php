@@ -67,11 +67,8 @@ final class ScorAwards
         }
 
         $nominated = [];
-        $any = [];
         foreach ($nominations as $row) {
-            $team = (int) $row['team'];
-            $nominated[(string) $row['category']][$team] = true;
-            $any[$team] = true;
+            $nominated[(string) $row['category']][(int) $row['team']] = true;
         }
         foreach ($trophies as $row) {
             $team = (int) $row['team'];
@@ -79,9 +76,6 @@ final class ScorAwards
             if (in_array($category, self::NOMINATED, true) && empty($nominated[$category][$team])) {
                 throw new ScorAccessException('Der Pokal geht nur an ein nominiertes Team.', 422);
             }
-        }
-        if ($coachingTeam && empty($any[$coachingTeam])) {
-            throw new ScorAccessException('Coaching geht nur an ein nominiertes Team.', 422);
         }
     }
 

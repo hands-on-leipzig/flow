@@ -187,6 +187,19 @@ class ScorSheetServiceTest extends TestCase
         $this->assertCount(2, $saved['awards']['nominations']);
     }
 
+    public function test_coaching_goes_to_any_team_without_nomination(): void
+    {
+        $this->createAwardTable();
+
+        $saved = $this->sheets->saveAwards($this->user(), 1, [
+            'trophies' => [],
+            'nominations' => [],
+            'coaching' => 2,
+        ]);
+
+        $this->assertSame(2, $saved['awards']['coaching']);
+    }
+
     public function test_closed_event_blocks_sheets_and_playground_is_wiped_the_day_before(): void
     {
         Schema::create('scor_event', function (Blueprint $table) {
