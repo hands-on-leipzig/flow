@@ -2,8 +2,9 @@
 import {computed, onMounted, ref} from 'vue'
 import axios from 'axios'
 
-const props = defineProps<{eventId: string}>()
-const results = ref<any>(null)
+const props = defineProps<{eventId: string | number, payload?: any, title?: string, embedded?: boolean}>()
+const emit = defineEmits<{exit: []}>()
+const results = ref<any>(props.payload || null)
 const error = ref('')
 
 const placeLabels: Record<string, string> = {champion: 'Champion', silver: 'Silber', bronze: 'Bronze'}
@@ -16,6 +17,7 @@ const categoryLabels: Record<string, string> = {
 const gameLeaders = computed(() => (results.value?.game || []).filter((team: any) => team.rank === 1))
 
 onMounted(async () => {
+  if (results.value) return
   try {
     const {data} = await axios.get(`/scor/public/results/${props.eventId}`)
     results.value = data
@@ -40,10 +42,15 @@ function formatPoints(value: number) {
 </script>
 
 <template>
-  <div class="scor-public">
+  <div class="scor-public" :class="{'is-embedded': embedded}">
     <header class="glass-card liquid-surface-inner scor-public__head">
-      <p class="scor-public__kicker">Ergebnisse</p>
-      <h1>{{ results?.event?.name || 'Ergebnisse' }}</h1>
+      <div>
+        <p class="scor-public__kicker">Ergebnisse</p>
+        <h1>{{ title || results?.event?.name || 'Ergebnisse' }}</h1>
+      </div>
+      <button v-if="embedded" type="button" class="glass-btn-secondary" @click="emit('exit')">
+        Zurück zur öffentlichen Seite
+      </button>
     </header>
 
     <p v-if="error" class="scor-public__state">{{ error }}</p>
@@ -135,6 +142,19 @@ function formatPoints(value: number) {
   max-width: 56rem;
   margin: 0 auto;
   padding: 1rem;
+}
+
+.scor-public.is-embedded {
+  max-width: none;
+  padding: 0;
+}
+
+.scor-public__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .scor-public__head h1 {

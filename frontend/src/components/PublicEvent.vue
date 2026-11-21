@@ -11,6 +11,7 @@ import {getEventTitleLong} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
+import ScorPublished from '@/components/scor/ScorPublished.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
 import {logOneLinkAccess} from '@/utils/usageCapture'
 
@@ -264,6 +265,33 @@ function exitOnlineZeitplan() {
   void router.replace({query})
 }
 
+const ergebnisseQueryOn = computed(() => {
+  const raw = route.query.ergebnisse
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value === '1' || value === 'true' || value === 'yes'
+})
+
+const showResults = computed(() =>
+  !loading.value
+  && !error.value
+  && event.value
+  && !!publishedResults.value
+  && ergebnisseQueryOn.value
+)
+
+function openResults() {
+  const query = queryAsStrings()
+  query.ergebnisse = '1'
+  void router.replace({query})
+  window.scrollTo({top: 0})
+}
+
+function exitResults() {
+  const query = queryAsStrings()
+  delete query.ergebnisse
+  void router.replace({query})
+}
+
 const teamLanes = computed(() => {
   const lanes = scheduleInfo.value?.teams?.lanes
   return Array.isArray(lanes) ? lanes : []
@@ -408,6 +436,11 @@ onMounted(async () => {
       <PublicSchedule :plan-id="publicPlanId" embedded @exit="exitOnlineZeitplan"/>
     </div>
 
+    <!-- Released SCOR results + ?ergebnisse=1 -->
+    <div v-else-if="showResults" class="pe-content">
+      <ScorPublished :event-id="event.id" :payload="publishedResults" :title="heroTitle" embedded @exit="exitResults"/>
+    </div>
+
     <!-- Public landing (all publication levels) -->
     <div v-else-if="event" class="pe-content">
       <template>
@@ -431,9 +464,9 @@ onMounted(async () => {
             <strong>{{ line.value }}</strong>
           </li>
         </ul>
-        <router-link :to="`/scor/ergebnisse/${event.id}`" class="glass-btn-secondary pe-results__more">
+        <button type="button" class="glass-btn-secondary pe-results__more" @click="openResults">
           Alle Ergebnisse mit Spielpunkten und Nominierungen
-        </router-link>
+        </button>
       </section>
 
       <!-- First box: placeholder / Wichtige Zeiten / springboard -->
