@@ -6,14 +6,18 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * One trophy among Champion, Projekt, Technisches Design and Grundwerte.
+ * One trophy among Champion, Silber, Bronze, Projekt, Technisches Design and Grundwerte.
  * Spiel and Coaching may be added. A team holds at most three trophies.
  * Each judged category has at most four nominations.
+ * Champion, Silber and Bronze follow the overall ranking and need no nomination.
  */
 final class ScorAwards
 {
     /** @var list<string> */
-    public const JUDGED = ['champion', 'research', 'robotdesign', 'core_values'];
+    public const PODIUM = ['champion', 'silver', 'bronze'];
+
+    /** @var list<string> */
+    public const JUDGED = [...self::PODIUM, 'research', 'robotdesign', 'core_values'];
 
     /** @var list<string> */
     public const NOMINATED = ['research', 'robotdesign', 'core_values'];
@@ -43,7 +47,7 @@ final class ScorAwards
             }
             $judged = array_values(array_intersect($categories, self::JUDGED));
             if (count($judged) > 1) {
-                throw new ScorAccessException('Ein Team bekommt nur einen Pokal aus Champion, Projekt, Technisches Design und Grundwerten.', 422);
+                throw new ScorAccessException('Ein Team bekommt nur einen Pokal aus Champion, Silber, Bronze, Projekt, Technisches Design und Grundwerten.', 422);
             }
             if (count($categories) > 3) {
                 throw new ScorAccessException('Ein Team bekommt höchstens drei Pokale.', 422);
@@ -72,9 +76,6 @@ final class ScorAwards
         foreach ($trophies as $row) {
             $team = (int) $row['team'];
             $category = (string) $row['category'];
-            if ($category === 'champion' && empty($any[$team])) {
-                throw new ScorAccessException('Der Champion braucht mindestens eine Nominierung.', 422);
-            }
             if (in_array($category, self::NOMINATED, true) && empty($nominated[$category][$team])) {
                 throw new ScorAccessException('Der Pokal geht nur an ein nominiertes Team.', 422);
             }

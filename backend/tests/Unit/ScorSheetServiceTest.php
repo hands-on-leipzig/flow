@@ -653,6 +653,80 @@ class ScorSheetServiceTest extends TestCase
 
     public function test_results_follow_the_contao_ranking(): void
     {
+        $this->seedContaoRanking();
+
+        $results = $this->sheets->results($this->user(), 1);
+        $byId = collect($results['teams'])->keyBy('id');
+
+        $this->assertSame([1, 2], array_column($results['rounds'], 'round'));
+        $this->assertSame([1, 2, 3], array_column($results['teams'], 'id'));
+
+        $this->assertEquals(20, $byId[1]['robot']);
+        $this->assertEquals(15, $byId[2]['robot']);
+        $this->assertEquals(10, $byId[3]['robot']);
+        $this->assertSame(10, $byId[1]['rounds'][0]['points']);
+        $this->assertTrue($byId[1]['rounds'][0]['confirmed']);
+        $this->assertSame(30, $byId[1]['rounds'][1]['points']);
+        $this->assertFalse($byId[1]['rounds'][1]['confirmed']);
+        $this->assertNull($byId[3]['rounds'][1]);
+
+        $this->assertSame(1, $byId[1]['robot_rank']);
+        $this->assertSame(2, $byId[2]['robot_rank']);
+        $this->assertSame(3, $byId[3]['robot_rank']);
+
+        $this->assertSame(7, $byId[1]['research']);
+        $this->assertSame(2, $byId[1]['research_rank']);
+        $this->assertSame(8, $byId[2]['research']);
+        $this->assertSame(1, $byId[2]['research_rank']);
+        $this->assertSame(3, $byId[3]['research_rank']);
+
+        $this->assertSame(6, $byId[1]['robotdesign']);
+        $this->assertSame(1, $byId[1]['robotdesign_rank']);
+        $this->assertSame(2, $byId[2]['robotdesign_rank']);
+        $this->assertSame(2, $byId[3]['robotdesign_rank']);
+
+        $this->assertSame(5, $byId[1]['core_values']);
+        $this->assertSame(1, $byId[1]['core_values_rank']);
+        $this->assertSame(1, $byId[2]['core_values_rank']);
+        $this->assertSame(3, $byId[3]['core_values_rank']);
+
+        $this->assertSame(5, $byId[1]['champion']);
+        $this->assertSame(6, $byId[2]['champion']);
+        $this->assertSame(10, $byId[3]['champion']);
+        $this->assertSame(1, $byId[1]['champion_rank']);
+        $this->assertSame(2, $byId[2]['champion_rank']);
+        $this->assertSame(3, $byId[3]['champion_rank']);
+    }
+
+    public function test_champion_silver_and_bronze_follow_the_overall_ranking(): void
+    {
+        $this->seedContaoRanking();
+        $this->createAwardTable();
+
+        try {
+            $this->sheets->saveAwards($this->user(), 1, [
+                'trophies' => [['team' => 3, 'category' => 'silver']],
+                'nominations' => [],
+            ]);
+            $this->fail('Silber für den Dritten der Gesamtwertung muss scheitern.');
+        } catch (\App\Scor\ScorAccessException $e) {
+            $this->assertSame(422, $e->status);
+        }
+
+        $saved = $this->sheets->saveAwards($this->user(), 1, [
+            'trophies' => [
+                ['team' => 1, 'category' => 'champion'],
+                ['team' => 2, 'category' => 'silver'],
+                ['team' => 3, 'category' => 'bronze'],
+            ],
+            'nominations' => [],
+        ]);
+
+        $this->assertCount(3, $saved['awards']['trophies']);
+    }
+
+    private function seedContaoRanking(): void
+    {
         DB::table('team')->insert([
             'id' => 3,
             'name' => 'Gamma',
@@ -732,48 +806,6 @@ class ScorSheetServiceTest extends TestCase
         $this->saveJuryScores(1, $research, $design, 4, 3, 4, 2);
         $this->saveJuryScores(2, $research, $design, 4, 4, 4, 1);
         $this->saveJuryScores(3, $research, $design, 2, 2, 3, 2);
-
-        $results = $this->sheets->results($this->user(), 1);
-        $byId = collect($results['teams'])->keyBy('id');
-
-        $this->assertSame([1, 2], array_column($results['rounds'], 'round'));
-        $this->assertSame([1, 2, 3], array_column($results['teams'], 'id'));
-
-        $this->assertEquals(20, $byId[1]['robot']);
-        $this->assertEquals(15, $byId[2]['robot']);
-        $this->assertEquals(10, $byId[3]['robot']);
-        $this->assertSame(10, $byId[1]['rounds'][0]['points']);
-        $this->assertTrue($byId[1]['rounds'][0]['confirmed']);
-        $this->assertSame(30, $byId[1]['rounds'][1]['points']);
-        $this->assertFalse($byId[1]['rounds'][1]['confirmed']);
-        $this->assertNull($byId[3]['rounds'][1]);
-
-        $this->assertSame(1, $byId[1]['robot_rank']);
-        $this->assertSame(2, $byId[2]['robot_rank']);
-        $this->assertSame(3, $byId[3]['robot_rank']);
-
-        $this->assertSame(7, $byId[1]['research']);
-        $this->assertSame(2, $byId[1]['research_rank']);
-        $this->assertSame(8, $byId[2]['research']);
-        $this->assertSame(1, $byId[2]['research_rank']);
-        $this->assertSame(3, $byId[3]['research_rank']);
-
-        $this->assertSame(6, $byId[1]['robotdesign']);
-        $this->assertSame(1, $byId[1]['robotdesign_rank']);
-        $this->assertSame(2, $byId[2]['robotdesign_rank']);
-        $this->assertSame(2, $byId[3]['robotdesign_rank']);
-
-        $this->assertSame(5, $byId[1]['core_values']);
-        $this->assertSame(1, $byId[1]['core_values_rank']);
-        $this->assertSame(1, $byId[2]['core_values_rank']);
-        $this->assertSame(3, $byId[3]['core_values_rank']);
-
-        $this->assertSame(5, $byId[1]['champion']);
-        $this->assertSame(6, $byId[2]['champion']);
-        $this->assertSame(10, $byId[3]['champion']);
-        $this->assertSame(1, $byId[1]['champion_rank']);
-        $this->assertSame(2, $byId[2]['champion_rank']);
-        $this->assertSame(3, $byId[3]['champion_rank']);
     }
 
     private function createAwardTable(): void

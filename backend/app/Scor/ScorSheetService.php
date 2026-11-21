@@ -319,8 +319,9 @@ final class ScorSheetService
             throw new ScorAccessException('Auszeichnungen setzt die Veranstaltungs-Admin.');
         }
 
+        $standings = $this->results($user, $eventId)['teams'];
         $known = [];
-        foreach ($this->results($user, $eventId)['teams'] as $team) {
+        foreach ($standings as $team) {
             $known[(int) $team['id']] = true;
         }
         $trophies = $this->awardRows($input['trophies'] ?? [], $known);
@@ -331,7 +332,7 @@ final class ScorSheetService
         if ($coaching !== null && !isset($known[$coaching])) {
             throw new ScorAccessException('Das Team gehört nicht zu dieser Veranstaltung.', 422);
         }
-        $this->assertChampionPick($user, $eventId, $trophies);
+        $this->assertPodium($standings, $trophies);
 
         $saved = (new ScorAwards())->replace($eventId, $trophies, $nominations, $coaching);
 
@@ -339,16 +340,32 @@ final class ScorSheetService
     }
 
     /**
+     * Place n goes to a team whose champion rank equals the rank at position n.
+     * Only ties leave a choice.
+     *
+     * @param  list<array<string, mixed>>  $standings  sorted by champion rank
      * @param  list<array{team: int, category: string}>  $trophies
      */
-    private function assertChampionPick(User $user, int $eventId, array $trophies): void
+    private function assertPodium(array $standings, array $trophies): void
     {
-        $picks = array_values(array_filter($trophies, fn (array $row) => $row['category'] === 'champion'));
-        if ($trophies === []) {
-            return;
+        $rankAt = array_map(fn (array $team) => (int) $team['champion_rank'], $standings);
+        $rankOf = [];
+        foreach ($standings as $team) {
+            $rankOf[(int) $team['id']] = (int) $team['champion_rank'];
         }
-        if (count($picks) !== 1) {
-            throw new ScorAccessException('Bitte genau einen Champion festlegen.', 422);
+        $seen = [];
+        foreach ($trophies as $row) {
+            $slot = array_search($row['category'], ScorAwards::PODIUM, true);
+            if ($slot === false) {
+                continue;
+            }
+            if (isset($seen[$slot])) {
+                throw new ScorAccessException('Champion, Silber und Bronze gehen an je ein Team.', 422);
+            }
+            $seen[$slot] = true;
+            if (!isset($rankAt[$slot]) || $rankOf[$row['team']] !== $rankAt[$slot]) {
+                throw new ScorAccessException('Champion, Silber und Bronze folgen der Gesamtwertung.', 422);
+            }
         }
     }
 

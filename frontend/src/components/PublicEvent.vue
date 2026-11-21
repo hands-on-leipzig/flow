@@ -55,6 +55,8 @@ const publishedAwardLines = computed(() => {
   const trophy = (category) => awards.trophies?.find((row) => row.category === category)
   const lines = [
     {label: 'Champion', value: nameOf(trophy('champion')?.team)},
+    {label: 'Silber', value: nameOf(trophy('silver')?.team)},
+    {label: 'Bronze', value: nameOf(trophy('bronze')?.team)},
     {label: 'Projekt', value: nameOf(trophy('research')?.team)},
     {label: 'Technisches Design', value: nameOf(trophy('robotdesign')?.team)},
     {label: 'Grundwerte', value: nameOf(trophy('core_values')?.team)},
