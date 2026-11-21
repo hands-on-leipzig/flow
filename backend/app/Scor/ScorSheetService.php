@@ -247,7 +247,7 @@ final class ScorSheetService
         $user = new User;
         $user->id = 0;
 
-        return $this->results($user, $eventId, public: true);
+        return (new ScorPublicResults())->fromResults($this->results($user, $eventId, public: true));
     }
 
     public function closeEvent(User $user, int $eventId): array
