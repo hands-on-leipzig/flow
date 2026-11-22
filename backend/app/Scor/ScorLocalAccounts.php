@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Event accounts such as "Schiri 1". They stay in SCOR and are not HERO users.
+ * Event accounts such as "Schiri 1". They stay in SCORE and are not HERO users.
  */
 final class ScorLocalAccounts
 {

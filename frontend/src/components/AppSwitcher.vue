@@ -5,6 +5,7 @@ import keycloak from '@/keycloak.js'
 import {imageUrl} from '@/utils/images'
 import ScorLogo from '@/components/scor/ScorLogo.vue'
 import AppSwitch from '@hands-on/glass/app-switch'
+import {flowUrl, isScoreHost, scorePath} from '@/utils/scoreHost'
 
 const props = defineProps<{
   canFlow: boolean
@@ -48,10 +49,17 @@ const choices = computed<AppChoice[]>(() => {
   const hero = roles.some((role) => role === 'hero-user' || role === 'hero_user' || role === 'hero_admin' || role === 'hero-admin')
   const items: AppChoice[] = []
   if (props.canFlow) {
-    items.push({id: 'flow', label: 'FLOW', href: '/plan/overview', internal: true, current: !props.scorMode})
+    const flowInternal = !isScoreHost()
+    items.push({
+      id: 'flow',
+      label: 'FLOW',
+      href: flowInternal ? '/plan/overview' : flowUrl('/plan/overview'),
+      internal: flowInternal,
+      current: !props.scorMode,
+    })
   }
   if (props.canScor) {
-    items.push({id: 'scor', label: 'WISE', href: '/scor', internal: true, current: props.scorMode})
+    items.push({id: 'scor', label: 'SCORE', href: scorePath(), internal: true, current: props.scorMode})
   }
   if (coach) {
     items.push({id: 'join', label: 'JOIN', href: externalUrl('join'), internal: false, current: false})
@@ -64,7 +72,7 @@ const choices = computed<AppChoice[]>(() => {
 
 const menuApps = computed(() => choices.value.map((app) => ({
   ...app,
-  logo: imageUrl(app.id === 'scor' ? '/flow/scor.png' : `/flow/${app.id}.png`),
+  logo: imageUrl(app.id === 'scor' ? '/flow/score.png' : `/flow/${app.id}.png`),
 })))
 
 function openInternal(app: {href: string}) {
@@ -80,7 +88,7 @@ function openInternal(app: {href: string}) {
   />
   <div v-else class="app-brand">
     <RouterLink
-        :to="scorMode ? '/scor' : '/plan/overview'"
+        :to="scorMode ? scorePath() : '/plan/overview'"
         class="app-brand__logo"
     >
       <ScorLogo v-if="scorMode"/>

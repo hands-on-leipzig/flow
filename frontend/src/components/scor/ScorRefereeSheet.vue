@@ -2,6 +2,7 @@
 import {computed, nextTick, onBeforeUnmount, ref, watch} from 'vue'
 import {useWiseSync} from '@/composables/useWiseSync'
 import {useRouter} from 'vue-router'
+import {scorePath} from '@/utils/scoreHost'
 import ScorText from '@/components/scor/ScorText.vue'
 import axios from 'axios'
 
@@ -280,7 +281,7 @@ function url() {
 }
 
 function leave() {
-  void router.push(`/scor/${props.sheet.event.id}`)
+  void router.push(scorePath(`/${props.sheet.event.id}`))
 }
 
 async function reopen() {

@@ -187,7 +187,7 @@ final class ScorStage
         try {
             app(CockpitStagePresentationService::class)->saveSelection($event, 'FUTURE_8', $padded);
         } catch (\Throwable) {
-            // FLOW's stage row stays as it was. SCOR still keeps scor_stage_pick.
+            // FLOW's stage row stays as it was. SCORE still keeps scor_stage_pick.
         }
     }
 }

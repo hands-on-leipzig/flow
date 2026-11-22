@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import {useRouter} from 'vue-router'
+import {scorePath} from '@/utils/scoreHost'
 import axios from 'axios'
 import ScorGear from '@/components/scor/ScorGear.vue'
 import ScorText from '@/components/scor/ScorText.vue'
@@ -183,7 +184,7 @@ function url() {
 }
 
 function leave() {
-  void router.push(`/scor/${props.sheet.event.id}?sicht=jury`)
+  void router.push(scorePath(`/${props.sheet.event.id}?sicht=jury`))
 }
 
 async function save() {

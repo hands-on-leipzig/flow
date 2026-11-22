@@ -9,7 +9,7 @@ class ResetScorPlayground extends Command
 {
     protected $signature = 'scor:reset-playground';
 
-    protected $description = 'Clear SCOR practice data the day before an event';
+    protected $description = 'Clear SCORE practice data the day before an event';
 
     public function handle(ScorLifecycle $lifecycle): int
     {

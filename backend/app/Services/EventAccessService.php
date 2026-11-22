@@ -383,10 +383,9 @@ class EventAccessService
             $roles->admin ? 'Veranstaltung-Admin' : null,
         ]));
 
-        $loginUrl = rtrim((string) config('app.url'), '/');
-        if (!$canFlow && $roles->any()) {
-            $loginUrl .= '/scor';
-        }
+        $loginUrl = !$canFlow && $roles->any()
+            ? (string) config('app.score_url')
+            : rtrim((string) config('app.url'), '/');
 
         try {
             Mail::to($email)->send(new EventAccessInvitationMail(

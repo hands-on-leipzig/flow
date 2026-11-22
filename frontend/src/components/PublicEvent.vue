@@ -436,7 +436,7 @@ onMounted(async () => {
       <PublicSchedule :plan-id="publicPlanId" embedded @exit="exitOnlineZeitplan"/>
     </div>
 
-    <!-- Released SCOR results + ?ergebnisse=1 -->
+    <!-- Released SCORE results + ?ergebnisse=1 -->
     <div v-else-if="showResults" class="pe-content">
       <ScorPublished :event-id="event.id" :payload="publishedResults" :title="heroTitle" embedded @exit="exitResults"/>
     </div>

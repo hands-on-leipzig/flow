@@ -56,6 +56,8 @@ return [
 
     'frontend_url' => env('FRONTEND_URL', 'http://localhost:5173'),
 
+    'score_url' => rtrim((string) (env('SCORE_URL') ?: rtrim((string) env('APP_URL', 'http://localhost'), '/') . '/score'), '/'),
+
     /*
     | Public event links (QR codes, DRAHT, share UI). PUBLIC_URL wins when set,
     | except the old path form (handson.tools/dev|/test) which is rewritten to

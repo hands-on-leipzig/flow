@@ -26,6 +26,7 @@ import keycloak from '@/keycloak.js'
 import {theme, setTheme} from '@hands-on/glass/theme'
 import AppShell from '@hands-on/glass/app-shell'
 import ScorLogo from '@/components/scor/ScorLogo.vue'
+import {flowUrl, isScoreHost, isScorePath, scorePath} from '@/utils/scoreHost'
 import {useWiseRoles} from '@/composables/useWiseRoles'
 import {useWiseSync, wiseSyncLabel} from '@/composables/useWiseSync'
 import SidebarFooter from '@hands-on/glass/sidebar-footer'
@@ -151,11 +152,11 @@ const navEntries = computed<NavEntry[]>(() => [
 ])
 
 const isAdminMode = computed(() => route.path.startsWith('/plan/admin'))
-const isScorMode = computed(() => route.path === '/scor' || route.path.startsWith('/scor/'))
+const isScorMode = computed(() => isScorePath(route.path))
 const showBackToOverview = computed(() => isAdminMode.value)
 
 const scorNavEntries = computed<NavEntry[]>(() => [
-  {name: 'Veranstaltungen', path: '/scor', icon: 'bi-calendar-event'},
+  {name: 'Veranstaltungen', path: scorePath(), icon: 'bi-calendar-event'},
 ])
 
 const wiseCollapsed = ref(true)
@@ -188,8 +189,8 @@ function wiseStoredSicht() {
 
 const wiseBack = computed(() => {
   if (!wiseEventId.value) return null
-  if (route.path.includes('/match/')) return {label: 'Schiri', to: `/scor/${wiseEventId.value}`}
-  if (route.path.includes('/jury/')) return {label: 'Jury', to: `/scor/${wiseEventId.value}?sicht=jury`}
+  if (route.path.includes('/match/')) return {label: 'Schiri', to: scorePath(`/${wiseEventId.value}`)}
+  if (route.path.includes('/jury/')) return {label: 'Jury', to: scorePath(`/${wiseEventId.value}?sicht=jury`)}
   return null
 })
 
@@ -231,8 +232,8 @@ function openWiseSicht(sicht: 'schiri' | 'jury' | 'ergebnisse') {
   }
   mobileMenuOpen.value = false
   const path = sicht === 'schiri'
-      ? `/scor/${wiseEventId.value}`
-      : `/scor/${wiseEventId.value}?sicht=${sicht}`
+      ? scorePath(`/${wiseEventId.value}`)
+      : scorePath(`/${wiseEventId.value}?sicht=${sicht}`)
   goToPath(path)
 }
 
@@ -392,11 +393,11 @@ function normalizePlanPath(path: string): string {
 }
 
 function isActive(path: string) {
-  if (path.startsWith('/scor')) {
+  if (isScorMode.value) {
     const current = route.path.replace(/\/$/, '') || '/'
     const [pathOnly, query = ''] = path.split('?')
     const sicht = new URLSearchParams(query).get('sicht')
-    if (pathOnly === '/scor') return current === '/scor'
+    if (pathOnly === scorePath()) return current === scorePath()
     const onEvent = current === pathOnly || current.startsWith(`${pathOnly}/`)
     const juryView = route.query.sicht === 'jury' || current.includes('/jury/')
     const resultsView = route.query.sicht === 'ergebnisse'
@@ -411,7 +412,11 @@ function isActive(path: string) {
 
 function goToPath(path: string) {
   mobileMenuOpen.value = false
-  if (path.startsWith('/scor')) {
+  if (isScoreHost() && path.startsWith('/plan')) {
+    window.location.assign(flowUrl(path))
+    return
+  }
+  if (isScorMode.value && !path.startsWith('/plan')) {
     if (route.fullPath === path) return
     void router.push(path)
     return
@@ -680,7 +685,7 @@ function logout() {
         <template #identity="{ close }">
           <div class="glass-sidebar-footer__menu-header">
             <span class="glass-sidebar-footer__menu-title">{{ userLabel }}</span>
-            <span class="glass-sidebar-footer__menu-subtitle">{{ isScorMode ? 'WISE' : 'FLOW' }}</span>
+            <span class="glass-sidebar-footer__menu-subtitle">{{ isScorMode ? 'SCORE' : 'FLOW' }}</span>
           </div>
           <button
               v-if="canFlow"

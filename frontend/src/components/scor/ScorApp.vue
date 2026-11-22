@@ -8,6 +8,7 @@ import ScorJurySheet from '@/components/scor/ScorJurySheet.vue'
 import ScorResults from '@/components/scor/ScorResults.vue'
 import HotGearLoader from '@/components/scor/HotGearLoader.vue'
 import {useWiseRoles} from '@/composables/useWiseRoles'
+import {scorePath} from '@/utils/scoreHost'
 
 const route = useRoute()
 const router = useRouter()
@@ -223,7 +224,7 @@ watch(() => route.fullPath, () => {
 }, {immediate: true})
 
 function openEvent(id: number) {
-  void router.push(`/scor/${id}`)
+  void router.push(scorePath(`/${id}`))
 }
 
 function confirmOpen(done: boolean) {
@@ -233,12 +234,12 @@ function confirmOpen(done: boolean) {
 
 function openMatch(matchIdValue: number, teamIdValue: number, done = false) {
   if (!confirmOpen(done)) return
-  void router.push(`/scor/${eventId.value}/match/${matchIdValue}/team/${teamIdValue}`)
+  void router.push(scorePath(`/${eventId.value}/match/${matchIdValue}/team/${teamIdValue}`))
 }
 
 function openJury(teamIdValue: number, done = false) {
   if (!confirmOpen(done)) return
-  void router.push(`/scor/${eventId.value}/jury/${teamIdValue}`)
+  void router.push(scorePath(`/${eventId.value}/jury/${teamIdValue}`))
 }
 
 function isNoted(teamId: number) {
@@ -310,7 +311,7 @@ async function saveStage() {
 
 <template>
   <form v-if="needsLogin" class="mx-auto max-w-md space-y-4" @submit.prevent="localLogin">
-    <h1 class="text-2xl font-bold tracking-tight">WISE</h1>
+    <h1 class="text-2xl font-bold tracking-tight">SCORE</h1>
     <p class="text-lg text-[var(--color-text-muted)]">Mit dem Namen und Passwort von der Veranstaltung anmelden.</p>
     <label class="block text-lg">
       Name
@@ -332,7 +333,7 @@ async function saveStage() {
           v-if="sheet && eventId"
           type="button"
           class="wise-back wise-back--desk"
-          @click="router.push(juryRoute ? `/scor/${eventId}?sicht=jury` : `/scor/${eventId}`)"
+          @click="router.push(scorePath(juryRoute ? `/${eventId}?sicht=jury` : `/${eventId}`))"
       >
         <i class="bi bi-chevron-left" aria-hidden="true"/>
         {{ juryRoute ? 'Jury' : 'Schiri' }}

@@ -3,7 +3,7 @@
 namespace App\Support;
 
 /**
- * The SCOR rights on an event grant.
+ * The SCORE rights on an event grant.
  * can_scor stays the app gate and is true when any of them is set.
  * Older rows that only have can_scor still open every view.
  *
@@ -36,7 +36,7 @@ final class ScorGrant
         return new self($referee, $jury, $admin, $headReferee, $headJudge);
     }
 
-    /** A legacy SCOR checkbox: on means all rights, off means none. */
+    /** A legacy SCORE checkbox: on means all rights, off means none. */
     public static function fromLegacy(bool $canScor): self
     {
         return $canScor ? self::all() : self::none();
