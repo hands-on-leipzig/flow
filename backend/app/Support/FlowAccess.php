@@ -15,7 +15,7 @@ use App\Models\User;
  * Legacy role names are still accepted during the Keycloak migration.
  *
  * App permissions live in FLOW, not in Keycloak roles.
- * Draht contacts get FLOW and SCOR for every event of their regional partner (`user_regional_partner`).
+ * Draht contacts get FLOW and SCORE for every event of their regional partner (`user_regional_partner`).
  * Everyone else is invited per event (`event_invitation` → `event_user_access`).
  * Keycloak only authenticates. `flow_user` still opens FLOW for staff without an event grant.
  */
@@ -117,7 +117,7 @@ class FlowAccess
     }
 
     /**
-     * App gate: who may call authenticated FLOW (or SCOR) APIs at all.
+     * App gate: who may call authenticated FLOW (or SCORE) APIs at all.
      * Event / regional partner checks still apply on top.
      */
     public static function canUse(array $roles, User $user, string $permission, string $env): bool

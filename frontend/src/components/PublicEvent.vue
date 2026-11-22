@@ -11,6 +11,7 @@ import {getEventTitleLong} from '@/utils/eventTitle'
 import {formatBerlinDateTimeFromUtc, formatBerlinTimeOnly, parseBerlinWallTime} from '@/utils/dateTimeFormat'
 import EventMap from '@/components/molecules/EventMap.vue'
 import PublicSchedule from '@/components/PublicSchedule.vue'
+import ScorPublished from '@/components/scor/ScorPublished.vue'
 import Spinner from '@/components/atoms/Spinner.vue'
 import {logOneLinkAccess} from '@/utils/usageCapture'
 
@@ -45,26 +46,19 @@ const heroTitle = computed(() => {
 
 const publishedAwardLines = computed(() => {
   const payload = publishedResults.value
-  if (!payload?.teams) return []
-  const byId = new Map(payload.teams.map((team) => [team.id, team]))
-  const nameOf = (id) => {
-    const team = byId.get(id)
-    return team ? `${team.number} ${team.name}` : ''
-  }
-  const awards = payload.awards || {}
-  const trophy = (category) => awards.trophies?.find((row) => row.category === category)
+  if (!payload?.game) return []
+  const line = (team) => team ? `${team.number} ${team.name}` : ''
+  const place = (id) => line(payload.podium?.find((entry) => entry.place === id)?.team)
+  const winner = (id) => line(payload.categories?.find((entry) => entry.category === id)?.nominees.find((team) => team.trophy))
   const lines = [
-    {label: 'Champion', value: nameOf(trophy('champion')?.team)},
-    {label: 'Silber', value: nameOf(trophy('silver')?.team)},
-    {label: 'Bronze', value: nameOf(trophy('bronze')?.team)},
-    {label: 'Projekt', value: nameOf(trophy('research')?.team)},
-    {label: 'Technisches Design', value: nameOf(trophy('robotdesign')?.team)},
-    {label: 'Grundwerte', value: nameOf(trophy('core_values')?.team)},
-    {label: 'Coaching', value: nameOf(awards.coaching)},
-    {
-      label: 'Spiel',
-      value: payload.teams.filter((team) => team.robot_rank === 1).map((team) => nameOf(team.id)).filter(Boolean).join(', '),
-    },
+    {label: 'Champion', value: place('champion')},
+    {label: 'Silber', value: place('silver')},
+    {label: 'Bronze', value: place('bronze')},
+    {label: 'Projekt', value: winner('research')},
+    {label: 'Technisches Design', value: winner('robotdesign')},
+    {label: 'Grundwerte', value: winner('core_values')},
+    {label: 'Coaching', value: line(payload.coaching)},
+    {label: 'Spiel', value: payload.game.filter((team) => team.rank === 1).map(line).join(', ')},
   ]
   return lines.filter((line) => line.value)
 })
@@ -271,6 +265,33 @@ function exitOnlineZeitplan() {
   void router.replace({query})
 }
 
+const ergebnisseQueryOn = computed(() => {
+  const raw = route.query.ergebnisse
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value === '1' || value === 'true' || value === 'yes'
+})
+
+const showResults = computed(() =>
+  !loading.value
+  && !error.value
+  && event.value
+  && !!publishedResults.value
+  && ergebnisseQueryOn.value
+)
+
+function openResults() {
+  const query = queryAsStrings()
+  query.ergebnisse = '1'
+  void router.replace({query})
+  window.scrollTo({top: 0})
+}
+
+function exitResults() {
+  const query = queryAsStrings()
+  delete query.ergebnisse
+  void router.replace({query})
+}
+
 const teamLanes = computed(() => {
   const lanes = scheduleInfo.value?.teams?.lanes
   return Array.isArray(lanes) ? lanes : []
@@ -415,6 +436,11 @@ onMounted(async () => {
       <PublicSchedule :plan-id="publicPlanId" embedded @exit="exitOnlineZeitplan"/>
     </div>
 
+    <!-- Released SCORE results + ?ergebnisse=1 -->
+    <div v-else-if="showResults" class="pe-content">
+      <ScorPublished :event-id="event.id" :payload="publishedResults" :title="heroTitle" embedded @exit="exitResults"/>
+    </div>
+
     <!-- Public landing (all publication levels) -->
     <div v-else-if="event" class="pe-content">
       <template>
@@ -438,6 +464,9 @@ onMounted(async () => {
             <strong>{{ line.value }}</strong>
           </li>
         </ul>
+        <button type="button" class="glass-btn-secondary pe-results__more" @click="openResults">
+          Alle Ergebnisse mit Spielpunkten und Nominierungen
+        </button>
       </section>
 
       <!-- First box: placeholder / Wichtige Zeiten / springboard -->
@@ -960,6 +989,12 @@ onMounted(async () => {
 
 .pe-results span {
   color: var(--color-text-muted);
+}
+
+.pe-results__more {
+  display: inline-flex;
+  margin-top: 1rem;
+  text-decoration: none;
 }
 
 .pe-section {

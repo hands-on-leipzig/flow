@@ -243,7 +243,7 @@ class UserAccessController extends Controller
     }
 
     /**
-     * Change FLOW / SCOR permissions of a manual grant or a pending invitation.
+     * Change FLOW / SCORE permissions of a manual grant or a pending invitation.
      */
     public function update(Request $request): JsonResponse
     {

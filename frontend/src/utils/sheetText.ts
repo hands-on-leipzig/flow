@@ -1,5 +1,5 @@
 /**
- * Texts on the WISE sheets: a small Markdown subset plus a few plain HTML tags.
+ * Texts on the SCORE sheets: a small Markdown subset plus a few plain HTML tags.
  * Everything else is escaped, so admin texts can never inject markup.
  */
 

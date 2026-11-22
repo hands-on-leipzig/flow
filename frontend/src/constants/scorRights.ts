@@ -7,7 +7,7 @@ export type ScorRightKey =
 
 export type ScorRights = Partial<Record<ScorRightKey, boolean | null>>
 
-/** WISE rights per event. Veranstaltung-Admin is the RP and includes everything. */
+/** SCORE rights per event. Veranstaltung-Admin is the RP and includes everything. */
 export const SCOR_RIGHTS: {key: ScorRightKey, label: string}[] = [
   {key: 'can_scor_referee', label: 'Schiri'},
   {key: 'can_scor_head_referee', label: 'Head Ref'},

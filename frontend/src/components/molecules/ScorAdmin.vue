@@ -147,7 +147,7 @@ async function loadHelpers() {
 
 async function grantHelper(helper: {id: number, name: string}) {
   if (!selectedId.value || !hasScorRight(inviteRights.value)) {
-    notice.value = 'Bitte mindestens eine WISE-Berechtigung wählen.'
+    notice.value = 'Bitte mindestens eine SCORE-Berechtigung wählen.'
     return
   }
   inviteBusy.value = true
@@ -239,9 +239,9 @@ onMounted(async () => {
 <template>
   <div class="space-y-6 max-w-5xl">
     <div>
-      <h2 class="text-xl font-bold">WISE</h2>
+      <h2 class="text-xl font-bold">SCORE</h2>
       <p class="mt-1 text-sm text-gray-600">
-        Zugänge pro Veranstaltung. FLOW ist die Planung, WISE die Auswertung.
+        Zugänge pro Veranstaltung. FLOW ist die Planung, SCORE die Auswertung.
         Kontaktpersonen aus Draht haben beides für alle Veranstaltungen ihres Regionalpartners.
       </p>
     </div>

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Schema;
  * Spiel and Coaching may be added. A team holds at most three trophies.
  * Each judged category has at most four nominations.
  * Champion, Silber and Bronze follow the overall ranking and need no nomination.
+ * Coaching may go to any team.
  */
 final class ScorAwards
 {
@@ -67,11 +68,8 @@ final class ScorAwards
         }
 
         $nominated = [];
-        $any = [];
         foreach ($nominations as $row) {
-            $team = (int) $row['team'];
-            $nominated[(string) $row['category']][$team] = true;
-            $any[$team] = true;
+            $nominated[(string) $row['category']][(int) $row['team']] = true;
         }
         foreach ($trophies as $row) {
             $team = (int) $row['team'];
@@ -79,9 +77,6 @@ final class ScorAwards
             if (in_array($category, self::NOMINATED, true) && empty($nominated[$category][$team])) {
                 throw new ScorAccessException('Der Pokal geht nur an ein nominiertes Team.', 422);
             }
-        }
-        if ($coachingTeam && empty($any[$coachingTeam])) {
-            throw new ScorAccessException('Coaching geht nur an ein nominiertes Team.', 422);
         }
     }
 

@@ -61,6 +61,7 @@ import {useEventStore} from "@/stores/event";
 import {useProgramsStore} from "@/stores/programs";
 import {useApps} from "@/composables/useApps";
 import {firstTeamsPath} from "@/utils/eventPrograms";
+import {flowUrl, isScoreHost, isScorePath, scorePath} from "@/utils/scoreHost";
 import StandaloneSlide from "@/components/StandaloneSlide.vue";
 import {registerSW} from 'virtual:pwa-register'
 import '@hands-on/glass/styles.css'
@@ -69,16 +70,48 @@ import {initTheme} from '@hands-on/glass/theme'
 
 initTheme()
 
-const routes = [
+const scoreRoutes = [
+    {path: scorePath('/uebung/:eventId'), component: ScorPractice, props: true, meta: {public: true}},
+    {path: scorePath('/ergebnisse/:eventId'), component: ScorPublished, props: true, meta: {public: true}},
+    {path: scorePath(), component: ScorApp},
+    {path: scorePath('/:eventId(\\d+)'), component: ScorApp},
+    {path: scorePath('/:eventId(\\d+)/match/:matchId/team/:teamId'), component: ScorApp},
+    {path: scorePath('/:eventId(\\d+)/jury/:teamId'), component: ScorApp},
+]
+
+// Old links (/scor/…, QR codes, mails) and /score/… on the SCORE host.
+function scorePrefixRedirects(prefix) {
+    const strip = (to) => ({path: scorePath(to.path.slice(prefix.length)), query: to.query, hash: to.hash})
+    return [
+        {path: prefix, redirect: strip},
+        {path: `${prefix}/:rest(.*)`, redirect: strip},
+    ]
+}
+
+const unauthorizedRoute = {path: '/unauthorized', component: UnauthorizedAccess, meta: {public: true}}
+
+const scoreHostRoutes = [
+    ...scoreRoutes,
+    ...scorePrefixRedirects('/score'),
+    ...scorePrefixRedirects('/scor'),
+    unauthorizedRoute,
+    {
+        path: '/:pathMatch(.*)*',
+        component: {render: () => null},
+        meta: {public: true},
+        beforeEnter: (to) => {
+            window.location.replace(flowUrl(to.fullPath))
+            return false
+        },
+    },
+]
+
+const flowRoutes = [
     {path: '/carousel/:eventId', component: Carousel, props: true, meta: {public: true}},
     {path: '/carousel/:eventId/:slideId', component: StandaloneSlide, props: true, meta: {public: true}},
     {path: '/scores/:eventId', component: PublicScores, props: true, meta: {public: true}},
-    {path: '/scor/uebung/:eventId', component: ScorPractice, props: true, meta: {public: true}},
-    {path: '/scor/ergebnisse/:eventId', component: ScorPublished, props: true, meta: {public: true}},
-    {path: '/scor', component: ScorApp},
-    {path: '/scor/:eventId', component: ScorApp},
-    {path: '/scor/:eventId/match/:matchId/team/:teamId', component: ScorApp},
-    {path: '/scor/:eventId/jury/:teamId', component: ScorApp},
+    ...scoreRoutes,
+    ...scorePrefixRedirects('/scor'),
     {
         path: '/public-schedule/:planId/print',
         component: PublicSchedulePrint,
@@ -197,14 +230,23 @@ const routes = [
     // Past seasons keep their plans reachable under the season year (handson.tools/2025/aachen).
     {path: '/:year(\\d{4})/:slug', component: PublicEvent, props: true, meta: {public: true}},
     {path: '/:slug', component: PublicEvent, props: true, meta: {public: true}},
-    // Unauthorized access route
-    {path: '/unauthorized', component: UnauthorizedAccess, meta: {public: true}},
+    unauthorizedRoute,
 ];
 
 const router = createRouter({
     history: createWebHistory(),
-    routes,
+    routes: isScoreHost() ? scoreHostRoutes : flowRoutes,
 });
+
+/** FLOW paths leave the SCORE host; inside FLOW they stay a router redirect. */
+function nextFlow(next, path) {
+    if (!isScoreHost()) {
+        next(path)
+        return
+    }
+    window.location.assign(flowUrl(path))
+    next(false)
+}
 
 // One login for every navigation. A second init throws, and reloading on that
 // error bounces a signed-in session between this host and SSO forever.
@@ -261,7 +303,7 @@ function isTodayWithinEvent(event) {
 }
 
 router.beforeEach(async (to, from, next) => {
-    const scorPath = to.path === '/scor' || to.path.startsWith('/scor/')
+    const scorPath = isScorePath(to.path)
 
     // Allow public routes (including unauthorized page)
     if (to.meta?.public || to.path === '/unauthorized') {
@@ -272,7 +314,7 @@ router.beforeEach(async (to, from, next) => {
         return;
     }
 
-    // SCOR can open with a local event account. HERO login stays optional there.
+    // SCORE can open with a local event account. HERO login stays optional there.
     if (scorPath && !keycloak.authenticated) {
         try {
             await keycloak.init({onLoad: 'check-sso', pkceMethod: 'S256'});
@@ -295,7 +337,7 @@ router.beforeEach(async (to, from, next) => {
         }
     }
 
-    if (to.path === '/') {
+    if (to.path === '/' && !scorPath) {
         next('/plan/overview')
         return
     }
@@ -309,11 +351,11 @@ router.beforeEach(async (to, from, next) => {
     const apps = useApps()
     await apps.ensure()
     if ((to.path.startsWith('/plan') || to.path === '/overview') && !apps.canFlow.value && apps.canScor.value) {
-        next('/scor')
+        next(scorePath())
         return
     }
     if (scorPath && !apps.canScor.value && apps.canFlow.value) {
-        next('/plan/overview')
+        nextFlow(next, '/plan/overview')
         return
     }
     if (apps.canFlow.value) {
@@ -358,10 +400,10 @@ router.beforeEach(async (to, from, next) => {
 });
 
 router.afterEach((to) => {
-    const wise = to.path === '/scor' || to.path.startsWith('/scor/')
-    document.title = wise ? 'WISE' : 'FLOW - Flexibles OrganisationsWerkzeug'
+    const score = isScorePath(to.path)
+    document.title = score ? 'SCORE' : 'FLOW - Flexibles OrganisationsWerkzeug'
     const icon = document.querySelector('link[rel="icon"]')
-    if (icon) icon.setAttribute('href', wise ? '/wise-icon.png' : '/favicon.ico')
+    if (icon) icon.setAttribute('href', score ? '/wise-icon.png' : '/favicon.ico')
 })
 
 const app = createApp(App)
@@ -393,7 +435,7 @@ axios.interceptors.response.use(
                 return Promise.reject(error)
             }
             const deniedApp = error.response.data?.app === 'scor' ? 'scor' : 'flow'
-            const onScor = window.location.pathname === '/scor' || window.location.pathname.startsWith('/scor/')
+            const onScor = isScorePath(window.location.pathname)
             if (deniedApp === 'flow' && onScor) {
                 return Promise.reject(error)
             }
@@ -411,7 +453,7 @@ app.use(router)
 app.use(pinia)
 
 // The first navigation stays on the start location until beforeEach finishes
-// (public catalog load, WISE check-sso, FLOW login). Mounting earlier paints
+// (public catalog load, SCORE check-sso, FLOW login). Mounting earlier paints
 // that empty route, which has no meta and therefore the full FLOW shell.
 router.isReady().finally(() => {
     app.mount('#app')
