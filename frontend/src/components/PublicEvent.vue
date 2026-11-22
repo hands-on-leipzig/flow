@@ -585,6 +585,7 @@ onMounted(async () => {
             <div v-if="scheduleInfo.address" class="pe-map">
               <EventMap
                   :address="scheduleInfo.address"
+                  :country="scheduleInfo.country || ''"
                   :event-id="event.id"
                   :event-name="getEventTitleLong(event)"
                   :show-q-r-code="true"

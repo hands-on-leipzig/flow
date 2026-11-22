@@ -68,6 +68,7 @@ class DrahtController extends Controller
         $mergedData = [
             'programs' => [],
             'address' => null,
+            'country' => null,
             'contact' => null,
             'information' => null,
         ];
@@ -119,6 +120,10 @@ class DrahtController extends Controller
             if (is_array($payload)) {
                 $succeeded++;
                 $mergedData['address'] ??= $payload['address'] ?? null;
+                $country = strtolower(trim((string) ($payload['country'] ?? '')));
+                if ($country !== '' && empty($mergedData['country'])) {
+                    $mergedData['country'] = $country;
+                }
                 $mergedData['contact'] ??= $this->formatContactData($payload['contact'] ?? null);
                 $mergedData['information'] ??= $payload['information'] ?? null;
             }
