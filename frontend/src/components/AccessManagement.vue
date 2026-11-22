@@ -60,6 +60,7 @@ type AccessPayload = {
 type EventRow = {
   id: number
   name: string
+  title_short?: string | null
   date: string
   level: string | null
   season_id?: number | null
@@ -77,9 +78,11 @@ type SeasonGroup = {
 const eventStore = useEventStore()
 const loading = ref(true)
 const error = ref('')
+const isAdmin = ref(false)
 const myPartners = ref<Partner[]>([])
 const eventsBySeason = ref<SeasonGroup[]>([])
 const events = ref<EventRow[]>([])
+const eventQuery = ref('')
 
 const shareEventId = ref<number | null>(null)
 const accessUsers = ref<AccessUser[]>([])
@@ -105,6 +108,30 @@ const shareEvent = computed(() =>
 
 const eventCount = computed(() => events.value.length)
 
+const visibleSeasonGroups = computed(() => {
+  const q = eventQuery.value.trim().toLowerCase()
+  if (!q) return eventsBySeason.value
+  return eventsBySeason.value
+      .map((group) => ({
+        ...group,
+        events: group.events.filter((ev) => {
+          const haystack = [
+            eventLabel(ev),
+            ev.name,
+            ev.regional_partner_name,
+            ev.level,
+            ev.date ? dayjs(ev.date).format('DD.MM.YYYY') : '',
+          ].filter(Boolean).join(' ').toLowerCase()
+          return haystack.includes(q)
+        }),
+      }))
+      .filter((group) => group.events.length > 0)
+})
+
+function eventLabel(ev: {title_short?: string | null; name: string}) {
+  return ev.title_short || ev.name
+}
+
 async function loadOverview() {
   loading.value = true
   error.value = ''
@@ -114,6 +141,7 @@ async function loadOverview() {
       params.event = eventStore.selectedEvent.id
     }
     const {data} = await axios.get('/user/access', {params})
+    isAdmin.value = !!data.is_admin
     myPartners.value = data.my_partners || []
     eventsBySeason.value = data.events_by_season || []
     events.value = data.events || []
@@ -257,12 +285,7 @@ onMounted(async () => {
 
 <template>
   <div class="space-y-6 max-w-4xl">
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight">Zugangsverwaltung</h1>
-      <p class="mt-1 text-sm text-[var(--color-text-muted)]">
-        Deine Regionalpartner, die Veranstaltungen dazu — und wen du pro Veranstaltung einladen kannst.
-      </p>
-    </div>
+    <h1 class="text-2xl font-bold tracking-tight">Zugangsverwaltung</h1>
 
     <NoticePane/>
 
@@ -281,11 +304,8 @@ onMounted(async () => {
           <h2 class="font-bold text-lg">Meine Regionalpartner</h2>
           <span class="text-xs text-[var(--color-text-muted)]">{{ myPartners.length }}</span>
         </div>
-        <p class="text-sm text-[var(--color-text-muted)]">
-          Dein Account ist diesen Regionalpartnern zugeordnet.
-        </p>
         <p v-if="!myPartners.length" class="text-sm text-[var(--color-text-muted)]">
-          Noch keine Zuordnung. Typischerweise kommt sie aus Draht (Kontaktperson).
+          Dir ist noch kein Regionalpartner zugeordnet.
         </p>
         <ul v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <li
@@ -312,21 +332,28 @@ onMounted(async () => {
       <!-- 2. My events -->
       <section class="glass-card liquid-surface-inner p-5 space-y-4">
         <div class="flex items-baseline justify-between gap-2">
-          <div>
-            <h2 class="font-bold text-lg">Meine Veranstaltungen</h2>
-            <p class="text-sm text-[var(--color-text-muted)]">
-              Darüber hast du Zugang — inkl. früherer Saisons.
-            </p>
-          </div>
+          <h2 class="font-bold text-lg">{{ isAdmin ? 'Veranstaltungen' : 'Meine Veranstaltungen' }}</h2>
           <span class="text-xs font-semibold text-[var(--color-text-muted)]">{{ eventCount }}</span>
         </div>
 
+        <input
+            v-if="isAdmin && events.length"
+            v-model="eventQuery"
+            type="search"
+            class="w-full rounded-lg border border-[var(--color-border)] bg-white px-3 py-2 text-sm"
+            placeholder="Suchen"
+            autocomplete="off"
+        />
+
         <p v-if="!eventsBySeason.length" class="text-sm text-[var(--color-text-muted)]">
-          Keine Veranstaltungen zu deinen Regionalpartnern.
+          Keine Veranstaltungen.
+        </p>
+        <p v-else-if="!visibleSeasonGroups.length" class="text-sm text-[var(--color-text-muted)]">
+          Nichts gefunden.
         </p>
 
         <div v-else class="space-y-5">
-          <div v-for="group in eventsBySeason" :key="group.season.id ?? group.season.name">
+          <div v-for="group in visibleSeasonGroups" :key="group.season.id ?? group.season.name">
             <h3 class="text-sm font-bold text-[var(--color-accent)] mb-2">
               {{ group.season.name || 'Saison' }}
               <span v-if="group.season.year" class="text-[var(--color-text-muted)] font-semibold">
@@ -340,7 +367,7 @@ onMounted(async () => {
                   class="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-[var(--color-border)] px-3 py-2 text-sm"
               >
                 <div class="min-w-0">
-                  <p class="font-semibold truncate">{{ ev.name }}</p>
+                  <p class="font-semibold truncate">{{ eventLabel(ev) }}</p>
                   <p class="text-xs text-[var(--color-text-muted)]">
                     {{ dayjs(ev.date).format('DD.MM.YYYY') }}
                     <span v-if="ev.level"> · {{ ev.level }}</span>
@@ -362,16 +389,11 @@ onMounted(async () => {
 
       <!-- 3. Share access for a specific event -->
       <section class="glass-card liquid-surface-inner p-5 space-y-4">
-        <div>
-          <h2 class="font-bold text-lg">Zugriff teilen</h2>
-          <p class="text-sm text-[var(--color-text-muted)]">
-            Wähle eine Veranstaltung und lade eine Person per E-Mail ein. Der Zugang gilt nur für diese Veranstaltung.
-          </p>
-        </div>
+        <h2 class="font-bold text-lg">Zugriff teilen</h2>
 
-        <div v-if="!events.length" class="text-sm text-[var(--color-text-muted)]">
-          Ohne eigene Veranstaltungen kannst du hier niemanden einladen.
-        </div>
+        <p v-if="!events.length" class="text-sm text-[var(--color-text-muted)]">
+          Keine Veranstaltung.
+        </p>
 
         <template v-else>
           <label class="block text-sm max-w-xl">
@@ -390,28 +412,16 @@ onMounted(async () => {
                     :key="ev.id"
                     :value="ev.id"
                 >
-                  {{ ev.name }} — {{ dayjs(ev.date).format('DD.MM.YYYY') }}
+                  {{ eventLabel(ev) }}<template v-if="isAdmin && ev.regional_partner_name"> — {{ ev.regional_partner_name }}</template> — {{ dayjs(ev.date).format('DD.MM.YYYY') }}
                 </option>
               </optgroup>
             </select>
           </label>
 
-          <p v-if="shareEvent" class="text-xs text-[var(--color-text-muted)]">
-            Eingeladene Personen können nur diese Veranstaltung öffnen. Der Zugang gilt nicht für andere Veranstaltungen des Regionalpartners.
-          </p>
-
           <div
               v-if="canManage"
-              class="rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg-muted)_40%,#fff)] p-3 space-y-2"
+              class="rounded-xl border border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-bg-muted)_40%,#fff)] p-3"
           >
-            <p class="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-subtle)]">
-              Person einladen
-            </p>
-            <p class="text-xs text-[var(--color-text-muted)]">
-              Die Person braucht ein Hands-on-Login mit bestätigter E-Mail-Adresse.
-              Die Einladung gilt 30 Tage und nur für die gewählte Veranstaltung.
-              Eine E-Mail geht an die eingeladene Adresse.
-            </p>
             <div class="flex flex-col sm:flex-row sm:items-center gap-2">
               <input
                   v-model="inviteEmail"
@@ -439,20 +449,14 @@ onMounted(async () => {
               </button>
             </div>
           </div>
-          <p v-else class="text-xs text-[var(--color-text-muted)]">
-            Einladen und Berechtigungen ändern können nur Kontaktpersonen aus Draht.
+          <p v-else class="text-sm text-[var(--color-text-muted)]">
+            Nur Kontaktpersonen aus Draht.
           </p>
 
           <div>
-            <h3 class="text-sm font-bold mb-2">
-              Wer hat Zugriff
-              <span v-if="shareEvent" class="font-medium text-[var(--color-text-muted)]">
-                · {{ shareEvent.name }}
-              </span>
-            </h3>
             <div v-if="usersLoading" class="text-sm text-[var(--color-text-muted)]">Lade…</div>
             <p v-else-if="!accessUsers.length && !invitations.length" class="text-sm text-[var(--color-text-muted)]">
-              Noch keine weiteren Accounts.
+              Keine Zugänge.
             </p>
             <ul v-else class="divide-y divide-[var(--color-border)]">
               <li
@@ -554,12 +558,9 @@ onMounted(async () => {
             </ul>
           </div>
 
-          <div v-if="canManage">
-            <h3 class="text-sm font-bold mb-2">Protokoll</h3>
-            <p v-if="!accessLog.length" class="text-sm text-[var(--color-text-muted)]">
-              Noch keine Einträge für diese Veranstaltung.
-            </p>
-            <ul v-else class="divide-y divide-[var(--color-border)]">
+          <div v-if="canManage && accessLog.length" class="space-y-2">
+            <h3 class="text-sm font-bold">Protokoll</h3>
+            <ul class="divide-y divide-[var(--color-border)]">
               <li v-for="entry in accessLog" :key="entry.id" class="py-2 text-sm">
                 <p>
                   <span class="font-semibold">{{ actionLabel(entry.action) }}</span>

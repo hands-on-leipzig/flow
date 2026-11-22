@@ -50,6 +50,31 @@ class UserAccessInvitationTest extends TestCase
         ]);
     }
 
+    public function test_admin_sees_and_invites_for_every_event(): void
+    {
+        $admin = $this->bearer('admin', 'admin@example.org', roles: ['flow_admin']);
+
+        $overview = $this->getJson('/api/user/access', $admin)
+            ->assertOk()
+            ->assertJsonPath('is_admin', true);
+        $this->assertEqualsCanonicalizing(
+            [10, 11],
+            collect($overview->json('events'))->pluck('id')->all(),
+        );
+
+        $this->postJson('/api/user/access/grants', [
+            'event_id' => 11,
+            'email' => 'new.person@example.org',
+            'can_flow' => true,
+            'can_scor' => false,
+        ], $admin)->assertCreated()->assertJsonPath('can_manage', true);
+
+        $helper = $this->getJson('/api/user/access', $this->bearer('helper', 'helper@example.org'))
+            ->assertOk()
+            ->assertJsonPath('is_admin', false);
+        $this->assertSame([10], collect($helper->json('events'))->pluck('id')->all());
+    }
+
     public function test_draht_contact_invites_by_email(): void
     {
         $this->postJson('/api/user/access/grants', [
@@ -256,7 +281,7 @@ class UserAccessInvitationTest extends TestCase
 
     private function createSchema(): void
     {
-        foreach (['access_log', 'event_user_access', 'event_invitation', 'user_regional_partner', 'event', 'regional_partner', 'user'] as $table) {
+        foreach (['access_log', 'event_user_access', 'event_invitation', 'event_program', 'user_regional_partner', 'event', 'm_first_program', 'm_level', 'm_season', 'regional_partner', 'user'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -278,10 +303,36 @@ class UserAccessInvitationTest extends TestCase
             $table->string('region')->nullable();
         });
 
+        Schema::create('m_season', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name')->nullable();
+            $table->unsignedInteger('year')->nullable();
+        });
+
+        Schema::create('m_level', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name')->nullable();
+        });
+
+        Schema::create('m_first_program', function (Blueprint $table) {
+            $table->unsignedInteger('id')->primary();
+            $table->string('name')->nullable();
+            $table->integer('sequence')->nullable();
+        });
+
         Schema::create('event', function (Blueprint $table) {
             $table->unsignedInteger('id')->primary();
             $table->string('name')->nullable();
+            $table->date('date')->nullable();
+            $table->unsignedInteger('season')->nullable();
+            $table->unsignedInteger('level')->nullable();
             $table->unsignedInteger('regional_partner');
+        });
+
+        Schema::create('event_program', function (Blueprint $table) {
+            $table->unsignedInteger('id')->autoIncrement();
+            $table->unsignedInteger('event');
+            $table->unsignedInteger('first_program');
         });
 
         Schema::create('user_regional_partner', function (Blueprint $table) {
