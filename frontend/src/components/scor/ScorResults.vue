@@ -9,6 +9,7 @@ const awardError = ref('')
 const mailNotice = ref('')
 const awardBusy = ref(false)
 const publishOpen = ref(false)
+const resetOpen = ref(false)
 const trophies = ref<{team: number, category: string}[]>([])
 const nominations = ref<{team: number, category: string}[]>([])
 const coaching = ref<number | ''>('')
@@ -308,6 +309,19 @@ async function closeEvent() {
   window.clearTimeout(awardSaveTimer)
   const {data} = await axios.post(`/scor/events/${props.results.event.id}/close`)
   emit('saved', {...props.results, lifecycle: data})
+}
+
+const awardsTouched = computed(() => {
+  const podiumOnly = resolvePodium([]).map((row) => `${row.team}:${row.category}`).sort().join(',')
+  return awardsKey() !== `${podiumOnly}||`
+})
+
+function confirmReset() {
+  resetOpen.value = false
+  if (!awardsEditable.value) return
+  nominations.value = []
+  coaching.value = ''
+  trophies.value = resolvePodium([])
 }
 
 async function confirmPublish() {
@@ -739,15 +753,25 @@ function formatPoints(value: number) {
       </div>
       <p v-if="awardError" class="text-lg text-red-700">{{ awardError }}</p>
       <template v-if="results.can_edit_awards && results.lifecycle">
-        <button
-            v-if="!results.lifecycle.closed"
-            type="button"
-            class="scor-finalize"
-            :disabled="!awardsComplete || awardBusy"
-            @click="closeEvent"
-        >
-          Auswertung festschreiben
-        </button>
+        <div v-if="!results.lifecycle.closed" class="scor-award-actions">
+          <button
+              type="button"
+              class="glass-btn-secondary scor-reset"
+              :disabled="!awardsEditable || !awardsTouched || awardBusy"
+              @click="resetOpen = true"
+          >
+            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"/>
+            Tabelle zurücksetzen
+          </button>
+          <button
+              type="button"
+              class="scor-finalize"
+              :disabled="!awardsComplete || awardBusy"
+              @click="closeEvent"
+          >
+            Auswertung festschreiben
+          </button>
+        </div>
         <p v-if="results.lifecycle.closed && !results.lifecycle.released" class="scor-results__note">
           Die Auswertung ist festgeschrieben. Änderungen sind nicht mehr möglich. Öffentlich sichtbar ist sie noch nicht.
         </p>
@@ -765,6 +789,16 @@ function formatPoints(value: number) {
         <button v-if="results.lifecycle.released" type="button" class="glass-btn-secondary" @click="sendMail">Jury-PDF an Coaches</button>
       </template>
       <p v-if="mailNotice" class="scor-results__note">{{ mailNotice }}</p>
+      <div v-if="resetOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-reset-title">
+        <div class="scor-publish__card">
+          <h2 id="scor-reset-title">Tabelle zurücksetzen</h2>
+          <p>Alle Sterne, Pokale und gewählten Plätze bei Gleichstand werden entfernt. Champion, Silber und Bronze ohne Gleichstand bleiben gesetzt.</p>
+          <div class="scor-publish__actions">
+            <button type="button" class="glass-btn-secondary" @click="resetOpen = false">Abbrechen</button>
+            <button type="button" class="glass-btn-accent" @click="confirmReset">Zurücksetzen</button>
+          </div>
+        </div>
+      </div>
       <div v-if="publishOpen" class="scor-publish" role="dialog" aria-modal="true" aria-labelledby="scor-publish-title">
         <div class="scor-publish__card">
           <h2 id="scor-publish-title">Ergebnisse veröffentlichen</h2>
@@ -1016,6 +1050,38 @@ html[data-theme='dark'] .scor-switch__lens-glass {
 }
 
 .scor-sort:disabled {
+  cursor: default;
+}
+
+.scor-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.scor-award-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.scor-award-actions .scor-finalize {
+  flex: 1 1 auto;
+  width: auto;
+}
+
+.scor-reset {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex: none;
+  min-height: 3.25rem;
+  font-weight: 700;
+}
+
+.scor-reset:disabled {
+  opacity: 0.45;
   cursor: default;
 }
 
