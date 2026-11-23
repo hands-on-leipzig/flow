@@ -443,7 +443,6 @@ onMounted(async () => {
 
     <!-- Public landing (all publication levels) -->
     <div v-else-if="event" class="pe-content">
-      <template>
       <header class="pe-hero glass-card liquid-surface-inner">
         <img
             :src="imageUrl('/flow/hot+fll.png')"
@@ -810,7 +809,6 @@ onMounted(async () => {
           </a>
         </div>
       </footer>
-      </template>
     </div>
   </div>
 </template>
